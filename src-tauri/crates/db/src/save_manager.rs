@@ -3514,6 +3514,30 @@ mod tests {
         assert_eq!(world_cup_calendars(&manager.load_game(&id).unwrap()), live);
     }
 
+    /// Given a saved career whose stored fixtures were corrupted on disk, when it is loaded, then the
+    /// load is refused and the career never comes back with an empty fixture list.
+    #[test]
+    fn a_save_with_corrupt_fixtures_refuses_to_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game_with_league();
+        game.competitions = vec![game.league.clone().unwrap()];
+        let id = manager.create_save(&game, "Corrupt").unwrap();
+        assert!(
+            !manager.load_game(&id).unwrap().competitions[0]
+                .fixtures
+                .is_empty()
+        );
+
+        let db =
+            GameDatabase::open_save(&dir.path().join("saves").join(format!("{id}.db"))).unwrap();
+        db.conn()
+            .execute("UPDATE competitions SET fixtures_json = '[{\"postponement\":{\"reason\":\"CupTie\"}}]'", [])
+            .unwrap();
+        drop(db);
+        assert!(manager.load_game(&id).is_err());
+    }
+
     /// Given a postponed fixture with non-default fields, when the career is saved and loaded, then
     /// the original date and reason come back on the path the UI reads (the legacy mirror), on the
     /// competitions, and in the `.db`'s stored fixtures.

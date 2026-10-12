@@ -4,9 +4,15 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   type BundleSummary,
   type DiagnosticsReport,
+  type SubmittedReport,
   collectDiagnostics,
+  crashNotice,
+  dismissCrashNotice,
   exportReportBundle,
+  listSubmittedReports,
+  reportUploadAvailable,
   suggestedReportFileName,
+  uploadReportBundle,
 } from "./reportService";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -95,5 +101,134 @@ describe("reportService", () => {
     await expect(exportReportBundle("/home/x/ofm-report.zip", "", false)).rejects.toBe(
       "be.error.report.bundleFailed",
     );
+  });
+
+  /**
+   * Given a player who reviewed the files, ticked consent and chose to send their save,
+   * when the upload is requested,
+   * then the command receives every choice under the name it expects, consent included.
+   */
+  it("passes the upload choices under the names the command expects", async () => {
+    // Same failure mode as the export: a misnamed `consent` arrives as `false` and the upload is
+    // refused; a misnamed `includeSave` silently sends no save the player chose.
+    mockedInvoke.mockResolvedValueOnce({ code: "7K2M9Q4R", recorded: true });
+
+    const fields = {
+      what_happened: "It froze",
+      expected: "Not to",
+      steps: "",
+      frequency: "once",
+      game_context: "",
+      locale: "en",
+    };
+
+    await expect(uploadReportBundle("It froze", fields, true, true)).resolves.toEqual({
+      code: "7K2M9Q4R",
+      recorded: true,
+    });
+
+    expect(mockedInvoke).toHaveBeenCalledWith("upload_report_bundle", {
+      request: {
+        reportText: "It froze",
+        fields,
+        includeSave: true,
+        consent: true,
+        screenshotPaths: [],
+        packagePaths: [],
+      },
+    });
+  });
+
+  /**
+   * Given a server that refuses the report,
+   * when the upload is requested,
+   * then the translation key reaches the caller, which offers the GitHub form.
+   */
+  it("lets a failed upload reach the caller", async () => {
+    const failure = {
+      kind: "rateLimited",
+      key: "be.error.report.upload.rateLimited",
+      retry_after_seconds: 120,
+    };
+    mockedInvoke.mockRejectedValueOnce(failure);
+
+    await expect(
+      uploadReportBundle(
+        "",
+        {
+          what_happened: "",
+          expected: "",
+          steps: "",
+          frequency: "once",
+          game_context: "",
+          locale: "en",
+        },
+        false,
+        true,
+      ),
+    ).rejects.toBe(failure);
+  });
+
+  /**
+   * Given a build with or without a server,
+   * when the modal asks whether it can upload,
+   * then the backend's answer is passed through.
+   */
+  it("asks the backend whether this build can upload", async () => {
+    mockedInvoke.mockResolvedValueOnce(false);
+
+    await expect(reportUploadAvailable()).resolves.toBe(false);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("report_upload_available");
+  });
+
+  /**
+   * Given reports this install has sent,
+   * when Settings lists them,
+   * then they come from the backend's reports.json, as given.
+   */
+  it("lists the reports this install has sent", async () => {
+    const reports: SubmittedReport[] = [
+      {
+        code: "7K2M9Q4R",
+        submitted_at: "2026-10-03T12:00:00+00:00",
+        included_save: false,
+        app_version: "0.3.0",
+        id: "e",
+        unconfirmed: false,
+      },
+    ];
+    mockedInvoke.mockResolvedValueOnce(reports);
+
+    await expect(listSubmittedReports()).resolves.toBe(reports);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("list_submitted_reports");
+  });
+
+  /**
+   * Given a crash held from the last session,
+   * when the main menu asks whether to offer a report,
+   * then the notice comes back as the backend gives it.
+   */
+  it("asks the backend for the crash to offer a report for", async () => {
+    const notice = { occurred_at: "2026-10-02T21:14:00+00:00", app_version: "0.3.0" };
+    mockedInvoke.mockResolvedValueOnce(notice);
+
+    await expect(crashNotice()).resolves.toBe(notice);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("crash_notice");
+  });
+
+  /**
+   * Given a player who answered the crash prompt,
+   * when the answer is recorded,
+   * then the backend is told, so it is not offered again this launch.
+   */
+  it("tells the backend the crash prompt was answered", async () => {
+    mockedInvoke.mockResolvedValueOnce(null);
+
+    await dismissCrashNotice();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("dismiss_crash_notice");
   });
 });

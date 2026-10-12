@@ -13,4 +13,5 @@ pub mod player_repo;
 pub mod scouting_repo;
 pub mod staff_repo;
 pub mod stats_repo;
+mod stored_fixtures;
 pub mod team_repo;

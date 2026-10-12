@@ -1,5 +1,5 @@
 use domain::league::{
-    CompetitionRules, CompetitionScope, CompetitionState, CompetitionType, Fixture, GroupState,
+    CompetitionRules, CompetitionScope, CompetitionState, CompetitionType, GroupState,
     KnockoutRoundState, StandingEntry,
 };
 use rusqlite::{Connection, params};
@@ -84,8 +84,8 @@ pub fn replace_competitions(
             .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
         conn.execute(
-            "INSERT INTO competitions (id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, groups_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority, berths_json, season_start_month, season_start_day, calendar_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21)",
+            "INSERT INTO competitions (id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, groups_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority, berths_json, season_start_month, season_start_day, calendar_json, name_key)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
             params![
                 competition.id,
                 competition.name,
@@ -108,6 +108,7 @@ pub fn replace_competitions(
                 competition.season_start_month as i64,
                 competition.season_start_day as i64,
                 calendar_json,
+                competition.name_key,
             ],
         )
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -118,7 +119,7 @@ pub fn replace_competitions(
 
 pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, String> {
     let mut stmt = match conn.prepare(
-        "SELECT id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, groups_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority, berths_json, season_start_month, season_start_day, calendar_json
+        "SELECT id, name, kind, scope, season, region_id, country_id, required_region_ids_json, participant_ids_json, rules_json, fixtures_json, standings_json, groups_json, knockout_rounds_json, transfer_log_json, transfer_rumours_json, priority, berths_json, season_start_month, season_start_day, calendar_json, name_key
          FROM competitions
          ORDER BY priority ASC, season DESC, name ASC",
     ) {
@@ -167,7 +168,7 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                     .unwrap_or_default(),
                 participant_ids: serde_json::from_str(&participant_ids_json).unwrap_or_default(),
                 rules: serde_json::from_str::<CompetitionRules>(&rules_json).unwrap_or_default(),
-                fixtures: serde_json::from_str::<Vec<Fixture>>(&fixtures_json).unwrap_or_default(),
+                fixtures: super::stored_fixtures::parse_fixtures(10, &fixtures_json)?,
                 standings: serde_json::from_str::<Vec<StandingEntry>>(&standings_json)
                     .unwrap_or_default(),
                 groups: serde_json::from_str::<Vec<GroupState>>(&groups_json).unwrap_or_default(),
@@ -181,22 +182,7 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                 berths: serde_json::from_str(&berths_json).unwrap_or_default(),
                 season_start_month: row.get::<_, i64>(18).unwrap_or(8) as u8,
                 season_start_day: row.get::<_, i64>(19).unwrap_or(1) as u8,
-                // name_key is not stored in the DB; re-derive it from type so
-                // WC competitions display their translated name after a load.
-                name_key: {
-                    let id: String = row.get(0)?;
-                    if id.starts_with("world-cup-qualifying-") {
-                        Some("tournaments.competitions.worldCupQualifying".to_string())
-                    } else if id.starts_with("world-cup-playoff-") {
-                        Some("tournaments.competitions.worldCupPlayoff".to_string())
-                    } else if parse_competition_type(&row.get::<_, String>(2)?)
-                        == CompetitionType::InternationalNation
-                    {
-                        Some("tournaments.competitions.worldCup".to_string())
-                    } else {
-                        None
-                    }
-                },
+                name_key: row.get(21)?,
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -221,6 +207,172 @@ mod tests {
     use super::*;
     use crate::game_database::GameDatabase;
     use domain::league::League;
+
+    /// Given a competition whose stored fixtures are corrupt, when competitions are loaded, then the
+    /// load fails with the translated error and never returns the competition with no fixtures.
+    #[test]
+    fn corrupt_stored_fixtures_fail_the_load_instead_of_emptying_the_competition() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let league = League::new(
+            "league-1".into(),
+            "League".into(),
+            2033,
+            &["a".into(), "b".into()],
+        );
+        replace_competitions(db.conn(), &[league]).unwrap();
+        for corrupt in ["{not json", r#"[{"postponement":{"reason":"CupTie"}}]"#] {
+            db.conn()
+                .execute("UPDATE competitions SET fixtures_json = ?1", [corrupt])
+                .unwrap();
+            assert_eq!(
+                load_competitions(db.conn()).unwrap_err(),
+                "be.error.gamePersistence.loadFailed",
+                "{corrupt}"
+            );
+        }
+    }
+
+    fn competition_named(id: &str, name_key: Option<&str>) -> League {
+        let mut competition = League::new(
+            id.into(),
+            "Authored name".into(),
+            2033,
+            &["a".into(), "b".into()],
+        );
+        competition.name_key = name_key.map(str::to_owned);
+        competition
+    }
+
+    fn stored_name_key(db: &GameDatabase, id: &str) -> Option<String> {
+        db.conn()
+            .query_row(
+                "SELECT name_key FROM competitions WHERE id = ?1",
+                [id],
+                |row| row.get(0),
+            )
+            .expect("the competitions table must have a name_key column")
+    }
+
+    /// Given generated league and cup name keys, when the competitions are saved, then the .db
+    /// holds each key and a reload returns it.
+    #[test]
+    fn generated_league_and_cup_keep_their_name_keys() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let league = competition_named("league-1", Some("tournaments.competitions.league"));
+        let cup = competition_named("cup-1", Some("tournaments.competitions.nationalCup"));
+        replace_competitions(db.conn(), &[league, cup]).unwrap();
+
+        assert_eq!(
+            stored_name_key(&db, "league-1").as_deref(),
+            Some("tournaments.competitions.league")
+        );
+        assert_eq!(
+            stored_name_key(&db, "cup-1").as_deref(),
+            Some("tournaments.competitions.nationalCup")
+        );
+        let loaded = load_competitions(db.conn()).unwrap();
+        let key_of = |id: &str| {
+            loaded
+                .iter()
+                .find(|c| c.id == id)
+                .and_then(|c| c.name_key.clone())
+        };
+        assert_eq!(
+            key_of("league-1").as_deref(),
+            Some("tournaments.competitions.league")
+        );
+        assert_eq!(
+            key_of("cup-1").as_deref(),
+            Some("tournaments.competitions.nationalCup")
+        );
+    }
+
+    /// Given a package competition with only a name, when saved and loaded, then it stays without a key.
+    #[test]
+    fn a_package_competition_without_a_name_key_stays_without_one() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        replace_competitions(db.conn(), &[competition_named("pkg-league", None)]).unwrap();
+        assert_eq!(stored_name_key(&db, "pkg-league"), None);
+        assert_eq!(load_competitions(db.conn()).unwrap()[0].name_key, None);
+    }
+
+    /// Given World Cup competitions with their live keys, when saved and loaded, then each keeps its key.
+    #[test]
+    fn world_cup_competitions_keep_the_key_they_had_live() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut finals = competition_named("finals-1", Some("tournaments.competitions.worldCup"));
+        finals.kind = CompetitionType::InternationalNation;
+        replace_competitions(
+            db.conn(),
+            &[
+                competition_named(
+                    "world-cup-qualifying-2026",
+                    Some("tournaments.competitions.worldCupQualifying"),
+                ),
+                competition_named(
+                    "world-cup-playoff-2026",
+                    Some("tournaments.competitions.worldCupPlayoff"),
+                ),
+                finals,
+            ],
+        )
+        .unwrap();
+        let mut loaded: Vec<_> = load_competitions(db.conn())
+            .unwrap()
+            .into_iter()
+            .map(|c| (c.id, c.name_key))
+            .collect();
+        loaded.sort();
+        assert_eq!(
+            loaded,
+            vec![
+                (
+                    "finals-1".to_string(),
+                    Some("tournaments.competitions.worldCup".to_string())
+                ),
+                (
+                    "world-cup-playoff-2026".to_string(),
+                    Some("tournaments.competitions.worldCupPlayoff".to_string())
+                ),
+                (
+                    "world-cup-qualifying-2026".to_string(),
+                    Some("tournaments.competitions.worldCupQualifying".to_string())
+                ),
+            ]
+        );
+    }
+
+    /// Given a World Cup-shaped row stored with a key the old id derivation would not produce,
+    /// when loaded, then the stored key is returned unchanged.
+    #[test]
+    fn a_stored_key_is_never_replaced_by_a_derived_one() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        replace_competitions(
+            db.conn(),
+            &[competition_named(
+                "world-cup-qualifying-2026",
+                Some("custom.package.qualifying"),
+            )],
+        )
+        .unwrap();
+        let loaded = load_competitions(db.conn()).unwrap();
+        assert_eq!(
+            loaded[0].name_key.as_deref(),
+            Some("custom.package.qualifying")
+        );
+    }
+
+    /// Given a package competition of kind InternationalNation authored with only a name,
+    /// when saved and loaded, then it stays without a key instead of becoming "World Cup".
+    #[test]
+    fn a_package_international_competition_stays_without_a_name_key() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut authored = competition_named("pkg-nations-cup", None);
+        authored.kind = CompetitionType::InternationalNation;
+        replace_competitions(db.conn(), &[authored]).unwrap();
+        assert_eq!(stored_name_key(&db, "pkg-nations-cup"), None);
+        assert_eq!(load_competitions(db.conn()).unwrap()[0].name_key, None);
+    }
 
     /// Pins the stored name of every competition type.
     /// The case list also generates an exhaustive match for new variants.

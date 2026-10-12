@@ -52,9 +52,18 @@ fn teardown_leaves_nothing_behind() {
     let port = app.port();
     assert!(!app.port_is_free(), "the app should be listening on {port}");
 
+    let scratch = app.data_dir().unwrap().to_path_buf();
+
     let left_behind = app.shutdown();
 
     assert!(left_behind.is_clean(), "{left_behind:?}");
+    // WebKit's helpers can recreate directories under the scratch path after the app exits, so
+    // give a straggler time to show itself.
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    assert!(
+        !scratch.exists(),
+        "the scratch directory came back: {scratch:?}"
+    );
     let counter_after = std::fs::metadata(&real_counter)
         .and_then(|m| m.modified())
         .ok();
@@ -222,4 +231,26 @@ fn my_formation(game: &serde_json::Value) -> Option<String> {
         .and_then(|teams| teams.iter().find(|team| team["id"] == *club))
         .and_then(|team| team["formation"].as_str())
         .map(str::to_string)
+}
+
+/// Given a binary built from sources other than the ones under test
+/// When the fixture launches it
+/// Then it refuses, naming both revisions and the rebuild command.
+#[test]
+#[ignore = "needs a built MCP binary and a display; run via --ignored by the nightly"]
+fn a_stale_binary_is_refused_with_the_rebuild_command() {
+    let config = AppConfig {
+        expected_revision: Some("0123456789ab".to_string()),
+        ..AppConfig::default()
+    };
+
+    match App::launch(&config) {
+        Err(mcp_e2e::LaunchError::StaleBinary {
+            expected_revision, ..
+        }) => {
+            assert_eq!(expected_revision, "0123456789ab");
+        }
+        Err(other) => panic!("expected a stale-binary refusal, got {other}"),
+        Ok(_) => panic!("launched a binary that was not built from the sources under test"),
+    }
 }

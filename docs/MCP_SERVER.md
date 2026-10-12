@@ -103,6 +103,8 @@ Every tool returns its outcome twice, built from one value: readable markdown in
 
 Assert on the structure or the key, not on the text: wording can change.
 
+The `initialize` result's `serverInfo.version` is the package version plus the sources the binary was built from as semver build metadata (`0.3.0+<revision>`), so a test run can tell a stale binary from a current one (see `crates/mcp-e2e`).
+
 ### Information (15 tools)
 
 | Tool | Description |

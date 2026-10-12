@@ -12,6 +12,7 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
 
 mod berths;
+mod season_calendar;
 use berths::{
     apply_domestic_berth_promotion_relegation, apply_pyramid_promotion_relegation,
     resolve_domestic_berth_fields,
@@ -82,13 +83,12 @@ pub fn is_league_complete(league: &League) -> bool {
             .all(|fixture| fixture.status == FixtureStatus::Completed)
 }
 
-/// A competition is complete when all of its fixtures have been played.
-/// Guard for whether a competition should be regenerated at rollover. League
+/// Whether the rollover regenerates this competition. League
 /// tables that are mid-season (started but not finished) return false so their
 /// fixtures are not wiped during a hemisphere-foreign rollover. Cups and
 /// group-knockout competitions are always regenerated — freshly-seeded cups
 /// have no fixtures yet and must receive new participants each season.
-fn is_competition_complete(competition: &League) -> bool {
+pub fn is_regenerated_at_rollover(competition: &League) -> bool {
     match competition.rules.format {
         CompetitionFormat::LeagueTable => is_league_season_ended(competition),
         _ => true,
@@ -368,9 +368,9 @@ fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
 /// each competition's identity), and keep the legacy `league` slot in sync.
 ///
 /// `rollover_anchor` is the global trigger point (current date + 28 days). Each
-/// competition derives its own next-season start date from its stored
-/// `season_start_month`/`season_start_day` fields so that northern and southern
-/// hemisphere leagues renew on their respective calendars.
+/// competition advances its own edition and keeps its configured opener when
+/// it is still ahead. An overdue opener is postponed to this anchor rather than
+/// skipping the edition or generating unplayable past fixtures.
 fn regenerate_competitions_for_new_season(
     game: &mut Game,
     _next_season: u32,
@@ -472,7 +472,7 @@ fn regenerate_competitions_for_new_season(
     for competition in game.competitions.iter_mut() {
         if let Some(entrants) = continental_entrants.get(&competition.id)
             && entrants.len() >= 2
-            && (competition.fixtures.is_empty() || is_competition_complete(competition))
+            && (competition.fixtures.is_empty() || is_regenerated_at_rollover(competition))
         {
             competition.participant_ids = entrants.clone();
         }
@@ -485,7 +485,7 @@ fn regenerate_competitions_for_new_season(
         if crate::world_cup::is_world_cup_competition(competition) {
             continue;
         }
-        if !is_competition_complete(competition) {
+        if !is_regenerated_at_rollover(competition) {
             // TODO(hemisphere-stall): Mid-season foreign leagues are correctly
             // skipped here to prevent their fixtures from being wiped. However,
             // they will also miss regeneration when *they* finish, because
@@ -495,18 +495,10 @@ fn regenerate_competitions_for_new_season(
             continue;
         }
 
-        // Each competition starts its next season on its own calendar date so
-        // northern and southern hemisphere leagues renew independently.
-        let comp_next_start = crate::generator::next_season_start(
-            rollover_anchor,
-            competition.season_start_month,
-            competition.season_start_day,
-        );
-        // Never behind the season just played. The next season is normally the
-        // calendar year of the competition's own next start date, but a save
-        // whose clock and competition seasons disagree could otherwise regress
-        // a competition stamped 2030 back to 2026 and replay years of history.
-        let comp_next_season = (comp_next_start.year() as u32).max(competition.season + 1);
+        let season_calendar::NextEdition {
+            season: comp_next_season,
+            start: comp_next_start,
+        } = season_calendar::next_edition(competition, &game.clock, rollover_anchor);
 
         match competition.rules.format {
             CompetitionFormat::LeagueTable => {

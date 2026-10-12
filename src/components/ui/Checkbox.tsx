@@ -6,6 +6,8 @@ interface CheckboxProps {
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   "aria-label"?: string;
+  /** Ties visible explanatory text to the input, for when the label alone does not say enough. */
+  "aria-describedby"?: string;
   "data-testid"?: string;
   className?: string;
   id?: string;
@@ -23,6 +25,7 @@ export function Checkbox({
   onChange,
   disabled,
   "aria-label": ariaLabel,
+  "aria-describedby": ariaDescribedBy,
   "data-testid": dataTestId,
   className = "",
   id,
@@ -37,6 +40,7 @@ export function Checkbox({
         onChange={onChange}
         disabled={disabled}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
         data-testid={dataTestId}
         id={id}
         className="peer sr-only"

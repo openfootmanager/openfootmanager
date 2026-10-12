@@ -1,0 +1,390 @@
+//! The reference codes this install has been given, in `reports.json` in the app data directory.
+//!
+//! Its own file on purpose. `AppSettings` drops unknown fields when it deserialises, so a code
+//! stored there would vanish the first time an older build rewrote the settings; and the log
+//! rotates, so a code written only there is gone within a few sessions. The player may need the
+//! code months later to ask the maintainer to delete what they sent.
+//!
+//! No status is tracked. The server has no lookup endpoint by design — the code is an identifier
+//! for a conversation with the maintainer, not a credential — so there is nothing to poll.
+
+use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
+
+/// Every field carries `#[serde(default)]`: a file written by a later build with fields this one
+/// does not know must still load, and a missing field must not cost the player the list.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SubmittedReport {
+    #[serde(default)]
+    pub code: String,
+    /// RFC 3339, UTC.
+    #[serde(default)]
+    pub submitted_at: String,
+    /// Whether the player chose to send their save with it — the one part they may want removed.
+    #[serde(default)]
+    pub included_save: bool,
+    #[serde(default)]
+    pub app_version: String,
+    /// Distinguishes entries that share a code and a time (or have none): the list's React key.
+    /// Empty on entries written before it existed.
+    #[serde(default)]
+    pub id: String,
+    /// The prepared build this entry was sent from; empty when not known. An accepted report
+    /// replaces an unknown entry only if it came from the same build.
+    #[serde(default)]
+    pub build_id: String,
+    /// The upload's outcome is unknown: the server may hold a report whose reference never
+    /// reached us. `code` is empty for such an entry.
+    #[serde(default)]
+    pub unconfirmed: bool,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct ReportsFile {
+    #[serde(default)]
+    reports: Vec<SubmittedReport>,
+}
+
+pub fn reports_file_in(app_data_dir: &Path) -> PathBuf {
+    app_data_dir.join("reports.json")
+}
+
+pub fn load(path: &Path) -> Vec<SubmittedReport> {
+    match read(path) {
+        Ok(file) => {
+            let mut reports = file.reports;
+            // Stored oldest first, which is the order they were appended in.
+            reports.reverse();
+            reports
+        }
+        Err(Unreadable::Missing) => Vec::new(),
+        Err(Unreadable::Io(error)) => {
+            log::warn!("[report] could not read {}: {error}", path.display());
+            Vec::new()
+        }
+        Err(Unreadable::Corrupt(error)) => {
+            log::warn!("[report] {} is unreadable: {error}", path.display());
+            Vec::new()
+        }
+    }
+}
+
+/// A fresh entry id: random, because a code and a time can both repeat or be missing.
+pub fn new_id() -> String {
+    use rand::RngExt as _;
+    format!("{:016x}", rand::rng().random::<u64>())
+}
+
+fn is_attempt_at_same_build(earlier: &SubmittedReport, later: &SubmittedReport) -> bool {
+    earlier.unconfirmed && !earlier.build_id.is_empty() && earlier.build_id == later.build_id
+}
+
+/// A report the server accepted. A trailing unknown entry from the same build is the earlier
+/// attempt at this very report, so the accepted entry replaces it. An unknown entry from another
+/// build may be the only local trace of a different report, so it is kept.
+pub fn record_accepted(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
+    update(path, |file| match file.reports.last_mut() {
+        Some(last) if is_attempt_at_same_build(last, report) => *last = report.clone(),
+        _ => file.reports.push(report.clone()),
+    })
+}
+
+/// Repeated unknown attempts at the same build are one entry: the newest replaces the one before.
+pub fn record_unconfirmed(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
+    update(path, |file| match file.reports.last_mut() {
+        Some(last) if is_attempt_at_same_build(last, report) => *last = report.clone(),
+        _ => file.reports.push(report.clone()),
+    })
+}
+
+/// A file that will not parse is renamed aside rather than overwritten. The new code must be kept
+/// — the server already has that report — but the old codes inside a damaged file are still the
+/// player's, and recoverable by hand from the copy.
+fn update(path: &Path, change: impl FnOnce(&mut ReportsFile)) -> std::io::Result<()> {
+    let mut file = match read(path) {
+        Ok(file) => file,
+        Err(Unreadable::Missing) => ReportsFile::default(),
+        // Not a damaged file but one this process cannot read right now. Writing a fresh list
+        // over it would be the one way to lose codes that are still intact.
+        Err(Unreadable::Io(error)) => return Err(error),
+        Err(Unreadable::Corrupt(error)) => {
+            let aside = set_aside_name(path);
+            log::warn!(
+                "[report] {} is unreadable ({error}); moving it to {}",
+                path.display(),
+                aside.display()
+            );
+            std::fs::rename(path, &aside)?;
+            ReportsFile::default()
+        }
+    };
+    change(&mut file);
+    // Atomically: a write cut short must not leave a truncated list where the codes used to be.
+    crate::atomic_file::write_json(path, &file)
+}
+
+enum Unreadable {
+    Missing,
+    Io(std::io::Error),
+    Corrupt(String),
+}
+
+fn read(path: &Path) -> Result<ReportsFile, Unreadable> {
+    let raw = match std::fs::read_to_string(path) {
+        Ok(raw) => raw,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Err(Unreadable::Missing);
+        }
+        Err(error) => return Err(Unreadable::Io(error)),
+    };
+    serde_json::from_str(&raw).map_err(|error| Unreadable::Corrupt(error.to_string()))
+}
+
+fn set_aside_name(path: &Path) -> PathBuf {
+    let mut name = path.file_name().unwrap_or_default().to_owned();
+    name.push(format!(
+        ".corrupt-{}",
+        chrono::Utc::now().format("%Y%m%dT%H%M%S%.3fZ")
+    ));
+    path.with_file_name(name)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn report(code: &str, submitted_at: &str) -> SubmittedReport {
+        SubmittedReport {
+            code: code.to_owned(),
+            submitted_at: submitted_at.to_owned(),
+            included_save: false,
+            app_version: "0.3.0".to_owned(),
+            id: String::new(),
+            build_id: String::new(),
+            unconfirmed: false,
+        }
+    }
+
+    fn unknown(submitted_at: &str) -> SubmittedReport {
+        unknown_from("build-a", submitted_at)
+    }
+
+    fn unknown_from(build_id: &str, submitted_at: &str) -> SubmittedReport {
+        SubmittedReport {
+            unconfirmed: true,
+            build_id: build_id.to_owned(),
+            ..report("", submitted_at)
+        }
+    }
+
+    fn accepted_from(build_id: &str, code: &str, submitted_at: &str) -> SubmittedReport {
+        SubmittedReport {
+            build_id: build_id.to_owned(),
+            ..report(code, submitted_at)
+        }
+    }
+
+    /// Given an install that has never sent a report,
+    /// when its reports are listed,
+    /// then the list is empty and no file is created.
+    #[test]
+    fn an_install_that_never_reported_lists_nothing() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = reports_file_in(dir.path());
+
+        assert!(load(&path).is_empty());
+        assert!(!path.exists());
+    }
+
+    /// Given two reports recorded one after the other,
+    /// when the reports are listed,
+    /// then both are there, newest first.
+    #[test]
+    fn recorded_reports_are_listed_newest_first() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = reports_file_in(dir.path());
+
+        record_accepted(&path, &report("AAAAAAAA", "2026-10-01T10:00:00+00:00")).expect("first");
+        record_accepted(&path, &report("BBBBBBBB", "2026-10-02T10:00:00+00:00")).expect("second");
+
+        let codes: Vec<String> = load(&path).into_iter().map(|r| r.code).collect();
+        assert_eq!(codes, vec!["BBBBBBBB", "AAAAAAAA"]);
+    }
+
+    /// Given a file written by another build, with a field this one does not know and one it
+    /// expects missing,
+    /// when the reports are listed,
+    /// then the entry still loads, with the missing field defaulted.
+    #[test]
+    fn a_file_from_another_build_still_loads() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = reports_file_in(dir.path());
+        std::fs::write(
+            &path,
+            r#"{"reports":[{"code":"7K2M9Q4R","submitted_at":"2026-10-01T10:00:00+00:00","future_field":1}]}"#,
+        )
+        .expect("write");
+
+        let listed = load(&path);
+
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].code, "7K2M9Q4R");
+        assert!(!listed[0].included_save);
+        assert_eq!(listed[0].app_version, "");
+    }
+
+    /// Given a reports file that does not parse,
+    /// when a new report is recorded,
+    /// then the new code is kept, and the unreadable file is set aside rather than overwritten,
+    /// so the codes inside it can still be recovered by hand.
+    #[test]
+    fn a_corrupt_file_is_set_aside_and_does_not_block_a_new_code() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = reports_file_in(dir.path());
+        std::fs::write(&path, "{ half a file").expect("write");
+
+        record_accepted(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
+
+        let codes: Vec<String> = load(&path).into_iter().map(|r| r.code).collect();
+        assert_eq!(codes, vec!["7K2M9Q4R"]);
+        let set_aside: Vec<String> = std::fs::read_dir(dir.path())
+            .expect("dir")
+            .flatten()
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.starts_with("reports.json.corrupt"))
+            .collect();
+        assert_eq!(set_aside.len(), 1, "{set_aside:?}");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(&set_aside[0])).expect("read"),
+            "{ half a file"
+        );
+    }
+
+    /// Given an app data directory that does not exist yet,
+    /// when the first report is recorded,
+    /// then the directory is created and no scratch file is left behind.
+    #[test]
+    fn the_first_record_creates_the_file_and_leaves_no_scratch() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = reports_file_in(&dir.path().join("fresh"));
+
+        record_accepted(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
+
+        assert_eq!(load(&path).len(), 1);
+        let names: Vec<String> = std::fs::read_dir(path.parent().expect("parent"))
+            .expect("dir")
+            .flatten()
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, vec!["reports.json"]);
+    }
+
+    /// Given two unknown-outcome attempts in a row,
+    /// when each is recorded,
+    /// then the list holds one unconfirmed entry, with the newer time.
+    #[test]
+    fn repeated_unknown_attempts_are_one_entry() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+
+        record_unconfirmed(&path, &unknown("2026-10-12T10:00:00+00:00")).expect("first");
+        record_unconfirmed(&path, &unknown("2026-10-12T10:05:00+00:00")).expect("second");
+
+        let listed = load(&path);
+        assert_eq!(listed.len(), 1);
+        assert!(listed[0].unconfirmed);
+        assert_eq!(listed[0].submitted_at, "2026-10-12T10:05:00+00:00");
+    }
+
+    /// Given an accepted report followed by unknown attempts,
+    /// when they are recorded,
+    /// then the accepted report stays untouched and the unknown attempts collapse into one entry
+    /// after it.
+    #[test]
+    fn an_unknown_attempt_never_overwrites_an_accepted_report() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+
+        record_accepted(&path, &report("OFM-7K2QX9DM", "2026-10-12T10:10:00+00:00"))
+            .expect("accepted");
+        record_unconfirmed(&path, &unknown("2026-10-12T10:20:00+00:00")).expect("later");
+        record_unconfirmed(&path, &unknown("2026-10-12T10:25:00+00:00")).expect("again");
+
+        let listed = load(&path);
+        assert_eq!(listed.len(), 2);
+        assert!(listed[0].unconfirmed);
+        assert_eq!(listed[1].code, "OFM-7K2QX9DM");
+        assert!(!listed[1].unconfirmed);
+    }
+
+    /// Given an unknown attempt from build A,
+    /// when an accepted report from the same build is recorded after it,
+    /// then the accepted entry replaces it: it was the same report, resent.
+    #[test]
+    fn an_accepted_report_replaces_a_trailing_unknown_entry() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+        record_unconfirmed(&path, &unknown("2026-10-12T10:00:00+00:00")).expect("unknown");
+
+        record_accepted(
+            &path,
+            &accepted_from("build-a", "OFM-7K2QX9DM", "2026-10-12T10:05:00+00:00"),
+        )
+        .expect("accepted");
+
+        let listed = load(&path);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
+    }
+
+    /// Given a file written before the `unconfirmed` field existed,
+    /// when it is loaded,
+    /// then its entries are ordinary accepted reports.
+    #[test]
+    fn older_entries_are_not_unconfirmed() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+        std::fs::write(&path, r#"{"reports":[{"code":"OFM-7K2QX9DM"}]}"#).expect("write");
+
+        assert!(!load(&path)[0].unconfirmed);
+    }
+
+    /// Given an unknown attempt from build A,
+    /// when an accepted report from a different build B is recorded,
+    /// then both stay: A's entry may be the only local trace of a report the server holds.
+    #[test]
+    fn an_accepted_report_from_another_build_does_not_erase_an_unknown_one() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+        record_unconfirmed(&path, &unknown_from("build-a", "2026-10-12T10:00:00+00:00"))
+            .expect("a");
+
+        record_accepted(
+            &path,
+            &accepted_from("build-b", "OFM-7K2QX9DM", "2026-10-12T10:30:00+00:00"),
+        )
+        .expect("b accepted");
+
+        let listed = load(&path);
+        assert_eq!(listed.len(), 2);
+        assert!(listed[1].unconfirmed);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
+    }
+
+    /// Given an unknown attempt from build A and one from build B,
+    /// when they are recorded in a row,
+    /// then they are two entries: only attempts at the same build collapse.
+    #[test]
+    fn unknown_attempts_at_different_builds_are_separate_entries() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+
+        record_unconfirmed(&path, &unknown_from("build-a", "2026-10-12T10:00:00+00:00"))
+            .expect("a");
+        record_unconfirmed(&path, &unknown_from("build-b", "2026-10-12T10:30:00+00:00"))
+            .expect("b");
+
+        assert_eq!(load(&path).len(), 2);
+    }
+}

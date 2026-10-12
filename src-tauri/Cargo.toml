@@ -16,7 +16,7 @@ name = "openfootmanager_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [workspace]
-members = ["crates/ofm_core", "crates/db", "crates/domain", "crates/engine", "crates/sim-bench", "crates/ofm-cli", "crates/mcp-results", "crates/mcp-e2e"]
+members = ["crates/ofm_core", "crates/db", "crates/domain", "crates/engine", "crates/sim-bench", "crates/ofm-cli", "crates/mcp-results", "crates/mcp-e2e", "crates/season-harness"]
 
 # Lint levels live here so a plain `cargo clippy` applies the levels CI enforces, instead of only
 # doing so when someone remembers to append `-- -D warnings`. Every member opts in with
@@ -86,6 +86,11 @@ csv = "1"
 # will hand to someone else — so it uses the same writer.
 zip = { version = "2", features = ["deflate"] }
 tempfile = "3"
+# The bug-report upload (#569). Blocking, because the upload already runs on `spawn_blocking` beside
+# the bundle export, and an async client would mean a runtime this crate does not otherwise need
+# outside the `mcp` feature. `rustls` (ring + bundled webpki roots) rather than native TLS, so the
+# three platforms trust the same roots and no system OpenSSL is linked.
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # WebKitGTK exposes child-process termination; reuse the version Tauri already links.
