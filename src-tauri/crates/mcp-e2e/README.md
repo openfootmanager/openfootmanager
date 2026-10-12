@@ -13,7 +13,9 @@ results read back as the structs in `mcp-results`.
   `WAYLAND_SOCKET` from the app's environment and sets `GDK_BACKEND=x11`, so the app can only use
   the X display in `DISPLAY`. Under `xvfb-run` that is the virtual one. **Without it, `DISPLAY` is
   your own session's (XWayland, for example, at `:0`), and the window opens on your desktop.** The
-  fixture fails loudly when `DISPLAY` is not set, and never skips.
+  fixture refuses to start unless the display is evidently virtual (`XAUTHORITY` made by
+  `xvfb-run`, or `OFM_E2E_ALLOW_DISPLAY=1` to vouch for your own Xvfb or Xephyr; an XWayland
+  display is always refused), and never skips.
 
 ## Running
 

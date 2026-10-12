@@ -545,16 +545,21 @@ fn revision() -> String {
 mod tests {
     use std::ffi::OsStr;
 
-    use super::{app_command, display_available};
+    use super::{app_command, check_virtual_display};
 
-    /// Given neither DISPLAY nor WAYLAND_DISPLAY (or only empty ones)
-    /// When the fixture checks for a display
-    /// Then there is none, and launch fails with that named instead of timing out.
+    /// Given an XWayland display, an unidentified display, an xvfb-run display, and one vouched for
+    /// When the fixture checks whether the display is virtual
+    /// Then only the last two are accepted, and XWayland is refused even when vouched for.
     #[test]
-    fn a_missing_display_is_detected_before_launch() {
-        assert!(!display_available(None));
-        assert!(!display_available(Some(OsStr::new(""))));
-        assert!(display_available(Some(OsStr::new(":0"))));
+    fn only_a_display_with_positive_evidence_is_virtual() {
+        let xvfb_run = OsStr::new("/tmp/xvfb-run.G45Hm6/Xauthority.QUuJPO");
+        let desktop = OsStr::new("/run/user/1000/xauth_lmbFze");
+
+        assert!(check_virtual_display(Some(xvfb_run), false, false).is_ok());
+        assert!(check_virtual_display(Some(desktop), false, false).is_err());
+        assert!(check_virtual_display(None, false, false).is_err());
+        assert!(check_virtual_display(Some(desktop), true, false).is_ok());
+        assert!(check_virtual_display(Some(xvfb_run), true, true).is_err());
     }
 
     /// Given a developer session that exports a Wayland display
