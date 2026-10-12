@@ -66,13 +66,6 @@ pub fn load(path: &Path) -> Vec<SubmittedReport> {
     }
 }
 
-/// A file that will not parse is renamed aside rather than overwritten. The new code must be kept
-/// — the server already has that report — but the old codes inside a damaged file are still the
-/// player's, and recoverable by hand from the copy.
-pub fn record(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
-    update(path, |file| file.reports.push(report.clone()))
-}
-
 /// A fresh entry id: random, because a code and a time can both repeat or be missing.
 pub fn new_id() -> String {
     use rand::RngExt as _;
@@ -96,6 +89,9 @@ pub fn record_unconfirmed(path: &Path, report: &SubmittedReport) -> std::io::Res
     })
 }
 
+/// A file that will not parse is renamed aside rather than overwritten. The new code must be kept
+/// — the server already has that report — but the old codes inside a damaged file are still the
+/// player's, and recoverable by hand from the copy.
 fn update(path: &Path, change: impl FnOnce(&mut ReportsFile)) -> std::io::Result<()> {
     let mut file = match read(path) {
         Ok(file) => file,
@@ -187,8 +183,8 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         let path = reports_file_in(dir.path());
 
-        record(&path, &report("AAAAAAAA", "2026-10-01T10:00:00+00:00")).expect("first");
-        record(&path, &report("BBBBBBBB", "2026-10-02T10:00:00+00:00")).expect("second");
+        record_accepted(&path, &report("AAAAAAAA", "2026-10-01T10:00:00+00:00")).expect("first");
+        record_accepted(&path, &report("BBBBBBBB", "2026-10-02T10:00:00+00:00")).expect("second");
 
         let codes: Vec<String> = load(&path).into_iter().map(|r| r.code).collect();
         assert_eq!(codes, vec!["BBBBBBBB", "AAAAAAAA"]);
@@ -226,7 +222,7 @@ mod tests {
         let path = reports_file_in(dir.path());
         std::fs::write(&path, "{ half a file").expect("write");
 
-        record(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
+        record_accepted(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
 
         let codes: Vec<String> = load(&path).into_iter().map(|r| r.code).collect();
         assert_eq!(codes, vec!["7K2M9Q4R"]);
@@ -251,7 +247,7 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         let path = reports_file_in(&dir.path().join("fresh"));
 
-        record(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
+        record_accepted(&path, &report("7K2M9Q4R", "2026-10-03T10:00:00+00:00")).expect("record");
 
         assert_eq!(load(&path).len(), 1);
         let names: Vec<String> = std::fs::read_dir(path.parent().expect("parent"))
@@ -279,21 +275,42 @@ mod tests {
         assert_eq!(listed[0].submitted_at, "2026-10-12T10:05:00+00:00");
     }
 
-    /// Given an unknown attempt followed by an accepted report and then another unknown attempt,
+    /// Given an accepted report followed by unknown attempts,
     /// when they are recorded,
-    /// then all three stay: an accepted report between them is not overwritten.
+    /// then the accepted report stays untouched and the unknown attempts collapse into one entry
+    /// after it.
     #[test]
     fn an_unknown_attempt_never_overwrites_an_accepted_report() {
         let dir = tempfile::tempdir().expect("dir");
         let path = reports_file_in(dir.path());
 
-        record_unconfirmed(&path, &unknown("2026-10-12T10:00:00+00:00")).expect("first");
-        record(&path, &report("OFM-7K2QX9DM", "2026-10-12T10:10:00+00:00")).expect("accepted");
+        record_accepted(&path, &report("OFM-7K2QX9DM", "2026-10-12T10:10:00+00:00"))
+            .expect("accepted");
         record_unconfirmed(&path, &unknown("2026-10-12T10:20:00+00:00")).expect("later");
+        record_unconfirmed(&path, &unknown("2026-10-12T10:25:00+00:00")).expect("again");
 
         let listed = load(&path);
-        assert_eq!(listed.len(), 3);
+        assert_eq!(listed.len(), 2);
+        assert!(listed[0].unconfirmed);
         assert_eq!(listed[1].code, "OFM-7K2QX9DM");
+        assert!(!listed[1].unconfirmed);
+    }
+
+    /// Given an unknown attempt,
+    /// when an accepted report is recorded after it,
+    /// then the accepted entry replaces it: it was the same report, resent.
+    #[test]
+    fn an_accepted_report_replaces_a_trailing_unknown_entry() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+        record_unconfirmed(&path, &unknown("2026-10-12T10:00:00+00:00")).expect("unknown");
+
+        record_accepted(&path, &report("OFM-7K2QX9DM", "2026-10-12T10:05:00+00:00"))
+            .expect("accepted");
+
+        let listed = load(&path);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
     }
 
     /// Given a file written before the `unconfirmed` field existed,
