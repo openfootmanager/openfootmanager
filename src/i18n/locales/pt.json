@@ -4224,5 +4224,11 @@
     "notRecorded": "Não foi possível adicionar este código à tua lista de relatórios. Por favor, aponta-o.",
     "copyCodeFor": "Copiar o código {{code}}",
     "codeCopied": "Copiado"
+  },
+  "crashPrompt": {
+    "title": "O jogo fechou inesperadamente",
+    "body": "A tua última sessão terminou com uma falha. Reportá-la ajuda-nos a corrigi-la — vais ver tudo o que seria enviado antes de algo sair do teu computador.",
+    "report": "Reportar",
+    "notNow": "Agora não"
   }
 }

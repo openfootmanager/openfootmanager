@@ -3,13 +3,7 @@ import { type RefObject, useEffect } from "react";
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/**
- * Keyboard behaviour every modal dialog here owes its player: Escape asks to close, Tab stays
- * inside, and focus goes back where it was when the dialog goes away.
- *
- * Shared by the report dialog and the crash prompt that opens it, so the two cannot drift into
- * different ideas of what a dialog does with the keyboard.
- */
+/** Escape asks to close, Tab stays inside, focus returns where it was. Shared so the report dialog and crash prompt cannot drift apart. */
 export function useDialogKeyboard(
   dialogRef: RefObject<HTMLElement | null>,
   onEscape: () => void,

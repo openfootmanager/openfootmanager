@@ -624,6 +624,19 @@ pub fn list_submitted_reports(app_handle: tauri::AppHandle) -> Vec<SubmittedRepo
         .unwrap_or_default()
 }
 
+#[tauri::command]
+pub fn crash_notice(
+    previous_crash: State<'_, crash::PreviousCrash>,
+    dismissed: State<'_, crash::CrashPromptDismissed>,
+) -> Option<crash::CrashNotice> {
+    crash::pending_notice(&previous_crash, &dismissed)
+}
+
+#[tauri::command]
+pub fn dismiss_crash_notice(dismissed: State<'_, crash::CrashPromptDismissed>) {
+    dismissed.dismiss();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

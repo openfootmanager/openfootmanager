@@ -6,6 +6,8 @@ import {
   type DiagnosticsReport,
   type SubmittedReport,
   collectDiagnostics,
+  crashNotice,
+  dismissCrashNotice,
   exportReportBundle,
   listSubmittedReports,
   reportUploadAvailable,
@@ -201,5 +203,32 @@ describe("reportService", () => {
     await expect(listSubmittedReports()).resolves.toBe(reports);
 
     expect(mockedInvoke).toHaveBeenCalledWith("list_submitted_reports");
+  });
+
+  /**
+   * Given a crash held from the last session,
+   * when the main menu asks whether to offer a report,
+   * then the notice comes back as the backend gives it.
+   */
+  it("asks the backend for the crash to offer a report for", async () => {
+    const notice = { occurred_at: "2026-10-02T21:14:00+00:00", app_version: "0.3.0" };
+    mockedInvoke.mockResolvedValueOnce(notice);
+
+    await expect(crashNotice()).resolves.toBe(notice);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("crash_notice");
+  });
+
+  /**
+   * Given a player who answered the crash prompt,
+   * when the answer is recorded,
+   * then the backend is told, so it is not offered again this launch.
+   */
+  it("tells the backend the crash prompt was answered", async () => {
+    mockedInvoke.mockResolvedValueOnce(null);
+
+    await dismissCrashNotice();
+
+    expect(mockedInvoke).toHaveBeenCalledWith("dismiss_crash_notice");
   });
 });

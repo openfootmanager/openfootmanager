@@ -149,6 +149,20 @@ export function listSubmittedReports(): Promise<SubmittedReport[]> {
   return invoke<SubmittedReport[]>("list_submitted_reports");
 }
 
+/** That the last session crashed, and when — no message or trace, which carry paths. */
+export interface CrashNotice {
+  occurred_at: string;
+  app_version: string;
+}
+
+export function crashNotice(): Promise<CrashNotice | null> {
+  return invoke<CrashNotice | null>("crash_notice");
+}
+
+export function dismissCrashNotice(): Promise<void> {
+  return invoke<void>("dismiss_crash_notice");
+}
+
 /** The dialog is gone: the backend removes the held build, which may contain the player's save. */
 export function discardPreparedReport(): Promise<void> {
   return invoke<void>("discard_prepared_report");

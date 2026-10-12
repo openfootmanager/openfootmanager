@@ -4224,5 +4224,11 @@
     "notRecorded": "Bu kod rapor listene eklenemedi. Lütfen bir yere not et.",
     "copyCodeFor": "{{code}} kodunu kopyala",
     "codeCopied": "Kopyalandı"
+  },
+  "crashPrompt": {
+    "title": "Oyun beklenmedik şekilde kapandı",
+    "body": "Son oturumun bir çökmeyle sona erdi. Bunu bildirmen düzeltmemize yardım eder — bilgisayarından herhangi bir şey çıkmadan önce gönderilecek her şeyi göreceksin.",
+    "report": "Bildir",
+    "notNow": "Şimdi değil"
   }
 }

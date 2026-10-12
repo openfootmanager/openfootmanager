@@ -4224,5 +4224,11 @@
     "notRecorded": "Kode ini tidak bisa ditambahkan ke daftar laporanmu. Tolong catat kode ini.",
     "copyCodeFor": "Salin kode {{code}}",
     "codeCopied": "Disalin"
+  },
+  "crashPrompt": {
+    "title": "Game tertutup secara tiba-tiba",
+    "body": "Sesi terakhirmu berakhir dengan crash. Melaporkannya membantu kami memperbaikinya — kamu akan melihat semua yang akan dikirim sebelum apa pun keluar dari komputermu.",
+    "report": "Laporkan",
+    "notNow": "Nanti saja"
   }
 }

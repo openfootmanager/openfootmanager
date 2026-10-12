@@ -78,6 +78,7 @@ pub fn run() {
             app.manage(crash::PreviousCrash(crash::take_previous_crash(
                 &app_data_dir,
             )));
+            app.manage(crash::CrashPromptDismissed::default());
 
             if let Ok(cache_dir) = app.path().app_cache_dir() {
                 report::prepared::sweep_stale_uploads(&cache_dir);
@@ -341,7 +342,9 @@ pub fn run() {
             commands::report::suggested_report_file_name,
             commands::report::report_upload_available,
             commands::report::upload_report_bundle,
-            commands::report::list_submitted_reports
+            commands::report::list_submitted_reports,
+            commands::report::crash_notice,
+            commands::report::dismiss_crash_notice
         ])
         .run(tauri::generate_context!());
 

@@ -4224,5 +4224,11 @@
     "notRecorded": "Non è stato possibile aggiungere questo codice al tuo elenco di segnalazioni. Annotalo, per favore.",
     "copyCodeFor": "Copia il codice {{code}}",
     "codeCopied": "Copiato"
+  },
+  "crashPrompt": {
+    "title": "Il gioco si è chiuso inaspettatamente",
+    "body": "La tua ultima sessione è terminata con un arresto anomalo. Segnalarlo ci aiuta a risolverlo: vedrai tutto ciò che verrebbe inviato prima che qualcosa lasci il tuo computer.",
+    "report": "Segnala",
+    "notNow": "Non ora"
   }
 }
