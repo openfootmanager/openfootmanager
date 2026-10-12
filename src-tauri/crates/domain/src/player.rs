@@ -493,7 +493,7 @@ fn default_loan_offer_date() -> String {
     String::new()
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct PlayerSeasonStats {
     pub appearances: u32,
