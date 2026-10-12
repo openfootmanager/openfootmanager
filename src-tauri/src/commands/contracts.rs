@@ -892,6 +892,7 @@ mod tests {
 
         let response =
             terminate_contract_now_internal(&state, "player-1").expect("termination response");
+        assert_eq!(response.severance_cost, preview.preview.severance_cost);
         assert_eq!(response.severance_cost, 132_000);
         assert!(response.squad_safety.can_field_matchday_squad);
         let player = response
