@@ -2053,7 +2053,7 @@
     "postMatchTeamTalk": "Sesi Tim Pascapertandingan",
     "addressPlayers": "Sapa para pemain setelah pertandingan.",
     "matchOver": "Pertandingan Selesai",
-    "performance": "Performa {{team}}",
+    "ratings": "Rating {{team}}",
     "motm": "Pemain Terbaik",
     "roundSummary": "Ringkasan Pekan",
     "roundSummaryUnavailable": "Ringkasan pekan tidak tersedia.",
@@ -2529,7 +2529,7 @@
       }
     },
     "matchReport": "Laporan Pertandingan",
-    "playerPerformance": "Performa Pemain",
+    "playerRatings": "Rating Pemain",
     "tacticsTab": "Taktik",
     "goalSources": "Sumber Gol",
     "openPlay": "Permainan Terbuka",

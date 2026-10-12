@@ -425,19 +425,33 @@ describe("PostMatchScreen", (): void => {
 
     expect(screen.getAllByText("match.postMatchTeamTalk").length).toBeGreaterThan(0);
     expect(screen.getByText("match.matchReport")).toBeInTheDocument();
-    expect(screen.getByText("match.playerPerformance")).toBeInTheDocument();
+    expect(screen.getByText("match.playerRatings")).toBeInTheDocument();
   });
 
   /**
-   * Given the post-match panel, whose numbers the UI derives from match events
-   * When it renders
-   * Then it is titled as a performance score, not as a rating the backend stored
+   * Given a finished match whose snapshot carries the engine's ratings, one player unrated
+   * When the ratings panel renders
+   * Then it shows the engine's marks, titles them ratings, and shows a dash for the unrated player
    */
-  it("titles the derived player scores as performance, not ratings", (): void => {
+  it("shows the engine's ratings and a dash where the engine gave none", (): void => {
+    const snapshot = {
+      ...makeSnapshot(),
+      player_ratings: { p1: 7.4 },
+      events: [
+        {
+          minute: 30,
+          event_type: "Goal",
+          side: "Away" as const,
+          zone: "x",
+          player_id: "p2",
+          secondary_player_id: null,
+        },
+      ],
+    };
     render(
       <ThemeProvider>
         <PostMatchScreen
-          snapshot={makeSnapshot()}
+          snapshot={snapshot}
           gameState={makeGameState()}
           userSide="Home"
           isSpectator={false}
@@ -448,8 +462,13 @@ describe("PostMatchScreen", (): void => {
       </ThemeProvider>,
     );
 
-    expect(screen.getAllByText(/^match\.performance:/).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/^match\.ratings/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^match\.ratings:/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^match\.performance/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("7.4").length).toBeGreaterThan(0);
+    const bobRow = screen
+      .getAllByText("Bob")
+      .find((node) => node.previousElementSibling?.textContent === "–");
+    expect(bobRow).toBeDefined();
   });
 
   it("switches to Match Report tab and shows scorers section", (): void => {

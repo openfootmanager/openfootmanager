@@ -2053,7 +2053,7 @@
     "postMatchTeamTalk": "Pozápasový proslov",
     "addressPlayers": "Promluvte k hráčům po skončení zápasu.",
     "matchOver": "Zápas skončil",
-    "performance": "Výkony týmu {{team}}",
+    "ratings": "Hodnocení týmu {{team}}",
     "motm": "Hráč zápasu",
     "roundSummary": "Shrnutí kola",
     "roundSummaryUnavailable": "Shrnutí kola není k dispozici.",
@@ -2529,7 +2529,7 @@
       }
     },
     "matchReport": "Zpráva ze zápasu",
-    "playerPerformance": "Výkony hráčů",
+    "playerRatings": "Hodnocení hráčů",
     "tacticsTab": "Taktika",
     "goalSources": "Zdroje gólů",
     "openPlay": "Ze hry",
