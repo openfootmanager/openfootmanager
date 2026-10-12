@@ -1,10 +1,9 @@
 //! The bug-report commands: describe this machine, pack the evidence, and — only when the player
 //! agrees on the preview — send it.
 //!
-//! The export (slice 3 of #569) ends at a file on disk that the player chooses the location of.
-//! The upload (slice 4) builds the same bundle privately and posts it to OFMHub's bug-report endpoint
-//! (`docs/api/bug-reports.md`). The GitHub form is the path that needs no server at all, and stays
-//! the fallback whenever the upload is declined, unavailable, or fails.
+//! The export ends at a file the player chooses the location of; the upload builds the same bundle
+//! privately and posts it to OFMHub (`docs/api/bug-reports.md`). The GitHub form needs no server,
+//! and stays the fallback whenever the upload is declined, unavailable, or fails.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -298,7 +297,6 @@ fn snapshot_diagnostics(
     (redactor, diagnostics)
 }
 
-/// What the player chose to put in a bundle.
 struct BundleChoices<'a> {
     crash_json: Option<String>,
     report_text: &'a str,
@@ -366,11 +364,8 @@ fn hub_endpoint() -> Option<HubEndpoint> {
     )
 }
 
-/// Whether the server takes reports right now, so the preview does not offer what cannot work.
-///
-/// Reads the server's config when the dialog opens, as the contract asks: it carries the kill
-/// switch, which is flipped without a release. Offline, disabled or unusable all mean "no" — the
-/// GitHub form is the path for those.
+/// Read when the dialog opens, as the contract asks: the config carries the kill switch, which is
+/// flipped without a release. Offline, disabled and unusable all mean "no".
 #[tauri::command]
 pub async fn report_upload_available() -> bool {
     let Some(endpoint) = hub_endpoint() else {
@@ -383,20 +378,15 @@ pub async fn report_upload_available() -> bool {
     .unwrap_or(false)
 }
 
-/// What the player is shown once the server has accepted a report.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct UploadReceipt {
-    /// `OFM-` and eight Crockford characters; named `code` in `reports.json` and the UI.
+    /// The `OFM-…` reference; called `code` in `reports.json` and the UI.
     pub code: String,
-    /// Whether the code also made it into `reports.json`.
-    ///
-    /// The upload succeeded either way — the server has the report — but a player who is not told
-    /// has no reason to note the code down, and then has nothing to quote when they ask for their
-    /// report to be removed.
+    /// The upload succeeded either way, but a player who is not told the list write failed has no
+    /// reason to note the code down, and then has nothing to quote to ask for deletion.
     pub recorded: bool,
 }
 
-/// Consent first, then somewhere to send to — and nothing is built until both hold.
 fn upload_preconditions(
     consent: bool,
     endpoint: Option<HubEndpoint>,
@@ -419,7 +409,6 @@ fn as_upload_error(key: String) -> UploadFailure {
     }
 }
 
-/// What the player typed on the report screen, as the separate fields the endpoint stores.
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 pub struct ReportFields {
     pub what_happened: String,
@@ -431,22 +420,20 @@ pub struct ReportFields {
     pub locale: String,
 }
 
-/// Longest each text field may be, in characters, as the endpoint's contract states.
+/// The endpoint's field limits, in characters (bytes for `diagnostics`).
 const TEXT_FIELD_MAX_CHARS: usize = 10_000;
 const FREQUENCY_MAX_CHARS: usize = 32;
 const LOCALE_MAX_CHARS: usize = 16;
 const OS_MAX_CHARS: usize = 32;
 const ARCH_MAX_CHARS: usize = 16;
 const WEBVIEW_MAX_CHARS: usize = 64;
-/// The `diagnostics` object may be this big once re-encoded as JSON.
 const DIAGNOSTICS_MAX_BYTES: usize = 64 * 1024;
 
 fn clipped(redactor: &Redactor, text: &str, max_chars: usize) -> String {
     redactor.apply(text).chars().take(max_chars).collect()
 }
 
-/// The `report` part: the player's words, redacted like everything else that leaves the machine,
-/// and this machine's identity, each field within the length the endpoint accepts.
+/// Redacted like everything else that leaves the machine.
 fn report_json(
     redactor: &Redactor,
     fields: &ReportFields,
@@ -509,16 +496,10 @@ fn send_and_record(
     Ok(UploadReceipt { code, recorded })
 }
 
-/// Build the report bundle privately and send it to OFMHub, with the player's consent.
-///
 /// `consent` is the tick on the preview screen, passed through rather than assumed: this is the
-/// last place that can refuse to send on the player's behalf. `include_save` is likewise the
-/// player's own choice and is never dropped to make a bundle fit — a bundle too large for the
-/// server is an error the player answers. The save travels inside the bundle, never as its own
-/// part. Screenshots and `.ofm` packages are separate parts, chosen by the player.
-///
-/// The bundle lives in a private scratch directory only for the length of the request. On any
-/// failure the player is offered the GitHub form, which exports a bundle where they choose.
+/// last place that can refuse to send on the player's behalf. `include_save` is never dropped to
+/// make a bundle fit; a bundle too large for the server is an error the player answers. The save
+/// travels inside the bundle, never as its own part.
 #[tauri::command]
 #[expect(
     clippy::too_many_arguments,
@@ -594,7 +575,6 @@ pub async fn upload_report_bundle(
             reports_path.as_deref(),
             chrono::Utc::now().to_rfc3339(),
         )
-        // `scratch` drops here, and the bundle with it.
     })
     .await
     .map_err(|error| {
@@ -603,7 +583,6 @@ pub async fn upload_report_bundle(
     })?
 }
 
-/// The reports this install has sent, newest first, for the list in Settings → Help.
 #[tauri::command]
 pub fn list_submitted_reports(app_handle: tauri::AppHandle) -> Vec<SubmittedReport> {
     app_handle
@@ -631,8 +610,6 @@ mod tests {
 
     const CONFIG_JSON: &str = r#"{"enabled":true,"max_total_bytes":26214400,"max_bundle_bytes":20971520,"max_screenshot_bytes":5242880,"max_package_bytes":20971520,"max_files":6,"accepted_types":{"bundle":["zip"],"screenshots":["png"],"packages":["ofm"]}}"#;
 
-    /// Answers the config read with an enabled server and the post with one canned result, and
-    /// counts the posts.
     struct CannedHub {
         post: Result<hub::HubResponse, hub::TransportFailure>,
         posts: std::cell::Cell<usize>,

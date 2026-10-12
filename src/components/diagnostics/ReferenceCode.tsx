@@ -10,13 +10,7 @@ interface ReferenceCodeProps {
   size?: "md" | "lg";
 }
 
-/**
- * A bug report's reference code, with a way to copy it that does not need a mouse.
- *
- * The code exists to be quoted to the maintainer. `select-all` makes one click take the whole of
- * it, but a `<code>` cannot take focus, so without the button a keyboard or screen-reader user
- * had no way to copy the one thing the screen asks them to keep.
- */
+/** A `<code>` cannot take focus, so the button is the only way a keyboard or screen-reader user can copy it. */
 export function ReferenceCode({ code, size = "md" }: ReferenceCodeProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);

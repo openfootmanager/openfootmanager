@@ -55,12 +55,10 @@ const UPLOAD_RATE_LIMITED = "be.error.report.upload.rateLimited";
 /**
  * Report a bug without leaving the game.
  *
- * Describe, then preview, and the preview is the point: the player sees every file and field that
- * is about to leave their machine, with sizes, before anything is written or sent. When this build
- * has a server, the preview is also the consent screen — Send uploads only after an explicit tick,
- * and the code that comes back is shown. Saving the bundle and opening the prefilled GitHub form
- * needs no server, so it stays: the only path without a server, the choice for a player who
- * declines, and the fallback whenever an upload fails.
+ * Describe, then preview: the player sees every file and field that is about to leave their machine,
+ * with sizes, before anything is written or sent. The preview is also the consent screen. The
+ * prefilled GitHub form needs no server, so it stays as the path for a player who declines and the
+ * fallback whenever an upload fails.
  */
 
 export function ReportBugModal({ onClose }: ReportBugModalProps) {

@@ -60,15 +60,13 @@ export function exportReportBundle(
   });
 }
 
-/** The report accepted by OFMHub. */
 export interface UploadReceipt {
   /** `OFM-` and eight Crockford Base32 characters: an identifier to quote, not a password. */
   code: string;
-  /** Whether the code also reached the "Your reports" list; if not, the player should note it. */
+  /** When false the code is not in the "Your reports" list, so the player should note it. */
   recorded: boolean;
 }
 
-/** What the player typed, as the separate fields OFMHub stores. */
 export interface ReportFields {
   what_happened: string;
   expected: string;
@@ -79,13 +77,11 @@ export interface ReportFields {
   locale: string;
 }
 
-/** Why an upload did not complete: a translation key, and the wait when the server asked for one. */
 export interface UploadFailure {
   key: string;
   retry_after_seconds: number | null;
 }
 
-/** One report this install has sent, from `reports.json`. */
 export interface SubmittedReport {
   code: string;
   /** RFC 3339, UTC. */
@@ -99,12 +95,7 @@ export function reportUploadAvailable(): Promise<boolean> {
   return invoke<boolean>("report_upload_available");
 }
 
-/**
- * Build the bundle privately and send it to OFMHub.
- *
- * `consent` is the player's tick on the preview, passed through rather than assumed — the backend
- * refuses without it. Rejects with an `UploadFailure` (see `toUploadFailure`).
- */
+/** `consent` is the player's tick, passed through rather than assumed: the backend refuses without it. Rejects with an `UploadFailure`. */
 export function uploadReportBundle(
   reportText: string,
   fields: ReportFields,
@@ -121,7 +112,6 @@ export function uploadReportBundle(
   });
 }
 
-/** The reports this install has sent, newest first. */
 export function listSubmittedReports(): Promise<SubmittedReport[]> {
   return invoke<SubmittedReport[]>("list_submitted_reports");
 }
