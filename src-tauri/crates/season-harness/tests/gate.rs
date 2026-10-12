@@ -251,8 +251,9 @@ fn the_same_seed_plays_the_same_seasons() {
     let play = || {
         let mut game = WorldSpec::gate(1).build().expect("the world builds");
         let mut invariants = Invariants::new(&game);
-        // The invariants are not under test here: only that the two runs agree.
-        let _ = run_seasons(&mut game, RunOptions::seasons(1), &mut invariants);
+        // The invariants are not under test here, only that the two runs agree; but a run that
+        // stopped early would agree with itself without having played the season.
+        run_seasons(&mut game, RunOptions::seasons(1), &mut invariants).expect("the season plays");
         fingerprint(&game)
     };
 

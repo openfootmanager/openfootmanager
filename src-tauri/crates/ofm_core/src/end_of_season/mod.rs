@@ -83,13 +83,12 @@ pub fn is_league_complete(league: &League) -> bool {
             .all(|fixture| fixture.status == FixtureStatus::Completed)
 }
 
-/// A competition is complete when all of its fixtures have been played.
-/// Guard for whether a competition should be regenerated at rollover. League
+/// Whether the rollover regenerates this competition. League
 /// tables that are mid-season (started but not finished) return false so their
 /// fixtures are not wiped during a hemisphere-foreign rollover. Cups and
 /// group-knockout competitions are always regenerated — freshly-seeded cups
 /// have no fixtures yet and must receive new participants each season.
-pub fn is_competition_complete(competition: &League) -> bool {
+pub fn is_regenerated_at_rollover(competition: &League) -> bool {
     match competition.rules.format {
         CompetitionFormat::LeagueTable => is_league_season_ended(competition),
         _ => true,
@@ -473,7 +472,7 @@ fn regenerate_competitions_for_new_season(
     for competition in game.competitions.iter_mut() {
         if let Some(entrants) = continental_entrants.get(&competition.id)
             && entrants.len() >= 2
-            && (competition.fixtures.is_empty() || is_competition_complete(competition))
+            && (competition.fixtures.is_empty() || is_regenerated_at_rollover(competition))
         {
             competition.participant_ids = entrants.clone();
         }
@@ -486,7 +485,7 @@ fn regenerate_competitions_for_new_season(
         if crate::world_cup::is_world_cup_competition(competition) {
             continue;
         }
-        if !is_competition_complete(competition) {
+        if !is_regenerated_at_rollover(competition) {
             // TODO(hemisphere-stall): Mid-season foreign leagues are correctly
             // skipped here to prevent their fixtures from being wiped. However,
             // they will also miss regeneration when *they* finish, because

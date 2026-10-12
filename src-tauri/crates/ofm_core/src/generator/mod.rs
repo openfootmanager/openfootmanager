@@ -1492,7 +1492,6 @@ fn generate_world_with_rng(
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     mod identity;
     use crate::clock::GameClock;
@@ -1511,31 +1510,36 @@ mod tests {
     use rand::SeedableRng;
     use rand::rngs::StdRng;
 
-    /// Given a config that names the year the world opens in,
-    /// When a world is generated from a seed,
-    /// Then its contracts run from that year's summer, not from the wall clock's —
-    ///      so a world built for a clock in 2033 is not one whose every contract
-    ///      expired six years ago.
+    /// Given one seed and two configs that name different opening years,
+    /// When a world is generated from each,
+    /// Then every contract end moves by exactly the years between them —
+    ///      so the named year, not the wall clock, dates the world, and a world
+    ///      built for a clock in 2033 is not one whose contracts all expired.
     #[test]
     fn a_world_generated_for_a_named_year_is_dated_for_that_year() {
         let sources = definitions::DefinitionSources::embedded_only();
-        let mut config = clubs::WorldGenConfig::compact();
-        config.opening_year = Some(2033);
+        let contract_ends = |year: u32| {
+            let mut config = clubs::WorldGenConfig::compact();
+            config.opening_year = Some(year);
+            let (_, players, _) =
+                generate_world_with_rng(rand::rngs::StdRng::seed_from_u64(1), &config, &sources);
+            players
+                .iter()
+                .filter_map(|player| player.contract_end().map(str::to_owned))
+                .collect::<Vec<_>>()
+        };
 
-        let (_, players, _) =
-            generate_world_with_rng(rand::rngs::StdRng::seed_from_u64(1), &config, &sources);
+        let in_2033 = contract_ends(2033);
+        let in_2040 = contract_ends(2040);
 
-        let contracts: Vec<&str> = players
+        assert!(!in_2033.is_empty());
+        let shifted: Vec<String> = in_2033
             .iter()
-            .filter_map(|player| player.contract_end())
+            .map(|end| format!("{}{}", end[..4].parse::<u32>().unwrap() + 7, &end[4..]))
             .collect();
-        assert!(!contracts.is_empty());
-        assert!(
-            contracts.iter().all(|end| *end >= "2033-07-01"),
-            "no contract may already have ended on the opening day: {:?}",
-            contracts.iter().min()
-        );
+        assert_eq!(shifted, in_2040);
     }
+
     // -- authored squad backfill trimming (#349) ----------------------------
 
     fn test_team_def() -> TeamDef {

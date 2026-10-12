@@ -22,7 +22,7 @@ use chrono::NaiveDate;
 
 use domain::league::{CompetitionFormat, FixtureCompetition, FixtureStatus};
 use domain::player::PlayerSeasonStats;
-use ofm_core::end_of_season::{EndOfSeasonSummary, has_full_schedule, is_competition_complete};
+use ofm_core::end_of_season::{EndOfSeasonSummary, has_full_schedule, is_regenerated_at_rollover};
 use ofm_core::game::Game;
 use ofm_core::nations::is_split_season_country;
 use ofm_core::world::ladder::{division_sizes, domestic_tables_by_country, ladder_violations};
@@ -241,7 +241,7 @@ impl Before {
                     competition.id.clone(),
                     CompetitionBefore {
                         season: competition.season,
-                        complete: is_competition_complete(competition),
+                        complete: is_regenerated_at_rollover(competition),
                         world_cup: is_world_cup_competition(competition)
                             || is_world_cup_qualifying(competition),
                     },
@@ -257,7 +257,7 @@ impl Before {
             if is_split_season_country(country) || tables.len() < 2 {
                 continue;
             }
-            if tables.iter().all(|table| is_competition_complete(table)) {
+            if tables.iter().all(|table| is_regenerated_at_rollover(table)) {
                 finished_countries.insert(country.to_string());
             }
             for table in tables {
@@ -327,10 +327,10 @@ fn referential_integrity(game: &Game) -> Vec<String> {
 ///
 /// Guards against wraparound and overflow, not against a club being poor.
 fn finances_in_range(game: &Game) -> Vec<String> {
-    let limit = i64::MAX / 2;
+    let limit = i64::MAX.unsigned_abs() / 2;
     game.teams
         .iter()
-        .filter(|team| team.finance.abs() >= limit)
+        .filter(|team| team.finance.unsigned_abs() >= limit)
         .map(|team| format!("team {} finance out of range: {}", team.id, team.finance))
         .collect()
 }
@@ -731,6 +731,13 @@ mod tests {
     }
 
     #[test]
+    fn a_finance_at_the_bottom_of_the_range_is_noticed_not_a_panic() {
+        let mut game = world();
+        game.teams[0].finance = i64::MIN;
+        assert!(mentions(&finances_in_range(&game), "out of range"));
+    }
+
+    #[test]
     fn a_finance_that_has_wrapped_is_noticed() {
         let mut game = world();
         game.teams[0].finance = i64::MAX;
@@ -963,7 +970,7 @@ mod tests {
         let table = competition(&mut game, "eng-d1");
         table.fixtures[0].status = FixtureStatus::Completed;
         assert!(
-            !is_competition_complete(table),
+            !is_regenerated_at_rollover(table),
             "one played, the rest still to come"
         );
         let was = before(&game);

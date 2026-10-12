@@ -78,6 +78,7 @@ below is a `path` dependency in that crate's own `Cargo.toml`, and
 
   ofm-cli                 standalone CLI binary     → ofm_core
   sim-bench               balance benchmark harness → engine
+  season-harness          multi-season invariant gate → domain, ofm_core
 ```
 
 Two things about this graph are worth stating plainly, because both have been documented backwards
