@@ -25,16 +25,14 @@ fn headless_requested() -> bool {
     false
 }
 
-pub fn show_unless_headless(app: &App) {
-    let headless = headless_requested();
-    if !should_show(headless) {
+pub fn show_unless_headless(app: &App) -> tauri::Result<()> {
+    if !should_show(headless_requested()) {
         log::info!("[window] --no-gui: the main window stays hidden");
-        return;
+        return Ok(());
     }
-    if let Some(window) = app.get_webview_window("main") {
-        if let Err(error) = window.show() {
-            log::error!("[window] could not show the main window: {error}");
-        }
+    match app.get_webview_window("main") {
+        Some(window) => window.show(),
+        None => Ok(()),
     }
 }
 

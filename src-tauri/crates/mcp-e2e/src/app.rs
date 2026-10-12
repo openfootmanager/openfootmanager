@@ -402,18 +402,22 @@ pub fn gui_launch_maps_a_window(timeout: Duration) -> Result<bool, LaunchError> 
         .stderr(Stdio::null())
         .spawn()
         .map_err(|e| LaunchError::Io(format!("could not start {}: {e}", binary.display())))?;
-    let started = Instant::now();
-    let mut mapped = false;
-    while started.elapsed() < timeout && !mapped {
-        std::thread::sleep(Duration::from_millis(500));
-        mapped = crate::windows::mapped_windows()
-            .map_err(LaunchError::Io)?
-            .iter()
-            .any(|window| window.pid == Some(child.id()));
-    }
+    let outcome = wait_for_window_of(child.id(), timeout);
     let _ = child.kill();
     let _ = child.wait();
-    Ok(mapped)
+    outcome
+}
+
+fn wait_for_window_of(pid: u32, timeout: Duration) -> Result<bool, LaunchError> {
+    let started = Instant::now();
+    while started.elapsed() < timeout {
+        std::thread::sleep(Duration::from_millis(500));
+        let windows = crate::windows::mapped_windows().map_err(LaunchError::Io)?;
+        if windows.iter().any(|window| window.pid == Some(pid)) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// The command that starts the app, with its environment pinned to the scratch directory and to X11.
@@ -468,23 +472,76 @@ fn require_virtual_display() -> Result<(), LaunchError> {
         return Err(LaunchError::NoDisplay);
     }
     let is_xwayland = crate::windows::display_is_a_host_session().map_err(LaunchError::Io)?;
+    let made_by_xvfb_run = std::env::var_os("XAUTHORITY")
+        .map(PathBuf::from)
+        .filter(|path| path.to_string_lossy().contains("xvfb-run"))
+        .and_then(|path| fs::read(path).ok())
+        .zip(
+            display
+                .as_deref()
+                .and_then(|d| d.to_str())
+                .and_then(display_number),
+        )
+        .is_some_and(|(authority, number)| authority_is_only_for(&authority, number));
     check_virtual_display(
-        std::env::var_os("XAUTHORITY").as_deref(),
+        made_by_xvfb_run,
         std::env::var_os("OFM_E2E_ALLOW_DISPLAY").as_deref() == Some(std::ffi::OsStr::new("1")),
         is_xwayland,
     )
 }
 
+/// The display number in `DISPLAY` (`:99`, `:99.0`, `host:99.0`).
+fn display_number(display: &str) -> Option<&str> {
+    let after_host = display.rsplit_once(':')?.1;
+    let number = after_host.split('.').next()?;
+    (!number.is_empty() && number.bytes().all(|b| b.is_ascii_digit())).then_some(number)
+}
+
+/// Whether an Xauthority file holds entries for display `number` and for no other display, so the
+/// file `xvfb-run` made cannot also grant access to a desktop session.
+fn authority_is_only_for(authority: &[u8], number: &str) -> bool {
+    let mut rest = authority;
+    let mut entries = 0;
+    let take = |len: usize, rest: &mut &[u8]| -> Option<Vec<u8>> {
+        let (head, tail) = rest.split_at_checked(len)?;
+        *rest = tail;
+        Some(head.to_vec())
+    };
+    while !rest.is_empty() {
+        let mut entry_number = None;
+        // family, then four length-prefixed fields: address, display number, name, data.
+        if take(2, &mut rest).is_none() {
+            return false;
+        }
+        for field in 0..4 {
+            let Some(len) =
+                take(2, &mut rest).map(|b| usize::from(u16::from_be_bytes([b[0], b[1]])))
+            else {
+                return false;
+            };
+            let Some(bytes) = take(len, &mut rest) else {
+                return false;
+            };
+            if field == 1 {
+                entry_number = Some(bytes);
+            }
+        }
+        if entry_number.as_deref() != Some(number.as_bytes()) {
+            return false;
+        }
+        entries += 1;
+    }
+    entries > 0
+}
+
 fn check_virtual_display(
-    xauthority: Option<&std::ffi::OsStr>,
+    made_by_xvfb_run: bool,
     vouched_for: bool,
     is_xwayland: bool,
 ) -> Result<(), LaunchError> {
     if is_xwayland {
         return Err(LaunchError::HostDisplay);
     }
-    let made_by_xvfb_run =
-        xauthority.is_some_and(|path| path.to_string_lossy().contains("xvfb-run"));
     if vouched_for || made_by_xvfb_run {
         Ok(())
     } else {
@@ -545,21 +602,54 @@ fn revision() -> String {
 mod tests {
     use std::ffi::OsStr;
 
-    use super::{app_command, check_virtual_display};
+    use super::{app_command, authority_is_only_for, check_virtual_display, display_number};
 
-    /// Given an XWayland display, an unidentified display, an xvfb-run display, and one vouched for
-    /// When the fixture checks whether the display is virtual
+    /// Given XWayland, an unidentified display, an xvfb-run display, and one vouched for
+    /// When the fixture decides whether the display is virtual
     /// Then only the last two are accepted, and XWayland is refused even when vouched for.
     #[test]
     fn only_a_display_with_positive_evidence_is_virtual() {
-        let xvfb_run = OsStr::new("/tmp/xvfb-run.G45Hm6/Xauthority.QUuJPO");
-        let desktop = OsStr::new("/run/user/1000/xauth_lmbFze");
+        assert!(check_virtual_display(true, false, false).is_ok());
+        assert!(check_virtual_display(false, false, false).is_err());
+        assert!(check_virtual_display(false, true, false).is_ok());
+        assert!(check_virtual_display(true, true, true).is_err());
+    }
 
-        assert!(check_virtual_display(Some(xvfb_run), false, false).is_ok());
-        assert!(check_virtual_display(Some(desktop), false, false).is_err());
-        assert!(check_virtual_display(None, false, false).is_err());
-        assert!(check_virtual_display(Some(desktop), true, false).is_ok());
-        assert!(check_virtual_display(Some(xvfb_run), true, true).is_err());
+    fn entry(number: &str) -> Vec<u8> {
+        let mut bytes = vec![0x01, 0x00]; // family
+        for field in [
+            &b"host"[..],
+            number.as_bytes(),
+            b"MIT-MAGIC-COOKIE-1",
+            &[7_u8; 16],
+        ] {
+            bytes.extend((field.len() as u16).to_be_bytes());
+            bytes.extend(field);
+        }
+        bytes
+    }
+
+    /// Given an Xauthority file for display 99 only, one that also has a desktop's display 0, and a torn one
+    /// When the fixture asks whether it belongs to DISPLAY=:99 alone
+    /// Then only the first does, so a file that could also open the desktop is not evidence.
+    #[test]
+    fn an_authority_must_be_for_this_display_alone() {
+        let only = entry("99");
+        let both = [entry("99"), entry("0")].concat();
+
+        assert!(authority_is_only_for(&only, "99"));
+        assert!(!authority_is_only_for(&both, "99"));
+        assert!(!authority_is_only_for(&only, "100"));
+        assert!(!authority_is_only_for(&only[..only.len() - 3], "99"));
+        assert!(!authority_is_only_for(&[], "99"));
+    }
+
+    #[test]
+    fn the_display_number_is_read_from_display() {
+        assert_eq!(display_number(":99"), Some("99"));
+        assert_eq!(display_number(":99.0"), Some("99"));
+        assert_eq!(display_number("host:7.1"), Some("7"));
+        assert_eq!(display_number("garbage"), None);
     }
 
     /// Given a developer session that exports a Wayland display
