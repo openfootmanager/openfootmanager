@@ -418,6 +418,7 @@ fn send_and_record(
     include_save: bool,
     reports_path: Option<&Path>,
     submitted_at: String,
+    build_id: &str,
 ) -> Result<UploadReceipt, UploadFailure> {
     let submitted = hub::submit(transport, endpoint, env!("CARGO_PKG_VERSION"), parts);
     let mut entry = SubmittedReport {
@@ -426,6 +427,7 @@ fn send_and_record(
         included_save: include_save,
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
         id: history::new_id(),
+        build_id: build_id.to_owned(),
         unconfirmed: false,
     };
     let code = match submitted {
@@ -548,6 +550,7 @@ fn upload_report(
             .begin(&request.identity(), &scratch_root, |scratch| {
                 build_report(session, &request, scratch)
             })?;
+    let build_id = session.prepared.build_id();
     let parts = UploadParts {
         report_json,
         bundle,
@@ -567,6 +570,7 @@ fn upload_report(
         request.include_save,
         reports_path.as_deref(),
         chrono::Utc::now().to_rfc3339(),
+        &build_id,
     );
     session.prepared.settle(worth_resending_unchanged(&outcome));
     outcome
@@ -753,6 +757,7 @@ mod tests {
             true,
             Some(&reports),
             "2026-10-03T12:00:00+00:00".to_owned(),
+            "build-1",
         );
 
         assert_eq!(
@@ -786,6 +791,7 @@ mod tests {
             false,
             Some(&reports),
             "2026-10-03T12:00:00+00:00".to_owned(),
+            "build-1",
         );
 
         assert_eq!(
@@ -818,6 +824,7 @@ mod tests {
             false,
             Some(&reports),
             "2026-10-03T12:00:00+00:00".to_owned(),
+            "build-1",
         );
 
         assert_eq!(
@@ -868,6 +875,7 @@ mod tests {
             true,
             Some(&reports),
             "2026-10-12T10:00:00+00:00".to_owned(),
+            "build-1",
         );
 
         assert_eq!(outcome, Err(key(hub::UPLOAD_UNCONFIRMED)));
@@ -895,6 +903,7 @@ mod tests {
             false,
             Some(&reports),
             "2026-10-12T10:00:00+00:00".to_owned(),
+            "build-1",
         );
 
         assert_eq!(outcome, Err(key(hub::UPLOAD_UNREACHABLE)));
@@ -949,6 +958,7 @@ mod tests {
                 false,
                 Some(&reports),
                 at.to_owned(),
+                "build-1",
             )
         };
 
@@ -979,6 +989,7 @@ mod tests {
                 false,
                 Some(&reports),
                 "2026-10-12T10:00:00+00:00".to_owned(),
+                "build-1",
             )
             .expect("accepted");
         }
@@ -988,6 +999,44 @@ mod tests {
         assert_eq!(listed.len(), 2);
         assert!(!listed[0].id.is_empty());
         assert_ne!(listed[0].id, listed[1].id);
+    }
+
+    /// Given an attempt of one build whose outcome was unknown,
+    /// when a report built separately (a different build) is accepted,
+    /// then both entries are kept: the unknown one may be the only local trace of a report the
+    /// server holds, and the accepted one is not a resend of it.
+    #[test]
+    fn a_different_report_does_not_replace_an_unknown_entry() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let mut dropped = CannedHub::answering(201, "{}");
+        dropped.post = Err(hub::TransportFailure::Interrupted("reset".to_owned()));
+        let accepted = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
+
+        let _ = send_and_record(
+            &dropped,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-12T10:00:00+00:00".to_owned(),
+            "build-a",
+        );
+        send_and_record(
+            &accepted,
+            &test_endpoint(),
+            &small_parts(dir.path()),
+            false,
+            Some(&reports),
+            "2026-10-12T10:30:00+00:00".to_owned(),
+            "build-b",
+        )
+        .expect("accepted");
+
+        let listed = history::load(&reports);
+        assert_eq!(listed.len(), 2);
+        assert!(listed[1].unconfirmed);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
     }
 
     #[test]

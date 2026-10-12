@@ -30,6 +30,10 @@ pub struct SubmittedReport {
     /// Empty on entries written before it existed.
     #[serde(default)]
     pub id: String,
+    /// The prepared build this entry was sent from; empty when not known. An accepted report
+    /// replaces an unknown entry only if it came from the same build.
+    #[serde(default)]
+    pub build_id: String,
     /// The upload's outcome is unknown: the server may hold a report whose reference never
     /// reached us. `code` is empty for such an entry.
     #[serde(default)]
@@ -72,19 +76,24 @@ pub fn new_id() -> String {
     format!("{:016x}", rand::rng().random::<u64>())
 }
 
-/// A report the server accepted. A trailing unknown entry is the earlier attempt at this same
-/// report, so the accepted entry replaces it instead of sitting beside it.
+fn is_attempt_at_same_build(earlier: &SubmittedReport, later: &SubmittedReport) -> bool {
+    earlier.unconfirmed && !earlier.build_id.is_empty() && earlier.build_id == later.build_id
+}
+
+/// A report the server accepted. A trailing unknown entry from the same build is the earlier
+/// attempt at this very report, so the accepted entry replaces it. An unknown entry from another
+/// build may be the only local trace of a different report, so it is kept.
 pub fn record_accepted(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
     update(path, |file| match file.reports.last_mut() {
-        Some(last) if last.unconfirmed => *last = report.clone(),
+        Some(last) if is_attempt_at_same_build(last, report) => *last = report.clone(),
         _ => file.reports.push(report.clone()),
     })
 }
 
-/// Several unknown attempts in a row are one entry: the newest replaces the one before it.
+/// Repeated unknown attempts at the same build are one entry: the newest replaces the one before.
 pub fn record_unconfirmed(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
     update(path, |file| match file.reports.last_mut() {
-        Some(last) if last.unconfirmed => *last = report.clone(),
+        Some(last) if is_attempt_at_same_build(last, report) => *last = report.clone(),
         _ => file.reports.push(report.clone()),
     })
 }
@@ -152,14 +161,27 @@ mod tests {
             included_save: false,
             app_version: "0.3.0".to_owned(),
             id: String::new(),
+            build_id: String::new(),
             unconfirmed: false,
         }
     }
 
     fn unknown(submitted_at: &str) -> SubmittedReport {
+        unknown_from("build-a", submitted_at)
+    }
+
+    fn unknown_from(build_id: &str, submitted_at: &str) -> SubmittedReport {
         SubmittedReport {
             unconfirmed: true,
+            build_id: build_id.to_owned(),
             ..report("", submitted_at)
+        }
+    }
+
+    fn accepted_from(build_id: &str, code: &str, submitted_at: &str) -> SubmittedReport {
+        SubmittedReport {
+            build_id: build_id.to_owned(),
+            ..report(code, submitted_at)
         }
     }
 
@@ -296,8 +318,8 @@ mod tests {
         assert!(!listed[1].unconfirmed);
     }
 
-    /// Given an unknown attempt,
-    /// when an accepted report is recorded after it,
+    /// Given an unknown attempt from build A,
+    /// when an accepted report from the same build is recorded after it,
     /// then the accepted entry replaces it: it was the same report, resent.
     #[test]
     fn an_accepted_report_replaces_a_trailing_unknown_entry() {
@@ -305,8 +327,11 @@ mod tests {
         let path = reports_file_in(dir.path());
         record_unconfirmed(&path, &unknown("2026-10-12T10:00:00+00:00")).expect("unknown");
 
-        record_accepted(&path, &report("OFM-7K2QX9DM", "2026-10-12T10:05:00+00:00"))
-            .expect("accepted");
+        record_accepted(
+            &path,
+            &accepted_from("build-a", "OFM-7K2QX9DM", "2026-10-12T10:05:00+00:00"),
+        )
+        .expect("accepted");
 
         let listed = load(&path);
         assert_eq!(listed.len(), 1);
@@ -323,5 +348,43 @@ mod tests {
         std::fs::write(&path, r#"{"reports":[{"code":"OFM-7K2QX9DM"}]}"#).expect("write");
 
         assert!(!load(&path)[0].unconfirmed);
+    }
+
+    /// Given an unknown attempt from build A,
+    /// when an accepted report from a different build B is recorded,
+    /// then both stay: A's entry may be the only local trace of a report the server holds.
+    #[test]
+    fn an_accepted_report_from_another_build_does_not_erase_an_unknown_one() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+        record_unconfirmed(&path, &unknown_from("build-a", "2026-10-12T10:00:00+00:00"))
+            .expect("a");
+
+        record_accepted(
+            &path,
+            &accepted_from("build-b", "OFM-7K2QX9DM", "2026-10-12T10:30:00+00:00"),
+        )
+        .expect("b accepted");
+
+        let listed = load(&path);
+        assert_eq!(listed.len(), 2);
+        assert!(listed[1].unconfirmed);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
+    }
+
+    /// Given an unknown attempt from build A and one from build B,
+    /// when they are recorded in a row,
+    /// then they are two entries: only attempts at the same build collapse.
+    #[test]
+    fn unknown_attempts_at_different_builds_are_separate_entries() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+
+        record_unconfirmed(&path, &unknown_from("build-a", "2026-10-12T10:00:00+00:00"))
+            .expect("a");
+        record_unconfirmed(&path, &unknown_from("build-b", "2026-10-12T10:30:00+00:00"))
+            .expect("b");
+
+        assert_eq!(load(&path).len(), 2);
     }
 }
