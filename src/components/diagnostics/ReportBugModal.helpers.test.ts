@@ -230,12 +230,14 @@ describe("toUploadFailure", () => {
    * Then the key and the numeric wait survive, and anything else gives no wait
    */
   it("reads the key and the wait from whatever the backend rejected with", () => {
-    expect(toUploadFailure({ key: "k", retry_after_seconds: 90 })).toEqual({
+    expect(toUploadFailure({ kind: "capacity", key: "k", retry_after_seconds: 90 })).toEqual({
+      kind: "capacity",
       key: "k",
       retry_after_seconds: 90,
     });
-    expect(toUploadFailure("k")).toEqual({ key: "k", retry_after_seconds: null });
+    expect(toUploadFailure("k")).toEqual({ kind: "other", key: "k", retry_after_seconds: null });
     expect(toUploadFailure({ key: "k", retry_after_seconds: "soon" })).toEqual({
+      kind: "other",
       key: "k",
       retry_after_seconds: null,
     });

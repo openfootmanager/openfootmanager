@@ -4219,7 +4219,7 @@
     "referenceCodeHint": "Nenne diesen Code, wenn du zu deinem Bericht nachfragst. Um ihn löschen zu lassen, schreibe mit diesem Code an bugreport@openfootmanager.com. Es ist kein Passwort: Niemand kann damit deinen Bericht einsehen.",
     "referenceCodeSaved": "Du findest ihn jederzeit unter Einstellungen → Hilfe → Deine Berichte.",
     "notRecorded": "Dieser Code konnte nicht in deine Berichtsliste aufgenommen werden. Bitte schreib ihn dir auf.",
-    "copyCode": "Code kopieren",
+    "copyCodeFor": "Code {{code}} kopieren",
     "codeCopied": "Kopiert"
   }
 }

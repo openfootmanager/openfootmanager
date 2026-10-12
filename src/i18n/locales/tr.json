@@ -4219,7 +4219,7 @@
     "referenceCodeHint": "Raporunu sorarken bu kodu belirt. Sildirmek için bu kodla bugreport@openfootmanager.com adresine yaz. Bu bir parola değil: kimse bununla raporunu göremez.",
     "referenceCodeSaved": "Ona yeniden Ayarlar → Yardım → Raporların bölümünden ulaşabilirsin.",
     "notRecorded": "Bu kod rapor listene eklenemedi. Lütfen bir yere not et.",
-    "copyCode": "Kodu kopyala",
+    "copyCodeFor": "{{code}} kodunu kopyala",
     "codeCopied": "Kopyalandı"
   }
 }

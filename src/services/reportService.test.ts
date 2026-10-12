@@ -126,12 +126,14 @@ describe("reportService", () => {
     });
 
     expect(mockedInvoke).toHaveBeenCalledWith("upload_report_bundle", {
-      reportText: "It froze",
-      fields,
-      includeSave: true,
-      consent: true,
-      screenshotPaths: [],
-      packagePaths: [],
+      request: {
+        reportText: "It froze",
+        fields,
+        includeSave: true,
+        consent: true,
+        screenshotPaths: [],
+        packagePaths: [],
+      },
     });
   });
 
@@ -141,7 +143,11 @@ describe("reportService", () => {
    * then the translation key reaches the caller, which offers the GitHub form.
    */
   it("lets a failed upload reach the caller", async () => {
-    const failure = { key: "be.error.report.upload.rateLimited", retry_after_seconds: 120 };
+    const failure = {
+      kind: "rateLimited",
+      key: "be.error.report.upload.rateLimited",
+      retry_after_seconds: 120,
+    };
     mockedInvoke.mockRejectedValueOnce(failure);
 
     await expect(

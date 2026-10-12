@@ -4219,7 +4219,7 @@
     "referenceCodeHint": "Uveďte tento kód, když se budete na hlášení ptát. Chcete-li ho nechat smazat, napište s tímto kódem na bugreport@openfootmanager.com. Není to heslo: nikdo podle něj vaše hlášení neuvidí.",
     "referenceCodeSaved": "Najdete ho znovu v Nastavení → Nápověda → Vaše hlášení.",
     "notRecorded": "Tento kód se nepodařilo přidat do seznamu vašich hlášení. Zapište si ho, prosím.",
-    "copyCode": "Zkopírovat kód",
+    "copyCodeFor": "Kopírovat kód {{code}}",
     "codeCopied": "Zkopírováno"
   }
 }

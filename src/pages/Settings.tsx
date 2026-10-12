@@ -413,6 +413,7 @@ export default function Settings() {
             setReportingBug(false);
             setReportsRefresh((count) => count + 1);
           }}
+          onUploaded={() => setReportsRefresh((count) => count + 1)}
         />
       )}
     </div>

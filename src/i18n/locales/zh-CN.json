@@ -4219,7 +4219,7 @@
     "referenceCodeHint": "询问你的报告时请提供此编号。如需删除，请携带此编号发邮件至 bugreport@openfootmanager.com。它不是密码：任何人都无法凭它查看你的报告。",
     "referenceCodeSaved": "你可以在 设置 → 帮助 → 你的报告 中再次找到它。",
     "notRecorded": "无法将此编号添加到你的报告列表中，请把它记下来。",
-    "copyCode": "复制编号",
+    "copyCodeFor": "复制编号 {{code}}",
     "codeCopied": "已复制"
   }
 }

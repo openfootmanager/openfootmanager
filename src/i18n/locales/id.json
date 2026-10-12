@@ -4219,7 +4219,7 @@
     "referenceCodeHint": "Sebutkan kode ini jika kamu menanyakan laporanmu. Untuk menghapusnya, kirim email ke bugreport@openfootmanager.com dengan kode ini. Ini bukan kata sandi: tidak ada yang bisa memakainya untuk melihat laporanmu.",
     "referenceCodeSaved": "Kamu bisa menemukannya lagi di Pengaturan → Bantuan → Laporanmu.",
     "notRecorded": "Kode ini tidak bisa ditambahkan ke daftar laporanmu. Tolong catat kode ini.",
-    "copyCode": "Salin kode",
+    "copyCodeFor": "Salin kode {{code}}",
     "codeCopied": "Disalin"
   }
 }
