@@ -1,7 +1,6 @@
 use ofm_core::game::Game;
 use ofm_core::player_events::{pick_response_band, ResponseBandWeights, ResponseOutcomeBand};
-use rand::rngs::StdRng;
-use rand::{RngExt, SeedableRng};
+use rand::RngExt;
 
 fn team_talk_action_key(tone: &str, context: &str) -> String {
     format!("team_talk:{}:{}", tone, context)
@@ -321,7 +320,7 @@ pub fn apply_team_talk(
         .team_id
         .clone()
         .ok_or("be.error.noTeamAssigned")?;
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = ofm_core::seed::rng_from_u64(seed);
     let action_key = team_talk_action_key(tone, context);
     let mut results: Vec<serde_json::Value> = Vec::new();
 

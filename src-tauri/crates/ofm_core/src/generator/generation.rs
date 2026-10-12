@@ -2,11 +2,28 @@ use domain::player::{Player, PlayerAttributes, Position};
 use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::PlayStyle;
 use rand::{Rng, RngExt};
-use uuid::Uuid;
 
+use super::authored_player::resolve_authored_contract;
 use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
 use crate::player_rating::{generate_potential, refresh_player_derived};
+
+pub(super) fn standard_available_staff_roles() -> [StaffRole; 12] {
+    [
+        StaffRole::Coach,
+        StaffRole::Scout,
+        StaffRole::Physio,
+        StaffRole::Coach,
+        StaffRole::AssistantManager,
+        StaffRole::Scout,
+        StaffRole::Physio,
+        StaffRole::Coach,
+        StaffRole::Coach,
+        StaffRole::Physio,
+        StaffRole::Scout,
+        StaffRole::AssistantManager,
+    ]
+}
 
 // ---------------------------------------------------------------------------
 // Helper functions for world generation
@@ -141,6 +158,18 @@ pub(super) fn pick_name_from_def(
 }
 
 /// A random first/last pair from `pool`. Callers must have checked it is usable.
+/// An id for something being generated, drawn from the generator it was made with rather
+/// than minted at random: a world generated from a seed is then the same world, ids and all,
+/// and what keys off those ids (a match's dice, a player's growth) replays too. It has the
+/// shape of a v4 UUID, so everything that treats ids as opaque strings is unaffected.
+pub(super) fn seeded_id(rng: &mut impl Rng) -> String {
+    let mut bytes = [0u8; 16];
+    rng.fill_bytes(&mut bytes);
+    uuid::Builder::from_random_bytes(bytes)
+        .into_uuid()
+        .to_string()
+}
+
 fn draw_name(pool: &NamePool, rng: &mut impl Rng) -> (String, String) {
     let first = pool.first_names[rng.random_range(0..pool.first_names.len())].clone();
     let last = pool.last_names[rng.random_range(0..pool.last_names.len())].clone();
@@ -381,15 +410,10 @@ pub(super) fn play_style_from_str(s: &str) -> PlayStyle {
 /// should use it rather than repeating the literal.
 pub(super) const SQUAD_SLOTS: usize = 22;
 
-/// Minimum number of players per position group a finished squad must keep, in
-/// `[GK, DEF, MID, FWD]` order. Trimming generated players off an authored squad
-/// must never take a group below these — a club with no goalkeeper is unplayable.
-pub(super) const MIN_PLAYERS_PER_GROUP: [(Position, usize); 4] = [
-    (Position::Goalkeeper, 2),
-    (Position::Defender, 4),
-    (Position::Midfielder, 4),
-    (Position::Forward, 2),
-];
+/// The squad floor lives in `squad_floor`; trimming generated players off an
+/// authored squad must never take a group below it — a club with no goalkeeper
+/// is unplayable.
+pub(super) use crate::squad_floor::MIN_PLAYERS_PER_GROUP;
 
 /// Squad slots reserved as youth-aged, one per position group in
 /// `[GK, DEF, MID, FWD]` order. Scouted youth recruits target these slots so they
@@ -415,6 +439,27 @@ pub(super) fn is_youth_reserved_slot(slot: usize) -> bool {
     YOUTH_RESERVED_SLOTS.contains(&slot)
 }
 
+/// The position group a generated squad slot holds: GK 0-1, DEF 2-8, MID 9-15,
+/// FWD 16-21.
+pub(super) fn position_for_slot(index: usize) -> Position {
+    if index < 2 {
+        Position::Goalkeeper
+    } else if index < 9 {
+        Position::Defender
+    } else if index < 16 {
+        Position::Midfielder
+    } else {
+        Position::Forward
+    }
+}
+
+/// The first squad slot that generates a senior player of this group.
+pub(super) fn senior_slot_for(group: &Position) -> usize {
+    (0..SQUAD_SLOTS)
+        .find(|slot| position_for_slot(*slot) == *group && !is_youth_reserved_slot(*slot))
+        .unwrap_or(0)
+}
+
 /// Remap a youth-reserved slot to the adjacent senior slot (same position group)
 /// so the player generates at a senior age; non-reserved slots pass through.
 pub(super) fn senior_slot(slot: usize) -> usize {
@@ -425,11 +470,16 @@ pub(super) fn senior_slot(slot: usize) -> usize {
     }
 }
 
+/// A generated player for squad slot `index`. `age` fixes his age; `None`
+/// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
+/// exactly as before the parameter existed, so every seeded world — all of
+/// which pass `None` — is unchanged by it.
 pub(super) fn generate_random_player_from_def(
     team_id: &str,
     index: usize,
     nationality: &str,
     opening_year: u32,
+    age: Option<u32>,
     names_def: &NamesDefinition,
     rng: &mut impl Rng,
 ) -> Player {
@@ -437,28 +487,21 @@ pub(super) fn generate_random_player_from_def(
     let full_name = format!("{} {}", first_name, last_name);
     let match_name = last_name.clone();
 
-    // Distribute positions: GK:0-1, DEF:2-8, MID:9-15, FWD:16-21
-    let position = if index < 2 {
-        Position::Goalkeeper
-    } else if index < 9 {
-        Position::Defender
-    } else if index < 16 {
-        Position::Midfielder
-    } else {
-        Position::Forward
-    };
+    let position = position_for_slot(index);
 
-    let p_id = Uuid::new_v4().to_string();
+    let p_id = seeded_id(rng);
     let nationality = nationality.to_string();
 
     // Reserve one slot per position group (GK + back line + midfield + attack) as
     // youth-aged so scouted youth recruits land at a consistent age across positions
     // and clubs can open with real academy prospects instead of an empty youth squad.
-    let age = if is_youth_reserved_slot(index) {
-        rng.random_range(17..22)
-    } else {
-        rng.random_range(17..36)
-    };
+    let age = age.unwrap_or_else(|| {
+        if is_youth_reserved_slot(index) {
+            rng.random_range(17..22)
+        } else {
+            rng.random_range(17..36)
+        }
+    });
     let birth_year = opening_year.saturating_sub(age);
     let birth_month = rng.random_range(1..13);
     let birth_day = rng.random_range(1..29);
@@ -541,7 +584,7 @@ pub(super) fn generate_random_player_from_def(
     };
     let base_value = (approx_ovr as f64).powi(2) * 500.0;
     let market_value = (base_value * age_factor) as u64;
-    let wage = (market_value / 200).max(500) as u32;
+    let wage = (market_value / 200).max(crate::contracts::MINIMUM_DEFAULT_WAGE) as u32;
     let contract_years = if age <= 21 {
         rng.random_range(3..6)
     } else if age <= 27 {
@@ -566,8 +609,8 @@ pub(super) fn generate_random_player_from_def(
     );
     player.team_id = Some(team_id.to_string());
     player.market_value = market_value;
-    player.wage = wage;
-    player.contract_end = Some(contract_end);
+    player.stage_wage(wage);
+    player.stage_contract_end(Some(contract_end));
     player.condition = rng.random_range(75..100);
     player.morale = rng.random_range(40..76);
 
@@ -586,7 +629,7 @@ pub(super) fn generate_random_player_from_def(
         use crate::player_rating::natural_ovr;
         natural_ovr(&player).round() as u8
     };
-    player.potential = generate_potential(temp_ovr, player_age);
+    player.potential = generate_potential(temp_ovr, player_age, rng);
     refresh_player_derived(&mut player, current_year);
 
     player.jersey_number = jersey_number_for_slot(index);
@@ -668,14 +711,7 @@ pub(super) fn generate_random_staff_from_def(
         },
     };
 
-    let mut s = Staff::new(
-        Uuid::new_v4().to_string(),
-        first_name,
-        last_name,
-        dob,
-        role,
-        attributes,
-    );
+    let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
     s.team_id = Some(team_id.to_string());
     s
@@ -705,14 +741,7 @@ pub(super) fn generate_random_staff_unattached_from_def(
         physiotherapy: rng.random_range(25..75),
     };
 
-    let mut s = Staff::new(
-        Uuid::new_v4().to_string(),
-        first_name,
-        last_name,
-        dob,
-        role,
-        attributes,
-    );
+    let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
     s
 }
@@ -777,7 +806,7 @@ pub(super) fn generate_staff_from_authored_def(
     });
 
     let id = if def.id.is_empty() {
-        Uuid::new_v4().to_string()
+        seeded_id(rng)
     } else {
         def.id.clone()
     };
@@ -1019,17 +1048,31 @@ pub(super) fn generate_player_from_def(
     } else {
         0.4
     };
-    let market_value = ((approx_ovr as f64).powi(2) * 500.0 * age_factor) as u64;
-    let wage = (market_value / 200).max(500) as u32;
+    let generated_value = ((approx_ovr as f64).powi(2) * 500.0 * age_factor) as u64;
+    // An authored figure wins. An omitted wage is sized from the value the player
+    // ends up with rather than the one the author replaced, and saturates because an
+    // authored value can be far larger than any generated one.
+    let market_value = def.value.unwrap_or(generated_value);
+    let wage = def.wage.unwrap_or_else(|| {
+        u32::try_from((market_value / 200).max(crate::contracts::MINIMUM_DEFAULT_WAGE))
+            .unwrap_or(u32::MAX)
+    });
+    // Rolled whether or not a contract was authored, so a package that authors none
+    // draws exactly the random numbers it always did and generates the same players.
     let contract_years = if age <= 27 {
         rng.random_range(2..6)
     } else {
         rng.random_range(1..4)
     };
-    let contract_end = format!("{}-06-30", opening_year.saturating_add(contract_years));
+    let generated_contract_end = format!("{}-06-30", opening_year.saturating_add(contract_years));
+    // Validation is what tells an author their contract cannot be resolved. Generation
+    // never panics on one and falls back to the roll, as it would for no contract.
+    let authored_contract =
+        resolve_authored_contract(def, opening_year, contract_years).unwrap_or_default();
+    let contract_date = |date: chrono::NaiveDate| date.format("%Y-%m-%d").to_string();
 
     let id = if def.id.is_empty() {
-        Uuid::new_v4().to_string()
+        seeded_id(rng)
     } else {
         def.id.clone()
     };
@@ -1052,10 +1095,16 @@ pub(super) fn generate_player_from_def(
         .map(|photo| photo.trim().to_string())
         .filter(|photo| !photo.is_empty());
     player.market_value = market_value;
-    player.wage = wage;
-    player.contract_end = Some(contract_end);
-    player.condition = rng.random_range(75..100);
-    player.morale = rng.random_range(40..76);
+    player.stage_wage(wage);
+    player.stage_contract_start(authored_contract.start.map(contract_date));
+    player.stage_contract_end(Some(
+        authored_contract
+            .end
+            .map(contract_date)
+            .unwrap_or(generated_contract_end),
+    ));
+    player.condition = def.condition.unwrap_or_else(|| rng.random_range(75..100));
+    player.morale = def.morale.unwrap_or_else(|| rng.random_range(40..76));
     if let Some(ref foot_str) = def.footedness {
         player.footedness = match foot_str.as_str() {
             "Left" => domain::player::Footedness::Left,
@@ -1063,6 +1112,26 @@ pub(super) fn generate_player_from_def(
             _ => domain::player::Footedness::Right,
         };
     }
+    if let Some(weak_foot) = def.weak_foot {
+        player.weak_foot = weak_foot;
+    }
+    if !def.alternate_positions.is_empty() {
+        player.alternate_positions = def.alternate_positions.clone();
+    }
+    // A club the package does not define has no id, so the domain's empty-string
+    // convention for "no team" stands in; the name is what the profile shows.
+    player.career = def
+        .career_history
+        .iter()
+        .map(|entry| domain::player::CareerEntry {
+            season: entry.season,
+            team_id: entry.team_id.clone().unwrap_or_default(),
+            team_name: entry.team_name.clone(),
+            appearances: entry.appearances,
+            goals: entry.goals,
+            assists: entry.assists,
+        })
+        .collect();
     if def.youth {
         player.squad_role = domain::player::SquadRole::Youth;
     }
@@ -1076,7 +1145,7 @@ pub(super) fn generate_player_from_def(
     // floored at current ovr — so nothing further is needed to make it stick.
     player.potential = def
         .potential
-        .unwrap_or_else(|| generate_potential(temp_ovr, age));
+        .unwrap_or_else(|| generate_potential(temp_ovr, age, rng));
     refresh_player_derived(&mut player, current_year);
     player
 }
@@ -1101,7 +1170,7 @@ pub(super) fn generate_random_unemployed_manager(
     let reputation = rng.random_range(200u32..=700u32);
 
     let mut mgr = domain::manager::Manager::new(
-        Uuid::new_v4().to_string(),
+        seeded_id(rng),
         first_name,
         last_name,
         dob,
@@ -1221,6 +1290,223 @@ mod tests {
             "a 17-year-old's rolled ceiling should sit {floor}..={ceiling}, got {}",
             player.potential
         );
+    }
+
+    // -- authored contract, wage, value and status ---------------------------
+    //
+    // Built from JSON for the same reason as the tests above. The dates used here
+    // are ones generation can never produce (it always ends a contract on 30 June),
+    // so an unfixed tree cannot pass by coincidence.
+
+    fn striker_json(extra: serde_json::Value) -> serde_json::Value {
+        let mut base = serde_json::json!({
+            "id": "authored-striker",
+            "firstName": "Authored",
+            "lastName": "Striker",
+            "club": "club-id",
+            "nationality": "ENG",
+            "position": "Striker",
+            "dateOfBirth": "1990-05-01",
+            "overall": 70,
+        });
+        base.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        base
+    }
+
+    #[test]
+    fn an_authored_contract_end_is_kept() {
+        let player = generate_from_json(
+            striker_json(serde_json::json!({ "contractEnd": "2031-03-15" })),
+            2026,
+        );
+
+        assert_eq!(player.contract_end(), Some("2031-03-15"));
+        assert_eq!(
+            player.contract_start(),
+            None,
+            "no start was authored, and one is given when the career opens, not here"
+        );
+    }
+
+    /// A length resolves against the year the career opens in, which is what lets a
+    /// package written for one era be played in another without every contract
+    /// having already run out.
+    #[test]
+    fn a_contract_length_counts_from_the_opening_year() {
+        for (opening_year, expected_end) in [(1962, "1965-06-30"), (2026, "2029-06-30")] {
+            let player = generate_from_json(
+                striker_json(serde_json::json!({ "contractLength": 3 })),
+                opening_year,
+            );
+
+            assert_eq!(
+                player.contract_end(),
+                Some(expected_end),
+                "a 3-year length opened in {opening_year}"
+            );
+            assert_eq!(player.contract_start(), None);
+        }
+    }
+
+    #[test]
+    fn a_contract_length_counts_from_an_authored_start() {
+        let player = generate_from_json(
+            striker_json(serde_json::json!({
+                "contractStart": "2024-01-15",
+                "contractLength": 2,
+            })),
+            2026,
+        );
+
+        assert_eq!(player.contract_start(), Some("2024-01-15"));
+        assert_eq!(player.contract_end(), Some("2026-01-15"));
+    }
+
+    /// A start alone is half an interval. Rather than invent an end date, the engine
+    /// rolls a length the way it always has, counted from the author's start, so the
+    /// interval is whole and the start is the author's.
+    #[test]
+    fn a_start_with_no_end_keeps_the_start_and_rolls_a_length_from_it() {
+        let player = generate_from_json(
+            striker_json(serde_json::json!({ "contractStart": "2024-01-15" })),
+            2026,
+        );
+
+        assert_eq!(player.contract_start(), Some("2024-01-15"));
+        let end = player.contract_end().expect("an end was rolled");
+        assert!(end > "2024-01-15", "ended {end}, not after the start");
+        assert!(
+            end <= "2029-01-15",
+            "{end} is more than five years from the start"
+        );
+        assert!(
+            end.ends_with("-01-15"),
+            "{end}: the length should count in whole years from the start"
+        );
+    }
+
+    #[test]
+    fn an_authored_wage_and_value_are_kept() {
+        let player = generate_from_json(
+            striker_json(serde_json::json!({ "wage": 12_345, "value": 9_000_000 })),
+            2026,
+        );
+
+        assert_eq!(player.wage(), 12_345);
+        assert_eq!(player.market_value, 9_000_000);
+    }
+
+    /// Omit the wage and it is sized from the value the player actually ends up
+    /// with, not from a value the author replaced.
+    #[test]
+    fn an_omitted_wage_follows_an_authored_value() {
+        let player = generate_from_json(
+            striker_json(serde_json::json!({ "value": 4_000_000 })),
+            2026,
+        );
+
+        assert_eq!(player.market_value, 4_000_000);
+        assert_eq!(
+            player.wage(),
+            4_000_000 / 200,
+            "wage should be sized from the authored value"
+        );
+    }
+
+    /// Zero is a value, not an absence. A `0` that fell back to the roll would make
+    /// it impossible to author a player on no wage or with no condition.
+    #[test]
+    fn an_explicit_zero_survives() {
+        let player = generate_from_json(
+            striker_json(serde_json::json!({ "wage": 0, "condition": 0, "morale": 0 })),
+            2026,
+        );
+
+        assert_eq!(player.wage(), 0);
+        assert_eq!(player.condition, 0);
+        assert_eq!(player.morale, 0);
+    }
+
+    #[test]
+    fn authored_status_and_identity_fields_are_kept() {
+        let player = generate_from_json(
+            striker_json(serde_json::json!({
+                "condition": 64,
+                "morale": 51,
+                "weakFoot": 4,
+                "alternatePositions": ["LeftWinger"],
+                "careerHistory": [
+                    { "season": 2019, "teamName": "Juventus",
+                      "appearances": 30, "goals": 10, "assists": 5 },
+                    { "season": 2020, "teamId": "club-x", "teamName": "Club X",
+                      "appearances": 12, "goals": 1, "assists": 2 },
+                ],
+            })),
+            2026,
+        );
+
+        assert_eq!(player.condition, 64);
+        assert_eq!(player.morale, 51);
+        assert_eq!(player.weak_foot, 4);
+        assert_eq!(player.alternate_positions, vec![Position::LeftWinger]);
+        assert_eq!(player.career.len(), 2);
+        // A club that is not in the package has no id, and keeps its name.
+        assert_eq!(player.career[0].team_id, "");
+        assert_eq!(player.career[0].team_name, "Juventus");
+        assert_eq!(player.career[0].goals, 10);
+        assert_eq!(player.career[1].team_id, "club-x");
+    }
+
+    /// Everything here is optional, and leaving it out must change nothing: every
+    /// package written before these fields existed has to generate as it always did.
+    #[test]
+    fn omitted_status_fields_are_still_generated() {
+        let player = generate_from_json(striker_json(serde_json::json!({})), 2026);
+
+        assert!(
+            (75..100).contains(&player.condition),
+            "condition {}",
+            player.condition
+        );
+        assert!(
+            (40..76).contains(&player.morale),
+            "morale {}",
+            player.morale
+        );
+        assert!(player.market_value > 0);
+        assert!(player.wage() >= 500);
+        assert!(player.contract_end().is_some());
+        assert_eq!(player.contract_start(), None);
+        assert!(
+            player.career.is_empty(),
+            "history is not invented for an authored player here"
+        );
+    }
+
+    /// An authored weak foot and alternate positions have to survive the identity
+    /// upgrade that runs when a career opens and when a save loads, or they would be
+    /// accepted and then silently replaced. That holds for a specific position; for
+    /// a general group (Midfielder, Forward, …) the upgrade re-infers them, which is
+    /// why validation refuses the fields there rather than letting them be discarded.
+    #[test]
+    fn an_authored_weak_foot_and_alternates_survive_the_identity_upgrade() {
+        let mut player = generate_from_json(
+            striker_json(serde_json::json!({
+                "weakFoot": 5,
+                "alternatePositions": ["LeftWinger"],
+            })),
+            2026,
+        );
+
+        crate::player_identity::upgrade_player_identity(&mut player, None);
+
+        assert_eq!(
+            player.weak_foot, 5,
+            "the identity upgrade replaced the authored weak foot"
+        );
+        assert_eq!(player.alternate_positions, vec![Position::LeftWinger]);
     }
 
     /// An authored ceiling is exact, not a suggestion.

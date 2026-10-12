@@ -219,7 +219,7 @@ mod tests {
             attrs,
         );
         player.team_id = Some("team-1".to_string());
-        player.wage = 1_000;
+        player.stage_wage(1_000);
         player
     }
 

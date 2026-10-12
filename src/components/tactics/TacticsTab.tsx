@@ -47,6 +47,7 @@ export default function TacticsTab({
     dragPreviewRef,
     handleFormationChange,
     handlePlayStyleChange,
+    handleApplyTacticPreset,
     handleAssignBestFit,
     handlePromoteBenchPlayer,
     handleDemoteStarter,
@@ -87,6 +88,7 @@ export default function TacticsTab({
     initialPreset,
     onFormationChange: handleFormationChange,
     onPlayStyleChange: handlePlayStyleChange,
+    onApplyPreset: handleApplyTacticPreset,
   });
 
   if (!team) {

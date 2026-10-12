@@ -218,7 +218,7 @@ fn upgrading_a_save_does_not_re_warn_about_a_contract_or_re_apply_the_morale_hit
         .format("%Y-%m-%d")
         .to_string();
     let player = game.players.iter_mut().find(|p| p.id == "p_fwd0").unwrap();
-    player.contract_end = Some(six_month_end);
+    player.stage_contract_end(Some(six_month_end));
     let morale_before = player.morale;
 
     // The legacy message, exactly as a pre-ledger save would hold it: the old
@@ -260,7 +260,7 @@ fn upgrading_a_save_still_warns_about_a_contract_renewed_since_the_old_warning()
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(renewed_end.clone());
+        .stage_contract_end(Some(renewed_end.clone()));
 
     // Written when the player was in his final weeks, before he re-signed.
     game.messages
@@ -288,7 +288,7 @@ fn upgrading_a_save_still_warns_when_the_renewal_lands_on_the_same_stage() {
         .format("%Y-%m-%d")
         .to_string();
     let player = game.players.iter_mut().find(|p| p.id == "p_fwd0").unwrap();
-    player.contract_end = Some(renewed_end.clone());
+    player.stage_contract_end(Some(renewed_end.clone()));
     let morale_before = player.morale;
 
     // The old deal ended 120 days out — also the six-month stage.
@@ -500,8 +500,9 @@ fn bench_complaint_after_5_missed_matches() {
 
     // Now probabilistic (10% daily chance), run multiple iterations
     let mut found = false;
-    for _ in 0..200 {
+    for seed in 0..200 {
         game.messages.clear();
+        game.seed = seed;
         player_events::check_player_events(&mut game);
         if game
             .messages
@@ -640,8 +641,9 @@ fn happy_player_message_with_high_morale() {
 
     // Run many iterations to hit the 10% chance
     let mut found_happy = false;
-    for _ in 0..200 {
+    for seed in 0..200 {
         game.messages.clear();
+        game.seed = seed;
         player_events::check_player_events(&mut game);
         if game
             .messages
@@ -673,7 +675,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(twelve_month_end);
+        .stage_contract_end(Some(twelve_month_end));
 
     player_events::check_player_events(&mut twelve_month_game);
 
@@ -694,7 +696,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(six_month_end);
+        .stage_contract_end(Some(six_month_end));
 
     player_events::check_player_events(&mut six_month_game);
 
@@ -715,7 +717,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(three_month_end);
+        .stage_contract_end(Some(three_month_end));
 
     player_events::check_player_events(&mut three_month_game);
 
@@ -736,7 +738,7 @@ fn contract_warning_cadence_changes_by_horizon() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(final_weeks_end);
+        .stage_contract_end(Some(final_weeks_end));
 
     player_events::check_player_events(&mut final_weeks_game);
 
@@ -760,11 +762,11 @@ fn contract_pressure_intensifies_as_expiry_approaches() {
         .find(|p| p.id == "p_fwd0")
         .unwrap();
     twelve_month_player.morale = 80;
-    twelve_month_player.contract_end = Some(
+    twelve_month_player.stage_contract_end(Some(
         (twelve_month_game.clock.current_date + chrono::Duration::days(330))
             .format("%Y-%m-%d")
             .to_string(),
-    );
+    ));
 
     let final_weeks_player = final_weeks_game
         .players
@@ -772,11 +774,11 @@ fn contract_pressure_intensifies_as_expiry_approaches() {
         .find(|p| p.id == "p_fwd0")
         .unwrap();
     final_weeks_player.morale = 80;
-    final_weeks_player.contract_end = Some(
+    final_weeks_player.stage_contract_end(Some(
         (final_weeks_game.clock.current_date + chrono::Duration::days(20))
             .format("%Y-%m-%d")
             .to_string(),
-    );
+    ));
 
     player_events::check_player_events(&mut twelve_month_game);
     player_events::check_player_events(&mut final_weeks_game);
@@ -811,20 +813,20 @@ fn takeover_contract_review_replaces_first_day_contract_spam() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(
-        (game.clock.current_date + chrono::Duration::days(20))
-            .format("%Y-%m-%d")
-            .to_string(),
-    );
+        .stage_contract_end(Some(
+            (game.clock.current_date + chrono::Duration::days(20))
+                .format("%Y-%m-%d")
+                .to_string(),
+        ));
     game.players
         .iter_mut()
         .find(|p| p.id == "p_fwd1")
         .unwrap()
-        .contract_end = Some(
-        (game.clock.current_date + chrono::Duration::days(150))
-            .format("%Y-%m-%d")
-            .to_string(),
-    );
+        .stage_contract_end(Some(
+            (game.clock.current_date + chrono::Duration::days(150))
+                .format("%Y-%m-%d")
+                .to_string(),
+        ));
 
     player_events::generate_takeover_contract_review_message(&mut game);
 
@@ -854,7 +856,7 @@ fn no_contract_concern_beyond_twelve_months() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(end_date);
+        .stage_contract_end(Some(end_date));
 
     player_events::check_player_events(&mut game);
 
@@ -879,7 +881,7 @@ fn no_contract_concern_if_expired() {
         .iter_mut()
         .find(|p| p.id == "p_fwd0")
         .unwrap()
-        .contract_end = Some(end_date);
+        .stage_contract_end(Some(end_date));
 
     player_events::check_player_events(&mut game);
 
@@ -974,8 +976,10 @@ fn morale_talk_work_harder_varies() {
 
     let mut positive_count = 0;
     let mut negative_count = 0;
-    for _ in 0..100 {
+    // Each trial is a different game: one seed would give one outcome every time.
+    for seed in 0..100 {
         let mut g = game.clone();
+        g.seed = seed;
         player_events::apply_player_response(
             &mut g,
             "morale_talk_p_fwd0",
@@ -1312,8 +1316,10 @@ fn bench_complaint_prove_yourself_varies() {
 
     let mut positive = 0;
     let mut negative = 0;
-    for _ in 0..100 {
+    // Each trial is a different game: one seed would give one outcome every time.
+    for seed in 0..100 {
         let mut g = game.clone();
+        g.seed = seed;
         player_events::apply_player_response(
             &mut g,
             "bench_complaint_p_fwd0",
@@ -1400,8 +1406,10 @@ fn happy_player_higher_expectations_varies() {
 
     let mut positive = 0;
     let mut negative = 0;
-    for _ in 0..100 {
+    // Each trial is a different game: one seed would give one outcome every time.
+    for seed in 0..100 {
         let mut g = game.clone();
+        g.seed = seed;
         player_events::apply_player_response(
             &mut g,
             "happy_player_p_fwd0",
@@ -1749,5 +1757,51 @@ fn volatile_player_worse_outcomes_from_tough_love() {
         "Composed player should respond better to tough love: composed={:.1}, volatile={:.1}",
         avg_composed,
         avg_volatile
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Player events come from the game's seed
+// ---------------------------------------------------------------------------
+
+fn a_season_of_player_events(seed: u64) -> Vec<String> {
+    let mut game = make_game();
+    game.seed = seed;
+    for player in &mut game.players {
+        player.morale = 10;
+    }
+    for _ in 0..200 {
+        player_events::check_player_events(&mut game);
+        game.clock.advance_days(1);
+    }
+    game.messages
+        .iter()
+        .map(|message| {
+            format!(
+                "{} {:?} {:?} {:?}",
+                message.date, message.subject_key, message.body_key, message.context.player_id
+            )
+        })
+        .collect()
+}
+
+/// Given unhappy players and a season of days,
+/// When player events are checked each day, twice, from the same seed,
+/// Then the same players complain on the same days.
+#[test]
+fn player_events_fall_the_same_way_from_the_same_seed() {
+    assert_eq!(a_season_of_player_events(11), a_season_of_player_events(11));
+}
+
+/// The control.
+#[test]
+fn the_seed_decides_which_players_speak_up() {
+    let seasons: std::collections::BTreeSet<Vec<String>> =
+        (0..20).map(a_season_of_player_events).collect();
+
+    assert!(seasons.len() > 1, "twenty seeds all gave the same season");
+    assert!(
+        seasons.iter().any(|season| !season.is_empty()),
+        "no seed produced a single message"
     );
 }

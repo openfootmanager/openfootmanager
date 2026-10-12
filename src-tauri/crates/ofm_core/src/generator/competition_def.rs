@@ -74,6 +74,9 @@ pub struct CompetitionDefinition {
     /// Optional path to a logo/badge image, relative to the package root.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub logo: Option<String>,
+    /// Explicit phase identity and optional authored closing window.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calendar: Option<domain::competition_calendar::SeasonCalendar>,
 }
 
 /// Format-specific configuration. `kind` selects the shape; the other fields
@@ -95,6 +98,29 @@ pub struct FormatDef {
     /// Best next-placed finishers that also advance (GroupAndKnockout).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub best_third_qualifiers: Option<u32>,
+}
+
+impl FormatDef {
+    /// Ordinary-table leg resolution, also used by its retained metadata.
+    pub(crate) fn league_table_legs(&self) -> u8 {
+        self.legs.unwrap_or(2)
+    }
+
+    /// The effective authored shape, shared by validation and construction.
+    fn group_stage_config(&self) -> crate::group_stage::GroupStageConfig {
+        let defaults = crate::group_stage::GroupStageConfig::default();
+        crate::group_stage::GroupStageConfig {
+            group_size: self.group_size.unwrap_or(defaults.group_size),
+            legs: self.legs.unwrap_or(defaults.legs),
+            qualifiers_per_group: self
+                .qualifiers_per_group
+                .unwrap_or(defaults.qualifiers_per_group),
+            best_third_qualifiers: self
+                .best_third_qualifiers
+                .unwrap_or(defaults.best_third_qualifiers),
+            ..defaults
+        }
+    }
 }
 
 /// How a competition's participants are chosen. Exactly one variant must be
@@ -201,6 +227,12 @@ impl<'a> WorldValidationContext<'a> {
                 }
             })
             .collect();
+        country_codes.extend(
+            world
+                .regions
+                .iter()
+                .flat_map(|region| region.country_codes.iter().map(String::as_str)),
+        );
         // Include builtin nations so competition selectors that reference them
         // pass validation here, matching what validate_competition_references
         // uses at build/install time. `all_nations()`, not the World Cup pool:
@@ -271,6 +303,12 @@ pub fn validate_definitions(
 
         validate_region_and_country(competition, ctx, &mut errors);
         validate_format(competition, &mut errors);
+        if crate::calendar_identity::invalid_definition_calendar(competition) {
+            errors.push(DefinitionError::new(
+                "be.error.competitionDef.invalidCalendar",
+                &competition.id,
+            ));
+        }
         validate_participants(competition, ctx, &known_ids, &mut errors);
         validate_berths(competition, &known_ids, &mut errors);
 
@@ -560,13 +598,18 @@ fn validate_format(competition: &CompetitionDefinition, errors: &mut Vec<Definit
         );
     }
     if let Some(group_size) = format.group_size
-        && group_size < 2
+        && group_size < domain::league::MIN_GROUP_SIZE
     {
         errors.push(
             DefinitionError::new("be.error.competitionDef.groupSizeTooSmall", &competition.id)
                 .with("groupSize", group_size.to_string()),
         );
     }
+    validate_group_qualification(
+        competition,
+        competition.participants.explicit.as_ref().map(Vec::len),
+        errors,
+    );
     if let Some(legs) = format.legs
         && legs == 0
     {
@@ -575,6 +618,76 @@ fn validate_format(competition: &CompetitionDefinition, errors: &mut Vec<Definit
             &competition.id,
         ));
     }
+}
+
+/// Qualification must be attainable in every balanced group. Extra qualifiers
+/// are next-placed finishers, so shorter groups may have none to supply.
+fn validate_group_qualification(
+    competition: &CompetitionDefinition,
+    entrants: Option<usize>,
+    errors: &mut Vec<DefinitionError>,
+) {
+    if competition.format.kind != CompetitionFormat::GroupAndKnockout {
+        return;
+    }
+    let config = competition.format.group_stage_config();
+    let size = config.group_size as usize;
+    if size < domain::league::MIN_GROUP_SIZE as usize {
+        return; // Reported by validate_format; avoid division by zero.
+    }
+    let qualifiers = config.qualifiers_per_group as usize;
+    let extra = config.best_third_qualifiers as usize;
+    let incompatible = qualifiers == 0
+        || qualifiers > size
+        || entrants.is_some_and(|entrants| {
+            let groups = crate::group_stage::group_count(entrants, size);
+            let smallest = entrants / groups;
+            let available_extra = if smallest > qualifiers {
+                groups
+            } else if smallest == qualifiers {
+                entrants % groups
+            } else {
+                0
+            };
+            smallest < domain::league::MIN_GROUP_SIZE as usize
+                || qualifiers > smallest
+                || extra > available_extra
+                || groups * qualifiers + extra < 2
+        });
+    if incompatible {
+        errors.push(DefinitionError::new(
+            "be.error.competitionDef.invalidGroupQualification",
+            &competition.id,
+        ));
+    }
+}
+
+/// Validate against the actual selector results, using the same resolver as
+/// construction. A selector's requested count is only an upper bound.
+pub fn validate_definitions_for_world(
+    file: &CompetitionDefinitionFile,
+    world: &super::WorldData,
+) -> Vec<DefinitionError> {
+    let mut errors = validate_definitions(file, &WorldValidationContext::from_world(world));
+    if !errors.is_empty() {
+        return errors;
+    }
+    let participants = resolve_definition_participants(file, world);
+    for (index, competition) in file.competitions.iter().enumerate() {
+        if competition.participants.selector.is_none() {
+            continue; // Explicit lists were checked by validate_format.
+        }
+        let entrants = participants[&competition.id].len();
+        if entrants < 2 {
+            continue; // Construction skips these selectors instead of creating a cup.
+        }
+        let raised_before = errors.len();
+        validate_group_qualification(competition, Some(entrants), &mut errors);
+        for error in &mut errors[raised_before..] {
+            error.competition_index = Some(index);
+        }
+    }
+    errors
 }
 
 fn validate_participants(
@@ -817,6 +930,9 @@ fn reassign_competition_id(competition: &mut League, new_id: &str) {
     competition.id = new_id.to_string();
     for fixture in &mut competition.fixtures {
         fixture.competition_id = new_id.to_string();
+        // Fixture ids were derived from the competition's name and teams; two authored cups
+        // that share both would share every id. The definition's own id tells them apart.
+        fixture.id = crate::seed::derived_id(&["authored-fixture", new_id, &fixture.id]);
     }
     for round in &mut competition.knockout_rounds {
         round.id = round.id.replace(&old, new_id);
@@ -944,8 +1060,8 @@ fn build_competition(
                 team_ids,
                 season_start,
                 fixture_competition,
-                def.format.legs.unwrap_or(2),
-                7,
+                def.format.league_table_legs(),
+                crate::schedule::LEAGUE_MATCHDAY_GAP_DAYS.into(),
             );
             league
         }
@@ -962,13 +1078,7 @@ fn build_competition(
             cup
         }
         CompetitionFormat::GroupAndKnockout => {
-            let config = crate::group_stage::GroupStageConfig {
-                legs: def.format.legs.unwrap_or(2),
-                matchday_gap_days: 7,
-                qualifiers_per_group: def.format.qualifiers_per_group.unwrap_or(2),
-                best_third_qualifiers: def.format.best_third_qualifiers.unwrap_or(0),
-                ..Default::default()
-            };
+            let config = def.format.group_stage_config();
             let mut cup = crate::group_stage::generate_group_knockout_cup_with(
                 &def.name,
                 season,
@@ -994,6 +1104,7 @@ fn build_competition(
     competition.season_start_month = def.season_start_month.unwrap_or(8);
     competition.season_start_day = def.season_start_day.unwrap_or(1);
     competition.name_key = def.name_key.clone();
+    crate::calendar_identity::attach_definition_calendar(&mut competition, def, season_start);
     // Rebuild standings to match the resolved participants for table formats.
     if def.format.kind == CompetitionFormat::LeagueTable {
         competition.standings = team_ids
@@ -1004,20 +1115,10 @@ fn build_competition(
     Some(competition)
 }
 
-/// Turn a validated definition file into runnable competitions. Selectors are
-/// resolved against the world (in dependency order), and competitions whose
-/// participant list comes out below two clubs are skipped. Call only after
-/// [`validate_definitions`] has returned no errors.
-///
-/// `game_start` is the game's anchor date (July 1 of the chosen start year).
-/// Each competition derives its own season-start date from its
-/// `season_start_month`/`season_start_day` fields.
-pub fn resolve_definitions(
+fn resolve_definition_participants(
     file: &CompetitionDefinitionFile,
     world: &super::WorldData,
-    season: u32,
-    game_start: DateTime<Utc>,
-) -> Vec<League> {
+) -> HashMap<String, Vec<String>> {
     let region_by_country = country_to_region(world);
 
     // Resolve participant lists in dependency order (selectors that read other
@@ -1051,6 +1152,25 @@ pub fn resolve_definitions(
         resolved.insert(def.id.clone(), ids);
     }
 
+    resolved
+}
+
+/// Turn a validated definition file into runnable competitions. Selectors are
+/// resolved against the world (in dependency order), and competitions whose
+/// participant list comes out below two clubs are skipped. Call only after
+/// [`validate_definitions_for_world`] has returned no errors.
+///
+/// `game_start` is the game's anchor date (July 1 of the chosen start year).
+/// Each competition derives its own season-start date from its
+/// `season_start_month`/`season_start_day` fields.
+pub fn resolve_definitions(
+    file: &CompetitionDefinitionFile,
+    world: &super::WorldData,
+    season: u32,
+    game_start: DateTime<Utc>,
+) -> Vec<League> {
+    let resolved = resolve_definition_participants(file, world);
+
     // Build in authoring order so priorities line up predictably.
     file.competitions
         .iter()
@@ -1081,6 +1201,36 @@ pub fn build_explicit_competition(
 
 #[cfg(test)]
 mod tests {
+    /// Given two authored group cups with the same name and the same teams but different ids,
+    /// When both are built,
+    /// Then no fixture id is shared: ids are keyed by the definition, not just by what it is
+    ///      called, or match statistics for one would be overwritten by the other.
+    #[test]
+    fn two_group_cups_with_one_name_and_different_ids_share_no_fixture_id() {
+        let teams: Vec<String> = (1..=8).map(|n| format!("team_{n}")).collect();
+        use chrono::TimeZone;
+        let start = chrono::Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let build = |id: &str| {
+            let mut cup = crate::group_stage::generate_group_knockout_cup_with(
+                "Same Name",
+                2026,
+                &teams,
+                start,
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+                &crate::group_stage::GroupStageConfig::default(),
+            );
+            reassign_competition_id(&mut cup, id);
+            cup
+        };
+
+        let (one, two) = (build("cup-one"), build("cup-two"));
+
+        assert!(!one.fixtures.is_empty());
+        let ids: std::collections::BTreeSet<&String> = one.fixtures.iter().map(|f| &f.id).collect();
+        assert!(two.fixtures.iter().all(|f| !ids.contains(&f.id)));
+    }
+
     use super::*;
 
     fn ctx() -> WorldValidationContext<'static> {
@@ -1117,6 +1267,7 @@ mod tests {
             season_start_day: None,
             name_key: None,
             logo: None,
+            calendar: None,
         }
     }
 
@@ -1522,6 +1673,7 @@ mod tests {
             season_start_day: None,
             name_key: None,
             logo: None,
+            calendar: None,
         }
     }
 

@@ -1,12 +1,13 @@
 use crate::game::{
-    Game, ScoutingAssignment, YouthScoutingAssignment, YouthScoutingObjective, YouthScoutingRegion,
+    Game, ScoutedPlayer, ScoutingAssignment, YouthScoutingAssignment, YouthScoutingObjective,
+    YouthScoutingRegion,
 };
+use domain::contract_ledger::ContractSource;
 use domain::message::*;
-use domain::player::{Player, Position, SquadRole};
+use domain::player::{Player, PlayerMovementKind, Position, SquadRole};
 use domain::staff::StaffRole;
 use rand::RngExt;
 use std::collections::HashMap;
-use uuid::Uuid;
 
 const ERR_SCOUT_NOT_FOUND: &str = "be.error.scouting.scoutNotFound";
 const ERR_STAFF_MEMBER_NOT_SCOUT: &str = "be.error.scouting.staffMemberNotScout";
@@ -165,8 +166,10 @@ pub fn send_scout(game: &mut Game, scout_id: &str, player_id: &str) -> Result<()
     // Create assignment (2-5 days depending on scout quality)
     let days = assignment_days_for_player_scouting(scout.attributes.judging_ability);
 
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     game.scouting_assignments.push(ScoutingAssignment {
-        id: Uuid::new_v4().to_string(),
+        // Made from what the assignment is, so a replay of the save starts the same one.
+        id: crate::seed::derived_id(&["scouting", scout_id, player_id, &today]),
         scout_id: scout_id.to_string(),
         player_id: player_id.to_string(),
         days_remaining: days,
@@ -206,9 +209,11 @@ pub fn start_youth_scouting(
 
     let days =
         assignment_days_for_youth_scouting(scout.attributes.judging_potential, region, objective);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let search = format!("{region:?}/{objective:?}/{target_position:?}");
     game.youth_scouting_assignments
         .push(YouthScoutingAssignment {
-            id: Uuid::new_v4().to_string(),
+            id: crate::seed::derived_id(&["youth-scouting", scout_id, &search, &today]),
             scout_id: scout_id.to_string(),
             region,
             objective,
@@ -329,12 +334,26 @@ pub fn process_scouting(game: &mut Game) {
                 &today,
             );
             game.messages.push(msg);
+            record_scouted_player(game, &assignment.player_id, &today);
         }
     }
 
     for assignment in &completed_youth {
         complete_youth_scouting_assignment(game, assignment, &today);
     }
+}
+
+fn record_scouted_player(game: &mut Game, player_id: &str, scouted_on: &str) {
+    let Some(player) = game.players.iter().find(|p| p.id == player_id) else {
+        return;
+    };
+    let scouted = ScoutedPlayer {
+        player_id: player_id.to_string(),
+        scouted_on: scouted_on.to_string(),
+        attributes: player.attributes.clone(),
+    };
+    game.scouted_players.retain(|s| s.player_id != player_id);
+    game.scouted_players.push(scouted);
 }
 
 fn complete_youth_scouting_assignment(
@@ -365,12 +384,14 @@ fn complete_youth_scouting_assignment(
     // Prospects are scouted mid-career, so they are aged against the running
     // clock rather than the year the world opened in.
     let current_year = chrono::Datelike::year(&game.clock.current_date) as u32;
+    let mut rng = game.rng_today(&format!("youth-scouting/{}", assignment.id));
     let prospects = generate_youth_recruitment_candidates(
         &team,
         assignment.region,
         assignment.objective,
         assignment.target_position.as_ref(),
         current_year,
+        &mut rng,
     );
     if prospects.is_empty() {
         return;
@@ -507,6 +528,7 @@ fn generate_youth_recruitment_candidates(
     objective: YouthScoutingObjective,
     target_position: Option<&Position>,
     current_year: u32,
+    rng: &mut impl rand::Rng,
 ) -> Vec<Player> {
     let pool_size = match objective {
         YouthScoutingObjective::Balanced => 4,
@@ -529,6 +551,7 @@ fn generate_youth_recruitment_candidates(
                     YouthScoutingRegion::International => None,
                 },
                 current_year,
+                &mut *rng,
             );
             prospect.team_id = None;
             prospect.squad_role = SquadRole::Youth;
@@ -601,6 +624,40 @@ pub fn apply_youth_recruitment_response(
             {
                 signed_player.jersey_number =
                     crate::roster::resolve_jersey_for(game, &signed_player, team);
+            }
+            // Signing him is a contract made mid-career, so it goes in his history. He
+            // signs on the terms he was generated with when those are still in the
+            // future, and on the club's standard terms when they are not.
+            let today = game.clock.current_date.date_naive();
+            if let Some(team) = game
+                .teams
+                .iter()
+                .find(|team| Some(&team.id) == game.manager.team_id.as_ref())
+            {
+                let own_terms = signed_player
+                    .contract_end()
+                    .and_then(crate::contracts::parse_contract_date)
+                    .filter(|end| *end > today)
+                    .map(|end| (signed_player.wage(), end))
+                    .filter(|(wage, _)| *wage > 0);
+                if let Some((wage, end)) = own_terms.or_else(|| {
+                    crate::contracts::standard_contract_terms(&signed_player, team, today, 0)
+                }) {
+                    crate::contracts::record_movement(
+                        &mut signed_player,
+                        crate::contracts::contract_entry(
+                            PlayerMovementKind::FreeAgentSigning,
+                            today,
+                            team,
+                            crate::contracts::contract_record(
+                                today,
+                                end,
+                                wage,
+                                ContractSource::FreeAgent,
+                            ),
+                        ),
+                    );
+                }
             }
             let player_id = signed_player.id.clone();
             let player_name = signed_player.full_name.clone();
@@ -745,7 +802,8 @@ fn build_scout_report(
     team_name: Option<&str>,
     date: &str,
 ) -> InboxMessage {
-    let mut rng = rand::rng();
+    // What the scout sees is part of the assignment, so two replays of the day agree.
+    let mut rng = crate::seed::rng_from_key(&format!("scout-report/{assignment_id}/{date}"));
 
     // Accuracy: higher judging = less noise on reported attributes
     let noise_range = if judging_ability >= 80 {
@@ -963,6 +1021,46 @@ mod tests {
             reflexes: 20,
             aerial: 55,
         }
+    }
+
+    fn report_for(assignment: &str) -> String {
+        let message = build_scout_report(
+            assignment,
+            "Alex Scout",
+            "player-1",
+            "Jamie Prospect",
+            "ENG",
+            "2004-03-12",
+            "Midfielder",
+            &sample_attrs(),
+            74,
+            89,
+            67,
+            79,
+            50,
+            50,
+            Some("London FC"),
+            "2026-08-01",
+        );
+        serde_json::to_value(message).unwrap().to_string()
+    }
+
+    /// Given a scout assigned to a player,
+    /// When the report is written twice, for each of thirty assignments,
+    /// Then it reads the same both times — the scout's noise is part of the report, so a
+    ///      replayed day must not see different numbers — and the noise is not the same
+    ///      for every assignment.
+    #[test]
+    fn a_scout_report_reads_the_same_each_time() {
+        let ids: Vec<String> = (0..30).map(|n| format!("assignment-{n}")).collect();
+        for id in &ids {
+            assert_eq!(report_for(id), report_for(id), "{id}");
+        }
+        let distinct: std::collections::BTreeSet<String> = ids
+            .iter()
+            .map(|id| report_for(id).replace(id.as_str(), ""))
+            .collect();
+        assert!(distinct.len() > 1, "the scout's noise never varied");
     }
 
     #[test]

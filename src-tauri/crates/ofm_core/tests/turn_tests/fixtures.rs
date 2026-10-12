@@ -151,6 +151,51 @@ pub(crate) fn make_squad(team_id: &str, prefix: &str) -> Vec<Player> {
     players
 }
 
+/// Deepen a `make_squad` club (1/4/4/2) to 3/5/6/4: above the squad floor and
+/// at its planning target, so neither the floor's top-up nor an AI club's
+/// squad planning has any reason to bring a player in.
+pub(crate) fn deepen_squad(game: &mut Game, team_id: &str, prefix: &str) {
+    for (position, extra) in [
+        (Position::Goalkeeper, 2),
+        (Position::Defender, 1),
+        (Position::Midfielder, 2),
+        (Position::Forward, 2),
+    ] {
+        for i in 0..extra {
+            game.players.push(make_player(
+                &format!("{prefix}_extra_{position:?}{i}"),
+                &format!("{prefix} Extra {position:?}{i}"),
+                team_id,
+                position.clone(),
+            ));
+        }
+    }
+}
+
+/// Free agents enough to make a club of nobody sound: 2/5/5/3, their ids
+/// prefixed so a world can hold more than one pool.
+pub(crate) fn add_free_agent_pool(game: &mut Game, prefix: &str) {
+    for (position, count) in [
+        (Position::Goalkeeper, 2),
+        (Position::Defender, 5),
+        (Position::Midfielder, 5),
+        (Position::Forward, 3),
+    ] {
+        for i in 0..count {
+            let mut agent = make_player(
+                &format!("{prefix}_fa_{position:?}{i}"),
+                &format!("Free {position:?}{i}"),
+                "",
+                position.clone(),
+            );
+            agent.team_id = None;
+            agent.stage_contract_end(None);
+            agent.stage_wage(0);
+            game.players.push(agent);
+        }
+    }
+}
+
 pub(crate) fn make_game_with_match() -> Game {
     let date = Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap();
     let clock = GameClock::new(date);

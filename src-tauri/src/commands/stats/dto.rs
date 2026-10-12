@@ -32,6 +32,7 @@ pub struct PlayerStatsOverviewMetricsDto {
 #[serde(rename_all = "camelCase")]
 pub struct PlayerStatsOverviewDto {
     pub percentile_eligible: bool,
+    pub season_rating_rated: bool,
     pub metrics: PlayerStatsOverviewMetricsDto,
 }
 
@@ -58,6 +59,7 @@ pub struct PlayerMatchHistoryEntryDto {
     pub yellow_cards: u8,
     pub red_cards: u8,
     pub rating: f32,
+    pub rated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

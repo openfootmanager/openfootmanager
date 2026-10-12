@@ -1,5 +1,4 @@
 use domain::message::*;
-use rand::RngExt;
 use std::collections::HashMap;
 
 /// Helper to build a HashMap<String, String> from key-value pairs.
@@ -37,7 +36,7 @@ pub(crate) fn low_morale_message(
     morale: u8,
     date: &str,
 ) -> InboxMessage {
-    let idx = rand::rng().random_range(0..2);
+    let idx = crate::seed::variant_for(msg_id, 2);
 
     InboxMessage::new(
         msg_id.to_string(),
@@ -90,7 +89,7 @@ pub(crate) fn bench_complaint_message(
     player_name: &str,
     date: &str,
 ) -> InboxMessage {
-    let idx = rand::rng().random_range(0..2);
+    let idx = crate::seed::variant_for(msg_id, 2);
 
     InboxMessage::new(
         msg_id.to_string(),
@@ -143,7 +142,7 @@ pub(crate) fn happy_player_message(
     player_name: &str,
     date: &str,
 ) -> InboxMessage {
-    let idx = rand::rng().random_range(0..2);
+    let idx = crate::seed::variant_for(msg_id, 2);
 
     InboxMessage::new(
         msg_id.to_string(),
@@ -198,7 +197,7 @@ pub(crate) fn contract_concern_message(
     date: &str,
 ) -> InboxMessage {
     let months = (days_remaining as f64 / 30.0).ceil() as u32;
-    let idx = rand::rng().random_range(0..2);
+    let idx = crate::seed::variant_for(msg_id, 2);
 
     InboxMessage::new(
         msg_id.to_string(),

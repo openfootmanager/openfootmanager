@@ -5,6 +5,8 @@ pub(crate) const RENEWAL_SESSION_STALE_DAYS: i64 = 14;
 pub(crate) const INSULTING_RENEWAL_BLOCK_DAYS: u64 = 30;
 pub(crate) const MAX_CONTRACT_YEARS: u32 = 5;
 pub(crate) const MARKET_VALUE_TO_WAGE_RATIO: u64 = 200;
+/// The least any player in the game is paid a week: the floor under every
+/// generated, derived and offered wage.
 pub(crate) const MINIMUM_DEFAULT_WAGE: u64 = 500;
 pub(crate) const ERR_NO_TEAM_ASSIGNED: &str = "be.error.noTeamAssigned";
 pub(crate) const ERR_MANAGED_TEAM_NOT_FOUND: &str = "be.error.managedTeamNotFound";

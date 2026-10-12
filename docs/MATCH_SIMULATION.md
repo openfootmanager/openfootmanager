@@ -1,8 +1,10 @@
 # Match Simulation
 
-This document describes how OpenFoot Manager simulates football matches. The simulation has two modes: **instant** (used for AI-vs-AI matches during day advancement) and **live** (step-by-step, used when the player watches or controls a match).
+This document describes how OpenFoot Manager simulates football matches. There are two engines. The **live** engine (`live_match/`) plays a match a minute at a time and accepts commands between minutes — substitutions, formation changes, tactical instructions, half-time talks — and depletes condition per minute. The **instant** engine (`engine.rs`) resolves a whole match in one call and takes no commands.
 
-Both modes share the same core resolution logic, but the live system adds interactivity — substitutions, formation changes, halftime talks — and per-minute stamina depletion.
+**Every fixture in an actively simulated competition is played by the live engine**, whether or not anybody is watching. The difference between the player's own match and the other nine on the same date is who is in the dugout, not which engine plays it: an unwatched match simply has an AI manager on both touchlines. Competitions outside the player's active scope are a third, much cheaper tier — a scoreline model, not a match engine (`turn/dormant.rs`).
+
+The instant engine is now used only by the tools: `sim-bench` (including its `--phase-sweep` dial table and the control arm of its A/B) and the `sim_lab` developer command. Numbers measured through it describe the same resolution logic but not the same match — no bench, no manager, no per-minute condition.
 
 ## Historical Context
 
@@ -179,10 +181,15 @@ club per game** after #605 changed the selected eleven. A scoring change needs
 a fresh run of `tactical_adaptation_probe` before those cutoffs can be trusted.
 
 Both the instant engine (`engine/`) and the live engine (`live_match/`) consume
-the dials identically; the stamina cost of pressing applies only to the live
-engine, which tracks per-minute condition. Magnitudes live in `engine::shared`
-and are tuned with `cargo run -p sim-bench -- --phase-sweep`, which tabulates
-each dial's effect on possession %, shots and goals against a neutral opponent.
+the dials identically, with one exception: the stamina cost of pressing needs
+per-minute condition, so it exists only in the live engine — which, since every
+competitive fixture goes through that engine, means it is now charged in every
+match the game plays. Magnitudes live in `engine::shared` and are tabulated by
+`cargo run -p sim-bench -- --phase-sweep`, each dial's effect on possession %,
+shots and goals against a neutral opponent. Read that table with its path in
+mind: the sweep runs through the instant engine, so it prices a dial in a match
+with no bench and no pressing cost. `tests/tactical_identity_probe.rs` is the
+measurement taken on the path the game actually plays.
 
 ---
 
@@ -282,27 +289,75 @@ At any point, a `MatchSnapshot` can be taken — a serializable view of the enti
 
 ## AI Manager
 
-The AI manager (`ai.rs`) controls non-player sides during live matches. It evaluates the match state once per minute and can issue substitution and tactical commands.
+The AI manager (`ai.rs`) controls non-player sides during live matches. It is consulted once a
+minute and can issue substitution and tactical commands. It reads the match through
+`AiObservation` — a borrowed, side-relative view built by `LiveMatchState::observe()`, not a
+`MatchSnapshot`.
 
 ### AI Profile
 
 Each AI manager has:
 - **Reputation** (0–1000) — higher = more sophisticated decisions
-- **Experience** (0–100) — affects timing and quality of choices
+- **Experience** (0–100) — decides which checkpoints he works to, how early he replaces a spent
+  player, and how often he gets a close call wrong
+- **Personality** — `Pragmatist` waits for the scheduled moments; `Visionary` reaches for a
+  different shape before a different label and looks up when a goal goes against him; `Reactive`
+  takes stock every time the score changes
 
-### Decision Logic
+### When the manager looks up
 
-**Substitutions:**
-- After minute 55: replace most fatigued players (condition < threshold based on experience)
-- After minute 65 (losing): tactical subs — bring on attacking players
-- After minute 80 (winning): defensive subs — bring on fresh defenders/midfielders
+Reactions are **not** rolled for each minute. A manager takes stock at fixed moments and
+immediately when the match changes under him:
 
-**Tactical changes:**
-- Losing by 2+ goals after minute 60: switch to Attacking
-- Winning by 2+ goals after minute 75: switch to Defensive
-- Close game: maintain current style
+| Moment | Who |
+|---|---|
+| Half-time, and the interval in extra time | every manager |
+| 80' | every manager |
+| 70' | experience ≥ 40 |
+| 60' | experience ≥ 70 |
+| 113' | every manager — the last look before penalties |
+| A sending-off, either side | every manager, that minute |
+| A goal, either way | `Reactive` always; `Visionary` when it went against him |
+| Nobody left in goal | every manager, every minute, ahead of everything else |
 
-The experience factor scales how early and aggressively the AI makes decisions.
+Exhaustion is judged **every** minute rather than at a checkpoint: a spent player is not a
+judgement call, and the condition economy is calibrated on that branch firing the minute a
+starter crosses the line.
+
+### What he decides
+
+**Substitutions** (one per evaluation, in this order):
+1. No available goalkeeper on the pitch — a bench keeper comes on for the most spent outfielder,
+   forwards first. He keeps `Position::Goalkeeper` rather than inheriting the vacated slot.
+2. Any starter below the fatigue threshold (55 − experience×10 from 75', 45 − experience×8 from
+   60', otherwise 35) — replaced in kind.
+3. Chasing — two goals down at any checkpoint, one goal down from 60'. A forward comes on for the
+   most spent defender or midfielder, never breaking up a back four below three.
+4. Protecting a lead from 80' — a defender comes on for the most spent forward, always leaving one
+   up front.
+
+Who comes off is whoever has least left to give. Two players within 10 condition points look
+identical from the touchline, and a manager takes the wrong one off with probability
+(1 − experience/100)/2 — the in-match twin of the lineup picker's misjudgement. It never decides
+*whether* he acts.
+
+**Tactical changes** (one per evaluation):
+- A `Visionary` who is losing after 60' changes shape first: 4-4-2 → 4-3-3 → 4-2-3-1. The chain
+  ends, so this fires at most twice.
+- Otherwise a target play style: Attacking two goals down, or one goal down from 60' unless already
+  HighPress; Defensive with a lead from 80', or pinned in one's own half for 7 of the last 10
+  minutes with nothing to chase.
+- If the style is already right, one dial underneath it (`ChangeTacticalDial`). Chasing: a higher
+  line, then a faster break, then a harder press. Protecting: a lower line, then a compact shape,
+  then a passive press — subject to the ration on under-priced dials, at most two per side. The
+  rule lives once, in `engine::ai::under_priced_dials` and `MAX_UNDER_PRICED_DIALS`; `ai_tactics`
+  applies the same one between matches by asking the engine.
+
+**Nothing here ever issues a command to undo an earlier one.** A position that has stopped calling
+for a change produces no target rather than the opposite one, so a side that dropped deep under
+pressure stays deep when the pressure lifts. That is the hysteresis.
+
+All five substitutions are available to every branch; `max_subs` is the only limit.
 
 ---
 
@@ -322,9 +377,12 @@ The `ofm_core/turn/` bridge is the only place the conversion is allowed to live 
    list rather than fielding a short side — the engine has no forfeit, and an empty side
    would crash it. The builder also maps positions, play styles, roles, the nine tactical
    dials, and all 19 attributes + traits.
-2. **`simulate_matchday()`** — for each fixture on a match day, builds both squads through
-   `turn/squad.rs` and calls `engine::simulate()`. The bench is discarded on this path:
-   `simulate()` is one-shot with no command loop, so an instant match has no substitutions.
+2. **`simulate_matchday()`** — for each fixture on a match day, opens a `LiveMatchSession`
+   through `create_live_match()` and runs it to completion. The bench comes with it, so an
+   unwatched match has substitutions and tactical changes like any other; `user_side` is
+   cleared, because with nobody watching, both dugouts are the AI's — including the player's
+   own club when the day was advanced past its fixture. A knockout tie plays extra time and,
+   if still level, the engine's penalty shootout.
 3. **`apply_match_report()`** — writes results back to the domain: fixture status, match result, standings updates, player season stats (goals, assists, cards, rating, clean sheets).
 4. **`apply_player_stats()`** — updates individual `PlayerSeasonStats` from the engine's `PlayerMatchStats`.
 

@@ -6,13 +6,35 @@ on:
     branches:
       - release
 
+# Serialize every stable entry point through finalization, including dispatches on other refs.
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
+
 jobs:
+  check-release-state:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Refuse an already published stable version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/check-release-state.sh
+
   # The same gauntlet a pull request has to pass, run against the commit that is about
   # to be published. Shipping a stable release untested is strictly worse than shipping
   # a nightly untested, and `release` is a branch no `pull_request` run ever covers.
   #
   # No `environment:` here on purpose — see the note in `nightly-tauri-action.yml`.
   verify:
+    needs: check-release-state
     uses: ./.github/workflows/build-check.yml
 
   publish-tauri:
@@ -66,6 +88,13 @@ jobs:
         # If you don't have `beforeBuildCommand` configured you may want to build your frontend here too.
         run: npm ci
 
+      # Individual matrix-job retries reuse successful dependencies, so the early check alone
+      # cannot protect their uploads after a previous run published the release.
+      - name: Refuse a published stable version before upload
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/check-release-state.sh
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -83,8 +112,37 @@ jobs:
           tagName: v__VERSION__
           releaseName: "Openfoot Manager v__VERSION__"
           releaseBody: "Download the installer for your platform below. For feedback and bug reports, please refer to the [Beta Testing Guide](https://github.com/openfootmanager/openfootmanager/blob/v__VERSION__/docs/BETA_TESTING_GUIDE.md)."
-          releaseDraft: false
+          releaseDraft: true
           # Stable releases must not be prereleases, or GitHub has no release to
           # badge as "Latest" and the page falls back to tag-name ordering.
           prerelease: false
           args: ${{ matrix.args }}
+
+      # #281. If this AppImage ships its own libwayland-client, WebKit shows a white window on any
+      # machine using Mesa with a newer libwayland. The details are in docs/LINUX_GRAPHICS.md.
+      # Keep the release a draft until every platform and both AppImage checks pass.
+      - name: AppImage must not bundle libwayland-client (ubuntu only)
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-22.04-arm'
+        run: scripts/check-appimage-libs.sh src-tauri/target/release/bundle/appimage
+
+  finalize-stable:
+    needs: publish-tauri
+    if: ${{ needs.publish-tauri.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: ${{ vars.RELEASE_ENVIRONMENT || 'release' }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Publish the validated stable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          release_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          gh release edit "v$release_version" --draft=false --prerelease=false

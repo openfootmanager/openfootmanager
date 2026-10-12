@@ -25,6 +25,10 @@ pub(super) fn build_game_from_world_data(
     // world (validation already passed at load). These replace the auto-built
     // foundation competitions.
     let game_start = clock.start_date;
+    // The game's seed, settled first because the catch-up of an in-progress season below
+    // draws from it: the world's own when it was generated from one, a fresh draw for a
+    // world nothing seeded (an import, a package).
+    let seed = world.generation_seed.unwrap_or_else(rand::random);
     let defined_competitions: Vec<League> = world
         .competition_definitions
         .as_ref()
@@ -42,7 +46,17 @@ pub(super) fn build_game_from_world_data(
                     comp.season_start_day,
                 );
                 if is_mid_season {
-                    ofm_core::catchup::simulate_past_fixtures(comp, &world.players, game_start);
+                    let mut rng = ofm_core::seed::rng_for_seed(
+                        seed,
+                        &format!("catchup/definitions/{}", comp.id),
+                        &game_start.format("%Y-%m-%d").to_string(),
+                    );
+                    ofm_core::catchup::simulate_past_fixtures(
+                        comp,
+                        &world.players,
+                        game_start,
+                        &mut rng,
+                    );
                 }
             }
             comps
@@ -68,6 +82,8 @@ pub(super) fn build_game_from_world_data(
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
+    // Stored on the game, which is the one place the day's dice come from.
+    game.seed = seed;
     if game
         .staff
         .iter()
@@ -86,7 +102,7 @@ pub(super) fn build_game_from_world_data(
         defined_competitions
     };
 
-    match metadata.kind {
+    let (mut game, stats) = match metadata.kind {
         ofm_core::generator::WorldDataKind::HistoricalSnapshot => {
             game.managers.extend(
                 managers
@@ -119,5 +135,9 @@ pub(super) fn build_game_from_world_data(
             apply_generated_past_history(&mut game, startup_options);
             (game, StatsState::default())
         }
-    }
+    };
+    // Once the competitions are in place, so "does the player's club play
+    // today" has an answer. A package can leave a club thin.
+    ofm_core::squad_floor::repair_squads_on_load(&mut game);
+    (game, stats)
 }

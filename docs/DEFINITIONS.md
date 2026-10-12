@@ -283,7 +283,7 @@ list of problems. Nothing loads half-broken.
 |-------|-----------|---------|-------------|
 | `kind` | all | — | The competition shape. |
 | `legs` | LeagueTable, GroupAndKnockout | `2` | Round-robin legs (1 = single, 2 = home & away). |
-| `groupSize` | GroupAndKnockout | `4` | Clubs per group. |
+| `groupSize` | GroupAndKnockout | `4` | Maximum clubs per group. Uneven fields are balanced across groups. |
 | `qualifiersPerGroup` | GroupAndKnockout | `2` | Clubs advancing from each group. |
 | `bestThirdQualifiers` | GroupAndKnockout | `0` | Extra best next-placed finishers that advance (the 2026 World Cup's "best thirds"). |
 

@@ -1,5 +1,6 @@
 use crate::game::Game;
 use crate::season_awards::compute_division_season_awards;
+use crate::seed::WorldCupStream;
 use chrono::{DateTime, Datelike, Duration, Utc};
 use domain::league::{
     CompetitionFormat, CompetitionScope, CompetitionType, FixtureStatus, League, StandingEntry,
@@ -385,6 +386,10 @@ fn regenerate_competitions_for_new_season(
     if game.competitions.is_empty() {
         return;
     }
+    crate::edition_archive::archive_finished_editions(
+        &mut game.edition_archive,
+        &game.competitions,
+    );
 
     // Read the World Cup field from this cycle's qualifying before competitions
     // are retired below.
@@ -395,7 +400,7 @@ fn regenerate_competitions_for_new_season(
         // out; settle whatever remains (the last matchday, the playoff) so the
         // field is derived from a finished campaign, not a truncated one.
         // Seeded per year so a reloaded save settles to the same field.
-        let mut settle_rng = world_cup_rng(kickoff.year());
+        let mut settle_rng = game.world_cup_rng(WorldCupStream::Settle, kickoff.year());
         crate::world_cup::settle_outstanding_qualifying(game, &mut settle_rng);
         let host = crate::world_cup::host_for_year(game, kickoff.year());
         crate::world_cup::qualified_field_from_game(
@@ -637,11 +642,8 @@ fn manage_international_calendar(
         // windows; a world without one (a save that started late) squeezes a
         // compressed campaign into the single remaining season.
         if qualifying_in_progress {
-            crate::world_cup::continue_world_cup_qualifying(
-                game,
-                &window_dates,
-                &mut world_cup_rng(next_start.year()),
-            );
+            let mut rng = game.world_cup_rng(WorldCupStream::Settle, next_start.year());
+            crate::world_cup::continue_world_cup_qualifying(game, &window_dates, &mut rng);
         } else {
             crate::world_cup::schedule_world_cup_qualifying(
                 game,
@@ -671,26 +673,20 @@ fn manage_international_calendar(
         // Unreachable under the four-year cadence, but if a campaign ever
         // survives into a neutral season, keep it anchored to this season's
         // windows rather than stacking friendlies on top of stale fixtures.
-        crate::world_cup::continue_world_cup_qualifying(
-            game,
-            &window_dates,
-            &mut world_cup_rng(next_start.year()),
-        );
+        let mut rng = game.world_cup_rng(WorldCupStream::Settle, next_start.year());
+        crate::world_cup::continue_world_cup_qualifying(game, &window_dates, &mut rng);
         return;
     }
 
+    // Which nations meet in which window. Keyed by the year the windows belong to, so a
+    // replay of this rollover draws the same fixtures.
+    let mut friendlies_rng =
+        game.rng_for("national-team-friendlies", &next_start.year().to_string());
     crate::national_team::schedule_national_team_friendlies(
         &mut game.national_teams,
         &window_dates,
-        &mut rand::rng(),
+        &mut friendlies_rng,
     );
-}
-
-/// A per-year deterministic RNG for settling World Cup fixtures at rollover,
-/// so reloading a save and rolling over again reproduces the same field.
-fn world_cup_rng(year: i32) -> rand::rngs::StdRng {
-    use rand::SeedableRng;
-    rand::rngs::StdRng::seed_from_u64(u64::from(year.unsigned_abs()) ^ 0xF1FA)
 }
 
 /// The league-table competition the user's club contests. Falls back to the
@@ -792,6 +788,18 @@ fn notify_user_division_change(
 
 /// Process end-of-season: record history, compute awards, reset stats, generate next season.
 /// Returns a summary struct for the frontend to display.
+/// What a season's end does to squads: players age and some retire, every AI
+/// club rebuilds before the new season rather than on its next review day — a
+/// summer's retirements can take several players from one club at once — and
+/// then every club takes its youth intake. The intake comes last so the rebuild
+/// cannot promote a youngster on the day he joins: academy promotion goes by
+/// rating, and nothing else would stop a fifteen-year-old being picked.
+pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate, season: u32) {
+    crate::aging::apply_seasonal_aging(game, date, season);
+    crate::ai_contracts::plan_every_ai_squad(game);
+    crate::youth_intake::apply_youth_intake(game, date, season);
+}
+
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // The summary, board review, and manager career must reflect the division
     // the user's club actually contests — not whichever competition happens to
@@ -991,7 +999,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         }
     }
 
-    crate::aging::apply_seasonal_aging(game, game.clock.current_date.date_naive(), season);
+    apply_season_end_squad_turnover(game, game.clock.current_date.date_naive(), season);
 
     for player in game.players.iter_mut() {
         // Reset stats for next season
@@ -1530,6 +1538,32 @@ mod tests {
     #[test]
     fn preseason_rollover_retains_midseason_clausura() {
         retained_division_receives_no_friendlies("ar-d1-clausura", at(2035, 9, 18), at(2035, 7, 1));
+    }
+
+    /// Given a finished edition and the user's rollover, when competitions regenerate, then the
+    /// finished edition is frozen with its pre-reset table before the live competition restarts.
+    #[test]
+    fn rollover_freezes_the_finished_edition_before_regenerating_it() {
+        let mut game = calendar_game(at(2033, 7, 1));
+        let mut finished = crate::competition_test_support::table(4, 2);
+        finished.calendar = Some(domain::competition_calendar::CalendarMetadata {
+            league_legs: Some(2),
+            ..Default::default()
+        });
+        let final_table = serde_json::to_value(finished.sorted_standings()).unwrap();
+        let (id, season) = (finished.id.clone(), finished.season);
+        game.competitions.push(finished);
+
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2033, 7, 1));
+
+        let [record] = game.edition_archive.as_slice() else {
+            panic!("expected one archived edition");
+        };
+        assert!(record.is_edition_of(&id, season));
+        assert_eq!(
+            serde_json::to_value(&record.standings).unwrap(),
+            final_table
+        );
     }
 
     #[test]

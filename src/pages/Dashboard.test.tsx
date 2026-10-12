@@ -4,6 +4,8 @@ import type { GameStateData } from "../store/gameStore";
 import type { LeagueData, SeasonContextData } from "../store/types";
 import { applyExtraTranslations } from "../lib/extraTranslations";
 import Dashboard from "./Dashboard";
+import i18n, { i18nReady, SUPPORTED_LANGUAGES } from "../i18n";
+import { useTranslation } from "react-i18next";
 
 const { listenMock, registeredEventHandlers, matchConfirmState } = vi.hoisted(() => {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
@@ -24,6 +26,9 @@ const setGameStateMock = vi.fn();
 const clearGameMock = vi.fn();
 const markCleanMock = vi.fn();
 const loadSettingsMock = vi.fn();
+const destroyMock = vi.fn();
+let closeRequested: ((event: { preventDefault: () => void }) => Promise<void>) | undefined;
+let isDirty = false;
 
 function createGameState(): GameStateData {
   return {
@@ -209,40 +214,16 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
-    onCloseRequested: vi.fn(() => Promise.resolve(() => {})),
-    destroy: vi.fn(),
+    onCloseRequested: vi.fn((handler: (event: { preventDefault: () => void }) => Promise<void>) => {
+      closeRequested = handler;
+      return Promise.resolve(() => {});
+    }),
+    destroy: destroyMock,
   }),
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
   listen: listenMock,
-}));
-
-vi.mock("react-i18next", () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      const labels: Record<string, string> = {
-        "dashboard.home": "Home",
-        "dashboard.inbox": "Inbox",
-        "dashboard.loading": "Loading",
-        "dashboard.managers": "Managers",
-        "dashboard.hallOfFame": "Hall of Fame",
-        "continueMenu.goToField": "Go To Field",
-        "continueMenu.goToFieldDesc": "desc",
-        "continueMenu.watchSpectator": "Watch",
-        "continueMenu.watchSpectatorDesc": "desc",
-        "continueMenu.delegateAssistant": "Delegate",
-        "continueMenu.delegateAssistantDesc": "desc",
-        "tournaments.competitions.nationalCup": "Copa Nacional",
-      };
-
-      return labels[key] ?? key;
-    },
-  }),
-}));
-
-vi.mock("../utils/backendI18n", () => ({
-  resolveBackendText: (_key: string | undefined, fallback: string) => fallback ?? "",
 }));
 
 vi.mock("../store/gameStore", () => ({
@@ -252,7 +233,7 @@ vi.mock("../store/gameStore", () => ({
     gameState,
     setGameState: setGameStateMock,
     clearGame: clearGameMock,
-    isDirty: false,
+    isDirty,
     markClean: markCleanMock,
   }),
 }));
@@ -295,12 +276,17 @@ vi.mock("../components/dashboard/DashboardSidebar", () => ({
   default: ({
     onNavClick,
     activeTab,
+    onExitClick,
   }: {
+    onExitClick: () => void;
     onNavClick: (tab: string) => void;
     activeTab: string;
   }) => (
     <div>
       <span>Sidebar {activeTab}</span>
+      <button type="button" onClick={onExitClick}>
+        exit-menu
+      </button>
       <button type="button" onClick={() => onNavClick("Inbox")}>
         nav-inbox
       </button>
@@ -317,25 +303,33 @@ vi.mock("../components/dashboard/DashboardHeader", () => ({
     onBack,
     onSelectSearchPlayer,
     onSelectSearchTeam,
+    onSave,
   }: {
+    onSave: () => void;
     activeTabLabel: string;
     onBack: () => void;
     onSelectSearchPlayer: (playerId: string) => void;
     onSelectSearchTeam: (teamId: string) => void;
-  }) => (
-    <div>
-      <span>Header {activeTabLabel}</span>
-      <button type="button" onClick={onBack}>
-        header-back
-      </button>
-      <button type="button" onClick={() => onSelectSearchPlayer("player-1")}>
-        search-player
-      </button>
-      <button type="button" onClick={() => onSelectSearchTeam("team-2")}>
-        search-team
-      </button>
-    </div>
-  ),
+  }) => {
+    const { t } = useTranslation();
+    return (
+      <div>
+        <button type="button" onClick={onSave}>
+          {t("common.save")}
+        </button>
+        <span>Header {activeTabLabel}</span>
+        <button type="button" onClick={onBack}>
+          header-back
+        </button>
+        <button type="button" onClick={() => onSelectSearchPlayer("player-1")}>
+          search-player
+        </button>
+        <button type="button" onClick={() => onSelectSearchTeam("team-2")}>
+          search-team
+        </button>
+      </div>
+    );
+  },
 }));
 
 vi.mock("../components/playerProfile/PlayerProfile", () => ({
@@ -402,20 +396,13 @@ vi.mock("../components/dashboard/DashboardBlockerModal", () => ({
   default: () => null,
 }));
 
-vi.mock("../components/dashboard/DashboardCloseConfirmModal", () => ({
-  default: () => null,
-}));
-
-vi.mock("../components/dashboard/DashboardExitConfirmModal", () => ({
-  default: () => null,
-}));
-
-vi.mock("../components/dashboard/DashboardExitSavingModal", () => ({
-  default: () => null,
-}));
-
 describe("Dashboard", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await i18nReady;
+    await i18n.changeLanguage("en");
+    isDirty = false;
+    closeRequested = undefined;
+    destroyMock.mockReset();
     gameState = createGameState();
     backendFinanceSnapshot = createBackendFinanceSnapshot();
     matchConfirmState.visible = false;
@@ -442,6 +429,121 @@ describe("Dashboard", () => {
 
       return null;
     });
+  });
+
+  function refuseCommand(commandToRefuse: string, error: unknown) {
+    const original = invokeMock.getMockImplementation();
+    invokeMock.mockImplementation((command: string, ...args: unknown[]) => {
+      if (command === commandToRefuse) return Promise.reject(error);
+      return original?.(command, ...args);
+    });
+  }
+
+  async function requestWindowClose() {
+    const preventDefault = vi.fn();
+    await act(async () => closeRequested?.({ preventDefault }));
+    expect(preventDefault).toHaveBeenCalledOnce();
+  }
+
+  for (const { code } of SUPPORTED_LANGUAGES) {
+    /** Given a live-match save refusal, when saving in this locale, then the real i18n hook shows the reason and retains the game. */
+    it(`explains a refused save in ${code}`, async () => {
+      await i18n.changeLanguage(code);
+      render(<Dashboard />);
+      refuseCommand("save_game", "be.error.liveMatch.inProgress");
+      fireEvent.click(screen.getByRole("button", { name: i18n.t("common.save") }));
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(i18n.t("be.error.liveMatch.inProgress"));
+      expect(alert).not.toHaveTextContent("be.error.");
+      expect(markCleanMock).not.toHaveBeenCalled();
+      expect(clearGameMock).not.toHaveBeenCalled();
+      expect(navigateMock).not.toHaveBeenCalled();
+    });
+
+    /** Given a dirty career with a live match, when Save & Quit is refused, then the window and game remain and another close is intercepted. */
+    it(`keeps the window after a refused Save & Quit in ${code}`, async () => {
+      await i18n.changeLanguage(code);
+      isDirty = true;
+      render(<Dashboard />);
+      refuseCommand("save_game", "be.error.liveMatch.inProgress");
+      await requestWindowClose();
+      fireEvent.click(screen.getByRole("button", { name: i18n.t("closeConfirm.saveQuit") }));
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(i18n.t("be.error.liveMatch.inProgress"));
+      expect(alert).not.toHaveTextContent("be.error.");
+      expect(destroyMock).not.toHaveBeenCalled();
+      expect(clearGameMock).not.toHaveBeenCalled();
+      expect(markCleanMock).not.toHaveBeenCalled();
+      await requestWindowClose();
+      expect(
+        screen.getByRole("button", { name: i18n.t("closeConfirm.saveQuit") }),
+      ).toBeInTheDocument();
+    });
+
+    /** Given a live match, when Save & Exit is refused, then the translated reason is shown, the game remains and exit can be retried. */
+    it(`keeps the career after a refused Save & Exit in ${code}`, async () => {
+      await i18n.changeLanguage(code);
+      render(<Dashboard />);
+      refuseCommand("exit_to_menu", "be.error.liveMatch.inProgress");
+      fireEvent.click(screen.getByRole("button", { name: "exit-menu" }));
+      fireEvent.click(screen.getByRole("button", { name: i18n.t("exitConfirm.saveExit") }));
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(i18n.t("be.error.liveMatch.inProgress"));
+      expect(alert).not.toHaveTextContent("be.error.");
+      expect(clearGameMock).not.toHaveBeenCalled();
+      expect(navigateMock).not.toHaveBeenCalled();
+      expect(screen.queryByText(i18n.t("exitConfirm.savingTitle"))).not.toBeInTheDocument();
+      invokeMock.mockResolvedValue(null);
+      fireEvent.click(screen.getByRole("button", { name: "exit-menu" }));
+      fireEvent.click(screen.getByRole("button", { name: i18n.t("exitConfirm.saveExit") }));
+      await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/"));
+      expect(clearGameMock).toHaveBeenCalledOnce();
+    });
+  }
+
+  /** Given a dirty career, when Save & Quit succeeds, then saving precedes closing the window. */
+  it("closes the window after a successful save", async () => {
+    isDirty = true;
+    render(<Dashboard />);
+    let finishSave: (() => void) | undefined;
+    const save = new Promise<void>((resolve) => {
+      finishSave = resolve;
+    });
+    const original = invokeMock.getMockImplementation();
+    invokeMock.mockImplementation((command, ...args: unknown[]) =>
+      command === "save_game" ? save : original?.(command, ...args),
+    );
+    await requestWindowClose();
+    fireEvent.click(screen.getByRole("button", { name: "Save & Quit" }));
+    expect(invokeMock).toHaveBeenCalledWith("save_game");
+    expect(destroyMock).not.toHaveBeenCalled();
+    expect(markCleanMock).not.toHaveBeenCalled();
+    await act(async () => finishSave?.());
+    await waitFor(() => expect(destroyMock).toHaveBeenCalledOnce());
+    expect(markCleanMock).toHaveBeenCalledOnce();
+  });
+
+  /** Given a dirty career, when the player explicitly chooses Quit Without Saving, then no save is attempted and the window closes. */
+  it("honors an explicit quit without saving", async () => {
+    isDirty = true;
+    render(<Dashboard />);
+    await requestWindowClose();
+    fireEvent.click(screen.getByRole("button", { name: "Quit Without Saving" }));
+    await waitFor(() => expect(destroyMock).toHaveBeenCalledOnce());
+    expect(invokeMock).not.toHaveBeenCalledWith("save_game");
+    expect(markCleanMock).not.toHaveBeenCalled();
+  });
+
+  /** Given a disk failure, when Save & Quit fails, then the error is visible and the unsaved career stays open. */
+  it("keeps the window after another save failure", async () => {
+    isDirty = true;
+    render(<Dashboard />);
+    refuseCommand("save_game", new Error("disk unavailable"));
+    await requestWindowClose();
+    fireEvent.click(screen.getByRole("button", { name: "Save & Quit" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("disk unavailable");
+    expect(destroyMock).not.toHaveBeenCalled();
+    expect(markCleanMock).not.toHaveBeenCalled();
   });
 
   it("uses the backend cash verdict instead of a false local crisis", async () => {
@@ -659,6 +761,7 @@ describe("Dashboard", () => {
 
   it("shows the localized named cup in the match confirmation modal", async () => {
     matchConfirmState.visible = true;
+    i18n.addResource("en", "translation", "tournaments.competitions.nationalCup", "Copa Nacional");
     gameState.competitions = [
       {
         id: "cup-1",

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use domain::player::{Footedness, Player, PlayerAttributes, PlayerMedia, Position, SquadRole};
 use domain::team::TrainingFocus;
 use rusqlite::{Connection, params};
@@ -19,7 +21,7 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
         serde_json::to_string(&p.stats).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let career_json =
         serde_json::to_string(&p.career).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    let movement_history_json = serde_json::to_string(&p.movement_history)
+    let movement_history_json = serde_json::to_string(&p.movement_history[..])
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     let offers_json = serde_json::to_string(&p.transfer_offers)
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -105,8 +107,8 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             p.team_id,
             p.retired as i32,
             traits_json,
-            p.contract_end,
-            p.wage,
+            p.contract_end(),
+            p.wage(),
             p.market_value as i64,
             stats_json,
             career_json,
@@ -128,17 +130,72 @@ pub fn upsert_player(conn: &Connection, p: &Player) -> Result<(), String> {
             loan_offers_json,
             active_loan_json,
             movement_history_json,
-            p.contract_start,
+            p.contract_start(),
         ],
     )
-    .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    .map_err(|error| {
+        // The player sees only the key, so the log is the one place the real
+        // cause can survive. #498 spent months as "save stops working" because
+        // this used to be dropped.
+        log::error!(
+            "[player_repo] writing player {} (team {:?}, jersey {:?}) failed: {error}",
+            p.id,
+            p.team_id,
+            p.jersey_number
+        );
+        GAME_PERSISTENCE_WRITE_ERROR.to_string()
+    })?;
     Ok(())
 }
 
 /// Insert or replace multiple players.
+///
+/// Shirt numbers are unique per club (`idx_players_team_jersey`), and SQLite
+/// checks that index after every row rather than at commit. So a roster that
+/// is valid as a whole can still collide halfway through being written: a
+/// newcomer who takes #16 is written while the leaver's stored row still holds
+/// it, and a swap collides whichever player is written first (#498). The fix
+/// is to clear the stored number of every player here whose club or number
+/// changed, then write the real values.
+///
+/// Only rows in `players` are cleared, so a partial roster never wipes anyone
+/// else's number, and two players who really do claim one shirt still fail.
+/// The caller holds the transaction (`write_game_to_connection`), so a failure
+/// leaves no row half-cleared.
 pub fn upsert_players(conn: &Connection, players: &[Player]) -> Result<(), String> {
+    vacate_changed_shirts(conn, players)?;
     for p in players {
         upsert_player(conn, p)?;
+    }
+    Ok(())
+}
+
+fn vacate_changed_shirts(conn: &Connection, players: &[Player]) -> Result<(), String> {
+    let write_failed = |error: rusqlite::Error| {
+        log::error!("[player_repo] clearing changed shirt numbers failed: {error}");
+        GAME_PERSISTENCE_WRITE_ERROR.to_string()
+    };
+    let mut stored_shirts = conn
+        .prepare("SELECT id, team_id, jersey_number FROM players WHERE jersey_number IS NOT NULL")
+        .map_err(write_failed)?;
+    let stored: HashMap<String, (Option<String>, i64)> = stored_shirts
+        .query_map([], |row| Ok((row.get(0)?, (row.get(1)?, row.get(2)?))))
+        .map_err(write_failed)?
+        .collect::<Result<_, _>>()
+        .map_err(write_failed)?;
+
+    let mut vacate = conn
+        .prepare("UPDATE players SET jersey_number = NULL WHERE id = ?1")
+        .map_err(write_failed)?;
+    for player in players {
+        let Some((stored_team, stored_jersey)) = stored.get(&player.id) else {
+            continue;
+        };
+        let unchanged = *stored_team == player.team_id
+            && Some(*stored_jersey) == player.jersey_number.map(i64::from);
+        if !unchanged {
+            vacate.execute(params![player.id]).map_err(write_failed)?;
+        }
     }
     Ok(())
 }
@@ -298,7 +355,7 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         parse_position(&natural_position_str)
     };
 
-    Ok(Player {
+    let mut player = Player {
         id: row.get(0)?,
         match_name: row.get(1)?,
         full_name: row.get(2)?,
@@ -343,13 +400,17 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         traits: serde_json::from_str(&traits_json).unwrap_or_default(),
         ovr,
         potential,
-        contract_start: row.get(38)?,
-        contract_end: row.get(15)?,
-        wage: row.get(16)?,
         market_value: market_value_i64 as u64,
         stats: serde_json::from_str(&stats_json).unwrap_or_default(),
         career: serde_json::from_str(&career_json).unwrap_or_default(),
-        movement_history: serde_json::from_str(&movement_history_json).unwrap_or_default(),
+        // The contract columns are read only as a legacy input: they describe a contract
+        // for a save from before the ledger, and are ignored once the entries hold one.
+        movement_history: domain::contract_ledger::MovementLedger::restore(
+            serde_json::from_str(&movement_history_json).unwrap_or_default(),
+            row.get(38)?,
+            row.get(15)?,
+            row.get(16)?,
+        ),
         training_focus: training_focus_str.and_then(|s| parse_training_focus(&s)),
         transfer_listed: transfer_listed_int != 0,
         loan_listed: loan_listed_int != 0,
@@ -358,7 +419,11 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         active_loan: active_loan_json.and_then(|json| serde_json::from_str(&json).ok()),
         morale_core: serde_json::from_str(&morale_core_json).unwrap_or_default(),
         jersey_number,
-    })
+    };
+    // The flat contract fields are derived from the ledger, so a save from before
+    // the ledger needs its one entry made before anything reads them.
+    player.adopt_legacy_contract();
+    Ok(player)
 }
 
 #[cfg(test)]
@@ -491,7 +556,7 @@ mod tests {
             },
         );
         p.team_id = team_id.map(|s| s.to_string());
-        p.wage = 5000;
+        p.stage_wage(5000);
         p.market_value = 500_000;
         p
     }
@@ -508,7 +573,7 @@ mod tests {
         assert_eq!(all[0].full_name, "John Smith");
         assert_eq!(all[0].position, Position::Midfielder);
         assert_eq!(all[0].team_id, Some("team-001".to_string()));
-        assert_eq!(all[0].wage, 5000);
+        assert_eq!(all[0].wage(), 5000);
         assert_eq!(all[0].market_value, 500_000);
         assert_eq!(all[0].football_nation, "GB");
         assert_eq!(all[0].birth_country, None);
@@ -533,7 +598,7 @@ mod tests {
         player.jersey_number = Some(7);
         player.condition = 50;
         player.morale = 40;
-        player.wage = 12_000;
+        player.stage_wage(12_000);
         player.market_value = 1_200_000;
         player.transfer_listed = true;
         player.loan_listed = true;
@@ -541,7 +606,7 @@ mod tests {
         player.natural_position = Position::Forward;
         player.ovr = 88;
         player.potential = 95;
-        player.contract_end = Some("2030-06-30".to_string());
+        player.stage_contract_end(Some("2030-06-30".to_string()));
         upsert_player(db.conn(), &player).unwrap();
 
         let all = load_all_players(db.conn()).unwrap();
@@ -551,7 +616,7 @@ mod tests {
         assert_eq!(stored.jersey_number, Some(7));
         assert_eq!(stored.condition, 50);
         assert_eq!(stored.morale, 40);
-        assert_eq!(stored.wage, 12_000);
+        assert_eq!(stored.wage(), 12_000);
         assert_eq!(stored.market_value, 1_200_000);
         assert!(stored.transfer_listed);
         assert!(stored.loan_listed);
@@ -559,7 +624,7 @@ mod tests {
         assert_eq!(stored.natural_position, Position::Forward);
         assert_eq!(stored.ovr, 88);
         assert_eq!(stored.potential, 95);
-        assert_eq!(stored.contract_end.as_deref(), Some("2030-06-30"));
+        assert_eq!(stored.contract_end(), Some("2030-06-30"));
     }
 
     /// A contract has a start as well as an end, and the start must survive a save.
@@ -619,6 +684,154 @@ mod tests {
             Some("2024-01-15"),
             "a renewed contract start must overwrite the stored one, not leave it stale"
         );
+    }
+
+    /// A save from before the ledger has a contract in its columns and no entry. The
+    /// flat fields are derived from the ledger now, so without an entry that player
+    /// would load as a free agent and expire on the first day.
+    #[test]
+    fn test_legacy_row_gets_one_legacy_contract_entry_on_load() {
+        let db = test_db();
+        let mut player = sample_player("p-legacy", Some("team-1"));
+        player.stage_contract_end(Some("2029-06-30".to_string()));
+        player.stage_wage(6_500);
+        assert!(player.movement_history.is_empty());
+        upsert_player(db.conn(), &player).unwrap();
+
+        let stored = load_all_players(db.conn()).unwrap().remove(0);
+
+        assert_eq!(stored.movement_history.len(), 1);
+        let record = stored.movement_history[0]
+            .contract
+            .as_ref()
+            .expect("the legacy contract is in the ledger");
+        assert_eq!(
+            record.source,
+            domain::contract_ledger::ContractSource::LegacyMigrated
+        );
+        assert_eq!(
+            record.start, None,
+            "a start nobody recorded is not invented"
+        );
+        assert_eq!(stored.contract_start(), None);
+        assert_eq!(stored.contract_end(), Some("2029-06-30"));
+        assert_eq!(stored.wage(), 6_500);
+    }
+
+    /// Loading, saving and loading again must not stack a second legacy entry.
+    #[test]
+    fn test_legacy_contract_entry_is_not_duplicated_by_a_second_load() {
+        let db = test_db();
+        let mut player = sample_player("p-legacy2", Some("team-1"));
+        player.stage_contract_end(Some("2029-06-30".to_string()));
+        player.stage_wage(6_500);
+        upsert_player(db.conn(), &player).unwrap();
+
+        let first = load_all_players(db.conn()).unwrap().remove(0);
+        upsert_player(db.conn(), &first).unwrap();
+        let second = load_all_players(db.conn()).unwrap().remove(0);
+
+        assert_eq!(second.movement_history.len(), 1);
+    }
+
+    #[test]
+    fn test_a_player_with_no_contract_gets_no_legacy_entry() {
+        let db = test_db();
+        let mut free_agent = sample_player("p-free", None);
+        free_agent.stage_wage(0);
+        free_agent.stage_contract_end(None);
+        upsert_player(db.conn(), &free_agent).unwrap();
+
+        let stored = load_all_players(db.conn()).unwrap().remove(0);
+
+        assert!(stored.movement_history.is_empty());
+    }
+
+    /// Read back with raw SQL after a second write, for the same reason as the
+    /// contract-start test above: the ledger is one JSON column that the
+    /// `ON CONFLICT DO UPDATE` block must overwrite on every save.
+    #[test]
+    fn test_contract_entries_survive_a_second_write() {
+        use domain::contract_ledger::{ContractRecord, ContractSource};
+        let db = test_db();
+        let mut player = sample_player("p-ledger", Some("team-1"));
+        let record = |start: &str, end: &str, wage: u32, source| ContractRecord {
+            start: Some(start.to_string()),
+            end: Some(end.to_string()),
+            weekly_wage: wage,
+            source,
+        };
+        player
+            .record_movement(PlayerMovementEntry {
+                contract: Some(record(
+                    "2024-07-01",
+                    "2026-06-30",
+                    4_000,
+                    ContractSource::Initial,
+                )),
+                ..PlayerMovementEntry::new("2024-07-01", PlayerMovementKind::InitialContract)
+            })
+            .unwrap();
+        upsert_player(db.conn(), &player).unwrap();
+        player
+            .record_movement(PlayerMovementEntry {
+                contract: Some(record(
+                    "2026-01-10",
+                    "2029-06-30",
+                    9_000,
+                    ContractSource::Renewal,
+                )),
+                ..PlayerMovementEntry::new("2026-01-10", PlayerMovementKind::Renewal)
+            })
+            .unwrap();
+        upsert_player(db.conn(), &player).unwrap();
+
+        let json: String = db
+            .conn()
+            .query_row(
+                "SELECT movement_history FROM players WHERE id = ?1",
+                ["p-ledger"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(json.contains("\"weekly_wage\":4000"), "{json}");
+        assert!(json.contains("\"weekly_wage\":9000"), "{json}");
+        let stored = load_all_players(db.conn()).unwrap().remove(0);
+        assert_eq!(stored.wage(), 9_000);
+        assert_eq!(stored.movement_history.len(), 2);
+    }
+
+    /// The columns are a copy for anything that reads the .db directly, and they are
+    /// written from the contract the ledger says is current.
+    #[test]
+    fn test_contract_columns_hold_the_latest_ledger_contract() {
+        use domain::contract_ledger::{ContractRecord, ContractSource};
+        let db = test_db();
+        let mut player = sample_player("p-cols", Some("team-1"));
+        player
+            .record_movement(PlayerMovementEntry {
+                contract: Some(ContractRecord {
+                    start: Some("2026-01-10".to_string()),
+                    end: Some("2029-06-30".to_string()),
+                    weekly_wage: 9_000,
+                    source: ContractSource::Renewal,
+                }),
+                ..PlayerMovementEntry::new("2026-01-10", PlayerMovementKind::Renewal)
+            })
+            .unwrap();
+        upsert_player(db.conn(), &player).unwrap();
+
+        let (start, end, wage): (Option<String>, Option<String>, i64) = db
+            .conn()
+            .query_row(
+                "SELECT contract_start, contract_end, wage FROM players WHERE id = ?1",
+                ["p-cols"],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(start.as_deref(), Some("2026-01-10"));
+        assert_eq!(end.as_deref(), Some("2029-06-30"));
+        assert_eq!(wage, 9_000);
     }
 
     /// A save written before contracts had a start keeps `None`, and `None` is not
@@ -720,6 +933,7 @@ mod tests {
             date: "2026-08-01".to_string(),
             registration_date: None,
             closed_on: Some("2026-08-14".to_string()),
+            registration_failure_reason: None,
         });
         player.loan_offers.push(LoanOffer {
             id: "loan-offer-closed".to_string(),
@@ -855,20 +1069,50 @@ mod tests {
         );
     }
 
+    /// Given a voided registration with a non-default reason, when saved to SQLite and loaded,
+    /// then the reason and closure date survive inside the existing offers JSON.
+    #[test]
+    fn a_failed_registration_reason_survives_sqlite_save_and_load() {
+        let db = test_db();
+        let mut player = sample_player("p-registration-failed", Some("team-a"));
+        player.transfer_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id":"failed-offer", "from_team_id":"team-b", "fee":800_000,
+                "wage_offered":0, "status":"Withdrawn", "date":"2026-06-01",
+                "registration_date":"2026-07-02", "closed_on":"2026-07-02",
+                "registration_failure_reason":"InsufficientFunds"
+            }))
+            .unwrap(),
+        );
+        upsert_player(db.conn(), &player).unwrap();
+        let loaded = load_all_players(db.conn()).unwrap();
+        let stored = loaded.iter().find(|stored| stored.id == player.id).unwrap();
+        let offer = &stored.transfer_offers[0];
+        assert_eq!(
+            serde_json::to_value(offer).unwrap()["registration_failure_reason"],
+            "InsufficientFunds"
+        );
+        assert_eq!(offer.closed_on.as_deref(), Some("2026-07-02"));
+    }
+
     #[test]
     fn test_player_movement_history_roundtrip() {
         let db = test_db();
         let mut player = sample_player("p-move", Some("team-002"));
-        player.movement_history.push(PlayerMovementEntry {
-            date: "2026-08-01".to_string(),
-            kind: PlayerMovementKind::PermanentTransfer,
-            from_team_id: Some("team-001".to_string()),
-            from_team_name: Some("Alpha FC".to_string()),
-            to_team_id: Some("team-002".to_string()),
-            to_team_name: Some("Beta FC".to_string()),
-            fee: Some(1_250_000),
-            loan_end_date: None,
-        });
+        player
+            .record_movement(PlayerMovementEntry {
+                date: "2026-08-01".to_string(),
+                kind: PlayerMovementKind::PermanentTransfer,
+                from_team_id: Some("team-001".to_string()),
+                from_team_name: Some("Alpha FC".to_string()),
+                to_team_id: Some("team-002".to_string()),
+                to_team_name: Some("Beta FC".to_string()),
+                fee: Some(1_250_000),
+                loan_end_date: None,
+                contract: None,
+                release_reason: None,
+            })
+            .unwrap();
 
         upsert_player(db.conn(), &player).unwrap();
         let loaded = load_all_players(db.conn()).unwrap();
@@ -877,7 +1121,13 @@ mod tests {
             .find(|candidate| candidate.id == "p-move")
             .expect("stored player should exist");
 
-        assert_eq!(stored.movement_history.len(), 1);
+        // The transfer entry comes back untouched; the second is the contract the
+        // sample player's columns describe, which a load adds once.
+        assert_eq!(stored.movement_history.len(), 2);
+        assert_eq!(
+            stored.movement_history[1].kind,
+            PlayerMovementKind::InitialContract
+        );
         assert_eq!(
             stored.movement_history[0].kind,
             PlayerMovementKind::PermanentTransfer
@@ -931,6 +1181,91 @@ mod tests {
             ids.contains("p-original"),
             "original #6 wearer must still exist in the DB"
         );
+    }
+
+    fn stored_shirt(conn: &Connection, id: &str) -> (Option<String>, Option<u8>) {
+        let player = load_all_players(conn)
+            .unwrap()
+            .into_iter()
+            .find(|player| player.id == id)
+            .unwrap_or_else(|| panic!("{id} is missing from the DB"));
+        (player.team_id, player.jersey_number)
+    }
+
+    /// #498. Given a leaver wearing #16 at club Y and a newcomer wearing #16 at
+    /// club X, both saved; when, on the same day, the leaver moves on to Z and
+    /// the newcomer arrives at Y keeping #16, and the newcomer comes first in
+    /// the roster; then the roster still saves, with each player at his new
+    /// club in his own shirt. Memory never holds two #16s at Y. Only a
+    /// row-by-row write could, mid-transaction.
+    #[test]
+    fn a_shirt_handed_from_a_leaver_to_a_newcomer_on_the_same_day_still_saves() {
+        let db = test_db();
+        let mut newcomer = sample_player("p-newcomer", Some("team-x"));
+        newcomer.jersey_number = Some(16);
+        let mut leaver = sample_player("p-leaver", Some("team-y"));
+        leaver.jersey_number = Some(16);
+        upsert_players(db.conn(), &[newcomer.clone(), leaver.clone()]).unwrap();
+
+        newcomer.team_id = Some("team-y".to_string());
+        leaver.team_id = Some("team-z".to_string());
+        let result = upsert_players(db.conn(), &[newcomer, leaver]);
+
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            stored_shirt(db.conn(), "p-newcomer"),
+            (Some("team-y".to_string()), Some(16))
+        );
+        assert_eq!(
+            stored_shirt(db.conn(), "p-leaver"),
+            (Some("team-z".to_string()), Some(16))
+        );
+    }
+
+    /// Given two squadmates saved in #6 and #7; when they swap numbers; then the
+    /// roster still saves with the numbers swapped. A swap is a cycle, so no
+    /// write order alone can save it.
+    #[test]
+    fn two_squadmates_swapping_shirt_numbers_still_saves() {
+        let db = test_db();
+        let mut first = sample_player("p-first", Some("team-y"));
+        first.jersey_number = Some(6);
+        let mut second = sample_player("p-second", Some("team-y"));
+        second.jersey_number = Some(7);
+        upsert_players(db.conn(), &[first.clone(), second.clone()]).unwrap();
+
+        first.jersey_number = Some(7);
+        second.jersey_number = Some(6);
+        let result = upsert_players(db.conn(), &[first, second]);
+
+        assert_eq!(result, Ok(()));
+        assert_eq!(
+            stored_shirt(db.conn(), "p-first"),
+            (Some("team-y".to_string()), Some(7))
+        );
+        assert_eq!(
+            stored_shirt(db.conn(), "p-second"),
+            (Some("team-y".to_string()), Some(6))
+        );
+    }
+
+    /// Given two squadmates saved in #6 and #7; when the roster says both wear
+    /// #6; then the save still fails loudly rather than letting one row win.
+    /// Vacating the shirts of moved players must not weaken the invariant for
+    /// a real duplicate.
+    #[test]
+    fn two_players_claiming_one_shirt_at_one_club_still_fail_to_save() {
+        let db = test_db();
+        let mut holder = sample_player("p-holder", Some("team-y"));
+        holder.jersey_number = Some(6);
+        let mut claimant = sample_player("p-claimant", Some("team-y"));
+        claimant.jersey_number = Some(7);
+        upsert_players(db.conn(), &[holder.clone(), claimant.clone()]).unwrap();
+
+        claimant.jersey_number = Some(6);
+        let result = upsert_players(db.conn(), &[claimant, holder]);
+
+        assert_eq!(result, Err(GAME_PERSISTENCE_WRITE_ERROR.to_string()));
     }
 
     #[test]

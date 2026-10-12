@@ -45,6 +45,10 @@ impl LiveMatchState {
             return Err("be.error.liveMatch.playerAlreadySubstitutedOff".into());
         }
 
+        // Asked before either list is disturbed, and before the bench is
+        // borrowed to take the incoming player off it.
+        let nobody_in_goal = self.keeper_on_the_pitch(side).is_none();
+
         let bench = match side {
             Side::Home => &mut self.home_bench,
             Side::Away => &mut self.away_bench,
@@ -54,6 +58,8 @@ impl LiveMatchState {
             .position(|p| p.id == player_on_id)
             .ok_or("be.error.liveMatch.playerNotOnBench")?;
 
+        let goes_in_goal = nobody_in_goal && bench[on_idx].position == Position::Goalkeeper;
+
         let mut player_on = bench.remove(on_idx);
         let player_off = self.team_mut(side).players.remove(off_idx);
 
@@ -61,7 +67,17 @@ impl LiveMatchState {
         // takes over the vacated slot: same index, and the slot's position —
         // players are simulated where they actually play, not where they'd
         // naturally play.
-        player_on.position = player_off.position;
+        //
+        // Except in goal. A side whose keeper has been sent off makes an
+        // outfield player way for a substitute keeper, and inheriting that
+        // player's slot would make him a defender: `pick_goalkeeper` looks for
+        // `Position::Goalkeeper` and would never find him, so the change would
+        // cost a substitution and put nobody in goal. This is the same code
+        // path the player's own substitutions take, so it fixes the same
+        // change made by hand from the touchline.
+        if !goes_in_goal {
+            player_on.position = player_off.position;
+        }
 
         // Initialize condition for incoming player
         self.player_conditions

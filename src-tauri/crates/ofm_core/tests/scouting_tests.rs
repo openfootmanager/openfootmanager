@@ -871,3 +871,220 @@ fn completed_assignment_is_removed() {
         "Completed assignments should be removed"
     );
 }
+
+/// Signing a scouted youth is a contract made in the middle of a career. It has to
+/// be in his history like any other signing, or he carries a wage and an end date
+/// that nothing in his ledger explains.
+#[test]
+fn signing_a_scouted_youth_records_a_free_agent_contract() {
+    let mut game = make_game();
+    start_youth_scouting(
+        &mut game,
+        "scout1",
+        YouthScoutingRegion::Domestic,
+        YouthScoutingObjective::Balanced,
+        Some(Position::Defender),
+    )
+    .unwrap();
+    complete_scouting(&mut game);
+    let message = game
+        .messages
+        .iter()
+        .find(|candidate| {
+            candidate.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
+        .expect("expected youth recruitment report")
+        .clone();
+    let action_id = message.actions[0].id.clone();
+    let prospect_id = action_id.trim_start_matches("prospect:").to_string();
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+
+    apply_youth_recruitment_response(&mut game, &message.id, &action_id, "sign")
+        .expect("expected sign effect");
+
+    let signed = game
+        .players
+        .iter()
+        .find(|player| player.id == prospect_id)
+        .expect("expected signed player in game state");
+    let entry = signed
+        .movement_history
+        .last()
+        .expect("the signing is in his history");
+    assert_eq!(
+        entry.kind,
+        domain::player::PlayerMovementKind::FreeAgentSigning
+    );
+    assert_eq!(entry.to_team_id.as_deref(), Some("team1"));
+    let record = entry
+        .contract
+        .as_ref()
+        .expect("the entry carries the contract");
+    assert_eq!(
+        record.source,
+        domain::contract_ledger::ContractSource::FreeAgent
+    );
+    assert_eq!(record.start.as_deref(), Some(today.as_str()));
+    assert!(
+        record
+            .end
+            .as_deref()
+            .is_some_and(|end| end > today.as_str()),
+        "a youth contract ends after it starts: {:?}",
+        record.end
+    );
+    assert!(record.weekly_wage > 0);
+    assert_eq!(signed.wage(), record.weekly_wage);
+    assert_eq!(signed.contract_start(), Some(today.as_str()));
+}
+
+// ---------------------------------------------------------------------------
+// A youth scout's prospects come from the game's seed
+// ---------------------------------------------------------------------------
+
+/// A save with a scout already sent abroad. Built once and cloned, because the assignment's
+/// id is minted when it starts and two starts are two different saves.
+fn game_with_a_scout_abroad() -> Game {
+    let mut game = make_game();
+    start_youth_scouting(
+        &mut game,
+        "scout1",
+        YouthScoutingRegion::International,
+        YouthScoutingObjective::HighPotential,
+        None,
+    )
+    .unwrap();
+    game
+}
+
+fn youth_report_after_scouting(save: &Game, seed: u64) -> String {
+    let mut game = save.clone();
+    game.seed = seed;
+    complete_scouting(&mut game);
+    game.messages
+        .iter()
+        .filter(|message| {
+            message.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
+        .map(|message| serde_json::to_value(message).unwrap().to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Given a scout sent to find young talent abroad,
+/// When the assignment is played out twice from the same seed, and once from another,
+/// Then the same prospects come back, and others from another seed.
+#[test]
+fn a_youth_scouts_prospects_are_the_same_from_the_same_seed() {
+    let save = game_with_a_scout_abroad();
+    let report = youth_report_after_scouting(&save, 7);
+
+    assert!(!report.is_empty(), "the scout must have reported");
+    assert_eq!(report, youth_report_after_scouting(&save, 7));
+    assert_ne!(report, youth_report_after_scouting(&save, 8));
+}
+
+/// Given the same save and the same order to a scout, given twice,
+/// When the assignment is created,
+/// Then it has the same id both times — what the scout later finds is keyed by it, and a
+///      replay starts from the same save, not from the same minted ids.
+#[test]
+fn a_scouting_assignment_has_an_id_made_from_what_it_is() {
+    let youth_id = || {
+        game_with_a_scout_abroad()
+            .youth_scouting_assignments
+            .first()
+            .expect("an assignment")
+            .id
+            .clone()
+    };
+    let player_id = || {
+        let mut game = make_game();
+        send_scout(&mut game, "scout1", "p2").unwrap();
+        game.scouting_assignments[0].id.clone()
+    };
+
+    assert_eq!(youth_id(), youth_id());
+    assert_eq!(player_id(), player_id());
+    let mut other = make_game();
+    start_youth_scouting(
+        &mut other,
+        "scout1",
+        YouthScoutingRegion::Domestic,
+        YouthScoutingObjective::HighPotential,
+        None,
+    )
+    .unwrap();
+    assert_ne!(youth_id(), other.youth_scouting_assignments[0].id);
+}
+
+// ---------------------------------------------------------------------------
+// process_scouting — scouted-player snapshots (#338)
+// ---------------------------------------------------------------------------
+
+/// Given a scout sent to a player at another club
+/// When the assignment completes
+/// Then the game records that player as scouted, dated, with the attributes the scout saw
+#[test]
+fn a_completed_assignment_records_the_scouted_player() {
+    let mut game = make_game();
+    let seen = game
+        .players
+        .iter()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .attributes
+        .clone();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+
+    assert_eq!(game.scouted_players.len(), 1);
+    let scouted = &game.scouted_players[0];
+    assert_eq!(scouted.player_id, "p2");
+    assert!(scouted.scouted_on.as_str() >= "2025-06-15");
+    assert_eq!(scouted.attributes.pace, seen.pace);
+    assert_eq!(scouted.attributes.passing, seen.passing);
+}
+
+/// Given a player scouted earlier
+/// When his attributes change afterwards
+/// Then the record keeps what the scout saw
+#[test]
+fn a_scouted_snapshot_does_not_follow_later_attribute_changes() {
+    let mut game = make_game();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+    let pace_seen = game.scouted_players[0].attributes.pace;
+
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .attributes
+        .pace = pace_seen + 5;
+
+    assert_eq!(game.scouted_players[0].attributes.pace, pace_seen);
+}
+
+/// Given a player already scouted
+/// When a second assignment on him completes later
+/// Then there is still one record, with the newer date and attributes
+#[test]
+fn scouting_a_player_again_replaces_the_record() {
+    let mut game = make_game();
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+    let first_scouted_on = game.scouted_players[0].scouted_on.clone();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .attributes
+        .pace = 99;
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+
+    assert_eq!(game.scouted_players.len(), 1);
+    assert_eq!(game.scouted_players[0].attributes.pace, 99);
+    assert!(game.scouted_players[0].scouted_on.as_str() > first_scouted_on.as_str());
+}

@@ -57,6 +57,9 @@ pub(super) fn execute_loan(
     if parent_team_id == loan_team_id {
         return Err(ERR_CANNOT_BID_ON_OWN_PLAYER.into());
     }
+    // First, before anything moves: an agreement struck while the club had
+    // players to spare can fall due after it has lost some.
+    crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
 
     let player_snapshot = game
         .players
@@ -68,8 +71,8 @@ pub(super) fn execute_loan(
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
-    let parent_team_name = team_name_or_id(game, parent_team_id);
-    let loan_team_name = team_name_or_id(game, loan_team_id);
+    let parent_team_name = game.team_name_or_id(parent_team_id);
+    let loan_team_name = game.team_name_or_id(loan_team_id);
 
     let resolved_jersey_number = game
         .teams
@@ -106,16 +109,18 @@ pub(super) fn execute_loan(
         development_reported_minutes: player.stats.minutes_played,
         development_reported_appearances: player.stats.appearances,
     });
-    player.movement_history.push(PlayerMovementEntry {
-        date: start_date.to_string(),
-        kind: PlayerMovementKind::LoanStart,
-        from_team_id: Some(parent_team_id.to_string()),
-        from_team_name: Some(parent_team_name.clone()),
-        to_team_id: Some(loan_team_id.to_string()),
-        to_team_name: Some(loan_team_name.clone()),
-        fee: None,
-        loan_end_date: Some(end_date.to_string()),
-    });
+    // A loan is a movement, not a contract: he stays on his parent club's agreement.
+    record_movement(
+        player,
+        PlayerMovementEntry {
+            from_team_id: Some(parent_team_id.to_string()),
+            from_team_name: Some(parent_team_name.clone()),
+            to_team_id: Some(loan_team_id.to_string()),
+            to_team_name: Some(loan_team_name.clone()),
+            loan_end_date: Some(end_date.to_string()),
+            ..PlayerMovementEntry::new(start_date, PlayerMovementKind::LoanStart)
+        },
+    );
 
     withdraw_pending_transfer_offers(player, &closed_on);
 
@@ -233,6 +238,72 @@ pub(super) fn ensure_transfer_cash_postable(
     )
 }
 
+/// The contract a club would give a player it buys: the buying club, his wage and the
+/// day it ends. Its standard terms, the ones a renewal is judged by. The board has not
+/// been asked: [`buyers_contract_terms`] asks it, and a preview that only wants to show
+/// the figures uses this.
+pub(super) fn buyers_standard_terms(
+    game: &Game,
+    player: &Player,
+    buyer_team_id: &str,
+) -> Result<(Team, u32, NaiveDate), String> {
+    let buyer = game
+        .teams
+        .iter()
+        .find(|team| team.id == buyer_team_id)
+        .cloned()
+        .ok_or("be.error.teamNotFound")?;
+    // No bid carries a wage yet (every `wage_offered` is 0), so none is passed; when one
+    // does, it is passed here.
+    let (wage, end) =
+        standard_contract_terms(player, &buyer, game.clock.current_date.date_naive(), 0)
+            .ok_or(ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE)?;
+    Ok((buyer, wage, end))
+}
+
+/// Whether the board would let `buyer` pay `player` his standard wage, for the sweep
+/// that asks it of many players for one buyer: the buyer's bill and senior counts come
+/// in already worked out, so nothing here scans the world.
+pub(super) fn buyer_can_pay_standard_wage(
+    player: &Player,
+    buyer: &Team,
+    facts: &BuyerWageFacts,
+    today: NaiveDate,
+) -> bool {
+    standard_contract_terms(player, buyer, today, 0)
+        .is_some_and(|(wage, _)| facts.purchase_verdict(buyer, player, wage).permits())
+}
+
+/// [`buyers_standard_terms`], if the board lets the buyer pay them, through the one
+/// wage rule. `Err` is the board's refusal, in the same words a renewal gets.
+pub(super) fn buyers_contract_terms(
+    game: &Game,
+    player: &Player,
+    buyer_team_id: &str,
+) -> Result<(Team, u32, NaiveDate), String> {
+    let (buyer, wage, end) = buyers_standard_terms(game, player, buyer_team_id)?;
+    if !purchase_wage_policy_verdict(game, &buyer, player, wage).permits() {
+        return Err(renewal_wage_policy_error_message(&buyer));
+    }
+    Ok((buyer, wage, end))
+}
+
+/// Whether `buyer_team_id` could be given the contract it would need to buy this
+/// player. For the checks made before a deal is agreed, so that refusing afterwards
+/// cannot leave one agreed with the player still at his club.
+pub(super) fn ensure_buyer_can_pay_standard_wage(
+    game: &Game,
+    player_id: &str,
+    buyer_team_id: &str,
+) -> Result<(), String> {
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == player_id)
+        .ok_or("be.error.playerNotFound")?;
+    buyers_contract_terms(game, player, buyer_team_id).map(|_| ())
+}
+
 /// Transfer a player between teams, adjusting finances.
 pub(super) fn execute_transfer(
     game: &mut Game,
@@ -241,6 +312,9 @@ pub(super) fn execute_transfer(
     from_team_id: &str,
     fee: u64,
 ) -> Result<(), String> {
+    // First, before anything moves: an agreement struck while the club had
+    // players to spare can fall due after it has lost some.
+    crate::squad_floor::ensure_departure_keeps_floor(game, player_id)?;
     let player_snapshot = game
         .players
         .iter()
@@ -252,18 +326,8 @@ pub(super) fn execute_transfer(
         return Err(ERR_PLAYER_ALREADY_LOANED.into());
     }
 
-    let from_team_name = game
-        .teams
-        .iter()
-        .find(|team| team.id == from_team_id)
-        .map(|team| team.name.clone())
-        .unwrap_or_else(|| from_team_id.to_string());
-    let to_team_name = game
-        .teams
-        .iter()
-        .find(|team| team.id == to_team_id)
-        .map(|team| team.name.clone())
-        .unwrap_or_else(|| to_team_id.to_string());
+    let from_team_name = game.team_name_or_id(from_team_id);
+    let to_team_name = game.team_name_or_id(to_team_id);
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let departing_starter_ids: Vec<String> = game
         .teams
@@ -284,6 +348,11 @@ pub(super) fn execute_transfer(
         .iter()
         .find(|team| team.id == to_team_id)
         .and_then(|team| crate::roster::resolve_jersey_for(game, &player_snapshot, team));
+
+    // The buyer's terms, and the board's say on them, settled before any money moves so
+    // that a refusal here cannot leave a half-done transfer.
+    let (buying_team, new_wage, new_contract_end) =
+        buyers_contract_terms(game, &player_snapshot, to_team_id)?;
 
     let fee_i64 = i64::try_from(fee).map_err(|_| "be.error.finance.amountOverflow".to_string())?;
     let date = game.clock.current_date.date_naive();
@@ -308,22 +377,25 @@ pub(super) fn execute_transfer(
     // Move player
     if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
         p.team_id = Some(to_team_id.to_string());
-        // Joining a club is signing with it: a new agreement from the day the move
-        // happens. `contract_end` is left as the transfer has always left it.
-        p.contract_start = Some(today.clone());
         p.jersey_number = resolved_jersey_number;
         p.transfer_listed = false;
         p.loan_listed = false;
-        p.movement_history.push(PlayerMovementEntry {
-            date: today.clone(),
-            kind: PlayerMovementKind::PermanentTransfer,
-            from_team_id: Some(from_team_id.to_string()),
-            from_team_name: Some(from_team_name.clone()),
-            to_team_id: Some(to_team_id.to_string()),
-            to_team_name: Some(to_team_name.clone()),
-            fee: Some(fee),
-            loan_end_date: None,
-        });
+        // Joining a club is signing with it: a new contract on the buyer's terms from
+        // the day the move happens. Nothing of the seller's contract is carried over.
+        record_movement(
+            p,
+            PlayerMovementEntry {
+                from_team_id: Some(from_team_id.to_string()),
+                from_team_name: Some(from_team_name.clone()),
+                fee: Some(fee),
+                ..contract_entry(
+                    PlayerMovementKind::PermanentTransfer,
+                    date,
+                    &buying_team,
+                    contract_record(date, new_contract_end, new_wage, ContractSource::Transfer),
+                )
+            },
+        );
         // Remove from any starting XI
     }
 
@@ -474,13 +546,6 @@ pub(super) fn should_generate_major_transfer_news(
 ) -> bool {
     fee >= 1_000_000 || player.market_value >= 1_000_000
 }
-pub(super) fn team_name_or_id(game: &Game, team_id: &str) -> String {
-    game.teams
-        .iter()
-        .find(|team| team.id == team_id)
-        .map(|team| team.name.clone())
-        .unwrap_or_else(|| team_id.to_string())
-}
 pub fn process_pending_transfer_registrations(game: &mut Game) {
     if !transfer_window_is_open(game) {
         return;
@@ -530,41 +595,23 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
                 .filter(|team_id| *team_id != buyer_team_id)
                 .map(str::to_string)
         });
-        let agreement_is_valid = player_snapshot.as_ref().is_some_and(|player| {
-            player.active_loan.is_none()
-                && !has_pending_loan_registration(player)
-                && from_team_id.is_some()
-                && transfer_buyer_can_register(game, &buyer_team_id, fee)
-        });
-
-        let executed = if agreement_is_valid {
-            if let Some(from_team_id) = from_team_id.as_deref() {
-                if execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee).is_ok() {
-                    finalize_successful_transfer_offer(game, &player_id, &offer_id).is_ok()
-                } else {
-                    false
-                }
-            } else {
-                false
+        use domain::player::TransferRegistrationFailureReason as Failure;
+        let registration_result = (|| {
+            let player = player_snapshot.as_ref().ok_or(Failure::PlayerUnavailable)?;
+            if player_has_active_or_pending_loan(player) {
+                return Err(Failure::LoanConflict);
             }
-        } else {
-            false
-        };
-
-        if executed && user_team_id.as_deref() == Some(buyer_team_id.as_str()) {
-            let player_name = game
-                .players
-                .iter()
-                .find(|player| player.id == player_id)
-                .map(|player| player.full_name.clone())
-                .unwrap_or_default();
-            game.messages
-                .push(crate::messages::transfer_complete_message(
-                    &player_name,
-                    fee,
-                    &today,
-                ));
-        }
+            let from_team_id = from_team_id.as_deref().ok_or(Failure::PlayerUnavailable)?;
+            if !transfer_buyer_can_register(game, &buyer_team_id, fee) {
+                return Err(Failure::InsufficientFunds);
+            }
+            execute_transfer(game, &player_id, &buyer_team_id, from_team_id, fee)
+                .map_err(|_| Failure::RegistrationBlocked)?;
+            finalize_successful_transfer_offer(game, &player_id, &offer_id)
+                .map_err(|_| Failure::RegistrationBlocked)
+        })();
+        let failure_reason = registration_result.err();
+        let executed = failure_reason.is_none();
 
         if let Some(player) = game
             .players
@@ -578,12 +625,37 @@ pub fn process_pending_transfer_registrations(game: &mut Game) {
             if executed {
                 offer.status = TransferOfferStatus::Accepted;
                 offer.registration_date = Some(today.clone());
+                offer.registration_failure_reason = None;
                 offer.suggested_counter_fee = None;
             } else {
                 // The agreement lapsed months after it was struck, so retention has to run from
                 // the withdrawal rather than from an arrival date already outside the window.
                 close_transfer_offer(offer, TransferOfferStatus::Withdrawn, &today);
+                offer.registration_failure_reason = failure_reason;
             }
+        }
+        if executed && let Some(seller_team_id) = from_team_id.as_deref() {
+            notify_transfer_agreement(game, &player_id, &offer_id, seller_team_id);
+        }
+
+        if let Some(reason) = failure_reason
+            && let Some(player) = player_snapshot.as_ref()
+            && let Some(offer) = player
+                .transfer_offers
+                .iter()
+                .find(|offer| offer.id == offer_id)
+            && let Some(user_club_id) = user_team_id.as_deref()
+            && (user_club_id == buyer_team_id || Some(user_club_id) == player.contract_club_id())
+        {
+            let message = crate::messages::transfer_registration_failed_message(
+                offer,
+                player,
+                user_club_id,
+                &game.team_name_or_id(&buyer_team_id),
+                reason,
+                &today,
+            );
+            crate::inbox::emit(game, message);
         }
     }
 }
@@ -692,5 +764,391 @@ pub fn process_pending_loan_registrations(game: &mut Game) {
                 close_loan_offer(offer, LoanOfferStatus::Withdrawn, &today);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transfers::tests::{make_game, sample_attributes};
+
+    fn pending_transfer_game(user_is_seller: bool) -> Game {
+        let mut game = make_game();
+        let seller = if user_is_seller { "team1" } else { "team2" };
+        let buyer = if user_is_seller { "team2" } else { "team1" };
+        game.players[0].team_id = Some(seller.to_string());
+        game.players[0].adopt_legacy_contract();
+        game.players[0].transfer_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id": "registration-offer", "from_team_id": buyer, "fee": 800_000,
+                "wage_offered": 0, "status": "PendingRegistration", "date": "2025-12-01",
+                "registration_date": "2026-01-12"
+            }))
+            .unwrap(),
+        );
+        for (position, count) in [
+            (Position::Goalkeeper, 3),
+            (Position::Defender, 5),
+            (Position::Midfielder, 5),
+            (Position::Forward, 3),
+        ] {
+            for index in 0..count {
+                let id = format!("depth-{position:?}-{index}");
+                let mut player = Player::new(
+                    id.clone(),
+                    id.clone(),
+                    id,
+                    "1998-01-01".to_string(),
+                    "England".to_string(),
+                    position.clone(),
+                    sample_attributes(),
+                );
+                player.team_id = Some(seller.to_string());
+                game.players.push(player);
+            }
+        }
+        game
+    }
+
+    fn assert_registration_failure(game: &Game, reason: &str) {
+        let offer = &game.players[0].transfer_offers[0];
+        assert_eq!(offer.status, TransferOfferStatus::Withdrawn);
+        assert_eq!(offer.closed_on.as_deref(), Some("2026-01-12"));
+        assert_eq!(
+            serde_json::to_value(offer).unwrap()["registration_failure_reason"],
+            reason
+        );
+        let messages: Vec<_> = game
+            .messages
+            .iter()
+            .filter(|message| {
+                message.subject_key.as_deref() == Some("be.msg.transferRegistrationFailed.subject")
+            })
+            .collect();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(
+            messages[0].context.player_id.as_deref(),
+            Some("player-award")
+        );
+        assert_eq!(
+            messages[0].context.team_id.as_deref(),
+            game.manager.team_id.as_deref()
+        );
+        assert_eq!(messages[0].i18n_params["player"], "Golden Boot");
+        assert_eq!(
+            messages[0].i18n_params.get("start").map(String::as_str),
+            Some("2026-01-12")
+        );
+        assert_eq!(
+            messages[0].i18n_params["buyer"],
+            game.team_name_or_id(&offer.from_team_id)
+        );
+        assert!(messages[0].body_key.as_deref().unwrap().ends_with(reason));
+    }
+
+    /// Given an agreed transfer and reduced cash, when registration is due, then the buyer gets a funds explanation without being charged.
+    #[test]
+    fn a_buyer_with_insufficient_cash_is_told_why_registration_failed() {
+        let mut game = pending_transfer_game(false);
+        game.teams[0].finance = 799_999;
+        process_pending_transfer_registrations(&mut game);
+        assert_registration_failure(&game, "InsufficientFunds");
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team2"));
+        assert_eq!(game.teams[0].finance, 799_999);
+        assert_eq!(game.teams[0].transfer_budget, 5_000_000);
+    }
+
+    /// Given an agreed transfer and reduced transfer budget, when registration is due, then the buyer gets a funds explanation.
+    #[test]
+    fn a_buyer_with_insufficient_budget_is_told_why_registration_failed() {
+        let mut game = pending_transfer_game(false);
+        game.teams[0].transfer_budget = 799_999;
+        process_pending_transfer_registrations(&mut game);
+        assert_registration_failure(&game, "InsufficientFunds");
+        assert_eq!(game.teams[0].finance, 5_000_000);
+        assert_eq!(game.teams[0].transfer_budget, 799_999);
+    }
+
+    /// Given competing due agreements, when the first consumes the remaining budget, then the second fails with an explicit funds reason.
+    #[test]
+    fn competing_registrations_explain_the_deal_that_cannot_be_funded() {
+        let mut game = pending_transfer_game(false);
+        let mut other = game.players[0].clone();
+        other.id = "second-player".to_string();
+        other.transfer_offers[0].id = "second-offer".to_string();
+        game.players.push(other);
+        game.teams[0].transfer_budget = 1_000_000;
+        process_pending_transfer_registrations(&mut game);
+        assert_eq!(
+            game.players[0].transfer_offers[0].status,
+            TransferOfferStatus::Accepted
+        );
+        assert_eq!(game.teams[0].transfer_budget, 200_000);
+        let failed = game.players.last().unwrap();
+        assert_eq!(failed.team_id.as_deref(), Some("team2"));
+        assert_eq!(
+            serde_json::to_value(&failed.transfer_offers[0]).unwrap()["registration_failure_reason"],
+            "InsufficientFunds"
+        );
+        assert_eq!(
+            game.messages
+                .iter()
+                .filter(|m| m.subject_key.as_deref()
+                    == Some("be.msg.transferRegistrationFailed.subject"))
+                .count(),
+            1
+        );
+    }
+
+    /// Given an agreed transfer and an active loan, when registration is due, then the manager gets a loan-conflict explanation.
+    #[test]
+    fn an_active_loan_explains_a_failed_transfer_registration() {
+        let mut game = pending_transfer_game(false);
+        game.players[0].active_loan = Some(ActiveLoan {
+            parent_team_id: "team2".to_string(),
+            loan_team_id: "team1".to_string(),
+            start_date: "2026-01-01".to_string(),
+            end_date: "2026-05-01".to_string(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        game.players[0].team_id = Some("team1".to_string());
+        process_pending_transfer_registrations(&mut game);
+        assert_registration_failure(&game, "LoanConflict");
+        assert!(game.players[0].active_loan.is_some());
+    }
+
+    /// Given an agreed transfer and a pending loan, when registration is due, then the manager gets a loan-conflict explanation.
+    #[test]
+    fn a_pending_loan_explains_a_failed_transfer_registration() {
+        let mut game = pending_transfer_game(false);
+        game.players[0].loan_offers.push(
+            serde_json::from_value(serde_json::json!({
+                "id":"pending-loan", "from_team_id":"team1", "parent_team_id":"team2",
+                "start_date":"2026-01-12", "end_date":"2026-05-01", "wage_contribution_pct":50,
+                "status":"PendingRegistration", "date":"2025-12-01"
+            }))
+            .unwrap(),
+        );
+        process_pending_transfer_registrations(&mut game);
+        assert_registration_failure(&game, "LoanConflict");
+    }
+
+    /// Given a player no longer at a selling club, when registration is due, then the manager gets an availability explanation.
+    #[test]
+    fn an_unavailable_player_explains_a_failed_transfer_registration() {
+        let mut game = pending_transfer_game(false);
+        game.players[0].team_id = None;
+        process_pending_transfer_registrations(&mut game);
+        assert_registration_failure(&game, "PlayerUnavailable");
+        assert!(game.players[0].team_id.is_none());
+    }
+
+    /// Given a seller whose squad can no longer spare the player, when execution refuses registration, then the manager is notified without a debit.
+    #[test]
+    fn a_final_registration_refusal_is_not_silent() {
+        let mut game = pending_transfer_game(false);
+        game.players.truncate(1);
+        process_pending_transfer_registrations(&mut game);
+        assert_registration_failure(&game, "RegistrationBlocked");
+        assert_eq!(game.players[0].team_id.as_deref(), Some("team2"));
+        assert_eq!(game.teams[0].finance, 5_000_000);
+    }
+
+    /// Given the user's agreed sale to an unaffordable AI buyer, when registration is due, then the seller also receives the failure explanation.
+    #[test]
+    fn the_user_selling_club_is_told_why_registration_failed() {
+        let mut game = pending_transfer_game(true);
+        game.teams[1].transfer_budget = 0;
+        process_pending_transfer_registrations(&mut game);
+        assert_registration_failure(&game, "InsufficientFunds");
+    }
+
+    /// Given an AI-to-AI agreement, when registration cannot be funded, then the reason is retained without messaging an unrelated manager.
+    #[test]
+    fn an_ai_registration_failure_keeps_its_reason_without_an_unrelated_message() {
+        let mut game = pending_transfer_game(false);
+        let mut unrelated_team = game.teams[0].clone();
+        unrelated_team.id = "team3".to_string();
+        game.teams.push(unrelated_team);
+        game.manager.team_id = Some("team3".to_string());
+        game.teams[0].finance = 0;
+        process_pending_transfer_registrations(&mut game);
+        assert_eq!(
+            serde_json::to_value(&game.players[0].transfer_offers[0]).unwrap()["registration_failure_reason"],
+            "InsufficientFunds"
+        );
+        assert!(game.messages.is_empty());
+    }
+
+    /// Given a failed agreement saved and reloaded, when registration runs again after its inbox message is deleted, then its reason survives and no duplicate is emitted.
+    #[test]
+    fn a_failed_registration_survives_reload_without_duplicate_notifications() {
+        let mut game = pending_transfer_game(false);
+        game.teams[0].finance = 0;
+        process_pending_transfer_registrations(&mut game);
+        assert_registration_failure(&game, "InsufficientFunds");
+        game.messages.clear();
+        let mut loaded: Game =
+            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        process_pending_transfer_registrations(&mut loaded);
+        assert!(loaded.messages.is_empty());
+        assert_eq!(
+            serde_json::to_value(&loaded.players[0].transfer_offers[0]).unwrap()["registration_failure_reason"],
+            "InsufficientFunds"
+        );
+    }
+
+    /// Given an affordable agreement read from JSON without the new reason field, when registration succeeds, then no failure reason or failure notification is added.
+    #[test]
+    fn a_successful_registration_has_no_failure_reason() {
+        let mut game = pending_transfer_game(false);
+        process_pending_transfer_registrations(&mut game);
+        assert_eq!(
+            game.players[0].transfer_offers[0].status,
+            TransferOfferStatus::Accepted
+        );
+        assert!(serde_json::to_value(&game.players[0].transfer_offers[0]).unwrap()["registration_failure_reason"].is_null());
+        assert_eq!(game.teams[0].finance, 4_200_000);
+        assert_eq!(game.messages.len(), 1);
+        assert_eq!(
+            game.messages[0].subject_key.as_deref(),
+            Some("be.msg.transferComplete.subject")
+        );
+    }
+
+    /// Given a future registration date, when today's registration sweep runs, then the agreement stays pending and no failure is reported.
+    #[test]
+    fn a_future_agreement_is_not_reported_as_a_registration_failure() {
+        let mut game = pending_transfer_game(false);
+        game.players[0].transfer_offers[0].registration_date = Some("2026-01-13".to_string());
+        game.teams[0].finance = 0;
+        process_pending_transfer_registrations(&mut game);
+        assert_eq!(
+            game.players[0].transfer_offers[0].status,
+            TransferOfferStatus::PendingRegistration
+        );
+        assert!(game.messages.is_empty());
+    }
+
+    /// Given a closed window, when the registration sweep runs, then the agreement stays pending without a failure notice.
+    #[test]
+    fn a_closed_window_does_not_report_a_registration_failure() {
+        let mut game = pending_transfer_game(false);
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.teams[0].finance = 0;
+        process_pending_transfer_registrations(&mut game);
+        assert_eq!(
+            game.players[0].transfer_offers[0].status,
+            TransferOfferStatus::PendingRegistration
+        );
+        assert!(game.messages.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod acceptance_tests {
+    use super::super::tests::{acceptance_game, assert_acceptance_notice};
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    fn due_game(user_buys: bool) -> Game {
+        let mut game = acceptance_game(if user_buys { "team2" } else { "team1" }, false);
+        let buyer = if user_buys { "team1" } else { "team2" };
+        super::super::bids::upsert_transfer_offer(
+            &mut game.players[0],
+            buyer,
+            600_001,
+            TransferOfferStatus::PendingRegistration,
+            "2025-12-12",
+            None,
+            1,
+            None,
+            Some("2026-01-12".into()),
+        );
+        game
+    }
+    fn completes(user_buys: bool) {
+        let mut game = due_game(user_buys);
+        process_pending_transfer_registrations(&mut game);
+        let message = assert_acceptance_notice(
+            &game,
+            if user_buys {
+                "be.msg.transferComplete.body"
+            } else {
+                "be.msg.transferComplete.bodySold"
+            },
+            "",
+        );
+        assert_eq!(message.i18n_params["fee"], "600001");
+        assert_eq!(
+            game.players[0].transfer_offers[0].status,
+            TransferOfferStatus::Accepted
+        );
+    }
+    /// Given a due purchase, when registered, then the user buyer receives one completion notice.
+    #[test]
+    fn a_registered_purchase_notifies_the_buyer() {
+        completes(true);
+    }
+    /// Given a due sale, when registered, then the user seller receives one departure notice.
+    #[test]
+    fn a_registered_sale_notifies_the_seller() {
+        completes(false);
+    }
+    /// Given an unaffordable due transfer, when registration fails, then no completion notice is sent.
+    #[test]
+    fn a_failed_registration_sends_no_completion_notice() {
+        let mut game = due_game(true);
+        game.teams[0].finance = 0;
+        process_pending_transfer_registrations(&mut game);
+        assert!(
+            !game
+                .messages
+                .iter()
+                .any(|m| m.subject_key.as_deref() == Some("be.msg.transferComplete.subject"))
+        );
+    }
+    /// Given a due AI-to-AI transfer, when registered, then an unrelated manager receives no notice.
+    #[test]
+    fn an_unrelated_manager_receives_no_completion_notice() {
+        let mut game = due_game(true);
+        game.manager.team_id = Some("unrelated".into());
+        process_pending_transfer_registrations(&mut game);
+        assert!(game.messages.is_empty());
+    }
+    /// Given a completed transfer whose notice was deleted, when the save reloads and processing repeats, then the ledger prevents a duplicate.
+    #[test]
+    fn a_deleted_completion_notice_stays_deleted_after_reload() {
+        let mut game = due_game(true);
+        process_pending_transfer_registrations(&mut game);
+        assert_acceptance_notice(&game, "be.msg.transferComplete.body", "");
+        let id = game.messages[0].id.clone();
+        game.messages.clear();
+        let mut loaded: Game =
+            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        process_pending_transfer_registrations(&mut loaded);
+        assert!(loaded.messages.is_empty());
+        assert!(loaded.emitted_events.contains(&id));
+    }
+    /// Given a deferred purchase and its agreement notice, when registration falls due, then a distinct completion notice is sent.
+    #[test]
+    fn a_deferred_agreement_gets_a_separate_completion_notice() {
+        let mut game = acceptance_game("team2", true);
+        make_transfer_bid(&mut game, "player-award", 2_000_001).unwrap();
+        assert_acceptance_notice(&game, "be.msg.transferAgreed.body", "2026-07-02");
+        let id = game.messages[0].id.clone();
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 7, 2, 12, 0, 0).unwrap();
+        game.season_context.transfer_window.status = TransferWindowStatus::Open;
+        process_pending_transfer_registrations(&mut game);
+        assert_eq!(game.messages.len(), 2);
+        assert_ne!(game.messages[1].id, id);
+        assert_eq!(
+            game.messages[1].body_key.as_deref(),
+            Some("be.msg.transferComplete.body")
+        );
     }
 }

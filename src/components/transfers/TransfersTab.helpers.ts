@@ -79,7 +79,7 @@ function buildLoanPeriodOption(
 ): LoanPeriodOption {
   const loanDays = daysBetween(currentDate, endDate);
   const outsideLoanRules = loanDays < MIN_LOAN_DAYS || loanDays > MAX_LOAN_DAYS;
-  const afterContractEnd = contractEnd !== null && endDate.getTime() >= contractEnd.getTime();
+  const afterContractEnd = contractEnd !== null && endDate.getTime() > contractEnd.getTime();
 
   return {
     id,
@@ -248,6 +248,10 @@ export function getOutgoingNegotiationOffer(
   );
 }
 
+export function getOfferNegotiationRound(round: number | null | undefined): number {
+  return Math.max(round || 1, 1);
+}
+
 export function buildResumedBidFeedback(
   offer: TransferOfferData | null,
 ): TransferNegotiationFeedbackData | null {
@@ -255,7 +259,7 @@ export function buildResumedBidFeedback(
     return null;
   }
 
-  const round = Math.max(offer.negotiation_round || 1, 1);
+  const round = getOfferNegotiationRound(offer.negotiation_round);
   const tension = Math.min(36 + (round - 1) * 16, 84);
   const patience = Math.max(82 - (round - 1) * 16, 30);
 
@@ -279,7 +283,7 @@ export function buildResumedCounterFeedback(
     return null;
   }
 
-  const round = Math.max(offer.negotiation_round || 1, 1);
+  const round = getOfferNegotiationRound(offer.negotiation_round);
   const tension = Math.min(40 + (round - 1) * 14, 86);
   const patience = Math.max(78 - (round - 1) * 14, 28);
 
@@ -299,6 +303,7 @@ export function buildResumedCounterFeedback(
 export function getTransferOfferStatusLabel(
   t: Translate,
   status: TransferOfferData["status"] | LoanOfferData["status"],
+  registrationFailureReason?: TransferOfferData["registration_failure_reason"],
 ): string {
   switch (status) {
     case "Pending":
@@ -310,6 +315,11 @@ export function getTransferOfferStatusLabel(
     case "Rejected":
       return t("transfers.offerStatusRejected");
     case "Withdrawn":
+      if (registrationFailureReason) {
+        const key = `transfers.registrationFailure${registrationFailureReason}`;
+        const label = t(key);
+        return label === key ? t("transfers.registrationFailureRegistrationBlocked") : label;
+      }
       return t("transfers.offerStatusWithdrawn");
     default:
       return status;

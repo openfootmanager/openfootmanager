@@ -1,4 +1,5 @@
 pub mod competition_repo;
+pub mod edition_archive_repo;
 mod fixture_competition;
 pub(crate) mod journal_repo;
 pub mod league_repo;

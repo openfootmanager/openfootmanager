@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import en from "../../i18n/locales/en.json";
 import type { PlayerData, TransferOfferData } from "../../store/gameStore";
 import {
   buildLoanPeriodOptions,
@@ -92,7 +93,61 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 const t = (key: string) => key;
 
+function translateEnglishOfferLabel(key: string): string {
+  const name = key.slice("transfers.".length) as keyof typeof en.transfers;
+  return en.transfers[name] ?? key;
+}
+
 describe("TransfersTab.helpers", () => {
+  // Given a funds-related registration void, when displaying it, then its label explains the funds failure.
+  it("labels an unaffordable registration with its funds reason", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "InsufficientFunds"),
+    ).toBe("Registration failed: insufficient buyer funds");
+  });
+
+  // Given a loan conflict, when displaying the voided transfer, then the label names the conflict.
+  it("labels a loan conflict as a registration failure", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "LoanConflict"),
+    ).toBe("Registration failed: loan conflict");
+  });
+
+  // Given an unavailable player, when displaying the voided transfer, then the label names that reason.
+  it("labels an unavailable player as a registration failure", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "PlayerUnavailable"),
+    ).toBe("Registration failed: player unavailable");
+  });
+
+  // Given a final execution refusal, when displaying the voided transfer, then it is shown as blocked registration.
+  it("labels a final refusal as blocked registration", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "RegistrationBlocked"),
+    ).toBe("Registration blocked");
+  });
+
+  // Given ordinary withdrawn talks without a registration reason, when displaying them, then the cooled-off label remains.
+  it("keeps the cooled-off label for ordinary or legacy withdrawals", () => {
+    expect(getTransferOfferStatusLabel((key) => key, "Withdrawn")).toBe(
+      "transfers.offerStatusWithdrawn",
+    );
+  });
+
+  // Given a successful offer, when displaying its status, then a stale reason cannot override acceptance.
+  it("keeps accepted offers labelled as accepted", () => {
+    expect(getTransferOfferStatusLabel((key) => key, "Accepted", "InsufficientFunds")).toBe(
+      "transfers.offerStatusAccepted",
+    );
+  });
+
+  // Given an unknown backend failure reason, when displaying it, then a localized registration label replaces the raw key.
+  it("falls back to a localized label for an unknown registration reason", () => {
+    expect(
+      getTransferOfferStatusLabel(translateEnglishOfferLabel, "Withdrawn", "FutureReason"),
+    ).toBe("Registration blocked");
+  });
+
   it("returns the pending outgoing offer for the user team", () => {
     const player = createPlayer({
       transfer_offers: [
@@ -159,6 +214,55 @@ describe("TransfersTab.helpers", () => {
       disabledReasonKey: "transfers.loanPeriodUnavailableContract",
     });
     expect(getDefaultLoanPeriodId("2026-08-01T12:00:00Z", "2026-11-15")).toBe("three_months");
+  });
+
+  // Given one year left on a contract, when choosing a year-long loan,
+  // then the preset ending on the contract date remains available.
+  it("allows a twelve month loan ending on the contract date", () => {
+    const options = buildLoanPeriodOptions("2026-08-01", "2027-08-01");
+
+    expect(options.find((option) => option.id === "twelve_months")).toMatchObject({
+      endDate: "2027-08-01",
+      disabled: false,
+      disabledReasonKey: null,
+    });
+  });
+
+  // Given a contract ending this season, when choosing the season-end loan,
+  // then the matching preset is available and becomes the default in January.
+  it("allows a season end loan ending on the contract date", () => {
+    const options = buildLoanPeriodOptions("2027-01-01", "2027-06-30");
+
+    expect(options.find((option) => option.id === "end_of_season")).toMatchObject({
+      disabled: false,
+      disabledReasonKey: null,
+    });
+    expect(getDefaultLoanPeriodId("2027-01-01", "2027-06-30")).toBe("end_of_season");
+  });
+
+  // Given an incoming offer ending with the contract, when resuming its counter,
+  // then its unmatched current period remains selectable.
+  it("allows an incoming loan period ending on the contract date", () => {
+    const options = buildLoanPeriodOptions("2026-08-01", "2027-01-28", "2027-01-28");
+
+    expect(options[0]).toMatchObject({
+      id: "current_offer",
+      disabled: false,
+      disabledReasonKey: null,
+    });
+  });
+
+  // Given a matching contract date outside the permitted loan duration,
+  // when presenting the current offer, then duration rules still block it.
+  it("keeps duration limits for loans ending on the contract date", () => {
+    for (const endDate of ["2026-08-30", "2027-08-07"]) {
+      const options = buildLoanPeriodOptions("2026-08-01", endDate, endDate);
+      expect(options[0]).toMatchObject({
+        id: "current_offer",
+        disabled: true,
+        disabledReasonKey: "transfers.loanPeriodUnavailableRules",
+      });
+    }
   });
 
   it("preserves unmatched incoming loan offer dates as counter periods", () => {

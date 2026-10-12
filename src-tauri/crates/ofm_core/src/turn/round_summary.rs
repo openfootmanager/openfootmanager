@@ -104,9 +104,9 @@ pub fn build_round_summary(
             Some(RoundResultSummary {
                 fixture_id: fixture.id.clone(),
                 home_team_id: fixture.home_team_id.clone(),
-                home_team_name: team_name(game, &fixture.home_team_id),
+                home_team_name: game.team_name_or_id(&fixture.home_team_id),
                 away_team_id: fixture.away_team_id.clone(),
-                away_team_name: team_name(game, &fixture.away_team_id),
+                away_team_name: game.team_name_or_id(&fixture.away_team_id),
                 home_goals: result.home_goals,
                 away_goals: result.away_goals,
             })
@@ -153,7 +153,7 @@ fn build_standings_delta(
         .enumerate()
         .map(|(index, entry)| StandingDelta {
             team_id: entry.team_id.clone(),
-            team_name: team_name(game, &entry.team_id),
+            team_name: game.team_name_or_id(&entry.team_id),
             previous_position: previous_positions
                 .get(entry.team_id.as_str())
                 .copied()
@@ -196,19 +196,19 @@ fn build_notable_upset(game: &Game, fixtures: &[&Fixture]) -> Option<NotableUpse
             ) = if home_strength > away_strength {
                 (
                     fixture.home_team_id.clone(),
-                    team_name(game, &fixture.home_team_id),
+                    game.team_name_or_id(&fixture.home_team_id),
                     home_strength,
                     fixture.away_team_id.clone(),
-                    team_name(game, &fixture.away_team_id),
+                    game.team_name_or_id(&fixture.away_team_id),
                     away_strength,
                 )
             } else if away_strength > home_strength {
                 (
                     fixture.away_team_id.clone(),
-                    team_name(game, &fixture.away_team_id),
+                    game.team_name_or_id(&fixture.away_team_id),
                     away_strength,
                     fixture.home_team_id.clone(),
-                    team_name(game, &fixture.home_team_id),
+                    game.team_name_or_id(&fixture.home_team_id),
                     home_strength,
                 )
             } else {
@@ -385,12 +385,4 @@ fn team_strength(game: &Game, team_id: &str) -> f64 {
             }
         }
     }
-}
-
-fn team_name(game: &Game, team_id: &str) -> String {
-    game.teams
-        .iter()
-        .find(|team| team.id == team_id)
-        .map(|team| team.name.clone())
-        .unwrap_or_else(|| team_id.to_string())
 }

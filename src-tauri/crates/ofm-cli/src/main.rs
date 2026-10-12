@@ -207,7 +207,25 @@ const SCHEMA_PLAYER: &str = r##"// Player entity — place inside players/*.json
   "potential": null,          // optional: 1-99 career ceiling. Omit and the engine rolls one
                               //   from the player's ability and age. Cannot be below current
                               //   ability, and a player who has reached it stops improving.
-  "attributes": null          // optional: detailed attribute object
+  "attributes": null,         // optional: detailed attribute object
+  "contractStart": null,      // optional: ISO date (YYYY-MM-DD) the current contract began. Omit and
+                              //   it is given when a career opens, from the club's season.
+  "contractEnd": null,        // optional: ISO date the contract ends. Right for the period it was
+                              //   written for and nowhere else; give this OR contractLength, not both
+  "contractLength": null,     // optional: whole years, 1-5. Counted from contractStart if given,
+                              //   otherwise from the year the career opens, so it works in any era
+  "wage": null,               // optional: weekly wage (omit and it is sized from the value)
+  "value": null,              // optional: market value, 0-9007199254740991 (omit and it is sized from ability and age)
+  "weakFoot": null,           // optional: 1-5. Only kept for a specific position, not for
+                              //   Goalkeeper/Defender/Midfielder/Forward, which are re-inferred
+  "alternatePositions": [],   // optional: other positions the player covers (same restriction)
+  "condition": null,          // optional: 0-100 match sharpness (omit and it is rolled)
+  "morale": null,             // optional: 0-100 (omit and it is rolled)
+  "careerHistory": []         // optional: earlier clubs, each
+                              //   { "season": 2019, "teamName": "Juventus", "teamId": null,
+                              //     "appearances": 30, "goals": 10, "assists": 5 }
+                              //   teamName is free text; teamId, if given, must be a team
+                              //   defined in this package
 }"##;
 
 const SCHEMA_STAFF: &str = r##"// Staff entity — place inside staff/*.json in the "items" array.
@@ -280,6 +298,14 @@ const SCHEMA_COMPETITION: &str = r##"// Competition entity — place inside comp
   },
   "seasonStartMonth": 8,  // optional: 1-12 (default 8 = August)
   "seasonStartDay": 1,    // optional: 1-31 (default 1)
+  "calendar": {          // optional: scaffold defaults to null; opt in via this reference shape
+    "division": {        // optional: only Domestic LeagueTable with a countryId
+      "familyId": "eng-league", // non-blank family, shared by paired phases/tiers
+      "tier": 1,         // positive tier number
+      "phase": "annual"  // "annual" (default) | "opening" | "closing"
+    },
+    "windowEnd": null    // optional: { "month": 6, "day": 30 }; required for opening/closing
+  },
   // Berths - qualification spots this competition awards into others:
   "berths": [
     // { "rule": "TopN", "count": 4, "targetCompetition": "ucl", "fromTop": true }
@@ -804,6 +830,104 @@ mod tests {
         assert_eq!(code, 0, "a manifest-less package still packs");
         assert!(out.exists(), "the archive should exist");
 
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A real on-disk package, so these scenarios exercise pack's validation gate.
+    fn group_cup_package(name: &str, entrants: usize, format: serde_json::Value) -> PathBuf {
+        let dir = scratch_dir(name);
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let teams: Vec<_> = (0..entrants)
+            .map(|i| {
+                json!({
+                    "id": format!("club-{i}"), "name": format!("Club {i}"), "city": "City",
+                    "country": "ENG", "reputationRange": [500, 500],
+                    "colors": {"primary": "#000000", "secondary": "#ffffff"}
+                })
+            })
+            .collect();
+        std::fs::write(
+            dir.join("teams.json"),
+            json!({"schema": "team", "items": teams}).to_string(),
+        )
+        .expect("teams written");
+        std::fs::write(dir.join("cup.json"), json!({
+            "schema": "competition", "id": "authored-cup", "name": "Authored Cup",
+            "type": "Cup", "scope": "Domestic", "format": format,
+            "participants": {"selector": {"kind": "topByReputation", "country": "ENG", "count": 100}}
+        }).to_string()).expect("cup written");
+        dir
+    }
+
+    /// Given impossible resolved group shapes, pack must report the core error
+    /// before writing an archive, rather than failing only at game load.
+    #[test]
+    fn pack_rejects_invalid_resolved_group_qualification() {
+        for (entrants, format) in [
+            (
+                7,
+                json!({"kind":"GroupAndKnockout", "groupSize":3, "qualifiersPerGroup":3}),
+            ),
+            (
+                3,
+                json!({"kind":"GroupAndKnockout", "groupSize":2, "qualifiersPerGroup":1}),
+            ),
+        ] {
+            let dir = group_cup_package(&format!("invalid-group-{entrants}"), entrants, format);
+            let out = dir.join("invalid.ofm");
+            let code = cmd_pack(&dir, Some(&out));
+            let (_, errors) = load_world_package(&dir);
+            assert_eq!(code, 1, "pack must reject an impossible resolved field");
+            assert!(!out.exists(), "invalid input must not produce an archive");
+            let qualification: Vec<_> = errors
+                .iter()
+                .filter(|e| e.code == "be.error.competitionDef.invalidGroupQualification")
+                .collect();
+            assert_eq!(qualification.len(), 1, "specific error: {errors:?}");
+            assert_eq!(qualification[0].file, "cup.json");
+            assert!(qualification[0]
+                .params
+                .contains(&("competition".into(), "authored-cup".into())));
+            std::fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    /// Given seven clubs and a maximum of three, balanced groups of 3/2/2
+    /// can supply two qualifiers each and one extra next-place finisher.
+    #[test]
+    fn pack_accepts_balanced_uneven_groups() {
+        let dir = group_cup_package(
+            "balanced-groups",
+            7,
+            json!({
+                "kind":"GroupAndKnockout", "groupSize":3, "qualifiersPerGroup":2, "bestThirdQualifiers":1
+            }),
+        );
+        let out = dir.join("balanced.ofm");
+        assert_eq!(cmd_pack(&dir, Some(&out)), 0);
+        assert!(out.exists());
+        let (package, errors) = load_world_package_from_ofm(&out);
+        assert!(
+            errors.is_empty(),
+            "the packed archive must validate: {errors:?}"
+        );
+        assert_eq!(package.teams.len(), 7);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given one resolved club, pack preserves construction's optional-cup skip.
+    #[test]
+    fn pack_preserves_single_club_selector_skips() {
+        let dir = group_cup_package(
+            "single-club-selector",
+            1,
+            json!({
+                "kind":"GroupAndKnockout", "groupSize":2
+            }),
+        );
+        let out = dir.join("skipped.ofm");
+        assert_eq!(cmd_pack(&dir, Some(&out)), 0);
+        assert!(out.exists());
         std::fs::remove_dir_all(&dir).ok();
     }
 

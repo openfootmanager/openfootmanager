@@ -1,70 +1,6 @@
 use ofm_core::messages;
 
 // ---------------------------------------------------------------------------
-// welcome_message
-// ---------------------------------------------------------------------------
-
-#[test]
-fn welcome_message_has_correct_fields() {
-    let msg = messages::welcome_message("Test FC", "team1", "2025-06-01");
-    assert_eq!(msg.id, "welcome_1");
-    assert!(msg.subject.is_empty());
-    assert!(msg.body.is_empty());
-    assert!(msg.sender.is_empty());
-    assert!(msg.sender_role.is_empty());
-    assert_eq!(
-        msg.i18n_params.get("team").map(String::as_str),
-        Some("Test FC")
-    );
-    assert!(!msg.actions.is_empty(), "Should have actions");
-}
-
-#[test]
-fn welcome_message_has_i18n_keys() {
-    let msg = messages::welcome_message("Test FC", "team1", "2025-06-01");
-    assert!(msg.subject_key.is_some(), "Should have subject i18n key");
-    assert!(msg.body_key.is_some(), "Should have body i18n key");
-    assert!(msg.sender_key.is_some(), "Should have sender i18n key");
-}
-
-#[test]
-fn welcome_message_has_context() {
-    let msg = messages::welcome_message("Test FC", "team1", "2025-06-01");
-    assert_eq!(msg.context.team_id.as_deref(), Some("team1"));
-}
-
-// ---------------------------------------------------------------------------
-// season_schedule_message
-// ---------------------------------------------------------------------------
-
-#[test]
-fn season_schedule_message_fields() {
-    let msg = messages::season_schedule_message("Premier League", "2025-08-10", "2025-06-01");
-    assert_eq!(msg.id, "season_1");
-    assert!(msg.subject.is_empty());
-    assert!(msg.body.is_empty());
-    assert_eq!(
-        msg.i18n_params.get("league").map(String::as_str),
-        Some("Premier League")
-    );
-    assert_eq!(
-        msg.i18n_params.get("start").map(String::as_str),
-        Some("2025-08-10")
-    );
-    assert_eq!(
-        msg.sender_role_key.as_deref(),
-        Some("be.role.competitionSecretary")
-    );
-}
-
-#[test]
-fn season_schedule_has_view_action() {
-    let msg = messages::season_schedule_message("Premier League", "2025-08-10", "2025-06-01");
-    let has_view = msg.actions.iter().any(|a| a.id == "view_schedule");
-    assert!(has_view, "Should have view schedule action");
-}
-
-// ---------------------------------------------------------------------------
 // pre_match_message
 // ---------------------------------------------------------------------------
 
@@ -367,7 +303,7 @@ fn transfer_message_millions() {
     );
     assert_eq!(
         msg.i18n_params.get("fee").map(String::as_str),
-        Some("€5.5M")
+        Some("5500000")
     );
     assert_eq!(
         msg.sender_key.as_deref(),
@@ -384,14 +320,14 @@ fn transfer_message_thousands() {
     let msg = messages::transfer_complete_message("Young Player", 250_000, "2025-08-01");
     assert_eq!(
         msg.i18n_params.get("fee").map(String::as_str),
-        Some("€250K")
+        Some("250000")
     );
 }
 
 #[test]
 fn transfer_message_small_fee() {
     let msg = messages::transfer_complete_message("Free Agent", 500, "2025-08-01");
-    assert_eq!(msg.i18n_params.get("fee").map(String::as_str), Some("€500"));
+    assert_eq!(msg.i18n_params.get("fee").map(String::as_str), Some("500"));
 }
 
 #[test]

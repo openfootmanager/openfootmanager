@@ -58,6 +58,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 | `--mcp-mode <MODE>` | No | `sandbox` | `sandbox` = all tools available. `competition` = restricted tool set (see below). |
 | `--mcp-auto-start <WORLD[,TEAM]>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json"` or `"/path/to/world.json,team_id"`. Team ID is optional for HistoricalSnapshot worlds where the manager already has a team assigned. \*\*Required in competition mode\*\* (enforced after CLI parsing, at startup). |
 | `--no-gui` | No | off | Hide the GUI window (headless). Saves ~150MB RAM per instance. |
+| `--mcp-seed <N>`, `--mcp-start-year <YEAR>`, `--mcp-start-phase <PHASE>` | No | — | Same as `game_new`'s `seed`, `start_year` and `start_phase`. Use `random` as the world to generate one: one seed gives the same team ids, so a sandbox run with the seed tells you which `team_id` to pass. |
 | `--manager-name <NAME>` | No | `Agent` | Manager first name for auto-start. |
 | `--manager-last-name <NAME>` | No | `Manager` | Manager last name for auto-start. |
 | `--manager-nationality <NAT>` | No | `England` | Manager nationality for auto-start. |
@@ -81,6 +82,10 @@ In competition mode, the following tools are **completely omitted** from registr
 
 This ensures all agents start from the same state and cannot manipulate the game setup.
 
+`info_game_state` is available in competition mode by maintainer decision. It appears in `tools/list`
+and returns the full game as JSON, including other clubs' players. The mode restricts only the five
+setup tools above; `--mcp-disable-tools` can still disable individual tools explicitly.
+
 ---
 
 ## Tool Reference
@@ -88,6 +93,15 @@ This ensures all agents start from the same state and cannot manipulate the game
 89 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
 > **Adding a new tool?** Follow the checklist in `src-tauri/src/mcp_server/tools.rs` at `tool_catalog()` — register the route, add to the catalog, add the implementation, emit `game-state-changed` if it mutates state, update competition-mode disabled list if needed, and update this document.
+
+### Results
+
+Every tool returns its outcome twice, built from one value: readable markdown in `content`, and the same data as `structuredContent`.
+
+- **Success**: `structuredContent` is a plain object whose shape is one struct per tool, defined in `src-tauri/crates/mcp-results` (serde only, so clients can deserialize it without the game crates). Fields are `snake_case`; enums are their serialized name. A tool with several outcomes is an object with a tag field (`status`, `outcome`, `fixture` or `visibility`), for example `{"status": "in_progress", "remaining_fixtures": 3}`.
+- **Failure**: `isError` is true and `structuredContent` is `{"error": {"key", "params", "message"}}`. `key` is the `be.error.*` translation key (or null for a message private to the MCP layer), `params` its decoded parameters, `message` the readable text.
+
+Assert on the structure or the key, not on the text: wording can change.
 
 ### Information (15 tools)
 
@@ -203,7 +217,7 @@ This ensures all agents start from the same state and cannot manipulate the game
 | Tool | Description |
 |------|-------------|
 | `season_check_complete` | Check if the current season is finished |
-| `season_advance` | Advance through the off-season (may result in being fired) |
+| `season_advance` | Roll over a completed season through the same command as the UI, returning its summary and any dismissal. Refuses an incomplete season; use `time_advance` for a day. |
 | `season_get_awards` | View end-of-season awards (Golden Boot, Player of the Year, etc.) |
 
 ### Game Lifecycle (10 tools)
@@ -212,7 +226,7 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 
 | Tool | Description |
 |------|-------------|
-| `game_new` | Create a new manager and generate/load a world |
+| `game_new` | Create a new manager and a world: loaded from `world_source`, or generated (compact) from an optional `seed`, `start_year` and `start_phase` (`seasonStart` or `midSeason`). With `team_id` the career starts and is saved; without it the game is clubless until `game_select_team` |
 | `game_select_team` | Pick a team to manage (creates initial save) |
 | `game_load_save` | Load an existing save |
 | `game_save` | Persist the current game |
@@ -229,7 +243,7 @@ These tools allow agents to play matches interactively instead of delegating the
 
 | Tool | Description |
 |------|-------------|
-| `match_start` | Start a live match for a fixture (mode: live, spectator, instant) |
+| `match_start` | Start a live match (live, spectator, instant). Paired `competition_id` + `fixture_id` select an exact fixture, including a cup, without requiring an index; otherwise `fixture_index` is required and selects the current league mirror. Extra time follows fixture rules; `allows_extra_time` is ignored. |
 | `match_step` | Advance the live match by N minutes |
 | `match_command` | Apply a tactical command (substitution, formation change, etc.) |
 | `match_snapshot` | Get current match state without advancing time |
@@ -291,8 +305,8 @@ To run 8 agents competing in parallel:
 for i in $(seq 1 8); do
   PORT=$((3000 + i))
   SAVEDIR="/tmp/ofm-agent-$i"
-  mkdir -p "$SAVEDIR"
-  export TAURI_SAVE_DIR="$SAVEDIR"
+  mkdir -p "$SAVEDIR/data" "$SAVEDIR/config"
+  export XDG_DATA_HOME="$SAVEDIR/data" XDG_CONFIG_HOME="$SAVEDIR/config"
 
   openfootmanager \
     --mcp-port $PORT \
@@ -310,7 +324,7 @@ done
 
 Each instance gets its own port (3001–3008) and its own game state. Agents diverge only through their decisions.
 
-**Note on save isolation**: By default, all Tauri instances share the same `app_data_dir/saves/` directory (and thus the same SQLite databases). The script above achieves per-instance isolation by setting `TAURI_SAVE_DIR` to a unique directory for each agent. Alternatively, you can build with distinct app identifiers.
+**Note on save isolation**: By default, all Tauri instances share the same `app_data_dir/saves/` directory (and thus the same SQLite databases). On Linux the app data and config directories derive from `XDG_DATA_HOME` and `XDG_CONFIG_HOME`, so the script above isolates each agent by giving it its own pair. Alternatively, you can build with distinct app identifiers.
 
 ---
 
@@ -404,13 +418,14 @@ The `mcp` feature adds `rmcp`, `axum`, `tower`, `tokio` (with `net`), and `tokio
 
 ## Information Visibility
 
-In competition mode, information about other teams' players is limited:
+In competition mode, the formatted player tools limit information about other teams' players:
 
 - **Your team**: Full detail (all attributes, condition, morale, wage, contract end, injury status)
 - **Other teams**: OVR, position, age, and condition only
 - **Scouted players**: Full detail from scout reports (use `scout_send` → `scout_get_reports`)
 
-This makes scouting strategically important — agents must invest scout assignments to discover player details before bidding.
+Scout reports provide the full details in these formatted tools. The raw `info_game_state` dump remains
+available as described under [Competition Mode](#competition-mode).
 
 ---
 
@@ -484,3 +499,16 @@ src-tauri/src/mcp_server/
 │   └── help.rs      # Tool discovery helpers
 └── formatting.rs    # Error key → human-readable translation
 ```
+
+### Live-match refusal
+
+While a live-match session exists, `game_save`, `time_advance`,
+`time_skip_to_match_day`, `season_advance`, and a second `match_start` are refused
+with the backend key `be.error.liveMatch.inProgress`. Save-on-exit also refuses
+before clearing the game (`game_exit` and Tauri `exit_to_menu`). The game,
+fixtures, clock and existing session stay unchanged, and saving writes no files. Finish the
+current match with `match_finish` before saving or advancing. A completed
+snapshot still counts as a live session until `match_finish` applies its result.
+Autosave follows a successful day advance and therefore cannot run during the
+refused advance. This application rule also applies to the corresponding Tauri
+save, advance, skip, season and match commands.

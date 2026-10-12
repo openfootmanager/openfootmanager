@@ -1,0 +1,91 @@
+name: Claude Code Review
+
+on:
+  # pull_request_target, not pull_request: almost all PRs come from forks, and a fork's
+  # pull_request run gets no secrets. The author_association gate below keeps it to trusted authors.
+  pull_request_target:
+    # No `synchronize`: reviewing every push would spend the maintainer's subscription each time.
+    types: [opened, ready_for_review, reopened]
+  # Re-reviews: a trusted user comments "@claude review" on the PR.
+  issue_comment:
+    types: [created]
+
+jobs:
+  claude-review:
+    # Skip drafts (reviewed when marked ready) and bots (dependabot etc.). Only OWNER, MEMBER or
+    # COLLABORATOR authors/commenters may spend the token; fork PRs are fine because of that gate.
+    if: |
+      (github.event_name == 'pull_request_target' &&
+        !github.event.pull_request.draft &&
+        github.event.pull_request.user.type != 'Bot' &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)) ||
+      (github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        startsWith(github.event.comment.body, '@claude review') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+    # A newer event for the same PR supersedes a review still in flight.
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: true
+    # Caps a stuck run so it cannot burn subscription quota indefinitely.
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # pull-requests: write for the review's inline comments, issues: write for PR conversation
+      # comments. No id-token: the action never does the OIDC exchange (see github_token below).
+      pull-requests: write
+      issues: write
+
+    steps:
+      # These jobs carry the maintainer's token, so the actions are pinned to commits, not tags
+      # (Dependabot can bump them).
+      # NEVER check out the PR head (ref: github.event.pull_request.head.sha) in this job. It holds
+      # the maintainer's token, and pull_request_target running the PR's own code is the classic
+      # secret-exfiltration hole. The default checkout is the BASE branch; the review reads the
+      # diff through the GitHub API.
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+          # Don't leave GITHUB_TOKEN in the checkout's git config, where the Claude step could read it.
+          persist-credentials: false
+
+      - name: Run Claude Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@86d88e619d8e6caf07b5c3944dd14f441c533718 # v1
+        env:
+          # The plugin's review agents are launched from the main session only; the cap stops
+          # recursive delegation and spending.
+          CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "1"
+          # Subagents otherwise start in the background, and in a headless CI run the main turn
+          # ends before they report (run 37564082511: "Async agent launched successfully", then
+          # "Waiting on the eligibility check before proceeding." and the job finished), so the
+          # review never happened. https://code.claude.com/docs/en/env-vars.md
+          CLAUDE_CODE_DISABLE_BACKGROUND_TASKS: "1"
+        with:
+          # The OIDC exchange for the Claude GitHub App's token is rejected for pull_request_target
+          # runs ("App token exchange failed: 401 Unauthorized - Invalid OIDC token", run
+          # 37559262567), so the run's own token is used; reviews then post as github-actions[bot].
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          plugins: 'code-review@claude-code-plugins'
+          # The action also reads CLAUDE.md, which carries the repo's Code quality rules.
+          prompt: '/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number || github.event.issue.number }}'
+          # --allowedTools is a whitelist: with only the inline-comment tool, the plugin cannot run
+          # `gh pr view` / `gh pr diff` (its steps 1 and 3), nor launch its subagents, nor post its
+          # summary, so it ends after two turns having posted nothing (run 37561981084). This is the
+          # plugin's own allowed-tools list (plugins/code-review/commands/code-review.md) plus the
+          # subagent and read tools it needs. Read-only except the inline comment tool, the only
+          # write. No git, no `gh api`, no broad Bash.
+          # `gh pr comment` is deliberately absent: it also allows --body-file and --delete-last,
+          # which PR content could steer into publishing a file or deleting a comment. Reviews
+          # post only through the inline-comment MCP tool (the plugin's "no issues found" summary
+          # comment is lost, which is accepted).
+          claude_args: >-
+            --allowedTools
+            "Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search:*),Task,Agent,TodoWrite,Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment"
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+

@@ -25,14 +25,16 @@ mod world_load;
 // No private glob for `bootstrap`: everything this module still calls is
 // something `mcp_server/tools_impl/game.rs` drives a whole career opening
 // through, so it needs a real path anyway.
+pub(crate) use bootstrap::create_new_save;
 #[cfg(feature = "mcp")]
-pub(crate) use bootstrap::bootstrap_game_for_mcp;
-pub(crate) use bootstrap::{bootstrap_team_selection, create_new_save, date_opening_contracts};
+pub(crate) use bootstrap::{
+    start_career_for_mcp, McpCareerOptions, McpNewCareer, AUTO_START_NEEDS_CLUB_ERROR,
+};
 use helpers::*;
 pub(crate) use helpers::{default_save_name, first_package_error_message};
+pub(crate) use ofm_core::career::{begin_career, CareerScope};
 use ofm_core::world::*;
 use startup::*;
-pub(crate) use startup::{start_phase_for_game, StartPhase};
 use world_build::*;
 use world_load::*;
 // Public, unlike the others: these are `#[tauri::command]`s and the types in
@@ -176,8 +178,7 @@ pub async fn start_new_game(
         new_game.players.len(),
         new_game.staff.len()
     );
-    state.set_game(new_game.clone());
-    state.set_stats_state(stats_state);
+    crate::application::career::install_career(&state, new_game.clone(), stats_state, None);
     Ok(new_game)
 }
 
@@ -197,25 +198,12 @@ pub async fn select_team(
     let current_stats_state = state
         .get_stats_state(|stats| stats.clone())
         .unwrap_or_default();
-    ensure_multi_competition_foundations(&mut game);
-
-    // Hemisphere fix, and contract starts measured against the date it settles on.
-    date_opening_contracts(&mut game, Some(&team_id));
-
-    let (resolved_region_ids, resolved_competition_ids) =
-        resolve_simulation_scope(&game, &team_id, active_region_ids, active_competition_ids)?;
-    game.active_region_ids = resolved_region_ids;
-    game.active_competition_ids = resolved_competition_ids;
-
-    let start_phase = start_phase_for_game(&game);
-    let stats_state =
-        bootstrap_team_selection(&mut game, &team_id, start_phase, current_stats_state)?;
-
-    // Upgrade generic (legacy-bucket) positions to granular on new-game creation
-    // so the frontend sees the same granular positions immediately, rather than
-    // only after the first save/reload cycle (where load_game applies this same
-    // upgrade).
-    ofm_core::player_identity::upgrade_game_player_identities(&mut game);
+    // `game` is a copy of the active game, so a refusal leaves the session untouched.
+    let scope = CareerScope {
+        regions: active_region_ids,
+        competitions: active_competition_ids,
+    };
+    let stats_state = begin_career(&mut game, &team_id, scope, current_stats_state)?;
 
     // Save to new per-save DB
     let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
@@ -223,10 +211,7 @@ pub async fn select_team(
 
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
     let save_id = create_new_save(&mut sm, &game, &stats_state, &save_name)?;
-    state.set_save_id(save_id);
-
-    state.set_game(game.clone());
-    state.set_stats_state(stats_state);
+    crate::application::career::install_career(&state, game.clone(), stats_state, Some(save_id));
     Ok(game)
 }
 
@@ -264,9 +249,7 @@ pub async fn load_game(
 
     let mgr_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
 
-    state.set_save_id(save_id);
-    state.set_game(game);
-    state.set_stats_state(stats_state);
+    crate::application::career::install_career(&state, game, stats_state, Some(save_id));
     Ok(mgr_name)
 }
 
@@ -303,15 +286,8 @@ pub async fn exit_to_menu(
     sm_state: State<'_, Arc<SaveManagerState>>,
 ) -> Result<(), String> {
     info!("[cmd] exit_to_menu");
-    if state.get_save_id().is_some_and(|id| !id.is_empty()) {
-        let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-        persist_active_game(&state, &mut sm)?;
-    }
-
-    // Clear the in-memory game state
-    state.clear_game();
-    state.clear_save_id();
-
+    let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
+    crate::application::saving::exit_to_menu(&state, &mut sm)?;
     Ok(())
 }
 

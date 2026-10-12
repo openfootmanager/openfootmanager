@@ -24,14 +24,6 @@ pub struct AdvanceMatchResult {
     pub involves_user: bool,
 }
 
-fn team_name(game: &Game, team_id: &str) -> String {
-    game.teams
-        .iter()
-        .find(|team| team.id == team_id)
-        .map(|team| team.name.clone())
-        .unwrap_or_else(|| team_id.to_string())
-}
-
 fn national_team_name(game: &Game, team_id: &str) -> String {
     game.national_teams
         .iter()
@@ -75,8 +67,8 @@ pub fn collect_advance_results(game: &Game, since_date: &str) -> Vec<AdvanceMatc
                 )
             } else {
                 (
-                    team_name(game, &fixture.home_team_id),
-                    team_name(game, &fixture.away_team_id),
+                    game.team_name_or_id(&fixture.home_team_id),
+                    game.team_name_or_id(&fixture.away_team_id),
                 )
             };
             results.push(AdvanceMatchResult {

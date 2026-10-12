@@ -1,4 +1,20 @@
+import { positionGroupRank } from "../../lib/positions";
 import type { EnginePlayerData, MatchSnapshot } from "./types";
+
+/**
+ * Players in goalkeeper → defence → midfield → attack order, ties by name.
+ *
+ * The one ordering for every match-day list (the XI, the bench), so the
+ * replacement for a position sits where the eye expects it. Returns a copy.
+ */
+export function sortByPositionGroup<T extends Pick<EnginePlayerData, "name" | "position">>(
+  players: readonly T[],
+): T[] {
+  return [...players].sort(
+    (a, b) =>
+      positionGroupRank(a.position) - positionGroupRank(b.position) || a.name.localeCompare(b.name),
+  );
+}
 
 export type MatchScenarioId = "steady" | "protect-lead" | "find-winner" | "chase-goal";
 

@@ -89,10 +89,23 @@ const PLAYER_IDENTITY_HEADERS: &[&str] = &[
     "photo",
     "overall",
     "potential",
+    "contractStart",
+    "contractEnd",
+    "contractLength",
+    "wage",
+    "value",
+    "weakFoot",
+    "alternatePositions",
+    "condition",
+    "morale",
+    "careerHistory",
 ];
 
-/// Player columns holding free text. `age`, `overall` and `potential` are
-/// numbers, as is every attribute column, so none of them appear here.
+/// Player columns holding free text. The numbers (`age`, `overall`, `potential`,
+/// `contractLength`, `wage`, `value`, `weakFoot`, `condition`, `morale`, and every
+/// attribute column) cannot begin with a formula character, and neither can the two
+/// JSON cells (`alternatePositions`, `careerHistory`), which always begin with `[`,
+/// so none of them appear here.
 const PLAYER_TEXT_HEADERS: &[&str] = &[
     "id",
     "firstName",
@@ -105,6 +118,8 @@ const PLAYER_TEXT_HEADERS: &[&str] = &[
     "footedness",
     "youth",
     "photo",
+    "contractStart",
+    "contractEnd",
 ];
 
 /// The 19 attribute columns, in the order [`PlayerAttributes`] declares them:
@@ -203,6 +218,16 @@ fn serde_token<T: serde::Serialize>(value: &T) -> String {
         .unwrap_or_default()
 }
 
+/// A collection written as JSON in a single cell, so a spreadsheet keeps it together
+/// and a reader can parse it back out. Blank when empty, the same way an empty
+/// collection is left out of the package file.
+fn json_cell<T: serde::Serialize>(items: &[T]) -> String {
+    if items.is_empty() {
+        return String::new();
+    }
+    serde_json::to_string(items).unwrap_or_default()
+}
+
 fn team_row(team: &TeamDef) -> Vec<String> {
     // A range is written as two columns so it can be sorted and filtered in a
     // spreadsheet; absent ranges leave both blank rather than inventing bounds.
@@ -256,6 +281,16 @@ fn player_row(player: &PlayerDef) -> Vec<String> {
         optional(&player.photo),
         optional(&player.overall),
         optional(&player.potential),
+        optional(&player.contract_start),
+        optional(&player.contract_end),
+        optional(&player.contract_length),
+        optional(&player.wage),
+        optional(&player.value),
+        optional(&player.weak_foot),
+        json_cell(&player.alternate_positions),
+        optional(&player.condition),
+        optional(&player.morale),
+        json_cell(&player.career_history),
     ];
 
     // A player carries either a single `overall` or an explicit attribute block.
@@ -520,6 +555,102 @@ mod tests {
         } else {
             cell
         }
+    }
+
+    /// The export is a hand-kept list of columns and nothing else checks it against
+    /// the format. A field added to `PlayerDef` reached the schema, the CLI, the docs
+    /// and the editor's types by failing tests, and then silently missed the CSV.
+    ///
+    /// Derived from `entity_template`, which the scaffold tests already pin to every
+    /// key a player serializes, so this adds no list of its own. `attributes` is the
+    /// one field with no column of its own: it expands into the attribute columns.
+    #[test]
+    fn every_field_a_player_carries_has_a_column() {
+        let template =
+            ofm_core::generator::entity_template(ofm_core::generator::EntityKind::Player, None);
+        let missing: Vec<&str> = template
+            .as_object()
+            .expect("a template is an object")
+            .keys()
+            .map(String::as_str)
+            .filter(|key| *key != "attributes")
+            .filter(|key| !PLAYER_IDENTITY_HEADERS.contains(key))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "the player CSV has no column for {missing:?}; add each to \
+             PLAYER_IDENTITY_HEADERS and to player_row"
+        );
+    }
+
+    #[test]
+    fn contract_status_and_career_fields_are_exported() {
+        let player = player_def(serde_json::json!({
+            "id": "p1",
+            "contractStart": "2024-01-15",
+            "contractLength": 2,
+            "wage": 12345,
+            "value": 9_000_000,
+            "weakFoot": 4,
+            "alternatePositions": ["LeftWinger"],
+            "condition": 64,
+            "morale": 51,
+            "careerHistory": [
+                { "season": 2019, "teamName": "Juventus",
+                  "appearances": 30, "goals": 10, "assists": 5 },
+            ],
+        }));
+        let row = player_row(&player);
+        let cell = |header: &str| {
+            let index = PLAYER_IDENTITY_HEADERS
+                .iter()
+                .position(|candidate| *candidate == header)
+                .unwrap_or_else(|| panic!("no {header} column"));
+            row[index].clone()
+        };
+
+        assert_eq!(cell("contractStart"), "2024-01-15");
+        assert_eq!(cell("contractEnd"), "", "an unset end is blank");
+        assert_eq!(cell("contractLength"), "2");
+        assert_eq!(cell("wage"), "12345");
+        assert_eq!(cell("value"), "9000000");
+        assert_eq!(cell("weakFoot"), "4");
+        assert_eq!(cell("condition"), "64");
+        assert_eq!(cell("morale"), "51");
+        // Collections are JSON in one cell, so a spreadsheet keeps them together and
+        // a reader can parse them back out.
+        assert_eq!(cell("alternatePositions"), r#"["LeftWinger"]"#);
+        let career: serde_json::Value =
+            serde_json::from_str(&cell("careerHistory")).expect("the career cell is JSON");
+        assert_eq!(career[0]["teamName"], "Juventus");
+        assert_eq!(career[0]["goals"], 10);
+        assert!(
+            career[0].get("teamId").is_none(),
+            "a club the package does not define has no id to write"
+        );
+    }
+
+    /// Zero is a value and blank is an absence. A wage of `0` written as an empty
+    /// cell would read back as "let the engine decide", which is a different player.
+    #[test]
+    fn an_explicit_zero_is_written_and_an_absence_is_blank() {
+        let explicit = player_row(&player_def(
+            serde_json::json!({ "id": "p1", "wage": 0, "condition": 0 }),
+        ));
+        let omitted = player_row(&player_def(serde_json::json!({ "id": "p2" })));
+        let column = |header: &str| {
+            PLAYER_IDENTITY_HEADERS
+                .iter()
+                .position(|candidate| *candidate == header)
+                .unwrap_or_else(|| panic!("no {header} column"))
+        };
+
+        assert_eq!(explicit[column("wage")], "0");
+        assert_eq!(explicit[column("condition")], "0");
+        assert_eq!(omitted[column("wage")], "");
+        assert_eq!(omitted[column("condition")], "");
+        assert_eq!(omitted[column("careerHistory")], "");
     }
 
     #[test]

@@ -10,6 +10,7 @@ use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
 pub fn advance_time_internal(state: &StateManager) -> Result<Game, String> {
+    let _operation = crate::application::live_session::idle_operation(state)?;
     // Process the day in place (no upfront clone of the whole world) and clone
     // only once for the response. Captures are appended after the game lock is
     // released to avoid holding two state locks at once.
@@ -105,6 +106,7 @@ pub async fn skip_to_match_day(
 }
 
 pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+    let _operation = crate::application::live_session::idle_operation(state)?;
     info!("[cmd] skip_to_match_day");
     // Precondition: manager must be employed at entry — guarantees that any later
     // `team_id.is_none()` inside the loop is a real firing transition, not a stale state.
@@ -243,6 +245,7 @@ pub fn skip_to_match_day_internal(state: &StateManager) -> Result<serde_json::Va
 ///   - `fired`      — manager was dismissed during today's processing
 ///   - `advanced`   — quiet day processed successfully; game state updated
 pub fn advance_one_day_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+    let _operation = crate::application::live_session::idle_operation(state)?;
     // The whole check-process-respond sequence runs under the game lock
     // (update_game) so a concurrent GUI/MCP write is never clobbered by a
     // stale clone written back afterwards.
@@ -362,6 +365,7 @@ pub async fn advance_to_next_event(
 /// `skip_to_match_day` but with the broader stop conditions of an opt-in
 /// "smart Continue".
 pub fn advance_to_next_event_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+    let _operation = crate::application::live_session::idle_operation(state)?;
     info!("[cmd] advance_to_next_event");
     // Require an employed manager at entry so a later `team_id.is_none()` in the
     // loop is a genuine firing transition.
@@ -751,7 +755,7 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == player_id)
             .unwrap();
-        player.contract_end = Some("2025-08-01".to_string());
+        player.stage_contract_end(Some("2025-08-01".to_string()));
         player.morale_core.renewal_state = Some(ContractRenewalState {
             status: RenewalSessionStatus::Blocked,
             manager_blocked_until: None,
@@ -1020,8 +1024,8 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p10")
             .unwrap();
-        first_key_player.contract_end = Some("2025-08-01".to_string());
-        first_key_player.wage = 35_000;
+        first_key_player.stage_contract_end(Some("2025-08-01".to_string()));
+        first_key_player.stage_wage(35_000);
         first_key_player.attributes.pace = 92;
         first_key_player.attributes.shooting = 94;
         first_key_player.attributes.dribbling = 90;
@@ -1031,8 +1035,8 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p11")
             .unwrap();
-        second_key_player.contract_end = Some("2025-09-01".to_string());
-        second_key_player.wage = 25_000;
+        second_key_player.stage_contract_end(Some("2025-09-01".to_string()));
+        second_key_player.stage_wage(25_000);
         second_key_player.attributes.pace = 90;
         second_key_player.attributes.shooting = 91;
         second_key_player.attributes.dribbling = 89;
@@ -1072,16 +1076,16 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p10")
             .unwrap();
-        first_risk.contract_end = Some("2025-08-01".to_string());
-        first_risk.wage = 35_000;
+        first_risk.stage_contract_end(Some("2025-08-01".to_string()));
+        first_risk.stage_wage(35_000);
 
         let second_risk = game
             .players
             .iter_mut()
             .find(|player| player.id == "p11")
             .unwrap();
-        second_risk.contract_end = Some("2025-09-01".to_string());
-        second_risk.wage = 25_000;
+        second_risk.stage_contract_end(Some("2025-09-01".to_string()));
+        second_risk.stage_wage(25_000);
 
         let blockers = compute_blocking_actions(&game);
 
@@ -1118,8 +1122,8 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p10")
             .unwrap();
-        first_key_player.contract_end = Some("2025-08-01".to_string());
-        first_key_player.wage = 35_000;
+        first_key_player.stage_contract_end(Some("2025-08-01".to_string()));
+        first_key_player.stage_wage(35_000);
         first_key_player.attributes.pace = 92;
         first_key_player.attributes.shooting = 94;
         first_key_player.attributes.dribbling = 90;
@@ -1141,8 +1145,8 @@ mod tests {
             .iter_mut()
             .find(|player| player.id == "p11")
             .unwrap();
-        second_key_player.contract_end = Some("2025-09-01".to_string());
-        second_key_player.wage = 25_000;
+        second_key_player.stage_contract_end(Some("2025-09-01".to_string()));
+        second_key_player.stage_wage(25_000);
         second_key_player.attributes.pace = 90;
         second_key_player.attributes.shooting = 91;
         second_key_player.attributes.dribbling = 89;

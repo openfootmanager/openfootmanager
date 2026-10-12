@@ -194,11 +194,15 @@ fn wonderkid_qualification_rejects_growth_room_below_boundary() {
 // generate_potential
 // ---------------------------------------------------------------------------
 
+fn rng() -> impl rand::Rng {
+    ofm_core::seed::rng_for_seed(1, "player-rating-tests", "2030-01-01")
+}
+
 #[test]
 fn generate_potential_always_ge_ovr() {
     for ovr in [40u8, 60, 75, 90] {
         for age in [16u32, 19, 21, 23, 25, 30] {
-            let potential = generate_potential(ovr, age);
+            let potential = generate_potential(ovr, age, &mut rng());
             assert!(
                 potential >= ovr,
                 "generate_potential({}, age {}) = {} should be >= ovr",
@@ -213,7 +217,7 @@ fn generate_potential_always_ge_ovr() {
 #[test]
 fn generate_potential_returns_ovr_for_old_players() {
     let ovr = 72u8;
-    let potential = generate_potential(ovr, 32);
+    let potential = generate_potential(ovr, 32, &mut rng());
     assert_eq!(
         potential, ovr,
         "Players aged 32+ should have potential == ovr"
@@ -223,7 +227,7 @@ fn generate_potential_returns_ovr_for_old_players() {
 #[test]
 fn generate_potential_capped_at_99() {
     // Very high OVR for a teenager
-    let potential = generate_potential(95, 16);
+    let potential = generate_potential(95, 16, &mut rng());
     assert!(potential <= 99, "Potential should never exceed 99");
 }
 
@@ -233,8 +237,9 @@ fn generate_potential_young_player_has_higher_ceiling() {
     // produce potential >= ovr (and usually higher for teens).
     let ovr = 60u8;
     let mut any_higher = false;
+    let mut one_stream = rng();
     for _ in 0..50 {
-        let p = generate_potential(ovr, 17);
+        let p = generate_potential(ovr, 17, &mut one_stream);
         assert!(p >= ovr);
         if p > ovr {
             any_higher = true;

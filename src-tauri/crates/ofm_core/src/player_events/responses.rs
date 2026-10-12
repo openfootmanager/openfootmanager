@@ -442,7 +442,7 @@ pub fn apply_player_response(
         .find(|m| m.id == message_id)
         .and_then(|m| m.context.player_id.clone())?;
 
-    let mut rng = rand::rng();
+    let mut rng = game.rng_today(&format!("response/{message_id}/{option_id}"));
 
     // Get personality factor for this player
     let pf = game

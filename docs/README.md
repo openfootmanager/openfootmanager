@@ -14,6 +14,10 @@ What Openfoot Manager is for, what it deliberately will not do, and where it is 
 
 Historical record of the shipped 0.1.x, 0.2.x and 0.3.0 releases, preserved verbatim from the roadmap issue before it was restructured into an index. Uses the old `-alpha`/`-beta` naming; see [CONTRIBUTING](../CONTRIBUTING.md) for the current odd/even scheme. The live roadmap is [issue #11](https://github.com/openfootmanager/openfootmanager/issues/11).
 
+### [roadmap/duplication-audit/](roadmap/duplication-audit/README.md)
+
+The evidence behind [epic #589](https://github.com/openfootmanager/openfootmanager/issues/589), "one source of truth for every game rule". Four sweeps run over 22–24 September 2026, each against a different revision of the tree — `ofm_core` internals, the React frontend, the command/MCP/`db`/`domain` seams, and docs plus the `.ofm` schema — producing about 106 findings, the eight root patterns behind them (an else-branch standing in for an enum's tail, the frontend recomputing rules the backend owns, "primary"/"first" accessors standing in for the user's competition, one concept with several formulas, and four more), a verdict on each of the 89 MCP tools, and the four bugs that prompted the whole thing. A **dated collection**, not a live status board: several findings have shipped since and a few did not survive scrutiny, so #589 and its children are where the current state lives. Read this for *why* a finding was filed.
+
 ---
 
 ## Documents

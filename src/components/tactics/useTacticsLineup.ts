@@ -4,7 +4,11 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
-import { getSquad, setTacticsPhase as setTacticsPhaseService } from "../../services/squadService";
+import {
+  applyTacticPreset,
+  setTacticsPhase as setTacticsPhaseService,
+} from "../../services/squadService";
+import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import type { TacticsPhaseSettings } from "../../store/types";
 
 import {
@@ -44,8 +48,9 @@ function isPlayerEligibleForLineup(player: PlayerData | null | undefined): boole
 
 export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupArgs) {
   const { sessionState } = useGameStore();
-  const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
+  const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
+  const [fetchedSquad] = useFetchedSquad(teamId, clockDate, sessionState ?? gameState);
   const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const initialPreset = initialTeam
     ? findTacticsPresetBySetup(
@@ -63,13 +68,6 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   const dragStateRef = useRef<DragState | null>(null);
   const hoveredSlotRef = useRef<number | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!teamId) return;
-    void getSquad(teamId)
-      .then(setFetchedSquad)
-      .catch(() => {});
-  }, [teamId]);
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const players = fetchedSquad ?? gameState?.players ?? [];
@@ -202,6 +200,20 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return true;
     } catch (error) {
       console.error("Failed to set play style:", error);
+      return false;
+    }
+  }
+
+  async function handleApplyTacticPreset(
+    nextFormation: string,
+    playStyle: string,
+  ): Promise<boolean> {
+    try {
+      const updated = await applyTacticPreset(nextFormation, playStyle);
+      onGameUpdate(updated);
+      return true;
+    } catch (error) {
+      console.error("Failed to apply tactic preset:", error);
       return false;
     }
   }
@@ -450,6 +462,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     dragPreviewRef,
     handleFormationChange,
     handlePlayStyleChange,
+    handleApplyTacticPreset,
     handleAssignBestFit,
     handlePromoteBenchPlayer,
     handleDemoteStarter,

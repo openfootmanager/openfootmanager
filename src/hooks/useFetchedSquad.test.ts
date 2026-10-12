@@ -107,4 +107,46 @@ describe("useFetchedSquad", () => {
     });
     expect(result.current[0]).toBeNull();
   });
+  // Given a squad mutation on the same day, when game state changes, then the
+  // backend projection is fetched again so healed seniors revoke youth call-ups.
+  it("refreshes eligibility after a same-day squad mutation", async () => {
+    mockedGetSquad.mockResolvedValue([{ id: "youth", match_day_eligible: true } as PlayerData]);
+    const { result, rerender } = renderHook(
+      ({ revision }) => useFetchedSquad("team1", "2026-08-01", revision),
+      {
+        initialProps: { revision: {} },
+      },
+    );
+    await waitFor(() => expect(result.current[0]?.[0]?.match_day_eligible).toBe(true));
+    mockedGetSquad.mockResolvedValue([{ id: "youth", match_day_eligible: false } as PlayerData]);
+    rerender({ revision: {} });
+    await waitFor(() => expect(result.current[0]?.[0]?.match_day_eligible).toBe(false));
+  });
+  // Given a cached called-up youth, when a Game mutation omits projection fields,
+  // then he stays visible until the fresh backend response revokes his call-up.
+  it("preserves call-up metadata until the backend refresh replaces it", async () => {
+    mockedGetSquad.mockResolvedValue([{ id: "youth", match_day_eligible: true } as PlayerData]);
+    const { result, rerender } = renderHook(
+      ({ revision }) => useFetchedSquad("team1", "2026-08-01", revision),
+      {
+        initialProps: { revision: {} },
+      },
+    );
+    await waitFor(() => expect(result.current[0]?.[0]?.match_day_eligible).toBe(true));
+    let resolveRefresh!: (players: PlayerData[]) => void;
+    mockedGetSquad.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        }),
+    );
+    act(() => result.current[1]([{ id: "youth", training_focus: "Recovery" } as PlayerData]));
+    rerender({ revision: {} });
+    expect(result.current[0]?.[0]?.match_day_eligible).toBe(true);
+    expect(result.current[0]?.[0]?.training_focus).toBe("Recovery");
+    await act(async () =>
+      resolveRefresh([{ id: "youth", match_day_eligible: false } as PlayerData]),
+    );
+    expect(result.current[0]?.[0]?.match_day_eligible).toBe(false);
+  });
 });

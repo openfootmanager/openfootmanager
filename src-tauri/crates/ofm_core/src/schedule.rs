@@ -3,7 +3,11 @@ use domain::league::{
     CompetitionFormat, CompetitionRules, CompetitionScope, CompetitionType, Fixture,
     FixtureCompetition, FixtureStatus, KnockoutRoundState, League, StandingEntry,
 };
+#[cfg(test)]
 use uuid::Uuid;
+
+/// The ordinary-table cadence shared by default and authored construction.
+pub(crate) const LEAGUE_MATCHDAY_GAP_DAYS: u32 = 7;
 
 /// Generate a full double round-robin schedule (home & away) for the given teams.
 /// Matchdays are spaced 7 days apart starting from `start_date`.
@@ -17,7 +21,10 @@ pub fn generate_league(
     let n = team_ids.len();
     assert!(n >= 2);
 
-    let league_id = Uuid::new_v4().to_string();
+    let season_key = season.to_string();
+    let mut id_parts = vec!["league", name, &season_key];
+    id_parts.extend(team_ids.iter().map(String::as_str));
+    let league_id = crate::seed::derived_id(&id_parts);
     let mut league = League::new(league_id, name.to_string(), season, team_ids);
     append_round_robin_fixtures(&mut league, team_ids, start_date);
     league
@@ -49,7 +56,7 @@ pub fn build_round_robin_fixtures(
         start_date,
         fixture_competition,
         2,
-        7,
+        LEAGUE_MATCHDAY_GAP_DAYS.into(),
     )
 }
 
@@ -102,7 +109,14 @@ pub fn build_round_robin_fixtures_with(
                     continue; // Paired with the phantom slot: a bye.
                 }
                 fixtures.push(Fixture {
-                    id: Uuid::new_v4().to_string(),
+                    id: crate::seed::derived_id(&[
+                        "fixture",
+                        competition_id,
+                        &matchday.to_string(),
+                        &date_str,
+                        &team_ids[home],
+                        &team_ids[away],
+                    ]),
                     competition_id: competition_id.to_string(),
                     matchday,
                     date: date_str.clone(),
@@ -173,6 +187,7 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
 
     league.participant_ids = team_ids.clone();
     league.season = season;
+    crate::calendar_identity::record_regenerated_calendar(league, start_date);
     league.fixtures.clear();
     league.standings = team_ids
         .iter()
@@ -188,6 +203,7 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
 /// and participants but clearing previous fixtures, standings, and rounds.
 pub fn regenerate_knockout_for_season(cup: &mut League, season: u32, start_date: DateTime<Utc>) {
     cup.season = season;
+    crate::calendar_identity::record_regenerated_calendar(cup, start_date);
     cup.fixtures.clear();
     cup.standings.clear();
     cup.knockout_rounds.clear();
@@ -214,7 +230,11 @@ pub fn generate_knockout_cup(
     kind: CompetitionType,
     scope: CompetitionScope,
 ) -> League {
-    let competition_id = Uuid::new_v4().to_string();
+    let season_key = season.to_string();
+    let start_key = start_date.to_rfc3339();
+    let mut id_parts = vec!["knockout", name, &season_key, &start_key];
+    id_parts.extend(team_ids.iter().map(String::as_str));
+    let competition_id = crate::seed::derived_id(&id_parts);
     let mut cup = League::new(competition_id.clone(), name.to_string(), season, team_ids);
     cup.kind = kind.clone();
     cup.scope = scope;
@@ -239,6 +259,14 @@ pub fn generate_knockout_cup(
     cup
 }
 
+/// Byes that reduce an uneven knockout field to a power of two.
+/// Shared by bracket construction and completed-edition verification.
+pub(crate) fn knockout_bye_count(entrants: usize) -> Option<usize> {
+    entrants
+        .checked_next_power_of_two()
+        .map(|size| size - entrants)
+}
+
 /// Seed the next knockout round of `cup` from `team_ids` (strongest first —
 /// any byes for a non-power-of-two field go to the leading seeds).
 pub fn seed_knockout_round(
@@ -258,7 +286,13 @@ pub fn seed_knockout_round(
     // When the entrant count is not a power of two, the strongest seeds (which
     // the caller passes first) receive a bye into the next round so the bracket
     // converges to a power of two.
-    let byes = team_ids.len().next_power_of_two() - team_ids.len();
+    let Some(byes) = knockout_bye_count(team_ids.len()) else {
+        log::warn!(
+            "[schedule] a knockout field of {} entrants cannot form a bracket",
+            team_ids.len()
+        );
+        return;
+    };
     let (bye_teams, playing_teams) = team_ids.split_at(byes);
 
     let mpd = cup.rules.knockout_matches_per_day.max(1) as usize;
@@ -267,7 +301,16 @@ pub fn seed_knockout_round(
         if pair.len() < 2 {
             continue;
         }
-        let fixture_id = Uuid::new_v4().to_string();
+        let fixture_id = crate::seed::derived_id(&[
+            "tie",
+            &cup.id,
+            // The season too: a renewed cup keeps its id and often its pairings.
+            &cup.season.to_string(),
+            &start_date.to_rfc3339(),
+            &round_index.to_string(),
+            &pair[0],
+            &pair[1],
+        ]);
         round_fixture_ids.push(fixture_id.clone());
         cup.fixtures.push(Fixture {
             id: fixture_id,
@@ -418,7 +461,12 @@ pub fn generate_preseason_friendlies(
             };
 
             fixtures.push(Fixture {
-                id: Uuid::new_v4().to_string(),
+                id: crate::seed::derived_id(&[
+                    "friendly",
+                    &date,
+                    &team_ids[home_idx],
+                    &team_ids[away_idx],
+                ]),
                 competition_id: String::new(),
                 matchday: 0,
                 date: date.clone(),
@@ -568,6 +616,131 @@ pub fn append_fixtures(league: &mut League, mut additional_fixtures: Vec<Fixture
 
 #[cfg(test)]
 mod tests {
+    /// Given distinct entrant lists whose comma-joined text is identical,
+    /// When leagues are generated for the same name, season and date,
+    /// Then their competition ids and fixture ids remain distinct.
+    #[test]
+    fn leagues_preserve_entrant_boundaries_inside_ids() {
+        let first = ["a,b", "c", "d", "e"].map(String::from);
+        let second = ["a", "b,c", "d", "e"].map(String::from);
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let first = generate_league("Test League", 2026, &first, start);
+        let second = generate_league("Test League", 2026, &second, start);
+
+        assert_ne!(first.id, second.id);
+        assert!(
+            first
+                .fixtures
+                .iter()
+                .all(|fixture| second.fixtures.iter().all(|other| fixture.id != other.id))
+        );
+    }
+
+    /// Given distinct entrant lists whose comma-joined text is identical,
+    /// When knockout cups are generated with a common d/e tie,
+    /// Then neither the competition nor that tie shares an id.
+    #[test]
+    fn knockout_cups_preserve_entrant_boundaries_inside_ids() {
+        let first = ["a,b", "c", "d", "e"].map(String::from);
+        let second = ["a", "b,c", "d", "e"].map(String::from);
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let cup = |teams: &[String]| {
+            generate_knockout_cup(
+                "Test Cup",
+                2026,
+                teams,
+                start,
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+            )
+        };
+        let first = cup(&first);
+        let second = cup(&second);
+        let tie = |cup: &League| {
+            cup.fixtures
+                .iter()
+                .find(|f| f.home_team_id == "d" && f.away_team_id == "e")
+                .unwrap()
+                .id
+                .clone()
+        };
+
+        assert_ne!(tie(&first), tie(&second));
+        assert_ne!(first.id, second.id);
+    }
+
+    /// Given a knockout cup that is renewed for the next season,
+    /// When its ties are drawn again between the same clubs,
+    /// Then no tie shares an id with last season's — match statistics and inbox items are keyed
+    ///      by fixture id, so a repeated id is a primary-key clash on the second season's save.
+    #[test]
+    fn a_renewed_cups_ties_do_not_reuse_last_seasons_ids() {
+        let teams: Vec<String> = (1..=8).map(|n| format!("team_{n}")).collect();
+        let start = chrono::Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut cup = generate_knockout_cup(
+            "Test Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+        let last_season: std::collections::BTreeSet<String> =
+            cup.fixtures.iter().map(|f| f.id.clone()).collect();
+        assert!(!last_season.is_empty());
+
+        regenerate_knockout_for_season(
+            &mut cup,
+            2027,
+            chrono::Utc.with_ymd_and_hms(2027, 8, 1, 0, 0, 0).unwrap(),
+        );
+
+        assert!(cup.fixtures.iter().all(|f| !last_season.contains(&f.id)));
+    }
+
+    /// Given the same teams, dates and names,
+    /// When a schedule is generated twice,
+    /// Then every competition and fixture has the same id both times — so what orders a day's
+    ///      fixtures by id, and what keys off them, replays.
+    #[test]
+    fn the_same_schedule_has_the_same_ids() {
+        let teams: Vec<String> = (1..=6).map(|n| format!("team_{n}")).collect();
+        let start = chrono::Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let ids = |league: &League| -> Vec<String> {
+            std::iter::once(league.id.clone())
+                .chain(league.fixtures.iter().map(|fixture| fixture.id.clone()))
+                .collect()
+        };
+
+        let first = generate_league("Test League", 2026, &teams, start);
+        let second = generate_league("Test League", 2026, &teams, start);
+        let cup = generate_knockout_cup(
+            "Test Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+        let cup_again = generate_knockout_cup(
+            "Test Cup",
+            2026,
+            &teams,
+            start,
+            CompetitionType::Cup,
+            CompetitionScope::Domestic,
+        );
+
+        assert_eq!(ids(&first), ids(&second));
+        assert_eq!(ids(&cup), ids(&cup_again));
+        let distinct: std::collections::BTreeSet<_> = ids(&first).into_iter().collect();
+        assert_eq!(
+            distinct.len(),
+            ids(&first).len(),
+            "no two fixtures share an id"
+        );
+    }
+
     use super::*;
     use chrono::TimeZone;
 

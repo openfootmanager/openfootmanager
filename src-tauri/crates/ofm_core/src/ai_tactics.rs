@@ -146,27 +146,16 @@ pub fn blueprint_for(play_style: &PlayStyle) -> TacticsPhaseSettings {
 // The weekly review
 // ---------------------------------------------------------------------------
 
-/// The four dials `--phase-sweep` found the engine giving away, and the most any
-/// one club may hold. The blueprints are rationed by hand; adaptation has to
-/// obey the same limit at run time, because "we keep conceding" pushes a club
-/// straight at the deep line and the compact block. The engine now charges for
-/// all four, but not provably in full — see the module docs for when this
-/// limit can be revisited.
-const MAX_UNDER_PRICED_DIALS: usize = 2;
-
-fn under_priced_dials(settings: &TacticsPhaseSettings) -> usize {
-    [
-        matches!(
-            settings.defensive_line,
-            DefensiveLine::VeryLow | DefensiveLine::Low
-        ),
-        settings.defensive_shape == DefensiveShape::Compact,
-        settings.width == PitchWidth::Narrow,
-        settings.counter_press_duration == CounterPressDuration::Long,
-    ]
-    .iter()
-    .filter(|taken| **taken)
-    .count()
+/// How many of the engine's under-priced dials this plan holds.
+///
+/// The rule — which four dials, and that a club may hold at most
+/// [`engine::ai::MAX_UNDER_PRICED_DIALS`] of them — belongs to the engine, which
+/// prices them and applies the same ration to the dials a manager turns during
+/// a match. The review asks it rather than keeping a copy. Adaptation has to
+/// obey the ration at run time as well as the blueprints, because "we keep
+/// conceding" pushes a club straight at the deep line and the compact block.
+pub fn under_priced_dials(settings: &TacticsPhaseSettings) -> usize {
+    engine::ai::under_priced_dials(&crate::turn::squad::domain_to_engine_tactics(settings))
 }
 
 /// A club sits down to look at itself once a week, on a day of its own.
@@ -186,7 +175,29 @@ const REVIEW_CYCLE_DAYS: u64 = 7;
 /// a different question.
 const REVIEW_SEED: u64 = 0x7461_6374_6963_7300; // "tactics\0"
 
-fn review_weekday(team_id: &str) -> u32 {
+/// The AI clubs whose weekly review falls on this weekday: every club but the
+/// player's, each on a day of its own. The one answer to "which clubs sit down
+/// to look at themselves today" — the tactical review and the contract review
+/// both ask it, so a club reviews its tactics and its contracts together.
+pub(crate) fn ai_clubs_reviewing_on(game: &Game, weekday_num: u32) -> Vec<String> {
+    ai_clubs(game)
+        .into_iter()
+        .filter(|team_id| review_weekday(team_id) == weekday_num)
+        .collect()
+}
+
+/// Every club the AI manages: all but the player's, in the order clubs are
+/// stored.
+pub(crate) fn ai_clubs(game: &Game) -> Vec<String> {
+    let user_team_id = game.manager.team_id.as_deref();
+    game.teams
+        .iter()
+        .filter(|team| Some(team.id.as_str()) != user_team_id)
+        .map(|team| team.id.clone())
+        .collect()
+}
+
+pub(crate) fn review_weekday(team_id: &str) -> u32 {
     (stable_hash(team_id.as_bytes(), REVIEW_SEED) % REVIEW_CYCLE_DAYS) as u32
 }
 
@@ -279,9 +290,11 @@ const FORM_MINIMUM: usize = 3;
 // They are measurements, and they move when the football does. First set at 2.8
 // and 1.2 when a club scored 2.06 a game; fielding a real, rested eleven instead
 // of a whole tired squad lifted that to about 2.29, where 2.8 conceded sits near
-// p70 and a third of clubs read as leaking. Six probe seasons put p85 at 3.2 in
-// four of them and p15 at 1.4 in four. Anything that changes how many goals are
-// scored should re-read that table before trusting these.
+// p70 and a third of clubs read as leaking; they moved to 3.2 and 1.4. Playing
+// every active fixture on the live engine, with benches and managers, lifted
+// scoring again to about 2.52, and six probe seasons put the pooled p85 at 3.4
+// and p15 at 1.6. Anything that changes how many goals are scored should
+// re-read that table before trusting these.
 //
 // The first pass used 2.2 and 0.8, which read like a matched pair and were
 // nothing of the kind: 2.2 sat just above the median and fired for two clubs in
@@ -290,9 +303,9 @@ const FORM_MINIMUM: usize = 3;
 // and the reaction table came out as one column of compact blocks.
 
 /// Conceding at this rate says the plan is not holding, whatever the badge says.
-const LEAKY: f64 = 3.2;
+const LEAKY: f64 = 3.4;
 /// Scoring at this rate says the same about the other end.
-const BLUNT: f64 = 1.4;
+const BLUNT: f64 = 1.6;
 
 struct FormReading {
     conceded_per_game: f64,
@@ -433,7 +446,7 @@ fn go_more_direct(settings: &mut TacticsPhaseSettings) -> bool {
 fn shade(settings: &mut TacticsPhaseSettings, moves: &[fn(&mut TacticsPhaseSettings) -> bool]) {
     for change in moves {
         let mut trial = settings.clone();
-        if change(&mut trial) && under_priced_dials(&trial) <= MAX_UNDER_PRICED_DIALS {
+        if change(&mut trial) && under_priced_dials(&trial) <= engine::ai::MAX_UNDER_PRICED_DIALS {
             *settings = trial;
             return;
         }
@@ -505,14 +518,7 @@ fn match_plan(
 /// club, and its next review overwrites the tactics and the roles the player set
 /// there. That is a new manager taking over and doing it his way.
 pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
-    let user_team_id = game.manager.team_id.clone();
-    let due: Vec<String> = game
-        .teams
-        .iter()
-        .filter(|team| Some(&team.id) != user_team_id.as_ref())
-        .filter(|team| review_weekday(&team.id) == weekday_num)
-        .map(|team| team.id.clone())
-        .collect();
+    let due = ai_clubs_reviewing_on(game, weekday_num);
 
     // One pass over the world's fixtures for everybody, not one per club.
     let form = read_form(game);
@@ -919,6 +925,50 @@ mod tests {
         assert_eq!(reading.defensive_pace, 45.0);
     }
 
+    /// The ration itself, not just today's blueprints. Every current blueprint
+    /// plus one reaction stays within the ration on its own, so the sweep below
+    /// cannot tell a review that checks it from one that does not. Here a plan
+    /// already at the limit is offered a move that would take a third
+    /// under-priced dial, and then a move that would not: the first must be
+    /// refused and the second taken.
+    #[test]
+    fn a_review_will_not_take_a_dial_past_the_ration() {
+        let mut plan = TacticsPhaseSettings {
+            defensive_line: DefensiveLine::Low,
+            defensive_shape: DefensiveShape::Compact,
+            ..TacticsPhaseSettings::default()
+        };
+        assert_eq!(
+            under_priced_dials(&plan),
+            engine::ai::MAX_UNDER_PRICED_DIALS,
+            "the plan should start at the limit, or this test proves nothing"
+        );
+
+        fn narrow(settings: &mut TacticsPhaseSettings) -> bool {
+            let changed = settings.width != PitchWidth::Narrow;
+            settings.width = PitchWidth::Narrow;
+            changed
+        }
+        fn press_harder(settings: &mut TacticsPhaseSettings) -> bool {
+            let changed = settings.pressing_intensity != PressingIntensity::Aggressive;
+            settings.pressing_intensity = PressingIntensity::Aggressive;
+            changed
+        }
+
+        shade(&mut plan, &[narrow, press_harder]);
+
+        assert_ne!(
+            plan.width,
+            PitchWidth::Narrow,
+            "a third under-priced dial was taken past the ration"
+        );
+        assert_eq!(
+            plan.pressing_intensity,
+            PressingIntensity::Aggressive,
+            "the next move within the ration should have been taken instead"
+        );
+    }
+
     /// The reason this exists: the natural answer to conceding is a deeper line
     /// and a compact block, two of the four dials the engine priced one-sidedly.
     /// Left alone, adaptation would quietly undo the ration on the blueprints,
@@ -946,7 +996,7 @@ mod tests {
                     let plan = match_plan(&style, squad.as_ref(), form.as_ref());
                     let taken = under_priced_dials(&plan);
                     assert!(
-                        taken <= MAX_UNDER_PRICED_DIALS,
+                        taken <= engine::ai::MAX_UNDER_PRICED_DIALS,
                         "{style:?} ended up holding {taken} of the four under-priced \
                          dials after adapting: {plan:?}"
                     );

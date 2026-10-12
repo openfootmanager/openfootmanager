@@ -686,6 +686,8 @@
     "removeFromLoanList": "Remove from loan list",
     "outOfPosition": "Out of position",
     "outOfPositionTooltip": "Playing outside the player's preferred role",
+    "pitchTokenTooltip": "Condition {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "Condition {{condition}}%",
     "dragHint": "Drag bench players onto the pitch or swap starters between slots.",
     "benchDragHint": "Use the bench list to drag players directly onto the pitch.",
     "dropPlayerHere": "Drop player here",
@@ -916,6 +918,7 @@
     "aTrainingDay": "a training day",
     "aRestDay": "a rest day",
     "currentlyTraining": "Currently training: <strong>{{attrs}}</strong> at <strong>{{intensity}}</strong> intensity.",
+    "goalkeepersLabel": "Goalkeepers",
     "recoveryNote": "Players will focus on rest and condition recovery on all days.",
     "effectiveFocus": "Focus",
     "trainingAppliedNote": "Training is applied on scheduled training days when you advance time. Rest days provide full recovery.",
@@ -1265,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Offer history",
+    "viewOfferHistory": "View offer history",
+    "offerRecordedOn": "Offer dated {{date}}.",
+    "loanOfferStartsOn": "Loan starts on {{date}}.",
+    "dealAlreadyAgreed": "This player has an agreed move and is awaiting registration.",
+    "dealOwnPlayer": "This player already belongs to your club.",
+    "dealActiveLoan": "This player is currently on loan.",
+    "dealRetired": "This player has retired.",
     "bidImpactWageBill": "Weekly wage bill {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Weekly wage budget {{budget}}",
     "bidImpactIncomingWage": "Incoming player wage {{wage}} / week",
@@ -1403,7 +1414,11 @@
     "transferFeedbackCounterHeadline": "They want more before shaking hands.",
     "transferFeedbackCounterDetail": "The bid was close enough to keep talking, but their side are signalling a price nearer {{fee}}.",
     "transferFeedbackRejectedHeadline": "They shut this round down.",
-    "transferFeedbackRejectedDetail": "The proposal did not move them enough. You would need a stronger fee, closer to {{fee}}, to reopen serious talks."
+    "transferFeedbackRejectedDetail": "The proposal did not move them enough. You would need a stronger fee, closer to {{fee}}, to reopen serious talks.",
+    "registrationFailureInsufficientFunds": "Registration failed: insufficient buyer funds",
+    "registrationFailureLoanConflict": "Registration failed: loan conflict",
+    "registrationFailurePlayerUnavailable": "Registration failed: player unavailable",
+    "registrationFailureRegistrationBlocked": "Registration blocked"
   },
   "transferCentreWorld": {
     "title": "Transfer Centre",
@@ -1614,6 +1629,7 @@
     "renewalFeedbackTenseDetail": "Low trust, low morale, or contract pressure are making the camp push hard. Another weak offer could shut the door.",
     "renewalFeedbackAcceptedHeadline": "They liked the package and moved quickly.",
     "renewalFeedbackAcceptedDetail": "The offer landed close enough to their expectations, so the talks stayed constructive.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "They accepted. The deal takes the wage bill past the board's policy, but the board allowed it: without this player the squad would fall below the minimum a club must keep.",
     "renewalFeedbackAcceptedLateHeadline": "They accepted, but there was not much patience left.",
     "renewalFeedbackAcceptedLateDetail": "You got the deal done after a tougher exchange. Their side were close to walking away from the discussion.",
     "renewalFeedbackBlockedHeadline": "They are not reopening the conversation yet.",
@@ -1628,6 +1644,8 @@
     "attributes": "Attributes",
     "attributesHidden": "Attributes Hidden",
     "scoutToView": "Scout this player or sign them to view detailed attributes.",
+    "scoutedOn": "Scouted on {{date}}",
+    "scoutReportOutOfDate": "Out of date",
     "seasonStats": "Season Statistics",
     "advancedStats": "Advanced Stats",
     "shots": "Shots",
@@ -1666,6 +1684,19 @@
     "movementLoanToBuy": "Loan-to-buy",
     "movementFreeAgentSigning": "Free agent",
     "movementReleased": "Released",
+    "movementRenewal": "Renewal",
+    "movementRetired": "Retired",
+    "movementInitialContract": "Opening contract",
+    "movementReleasedExpired": "Contract expired",
+    "movementReleasedTerminated": "Contract terminated",
+    "movementContractRange": "Contract {{start}} to {{end}}",
+    "movementContractUntil": "Contract until {{end}}",
+    "movementContractFrom": "Contract from {{start}}",
+    "movementWage": "Wage {{wage}}/wk",
+    "movementDateUnknown": "Date unknown",
+    "movementLegacyContract": "From a save made before contract history",
+    "movementRenewedWith": "Renewed with {{club}}",
+    "movementAtClub": "At {{club}}",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "Joined {{to}}",
     "movementFrom": "Left {{from}}",
@@ -2022,7 +2053,7 @@
     "postMatchTeamTalk": "Post-Match Team Talk",
     "addressPlayers": "Address your players after the match.",
     "matchOver": "Match Over",
-    "ratings": "{{team}} Ratings",
+    "performance": "{{team}} Performance",
     "motm": "Man of the Match",
     "roundSummary": "Round Summary",
     "roundSummaryUnavailable": "Round summary unavailable.",
@@ -2498,7 +2529,7 @@
       }
     },
     "matchReport": "Match Report",
-    "playerRatings": "Player Ratings",
+    "playerPerformance": "Player Performance",
     "tacticsTab": "Tactics",
     "goalSources": "Goal Sources",
     "openPlay": "Open Play",
@@ -2552,6 +2583,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",
+        "wouldLeaveSeniorsShort": "This player cannot leave: the club would be left with fewer than {{floor}} senior players, the minimum a club must keep."
+      },
       "noActiveGameSession": "No active game session",
       "noActiveSaveSession": "No active save session",
       "saveNotFound": "Save '{{saveId}}' not found.",
@@ -2598,6 +2633,7 @@
       "managedTeamNotFound": "Managed team not found",
       "unknownFacilityType": "Unknown facility type",
       "liveMatch": {
+        "inProgress": "A match is in progress. Finish it before saving, advancing time or starting another match.",
         "noLeague": "No league data is available for this match.",
         "fixtureNotFound": "The selected fixture could not be found.",
         "fixtureNotScheduled": "This fixture is no longer scheduled and cannot be played.",
@@ -2650,6 +2686,14 @@
         "potentialBelowOverall": "\"{{entity}}\" has a potential of {{potential}}, below their overall of {{ability}}. A player's ceiling cannot sit under their current ability.",
         "potentialBelowAttributes": "\"{{entity}}\" has a potential of {{potential}}, below the {{ability}} their attributes work out to. A player's ceiling cannot sit under their current ability.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" has a potential of {{potential}}, below the default ability of {{ability}} used when neither overall nor attributes is given.",
+        "invalidDate": "\"{{entity}}\" has a {{field}} of \"{{value}}\", which is not a real date. Use the form YYYY-MM-DD.",
+        "contractEndAndLength": "\"{{entity}}\" has both a contractEnd and a contractLength. Give one or the other: they say the same thing two ways.",
+        "contractLengthOutOfRange": "\"{{entity}}\" has a contractLength of {{length}}. A contract runs from 1 to {{max}} years.",
+        "contractEndNotAfterStart": "\"{{entity}}\" has a contract that ends ({{end}}) on or before the day it starts ({{start}}).",
+        "playerFieldOutOfRange": "\"{{entity}}\" has a {{field}} outside its range. It must be between {{min}} and {{max}}.",
+        "alternatePositionInvalid": "\"{{entity}}\" lists {{position}} as an alternate position. An alternate must be a specific position, different from the player's own, and listed only once.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" has a weak foot or alternate positions, but {{position}} is a general group, so the game would re-work them from the player's attributes and discard what you wrote. Give the player a specific position, such as CentralMidfielder or Striker.",
+        "careerEntryNeedsClub": "\"{{entity}}\" has a career entry (row {{row}}) with no club name.",
         "unsupportedFormatVersion": "This package was made with a newer version of the game (format {{version}}; this build supports {{supported}}). Update the game to open it."
       },
       "conflict": {
@@ -2661,6 +2705,7 @@
         "fallbackTeamsFilled": "Only one team was defined. Procedural opponents were generated automatically to make the game playable."
       },
       "competitionDef": {
+        "invalidCalendar": "Invalid competition calendar: check the division family, tier, phase and closing date.",
         "invalidEmbedded": "This world's competition definitions are invalid and could not be loaded.",
         "invalidStandalone": "The selected competition definition file is invalid.",
         "parseFailed": "The competition definition file could not be read as JSON.",
@@ -2678,6 +2723,7 @@
         "unknownCountry": "Unknown country \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Group settings only apply to a group-and-knockout format.",
         "groupSizeTooSmall": "Group size {{groupSize}} is too small (minimum 2).",
+        "invalidGroupQualification": "Group qualification settings cannot be satisfied by these entrants.",
         "zeroLegs": "A competition needs at least one leg.",
         "noParticipants": "No participants: provide an explicit list or a selector.",
         "bothParticipantSources": "Provide either an explicit list or a selector, not both.",
@@ -2757,6 +2803,7 @@
         "transferBudgetTooLow": "Transfer budget too low",
         "playerNotOwnedByUser": "Player not found or not yours",
         "offerNotPending": "Offer not found or not pending",
+        "loanBorrowerCannotAffordWages": "The borrowing club cannot afford this wage share. Its weekly wage budget is {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Counter offer must exceed current offer",
         "loanCounterMustImproveTerms": "Loan counter must improve the current offer",
         "playerNotLoanListed": "Player is not listed for loan",
@@ -2839,22 +2886,6 @@
         "randomDescription": "Randomly generated league with {{teamCount}} teams across Europe",
         "exportedName": "Exported World",
         "exportedDescription": "World with {{teamCount}} teams exported from saved game"
-      },
-      "welcome": {
-        "subject0": "Welcome to {{team}}",
-        "subject1": "New Era at {{team}}",
-        "subject2": "{{team}} Awaits Your Leadership",
-        "body0": "The board of directors at {{team}} is delighted to welcome you as the new manager.\n\nWe have high hopes for your tenure and believe you can lead this club to glory. Your first task will be to review the squad and prepare a tactical plan for the upcoming season.\n\nWe wish you the best of luck.",
-        "body1": "On behalf of the entire {{team}} family, we are thrilled to announce your appointment as manager.\n\nThe fans are eager to see your vision for the team. Please take time to assess the squad, review our financial position, and set your tactical approach.\n\nThe board stands behind you.",
-        "body2": "Welcome to {{team}}! The supporters and staff are excited about the future under your guidance.\n\nWe recommend you start by reviewing your squad's strengths and weaknesses, then set up your preferred formation and training regime.\n\nThe upcoming season will be a true test — make us proud.",
-        "actionReview": "Review Squad",
-        "actionThank": "Thank the Board"
-      },
-      "schedule": {
-        "subject": "Season Schedule Released",
-        "body0": "The {{league}} schedule has been released. The season kicks off on {{start}}.\n\nReview the fixture list and ensure your squad is ready for the challenges ahead. Pre-season preparation will be crucial.",
-        "body1": "Fixture list confirmed! The {{league}} season begins on {{start}}.\n\nStudy the opening fixtures carefully — a strong start can set the tone for the whole campaign. Make sure your key players are match-fit.",
-        "actionView": "View Fixtures"
       },
       "preMatch": {
         "subject": "Upcoming: vs {{opponent}} ({{venue}})",
@@ -3240,6 +3271,28 @@
         "subject": "{{player}} Signs for {{team}}",
         "body": "{{player}} has joined {{team}} as a free agent on a {{years}}-year contract."
       },
+      "squadBelowFloor": {
+        "subject": "Squad Below the Minimum: {{group}}",
+        "body": "Boss, we are short of players. {{group}}: {{have}} registered, and a club must keep at least {{floor}}. Please bring more in before our next match — if we cannot field a side at kick-off, I will have to bring players up from the academy or sign free agents so the match can go ahead.",
+        "totalSubject": "Squad Below the Minimum Size",
+        "totalBody": "Boss, we are down to {{have}} senior players, and a club must keep at least {{floor}} to stay sound. Please bring more in before our next match — if we cannot field a side at kick-off, I will have to bring players up from the academy or sign free agents so the match can go ahead."
+      },
+      "squadToppedUp": {
+        "subject": "Emergency Signings: {{team}}",
+        "body": "Boss, we did not have enough players to field a side, so before kick-off I brought these players into the first-team squad, from the academy first and then the free-agent market: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Youth Intake: {{team}}",
+        "body": "Boss, this season's youth intake has joined the academy: {{players}}.",
+        "bodyPartlyRefused": "Boss, new in the academy this season: {{players}}. The board would not take on the wages of the rest of the intake.",
+        "bodyAllRefused": "Boss, the board would not take on the wages of this season's youth intake, so nobody joined the academy."
+      },
+      "squadCannotBeFilled": {
+        "subject": "No One Available: {{group}}",
+        "body": "Boss, we could not field a full squad and there was nobody to bring in. {{group}}: {{have}} of the {{floor}} a club must keep, and neither our academy nor the free-agent market has anyone to fill the gap.",
+        "totalSubject": "No One Available to Complete the Squad",
+        "totalBody": "Boss, we are down to {{have}} senior players, below the {{floor}} a club must keep, and neither our academy nor the free-agent market has anyone to fill the gap."
+      },
       "delegatedRenewals": {
         "subject": "Assistant Report — Contract Renewals",
         "body": "Boss, I went through our renewal list at {{team}}. {{successes}} completed, {{stalled}} still pending, {{failures}} failed.",
@@ -3251,6 +3304,7 @@
         "notes": {
           "managerBlocked": "You told me not to reopen contract talks yet.",
           "completed": "I was able to close this one without needing you to step in.",
+          "completedToKeepSquadFloor": "Done, over the board's wage policy. The board allowed it because without this player we would fall below the minimum squad.",
           "beyondLimits": "Their camp want around {{wage}}/wk for {{years}} years, which is beyond the delegation limits.",
           "boardWagePolicy": "Board wage policy blocks this renewal. Keep weekly wages near {{budget}} while we recover.",
           "prefersManager": "They would listen, but they still want about {{wage}}/wk for {{years}} years and prefer to hear from you directly.",
@@ -3332,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "Transfer Complete: {{player}}",
-        "body": "The transfer of {{player}} has been completed for a fee of {{fee}}.\n\nThe player has joined the squad and is available for selection."
+        "body": "The transfer of {{player}} has been completed for a fee of {{fee}}.\n\nThe player has joined the squad and is available for selection.",
+        "bodySold": "The transfer of {{player}} to {{buyer}} has been completed for {{fee}}. The player has left the squad and joined {{buyer}}."
+      },
+      "transferAgreed": {
+        "subject": "Transfer agreed: {{player}}",
+        "body": "The transfer of {{player}} from {{seller}} to {{buyer}} has been agreed for {{fee}}. Registration is scheduled for {{start}}."
       },
       "transferOffer": {
         "subject": "Incoming Offer for {{player}}",
@@ -3343,6 +3402,11 @@
         "subject": "Transfer interest in {{player}}",
         "body": "Clubs with active bids for {{player}}: {{n}}. Latest enquiry: {{team}} ({{fee}}). Review the offers in the Transfers tab to respond.",
         "actionReview": "Review Offers"
+      },
+      "loanAgreed": {
+        "subject": "Loan agreed: {{player}}",
+        "bodyWithOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. Purchase option: {{fee}}.",
+        "bodyNoOption": "{{player}} will move on loan from {{parent}} to {{borrower}} from {{start}} until {{end}}. {{borrower}} will cover {{contribution}}% of the wages. No purchase option."
       },
       "loanOffer": {
         "subject": "Loan Offer for {{player}}",
@@ -3357,6 +3421,13 @@
       "loanBuyOptionExercised": {
         "subject": "Loan Buy Option Exercised: {{player}}",
         "body": "The purchase option for {{player}} has been exercised for {{fee}}. The loan is now a permanent transfer."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Transfer registration failed: {{player}}",
+        "InsufficientFunds": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the buyer's cash or transfer budget no longer covers the fee. No transfer fee was paid.",
+        "LoanConflict": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player has an active loan or an agreed loan awaiting registration. No transfer fee was paid.",
+        "PlayerUnavailable": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player is no longer available from a selling club. No transfer fee was paid.",
+        "RegistrationBlocked": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because a registration requirement is no longer met. No transfer fee was paid."
       }
     },
     "news": {
@@ -3856,6 +3927,23 @@
     "playerFoot": "Preferred Foot",
     "playerDateOfBirth": "Date of Birth",
     "playerAge": "Age",
+    "playerAgeHelp": "Used when no date of birth is given: the player is this old on the day a career opens, in whatever year that is.",
+    "playerContractSection": "Contract",
+    "playerContractStart": "Contract start",
+    "playerContractEnd": "Contract end",
+    "playerContractLength": "Contract length (years)",
+    "playerContractLengthHelp": "An alternative to an end date. Counted from the start date if there is one, otherwise from the year the career opens, so the player is never already out of contract. Give an end date or a length, not both.",
+    "playerWageHelp": "Per week. Leave blank and it is worked out from the player's value.",
+    "playerStatusSection": "Status",
+    "playerAlternatePositions": "Alternate positions",
+    "playerAlternatePositionsHelp": "Other positions this player can play. Only for a specific position such as Striker: a general group like Forward has them worked out from the attributes.",
+    "playerCareerSection": "Career history",
+    "careerEntryRow": "Career entry",
+    "careerEntryClubName": "Club name",
+    "careerEntryPackageTeam": "Club in this package",
+    "careerEntryNoPackageTeam": "Not in this package",
+    "addCareerEntry": "Add season",
+    "removeCareerEntry": "Remove season",
     "playerOverall": "Overall (1–99)",
     "playerPotential": "Potential (1–99)",
     "playerPotentialHelp": "How good this player can become. Leave blank and the engine rolls a ceiling from their ability and age. It cannot be below their current ability, and a player who has reached it stops improving.",

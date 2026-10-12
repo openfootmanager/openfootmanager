@@ -151,7 +151,7 @@ export function PlayerRatingsPanel({
       <div className="flex items-center gap-2 mb-3">
         <Star className="w-4 h-4 text-accent-700 dark:text-accent-400" />
         <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-          {t("match.ratings", { team: team.name })}
+          {t("match.performance", { team: team.name })}
         </h3>
         <div className="w-2 h-2 rounded-full ml-auto" style={{ backgroundColor: teamColor }} />
       </div>

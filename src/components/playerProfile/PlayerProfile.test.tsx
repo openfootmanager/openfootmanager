@@ -365,6 +365,10 @@ function defaultInvokeResponse(command: string) {
     return [];
   }
 
+  if (command === "get_scouted_report") {
+    return null;
+  }
+
   return createGameState(createPlayer());
 }
 
@@ -482,6 +486,69 @@ describe("PlayerProfile contract surfaces", () => {
     });
     expect(screen.queryByRole("button", { name: "Submit Offer" })).toBeNull();
     expect(invoke).not.toHaveBeenCalledWith("preview_contract_termination", expect.anything());
+  });
+
+  /**
+   * Given a player at another club whom a scout reported on, flagged out of date by the backend
+   * When the profile opens
+   * Then the scouted attributes show instead of the hidden placeholder, marked out of date
+   */
+  it("shows a scouted player's snapshot attributes with the backend's out-of-date verdict", async () => {
+    const player = createPlayer({ team_id: "team-2" });
+    vi.mocked(invoke).mockImplementation(async (command: string, args?: InvokeArgs) => {
+      if (command === "get_scouted_report") {
+        expect(args).toEqual({ playerId: player.id });
+        return {
+          player_id: player.id,
+          scouted_on: "2026-03-10",
+          attributes: { ...player.attributes, pace: 77 },
+          out_of_date: true,
+        };
+      }
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={createGameState(player, [createStaff()])}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText("playerProfile.scoutReportOutOfDate")).toBeInTheDocument();
+    expect(screen.getByText("77")).toBeInTheDocument();
+    expect(screen.queryByText("playerProfile.attributesHidden")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a player nobody has scouted
+   * When the profile opens
+   * Then the attributes stay hidden
+   */
+  it("keeps the attributes hidden when the backend has no report", async () => {
+    const player = createPlayer({ team_id: "team-2" });
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_scouted_report") return null;
+      return defaultInvokeResponse(command);
+    });
+
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={createGameState(player, [createStaff()])}
+        isOwnClub={false}
+        onClose={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("get_scouted_report", { playerId: player.id });
+    });
+    expect(screen.getByText("playerProfile.attributesHidden")).toBeInTheDocument();
   });
 
   it("renders expiry date, years remaining, and contract risk for the selected player", () => {
@@ -729,6 +796,51 @@ describe("PlayerProfile contract surfaces", () => {
     });
   });
 
+  /**
+   * Given the backend overview flags the season rating as available or not
+   * When the profile opens for a player with a stored 7.2 average
+   * Then the season card shows 7.2 only when the flag says so
+   */
+  it.each([
+    { seasonRatingRated: true, shown: "7.2" },
+    { seasonRatingRated: false, shown: "–" },
+  ])(
+    "shows the season average only when the backend flags it ($seasonRatingRated)",
+    async ({ seasonRatingRated, shown }) => {
+      const player = createPlayer({
+        stats: { ...createPlayer().stats, avg_rating: 7.2, minutes_played: 450 },
+      });
+      vi.mocked(invoke).mockImplementation(async (command: string) => {
+        if (command === "get_player_stats_overview") {
+          return {
+            ...createAdvancedStatsSummary(),
+            percentileEligible: true,
+            seasonRatingRated,
+          };
+        }
+        if (command === "get_player_match_history") {
+          return [];
+        }
+        return defaultInvokeResponse(command);
+      });
+
+      render(
+        <PlayerProfile
+          player={player}
+          gameState={createGameState(player)}
+          isOwnClub
+          onClose={vi.fn()}
+        />,
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("playerProfile.avgRating").previousElementSibling,
+        ).toHaveTextContent(shown);
+      });
+    },
+  );
+
   it("loads and renders recent player match history", async () => {
     const player = createPlayer({
       stats: {
@@ -767,6 +879,7 @@ describe("PlayerProfile contract surfaces", () => {
             shots: 5,
             shots_on_target: 3,
             rating: 8.4,
+            rated: true,
           },
         ];
       }
@@ -1579,6 +1692,7 @@ describe("PlayerProfile switching between players", () => {
               goals: 1,
               assists: 0,
               rating: 7.5,
+              rated: true,
               minutes_played: 90,
             },
           ];

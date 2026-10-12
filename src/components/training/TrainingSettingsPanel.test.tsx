@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { TrainingFocusAttributesData } from "../../store/types";
 import TrainingSettingsPanel from "./TrainingSettingsPanel";
 
 vi.mock("react-i18next", () => ({
@@ -21,6 +22,7 @@ vi.mock("react-i18next", () => ({
       if (key === "training.intensity") return "Intensity";
       if (key === "training.trainingAppliedNote") return "Applied note";
       if (key === "training.recoveryNote") return "Recovery note";
+      if (key === "training.goalkeepersLabel") return "Goalkeepers";
       if (key === "training.currentlyTraining") {
         return `Training ${params?.attrs} at ${params?.intensity}`;
       }
@@ -37,7 +39,61 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+function focus(
+  name: string,
+  outfield: string[],
+  goalkeeper: string[] = outfield,
+): TrainingFocusAttributesData {
+  return { focus: name, outfield, goalkeeper };
+}
+
+function renderPanel(
+  currentFocus: string,
+  focusAttributes: Record<string, TrainingFocusAttributesData>,
+) {
+  return render(
+    <TrainingSettingsPanel
+      currentFocus={currentFocus}
+      currentIntensity="Medium"
+      currentSchedule="Balanced"
+      isSaving={false}
+      todayWeekday={1}
+      isTodayTraining={true}
+      onSetTraining={vi.fn()}
+      onSetSchedule={vi.fn()}
+      scheduleIds={["Balanced"]}
+      scheduleIcons={{ Balanced: "B" }}
+      scheduleColors={{ Balanced: "text-blue" }}
+      dayKeys={["mon", "tue", "wed", "thu", "fri", "sat", "sun"]}
+      trainingFocusIds={["Technical"]}
+      trainingFocusIcons={{ Technical: "T" }}
+      focusAttributes={focusAttributes}
+      intensityIds={["Medium"]}
+      intensityColors={{ Medium: "text-yellow" }}
+    />,
+  );
+}
+
 describe("TrainingSettingsPanel", () => {
+  // Given the backend lists keeper skills for Technical, when the panel renders, then it shows them under Goalkeepers beside the outfield list.
+  it("shows the backend's goalkeeper attributes for the focus", () => {
+    renderPanel("Technical", {
+      Technical: focus("Technical", ["passing", "shooting"], ["passing", "handling", "reflexes"]),
+    });
+
+    expect(screen.getByText("Goalkeepers:")).toBeInTheDocument();
+    expect(screen.getAllByText("handling").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("shooting").length).toBeGreaterThan(0);
+    expect(screen.getByText(/Goalkeepers: passing, handling, reflexes\./)).toBeInTheDocument();
+  });
+
+  // Given a focus whose goalkeeper list equals the outfield one, when the panel renders, then no goalkeeper row appears.
+  it("hides the goalkeeper row when goalkeepers train the same attributes", () => {
+    renderPanel("Technical", { Technical: focus("Technical", ["passing", "shooting"]) });
+
+    expect(screen.queryByText("Goalkeepers:")).not.toBeInTheDocument();
+  });
+
   it("renders the current training schedule, focus, and applied note", () => {
     render(
       <TrainingSettingsPanel
@@ -47,7 +103,6 @@ describe("TrainingSettingsPanel", () => {
         isSaving={false}
         todayWeekday={1}
         isTodayTraining={true}
-        activeFocusAttrs={["pace", "stamina"]}
         onSetTraining={vi.fn()}
         onSetSchedule={vi.fn()}
         scheduleIds={["Intense", "Balanced", "Light"]}
@@ -56,7 +111,11 @@ describe("TrainingSettingsPanel", () => {
         dayKeys={["mon", "tue", "wed", "thu", "fri", "sat", "sun"]}
         trainingFocusIds={["Physical", "Technical", "Recovery"]}
         trainingFocusIcons={{ Physical: "P", Technical: "T", Recovery: "R" }}
-        trainingFocusAttrs={{ Physical: ["pace", "stamina"], Technical: ["passing"], Recovery: [] }}
+        focusAttributes={{
+          Physical: focus("Physical", ["pace", "stamina"]),
+          Technical: focus("Technical", ["passing"]),
+          Recovery: focus("Recovery", []),
+        }}
         intensityIds={["Low", "Medium", "High"]}
         intensityColors={{ Low: "text-blue", Medium: "text-yellow", High: "text-red" }}
       />,
@@ -81,7 +140,6 @@ describe("TrainingSettingsPanel", () => {
         isSaving={false}
         todayWeekday={1}
         isTodayTraining={true}
-        activeFocusAttrs={["pace"]}
         onSetTraining={onSetTraining}
         onSetSchedule={onSetSchedule}
         scheduleIds={["Intense", "Balanced", "Light"]}
@@ -90,7 +148,11 @@ describe("TrainingSettingsPanel", () => {
         dayKeys={["mon", "tue", "wed", "thu", "fri", "sat", "sun"]}
         trainingFocusIds={["Physical", "Technical", "Recovery"]}
         trainingFocusIcons={{ Physical: "P", Technical: "T", Recovery: "R" }}
-        trainingFocusAttrs={{ Physical: ["pace"], Technical: ["passing"], Recovery: [] }}
+        focusAttributes={{
+          Physical: focus("Physical", ["pace"]),
+          Technical: focus("Technical", ["passing"]),
+          Recovery: focus("Recovery", []),
+        }}
         intensityIds={["Low", "Medium", "High"]}
         intensityColors={{ Low: "text-blue", Medium: "text-yellow", High: "text-red" }}
       />,

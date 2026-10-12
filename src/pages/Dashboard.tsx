@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { applyExtraTranslations } from "../lib/extraTranslations";
 import type { JSX } from "react";
 import { useNavigate } from "react-router-dom";
-import { invoke } from "@tauri-apps/api/core";
+import { getActiveGame, getActiveSaveId, saveGame, exitToMenu } from "../services/sessionService";
+import { resolveBackendError } from "../utils/backendI18n";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
 import type { MatchModeType } from "../hooks/useAdvanceTime";
@@ -115,6 +116,7 @@ export default function Dashboard(): JSX.Element {
   }, [settingsLoaded, loadSettings]);
   const [isSaving, setIsSaving] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
+  const [saveError, setSaveError] = useState<unknown>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [profileNavigation, setProfileNavigation] = useState(() =>
     createDashboardProfileNavigationState("Home"),
@@ -162,8 +164,8 @@ export default function Dashboard(): JSX.Element {
   }, [gameState]);
   const loadActiveGameState = useCallback(async () => {
     const [stateResult, saveIdResult] = await Promise.allSettled([
-      invoke<GameStateData>("get_active_game"),
-      invoke<string | null>("get_active_save_id"),
+      getActiveGame(),
+      getActiveSaveId(),
     ]);
 
     if (stateResult.status === "rejected") {
@@ -342,13 +344,16 @@ export default function Dashboard(): JSX.Element {
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
+    setSaveError(null);
+    setSaveFlash(false);
     try {
-      await invoke("save_game");
+      await saveGame();
       markClean();
       setSaveFlash(true);
       setTimeout(() => setSaveFlash(false), 2000);
     } catch (err) {
       console.error("Failed to save:", err);
+      setSaveError(err);
     } finally {
       setIsSaving(false);
     }
@@ -372,16 +377,19 @@ export default function Dashboard(): JSX.Element {
   }, [isDirty]);
 
   const handleCloseQuit = async (save: boolean) => {
-    isClosingRef.current = true;
     setShowCloseConfirm(false);
+    setSaveError(null);
     if (save) {
       try {
-        await invoke("save_game");
+        await saveGame();
         markClean();
       } catch (err) {
         console.error("Auto-save on close failed:", err);
+        setSaveError(err);
+        return;
       }
     }
+    isClosingRef.current = true;
     await getCurrentWindow().destroy();
   };
 
@@ -429,14 +437,16 @@ export default function Dashboard(): JSX.Element {
     }
 
     setIsExitingToMenu(true);
+    setSaveError(null);
     try {
-      await invoke("exit_to_menu");
+      await exitToMenu();
       clearGame();
       navigate("/");
     } catch (err) {
       console.error("Failed to exit:", err);
-      clearGame();
-      navigate("/");
+      setSaveError(err);
+    } finally {
+      setIsExitingToMenu(false);
     }
   };
 
@@ -580,6 +590,14 @@ export default function Dashboard(): JSX.Element {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
+        {saveError !== null ? (
+          <p
+            role="alert"
+            className="m-3 rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-900 dark:border-accent-700 dark:bg-navy-800 dark:text-accent-200"
+          >
+            {resolveBackendError(saveError)}
+          </p>
+        ) : null}
         <DashboardHeader
           activeTabLabel={activeTabLabel}
           currentDate={currentDate}

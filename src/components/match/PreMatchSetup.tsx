@@ -120,6 +120,8 @@ export default function PreMatchSetup({
     player: EnginePlayerData,
     isSelected: boolean,
     slotPosition?: string,
+    descriptionId?: string,
+    focused = false,
   ) => {
     const sp = storeById.get(player.id);
     // With a granular slot (slot-aligned pitch), grade fit exactly like the
@@ -143,6 +145,8 @@ export default function PreMatchSetup({
         }`}
       >
         <PitchToken
+          descriptionId={descriptionId}
+          focused={focused}
           name={(sp?.match_name || player.name).toUpperCase()}
           positionAbbr={translatePositionAbbreviation(t, displayPosition)}
           position={displayPosition}
@@ -475,8 +479,8 @@ export default function PreMatchSetup({
           players={userTeam.players}
           selectedId={selectedStarterId}
           onPlayerClick={(id) => setSelectedStarterId(id === selectedStarterId ? null : id)}
-          renderToken={(p, { isSelected, slotPosition }) =>
-            renderUserToken(p, isSelected, slotPosition)
+          renderToken={(p, { isSelected, slotPosition, descriptionId, focused }) =>
+            renderUserToken(p, isSelected, slotPosition, descriptionId, focused)
           }
           className="aspect-[5/7] h-full max-h-full w-auto max-w-full"
         />

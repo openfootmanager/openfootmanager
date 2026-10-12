@@ -43,6 +43,21 @@ pub struct AutoStartConfig {
     /// exported world's user manager has no team. Optional for HistoricalSnapshot
     /// worlds where the manager already has a team assigned.
     pub team_id: Option<String>,
+    pub options: crate::commands::game::McpCareerOptions,
+}
+
+fn apply_career_option(
+    options: &mut crate::commands::game::McpCareerOptions,
+    flag: &str,
+    value: &str,
+) -> Result<(), String> {
+    let invalid = || format!("Invalid {flag} '{value}'");
+    match flag {
+        "--mcp-seed" => options.seed = Some(value.parse().map_err(|_| invalid())?),
+        "--mcp-start-year" => options.start_year = Some(value.parse().map_err(|_| invalid())?),
+        _ => options.start_phase = Some(value.to_string()),
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,6 +114,7 @@ where
     let mut mode: Option<McpMode> = None;
     let mut disabled_tools = Vec::new();
     let mut auto_start: Option<AutoStartConfig> = None;
+    let mut career_options = crate::commands::game::McpCareerOptions::default();
     let mut no_gui = false;
     let mut min_tick_delay_ms: u64 = 0;
     let mut auto_save_interval_days: u32 = 7;
@@ -145,8 +161,15 @@ where
                     auto_start = Some(AutoStartConfig {
                         world_path: parts[0].to_string(),
                         team_id: parts.get(1).map(|s| s.to_string()),
+                        options: Default::default(),
                     });
                 }
+            }
+            "--mcp-seed" | "--mcp-start-year" | "--mcp-start-phase" => {
+                let flag = args[i].clone();
+                i += 1;
+                let value = args.get(i).ok_or_else(|| format!("{flag} needs a value"))?;
+                apply_career_option(&mut career_options, &flag, value)?;
             }
             "--no-gui" => {
                 no_gui = true;
@@ -203,6 +226,17 @@ where
     };
 
     let mode = mode.unwrap_or(McpMode::Sandbox);
+
+    match auto_start.as_mut() {
+        Some(auto_start) => auto_start.options = career_options,
+        None if career_options != Default::default() => {
+            return Err(
+                "--mcp-seed, --mcp-start-year and --mcp-start-phase need --mcp-auto-start"
+                    .to_string(),
+            );
+        }
+        None => {}
+    }
 
     // Validate: competition mode requires --mcp-auto-start
     if mode == McpMode::Competition && auto_start.is_none() {
@@ -266,6 +300,52 @@ mod tests {
         assert!(config.auto_start.is_some());
     }
 
+    /// Given the app launched with a seed, start year and phase after `--mcp-auto-start`
+    /// When the arguments are parsed
+    /// Then the auto-start carries the same options `game_new` takes.
+    #[test]
+    fn auto_start_accepts_the_same_options() {
+        let config = parse_mcp_config_from_iter([
+            "--mcp-port",
+            "3000",
+            "--mcp-auto-start",
+            "random,team_abc",
+            "--mcp-seed",
+            "7",
+            "--mcp-start-year",
+            "2030",
+            "--mcp-start-phase",
+            "midSeason",
+        ])
+        .unwrap()
+        .expect("config");
+
+        let options = config.auto_start.expect("auto_start").options;
+        assert_eq!(options.seed, Some(7));
+        assert_eq!(options.start_year, Some(2030));
+        assert_eq!(options.start_phase.as_deref(), Some("midSeason"));
+    }
+
+    /// Given a career flag with no value after it
+    /// When the arguments are parsed
+    /// Then startup is refused rather than the flag being ignored.
+    #[test]
+    fn a_career_flag_without_a_value_is_refused() {
+        let refused = parse_mcp_config_from_iter(["--mcp-port", "3000", "--mcp-seed"]);
+
+        assert_eq!(refused.unwrap_err(), "--mcp-seed needs a value");
+    }
+
+    /// Given career flags but no `--mcp-auto-start`
+    /// When the arguments are parsed
+    /// Then startup is refused rather than the flags being dropped.
+    #[test]
+    fn career_flags_without_auto_start_are_refused() {
+        let refused = parse_mcp_config_from_iter(["--mcp-port", "3000", "--mcp-seed", "7"]);
+
+        assert!(refused.unwrap_err().contains("need --mcp-auto-start"));
+    }
+
     #[test]
     fn parse_mcp_config_all_args() {
         let config = parse_mcp_config_from_iter([
@@ -302,12 +382,20 @@ mod tests {
         assert_eq!(config.manager_nationality.as_deref(), Some("England"));
     }
 
+    /// Given competition mode, when the mode restrictions are collected,
+    /// then exactly the five setup tools are hidden and the state dump remains available.
     #[test]
-    fn competition_mode_disabled_tools() {
-        assert!(McpMode::Competition.disabled_tools().contains(&"game_new"));
-        assert!(!McpMode::Competition
-            .disabled_tools()
-            .contains(&"info_game_state"));
+    fn the_five_restricted_tools_stay_hidden() {
+        assert_eq!(
+            McpMode::Competition.disabled_tools(),
+            [
+                "game_new",
+                "game_select_team",
+                "game_export_world",
+                "game_exit",
+                "game_load_save",
+            ]
+        );
         assert!(McpMode::Sandbox.disabled_tools().is_empty());
     }
 

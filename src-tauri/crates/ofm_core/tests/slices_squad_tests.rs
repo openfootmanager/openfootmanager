@@ -83,7 +83,7 @@ fn squad_returns_only_players_for_the_requested_team() {
 
     let squad = query_squad(&game, "t1");
 
-    let ids: Vec<&str> = squad.iter().map(|p| p.id.as_str()).collect();
+    let ids: Vec<&str> = squad.iter().map(|p| p.player.id.as_str()).collect();
     assert_eq!(ids.len(), 2);
     assert!(ids.contains(&"p1"));
     assert!(ids.contains(&"p2"));
@@ -126,7 +126,7 @@ fn squad_matches_full_game_player_filter() {
 
     assert_eq!(squad.len(), expected.len());
     for (got, exp) in squad.iter().zip(expected.iter()) {
-        assert_eq!(got.id, exp.id);
+        assert_eq!(got.player.id, exp.id);
     }
 }
 

@@ -14,14 +14,14 @@ use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use domain::national_team::NationalTeam;
 use domain::news::{NewsArticle, NewsCategory};
 use domain::world_history::{WorldCupChampionRecord, WorldCupHostRecord};
-use rand::rngs::StdRng;
 use rand::seq::SliceRandom;
-use rand::{Rng, RngExt, SeedableRng};
+use rand::{Rng, RngExt};
 
 use crate::game::Game;
 use crate::group_stage::GroupStageConfig;
 use crate::nations;
 use crate::schedule::round_robin_matchdays;
+use crate::seed::WorldCupStream;
 
 /// A World Cup format preset.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -314,7 +314,7 @@ fn draw_world_cup_groups(
     pools: &BTreeMap<String, Vec<u8>>,
     rng: &mut impl Rng,
 ) -> Vec<Vec<String>> {
-    const GROUP_SIZE: usize = 4;
+    const GROUP_SIZE: usize = domain::league::DEFAULT_GROUP_SIZE as usize;
     let mut ranked = ranked_field_with_pools(game, field_codes, pools);
     // The host is seeded into Pot 1 regardless of its ranking.
     if let Some(host) = host_code
@@ -331,7 +331,7 @@ fn draw_world_cup_groups(
         .collect();
     // Round up so every team lands in a group: a field that is not a multiple of
     // four yields a few groups of three rather than silently dropping teams.
-    let group_count = ranked.len().div_ceil(GROUP_SIZE).max(1);
+    let group_count = crate::group_stage::group_count(ranked.len(), GROUP_SIZE);
     let mut groups: Vec<Vec<String>> = vec![Vec::new(); group_count];
 
     for pot_index in 0..GROUP_SIZE {
@@ -383,6 +383,7 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
 
     let current_year = game.clock.current_date.year() as u32;
     let pools = national_pools(game);
+    let mut rng = game.rng_today("national-pool");
     for code in field {
         let have = pools.get(code).map(|ovrs| ovrs.len()).unwrap_or(0);
         for slot in have..TOPPED_UP_POOL {
@@ -391,6 +392,7 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
                     code,
                     slot,
                     current_year,
+                    &mut rng,
                 ));
         }
     }
@@ -494,7 +496,7 @@ pub fn schedule_world_cup_with_field(
 
     // FIFA draw: pots seeded by world ranking (host into Pot 1), one team per
     // confederation per group except UEFA (≤2). Deterministic per cup year.
-    let mut draw_rng = StdRng::seed_from_u64(year as u64);
+    let mut draw_rng = game.world_cup_rng(WorldCupStream::Draw, year);
     let group_ids: Vec<Vec<String>> =
         draw_world_cup_groups(game, &field, host_code.as_deref(), &pools, &mut draw_rng)
             .iter()
@@ -514,6 +516,7 @@ pub fn schedule_world_cup_with_field(
         CompetitionType::InternationalNation,
         CompetitionScope::International,
         &GroupStageConfig {
+            group_size: domain::league::DEFAULT_GROUP_SIZE,
             legs: 1,
             matchday_gap_days: GROUP_MATCHDAY_GAP_DAYS,
             qualifiers_per_group: format.qualifiers_per_group,
@@ -527,6 +530,7 @@ pub fn schedule_world_cup_with_field(
     cup.priority = 10_000;
     cup.name_key = Some("tournaments.competitions.worldCup".to_string());
     let cup_id = cup.id.clone();
+    crate::calendar_identity::ensure_competition_calendar(&mut cup);
     game.competitions.push(cup);
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(cup_id);
@@ -930,7 +934,7 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
         let group_count = if single_league {
             1
         } else {
-            codes.len().div_ceil(group_size).max(1)
+            crate::group_stage::group_count(codes.len(), group_size)
         };
         let mut groups: Vec<Vec<String>> = vec![Vec::new(); group_count];
         for (index, code) in codes.iter().enumerate() {
@@ -984,6 +988,7 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
         .collect();
     competition.participant_ids = participant_ids;
     let competition_id = competition.id.clone();
+    crate::calendar_identity::ensure_competition_calendar(&mut competition);
     game.competitions.push(competition);
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(competition_id);
@@ -1410,6 +1415,7 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
         preliminaries.name = "Semifinal".to_string();
     }
 
+    crate::calendar_identity::ensure_competition_calendar(&mut cup);
     game.competitions.push(cup);
     if !game.active_competition_ids.is_empty() {
         game.active_competition_ids.push(competition_id);
@@ -1613,7 +1619,7 @@ pub fn qualified_field_from_game(
     let playoff_winners = match decided_playoff_winners(game, year) {
         Some(winners) => winners,
         None => {
-            let mut rng = StdRng::seed_from_u64(u64::from(year) ^ 0xF1FA);
+            let mut rng = game.world_cup_rng(WorldCupStream::Settle, year as i32);
             let winners = resolve_inter_confed_playoff(game, &outcome.playoff_entrants, &mut rng);
             announce_inter_confed_playoff(game, year, &winners);
             winners
@@ -1971,6 +1977,81 @@ mod tests {
         Game::new(clock, manager, vec![], vec![], vec![], vec![])
     }
 
+    /// Every World Cup competition in the live game must already hold exactly what the
+    /// load-time backfill would give it, so a live game and its reload cannot disagree.
+    fn assert_calendars_match_the_backfill(game: &Game) {
+        let world_cup: Vec<&League> = game
+            .competitions
+            .iter()
+            .filter(|c| is_world_cup_competition(c))
+            .collect();
+        assert!(
+            !world_cup.is_empty(),
+            "the route created no World Cup competition"
+        );
+        for competition in world_cup {
+            let mut stripped = competition.clone();
+            stripped.calendar = None;
+            crate::calendar_identity::ensure_competition_calendar(&mut stripped);
+            assert!(
+                competition.calendar.is_some(),
+                "{} has no calendar",
+                competition.id
+            );
+            assert_eq!(
+                serde_json::to_value(&competition.calendar).unwrap(),
+                serde_json::to_value(&stripped.calendar).unwrap(),
+                "{} differs from the backfill",
+                competition.id
+            );
+        }
+    }
+
+    /// Given a career where the finals were just staged, when the live game is inspected,
+    /// then the finals carry the calendar the backfill would assign.
+    #[test]
+    fn newly_staged_world_cup_finals_have_their_calendar() {
+        let mut game = empty_game();
+        schedule_world_cup(&mut game, kickoff(2030), &FORMAT_48);
+        assert_calendars_match_the_backfill(&game);
+    }
+
+    /// Given a career where World Cup qualifying was just scheduled, when the live game is
+    /// inspected, then every qualifying competition carries the calendar the backfill would assign.
+    #[test]
+    fn newly_scheduled_world_cup_qualifying_has_its_calendar() {
+        let mut game = empty_game();
+        let windows = crate::national_team::international_window_dates(
+            Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap(),
+        );
+        schedule_world_cup_qualifying(&mut game, 2026, &windows);
+        assert_calendars_match_the_backfill(&game);
+    }
+
+    /// Given qualifying played far enough to stage the inter-confederation playoff, when the
+    /// live game is inspected, then the playoff carries a calendar too.
+    #[test]
+    fn newly_staged_world_cup_playoff_has_its_calendar() {
+        let mut game = empty_game();
+        schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
+        let mut campaign_days: Vec<String> = game
+            .competitions
+            .iter()
+            .flat_map(|c| c.fixtures.iter().map(|f| f.date.clone()))
+            .collect();
+        campaign_days.sort();
+        campaign_days.dedup();
+        let mut rng = StdRng::seed_from_u64(7);
+        for date in &campaign_days {
+            process_world_cup_fixtures_due(&mut game, date, &mut rng);
+        }
+        assert!(
+            game.competitions.iter().any(is_world_cup_playoff),
+            "the playoff route was not exercised"
+        );
+        assert_calendars_match_the_backfill(&game);
+    }
+
     #[test]
     fn berths_sum_to_the_field_and_respect_caps() {
         let mut counts = std::collections::BTreeMap::new();
@@ -2310,6 +2391,78 @@ mod tests {
             qualifying.fixtures.iter().all(|f| block.contains(&f.date)),
             "qualifying matches must stay inside the window span blocks"
         );
+    }
+
+    /// The groups drawn from one fixed field, so that what is compared is the draw and not
+    /// the field: an empty world synthesises its national teams at random.
+    fn groups_drawn_for(seed: u64, legacy: bool) -> Vec<Vec<String>> {
+        let field: Vec<String> = [
+            "ar", "au", "at", "be", "bo", "br", "ca", "cl", "cn", "co", "cr", "hr", "cz", "dk",
+            "ec", "eg", "eng", "fr", "de", "gh", "gr", "ir", "it", "jp", "kr", "mx", "ma", "nl",
+            "nz", "ng", "no", "pa", "py", "pe", "pl", "pt", "qa", "ro", "sa", "sn", "rs", "es",
+            "se", "ch", "tn", "tr", "us", "uy",
+        ]
+        .iter()
+        .map(|code| code.to_uppercase())
+        .collect();
+        let mut game = empty_game();
+        game.seed = seed;
+        game.legacy_world_cup_draw = legacy;
+        let mut rng = game.world_cup_rng(WorldCupStream::Draw, 2026);
+        draw_world_cup_groups(&game, &field, None, &BTreeMap::new(), &mut rng)
+    }
+
+    fn world_cup_staged_by(seed: u64) -> (Vec<Vec<String>>, Vec<String>) {
+        let mut game = empty_game();
+        game.seed = seed;
+        schedule_world_cup(&mut game, kickoff(2026), &FORMAT_48);
+        let groups = game
+            .competitions
+            .iter()
+            .find(|c| is_world_cup_competition(c))
+            .unwrap()
+            .groups
+            .iter()
+            .map(|group| group.team_ids.clone())
+            .collect();
+        let mut pool: Vec<String> = game
+            .players
+            .iter()
+            .map(|player| serde_json::to_value(player).unwrap().to_string())
+            .collect();
+        pool.sort();
+        (groups, pool)
+    }
+
+    /// Given a world with no national players, so every squad has to be made up,
+    /// When a World Cup is staged twice from the same seed, and once from another,
+    /// Then the same players are made, ids and all, and the same groups drawn.
+    #[test]
+    fn the_players_a_world_cup_has_to_make_up_replay_from_the_same_seed() {
+        let staged = world_cup_staged_by(7);
+
+        assert!(!staged.1.is_empty(), "the squads were made up");
+        assert!(staged == world_cup_staged_by(7));
+        assert!(staged != world_cup_staged_by(8));
+    }
+
+    /// Given new games, and the same cup year,
+    /// When the finals are drawn, twice in one game and once in another,
+    /// Then one game draws the same groups both times, and another game draws other ones.
+    #[test]
+    fn a_new_games_world_cup_draw_follows_its_seed() {
+        assert_eq!(groups_drawn_for(7, false), groups_drawn_for(7, false));
+        assert_ne!(groups_drawn_for(7, false), groups_drawn_for(8, false));
+    }
+
+    /// Given a career from before World Cups were seeded from the game,
+    /// When the finals are drawn, whatever the game's seed,
+    /// Then the groups are the ones the cup year alone gives — the draw it was promised — and
+    ///      not the ones a new game would draw.
+    #[test]
+    fn a_career_from_before_seeding_keeps_the_groups_it_was_promised() {
+        assert_eq!(groups_drawn_for(7, true), groups_drawn_for(99, true));
+        assert_ne!(groups_drawn_for(7, true), groups_drawn_for(7, false));
     }
 
     #[test]

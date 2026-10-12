@@ -75,6 +75,7 @@ pub fn export_world_database_internal(
         },
         extra_translations: game.extra_translations.clone(),
         build_notices: Vec::new(),
+        generation_seed: None,
     };
 
     ofm_core::generator::export_world_package(&world, export_path)

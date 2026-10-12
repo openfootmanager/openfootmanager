@@ -2,7 +2,6 @@ mod match_messages;
 pub use match_messages::{match_result_message, pre_match_message};
 
 use domain::message::*;
-use rand::RngExt;
 use std::collections::HashMap;
 
 /// Helper to build a HashMap<String, String> from key-value pairs.
@@ -22,77 +21,6 @@ fn action(id: &str, label: &str, label_key: &str, action_type: ActionType) -> Me
         resolved: false,
         label_key: Some(label_key.to_string()),
     }
-}
-
-/// Message template system — generates rich messages with variations.
-pub fn welcome_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
-    let mut rng = rand::rng();
-    let idx = rng.random_range(0..3);
-
-    InboxMessage::new(
-        "welcome_1".to_string(),
-        String::new(),
-        String::new(),
-        String::new(),
-        date.to_string(),
-    )
-    .with_category(MessageCategory::Welcome)
-    .with_priority(MessagePriority::High)
-    .with_sender_role("")
-    .with_action(action(
-        "review_squad",
-        "",
-        "be.msg.welcome.actionReview",
-        ActionType::NavigateTo {
-            route: "/dashboard?tab=Squad".to_string(),
-        },
-    ))
-    .with_action(action(
-        "ack_welcome",
-        "",
-        "be.msg.welcome.actionThank",
-        ActionType::Acknowledge,
-    ))
-    .with_context(MessageContext {
-        team_id: Some(team_id.to_string()),
-        ..Default::default()
-    })
-    .with_i18n(
-        &format!("be.msg.welcome.subject{}", idx),
-        &format!("be.msg.welcome.body{}", idx),
-        params(&[("team", team_name)]),
-    )
-    .with_sender_i18n("be.sender.boardOfDirectors", "be.role.chairman")
-}
-
-pub fn season_schedule_message(league_name: &str, season_start: &str, date: &str) -> InboxMessage {
-    let mut rng = rand::rng();
-    let idx = rng.random_range(0..2);
-
-    InboxMessage::new(
-        "season_1".to_string(),
-        String::new(),
-        String::new(),
-        String::new(),
-        date.to_string(),
-    )
-    .with_category(MessageCategory::LeagueInfo)
-    .with_priority(MessagePriority::Normal)
-    .with_sender_role("")
-    .with_action(action(
-        "view_schedule",
-        "",
-        "be.msg.schedule.actionView",
-        ActionType::NavigateTo {
-            route: "/dashboard?tab=Schedule".to_string(),
-        },
-    ))
-    .with_i18n(
-        "be.msg.schedule.subject",
-        &format!("be.msg.schedule.body{}", idx),
-        params(&[("league", league_name), ("start", season_start)]),
-    )
-    .with_sender_i18n("be.sender.leagueOffice", "be.role.competitionSecretary")
 }
 
 pub fn staff_advice_message(team_name: &str, team_id: &str, date: &str) -> InboxMessage {
@@ -156,10 +84,7 @@ pub fn board_expectations_message(team_name: &str, team_id: &str, date: &str) ->
 }
 
 pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> InboxMessage {
-    let fee_display =
-        crate::currency::format_compact_money(fee, crate::currency::DEFAULT_CURRENCY_CODE)
-            .unwrap_or_else(|| format!("{}{}", crate::currency::default_currency_symbol(), fee));
-
+    // Keep the exact base amount for the shared frontend currency formatter.
     let id = format!("transfer_{}", uuid::Uuid::new_v4());
     InboxMessage::new(
         id,
@@ -176,7 +101,49 @@ pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> Inb
         "be.msg.transferComplete.body",
         HashMap::from([
             ("player".to_string(), player_name.to_string()),
-            ("fee".to_string(), fee_display),
+            ("fee".to_string(), fee.to_string()),
+        ]),
+    )
+    .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
+}
+
+pub(crate) fn transfer_registration_failed_message(
+    offer: &domain::player::TransferOffer,
+    player: &domain::player::Player,
+    user_team_id: &str,
+    buyer_name: &str,
+    reason: domain::player::TransferRegistrationFailureReason,
+    date: &str,
+) -> InboxMessage {
+    use domain::player::TransferRegistrationFailureReason as Failure;
+    let body_key = match reason {
+        Failure::InsufficientFunds => "be.msg.transferRegistrationFailed.InsufficientFunds",
+        Failure::LoanConflict => "be.msg.transferRegistrationFailed.LoanConflict",
+        Failure::PlayerUnavailable => "be.msg.transferRegistrationFailed.PlayerUnavailable",
+        Failure::RegistrationBlocked => "be.msg.transferRegistrationFailed.RegistrationBlocked",
+    };
+    InboxMessage::new(
+        format!("transfer_registration_failed_{}", offer.id),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Transfer)
+    .with_priority(MessagePriority::High)
+    .with_context(MessageContext {
+        team_id: Some(user_team_id.to_string()),
+        player_id: Some(player.id.clone()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.transferRegistrationFailed.subject",
+        body_key,
+        HashMap::from([
+            ("player".to_string(), player.full_name.clone()),
+            ("buyer".to_string(), buyer_name.to_string()),
+            ("fee".to_string(), offer.fee.to_string()),
+            ("start".to_string(), date.to_string()),
         ]),
     )
     .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")

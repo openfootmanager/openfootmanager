@@ -147,10 +147,17 @@ Each player has the following fields:
 | **Position** | See [Position Values](SCHEMA_REFERENCE.md#position-values) in the Schema Reference. |
 | **Preferred Foot** | Right, Left, or Both. Defaults to Right. |
 | **Date of Birth** | ISO date `YYYY-MM-DD`. Used to compute age at game start. |
+| **Age** | Used when there is no date of birth: the player is this old on the day a career opens, whatever year that is. The form writes both as typed and does not pick between them. |
 | **Photo** | Optional player photo asset, bundled into the package. |
 | **Overall** | Single ability rating (1–99). The engine generates a realistic attribute spread from this. |
 | **Attributes** | Toggle to switch from Overall mode to explicit attribute control. Shows 19 sliders grouped into Physical, Technical, Mental, and Goalkeeper categories. |
 | **Potential** | Career ceiling (1–99). Leave it blank and the engine rolls one from the player's ability and age. See [`potential`](SCHEMA_REFERENCE.md#potential--the-career-ceiling) for what it does. |
+| **Contract start / end** | Dates `YYYY-MM-DD`. An end is kept exactly as written; a start that is left out is given when a career opens. See [Contracts](SCHEMA_REFERENCE.md#contracts). |
+| **Contract length** | Years, as an alternative to an end date (give one or the other, not both). Counted from the start date if there is one, otherwise from the year the career opens, so the player is never already out of contract. |
+| **Wage / Value** | Wage is per week. Left blank, the wage is worked out from the value. |
+| **Condition / Morale / Weak foot** | Left blank, the engine decides. The form only keeps each to what it can store; the package check reports a value outside the game's range (for example a weak foot outside 1–5), and explains why. |
+| **Alternate positions** | Toggle any specific positions the player can also play. Only for a specific position such as Striker; a general group such as Forward has them worked out from the attributes, and the package check says so. |
+| **Career history** | One row per past season: club name, season and appearances, goals and assists. The club is free text, so a club the package does not define can be recorded; the optional *Club in this package* picker links the row to one it does. A new row starts at season 0, which the package check reports until a year is chosen. |
 
 When **Attributes** mode is on, the Overall field is hidden. When **Overall** mode is on, attribute sliders are hidden. The engine uses whichever is set.
 

@@ -6,6 +6,10 @@
 /// a human-readable message that helps agents self-correct.
 pub fn translate_error(key: &str) -> String {
     match key {
+        "be.error.liveMatch.inProgress" => {
+            "Finish the current match before saving, advancing, or starting another match."
+                .to_string()
+        }
         "be.error.noActiveGameSession" => {
             "No active game session. Start or load a game first.".to_string()
         }
@@ -63,6 +67,10 @@ pub fn translate_error(key: &str) -> String {
             "Unknown facility type. Use 'training', 'medical', or 'scouting'.".to_string()
         }
         "be.error.saveNotFound" => "Save not found. Check the save ID.".to_string(),
+        "be.error.transfers.loanBorrowerCannotAffordWages" => {
+            "The borrowing club cannot afford this wage share: it would exceed its wage budget."
+                .to_string()
+        }
         "be.error.contracts.boardWagePolicy" => {
             "Board wage policy blocks this renewal: wage would exceed budget.".to_string()
         }
@@ -108,6 +116,8 @@ pub fn translate_error(key: &str) -> String {
         "be.error.mcp.cannotDeleteActiveSave" => {
             "Cannot delete the save you are playing. Use `game_exit` first.".to_string()
         }
+        "be.error.mcp.missingParameter" => "A required parameter is missing.".to_string(),
+        "be.error.mcp.invalidParameter" => "A parameter has an invalid value.".to_string(),
         "be.error.liveMatch.pressConferenceAlreadyHeld" => {
             "A press conference has already been held today.".to_string()
         }
@@ -131,6 +141,14 @@ mod tests {
             translate_error("be.error.liveMatch.fixtureNotScheduled"),
             "This fixture is no longer scheduled and cannot be played."
         );
+    }
+
+    /// Given the shared application's live-match refusal key, when rendered for an agent,
+    /// then it is a readable message rather than an untranslated key.
+    #[test]
+    fn the_live_match_refusal_is_renderable() {
+        let key = "be.error.liveMatch.inProgress";
+        assert!(!translate_error(key).contains(key));
     }
 
     /// The wrapper renders a key exactly once.

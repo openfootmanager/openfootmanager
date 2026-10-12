@@ -19,6 +19,7 @@ import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import {
   buildRecommendedSubstitutions,
   getMatchScenario,
+  sortByPositionGroup,
   type MatchScenarioId,
 } from "./SubPanel.helpers";
 
@@ -74,7 +75,9 @@ export function SubPanel({
   const subbedOffIds = new Set(
     snapshot.substitutions.filter((s) => s.side === side).map((s) => s.player_off_id),
   );
-  const availableBench = bench.filter((p) => !subbedOffIds.has(p.id) && !subbedOnIds.has(p.id));
+  const availableBench = sortByPositionGroup(
+    bench.filter((p) => !subbedOffIds.has(p.id) && !subbedOnIds.has(p.id)),
+  );
   const selectedPlayer = selectedOff ? team.players.find((p) => p.id === selectedOff) : null;
   const comparedPlayer = selectedBench ? availableBench.find((p) => p.id === selectedBench) : null;
 
@@ -292,95 +295,81 @@ export function SubPanel({
                       </tr>
                     </thead>
                     <tbody>
-                      {team.players
-                        .filter((p) => !snapshot.sent_off.includes(p.id))
-                        .sort((a, b) => {
-                          const ord: Record<string, number> = {
-                            Goalkeeper: 1,
-                            Defender: 2,
-                            Midfielder: 3,
-                            Forward: 4,
-                          };
-                          return (
-                            (ord[a.position] ?? 99) - (ord[b.position] ?? 99) ||
-                            a.name.localeCompare(b.name)
-                          );
-                        })
-                        .map((p) => {
-                          const isSelected = selectedOff === p.id;
-                          const isSubOn = subbedOnIds.has(p.id);
-                          const row = (
-                            <tr
-                              key={p.id}
-                              data-testid={`sub-panel-off-${p.id}`}
-                              onClick={() => handleSelectOffPlayer(p.id)}
-                              onKeyDown={(e) =>
-                                handleInteractiveRowKeyDown(e, () => handleSelectOffPlayer(p.id))
-                              }
-                              role="button"
-                              tabIndex={0}
-                              aria-pressed={isSelected}
-                              className={`cursor-pointer text-sm transition-colors ${
-                                isSelected
-                                  ? "bg-red-500/10"
-                                  : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
-                              }`}
-                            >
-                              <td className="py-2 pr-2">
-                                <div className="flex items-center gap-1.5">
-                                  {isSelected && (
-                                    <UserMinus className="h-3.5 w-3.5 shrink-0 text-red-400" />
-                                  )}
-                                  {isSubOn && <span className="text-[10px] text-green-400">▲</span>}
-                                  <span
-                                    className={`truncate font-medium ${isSelected ? "text-red-400" : "text-gray-700 dark:text-gray-300"}`}
-                                  >
-                                    {p.name}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="w-12 py-2 text-center">
-                                <span className="font-heading text-xs text-gray-500 dark:text-gray-400">
-                                  {translatePositionAbbreviation(t, p.position)}
+                      {sortByPositionGroup(
+                        team.players.filter((p) => !snapshot.sent_off.includes(p.id)),
+                      ).map((p) => {
+                        const isSelected = selectedOff === p.id;
+                        const isSubOn = subbedOnIds.has(p.id);
+                        const row = (
+                          <tr
+                            key={p.id}
+                            data-testid={`sub-panel-off-${p.id}`}
+                            onClick={() => handleSelectOffPlayer(p.id)}
+                            onKeyDown={(e) =>
+                              handleInteractiveRowKeyDown(e, () => handleSelectOffPlayer(p.id))
+                            }
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={isSelected}
+                            className={`cursor-pointer text-sm transition-colors ${
+                              isSelected
+                                ? "bg-red-500/10"
+                                : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
+                            }`}
+                          >
+                            <td className="py-2 pr-2">
+                              <div className="flex items-center gap-1.5">
+                                {isSelected && (
+                                  <UserMinus className="h-3.5 w-3.5 shrink-0 text-red-400" />
+                                )}
+                                {isSubOn && <span className="text-[10px] text-green-400">▲</span>}
+                                <span
+                                  className={`truncate font-medium ${isSelected ? "text-red-400" : "text-gray-700 dark:text-gray-300"}`}
+                                >
+                                  {p.name}
                                 </span>
-                              </td>
-                              <td className="w-12 py-2 text-center font-heading font-bold text-gray-500 dark:text-gray-400">
-                                {p.ovr}
-                              </td>
-                              <td className="w-24 py-2">
-                                <div className="flex items-center gap-1.5">
-                                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-300 dark:bg-navy-600">
-                                    <div
-                                      className={`h-full rounded-full ${condBgColor(p.condition)}`}
-                                      style={{ width: `${p.condition}%` }}
-                                    />
-                                  </div>
-                                  <span
-                                    className={`w-7 text-right font-heading text-xs tabular-nums ${condColor(p.condition)}`}
-                                  >
-                                    {Math.round(p.condition)}
-                                  </span>
+                              </div>
+                            </td>
+                            <td className="w-12 py-2 text-center">
+                              <span className="font-heading text-xs text-gray-500 dark:text-gray-400">
+                                {translatePositionAbbreviation(t, p.position)}
+                              </span>
+                            </td>
+                            <td className="w-12 py-2 text-center font-heading font-bold text-gray-500 dark:text-gray-400">
+                              {p.ovr}
+                            </td>
+                            <td className="w-24 py-2">
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-300 dark:bg-navy-600">
+                                  <div
+                                    className={`h-full rounded-full ${condBgColor(p.condition)}`}
+                                    style={{ width: `${p.condition}%` }}
+                                  />
                                 </div>
-                              </td>
-                            </tr>
-                          );
-                          return (
-                            <ContextMenu
-                              key={p.id}
-                              items={[
-                                {
-                                  label: isSelected
-                                    ? t("common.cancel")
-                                    : t("match.selectToTakeOff"),
-                                  icon: <UserMinus className="h-4 w-4" />,
-                                  onClick: () => handleSelectOffPlayer(p.id),
-                                },
-                              ]}
-                            >
-                              {row}
-                            </ContextMenu>
-                          );
-                        })}
+                                <span
+                                  className={`w-7 text-right font-heading text-xs tabular-nums ${condColor(p.condition)}`}
+                                >
+                                  {Math.round(p.condition)}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                        return (
+                          <ContextMenu
+                            key={p.id}
+                            items={[
+                              {
+                                label: isSelected ? t("common.cancel") : t("match.selectToTakeOff"),
+                                icon: <UserMinus className="h-4 w-4" />,
+                                onClick: () => handleSelectOffPlayer(p.id),
+                              },
+                            ]}
+                          >
+                            {row}
+                          </ContextMenu>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

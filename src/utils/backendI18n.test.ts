@@ -392,6 +392,63 @@ describe("resolveAction", () => {
 // ---------------------------------------------------------------------------
 
 describe("resolveMessage", () => {
+  // Given a failed registration notice with the exact agreed fee, when resolved in the selected currency,
+  // then the fee is converted without compact rounding and the registration day is localized.
+  it("renders an exact fee and a localized registration day", () => {
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "GBP" },
+      currency: { code: "GBP", symbol: "£", exchange_rate: 0.86 },
+    });
+
+    const result = resolveMessage(
+      makeMessage({
+        subject_key: "be.msg.transferRegistrationFailed.subject",
+        body_key: "be.msg.transferRegistrationFailed.InsufficientFunds",
+        i18n_params: {
+          player: "Golden Boot",
+          buyer: "Alpha FC",
+          fee: "800001",
+          start: "2026-07-02",
+        },
+      }),
+    );
+
+    expect(result.subject).toBe("Transfer registration failed: Golden Boot");
+    expect(result.body).toContain("Golden Boot to Alpha FC for £688,001");
+    expect(result.body).toContain("July 2, 2026");
+    expect(result.body).not.toContain("2026-07-02");
+    expect(result.body).toContain("No transfer fee was paid.");
+    expect(result.body).not.toContain("800001");
+  });
+
+  // Given a failed registration notice, when rendered in German, then its date follows the same locale as its text.
+  it("localizes the failed registration day in German", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("de");
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, language: "de" },
+    });
+    try {
+      const result = resolveMessage(
+        makeMessage({
+          subject_key: "be.msg.transferRegistrationFailed.subject",
+          body_key: "be.msg.transferRegistrationFailed.InsufficientFunds",
+          i18n_params: {
+            player: "Golden Boot",
+            buyer: "Alpha FC",
+            fee: "800001",
+            start: "2026-07-02",
+          },
+        }),
+      );
+      expect(result.body).toContain("2. Juli 2026");
+      expect(result.body).toContain("€800.001");
+      expect(result.body).not.toContain("2026-07-02");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   it("resolves all translatable fields when keys exist", () => {
     const msg = makeMessage({
       subject: "raw",
@@ -1177,5 +1234,83 @@ describe("resolveBackendError", () => {
     expect(
       resolveBackendError("be.error.finance.facilityUpgradeInsufficientFunds?amount=%C2%A3215000"),
     ).toBe("Insufficient funds for this facility upgrade. Need $270,000.");
+  });
+});
+
+// Given an agreement with raw backend terms, when displayed, then shared date and currency formatting apply.
+describe("accepted deal messages", () => {
+  const terms = {
+    player: "Golden Boot",
+    seller: "Beta FC",
+    buyer: "Alpha FC",
+    parent: "Beta FC",
+    borrower: "Alpha FC",
+    start: "2026-07-02",
+    end: "2026-12-20",
+    contribution: "70",
+    fee: "800001",
+  };
+  const dealMessage = (body: string, subject: string) =>
+    makeMessage({
+      body_key: body,
+      subject_key: subject,
+      i18n_params: terms,
+    });
+
+  // Given a deferred transfer, when its agreement is read, then its registration day and exact fee are localized.
+  it("shows the registration day and exact fee for an agreed transfer", () => {
+    const message = resolveMessage(
+      dealMessage("be.msg.transferAgreed.body", "be.msg.transferAgreed.subject"),
+    );
+    expect(message.subject).toBe("Transfer agreed: Golden Boot");
+    expect(message.body).toContain("July 2, 2026");
+    expect(message.body).toContain("€800,001");
+    expect(message.body).toContain("Beta FC");
+    expect(message.body).toContain("Alpha FC");
+  });
+  // Given a completed sale, when its notice is read, then it describes departure rather than joining the seller's squad.
+  it("shows a departure notice to the selling manager", () => {
+    const message = resolveMessage(
+      dealMessage("be.msg.transferComplete.bodySold", "be.msg.transferComplete.subject"),
+    );
+    expect(message.body).toContain("joined Alpha FC");
+    expect(message.body).toContain("€800,001");
+    expect(message.body).not.toContain("joined the squad");
+  });
+  // Given an agreed loan with an option, when read, then both dates, contribution and selected-currency option are displayed.
+  it("shows all agreed loan terms in the selected currency", () => {
+    useSettingsStore.setState({ currency: { code: "GBP", symbol: "£", exchange_rate: 0.86 } });
+    const message = resolveMessage(
+      dealMessage("be.msg.loanAgreed.bodyWithOption", "be.msg.loanAgreed.subject"),
+    );
+    expect(message.subject).toBe("Loan agreed: Golden Boot");
+    expect(message.body).toContain("July 2, 2026");
+    expect(message.body).toContain("December 20, 2026");
+    expect(message.body).toContain("70%");
+    expect(message.body).toContain("£688,001");
+  });
+  // Given a counter that removed the buy option, when read, then the notice explicitly says there is no option.
+  it("shows no buy option when the accepted counter dropped it", () => {
+    const message = resolveMessage(
+      dealMessage("be.msg.loanAgreed.bodyNoOption", "be.msg.loanAgreed.subject"),
+    );
+    expect(message.body).toContain("No purchase option");
+    expect(message.body).toContain("December 20, 2026");
+    expect(message.body).not.toContain("800");
+  });
+  // Given German settings, when a loan notice is read, then both dates follow the German locale.
+  it("localizes both loan dates in German", async () => {
+    const previous = i18n.language;
+    await i18n.changeLanguage("de");
+    useSettingsStore.setState({ settings: { ...originalSettings, language: "de" } });
+    try {
+      const message = resolveMessage(
+        dealMessage("be.msg.loanAgreed.bodyNoOption", "be.msg.loanAgreed.subject"),
+      );
+      expect(message.body).toContain("2. Juli 2026");
+      expect(message.body).toContain("20. Dezember 2026");
+    } finally {
+      await i18n.changeLanguage(previous);
+    }
   });
 });

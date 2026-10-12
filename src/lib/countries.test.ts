@@ -4,9 +4,12 @@ import {
   allCountries,
   allNationalities,
   isValidCountryCode,
+  COUNTRY_PACKS,
+  LIBRARY_LOCALE_FOR_LANGUAGE,
   normaliseNationality,
   resolveCountryFlagCode,
 } from "./countries";
+import { SUPPORTED_LANGUAGES } from "../i18n";
 
 // ---------------------------------------------------------------------------
 // resolveCountryFlagCode
@@ -236,4 +239,84 @@ describe("normaliseNationality", () => {
   it("returns empty string for empty input", () => {
     expect(normaliseNationality("")).toBe("");
   });
+});
+
+// ---------------------------------------------------------------------------
+// Every shipped language has country names (#614)
+// ---------------------------------------------------------------------------
+
+describe("country names in every shipped language", () => {
+  const nonEnglish = SUPPORTED_LANGUAGES.map(({ code }) => code).filter((code) => code !== "en");
+
+  /**
+   * Given each language the game ships
+   * When the name of an ordinary ISO country (Germany) is requested
+   * Then it is not the English name — the library pack was found
+   */
+  it.each(nonEnglish)("translates an ISO country name for %s", (code) => {
+    expect(countryName("DE", code)).not.toBe("Germany");
+  });
+
+  /**
+   * Given each language the game ships
+   * When a football-only identity (England, Scotland, Northern Ireland,
+   *      Republic of Ireland) is requested
+   * Then it is translated into that language
+   */
+  it.each(nonEnglish)("translates football identities for %s", (code) => {
+    // German writes "England" exactly as English does.
+    const writtenTheSame = new Set(["de:ENG"]);
+    for (const identity of ["ENG", "SCO", "NIR", "IE"]) {
+      if (writtenTheSame.has(`${code}:${identity}`)) continue;
+      expect(countryName(identity, code), `${identity} in ${code}`).not.toBe(
+        countryName(identity, "en"),
+      );
+    }
+  });
+
+  /**
+   * Given Indonesian is selected
+   * When the nationality list is built
+   * Then it is named in Indonesian
+   */
+  it("lists nationalities in Indonesian", () => {
+    const names = allNationalities("id").map(({ name }) => name);
+    expect(names).toContain("Inggris");
+    expect(names).toContain("Jerman");
+  });
+
+  /**
+   * Given a Brazilian Portuguese player
+   * When country names are requested
+   * Then they come from the Portuguese names
+   */
+  it("serves pt-BR from the Portuguese names", () => {
+    expect(countryName("DE", "pt-BR")).toBe(countryName("DE", "pt"));
+    expect(countryName("SCO", "pt-BR")).toBe("Escócia");
+  });
+
+  /**
+   * Given an Indonesian country name from an import
+   * When the nationality is normalised
+   * Then it resolves to its ISO code
+   */
+  it("normalises an Indonesian country name from an import", () => {
+    expect(normaliseNationality("Jerman")).toBe("DE");
+  });
+
+  /**
+   * Given every language the game ships
+   * When its country-name pack is looked up
+   * Then the pack exists and is a pack for exactly that library locale.
+   *      (Vitest loads the library's Node entry, which registers every pack,
+   *      so a pack dropped from the registry would otherwise go unnoticed.)
+   */
+  it.each(Object.entries(LIBRARY_LOCALE_FOR_LANGUAGE))(
+    "serves %s from a registered pack",
+    (_language, libraryLocale) => {
+      const pack = (COUNTRY_PACKS as Record<string, { locale: string }>)[libraryLocale];
+
+      expect(pack?.locale).toBe(libraryLocale);
+    },
+  );
 });

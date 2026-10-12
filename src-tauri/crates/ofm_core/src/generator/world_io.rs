@@ -116,12 +116,15 @@ fn manifest_shard_path(base: &Path, shard_ref: &str) -> PathBuf {
 /// Generate a random world and wrap it in a `WorldData`.
 /// `sources` decides where definition files are read from.
 pub fn generate_world_data(sources: &super::DefinitionSources) -> WorldData {
-    world_data_from_parts(super::generate_world(sources))
+    // The seed is drawn first and kept, rather than handing the generator an
+    // anonymous random stream: a game built from this world needs a seed to replay
+    // from, and there is nowhere to recover one after the fact.
+    generate_world_data_seeded(rand::random(), sources)
 }
 
 /// Deterministic variant of [`generate_world_data`]: same `seed` → identical world.
 pub fn generate_world_data_seeded(seed: u64, sources: &super::DefinitionSources) -> WorldData {
-    world_data_from_parts(super::generate_world_seeded(seed, sources))
+    world_data_from_parts(super::generate_world_seeded(seed, sources), Some(seed))
 }
 
 /// Deterministic generation with an explicit config — e.g. a small world for
@@ -132,11 +135,10 @@ pub fn generate_world_data_seeded_with(
     sources: &super::DefinitionSources,
 ) -> WorldData {
     use rand::SeedableRng;
-    world_data_from_parts(super::generate_world_with_rng(
-        rand::rngs::StdRng::seed_from_u64(seed),
-        config,
-        sources,
-    ))
+    world_data_from_parts(
+        super::generate_world_with_rng(rand::rngs::StdRng::seed_from_u64(seed), config, sources),
+        Some(seed),
+    )
 }
 
 fn world_data_from_parts(
@@ -145,6 +147,7 @@ fn world_data_from_parts(
         Vec<domain::player::Player>,
         Vec<domain::staff::Staff>,
     ),
+    generation_seed: Option<u64>,
 ) -> WorldData {
     crate::football_identity::upgrade_world_football_identities(
         &mut teams,
@@ -176,6 +179,7 @@ fn world_data_from_parts(
         metadata: super::definitions::WorldDataMetadata::default(),
         extra_translations: std::collections::HashMap::new(),
         build_notices: Vec::new(),
+        generation_seed,
     })
 }
 
@@ -184,11 +188,10 @@ const COMPETITION_DEFINITIONS_INVALID_ERROR: &str = "be.error.competitionDef.inv
 /// Reject a world whose embedded competition definitions don't validate, so a
 /// broken definition file never loads half-applied.
 fn validate_embedded_definitions(world: &WorldData) -> Result<(), String> {
-    if let Some(file) = &world.competition_definitions {
-        let ctx = super::competition_def::WorldValidationContext::from_world(world);
-        if !super::competition_def::validate_definitions(file, &ctx).is_empty() {
-            return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
-        }
+    if let Some(file) = &world.competition_definitions
+        && !super::competition_def::validate_definitions_for_world(file, world).is_empty()
+    {
+        return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
     }
     Ok(())
 }
@@ -272,6 +275,7 @@ fn load_world_from_manifest_path(
             }),
         extra_translations: std::collections::HashMap::new(),
         build_notices: Vec::new(),
+        generation_seed: None,
     }))
 }
 
@@ -584,6 +588,105 @@ mod tests {
         );
     }
 
+    /// What a generated world is: names and birth dates. Ids are left out because this was
+    /// written when they were minted at random; they are seeded now, and
+    /// `a_seed_regenerates_the_same_world_ids_included` is the test that holds them to it.
+    fn fingerprint(world: &WorldData) -> (Vec<String>, Vec<String>) {
+        (
+            world.teams.iter().map(|team| team.name.clone()).collect(),
+            world
+                .players
+                .iter()
+                .map(|player| format!("{} {}", player.full_name, player.date_of_birth))
+                .collect(),
+        )
+    }
+
+    /// Given a world generated without being asked for a seed,
+    /// When it is asked which seed it came from,
+    /// Then it says, and generating from that seed gives the same world.
+    #[test]
+    fn a_random_world_remembers_the_seed_it_was_made_from() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let world = generate_world_data(&sources);
+
+        let seed = world
+            .generation_seed
+            .expect("a generated world keeps its seed");
+
+        let again = generate_world_data_seeded(seed, &sources);
+        assert_eq!(fingerprint(&world), fingerprint(&again));
+    }
+
+    /// Given a seed,
+    /// When a world is generated from it,
+    /// Then the world records that seed, and a different seed gives a different world.
+    #[test]
+    fn a_seeded_world_records_the_seed_it_was_given() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+
+        let one = generate_world_data_seeded(1, &sources);
+        let two = generate_world_data_seeded(2, &sources);
+
+        assert_eq!(one.generation_seed, Some(1));
+        assert_ne!(
+            fingerprint(&one),
+            fingerprint(&two),
+            "the seed must be what decides the world, or this proves nothing"
+        );
+    }
+
+    /// Given one seed,
+    /// When a world is generated from it twice,
+    /// Then it is the same world all the way down — the ids of its clubs, players and staff
+    ///      included, which are what the days of a game key their dice by.
+    #[test]
+    fn a_seed_regenerates_the_same_world_ids_included() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let config = crate::generator::WorldGenConfig::compact();
+        let everything = |world: &WorldData| {
+            serde_json::to_value((&world.teams, &world.players, &world.staff))
+                .unwrap()
+                .to_string()
+        };
+
+        let one = generate_world_data_seeded_with(5, &config, &sources);
+        let again = generate_world_data_seeded_with(5, &config, &sources);
+
+        for (a, b) in one.teams.iter().zip(&again.teams) {
+            assert_eq!(
+                serde_json::to_value(a).unwrap(),
+                serde_json::to_value(b).unwrap(),
+                "a club differs"
+            );
+        }
+        for (a, b) in one.players.iter().zip(&again.players) {
+            let (a, b) = (
+                serde_json::to_value(a).unwrap(),
+                serde_json::to_value(b).unwrap(),
+            );
+            let differing: Vec<(&String, &serde_json::Value, &serde_json::Value)> = a
+                .as_object()
+                .unwrap()
+                .iter()
+                .filter(|(key, value)| &b[key.as_str()] != *value)
+                .map(|(key, value)| (key, value, &b[key.as_str()]))
+                .collect();
+            assert!(differing.is_empty(), "a player differs in {differing:?}");
+        }
+        for (a, b) in one.staff.iter().zip(&again.staff) {
+            assert_eq!(
+                serde_json::to_value(a).unwrap(),
+                serde_json::to_value(b).unwrap(),
+                "a staff member differs"
+            );
+        }
+        assert!(
+            everything(&one) == everything(&again),
+            "the same seed gave different worlds"
+        );
+    }
+
     #[test]
     fn export_world_to_json_writes_canonical_football_identity_fields() {
         let mut world = generate_world_data(&crate::generator::DefinitionSources::embedded_only());
@@ -874,5 +977,231 @@ mod tests {
             result.is_err(),
             "unreadable source dir should surface an error"
         );
+    }
+    fn group_world_json(entrants: usize, format: serde_json::Value, selector: bool) -> String {
+        let teams: Vec<domain::team::Team> = (0..entrants)
+            .map(|i| {
+                domain::team::Team::new(
+                    format!("club-{i}"),
+                    format!("Club {i}"),
+                    format!("C{i}"),
+                    "ENG".into(),
+                    "City".into(),
+                    "Ground".into(),
+                    1000,
+                )
+            })
+            .collect();
+        let participants = if selector {
+            serde_json::json!({"selector":{"kind":"topByReputation","country":"ENG","count":100}})
+        } else {
+            serde_json::json!({"explicit": teams.iter().map(|t| &t.id).collect::<Vec<_>>()})
+        };
+        serde_json::json!({"teams":teams, "competitionDefinitions":{"competitions":[{
+            "id":"authored-cup", "name":"Authored Cup", "type":"Cup", "scope":"Domestic",
+            "format":format, "participants":participants
+        }]}})
+        .to_string()
+    }
+
+    #[test]
+    fn public_world_loader_honours_group_size_in_resolved_schedules() {
+        use chrono::TimeZone;
+        for (entrants, format, sizes, fixtures) in [
+            (
+                8,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":2}),
+                vec![2, 2, 2, 2],
+                8,
+            ),
+            (
+                8,
+                serde_json::json!({"kind":"GroupAndKnockout"}),
+                vec![4, 4],
+                24,
+            ),
+            (
+                7,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":3,"bestThirdQualifiers":1}),
+                vec![2, 2, 3],
+                10,
+            ),
+            (
+                64,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":2}),
+                vec![2; 32],
+                64,
+            ),
+        ] {
+            let world = load_world_from_json(&group_world_json(entrants, format, false)).unwrap();
+            let definitions = world.competition_definitions.as_ref().unwrap();
+            let start = chrono::Utc.with_ymd_and_hms(2031, 7, 1, 0, 0, 0).unwrap();
+            let cup = super::super::resolve_definitions(definitions, &world, 2031, start).remove(0);
+            let mut actual: Vec<usize> = cup.groups.iter().map(|g| g.team_ids.len()).collect();
+            actual.sort();
+            assert_eq!(actual, sizes);
+            assert_eq!(cup.fixtures.len(), fixtures);
+            let group_ids: std::collections::HashSet<&String> =
+                cup.groups.iter().map(|g| &g.id).collect();
+            let group_names: std::collections::HashSet<&String> =
+                cup.groups.iter().map(|g| &g.name).collect();
+            assert_eq!(
+                group_ids.len(),
+                cup.groups.len(),
+                "group ids must be unique"
+            );
+            assert_eq!(
+                group_names.len(),
+                cup.groups.len(),
+                "group labels must be unique"
+            );
+            if entrants == 64 {
+                assert_eq!(cup.groups[25].name, "Z");
+                assert_eq!(cup.groups[26].name, "AA");
+                assert_eq!(cup.groups[31].name, "AF");
+            }
+            let mut ids: Vec<&String> = cup.groups.iter().flat_map(|g| &g.team_ids).collect();
+            ids.sort();
+            let mut expected: Vec<&String> = world.teams.iter().map(|t| &t.id).collect();
+            expected.sort();
+            assert_eq!(ids, expected, "every entrant is assigned exactly once");
+            assert!(cup.fixtures.iter().all(|f| {
+                cup.groups.iter().any(|g| {
+                    g.team_ids.contains(&f.home_team_id) && g.team_ids.contains(&f.away_team_id)
+                })
+            }));
+        }
+    }
+
+    #[test]
+    fn selector_cups_with_fewer_than_two_resolved_clubs_still_load_and_skip() {
+        use chrono::TimeZone;
+        for entrants in [0, 1] {
+            let json = group_world_json(
+                entrants,
+                serde_json::json!({"kind":"GroupAndKnockout","groupSize":2}),
+                true,
+            );
+            let world = load_world_from_json(&json).expect("empty selectors remain skippable");
+            let start = chrono::Utc.with_ymd_and_hms(2031, 7, 1, 0, 0, 0).unwrap();
+            assert!(
+                super::super::resolve_definitions(
+                    world.competition_definitions.as_ref().unwrap(),
+                    &world,
+                    2031,
+                    start,
+                )
+                .is_empty()
+            );
+        }
+    }
+
+    #[test]
+    fn package_group_qualification_uses_the_final_composed_field() {
+        use crate::generator::{CompetitionDefinition, DefinitionSources, TeamDef, WorldPackage};
+        let clubs = |range: std::ops::Range<usize>| -> Vec<TeamDef> {
+            range.map(|i| serde_json::from_value(serde_json::json!({
+                "id":format!("club-{i}"), "name":format!("Club {i}"), "city":"City", "country":"ENG",
+                "colors":{"primary":"#000000", "secondary":"#ffffff"}
+            })).unwrap()).collect()
+        };
+        let definition: CompetitionDefinition = serde_json::from_value(serde_json::json!({
+            "id":"authored-cup", "name":"Authored Cup", "type":"Cup", "scope":"Domestic",
+            "format":{"kind":"GroupAndKnockout","groupSize":3,"qualifiersPerGroup":3},
+            "participants":{"selector":{"kind":"topByReputation","country":"ENG","count":100}}
+        }))
+        .unwrap();
+        let mut layer = WorldPackage::default();
+        layer.teams.extend(clubs(0..7));
+        layer.competitions.push(definition);
+        // Standalone authoring validation uses this layer's resolved field.
+        let errors = crate::generator::validate_package(&layer);
+        assert!(
+            errors
+                .iter()
+                .any(|error| error.code == "be.error.competitionDef.invalidGroupQualification"),
+            "standalone qualification must be checked before export: {errors:?}"
+        );
+        let sources = DefinitionSources::embedded_only();
+        assert!(
+            matches!(build_world_from_package(&layer, Some(2031), &sources),
+            Err(key) if key == COMPETITION_DEFINITIONS_INVALID_ERROR)
+        );
+
+        let mut extension = WorldPackage::default();
+        extension.teams.extend(clubs(7..9));
+        let (merged, errors) = crate::generator::merge_world_packages(vec![layer, extension]);
+        assert!(
+            errors.is_empty(),
+            "the composed package is valid: {errors:?}"
+        );
+        let world = build_world_from_package(&merged, Some(2031), &sources).unwrap();
+        let errors = crate::generator::validate_definitions_for_world(
+            world.competition_definitions.as_ref().unwrap(),
+            &world,
+        );
+        assert!(
+            errors.is_empty(),
+            "qualification uses all nine final clubs: {errors:?}"
+        );
+    }
+
+    /// Three entrants at maximum size two would leave a lone club with no match.
+    #[test]
+    fn public_world_loader_rejects_singleton_groups() {
+        for selector in [false, true] {
+            let json = group_world_json(
+                3,
+                serde_json::json!({
+                    "kind":"GroupAndKnockout", "groupSize":2, "qualifiersPerGroup":1
+                }),
+                selector,
+            );
+            assert!(matches!(load_world_from_json(&json),
+                Err(key) if key == COMPETITION_DEFINITIONS_INVALID_ERROR));
+        }
+    }
+
+    #[test]
+    fn public_world_loader_rejects_incompatible_group_qualification() {
+        for selector in [false, true] {
+            for (entrants, format) in [
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":0}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":1}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"qualifiersPerGroup":0}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"qualifiersPerGroup":3}),
+                ),
+                (
+                    7,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":3,"qualifiersPerGroup":3}),
+                ),
+                (
+                    7,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":3,"bestThirdQualifiers":2}),
+                ),
+                (
+                    8,
+                    serde_json::json!({"kind":"GroupAndKnockout","groupSize":2,"bestThirdQualifiers":1}),
+                ),
+            ] {
+                let result = load_world_from_json(&group_world_json(entrants, format, selector));
+                assert!(
+                    matches!(result, Err(ref key) if key == COMPETITION_DEFINITIONS_INVALID_ERROR),
+                    "selector={selector}, entrants={entrants}: {:?}",
+                    result.as_ref().map(|_| "accepted")
+                );
+            }
+        }
     }
 }

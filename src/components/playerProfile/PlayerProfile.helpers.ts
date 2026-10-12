@@ -27,6 +27,8 @@ interface PlayerAdvancedPassMetric {
 
 export interface PlayerAdvancedStatsSummary {
   percentileEligible: boolean;
+  /** Decided by the backend; the squad-data fallback cannot know it. */
+  seasonRatingRated: boolean;
   metrics: {
     shots: PlayerAdvancedMetric;
     shotsOnTarget: PlayerAdvancedMetric;
@@ -183,6 +185,7 @@ export function buildPlayerAdvancedStats(
 
   return {
     percentileEligible: canComputePercentiles,
+    seasonRatingRated: false,
     metrics: {
       shots: {
         total: shots,

@@ -1,5 +1,5 @@
 import { getPlayerOvr } from "../../lib/helpers";
-import { isSeniorSquadPlayer } from "../../lib/playerSquad";
+import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { normalisePosition, positionGroupRank } from "../../lib/positions";
 import type { PlayerData } from "../../store/gameStore";
 import {
@@ -90,7 +90,7 @@ interface ResolveStartingXiIdsOptions {
 
 export function buildTacticsRoster(players: PlayerData[], teamId: string): PlayerData[] {
   return players
-    .filter((player) => player.team_id === teamId && isSeniorSquadPlayer(player))
+    .filter((player) => player.team_id === teamId && isFirstTeamSquadPlayer(player))
     .sort((leftPlayer, rightPlayer) => {
       return (
         positionGroupRank(leftPlayer.position) - positionGroupRank(rightPlayer.position) ||

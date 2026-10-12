@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 45;
+const EXPECTED_MIGRATION_COUNT: usize = 51;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -134,6 +134,21 @@ const MIGRATIONS: &[(&str, &str)] = &[
         "v045_player_contract_start.sql",
         include_str!("sql/v045_player_contract_start.sql"),
     ),
+    // V46: The seed the game's own dice are derived from
+    ("v046_game_seed.sql", include_str!("sql/v046_game_seed.sql")),
+    // V47: Whether World Cups are drawn the pre-seed way
+    ("v047_legacy_world_cup_draw.sql", include_str!("sql/v047_legacy_world_cup_draw.sql")),
+    // V48: Competition calendar identity and edition provenance
+    ("v048_competition_calendar.sql", include_str!("sql/v048_competition_calendar.sql")),
+    // V49: Frozen outcome of each finished competition edition
+    ("v049_competition_edition_archive.sql", include_str!("sql/v049_competition_edition_archive.sql")),
+    // V50: Scouted players: what a finished scouting job revealed, and when
+    (
+        "v050_scouted_players.sql",
+        include_str!("sql/v050_scouted_players.sql"),
+    ),
+    // V51: Persisted competition name key
+    ("v051_competition_name_key.sql", include_str!("sql/v051_competition_name_key.sql")),
 ];
 
 /// All migrations for a per-save game database.
@@ -465,6 +480,268 @@ mod tests {
         migrations
             .to_latest(&mut conn)
             .expect("second apply should succeed (idempotent)");
+    }
+
+    #[test]
+    fn calendar_v048_upgrades_a_seeded_v047_save_without_reinterpreting_it() {
+        for draw_policy in [0_i64, 1] {
+            let mut conn = Connection::open_in_memory().unwrap();
+            let old = Migrations::new(
+                MIGRATIONS
+                    .iter()
+                    .take(47)
+                    .map(|(_, sql)| M::up(sql))
+                    .collect(),
+            );
+            old.to_latest(&mut conn).unwrap();
+            conn.execute(
+                "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date, save_format_version, legacy_world_cup_draw) VALUES ('save', 'Seeded save', 'manager', '2033-02-01', '2033-06-30', 8, ?1)",
+                [draw_policy],
+            ).unwrap();
+            conn.execute("INSERT INTO competitions (id, name, season) VALUES ('ar-d1-apertura', 'Opening', 2033)", []).unwrap();
+            let version: i64 = conn
+                .pragma_query_value(None, "user_version", |row| row.get(0))
+                .unwrap();
+            assert_eq!(version, 47);
+            assert!(
+                conn.prepare("SELECT calendar_json FROM competitions")
+                    .is_err()
+            );
+
+            for _ in 0..2 {
+                all_migrations().to_latest(&mut conn).unwrap();
+                let row: (String, u32, Option<String>) = conn
+                    .query_row(
+                        "SELECT id, season, calendar_json FROM competitions",
+                        [],
+                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                    )
+                    .expect("v048 must add the calendar column to a real v047 save");
+                assert_eq!(row, ("ar-d1-apertura".into(), 2033, None));
+                let meta: (u32, i64) = conn
+                    .query_row(
+                        "SELECT save_format_version, legacy_world_cup_draw FROM game_meta",
+                        [],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )
+                    .unwrap();
+                assert_eq!(meta, (8, draw_policy));
+                let version: i64 = conn
+                    .pragma_query_value(None, "user_version", |row| row.get(0))
+                    .unwrap();
+                assert_eq!(version, MIGRATION_COUNT as i64);
+            }
+        }
+    }
+
+    /// Given a real v048 save, when migrated twice, then the archive table exists and is empty.
+    #[test]
+    fn edition_archive_v049_upgrades_a_v048_save_without_touching_competitions() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(48)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute("INSERT INTO competitions (id, name, season) VALUES ('ar-d1-apertura', 'Opening', 2033)", []).unwrap();
+        assert!(
+            conn.prepare("SELECT 1 FROM competition_edition_archive")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let archived: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM competition_edition_archive",
+                    [],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            let competitions: i64 = conn
+                .query_row("SELECT COUNT(*) FROM competitions", [], |row| row.get(0))
+                .unwrap();
+            assert_eq!((archived, competitions), (0, 1));
+        }
+    }
+
+    /// A real v050 row for the World Cup competitions the game itself generates, so the migration is
+    /// checked against the generator and not against a hand-copied shape.
+    fn generated_world_cup_rows() -> Vec<(String, String, String, String, i64)> {
+        use chrono::TimeZone;
+        let clock = ofm_core::clock::GameClock::new(
+            chrono::Utc.with_ymd_and_hms(2026, 6, 1, 12, 0, 0).unwrap(),
+        );
+        let manager = domain::manager::Manager::new(
+            "mgr".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "England".into(),
+        );
+        let mut game = ofm_core::game::Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        let windows = ofm_core::national_team::international_window_dates(
+            chrono::Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap(),
+        );
+        ofm_core::world_cup::schedule_world_cup_qualifying(&mut game, 2026, &windows);
+        ofm_core::world_cup::schedule_world_cup(
+            &mut game,
+            chrono::Utc.with_ymd_and_hms(2026, 6, 10, 0, 0, 0).unwrap(),
+            &ofm_core::world_cup::FORMAT_48,
+        );
+        game.competitions
+            .iter()
+            .filter(|c| ofm_core::world_cup::is_world_cup_competition(c))
+            .map(|c| {
+                (
+                    c.id.clone(),
+                    c.name.clone(),
+                    "InternationalNation".to_string(),
+                    "International".to_string(),
+                    i64::from(c.priority),
+                )
+            })
+            .collect()
+    }
+
+    /// Given a real v050 save holding the World Cup competitions the game generates, a keyless
+    /// authored competition of the very same kind and scope, other authored rows and a club league,
+    /// when migrated twice, then only the generated World Cup rows get their key.
+    #[test]
+    fn name_key_v051_derives_world_cup_keys_once_and_leaves_other_rows_null() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(50)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        let generated = generated_world_cup_rows();
+        assert!(
+            generated
+                .iter()
+                .any(|row| row.0.starts_with("world-cup-qualifying-"))
+                && generated.iter().any(|row| row.1.starts_with("World Cup ")),
+            "the generator must have produced qualifying and finals"
+        );
+        let mut rows = generated.clone();
+        rows.extend(
+            [
+                // The playoff is only staged after qualifying is played; its id prefix is the frozen contract.
+                (
+                    "world-cup-playoff-2026",
+                    "Playoff",
+                    "InternationalNation",
+                    "International",
+                    10_000,
+                ),
+                // Authored by a package: same kind and scope as the finals, but not generated.
+                (
+                    "pkg-nations-cup",
+                    "Nations Cup",
+                    "InternationalNation",
+                    "International",
+                    0,
+                ),
+                (
+                    "pkg-world-cup-lookalike",
+                    "World Cup 2030",
+                    "InternationalNation",
+                    "International",
+                    0,
+                ),
+                (
+                    "pkg-domestic-nations",
+                    "Nations League",
+                    "InternationalNation",
+                    "Domestic",
+                    0,
+                ),
+                (
+                    "pkg-high-priority",
+                    "Nations Cup",
+                    "InternationalNation",
+                    "International",
+                    10_000,
+                ),
+                (
+                    "pkg-domestic-lookalike",
+                    "World Cup 2031",
+                    "InternationalNation",
+                    "Domestic",
+                    10_000,
+                ),
+                (
+                    "pkg-league-lookalike",
+                    "World Cup 2032",
+                    "League",
+                    "International",
+                    10_000,
+                ),
+                ("ar-d1-apertura", "Opening", "League", "Domestic", 0),
+            ]
+            .map(|(id, name, kind, scope, priority)| {
+                (
+                    id.to_string(),
+                    name.to_string(),
+                    kind.to_string(),
+                    scope.to_string(),
+                    priority,
+                )
+            }),
+        );
+        for (id, name, kind, scope, priority) in &rows {
+            conn.execute(
+                "INSERT INTO competitions (id, name, kind, scope, season, priority) VALUES (?1, ?2, ?3, ?4, 2033, ?5)",
+                rusqlite::params![id, name, kind, scope, priority],
+            )
+            .unwrap();
+        }
+        assert!(conn.prepare("SELECT name_key FROM competitions").is_err());
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let mut stmt = conn
+                .prepare("SELECT id, name_key FROM competitions ORDER BY id")
+                .unwrap();
+            let stored: std::collections::BTreeMap<String, Option<String>> = stmt
+                .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap();
+            let key = |k: &str| Some(format!("tournaments.competitions.{k}"));
+            for (id, name, ..) in &generated {
+                let expected = if id.starts_with("world-cup-qualifying-") {
+                    key("worldCupQualifying")
+                } else {
+                    assert!(name.starts_with("World Cup "), "{id} is not a finals row");
+                    key("worldCup")
+                };
+                assert_eq!(stored[id], expected, "generated row {id}");
+            }
+            assert_eq!(stored["world-cup-playoff-2026"], key("worldCupPlayoff"));
+            for authored in [
+                "pkg-nations-cup",
+                "pkg-world-cup-lookalike",
+                "pkg-domestic-nations",
+                "pkg-high-priority",
+                "pkg-domestic-lookalike",
+                "pkg-league-lookalike",
+                "ar-d1-apertura",
+            ] {
+                assert_eq!(
+                    stored[authored], None,
+                    "authored row {authored} must stay NULL"
+                );
+            }
+        }
     }
 
     #[test]

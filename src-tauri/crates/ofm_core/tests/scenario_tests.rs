@@ -284,3 +284,148 @@ fn full_season_holds_invariants() {
         "a full season should have played some matches"
     );
 }
+
+/// Every contract runs out, so an AI club only keeps a squad by renewing it.
+/// Four years of a whole generated world: each AI club must still be at the
+/// squad floor, and the report prints how big each squad is and how many
+/// emergency signings the floor had to make — renewals should carry the load,
+/// and the top-up should barely fire. Retirements and sales still shrink
+/// squads that no youth intake refills, which renewals cannot fix and are not
+/// meant to. About half a minute in a release build, so it is run explicitly;
+/// `ai_contracts` holds the renewal rule to a focused test in the normal suite.
+#[test]
+#[ignore = "four seasons of a generated world; run explicitly with --ignored --nocapture"]
+fn ai_clubs_keep_a_squad_across_seasons_by_renewing_contracts() {
+    use domain::player::PlayerMovementKind;
+    use ofm_core::squad_floor::squad_shortfall;
+
+    let mut game = make_scenario_game(3);
+    let user_club = game.manager.team_id.clone();
+    let ai_clubs: Vec<String> = game
+        .teams
+        .iter()
+        .map(|team| team.id.clone())
+        .filter(|id| Some(id) != user_club.as_ref())
+        .collect();
+    let opening_squads: usize = game
+        .players
+        .iter()
+        .filter(|player| {
+            player
+                .team_id
+                .as_ref()
+                .is_some_and(|team_id| ai_clubs.contains(team_id))
+        })
+        .count();
+
+    advance_days(&mut game, 4 * 365);
+
+    // AI clubs sign free agents only to get back to the floor.
+    let top_up_signings = game
+        .players
+        .iter()
+        .flat_map(|player| player.movement_history.iter())
+        .filter(|entry| entry.kind == PlayerMovementKind::FreeAgentSigning)
+        .filter(|entry| {
+            entry
+                .to_team_id
+                .as_ref()
+                .is_some_and(|team_id| ai_clubs.contains(team_id))
+        })
+        .count();
+    println!(
+        "{} AI clubs, {opening_squads} players at the start; \
+         {top_up_signings} floor top-up signings in four years",
+        ai_clubs.len()
+    );
+
+    for club in &ai_clubs {
+        let registered = game
+            .players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == Some(club.as_str()))
+            .count();
+        assert!(
+            squad_shortfall(&game, club).is_empty(),
+            "{club} fell below the squad floor after four years: {:?}",
+            squad_shortfall(&game, club)
+        );
+        println!("{club}: {registered} players after four years");
+    }
+}
+
+/// Given a generated world run for four seasons,
+/// When AI clubs buy players from one another (each purchase makes a contract at the
+/// buyer's standard wage, through the one wage rule),
+/// Then what those purchases add to the wage bills is a small part of the total, and
+/// the report says how far the bills moved for every other reason.
+///
+/// Measured, not assumed. The first run of this found that every AI club's bill grew
+/// by 30-50% over four seasons and ended past the board's policy, with only five
+/// AI-to-AI transfers in the whole world: transfers cannot be the cause, so this
+/// attributes their share rather than asserting the whole drift is theirs. The drift
+/// itself is reported, not asserted here; it belongs to whatever else raises a bill
+/// (renewals at market wage, floor top-ups the policy waives).
+#[test]
+#[ignore = "four seasons of a generated world; run explicitly with --ignored --nocapture"]
+fn ai_to_ai_transfers_are_a_small_part_of_how_wage_bills_move() {
+    use domain::contract_ledger::ContractSource;
+    use domain::player::PlayerMovementKind;
+    use ofm_core::finances::calc_wages;
+
+    let mut game = make_scenario_game(5);
+    let user_club = game.manager.team_id.clone();
+    let ai_clubs: Vec<String> = game
+        .teams
+        .iter()
+        .map(|team| team.id.clone())
+        .filter(|id| Some(id) != user_club.as_ref())
+        .collect();
+    let opening_total: i64 = ai_clubs.iter().map(|id| calc_wages(&game, id)).sum();
+
+    advance_days(&mut game, 4 * 365);
+
+    // What each AI-to-AI purchase committed: the new contract's weekly wage, less what
+    // the player was being paid before it.
+    let mut transfers = 0;
+    let mut committed: i64 = 0;
+    for player in &game.players {
+        let mut previous_wage = 0_i64;
+        for entry in player.movement_history.iter() {
+            let Some(record) = &entry.contract else {
+                continue;
+            };
+            let to_ai = entry
+                .to_team_id
+                .as_ref()
+                .is_some_and(|team_id| ai_clubs.contains(team_id));
+            let from_ai = entry
+                .from_team_id
+                .as_ref()
+                .is_some_and(|team_id| ai_clubs.contains(team_id));
+            if entry.kind == PlayerMovementKind::PermanentTransfer
+                && record.source == ContractSource::Transfer
+                && to_ai
+                && from_ai
+            {
+                transfers += 1;
+                committed += i64::from(record.weekly_wage) - previous_wage;
+            }
+            previous_wage = i64::from(record.weekly_wage);
+        }
+    }
+    let closing_total: i64 = ai_clubs.iter().map(|id| calc_wages(&game, id)).sum();
+    let drift = closing_total - opening_total;
+    println!(
+        "{transfers} AI-to-AI transfers added {committed}/wk; AI wage bills moved by {drift}/wk \
+         in total ({opening_total} -> {closing_total})"
+    );
+    assert!(
+        transfers > 0,
+        "the world made no AI-to-AI transfers, so this measured nothing"
+    );
+    assert!(
+        committed.abs() * 20 <= closing_total,
+        "AI-to-AI transfers added {committed}/wk, more than 5% of the {closing_total}/wk AI bill"
+    );
+}

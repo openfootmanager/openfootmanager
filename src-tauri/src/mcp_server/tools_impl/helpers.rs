@@ -68,3 +68,12 @@ pub(crate) fn age_from_dob(dob: &str, game: &ofm_core::game::Game) -> String {
     }
     age.to_string()
 }
+
+/// An enum as its serialized name, so a result field carries `"Coach"` and not a Debug rendering.
+pub(crate) fn serde_label<T: serde::Serialize>(value: &T) -> String {
+    match serde_json::to_value(value) {
+        Ok(serde_json::Value::String(label)) => label,
+        Ok(other) => other.to_string(),
+        Err(_) => String::new(),
+    }
+}

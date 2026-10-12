@@ -3,10 +3,14 @@
 //! **A — one shot.** The whole squad is handed to `engine::simulate` at once.
 //! There is no starting XI, no bench, and no AI manager on either touchline.
 //! This is the shape every unwatched fixture had before `ofm_core` learned to
-//! build an XI for the instant path; it is kept as the control arm.
+//! build an XI for the instant path, and no fixture in the game takes it any
+//! more — `engine::simulate` is now reached only from this bench and the
+//! `sim_lab` command. It is kept as the historical control arm: it is what the
+//! numbers below are a distance from.
 //!
-//! **B — live.** What the player's own fixture gets: eleven starters, a real
-//! bench, and `ai_decide` consulted every minute for both sides.
+//! **B — live.** What every competitive fixture now gets, the player's own and
+//! the other nine alike: eleven starters, a real bench, and `ai_decide`
+//! consulted every minute for both sides.
 //!
 //! The interesting column is `burn` — the condition the *production* wear
 //! formula would charge this squad for the match, projected onto each path's
@@ -40,6 +44,7 @@ pub struct PathTotals {
     substitutions: u64,
     style_changes: u64,
     formation_changes: u64,
+    dial_changes: u64,
     /// Commands the engine refused (no bench cover, substitutions used up), kept
     /// apart so the rows above count changes rather than attempts.
     rejected_commands: u64,
@@ -240,6 +245,7 @@ fn count_command(totals: &mut PathTotals, cmd: &engine::MatchCommand) {
         engine::MatchCommand::Substitute { .. } => totals.substitutions += 1,
         engine::MatchCommand::ChangePlayStyle { .. } => totals.style_changes += 1,
         engine::MatchCommand::ChangeFormation { .. } => totals.formation_changes += 1,
+        engine::MatchCommand::ChangeTacticalDial { .. } => totals.dial_changes += 1,
         _ => {}
     }
 }
@@ -262,7 +268,7 @@ fn print_table(instant: &PathTotals, live: &PathTotals, games: u32) {
     );
     println!("{sep}");
 
-    let rows: [(&str, f64, f64); 7] = [
+    let rows: [(&str, f64, f64); 8] = [
         (
             "participants",
             instant.per_match(instant.participants),
@@ -287,6 +293,11 @@ fn print_table(instant: &PathTotals, live: &PathTotals, games: u32) {
             "formation changes",
             instant.per_match(instant.formation_changes),
             live.per_match(live.formation_changes),
+        ),
+        (
+            "tactical dial changes",
+            instant.per_match(instant.dial_changes),
+            live.per_match(live.dial_changes),
         ),
         (
             "commands rejected",

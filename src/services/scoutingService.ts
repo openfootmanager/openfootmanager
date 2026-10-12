@@ -1,12 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { GameStateData } from "../store/gameStore";
+import type { GameStateData, ScoutedPlayerView } from "../store/gameStore";
 
 export interface StartYouthScoutingInput {
   scoutId: string;
   region?: string | null;
   objective?: string | null;
   targetPosition?: string | null;
+}
+
+export async function getScoutedReport(playerId: string): Promise<ScoutedPlayerView | null> {
+  return invoke<ScoutedPlayerView | null>("get_scouted_report", { playerId });
 }
 
 export async function sendScout(scoutId: string, playerId: string): Promise<GameStateData> {

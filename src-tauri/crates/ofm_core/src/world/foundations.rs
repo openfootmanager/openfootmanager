@@ -43,7 +43,16 @@ pub(crate) fn build_foundation_competitions(game: &Game, division_size: usize) -
             // anchor date, simulate the missing matchdays so the player joins a
             // living in-progress season rather than a blank table.
             if *start <= game_start {
-                crate::catchup::simulate_past_fixtures(&mut competition, &game.players, game_start);
+                let mut rng = game.rng_for(
+                    &format!("catchup/foundations/{}", competition.id),
+                    &game_start.format("%Y-%m-%d").to_string(),
+                );
+                crate::catchup::simulate_past_fixtures(
+                    &mut competition,
+                    &game.players,
+                    game_start,
+                    &mut rng,
+                );
             }
             if competition.id.starts_with("br-state-") {
                 finalize_brazil_state_competition(&mut competition);
@@ -55,6 +64,7 @@ pub(crate) fn build_foundation_competitions(game: &Game, division_size: usize) -
 
 pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date: DateTime<Utc>) {
     let players = &game.players;
+    let seed = game.seed;
     for competition in &mut game.competitions {
         // International tournaments (the World Cup and its qualifying) own a fixed
         // calendar tied to the cup year, not the club's hemisphere. Re-anchoring
@@ -83,7 +93,12 @@ pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date
             }
         }
         if is_mid_season {
-            crate::catchup::simulate_past_fixtures(competition, players, management_date);
+            let mut rng = crate::seed::rng_for_seed(
+                seed,
+                &format!("catchup/foundations/{}", competition.id),
+                &management_date.format("%Y-%m-%d").to_string(),
+            );
+            crate::catchup::simulate_past_fixtures(competition, players, management_date, &mut rng);
         }
     }
 
@@ -108,7 +123,16 @@ pub fn rebuild_competitions_for_management_date(game: &mut Game, management_date
             .collect();
     for (competition, start) in &mut missing_states {
         if *start <= management_date {
-            crate::catchup::simulate_past_fixtures(competition, &game.players, management_date);
+            let mut rng = game.rng_for(
+                &format!("catchup/foundations/{}", competition.id),
+                &management_date.format("%Y-%m-%d").to_string(),
+            );
+            crate::catchup::simulate_past_fixtures(
+                competition,
+                &game.players,
+                management_date,
+                &mut rng,
+            );
         }
     }
     game.competitions
@@ -206,10 +230,15 @@ fn ensure_international_windows(game: &mut Game) {
                 &window_dates,
             );
         } else {
+            // Keyed by the year the windows belong to, as the rollover's are.
+            let mut friendlies_rng = game.rng_for(
+                "national-team-friendlies",
+                &preseason_season_start(&game.clock).year().to_string(),
+            );
             crate::national_team::schedule_national_team_friendlies(
                 &mut game.national_teams,
                 &window_dates,
-                &mut rand::rng(),
+                &mut friendlies_rng,
             );
         }
     }

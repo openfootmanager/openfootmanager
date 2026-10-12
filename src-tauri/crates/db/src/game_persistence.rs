@@ -5,15 +5,15 @@ use rusqlite::Connection;
 
 use ofm_core::clock::GameClock;
 use ofm_core::game::{
-    BoardObjective, Game, ObjectiveType, ScoutingAssignment, YouthScoutingAssignment,
-    YouthScoutingObjective, YouthScoutingRegion,
+    BoardObjective, Game, ObjectiveType, ScoutedPlayer, ScoutingAssignment,
+    YouthScoutingAssignment, YouthScoutingObjective, YouthScoutingRegion,
 };
 
 use crate::game_database::GameDatabase;
 use crate::repositories::{
-    competition_repo, journal_repo, league_repo, manager_repo, message_repo, meta_repo,
-    national_team_repo, news_repo, objective_repo, player_repo, scouting_repo, staff_repo,
-    stats_repo, team_repo,
+    competition_repo, edition_archive_repo, journal_repo, league_repo, manager_repo, message_repo,
+    meta_repo, national_team_repo, news_repo, objective_repo, player_repo, scouting_repo,
+    staff_repo, stats_repo, team_repo,
 };
 
 pub struct GamePersistenceWriter;
@@ -114,6 +114,9 @@ fn write_game_to_connection(
             vacant_team_days_json,
             world_history_json,
             emitted_events_json,
+            // Same bits, read back the same way in `read_game`.
+            seed: game.seed as i64,
+            legacy_world_cup_draw: game.legacy_world_cup_draw,
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
@@ -151,6 +154,7 @@ fn write_game_to_connection(
         league_repo::upsert_league(conn, league)?;
     }
     competition_repo::replace_competitions(conn, &game.competitions)?;
+    edition_archive_repo::persist_new_editions(conn, &game.edition_archive)?;
     national_team_repo::replace_national_teams(conn, &game.national_teams)?;
 
     let objective_rows: Vec<objective_repo::BoardObjectiveRow> = game
@@ -177,6 +181,20 @@ fn write_game_to_connection(
         })
         .collect();
     scouting_repo::upsert_scouting_list(conn, &scouting_rows)?;
+
+    let scouted_rows = game
+        .scouted_players
+        .iter()
+        .map(|scouted| {
+            Ok(scouting_repo::ScoutedPlayerRow {
+                player_id: scouted.player_id.clone(),
+                scouted_on: scouted.scouted_on.clone(),
+                attributes_json: serde_json::to_string(&scouted.attributes)
+                    .map_err(|_| game_persistence_write_error())?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    scouting_repo::upsert_scouted_players_list(conn, &scouted_rows)?;
 
     let youth_scouting_rows: Vec<scouting_repo::YouthScoutingAssignmentRow> = game
         .youth_scouting_assignments
@@ -263,6 +281,7 @@ impl GamePersistenceReader {
         let news = news_repo::load_all_news(conn)?;
         let league = league_repo::load_league(conn)?;
         let mut competitions = competition_repo::load_competitions(conn)?;
+        let edition_archive = edition_archive_repo::load_editions(conn)?;
         let national_teams = national_team_repo::load_national_teams(conn)?;
         if competitions.is_empty()
             && let Some(existing_league) = league.clone()
@@ -294,6 +313,17 @@ impl GamePersistenceReader {
                 days_remaining: assignment.days_remaining,
             })
             .collect();
+        let scouted_players = scouting_repo::load_all_scouted_players(conn)?
+            .into_iter()
+            .map(|row| {
+                Ok(ScoutedPlayer {
+                    player_id: row.player_id,
+                    scouted_on: row.scouted_on,
+                    attributes: serde_json::from_str(&row.attributes_json)
+                        .map_err(|_| game_persistence_load_error())?,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
         let youth_scouting_rows = scouting_repo::load_all_youth_scouting(conn)?;
         let youth_scouting_assignments: Vec<YouthScoutingAssignment> = youth_scouting_rows
             .into_iter()
@@ -313,6 +343,8 @@ impl GamePersistenceReader {
             .collect::<Result<_, String>>()?;
 
         let mut game = Game {
+            seed: meta.seed as u64,
+            legacy_world_cup_draw: meta.legacy_world_cup_draw,
             clock,
             manager_id: meta.manager_id.clone(),
             managers,
@@ -331,12 +363,14 @@ impl GamePersistenceReader {
             league,
             scouting_assignments,
             youth_scouting_assignments,
+            scouted_players,
             board_objectives,
             season_context: domain::season::SeasonContext::default(),
             days_since_last_job_offer: None,
             available_staff_market_last_activity_date: meta
                 .available_staff_market_last_activity_date,
             vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
+            edition_archive,
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
             // A malformed ledger degrades to the legacy-save path rather than
@@ -364,8 +398,13 @@ impl GamePersistenceReader {
                 conn,
             )?),
             cash_journal_dirty_ids: Vec::new(),
+            squad_floor_top_ups: Vec::new(),
         };
         game.promote_legacy_league();
+        for competition in &mut game.competitions {
+            ofm_core::calendar_identity::ensure_competition_calendar(competition);
+        }
+        game.sync_legacy_league();
         // Seeding the sent-ledger for a pre-v5 save is deliberately NOT done
         // here: this reads whatever is on disk, and "is the ledger empty?" is not
         // the same question as "was this save written before the ledger existed?".
@@ -478,6 +517,8 @@ mod tests {
             extra_translations_json: "{}".to_string(),
             package_lockfile_json: "[]".to_string(),
             emitted_events_json: "[]".to_string(),
+            seed: 0,
+            legacy_world_cup_draw: false,
         }
     }
 
@@ -539,6 +580,39 @@ mod tests {
             .with_ymd_and_hms(start_year, 7, current_day, 0, 0, 0)
             .unwrap();
         game
+    }
+
+    /// Given a game with a seed — one past `i64::MAX`, so a column that cannot hold
+    ///       a `u64` is not hidden by a small one,
+    /// When it is saved and loaded,
+    /// Then it has the same seed, and so the same days to come.
+    #[test]
+    fn a_games_seed_survives_a_save_and_load() {
+        let db = GameDatabase::open_in_memory().unwrap();
+        let mut game = sample_game_with_clock(2026, 1);
+        game.seed = 0xDEAD_BEEF_DEAD_BEEF;
+        GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+        let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+        assert_eq!(loaded.seed, 0xDEAD_BEEF_DEAD_BEEF);
+    }
+
+    /// Given a game that draws its World Cups the old way, and one that does not,
+    /// When each is saved and loaded,
+    /// Then each loads as it was saved.
+    #[test]
+    fn a_games_world_cup_draw_mode_survives_a_save_and_load() {
+        for legacy in [true, false] {
+            let db = GameDatabase::open_in_memory().unwrap();
+            let mut game = sample_game_with_clock(2026, 1);
+            game.legacy_world_cup_draw = legacy;
+            GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+            let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+            assert_eq!(loaded.legacy_world_cup_draw, legacy);
+        }
     }
 
     #[test]

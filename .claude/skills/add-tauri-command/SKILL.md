@@ -19,7 +19,9 @@ One module per area — `squad.rs`, `transfers.rs`, `contracts.rs`, `club.rs`, `
 where its siblings live rather than starting a new module.
 
 **Split it in two.** The `#[tauri::command]` wrapper does IPC plumbing only; the real work lives
-in a plain `*_internal` function that takes `&StateManager`:
+in a plain `*_internal` function that takes `&StateManager`. The wrapper is <= 50 lines including
+its signature; the root Code quality section defines the other layer and size limits. Commands and MCP
+adapt the same seam; application code never imports either adapter. For example:
 
 ```rust
 pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result<Game, String> {
@@ -102,7 +104,12 @@ Frontend: `src/services/<area>Service.test.ts`, mocking `@tauri-apps/api/core`. 
 tests show the shape. Cover the failure path — a command that returns `Err` must surface a usable
 message.
 
-Write the failing test first.
+Use `/write-tests` before implementation. Test wrapper equivalence at the
+public adapter seam: Tauri/service arguments, errors and returned state match the shared function;
+where an MCP counterpart exists, verify it delegates to that seam too. Do not stop at helper-only
+tests. Test failure atomicity and read persisted changes through a fresh reader. For an existing
+MCP counterpart, run `--lib --features mcp`; UI-only commands need no invented MCP route.
+Use `ofm-test-reviewer` for observed fix-removal evidence.
 
 ## 6. Update the docs
 

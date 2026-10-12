@@ -41,6 +41,9 @@ vitest-*.json
 
 # World JSON exports (large files, generated locally)
 exported_world.json
+# The sharded form of the same export (<stem>.shards/ beside the manifest). The
+# game's local world export, never source.
+exported_world.shards/
 test-world.json
 
 # Personal-use imported world assets/data

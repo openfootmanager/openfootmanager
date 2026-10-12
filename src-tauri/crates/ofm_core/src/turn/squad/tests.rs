@@ -5,7 +5,7 @@ use domain::player::{Player, PlayerAttributes, Position as DomainPos};
 /// all to `v` makes the condition-free positional fit ≈ `v` for any slot, with
 /// the per-slot compatibility/foot penalty identical across players (same
 /// position + footedness) — so it cancels in within-slot comparisons.
-fn attrs(v: u8) -> PlayerAttributes {
+pub(super) fn attrs(v: u8) -> PlayerAttributes {
     PlayerAttributes {
         pace: v,
         stamina: v,
@@ -29,11 +29,11 @@ fn attrs(v: u8) -> PlayerAttributes {
     }
 }
 
-fn mk(id: &str, attr: u8, condition: u8) -> Player {
+pub(super) fn mk(id: &str, attr: u8, condition: u8) -> Player {
     mk_pos(id, DomainPos::CenterBack, attr, condition)
 }
 
-fn mk_pos(id: &str, position: DomainPos, attr: u8, condition: u8) -> Player {
+pub(super) fn mk_pos(id: &str, position: DomainPos, attr: u8, condition: u8) -> Player {
     let mut p = Player::new(
         id.to_string(),
         id.to_string(),
@@ -549,7 +549,7 @@ fn a_fixture_in_a_dormant_competition_is_not_a_congested_run() {
 
 /// Ten fit outfielders and a goalkeeper in the treatment room — a club that
 /// has to field a sore keeper or put a defender in goal.
-fn club_whose_only_keeper_is_injured(managed_by_the_user: bool) -> Game {
+pub(super) fn club_whose_only_keeper_is_injured(managed_by_the_user: bool) -> Game {
     use crate::clock::GameClock;
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
@@ -635,48 +635,6 @@ fn an_injured_keeper_called_up_by_an_ai_club_plays_in_goal() {
 fn an_injured_keeper_called_up_by_the_user_s_club_plays_in_goal() {
     let game = club_whose_only_keeper_is_injured(true);
     assert_eq!(who_keeps_goal(&game), vec!["keeper".to_string()]);
-}
-
-/// A level cup tie on the instant path goes to penalties, and the kicks are
-/// taken by the eleven who finished the match — not by the club's best players
-/// on paper, some of whom were in the treatment room and never took the field.
-#[test]
-fn a_shootout_is_rated_on_the_side_that_played_not_the_injured() {
-    use domain::player::Injury;
-
-    let mut game = club_whose_only_keeper_is_injured(false);
-    let mut fit_keeper = mk_pos("fit_keeper", DomainPos::Goalkeeper, 70, 100);
-    fit_keeper.team_id = Some("club".to_string());
-    game.players.push(fit_keeper);
-    for i in 0..5 {
-        let mut star = mk_pos(&format!("injured_star{i}"), DomainPos::Striker, 95, 100);
-        star.team_id = Some("club".to_string());
-        star.injury = Some(Injury {
-            name: "common.injuries.calfStrain".to_string(),
-            days_remaining: 20,
-        });
-        game.players.push(star);
-    }
-    for player in game.players.iter_mut() {
-        player.ovr = if player.id.starts_with("injured_star") {
-            95
-        } else {
-            70
-        };
-    }
-
-    // The rating of the club on paper — what an instant shootout used to be
-    // decided on — has to differ here, or this test proves nothing.
-    assert!(crate::catchup::club_strength(&game.players, "club") > 80.0);
-
-    let (fielded, _bench) = build_team_with_bench(&game, "club");
-
-    assert!(
-        (shootout_strength(&fielded) - 70.0).abs() < 1e-9,
-        "five injured 95-rated players who did not play must not take the kicks \
-         (got {})",
-        shootout_strength(&fielded)
-    );
 }
 
 /// A role reaches the engine only where the position a player is actually

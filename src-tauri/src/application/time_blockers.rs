@@ -269,7 +269,7 @@ fn key_contract_risk_blocker(
         .take(3)
         .filter(|player| {
             !has_let_expire_intent(player)
-                && contract_warning_stage(player.contract_end.as_deref(), current_date).is_some()
+                && contract_warning_stage(player.contract_end(), current_date).is_some()
         })
         .map(|player| player.match_name.as_str())
         .collect();
@@ -298,9 +298,9 @@ fn contract_wage_risk_blocker(
         .copied()
         .filter(|player| {
             !has_let_expire_intent(player)
-                && contract_warning_stage(player.contract_end.as_deref(), current_date).is_some()
+                && contract_warning_stage(player.contract_end(), current_date).is_some()
         })
-        .map(|player| player.wage)
+        .map(|player| player.wage())
         .sum();
 
     let wage_budget = team.wage_budget.max(0) as u32;

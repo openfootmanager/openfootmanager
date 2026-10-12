@@ -236,7 +236,7 @@ pub enum BreakSpeed {
     Fast,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TacticsConfig {
     pub pressing_intensity: PressingIntensity,
     pub defensive_line: DefensiveLine,
@@ -254,6 +254,43 @@ pub struct TacticsConfig {
     pub counter_press_duration: CounterPressDuration,
     #[serde(default)]
     pub break_speed: BreakSpeed,
+}
+
+/// One dial of a side's tactical plan, and the setting to put it on.
+///
+/// A play style is a label for a whole approach; these are the nine settings
+/// underneath it. Until now the only thing a manager could change during a match
+/// was the label, which is a blunt instrument — "push the line up" and "start
+/// the whole side attacking" are not the same instruction, and a side that is
+/// already attacking had nothing left to say.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TacticalDial {
+    PressingIntensity(PressingIntensity),
+    DefensiveLine(DefensiveLine),
+    Width(TacticsPitchWidth),
+    BuildUpStyle(TacticsBuildUpStyle),
+    MarkingStyle(MarkingStyle),
+    Tempo(Tempo),
+    DefensiveShape(DefensiveShape),
+    CounterPressDuration(CounterPressDuration),
+    BreakSpeed(BreakSpeed),
+}
+
+impl TacticalDial {
+    /// Turn this one dial, leaving the other eight where they are.
+    pub fn set_on(self, tactics: &mut TacticsConfig) {
+        match self {
+            Self::PressingIntensity(value) => tactics.pressing_intensity = value,
+            Self::DefensiveLine(value) => tactics.defensive_line = value,
+            Self::Width(value) => tactics.width = value,
+            Self::BuildUpStyle(value) => tactics.build_up_style = value,
+            Self::MarkingStyle(value) => tactics.marking_style = value,
+            Self::Tempo(value) => tactics.tempo = value,
+            Self::DefensiveShape(value) => tactics.defensive_shape = value,
+            Self::CounterPressDuration(value) => tactics.counter_press_duration = value,
+            Self::BreakSpeed(value) => tactics.break_speed = value,
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------

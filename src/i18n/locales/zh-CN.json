@@ -662,6 +662,8 @@
     "removeFromLoanList": "从租借名单移除",
     "outOfPosition": "不对位",
     "outOfPositionTooltip": "球员正在其惯用角色之外的位置上场",
+    "pitchTokenTooltip": "状态 {{condition}}% · {{fit}}",
+    "pitchTokenConditionOnly": "状态 {{condition}}%",
     "dragHint": "将替补球员拖到球场上,或在位置间互换首发。",
     "benchDragHint": "使用替补列表将球员直接拖到球场上。",
     "dropPlayerHere": "将球员放在此处",
@@ -916,6 +918,7 @@
     "aTrainingDay": "训练日",
     "aRestDay": "休息日",
     "currentlyTraining": "当前训练内容:<strong>{{attrs}}</strong>,强度 <strong>{{intensity}}</strong>。",
+    "goalkeepersLabel": "门将",
     "recoveryNote": "球员每天都将专注于休息与状态恢复。",
     "effectiveFocus": "重点",
     "trainingAppliedNote": "训练会在你推进日期时的训练日生效。休息日可完全恢复。",
@@ -1265,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "报价历史",
+    "viewOfferHistory": "查看报价历史",
+    "offerRecordedOn": "报价日期：{{date}}。",
+    "loanOfferStartsOn": "租借于{{date}}开始。",
+    "dealAlreadyAgreed": "这名球员已达成转会协议，正在等待注册。",
+    "dealOwnPlayer": "这名球员已属于你的俱乐部。",
+    "dealActiveLoan": "这名球员目前正在外租。",
+    "dealRetired": "这名球员已退役。",
     "bidImpactWageBill": "每周工资总额 {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "每周工资预算 {{budget}}",
     "bidImpactIncomingWage": "球员周薪 {{wage}}",
@@ -1403,7 +1414,11 @@
     "transferFeedbackCounterHeadline": "他们希望得到更多才肯握手。",
     "transferFeedbackCounterDetail": "出价已足够接近,谈判仍在继续,但对方暗示的价位更接近 {{fee}}。",
     "transferFeedbackRejectedHeadline": "他们这一轮直接关闭了谈判。",
-    "transferFeedbackRejectedDetail": "该报价未能打动他们。你需要更有力的报价,接近 {{fee}},才能重启正式谈判。"
+    "transferFeedbackRejectedDetail": "该报价未能打动他们。你需要更有力的报价,接近 {{fee}},才能重启正式谈判。",
+    "registrationFailureInsufficientFunds": "注册失败：买方资金不足",
+    "registrationFailureLoanConflict": "注册失败：租借冲突",
+    "registrationFailurePlayerUnavailable": "注册失败：球员不可转会",
+    "registrationFailureRegistrationBlocked": "注册受阻"
   },
   "transferCentreWorld": {
     "title": "转会中心",
@@ -1614,6 +1629,7 @@
     "renewalFeedbackTenseDetail": "信任不足、士气低落或合同压力让对方阵营态度强硬。再来一次软弱的报价可能就会关上大门。",
     "renewalFeedbackAcceptedHeadline": "他们对这套方案满意,迅速达成一致。",
     "renewalFeedbackAcceptedDetail": "报价足够贴近他们的期望,谈判保持了建设性氛围。",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "对方已接受。这份合同使薪资总额超出董事会的薪资政策，但董事会予以批准：没有这名球员，阵容将低于俱乐部必须保留的最低人数。",
     "renewalFeedbackAcceptedLateHeadline": "他们接受了,但耐心已所剩无几。",
     "renewalFeedbackAcceptedLateDetail": "经过一番艰难交涉才敲定了协议。对方阵营已接近退出谈判。",
     "renewalFeedbackBlockedHeadline": "他们暂时不打算重开谈判。",
@@ -1628,6 +1644,8 @@
     "attributes": "属性",
     "attributesHidden": "属性隐藏",
     "scoutToView": "球探考察该球员或签下他后可查看详细属性。",
+    "scoutedOn": "{{date}} 已球探考察",
+    "scoutReportOutOfDate": "已过期",
     "seasonStats": "赛季数据",
     "advancedStats": "高级数据",
     "shots": "射门",
@@ -1665,6 +1683,19 @@
     "movementLoanToBuy": "租借买断",
     "movementFreeAgentSigning": "自由球员",
     "movementReleased": "解约离队",
+    "movementRenewal": "续约",
+    "movementRetired": "退役",
+    "movementInitialContract": "初始合同",
+    "movementReleasedExpired": "合同到期",
+    "movementReleasedTerminated": "合同解除",
+    "movementContractRange": "合同 {{start}} 至 {{end}}",
+    "movementContractUntil": "合同至 {{end}}",
+    "movementContractFrom": "合同自 {{start}} 起",
+    "movementWage": "周薪 {{wage}}",
+    "movementDateUnknown": "日期未知",
+    "movementLegacyContract": "来自合同历史出现之前的存档",
+    "movementRenewedWith": "与{{club}}续约",
+    "movementAtClub": "效力于{{club}}",
     "movementFromTo": "{{from}} 转至 {{to}}",
     "movementTo": "加盟 {{to}}",
     "movementFrom": "离开 {{from}}",
@@ -1988,7 +2019,7 @@
     "postMatchTeamTalk": "赛后讲话",
     "addressPlayers": "在赛后对球员发表讲话。",
     "matchOver": "比赛结束",
-    "ratings": "{{team}} 评分",
+    "performance": "{{team}} 表现",
     "motm": "全场最佳",
     "roundSummary": "本轮综述",
     "roundSummaryUnavailable": "本轮综述暂不可用。",
@@ -2498,7 +2529,7 @@
       }
     },
     "matchReport": "比赛报告",
-    "playerRatings": "球员评分",
+    "playerPerformance": "球员表现",
     "tacticsTab": "战术",
     "goalSources": "进球来源",
     "openPlay": "进攻中的进球",
@@ -2552,6 +2583,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "该球员无法离队：阵容将低于俱乐部必须保留的最低人数。涉及位置：{{group}}。",
+        "wouldLeaveSeniorsShort": "该球员无法离队：俱乐部一线队将少于 {{floor}} 名球员，低于俱乐部必须保留的最低人数。"
+      },
       "noActiveGameSession": "当前没有活动中的游戏会话",
       "noActiveSaveSession": "当前没有活动中的存档会话",
       "saveNotFound": "未找到存档“{{saveId}}”。",
@@ -2581,6 +2616,7 @@
       "managedTeamNotFound": "未找到你执教的球队",
       "unknownFacilityType": "未知的设施类型",
       "liveMatch": {
+        "inProgress": "比赛正在进行。请先结束比赛，再保存、推进时间或开始另一场比赛。",
         "noLeague": "该比赛暂无联赛数据。",
         "fixtureNotFound": "未找到所选比赛。",
         "fixtureNotScheduled": "这场比赛已不在赛程中，无法进行。",
@@ -2633,9 +2669,18 @@
         "potentialBelowOverall": "“{{entity}}”的潜力为 {{potential}}，低于其综合评分 {{ability}}。球员的上限不能低于其当前能力。",
         "potentialBelowAttributes": "“{{entity}}”的潜力为 {{potential}}，低于其属性得出的 {{ability}}。球员的上限不能低于其当前能力。",
         "potentialBelowDefaultAbility": "“{{entity}}”的潜力为 {{potential}}，低于未填写综合评分和属性时使用的默认能力 {{ability}}。",
+        "invalidDate": "“{{entity}}”的 {{field}} 为 “{{value}}”，这不是有效日期。请使用 YYYY-MM-DD 格式。",
+        "contractEndAndLength": "“{{entity}}”同时设置了 contractEnd 和 contractLength。请只保留其中一个：它们用两种方式表达同一件事。",
+        "contractLengthOutOfRange": "“{{entity}}”的 contractLength 为 {{length}}。合同期限须为 1 到 {{max}} 年。",
+        "contractEndNotAfterStart": "“{{entity}}”的合同结束日期（{{end}}）不晚于开始日期（{{start}}）。",
+        "playerFieldOutOfRange": "“{{entity}}”的 {{field}} 超出范围。它必须介于 {{min}} 到 {{max}} 之间。",
+        "alternatePositionInvalid": "“{{entity}}”将 {{position}} 列为备选位置。备选位置必须是具体位置，不能与球员自身位置相同，且只能列出一次。",
+        "identityNeedsSpecificPosition": "“{{entity}}”设置了非惯用脚或备选位置，但 {{position}} 是一个笼统的分组，游戏会根据球员属性重新计算并丢弃你写下的内容。请为球员指定具体位置，例如 CentralMidfielder 或 Striker。",
+        "careerEntryNeedsClub": "“{{entity}}”有一条生涯记录（第 {{row}} 行）没有填写俱乐部名称。",
         "unsupportedFormatVersion": "此扩展包由更新版本的游戏创建（格式 {{version}}，本版本支持 {{supported}}）。请更新游戏后再打开。"
       },
       "competitionDef": {
+        "invalidCalendar": "赛事日历无效：请检查联赛系列、级别、阶段和结束日期。",
         "invalidEmbedded": "该世界的赛事定义无效，无法加载。",
         "invalidStandalone": "所选的赛事定义文件无效。",
         "parseFailed": "无法将赛事定义文件解析为 JSON。",
@@ -2653,6 +2698,7 @@
         "unknownCountry": "未知国家“{{country}}”。",
         "groupConfigOnNonGroupFormat": "分组设置仅适用于小组赛加淘汰赛格式。",
         "groupSizeTooSmall": "小组规模 {{groupSize}} 太小（至少 2）。",
+        "invalidGroupQualification": "这些参赛球队无法满足小组晋级设置。",
         "zeroLegs": "赛事至少需要一回合。",
         "noParticipants": "没有参赛者：请提供明确列表或选择器。",
         "bothParticipantSources": "请提供明确列表或选择器，二者不可兼用。",
@@ -2749,6 +2795,7 @@
         "transferBudgetTooLow": "转会预算过低",
         "playerNotOwnedByUser": "未找到该球员，或该球员不属于你",
         "offerNotPending": "未找到报价，或该报价已不再处于待处理状态",
+        "loanBorrowerCannotAffordWages": "租借俱乐部负担不起这部分薪资。其每周薪资预算为 {{budget}}。",
         "counterOfferMustExceedCurrentOffer": "还价必须高于当前报价",
         "loanCounterMustImproveTerms": "租借还价必须优于当前报价",
         "playerNotLoanListed": "该球员未被列入租借名单",
@@ -2839,22 +2886,6 @@
         "randomDescription": "一个在欧洲各地随机生成、包含 {{teamCount}} 支球队的联赛",
         "exportedName": "导出的世界",
         "exportedDescription": "从存档导出的世界，包含 {{teamCount}} 支球队"
-      },
-      "welcome": {
-        "subject0": "欢迎来到{{team}}",
-        "subject1": "{{team}}的新时代",
-        "subject2": "{{team}}期待您的领导",
-        "body0": "{{team}}董事会很高兴欢迎您出任新任经理。\n\n我们对您的任期寄予厚望,相信您能带领俱乐部走向辉煌。您的首要任务是审视阵容,并为即将到来的赛季制定战术方案。\n\n祝您好运。",
-        "body1": "谨代表全体{{team}}大家庭,我们非常高兴地宣布您被任命为经理。\n\n球迷们都迫切地想看到您为球队带来的构想。请抽时间评估阵容、审视我们的财务状况,并确定您的战术思路。\n\n董事会将全力支持您。",
-        "body2": "欢迎来到{{team}}!支持者和工作人员都对您执教下的未来充满期待。\n\n建议您先从审视阵容的优势与不足开始,随后确定偏好的阵型和训练计划。\n\n即将到来的赛季将是一次真正的考验——请让我们为您骄傲。",
-        "actionReview": "审视阵容",
-        "actionThank": "感谢董事会"
-      },
-      "schedule": {
-        "subject": "赛季日程已公布",
-        "body0": "{{league}}的赛程已公布。本赛季将于{{start}}开赛。\n\n请查看赛程表,确保您的阵容已为未来的挑战做好准备。季前准备至关重要。",
-        "body1": "赛程表已确认!{{league}}赛季将于{{start}}拉开帷幕。\n\n请仔细研究揭幕战——一个强势的开局能为整个赛季定下基调。确保您的核心球员状态良好。",
-        "actionView": "查看赛程"
       },
       "preMatch": {
         "subject": "即将到来:对阵{{opponent}}({{venue}})",
@@ -3240,6 +3271,28 @@
         "subject": "{{player}} 签约 {{team}}",
         "body": "{{player}} 以自由球员身份加盟 {{team}}，签下了一份 {{years}} 年合同。"
       },
+      "squadBelowFloor": {
+        "subject": "阵容低于最低人数：{{group}}",
+        "body": "老板，我们人手不够了。{{group}}：注册 {{have}} 人，而俱乐部至少需要 {{floor}} 人。请在下一场比赛前补充球员——如果开球时我们仍无法派出一支球队，我将不得不从青训提拔球员或签下自由球员，以确保比赛能够进行。",
+        "totalSubject": "阵容低于最低规模",
+        "totalBody": "老板，一线队只剩 {{have}} 名球员，而俱乐部至少需要 {{floor}} 人才能维持运转。请在下一场比赛前补充球员——如果开球时我们仍无法派出一支球队，我将不得不从青训提拔球员或签下自由球员，以确保比赛能够进行。"
+      },
+      "squadToppedUp": {
+        "subject": "紧急签约：{{team}}",
+        "body": "老板，我们的球员不足以派出一支球队，所以我在开球前将这些球员调入一线队，先从青训提拔，再签下自由球员：{{players}}。"
+      },
+      "youthIntake": {
+        "subject": "青训新人：{{team}}",
+        "body": "老板，本赛季的青训新人已加入青训营：{{players}}。",
+        "bodyPartlyRefused": "老板，本赛季青训营新人：{{players}}。董事会不愿承担其余青训新人的薪水。",
+        "bodyAllRefused": "老板，董事会不愿承担本赛季青训新人的薪水，所以没有人加入青训营。"
+      },
+      "squadCannotBeFilled": {
+        "subject": "无人可用：{{group}}",
+        "body": "老板，我们无法补齐阵容，也没有可以引进的人。{{group}}：俱乐部必须保留 {{floor}} 人，目前只有 {{have}} 人，而青训和自由球员市场都没有人能填补空缺。",
+        "totalSubject": "无人可补齐阵容",
+        "totalBody": "老板，一线队只剩 {{have}} 名球员，少于俱乐部必须保留的 {{floor}} 人，而青训和自由球员市场都没有人能填补空缺。"
+      },
       "delegatedRenewals": {
         "subject": "助理教练报告——合同续约",
         "body": "老板,我梳理了{{team}}的续约名单。{{successes}}个已完成,{{stalled}}个仍在推进,{{failures}}个未成。",
@@ -3251,6 +3304,7 @@
         "notes": {
           "managerBlocked": "您交代过暂不重启合同谈判。",
           "completed": "我无需您亲自出面便已谈妥此人。",
+          "completedToKeepSquadFloor": "已谈妥，超出了董事会的薪资政策。董事会予以批准，因为没有这名球员，我们的阵容将低于最低人数。",
           "beyondLimits": "他们团队要求约{{wage}}/周、{{years}}年,超出了我可授权的范围。",
           "boardWagePolicy": "董事会薪资政策阻止了此次续约。在恢复期内,每周薪资总额需维持在{{budget}}左右。",
           "prefersManager": "他们愿意听取建议,但仍要求约{{wage}}/周、{{years}}年,且希望直接与您沟通。",
@@ -3332,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "转会完成：{{player}}",
-        "body": "{{player}}的转会已以{{fee}}完成。\n\n该球员已加入球队并可供选择上场。"
+        "body": "{{player}}的转会已以{{fee}}完成。\n\n该球员已加入球队并可供选择上场。",
+        "bodySold": "{{player}}转会至{{buyer}}已完成，转会费为{{fee}}。该球员已离开球队并加入{{buyer}}。"
+      },
+      "transferAgreed": {
+        "subject": "转会已达成：{{player}}",
+        "body": "{{player}}从{{seller}}转会至{{buyer}}的协议已达成，转会费为{{fee}}。预计于{{start}}注册。"
       },
       "transferOffer": {
         "subject": "收到对{{player}}的报价",
@@ -3343,6 +3402,11 @@
         "subject": "对 {{player}} 的转会兴趣",
         "body": "对 {{player}} 提出有效报价的俱乐部：{{n}}。最新询问：{{team}}（{{fee}}）。请在转会标签页查看报价并回应。",
         "actionReview": "查看报价"
+      },
+      "loanAgreed": {
+        "subject": "租借已达成：{{player}}",
+        "bodyWithOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。买断选项：{{fee}}。",
+        "bodyNoOption": "{{player}}将从{{parent}}租借至{{borrower}}，租期从{{start}}至{{end}}。{{borrower}}将承担{{contribution}}%的工资。无买断选项。"
       },
       "loanOffer": {
         "subject": "收到对{{player}}的租借报价",
@@ -3357,6 +3421,13 @@
       "loanBuyOptionExercised": {
         "subject": "已执行买断选项:{{player}}",
         "body": "{{player}}的买断选项已按{{fee}}执行。这笔租借现已转为永久转会。"
+      },
+      "transferRegistrationFailed": {
+        "subject": "转会注册失败：{{player}}",
+        "InsufficientFunds": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为买方的现金或转会预算已不足以支付转会费。此次转会未支付任何转会费。",
+        "LoanConflict": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员仍在租借中，或已有一份等待注册的租借协议。此次转会未支付任何转会费。",
+        "PlayerUnavailable": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员已无法从出售方俱乐部转会。此次转会未支付任何转会费。",
+        "RegistrationBlocked": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为某项注册条件已不再满足。此次转会未支付任何转会费。"
       }
     },
     "news": {
@@ -3856,6 +3927,23 @@
     "playerFoot": "惯用脚",
     "playerDateOfBirth": "出生日期",
     "playerAge": "年龄",
+    "playerAgeHelp": "未填写出生日期时使用：球员在生涯开始当天是这个年龄，无论是哪一年。",
+    "playerContractSection": "合同",
+    "playerContractStart": "合同开始",
+    "playerContractEnd": "合同结束",
+    "playerContractLength": "合同年限（年）",
+    "playerContractLengthHelp": "结束日期的替代方式。若有开始日期则从开始日期起算，否则从生涯开始的年份起算，因此球员不会一开始就合同到期。结束日期和年限只填一项。",
+    "playerWageHelp": "每周。留空则根据球员身价推算。",
+    "playerStatusSection": "状态",
+    "playerAlternatePositions": "备选位置",
+    "playerAlternatePositionsHelp": "该球员还能踢的其他位置。仅适用于 Striker 这类具体位置：Forward 这类大类位置会根据属性自动推算。",
+    "playerCareerSection": "生涯记录",
+    "careerEntryRow": "生涯条目",
+    "careerEntryClubName": "俱乐部名称",
+    "careerEntryPackageTeam": "本包内的俱乐部",
+    "careerEntryNoPackageTeam": "不在本包内",
+    "addCareerEntry": "添加赛季",
+    "removeCareerEntry": "移除赛季",
     "playerOverall": "综合评分 (1–99)",
     "playerPotential": "潜力（1–99）",
     "playerPotentialHelp": "这名球员能达到的高度。留空则由引擎根据其能力和年龄生成上限。上限不能低于当前能力，已达到上限的球员将不再成长。",

@@ -1,7 +1,8 @@
 import type { GameStateData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 import { formatDateShort, getUserCompetition } from "../../lib/helpers";
-import { isSeniorSquadPlayer } from "../../lib/playerSquad";
+import { useFetchedSquad } from "../../hooks/useFetchedSquad";
+import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { resolveSeasonContext } from "../../lib/seasonContext";
 import NextMatchDisplay from "../NextMatchDisplay";
 import { resolveBoardObjective, resolveMessage, resolveNewsArticle } from "../../utils/backendI18n";
@@ -66,9 +67,16 @@ export default function HomeTab({
 }: HomeTabProps) {
   const { t, i18n } = useTranslation();
   const myTeam = gameState.teams.find((tm) => tm.id === gameState.manager.team_id);
+  const [fetchedSquad] = useFetchedSquad(
+    myTeam?.id ?? null,
+    gameState.clock.current_date,
+    gameState,
+  );
   const league = getUserCompetition(gameState);
   const roster = myTeam
-    ? gameState.players.filter((p) => p.team_id === myTeam.id && isSeniorSquadPlayer(p))
+    ? (fetchedSquad ?? gameState.players).filter(
+        (p) => p.team_id === myTeam.id && isFirstTeamSquadPlayer(p),
+      )
     : [];
   const { avgCondition, avgOvr, coldPlayers, exhaustedCount, hotPlayers, unavailablePlayers } =
     getHomeRosterOverview(roster);

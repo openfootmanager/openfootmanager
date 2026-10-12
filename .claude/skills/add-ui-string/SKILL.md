@@ -8,9 +8,29 @@ allowed-tools: Read, Edit, Write, Grep, Glob, Bash(npm exec --no -- vitest run s
 
 # Adding a user-facing string
 
+Follow the root Code quality section; use `i18n-auditor` for translation review and
+`ui-accessibility-reviewer` for changed accessible names. `/write-tests` and `ofm-test-reviewer`
+provide scenario and regression evidence; locale coverage alone does not prove wiring.
+
 OpenFoot Manager ships in **12 locales**. A string that exists only in English is a broken
 build, not a TODO. This is the project's most frequently violated rule, so follow the steps in
 order and finish with the tests.
+
+## First: will a player read it?
+
+That is the test, and it is narrower than "a human will read it". If the answer is yes — anywhere in
+the UI, or a backend error the UI surfaces — this skill applies and the string needs all 12 locales.
+
+If the only reader is an **AI agent** (the MCP server's tool output) or a **modder at a terminal**
+(`ofm-cli` output and its scaffold templates, `docs/`), it stays **English** and this skill does not
+apply. The boundary inside the MCP server: its own private errors reach only the agent, through
+`tools.rs::err_result`. But an MCP function that propagates an error from a shared `application::`
+service which also backs a Tauri command (such as `application::live_match::*`) must keep the
+`be.error.*` key, because the UI shows that error on the Tauri path.
+
+Getting this wrong in the cautious direction is not free — a key no player will ever see still costs
+twelve translations and a row in every locale file, forever. Root `CLAUDE.md` rule 2 has the table;
+if a surface is genuinely ambiguous, ask.
 
 ## The 12 locales
 

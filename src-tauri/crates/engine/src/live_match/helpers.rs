@@ -107,12 +107,10 @@ impl LiveMatchState {
     }
 
     pub(super) fn pick_goalkeeper(&self, side: Side) -> PlayerSnap {
-        let team = self.team_ref(side);
-        for p in &team.players {
-            if p.position == Position::Goalkeeper && !self.sent_off.contains(&p.id) {
-                return PlayerSnap::from(p);
-            }
+        if let Some(keeper) = self.keeper_on_the_pitch(side) {
+            return PlayerSnap::from(keeper);
         }
+        let team = self.team_ref(side);
         // No goalkeeper available — pick first available
         for p in &team.players {
             if !self.sent_off.contains(&p.id) {
@@ -187,11 +185,26 @@ impl LiveMatchState {
     }
 
     /// Classify a goal about to be scored by `side`, using the CURRENT (pre-increment) score.
-    pub(super) fn goal_context(&self, side: Side) -> GoalContext {
-        let (own, opp) = match side {
+    /// This side's goals, then the opponent's.
+    pub(crate) fn score_for(&self, side: Side) -> (u8, u8) {
+        match side {
             Side::Home => (self.home_score, self.away_score),
             Side::Away => (self.away_score, self.home_score),
-        };
+        }
+    }
+
+    /// The goalkeeper this side still has on the pitch: one who has not been
+    /// sent off. The one answer to "is anybody in goal", for choosing who
+    /// faces a shot, for putting a keeper on, and for the AI deciding it must.
+    pub(crate) fn keeper_on_the_pitch(&self, side: Side) -> Option<&PlayerData> {
+        self.team_ref(side)
+            .players
+            .iter()
+            .find(|p| p.position == Position::Goalkeeper && !self.sent_off.contains(&p.id))
+    }
+
+    pub(super) fn goal_context(&self, side: Side) -> GoalContext {
+        let (own, opp) = self.score_for(side);
         let own_new = own + 1;
         if own == 0 && opp == 0 {
             GoalContext::Opener

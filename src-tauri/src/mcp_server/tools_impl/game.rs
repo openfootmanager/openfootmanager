@@ -1,5 +1,10 @@
 //! MCP tool implementations: game
 
+use mcp_results::game::{
+    GameCreated, GameSaved, ReturnedToMenu, SaveDeleted, SaveList, SaveLoaded, SaveSummary,
+    TeamSelected, WorldDatabase, WorldDatabases, WorldExported,
+};
+
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::require_game;
 use std::sync::Arc;
@@ -7,7 +12,7 @@ use tauri::Manager as TauriManager;
 
 // ─── game_list_saves ────────────────────────────────────────────────────────
 
-pub fn game_list_saves(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn game_list_saves(ctx: Arc<McpContext>) -> Result<SaveList, String> {
     let mut sm = ctx
         .save_manager_state
         .0
@@ -15,29 +20,24 @@ pub fn game_list_saves(ctx: Arc<McpContext>) -> Result<String, String> {
         .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
     let saves = sm.load_saves()?;
 
-    if saves.is_empty() {
-        return Ok("## Saves\n\nNo saves found.".to_string());
-    }
-
-    let mut lines = vec![
-        "| ID | Manager | Last Played |".to_string(),
-        "|---|---|---|".to_string(),
-    ];
-    for save in &saves {
-        lines.push(format!(
-            "| {} | {} | {} |",
-            save.id, save.manager_name, save.last_played_at
-        ));
-    }
-
-    Ok(format!("## Saves\n\n{}", lines.join("\n")))
+    Ok(SaveList {
+        saves: saves
+            .into_iter()
+            .map(|save| SaveSummary {
+                id: save.id,
+                manager_name: save.manager_name,
+                last_played_at: save.last_played_at,
+            })
+            .collect(),
+    })
 }
 
 // ─── game_delete_save ───────────────────────────────────────────────────────
 
 // ─── game_save ──────────────────────────────────────────────────────────────
 
-pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn game_save(ctx: Arc<McpContext>) -> Result<GameSaved, String> {
+    crate::application::live_session::ensure_idle(&ctx.state_manager)?;
     let save_id = ctx
         .state_manager
         .get_save_id()
@@ -55,10 +55,7 @@ pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
         .get_game(|game| game.clock.current_date.format("%d %B %Y").to_string())
         .unwrap_or_default();
 
-    Ok(format!(
-        "## Game Saved\n\n**Save ID**: {}\n**Date**: {}",
-        save_id, date
-    ))
+    Ok(GameSaved { save_id, date })
 }
 
 // ─── squad_set_starting_xi ─────────────────────────────────────────────────
@@ -67,75 +64,63 @@ pub fn game_save(ctx: Arc<McpContext>) -> Result<String, String> {
 
 pub fn game_new(
     ctx: Arc<McpContext>,
-    first_name: String,
-    last_name: String,
-    nationality: String,
-    world_source: Option<String>,
-    team_id: Option<String>,
-) -> Result<String, String> {
-    // Validate inputs
-    if first_name.trim().is_empty() || last_name.trim().is_empty() {
+    request: crate::commands::game::McpNewCareer<'_>,
+) -> Result<GameCreated, String> {
+    let created = create_career(&ctx.state_manager, &ctx.save_manager_state, &request)?;
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+    Ok(created)
+}
+
+fn create_career(
+    state_manager: &ofm_core::state::StateManager,
+    save_manager_state: &crate::SaveManagerState,
+    request: &crate::commands::game::McpNewCareer<'_>,
+) -> Result<GameCreated, String> {
+    let blank = |name: Option<&str>| name.is_some_and(|name| name.trim().is_empty());
+    if blank(request.manager_first_name) || blank(request.manager_last_name) {
         return Err("be.error.createManager.nameRequired".to_string());
     }
-    if nationality.trim().is_empty() {
+    if blank(request.manager_nationality) {
         return Err("be.error.createManager.nationalityRequired".to_string());
     }
 
-    // Determine world path
-    let world_path = world_source.unwrap_or_default();
-
-    // Use the MCP bootstrap path to create the game
-    let result = crate::commands::game::bootstrap_game_for_mcp(
-        &ctx.state_manager,
-        &ctx.save_manager_state,
-        &world_path,
-        team_id.as_deref(),
-        &first_name,
-        &last_name,
-        &nationality,
-    );
-
-    match result {
-        Ok(save_id) => {
-            {
-                use tauri::Emitter;
-                let _ = ctx.app_handle.emit("game-state-changed", ());
-            }
-            Ok(format!(
-                "## Game Created\n\nManager: {} {}\nNationality: {}\nSave ID: {}\n\nUse `info_game_summary` to see your current state.",
-                first_name, last_name, nationality, save_id
-            ))
-        }
-        Err(e) => Err(e),
-    }
+    let save_id =
+        crate::commands::game::start_career_for_mcp(state_manager, save_manager_state, request)?;
+    Ok(GameCreated {
+        manager_first_name: request.manager_first_name.unwrap_or("Agent").to_string(),
+        manager_last_name: request.manager_last_name.unwrap_or("Manager").to_string(),
+        nationality: request.manager_nationality.unwrap_or("England").to_string(),
+        save_id,
+    })
 }
 
 // ─── game_select_team ───────────────────────────────────────────────────────
 
 // ─── game_select_team ───────────────────────────────────────────────────────
 
-pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<String, String> {
+pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<TeamSelected, String> {
     let mut game = require_game(&ctx.state_manager)?;
 
     if game.manager.team_id.is_some() {
         return Err("be.error.mcp.teamAlreadyAssigned".to_string());
     }
 
-    // Use bootstrap_team_selection logic
     let current_stats_state = ctx
         .state_manager
         .get_stats_state(|s| s.clone())
         .unwrap_or_default();
 
-    // Same dating as the Tauri command. This tool has never aligned the clock to the
-    // club's season, which is a divergence from `select_team` left as it was.
-    crate::commands::game::date_opening_contracts(&mut game, None);
-
-    let start_phase = crate::commands::game::start_phase_for_game(&game);
-    let stats_state = crate::commands::game::bootstrap_team_selection(
+    // The same career start as the app's `select_team`, because it is the same
+    // function. This tool used to do a subset of it: it never aligned the clock to
+    // the club's season, never resolved the simulation scope for the club, and
+    // never made positions granular, so an agent's career differed from a player's.
+    let stats_state = crate::commands::game::begin_career(
         &mut game,
         &team_id,
-        start_phase,
+        crate::commands::game::CareerScope::default(),
         current_stats_state,
     )?;
 
@@ -149,30 +134,28 @@ pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<String,
         .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
     let save_id = crate::commands::game::create_new_save(&mut sm, &game, &stats_state, &save_name)?;
 
-    // Deliberately still clone-and-set rather than `update_game`: the new save
-    // is written to disk above, and doing that inside the closure would hold the
-    // game mutex across filesystem I/O. There is no concurrency exposure here
-    // anyway — this is career creation, before any other tool can act on a game.
-    ctx.state_manager.set_save_id(save_id.clone());
-    ctx.state_manager.set_game(game);
-    ctx.state_manager.set_stats_state(stats_state);
+    // Commit after save creation, without holding the game mutex across I/O.
+    // Career installation serializes publication with a concurrent start/finish.
+    crate::application::career::install_career(
+        &ctx.state_manager,
+        game,
+        stats_state,
+        Some(save_id.clone()),
+    );
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Team Selected\n\n**Save ID**: {}\nTeam assigned and game saved.",
-        save_id
-    ))
+    Ok(TeamSelected { save_id })
 }
 
 // ─── game_load_save ─────────────────────────────────────────────────────────
 
 // ─── game_load_save ─────────────────────────────────────────────────────────
 
-pub fn game_load_save(ctx: Arc<McpContext>, save_id: String) -> Result<String, String> {
+pub fn game_load_save(ctx: Arc<McpContext>, save_id: String) -> Result<SaveLoaded, String> {
     let mut sm = ctx
         .save_manager_state
         .0
@@ -185,73 +168,53 @@ pub fn game_load_save(ctx: Arc<McpContext>, save_id: String) -> Result<String, S
 
     let mgr_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
 
-    // `set_game` is correct here and is not the clone-mutate-replace pattern:
-    // this game came off disk, so there is no prior state to lose an update to.
-    ctx.state_manager.set_save_id(save_id.clone());
-    ctx.state_manager.set_game(game);
-    ctx.state_manager.set_stats_state(stats_state);
+    // A loaded career must not inherit the previous career's transient session.
+    crate::application::career::install_career(
+        &ctx.state_manager,
+        game,
+        stats_state,
+        Some(save_id.clone()),
+    );
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Save Loaded\n\n**Save ID**: {}\n**Manager**: {}\n**Date**: {}",
+    Ok(SaveLoaded {
         save_id,
-        mgr_name,
-        ctx.state_manager
+        manager_name: mgr_name,
+        date: ctx
+            .state_manager
             .get_game(|g| g.clock.current_date.format("%d %B %Y").to_string())
-            .unwrap_or_default()
-    ))
+            .unwrap_or_default(),
+    })
 }
 
 // ─── game_exit ──────────────────────────────────────────────────────────────
 
-pub fn game_exit(ctx: Arc<McpContext>) -> Result<String, String> {
-    let saved = if ctx
-        .state_manager
-        .get_save_id()
-        .filter(|id| !id.is_empty())
-        .is_some()
-    {
-        let mut sm = ctx
-            .save_manager_state
-            .0
-            .lock()
-            .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
-        crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm)?;
-        true
-    } else {
-        false
-    };
-
-    ctx.state_manager.clear_game();
-    ctx.state_manager.set_save_id(String::new());
+pub fn game_exit(ctx: Arc<McpContext>) -> Result<ReturnedToMenu, String> {
+    let mut sm = ctx
+        .save_manager_state
+        .0
+        .lock()
+        .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+    let saved = crate::application::saving::exit_to_menu(&ctx.state_manager, &mut sm)?;
+    drop(sm);
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    if saved {
-        Ok(
-            "## Returned to Menu\n\nGame saved and cleared. Use `game_load_save` to resume."
-                .to_string(),
-        )
-    } else {
-        Ok(
-            "## Returned to Menu\n\nGame cleared without saving. Use `game_load_save` to resume."
-                .to_string(),
-        )
-    }
+    Ok(ReturnedToMenu { saved })
 }
 
 // ─── game_export_world ──────────────────────────────────────────────────────
 
 /// Safe export that writes to the app-controlled data directory.
 /// The filename is auto-generated from the current date.
-pub fn game_export_world_safe(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn game_export_world_safe(ctx: Arc<McpContext>) -> Result<WorldExported, String> {
     let app_data_dir = ctx
         .app_handle
         .path()
@@ -268,15 +231,14 @@ pub fn game_export_world_safe(ctx: Arc<McpContext>) -> Result<String, String> {
 
     crate::commands::world::export_world_database_internal(&ctx.state_manager, &export_path)?;
 
-    Ok(format!(
-        "## World Exported\n\nWritten to: {}",
-        export_path.display()
-    ))
+    Ok(WorldExported {
+        path: export_path.display().to_string(),
+    })
 }
 
 // ─── game_delete_save ───────────────────────────────────────────────────────
 
-pub fn game_delete_save(ctx: Arc<McpContext>, save_id: String) -> Result<String, String> {
+pub fn game_delete_save(ctx: Arc<McpContext>, save_id: String) -> Result<SaveDeleted, String> {
     // Prevent deleting the currently active save
     if let Some(active_id) = ctx.state_manager.get_save_id() {
         if active_id == save_id {
@@ -296,31 +258,24 @@ pub fn game_delete_save(ctx: Arc<McpContext>, save_id: String) -> Result<String,
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Save Deleted\n\nSave {} has been permanently deleted.",
-        save_id
-    ))
+    Ok(SaveDeleted { save_id })
 }
 
 // ─── game_list_world_databases ──────────────────────────────────────────────
 
-pub fn game_list_world_databases(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn game_list_world_databases(ctx: Arc<McpContext>) -> Result<WorldDatabases, String> {
     let databases = crate::commands::world::list_world_databases(ctx.app_handle.clone())?;
 
-    if databases.is_empty() {
-        return Ok("## World Databases\n\nNo world databases found.".to_string());
-    }
-
-    let mut lines = vec![
-        "| ID | Name | Teams | Players | Source |".to_string(),
-        "|---|---|---|---|---|".to_string(),
-    ];
-    for db in &databases {
-        lines.push(format!(
-            "| {} | {} | {} | {} | {} |",
-            db.id, db.name, db.team_count, db.player_count, db.source
-        ));
-    }
-
-    Ok(format!("## World Databases\n\n{}\n\nUse `game_new` with `world_source` set to a database path to start with that world.", lines.join("\n")))
+    Ok(WorldDatabases {
+        databases: databases
+            .into_iter()
+            .map(|db| WorldDatabase {
+                id: db.id,
+                name: db.name,
+                team_count: db.team_count,
+                player_count: db.player_count,
+                source: db.source,
+            })
+            .collect(),
+    })
 }

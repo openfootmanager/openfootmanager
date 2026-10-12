@@ -16,7 +16,7 @@ pub(crate) fn owned_player<'a>(game: &'a Game, player_id: &str) -> Result<&'a Pl
         .find(|candidate| candidate.id == player_id)
         .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
-    if contract_owner_team_id(player) != Some(manager_team_id) {
+    if player.contract_club_id() != Some(manager_team_id) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 
@@ -35,19 +35,11 @@ pub(crate) fn owned_player_index(game: &Game, player_id: &str) -> Result<usize, 
         .position(|candidate| candidate.id == player_id)
         .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
-    if contract_owner_team_id(&game.players[player_index]) != Some(manager_team_id) {
+    if game.players[player_index].contract_club_id() != Some(manager_team_id) {
         return Err(ERR_PLAYER_NOT_OWNED_BY_CLUB.to_string());
     }
 
     Ok(player_index)
-}
-
-pub(crate) fn contract_owner_team_id(player: &Player) -> Option<&str> {
-    player
-        .active_loan
-        .as_ref()
-        .map(|loan| loan.parent_team_id.as_str())
-        .or(player.team_id.as_deref())
 }
 
 pub(crate) fn backend_text_with_param(key: &str, param_name: &str, param_value: &str) -> String {
@@ -92,8 +84,8 @@ pub(crate) fn expected_wage(player: &Player, team: &Team, current_date: NaiveDat
 }
 
 pub(crate) fn reference_player_wage(player: &Player) -> u32 {
-    if player.wage > 0 {
-        return player.wage;
+    if player.wage() > 0 {
+        return player.wage();
     }
 
     let derived_wage = (player.market_value / MARKET_VALUE_TO_WAGE_RATIO).max(MINIMUM_DEFAULT_WAGE);
@@ -159,7 +151,7 @@ pub(crate) fn player_age_on(current_date: NaiveDate, date_of_birth: &str) -> i32
 }
 
 pub(crate) fn remaining_contract_days(player: &Player, current_date: NaiveDate) -> i64 {
-    contract_days_remaining(player.contract_end.as_deref(), current_date)
+    contract_days_remaining(player.contract_end(), current_date)
         .unwrap_or(0)
         .max(0)
 }

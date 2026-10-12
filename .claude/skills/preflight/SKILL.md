@@ -1,161 +1,99 @@
 ---
 name: preflight
-description: Run the full local verification gauntlet before opening a pull request — type check, frontend tests, build, backend tests, clippy, and the i18n audit — in cheapest-first order, and confirm the PR hygiene items (branch, conventional commit, linked issue, AI disclosure).
-when_to_use: Before opening or updating a pull request, before asking for review, or any time you want to know whether the change is actually ready.
-allowed-tools: Read, Grep, Glob, Bash(npm test), Bash(npm run preflight), Bash(npm run build), Bash(npm run lint), Bash(npm run format:check), Bash(npm run knip), Bash(npm run audit:i18n), Bash(npm exec --no -- vitest run*), Bash(npm exec --no -- tsc --noEmit), Bash(cargo test*), Bash(cargo build*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
+description: Verify a pull request with the frontend scripts, default and MCP backend tests and clippy, formatting, architecture checks and review evidence. Report results and unrun checks without claiming a local pass guarantees CI.
+when_to_use: Before opening or updating a pull request or asking for review.
+allowed-tools: Read, Grep, Glob, Bash(npm ci), Bash(npm test*), Bash(npm run*), Bash(cargo test*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(git status), Bash(git diff*), Bash(git log*), Bash(git branch*)
 ---
 
 # Preflight
 
-Run these in order. Each is cheaper than the one after it, so a failure costs you the least
-possible time. Stop at the first failure, fix it, restart from that step.
+Read the root Code quality section first. It names the limits and which gates are live. Verify
+without mutating formatting or weakening tests. Stop on a failure, fix within scope, then resume
+from that step; disclose unrelated blockers. Never report an unrun check as passing.
 
-## 1. Scope check (seconds)
+## 1. Scope and install
 
 ```bash
 git branch --show-current
 git status --short
-git diff --stat develop...HEAD
+git diff --stat upstream/develop...HEAD
+npm ci
 ```
 
-- Not on `develop`. If you are, branch now — never commit to `develop` directly.
-- No stray files: no `exported_world.json`, no `.ofm` build output, no `*.local`, no editor cruft.
-- The diff is the change you meant to make. Unrelated reformatting is noise that hides the real
-  edit; drop it.
+Work on a branch off current `upstream/develop`, targeting `develop`. Check for unrelated files,
+exported worlds, local settings and formatting churn. `npm ci` precedes frontend commands in a
+fresh checkout. Use `npm run <script>`, never `npx`: a cached namesake can silently run the wrong tool.
 
-## 2. Types (fast)
-
-```bash
-npm exec --no -- tsc --noEmit
-```
-
-## 3. Frontend tests
-
-```bash
-npm test
-```
-
-Iterate on one area first — `npm exec --no -- vitest run src/components/squad` — then run the full suite
-before pushing. Around 150 test files; the whole run takes a few minutes.
-
-If you touched any user-facing text, this is where `src/i18n/localeCoverage.test.ts` and
-`src/i18n/frontendKeyCoverage.test.ts` catch missing locales. They run as part of `npm test`.
-
-## 4. Frontend build
-
-```bash
-npm run build
-```
-
-`tsc && vite build`. This is the exact command CI runs, so a green local build means a green CI
-frontend job.
-
-## 5. Backend tests
-
-```bash
-cargo test --locked --manifest-path src-tauri/Cargo.toml --workspace
-```
-
-`--locked` is what CI passes, so a lockfile you forgot to commit fails here rather than twenty
-minutes into a CI run. If it stops with *cannot update the lock file*, re-run without the flag
-and commit the resulting `src-tauri/Cargo.lock` with your manifest change.
-
-If you changed a Tauri command, also run the lib target explicitly:
-
-```bash
-cargo test --locked --manifest-path src-tauri/Cargo.toml --lib
-```
-
-**`cargo test --bin` matches zero tests and exits 0.** It looks like a pass and checks nothing.
-
-Touched MCP server code? That is behind a feature flag and is not compiled by default:
-
-```bash
-cargo build --locked --manifest-path src-tauri/Cargo.toml --features mcp
-```
-
-## 6. Clippy
-
-```bash
-cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
-```
-
-Clippy must be clean before a PR (`CONTRIBUTING.md` has always asked for this; check
-`.github/workflows/build-check.yml` for whether CI enforces it yet). Fix warnings rather than
-adding `#[allow]`; if an `#[allow]` is genuinely right — a Tauri command whose long argument list
-*is* the IPC signature, say — put a comment above it explaining why.
-
-**The toolchain already matches CI.** `rust-toolchain.toml` at the repository root names the
-same version `.github/workflows/build-check.yml` installs, and rustup reads it for any cargo run
-inside the checkout — you do not have to do anything. **Never write `cargo +<toolchain>`**: it
-overrides the file, which is the one thing the pin cannot defend against, and
-`scripts/check-toolchain-pin.sh` rejects it outright in a workflow.
-
-Touched MCP code? CI lints it separately, because the feature isn't on by default:
-
-```bash
-cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
-```
-
-## 7. Formatting
-
-```bash
-cargo fmt --manifest-path src-tauri/Cargo.toml --all
-```
-
-`cargo fmt --check` **is** a CI gate (the `format` job). The repo-wide sweep has been done, so
-running the formatter now touches only what you touched — there is no unrelated churn to avoid
-any more, and the old advice to format by hand is retired.
-
-## 8. Lint and unused code
-
-```bash
-npm run lint   # biome, --error-on-warnings: warnings fail, same as CI
-npm run knip   # unused files, exports, types, duplicate exports and dependencies
-```
-
-Both **are** CI gates, run exactly as CI runs them, so a green run here is a green run there.
-
-`knip` passes only at zero. If it reports something your change left unused, delete it. If an
-export is genuinely meant to have no importer yet, say why in the PR rather than working around
-the gate.
-
-**The whole frontend gauntlet is one command**, in cheapest-first order:
+## 2. Frontend gates
 
 ```bash
 npm run preflight
 ```
 
-That is deliberately the *only* definition of the frontend gate set — `package.json` holds it,
-CI runs its parts, and this skill points at it, so the three cannot drift apart.
+`package.json` defines this frontend sequence: format check, lint, knip, build, tests. `npm run
+build` already does `tsc && vite build`; do not repeat a separate type check. For a scoped test
+while iterating, use `npm test -- <path> -t '<scenario>'` after installing dependencies; the full
+suite is still required before the PR. Locale and literal-key coverage tests are part of it.
+A local pass is evidence for these commands, not a guarantee that every CI job passes.
 
-## 9. i18n audit (advisory)
+## 3. Backend gates, default and MCP
+
+```bash
+cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+cargo test --locked --manifest-path src-tauri/Cargo.toml --workspace
+cargo test --locked --manifest-path src-tauri/Cargo.toml --lib --features mcp
+cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets -- -D warnings
+cargo clippy --locked --manifest-path src-tauri/Cargo.toml --workspace --all-targets --features mcp -- -D warnings
+```
+
+Default workspace tests include command lib tests. The second test command actually executes MCP
+lib tests; building the feature alone does not. **`cargo test --bin` may run zero tests.** Verify
+that the expected named tests ran. `--locked` matches CI; if a dependency edit needs a lockfile
+update, resolve it deliberately and commit the resulting lockfile alongside the manifest.
+
+The pinned `rust-toolchain.toml` is authoritative. Do not override it with `cargo +<toolchain>`.
+No new `#[allow]`: use the root constraint/owner suppression policy. Do not raise a threshold to
+fit code. `fmt --check` reports changes without writing them.
+
+The workspace run includes `src-tauri/tests/architecture.rs` and, as the programme lands, its
+crate-matrix, application-import, engine-input and command-size checks, plus file-size and
+instruction-sync integration tests. Frontend architecture/file-size tests join `npm test` in
+programme PR 8. Until each exists, inspect those rules manually and mark them **review-only**;
+do not run a missing target or count a zero-test selection as a pass.
+
+## 4. Review evidence
+
+Use `ofm-architecture-reviewer` for architecture and SOLID, `ofm-dedup-reviewer` for authoritative
+homes and reachable reuse, and `ofm-test-reviewer` for any test change and every bug fix.
+Map each named GWT scenario to one independently reported test; quote observed red/fix-removal
+failure and the green command. Use a disposable copy for fix removal.
+Do not claim "would fail" as observed evidence. Identify uncovered routes and exceptions.
+
+`i18n-auditor` and `ui-accessibility-reviewer` are mandatory when their surfaces change. Read the
+heuristic report if text changed:
 
 ```bash
 npm run audit:i18n
 ```
 
-**Always exits 0.** It is a heuristic reporter over `src/` and `src-tauri/` that lists candidate
-hardcoded strings. Read the output and check whether anything it lists came from your change. The
-real gate was step 3.
+It always exits 0; it is advisory and cannot replace locale tests or review. New mechanical
+quality checks must fail required CI at zero findings; this existing heuristic is not such a gate.
 
----
+Record a compact evidence table in the PR body:
 
-## PR hygiene
+| Check / scenario | Command / test name | Observed result | Limit or exception |
+|---|---|---|---|
 
-- [ ] Branched from `develop`, PR targets `develop`
-- [ ] Conventional commit subject — `fix(ui):`, `feat(world-cup):`, `test(training):`,
-      `refactor(...)`, `chore(...)` — matching the existing history
-- [ ] Linked to an issue, or an issue opened first if the change is a new feature
-      (`CONTRIBUTING.md` asks for this)
-- [ ] Commit message explains **why**, not just what
-- [ ] Tests added for new behaviour, written before the code
-- [ ] Every locale updated if any user-facing text changed
-- [ ] AI-assisted work disclosed in the PR description — this is a GPLv3 project and provenance
-      matters
+Include the canonical rule owner and layer, reviewer results, and every unrun check. Documentation
+changes have no runtime red/green claim; verify links, identical instruction blocks and scope.
 
-## Consider a reviewer agent
+## 5. Merge hygiene and collisions
 
-For anything non-trivial, run the relevant read-only reviewer over your diff before a human sees
-it: `ofm-architecture-reviewer` (crate boundaries, layering, SOLID), `i18n-auditor` (untranslated
-strings), `ui-accessibility-reviewer` (contrast, focus, keyboard, labelling).
+- Conventional commit, fresh develop base, PR target `develop`, linked issue where applicable.
+- AI-assisted disclosure box completed per `CONTRIBUTING.md`.
+- Search every other open PR diff for uses of public items/fields/variants removed or changed here,
+  and for removals of items this branch uses. Agree merge order with the owner on a collision.
+  The second PR stays draft with `⛔ Merge after #<first>` as its body's first line. Once the first
+  merges, merge `upstream/develop`, adapt, rerun gates, then mark ready.
+- Recheck when a merge touches your surfaces. The develop merge queue reruns required checks;
+  local evidence does not replace the queue. Do not alter repository settings.

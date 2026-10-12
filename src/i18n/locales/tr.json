@@ -686,6 +686,8 @@
     "removeFromLoanList": "Kiralık listesinden çıkar",
     "outOfPosition": "Mevki dışı",
     "outOfPositionTooltip": "Oyuncu tercih ettiği rolün dışında oynuyor",
+    "pitchTokenTooltip": "Kondisyon %{{condition}} · {{fit}}",
+    "pitchTokenConditionOnly": "Kondisyon %{{condition}}",
     "dragHint": "Yedek oyuncuları sahaya sürükleyin veya ilk 11 oyuncularını yuvalar arasında değiştirin.",
     "benchDragHint": "Oyuncuları doğrudan sahaya sürüklemek için yedek listesini kullanın.",
     "dropPlayerHere": "Oyuncuyu buraya bırak",
@@ -916,6 +918,7 @@
     "aTrainingDay": "antrenman günü",
     "aRestDay": "dinlenme günü",
     "currentlyTraining": "Şu an <strong>{{attrs}}</strong> üzerinde <strong>{{intensity}}</strong> yoğunlukta çalışılıyor.",
+    "goalkeepersLabel": "Kaleciler",
     "recoveryNote": "Oyuncular tüm günlerde dinlenme ve kondisyon toparlanmasına odaklanacak.",
     "effectiveFocus": "Odak",
     "trainingAppliedNote": "Antrenman, zaman ilerletildiğinde planlı antrenman günlerinde uygulanır. Dinlenme günleri tam toparlanma sağlar.",
@@ -1265,6 +1268,14 @@
     }
   },
   "transfers": {
+    "offerHistory": "Teklif geçmişi",
+    "viewOfferHistory": "Teklif geçmişini görüntüle",
+    "offerRecordedOn": "Teklif tarihi: {{date}}.",
+    "loanOfferStartsOn": "Kiralama {{date}} tarihinde başlar.",
+    "dealAlreadyAgreed": "Bu oyuncunun transferi üzerinde anlaşılmış ve tescil bekleniyor.",
+    "dealOwnPlayer": "Bu oyuncu zaten kulübünüze ait.",
+    "dealActiveLoan": "Bu oyuncu şu anda kiralık oynuyor.",
+    "dealRetired": "Bu oyuncu futbolu bıraktı.",
     "bidImpactWageBill": "Haftalık maaş gideri {{before}} → {{after}}",
     "bidImpactWeeklyWageBudget": "Haftalık maaş bütçesi {{budget}}",
     "bidImpactIncomingWage": "Oyuncu maaşı {{wage}} / hafta",
@@ -1403,7 +1414,11 @@
     "transferFeedbackCounterHeadline": "El sıkışmadan önce daha fazlasını istiyorlar.",
     "transferFeedbackCounterDetail": "Teklif görüşmeyi sürdürecek kadar yakındı, ancak karşı taraf {{fee}} civarında bir fiyata işaret ediyor.",
     "transferFeedbackRejectedHeadline": "Bu turu kapattılar.",
-    "transferFeedbackRejectedDetail": "Öneri onları yeterince etkilemedi. Ciddi görüşmeleri yeniden başlatmak için {{fee}} civarında daha güçlü bir bonservis gerekir."
+    "transferFeedbackRejectedDetail": "Öneri onları yeterince etkilemedi. Ciddi görüşmeleri yeniden başlatmak için {{fee}} civarında daha güçlü bir bonservis gerekir.",
+    "registrationFailureInsufficientFunds": "Tescil başarısız: alıcının fonları yetersiz",
+    "registrationFailureLoanConflict": "Tescil başarısız: kiralama çakışması",
+    "registrationFailurePlayerUnavailable": "Tescil başarısız: oyuncu uygun değil",
+    "registrationFailureRegistrationBlocked": "Tescil engellendi"
   },
   "transferCentreWorld": {
     "title": "Transfer Merkezi",
@@ -1614,6 +1629,7 @@
     "renewalFeedbackTenseDetail": "Düşük güven, düşük moral veya sözleşme baskısı oyuncunun kampını sert davranmaya itiyor. Bir zayıf teklif daha kapıyı kapatabilir.",
     "renewalFeedbackAcceptedHeadline": "Paketi beğendiler ve hızla harekete geçtiler.",
     "renewalFeedbackAcceptedDetail": "Teklif beklentilerine yeterince yakındı, bu yüzden görüşmeler yapıcı kaldı.",
+    "renewalFeedbackAcceptedToKeepSquadFloorDetail": "Kabul ettiler. Anlaşma maaş bütçesini yönetimin politikasının üzerine çıkarıyor, ancak yönetim onay verdi: bu oyuncu olmadan kadro, bir kulübün koruması gereken asgari sayının altına düşerdi.",
     "renewalFeedbackAcceptedLateHeadline": "Kabul ettiler, ancak pek sabır kalmamıştı.",
     "renewalFeedbackAcceptedLateDetail": "Anlaşmayı çetin bir pazarlığın ardından tamamladınız. Karşı taraf masadan kalkmaya yakındı.",
     "renewalFeedbackBlockedHeadline": "Görüşmeyi henüz yeniden açmıyorlar.",
@@ -1628,6 +1644,8 @@
     "attributes": "Özellikler",
     "attributesHidden": "Özellikler Gizli",
     "scoutToView": "Detaylı özellikleri görmek için bu oyuncuyu scout edin veya kadroya katın.",
+    "scoutedOn": "{{date}} tarihinde izlendi",
+    "scoutReportOutOfDate": "Güncel değil",
     "seasonStats": "Sezon İstatistikleri",
     "advancedStats": "Gelişmiş İstatistikler",
     "shots": "Şutlar",
@@ -1666,6 +1684,19 @@
     "movementLoanToBuy": "Opsiyonlu kiralama",
     "movementFreeAgentSigning": "Serbest oyuncu",
     "movementReleased": "Serbest bırakıldı",
+    "movementRenewal": "Yenileme",
+    "movementRetired": "Emekli oldu",
+    "movementInitialContract": "Başlangıç sözleşmesi",
+    "movementReleasedExpired": "Sözleşme sona erdi",
+    "movementReleasedTerminated": "Sözleşme feshedildi",
+    "movementContractRange": "Sözleşme {{start}} - {{end}}",
+    "movementContractUntil": "Sözleşme {{end}} tarihine kadar",
+    "movementContractFrom": "Sözleşme {{start}} tarihinden itibaren",
+    "movementWage": "Maaş {{wage}}/hf",
+    "movementDateUnknown": "Tarih bilinmiyor",
+    "movementLegacyContract": "Sözleşme geçmişinden önce yapılmış bir kayıttan",
+    "movementRenewedWith": "{{club}} ile yenilendi",
+    "movementAtClub": "{{club}} kulübünde",
     "movementFromTo": "{{from}} → {{to}}",
     "movementTo": "{{to}} kulübüne katıldı",
     "movementFrom": "{{from}} kulübünden ayrıldı",
@@ -2022,7 +2053,7 @@
     "postMatchTeamTalk": "Maç Sonu Takım Konuşması",
     "addressPlayers": "Maçtan sonra oyuncularınıza hitap edin.",
     "matchOver": "Maç Bitti",
-    "ratings": "{{team}} Puanları",
+    "performance": "{{team}} Performansı",
     "motm": "Maçın Oyuncusu",
     "roundSummary": "Hafta Özeti",
     "roundSummaryUnavailable": "Hafta özeti mevcut değil.",
@@ -2498,7 +2529,7 @@
       }
     },
     "matchReport": "Maç Raporu",
-    "playerRatings": "Oyuncu Puanları",
+    "playerPerformance": "Oyuncu Performansı",
     "tacticsTab": "Taktikler",
     "goalSources": "Gol Kaynakları",
     "openPlay": "Akan Oyun",
@@ -2552,6 +2583,10 @@
   },
   "be": {
     "error": {
+      "squadFloor": {
+        "wouldLeaveShort": "Bu oyuncu ayrılamaz: kadro, bir kulübün koruması gereken asgari sayının altına düşer. Etkilenen bölge: {{group}}.",
+        "wouldLeaveSeniorsShort": "Bu oyuncu ayrılamaz: kulübün A takımında {{floor}} oyuncudan az kalır, bu da bir kulübün koruması gereken asgari sayıdır."
+      },
       "noActiveGameSession": "Aktif oyun oturumu yok",
       "noActiveSaveSession": "Aktif kayıt oturumu yok",
       "saveNotFound": "'{{saveId}}' kaydı bulunamadı.",
@@ -2598,6 +2633,7 @@
       "managedTeamNotFound": "Yönetilen takım bulunamadı",
       "unknownFacilityType": "Bilinmeyen tesis türü",
       "liveMatch": {
+        "inProgress": "Bir maç devam ediyor. Kaydetmeden, zamanı ilerletmeden veya başka bir maç başlatmadan önce bu maçı bitirin.",
         "noLeague": "Bu maç için lig verisi mevcut değil.",
         "fixtureNotFound": "Seçilen maç bulunamadı.",
         "fixtureNotScheduled": "Bu maç artık fikstürde yer almıyor ve oynanamaz.",
@@ -2650,6 +2686,14 @@
         "potentialBelowOverall": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}, genel gücü olan {{ability}} değerinin altında. Bir oyuncunun tavanı mevcut gücünün altında olamaz.",
         "potentialBelowAttributes": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}, özelliklerinden çıkan {{ability}} değerinin altında. Bir oyuncunun tavanı mevcut gücünün altında olamaz.",
         "potentialBelowDefaultAbility": "\"{{entity}}\" oyuncusunun potansiyeli {{potential}}, genel güç ve özellikler verilmediğinde kullanılan varsayılan {{ability}} değerinin altında.",
+        "invalidDate": "\"{{entity}}\" oyuncusunun {{field}} değeri \"{{value}}\" ve bu geçerli bir tarih değil. YYYY-AA-GG biçimini kullanın.",
+        "contractEndAndLength": "\"{{entity}}\" oyuncusunda hem contractEnd hem contractLength var. Yalnızca birini girin: ikisi aynı şeyi iki farklı yolla söyler.",
+        "contractLengthOutOfRange": "\"{{entity}}\" oyuncusunun contractLength değeri {{length}}. Bir sözleşme 1 ile {{max}} yıl arasında sürer.",
+        "contractEndNotAfterStart": "\"{{entity}}\" oyuncusunun sözleşmesi ({{end}}), başladığı günde ({{start}}) ya da ondan önce bitiyor.",
+        "playerFieldOutOfRange": "\"{{entity}}\" oyuncusunun {{field}} değeri aralık dışında. {{min}} ile {{max}} arasında olmalıdır.",
+        "alternatePositionInvalid": "\"{{entity}}\" oyuncusu için {{position}} alternatif pozisyon olarak listelenmiş. Alternatif, belirli bir pozisyon olmalı, oyuncunun kendi pozisyonundan farklı olmalı ve yalnızca bir kez listelenmelidir.",
+        "identityNeedsSpecificPosition": "\"{{entity}}\" oyuncusunda zayıf ayak veya alternatif pozisyonlar var, ancak {{position}} genel bir gruptur; bu yüzden oyun bunları oyuncunun özelliklerinden yeniden hesaplar ve yazdığınızı atar. Oyuncuya CentralMidfielder veya Striker gibi belirli bir pozisyon verin.",
+        "careerEntryNeedsClub": "\"{{entity}}\" oyuncusunun kariyer kaydında (satır {{row}}) kulüp adı yok.",
         "unsupportedFormatVersion": "Bu paket oyunun daha yeni bir sürümüyle oluşturuldu (biçim {{version}}; bu sürüm {{supported}} destekliyor). Açmak için oyunu güncelleyin."
       },
       "conflict": {
@@ -2661,6 +2705,7 @@
         "fallbackTeamsFilled": "Yalnızca bir takım tanımlanmıştı. Oyunun oynanabilir olması için prosedürel rakipler otomatik olarak oluşturuldu."
       },
       "competitionDef": {
+        "invalidCalendar": "Geçersiz müsabaka takvimi: lig ailesini, seviyeyi, aşamayı ve kapanış tarihini kontrol edin.",
         "invalidEmbedded": "Bu dünyanın turnuva tanımları geçersiz ve yüklenemedi.",
         "invalidStandalone": "Seçilen turnuva tanım dosyası geçersiz.",
         "parseFailed": "Turnuva tanım dosyası JSON olarak okunamadı.",
@@ -2678,6 +2723,7 @@
         "unknownCountry": "Bilinmeyen ülke \"{{country}}\".",
         "groupConfigOnNonGroupFormat": "Grup ayarları yalnızca grup ve eleme formatına uygulanır.",
         "groupSizeTooSmall": "{{groupSize}} grup boyutu çok küçük (en az 2).",
+        "invalidGroupQualification": "Bu katılımcılarla gruplardan çıkma ayarları karşılanamaz.",
         "zeroLegs": "Bir turnuva en az bir maç ayağı gerektirir.",
         "noParticipants": "Katılımcı yok: açık bir liste veya bir seçici sağlayın.",
         "bothParticipantSources": "Açık bir liste veya bir seçici sağlayın, ikisini birden değil.",
@@ -2757,6 +2803,7 @@
         "transferBudgetTooLow": "Transfer bütçesi çok düşük",
         "playerNotOwnedByUser": "Oyuncu bulunamadı veya size ait değil",
         "offerNotPending": "Teklif bulunamadı veya beklemede değil",
+        "loanBorrowerCannotAffordWages": "Kiralayan kulüp bu maaş payını karşılayamıyor. Haftalık maaş bütçesi {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Karşı teklif mevcut teklifi aşmalıdır",
         "loanCounterMustImproveTerms": "Karşı kiralama teklifi mevcut teklifi iyileştirmelidir",
         "playerNotLoanListed": "Oyuncu kiralık listesinde değil",
@@ -2839,22 +2886,6 @@
         "randomDescription": "Avrupa genelinde {{teamCount}} takımlı rastgele oluşturulmuş lig",
         "exportedName": "Dışa Aktarılmış Dünya",
         "exportedDescription": "Kayıtlı oyundan dışa aktarılan {{teamCount}} takımlı dünya"
-      },
-      "welcome": {
-        "subject0": "{{team}} kulübüne hoş geldiniz",
-        "subject1": "{{team}} kulübünde yeni bir dönem",
-        "subject2": "{{team}} liderliğinizi bekliyor",
-        "body0": "{{team}} yönetim kurulu sizi yeni menajer olarak aramızda görmekten mutluluk duyuyor.\n\nGörev süreniz için büyük umutlarımız var ve bu kulübü zafere taşıyabileceğinize inanıyoruz. İlk göreviniz kadroyu gözden geçirmek ve önümüzdeki sezon için bir taktik plan hazırlamak olacak.\n\nSize bol şans dileriz.",
-        "body1": "Tüm {{team}} ailesi adına, menajerliğe atanmanızı duyurmaktan heyecan duyuyoruz.\n\nTaraftarlar takıma dair vizyonunuzu görmek için sabırsızlanıyor. Lütfen kadroyu değerlendirmek, mali durumumuzu incelemek ve taktik yaklaşımınızı belirlemek için zaman ayırın.\n\nYönetim arkanızda.",
-        "body2": "{{team}} kulübüne hoş geldiniz! Taraftarlar ve personel, sizin rehberliğinizdeki gelecek için heyecanlı.\n\nİşe kadronuzun güçlü ve zayıf yönlerini inceleyerek başlamanızı, ardından tercih ettiğiniz dizilişi ve antrenman düzenini kurmanızı öneririz.\n\nÖnümüzdeki sezon gerçek bir sınav olacak — bizi gururlandırın.",
-        "actionReview": "Kadroyu İncele",
-        "actionThank": "Yönetime Teşekkür Et"
-      },
-      "schedule": {
-        "subject": "Sezon Fikstürü Açıklandı",
-        "body0": "{{league}} fikstürü açıklandı. Sezon {{start}} tarihinde başlıyor.\n\nFikstür listesini inceleyin ve kadronuzun sizi bekleyen zorluklara hazır olduğundan emin olun. Sezon öncesi hazırlık çok önemli olacak.",
-        "body1": "Fikstür listesi onaylandı! {{league}} sezonu {{start}} tarihinde başlıyor.\n\nAçılış maçlarını dikkatle inceleyin — güçlü bir başlangıç tüm sezonun tonunu belirleyebilir. Kilit oyuncularınızın maç formunda olduğundan emin olun.",
-        "actionView": "Fikstürü Görüntüle"
       },
       "preMatch": {
         "subject": "Yaklaşan Maç: {{opponent}} ({{venue}})",
@@ -3240,6 +3271,28 @@
         "subject": "{{player}}, {{team}} ile İmzaladı",
         "body": "{{player}}, {{years}} yıllık sözleşmeyle {{team}} kadrosuna bonservissiz katıldı."
       },
+      "squadBelowFloor": {
+        "subject": "Kadro Asgari Sayının Altında: {{group}}",
+        "body": "Hocam, oyuncumuz eksik. {{group}}: {{have}} kayıtlı, oysa bir kulübün en az {{floor}} oyuncusu olmalı. Lütfen bir sonraki maçımızdan önce takviye yapın; başlama vuruşunda sahaya bir takım çıkaramazsak, maçın oynanabilmesi için altyapıdan oyuncu yükseltmek ya da serbest oyuncularla sözleşme imzalamak zorunda kalacağım.",
+        "totalSubject": "Kadro Asgari Büyüklüğün Altında",
+        "totalBody": "Hocam, A takımda yalnızca {{have}} oyuncumuz kaldı, oysa bir kulübün ayakta kalması için en az {{floor}} oyuncusu olmalı. Lütfen bir sonraki maçımızdan önce takviye yapın; başlama vuruşunda sahaya bir takım çıkaramazsak, maçın oynanabilmesi için altyapıdan oyuncu yükseltmek ya da serbest oyuncularla sözleşme imzalamak zorunda kalacağım."
+      },
+      "squadToppedUp": {
+        "subject": "Acil Transferler: {{team}}",
+        "body": "Hocam, sahaya bir takım çıkaracak kadar oyuncumuz yoktu, bu yüzden başlama vuruşundan önce şu oyuncuları A takıma aldım, önce altyapıdan, sonra serbest oyunculardan: {{players}}."
+      },
+      "youthIntake": {
+        "subject": "Altyapıya Yeni Katılanlar: {{team}}",
+        "body": "Hocam, bu sezonun altyapı alımı tamamlandı: {{players}}.",
+        "bodyPartlyRefused": "Hocam, bu sezon altyapıya katılanlar: {{players}}. Yönetim Kurulu, alımın geri kalanının maaşlarını üstlenmek istemedi.",
+        "bodyAllRefused": "Hocam, Yönetim Kurulu bu sezonki altyapı alımının maaşlarını üstlenmek istemedi, bu yüzden altyapıya kimse katılmadı."
+      },
+      "squadCannotBeFilled": {
+        "subject": "Uygun Oyuncu Yok: {{group}}",
+        "body": "Hocam, kadroyu tamamlayamadık ve alabileceğimiz kimse yoktu. {{group}}: bir kulübün koruması gereken {{floor}} oyuncudan {{have}} tanesi var; ne altyapımızda ne de serbest oyuncu piyasasında bu açığı kapatacak kimse var.",
+        "totalSubject": "Kadroyu Tamamlayacak Oyuncu Yok",
+        "totalBody": "Hocam, A takımda yalnızca {{have}} oyuncumuz kaldı, bu da bir kulübün koruması gereken {{floor}} oyuncunun altında; ne altyapımızda ne de serbest oyuncu piyasasında bu açığı kapatacak kimse var."
+      },
       "delegatedRenewals": {
         "subject": "Yardımcı Raporu — Sözleşme Yenilemeleri",
         "body": "Hocam, {{team}} yenileme listemizin üzerinden geçtim. {{successes}} tamamlandı, {{stalled}} hâlâ beklemede, {{failures}} başarısız oldu.",
@@ -3251,6 +3304,7 @@
         "notes": {
           "managerBlocked": "Sözleşme görüşmelerini henüz yeniden açmamamı söylemiştiniz.",
           "completed": "Bu görüşmeyi siz devreye girmeden tamamlayabildim.",
+          "completedToKeepSquadFloor": "Tamamlandı, yönetimin maaş politikasının üzerinde. Yönetim onay verdi; çünkü bu oyuncu olmadan asgari kadronun altına düşerdik.",
           "beyondLimits": "Oyuncunun kampı {{years}} yıl için haftalık {{wage}} civarı istiyor; bu, devretme sınırlarının ötesinde.",
           "boardWagePolicy": "Yönetimin maaş politikası bu yenilemeyi engelliyor. Toparlanırken haftalık maaşları {{budget}} civarında tutun.",
           "prefersManager": "Dinlemeye açıklar, ancak hâlâ {{years}} yıl için haftalık {{wage}} civarı istiyorlar ve bunu doğrudan sizden duymayı tercih ediyorlar.",
@@ -3332,7 +3386,12 @@
       },
       "transferComplete": {
         "subject": "Transfer Tamamlandı: {{player}}",
-        "body": "{{player}} transferi {{fee}} bonservis bedeliyle tamamlandı.\n\nOyuncu kadroya katıldı ve seçilebilir durumda."
+        "body": "{{player}} transferi {{fee}} bonservis bedeliyle tamamlandı.\n\nOyuncu kadroya katıldı ve seçilebilir durumda.",
+        "bodySold": "{{player}} oyuncusunun {{buyer}} kulübüne transferi {{fee}} bedelle tamamlandı. Oyuncu kadrodan ayrılıp {{buyer}} kulübüne katıldı."
+      },
+      "transferAgreed": {
+        "subject": "Transfer anlaşması: {{player}}",
+        "body": "{{player}} oyuncusunun {{seller}} kulübünden {{buyer}} kulübüne transferi {{fee}} bedelle kararlaştırıldı. Tescil {{start}} tarihinde yapılacak."
       },
       "transferOffer": {
         "subject": "{{player}} için Gelen Teklif",
@@ -3343,6 +3402,11 @@
         "subject": "{{player}} için transfer ilgisi",
         "body": "{{player}} için aktif teklifi olan kulüpler: {{n}}. Son başvuru: {{team}} ({{fee}}). Yanıtlamak için teklifleri Transferler sekmesinde inceleyin.",
         "actionReview": "Teklifleri İncele"
+      },
+      "loanAgreed": {
+        "subject": "Kiralama anlaşması: {{player}}",
+        "bodyWithOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu: {{fee}}.",
+        "bodyNoOption": "{{player}}, {{start}} ile {{end}} tarihleri arasında {{parent}} kulübünden {{borrower}} kulübüne kiralanacak. {{borrower}} maaşın %{{contribution}} kısmını karşılayacak. Satın alma opsiyonu yok."
       },
       "loanOffer": {
         "subject": "{{player}} için Kiralama Teklifi",
@@ -3357,6 +3421,13 @@
       "loanBuyOptionExercised": {
         "subject": "Kiralamada Satın Alma Opsiyonu Kullanıldı: {{player}}",
         "body": "{{player}} için satın alma opsiyonu {{fee}} bedelle kullanıldı. Kiralama artık kalıcı bir transfere dönüştü."
+      },
+      "transferRegistrationFailed": {
+        "subject": "Transfer tescili başarısız: {{player}}",
+        "InsufficientFunds": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; alıcının nakdi veya transfer bütçesi artık bedeli karşılamıyor. Transfer bedeli ödenmedi.",
+        "LoanConflict": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu kiralık durumda veya tescil bekleyen bir kiralama anlaşması var. Transfer bedeli ödenmedi.",
+        "PlayerUnavailable": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu artık bir satıcı kulüpten transfer edilebilir durumda değil. Transfer bedeli ödenmedi.",
+        "RegistrationBlocked": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; bir tescil koşulu artık sağlanmıyor. Transfer bedeli ödenmedi."
       }
     },
     "news": {
@@ -3856,6 +3927,23 @@
     "playerFoot": "Tercih Edilen Ayak",
     "playerDateOfBirth": "Doğum Tarihi",
     "playerAge": "Yaş",
+    "playerAgeHelp": "Doğum tarihi verilmediğinde kullanılır: oyuncu, hangi yıl olursa olsun, kariyerin başladığı gün bu yaştadır.",
+    "playerContractSection": "Sözleşme",
+    "playerContractStart": "Sözleşme başlangıcı",
+    "playerContractEnd": "Sözleşme bitişi",
+    "playerContractLength": "Sözleşme süresi (yıl)",
+    "playerContractLengthHelp": "Bitiş tarihine bir alternatif. Varsa başlangıç tarihinden, yoksa kariyerin başladığı yıldan itibaren sayılır; böylece oyuncunun sözleşmesi baştan bitmiş olmaz. Bitiş tarihi ya da süre verin, ikisini birden değil.",
+    "playerWageHelp": "Haftalık. Boş bırakılırsa oyuncunun değerinden hesaplanır.",
+    "playerStatusSection": "Durum",
+    "playerAlternatePositions": "Alternatif pozisyonlar",
+    "playerAlternatePositionsHelp": "Oyuncunun oynayabildiği diğer pozisyonlar. Yalnızca Striker gibi belirli bir pozisyonda geçerlidir: Forward gibi genel bir grup bunları özelliklerden türetir.",
+    "playerCareerSection": "Kariyer geçmişi",
+    "careerEntryRow": "Kariyer kaydı",
+    "careerEntryClubName": "Kulüp adı",
+    "careerEntryPackageTeam": "Bu paketteki kulüp",
+    "careerEntryNoPackageTeam": "Bu pakette yok",
+    "addCareerEntry": "Sezon ekle",
+    "removeCareerEntry": "Sezonu kaldır",
     "playerOverall": "Genel (1–99)",
     "playerPotential": "Potansiyel (1–99)",
     "playerPotentialHelp": "Bu oyuncunun ne kadar iyi olabileceği. Boş bırakırsanız motor, gücüne ve yaşına göre bir tavan belirler. Mevcut gücünün altında olamaz ve tavana ulaşan oyuncu gelişmeyi bırakır.",

@@ -6,15 +6,12 @@ use domain::league::{
     CompetitionFormat, CompetitionRules, CompetitionScope, CompetitionType, FixtureCompetition,
     FixtureStatus, GroupState, League, StandingEntry,
 };
-use uuid::Uuid;
-
-/// Clubs per group; the last groups may run one short when the entrant count
-/// doesn't divide evenly.
-const GROUP_SIZE: usize = 4;
 
 /// Shape of a group stage at creation time.
 #[derive(Debug, Clone)]
 pub struct GroupStageConfig {
+    /// Maximum clubs per snake-seeded group.
+    pub group_size: u32,
     /// Round-robin legs within each group (2 = home and away).
     pub legs: u8,
     /// Days between group matchdays.
@@ -37,14 +34,16 @@ pub struct GroupStageConfig {
 
 impl Default for GroupStageConfig {
     fn default() -> Self {
+        let rules = CompetitionRules::default();
         Self {
-            legs: 2,
-            matchday_gap_days: 7,
-            qualifiers_per_group: 2,
-            best_third_qualifiers: 0,
-            knockout_round_gap_days: 14,
+            group_size: rules.group_size,
+            legs: rules.group_stage_legs,
+            matchday_gap_days: i64::from(rules.group_matchday_gap_days),
+            qualifiers_per_group: rules.group_qualifiers_per_group,
+            best_third_qualifiers: rules.group_best_third_qualifiers,
+            knockout_round_gap_days: rules.knockout_round_gap_days,
             max_concurrent_matches_per_day: None,
-            knockout_matches_per_day: 1,
+            knockout_matches_per_day: rules.knockout_matches_per_day,
         }
     }
 }
@@ -60,13 +59,28 @@ fn fixture_competition_for(kind: &CompetitionType) -> FixtureCompetition {
 }
 
 fn group_label(index: usize) -> String {
-    char::from(b'A' + (index % 26) as u8).to_string()
+    // Continue after Z so small authored groups keep distinct ids in large fields.
+    let mut number = index + 1;
+    let mut letters = Vec::new();
+    while number > 0 {
+        number -= 1;
+        letters.push(char::from(b'A' + (number % 26) as u8));
+        number /= 26;
+    }
+    letters.into_iter().rev().collect()
 }
 
-/// Snake-seed `team_ids` (strongest first) into groups of ~[`GROUP_SIZE`], so
+/// Number of balanced groups needed for a field with this maximum group size.
+pub(crate) fn group_count(entrants: usize, group_size: usize) -> usize {
+    // Use the supported configuration minimum for malformed persisted sizes.
+    let group_size = group_size.max(domain::league::MIN_GROUP_SIZE as usize);
+    entrants.div_ceil(group_size).max(1)
+}
+
+/// Snake-seed `team_ids` (strongest first) into balanced groups up to `group_size`, so
 /// each group gets a comparable spread of strength.
-fn seed_groups(competition_id: &str, team_ids: &[String]) -> Vec<GroupState> {
-    let group_count = team_ids.len().div_ceil(GROUP_SIZE).max(1);
+fn seed_groups(competition_id: &str, team_ids: &[String], group_size: u32) -> Vec<GroupState> {
+    let group_count = group_count(team_ids.len(), group_size as usize);
     let mut groups: Vec<GroupState> = (0..group_count)
         .map(|index| GroupState {
             id: format!("{competition_id}-group-{}", group_label(index)),
@@ -125,8 +139,12 @@ pub fn generate_group_knockout_cup_with(
     scope: CompetitionScope,
     config: &GroupStageConfig,
 ) -> League {
-    let competition_id = Uuid::new_v4().to_string();
-    let group_states = seed_groups(&competition_id, team_ids);
+    let season_key = season.to_string();
+    let start_key = start_date.to_rfc3339();
+    let mut id_parts = vec!["group-cup", name, &season_key, &start_key];
+    id_parts.extend(team_ids.iter().map(String::as_str));
+    let competition_id = crate::seed::derived_id(&id_parts);
+    let group_states = seed_groups(&competition_id, team_ids, config.group_size);
     let groups: Vec<Vec<String>> = group_states
         .into_iter()
         .map(|group| group.team_ids)
@@ -156,8 +174,18 @@ pub fn generate_group_knockout_cup_with_groups(
     scope: CompetitionScope,
     config: &GroupStageConfig,
 ) -> League {
-    let competition_id = Uuid::new_v4().to_string();
     let team_ids: Vec<String> = groups.iter().flatten().cloned().collect();
+    let season_key = season.to_string();
+    let start_key = start_date.to_rfc3339();
+    let group_sizes: Vec<String> = groups.iter().map(|group| group.len().to_string()).collect();
+    let mut id_parts = vec!["group-cup-with-groups", name, &season_key, &start_key];
+    // Length-prefixed entrants preserve ids containing separators; group sizes also
+    // preserve the draw's nested boundaries, including empty groups.
+    for (group, size) in groups.iter().zip(&group_sizes) {
+        id_parts.push(size.as_str());
+        id_parts.extend(group.iter().map(String::as_str));
+    }
+    let competition_id = crate::seed::derived_id(&id_parts);
     build_group_cup(
         competition_id,
         name,
@@ -189,6 +217,7 @@ fn build_group_cup(
     cup.rules = CompetitionRules {
         format: CompetitionFormat::GroupAndKnockout,
         counts_in_season_flow: true,
+        group_size: config.group_size,
         group_qualifiers_per_group: config.qualifiers_per_group,
         group_best_third_qualifiers: config.best_third_qualifiers,
         group_stage_legs: config.legs,
@@ -311,6 +340,34 @@ fn maybe_seed_knockout_from_groups(league: &mut League) {
         return;
     }
 
+    let qualifiers = knockout_qualifiers(league);
+    if qualifiers.len() < 2 {
+        return;
+    }
+
+    let last_group_date = league
+        .fixtures
+        .iter()
+        .map(|fixture| fixture.date.as_str())
+        .max()
+        .unwrap_or("2026-01-01");
+    let knockout_start = chrono::NaiveDate::parse_from_str(last_group_date, "%Y-%m-%d")
+        .ok()
+        .and_then(|date| date.and_hms_opt(0, 0, 0))
+        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+        .unwrap_or_else(Utc::now)
+        + Duration::days(league.rules.knockout_round_gap_days as i64);
+
+    crate::schedule::seed_knockout_round(
+        league,
+        &qualifiers,
+        knockout_start,
+        fixture_competition_for(&league.kind.clone()),
+    );
+}
+
+/// The existing field/seeding rule, shared with strict archive verification.
+pub(crate) fn knockout_qualifiers(league: &League) -> Vec<String> {
     // Group winners (ranked among themselves), then runners-up, and so on, so
     // the strongest group performances receive any knockout byes. The next
     // placed finishers across all groups can also qualify ("best thirds").
@@ -353,39 +410,18 @@ fn maybe_seed_knockout_from_groups(league: &mut League) {
                 .map(|entry| entry.team_id),
         );
     }
-    if qualifiers.len() < 2 {
-        return;
-    }
-
-    let last_group_date = league
-        .fixtures
-        .iter()
-        .map(|fixture| fixture.date.as_str())
-        .max()
-        .unwrap_or("2026-01-01");
-    let knockout_start = chrono::NaiveDate::parse_from_str(last_group_date, "%Y-%m-%d")
-        .ok()
-        .and_then(|date| date.and_hms_opt(0, 0, 0))
-        .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
-        .unwrap_or_else(Utc::now)
-        + Duration::days(league.rules.knockout_round_gap_days as i64);
-
-    crate::schedule::seed_knockout_round(
-        league,
-        &qualifiers,
-        knockout_start,
-        fixture_competition_for(&league.kind.clone()),
-    );
+    qualifiers
 }
 
 /// Reset a group-and-knockout competition for a new season in place: fresh
 /// snake-seeded groups from `participant_ids`, no fixtures played, no bracket.
 pub fn regenerate_for_season(league: &mut League, season: u32, start_date: DateTime<Utc>) {
     league.season = season;
+    crate::calendar_identity::record_regenerated_calendar(league, start_date);
     league.fixtures.clear();
     league.standings.clear();
     league.knockout_rounds.clear();
-    league.groups = seed_groups(&league.id, &league.participant_ids);
+    league.groups = seed_groups(&league.id, &league.participant_ids, league.rules.group_size);
 
     let fixture_competition = fixture_competition_for(&league.kind.clone());
     let competition_id = league.id.clone();
@@ -425,6 +461,105 @@ mod tests {
             CompetitionType::ContinentalClub,
             CompetitionScope::Continental,
         )
+    }
+
+    /// Given distinct entrant lists whose comma-joined text is identical,
+    /// When snake-seeded group cups are generated for the same season and date,
+    /// Then their competition and fixture ids remain distinct.
+    #[test]
+    fn seeded_group_cups_preserve_entrant_boundaries_inside_ids() {
+        let first = ["a,b", "c", "d", "e"].map(String::from);
+        let second = ["a", "b,c", "d", "e"].map(String::from);
+        let cup = |teams: &[String]| {
+            generate_group_knockout_cup(
+                "Test Cup",
+                2026,
+                teams,
+                start(),
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+            )
+        };
+        let first = cup(&first);
+        let second = cup(&second);
+
+        assert_ne!(first.id, second.id);
+        assert!(
+            first
+                .fixtures
+                .iter()
+                .all(|fixture| second.fixtures.iter().all(|other| fixture.id != other.id))
+        );
+    }
+
+    /// Given explicit groups with distinct comma-containing entrant ids,
+    /// When group cups are generated for the same season and date,
+    /// Then their competition and fixture ids remain distinct.
+    #[test]
+    fn explicit_group_cups_preserve_entrant_boundaries_inside_ids() {
+        let first = vec![vec!["a,b".into(), "c".into(), "d".into(), "e".into()]];
+        let second = vec![vec!["a".into(), "b,c".into(), "d".into(), "e".into()]];
+        let cup = |groups: &[Vec<String>]| {
+            generate_group_knockout_cup_with_groups(
+                "Test Cup",
+                2026,
+                groups,
+                start(),
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+                &GroupStageConfig::default(),
+            )
+        };
+        let first = cup(&first);
+        let second = cup(&second);
+
+        assert_ne!(first.id, second.id);
+        assert!(
+            first
+                .fixtures
+                .iter()
+                .all(|fixture| second.fixtures.iter().all(|other| fixture.id != other.id))
+        );
+    }
+
+    /// Given the same flattened entrants but different explicit group boundaries,
+    /// When group cups are generated with a common a/b group,
+    /// Then their competition ids and the common group's fixture ids remain distinct.
+    #[test]
+    fn explicit_group_cups_preserve_group_boundaries() {
+        let first = vec![
+            vec!["a".into(), "b".into()],
+            vec!["c".into(), "d".into()],
+            vec!["e".into(), "f".into()],
+        ];
+        let second = vec![
+            vec!["a".into(), "b".into()],
+            vec!["c".into(), "d".into(), "e".into(), "f".into()],
+        ];
+        let cup = |groups: &[Vec<String>]| {
+            generate_group_knockout_cup_with_groups(
+                "Test Cup",
+                2026,
+                groups,
+                start(),
+                CompetitionType::Cup,
+                CompetitionScope::Domestic,
+                &GroupStageConfig::default(),
+            )
+        };
+        let first = cup(&first);
+        let second = cup(&second);
+        let tie = |cup: &League| {
+            cup.fixtures
+                .iter()
+                .find(|f| f.home_team_id == "a" && f.away_team_id == "b")
+                .unwrap()
+                .id
+                .clone()
+        };
+
+        assert_ne!(tie(&first), tie(&second));
+        assert_ne!(first.id, second.id);
     }
 
     fn complete_fixture(league: &mut League, index: usize, home_goals: u8, away_goals: u8) {
@@ -467,6 +602,22 @@ mod tests {
         );
         assert!(cup.knockout_rounds.is_empty());
         assert!(cup.standings.is_empty());
+    }
+
+    #[test]
+    fn regeneration_handles_saved_group_sizes_below_minimum() {
+        for size in [0, 1] {
+            let mut cup = make_cup(8);
+            let mut saved_rules = serde_json::to_value(&cup.rules).unwrap();
+            saved_rules["group_size"] = serde_json::json!(size);
+            cup.rules = serde_json::from_value(saved_rules).unwrap();
+
+            regenerate_for_season(&mut cup, 2032, start());
+
+            assert_eq!(cup.groups.len(), 4, "saved group size {size}");
+            assert!(cup.groups.iter().all(|group| group.team_ids.len() == 2));
+            assert_eq!(cup.fixtures.len(), 8);
+        }
     }
 
     #[test]
