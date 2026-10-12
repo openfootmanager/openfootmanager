@@ -235,7 +235,7 @@ fn my_formation(game: &serde_json::Value) -> Option<String> {
 
 /// Given a binary built from sources other than the ones under test
 /// When the fixture launches it
-/// Then it refuses, naming both revisions and the rebuild command, and leaves no process behind.
+/// Then it refuses, naming both revisions and the rebuild command.
 #[test]
 #[ignore = "needs a built MCP binary and a display; run via --ignored by the nightly"]
 fn a_stale_binary_is_refused_with_the_rebuild_command() {

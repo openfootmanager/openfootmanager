@@ -181,10 +181,7 @@ impl App {
                     expected_revision(config).as_deref(),
                 );
                 app.client = Some(client);
-                match verdict {
-                    Ok(()) => Ok(app),
-                    Err(stale) => Err(stale),
-                }
+                verdict.map(|()| app)
             }
             Err(detail) => {
                 let bundle = app.failure_bundle(&detail);
