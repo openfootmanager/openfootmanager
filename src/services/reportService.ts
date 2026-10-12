@@ -77,7 +77,25 @@ export interface ReportFields {
   locale: string;
 }
 
+export type UploadFailureKind =
+  | "prepareFailed"
+  | "consentRequired"
+  | "notConfigured"
+  | "disabled"
+  | "tooLarge"
+  | "tooManyFiles"
+  | "rateLimited"
+  | "capacity"
+  | "imagesUnavailable"
+  | "rejected"
+  | "serverError"
+  | "unreachable"
+  | "unconfirmed"
+  | "other";
+
+/** What the backend rejects an upload with: a `kind` to branch on, and the key to translate. */
 export interface UploadFailure {
+  kind: UploadFailureKind;
   key: string;
   retry_after_seconds: number | null;
 }
@@ -103,12 +121,14 @@ export function uploadReportBundle(
   consent: boolean,
 ): Promise<UploadReceipt> {
   return invoke<UploadReceipt>("upload_report_bundle", {
-    reportText,
-    fields,
-    includeSave,
-    consent,
-    screenshotPaths: [],
-    packagePaths: [],
+    request: {
+      reportText,
+      fields,
+      includeSave,
+      consent,
+      screenshotPaths: [],
+      packagePaths: [],
+    },
   });
 }
 

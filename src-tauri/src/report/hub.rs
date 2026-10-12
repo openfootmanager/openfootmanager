@@ -19,7 +19,7 @@ pub const HUB_URL_VARIABLE: &str = "OFM_BUG_REPORT_URL";
 const REPORTS_PATH: &str = "/bug-reports";
 const CONFIG_PATH: &str = "/bug-reports/config";
 
-const MAX_REPORT_JSON_BYTES: usize = 64 * 1024;
+pub const MAX_REPORT_JSON_BYTES: usize = 64 * 1024;
 
 // What the player is told, by translation key. The endpoint's `message` is English written for a
 // log; the contract says to branch on `code`, and the player never sees the other.
@@ -44,17 +44,70 @@ pub const UPLOAD_UNREACHABLE: &str = "be.error.report.upload.unreachable";
 /// side of this key says so.
 pub const UPLOAD_UNCONFIRMED: &str = "be.error.report.upload.unconfirmed";
 
+/// What went wrong, for the frontend to branch on without matching translation keys.
+/// `Other` carries a key from outside this module (a missing save, say).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum UploadFailureKind {
+    PrepareFailed,
+    ConsentRequired,
+    NotConfigured,
+    Disabled,
+    TooLarge,
+    TooManyFiles,
+    RateLimited,
+    Capacity,
+    ImagesUnavailable,
+    Rejected,
+    ServerError,
+    Unreachable,
+    Unconfirmed,
+    Other,
+}
+
+const KEYS_BY_KIND: [(&str, UploadFailureKind); 13] = [
+    (UPLOAD_PREPARE_FAILED, UploadFailureKind::PrepareFailed),
+    (UPLOAD_CONSENT_REQUIRED, UploadFailureKind::ConsentRequired),
+    (UPLOAD_NOT_CONFIGURED, UploadFailureKind::NotConfigured),
+    (UPLOAD_DISABLED, UploadFailureKind::Disabled),
+    (UPLOAD_TOO_LARGE, UploadFailureKind::TooLarge),
+    (UPLOAD_TOO_MANY_FILES, UploadFailureKind::TooManyFiles),
+    (UPLOAD_RATE_LIMITED, UploadFailureKind::RateLimited),
+    (UPLOAD_CAPACITY, UploadFailureKind::Capacity),
+    (
+        UPLOAD_IMAGES_UNAVAILABLE,
+        UploadFailureKind::ImagesUnavailable,
+    ),
+    (UPLOAD_REJECTED, UploadFailureKind::Rejected),
+    (UPLOAD_SERVER_ERROR, UploadFailureKind::ServerError),
+    (UPLOAD_UNREACHABLE, UploadFailureKind::Unreachable),
+    (UPLOAD_UNCONFIRMED, UploadFailureKind::Unconfirmed),
+];
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct UploadFailure {
+    pub kind: UploadFailureKind,
     pub key: String,
     pub retry_after_seconds: Option<u64>,
 }
 
 impl UploadFailure {
     pub fn key(key: &str) -> Self {
+        let kind = KEYS_BY_KIND
+            .iter()
+            .find(|(known, _)| *known == key)
+            .map_or(UploadFailureKind::Other, |(_, kind)| *kind);
         Self {
+            kind,
             key: key.to_owned(),
             retry_after_seconds: None,
+        }
+    }
+
+    fn rate_limited(retry_after_seconds: Option<u64>) -> Self {
+        Self {
+            retry_after_seconds,
+            ..Self::key(UPLOAD_RATE_LIMITED)
         }
     }
 }
@@ -195,10 +248,7 @@ pub fn fetch_config(
             }
         })?;
     if response.status == 429 {
-        return Err(UploadFailure {
-            key: UPLOAD_RATE_LIMITED.to_owned(),
-            retry_after_seconds: response.retry_after_seconds,
-        });
+        return Err(UploadFailure::rate_limited(response.retry_after_seconds));
     }
     let config: UploadConfig = (response.status == 200)
         .then(|| serde_json::from_slice(&response.body).ok())
@@ -316,14 +366,19 @@ fn plan_files(parts: &UploadParts, config: &UploadConfig) -> Result<Vec<FilePart
     Ok(files)
 }
 
-fn boundary_for(parts: &[(Vec<u8>, &[u8])]) -> String {
+fn random_boundary() -> String {
     let mut rng = rand::rng();
+    format!(
+        "----ofm{:016x}{:016x}",
+        rng.random::<u64>(),
+        rng.random::<u64>()
+    )
+}
+
+/// The first boundary `mint` offers that occurs in none of the parts.
+fn boundary_for(parts: &[(Vec<u8>, &[u8])], mint: &mut dyn FnMut() -> String) -> String {
     loop {
-        let candidate = format!(
-            "----ofm{:016x}{:016x}",
-            rng.random::<u64>(),
-            rng.random::<u64>()
-        );
+        let candidate = mint();
         let needle = candidate.as_bytes();
         let clashes = parts
             .iter()
@@ -334,7 +389,11 @@ fn boundary_for(parts: &[(Vec<u8>, &[u8])]) -> String {
     }
 }
 
-fn multipart_body(report_json: &str, files: &[(&FilePart, Vec<u8>)]) -> (String, Vec<u8>) {
+fn multipart_body(
+    report_json: &str,
+    files: &[(&FilePart, Vec<u8>)],
+    mint_boundary: &mut dyn FnMut() -> String,
+) -> (String, Vec<u8>) {
     let mut sections: Vec<(Vec<u8>, &[u8])> = vec![(
         b"Content-Disposition: form-data; name=\"report\"\r\nContent-Type: application/json\r\n\r\n"
             .to_vec(),
@@ -348,7 +407,7 @@ fn multipart_body(report_json: &str, files: &[(&FilePart, Vec<u8>)]) -> (String,
         );
         sections.push((header.into_bytes(), bytes.as_slice()));
     }
-    let boundary = boundary_for(&sections);
+    let boundary = boundary_for(&sections, mint_boundary);
     let mut body = Vec::new();
     for (header, content) in &sections {
         body.extend_from_slice(format!("--{boundary}\r\n").as_bytes());
@@ -407,7 +466,7 @@ fn interpret(response: &HubResponse) -> Result<String, UploadFailure> {
         retry_after_seconds: (key == UPLOAD_RATE_LIMITED)
             .then_some(response.retry_after_seconds)
             .flatten(),
-        key: key.to_owned(),
+        ..UploadFailure::key(key)
     })
 }
 
@@ -419,9 +478,12 @@ pub fn submit(
     game_version: &str,
     parts: &UploadParts,
 ) -> Result<String, UploadFailure> {
-    if !is_accepted_game_version(game_version) || parts.report_json.len() > MAX_REPORT_JSON_BYTES {
-        log::error!("[report] this build cannot form a valid upload request");
+    if !is_accepted_game_version(game_version) {
+        log::error!("[report] this build's version would be refused by the server");
         return Err(UploadFailure::key(UPLOAD_SERVER_ERROR));
+    }
+    if parts.report_json.len() > MAX_REPORT_JSON_BYTES {
+        return Err(UploadFailure::key(UPLOAD_TOO_LARGE));
     }
     let config = fetch_config(transport, endpoint)?;
     let planned = plan_files(parts, &config)?;
@@ -431,7 +493,7 @@ pub fn submit(
             .map_err(|error| io_failure_to_prepare("an attachment", &error))?;
         files.push((file, bytes));
     }
-    let (content_type, body) = multipart_body(&parts.report_json, &files);
+    let (content_type, body) = multipart_body(&parts.report_json, &files, &mut random_boundary);
 
     let response = transport
         .post_multipart(endpoint.reports_url(), game_version, &content_type, body)
@@ -806,10 +868,7 @@ mod tests {
 
         assert_eq!(
             interpret(&limited),
-            Err(UploadFailure {
-                key: UPLOAD_RATE_LIMITED.to_owned(),
-                retry_after_seconds: Some(3600)
-            })
+            Err(UploadFailure::rate_limited(Some(3600)))
         );
         assert_eq!(interpret(&capacity), Err(failure(UPLOAD_CAPACITY)));
     }
@@ -864,10 +923,7 @@ mod tests {
         });
         assert_eq!(
             fetch_config(&transport, &endpoint()),
-            Err(UploadFailure {
-                key: UPLOAD_RATE_LIMITED.to_owned(),
-                retry_after_seconds: Some(30)
-            })
+            Err(UploadFailure::rate_limited(Some(30)))
         );
 
         transport.config = Ok(response(200, "<html></html>"));
@@ -1165,5 +1221,89 @@ mod tests {
         assert_eq!(parsed[1].1, tricky);
         assert_eq!(parsed[2].1, b"A");
         assert_eq!(parsed[3].1, b"B");
+    }
+
+    /// Given every translation key this module can fail with,
+    /// when a failure is made from each,
+    /// then it carries its own kind, so the frontend never has to match on a key — and a key from
+    /// elsewhere is `Other`.
+    #[test]
+    fn every_upload_key_has_its_own_kind() {
+        use UploadFailureKind::*;
+        for (key, kind) in [
+            (UPLOAD_PREPARE_FAILED, PrepareFailed),
+            (UPLOAD_CONSENT_REQUIRED, ConsentRequired),
+            (UPLOAD_NOT_CONFIGURED, NotConfigured),
+            (UPLOAD_DISABLED, Disabled),
+            (UPLOAD_TOO_LARGE, TooLarge),
+            (UPLOAD_TOO_MANY_FILES, TooManyFiles),
+            (UPLOAD_RATE_LIMITED, RateLimited),
+            (UPLOAD_CAPACITY, Capacity),
+            (UPLOAD_IMAGES_UNAVAILABLE, ImagesUnavailable),
+            (UPLOAD_REJECTED, Rejected),
+            (UPLOAD_SERVER_ERROR, ServerError),
+            (UPLOAD_UNREACHABLE, Unreachable),
+            (UPLOAD_UNCONFIRMED, Unconfirmed),
+        ] {
+            assert_eq!(UploadFailure::key(key).kind, kind, "{key}");
+        }
+        assert_eq!(
+            UploadFailure::key("be.error.report.saveMissing").kind,
+            Other
+        );
+    }
+
+    /// Given a failure of each kind,
+    /// when it is serialised for the frontend,
+    /// then the kind is its camelCase name, which the TypeScript union spells out.
+    #[test]
+    fn the_kind_serialises_in_camel_case() {
+        let json = serde_json::to_value(UploadFailure::rate_limited(Some(5))).expect("json");
+
+        assert_eq!(json["kind"], "rateLimited");
+        assert_eq!(json["key"], UPLOAD_RATE_LIMITED);
+        assert_eq!(json["retry_after_seconds"], 5);
+    }
+
+    /// Given a boundary source whose first offer occurs inside a part,
+    /// when the body is built,
+    /// then that boundary is skipped and the next one is used.
+    #[test]
+    fn a_boundary_that_occurs_in_a_part_is_not_used() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let bundle = file(dir.path(), "r.zip", b"zip with ----clash inside");
+        let planned = FilePart {
+            field: "bundle",
+            path: bundle,
+            limit: 100,
+        };
+        let mut offers = ["----clash", "----fine"].into_iter();
+        let mut mint = || offers.next().expect("an offer").to_owned();
+
+        let (content_type, body) = multipart_body(
+            "{}",
+            &[(&planned, b"zip with ----clash inside".to_vec())],
+            &mut mint,
+        );
+
+        assert_eq!(content_type, "multipart/form-data; boundary=----fine");
+        assert!(String::from_utf8_lossy(&body).starts_with("------fine\r\n"));
+    }
+
+    /// Given a `report` part over the server's 64 KiB limit,
+    /// when it is submitted,
+    /// then the player is told it is too large — not that the server failed — and nothing is sent.
+    #[test]
+    fn an_oversized_report_part_is_too_large_not_a_server_error() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let transport = FakeTransport::accepting();
+        let mut parts = parts_with(file(dir.path(), "r.zip", b"PK"));
+        parts.report_json = "x".repeat(MAX_REPORT_JSON_BYTES + 1);
+
+        assert_eq!(
+            submit(&transport, &endpoint(), "0.3.0", &parts),
+            Err(failure(UPLOAD_TOO_LARGE))
+        );
+        assert!(transport.gets.borrow().is_empty());
     }
 }

@@ -4219,7 +4219,7 @@
     "referenceCodeHint": "Indica este código se perguntares pelo teu relatório. Para o eliminar, escreve para bugreport@openfootmanager.com com este código. Não é uma palavra-passe: ninguém o pode usar para ver o teu relatório.",
     "referenceCodeSaved": "Podes voltar a encontrá-lo em Definições → Ajuda → Os teus relatórios.",
     "notRecorded": "Não foi possível adicionar este código à tua lista de relatórios. Por favor, aponta-o.",
-    "copyCode": "Copiar código",
+    "copyCodeFor": "Copiar o código {{code}}",
     "codeCopied": "Copiado"
   },
   "crashPrompt": {

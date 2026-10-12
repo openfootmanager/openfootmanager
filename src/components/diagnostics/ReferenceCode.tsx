@@ -39,8 +39,8 @@ export function ReferenceCode({ code, size = "md" }: ReferenceCodeProps) {
         onClick={() => {
           void copy();
         }}
-        aria-label={t("reportBug.copyCode")}
-        title={t("reportBug.copyCode")}
+        aria-label={t("reportBug.copyCodeFor", { code })}
+        title={t("reportBug.copyCodeFor", { code })}
         className="p-1 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-navy-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
       >
         <Copy className="w-4 h-4" aria-hidden="true" />

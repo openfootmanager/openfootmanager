@@ -1715,7 +1715,7 @@
   "teamProfile": {
     "clubInfo": "Informations du Club",
     "stadium": "Stade",
-    "capacity": "Le serveur de rapports est plein pour le moment. Utilisez le formulaire GitHub.",
+    "capacity": "Capacité",
     "leaguePos": "Pos en Ligue",
     "leagueStanding": "Classement en Ligue",
     "squadOverview": "Aperçu de l'Effectif",
@@ -2756,7 +2756,7 @@
           "notConfigured": "Cette version du jeu ne peut pas envoyer de rapports directement. Utilisez plutôt le formulaire GitHub.",
           "disabled": "L'envoi de rapports est désactivé pour le moment. Utilisez le formulaire GitHub.",
           "tooManyFiles": "Trop de fichiers sont joints à ce rapport.",
-          "capacity": "Le serveur de rapports est plein pour le moment. Utilise le formulaire GitHub.",
+          "capacity": "Le serveur de rapports est plein pour le moment. Utilisez le formulaire GitHub.",
           "imagesUnavailable": "Le serveur de rapports ne peut pas traiter les captures d'écran pour l'instant. Réessayez sans elles ou utilisez le formulaire GitHub.",
           "rateLimitedWait": "Trop de rapports ont été envoyés depuis votre connexion récemment. Réessayez dans environ {{minutes}} min.",
           "tooLarge": "Le rapport est trop volumineux pour être envoyé directement.",
@@ -4219,7 +4219,7 @@
     "referenceCodeHint": "Citez ce code si vous posez une question sur votre rapport. Pour le faire supprimer, écrivez à bugreport@openfootmanager.com avec ce code. Ce n'est pas un mot de passe : personne ne peut l'utiliser pour voir votre rapport.",
     "referenceCodeSaved": "Vous le retrouverez dans Paramètres → Aide → Vos rapports.",
     "notRecorded": "Ce code n'a pas pu être ajouté à votre liste de rapports. Notez-le, s'il vous plaît.",
-    "copyCode": "Copier le code",
+    "copyCodeFor": "Copier le code {{code}}",
     "codeCopied": "Copié"
   },
   "crashPrompt": {

@@ -6,7 +6,9 @@ vi.mock("../../lib/logger", () => ({
   logError: (message: string) => logError(message),
 }));
 vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string, params?: { code?: string }) => (params?.code ? `${key}:${params.code}` : key),
+  }),
 }));
 
 import { ReferenceCode } from "./ReferenceCode";
@@ -37,7 +39,7 @@ describe("ReferenceCode", () => {
 
     expect(screen.getByText("7K2M9Q4R")).toBeInTheDocument();
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "reportBug.copyCode" }));
+      fireEvent.click(screen.getByRole("button", { name: /^reportBug\.copyCodeFor:/ }));
     });
 
     expect(writeText).toHaveBeenCalledWith("7K2M9Q4R");
@@ -54,10 +56,31 @@ describe("ReferenceCode", () => {
     render(<ReferenceCode code="7K2M9Q4R" />);
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "reportBug.copyCode" }));
+      fireEvent.click(screen.getByRole("button", { name: /^reportBug\.copyCodeFor:/ }));
     });
 
     expect(screen.getByRole("status")).not.toHaveTextContent("reportBug.codeCopied");
     expect(logError).toHaveBeenCalled();
+  });
+
+  /**
+   * Given two reference codes on one screen (the sent screen and the list)
+   * When a screen reader lists the buttons
+   * Then each copy button's name carries its own code, so they can be told apart
+   */
+  it("names each copy button after its code", () => {
+    render(
+      <>
+        <ReferenceCode code="OFM-7K2QX9DM" />
+        <ReferenceCode code="OFM-3N4P5R6T" />
+      </>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "reportBug.copyCodeFor:OFM-7K2QX9DM" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "reportBug.copyCodeFor:OFM-3N4P5R6T" }),
+    ).toBeVisible();
   });
 });

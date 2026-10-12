@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const saveDialog = vi.fn();
@@ -576,8 +576,8 @@ describe("ReportBugModal with a server to send to", () => {
     useGameStore.setState({ gameState: null });
   });
 
-  async function reachPreview() {
-    render(<ReportBugModal onClose={vi.fn()} />);
+  async function reachPreview(props: { onClose?: () => void; onUploaded?: () => void } = {}) {
+    render(<ReportBugModal onClose={props.onClose ?? vi.fn()} onUploaded={props.onUploaded} />);
     fillRequired();
     fireEvent.click(screen.getByRole("button", { name: "reportBug.review" }));
     await screen.findByRole("heading", { name: "reportBug.previewTitle" });
@@ -701,6 +701,7 @@ describe("ReportBugModal with a server to send to", () => {
    */
   it("falls back to the GitHub form when the upload fails", async () => {
     uploadReportBundle.mockRejectedValue({
+      kind: "rateLimited",
       key: "be.error.report.upload.rateLimited",
       retry_after_seconds: null,
     });
@@ -721,12 +722,41 @@ describe("ReportBugModal with a server to send to", () => {
   });
 
   /**
+   * Given an upload that is still running
+   * When the player closes the dialog
+   * Then it closes at once, and when the upload finishes the Settings list is told to refresh
+   */
+  it("lets the player leave while an upload runs, and still reports the receipt", async () => {
+    let finish: (receipt: { code: string; recorded: boolean }) => void = () => {};
+    uploadReportBundle.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const onClose = vi.fn();
+    const onUploaded = vi.fn();
+    await reachPreview({ onClose, onUploaded });
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+    const close = screen.getByRole("button", { name: "common.close" });
+    expect(close).toBeEnabled();
+
+    fireEvent.click(close);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onUploaded).not.toHaveBeenCalled();
+    await act(async () => finish({ code: "OFM-7K2QX9DM", recorded: true }));
+
+    expect(onUploaded).toHaveBeenCalledTimes(1);
+  });
+
+  /**
    * Given a server that rate-limits the report and says how long to wait,
    * when the player presses Send,
    * then they are told the wait in whole minutes, rounded up, with the GitHub fallback.
    */
   it("tells the player how many minutes to wait when rate limited", async () => {
     uploadReportBundle.mockRejectedValue({
+      kind: "rateLimited",
       key: "be.error.report.upload.rateLimited",
       retry_after_seconds: 61,
     });
@@ -747,6 +777,7 @@ describe("ReportBugModal with a server to send to", () => {
    */
   it("shows the wait message only for a rate limit", async () => {
     uploadReportBundle.mockRejectedValue({
+      kind: "capacity",
       key: "be.error.report.upload.capacity",
       retry_after_seconds: 600,
     });
@@ -768,6 +799,7 @@ describe("ReportBugModal with a server to send to", () => {
    */
   it("suggests unticking the save when the report is too large", async () => {
     uploadReportBundle.mockRejectedValue({
+      kind: "tooLarge",
       key: "be.error.report.upload.tooLarge",
       retry_after_seconds: null,
     });
