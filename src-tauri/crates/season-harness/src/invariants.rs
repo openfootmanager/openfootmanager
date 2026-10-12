@@ -1181,4 +1181,25 @@ mod tests {
 
         assert_eq!(invariants.violations().len(), recorded);
     }
+
+    /// Given one rule that fails more often than the cap and another that fails once,
+    /// When both are recorded,
+    /// Then the flood is cut at the cap with a count of the rest, and the other rule is still kept.
+    #[test]
+    fn a_rule_that_fails_everywhere_is_capped_without_hiding_another() {
+        let mut invariants = Invariants::new(&world());
+
+        for n in 0..MAX_RECORDED + 3 {
+            invariants.record(1, None, "flood", format!("fault {n}"), false);
+        }
+        invariants.record(1, None, "quiet", "one fault".to_string(), false);
+
+        let flood = invariants.report_of("flood");
+        assert_eq!(flood.lines().count(), MAX_RECORDED + 1);
+        assert!(
+            flood.ends_with("... and 3 more flood not recorded"),
+            "{flood}"
+        );
+        assert!(invariants.report_of("quiet").contains("one fault"));
+    }
 }

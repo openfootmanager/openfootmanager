@@ -23,6 +23,9 @@ const CLASHING_CALENDAR_ISSUE: u32 = 553;
 /// Every rule but one must hold. The one is carried as the known bug it is: the gate passes while
 /// clubs are still booked inside the minimum rest, fails with "remove the guard" the day they
 /// are not, and fails on any other broken rule. Calendar slice S4a removes the guard.
+///
+/// The guard is per rule, not per bug: a new club-rest clash of another shape would also pass as
+/// #553 until S4a removes the guard.
 fn assert_holds_every_invariant_but_the_known_calendar_bug(invariants: &Invariants, run: &str) {
     let others = invariants.report_except(CLUB_RESTS_BETWEEN_MATCHES);
     assert!(others.is_empty(), "{run} broke an invariant:\n{others}");
