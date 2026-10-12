@@ -170,3 +170,36 @@ fn catalog_matches_the_live_server() {
         problems.join("\n")
     );
 }
+
+/// Given a scenario that fails after it changed the game
+/// When the fixture is dropped by the failure
+/// Then the kept data directory holds the complete transcript, with the earlier calls, and the game as it stands.
+#[test]
+#[ignore = "needs a built MCP binary and a display; run via --ignored by the nightly"]
+fn a_failed_scenario_keeps_its_transcript_and_state() {
+    let app = App::launch(&AppConfig::default()).unwrap();
+    mcp_e2e::career::begin(&app, mcp_e2e::career::seed(), "seasonStart", "ENG").unwrap();
+    app.client().squad_set_formation("3-5-2").unwrap();
+    let kept = app.data_dir().unwrap().to_path_buf();
+
+    let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+        let _app = app;
+        panic!("the scenario failed");
+    }));
+
+    assert!(failure.is_err());
+    let transcript = std::fs::read_to_string(kept.join("transcript.json")).unwrap();
+    assert!(
+        transcript.contains("game_select_team"),
+        "an early call is missing"
+    );
+    assert!(
+        transcript.contains("squad_set_formation"),
+        "the last call is missing"
+    );
+    let state: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(kept.join("game-state.json")).unwrap())
+            .unwrap();
+    assert_eq!(state["game"]["teams"].as_array().map(Vec::len), Some(16));
+    let _ = std::fs::remove_dir_all(kept);
+}

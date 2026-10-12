@@ -14,6 +14,7 @@ const GRACEFUL_STOP_WITHIN: Duration = Duration::from_secs(10);
 const LOG_LINES_IN_BUNDLE: usize = 50;
 const LAST_EXCHANGES_IN_BUNDLE: usize = 10;
 const SHORTENED_TO: usize = 400;
+const STATE_CAPTURE_TIMEOUT: Duration = Duration::from_secs(5);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -179,6 +180,11 @@ impl App {
         find_saves_dir(&data)
     }
 
+    /// The app's private data root: where it keeps its saves, and where a failure leaves evidence.
+    pub fn data_dir(&self) -> Option<&Path> {
+        self.dir.as_ref().map(TempDir::path)
+    }
+
     fn url(&self) -> String {
         format!("http://127.0.0.1:{}/mcp", self.port)
     }
@@ -209,8 +215,10 @@ impl App {
             .dir
             .as_ref()
             .map_or_else(|| "?".to_string(), |d| d.path().display().to_string());
+        let evidence = self.write_evidence();
         format!(
             "{detail}\nrepro: {}\nrevision: {}\nbinary: {}\nport: {}\nargs: {}\ndata kept in: {kept}\n\
+             complete transcript and game state: {evidence}\n\
              last exchanges:\n{}\nlast {} log lines:\n{}",
             repro_line(),
             revision(),
@@ -221,6 +229,47 @@ impl App {
             tail.len(),
             tail.join("\n")
         )
+    }
+
+    /// Writes the complete transcript and, if the app still answers, the game as it stands into
+    /// the data directory, so a failure after a mutation keeps every earlier call and the state
+    /// they left. Returns where, or why not.
+    fn write_evidence(&self) -> String {
+        let Some(dir) = self.dir.as_ref().map(|d| d.path().to_path_buf()) else {
+            return "(the data directory is gone)".to_string();
+        };
+        let Some(client) = self.client.as_ref() else {
+            return "(no session was open)".to_string();
+        };
+        let transcript: Vec<serde_json::Value> = client
+            .transcript()
+            .into_iter()
+            .map(|exchange| {
+                serde_json::json!({"request": exchange.request, "response": exchange.response})
+            })
+            .collect();
+        let transcript_file = dir.join("transcript.json");
+        let wrote_transcript = serde_json::to_string_pretty(&transcript)
+            .ok()
+            .is_some_and(|text| fs::write(&transcript_file, text).is_ok());
+
+        // A fresh short-lived session: the scenario's own client may be the one that hung.
+        let state_file = dir.join("game-state.json");
+        let state = Client::connect(&self.url(), STATE_CAPTURE_TIMEOUT)
+            .and_then(|probe| probe.call_value("info_game_state", serde_json::json!({})));
+        let state_note = match state {
+            Ok(state) => match fs::write(&state_file, state.to_string()) {
+                Ok(()) => state_file.display().to_string(),
+                Err(error) => format!("could not write the game state: {error}"),
+            },
+            Err(error) => format!("no game state: {error}"),
+        };
+        let transcript_note = if wrote_transcript {
+            transcript_file.display().to_string()
+        } else {
+            "could not write the transcript".to_string()
+        };
+        format!("{transcript_note}, {state_note}")
     }
 
     /// The last requests sent and what came back, shortened; the last one with a reply is the last
