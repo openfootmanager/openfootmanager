@@ -230,7 +230,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `redact_report_fields` | values | `Vec<String>` | Redact free text for anything leaving outside the bundle |
 | `suggested_report_file_name` | — | `String` | Dated default name for the save dialog |
 | `report_upload_available` | — | `bool` | Whether OFMHub takes reports right now: reads its `/bug-reports/config` (the kill switch). Debug builds honour `OFM_BUG_REPORT_URL` |
-| `upload_report_bundle` | report_text, fields, include_save, consent, screenshot_paths, package_paths | `UploadReceipt` | With consent, build the bundle privately and send it to OFMHub as multipart ([contract](api/bug-reports.md)); records the reference. Rejects with `{key, retry_after_seconds}` |
+| `upload_report_bundle` | request (`reportText`, `fields`, `includeSave`, `consent`, `screenshotPaths`, `packagePaths`) | `UploadReceipt` | With consent, build the bundle privately and send it to OFMHub as multipart ([contract](api/bug-reports.md)); a retry with the same request resends the first build's bytes; records the reference. Rejects with `{kind, key, retry_after_seconds}` |
 | `list_submitted_reports` | — | `Vec<SubmittedReport>` | Reference codes from `reports.json`, newest first |
 
 ---
