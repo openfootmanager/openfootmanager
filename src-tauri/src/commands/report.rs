@@ -16,6 +16,8 @@ use crate::report::bundle::{self, BundleInputs, BundleSummary};
 use crate::report::history::{self, SubmittedReport};
 use crate::report::http::UreqTransport;
 use crate::report::hub::{self, HubEndpoint, Transport, UploadFailure, UploadParts};
+use crate::report::payload::{report_json, Machine, ReportFields};
+use crate::report::prepared::{Built, PreparedUploads};
 use crate::report::redact::Redactor;
 // The key itself lives at the crate root, where the other holders of this lock already read it
 // from. Spelling it out again here is how two copies of a translation key drift apart.
@@ -409,67 +411,6 @@ fn as_upload_error(key: String) -> UploadFailure {
     }
 }
 
-#[derive(Debug, Clone, Default, serde::Deserialize)]
-pub struct ReportFields {
-    pub what_happened: String,
-    pub expected: String,
-    pub steps: String,
-    /// The frequency choice's key (`always`, `sometimes`, ...), not its translated label.
-    pub frequency: String,
-    pub game_context: String,
-    pub locale: String,
-}
-
-/// The endpoint's field limits, in characters (bytes for `diagnostics`).
-const TEXT_FIELD_MAX_CHARS: usize = 10_000;
-const FREQUENCY_MAX_CHARS: usize = 32;
-const LOCALE_MAX_CHARS: usize = 16;
-const OS_MAX_CHARS: usize = 32;
-const ARCH_MAX_CHARS: usize = 16;
-const WEBVIEW_MAX_CHARS: usize = 64;
-const DIAGNOSTICS_MAX_BYTES: usize = 64 * 1024;
-
-fn clipped(redactor: &Redactor, text: &str, max_chars: usize) -> String {
-    redactor.apply(text).chars().take(max_chars).collect()
-}
-
-/// Redacted like everything else that leaves the machine.
-fn report_json(
-    redactor: &Redactor,
-    fields: &ReportFields,
-    diagnostics: &DiagnosticsReport,
-) -> String {
-    let diagnostics = serde_json::to_value(diagnostics)
-        .ok()
-        .filter(|value| value.to_string().len() <= DIAGNOSTICS_MAX_BYTES);
-    serde_json::json!({
-        "what_happened": clipped(redactor, &fields.what_happened, TEXT_FIELD_MAX_CHARS),
-        "expected": clipped(redactor, &fields.expected, TEXT_FIELD_MAX_CHARS),
-        "steps": clipped(redactor, &fields.steps, TEXT_FIELD_MAX_CHARS),
-        "frequency": clipped(redactor, &fields.frequency, FREQUENCY_MAX_CHARS),
-        "game_context": clipped(redactor, &fields.game_context, TEXT_FIELD_MAX_CHARS),
-        "locale": clipped(redactor, &fields.locale, LOCALE_MAX_CHARS),
-        "os": clipped(redactor, &diagnostics_field(&diagnostics, "os"), OS_MAX_CHARS),
-        "arch": clipped(redactor, &diagnostics_field(&diagnostics, "arch"), ARCH_MAX_CHARS),
-        "webview_version": clipped(
-            redactor,
-            &diagnostics_field(&diagnostics, "webview_version"),
-            WEBVIEW_MAX_CHARS
-        ),
-        "diagnostics": diagnostics,
-    })
-    .to_string()
-}
-
-fn diagnostics_field(diagnostics: &Option<serde_json::Value>, key: &str) -> String {
-    diagnostics
-        .as_ref()
-        .and_then(|value| value.get(key))
-        .and_then(serde_json::Value::as_str)
-        .unwrap_or_default()
-        .to_owned()
-}
-
 fn send_and_record(
     transport: &dyn Transport,
     endpoint: &HubEndpoint,
@@ -500,87 +441,134 @@ fn send_and_record(
 /// last place that can refuse to send on the player's behalf. `include_save` is never dropped to
 /// make a bundle fit; a bundle too large for the server is an error the player answers. The save
 /// travels inside the bundle, never as its own part.
-#[tauri::command]
-#[expect(
-    clippy::too_many_arguments,
-    reason = "a Tauri command takes each IPC argument separately; owner=#569"
-)]
-pub async fn upload_report_bundle(
-    app_handle: tauri::AppHandle,
-    state: State<'_, Arc<StateManager>>,
-    save_manager: State<'_, Arc<SaveManagerState>>,
-    previous_crash: State<'_, crash::PreviousCrash>,
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadRequest {
     report_text: String,
     fields: ReportFields,
     include_save: bool,
     consent: bool,
     screenshot_paths: Vec<String>,
     package_paths: Vec<String>,
+}
+
+impl UploadRequest {
+    /// Two requests with the same identity are the same report, so a retry reuses the first build.
+    fn identity(&self) -> String {
+        serde_json::to_string(self).unwrap_or_default()
+    }
+}
+
+struct UploadSession {
+    app_handle: tauri::AppHandle,
+    state: Arc<StateManager>,
+    save_manager: Arc<SaveManagerState>,
+    crash_json: Option<String>,
+    crash_on_previous_run: bool,
+    prepared: Arc<PreparedUploads>,
+}
+
+fn build_report(
+    session: &UploadSession,
+    request: &UploadRequest,
+    scratch: &Path,
+) -> Result<Built, UploadFailure> {
+    let snapshot = snapshot_diagnostics(
+        &session.app_handle,
+        &session.state,
+        &session.save_manager,
+        session.crash_on_previous_run,
+    );
+    let bundle = scratch.join("report.zip");
+    write_report_bundle(
+        &session.app_handle,
+        &session.state,
+        &session.save_manager,
+        &snapshot,
+        BundleChoices {
+            crash_json: session.crash_json.clone(),
+            report_text: &request.report_text,
+            include_save: request.include_save,
+        },
+        &bundle.to_string_lossy(),
+    )
+    .map_err(as_upload_error)?;
+    let (redactor, diagnostics) = &snapshot;
+    let machine = Machine {
+        os: &diagnostics.os,
+        arch: &diagnostics.arch,
+        webview_version: &diagnostics.webview_version,
+    };
+    Ok((
+        report_json(redactor, &request.fields, &machine, diagnostics),
+        bundle,
+    ))
+}
+
+fn upload_report(
+    session: &UploadSession,
+    endpoint: &HubEndpoint,
+    request: UploadRequest,
 ) -> Result<UploadReceipt, UploadFailure> {
-    let endpoint = upload_preconditions(consent, hub_endpoint())?;
-    let state = state.inner().clone();
-    let save_manager = save_manager.inner().clone();
-    let crash_json = previous_crash.as_json();
-    let crash_on_previous_run = previous_crash.0.is_some();
-
-    tauri::async_runtime::spawn_blocking(move || {
-        let scratch_root = app_handle
-            .path()
-            .app_cache_dir()
-            .unwrap_or_else(|_| std::env::temp_dir());
-        let scratch = std::fs::create_dir_all(&scratch_root)
-            .and_then(|()| {
-                tempfile::Builder::new()
-                    .prefix("ofm-upload-")
-                    .tempdir_in(&scratch_root)
-            })
-            .map_err(|error| {
-                log::error!("[report] could not prepare the upload: {error}");
-                UploadFailure::key(hub::UPLOAD_PREPARE_FAILED)
+    let scratch_root = session
+        .app_handle
+        .path()
+        .app_cache_dir()
+        .unwrap_or_else(|_| std::env::temp_dir());
+    let (report_json, bundle) =
+        session
+            .prepared
+            .get_or_prepare(&request.identity(), &scratch_root, |scratch| {
+                build_report(session, &request, scratch)
             })?;
-        let zip_path = scratch.path().join("report.zip");
-        let snapshot =
-            snapshot_diagnostics(&app_handle, &state, &save_manager, crash_on_previous_run);
-        write_report_bundle(
-            &app_handle,
-            &state,
-            &save_manager,
-            &snapshot,
-            BundleChoices {
-                crash_json,
-                report_text: &report_text,
-                include_save,
-            },
-            &zip_path.to_string_lossy(),
-        )
-        .map_err(as_upload_error)?;
+    let parts = UploadParts {
+        report_json,
+        bundle,
+        screenshots: request.screenshot_paths.iter().map(PathBuf::from).collect(),
+        packages: request.package_paths.iter().map(PathBuf::from).collect(),
+    };
+    let reports_path = session
+        .app_handle
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|dir| history::reports_file_in(&dir));
+    let receipt = send_and_record(
+        UreqTransport::shared(),
+        endpoint,
+        &parts,
+        request.include_save,
+        reports_path.as_deref(),
+        chrono::Utc::now().to_rfc3339(),
+    )?;
+    session.prepared.forget();
+    Ok(receipt)
+}
 
-        let (redactor, diagnostics) = &snapshot;
-        let parts = UploadParts {
-            report_json: report_json(redactor, &fields, diagnostics),
-            bundle: zip_path,
-            screenshots: screenshot_paths.into_iter().map(PathBuf::from).collect(),
-            packages: package_paths.into_iter().map(PathBuf::from).collect(),
-        };
-        let reports_path = app_handle
-            .path()
-            .app_data_dir()
-            .ok()
-            .map(|dir| history::reports_file_in(&dir));
-        send_and_record(
-            UreqTransport::shared(),
-            &endpoint,
-            &parts,
-            include_save,
-            reports_path.as_deref(),
-            chrono::Utc::now().to_rfc3339(),
-        )
-    })
-    .await
-    .map_err(|error| {
-        log::error!("[report] the upload task did not run: {error}");
-        UploadFailure::key(hub::UPLOAD_PREPARE_FAILED)
-    })?
+#[tauri::command]
+pub async fn upload_report_bundle(
+    app_handle: tauri::AppHandle,
+    state: State<'_, Arc<StateManager>>,
+    save_manager: State<'_, Arc<SaveManagerState>>,
+    previous_crash: State<'_, crash::PreviousCrash>,
+    prepared: State<'_, Arc<PreparedUploads>>,
+    request: UploadRequest,
+) -> Result<UploadReceipt, UploadFailure> {
+    let endpoint = upload_preconditions(request.consent, hub_endpoint())?;
+    let session = UploadSession {
+        app_handle,
+        state: state.inner().clone(),
+        save_manager: save_manager.inner().clone(),
+        crash_json: previous_crash.as_json(),
+        crash_on_previous_run: previous_crash.0.is_some(),
+        prepared: prepared.inner().clone(),
+    };
+    tauri::async_runtime::spawn_blocking(move || upload_report(&session, &endpoint, request))
+        .await
+        .map_err(|error| {
+            log::error!("[report] the upload task did not run: {error}");
+            UploadFailure::key(hub::UPLOAD_PREPARE_FAILED)
+        })?
 }
 
 #[tauri::command]
@@ -763,8 +751,8 @@ mod tests {
         assert_eq!(
             receipt,
             Err(UploadFailure {
-                key: hub::UPLOAD_RATE_LIMITED.to_owned(),
-                retry_after_seconds: Some(90)
+                retry_after_seconds: Some(90),
+                ..key(hub::UPLOAD_RATE_LIMITED)
             })
         );
         assert!(history::load(&reports).is_empty());
@@ -799,99 +787,6 @@ mod tests {
                 recorded: false
             })
         );
-    }
-
-    fn sample_diagnostics() -> DiagnosticsReport {
-        DiagnosticsReport {
-            app_version: "0.3.0".to_owned(),
-            os: "linux".to_owned(),
-            arch: "x86_64".to_owned(),
-            webview_version: "2.40".to_owned(),
-            log_directory: "~/logs".to_owned(),
-            crash_on_previous_run: false,
-            has_active_save: true,
-            log_files: Vec::new(),
-            save_bytes: Some(10),
-        }
-    }
-
-    fn sample_fields() -> ReportFields {
-        ReportFields {
-            what_happened: "it died loading /home/srobot/saves/a.db".to_owned(),
-            expected: "to open".to_owned(),
-            steps: "load".to_owned(),
-            frequency: "always".to_owned(),
-            game_context: "season 2".to_owned(),
-            locale: "en".to_owned(),
-        }
-    }
-
-    /// Given words that mention the player's home directory,
-    /// when the `report` part is built,
-    /// then they are redacted like everything else that leaves the machine.
-    #[test]
-    fn the_report_part_is_redacted() {
-        let redactor = Redactor::new(Some("/home/srobot"), Some("srobot"), None);
-
-        let json: serde_json::Value = serde_json::from_str(&report_json(
-            &redactor,
-            &sample_fields(),
-            &sample_diagnostics(),
-        ))
-        .expect("json");
-
-        assert_eq!(json["what_happened"], "it died loading ~/saves/a.db");
-        assert_eq!(json["frequency"], "always");
-        assert_eq!(json["os"], "linux");
-        assert_eq!(json["arch"], "x86_64");
-        assert_eq!(json["webview_version"], "2.40");
-        assert_eq!(json["diagnostics"]["has_active_save"], true);
-    }
-
-    /// Given fields longer than the endpoint accepts,
-    /// when the `report` part is built,
-    /// then each is cut to its limit in characters, not bytes.
-    #[test]
-    fn the_report_part_respects_the_field_limits() {
-        let redactor = Redactor::new(None, None, None);
-        let mut fields = sample_fields();
-        fields.what_happened = "é".repeat(TEXT_FIELD_MAX_CHARS + 5);
-        fields.frequency = "f".repeat(FREQUENCY_MAX_CHARS + 5);
-        fields.locale = "l".repeat(LOCALE_MAX_CHARS + 5);
-
-        let json: serde_json::Value =
-            serde_json::from_str(&report_json(&redactor, &fields, &sample_diagnostics()))
-                .expect("json");
-
-        assert_eq!(
-            json["what_happened"].as_str().unwrap().chars().count(),
-            TEXT_FIELD_MAX_CHARS
-        );
-        assert_eq!(
-            json["frequency"].as_str().unwrap().chars().count(),
-            FREQUENCY_MAX_CHARS
-        );
-        assert_eq!(
-            json["locale"].as_str().unwrap().chars().count(),
-            LOCALE_MAX_CHARS
-        );
-    }
-
-    /// Given diagnostics too big for the endpoint's `diagnostics` limit,
-    /// when the `report` part is built,
-    /// then the object is left out rather than failing the whole report.
-    #[test]
-    fn oversized_diagnostics_are_left_out_not_sent() {
-        let redactor = Redactor::new(None, None, None);
-        let mut diagnostics = sample_diagnostics();
-        diagnostics.log_directory = "x".repeat(DIAGNOSTICS_MAX_BYTES + 1);
-
-        let json: serde_json::Value =
-            serde_json::from_str(&report_json(&redactor, &sample_fields(), &diagnostics))
-                .expect("json");
-
-        assert!(json["diagnostics"].is_null());
-        assert_eq!(json["os"], "");
     }
 
     #[test]

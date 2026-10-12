@@ -7,4 +7,6 @@ pub mod bundle;
 pub mod history;
 pub mod http;
 pub mod hub;
+pub mod payload;
+pub mod prepared;
 pub mod redact;

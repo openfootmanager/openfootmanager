@@ -1715,7 +1715,7 @@
   "teamProfile": {
     "clubInfo": "Informace o klubu",
     "stadium": "Stadion",
-    "capacity": "Server pro hlášení je momentálně plný. Použijte formulář na GitHubu.",
+    "capacity": "Kapacita",
     "leaguePos": "Ligová pozice",
     "leagueStanding": "Ligové umístění",
     "squadOverview": "Přehled soupisky",
@@ -2603,7 +2603,7 @@
           "notConfigured": "Tato verze hry neumí posílat hlášení přímo. Použijte formulář na GitHubu.",
           "disabled": "Odesílání hlášení je momentálně vypnuté. Použijte formulář na GitHubu.",
           "tooManyFiles": "K tomuto hlášení je připojeno příliš mnoho souborů.",
-          "capacity": "Server pro hlášení je momentálně plný. Použij formulář na GitHubu.",
+          "capacity": "Server pro hlášení je momentálně plný. Použijte formulář na GitHubu.",
           "imagesUnavailable": "Server pro hlášení teď nedokáže zpracovat snímky obrazovky. Zkuste to bez nich nebo použijte formulář na GitHubu.",
           "rateLimitedWait": "Z vašeho připojení bylo v poslední době odesláno příliš mnoho hlášení. Zkuste to znovu asi za {{minutes}} min.",
           "tooLarge": "Hlášení je příliš velké na přímé odeslání.",

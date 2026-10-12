@@ -54,6 +54,7 @@ pub fn run() {
                 .build(),
         )
         .manage(state_manager.clone())
+        .manage(Arc::new(report::prepared::PreparedUploads::default()))
         .setup(move |app| {
             use tauri::Manager as TauriManager;
 
