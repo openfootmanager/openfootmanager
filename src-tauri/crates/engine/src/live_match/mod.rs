@@ -159,6 +159,10 @@ pub struct MatchSnapshot {
     pub away_yellows: HashMap<String, u8>,
     pub sent_off: HashSet<String>,
     pub penalty_shootout: Option<PenaltyShootoutSnapshot>,
+    /// Marks out of ten for everyone who played, filled once the match is over;
+    /// empty while it is live so a snapshot stays cheap to build every minute.
+    #[serde(default)]
+    pub player_ratings: HashMap<String, f32>,
 }
 
 // ---------------------------------------------------------------------------
@@ -391,7 +395,14 @@ impl LiveMatchState {
     }
 
     /// Convert the finished match into a MatchReport.
-    pub fn into_report(self) -> MatchReport {
+    pub fn into_report(mut self) -> MatchReport {
+        let events = std::mem::take(&mut self.events);
+        self.report_from(events)
+    }
+
+    /// The report for the match as it stands, rated; `events` is passed in so
+    /// `into_report` can move them instead of cloning.
+    pub(crate) fn report_from(&self, events: Vec<MatchEvent>) -> MatchReport {
         let tracked_player_ids = self
             .home
             .players
@@ -401,7 +412,7 @@ impl LiveMatchState {
             .collect();
 
         let mut report = MatchReport::from_events_with_players(
-            self.events,
+            events,
             self.home_possession_ticks,
             self.away_possession_ticks,
             self.current_minute,
