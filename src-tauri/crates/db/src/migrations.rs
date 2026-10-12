@@ -569,8 +569,48 @@ mod tests {
         }
     }
 
-    /// Given a real v050 save with World Cup rows, a package row and a club league, when migrated
-    /// twice, then only the World Cup rows get their key and the others stay NULL.
+    /// A real v050 row for the World Cup competitions the game itself generates, so the migration is
+    /// checked against the generator and not against a hand-copied shape.
+    fn generated_world_cup_rows() -> Vec<(String, String, String, String, i64)> {
+        use chrono::TimeZone;
+        let clock = ofm_core::clock::GameClock::new(
+            chrono::Utc.with_ymd_and_hms(2026, 6, 1, 12, 0, 0).unwrap(),
+        );
+        let manager = domain::manager::Manager::new(
+            "mgr".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "England".into(),
+        );
+        let mut game = ofm_core::game::Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        let windows = ofm_core::national_team::international_window_dates(
+            chrono::Utc.with_ymd_and_hms(2025, 8, 1, 0, 0, 0).unwrap(),
+        );
+        ofm_core::world_cup::schedule_world_cup_qualifying(&mut game, 2026, &windows);
+        ofm_core::world_cup::schedule_world_cup(
+            &mut game,
+            chrono::Utc.with_ymd_and_hms(2026, 6, 10, 0, 0, 0).unwrap(),
+            &ofm_core::world_cup::FORMAT_48,
+        );
+        game.competitions
+            .iter()
+            .filter(|c| ofm_core::world_cup::is_world_cup_competition(c))
+            .map(|c| {
+                (
+                    c.id.clone(),
+                    c.name.clone(),
+                    "InternationalNation".to_string(),
+                    "International".to_string(),
+                    i64::from(c.priority),
+                )
+            })
+            .collect()
+    }
+
+    /// Given a real v050 save holding the World Cup competitions the game generates, a keyless
+    /// authored competition of the very same kind and scope, other authored rows and a club league,
+    /// when migrated twice, then only the generated World Cup rows get their key.
     #[test]
     fn name_key_v051_derives_world_cup_keys_once_and_leaves_other_rows_null() {
         let mut conn = Connection::open_in_memory().unwrap();
@@ -583,24 +623,84 @@ mod tests {
         )
         .to_latest(&mut conn)
         .unwrap();
-        for (id, kind, scope) in [
-            (
-                "world-cup-qualifying-2026",
-                "InternationalNation",
-                "International",
-            ),
-            (
-                "world-cup-playoff-2026",
-                "InternationalNation",
-                "International",
-            ),
-            ("finals-2026", "InternationalNation", "International"),
-            ("pkg-nations-cup", "InternationalNation", "Domestic"),
-            ("ar-d1-apertura", "League", "Domestic"),
-        ] {
+        let generated = generated_world_cup_rows();
+        assert!(
+            generated
+                .iter()
+                .any(|row| row.0.starts_with("world-cup-qualifying-"))
+                && generated.iter().any(|row| row.1.starts_with("World Cup ")),
+            "the generator must have produced qualifying and finals"
+        );
+        let mut rows = generated.clone();
+        rows.extend(
+            [
+                // The playoff is only staged after qualifying is played; its id prefix is the frozen contract.
+                (
+                    "world-cup-playoff-2026",
+                    "Playoff",
+                    "InternationalNation",
+                    "International",
+                    10_000,
+                ),
+                // Authored by a package: same kind and scope as the finals, but not generated.
+                (
+                    "pkg-nations-cup",
+                    "Nations Cup",
+                    "InternationalNation",
+                    "International",
+                    0,
+                ),
+                (
+                    "pkg-world-cup-lookalike",
+                    "World Cup 2030",
+                    "InternationalNation",
+                    "International",
+                    0,
+                ),
+                (
+                    "pkg-domestic-nations",
+                    "Nations League",
+                    "InternationalNation",
+                    "Domestic",
+                    0,
+                ),
+                (
+                    "pkg-high-priority",
+                    "Nations Cup",
+                    "InternationalNation",
+                    "International",
+                    10_000,
+                ),
+                (
+                    "pkg-domestic-lookalike",
+                    "World Cup 2031",
+                    "InternationalNation",
+                    "Domestic",
+                    10_000,
+                ),
+                (
+                    "pkg-league-lookalike",
+                    "World Cup 2032",
+                    "League",
+                    "International",
+                    10_000,
+                ),
+                ("ar-d1-apertura", "Opening", "League", "Domestic", 0),
+            ]
+            .map(|(id, name, kind, scope, priority)| {
+                (
+                    id.to_string(),
+                    name.to_string(),
+                    kind.to_string(),
+                    scope.to_string(),
+                    priority,
+                )
+            }),
+        );
+        for (id, name, kind, scope, priority) in &rows {
             conn.execute(
-                "INSERT INTO competitions (id, name, kind, scope, season) VALUES (?1, 'n', ?2, ?3, 2033)",
-                [id, kind, scope],
+                "INSERT INTO competitions (id, name, kind, scope, season, priority) VALUES (?1, ?2, ?3, ?4, 2033, ?5)",
+                rusqlite::params![id, name, kind, scope, priority],
             )
             .unwrap();
         }
@@ -611,57 +711,36 @@ mod tests {
             let mut stmt = conn
                 .prepare("SELECT id, name_key FROM competitions ORDER BY id")
                 .unwrap();
-            let rows: Vec<(String, Option<String>)> = stmt
+            let stored: std::collections::BTreeMap<String, Option<String>> = stmt
                 .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
                 .unwrap()
                 .collect::<Result<_, _>>()
                 .unwrap();
-            // The SQL predicate is a frozen copy of the Rust one; this fails if they drift apart.
-            for (id, name_key) in &rows {
-                let (kind, scope): (String, String) = conn
-                    .query_row(
-                        "SELECT kind, scope FROM competitions WHERE id = ?1",
-                        [id],
-                        |row| Ok((row.get(0)?, row.get(1)?)),
-                    )
-                    .unwrap();
-                let mut competition =
-                    domain::league::League::new(id.clone(), "n".into(), 2033, &[]);
-                competition.kind = if kind == "InternationalNation" {
-                    domain::league::CompetitionType::InternationalNation
-                } else {
-                    domain::league::CompetitionType::League
-                };
-                competition.scope = if scope == "International" {
-                    domain::league::CompetitionScope::International
-                } else {
-                    domain::league::CompetitionScope::Domestic
-                };
-                let expected = if ofm_core::world_cup::is_world_cup_qualifying(&competition) {
-                    Some("tournaments.competitions.worldCupQualifying")
-                } else if ofm_core::world_cup::is_world_cup_playoff(&competition) {
-                    Some("tournaments.competitions.worldCupPlayoff")
-                } else if ofm_core::world_cup::is_world_cup_competition(&competition) {
-                    Some("tournaments.competitions.worldCup")
-                } else {
-                    None
-                };
-                assert_eq!(name_key.as_deref(), expected, "{id}");
-            }
             let key = |k: &str| Some(format!("tournaments.competitions.{k}"));
-            assert_eq!(
-                rows,
-                vec![
-                    ("ar-d1-apertura".to_string(), None),
-                    ("finals-2026".to_string(), key("worldCup")),
-                    ("pkg-nations-cup".to_string(), None),
-                    ("world-cup-playoff-2026".to_string(), key("worldCupPlayoff")),
-                    (
-                        "world-cup-qualifying-2026".to_string(),
-                        key("worldCupQualifying")
-                    ),
-                ]
-            );
+            for (id, name, ..) in &generated {
+                let expected = if id.starts_with("world-cup-qualifying-") {
+                    key("worldCupQualifying")
+                } else {
+                    assert!(name.starts_with("World Cup "), "{id} is not a finals row");
+                    key("worldCup")
+                };
+                assert_eq!(stored[id], expected, "generated row {id}");
+            }
+            assert_eq!(stored["world-cup-playoff-2026"], key("worldCupPlayoff"));
+            for authored in [
+                "pkg-nations-cup",
+                "pkg-world-cup-lookalike",
+                "pkg-domestic-nations",
+                "pkg-high-priority",
+                "pkg-domestic-lookalike",
+                "pkg-league-lookalike",
+                "ar-d1-apertura",
+            ] {
+                assert_eq!(
+                    stored[authored], None,
+                    "authored row {authored} must stay NULL"
+                );
+            }
         }
     }
 

@@ -4,9 +4,7 @@
 //! `OFM_E2E_SEED=<seed> xvfb-run cargo test -p mcp-e2e --test smoke <scenario> -- --ignored --nocapture`.
 
 use mcp_e2e::career::{self, begin, fixtures, game_state, today};
-use mcp_e2e::{
-    assert_refusal_changes_nothing, expect_bug, App, AppConfig, CallError, Mode, Snapshot,
-};
+use mcp_e2e::{assert_refusal_changes_nothing, App, AppConfig, CallError, Mode, Snapshot};
 use serde_json::{json, Value};
 
 fn is_mine(fixture: &Value, club: &str) -> bool {
@@ -117,20 +115,7 @@ fn the_file_on_disk_holds_what_the_game_holds() {
     let mut differing = Vec::new();
     json_differences("game", &live, &on_disk, &mut differing);
 
-    // One known gap, under its own guard: when it is fixed the guard fails and must go.
-    let world_cups = world_cup_indices(&live);
-    let (calendar, unexplained): (Vec<_>, Vec<_>) = differing.into_iter().partition(|difference| {
-        world_cups
-            .iter()
-            .any(|index| difference.starts_with(&format!("game.competitions[{index}].calendar:")))
-    });
-    expect_bug!(#760, "the World Cup calendar differs after a reload", {
-        assert!(
-            calendar.is_empty(),
-            "the World Cup calendar differs after a reload:\n{}",
-            calendar.join("\n")
-        );
-    });
+    let unexplained = differing;
     assert!(
         unexplained.is_empty(),
         "{} places differ after a save and load, first ten:\n{}{}",
@@ -147,22 +132,6 @@ fn the_file_on_disk_holds_what_the_game_holds() {
 
 /// The save does not keep national teams in the order the live game holds them, and nothing reads
 /// that order, so the comparison puts both in the same one.
-/// Positions of the World Cup competitions in `game.competitions`.
-fn world_cup_indices(game: &Value) -> Vec<usize> {
-    game["competitions"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .enumerate()
-        .filter(|(_, competition)| {
-            competition["name"]
-                .as_str()
-                .is_some_and(|name| name.contains("World Cup"))
-        })
-        .map(|(index, _)| index)
-        .collect()
-}
-
 fn by_national_team_id(mut game: Value) -> Value {
     if let Some(teams) = game["national_teams"].as_array_mut() {
         teams.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));

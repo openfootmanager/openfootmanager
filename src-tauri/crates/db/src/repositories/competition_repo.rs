@@ -190,7 +190,7 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
     let mut competitions = Vec::new();
     for row in rows {
         let mut competition = row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
-        ofm_core::calendar_identity::backfill_competition_calendar(&mut competition);
+        ofm_core::calendar_identity::ensure_competition_calendar(&mut competition);
         competitions.push(competition);
     }
     Ok(competitions)
