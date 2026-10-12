@@ -15,6 +15,19 @@ pub struct MappedWindow {
     pub pid: Option<u32>,
 }
 
+/// Whether the display belongs to a host desktop session (an XWayland server) rather than a
+/// virtual one. `xvfb` never offers the `XWAYLAND` extension.
+pub fn display_is_a_host_session() -> Result<bool, String> {
+    let (connection, _) =
+        RustConnection::connect(None).map_err(|e| format!("could not reach the X display: {e}"))?;
+    let extensions = connection
+        .list_extensions()
+        .map_err(|e| e.to_string())?
+        .reply()
+        .map_err(|e| e.to_string())?;
+    Ok(extensions.names.iter().any(|name| name.name == b"XWAYLAND"))
+}
+
 /// Every mapped top-level window on the display named by `$DISPLAY`.
 pub fn mapped_windows() -> Result<Vec<MappedWindow>, String> {
     let (connection, screen_number) =

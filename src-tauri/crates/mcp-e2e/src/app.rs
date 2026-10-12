@@ -52,6 +52,8 @@ impl Default for AppConfig {
 
 #[derive(Debug)]
 pub enum LaunchError {
+    /// `DISPLAY` points at a desktop session, where the app's window would open in front of you.
+    HostDisplay,
     /// No built binary where one was expected. Build with `--features mcp`.
     BinaryMissing(PathBuf),
     /// Neither `DISPLAY` nor `WAYLAND_DISPLAY` is set, and the app cannot start without one.
@@ -68,6 +70,11 @@ impl std::fmt::Display for LaunchError {
                 f,
                 "no app binary at {}: build it with `cargo build --features mcp` or set OFM_E2E_BIN",
                 path.display()
+            ),
+            Self::HostDisplay => write!(
+                f,
+                "DISPLAY is a desktop session (XWayland): the app would open a window in front of you. \
+                 Run under `xvfb-run -a`"
             ),
             Self::NoDisplay => write!(
                 f,
@@ -102,6 +109,10 @@ impl App {
         }
         if !display_available(std::env::var_os("DISPLAY").as_deref()) {
             return Err(LaunchError::NoDisplay);
+        }
+        // The check itself needs the display: if it cannot be read, the launch will not work either.
+        if crate::windows::display_is_a_host_session().map_err(LaunchError::Io)? {
+            return Err(LaunchError::HostDisplay);
         }
 
         let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
