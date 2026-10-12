@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import HomeTab from "./HomeTab";
@@ -9,6 +9,9 @@ import type {
   PlayerData,
   TeamData,
 } from "../../store/gameStore";
+
+const squadMocks = vi.hoisted(() => ({ getSquad: vi.fn().mockResolvedValue([]) }));
+vi.mock("../../services/squadService", () => ({ getSquad: squadMocks.getSquad }));
 
 const backendI18nMocks = vi.hoisted(() => ({
   resolveBoardObjective: vi.fn((value: unknown) => value),
@@ -352,6 +355,21 @@ describe("HomeTab", (): void => {
     expect(screen.getByText("No league digest yet.")).toBeInTheDocument();
   });
 
+  // Given a called-up exhausted youth, when Home fetches the roster, then he
+  // contributes to the same first-team fitness overview as senior players.
+  it("includes backend-called-up youth in the home overview", async () => {
+    const state = createGameState();
+    const senior = createPlayer({ id: "senior", condition: 80 });
+    const youth = createPlayer({
+      id: "called",
+      condition: 10,
+      squad_role: "Youth",
+      match_day_eligible: true,
+    });
+    squadMocks.getSquad.mockResolvedValueOnce([senior, youth]);
+    render(<HomeTab gameState={state} visitedOnboardingTabs={new Set()} />);
+    await waitFor(() => expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("45|"));
+  });
   it("keeps youth academy players out of first-team home summaries", (): void => {
     render(
       <HomeTab

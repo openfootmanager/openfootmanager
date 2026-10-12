@@ -143,11 +143,11 @@ fn style_weekly_cycle(play_style: &PlayStyle) -> [TrainingFocus; 5] {
 /// as a starter. A club with nothing to read is reported fully fit rather than
 /// in crisis: there is nobody for a lighter session to protect.
 fn likely_starters_condition(game: &Game, team_id: &str) -> f64 {
-    let available: Vec<&domain::player::Player> = game
-        .players
-        .iter()
-        .filter(|p| p.team_id.as_deref() == Some(team_id) && p.injury.is_none())
-        .collect();
+    let available: Vec<_> =
+        crate::match_day_eligibility::match_day_eligible_players(&game.players, team_id)
+            .into_iter()
+            .filter(|p| p.injury.is_none())
+            .collect();
     let formation = game
         .teams
         .iter()
@@ -859,5 +859,28 @@ mod tests {
             TrainingFocus::Physical,
             "this test reads the Monday slot; if the cycle changes, so must it"
         );
+    }
+    /// Given a full tired senior pool and stronger fresh academy players,
+    /// when AI training plans Tuesday, then ineligible youth cannot raise intensity.
+    #[test]
+    fn ineligible_youth_cannot_raise_senior_training_intensity() {
+        let mut game = make_game_with_two_teams("user", "ai", PlayStyle::Balanced, 80);
+        game.players = (0..18)
+            .map(|i| make_player(&format!("senior-{i}"), "ai", 80))
+            .collect();
+        for i in 0..11 {
+            let mut youth = make_player(&format!("youth-{i}"), "ai", 100);
+            youth.squad_role = domain::player::SquadRole::Youth;
+            youth.attributes.passing = 99;
+            youth.attributes.positioning = 99;
+            youth.attributes.vision = 99;
+            youth.attributes.decisions = 99;
+            youth.attributes.composure = 99;
+            youth.attributes.teamwork = 99;
+            game.players.push(youth);
+        }
+        apply_ai_training_policies(&mut game, 1);
+        assert_eq!(game.teams[1].training_intensity, TrainingIntensity::Medium);
+        assert_eq!(likely_starters_condition(&game, "ai"), 80.0);
     }
 }

@@ -19,3 +19,10 @@ export function canDelegateToYouthAcademy(
 ): boolean {
   return isSeniorSquadPlayer(player) && calcAge(player.date_of_birth) <= 21;
 }
+
+/** Seniors remain manageable during injury; youth visibility comes from the backend call-up. */
+export function isFirstTeamSquadPlayer(
+  player: Pick<PlayerData, "squad_role" | "match_day_eligible">,
+): boolean {
+  return isSeniorSquadPlayer(player) || player.match_day_eligible === true;
+}

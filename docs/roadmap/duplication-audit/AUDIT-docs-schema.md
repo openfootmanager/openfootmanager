@@ -56,7 +56,7 @@ Severity: **P1** = accepted authored content silently lost or materially misinte
 
 **Locations:** `docs/MCP_SERVER.md:295`, `:313`; `src-tauri/src/lib.rs:45`, `:52`; `src-tauri/crates/db/src/save_manager.rs:123`; `src-tauri/crates/db/src/save_index_manager.rs:16`.
 
-**Drifted:** The multi-agent script exports `TAURI_SAVE_DIR` and says it isolates each instance. Repository search finds no code reading it. Startup always uses Tauri's `app_data_dir()/saves`, including the shared index inside that directory. Contributors following the script run against the same save area. Shared access is source-proved; lost saves/corruption were not reproduced and are not asserted.
+**Resolved in #749** (the script now isolates by `XDG_DATA_HOME`/`XDG_CONFIG_HOME`). Original finding: the multi-agent script exported `TAURI_SAVE_DIR` and says it isolates each instance. Repository search finds no code reading it. Startup always uses Tauri's `app_data_dir()/saves`, including the shared index inside that directory. Contributors following the script run against the same save area. Shared access is source-proved; lost saves/corruption were not reproduced and are not asserted.
 
 **Source of truth:** Implemented startup configuration. Generate documented flags/environment options from their declarations, or remove the unsupported variable and use a supported isolation mechanism. **Severity: P2.**
 

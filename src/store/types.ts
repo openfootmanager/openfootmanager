@@ -1,3 +1,10 @@
+/** Attribute keys a training focus can improve, by natural position group. */
+export interface TrainingFocusAttributesData {
+  focus: string;
+  outfield: string[];
+  goalkeeper: string[];
+}
+
 /** One training group as the backend stores it. */
 export interface TrainingGroupData {
   id: string;
@@ -264,6 +271,8 @@ export interface PlayerMediaData {
 }
 
 export interface PlayerData {
+  /** Computed by the backend squad projection; never stored in a save. */
+  match_day_eligible?: boolean;
   id: string;
   match_name: string;
   full_name: string;
@@ -341,6 +350,8 @@ export interface TransferOfferData {
   status: "Pending" | "PendingRegistration" | "Accepted" | "Rejected" | "Withdrawn";
   date: string;
   registration_date?: string | null;
+  /** Why an agreed transfer was voided at registration; absent for ordinary withdrawn talks. */
+  registration_failure_reason?: string | null;
   /**
    * When talks ended, for offers that were rejected or withdrawn. Distinct from `date`, which
    * is when the offer arrived and is rewritten whenever a club re-opens talks.
@@ -628,7 +639,23 @@ export interface TransferRumourData {
   team_name: string;
 }
 
+/** The authored season specification shared by package definitions and runtime calendars. */
+export interface CompetitionCalendarData {
+  division?: { familyId: string; tier: number; phase: "annual" | "opening" | "closing" } | null;
+  windowEnd?: { month: number; day: number } | null;
+}
+
 export interface LeagueData {
+  calendar?: {
+    definition_id: string;
+    edition_basis:
+      | { kind: "calendarYear" }
+      | { kind: "legacyOrdinal"; season_at_opener: number; opener_year: number }
+      | { kind: "unresolved" };
+    league_legs: number | null;
+    matchday_gap_days: number | null;
+    season: CompetitionCalendarData;
+  } | null;
   id: string;
   name: string;
   kind?: string;
@@ -775,6 +802,17 @@ export interface ScoutingAssignment {
   scout_id: string;
   player_id: string;
   days_remaining: number;
+}
+
+export interface ScoutedPlayer {
+  player_id: string;
+  scouted_on: string;
+  attributes: PlayerData["attributes"];
+}
+
+/** The backend's verdict on a report: out of date once the season it was scouted in is over. */
+export interface ScoutedPlayerView extends ScoutedPlayer {
+  out_of_date: boolean;
 }
 
 export interface YouthScoutingAssignment {

@@ -1,58 +1,50 @@
 //! MCP tool implementations: help
 
+use mcp_results::help::{Pong, ToolCategories, ToolCategory, ToolSearch, ToolSummary};
+
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools::tool_catalog;
 use std::sync::Arc;
 
+pub fn ping() -> Pong {
+    Pong {
+        message: "Pong! OpenFoot Manager MCP server is alive.".to_string(),
+    }
+}
+
 // ─── help_find_tool ─────────────────────────────────────────────────────────
 
-pub fn help_find_tool(_ctx: Arc<McpContext>, query: String) -> Result<String, String> {
+pub fn help_find_tool(_ctx: Arc<McpContext>, query: String) -> Result<ToolSearch, String> {
     let query_lower = query.to_lowercase();
-    let catalog = tool_catalog();
 
-    let matches: Vec<_> = catalog
-        .iter()
+    let tools = tool_catalog()
+        .into_iter()
         .filter(|(name, desc, _cat)| {
             name.contains(&query_lower) || desc.to_lowercase().contains(&query_lower)
         })
+        .map(|(name, description, category)| ToolSummary {
+            name: name.to_string(),
+            category: category.to_string(),
+            description: description.to_string(),
+        })
         .collect();
 
-    if matches.is_empty() {
-        return Ok(format!("## Tool Search: '{}'\n\nNo tools found matching your query. Try `help_list_categories`.", query));
-    }
-
-    let mut output = format!("## Tool Search: '{}'\n\n| Tool | Category | Description |\n|------|----------|-------------|\n", query);
-    for (name, desc, cat) in matches {
-        output.push_str(&format!("| {} | {} | {} |\n", name, cat, desc));
-    }
-
-    Ok(output)
+    Ok(ToolSearch { query, tools })
 }
 
 // ─── help_list_categories ───────────────────────────────────────────────────
 
-pub fn help_list_categories() -> String {
-    let catalog = tool_catalog();
-
-    // Group by category preserving first-seen order
-    let mut categories: Vec<(&str, Vec<(&str, &str)>)> = Vec::new();
-    for (name, desc, cat) in &catalog {
-        if let Some(entry) = categories.iter_mut().find(|(c, _)| c == cat) {
-            entry.1.push((*name, *desc));
-        } else {
-            categories.push((*cat, vec![(*name, *desc)]));
+pub fn help_list_categories() -> ToolCategories {
+    // Grouped by category in the order each is first seen.
+    let mut categories: Vec<ToolCategory> = Vec::new();
+    for (name, _desc, category) in tool_catalog() {
+        match categories.iter_mut().find(|entry| entry.name == category) {
+            Some(entry) => entry.tools.push(name.to_string()),
+            None => categories.push(ToolCategory {
+                name: category.to_string(),
+                tools: vec![name.to_string()],
+            }),
         }
     }
-
-    let mut output = String::from("## Tool Categories\n\n");
-    for (cat, tools) in &categories {
-        output.push_str(&format!(
-            "**{}** ({} tools): {}\n\n",
-            cat,
-            tools.len(),
-            tools.iter().map(|(n, _)| *n).collect::<Vec<_>>().join(", ")
-        ));
-    }
-
-    output
+    ToolCategories { categories }
 }

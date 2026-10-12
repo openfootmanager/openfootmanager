@@ -25,7 +25,7 @@ import {
   getContractYearsRemaining,
   positionBadgeVariant,
 } from "../../lib/helpers";
-import { canDelegateToYouthAcademy, isSeniorSquadPlayer } from "../../lib/playerSquad";
+import { canDelegateToYouthAcademy, isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { getInjurySeverity, resolveInjuryName } from "../../lib/injury";
 import { useTranslation } from "react-i18next";
 import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
@@ -113,7 +113,7 @@ export default function SquadRosterView({
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
   const roster = players
-    .filter((player) => isSeniorSquadPlayer(player))
+    .filter((player) => isFirstTeamSquadPlayer(player))
     .sort(
       (a, b) =>
         positionGroupRank(a.position) - positionGroupRank(b.position) ||

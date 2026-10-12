@@ -182,6 +182,28 @@ describe("SquadTab", () => {
     );
   }
 
+  // Given a backend-called-up youth, when Squad opens, then the manager can see him.
+  it("shows called-up youth in the senior roster", async () => {
+    const state = makeGameState();
+    state.players = [
+      makePlayer("gk1", "Goalkeeper"),
+      makePlayer("called", "Forward", {
+        full_name: "Called Youth",
+        match_name: "Called Youth",
+        squad_role: "Youth",
+        match_day_eligible: true,
+      }),
+      makePlayer("excluded", "Forward", {
+        full_name: "Excluded Youth",
+        match_name: "Excluded Youth",
+        squad_role: "Youth",
+        match_day_eligible: false,
+      }),
+    ];
+    renderSquadTab(state);
+    expect(await screen.findByRole("row", { name: /Called Youth/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /Excluded Youth/ })).not.toBeInTheDocument();
+  });
   it("renders only the full roster table and not the moved tactics controls", () => {
     renderSquadTab(makeGameState());
 

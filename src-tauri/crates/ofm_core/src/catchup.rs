@@ -16,11 +16,11 @@ const CATCHUP_XI: usize = 11;
 /// Average OVR of a club's best XI, used as scoreline strength. Falls back to a
 /// neutral rating when the club has no players on the books.
 pub(crate) fn club_strength(players: &[Player], club_id: &str) -> f64 {
-    let mut ovrs: Vec<u8> = players
-        .iter()
-        .filter(|p| p.team_id.as_deref() == Some(club_id))
-        .map(|p| p.ovr)
-        .collect();
+    let mut ovrs: Vec<u8> =
+        crate::match_day_eligibility::match_day_eligible_players(players, club_id)
+            .into_iter()
+            .map(|p| p.ovr)
+            .collect();
     if ovrs.is_empty() {
         return 50.0;
     }
@@ -1010,6 +1010,49 @@ mod tests {
         assert_eq!(champions[0].year, 2030);
     }
 
+    /// Given a World Cup whose final is the only fixture left and its date has passed unplayed (#433)
+    /// When the game is loaded and the stranded fixtures are repaired
+    /// Then the final is played by the engine that crowns a champion, and a winner emerges.
+    #[test]
+    fn a_world_cup_final_whose_date_has_passed_is_played_and_crowns_a_champion() {
+        let mut game = game_with_two_national_squads("2030-12-01");
+        let mut competition = League::new(
+            "wc-2030".to_string(),
+            "World Cup 2030".to_string(),
+            2030,
+            &["nt-eng".to_string(), "nt-bra".to_string()],
+        );
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::International;
+        competition.rules.format = CompetitionFormat::Knockout;
+        competition.fixtures = vec![international_fixture(
+            "final",
+            "2030-07-15",
+            "nt-eng",
+            "nt-bra",
+        )];
+        competition.knockout_rounds = vec![KnockoutRoundState {
+            id: "final-round".to_string(),
+            name: "Final".to_string(),
+            fixture_ids: vec!["final".to_string()],
+            bye_team_ids: Vec::new(),
+            completed: false,
+        }];
+        game.competitions = vec![competition];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        assert_eq!(repaired, 1);
+        let final_fixture = &game.competitions[0].fixtures[0];
+        assert_eq!(final_fixture.status, FixtureStatus::Completed);
+        assert!(
+            final_fixture.advancing_team_id().is_some(),
+            "a knockout final always has a winner"
+        );
+        assert!(game.competitions[0].knockout_rounds[0].completed);
+        assert_eq!(game.world_history.world_cup_champions.len(), 1);
+    }
+
     #[test]
     fn repairs_a_stranded_window_friendly_on_a_national_team() {
         // These fixtures do not live in `competitions` at all — they hang off `game.national_teams`,
@@ -1087,5 +1130,19 @@ mod tests {
         let scores: std::collections::BTreeSet<String> =
             (0..40).map(friendly_score_after_repair).collect();
         assert!(scores.len() > 1, "forty seeds all settled it alike");
+    }
+    /// Given eighteen seniors and elite youth, when catchup estimates strength,
+    /// then the academy cannot raise the strength of a side it cannot join.
+    #[test]
+    fn ineligible_youth_cannot_raise_catchup_strength() {
+        let mut game = crate::turn::squad::match_day_pool_tests::match_day_game(false, 18, 11);
+        for p in &mut game.players {
+            p.ovr = if p.squad_role == domain::player::SquadRole::Senior {
+                60
+            } else {
+                99
+            };
+        }
+        assert_eq!(super::club_strength(&game.players, "club"), 60.0);
     }
 }

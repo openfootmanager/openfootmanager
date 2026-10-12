@@ -5,15 +5,15 @@ use rusqlite::Connection;
 
 use ofm_core::clock::GameClock;
 use ofm_core::game::{
-    BoardObjective, Game, ObjectiveType, ScoutingAssignment, YouthScoutingAssignment,
-    YouthScoutingObjective, YouthScoutingRegion,
+    BoardObjective, Game, ObjectiveType, ScoutedPlayer, ScoutingAssignment,
+    YouthScoutingAssignment, YouthScoutingObjective, YouthScoutingRegion,
 };
 
 use crate::game_database::GameDatabase;
 use crate::repositories::{
-    competition_repo, journal_repo, league_repo, manager_repo, message_repo, meta_repo,
-    national_team_repo, news_repo, objective_repo, player_repo, scouting_repo, staff_repo,
-    stats_repo, team_repo,
+    competition_repo, edition_archive_repo, journal_repo, league_repo, manager_repo, message_repo,
+    meta_repo, national_team_repo, news_repo, objective_repo, player_repo, scouting_repo,
+    staff_repo, stats_repo, team_repo,
 };
 
 pub struct GamePersistenceWriter;
@@ -154,6 +154,7 @@ fn write_game_to_connection(
         league_repo::upsert_league(conn, league)?;
     }
     competition_repo::replace_competitions(conn, &game.competitions)?;
+    edition_archive_repo::persist_new_editions(conn, &game.edition_archive)?;
     national_team_repo::replace_national_teams(conn, &game.national_teams)?;
 
     let objective_rows: Vec<objective_repo::BoardObjectiveRow> = game
@@ -180,6 +181,20 @@ fn write_game_to_connection(
         })
         .collect();
     scouting_repo::upsert_scouting_list(conn, &scouting_rows)?;
+
+    let scouted_rows = game
+        .scouted_players
+        .iter()
+        .map(|scouted| {
+            Ok(scouting_repo::ScoutedPlayerRow {
+                player_id: scouted.player_id.clone(),
+                scouted_on: scouted.scouted_on.clone(),
+                attributes_json: serde_json::to_string(&scouted.attributes)
+                    .map_err(|_| game_persistence_write_error())?,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    scouting_repo::upsert_scouted_players_list(conn, &scouted_rows)?;
 
     let youth_scouting_rows: Vec<scouting_repo::YouthScoutingAssignmentRow> = game
         .youth_scouting_assignments
@@ -266,6 +281,7 @@ impl GamePersistenceReader {
         let news = news_repo::load_all_news(conn)?;
         let league = league_repo::load_league(conn)?;
         let mut competitions = competition_repo::load_competitions(conn)?;
+        let edition_archive = edition_archive_repo::load_editions(conn)?;
         let national_teams = national_team_repo::load_national_teams(conn)?;
         if competitions.is_empty()
             && let Some(existing_league) = league.clone()
@@ -297,6 +313,17 @@ impl GamePersistenceReader {
                 days_remaining: assignment.days_remaining,
             })
             .collect();
+        let scouted_players = scouting_repo::load_all_scouted_players(conn)?
+            .into_iter()
+            .map(|row| {
+                Ok(ScoutedPlayer {
+                    player_id: row.player_id,
+                    scouted_on: row.scouted_on,
+                    attributes: serde_json::from_str(&row.attributes_json)
+                        .map_err(|_| game_persistence_load_error())?,
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
         let youth_scouting_rows = scouting_repo::load_all_youth_scouting(conn)?;
         let youth_scouting_assignments: Vec<YouthScoutingAssignment> = youth_scouting_rows
             .into_iter()
@@ -336,12 +363,14 @@ impl GamePersistenceReader {
             league,
             scouting_assignments,
             youth_scouting_assignments,
+            scouted_players,
             board_objectives,
             season_context: domain::season::SeasonContext::default(),
             days_since_last_job_offer: None,
             available_staff_market_last_activity_date: meta
                 .available_staff_market_last_activity_date,
             vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
+            edition_archive,
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
             // A malformed ledger degrades to the legacy-save path rather than
@@ -372,6 +401,10 @@ impl GamePersistenceReader {
             squad_floor_top_ups: Vec::new(),
         };
         game.promote_legacy_league();
+        for competition in &mut game.competitions {
+            ofm_core::calendar_identity::ensure_competition_calendar(competition);
+        }
+        game.sync_legacy_league();
         // Seeding the sent-ledger for a pre-v5 save is deliberately NOT done
         // here: this reads whatever is on disk, and "is the ledger empty?" is not
         // the same question as "was this save written before the ledger existed?".

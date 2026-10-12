@@ -216,7 +216,7 @@ export default function PostMatchScreen({
     },
     {
       id: "playerRatings",
-      label: t("match.playerRatings"),
+      label: t("match.playerPerformance"),
       icon: <Users className="w-4 h-4" />,
     },
     {

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { getPlayerOvr } from "../../lib/helpers";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
-import { Badge, Card, PitchToken, Select } from "../ui";
+import { Badge, Card, PitchToken, Select, usePitchTokenFocus } from "../ui";
 import {
   isPlayerExactForSlot,
   isPlayerOutOfPosition,
@@ -279,6 +279,7 @@ export default function TacticsPitch({
   selectedPlayerId,
 }: TacticsPitchProps): JSX.Element {
   const { t } = useTranslation();
+  const { focusedPlayerId, focusToken, blurToken, getDescriptionId } = usePitchTokenFocus();
   const draggedPlayerId = dragState?.playerId ?? null;
 
   return (
@@ -471,6 +472,9 @@ export default function TacticsPitch({
                           <div
                             role="button"
                             tabIndex={0}
+                            aria-describedby={getDescriptionId(player.id)}
+                            onFocus={() => focusToken(player.id)}
+                            onBlur={blurToken}
                             draggable
                             data-testid={`pitch-player-${player.id}`}
                             onClick={() => onLineupPlayerClick(player.id, "xi")}
@@ -495,6 +499,8 @@ export default function TacticsPitch({
                             })}
                           >
                             <PitchToken
+                              descriptionId={getDescriptionId(player.id)}
+                              focused={focusedPlayerId === player.id}
                               name={getPitchDisplayName(player)}
                               positionAbbr={translatePositionAbbreviation(t, slot.position)}
                               position={slot.position}

@@ -125,4 +125,17 @@ describe("TournamentsAwardsGrid", () => {
     expect(screen.getByText("tournaments.loadingAwards")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "common.retry" })).not.toBeInTheDocument();
   });
+  // Given live or completed unrated seasons, when the board renders, then only counting awards remain.
+  it.each([false, true])("hides empty rating cards for seasonComplete=%s", (seasonComplete) => {
+    const awards = awardsData();
+    awards.player_of_year = [];
+    awards.young_player = [];
+    renderGrid({ awards, seasonComplete });
+    expect(screen.queryByText("tournaments.awards.playerOfYearTitle")).not.toBeInTheDocument();
+    expect(screen.queryByText("tournaments.awards.youngPlayerTitle")).not.toBeInTheDocument();
+    expect(screen.getByText("tournaments.awards.goldenBootTitle")).toBeInTheDocument();
+    expect(screen.getByText("tournaments.awards.assistKingTitle")).toBeInTheDocument();
+    expect(screen.getByText("tournaments.awards.goldenGloveTitle")).toBeInTheDocument();
+    expect(screen.getByText("tournaments.awards.everPresentTitle")).toBeInTheDocument();
+  });
 });

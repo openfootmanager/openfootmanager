@@ -44,6 +44,12 @@ const ISOLATED: &[(&str, &str)] = &[
         "`domain` is the bottom of the graph: plain structs and enums that everything else may \
          depend on. If it gains a dependency, it has stopped being data and started being logic.",
     ),
+    (
+        "mcp-results",
+        "The wire contract of the MCP tools: plain result structs a test client deserializes. It \
+         must not depend on a game crate, or editing a game type would silently change what agents \
+         read.",
+    ),
 ];
 
 fn metadata() -> Value {

@@ -5,7 +5,7 @@ use domain::player::{Player, PlayerAttributes, Position as DomainPos};
 /// all to `v` makes the condition-free positional fit ≈ `v` for any slot, with
 /// the per-slot compatibility/foot penalty identical across players (same
 /// position + footedness) — so it cancels in within-slot comparisons.
-fn attrs(v: u8) -> PlayerAttributes {
+pub(super) fn attrs(v: u8) -> PlayerAttributes {
     PlayerAttributes {
         pace: v,
         stamina: v,
@@ -29,11 +29,11 @@ fn attrs(v: u8) -> PlayerAttributes {
     }
 }
 
-fn mk(id: &str, attr: u8, condition: u8) -> Player {
+pub(super) fn mk(id: &str, attr: u8, condition: u8) -> Player {
     mk_pos(id, DomainPos::CenterBack, attr, condition)
 }
 
-fn mk_pos(id: &str, position: DomainPos, attr: u8, condition: u8) -> Player {
+pub(super) fn mk_pos(id: &str, position: DomainPos, attr: u8, condition: u8) -> Player {
     let mut p = Player::new(
         id.to_string(),
         id.to_string(),
@@ -549,7 +549,7 @@ fn a_fixture_in_a_dormant_competition_is_not_a_congested_run() {
 
 /// Ten fit outfielders and a goalkeeper in the treatment room — a club that
 /// has to field a sore keeper or put a defender in goal.
-fn club_whose_only_keeper_is_injured(managed_by_the_user: bool) -> Game {
+pub(super) fn club_whose_only_keeper_is_injured(managed_by_the_user: bool) -> Game {
     use crate::clock::GameClock;
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;

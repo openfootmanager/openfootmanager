@@ -25,6 +25,7 @@ interface AwardCardSpec {
   entries: SeasonAwardEntryData[] | SeasonManagerAwardEntryData[];
   unit: string;
   decimal?: boolean;
+  hideWhenEmpty?: boolean;
 }
 
 /**
@@ -77,6 +78,7 @@ export default function TournamentsAwardsGrid({
           title: t("tournaments.awards.playerOfYearTitle"),
           subtitle: t("tournaments.awards.playerOfYearSubtitle"),
           entries: awards.player_of_year,
+          hideWhenEmpty: true,
           unit: t("tournaments.awards.units.rating"),
           decimal: true,
         },
@@ -102,6 +104,7 @@ export default function TournamentsAwardsGrid({
           title: t("tournaments.awards.youngPlayerTitle"),
           subtitle: t("tournaments.awards.youngPlayerSubtitle"),
           entries: awards.young_player,
+          hideWhenEmpty: true,
           unit: t("tournaments.awards.units.rating"),
           decimal: true,
         },
@@ -116,20 +119,22 @@ export default function TournamentsAwardsGrid({
         </div>
       )}
       {awards ? (
-        cards.map((card) => (
-          <TournamentsAwardCard
-            key={card.id}
-            icon={card.icon}
-            title={card.title}
-            subtitle={card.subtitle}
-            entries={card.entries}
-            unit={card.unit}
-            emptyText={t("tournaments.awards.noDataYet")}
-            decimal={card.decimal ?? false}
-            onSelectPlayer={onSelectPlayer}
-            onSelectTeam={onSelectTeam}
-          />
-        ))
+        cards
+          .filter((card) => !card.hideWhenEmpty || card.entries.length > 0)
+          .map((card) => (
+            <TournamentsAwardCard
+              key={card.id}
+              icon={card.icon}
+              title={card.title}
+              subtitle={card.subtitle}
+              entries={card.entries}
+              unit={card.unit}
+              emptyText={t("tournaments.awards.noDataYet")}
+              decimal={card.decimal ?? false}
+              onSelectPlayer={onSelectPlayer}
+              onSelectTeam={onSelectTeam}
+            />
+          ))
       ) : awardsLoadState === "error" ? (
         <div className="col-span-full text-center py-12">
           <Award className="w-12 h-12 text-gray-300 dark:text-navy-600 mx-auto mb-3" />

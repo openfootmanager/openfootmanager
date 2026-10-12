@@ -1,6 +1,6 @@
 use crate::contract_wage_policy::{
-    BuyerWageFacts, purchase_wage_policy_verdict, renewal_wage_policy_error_message,
-    wage_policy_allows_projection,
+    BuyerWageFacts, loan_borrower_wage_policy_error_message, purchase_wage_policy_verdict,
+    renewal_wage_policy_error_message, wage_policy_allows_projection,
 };
 use crate::contracts::{
     ERR_UNABLE_TO_CALCULATE_CONTRACT_END_DATE, contract_entry, contract_record, record_movement,
@@ -28,6 +28,7 @@ mod execution;
 mod lifecycle;
 mod loans;
 mod market;
+mod notifications;
 mod registration;
 
 pub use bids::*;
@@ -36,6 +37,7 @@ pub use execution::*;
 use lifecycle::*;
 pub use loans::*;
 pub use market::*;
+use notifications::*;
 use registration::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

@@ -84,10 +84,7 @@ pub fn board_expectations_message(team_name: &str, team_id: &str, date: &str) ->
 }
 
 pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> InboxMessage {
-    let fee_display =
-        crate::currency::format_compact_money(fee, crate::currency::DEFAULT_CURRENCY_CODE)
-            .unwrap_or_else(|| format!("{}{}", crate::currency::default_currency_symbol(), fee));
-
+    // Keep the exact base amount for the shared frontend currency formatter.
     let id = format!("transfer_{}", uuid::Uuid::new_v4());
     InboxMessage::new(
         id,
@@ -104,7 +101,49 @@ pub fn transfer_complete_message(player_name: &str, fee: u64, date: &str) -> Inb
         "be.msg.transferComplete.body",
         HashMap::from([
             ("player".to_string(), player_name.to_string()),
-            ("fee".to_string(), fee_display),
+            ("fee".to_string(), fee.to_string()),
+        ]),
+    )
+    .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")
+}
+
+pub(crate) fn transfer_registration_failed_message(
+    offer: &domain::player::TransferOffer,
+    player: &domain::player::Player,
+    user_team_id: &str,
+    buyer_name: &str,
+    reason: domain::player::TransferRegistrationFailureReason,
+    date: &str,
+) -> InboxMessage {
+    use domain::player::TransferRegistrationFailureReason as Failure;
+    let body_key = match reason {
+        Failure::InsufficientFunds => "be.msg.transferRegistrationFailed.InsufficientFunds",
+        Failure::LoanConflict => "be.msg.transferRegistrationFailed.LoanConflict",
+        Failure::PlayerUnavailable => "be.msg.transferRegistrationFailed.PlayerUnavailable",
+        Failure::RegistrationBlocked => "be.msg.transferRegistrationFailed.RegistrationBlocked",
+    };
+    InboxMessage::new(
+        format!("transfer_registration_failed_{}", offer.id),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Transfer)
+    .with_priority(MessagePriority::High)
+    .with_context(MessageContext {
+        team_id: Some(user_team_id.to_string()),
+        player_id: Some(player.id.clone()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.transferRegistrationFailed.subject",
+        body_key,
+        HashMap::from([
+            ("player".to_string(), player.full_name.clone()),
+            ("buyer".to_string(), buyer_name.to_string()),
+            ("fee".to_string(), offer.fee.to_string()),
+            ("start".to_string(), date.to_string()),
         ]),
     )
     .with_sender_i18n("be.sender.transferCommittee", "be.role.directorOfFootball")

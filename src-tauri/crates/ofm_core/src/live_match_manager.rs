@@ -260,6 +260,8 @@ pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
     };
     crate::squad_floor::ready_for_kick_off(game, &home_team_id);
     crate::squad_floor::ready_for_kick_off(game, &away_team_id);
+    crate::turn::squad::reconcile_user_starting_xi(game, &home_team_id);
+    crate::turn::squad::reconcile_user_starting_xi(game, &away_team_id);
 }
 
 /// Kick off a fixture in `game.league` as a live session: both squads made fit

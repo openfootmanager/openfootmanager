@@ -324,4 +324,51 @@ describe("Select highlight when the options change under an open list", () => {
     const ids = screen.getAllByRole("option").map((option) => option.id);
     expect(new Set(ids).size).toBe(2);
   });
+
+  /**
+   * Given two options that share a value
+   * When the list opens
+   * Then React reports no duplicate-key warning
+   */
+  it("renders options with a duplicate value without a duplicate key", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    renderSelect([
+      <option key="1" value="a">
+        First
+      </option>,
+      <option key="2" value="a">
+        Second
+      </option>,
+    ]);
+    fireEvent.keyDown(pick(), { key: "Enter" });
+
+    const duplicateKeyWarnings = consoleError.mock.calls.filter((call) =>
+      String(call[0]).includes("same key"),
+    );
+    consoleError.mockRestore();
+    expect(duplicateKeyWarnings).toHaveLength(0);
+  });
+
+  /**
+   * Given an open list with the trigger focused
+   * When the pointer presses an option
+   * Then the press does not take DOM focus from the trigger
+   */
+  it("keeps DOM focus on the trigger when an option is pressed", () => {
+    renderSelect([
+      <option key="1" value="a">
+        First
+      </option>,
+    ]);
+    pick().focus();
+    fireEvent.keyDown(pick(), { key: "Enter" });
+    const option = screen.getByRole("option", { name: "First" });
+
+    // jsdom has no default action for mousedown; a browser focuses the pressed
+    // button unless the event was cancelled, so apply that default ourselves.
+    const defaultNotPrevented = fireEvent.mouseDown(option);
+    if (defaultNotPrevented) option.focus();
+
+    expect(document.activeElement).toBe(pick());
+  });
 });

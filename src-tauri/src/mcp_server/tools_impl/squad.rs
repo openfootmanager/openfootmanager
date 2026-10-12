@@ -1,14 +1,19 @@
 //! MCP tool implementations: squad
 
+use mcp_results::squad::{
+    FormationChanged, MatchRolesUpdated, PlayStyleChanged, PlayerRoleUpdated, RoleHolder,
+    SetPiecesAssigned, SquadOverview, SquadPlayer, StartingXiUpdated,
+};
+
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{
-    age_from_dob, format_position, require_game, user_team,
+    age_from_dob, format_position, require_game, serde_label, user_team,
 };
 use std::sync::Arc;
 
 // ─── squad_get ──────────────────────────────────────────────────────────────
 
-pub fn squad_get(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn squad_get(ctx: Arc<McpContext>) -> Result<SquadOverview, String> {
     let game = require_game(&ctx.state_manager)?;
     let team = user_team(&game)?;
     let team_id = team.id.as_str();
@@ -30,52 +35,37 @@ pub fn squad_get(ctx: Arc<McpContext>) -> Result<String, String> {
         }
     });
 
-    let mut rows = String::new();
-    for p in &squad {
-        let in_xi = if team.starting_xi_ids.contains(&p.id) {
-            "★"
-        } else {
-            ""
-        };
-        let pos = format_position(&p.position);
-        let inj = if p.injury.is_some() { "⚠" } else { "" };
-        rows.push_str(&format!(
-            "| {} | {}{}{} | {} | {} | {} | {} | {} | {} | {} |\n",
-            p.id,
-            p.match_name,
-            in_xi,
-            inj,
-            pos,
-            age_from_dob(&p.date_of_birth, &game),
-            p.ovr,
-            p.condition,
-            p.morale,
-            p.wage(),
-            p.contract_end().unwrap_or("-"),
-        ));
-    }
+    let players = squad
+        .iter()
+        .map(|p| SquadPlayer {
+            id: p.id.clone(),
+            name: p.match_name.clone(),
+            in_starting_xi: team.starting_xi_ids.contains(&p.id),
+            injured: p.injury.is_some(),
+            position: format_position(&p.position).to_string(),
+            age: age_from_dob(&p.date_of_birth, &game),
+            ovr: p.ovr,
+            condition: p.condition,
+            morale: p.morale,
+            wage: p.wage(),
+            contract_end: p.contract_end().map(str::to_string),
+        })
+        .collect();
 
-    // Starting XI summary
-    let xi_names: Vec<String> = team
+    let starting_xi = team
         .starting_xi_ids
         .iter()
         .filter_map(|id| game.players.iter().find(|p| p.id == *id))
         .map(|p| format!("{} {}", format_position(&p.position), p.match_name))
         .collect();
 
-    Ok(format!(
-        "## {} — Squad Overview\n\n\
-         | ID | Name | Pos | Age | OVR | Con | Mor | Wage | Contract |\n\
-         |----|-------|-----|-----|-----|-----|-----|------|----------|\n\
-         {}\
-         \n**Starting XI**: {}\n\
-         **Formation**: {} | **Play Style**: {:?}",
-        team.name,
-        rows,
-        xi_names.join(", "),
-        team.formation,
-        team.play_style,
-    ))
+    Ok(SquadOverview {
+        team_name: team.name.clone(),
+        players,
+        starting_xi,
+        formation: team.formation.clone(),
+        play_style: serde_label(&team.play_style),
+    })
 }
 
 // ─── squad_set_starting_xi ─────────────────────────────────────────────────
@@ -83,7 +73,7 @@ pub fn squad_get(ctx: Arc<McpContext>) -> Result<String, String> {
 pub fn squad_set_starting_xi(
     ctx: Arc<McpContext>,
     player_ids: Vec<String>,
-) -> Result<String, String> {
+) -> Result<StartingXiUpdated, String> {
     // Call the internal function from commands/squad.rs
     crate::commands::squad::set_starting_xi_internal(&ctx.state_manager, player_ids.clone())?;
 
@@ -108,18 +98,20 @@ pub fn squad_set_starting_xi(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Starting XI Updated\n\n{}\n**Formation**: {}",
-        xi_names.join(", "),
-        team.formation
-    ))
+    Ok(StartingXiUpdated {
+        starting_xi: xi_names,
+        formation: team.formation.clone(),
+    })
 }
 
 // ─── squad_set_formation ────────────────────────────────────────────────────
 
 // ─── squad_set_formation ────────────────────────────────────────────────────
 
-pub fn squad_set_formation(ctx: Arc<McpContext>, formation: String) -> Result<String, String> {
+pub fn squad_set_formation(
+    ctx: Arc<McpContext>,
+    formation: String,
+) -> Result<FormationChanged, String> {
     crate::commands::squad::set_formation_internal(&ctx.state_manager, &formation)?;
 
     let game = require_game(&ctx.state_manager)?;
@@ -131,14 +123,19 @@ pub fn squad_set_formation(ctx: Arc<McpContext>, formation: String) -> Result<St
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!("## Formation Changed\n\n**New Formation**: {}\n**Note**: Outfield player positions have been reassigned based on defending ability.", team.formation))
+    Ok(FormationChanged {
+        formation: team.formation.clone(),
+    })
 }
 
 // ─── squad_set_play_style ───────────────────────────────────────────────────
 
 // ─── squad_set_play_style ───────────────────────────────────────────────────
 
-pub fn squad_set_play_style(ctx: Arc<McpContext>, play_style: String) -> Result<String, String> {
+pub fn squad_set_play_style(
+    ctx: Arc<McpContext>,
+    play_style: String,
+) -> Result<PlayStyleChanged, String> {
     crate::commands::squad::set_play_style_internal(&ctx.state_manager, &play_style)?;
 
     let game = require_game(&ctx.state_manager)?;
@@ -149,10 +146,9 @@ pub fn squad_set_play_style(ctx: Arc<McpContext>, play_style: String) -> Result<
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Play Style Changed\n\n**New Style**: {:?}",
-        team.play_style
-    ))
+    Ok(PlayStyleChanged {
+        play_style: serde_label(&team.play_style),
+    })
 }
 
 // ─── squad_set_match_roles ───────────────────────────────────────────────────
@@ -166,13 +162,13 @@ pub fn squad_set_match_roles(
     penalty_taker: Option<String>,
     free_kick_taker: Option<String>,
     corner_taker: Option<String>,
-) -> Result<String, String> {
+) -> Result<MatchRolesUpdated, String> {
     let match_roles = domain::team::MatchRoles {
-        captain,
-        vice_captain,
-        penalty_taker,
-        free_kick_taker,
-        corner_taker,
+        captain: captain.clone(),
+        vice_captain: vice_captain.clone(),
+        penalty_taker: penalty_taker.clone(),
+        free_kick_taker: free_kick_taker.clone(),
+        corner_taker: corner_taker.clone(),
     };
 
     crate::commands::squad::set_team_match_roles_internal(&ctx.state_manager, match_roles)?;
@@ -182,14 +178,20 @@ pub fn squad_set_match_roles(
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok("## Match Roles Updated\n\nCaptain, set-piece takers set as specified.".to_string())
+    Ok(MatchRolesUpdated {
+        captain,
+        vice_captain,
+        penalty_taker,
+        free_kick_taker,
+        corner_taker,
+    })
 }
 
 // ─── squad_auto_set_pieces ──────────────────────────────────────────────────
 
 // ─── squad_auto_set_pieces ──────────────────────────────────────────────────
 
-pub fn squad_auto_set_pieces(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn squad_auto_set_pieces(ctx: Arc<McpContext>) -> Result<SetPiecesAssigned, String> {
     let game = require_game(&ctx.state_manager)?;
     let team = user_team(&game)?;
 
@@ -223,66 +225,28 @@ pub fn squad_auto_set_pieces(ctx: Arc<McpContext>) -> Result<String, String> {
 
     let game = require_game(&ctx.state_manager)?;
 
-    // Format the result
-    let mut names = Vec::new();
-    if let Some(ref id) = game
-        .teams
-        .iter()
-        .find(|t| t.id == team.id)
-        .unwrap()
-        .match_roles
-        .captain
-    {
-        if let Some(p) = game.players.iter().find(|p| p.id == *id) {
-            names.push(format!("Captain: {}", p.match_name));
-        }
-    }
-    if let Some(ref id) = game
-        .teams
-        .iter()
-        .find(|t| t.id == team.id)
-        .unwrap()
-        .match_roles
-        .penalty_taker
-    {
-        if let Some(p) = game.players.iter().find(|p| p.id == *id) {
-            names.push(format!("Penalties: {}", p.match_name));
-        }
-    }
-    if let Some(ref id) = game
-        .teams
-        .iter()
-        .find(|t| t.id == team.id)
-        .unwrap()
-        .match_roles
-        .free_kick_taker
-    {
-        if let Some(p) = game.players.iter().find(|p| p.id == *id) {
-            names.push(format!("Free Kicks: {}", p.match_name));
-        }
-    }
-    if let Some(ref id) = game
-        .teams
-        .iter()
-        .find(|t| t.id == team.id)
-        .unwrap()
-        .match_roles
-        .corner_taker
-    {
-        if let Some(p) = game.players.iter().find(|p| p.id == *id) {
-            names.push(format!("Corners: {}", p.match_name));
-        }
-    }
+    let roles = &user_team(&game)?.match_roles;
+    let holder = |id: &Option<String>| {
+        let id = id.as_ref()?;
+        let player = game.players.iter().find(|p| p.id == *id)?;
+        Some(RoleHolder {
+            player_id: id.clone(),
+            player_name: player.match_name.clone(),
+        })
+    };
+    let assigned = SetPiecesAssigned {
+        captain: holder(&roles.captain),
+        penalty_taker: holder(&roles.penalty_taker),
+        free_kick_taker: holder(&roles.free_kick_taker),
+        corner_taker: holder(&roles.corner_taker),
+    };
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Auto-Assigned Set Pieces\n\n{}",
-        names.join("\n")
-    ))
+    Ok(assigned)
 }
 
 // ─── squad_set_player_role ──────────────────────────────────────────────────
@@ -293,7 +257,7 @@ pub fn squad_set_player_role(
     ctx: Arc<McpContext>,
     player_id: String,
     squad_role: String,
-) -> Result<String, String> {
+) -> Result<PlayerRoleUpdated, String> {
     crate::commands::squad::set_player_squad_role_internal(
         &ctx.state_manager,
         &player_id,
@@ -306,17 +270,18 @@ pub fn squad_set_player_role(
         .iter()
         .find(|p| p.id == player_id)
         .map(|p| p.match_name.clone())
-        .unwrap_or(player_id);
+        .unwrap_or_else(|| player_id.clone());
 
     {
         use tauri::Emitter;
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!(
-        "## Player Role Updated\n\n**{}**: {}",
-        player_name, squad_role
-    ))
+    Ok(PlayerRoleUpdated {
+        player_id,
+        player_name,
+        squad_role,
+    })
 }
 
 // ─── training_get ───────────────────────────────────────────────────────────

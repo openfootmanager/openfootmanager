@@ -5,7 +5,7 @@ use domain::manager::Manager;
 use domain::message::InboxMessage;
 use domain::national_team::NationalTeam;
 use domain::news::NewsArticle;
-use domain::player::{Player, Position};
+use domain::player::{Player, PlayerAttributes, Position};
 use domain::season::SeasonContext;
 use domain::staff::Staff;
 use domain::team::Team;
@@ -37,6 +37,15 @@ pub struct ScoutingAssignment {
     pub scout_id: String,
     pub player_id: String,
     pub days_remaining: u32,
+}
+
+/// What a finished scouting job revealed about a player, as of `scouted_on`.
+/// The attributes are a snapshot: they do not follow the player's later changes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScoutedPlayer {
+    pub player_id: String,
+    pub scouted_on: String,
+    pub attributes: PlayerAttributes,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,6 +111,8 @@ pub struct Game {
     #[serde(default)]
     pub youth_scouting_assignments: Vec<YouthScoutingAssignment>,
     #[serde(default)]
+    pub scouted_players: Vec<ScoutedPlayer>,
+    #[serde(default)]
     pub board_objectives: Vec<BoardObjective>,
     #[serde(default)]
     pub season_context: SeasonContext,
@@ -113,6 +124,11 @@ pub struct Game {
     pub vacant_team_days: HashMap<String, u32>,
     #[serde(default)]
     pub world_history: WorldHistoryArchive,
+    /// Frozen outcomes of finished competition editions; append-only. Skipped on IPC serde
+    /// because nothing in the UI reads it yet and it grows every season. Persistence is the
+    /// `competition_edition_archive` table, not Game JSON.
+    #[serde(skip)]
+    pub edition_archive: Vec<domain::edition_archive::CompletedEdition>,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -189,12 +205,14 @@ impl Game {
             league: None,
             scouting_assignments: vec![],
             youth_scouting_assignments: vec![],
+            scouted_players: vec![],
             board_objectives: vec![],
             season_context: SeasonContext::default(),
             days_since_last_job_offer: None,
             available_staff_market_last_activity_date: None,
             vacant_team_days: HashMap::new(),
             world_history: WorldHistoryArchive::default(),
+            edition_archive: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],

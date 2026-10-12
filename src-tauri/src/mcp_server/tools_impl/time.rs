@@ -1,12 +1,16 @@
 //! MCP tool implementations: time
 
+use mcp_results::time::{
+    Blockers, DayAdvanced, Outcome, PlayedMatch, SkipToMatchDay, StandingsUpdate, YourMatch,
+};
+
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{require_game, require_league};
 use std::sync::{Arc, Mutex};
 
 // ─── time_advance ───────────────────────────────────────────────────────────
 
-pub fn time_advance(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
     // Rate limiting: enforce minimum delay between advances
     if ctx.config.min_tick_delay_ms > 0 {
         // Simple approach: sleep for the configured delay
@@ -22,129 +26,42 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<String, String> {
         "delegate",
     )?;
 
-    let mut output = String::new();
+    let game = response.game.as_ref();
+    let round_summary = response.round_summary.as_ref();
+    let user_team_id = game.and_then(|game| game.manager.team_id.as_deref());
 
-    // Current date
-    let date_str = if let Some(ref game) = response.game {
-        game.clock.current_date.format("%d %B %Y").to_string()
-    } else {
-        "Unknown".to_string()
+    let results: Vec<PlayedMatch> = round_summary
+        .map(|summary| {
+            summary
+                .completed_results
+                .iter()
+                .map(|result| PlayedMatch {
+                    home_team: result.home_team_name.clone(),
+                    home_goals: result.home_goals,
+                    away_goals: result.away_goals,
+                    away_team: result.away_team_name.clone(),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let day = DayAdvanced {
+        date: game.map_or_else(
+            || "Unknown".to_string(),
+            |game| game.clock.current_date.format("%d %B %Y").to_string(),
+        ),
+        your_match: round_summary
+            .zip(user_team_id)
+            .and_then(|(summary, team_id)| your_match_in(&summary.completed_results, team_id)),
+        standings: round_summary
+            .zip(game)
+            .and_then(|(_, game)| standings_update(game)),
+        fired: game.is_some_and(|game| game.manager.team_id.is_none()),
+        auto_saved: false,
+        results,
     };
-    output.push_str(&format!("## Day Advanced — {}\n\n", date_str));
 
-    // If there was a match, show round summary
-    if let Some(ref round_summary) = response.round_summary {
-        if !round_summary.completed_results.is_empty() {
-            output.push_str(
-                "### Match Results\n\n| Home | Score | Away |\n|------|-------|------|\n",
-            );
-            for result in &round_summary.completed_results {
-                output.push_str(&format!(
-                    "| {} | {} - {} | {} |\n",
-                    result.home_team_name,
-                    result.home_goals,
-                    result.away_goals,
-                    result.away_team_name,
-                ));
-            }
-
-            // Highlight user's match
-            if let Some(ref game) = response.game {
-                if let Some(team_id) = &game.manager.team_id {
-                    for result in &round_summary.completed_results {
-                        if result.home_team_id == *team_id || result.away_team_id == *team_id {
-                            let is_home = result.home_team_id == *team_id;
-                            let our_goals = if is_home {
-                                result.home_goals
-                            } else {
-                                result.away_goals
-                            };
-                            let their_goals = if is_home {
-                                result.away_goals
-                            } else {
-                                result.home_goals
-                            };
-                            let opponent = if is_home {
-                                &result.away_team_name
-                            } else {
-                                &result.home_team_name
-                            };
-                            let venue = if is_home { "H" } else { "A" };
-                            let result_text = if our_goals > their_goals {
-                                "won"
-                            } else if our_goals < their_goals {
-                                "lost"
-                            } else {
-                                "drew"
-                            };
-                            output.push_str(&format!(
-                                "\nYour team {} {}-{} vs {} ({}).",
-                                result_text, our_goals, their_goals, opponent, venue
-                            ));
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Standings update if we have a game
-        if let Some(ref game) = response.game {
-            if let Some(league) = &game.league {
-                if let Some(team_id) = &game.manager.team_id {
-                    let mut standings = league.standings.clone();
-                    standings.sort_by(|a, b| {
-                        b.points
-                            .cmp(&a.points)
-                            .then_with(|| b.goals_for.cmp(&a.goals_for))
-                    });
-                    if let Some(pos) = standings.iter().position(|s| s.team_id == *team_id) {
-                        let standing = &standings[pos];
-                        output.push_str(&format!(
-                            "\n\n### Standings Update\n\nLeague position: {} | Points: {} | GD: {:+}",
-                            pos + 1,
-                            standing.points,
-                            i64::from(standing.goals_for) - i64::from(standing.goals_against),
-                        ));
-                    }
-                }
-            }
-        }
-    }
-
-    // Check if manager was fired during the advance
-    if let Some(ref game) = response.game {
-        if game.manager.team_id.is_none() {
-            output.push_str(
-                "\n\n**⚠️ You have been fired!** Use `jobs_available` to find a new position.",
-            );
-        }
-    }
-
-    // Auto-save every N in-game days (per-save tracking)
-    if ctx.config.auto_save_interval_days > 0 && response.game.is_some() {
-        if let Some(save_id) = ctx.state_manager.get_save_id() {
-            use std::collections::HashMap;
-            use std::sync::LazyLock;
-            static SAVE_DAY_COUNTERS: LazyLock<Mutex<HashMap<String, u32>>> =
-                LazyLock::new(|| Mutex::new(HashMap::new()));
-
-            let mut counters = SAVE_DAY_COUNTERS.lock().unwrap();
-            let days = counters.entry(save_id.clone()).or_insert(0);
-            *days += 1;
-            if *days >= ctx.config.auto_save_interval_days {
-                *days = 0;
-                drop(counters); // release lock before save
-                if let Ok(mut sm) = ctx.save_manager_state.0.lock() {
-                    if crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm)
-                        .is_ok()
-                    {
-                        output.push_str("\n\n💾 *Auto-saved.*");
-                    }
-                }
-            }
-        }
-    }
+    let auto_saved = response.game.is_some() && auto_save_if_due(&ctx);
 
     // Notify GUI about state change
     {
@@ -152,14 +69,84 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<String, String> {
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(output)
+    Ok(DayAdvanced { auto_saved, ..day })
+}
+
+fn your_match_in(
+    results: &[ofm_core::turn::RoundResultSummary],
+    team_id: &str,
+) -> Option<YourMatch> {
+    results
+        .iter()
+        .find(|result| result.home_team_id == team_id || result.away_team_id == team_id)
+        .map(|result| {
+            let at_home = result.home_team_id == team_id;
+            let (your_goals, their_goals, opponent) = if at_home {
+                (result.home_goals, result.away_goals, &result.away_team_name)
+            } else {
+                (result.away_goals, result.home_goals, &result.home_team_name)
+            };
+            YourMatch {
+                outcome: match your_goals.cmp(&their_goals) {
+                    std::cmp::Ordering::Greater => Outcome::Won,
+                    std::cmp::Ordering::Less => Outcome::Lost,
+                    std::cmp::Ordering::Equal => Outcome::Drew,
+                },
+                your_goals,
+                their_goals,
+                opponent: opponent.clone(),
+                at_home,
+            }
+        })
+}
+
+fn standings_update(game: &ofm_core::game::Game) -> Option<StandingsUpdate> {
+    let league = game.league.as_ref()?;
+    let team_id = game.manager.team_id.as_deref()?;
+    let standings = league.sorted_standings();
+    let position = standings.iter().position(|s| s.team_id == team_id)?;
+    let standing = &standings[position];
+    Some(StandingsUpdate {
+        position: position + 1,
+        points: standing.points,
+        goal_difference: i64::from(standing.goal_difference()),
+    })
+}
+
+/// Saves the game every `auto_save_interval_days` in-game days, counted per save.
+/// Returns whether it saved.
+fn auto_save_if_due(ctx: &McpContext) -> bool {
+    if ctx.config.auto_save_interval_days == 0 {
+        return false;
+    }
+    let Some(save_id) = ctx.state_manager.get_save_id() else {
+        return false;
+    };
+    use std::collections::HashMap;
+    use std::sync::LazyLock;
+    static SAVE_DAY_COUNTERS: LazyLock<Mutex<HashMap<String, u32>>> =
+        LazyLock::new(|| Mutex::new(HashMap::new()));
+
+    let Ok(mut counters) = SAVE_DAY_COUNTERS.lock() else {
+        return false;
+    };
+    let days = counters.entry(save_id).or_insert(0);
+    *days += 1;
+    if *days < ctx.config.auto_save_interval_days {
+        return false;
+    }
+    *days = 0;
+    drop(counters); // release lock before save
+    ctx.save_manager_state.0.lock().is_ok_and(|mut sm| {
+        crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm).is_ok()
+    })
 }
 
 // ─── squad_get ──────────────────────────────────────────────────────────────
 
 // ─── time_skip_to_match_day ─────────────────────────────────────────────────
 
-pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, String> {
     crate::application::live_session::ensure_idle(&ctx.state_manager)?;
     let game = require_game(&ctx.state_manager)?;
     let league = require_league(&game)?;
@@ -180,7 +167,7 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<String, String> {
         .min_by_key(|f| &f.date);
 
     let Some(fixture) = next_fixture else {
-        return Ok("## No Upcoming Match\n\nNo more fixtures scheduled for your team.".to_string());
+        return Ok(SkipToMatchDay::NoUpcomingMatch {});
     };
 
     let target_date = fixture.date.clone();
@@ -192,10 +179,7 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<String, String> {
     };
 
     if days_to_skip <= 0 {
-        return Ok(
-            "## Match Day Today\n\nYour next match is today. Use `time_advance` to play it."
-                .to_string(),
-        );
+        return Ok(SkipToMatchDay::MatchDayToday {});
     }
 
     // Advance time day by day until we reach the match day
@@ -216,7 +200,9 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<String, String> {
 
         // Safety limit
         if advanced > 365 {
-            return Ok("## Skip Aborted\n\nSkipped more than 365 days without reaching match. Something may be wrong.".to_string());
+            return Ok(SkipToMatchDay::Aborted {
+                days_advanced: advanced,
+            });
         }
     }
 
@@ -225,14 +211,17 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<String, String> {
         let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
-    Ok(format!("## Skipped to Match Day\n\n**{} days advanced** to {}.\nUse `time_advance` to play the match.", advanced, target_date))
+    Ok(SkipToMatchDay::Skipped {
+        days_advanced: advanced,
+        target_date,
+    })
 }
 
 // ─── time_check_blockers ────────────────────────────────────────────────────
 
 // ─── time_check_blockers ────────────────────────────────────────────────────
 
-pub fn time_check_blockers(ctx: Arc<McpContext>) -> Result<String, String> {
+pub fn time_check_blockers(ctx: Arc<McpContext>) -> Result<Blockers, String> {
     let game = require_game(&ctx.state_manager)?;
 
     let mut blockers = Vec::new();
@@ -267,18 +256,60 @@ pub fn time_check_blockers(ctx: Arc<McpContext>) -> Result<String, String> {
         // Skip this check for simplicity — agents can use info_player_profile to check
     }
 
-    if blockers.is_empty() {
-        Ok("## No Blockers\n\nTime can be advanced safely.".to_string())
-    } else {
-        Ok(format!(
-            "## ⚠️ Blockers Detected\n\n{}",
-            blockers
-                .iter()
-                .map(|b| format!("- {}", b))
-                .collect::<Vec<_>>()
-                .join("\n")
-        ))
-    }
+    Ok(Blockers { blockers })
 }
 
 // ─── transfer_market_browse ─────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::standings_update;
+    use chrono::TimeZone;
+    use domain::league::{League, StandingEntry};
+    use domain::manager::Manager;
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
+
+    fn entry(team_id: &str, goals_for: u32, goals_against: u32) -> StandingEntry {
+        StandingEntry {
+            team_id: team_id.to_string(),
+            played: 3,
+            won: 1,
+            drawn: 0,
+            lost: 2,
+            goals_for,
+            goals_against,
+            points: 3,
+        }
+    }
+
+    /// Given two clubs level on points, one with more goals scored and the other the better goal difference
+    /// When the standings update for the better goal difference's club is built
+    /// Then it is first, because the game ranks by points, goal difference, then goals scored.
+    #[test]
+    fn a_tie_on_points_is_split_by_goal_difference_not_goals_scored() {
+        let mut manager = Manager::new(
+            "mgr".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("tidy".to_string());
+        let clock = GameClock::new(chrono::Utc.with_ymd_and_hms(2030, 9, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        let mut league = League::new(
+            "league".to_string(),
+            "League".to_string(),
+            2030,
+            &["open".to_string(), "tidy".to_string()],
+        );
+        league.standings = vec![entry("open", 8, 8), entry("tidy", 3, 1)];
+        game.league = Some(league);
+
+        let update = standings_update(&game).expect("the manager's club is in the table");
+
+        assert_eq!(update.position, 1);
+        assert_eq!(update.goal_difference, 2);
+    }
+}

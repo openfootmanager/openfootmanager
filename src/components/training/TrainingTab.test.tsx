@@ -15,6 +15,7 @@ vi.mock("react-i18next", () => ({
     t: (key: string, params?: Record<string, string | number>, fallback?: string) => {
       if (key === "common.noTeam") return "No team";
       if (key === "training.staffAlert") return "Staff alert";
+      if (key === "training.goalkeepersLabel") return "Goalkeepers";
       if (key === "training.staffWarning") return "Staff warning";
       if (key === "training.staffSuggestion") return "Staff suggestion";
       if (key === "training.staffAdvice.critical")
@@ -182,6 +183,7 @@ describe("TrainingTab", () => {
     const defaultRoster = defaultState.players.filter((p) => p.team_id === "team-1");
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad") return defaultRoster;
+      if (command === "get_training_focus_attributes") return [];
       return defaultState;
     });
   });
@@ -190,6 +192,27 @@ describe("TrainingTab", () => {
     render(<TrainingTab gameState={createGameState(false)} />);
 
     expect(screen.getByText("No team")).toBeInTheDocument();
+  });
+
+  // Given the backend says goalkeepers train handling and reflexes under Technical, when the tab renders, then the focus card lists them.
+  it("lists the attributes the backend reports for each focus", async () => {
+    const state = createGameState(true);
+    const roster = state.players.filter((p) => p.team_id === "team-1");
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "get_training_focus_attributes") {
+        return [
+          { focus: "Physical", outfield: ["pace"], goalkeeper: ["pace"] },
+          { focus: "Technical", outfield: ["passing", "shooting"], goalkeeper: ["handling"] },
+        ];
+      }
+      return state;
+    });
+
+    render(<TrainingTab gameState={state} />);
+
+    expect(await screen.findByText("handling")).toBeInTheDocument();
+    expect(screen.getAllByText("Goalkeepers:").length).toBeGreaterThan(0);
   });
 
   it("updates the weekly schedule and forwards the refreshed state", async () => {
@@ -251,5 +274,38 @@ describe("TrainingTab", () => {
     await waitFor(() => {
       expect(screen.queryByText(/Critical advice/)).not.toBeInTheDocument();
     });
+  });
+  // Given backend-selected youth, when Training opens, then the called-up row
+  // and his fatigue contribute to first-team training; excluded youth stay hidden.
+  it("shows called-up youth in Training using backend eligibility", async () => {
+    const state = createGameState(true);
+    state.teams[0].training_groups = [
+      { id: "recovery", name: "Recovery", focus: "Recovery", player_ids: [] },
+    ];
+    state.players = [
+      createPlayer({ id: "senior", full_name: "Senior Player", condition: 80 }),
+      createPlayer({
+        id: "called",
+        full_name: "Called Youth",
+        match_name: "Called Youth",
+        condition: 10,
+        squad_role: "Youth",
+        match_day_eligible: true,
+      }),
+      createPlayer({
+        id: "excluded",
+        full_name: "Excluded Youth",
+        match_name: "Excluded Youth",
+        squad_role: "Youth",
+        match_day_eligible: false,
+      }),
+    ];
+    invokeMock.mockImplementation(async (command: string) =>
+      command === "get_squad" ? state.players : state,
+    );
+    render(<TrainingTab gameState={state} />);
+    expect(await screen.findByRole("row", { name: /Called Youth/ })).toBeInTheDocument();
+    expect(screen.queryByRole("row", { name: /Excluded Youth/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/Warning advice 45/)).toBeInTheDocument();
   });
 });

@@ -164,6 +164,7 @@ export type {
   SeasonAwardsData,
   NewsArticle,
   BoardObjective,
+  ScoutedPlayerView,
   ScoutingAssignment,
   YouthScoutingAssignment,
   GameStateData,

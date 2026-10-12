@@ -123,8 +123,9 @@ from it rather than maintaining four.
 
 ### P7 — Docs and tooling asserting what the code does not do
 - `ARCHITECTURE.md:178` documents 29 commands; `lib.rs:192` registers 123.
-- `MCP_SERVER.md` documents `TAURI_SAVE_DIR` for per-agent save isolation; **nothing reads it**, so
-  the multi-agent script runs every instance against the same save area.
+- `MCP_SERVER.md` documented `TAURI_SAVE_DIR` for per-agent save isolation; **nothing read it**, so
+  the multi-agent script ran every instance against the same save area. *Resolved in #749: the docs
+  now describe `XDG_DATA_HOME`/`XDG_CONFIG_HOME` isolation.*
 - `MCP_SERVER.md:206` says `season_advance` advances through the off-season; it advances one day.
 - `domain/player.rs:559` documents Wonderkid as 21/85/10; `player_rating.rs` uses 20/90/14.
 

@@ -129,12 +129,76 @@ Rules the module keeps:
 Because `auto` now keeps the DMABuf renderer on, a machine where `__NV_DISABLE_EXPLICIT_SYNC=1`
 is *not* enough would fail to start. The app therefore records a sentinel before creating the
 window and clears it once the UI is alive; a launch that finds a stale sentinel falls back to
-`safe` on its own. See [issue #281](https://github.com/openfootmanager/openfootmanager/issues/281),
-which is a different failure in the same subsystem (`EGL_BAD_PARAMETER` rather than Error 71).
+`safe` on its own.
+
+That fallback only sees the **app** process dying. If only WebKit's web process dies, the window
+stays up, white, and the launch counts as a success. That is how the AppImage failure below
+looked.
+
+---
+
+## The AppImage white screen ([#281](https://github.com/openfootmanager/openfootmanager/issues/281))
+
+A different failure from everything above: it is a packaging problem, not a renderer setting.
+
+**Symptom.** The AppImage opens a white window and the terminal prints
+`Could not create default EGL display: EGL_BAD_PARAMETER. Aborting...`. Seen on AMD under CachyOS,
+reproduced on Fedora 44 with Mesa. The `.deb`, the `.rpm` and a dev build of the same commit are
+fine.
+
+**Cause.** Before `@tauri-apps/cli` 2.12, the AppImage carried its own `libwayland-client.so.0`,
+taken from the Ubuntu 22.04 runner that built it. The AppImage's launcher puts its own libraries
+first, so on the player's machine Mesa's EGL driver was linked against that old copy. Current
+Mesa needs libwayland 1.23 or newer:
+
+```text
+$ LD_LIBRARY_PATH=squashfs-root/usr/lib ldd -r /usr/lib64/libEGL_mesa.so.0 | grep undefined
+undefined symbol: wl_fixes_interface                 (/usr/lib64/libEGL_mesa.so.0)
+undefined symbol: wl_display_create_queue_with_name  (/usr/lib64/libEGL_mesa.so.0)
+undefined symbol: wl_display_dispatch_queue_timeout  (/usr/lib64/libEGL_mesa.so.0)
+```
+
+So glvnd could not load the Mesa driver at all, WebKit could not create an EGL display, and its
+web process aborted. NVIDIA's proprietary EGL driver does not need those symbols, which is why the
+NVIDIA machine this document was measured on never showed it.
+
+The renderer settings `OFM_GPU_PROFILE=safe`, `WEBKIT_DISABLE_COMPOSITING_MODE=1` and
+`LIBGL_ALWAYS_SOFTWARE=1` do not fix it: each still creates the EGL display and fails the same way.
+`GDK_BACKEND` could not even be tried: the old AppImage's launcher overwrote it with `x11`.
+
+**Fix.** `@tauri-apps/cli` 2.12 (tauri-bundler 2.10, upstream
+[tauri#16062](https://github.com/tauri-apps/tauri/pull/16062)) packs AppImages with an updated
+linuxdeploy. It no longer bundles `libwayland-client` and no longer forces `GDK_BACKEND=x11`. It
+still bundles `libwayland-cursor`, `-egl` and `-server`, but Mesa's EGL driver resolves against
+those old copies without a missing symbol. With only the client gone, the app starts on Mesa 26
+under both X11 and native Wayland. Both release workflows run `scripts/check-appimage-libs.sh`,
+which fails if `libwayland-client` turns up inside the AppImage again.
+
+**Checking an AppImage by hand:**
+
+```sh
+./Openfoot.Manager_*_amd64.AppImage --appimage-extract >/dev/null
+find squashfs-root -name 'libwayland-client*'  # must print nothing
+LD_LIBRARY_PATH=squashfs-root/usr/lib ldd -r /usr/lib64/libEGL_mesa.so.0 | grep undefined  # must print nothing
+```
+
+The `ldd` path is `/usr/lib/libEGL_mesa.so.0` on Arch-based distributions.
 
 ---
 
 ## Troubleshooting for players
+
+**You run the AppImage, the window is white, and the terminal says `EGL_BAD_PARAMETER`.**
+That is the [AppImage packaging problem](#the-appimage-white-screen-281), and the profiles below
+won't help. Update to a build made after the fix, or install the `.deb` or `.rpm` instead. To
+run an older AppImage anyway, make it use your system's Wayland library:
+
+```sh
+LD_PRELOAD=/usr/lib64/libwayland-client.so.0 ./Openfoot.Manager_*_amd64.AppImage
+```
+
+(`/usr/lib/libwayland-client.so.0` on Arch-based distributions, and
+`/usr/lib/x86_64-linux-gnu/libwayland-client.so.0` on Debian-based ones.)
 
 **The window is blank, white, or the app closes immediately.**
 Run it with the conservative profile:

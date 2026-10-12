@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from "react";
 import { buildPitchRows } from "../squad/SquadTab.helpers";
 import type { EnginePlayerData } from "./types";
+import { usePitchTokenFocus } from "../ui";
 
 interface FormationSlot {
   player: EnginePlayerData;
@@ -124,7 +125,13 @@ interface FormationPitchProps {
    */
   renderToken?: (
     player: EnginePlayerData,
-    state: { isSelected: boolean; isSubOn: boolean; slotPosition?: string },
+    state: {
+      isSelected: boolean;
+      isSubOn: boolean;
+      slotPosition?: string;
+      descriptionId: string;
+      focused: boolean;
+    },
   ) => ReactNode;
 }
 
@@ -139,6 +146,7 @@ export function FormationPitch({
   renderToken,
 }: FormationPitchProps) {
   const uid = useId();
+  const { focusedPlayerId, focusToken, blurToken, getDescriptionId } = usePitchTokenFocus();
   const surfaceId = `pitch-surface-${uid}`;
   const stripesId = `pitch-stripes-${uid}`;
   const slots =
@@ -238,6 +246,7 @@ export function FormationPitch({
         />
       </svg>
       {slots.map(({ player: p, x, y, slotPosition }) => {
+        const descriptionId = getDescriptionId(p.id);
         const isSelected = selectedId === p.id;
         const isSubOn = subbedOnIds?.has(p.id) ?? false;
         const initials = p.name
@@ -249,7 +258,13 @@ export function FormationPitch({
         const sharedClass = `absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0.5 transition-all ${onPlayerClick ? "cursor-pointer hover:scale-110" : ""} ${isSelected ? "scale-110" : ""}`;
         const sharedStyle = { left: `${x}%`, top: `${y}%` };
         const tokenContent = renderToken ? (
-          renderToken(p, { isSelected, isSubOn, slotPosition })
+          renderToken(p, {
+            isSelected,
+            isSubOn,
+            slotPosition,
+            descriptionId,
+            focused: focusedPlayerId === p.id,
+          })
         ) : (
           <>
             <div
@@ -281,6 +296,9 @@ export function FormationPitch({
               role="button"
               tabIndex={0}
               aria-label={p.name}
+              aria-describedby={renderToken ? descriptionId : undefined}
+              onFocus={() => focusToken(p.id)}
+              onBlur={blurToken}
               className={`${sharedClass} rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300/70`}
               style={sharedStyle}
               onClick={() => onPlayerClick(p.id)}

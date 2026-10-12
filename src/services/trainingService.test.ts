@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import {
+  getTrainingFocusAttributes,
   setPlayerTrainingFocus,
   setTraining,
   setTrainingGroups,
@@ -60,5 +61,13 @@ describe("trainingService", () => {
       playerId: "player-1",
       focus: null,
     });
+  });
+
+  it("loads the focus attribute table from the backend", async () => {
+    const table = [{ focus: "Technical", outfield: ["passing"], goalkeeper: ["handling"] }];
+    mockedInvoke.mockResolvedValueOnce(table);
+
+    await expect(getTrainingFocusAttributes()).resolves.toEqual(table);
+    expect(mockedInvoke).toHaveBeenCalledWith("get_training_focus_attributes");
   });
 });

@@ -25,6 +25,17 @@ pub struct RawStartupOptions {
     history_depth_years: Option<u32>,
 }
 
+impl RawStartupOptions {
+    #[cfg(feature = "mcp")]
+    pub(super) fn new(start_year: Option<i32>, start_phase: Option<String>) -> Self {
+        Self {
+            start_year,
+            start_phase,
+            history_depth_years: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct StartupOptions {
     pub(super) start_year: i32,

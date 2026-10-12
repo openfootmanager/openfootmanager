@@ -6,6 +6,9 @@ use domain::league::{
 #[cfg(test)]
 use uuid::Uuid;
 
+/// The ordinary-table cadence shared by default and authored construction.
+pub(crate) const LEAGUE_MATCHDAY_GAP_DAYS: u32 = 7;
+
 /// Generate a full double round-robin schedule (home & away) for the given teams.
 /// Matchdays are spaced 7 days apart starting from `start_date`.
 /// Uses a rotation-based algorithm for balanced scheduling.
@@ -53,7 +56,7 @@ pub fn build_round_robin_fixtures(
         start_date,
         fixture_competition,
         2,
-        7,
+        LEAGUE_MATCHDAY_GAP_DAYS.into(),
     )
 }
 
@@ -184,6 +187,7 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
 
     league.participant_ids = team_ids.clone();
     league.season = season;
+    crate::calendar_identity::record_regenerated_calendar(league, start_date);
     league.fixtures.clear();
     league.standings = team_ids
         .iter()
@@ -199,6 +203,7 @@ pub fn regenerate_league_for_season(league: &mut League, season: u32, start_date
 /// and participants but clearing previous fixtures, standings, and rounds.
 pub fn regenerate_knockout_for_season(cup: &mut League, season: u32, start_date: DateTime<Utc>) {
     cup.season = season;
+    crate::calendar_identity::record_regenerated_calendar(cup, start_date);
     cup.fixtures.clear();
     cup.standings.clear();
     cup.knockout_rounds.clear();
@@ -254,6 +259,14 @@ pub fn generate_knockout_cup(
     cup
 }
 
+/// Byes that reduce an uneven knockout field to a power of two.
+/// Shared by bracket construction and completed-edition verification.
+pub(crate) fn knockout_bye_count(entrants: usize) -> Option<usize> {
+    entrants
+        .checked_next_power_of_two()
+        .map(|size| size - entrants)
+}
+
 /// Seed the next knockout round of `cup` from `team_ids` (strongest first —
 /// any byes for a non-power-of-two field go to the leading seeds).
 pub fn seed_knockout_round(
@@ -273,7 +286,13 @@ pub fn seed_knockout_round(
     // When the entrant count is not a power of two, the strongest seeds (which
     // the caller passes first) receive a bye into the next round so the bracket
     // converges to a power of two.
-    let byes = team_ids.len().next_power_of_two() - team_ids.len();
+    let Some(byes) = knockout_bye_count(team_ids.len()) else {
+        log::warn!(
+            "[schedule] a knockout field of {} entrants cannot form a bracket",
+            team_ids.len()
+        );
+        return;
+    };
     let (bye_teams, playing_teams) = team_ids.split_at(byes);
 
     let mpd = cup.rules.knockout_matches_per_day.max(1) as usize;

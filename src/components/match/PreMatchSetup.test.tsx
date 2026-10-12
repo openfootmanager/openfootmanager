@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PreMatchSetup from "./PreMatchSetup";
@@ -138,6 +138,48 @@ function renderSetup(currentFixture?: FixtureData, competitions?: LeagueData[]) 
 }
 
 describe("PreMatchSetup opponent scout panel", () => {
+  /** Given a pre-match token, when its player name is hovered,
+   * then its summary appears outside the clipped pitch. */
+  it("shows a pre-match token summary when its name is hovered", () => {
+    renderSetup();
+    const control = screen.getByRole("button", { name: "Home GK" });
+    fireEvent.mouseEnter(within(control).getByText("HOME GK"));
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip).toHaveTextContent("squad.pitchTokenTooltip");
+    expect(control).not.toContainElement(tooltip);
+  });
+
+  /** Given a pre-match token, when its player control receives keyboard focus,
+   * then its summary is visible and described without replacing the player's name. */
+  it("keeps the pre-match player name while describing its focused token", () => {
+    renderSetup();
+    const control = screen.getByRole("button", { name: "Home GK" });
+    act(() => control.focus());
+    expect(control).toHaveFocus();
+    expect(control).toHaveAccessibleName("Home GK");
+    expect(control).toHaveAccessibleDescription("squad.pitchTokenTooltip");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("squad.pitchTokenTooltip");
+    expect(screen.getByRole("tooltip")).toHaveAttribute(
+      "id",
+      control.getAttribute("aria-describedby"),
+    );
+    act(() => control.blur());
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  /** Given a focused player and its visible tooltip, when Escape is pressed,
+   * then the tooltip closes while focus and the accessible description remain. */
+  it("dismisses the focused player tooltip with Escape without moving focus", () => {
+    renderSetup();
+    const control = screen.getByRole("button", { name: "Home GK" });
+    act(() => control.focus());
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    fireEvent.keyDown(control, { key: "Escape" });
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    expect(control).toHaveFocus();
+    expect(control).toHaveAccessibleDescription("squad.pitchTokenTooltip");
+  });
+
   it("scouts the opponent squad on the Opponent tab", () => {
     renderSetup();
 

@@ -1,6 +1,7 @@
 {
   "competition": [
     "berths",
+    "calendar",
     "countryId",
     "format",
     "id",

@@ -165,3 +165,96 @@ fn dormant_clubs_outside_the_active_scope_skip_the_market() {
         "a dormant club outside the active simulation scope must not shop the market"
     );
 }
+
+// Shared fixtures for the acceptance routes, with enough depth to permit a departure.
+pub(super) fn acceptance_game(owner: &str, deferred: bool) -> Game {
+    let mut game = make_game();
+    game.players[0].team_id = Some(owner.to_string());
+    game.players[0].loan_listed = true;
+    for (position, count) in [
+        (Position::Goalkeeper, 3),
+        (Position::Defender, 5),
+        (Position::Midfielder, 5),
+        (Position::Forward, 3),
+    ] {
+        for index in 0..count {
+            let mut player = Player::new(
+                format!("depth-{position:?}-{index}"),
+                "Depth".into(),
+                "Player".into(),
+                "1998-01-01".into(),
+                "England".into(),
+                position.clone(),
+                sample_attributes(),
+            );
+            player.team_id = Some(owner.to_string());
+            game.players.push(player);
+        }
+    }
+    if deferred {
+        game.season_context.transfer_window.status = TransferWindowStatus::Closed;
+        game.season_context.transfer_window.opens_on = Some("2026-07-02".into());
+    }
+    game
+}
+
+pub(super) fn incoming_transfer(game: &mut Game) -> String {
+    super::bids::upsert_transfer_offer(
+        &mut game.players[0],
+        "team2",
+        600_000,
+        TransferOfferStatus::Pending,
+        "2026-01-12",
+        None,
+        1,
+        None,
+        None,
+    )
+}
+
+pub(super) fn incoming_loan(game: &mut Game) -> String {
+    super::loans::upsert_loan_offer(
+        &mut game.players[0],
+        "team2",
+        "team1",
+        "2026-01-12",
+        "2026-12-20",
+        60,
+        Some(600_000),
+        domain::player::LoanOfferStatus::Pending,
+        "2026-01-12",
+    )
+}
+
+pub(super) fn assert_acceptance_notice<'a>(
+    game: &'a Game,
+    key: &str,
+    start: &str,
+) -> &'a domain::message::InboxMessage {
+    assert_eq!(game.messages.len(), 1, "one notice for the agreed deal");
+    let message = &game.messages[0];
+    assert_eq!(message.body_key.as_deref(), Some(key));
+    assert_eq!(message.context.player_id.as_deref(), Some("player-award"));
+    assert_eq!(message.context.team_id.as_deref(), Some("team1"));
+    assert_eq!(
+        message.i18n_params.get("player").map(String::as_str),
+        Some("Golden Boot")
+    );
+    if !start.is_empty() {
+        assert_eq!(
+            message.i18n_params.get("start").map(String::as_str),
+            Some(start)
+        );
+    }
+    assert_eq!(message.category, domain::message::MessageCategory::Transfer);
+    assert_eq!(
+        message.sender_key.as_deref(),
+        Some("be.sender.transferCommittee")
+    );
+    assert_eq!(
+        message.sender_role_key.as_deref(),
+        Some("be.role.directorOfFootball")
+    );
+    assert!(game.emitted_events.contains(&message.id));
+    message
+}

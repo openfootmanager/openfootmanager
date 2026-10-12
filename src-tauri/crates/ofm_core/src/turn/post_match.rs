@@ -571,11 +571,13 @@ fn update_post_match_morale(
             if ps.red_cards > 0 {
                 individual_delta -= 8;
             }
-            // Poor rating lowers morale
-            if ps.rating < 5.5 {
-                individual_delta -= 3;
-            } else if ps.rating > 7.5 {
-                individual_delta += 2;
+            // Unavailable ratings contribute no morale modifier.
+            if crate::match_rating::is_rated(ps.rating) {
+                if ps.rating < 5.5 {
+                    individual_delta -= 3;
+                } else if ps.rating > 7.5 {
+                    individual_delta += 2;
+                }
             }
         }
 
@@ -665,6 +667,278 @@ fn deplete_match_stamina(game: &mut Game, team_id: &str, report: &engine::MatchR
             // Shared with national-team friendlies so call-ups wear players
             // identically to club fixtures.
             crate::player_wear::apply_match_wear(player, minutes, &mut rng);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{clock::GameClock, test_support::uniform_attributes};
+    use chrono::{TimeZone, Utc};
+    use domain::{
+        league::{Fixture, FixtureCompetition, League, StandingEntry},
+        manager::Manager,
+        player::Player,
+        team::Team,
+    };
+    use engine::{MatchReport, PlayerMatchStats, TeamStats};
+    use std::collections::HashMap;
+
+    fn match_game() -> Game {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "manager".into(),
+            "Test".into(),
+            "Manager".into(),
+            "1980-01-01".into(),
+            "ENG".into(),
+        );
+        manager.hire("home".into());
+        let mut teams = Vec::new();
+        let mut players = Vec::new();
+        for id in ["home", "away"] {
+            let mut team = Team::new(
+                id.into(),
+                format!("{id} FC"),
+                id.into(),
+                "ENG".into(),
+                "London".into(),
+                "Ground".into(),
+                20_000,
+            );
+            team.finance = 10_000_000;
+            teams.push(team);
+            for index in 0..14 {
+                let position = match index {
+                    0 => DomainPosition::Goalkeeper,
+                    1..=4 => DomainPosition::Defender,
+                    5..=8 => DomainPosition::Midfielder,
+                    9..=10 => DomainPosition::Forward,
+                    _ => DomainPosition::Midfielder,
+                };
+                let mut player = Player::new(
+                    format!("{id}-{index}"),
+                    "Player".into(),
+                    format!("{id} Player {index}"),
+                    "1995-01-01".into(),
+                    "ENG".into(),
+                    position,
+                    uniform_attributes(65),
+                );
+                player.team_id = Some(id.into());
+                player.morale = 60;
+                player.condition = 100;
+                player.stage_contract_end(Some("2028-06-30".into()));
+                players.push(player);
+            }
+        }
+        let mut game = Game::new(clock, manager, teams, players, vec![], vec![]);
+        game.seed = 123;
+        // Exclude unrelated random news morale; the match morale stream stays fixed.
+        game.emitted_events.insert("media_2025-06-15".to_string());
+        game.league = Some(League {
+            id: "league".into(),
+            name: "League".into(),
+            season: 2025,
+            fixtures: vec![Fixture {
+                id: "fixture".into(),
+                competition_id: "league".into(),
+                matchday: 1,
+                date: "2025-06-15".into(),
+                home_team_id: "home".into(),
+                away_team_id: "away".into(),
+                competition: FixtureCompetition::League,
+                ..Default::default()
+            }],
+            standings: vec![
+                StandingEntry::new("home".into()),
+                StandingEntry::new("away".into()),
+            ],
+            ..Default::default()
+        });
+        game
+    }
+
+    fn report(player_stats: HashMap<String, PlayerMatchStats>) -> MatchReport {
+        MatchReport {
+            home_goals: 1,
+            away_goals: 1,
+            home_stats: TeamStats::default(),
+            away_stats: TeamStats::default(),
+            events: vec![],
+            goals: vec![],
+            player_stats,
+            home_possession: 50.0,
+            total_minutes: 90,
+            home_penalties: None,
+            away_penalties: None,
+        }
+    }
+
+    fn morales(game: &Game) -> Vec<(String, u8)> {
+        game.players
+            .iter()
+            .map(|player| (player.id.clone(), player.morale))
+            .collect()
+    }
+
+    /// Given an engine-produced unrated report for user and AI squads, when process_day runs,
+    /// then their morale equals the same report with neutral ratings and the same morale RNG.
+    #[test]
+    fn a_real_match_day_treats_unrated_reports_as_neutral_for_both_squads() {
+        let mut game = match_game();
+        let mut neutral = game.clone();
+        let mut captures = StatsState::default();
+        crate::turn::process_day_with_capture(&mut game, &mut |stats| captures.append(stats));
+        assert!(captures.player_matches.len() >= 22);
+        assert!(
+            captures
+                .player_matches
+                .iter()
+                .all(|stats| stats.rating == 0.0)
+        );
+        let result = game.league.as_ref().unwrap().fixtures[0]
+            .result
+            .as_ref()
+            .unwrap();
+        let mut neutral_report = report(
+            captures
+                .player_matches
+                .iter()
+                .map(|stats| {
+                    (
+                        stats.player_id.clone(),
+                        PlayerMatchStats {
+                            goals: stats.goals,
+                            assists: stats.assists,
+                            red_cards: stats.red_cards,
+                            rating: 6.8,
+                            ..Default::default()
+                        },
+                    )
+                })
+                .collect(),
+        );
+        neutral_report.home_goals = result.home_goals;
+        neutral_report.away_goals = result.away_goals;
+        update_post_match_morale(&mut neutral, &neutral_report, "home", "away");
+        for player in &neutral.players {
+            let actual = game
+                .players
+                .iter()
+                .find(|actual| actual.id == player.id)
+                .unwrap();
+            assert_eq!(
+                actual.morale, player.morale,
+                "{} has no rating component",
+                player.id
+            );
+        }
+    }
+
+    /// Given a saved nonzero season average and a career row, when an unrated match is played,
+    /// then the existing average denominator is preserved and the career row survives unchanged.
+    #[test]
+    fn an_unrated_match_preserves_the_existing_average_and_career_contract() {
+        let mut game = match_game();
+        let player = &mut game.players[0];
+        player.stats.appearances = 2;
+        player.stats.avg_rating = 9.0;
+        player.career.push(domain::player::CareerEntry {
+            season: 2024,
+            team_id: "former".into(),
+            team_name: "Former FC".into(),
+            appearances: 20,
+            goals: 3,
+            assists: 4,
+        });
+        let mut game: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        let career = serde_json::to_value(&game.players[0].career).unwrap();
+        crate::turn::process_day(&mut game);
+        assert_eq!(game.players[0].stats.appearances, 3);
+        assert_eq!(game.players[0].stats.avg_rating, 6.0);
+        assert_eq!(
+            serde_json::to_value(&game.players[0].career).unwrap(),
+            career
+        );
+    }
+
+    /// Given an unrated substitute with goals, assists and a red card, when morale is applied,
+    /// then those contributions survive and only the unavailable rating is ignored.
+    #[test]
+    fn an_unrated_substitute_keeps_goal_assist_and_card_morale_effects() {
+        let game = match_game();
+        let mut unrated = game.clone();
+        let mut neutral = game;
+        let mut match_report = report(HashMap::from([(
+            "home-12".into(),
+            PlayerMatchStats {
+                minutes_played: 45,
+                goals: 2,
+                assists: 1,
+                red_cards: 1,
+                ..Default::default()
+            },
+        )]));
+        update_post_match_morale(&mut unrated, &match_report, "home", "away");
+        match_report.player_stats.get_mut("home-12").unwrap().rating = 6.8;
+        update_post_match_morale(&mut neutral, &match_report, "home", "away");
+        assert_eq!(morales(&unrated), morales(&neutral));
+    }
+
+    /// Given an empty report, when morale is applied, then missing entries are equivalent to unrated entries.
+    #[test]
+    fn an_empty_report_has_no_unrated_performance_penalty() {
+        let game = match_game();
+        let mut empty = game.clone();
+        let mut unrated = game;
+        update_post_match_morale(&mut empty, &report(HashMap::new()), "home", "away");
+        let entries = unrated
+            .players
+            .iter()
+            .map(|player| (player.id.clone(), PlayerMatchStats::default()))
+            .collect();
+        update_post_match_morale(&mut unrated, &report(entries), "home", "away");
+        assert_eq!(morales(&empty), morales(&unrated));
+    }
+    /// Given an available poor or good rating, when morale is applied, then its established modifier survives.
+    #[test]
+    fn rated_reports_keep_the_existing_poor_and_good_morale_modifiers() {
+        let game = match_game();
+        let mut neutral = game.clone();
+        let mut match_report = report(HashMap::from([
+            (
+                "home-0".into(),
+                PlayerMatchStats {
+                    rating: 6.8,
+                    ..Default::default()
+                },
+            ),
+            (
+                "away-0".into(),
+                PlayerMatchStats {
+                    rating: 6.8,
+                    ..Default::default()
+                },
+            ),
+        ]));
+        update_post_match_morale(&mut neutral, &match_report, "home", "away");
+        for (rating, delta) in [(5.4, -3), (7.6, 2)] {
+            let mut rated = game.clone();
+            for stats in match_report.player_stats.values_mut() {
+                stats.rating = rating;
+            }
+            update_post_match_morale(&mut rated, &match_report, "home", "away");
+            for id in ["home-0", "away-0"] {
+                let actual = rated.players.iter().find(|player| player.id == id).unwrap();
+                let baseline = neutral
+                    .players
+                    .iter()
+                    .find(|player| player.id == id)
+                    .unwrap();
+                assert_eq!(i16::from(actual.morale) - i16::from(baseline.morale), delta);
+            }
         }
     }
 }

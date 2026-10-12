@@ -1,6 +1,7 @@
 pub mod config;
 pub mod context;
 mod formatting;
+mod result;
 mod server;
 pub mod tools;
 pub mod tools_impl;

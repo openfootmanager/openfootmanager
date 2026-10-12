@@ -233,6 +233,14 @@ pub fn renewal_wage_policy_error_message(team: &Team) -> String {
     )
 }
 
+pub fn loan_borrower_wage_policy_error_message(borrower: &Team) -> String {
+    backend_error_with_param(
+        "be.error.transfers.loanBorrowerCannotAffordWages",
+        "budget",
+        borrower.wage_budget,
+    )
+}
+
 pub fn project_renewal_financial_impact(
     game: &Game,
     player_id: &str,

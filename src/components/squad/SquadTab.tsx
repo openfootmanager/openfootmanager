@@ -27,7 +27,11 @@ export default function SquadTab({
 
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
-  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(teamId, clockDate);
+  const [fetchedSquad, setFetchedSquad] = useFetchedSquad(
+    teamId,
+    clockDate,
+    sessionState ?? gameState,
+  );
 
   const team =
     sessionState?.team ?? gameState?.teams.find((t) => t.manager_id === managerId) ?? null;

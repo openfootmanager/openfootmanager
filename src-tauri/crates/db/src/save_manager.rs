@@ -475,7 +475,8 @@ impl SaveManager {
         let db = GameDatabase::open_save(&db_path).map_err(|error| error.i18n_key())?;
         let mut game = GamePersistenceReader::read_game(&db)
             .map_err(|_| crate::save_load_error::SaveLoadError::MissingData.i18n_key())?;
-        let mut needs_resave = false;
+        let mut needs_resave =
+            crate::repositories::competition_repo::needs_calendar_backfill(db.conn())?;
 
         // Save-format gate: reject saves from a newer build whose format this
         // build can't understand, and flag older saves so the migrations below
@@ -693,6 +694,7 @@ impl SaveManager {
         game.news.clear();
         game.scouting_assignments.clear();
         game.youth_scouting_assignments.clear();
+        game.scouted_players.clear();
         game.board_objectives.clear();
 
         // A new career is a new game: its World Cups are drawn from its own seed, whatever the
@@ -3176,6 +3178,52 @@ mod tests {
         assert_eq!(loaded.youth_scouting_assignments[0].days_remaining, 5);
     }
 
+    /// Given a game with a scouted player
+    /// When it is saved and loaded from the .db
+    /// Then the date and the full attribute snapshot come back
+    #[test]
+    fn scouted_players_survive_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let mut attributes = game.players[0].attributes.clone();
+        attributes.pace = 91;
+        attributes.composure = 33;
+        game.scouted_players.push(ofm_core::game::ScoutedPlayer {
+            player_id: game.players[0].id.clone(),
+            scouted_on: "2026-08-10".to_string(),
+            attributes,
+        });
+
+        let save_id = sm.create_save(&game, "Scouted").unwrap();
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(loaded.scouted_players.len(), 1);
+        assert_eq!(loaded.scouted_players[0].scouted_on, "2026-08-10");
+        assert_eq!(loaded.scouted_players[0].attributes.pace, 91);
+        assert_eq!(loaded.scouted_players[0].attributes.composure, 33);
+    }
+
+    /// Given a save with scouted players
+    /// When a new career starts from it
+    /// Then the new career has scouted nobody
+    #[test]
+    fn a_new_career_from_a_save_starts_with_nobody_scouted() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.scouted_players.push(ofm_core::game::ScoutedPlayer {
+            player_id: game.players[0].id.clone(),
+            scouted_on: "2026-08-10".to_string(),
+            attributes: game.players[0].attributes.clone(),
+        });
+        let save_id = sm.create_save(&game, "Scouted").unwrap();
+
+        let fresh = sm.new_game_from_save(&save_id).unwrap();
+
+        assert!(fresh.scouted_players.is_empty());
+    }
+
     #[test]
     fn test_new_game_from_save_strips_session_data() {
         let dir = tempfile::tempdir().unwrap();
@@ -3369,5 +3417,144 @@ mod tests {
 
         let loaded_again = sm.load_game(&save_id).unwrap();
         assert_eq!(loaded_again.cash_journal.len(), loaded.cash_journal.len());
+    }
+    /// Given a finished edition in a saved career, when saved again after its competition
+    /// restarts and reloaded, then the frozen record is still there, byte for byte.
+    #[test]
+    fn edition_archive_survives_save_load_and_competition_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game_with_league();
+        game.competitions = vec![game.league.clone().unwrap()];
+        let competition = &game.competitions[0];
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: competition.id.clone(),
+                season: competition.season,
+                completed_on: "2033-06-30".into(),
+                champion_id: "champion-club".into(),
+                participant_ids: competition.participant_ids.clone(),
+                standings: competition.sorted_standings(),
+                groups: Vec::new(),
+                knockout_rounds: Vec::new(),
+                fixtures: Vec::new(),
+            });
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        game.competitions[0].season += 1;
+        game.competitions[0].fixtures.clear();
+        manager.save_game(&game, &id).unwrap();
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&loaded.edition_archive).unwrap(),
+            serde_json::to_value(&game.edition_archive).unwrap()
+        );
+        assert_eq!(loaded.edition_archive.len(), 1);
+    }
+
+    fn world_cup_game() -> Game {
+        let mut game = sample_game_with_league();
+        let kickoff = Utc.with_ymd_and_hms(2030, 6, 10, 0, 0, 0).unwrap();
+        ofm_core::world_cup::schedule_world_cup(
+            &mut game,
+            kickoff,
+            &ofm_core::world_cup::FORMAT_48,
+        );
+        game
+    }
+
+    fn world_cup_calendars(game: &Game) -> Vec<(String, serde_json::Value)> {
+        let mut calendars: Vec<_> = game
+            .competitions
+            .iter()
+            .filter(|c| ofm_core::world_cup::is_world_cup_competition(c))
+            .map(|c| (c.id.clone(), serde_json::to_value(&c.calendar).unwrap()))
+            .collect();
+        calendars.sort_by(|a, b| a.0.cmp(&b.0));
+        calendars
+    }
+
+    /// Given a career with a freshly created World Cup, when it is saved and loaded, then
+    /// each World Cup competition's calendar after the load equals its calendar before the save.
+    #[test]
+    fn live_and_reloaded_world_cup_calendars_agree() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let game = world_cup_game();
+        let before = world_cup_calendars(&game);
+        assert!(!before.is_empty() && before.iter().all(|(_, calendar)| !calendar.is_null()));
+        let id = manager.create_save(&game, "World Cup").unwrap();
+        assert_eq!(
+            world_cup_calendars(&manager.load_game(&id).unwrap()),
+            before
+        );
+    }
+
+    /// Given a save written before World Cup calendars were set live, when it is loaded,
+    /// then the backfill gives its World Cup competitions the calendar a new one gets.
+    #[test]
+    fn older_world_cup_save_is_backfilled_to_the_live_calendar() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let game = world_cup_game();
+        let live = world_cup_calendars(&game);
+        let mut older = game.clone();
+        older
+            .competitions
+            .iter_mut()
+            .filter(|c| ofm_core::world_cup::is_world_cup_competition(c))
+            .for_each(|c| c.calendar = None);
+        let id = manager.create_save(&older, "Older").unwrap();
+        assert_eq!(world_cup_calendars(&manager.load_game(&id).unwrap()), live);
+    }
+
+    #[test]
+    fn migrated_calendar_is_resaved_by_its_own_flag() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut manager = SaveManager::init(&saves).unwrap();
+        let game = sample_game_with_league();
+        let id = manager.create_save(&game, "Calendar").unwrap();
+        manager.load_game(&id).unwrap();
+        let path = saves.join(format!("{id}.db"));
+        {
+            let db = GameDatabase::open_save(&path).unwrap();
+            db.conn()
+                .execute("UPDATE competitions SET calendar_json = NULL", [])
+                .unwrap();
+        }
+        let loaded = manager.load_game(&id).unwrap();
+        assert!(!loaded.competitions.is_empty());
+        let db = GameDatabase::open_save(&path).unwrap();
+        let stored: String = db
+            .conn()
+            .query_row("SELECT calendar_json FROM competitions LIMIT 1", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert!(!stored.is_empty());
+        // Observe real writes: comparing identical JSON would miss an unnecessary resave.
+        db.conn().execute_batch("CREATE TABLE calendar_write_probe (writes INTEGER NOT NULL); INSERT INTO calendar_write_probe VALUES (0); CREATE TRIGGER calendar_insert_probe AFTER INSERT ON competitions BEGIN UPDATE calendar_write_probe SET writes = writes + 1; END;").unwrap();
+        drop(db);
+        manager.load_game(&id).unwrap();
+        let db = GameDatabase::open_save(&path).unwrap();
+        let writes: i64 = db
+            .conn()
+            .query_row("SELECT writes FROM calendar_write_probe", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(
+            writes, 0,
+            "settled second load must not resave calendar metadata"
+        );
+        let next: String = db
+            .conn()
+            .query_row("SELECT calendar_json FROM competitions LIMIT 1", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(stored, next);
     }
 }
