@@ -1,5 +1,6 @@
 use std::fs;
 use std::net::TcpListener;
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
@@ -336,18 +337,31 @@ impl App {
         let started = Instant::now();
         while started.elapsed() < GRACEFUL_STOP_WITHIN {
             if matches!(child.try_wait(), Ok(Some(_))) {
+                // The WebKit helpers belong to the app's process group and can outlive it long
+                // enough to recreate directories under the scratch path.
+                signal_group(child.id(), "-KILL");
                 return true;
             }
             std::thread::sleep(Duration::from_millis(100));
         }
         let _ = child.kill();
-        child.wait().is_ok()
+        let reaped = child.wait().is_ok();
+        signal_group(child.id(), "-KILL");
+        reaped
     }
 
     /// True when nothing listens on the app's port any more.
     pub fn port_is_free(&self) -> bool {
         TcpListener::bind(("127.0.0.1", self.port)).is_ok()
     }
+}
+
+/// Sends `signal` to the whole process group the app started, which has the app's pid as its id.
+fn signal_group(pid: u32, signal: &str) {
+    let _ = Command::new("kill")
+        .args([signal, "--", &format!("-{pid}")])
+        .stderr(Stdio::null())
+        .status();
 }
 
 /// The renderer-fallback counter the app keeps under the cache directory. A scenario that touched
@@ -386,26 +400,45 @@ impl Drop for App {
     }
 }
 
+/// What a normal (GUI) launch did within the time it was given.
+pub struct GuiLaunch {
+    pub mapped_a_window: bool,
+    /// The last lines the app printed, for the failure message.
+    pub log_tail: String,
+}
+
 /// Starts the app the way a player does, with no MCP arguments, and reports whether it maps a
 /// window on the display within `timeout`. The positive control for the headless checks: it proves
-/// the window detector can see this app's window at all.
-pub fn gui_launch_maps_a_window(timeout: Duration) -> Result<bool, LaunchError> {
+/// the window detector can see this app's window at all. The whole process group is stopped, so
+/// no WebKit helper outlives the scratch directory.
+pub fn gui_launch_maps_a_window(timeout: Duration) -> Result<GuiLaunch, LaunchError> {
     let binary = app_binary();
     if !binary.is_file() {
         return Err(LaunchError::BinaryMissing(binary));
     }
     require_virtual_display()?;
     let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
+    let log_path = dir.path().join("app.log");
+    let log = fs::File::create(&log_path).map_err(|e| LaunchError::Io(e.to_string()))?;
     let mut child = app_command(&binary, &[], dir.path())
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stdout(Stdio::from(
+            log.try_clone()
+                .map_err(|e| LaunchError::Io(e.to_string()))?,
+        ))
+        .stderr(Stdio::from(log))
         .spawn()
         .map_err(|e| LaunchError::Io(format!("could not start {}: {e}", binary.display())))?;
     let outcome = wait_for_window_of(child.id(), timeout);
     let _ = child.kill();
     let _ = child.wait();
-    outcome
+    signal_group(child.id(), "-KILL");
+    let log = fs::read_to_string(&log_path).unwrap_or_default();
+    let lines: Vec<&str> = log.lines().collect();
+    Ok(GuiLaunch {
+        mapped_a_window: outcome?,
+        log_tail: lines[lines.len().saturating_sub(LOG_LINES_IN_BUNDLE)..].join("\n"),
+    })
 }
 
 fn wait_for_window_of(pid: u32, timeout: Duration) -> Result<bool, LaunchError> {
@@ -433,6 +466,7 @@ fn app_command(binary: &Path, args: &[String], dir: &Path) -> Command {
         .env("XDG_CONFIG_HOME", dir.join("config"))
         .env("XDG_CACHE_HOME", dir.join("cache"))
         .env("XDG_STATE_HOME", dir.join("state"))
+        .process_group(0)
         .env_remove("WAYLAND_DISPLAY")
         .env_remove("WAYLAND_SOCKET")
         .env("XDG_SESSION_TYPE", "x11")

@@ -16,8 +16,8 @@ pub mod tools;
 pub mod windows;
 
 pub use app::{
-    gui_launch_maps_a_window, real_startup_failures_file, App, AppConfig, LaunchError, Mode,
-    Teardown,
+    gui_launch_maps_a_window, real_startup_failures_file, App, AppConfig, GuiLaunch, LaunchError,
+    Mode, Teardown,
 };
 pub use bug::expect_bug;
 pub use client::{CallError, Client, Refusal};
