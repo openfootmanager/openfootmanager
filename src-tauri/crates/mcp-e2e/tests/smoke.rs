@@ -145,7 +145,6 @@ fn the_file_on_disk_holds_what_the_game_holds() {
 
 /// The save does not keep national teams in the order the live game holds them, and nothing reads
 /// that order, so the comparison puts both in the same one.
-
 fn by_national_team_id(mut game: Value) -> Value {
     if let Some(teams) = game["national_teams"].as_array_mut() {
         teams.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
