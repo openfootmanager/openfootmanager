@@ -57,12 +57,21 @@ impl OfmMcpHandler {
     }
 }
 
+/// The package version, with the sources the binary was built from as semver build metadata
+/// (`0.3.0+<revision>`), so a client can tell a stale binary from a current one.
+fn server_version() -> String {
+    match env!("OFM_BUILD_REVISION") {
+        "" => env!("CARGO_PKG_VERSION").to_string(),
+        revision => format!("{}+{revision}", env!("CARGO_PKG_VERSION")),
+    }
+}
+
 impl ServerHandler for OfmMcpHandler {
     fn get_info(&self) -> rmcp::model::ServerInfo {
         let capabilities = ServerCapabilities::builder().enable_tools().build();
         rmcp::model::ServerInfo::new(capabilities).with_server_info(Implementation::new(
             "OpenFoot Manager MCP Server",
-            env!("CARGO_PKG_VERSION"),
+            server_version(),
         ))
     }
 

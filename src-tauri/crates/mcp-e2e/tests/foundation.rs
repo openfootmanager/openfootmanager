@@ -232,3 +232,25 @@ fn my_formation(game: &serde_json::Value) -> Option<String> {
         .and_then(|team| team["formation"].as_str())
         .map(str::to_string)
 }
+
+/// Given a binary built from sources other than the ones under test
+/// When the fixture launches it
+/// Then it refuses, naming both revisions and the rebuild command.
+#[test]
+#[ignore = "needs a built MCP binary and a display; run via --ignored by the nightly"]
+fn a_stale_binary_is_refused_with_the_rebuild_command() {
+    let config = AppConfig {
+        expected_revision: Some("0123456789ab".to_string()),
+        ..AppConfig::default()
+    };
+
+    match App::launch(&config) {
+        Err(mcp_e2e::LaunchError::StaleBinary {
+            expected_revision, ..
+        }) => {
+            assert_eq!(expected_revision, "0123456789ab");
+        }
+        Err(other) => panic!("expected a stale-binary refusal, got {other}"),
+        Ok(_) => panic!("launched a binary that was not built from the sources under test"),
+    }
+}

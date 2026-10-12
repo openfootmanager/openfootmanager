@@ -39,6 +39,8 @@ pub struct AppConfig {
     pub extra_args: Vec<String>,
     /// The app binary, instead of `OFM_E2E_BIN` or the debug build next to this crate.
     pub binary: Option<PathBuf>,
+    /// The source revision the binary must report, instead of the working tree's own.
+    pub expected_revision: Option<String>,
 }
 
 impl Default for AppConfig {
@@ -47,11 +49,11 @@ impl Default for AppConfig {
             mode: Mode::Sandbox,
             extra_args: Vec::new(),
             binary: None,
+            expected_revision: None,
         }
     }
 }
 
-#[derive(Debug)]
 pub enum LaunchError {
     /// `DISPLAY` points at a desktop session, where the app's window would open in front of you.
     HostDisplay,
@@ -59,6 +61,11 @@ pub enum LaunchError {
     BinaryMissing(PathBuf),
     /// Neither `DISPLAY` nor `WAYLAND_DISPLAY` is set, and the app cannot start without one.
     NoDisplay,
+    /// The binary was built from other sources than the ones under test.
+    StaleBinary {
+        binary_revision: String,
+        expected_revision: String,
+    },
     /// The process started and never answered `initialize`. The bundle says what it printed.
     NotReady(String),
     Io(String),
@@ -83,9 +90,25 @@ impl std::fmt::Display for LaunchError {
                 f,
                 "no DISPLAY: run under `xvfb-run -a`; the app is forced onto X11 and cannot start without one"
             ),
+            Self::StaleBinary {
+                binary_revision,
+                expected_revision,
+            } => write!(
+                f,
+                "the app binary was built from sources `{binary_revision}`, but the tree under test is \
+                 `{expected_revision}`: rebuild it with `cargo build --features mcp --bin openfootmanager` \
+                 from src-tauri, or set OFM_E2E_ALLOW_STALE=1 to test a binary you know is different"
+            ),
             Self::NotReady(bundle) => write!(f, "{bundle}"),
             Self::Io(detail) => write!(f, "{detail}"),
         }
+    }
+}
+
+/// `unwrap()` on a failed launch prints this, so it shows the message and not the variant.
+impl std::fmt::Debug for LaunchError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self}")
     }
 }
 
@@ -153,8 +176,12 @@ impl App {
         };
         match app.wait_until_ready() {
             Ok(client) => {
+                let verdict = check_revision(
+                    client.server_version(),
+                    expected_revision(config).as_deref(),
+                );
                 app.client = Some(client);
-                Ok(app)
+                verdict.map(|()| app)
             }
             Err(detail) => {
                 let bundle = app.failure_bundle(&detail);
@@ -476,6 +503,32 @@ fn app_command(binary: &Path, args: &[String], dir: &Path) -> Command {
     command
 }
 
+/// The revision the binary must report: the config's, else the working tree's. `None` when git
+/// cannot say, or the run vouches for a different binary with `OFM_E2E_ALLOW_STALE=1`.
+fn expected_revision(config: &AppConfig) -> Option<String> {
+    if std::env::var_os("OFM_E2E_ALLOW_STALE").as_deref() == Some(std::ffi::OsStr::new("1")) {
+        return None;
+    }
+    config.expected_revision.clone().or_else(|| {
+        crate::revision::source_revision(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
+    })
+}
+
+/// Compares what the binary reports (`0.3.0+<revision>`) with the revision expected.
+fn check_revision(server_version: &str, expected: Option<&str>) -> Result<(), LaunchError> {
+    let Some(expected) = expected else {
+        return Ok(());
+    };
+    let reported = server_version.split_once('+').map(|(_, revision)| revision);
+    if reported == Some(expected) {
+        return Ok(());
+    }
+    Err(LaunchError::StaleBinary {
+        binary_revision: reported.unwrap_or("unknown").to_string(),
+        expected_revision: expected.to_string(),
+    })
+}
+
 fn app_binary() -> PathBuf {
     if let Some(path) = std::env::var_os("OFM_E2E_BIN") {
         return PathBuf::from(path);
@@ -638,7 +691,9 @@ fn revision() -> String {
 mod tests {
     use std::ffi::OsStr;
 
-    use super::{app_command, authority_is_only_for, check_virtual_display, display_number};
+    use super::{
+        app_command, authority_is_only_for, check_revision, check_virtual_display, display_number,
+    };
 
     /// Given XWayland, an unidentified display, an xvfb-run display, and one vouched for
     /// When the fixture decides whether the display is virtual
@@ -710,6 +765,24 @@ mod tests {
         assert_eq!(
             environment.get(OsStr::new("GDK_BACKEND")),
             Some(&Some(OsStr::new("x11").to_owned()))
+        );
+    }
+
+    /// Given a binary that reports the sources it was built from
+    /// When the fixture compares with the sources under test
+    /// Then the same revision passes, a different or missing one is stale, and no expectation passes.
+    #[test]
+    fn a_binary_from_other_sources_is_stale() {
+        assert!(check_revision("0.3.0+abc123", Some("abc123")).is_ok());
+        assert!(check_revision("0.3.0+abc123.def456", Some("abc123")).is_err());
+        assert!(check_revision("0.3.0", Some("abc123")).is_err());
+        assert!(check_revision("0.3.0+abc123", None).is_ok());
+        let message = check_revision("0.3.0+old", Some("new"))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            message.contains("cargo build --features mcp --bin openfootmanager"),
+            "{message}"
         );
     }
 }
