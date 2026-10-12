@@ -26,6 +26,10 @@ pub struct SubmittedReport {
     pub included_save: bool,
     #[serde(default)]
     pub app_version: String,
+    /// The upload's outcome is unknown: the server may hold a report whose reference never
+    /// reached us. `code` is empty for such an entry.
+    #[serde(default)]
+    pub unconfirmed: bool,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -62,6 +66,18 @@ pub fn load(path: &Path) -> Vec<SubmittedReport> {
 /// — the server already has that report — but the old codes inside a damaged file are still the
 /// player's, and recoverable by hand from the copy.
 pub fn record(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
+    update(path, |file| file.reports.push(report.clone()))
+}
+
+/// Several unknown attempts in a row are one entry: the newest replaces the one before it.
+pub fn record_unconfirmed(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
+    update(path, |file| match file.reports.last_mut() {
+        Some(last) if last.unconfirmed => *last = report.clone(),
+        _ => file.reports.push(report.clone()),
+    })
+}
+
+fn update(path: &Path, change: impl FnOnce(&mut ReportsFile)) -> std::io::Result<()> {
     let mut file = match read(path) {
         Ok(file) => file,
         Err(Unreadable::Missing) => ReportsFile::default(),
@@ -79,7 +95,7 @@ pub fn record(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
             ReportsFile::default()
         }
     };
-    file.reports.push(report.clone());
+    change(&mut file);
     // Atomically: a write cut short must not leave a truncated list where the codes used to be.
     crate::atomic_file::write_json(path, &file)
 }
@@ -120,6 +136,14 @@ mod tests {
             submitted_at: submitted_at.to_owned(),
             included_save: false,
             app_version: "0.3.0".to_owned(),
+            unconfirmed: false,
+        }
+    }
+
+    fn unknown(submitted_at: &str) -> SubmittedReport {
+        SubmittedReport {
+            unconfirmed: true,
+            ..report("", submitted_at)
         }
     }
 
@@ -216,5 +240,51 @@ mod tests {
             .map(|entry| entry.file_name().to_string_lossy().into_owned())
             .collect();
         assert_eq!(names, vec!["reports.json"]);
+    }
+
+    /// Given two unknown-outcome attempts in a row,
+    /// when each is recorded,
+    /// then the list holds one unconfirmed entry, with the newer time.
+    #[test]
+    fn repeated_unknown_attempts_are_one_entry() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+
+        record_unconfirmed(&path, &unknown("2026-10-12T10:00:00+00:00")).expect("first");
+        record_unconfirmed(&path, &unknown("2026-10-12T10:05:00+00:00")).expect("second");
+
+        let listed = load(&path);
+        assert_eq!(listed.len(), 1);
+        assert!(listed[0].unconfirmed);
+        assert_eq!(listed[0].submitted_at, "2026-10-12T10:05:00+00:00");
+    }
+
+    /// Given an unknown attempt followed by an accepted report and then another unknown attempt,
+    /// when they are recorded,
+    /// then all three stay: an accepted report between them is not overwritten.
+    #[test]
+    fn an_unknown_attempt_never_overwrites_an_accepted_report() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+
+        record_unconfirmed(&path, &unknown("2026-10-12T10:00:00+00:00")).expect("first");
+        record(&path, &report("OFM-7K2QX9DM", "2026-10-12T10:10:00+00:00")).expect("accepted");
+        record_unconfirmed(&path, &unknown("2026-10-12T10:20:00+00:00")).expect("later");
+
+        let listed = load(&path);
+        assert_eq!(listed.len(), 3);
+        assert_eq!(listed[1].code, "OFM-7K2QX9DM");
+    }
+
+    /// Given a file written before the `unconfirmed` field existed,
+    /// when it is loaded,
+    /// then its entries are ordinary accepted reports.
+    #[test]
+    fn older_entries_are_not_unconfirmed() {
+        let dir = tempfile::tempdir().expect("dir");
+        let path = reports_file_in(dir.path());
+        std::fs::write(&path, r#"{"reports":[{"code":"OFM-7K2QX9DM"}]}"#).expect("write");
+
+        assert!(!load(&path)[0].unconfirmed);
     }
 }
