@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import { type Frequency, type ReportDraft } from "./ReportBugModal.helpers";
+import type { Frequency, ReportDraft } from "./ReportBugModal.helpers";
 import { REQUIRED_ERROR_ID, ReportField, type ReportFieldKey } from "./ReportField";
 
 const FREQUENCIES: Frequency[] = ["everyTime", "sometimes", "once"];

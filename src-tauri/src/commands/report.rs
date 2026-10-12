@@ -533,16 +533,24 @@ fn upload_report(
         .app_data_dir()
         .ok()
         .map(|dir| history::reports_file_in(&dir));
-    let receipt = send_and_record(
+    let outcome = send_and_record(
         UreqTransport::shared(),
         endpoint,
         &parts,
         request.include_save,
         reports_path.as_deref(),
         chrono::Utc::now().to_rfc3339(),
-    )?;
-    session.prepared.forget();
-    Ok(receipt)
+    );
+    if !worth_resending_unchanged(&outcome) {
+        session.prepared.forget();
+    }
+    outcome
+}
+
+/// Only an upload whose outcome is unknown can be resent as the same bytes. The held copy may
+/// contain the player's save, so it is not kept after an answer that settles the matter.
+fn worth_resending_unchanged(outcome: &Result<UploadReceipt, UploadFailure>) -> bool {
+    matches!(outcome, Err(failure) if failure.kind == hub::UploadFailureKind::Unconfirmed)
 }
 
 #[tauri::command]
@@ -787,6 +795,27 @@ mod tests {
                 recorded: false
             })
         );
+    }
+
+    /// Given each way an upload can end,
+    /// when it is decided whether to keep the built report for a resend,
+    /// then only an outcome the game cannot know is kept — and a held copy of the save is dropped
+    /// after an acceptance or a definite refusal.
+    #[test]
+    fn only_an_unconfirmed_upload_keeps_its_build() {
+        let accepted = Ok(UploadReceipt {
+            code: "OFM-7K2QX9DM".to_owned(),
+            recorded: true,
+        });
+
+        assert!(!worth_resending_unchanged(&accepted));
+        assert!(!worth_resending_unchanged(&Err(key(hub::UPLOAD_TOO_LARGE))));
+        assert!(!worth_resending_unchanged(&Err(key(
+            hub::UPLOAD_UNREACHABLE
+        ))));
+        assert!(worth_resending_unchanged(&Err(key(
+            hub::UPLOAD_UNCONFIRMED
+        ))));
     }
 
     #[test]
