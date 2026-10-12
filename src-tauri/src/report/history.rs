@@ -26,6 +26,10 @@ pub struct SubmittedReport {
     pub included_save: bool,
     #[serde(default)]
     pub app_version: String,
+    /// Distinguishes entries that share a code and a time (or have none): the list's React key.
+    /// Empty on entries written before it existed.
+    #[serde(default)]
+    pub id: String,
     /// The upload's outcome is unknown: the server may hold a report whose reference never
     /// reached us. `code` is empty for such an entry.
     #[serde(default)]
@@ -67,6 +71,21 @@ pub fn load(path: &Path) -> Vec<SubmittedReport> {
 /// player's, and recoverable by hand from the copy.
 pub fn record(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
     update(path, |file| file.reports.push(report.clone()))
+}
+
+/// A fresh entry id: random, because a code and a time can both repeat or be missing.
+pub fn new_id() -> String {
+    use rand::RngExt as _;
+    format!("{:016x}", rand::rng().random::<u64>())
+}
+
+/// A report the server accepted. A trailing unknown entry is the earlier attempt at this same
+/// report, so the accepted entry replaces it instead of sitting beside it.
+pub fn record_accepted(path: &Path, report: &SubmittedReport) -> std::io::Result<()> {
+    update(path, |file| match file.reports.last_mut() {
+        Some(last) if last.unconfirmed => *last = report.clone(),
+        _ => file.reports.push(report.clone()),
+    })
 }
 
 /// Several unknown attempts in a row are one entry: the newest replaces the one before it.
@@ -136,6 +155,7 @@ mod tests {
             submitted_at: submitted_at.to_owned(),
             included_save: false,
             app_version: "0.3.0".to_owned(),
+            id: String::new(),
             unconfirmed: false,
         }
     }

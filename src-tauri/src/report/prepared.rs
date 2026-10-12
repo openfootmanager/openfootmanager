@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use super::hub::{UploadFailure, UPLOAD_PREPARE_FAILED};
+use super::hub::{UploadFailure, UPLOAD_ALREADY_SENDING, UPLOAD_PREPARE_FAILED};
 
 struct Held {
     key: String,
@@ -50,6 +50,9 @@ impl PreparedUploads {
         prepare: impl FnOnce(&Path) -> Result<Built, UploadFailure>,
     ) -> Result<Built, UploadFailure> {
         let mut inner = self.inner();
+        if inner.in_flight {
+            return Err(UploadFailure::key(UPLOAD_ALREADY_SENDING));
+        }
         inner.in_flight = true;
         inner.discard_when_settled = false;
         if let Some(existing) = inner.held.as_ref().filter(|existing| existing.key == key) {
@@ -150,6 +153,7 @@ mod tests {
         let first = held
             .begin("k", root.path(), build_in(&builds, "{}"))
             .expect("first");
+        held.settle(true);
         let second = held
             .begin("k", root.path(), build_in(&builds, "{}"))
             .expect("second");
@@ -173,6 +177,7 @@ mod tests {
         let (_, old_bundle) = held
             .begin("a", root.path(), build_in(&builds, "{}"))
             .expect("a");
+        held.settle(true);
 
         let (_, new_bundle) = held
             .begin("b", root.path(), build_in(&builds, "{}"))
@@ -307,5 +312,34 @@ mod tests {
         sweep_stale_uploads(&missing);
 
         assert!(!missing.exists());
+    }
+
+    /// Given an upload that is still running (its dialog closed, a new one opened),
+    /// when a second upload begins,
+    /// then it is refused rather than sharing the first one's build, and the first one's build
+    /// is neither replaced nor discarded by it — and once the first settles a new one may begin.
+    #[test]
+    fn a_second_upload_is_refused_while_one_is_in_flight() {
+        let root = tempfile::tempdir().expect("root");
+        let held = PreparedUploads::default();
+        let builds = Cell::new(0);
+        let (_, first) = held
+            .begin("a", root.path(), build_in(&builds, "{}"))
+            .expect("first");
+        held.discard();
+
+        let second = held.begin("b", root.path(), build_in(&builds, "{}"));
+
+        assert_eq!(second, Err(UploadFailure::key(UPLOAD_ALREADY_SENDING)));
+        assert_eq!(builds.get(), 1, "the second build was never made");
+        assert!(first.exists(), "the first upload still needs its bundle");
+        held.settle(true);
+        assert!(
+            !first.exists(),
+            "the dialog had gone away, so it is removed on settling"
+        );
+        assert!(held
+            .begin("b", root.path(), build_in(&builds, "{}"))
+            .is_ok());
     }
 }

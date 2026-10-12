@@ -425,6 +425,7 @@ fn send_and_record(
         submitted_at,
         included_save: include_save,
         app_version: env!("CARGO_PKG_VERSION").to_owned(),
+        id: history::new_id(),
         unconfirmed: false,
     };
     let code = match submitted {
@@ -443,7 +444,7 @@ fn send_and_record(
     };
     entry.code = code.clone();
     let recorded = match reports_path {
-        Some(path) => history::record(path, &entry)
+        Some(path) => history::record_accepted(path, &entry)
             .inspect_err(|error| {
                 log::error!("[report] report {code} was sent but not recorded: {error}");
             })
@@ -466,6 +467,16 @@ pub struct UploadRequest {
     consent: bool,
     screenshot_paths: Vec<String>,
     package_paths: Vec<String>,
+}
+
+/// Attachment paths arrive from the webview, and nothing the webview names may be read from disk
+/// and sent. Until a native picker in Rust supplies them, any path is refused.
+fn refuse_webview_paths(request: &UploadRequest) -> Result<(), UploadFailure> {
+    if request.screenshot_paths.is_empty() && request.package_paths.is_empty() {
+        Ok(())
+    } else {
+        Err(UploadFailure::key(hub::UPLOAD_ATTACHMENTS_UNAVAILABLE))
+    }
 }
 
 impl UploadRequest {
@@ -582,6 +593,7 @@ pub async fn upload_report_bundle(
     prepared: State<'_, Arc<PreparedUploads>>,
     request: UploadRequest,
 ) -> Result<UploadReceipt, UploadFailure> {
+    refuse_webview_paths(&request)?;
     let endpoint = upload_preconditions(request.consent, hub_endpoint())?;
     let session = UploadSession {
         app_handle,
@@ -887,6 +899,95 @@ mod tests {
 
         assert_eq!(outcome, Err(key(hub::UPLOAD_UNREACHABLE)));
         assert!(history::load(&reports).is_empty());
+    }
+
+    fn request_with(screenshots: &[&str], packages: &[&str]) -> UploadRequest {
+        UploadRequest {
+            report_text: String::new(),
+            fields: ReportFields::default(),
+            include_save: false,
+            consent: true,
+            screenshot_paths: screenshots.iter().map(|path| (*path).to_owned()).collect(),
+            package_paths: packages.iter().map(|path| (*path).to_owned()).collect(),
+        }
+    }
+
+    /// Given a request whose attachment paths came from the webview,
+    /// when it is checked before anything is built,
+    /// then any screenshot or package path is refused with a typed error, and none is read;
+    /// a request without paths passes.
+    #[test]
+    fn a_path_from_the_webview_is_never_accepted() {
+        assert_eq!(refuse_webview_paths(&request_with(&[], &[])), Ok(()));
+        for request in [
+            request_with(&["/etc/passwd"], &[]),
+            request_with(&[], &["/home/x/.ssh/id_rsa"]),
+            request_with(&["a.png"], &["b.ofm"]),
+        ] {
+            assert_eq!(
+                refuse_webview_paths(&request),
+                Err(key(hub::UPLOAD_ATTACHMENTS_UNAVAILABLE))
+            );
+        }
+    }
+
+    /// Given an earlier attempt recorded as unknown,
+    /// when a resend of that report is accepted,
+    /// then the unknown entry is replaced by the accepted one — not left beside it.
+    #[test]
+    fn an_accepted_resend_replaces_the_unknown_entry() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let mut dropped = CannedHub::answering(201, "{}");
+        dropped.post = Err(hub::TransportFailure::Interrupted("reset".to_owned()));
+        let accepted = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
+        let send = |hub: &CannedHub, at: &str| {
+            send_and_record(
+                hub,
+                &test_endpoint(),
+                &small_parts(dir.path()),
+                false,
+                Some(&reports),
+                at.to_owned(),
+            )
+        };
+
+        let first = send(&dropped, "2026-10-12T10:00:00+00:00");
+        let second = send(&accepted, "2026-10-12T10:05:00+00:00");
+
+        assert!(first.is_err());
+        assert!(second.is_ok());
+        let listed = history::load(&reports);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
+        assert!(!listed[0].unconfirmed);
+    }
+
+    /// Given two accepted reports with the same code and time,
+    /// when both are recorded,
+    /// then each entry has its own id, which the list uses as its key.
+    #[test]
+    fn each_recorded_entry_gets_its_own_id() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let reports = history::reports_file_in(dir.path());
+        let hub = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
+        for _ in 0..2 {
+            send_and_record(
+                &hub,
+                &test_endpoint(),
+                &small_parts(dir.path()),
+                false,
+                Some(&reports),
+                "2026-10-12T10:00:00+00:00".to_owned(),
+            )
+            .expect("accepted");
+        }
+
+        let listed = history::load(&reports);
+
+        assert_eq!(listed.len(), 2);
+        assert!(!listed[0].id.is_empty());
+        assert_ne!(listed[0].id, listed[1].id);
     }
 
     #[test]
