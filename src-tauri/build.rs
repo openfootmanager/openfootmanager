@@ -12,20 +12,10 @@ fn embed_source_revision() {
     let revision = source_revision(&manifest_dir).unwrap_or_default();
     println!("cargo:rustc-env=OFM_BUILD_REVISION={revision}");
 
-    // Everything the revision digests, so the build reruns when any of it changes.
-    for path in APP_PATHS.iter().chain(&["build_revision.rs"]) {
-        if *path == "crates" {
-            // `crates/mcp-e2e` is not part of the app.
-            let Ok(crates) = std::fs::read_dir(manifest_dir.join("crates")) else {
-                continue;
-            };
-            for entry in crates.flatten() {
-                let name = format!("crates/{}", entry.file_name().to_string_lossy());
-                if name != NOT_THE_APP {
-                    println!("cargo:rerun-if-changed={name}");
-                }
-            }
-        } else {
+    // Everything the revision digests, so the build reruns when any of it changes. A path that does
+    // not exist is left out: cargo reruns a build script on every build for a missing one.
+    for path in app_paths() {
+        if manifest_dir.join(&path).exists() {
             println!("cargo:rerun-if-changed={path}");
         }
     }

@@ -55,7 +55,14 @@ mod revision_tests {
         let repo = tempfile::tempdir().unwrap();
         let root = repo.path();
         let app = root.join("src-tauri");
-        for dir in ["src", "tests", "crates/mcp-e2e"] {
+        for dir in [
+            "src",
+            "tests",
+            "crates/mcp-e2e",
+            "crates/sim-bench/src",
+            "crates/ofm_core/src",
+            "crates/ofm_core/tests",
+        ] {
             std::fs::create_dir_all(app.join(dir)).unwrap();
         }
         std::fs::create_dir_all(root.join("docs")).unwrap();
@@ -72,11 +79,27 @@ mod revision_tests {
         std::fs::write(root.join("docs/readme.md"), "two").unwrap();
         std::fs::write(app.join("tests/architecture.rs"), "fn t() {}").unwrap();
         std::fs::write(app.join("crates/mcp-e2e/test.rs"), "fn t() {}").unwrap();
+        // A linked crate's integration tests, and a crate the app does not link, are not the app.
+        std::fs::write(app.join("crates/ofm_core/tests/world.rs"), "fn t() {}").unwrap();
+        std::fs::write(app.join("crates/sim-bench/src/lib.rs"), "fn t() {}").unwrap();
         assert_eq!(source_revision(&app).unwrap(), clean);
         git(root, &["add", "-A"]);
         assert_eq!(source_revision(&app).unwrap(), clean, "staging");
         git(root, &["commit", "-q", "-m", "not the app"]);
         assert_eq!(source_revision(&app).unwrap(), clean, "committing");
+
+        // A linked crate's sources are the app.
+        std::fs::write(app.join("crates/ofm_core/src/lib.rs"), "fn core() {}").unwrap();
+        let core_edited = source_revision(&app).unwrap();
+        assert_ne!(core_edited, clean);
+        std::fs::write(app.join("crates/ofm_core/tests/world.rs"), "fn t2() {}").unwrap();
+        assert_eq!(
+            source_revision(&app).unwrap(),
+            core_edited,
+            "an ofm_core test edit"
+        );
+        std::fs::remove_file(app.join("crates/ofm_core/src/lib.rs")).unwrap();
+        assert_eq!(source_revision(&app).unwrap(), clean);
 
         // Edits, new files and deleted files are the app.
         std::fs::write(app.join("src/lib.rs"), "fn b() {}").unwrap();

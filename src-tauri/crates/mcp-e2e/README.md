@@ -37,7 +37,7 @@ ignored files are out), and nothing else: committing or staging identical files,
 tests or this crate, leaves it alone, so editing a test never needs an app rebuild.
 The fixture computes the same revision for the working tree and refuses a binary that differs,
 naming the rebuild command: `cargo build --features mcp --bin openfootmanager` from `src-tauri`.
-`OFM_E2E_ALLOW_STALE=1` skips the check for a binary you know is different.
+`OFM_E2E_ALLOW_STALE=1` skips the check for a binary you know is different. It covers `src-tauri` and the crates the app links (their `src`, `data` and manifest), not their tests or the crates it does not link, and **not the frontend** a release build embeds from `../dist`.
 
 ## Writing a scenario
 

@@ -2,29 +2,42 @@
 // computes it for the working tree and compares. One definition, so the two cannot disagree about
 // what "the same sources" means. Standard library only: `build.rs` has no other dependencies.
 
-/// What goes into the app binary. Tests, docs, generated schemas and tooling config do not, so
-/// changing them never makes a binary stale. `crates/mcp-e2e` is under `crates` but is not part of
-/// the app either, and is left out wherever this list is used.
-pub const APP_PATHS: [&str; 11] = [
-    "src",
-    "crates",
-    "capabilities",
-    "icons",
-    "assets",
-    "data",
-    "databases",
-    "Cargo.toml",
-    "Cargo.lock",
-    "tauri.conf.json",
-    "build.rs",
-];
+/// The workspace crates the app links. `sim-bench`, `ofm-cli` and `mcp-e2e` are not among them, and
+/// of the crates that are, only `src`, `data` and the manifest are compiled in: their tests and
+/// benches are not.
+pub const LINKED_CRATES: [&str; 5] = ["domain", "engine", "ofm_core", "db", "mcp-results"];
 
-/// The test crate, which lives under `crates` but is not built into the app.
-pub const NOT_THE_APP: &str = "crates/mcp-e2e";
+/// What goes into the app binary, relative to `src-tauri`. Tests, docs, generated schemas, tooling
+/// config and the crates the app does not link are not in it, so changing them never makes a
+/// binary stale. The embedded frontend (`../dist`) is outside `src-tauri` and not covered either.
+pub fn app_paths() -> Vec<String> {
+    let mut paths: Vec<String> = [
+        "src",
+        "capabilities",
+        "icons",
+        "assets",
+        "data",
+        "databases",
+        "Cargo.toml",
+        "Cargo.lock",
+        "tauri.conf.json",
+        "build.rs",
+        "build_revision.rs",
+    ]
+    .iter()
+    .map(|path| path.to_string())
+    .collect();
+    for krate in LINKED_CRATES {
+        for part in ["src", "data", "Cargo.toml"] {
+            paths.push(format!("crates/{krate}/{part}"));
+        }
+    }
+    paths
+}
 
 /// Names the sources of the app, so a binary can be told apart from the tree it is run against.
 ///
-/// It is a digest of the working-tree *content* of the files in [`APP_PATHS`] that git lists
+/// It is a digest of the working-tree *content* of the files in [`app_paths`] that git lists
 /// (tracked, or untracked and not ignored), so it follows what would be compiled and nothing else:
 /// committing, staging or switching branches over identical files leaves it alone, and so does a
 /// change to docs, tests, the frontend or the test crate. `None` when git cannot list the files
@@ -44,9 +57,7 @@ pub fn source_revision(src_tauri: &std::path::Path) -> Option<String> {
     .iter()
     .map(|arg| arg.to_string())
     .collect();
-    args.extend(APP_PATHS.iter().map(|path| path.to_string()));
-    args.push("build_revision.rs".to_string());
-    args.push(format!(":(exclude){NOT_THE_APP}"));
+    args.extend(app_paths());
 
     let output = Command::new("git")
         .arg("-C")
