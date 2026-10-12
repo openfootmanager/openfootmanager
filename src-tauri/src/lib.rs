@@ -225,6 +225,7 @@ pub fn run() {
             get_saves,
             load_game,
             get_active_game,
+            get_career_stage,
             get_players_page,
             get_teams_directory,
             get_schedule,

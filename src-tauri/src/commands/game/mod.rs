@@ -253,6 +253,17 @@ pub async fn load_game(
     Ok(mgr_name)
 }
 
+/// Whether the active career still has to pick its first club, so the frontend only routes on the
+/// answer and holds no copy of the rule.
+#[tauri::command]
+pub async fn get_career_stage(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<ofm_core::career_stage::CareerStage, String> {
+    state
+        .get_game(ofm_core::career_stage::career_stage)
+        .ok_or("be.error.noActiveGameSession".to_string())
+}
+
 #[tauri::command]
 pub async fn get_active_game(state: State<'_, Arc<StateManager>>) -> Result<Game, String> {
     log::debug!("[cmd] get_active_game");

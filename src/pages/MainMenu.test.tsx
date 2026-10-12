@@ -1000,3 +1000,126 @@ describe("MainMenu", () => {
     });
   });
 });
+
+describe("MainMenu routing of an active career", () => {
+  const activeGame = (teamId: string | null) => ({
+    manager: { first_name: "Ada", last_name: "Lovelace", team_id: teamId },
+    extra_translations: {},
+    teams: [],
+    players: [],
+  });
+
+  function backendReports(stage: string | null, teamId: string | null) {
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") return activeGame(teamId);
+      if (command === "get_career_stage") {
+        if (stage === null) throw "be.error.noActiveGameSession";
+        return stage;
+      }
+      if (command === "get_manager_profiles" || command === "list_installed_packages") return [];
+      return null;
+    });
+  }
+
+  beforeEach(() => {
+    navigateMock.mockReset();
+  });
+
+  /**
+   * Given an active game whose manager has no club yet
+   * When the app opens
+   * Then team selection is shown, not a dashboard with nothing to manage
+   */
+  it("a_clubless_manager_lands_on_team_selection", async () => {
+    backendReports("awaitingClub", null);
+
+    render(<MainMenu />);
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/select-team"));
+    expect(navigateMock).not.toHaveBeenCalledWith("/dashboard");
+  });
+
+  /**
+   * Given an active game with a club
+   * When the app opens
+   * Then the dashboard route is unchanged
+   */
+  it("a_manager_with_a_club_lands_where_they_did", async () => {
+    backendReports("employed", "team-1");
+
+    render(<MainMenu />);
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/dashboard"));
+    expect(navigateMock).not.toHaveBeenCalledWith("/select-team");
+  });
+
+  /**
+   * Given a manager who was sacked mid-career (no club, but not a new career)
+   * When the app opens
+   * Then the dashboard is shown, where the job offers are
+   */
+  it("an_unemployed_manager_lands_on_the_dashboard", async () => {
+    backendReports("unemployed", null);
+
+    render(<MainMenu />);
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/dashboard"));
+    expect(navigateMock).not.toHaveBeenCalledWith("/select-team");
+  });
+
+  /**
+   * Given the backend cannot say which stage the career is in
+   * When the app opens
+   * Then the player still reaches the dashboard rather than a dead end
+   */
+  it("falls_back_to_the_dashboard_when_the_stage_is_unknown", async () => {
+    backendReports(null, "team-1");
+
+    render(<MainMenu />);
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/dashboard"));
+  });
+
+  /**
+   * Given a career abandoned at team selection and saved
+   * When it is loaded from the menu
+   * Then team selection is shown again, not a broken dashboard
+   */
+  it("leaving_at_team_selection_resumes_there", async () => {
+    let loaded = false;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") {
+        if (!loaded) throw "be.error.noActiveGameSession";
+        return activeGame(null);
+      }
+      if (command === "get_saves") {
+        return [
+          {
+            id: "save-1",
+            name: "Abandoned",
+            manager_name: "Ada Lovelace",
+            db_filename: "save-1.db",
+            checksum: "abc",
+            created_at: "2026-01-01T00:00:00Z",
+            last_played_at: "2026-02-01T00:00:00Z",
+          },
+        ];
+      }
+      if (command === "load_game") {
+        loaded = true;
+        return "Ada Lovelace";
+      }
+      if (command === "get_career_stage") return "awaitingClub";
+      if (command === "get_manager_profiles" || command === "list_installed_packages") return [];
+      return null;
+    });
+
+    render(<MainMenu />);
+    fireEvent.click(screen.getByText("menu.loadGame"));
+    fireEvent.click(await screen.findByText("Abandoned"));
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/select-team"));
+  });
+});
