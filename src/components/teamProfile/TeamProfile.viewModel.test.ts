@@ -276,4 +276,105 @@ describe("TeamProfile.viewModel", () => {
     expect(viewModel.roster.map((player) => player.id)).toEqual(["owned-player", "loaned-in"]);
     expect(viewModel.totalWages).toBe(33000);
   });
+
+  function table(
+    id: string,
+    teamIds: string[],
+    format: "LeagueTable" | "Knockout" = "LeagueTable",
+  ) {
+    return {
+      id,
+      name: id,
+      season: 1,
+      rules: { format, counts_in_season_flow: format === "LeagueTable" },
+      participant_ids: teamIds,
+      fixtures: [],
+      standings:
+        format === "LeagueTable"
+          ? teamIds.map((teamId, index) => ({
+              team_id: teamId,
+              played: 1,
+              won: 0,
+              drawn: 0,
+              lost: 0,
+              goals_for: 0,
+              goals_against: 0,
+              points: teamIds.length - index,
+            }))
+          : [],
+    };
+  }
+
+  /**
+   * Given the manager's club in one division and the viewed club in another
+   * When the viewed club's profile is built
+   * Then its position and standing come from the division that contains it
+   */
+  it("finds the league position of a club outside the manager's division", () => {
+    const gameState = createGameState({
+      league: table("division-1", ["team-1", "team-2"]),
+      competitions: [
+        table("division-1", ["team-1", "team-2"]),
+        table("division-2", ["team-8", "team-9", "team-7"]),
+      ],
+    });
+
+    const viewModel = buildTeamProfileViewModel(createTeam({ id: "team-9" }), gameState);
+
+    expect(viewModel.leaguePos).toBe(2);
+    expect(viewModel.standings?.team_id).toBe("team-9");
+  });
+
+  /**
+   * Given a club that is in a knockout cup and in no league table
+   * When its profile is built
+   * Then it has no league position and no standing, not a cup's empty table
+   */
+  it("gives a club that is only in a cup no league position", () => {
+    const gameState = createGameState({
+      competitions: [
+        table("division-1", ["team-1", "team-2"]),
+        table("cup", ["team-5"], "Knockout"),
+      ],
+    });
+
+    const viewModel = buildTeamProfileViewModel(createTeam({ id: "team-5" }), gameState);
+
+    expect(viewModel.leaguePos).toBe(0);
+    expect(viewModel.standings).toBeNull();
+  });
+
+  /**
+   * Given a club that appears in no competition
+   * When its profile is built
+   * Then it has no league position and no standing
+   */
+  it("gives a club in no competition no league position", () => {
+    const gameState = createGameState({
+      competitions: [table("division-1", ["team-1", "team-2"])],
+    });
+
+    const viewModel = buildTeamProfileViewModel(createTeam({ id: "team-404" }), gameState);
+
+    expect(viewModel.leaguePos).toBe(0);
+    expect(viewModel.standings).toBeNull();
+  });
+
+  /**
+   * Given a club in both a league and a cup
+   * When its profile is built
+   * Then the league table is used
+   */
+  it("uses the league table of a club that is also in a cup", () => {
+    const gameState = createGameState({
+      competitions: [
+        table("cup", ["team-1", "team-2"], "Knockout"),
+        table("division-1", ["team-2", "team-1"]),
+      ],
+    });
+
+    const viewModel = buildTeamProfileViewModel(createTeam({ id: "team-1" }), gameState);
+
+    expect(viewModel.leaguePos).toBe(2);
+  });
 });

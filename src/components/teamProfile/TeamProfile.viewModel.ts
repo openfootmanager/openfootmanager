@@ -1,7 +1,8 @@
+import { getActiveCompetitions } from "../../lib/fixtures";
 import { getPlayerOvr } from "../../lib/helpers";
 import { positionGroupRank } from "../../lib/positions";
 import { getPlayerAnnualWageCommitment } from "../../lib/finance";
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { GameStateData, LeagueData, PlayerData, TeamData } from "../../store/gameStore";
 
 import type { LeagueStanding, TeamProfileViewModel } from "./TeamProfile.types";
 
@@ -23,12 +24,22 @@ function calculateAverageOvr(roster: PlayerData[]): number {
   );
 }
 
-function getSortedStandings(gameState: GameStateData): LeagueStanding[] {
-  if (!gameState.league?.standings) {
-    return [];
-  }
+/**
+ * The league table the club is actually in. The manager's own league mirror holds only the
+ * manager's division, so every other club would otherwise have no position; a cup has no table.
+ */
+function findLeagueTable(teamId: string, gameState: GameStateData): LeagueData | null {
+  return (
+    getActiveCompetitions(gameState).find(
+      (competition) =>
+        (competition.rules === undefined || competition.rules.format === "LeagueTable") &&
+        competition.standings.some((entry) => entry.team_id === teamId),
+    ) ?? null
+  );
+}
 
-  return [...gameState.league.standings].sort(
+function sortStandings(standings: LeagueStanding[]): LeagueStanding[] {
+  return [...standings].sort(
     (leftEntry, rightEntry) =>
       rightEntry.points - leftEntry.points ||
       rightEntry.goals_for -
@@ -43,7 +54,8 @@ export function buildTeamProfileViewModel(
   gameState: GameStateData,
 ): TeamProfileViewModel {
   const roster = sortRoster(gameState.players.filter((player) => player.team_id === team.id));
-  const allStandings = getSortedStandings(gameState);
+  const table = findLeagueTable(team.id, gameState);
+  const allStandings = sortStandings(table?.standings ?? []);
 
   return {
     roster,
@@ -55,6 +67,6 @@ export function buildTeamProfileViewModel(
     totalValue: roster.reduce((sum, player) => sum + player.market_value, 0),
     manager: gameState.manager.team_id === team.id ? gameState.manager : null,
     leaguePos: allStandings.findIndex((entry) => entry.team_id === team.id) + 1,
-    standings: gameState.league?.standings.find((entry) => entry.team_id === team.id) ?? null,
+    standings: table?.standings.find((entry) => entry.team_id === team.id) ?? null,
   };
 }
