@@ -13,6 +13,9 @@ struct Held {
     key: String,
     report_json: String,
     bundle: PathBuf,
+    /// Names this build in `reports.json`, so a later acceptance can tell whether it is the
+    /// resend of the attempt recorded as unknown or a different report.
+    build_id: String,
     // Dropping this removes the bundle with it.
     _scratch: tempfile::TempDir,
 }
@@ -74,9 +77,19 @@ impl PreparedUploads {
             key: key.to_owned(),
             report_json: built.0.clone(),
             bundle: built.1.clone(),
+            build_id: crate::report::history::new_id(),
             _scratch: scratch,
         });
         Ok(built)
+    }
+
+    /// The id of the build `begin` last returned; empty when none is held.
+    pub fn build_id(&self) -> String {
+        self.inner()
+            .held
+            .as_ref()
+            .map(|held| held.build_id.clone())
+            .unwrap_or_default()
     }
 
     /// The upload ended. The build is kept only when it can still be resent unchanged (an
@@ -341,5 +354,29 @@ mod tests {
         assert!(held
             .begin("b", root.path(), build_in(&builds, "{}"))
             .is_ok());
+    }
+
+    /// Given a build that was resent unchanged and then a build for different inputs,
+    /// when their ids are read,
+    /// then a resend keeps its build's id and a different report gets a new one.
+    #[test]
+    fn a_resend_keeps_the_build_id_and_a_new_report_gets_another() {
+        let root = tempfile::tempdir().expect("root");
+        let held = PreparedUploads::default();
+        let builds = Cell::new(0);
+        held.begin("a", root.path(), build_in(&builds, "{}"))
+            .expect("a");
+        let first = held.build_id();
+        held.settle(true);
+        held.begin("a", root.path(), build_in(&builds, "{}"))
+            .expect("a again");
+        let resent = held.build_id();
+        held.settle(true);
+        held.begin("b", root.path(), build_in(&builds, "{}"))
+            .expect("b");
+
+        assert!(!first.is_empty());
+        assert_eq!(first, resent);
+        assert_ne!(first, held.build_id());
     }
 }
