@@ -117,23 +117,12 @@ fn the_file_on_disk_holds_what_the_game_holds() {
     let mut differing = Vec::new();
     json_differences("game", &live, &on_disk, &mut differing);
 
-    // Two known gaps, each under its own guard: when one is fixed its guard fails and must go.
+    // One known gap, under its own guard: when it is fixed the guard fails and must go.
     let world_cups = world_cup_indices(&live);
-    let (name_key, rest): (Vec<_>, Vec<_>) = differing.into_iter().partition(|difference| {
-        (difference.starts_with("game.competitions[") || difference.starts_with("game.league."))
-            && difference.contains(".name_key:")
-    });
-    let (calendar, unexplained): (Vec<_>, Vec<_>) = rest.into_iter().partition(|difference| {
+    let (calendar, unexplained): (Vec<_>, Vec<_>) = differing.into_iter().partition(|difference| {
         world_cups
             .iter()
             .any(|index| difference.starts_with(&format!("game.competitions[{index}].calendar:")))
-    });
-    expect_bug!(#759, "competition name_key is not saved", {
-        assert!(
-            name_key.is_empty(),
-            "competition name_key is not saved:\n{}",
-            name_key.join("\n")
-        );
     });
     expect_bug!(#760, "the World Cup calendar differs after a reload", {
         assert!(
