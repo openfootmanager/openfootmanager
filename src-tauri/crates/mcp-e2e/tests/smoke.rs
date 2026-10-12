@@ -117,29 +117,16 @@ fn the_file_on_disk_holds_what_the_game_holds() {
     let mut differing = Vec::new();
     json_differences("game", &live, &on_disk, &mut differing);
 
-    // Two known gaps, each under its own guard: when one is fixed its guard fails and must go.
-    let world_cups = world_cup_indices(&live);
-    let (name_key, rest): (Vec<_>, Vec<_>) = differing.into_iter().partition(|difference| {
+    // One known gap, under its own guard: when it is fixed the guard fails and must go.
+    let (name_key, unexplained): (Vec<_>, Vec<_>) = differing.into_iter().partition(|difference| {
         (difference.starts_with("game.competitions[") || difference.starts_with("game.league."))
             && difference.contains(".name_key:")
-    });
-    let (calendar, unexplained): (Vec<_>, Vec<_>) = rest.into_iter().partition(|difference| {
-        world_cups
-            .iter()
-            .any(|index| difference.starts_with(&format!("game.competitions[{index}].calendar:")))
     });
     expect_bug!(#759, "competition name_key is not saved", {
         assert!(
             name_key.is_empty(),
             "competition name_key is not saved:\n{}",
             name_key.join("\n")
-        );
-    });
-    expect_bug!(#760, "the World Cup calendar differs after a reload", {
-        assert!(
-            calendar.is_empty(),
-            "the World Cup calendar differs after a reload:\n{}",
-            calendar.join("\n")
         );
     });
     assert!(
@@ -158,21 +145,6 @@ fn the_file_on_disk_holds_what_the_game_holds() {
 
 /// The save does not keep national teams in the order the live game holds them, and nothing reads
 /// that order, so the comparison puts both in the same one.
-/// Positions of the World Cup competitions in `game.competitions`.
-fn world_cup_indices(game: &Value) -> Vec<usize> {
-    game["competitions"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .enumerate()
-        .filter(|(_, competition)| {
-            competition["name"]
-                .as_str()
-                .is_some_and(|name| name.contains("World Cup"))
-        })
-        .map(|(index, _)| index)
-        .collect()
-}
 
 fn by_national_team_id(mut game: Value) -> Value {
     if let Some(teams) = game["national_teams"].as_array_mut() {
