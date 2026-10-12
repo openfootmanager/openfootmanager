@@ -503,6 +503,9 @@ pub struct PlayerSeasonStats {
     pub yellow_cards: u32,
     pub red_cards: u32,
     pub avg_rating: f32,
+    /// Matches that fed `avg_rating`; appearances below the rating threshold
+    /// and matches from before ratings existed are not among them.
+    pub rated_appearances: u32,
     pub minutes_played: u32,
     pub shots: u32,
     pub shots_on_target: u32,
