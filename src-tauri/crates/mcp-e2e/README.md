@@ -8,11 +8,12 @@ results read back as the structs in `mcp-results`.
 - **A binary built with `--features mcp`.** The shipped nightly build does not have the feature, so
   build it yourself: `cargo build --features mcp --bin openfootmanager` from `src-tauri/`. The
   fixture looks for `target/debug/openfootmanager`, or `$OFM_E2E_BIN`.
-- **A display, and it must be a virtual one.** The app builds a window even with `--no-gui`, so it
-  cannot start without a display. Run under `xvfb-run -a`. The fixture removes `WAYLAND_DISPLAY`
-  and `WAYLAND_SOCKET` from the app's environment and sets `GDK_BACKEND=x11`, so the app can only
-  reach the virtual display and never opens a window on your desktop. It fails loudly when there is
-  no `DISPLAY` or `WAYLAND_DISPLAY` to start with, and never skips.
+- **A virtual display: always run under `xvfb-run -a`.** The app builds a window even with
+  `--no-gui`, so it cannot start without a display. The fixture removes `WAYLAND_DISPLAY` and
+  `WAYLAND_SOCKET` from the app's environment and sets `GDK_BACKEND=x11`, so the app can only use
+  the X display in `DISPLAY`. Under `xvfb-run` that is the virtual one. **Without it, `DISPLAY` is
+  your own session's (XWayland, for example, at `:0`), and the window opens on your desktop.** The
+  fixture fails loudly when `DISPLAY` is not set, and never skips.
 
 ## Running
 
