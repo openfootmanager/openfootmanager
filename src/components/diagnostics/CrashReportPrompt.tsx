@@ -9,17 +9,12 @@ import { Button } from "../ui";
 import { useDialogKeyboard } from "./useDialogKeyboard";
 
 interface CrashReportPromptProps {
-  /** Open the report dialog. Its preview already lists the crash record as part of the bundle. */
   onReport: () => void;
 }
 
 /**
- * After a crash, offer to report it on the next launch.
- *
- * A player whose game vanished rarely thinks to dig out a bug-report form afterwards, and the
- * crash record only survives until this session ends. So the main menu asks, once. Either answer
- * is final for this launch — the backend clears the crash file at startup, so the next launch has
- * nothing to ask about unless the game crashes again.
+ * The crash record only survives until this session ends, so the main menu asks once. Either answer
+ * is final for this launch: the backend clears the crash file at startup.
  */
 export function CrashReportPrompt({ onReport }: CrashReportPromptProps) {
   const [notice, setNotice] = useState<CrashNotice | null>(null);
@@ -100,7 +95,6 @@ function CrashPromptDialog({
             <p id="crash-prompt-body" className="mt-2 text-sm text-gray-700 dark:text-gray-300">
               {t("crashPrompt.body")}
             </p>
-            {/* Data, not prose: when, and in which build — the two things a player can check. */}
             <p className="mt-2 text-xs font-mono text-gray-600 dark:text-gray-400">
               <time dateTime={notice.occurred_at}>
                 {formatDate(notice.occurred_at, i18n.language)}

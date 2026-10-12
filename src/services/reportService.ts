@@ -122,12 +122,10 @@ export interface CrashNotice {
   app_version: string;
 }
 
-/** The crash to offer a report for, or `null` when there is none or it was already answered. */
 export function crashNotice(): Promise<CrashNotice | null> {
   return invoke<CrashNotice | null>("crash_notice");
 }
 
-/** The player answered the crash prompt, either way; it is not offered again this launch. */
 export function dismissCrashNotice(): Promise<void> {
   return invoke<void>("dismiss_crash_notice");
 }

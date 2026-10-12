@@ -75,7 +75,6 @@ pub fn run() {
             app.manage(crash::PreviousCrash(crash::take_previous_crash(
                 &app_data_dir,
             )));
-            // The launch prompt offering to report that crash, answered at most once per launch.
             app.manage(crash::CrashPromptDismissed::default());
 
             let saves_dir = app_data_dir.join("saves");

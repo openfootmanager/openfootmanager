@@ -180,10 +180,7 @@ pub struct CrashNotice {
     pub app_version: String,
 }
 
-/// Whether the player has answered the crash prompt during this launch.
-///
-/// Answered once — reported or not — it does not come back until the next crash: the file was
-/// cleared at startup, so the next launch has nothing to offer. Read and dismissed as two separate
+/// Read and dismissed as two separate
 /// calls rather than one "take", because React runs effects twice in development, and a take
 /// consumed by the discarded first run would leave the prompt invisible to the one person
 /// checking that it works.
@@ -196,7 +193,6 @@ impl CrashPromptDismissed {
     }
 }
 
-/// The crash to offer a report for, while there is one and the player has not answered.
 pub fn pending_notice(
     previous: &PreviousCrash,
     dismissed: &CrashPromptDismissed,

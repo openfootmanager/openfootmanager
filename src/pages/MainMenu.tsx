@@ -909,7 +909,6 @@ export default function MainMenu() {
         {formatAppVersion()}
       </div>
 
-      {/* After a crash, the first screen of the next launch offers to report it, once. */}
       <CrashReportPrompt onReport={() => setReportingBug(true)} />
       {reportingBug && <ReportBugModal onClose={() => setReportingBug(false)} />}
     </div>
