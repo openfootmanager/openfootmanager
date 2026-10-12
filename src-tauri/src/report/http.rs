@@ -1,20 +1,21 @@
 //! The one HTTP client the game owns, and the only code here that touches the network.
 //!
-//! Everything about *what* is sent and what an answer means lives in `relay`; this is the shell
+//! Everything about *what* is sent and what an answer means lives in `hub`; this is the shell
 //! that moves bytes. It refuses nothing on its own — the `https://`-only rule belongs to
-//! `relay::RelayEndpoint`, which is what lets the test below drive the real client against a
+//! `hub::HubEndpoint`, which is what lets the test below drive the real client against a
 //! plain socket on localhost.
 
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use super::relay::{RelayResponse, Transport, TransportFailure};
+use super::hub::{HubResponse, Transport, TransportFailure};
 
-/// More than any answer the relay gives: a code, or an error envelope. A body larger than this is
-/// not one of those, and reading it whole would be allocating for something that is not the relay.
+/// More than any answer the server gives: a config, a reference, or an error body. A body larger
+/// than this is not one of those, and reading it whole would be allocating for something that is
+/// not the server.
 const MAX_RESPONSE_BYTES: u64 = 64 * 1024;
 
-/// Long enough for ~22 MiB of base64 on a slow uplink. A total of a few seconds would fail every
+/// Long enough for 25 MiB on a slow uplink. A total of a few seconds would fail every
 /// player with an attached save on a home connection, and report it as a dropped upload.
 const TOTAL_TIMEOUT: Duration = Duration::from_secs(10 * 60);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
@@ -45,16 +46,16 @@ impl UreqTransport {
     }
 }
 
-impl Transport for UreqTransport {
-    fn post_json(&self, url: &str, body: Vec<u8>) -> Result<RelayResponse, TransportFailure> {
-        let mut response = self
-            .agent
-            .post(url)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
-            .send(&body[..])
-            .map_err(classify)?;
+impl UreqTransport {
+    fn read(
+        mut response: ureq::http::Response<ureq::Body>,
+    ) -> Result<HubResponse, TransportFailure> {
         let status = response.status().as_u16();
+        let retry_after_seconds = response
+            .headers()
+            .get("retry-after")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.trim().parse().ok());
         let body = response
             .body_mut()
             .with_config()
@@ -62,7 +63,41 @@ impl Transport for UreqTransport {
             .read_to_vec()
             // The status line arrived, so the request did too; only the answer is missing.
             .map_err(|error| TransportFailure::Interrupted(error.to_string()))?;
-        Ok(RelayResponse { status, body })
+        Ok(HubResponse {
+            status,
+            body,
+            retry_after_seconds,
+        })
+    }
+}
+
+impl Transport for UreqTransport {
+    fn get(&self, url: &str) -> Result<HubResponse, TransportFailure> {
+        let response = self
+            .agent
+            .get(url)
+            .header("Accept", "application/json")
+            .call()
+            .map_err(classify)?;
+        Self::read(response)
+    }
+
+    fn post_multipart(
+        &self,
+        url: &str,
+        game_version: &str,
+        content_type: &str,
+        body: Vec<u8>,
+    ) -> Result<HubResponse, TransportFailure> {
+        let response = self
+            .agent
+            .post(url)
+            .header("Content-Type", content_type)
+            .header("Accept", "application/json")
+            .header("X-OFM-Version", game_version)
+            .send(&body[..])
+            .map_err(classify)?;
+        Self::read(response)
     }
 }
 
@@ -128,11 +163,12 @@ mod tests {
     /// Serve exactly one request with `status` and `body`, handing back what was received.
     fn serve_once(
         status_line: &'static str,
+        extra_headers: &'static str,
         body: &'static str,
     ) -> (String, std::thread::JoinHandle<Captured>) {
         let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
         let url = format!(
-            "http://{}/api/v1/reports",
+            "http://{}/api/v1/bug-reports",
             listener.local_addr().expect("addr")
         );
         let handle = std::thread::spawn(move || {
@@ -161,7 +197,7 @@ mod tests {
             let mut stream = stream;
             write!(
                 stream,
-                "{status_line}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                "{status_line}\r\nContent-Type: application/json\r\n{extra_headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
                 body.len()
             )
             .expect("respond");
@@ -174,50 +210,106 @@ mod tests {
         (url, handle)
     }
 
-    /// Given a relay that answers 201 with a code,
-    /// when the real client posts an envelope,
-    /// then it is a JSON POST that asks for JSON back, the body arrives byte for byte, and the
-    /// answer is handed back unjudged.
+    /// Given a server that answers 201 with a reference,
+    /// when the real client posts a multipart body,
+    /// then the request carries the version header, the multipart content type and the body byte
+    /// for byte, and the answer is handed back unjudged.
     #[test]
-    fn posts_the_body_as_json_and_returns_the_answer() {
-        let (url, server) = serve_once("HTTP/1.1 201 Created", r#"{"code":"7K2M9Q4R"}"#);
-
-        let answer = UreqTransport::with_proxy(None)
-            .post_json(&url, br#"{"schema_version":1}"#.to_vec())
-            .expect("a response");
-
-        let captured = server.join().expect("server");
-        assert_eq!(captured.request_line, "POST /api/v1/reports HTTP/1.1");
-        assert_eq!(captured.header("content-type"), Some("application/json"));
-        assert_eq!(captured.header("accept"), Some("application/json"));
-        assert_eq!(captured.body, br#"{"schema_version":1}"#);
-        assert_eq!(answer.status, 201);
-        assert_eq!(answer.body, br#"{"code":"7K2M9Q4R"}"#);
-    }
-
-    /// Given a relay that answers with an error status,
-    /// when the real client posts,
-    /// then the status and its JSON body come back as a response, not as a transport failure —
-    /// the error code inside is what the player is told.
-    #[test]
-    fn an_error_status_is_a_response_not_a_failure() {
+    fn posts_the_multipart_body_with_the_version_header() {
         let (url, server) = serve_once(
-            "HTTP/1.1 429 Too Many Requests",
-            r#"{"error":{"code":"rate_limited","message":"Slow down."}}"#,
+            "HTTP/1.1 201 Created",
+            "",
+            r#"{"reference":"OFM-7K2QX9DM"}"#,
         );
 
         let answer = UreqTransport::with_proxy(None)
-            .post_json(&url, b"{}".to_vec())
+            .post_multipart(
+                &url,
+                "0.3.0",
+                "multipart/form-data; boundary=abc",
+                b"--abc--\r\n".to_vec(),
+            )
+            .expect("a response");
+
+        let captured = server.join().expect("server");
+        assert_eq!(captured.request_line, "POST /api/v1/bug-reports HTTP/1.1");
+        assert_eq!(
+            captured.header("content-type"),
+            Some("multipart/form-data; boundary=abc")
+        );
+        assert_eq!(captured.header("x-ofm-version"), Some("0.3.0"));
+        assert_eq!(captured.header("accept"), Some("application/json"));
+        assert_eq!(captured.body, b"--abc--\r\n");
+        assert_eq!(answer.status, 201);
+        assert_eq!(answer.body, br#"{"reference":"OFM-7K2QX9DM"}"#);
+    }
+
+    /// Given a 429 that carries `Retry-After`,
+    /// when the real client posts,
+    /// then the status, body and the wait in seconds all come back as a response, not a failure.
+    #[test]
+    fn an_error_status_is_a_response_with_its_retry_after() {
+        let (url, server) = serve_once(
+            "HTTP/1.1 429 Too Many Requests",
+            "Retry-After: 120\r\n",
+            r#"{"message":"Slow down.","code":"rate_limited"}"#,
+        );
+
+        let answer = UreqTransport::with_proxy(None)
+            .post_multipart(
+                &url,
+                "0.3.0",
+                "multipart/form-data; boundary=a",
+                b"x".to_vec(),
+            )
             .expect("a response");
 
         server.join().expect("server");
         assert_eq!(answer.status, 429);
+        assert_eq!(answer.retry_after_seconds, Some(120));
         assert!(String::from_utf8_lossy(&answer.body).contains("rate_limited"));
     }
 
-    /// Given nothing listening at the relay's address,
+    /// Given a `Retry-After` that is a date rather than seconds,
+    /// when the real client reads it,
+    /// then no wait is claimed.
+    #[test]
+    fn a_retry_after_that_is_not_seconds_is_ignored() {
+        let (url, server) = serve_once(
+            "HTTP/1.1 429 Too Many Requests",
+            "Retry-After: Wed, 21 Oct 2026 07:28:00 GMT\r\n",
+            "{}",
+        );
+
+        let answer = UreqTransport::with_proxy(None)
+            .get(&url)
+            .expect("a response");
+
+        server.join().expect("server");
+        assert_eq!(answer.retry_after_seconds, None);
+    }
+
+    /// Given a server that answers the config read,
+    /// when the real client gets it,
+    /// then it is a GET that asks for JSON and sends no version header.
+    #[test]
+    fn gets_the_config_asking_for_json() {
+        let (url, server) = serve_once("HTTP/1.1 200 OK", "", r#"{"enabled":true}"#);
+
+        let answer = UreqTransport::with_proxy(None)
+            .get(&url)
+            .expect("a response");
+
+        let captured = server.join().expect("server");
+        assert!(captured.request_line.starts_with("GET "));
+        assert_eq!(captured.header("accept"), Some("application/json"));
+        assert_eq!(captured.header("x-ofm-version"), None);
+        assert_eq!(answer.status, 200);
+    }
+
+    /// Given nothing listening at the server's address,
     /// when the real client posts,
-    /// then it reports that the relay was unreachable — nothing was sent.
+    /// then it reports that the server was unreachable — nothing was sent.
     #[test]
     fn a_refused_connection_is_unreachable() {
         // Bind and drop, so the port is very likely closed for the moment of the request.
@@ -228,9 +320,11 @@ mod tests {
             .port();
 
         let failure = UreqTransport::with_proxy(None)
-            .post_json(
-                &format!("http://127.0.0.1:{port}/api/v1/reports"),
-                b"{}".to_vec(),
+            .post_multipart(
+                &format!("http://127.0.0.1:{port}/api/v1/bug-reports"),
+                "0.3.0",
+                "multipart/form-data; boundary=a",
+                b"x".to_vec(),
             )
             .expect_err("nothing is listening");
 

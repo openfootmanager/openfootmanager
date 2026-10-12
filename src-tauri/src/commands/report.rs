@@ -2,8 +2,8 @@
 //! agrees on the preview — send it.
 //!
 //! The export (slice 3 of #569) ends at a file on disk that the player chooses the location of.
-//! The upload (slice 4) builds the same bundle privately and posts it to the relay described in
-//! `docs/api/bug-reports.md`. The GitHub form is the path that needs no server at all, and stays
+//! The upload (slice 4) builds the same bundle privately and posts it to OFMHub's bug-report endpoint
+//! (`docs/api/bug-reports.md`). The GitHub form is the path that needs no server at all, and stays
 //! the fallback whenever the upload is declined, unavailable, or fails.
 
 use std::path::{Path, PathBuf};
@@ -16,8 +16,8 @@ use crate::crash;
 use crate::report::bundle::{self, BundleInputs, BundleSummary};
 use crate::report::history::{self, SubmittedReport};
 use crate::report::http::UreqTransport;
+use crate::report::hub::{self, HubEndpoint, Transport, UploadFailure, UploadParts};
 use crate::report::redact::Redactor;
-use crate::report::relay::{self, RelayEndpoint, Transport};
 // The key itself lives at the crate root, where the other holders of this lock already read it
 // from. Spelling it out again here is how two copies of a translation key drift apart.
 use crate::{SaveManagerState, SAVE_MANAGER_UNAVAILABLE_ERROR};
@@ -332,73 +332,140 @@ fn write_report_bundle(
     Ok(summary)
 }
 
-/// Where to send reports, at runtime, when a build or a tester wants somewhere else.
-///
-/// The same name is read at **build** time for the compiled-in default (`option_env!` below), so
-/// a release pipeline sets it once and a tester can point one install at staging without a
-/// rebuild. Neither is set in a plain checkout, and then the upload is simply not offered: no
-/// relay address is invented here, because a guessed domain in a shipped binary sends players'
-/// logs to whoever owns it.
-const RELAY_URL_VARIABLE: &str = "OFM_BUG_REPORT_RELAY_URL";
-
-fn relay_endpoint() -> Option<RelayEndpoint> {
-    RelayEndpoint::resolve(
-        std::env::var(RELAY_URL_VARIABLE).ok().as_deref(),
-        option_env!("OFM_BUG_REPORT_RELAY_URL"),
+fn hub_endpoint() -> Option<HubEndpoint> {
+    HubEndpoint::resolve(
+        std::env::var(hub::HUB_URL_VARIABLE).ok().as_deref(),
+        cfg!(debug_assertions),
     )
 }
 
-/// Whether this build can send a report at all, so the preview does not offer what cannot work.
+/// Whether the server takes reports right now, so the preview does not offer what cannot work.
+///
+/// Reads the server's config when the dialog opens, as the contract asks: it carries the kill
+/// switch, which is flipped without a release. Offline, disabled or unusable all mean "no" — the
+/// GitHub form is the path for those.
 #[tauri::command]
-pub fn report_upload_available() -> bool {
-    relay_endpoint().is_some()
+pub async fn report_upload_available() -> bool {
+    let Some(endpoint) = hub_endpoint() else {
+        return false;
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        hub::fetch_config(UreqTransport::shared(), &endpoint).is_ok()
+    })
+    .await
+    .unwrap_or(false)
 }
 
-/// What the player is shown once the relay has accepted a report.
+/// What the player is shown once the server has accepted a report.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct UploadReceipt {
+    /// `OFM-` and eight Crockford characters; named `code` in `reports.json` and the UI.
     pub code: String,
     /// Whether the code also made it into `reports.json`.
     ///
-    /// The upload succeeded either way — the relay has the report — so failing to write the list
-    /// must not turn into an error. But a player who is not told has no reason to note the code
-    /// down, and then has nothing to quote when they ask for their report to be removed.
+    /// The upload succeeded either way — the server has the report — but a player who is not told
+    /// has no reason to note the code down, and then has nothing to quote when they ask for their
+    /// report to be removed.
     pub recorded: bool,
 }
 
-/// Consent first, then a relay to send to — and nothing is built until both hold.
+/// Consent first, then somewhere to send to — and nothing is built until both hold.
 fn upload_preconditions(
     consent: bool,
-    endpoint: Option<RelayEndpoint>,
-) -> Result<RelayEndpoint, String> {
+    endpoint: Option<HubEndpoint>,
+) -> Result<HubEndpoint, UploadFailure> {
     if !consent {
-        return Err(relay::UPLOAD_CONSENT_REQUIRED.to_owned());
+        return Err(UploadFailure::key(hub::UPLOAD_CONSENT_REQUIRED));
     }
-    endpoint.ok_or_else(|| relay::UPLOAD_NOT_CONFIGURED.to_owned())
+    endpoint.ok_or_else(|| UploadFailure::key(hub::UPLOAD_NOT_CONFIGURED))
 }
 
 /// The export's errors, reworded for the upload where they would mislead.
 ///
 /// `bundleFailed` tells the player to check the folder they chose; an upload never asks for one.
 /// Everything else — a missing save, the save manager — means the same on both paths.
-fn as_upload_error(key: String) -> String {
+fn as_upload_error(key: String) -> UploadFailure {
     if key == REPORT_BUNDLE_FAILED {
-        relay::UPLOAD_PREPARE_FAILED.to_owned()
+        UploadFailure::key(hub::UPLOAD_PREPARE_FAILED)
     } else {
-        key
+        UploadFailure::key(&key)
     }
 }
 
-/// Send a bundle that already exists, and remember the code that comes back.
+/// What the player typed on the report screen, as the separate fields the endpoint stores.
+#[derive(Debug, Clone, Default, serde::Deserialize)]
+pub struct ReportFields {
+    pub what_happened: String,
+    pub expected: String,
+    pub steps: String,
+    /// The frequency choice's key (`always`, `sometimes`, ...), not its translated label.
+    pub frequency: String,
+    pub game_context: String,
+    pub locale: String,
+}
+
+/// Longest each text field may be, in characters, as the endpoint's contract states.
+const TEXT_FIELD_MAX_CHARS: usize = 10_000;
+const FREQUENCY_MAX_CHARS: usize = 32;
+const LOCALE_MAX_CHARS: usize = 16;
+const OS_MAX_CHARS: usize = 32;
+const ARCH_MAX_CHARS: usize = 16;
+const WEBVIEW_MAX_CHARS: usize = 64;
+/// The `diagnostics` object may be this big once re-encoded as JSON.
+const DIAGNOSTICS_MAX_BYTES: usize = 64 * 1024;
+
+fn clipped(redactor: &Redactor, text: &str, max_chars: usize) -> String {
+    redactor.apply(text).chars().take(max_chars).collect()
+}
+
+/// The `report` part: the player's words, redacted like everything else that leaves the machine,
+/// and this machine's identity, each field within the length the endpoint accepts.
+fn report_json(
+    redactor: &Redactor,
+    fields: &ReportFields,
+    diagnostics: &DiagnosticsReport,
+) -> String {
+    let diagnostics = serde_json::to_value(diagnostics)
+        .ok()
+        .filter(|value| value.to_string().len() <= DIAGNOSTICS_MAX_BYTES);
+    serde_json::json!({
+        "what_happened": clipped(redactor, &fields.what_happened, TEXT_FIELD_MAX_CHARS),
+        "expected": clipped(redactor, &fields.expected, TEXT_FIELD_MAX_CHARS),
+        "steps": clipped(redactor, &fields.steps, TEXT_FIELD_MAX_CHARS),
+        "frequency": clipped(redactor, &fields.frequency, FREQUENCY_MAX_CHARS),
+        "game_context": clipped(redactor, &fields.game_context, TEXT_FIELD_MAX_CHARS),
+        "locale": clipped(redactor, &fields.locale, LOCALE_MAX_CHARS),
+        "os": clipped(redactor, &diagnostics_field(&diagnostics, "os"), OS_MAX_CHARS),
+        "arch": clipped(redactor, &diagnostics_field(&diagnostics, "arch"), ARCH_MAX_CHARS),
+        "webview_version": clipped(
+            redactor,
+            &diagnostics_field(&diagnostics, "webview_version"),
+            WEBVIEW_MAX_CHARS
+        ),
+        "diagnostics": diagnostics,
+    })
+    .to_string()
+}
+
+fn diagnostics_field(diagnostics: &Option<serde_json::Value>, key: &str) -> String {
+    diagnostics
+        .as_ref()
+        .and_then(|value| value.get(key))
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_owned()
+}
+
+/// Send a bundle that already exists, and remember the reference that comes back.
 fn send_and_record(
     transport: &dyn Transport,
-    endpoint: &RelayEndpoint,
-    zip_path: &Path,
+    endpoint: &HubEndpoint,
+    parts: &UploadParts,
     include_save: bool,
     reports_path: Option<&Path>,
     submitted_at: String,
-) -> Result<UploadReceipt, String> {
-    let code = relay::submit(transport, endpoint, zip_path, include_save)?;
+) -> Result<UploadReceipt, UploadFailure> {
+    let code = hub::submit(transport, endpoint, env!("CARGO_PKG_VERSION"), parts)?;
     let entry = SubmittedReport {
         code: code.clone(),
         submitted_at,
@@ -416,29 +483,38 @@ fn send_and_record(
     Ok(UploadReceipt { code, recorded })
 }
 
-/// Build the report bundle privately and send it to the relay, with the player's consent.
+/// Build the report bundle privately and send it to OFMHub, with the player's consent.
 ///
-/// `consent` is the tick on the preview screen, passed through rather than assumed: the envelope
-/// asserts it to the relay, and this is the last place that can refuse to make that assertion
-/// on the player's behalf. `include_save` is likewise the player's own choice and is never
-/// dropped to make a bundle fit — a bundle too large for the relay is an error the player answers.
+/// `consent` is the tick on the preview screen, passed through rather than assumed: this is the
+/// last place that can refuse to send on the player's behalf. `include_save` is likewise the
+/// player's own choice and is never dropped to make a bundle fit — a bundle too large for the
+/// server is an error the player answers. The save travels inside the bundle, never as its own
+/// part. Screenshots and `.ofm` packages are separate parts, chosen by the player.
 ///
 /// The bundle lives in a private scratch directory only for the length of the request. On any
 /// failure the player is offered the GitHub form, which exports a bundle where they choose.
 #[tauri::command]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a Tauri command takes each IPC argument separately; owner=#569"
+)]
 pub async fn upload_report_bundle(
     app_handle: tauri::AppHandle,
     state: State<'_, Arc<StateManager>>,
     save_manager: State<'_, Arc<SaveManagerState>>,
     previous_crash: State<'_, crash::PreviousCrash>,
     report_text: String,
+    fields: ReportFields,
     include_save: bool,
     consent: bool,
-) -> Result<UploadReceipt, String> {
-    let endpoint = upload_preconditions(consent, relay_endpoint())?;
+    screenshot_paths: Vec<String>,
+    package_paths: Vec<String>,
+) -> Result<UploadReceipt, UploadFailure> {
+    let endpoint = upload_preconditions(consent, hub_endpoint())?;
     let state = state.inner().clone();
     let save_manager = save_manager.inner().clone();
     let crash_json = previous_crash.as_json();
+    let crash_on_previous_run = previous_crash.0.is_some();
 
     tauri::async_runtime::spawn_blocking(move || {
         let scratch_root = app_handle
@@ -453,7 +529,7 @@ pub async fn upload_report_bundle(
             })
             .map_err(|error| {
                 log::error!("[report] could not prepare the upload: {error}");
-                relay::UPLOAD_PREPARE_FAILED.to_owned()
+                UploadFailure::key(hub::UPLOAD_PREPARE_FAILED)
             })?;
         let zip_path = scratch.path().join("report.zip");
         write_report_bundle(
@@ -467,6 +543,20 @@ pub async fn upload_report_bundle(
         )
         .map_err(as_upload_error)?;
 
+        let redactor = redactor_for(&app_handle);
+        let diagnostics = collect(
+            &app_handle,
+            &redactor,
+            state.get_save_id().is_some(),
+            crash_on_previous_run,
+            active_save_bytes(&state, &save_manager),
+        );
+        let parts = UploadParts {
+            report_json: report_json(&redactor, &fields, &diagnostics),
+            bundle: zip_path,
+            screenshots: screenshot_paths.into_iter().map(PathBuf::from).collect(),
+            packages: package_paths.into_iter().map(PathBuf::from).collect(),
+        };
         let reports_path = app_handle
             .path()
             .app_data_dir()
@@ -475,7 +565,7 @@ pub async fn upload_report_bundle(
         send_and_record(
             UreqTransport::shared(),
             &endpoint,
-            &zip_path,
+            &parts,
             include_save,
             reports_path.as_deref(),
             chrono::Utc::now().to_rfc3339(),
@@ -485,7 +575,7 @@ pub async fn upload_report_bundle(
     .await
     .map_err(|error| {
         log::error!("[report] the upload task did not run: {error}");
-        relay::UPLOAD_PREPARE_FAILED.to_owned()
+        UploadFailure::key(hub::UPLOAD_PREPARE_FAILED)
     })?
 }
 
@@ -515,64 +605,87 @@ mod tests {
         ))
     }
 
-    /// Answers every request with one canned result and counts the requests.
-    struct CannedRelay {
-        answer: Result<relay::RelayResponse, relay::TransportFailure>,
-        requests: std::cell::Cell<usize>,
+    const CONFIG_JSON: &str = r#"{"enabled":true,"max_total_bytes":26214400,"max_bundle_bytes":20971520,"max_screenshot_bytes":5242880,"max_package_bytes":20971520,"max_files":6,"accepted_types":{"bundle":["zip"],"screenshots":["png"],"packages":["ofm"]}}"#;
+
+    /// Answers the config read with an enabled server and the post with one canned result, and
+    /// counts the posts.
+    struct CannedHub {
+        post: Result<hub::HubResponse, hub::TransportFailure>,
+        posts: std::cell::Cell<usize>,
     }
 
-    impl CannedRelay {
+    impl CannedHub {
         fn answering(status: u16, body: &str) -> Self {
             Self {
-                answer: Ok(relay::RelayResponse {
+                post: Ok(hub::HubResponse {
                     status,
                     body: body.as_bytes().to_vec(),
+                    retry_after_seconds: Some(90),
                 }),
-                requests: std::cell::Cell::new(0),
+                posts: std::cell::Cell::new(0),
             }
         }
     }
 
-    impl Transport for CannedRelay {
-        fn post_json(
+    impl Transport for CannedHub {
+        fn get(&self, _url: &str) -> Result<hub::HubResponse, hub::TransportFailure> {
+            Ok(hub::HubResponse {
+                status: 200,
+                body: CONFIG_JSON.as_bytes().to_vec(),
+                retry_after_seconds: None,
+            })
+        }
+
+        fn post_multipart(
             &self,
             _url: &str,
+            _game_version: &str,
+            _content_type: &str,
             _body: Vec<u8>,
-        ) -> Result<relay::RelayResponse, relay::TransportFailure> {
-            self.requests.set(self.requests.get() + 1);
-            self.answer.clone()
+        ) -> Result<hub::HubResponse, hub::TransportFailure> {
+            self.posts.set(self.posts.get() + 1);
+            self.post.clone()
         }
     }
 
-    fn test_endpoint() -> RelayEndpoint {
-        RelayEndpoint::from_base_url("https://reports.example.test").expect("endpoint")
+    fn test_endpoint() -> HubEndpoint {
+        HubEndpoint::from_base_url("https://hub.example.test/api/v1").expect("endpoint")
     }
 
-    fn small_zip(dir: &Path) -> PathBuf {
+    fn small_parts(dir: &Path) -> UploadParts {
         let path = dir.join("report.zip");
         std::fs::write(&path, b"PK").expect("zip");
-        path
+        UploadParts {
+            report_json: "{}".to_owned(),
+            bundle: path,
+            screenshots: Vec::new(),
+            packages: Vec::new(),
+        }
+    }
+
+    fn key(key: &str) -> UploadFailure {
+        UploadFailure::key(key)
     }
 
     /// Given a player who has not ticked the consent box,
-    /// when an upload is requested — even with a relay configured,
+    /// when an upload is requested — even with an endpoint configured,
     /// then it is refused before anything is built or sent.
     #[test]
     fn an_upload_without_consent_is_refused() {
         assert_eq!(
             upload_preconditions(false, Some(test_endpoint())),
-            Err(relay::UPLOAD_CONSENT_REQUIRED.to_owned())
+            Err(key(hub::UPLOAD_CONSENT_REQUIRED))
         );
     }
 
-    /// Given a build with no relay address,
+    /// Given an override that is not a valid https endpoint,
     /// when a consented upload is requested,
     /// then it is refused as not configured, so the player is sent to the GitHub form.
     #[test]
-    fn an_upload_with_no_relay_configured_is_refused() {
+    fn an_upload_with_no_endpoint_is_refused() {
         assert_eq!(
             upload_preconditions(true, None),
-            Err(relay::UPLOAD_NOT_CONFIGURED.to_owned())
+            Err(key(hub::UPLOAD_NOT_CONFIGURED))
         );
         assert_eq!(
             upload_preconditions(true, Some(test_endpoint())),
@@ -587,27 +700,27 @@ mod tests {
     fn an_upload_never_blames_a_folder_the_player_did_not_choose() {
         assert_eq!(
             as_upload_error(REPORT_BUNDLE_FAILED.to_owned()),
-            relay::UPLOAD_PREPARE_FAILED
+            key(hub::UPLOAD_PREPARE_FAILED)
         );
         assert_eq!(
             as_upload_error(REPORT_SAVE_MISSING.to_owned()),
-            REPORT_SAVE_MISSING
+            key(REPORT_SAVE_MISSING)
         );
     }
 
-    /// Given a relay that accepts the report,
+    /// Given a server that accepts the report,
     /// when it is sent,
-    /// then the code comes back and is recorded in reports.json with the save choice and date.
+    /// then the reference comes back and is recorded in reports.json with the save choice and date.
     #[test]
-    fn an_accepted_report_is_recorded_with_its_code() {
+    fn an_accepted_report_is_recorded_with_its_reference() {
         let dir = tempfile::tempdir().expect("temp dir");
         let reports = history::reports_file_in(dir.path());
-        let relay = CannedRelay::answering(201, r#"{"code":"7K2M9Q4R"}"#);
+        let hub = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
 
         let receipt = send_and_record(
-            &relay,
+            &hub,
             &test_endpoint(),
-            &small_zip(dir.path()),
+            &small_parts(dir.path()),
             true,
             Some(&reports),
             "2026-10-03T12:00:00+00:00".to_owned(),
@@ -616,60 +729,63 @@ mod tests {
         assert_eq!(
             receipt,
             Ok(UploadReceipt {
-                code: "7K2M9Q4R".to_owned(),
+                code: "OFM-7K2QX9DM".to_owned(),
                 recorded: true
             })
         );
         let listed = history::load(&reports);
         assert_eq!(listed.len(), 1);
-        assert_eq!(listed[0].code, "7K2M9Q4R");
+        assert_eq!(listed[0].code, "OFM-7K2QX9DM");
         assert!(listed[0].included_save);
         assert_eq!(listed[0].submitted_at, "2026-10-03T12:00:00+00:00");
         assert_eq!(listed[0].app_version, env!("CARGO_PKG_VERSION"));
     }
 
-    /// Given a relay that refuses the report,
+    /// Given a server that rate-limits the report,
     /// when it is sent,
-    /// then the player gets the translated reason and nothing is recorded.
+    /// then the player gets the translated reason with the wait, and nothing is recorded.
     #[test]
     fn a_refused_report_records_nothing() {
         let dir = tempfile::tempdir().expect("temp dir");
         let reports = history::reports_file_in(dir.path());
-        let relay = CannedRelay::answering(
-            429,
-            r#"{"error":{"code":"rate_limited","message":"Slow down."}}"#,
-        );
+        let hub = CannedHub::answering(429, r#"{"message":"Slow down.","code":"rate_limited"}"#);
 
         let receipt = send_and_record(
-            &relay,
+            &hub,
             &test_endpoint(),
-            &small_zip(dir.path()),
+            &small_parts(dir.path()),
             false,
             Some(&reports),
             "2026-10-03T12:00:00+00:00".to_owned(),
         );
 
-        assert_eq!(receipt, Err(relay::UPLOAD_RATE_LIMITED.to_owned()));
+        assert_eq!(
+            receipt,
+            Err(UploadFailure {
+                key: hub::UPLOAD_RATE_LIMITED.to_owned(),
+                retry_after_seconds: Some(90)
+            })
+        );
         assert!(history::load(&reports).is_empty());
-        assert_eq!(relay.requests.get(), 1);
+        assert_eq!(hub.posts.get(), 1);
     }
 
-    /// Given a relay that accepts the report but a reports file that cannot be written,
+    /// Given a server that accepts the report but a reports file that cannot be written,
     /// when it is sent,
-    /// then the upload still succeeds with its code, marked as not recorded so the player is
+    /// then the upload still succeeds with its reference, marked as not recorded so the player is
     /// told to note it down.
     #[test]
-    fn an_accepted_report_that_cannot_be_recorded_still_returns_its_code() {
+    fn an_accepted_report_that_cannot_be_recorded_still_returns_its_reference() {
         let dir = tempfile::tempdir().expect("temp dir");
         // A directory where the file should be: every write to it fails.
         let reports = history::reports_file_in(dir.path());
         std::fs::create_dir_all(&reports).expect("blocking dir");
-        let relay = CannedRelay::answering(201, r#"{"code":"7K2M9Q4R"}"#);
+        let hub = CannedHub::answering(201, r#"{"reference":"OFM-7K2QX9DM"}"#);
 
         let receipt = send_and_record(
-            &relay,
+            &hub,
             &test_endpoint(),
-            &small_zip(dir.path()),
+            &small_parts(dir.path()),
             false,
             Some(&reports),
             "2026-10-03T12:00:00+00:00".to_owned(),
@@ -678,10 +794,103 @@ mod tests {
         assert_eq!(
             receipt,
             Ok(UploadReceipt {
-                code: "7K2M9Q4R".to_owned(),
+                code: "OFM-7K2QX9DM".to_owned(),
                 recorded: false
             })
         );
+    }
+
+    fn sample_diagnostics() -> DiagnosticsReport {
+        DiagnosticsReport {
+            app_version: "0.3.0".to_owned(),
+            os: "linux".to_owned(),
+            arch: "x86_64".to_owned(),
+            webview_version: "2.40".to_owned(),
+            log_directory: "~/logs".to_owned(),
+            crash_on_previous_run: false,
+            has_active_save: true,
+            log_files: Vec::new(),
+            save_bytes: Some(10),
+        }
+    }
+
+    fn sample_fields() -> ReportFields {
+        ReportFields {
+            what_happened: "it died loading /home/srobot/saves/a.db".to_owned(),
+            expected: "to open".to_owned(),
+            steps: "load".to_owned(),
+            frequency: "always".to_owned(),
+            game_context: "season 2".to_owned(),
+            locale: "en".to_owned(),
+        }
+    }
+
+    /// Given words that mention the player's home directory,
+    /// when the `report` part is built,
+    /// then they are redacted like everything else that leaves the machine.
+    #[test]
+    fn the_report_part_is_redacted() {
+        let redactor = Redactor::new(Some("/home/srobot"), Some("srobot"), None);
+
+        let json: serde_json::Value = serde_json::from_str(&report_json(
+            &redactor,
+            &sample_fields(),
+            &sample_diagnostics(),
+        ))
+        .expect("json");
+
+        assert_eq!(json["what_happened"], "it died loading ~/saves/a.db");
+        assert_eq!(json["frequency"], "always");
+        assert_eq!(json["os"], "linux");
+        assert_eq!(json["arch"], "x86_64");
+        assert_eq!(json["webview_version"], "2.40");
+        assert_eq!(json["diagnostics"]["has_active_save"], true);
+    }
+
+    /// Given fields longer than the endpoint accepts,
+    /// when the `report` part is built,
+    /// then each is cut to its limit in characters, not bytes.
+    #[test]
+    fn the_report_part_respects_the_field_limits() {
+        let redactor = Redactor::new(None, None, None);
+        let mut fields = sample_fields();
+        fields.what_happened = "é".repeat(TEXT_FIELD_MAX_CHARS + 5);
+        fields.frequency = "f".repeat(FREQUENCY_MAX_CHARS + 5);
+        fields.locale = "l".repeat(LOCALE_MAX_CHARS + 5);
+
+        let json: serde_json::Value =
+            serde_json::from_str(&report_json(&redactor, &fields, &sample_diagnostics()))
+                .expect("json");
+
+        assert_eq!(
+            json["what_happened"].as_str().unwrap().chars().count(),
+            TEXT_FIELD_MAX_CHARS
+        );
+        assert_eq!(
+            json["frequency"].as_str().unwrap().chars().count(),
+            FREQUENCY_MAX_CHARS
+        );
+        assert_eq!(
+            json["locale"].as_str().unwrap().chars().count(),
+            LOCALE_MAX_CHARS
+        );
+    }
+
+    /// Given diagnostics too big for the endpoint's `diagnostics` limit,
+    /// when the `report` part is built,
+    /// then the object is left out rather than failing the whole report.
+    #[test]
+    fn oversized_diagnostics_are_left_out_not_sent() {
+        let redactor = Redactor::new(None, None, None);
+        let mut diagnostics = sample_diagnostics();
+        diagnostics.log_directory = "x".repeat(DIAGNOSTICS_MAX_BYTES + 1);
+
+        let json: serde_json::Value =
+            serde_json::from_str(&report_json(&redactor, &sample_fields(), &diagnostics))
+                .expect("json");
+
+        assert!(json["diagnostics"].is_null());
+        assert_eq!(json["os"], "");
     }
 
     #[test]
