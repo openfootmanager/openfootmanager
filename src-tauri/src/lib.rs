@@ -1,6 +1,7 @@
 mod application;
 mod commands;
 mod crash;
+mod main_window;
 mod platform;
 mod report;
 use commands::*;
@@ -28,7 +29,7 @@ pub fn run() {
     // Must run before the webview is built: on Linux, WebKitGTK and the graphics driver read the
     // variables this sets when the web process starts. A no-op on Windows and macOS.
     // See `platform` and `docs/LINUX_GRAPHICS.md`.
-    platform::configure_graphics();
+    platform::configure_graphics(main_window::headless_requested());
 
     let state_manager = Arc::new(StateManager::new());
 
@@ -56,6 +57,7 @@ pub fn run() {
         .setup(move |app| {
             use tauri::Manager as TauriManager;
 
+            main_window::show_unless_headless(app)?;
             platform::watch_web_processes(app);
 
             let app_data_dir = app
@@ -124,14 +126,6 @@ pub fn run() {
                     let save_mgr: Arc<SaveManagerState> =
                         app.state::<Arc<SaveManagerState>>().inner().clone();
                     let app_handle = app.handle().clone();
-
-                    // --no-gui: hide the window
-                    if mcp_config.no_gui {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.hide();
-                            log::info!("[mcp] GUI window hidden (--no-gui)");
-                        }
-                    }
 
                     // --mcp-auto-start: bootstrap game
                     if let Some(ref auto_start) = mcp_config.auto_start {

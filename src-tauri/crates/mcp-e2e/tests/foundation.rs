@@ -52,9 +52,18 @@ fn teardown_leaves_nothing_behind() {
     let port = app.port();
     assert!(!app.port_is_free(), "the app should be listening on {port}");
 
+    let scratch = app.data_dir().unwrap().to_path_buf();
+
     let left_behind = app.shutdown();
 
     assert!(left_behind.is_clean(), "{left_behind:?}");
+    // WebKit's helpers can recreate directories under the scratch path after the app exits, so
+    // give a straggler time to show itself.
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    assert!(
+        !scratch.exists(),
+        "the scratch directory came back: {scratch:?}"
+    );
     let counter_after = std::fs::metadata(&real_counter)
         .and_then(|m| m.modified())
         .ok();

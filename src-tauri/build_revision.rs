@@ -24,76 +24,63 @@ pub const NOT_THE_APP: &str = "crates/mcp-e2e";
 
 /// Names the sources of the app, so a binary can be told apart from the tree it is run against.
 ///
-/// It digests the committed files under `src-tauri` (not HEAD itself: a commit that touches
-/// nothing there, a doc or a frontend change, leaves the revision alone and does not make a binary
-/// stale), then any uncommitted changes and untracked files under it. The test crate
-/// `crates/mcp-e2e` is left out of all three: the app does not contain it, and editing a test
-/// must not demand a rebuild of the app. `None` when git cannot say (no git, not a checkout).
+/// It is a digest of the working-tree *content* of the files in [`APP_PATHS`] that git lists
+/// (tracked, or untracked and not ignored), so it follows what would be compiled and nothing else:
+/// committing, staging or switching branches over identical files leaves it alone, and so does a
+/// change to docs, tests, the frontend or the test crate. `None` when git cannot list the files
+/// (no git, a source tarball), in which case the build has no revision.
 pub fn source_revision(src_tauri: &std::path::Path) -> Option<String> {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
+    use std::collections::BTreeSet;
+    use std::process::Command;
 
-    let mut app_sources: Vec<String> = APP_PATHS.iter().map(|path| path.to_string()).collect();
-    app_sources.push("build_revision.rs".to_string());
-    app_sources.push(format!(":(exclude){NOT_THE_APP}"));
-    let app_sources: Vec<&str> = app_sources.iter().map(String::as_str).collect();
+    let mut args: Vec<String> = [
+        "ls-files",
+        "-z",
+        "--cached",
+        "--others",
+        "--exclude-standard",
+        "--",
+    ]
+    .iter()
+    .map(|arg| arg.to_string())
+    .collect();
+    args.extend(APP_PATHS.iter().map(|path| path.to_string()));
+    args.push("build_revision.rs".to_string());
+    args.push(format!(":(exclude){NOT_THE_APP}"));
 
-    let git = |args: &[&str]| -> Option<Vec<u8>> {
-        let output = Command::new("git")
-            .arg("-C")
-            .arg(src_tauri)
-            .args(args)
-            .output()
-            .ok()?;
-        output.status.success().then_some(output.stdout)
-    };
-    let digest = |bytes: &[u8]| -> Option<String> {
-        let mut hasher = Command::new("git")
-            .arg("-C")
-            .arg(src_tauri)
-            .args(["hash-object", "--stdin"])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .ok()?;
-        hasher.stdin.take()?.write_all(bytes).ok()?;
-        let output = hasher.wait_with_output().ok()?;
-        let digest = String::from_utf8(output.stdout).ok()?;
-        output.status.success().then(|| digest.trim().get(..12).map(str::to_string))?
-
-    };
-
-    // `ls-tree` has no exclude pathspec, so the test crate is filtered out here.
-    let listing = git(&[&["ls-tree", "-r", "HEAD", "--"][..], &app_sources[..app_sources.len() - 1]].concat())?;
-    let app_files: Vec<u8> = listing
-        .split_inclusive(|byte| *byte == b'\n')
-        .filter(|line| {
-            let path = line.split(|byte| *byte == b'\t').nth(1).unwrap_or_default();
-            !path.starts_with(format!("{NOT_THE_APP}/").as_bytes())
-        })
-        .flatten()
-        .copied()
-        .collect();
-    let committed = digest(&app_files)?;
-
-    let mut changes = git(&[&["diff", "HEAD", "--no-ext-diff", "--"][..], &app_sources[..]].concat())?;
-    let untracked = git(
-        &[
-            &["ls-files", "--others", "--exclude-standard", "-z", "--"][..],
-            &app_sources[..],
-        ]
-        .concat(),
-    )?;
-    for name in untracked
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(src_tauri)
+        .args(&args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let files: BTreeSet<&[u8]> = output
+        .stdout
         .split(|byte| *byte == 0)
         .filter(|name| !name.is_empty())
-    {
-        changes.extend_from_slice(name);
-        let path = src_tauri.join(String::from_utf8_lossy(name).as_ref());
-        changes.extend(std::fs::read(path).unwrap_or_default());
+        .collect();
+
+    // FNV-1a over each path and its bytes: stable across toolchains, and no hashing crate.
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut feed = |bytes: &[u8]| {
+        for byte in bytes {
+            hash ^= u64::from(*byte);
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    };
+    for name in files {
+        // A tracked file that was deleted is listed but gone; its absence is part of the content.
+        let Ok(content) = std::fs::read(src_tauri.join(String::from_utf8_lossy(name).as_ref()))
+        else {
+            continue;
+        };
+        feed(name);
+        feed(&[0]);
+        feed(&(content.len() as u64).to_le_bytes());
+        feed(&content);
     }
-    if changes.is_empty() {
-        return Some(committed);
-    }
-    Some(format!("{committed}.{}", digest(&changes)?))
+    Some(format!("{hash:016x}"))
 }

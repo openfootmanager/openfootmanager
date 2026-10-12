@@ -16,8 +16,12 @@ mod revision {
 mod client;
 mod snapshot;
 pub mod tools;
+pub mod windows;
 
-pub use app::{real_startup_failures_file, App, AppConfig, LaunchError, Mode, Teardown};
+pub use app::{
+    gui_launch_maps_a_window, real_startup_failures_file, App, AppConfig, GuiLaunch, LaunchError,
+    Mode, Teardown,
+};
 pub use bug::expect_bug;
 pub use client::{CallError, Client, Refusal};
 pub use snapshot::{assert_refusal_changes_nothing, Snapshot};
@@ -42,16 +46,18 @@ mod revision_tests {
         assert!(status.success(), "git {args:?}");
     }
 
-    /// Given a checkout with `src-tauri` and a sibling directory
-    /// When files change, are staged, committed or added
-    /// Then the revision follows exactly the sources under `src-tauri`, and a clean tree is a bare tree hash.
+    /// Given a checkout with `src-tauri`, a sibling directory and a test crate
+    /// When files change, are staged, committed, added or deleted
+    /// Then the revision follows exactly the app's sources: not the commit, the index, the docs or
+    /// the test crate, but any edit, new or deleted file among the sources.
     #[test]
-    fn the_revision_follows_the_sources_under_src_tauri() {
+    fn the_revision_follows_the_content_of_the_apps_sources() {
         let repo = tempfile::tempdir().unwrap();
         let root = repo.path();
         let app = root.join("src-tauri");
-        std::fs::create_dir_all(app.join("src")).unwrap();
-        std::fs::create_dir_all(app.join("tests")).unwrap();
+        for dir in ["src", "tests", "crates/mcp-e2e"] {
+            std::fs::create_dir_all(app.join(dir)).unwrap();
+        }
         std::fs::create_dir_all(root.join("docs")).unwrap();
         git(root, &["init", "-q"]);
         std::fs::write(app.join("src/lib.rs"), "fn a() {}").unwrap();
@@ -60,47 +66,36 @@ mod revision_tests {
         git(root, &["commit", "-q", "-m", "one"]);
 
         let clean = source_revision(&app).unwrap();
-        assert_eq!(clean.len(), 12, "a clean tree is a bare digest: {clean}");
+        assert_eq!(clean.len(), 16, "{clean}");
 
-        // Tests and other files outside the app's sources change nothing either.
+        // None of these are the app: docs, other tests, the e2e crate, a commit that changes only them.
+        std::fs::write(root.join("docs/readme.md"), "two").unwrap();
         std::fs::write(app.join("tests/architecture.rs"), "fn t() {}").unwrap();
-        assert_eq!(source_revision(&app).unwrap(), clean);
-
-        // The test crate is not part of the app, so editing it, tracked or new, changes nothing.
-        std::fs::create_dir_all(app.join("crates/mcp-e2e")).unwrap();
         std::fs::write(app.join("crates/mcp-e2e/test.rs"), "fn t() {}").unwrap();
         assert_eq!(source_revision(&app).unwrap(), clean);
         git(root, &["add", "-A"]);
-        git(root, &["commit", "-q", "-m", "tests"]);
-        assert_eq!(source_revision(&app).unwrap(), clean);
-        std::fs::write(app.join("crates/mcp-e2e/test.rs"), "fn t2() {}").unwrap();
-        assert_eq!(source_revision(&app).unwrap(), clean);
+        assert_eq!(source_revision(&app).unwrap(), clean, "staging");
+        git(root, &["commit", "-q", "-m", "not the app"]);
+        assert_eq!(source_revision(&app).unwrap(), clean, "committing");
 
-        // A change outside src-tauri, committed or not, is not a change to the app.
-        std::fs::write(root.join("docs/readme.md"), "two").unwrap();
-        git(root, &["commit", "-q", "-am", "docs"]);
-        assert_eq!(source_revision(&app).unwrap(), clean);
-
-        // An edit under src-tauri, an untracked file, and another edit each give another revision.
+        // Edits, new files and deleted files are the app.
         std::fs::write(app.join("src/lib.rs"), "fn b() {}").unwrap();
         let edited = source_revision(&app).unwrap();
         assert_ne!(edited, clean);
-        assert!(
-            edited.starts_with(&clean) && edited.contains('.'),
-            "{edited}"
-        );
         std::fs::write(app.join("src/new.rs"), "fn c() {}").unwrap();
         let with_new_file = source_revision(&app).unwrap();
         assert_ne!(with_new_file, edited);
         std::fs::write(app.join("src/new.rs"), "fn d() {}").unwrap();
-        assert_ne!(source_revision(&app).unwrap(), with_new_file);
+        let new_file_edited = source_revision(&app).unwrap();
+        assert_ne!(new_file_edited, with_new_file);
 
-        // Committing the edits turns them into a new bare tree hash.
+        // The same content, committed, is the same revision: a commit does not make a binary stale.
         git(root, &["add", "-A"]);
         git(root, &["commit", "-q", "-m", "app"]);
-        let committed = source_revision(&app).unwrap();
-        assert_eq!(committed.len(), 12);
-        assert_ne!(committed, clean);
+        assert_eq!(source_revision(&app).unwrap(), new_file_edited);
+
+        std::fs::remove_file(app.join("src/new.rs")).unwrap();
+        assert_ne!(source_revision(&app).unwrap(), new_file_edited);
     }
 
     /// Given a source tarball (a directory that is not a git repository)

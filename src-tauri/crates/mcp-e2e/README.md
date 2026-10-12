@@ -13,7 +13,9 @@ results read back as the structs in `mcp-results`.
   `WAYLAND_SOCKET` from the app's environment and sets `GDK_BACKEND=x11`, so the app can only use
   the X display in `DISPLAY`. Under `xvfb-run` that is the virtual one. **Without it, `DISPLAY` is
   your own session's (XWayland, for example, at `:0`), and the window opens on your desktop.** The
-  fixture fails loudly when `DISPLAY` is not set, and never skips.
+  fixture refuses to start unless the display is evidently virtual (`XAUTHORITY` made by
+  `xvfb-run`, or `OFM_E2E_ALLOW_DISPLAY=1` to vouch for your own Xvfb or Xephyr; an XWayland
+  display is always refused), and never skips.
 
 ## Running
 
@@ -30,8 +32,9 @@ and the repro line: `OFM_E2E_SEED=<seed> xvfb-run cargo test -p mcp-e2e --test <
 ## A stale binary is refused
 
 The app reports the sources it was built from in the MCP `initialize` result (`serverInfo.version`
-is `0.3.0+<revision>`). The revision digests the committed files under `src-tauri`, plus uncommitted
-changes and untracked files, and leaves out this crate (editing a test never needs an app rebuild).
+is `0.3.0+<revision>`). The revision is a digest of the content of the files the app is compiled from (git-listed, so
+ignored files are out), and nothing else: committing or staging identical files, or changing docs,
+tests or this crate, leaves it alone, so editing a test never needs an app rebuild.
 The fixture computes the same revision for the working tree and refuses a binary that differs,
 naming the rebuild command: `cargo build --features mcp --bin openfootmanager` from `src-tauri`.
 `OFM_E2E_ALLOW_STALE=1` skips the check for a binary you know is different.
