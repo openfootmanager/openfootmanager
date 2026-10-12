@@ -228,7 +228,7 @@ fn clashes_involving_movable(competitions: &[League], today: NaiveDate) -> Vec<S
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(40))]
+    #![proptest_config(ProptestConfig { cases: 40, failure_persistence: None, ..ProptestConfig::default() })]
 
     /// Given any generated world, when the calendar is reconciled, then every rulings-level invariant holds.
     #[test]

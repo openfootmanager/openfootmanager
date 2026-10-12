@@ -195,19 +195,19 @@ fn a_domestic_cup_yields_to_a_continental_competition() {
 fn the_lower_priority_cup_moves_when_two_cups_collide() {
     let mut world = vec![
         competition(
-            "cup-low",
+            "a-cup-low",
             5,
-            vec![fx("cup-low", "x", march(8), "a", "b", Kind::Cup)],
+            vec![fx("a-cup-low", "x", march(8), "a", "b", Kind::Cup)],
         ),
         competition(
-            "cup-high",
+            "z-cup-high",
             1,
-            vec![fx("cup-high", "y", march(8), "a", "c", Kind::Cup)],
+            vec![fx("z-cup-high", "y", march(8), "a", "c", Kind::Cup)],
         ),
     ];
     run(&mut world);
-    assert_eq!(date_of(&world, "cup-high", "y"), march(8));
-    assert_eq!(date_of(&world, "cup-low", "x"), march(11));
+    assert_eq!(date_of(&world, "z-cup-high", "y"), march(8));
+    assert_eq!(date_of(&world, "a-cup-low", "x"), march(11));
 }
 
 /// Given a national league and a state championship colliding, when reconciled, then the larger priority number yields.
@@ -215,19 +215,19 @@ fn the_lower_priority_cup_moves_when_two_cups_collide() {
 fn the_state_championship_with_the_larger_priority_yields() {
     let mut world = vec![
         competition(
-            "state",
+            "a-state",
             7,
-            vec![fx("state", "s1", march(8), "a", "b", Kind::League)],
+            vec![fx("a-state", "s1", march(8), "a", "b", Kind::League)],
         ),
         competition(
-            "serie-a",
+            "z-serie-a",
             1,
-            vec![fx("serie-a", "n1", march(8), "a", "c", Kind::League)],
+            vec![fx("z-serie-a", "n1", march(8), "a", "c", Kind::League)],
         ),
     ];
     run(&mut world);
-    assert_eq!(date_of(&world, "serie-a", "n1"), march(8));
-    assert_eq!(date_of(&world, "state", "s1"), march(11));
+    assert_eq!(date_of(&world, "z-serie-a", "n1"), march(8));
+    assert_eq!(date_of(&world, "a-state", "s1"), march(11));
 }
 
 /// Given a friendly clashing with a league match, when reconciled, then the friendly is dropped and the league match stays.
@@ -639,8 +639,8 @@ fn postponements_are_recorded_only_when_asked_and_keep_the_first_date() {
     assert!(published[1].fixtures[0].date > text(march(11)));
 }
 
-/// Given a seeded round whose feeding round ends later than it begins, when reconciled, then the
-/// later round is not dated before the round that feeds it.
+/// Given a feeding round pushed past its successor's date by an international window, when reconciled,
+/// then the successor moves to after the last match that feeds it.
 #[test]
 fn a_seeded_round_is_never_dated_before_its_feeding_round() {
     let round_one = vec![
@@ -649,6 +649,8 @@ fn a_seeded_round_is_never_dated_before_its_feeding_round() {
     ];
     let round_two = vec![fx("cup", "c3", march(10), "e", "f", Kind::Cup)];
     let mut world = vec![knockout("cup", 1, vec![round_one, round_two], &[])];
-    run(&mut world);
+    let blackout: BTreeSet<_> = (9..=11).map(march).collect();
+    reconcile(&mut world, &blackout, today(), true).unwrap();
+    assert_eq!(date_of(&world, "cup", "c1"), march(12));
     assert!(date_of(&world, "cup", "c3") > date_of(&world, "cup", "c1"));
 }
