@@ -44,6 +44,10 @@ vi.mock("react-i18next", () => ({
       if (key === "common.value") return "Value";
       if (key === "common.wage") return "Wage";
       if (key === "common.age") return "Age";
+      if (key.startsWith("common.ordinal.")) {
+        const suffix = { one: "st", two: "nd", few: "rd", other: "th" }[key.split(".")[2]];
+        return `${params?.n}${suffix}`;
+      }
       if (key === "common.viewTeam") return "View team";
       if (key === "common.freeAgent") return "Free Agent";
       if (key === "common.unknown") return "Unknown";
@@ -549,6 +553,39 @@ describe("PlayerProfile contract surfaces", () => {
       expect(invoke).toHaveBeenCalledWith("get_scouted_report", { playerId: player.id });
     });
     expect(screen.getByText("playerProfile.attributesHidden")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player born on 10 March 2000 and a game date of 1 August 2030
+   * When the profile opens
+   * Then it shows age 30
+   */
+  it("shows the age on the game's current date", () => {
+    const player = createPlayer({ date_of_birth: "2000-03-10" });
+    const state = createGameState(player);
+    state.clock = { ...state.clock, current_date: "2030-08-01T00:00:00Z" };
+
+    render(<PlayerProfile player={player} gameState={state} isOwnClub onClose={vi.fn()} />);
+
+    expect(screen.getByText("Age 30")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the same player the day before and the day after his birthday in 2031
+   * When the profile opens on each date
+   * Then it shows 30, then 31
+   */
+  it.each([
+    { date: "2031-03-09T00:00:00Z", age: 30 },
+    { date: "2031-03-10T00:00:00Z", age: 31 },
+  ])("changes the age when the birthday passes ($date)", ({ date, age }) => {
+    const player = createPlayer({ date_of_birth: "2000-03-10" });
+    const state = createGameState(player);
+    state.clock = { ...state.clock, current_date: date };
+
+    render(<PlayerProfile player={player} gameState={state} isOwnClub onClose={vi.fn()} />);
+
+    expect(screen.getByText(`Age ${age}`)).toBeInTheDocument();
   });
 
   it("renders expiry date, years remaining, and contract risk for the selected player", () => {

@@ -405,6 +405,12 @@
     "potLimited": "Terbatas"
   },
   "common": {
+    "ordinal": {
+      "one": "ke-{{n}}",
+      "two": "ke-{{n}}",
+      "few": "ke-{{n}}",
+      "other": "ke-{{n}}"
+    },
     "currentWage": "Gaji Saat Ini",
     "loading": "Memuat...",
     "loadingGameState": "Memuat status permainan...",

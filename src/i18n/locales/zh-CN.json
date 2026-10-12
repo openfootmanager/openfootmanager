@@ -405,6 +405,12 @@
     "potLimited": "有限"
   },
   "common": {
+    "ordinal": {
+      "one": "第{{n}}",
+      "two": "第{{n}}",
+      "few": "第{{n}}",
+      "other": "第{{n}}"
+    },
     "currentWage": "当前工资",
     "loading": "加载中……",
     "loadingGameState": "加载游戏状态中……",

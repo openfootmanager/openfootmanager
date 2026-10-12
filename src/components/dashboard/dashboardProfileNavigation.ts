@@ -147,7 +147,7 @@ export function openDashboardSearchPlayer(
   id: string,
 ): DashboardProfileNavigationState {
   return {
-    ...state,
+    ...pushDashboardHistory(state),
     selectedPlayerId: id,
     selectedPlayerOptions: null,
     selectedTeamId: null,
@@ -159,7 +159,7 @@ export function openDashboardSearchTeam(
   id: string,
 ): DashboardProfileNavigationState {
   return {
-    ...state,
+    ...pushDashboardHistory(state),
     selectedTeamId: id,
     selectedPlayerId: null,
     selectedPlayerOptions: null,

@@ -405,6 +405,12 @@
     "promoteToSeniorSquad": "In den Profikader befördern"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.",
+      "two": "{{n}}.",
+      "few": "{{n}}.",
+      "other": "{{n}}."
+    },
     "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",

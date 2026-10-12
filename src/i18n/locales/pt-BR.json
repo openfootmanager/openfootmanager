@@ -405,6 +405,12 @@
     "promoteToSeniorSquad": "Promover ao elenco principal"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}º",
+      "two": "{{n}}º",
+      "few": "{{n}}º",
+      "other": "{{n}}º"
+    },
     "currentWage": "Salário atual",
     "loading": "Carregando...",
     "loadingGameState": "Carregando estado do jogo...",

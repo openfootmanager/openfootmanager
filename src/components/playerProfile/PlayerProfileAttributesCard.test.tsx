@@ -101,4 +101,47 @@ describe("PlayerProfileAttributesCard", () => {
       expect(button.className).toContain("dark:focus-visible:ring-primary-400");
     }
   });
+
+  /**
+   * Given a player nobody has scouted
+   * When the card renders
+   * Then it says the attributes are unknown, and shows no attribute names, bars or numbers
+   */
+  it("shows an explicit unknown state instead of invented bars", () => {
+    renderCard({});
+
+    expect(screen.getByText("Attributes Hidden")).toBeInTheDocument();
+    expect(screen.getByText("Scout this player")).toBeInTheDocument();
+    expect(screen.queryByText("Physical")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pace")).not.toBeInTheDocument();
+    expect(screen.queryByText("??")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the same unscouted player in two game languages (attribute names translated)
+   * When the card renders in each
+   * Then the unknown state is identical: nothing in it is derived from the translated names
+   */
+  it("does not change with the language of the attribute names", () => {
+    const rendered = (label: string, name: string) => {
+      const { container, unmount } = render(
+        <PlayerProfileAttributesCard
+          attrGroups={[{ label, attrs: [{ name, value: 71 }], average: 71 }]}
+          player={{} as PlayerData}
+          attributesVisible={false}
+          title="Attributes"
+          averageLabel="Average"
+          hiddenTitle="Attributes Hidden"
+          hiddenBody="Scout this player"
+          listLabel="List"
+          radarLabel="Radar"
+        />,
+      );
+      const html = container.innerHTML;
+      unmount();
+      return html;
+    };
+
+    expect(rendered("Physical", "Pace")).toBe(rendered("Físico", "Ritmo"));
+  });
 });

@@ -405,6 +405,12 @@
     "potLimited": "Limited"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}st",
+      "two": "{{n}}nd",
+      "few": "{{n}}rd",
+      "other": "{{n}}th"
+    },
     "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",

@@ -405,6 +405,12 @@
     "potLimited": "Omezený"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.",
+      "two": "{{n}}.",
+      "few": "{{n}}.",
+      "other": "{{n}}."
+    },
     "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",

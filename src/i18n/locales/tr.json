@@ -405,6 +405,12 @@
     "potLimited": "Sınırlı"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.",
+      "two": "{{n}}.",
+      "few": "{{n}}.",
+      "other": "{{n}}."
+    },
     "currentWage": "Mevcut maaş",
     "loading": "Yükleniyor...",
     "loadingGameState": "Oyun durumu yükleniyor...",

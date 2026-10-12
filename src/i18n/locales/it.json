@@ -424,6 +424,12 @@
     "promoteToSeniorSquad": "Promuovi in prima squadra"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}º",
+      "two": "{{n}}º",
+      "few": "{{n}}º",
+      "other": "{{n}}º"
+    },
     "currentWage": "Stipendio attuale",
     "loading": "Caricamento...",
     "loadingGameState": "Caricamento stato di gioco...",

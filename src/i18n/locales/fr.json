@@ -405,6 +405,12 @@
     "promoteToSeniorSquad": "Promouvoir en équipe première"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}er",
+      "two": "{{n}}e",
+      "few": "{{n}}e",
+      "other": "{{n}}e"
+    },
     "currentWage": "Salaire actuel",
     "loading": "Chargement...",
     "loadingGameState": "Chargement de l'état du jeu...",
