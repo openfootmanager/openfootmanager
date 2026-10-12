@@ -27,6 +27,15 @@ OFM_E2E_SEED=7 xvfb-run -a cargo test -p mcp-e2e -- --ignored --test-threads=2
 A failure prints the binary, port, launch arguments, the last 50 log lines and the directory it kept,
 and the repro line: `OFM_E2E_SEED=<seed> xvfb-run cargo test -p mcp-e2e --test <story> <scenario> -- --ignored --nocapture`.
 
+## A stale binary is refused
+
+The app reports the sources it was built from in the MCP `initialize` result (`serverInfo.version`
+is `0.3.0+<revision>`). The revision digests the committed files under `src-tauri`, plus uncommitted
+changes and untracked files, and leaves out this crate (editing a test never needs an app rebuild).
+The fixture computes the same revision for the working tree and refuses a binary that differs,
+naming the rebuild command: `cargo build --features mcp --bin openfootmanager` from `src-tauri`.
+`OFM_E2E_ALLOW_STALE=1` skips the check for a binary you know is different.
+
 ## Writing a scenario
 
 - `App::launch(&AppConfig::default())` starts a sandbox on a free port with private
