@@ -91,7 +91,7 @@ fn compute_coaching_bonus(game: &Game, team_id: &str, focus: &TrainingFocus) -> 
 
 struct TrainingDay {
     weekday_num: u32,
-    year: u32,
+    date: chrono::NaiveDate,
 }
 
 /// Below this individual condition a player is automatically rested in training
@@ -240,14 +240,8 @@ struct TeamTrainingPlan {
 ///
 /// `weekday_num` is 0=Mon .. 6=Sun (chrono Weekday::num_days_from_monday()).
 pub fn process_training(game: &mut Game, weekday_num: u32) {
-    // Derive the current year from the game clock for accurate age calculations.
-    let current_year = game
-        .clock
-        .current_date
-        .format("%Y")
-        .to_string()
-        .parse::<u32>()
-        .unwrap_or(2026);
+    // Ages are reckoned on the game's own date.
+    let current_date = game.clock.current_date.date_naive();
 
     // Index each team's plan by id so players are visited once (O(teams + players))
     // instead of rescanning every player for every team (O(teams * players)).
@@ -287,7 +281,7 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
 
     let day = TrainingDay {
         weekday_num,
-        year: current_year,
+        date: current_date,
     };
     // One stream for the day's session: players are visited in the order of `game.players`,
     // which is stable, and `process_training` runs once a day.
@@ -405,7 +399,7 @@ fn train_player(
     // Age, morale, and current condition all affect recovery rate.
     // Older players recover more slowly; high morale aids recovery;
     // severely fatigued players have a harder time bouncing back.
-    let age = estimate_age(&player.date_of_birth, day.year);
+    let age = domain::age::playing_age(day.date, &player.date_of_birth);
     let age_rec = recovery_factor_from_age(age);
     let morale_rec = recovery_factor_from_morale(player.morale);
     let condition_rec = recovery_factor_from_condition(player.condition);
@@ -475,7 +469,7 @@ fn train_player(
     );
 
     // Refresh position-weighted OVR and traits after attribute gains.
-    refresh_player_derived(player, day.year);
+    refresh_player_derived(player, day.date);
 
     // Apply condition: deplete from training, then recover
     player.condition = player.condition.saturating_sub(session.condition_cost);
@@ -556,16 +550,6 @@ fn apply_focus_gains(
     }
 }
 
-/// Estimate player age from date_of_birth string ("YYYY-MM-DD").
-fn estimate_age(dob: &str, as_of_year: u32) -> u32 {
-    let parts: Vec<&str> = dob.split('-').collect();
-    if parts.is_empty() {
-        return 25; // fallback
-    }
-    let birth_year: u32 = parts[0].parse().unwrap_or(2000);
-    as_of_year.saturating_sub(birth_year)
-}
-
 /// Recovery multiplier from age: younger players bounce back faster.
 fn recovery_factor_from_age(age: u32) -> f64 {
     if age <= 21 {
@@ -625,14 +609,6 @@ fn clamp_fitness(val: i16) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    /// Given a player born on the last day of 2000, when his age is estimated for 2026,
-    /// then he is 25 in July: the year of his birth alone would say 26.
-    #[test]
-    fn a_december_birthday_is_not_a_year_older_in_training() {
-        assert_eq!(estimate_age("2000-12-31", 2026), 25);
-        assert_eq!(estimate_age("2000-01-01", 2026), 26);
-    }
-
     use super::*;
     use crate::world::test_fixtures::{manager_for, nation_team, player_at};
     use chrono::{Datelike, TimeZone, Utc};
@@ -685,7 +661,7 @@ mod tests {
         player.condition = 100;
         player.fitness = 80;
         player.morale = 80;
-        refresh_player_derived(&mut player, 2026);
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
         player
     }
 
@@ -892,7 +868,7 @@ mod tests {
         let mut player = keeper("team1");
         player.attributes.handling = 98;
         player.attributes.reflexes = 98;
-        refresh_player_derived(&mut player, 2026);
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
         let plan = plan(TrainingFocus::Technical);
         session(&mut player, &plan, 0);
         session(&mut player, &plan, 0);
@@ -972,7 +948,7 @@ mod tests {
         let mut player = keeper("team1");
         player.attributes.handling = 84;
         player.attributes.reflexes = 84;
-        refresh_player_derived(&mut player, 2026);
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
         let before_ovr = player.ovr;
         assert!(!player.traits.contains(&PlayerTrait::SafeHands));
         assert!(!player.traits.contains(&PlayerTrait::CatReflexes));
