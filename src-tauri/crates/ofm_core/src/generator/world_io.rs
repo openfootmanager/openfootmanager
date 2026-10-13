@@ -187,9 +187,13 @@ const COMPETITION_DEFINITIONS_INVALID_ERROR: &str = "be.error.competitionDef.inv
 
 /// Reject a world whose embedded competition definitions don't validate, so a
 /// broken definition file never loads half-applied.
-fn validate_embedded_definitions(world: &WorldData) -> Result<(), String> {
+fn validate_embedded_definitions(
+    world: &WorldData,
+    basis: super::ReputationBasis<'_>,
+) -> Result<(), String> {
     if let Some(file) = &world.competition_definitions
-        && !super::competition_def::validate_definitions_for_world(file, world).is_empty()
+        && !super::competition_def::validate_definitions_for_world_ranked(file, world, basis)
+            .is_empty()
     {
         return Err(COMPETITION_DEFINITIONS_INVALID_ERROR.to_string());
     }
@@ -201,7 +205,7 @@ pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
     let world: WorldData =
         serde_json::from_str(json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let world = normalize_world(world);
-    validate_embedded_definitions(&world)?;
+    validate_embedded_definitions(&world, super::ReputationBasis::Stored)?;
     Ok(world)
 }
 
@@ -218,7 +222,10 @@ pub fn build_world_from_package(
         opening_year,
         sources,
     ));
-    validate_embedded_definitions(&world)?;
+    // Ranked by the package's authored reputations, as `resolve_definitions_ranked` will be when a
+    // career starts, so a package that builds here is not refused there on a reputation roll.
+    let authored = super::authored_reputations(package);
+    validate_embedded_definitions(&world, super::ReputationBasis::Authored(&authored))?;
     Ok(world)
 }
 

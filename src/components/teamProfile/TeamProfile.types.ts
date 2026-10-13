@@ -12,7 +12,23 @@ export interface TeamProfileProps {
 
 export type TeamProfileTranslate = TFunction;
 
-export type LeagueStanding = NonNullable<GameStateData["league"]>["standings"][number];
+/** The backend's answer for a club's league table: which table, where it stands, and its record. */
+export interface ClubLeagueStanding {
+  competition_id: string;
+  competition_name: string;
+  league_pos: number;
+  standing: {
+    played: number;
+    won: number;
+    drawn: number;
+    lost: number;
+    goals_for: number;
+    goals_against: number;
+    points: number;
+  };
+}
+
+export type LeagueStanding = ClubLeagueStanding["standing"];
 
 export interface TeamProfileViewModel {
   roster: PlayerData[];

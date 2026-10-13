@@ -15,11 +15,31 @@ use ofm_core::world::preseason_league_year;
 
 use super::{apply_generated_past_history, ensure_multi_competition_foundations, StartupOptions};
 
+/// Only a world that is not built from a package comes through here: the MCP bootstrap, and tests.
+#[cfg(any(test, feature = "mcp"))]
 pub(super) fn build_game_from_world_data(
     clock: GameClock,
     manager: Manager,
     startup_options: &StartupOptions,
     world: ofm_core::generator::WorldData,
+) -> (Game, StatsState) {
+    build_game_from_world_data_ranked(
+        clock,
+        manager,
+        startup_options,
+        world,
+        ofm_core::generator::ReputationBasis::Stored,
+    )
+}
+
+/// [`build_game_from_world_data`], resolving the world's competition definitions with clubs
+/// ranked by `reputation_basis`.
+pub(super) fn build_game_from_world_data_ranked(
+    clock: GameClock,
+    manager: Manager,
+    startup_options: &StartupOptions,
+    world: ofm_core::generator::WorldData,
+    reputation_basis: ofm_core::generator::ReputationBasis<'_>,
 ) -> (Game, StatsState) {
     // Resolve any authored competition definitions while we still hold the
     // world (validation already passed at load). These replace the auto-built
@@ -33,9 +53,10 @@ pub(super) fn build_game_from_world_data(
         .competition_definitions
         .as_ref()
         .map(|file| {
-            let mut comps = ofm_core::generator::resolve_definitions(
+            let mut comps = ofm_core::generator::resolve_definitions_ranked(
                 file,
                 &world,
+                reputation_basis,
                 preseason_league_year(&clock),
                 game_start,
             );
