@@ -231,8 +231,7 @@ where
     // National-team football: window friendlies and any running World Cup.
     // Both self-filter by date, so they are no-ops on other days.
     crate::national_team::process_national_team_fixtures_due(game, today);
-    let mut world_cup_rng = game.rng_for("world-cup", today);
-    crate::world_cup::process_world_cup_fixtures_due(game, today, &mut world_cup_rng);
+    crate::world_cup::process_world_cup_fixtures_due(game, today);
 }
 
 /// Process a single day advance.
