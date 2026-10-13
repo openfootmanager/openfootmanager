@@ -405,6 +405,12 @@
     "potLimited": "Limited"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}st",
+      "two": "{{n}}nd",
+      "few": "{{n}}rd",
+      "other": "{{n}}th"
+    },
     "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",
@@ -2059,7 +2065,7 @@
     "postMatchTeamTalk": "Post-Match Team Talk",
     "addressPlayers": "Address your players after the match.",
     "matchOver": "Match Over",
-    "performance": "{{team}} Performance",
+    "ratings": "{{team}} Ratings",
     "motm": "Man of the Match",
     "roundSummary": "Round Summary",
     "roundSummaryUnavailable": "Round summary unavailable.",
@@ -2535,7 +2541,7 @@
       }
     },
     "matchReport": "Match Report",
-    "playerPerformance": "Player Performance",
+    "playerRatings": "Player Ratings",
     "tacticsTab": "Tactics",
     "goalSources": "Goal Sources",
     "openPlay": "Open Play",
@@ -3950,6 +3956,7 @@
     "playerPosition": "Position",
     "playerFoot": "Preferred Foot",
     "playerDateOfBirth": "Date of Birth",
+    "playerAgeToday": "age {{age}} today",
     "playerAge": "Age",
     "playerAgeHelp": "Used when no date of birth is given: the player is this old on the day a career opens, in whatever year that is.",
     "playerContractSection": "Contract",

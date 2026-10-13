@@ -405,6 +405,12 @@
     "potLimited": "Terbatas"
   },
   "common": {
+    "ordinal": {
+      "one": "ke-{{n}}",
+      "two": "ke-{{n}}",
+      "few": "ke-{{n}}",
+      "other": "ke-{{n}}"
+    },
     "currentWage": "Gaji Saat Ini",
     "loading": "Memuat...",
     "loadingGameState": "Memuat status permainan...",
@@ -2059,7 +2065,7 @@
     "postMatchTeamTalk": "Sesi Tim Pascapertandingan",
     "addressPlayers": "Sapa para pemain setelah pertandingan.",
     "matchOver": "Pertandingan Selesai",
-    "performance": "Performa {{team}}",
+    "ratings": "Rating {{team}}",
     "motm": "Pemain Terbaik",
     "roundSummary": "Ringkasan Pekan",
     "roundSummaryUnavailable": "Ringkasan pekan tidak tersedia.",
@@ -2535,7 +2541,7 @@
       }
     },
     "matchReport": "Laporan Pertandingan",
-    "playerPerformance": "Performa Pemain",
+    "playerRatings": "Rating Pemain",
     "tacticsTab": "Taktik",
     "goalSources": "Sumber Gol",
     "openPlay": "Permainan Terbuka",
@@ -3950,6 +3956,7 @@
     "playerPosition": "Posisi",
     "playerFoot": "Kaki Favorit",
     "playerDateOfBirth": "Tanggal Lahir",
+    "playerAgeToday": "{{age}} tahun hari ini",
     "playerAge": "Umur",
     "playerAgeHelp": "Dipakai bila tanggal lahir tidak diberikan: pemain berusia sekian pada hari karier dimulai, tahun berapa pun itu.",
     "playerContractSection": "Kontrak",

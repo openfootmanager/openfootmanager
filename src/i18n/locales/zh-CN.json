@@ -405,6 +405,12 @@
     "potLimited": "有限"
   },
   "common": {
+    "ordinal": {
+      "one": "第{{n}}",
+      "two": "第{{n}}",
+      "few": "第{{n}}",
+      "other": "第{{n}}"
+    },
     "currentWage": "当前工资",
     "loading": "加载中……",
     "loadingGameState": "加载游戏状态中……",
@@ -2025,7 +2031,7 @@
     "postMatchTeamTalk": "赛后讲话",
     "addressPlayers": "在赛后对球员发表讲话。",
     "matchOver": "比赛结束",
-    "performance": "{{team}} 表现",
+    "ratings": "{{team}} 评分",
     "motm": "全场最佳",
     "roundSummary": "本轮综述",
     "roundSummaryUnavailable": "本轮综述暂不可用。",
@@ -2535,7 +2541,7 @@
       }
     },
     "matchReport": "比赛报告",
-    "playerPerformance": "球员表现",
+    "playerRatings": "球员评分",
     "tacticsTab": "战术",
     "goalSources": "进球来源",
     "openPlay": "进攻中的进球",
@@ -3950,6 +3956,7 @@
     "playerPosition": "位置",
     "playerFoot": "惯用脚",
     "playerDateOfBirth": "出生日期",
+    "playerAgeToday": "今天 {{age}} 岁",
     "playerAge": "年龄",
     "playerAgeHelp": "未填写出生日期时使用：球员在生涯开始当天是这个年龄，无论是哪一年。",
     "playerContractSection": "合同",

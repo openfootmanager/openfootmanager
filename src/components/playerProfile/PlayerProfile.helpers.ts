@@ -65,21 +65,6 @@ export function getPlayerTeamName(
   return teams.find((team) => team.id === teamId)?.name ?? labels.unknown;
 }
 
-export function getPlayerAge(dateOfBirth: string, asOfDate: string = "2026-07-01"): number {
-  const birthDate = new Date(dateOfBirth);
-  const currentDate = new Date(asOfDate);
-  let age = currentDate.getFullYear() - birthDate.getFullYear();
-
-  if (
-    currentDate.getMonth() < birthDate.getMonth() ||
-    (currentDate.getMonth() === birthDate.getMonth() && currentDate.getDate() < birthDate.getDate())
-  ) {
-    age -= 1;
-  }
-
-  return age;
-}
-
 export function formatPlayerMarketValue(value: number): string {
   return formatVal(value);
 }

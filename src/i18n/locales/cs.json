@@ -405,6 +405,12 @@
     "potLimited": "Omezený"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.",
+      "two": "{{n}}.",
+      "few": "{{n}}.",
+      "other": "{{n}}."
+    },
     "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
@@ -2059,7 +2065,7 @@
     "postMatchTeamTalk": "Pozápasový proslov",
     "addressPlayers": "Promluvte k hráčům po skončení zápasu.",
     "matchOver": "Zápas skončil",
-    "performance": "Výkony týmu {{team}}",
+    "ratings": "Hodnocení týmu {{team}}",
     "motm": "Hráč zápasu",
     "roundSummary": "Shrnutí kola",
     "roundSummaryUnavailable": "Shrnutí kola není k dispozici.",
@@ -2535,7 +2541,7 @@
       }
     },
     "matchReport": "Zpráva ze zápasu",
-    "playerPerformance": "Výkony hráčů",
+    "playerRatings": "Hodnocení hráčů",
     "tacticsTab": "Taktika",
     "goalSources": "Zdroje gólů",
     "openPlay": "Ze hry",
@@ -3950,6 +3956,7 @@
     "playerPosition": "Pozice",
     "playerFoot": "Preferovaná noha",
     "playerDateOfBirth": "Datum narození",
+    "playerAgeToday": "dnes {{age}} let",
     "playerAge": "Věk",
     "playerAgeHelp": "Používá se, když chybí datum narození: hráči je tolik let v den zahájení kariéry, ať je to kterýkoli rok.",
     "playerContractSection": "Smlouva",

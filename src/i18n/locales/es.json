@@ -405,6 +405,12 @@
     "promoteToSeniorSquad": "Ascender al primer equipo"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.º",
+      "two": "{{n}}.º",
+      "few": "{{n}}.º",
+      "other": "{{n}}.º"
+    },
     "currentWage": "Salario actual",
     "loading": "Cargando...",
     "loadingGameState": "Cargando estado del juego...",
@@ -2025,7 +2031,7 @@
     "postMatchTeamTalk": "Charla Post-Partido",
     "addressPlayers": "Dirígete a tus jugadores después del partido.",
     "matchOver": "Partido Terminado",
-    "performance": "Rendimiento de {{team}}",
+    "ratings": "Calificaciones de {{team}}",
     "motm": "Mejor del Partido",
     "roundSummary": "Resumen de la Jornada",
     "roundSummaryUnavailable": "No hay resumen de la jornada disponible.",
@@ -2535,7 +2541,7 @@
       }
     },
     "matchReport": "Informe del partido",
-    "playerPerformance": "Rendimiento de jugadores",
+    "playerRatings": "Valoraciones",
     "tacticsTab": "Táctica",
     "goalSources": "Fuentes de gol",
     "openPlay": "Juego abierto",
@@ -3950,6 +3956,7 @@
     "playerPosition": "Posición",
     "playerFoot": "Pie Preferido",
     "playerDateOfBirth": "Fecha de nacimiento",
+    "playerAgeToday": "{{age}} años hoy",
     "playerAge": "Edad",
     "playerAgeHelp": "Se usa cuando no hay fecha de nacimiento: el jugador tiene esta edad el día en que empieza la carrera, sea cual sea el año.",
     "playerContractSection": "Contrato",
