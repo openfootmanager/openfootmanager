@@ -625,6 +625,14 @@ fn clamp_fitness(val: i16) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    /// Given a player born on the last day of 2000, when his age is estimated for 2026,
+    /// then he is 25 in July: the year of his birth alone would say 26.
+    #[test]
+    fn a_december_birthday_is_not_a_year_older_in_training() {
+        assert_eq!(estimate_age("2000-12-31", 2026), 25);
+        assert_eq!(estimate_age("2000-01-01", 2026), 26);
+    }
+
     use super::*;
     use crate::world::test_fixtures::{manager_for, nation_team, player_at};
     use chrono::{Datelike, TimeZone, Utc};

@@ -735,6 +735,35 @@ mod tests {
         assert_eq!(slots[10], Position::Striker);
     }
 
+    /// Given a high-potential player born in December of the year he turns 21, when his derived
+    /// ratings are refreshed in 2026, then he is still 20 in July and is a Wonderkid: the year of
+    /// his birth alone would call him 21.
+    #[test]
+    fn a_december_birthday_does_not_age_a_player_a_year_early() {
+        let mut player = make_player(Position::Striker);
+        player.date_of_birth = "2005-12-01".to_string();
+        player.natural_position = Position::Striker;
+        player.potential = 95;
+
+        refresh_player_derived(&mut player, 2026);
+
+        assert!(player.traits.contains(&PlayerTrait::Wonderkid));
+    }
+
+    /// Given the same player born in January, when refreshed, then he is a Wonderkid too:
+    /// the fix moves the December birthdays, not the January ones.
+    #[test]
+    fn a_january_birthday_is_the_same_age_as_before() {
+        let mut player = make_player(Position::Striker);
+        player.date_of_birth = "2006-01-01".to_string();
+        player.natural_position = Position::Striker;
+        player.potential = 95;
+
+        refresh_player_derived(&mut player, 2026);
+
+        assert!(player.traits.contains(&PlayerTrait::Wonderkid));
+    }
+
     #[test]
     fn refresh_does_not_award_wonderkid_below_elite_potential_threshold() {
         let mut player = make_player(Position::Striker);
