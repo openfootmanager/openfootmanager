@@ -53,6 +53,10 @@ struct Item<'a> {
     date: NaiveDate,
     layer: Layer,
     movable: bool,
+    /// Where the fixture sorts among its competition's: a knockout match is never earlier than the
+    /// latest match of any round before it, so a feeding round authored after its successor
+    /// still settles first.
+    settle_on: NaiveDate,
 }
 
 impl<'a> Item<'a> {
@@ -85,14 +89,32 @@ fn collect_items<'a>(
                 date,
                 layer,
                 movable,
+                settle_on: date,
             });
         }
     }
+    let rounds = round_index(competitions);
+    let latest_per_round = latest_date_per_round(&items, &rounds);
+    for item in &mut items {
+        if let Some(&round) = rounds.get(&item.key()) {
+            let earlier_rounds = latest_per_round
+                .get(item.competition.id.as_str())
+                .map_or(&[][..], |dates| &dates[..round.min(dates.len())]);
+            item.settle_on = earlier_rounds
+                .iter()
+                .flatten()
+                .copied()
+                .fold(item.date, NaiveDate::max);
+        }
+    }
+    let round_of = |item: &Item<'_>| rounds.get(&item.key()).copied().unwrap_or(0);
     items.sort_by(|a, b| {
         (
             a.movable,
             std::cmp::Reverse(a.layer),
             a.competition.priority,
+            a.settle_on,
+            round_of(a),
             a.date,
             a.key(),
         )
@@ -100,11 +122,32 @@ fn collect_items<'a>(
                 b.movable,
                 std::cmp::Reverse(b.layer),
                 b.competition.priority,
+                b.settle_on,
+                round_of(b),
                 b.date,
                 b.key(),
             ))
     });
     Ok(items)
+}
+
+/// The latest authored date of each knockout round of each competition, by round index.
+fn latest_date_per_round<'a>(
+    items: &[Item<'a>],
+    rounds: &HashMap<(&str, &str), usize>,
+) -> HashMap<&'a str, Vec<Option<NaiveDate>>> {
+    let mut latest: HashMap<&str, Vec<Option<NaiveDate>>> = HashMap::new();
+    for item in items {
+        let Some(&round) = rounds.get(&item.key()) else {
+            continue;
+        };
+        let per_round = latest.entry(item.competition.id.as_str()).or_default();
+        if per_round.len() <= round {
+            per_round.resize(round + 1, None);
+        }
+        per_round[round] = per_round[round].max(Some(item.date));
+    }
+    latest
 }
 
 /// Index of each knockout fixture's round within its competition.
@@ -208,14 +251,21 @@ impl<'a> Settling<'a> {
     }
 }
 
+/// The dates of other cups' matches that involve one of `clubs`: the rest window is a per-club
+/// rule, so a cup none of these clubs plays in cannot block them.
 fn cup_dates_outside(
     settled: &HashMap<(&str, &str), NaiveDate>,
     items: &[Item<'_>],
     competition_id: &str,
+    clubs: &[&str],
 ) -> BTreeSet<NaiveDate> {
     items
         .iter()
         .filter(|item| item.layer >= Layer::DomesticCup && item.competition.id != competition_id)
+        .filter(|item| {
+            clubs.contains(&item.fixture.home_team_id.as_str())
+                || clubs.contains(&item.fixture.away_team_id.as_str())
+        })
         .filter_map(|item| settled.get(&item.key()).copied())
         .collect()
 }
@@ -296,7 +346,12 @@ fn book_all_shadows<'a>(
             .map_or(Layer::DomesticCup, |item| {
                 item.layer.max(Layer::DomesticCup)
             });
-        let others = cup_dates_outside(&settling.settled, items, &cup.id);
+        let others = cup_dates_outside(
+            &settling.settled,
+            items,
+            &cup.id,
+            &shadows::alive_clubs(cup),
+        );
         shadows::book_cup_shadows(
             &mut settling.occupancy,
             cup,

@@ -8,7 +8,7 @@ use std::collections::{BTreeSet, HashMap};
 
 /// Clubs that can still play in `cup`: every entrant before a bracket exists, then the clubs of
 /// the latest incomplete round and its byes. A group stage has no shadows until its bracket exists.
-fn alive_clubs(cup: &League) -> Vec<&str> {
+pub(super) fn alive_clubs(cup: &League) -> Vec<&str> {
     match cup
         .knockout_rounds
         .iter()

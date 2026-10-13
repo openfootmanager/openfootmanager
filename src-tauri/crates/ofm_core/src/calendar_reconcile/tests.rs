@@ -463,26 +463,27 @@ fn an_eliminated_club_frees_its_shadow_dates() {
     for fixture in cup.fixtures.iter_mut().filter(|f| f.id.starts_with('q')) {
         fixture.status = FixtureStatus::Completed;
     }
-    // The final would be predicted for Mar 4 (gap 3), but the continental tie on Mar 2 is another
-    // cup-layer date, so the final is predicted for Mar 5 for a, c, e and g. Both league matches clash
-    // on Mar 2: the survivor's with its semifinal, the eliminated club's with the continental tie.
+    // The final would be predicted for Mar 4 (gap 3), but a continental tie of the surviving club
+    // "a" on Mar 4 is another cup-layer date involving a finalist, so the final is predicted for
+    // Mar 7 for a, c, e and g. Both league matches clash on Mar 4 with that tie: the survivor's
+    // and the eliminated club's, which is its opponent.
     let euro = competition(
         "euro",
         9,
-        vec![fx("euro", "e1", march(2), "b", "z", Kind::ContinentalClub)],
+        vec![fx("euro", "e1", march(4), "b", "a", Kind::ContinentalClub)],
     );
     let league = competition(
         "league",
         2,
         vec![
-            fx("league", "survivor", march(2), "a", "x", Kind::League),
-            fx("league", "eliminated", march(2), "b", "y", Kind::League),
+            fx("league", "survivor", march(4), "a", "x", Kind::League),
+            fx("league", "eliminated", march(4), "b", "y", Kind::League),
         ],
     );
     let mut world = vec![cup, euro, league];
     run(&mut world);
-    assert_eq!(date_of(&world, "league", "eliminated"), march(5));
-    assert_eq!(date_of(&world, "league", "survivor"), march(8));
+    assert_eq!(date_of(&world, "league", "eliminated"), march(7));
+    assert_eq!(date_of(&world, "league", "survivor"), march(10));
 }
 
 /// Given the same world twice, when reconciled, then the second sweep moves nothing.
@@ -653,4 +654,54 @@ fn a_seeded_round_is_never_dated_before_its_feeding_round() {
     reconcile(&mut world, &blackout, today(), true).unwrap();
     assert_eq!(date_of(&world, "cup", "c1"), march(12));
     assert!(date_of(&world, "cup", "c3") > date_of(&world, "cup", "c1"));
+}
+
+/// Given round two authored before round one, when reconciled, then round two is moved to after
+/// the last match of round one.
+#[test]
+fn a_successor_authored_before_its_feeders_is_moved_after_them() {
+    let round_one = vec![
+        fx("cup", "c1", march(12), "a", "b", Kind::Cup),
+        fx("cup", "c2", march(12), "c", "d", Kind::Cup),
+    ];
+    let round_two = vec![fx("cup", "c3", march(10), "e", "f", Kind::Cup)];
+    let mut world = vec![knockout("cup", 1, vec![round_one, round_two], &[])];
+    let plan = run(&mut world);
+    assert_eq!(date_of(&world, "cup", "c1"), march(12));
+    assert!(date_of(&world, "cup", "c3") > march(12));
+    assert_eq!(plan.moves.len(), 1);
+}
+
+/// Given a cup with a round still to be drawn and many unrelated cups playing nearby dates, when a
+/// league match of a club in the first cup is displaced, then the unrelated cups do not push the
+/// first cup's predicted round away: the match avoids the predicted date.
+#[test]
+fn unrelated_cups_do_not_hide_a_cups_predicted_round() {
+    let aug = |d: u32| day(2033, 8, d);
+    let ties = vec![
+        fx("cup", "t1", aug(1), "a", "b", Kind::Cup),
+        fx("cup", "t2", aug(1), "c", "d", Kind::Cup),
+    ];
+    let mut world = vec![
+        knockout("cup", 1, vec![ties], &[]),
+        competition(
+            "league",
+            9,
+            vec![fx("league", "l1", aug(2), "a", "z", Kind::League)],
+        ),
+    ];
+    for index in 0..19u32 {
+        let id = format!("other-{index}");
+        let fixture = fx(
+            &id,
+            "o1",
+            aug(2 + index),
+            &format!("p{index}"),
+            &format!("q{index}"),
+            Kind::Cup,
+        );
+        world.push(knockout(&id, 2, vec![vec![fixture]], &[]));
+    }
+    run(&mut world);
+    assert_eq!(date_of(&world, "league", "l1"), aug(7));
 }

@@ -10,7 +10,8 @@ pub const SEARCH_CAP_DAYS: u64 = 730;
 
 /// The first date a knockout round may be played: no earlier than the cup's own grid date and
 /// the previous round's actual last match plus the round gap, not on a blackout date and not
-/// within the rest window of another cup's round.
+/// within the rest window of `other_cup_dates`: the dates other cups play the clubs of this
+/// round, which is for the caller to choose — unrelated cups must not be in it.
 pub fn knockout_round_date(
     grid_date: NaiveDate,
     previous_round_last: Option<NaiveDate>,
