@@ -1087,6 +1087,7 @@
     "seasonIncome": "Sezon Geliri",
     "seasonExpenses": "Sezon Gideri",
     "perWeekSuffix": "/hf",
+    "snapshotLoadFailed": "Kulübün mali durumu yüklenemedi.",
     "perYearSuffix": "/yıl",
     "wagePerWeek": "Maaş/hf",
     "wagePerYear": "Yıllık maaş",

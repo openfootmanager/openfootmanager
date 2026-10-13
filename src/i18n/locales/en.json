@@ -1087,6 +1087,7 @@
     "seasonIncome": "Season Income",
     "seasonExpenses": "Season Expenses",
     "perWeekSuffix": "/wk",
+    "snapshotLoadFailed": "Could not load the club finances.",
     "perYearSuffix": "/yr",
     "wagePerWeek": "Wage/wk",
     "wagePerYear": "Wage/yr",
