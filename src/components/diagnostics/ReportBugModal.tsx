@@ -16,13 +16,13 @@ import {
   describeCareer,
   missingRequiredFields,
 } from "./ReportBugModal.helpers";
+import { Dialog } from "../ui";
 import { ReportDescribeStep } from "./ReportDescribeStep";
 import { ReportDialogActions } from "./ReportDialogActions";
 import { ReportDialogHeader } from "./ReportDialogHeader";
 import { ReportDoneStep } from "./ReportDoneStep";
 import { ReportPreviewStep } from "./ReportPreviewStep";
 import { ReportSentStep } from "./ReportSentStep";
-import { useDialogKeyboard } from "../../hooks/useDialogKeyboard";
 import { useReportSubmission } from "./useReportSubmission";
 
 type Step = "describe" | "preview" | "done" | "sent";
@@ -81,7 +81,6 @@ export function ReportBugModal({ onClose, onUploaded }: ReportBugModalProps) {
   const [includeSave, setIncludeSave] = useState(false);
   const [consent, setConsent] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
   const { uploadAvailable, diagnostics } = useReportEnvironment();
 
   // Where the player was when it broke. The backend deliberately does not duplicate this: the
@@ -139,7 +138,6 @@ export function ReportBugModal({ onClose, onUploaded }: ReportBugModalProps) {
     if (working === "export") return;
     onClose();
   }, [working, onClose]);
-  useDialogKeyboard(dialogRef, requestClose);
 
   // The backend keeps the first build so a retry resends the same bytes; once the dialog is gone
   // that copy, which may hold the save, must go too.
@@ -179,70 +177,64 @@ export function ReportBugModal({ onClose, onUploaded }: ReportBugModalProps) {
   };
 
   return (
-    // `aria-busy` because the export refuses Escape and the close button: without it the refusal
-    // is silent to a screen reader, and the dialog just appears to stop responding.
-    <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="report-bug-title"
-      aria-busy={busy}
+    // `busy` because the export refuses Escape and the close button: without it the refusal is
+    // silent to a screen reader, and the dialog just appears to stop responding.
+    <Dialog
+      labelledBy="report-bug-title"
+      onClose={requestClose}
+      busy={busy}
+      className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl p-6"
     >
-      <div
-        ref={dialogRef}
-        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
-      >
-        <ReportDialogHeader
-          step={step}
-          canUpload={canUpload}
-          closeDisabled={working === "export"}
-          onClose={requestClose}
-          headingRef={headingRef}
+      <ReportDialogHeader
+        step={step}
+        canUpload={canUpload}
+        closeDisabled={working === "export"}
+        onClose={requestClose}
+        headingRef={headingRef}
+      />
+
+      {step === "describe" && (
+        <ReportDescribeStep
+          draft={draft}
+          onDraftChange={(change) => setDraft((prev) => ({ ...prev, ...change }))}
+          showErrors={showErrors}
+          missing={missing}
         />
-
-        {step === "describe" && (
-          <ReportDescribeStep
-            draft={draft}
-            onDraftChange={(change) => setDraft((prev) => ({ ...prev, ...change }))}
-            showErrors={showErrors}
-            missing={missing}
-          />
-        )}
-        {step === "preview" && (
-          <ReportPreviewStep
-            diagnostics={diagnostics}
-            careerLine={careerLine}
-            logBytes={logBytes}
-            canAttachSave={canAttachSave}
-            includeSave={includeSave}
-            onIncludeSaveChange={changeIncludeSave}
-            busy={busy}
-            canUpload={canUpload}
-            consent={consent}
-            canConsent={canConsent}
-            onConsentChange={setConsent}
-            failure={submission.failure}
-            failureKind={submission.failureKind}
-          />
-        )}
-        {step === "sent" && submission.receipt && <ReportSentStep receipt={submission.receipt} />}
-        {step === "done" && submission.summary && (
-          <ReportDoneStep summary={submission.summary} browserFailed={submission.browserFailed} />
-        )}
-
-        <ReportDialogActions
-          step={step}
-          canUpload={canUpload}
+      )}
+      {step === "preview" && (
+        <ReportPreviewStep
+          diagnostics={diagnostics}
+          careerLine={careerLine}
+          logBytes={logBytes}
+          canAttachSave={canAttachSave}
+          includeSave={includeSave}
+          onIncludeSaveChange={changeIncludeSave}
           busy={busy}
-          canSend={consent}
-          onContinue={handleContinue}
-          onCancel={requestClose}
-          onSend={() => void submission.upload()}
-          onSaveInstead={() => void submission.exportAndOpenForm()}
-          onBack={handleBack}
-          onFinish={onClose}
+          canUpload={canUpload}
+          consent={consent}
+          canConsent={canConsent}
+          onConsentChange={setConsent}
+          failure={submission.failure}
+          failureKind={submission.failureKind}
         />
-      </div>
-    </div>
+      )}
+      {step === "sent" && submission.receipt && <ReportSentStep receipt={submission.receipt} />}
+      {step === "done" && submission.summary && (
+        <ReportDoneStep summary={submission.summary} browserFailed={submission.browserFailed} />
+      )}
+
+      <ReportDialogActions
+        step={step}
+        canUpload={canUpload}
+        busy={busy}
+        canSend={consent}
+        onContinue={handleContinue}
+        onCancel={requestClose}
+        onSend={() => void submission.upload()}
+        onSaveInstead={() => void submission.exportAndOpenForm()}
+        onBack={handleBack}
+        onFinish={onClose}
+      />
+    </Dialog>
   );
 }
