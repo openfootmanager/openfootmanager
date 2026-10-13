@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { ClubLeagueStanding } from "./TeamProfile.types";
 import { buildTeamProfileViewModel } from "./TeamProfile.viewModel";
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -181,7 +182,7 @@ describe("TeamProfile.viewModel", () => {
   it("builds a sorted roster and derived team summary", () => {
     const gameState = createGameState();
 
-    const viewModel = buildTeamProfileViewModel(createTeam(), gameState);
+    const viewModel = buildTeamProfileViewModel(createTeam(), gameState, null);
 
     expect(viewModel.roster.map((player) => player.id)).toEqual([
       "goalkeeper",
@@ -191,9 +192,7 @@ describe("TeamProfile.viewModel", () => {
     expect(viewModel.avgOvr).toBeGreaterThan(0);
     expect(viewModel.totalWages).toBe(36000);
     expect(viewModel.totalValue).toBe(1050000);
-    expect(viewModel.leaguePos).toBe(2);
     expect(viewModel.manager?.id).toBe("manager-1");
-    expect(viewModel.standings?.points).toBe(0);
   });
 
   it("sorts a roster whose positions are granular, not legacy buckets", () => {
@@ -224,7 +223,7 @@ describe("TeamProfile.viewModel", () => {
       }),
     ];
 
-    const viewModel = buildTeamProfileViewModel(createTeam(), gameState);
+    const viewModel = buildTeamProfileViewModel(createTeam(), gameState, null);
 
     expect(viewModel.roster.map((player) => player.id)).toEqual([
       "keeper",
@@ -271,110 +270,48 @@ describe("TeamProfile.viewModel", () => {
       ],
     });
 
-    const viewModel = buildTeamProfileViewModel(team, gameState);
+    const viewModel = buildTeamProfileViewModel(team, gameState, null);
 
     expect(viewModel.roster.map((player) => player.id)).toEqual(["owned-player", "loaned-in"]);
     expect(viewModel.totalWages).toBe(33000);
   });
 
-  function table(
-    id: string,
-    teamIds: string[],
-    format: "LeagueTable" | "Knockout" = "LeagueTable",
-  ) {
-    return {
-      id,
-      name: id,
-      season: 1,
-      rules: { format, counts_in_season_flow: format === "LeagueTable" },
-      participant_ids: teamIds,
-      fixtures: [],
-      standings:
-        format === "LeagueTable"
-          ? teamIds.map((teamId, index) => ({
-              team_id: teamId,
-              played: 1,
-              won: 0,
-              drawn: 0,
-              lost: 0,
-              goals_for: 0,
-              goals_against: 0,
-              points: teamIds.length - index,
-            }))
-          : [],
-    };
-  }
+  const backendStanding: ClubLeagueStanding = {
+    competition_id: "division-2",
+    competition_name: "Division 2",
+    league_pos: 4,
+    standing: {
+      played: 10,
+      won: 6,
+      drawn: 2,
+      lost: 2,
+      goals_for: 18,
+      goals_against: 9,
+      points: 20,
+    },
+  };
 
   /**
-   * Given the manager's club in one division and the viewed club in another
-   * When the viewed club's profile is built
-   * Then its position and standing come from the division that contains it
+   * Given the backend's answer for a club's league table
+   * When the profile view model is built
+   * Then it shows the backend's position and record, whatever the game state's own league holds
    */
-  it("finds the league position of a club outside the manager's division", () => {
-    const gameState = createGameState({
-      league: table("division-1", ["team-1", "team-2"]),
-      competitions: [
-        table("division-1", ["team-1", "team-2"]),
-        table("division-2", ["team-8", "team-9", "team-7"]),
-      ],
-    });
+  it("shows the backend's league position and standing", () => {
+    const viewModel = buildTeamProfileViewModel(createTeam(), createGameState(), backendStanding);
 
-    const viewModel = buildTeamProfileViewModel(createTeam({ id: "team-9" }), gameState);
-
-    expect(viewModel.leaguePos).toBe(2);
-    expect(viewModel.standings?.team_id).toBe("team-9");
+    expect(viewModel.leaguePos).toBe(4);
+    expect(viewModel.standings?.points).toBe(20);
   });
 
   /**
-   * Given a club that is in a knockout cup and in no league table
-   * When its profile is built
-   * Then it has no league position and no standing, not a cup's empty table
+   * Given the backend has no league table for the club (a cup only, or no competition)
+   * When the view model is built
+   * Then there is no league position and no standing
    */
-  it("gives a club that is only in a cup no league position", () => {
-    const gameState = createGameState({
-      competitions: [
-        table("division-1", ["team-1", "team-2"]),
-        table("cup", ["team-5"], "Knockout"),
-      ],
-    });
-
-    const viewModel = buildTeamProfileViewModel(createTeam({ id: "team-5" }), gameState);
+  it("shows no league position when the backend has none", () => {
+    const viewModel = buildTeamProfileViewModel(createTeam(), createGameState(), null);
 
     expect(viewModel.leaguePos).toBe(0);
     expect(viewModel.standings).toBeNull();
-  });
-
-  /**
-   * Given a club that appears in no competition
-   * When its profile is built
-   * Then it has no league position and no standing
-   */
-  it("gives a club in no competition no league position", () => {
-    const gameState = createGameState({
-      competitions: [table("division-1", ["team-1", "team-2"])],
-    });
-
-    const viewModel = buildTeamProfileViewModel(createTeam({ id: "team-404" }), gameState);
-
-    expect(viewModel.leaguePos).toBe(0);
-    expect(viewModel.standings).toBeNull();
-  });
-
-  /**
-   * Given a club in both a league and a cup
-   * When its profile is built
-   * Then the league table is used
-   */
-  it("uses the league table of a club that is also in a cup", () => {
-    const gameState = createGameState({
-      competitions: [
-        table("cup", ["team-1", "team-2"], "Knockout"),
-        table("division-1", ["team-2", "team-1"]),
-      ],
-    });
-
-    const viewModel = buildTeamProfileViewModel(createTeam({ id: "team-1" }), gameState);
-
-    expect(viewModel.leaguePos).toBe(2);
   });
 });

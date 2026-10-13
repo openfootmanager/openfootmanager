@@ -89,6 +89,27 @@ pub struct TeamStanding {
     pub points: u32,
 }
 
+/// A club's place in the league table it contests, for the team profile.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct ClubLeagueStanding {
+    pub competition_id: String,
+    pub competition_name: String,
+    pub league_pos: u32,
+    pub standing: TeamStanding,
+}
+
+pub fn query_club_league_standing(game: &Game, club_id: &str) -> Option<ClubLeagueStanding> {
+    let table = crate::end_of_season::club_league_table(game, club_id)?;
+    let sorted = table.sorted_standings();
+    let index = sorted.iter().position(|entry| entry.team_id == club_id)?;
+    Some(ClubLeagueStanding {
+        competition_id: table.id.clone(),
+        competition_name: table.name.clone(),
+        league_pos: index as u32 + 1,
+        standing: projection::project_standing(&sorted[index]),
+    })
+}
+
 pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirectory {
     let players_by_team = index_players_by_team(&game.players);
     let leagues = domestic_leagues(game);
