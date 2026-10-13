@@ -9,5 +9,8 @@ ofm_core = { version = "0.3.0", path = "../ofm_core" }
 domain = { version = "0.3.0", path = "../domain" }
 chrono = { version = "0.4.44", default-features = false }
 
+[dev-dependencies]
+serde_json = "1"
+
 [lints]
 workspace = true
