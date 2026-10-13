@@ -263,8 +263,8 @@ pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
     // that club's own academy, so it cannot change the other club's seniors.
     let (home_seniors, away_seniors) =
         crate::squad_floor::senior_counts_of_two(game, &home_team_id, &away_team_id);
-    crate::squad_floor::ready_for_kick_off_with(game, &home_team_id, home_seniors);
-    crate::squad_floor::ready_for_kick_off_with(game, &away_team_id, away_seniors);
+    crate::squad_floor::ready_for_kick_off(game, &home_team_id, home_seniors);
+    crate::squad_floor::ready_for_kick_off(game, &away_team_id, away_seniors);
     crate::turn::squad::reconcile_user_starting_xi(game, &home_team_id);
     crate::turn::squad::reconcile_user_starting_xi(game, &away_team_id);
 }

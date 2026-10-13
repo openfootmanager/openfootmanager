@@ -324,13 +324,11 @@ pub fn repair_squads_on_load(game: &mut Game) -> bool {
 /// and told what nobody could fill. An AI club is topped up whenever it is
 /// short, and the top-up is logged as the bug it is: ordinary squad planning
 /// should have got there first.
-pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str) {
-    ready_for_kick_off_with(game, team_id, senior_counts(game, team_id));
-}
-
-/// [`ready_for_kick_off`] for a caller that already counted the club's `seniors`: a sound club,
-/// nearly every club on every matchday, is left alone without another pass over the players.
-pub(crate) fn ready_for_kick_off_with(game: &mut Game, team_id: &str, seniors: [usize; 4]) {
+///
+/// The caller counts the club's `seniors` ([`senior_counts_of_two`] for a fixture's two clubs):
+/// a sound club, nearly every club on every matchday, is then left alone without another pass
+/// over the players.
+pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str, seniors: [usize; 4]) {
     let is_users_club = Some(team_id) == game.manager.team_id.as_deref();
     if is_users_club && can_field_a_side(seniors) {
         return;
@@ -1190,27 +1188,6 @@ mod tests {
         assert_eq!(rival, [1, 0, 0, 2]);
     }
 
-    /// Given a club the caller counted as short, When it is made ready with that count, Then the
-    /// top-up happens exactly as if the club had been counted by ready_for_kick_off itself.
-    #[test]
-    fn a_club_counted_short_by_the_caller_is_topped_up_like_one_counted_inside() {
-        let mut counted_by_caller = club_with([1, 5, 5, 4]);
-        counted_by_caller
-            .players
-            .push(free_agent("free_keeper", Position::Goalkeeper, 70));
-        let mut counted_inside = counted_by_caller.clone();
-
-        let seniors = senior_counts(&counted_by_caller, "club");
-        ready_for_kick_off_with(&mut counted_by_caller, "club", seniors);
-        ready_for_kick_off(&mut counted_inside, "club");
-
-        assert_eq!(team_of(&counted_by_caller, "free_keeper"), Some("club"));
-        assert_eq!(
-            team_of(&counted_by_caller, "free_keeper"),
-            team_of(&counted_inside, "free_keeper")
-        );
-    }
-
     // --- The daily check -------------------------------------------------------
 
     #[test]
@@ -1395,6 +1372,11 @@ mod tests {
         assert_eq!(bodies_of_warnings(&game), 2);
     }
 
+    fn kick_off(game: &mut Game, team_id: &str) {
+        let seniors = senior_counts(game, team_id);
+        ready_for_kick_off(game, team_id, seniors);
+    }
+
     // --- Kick-off -----------------------------------------------------------------
 
     /// Given the player's club with no keeper, one academy keeper and one
@@ -1408,7 +1390,7 @@ mod tests {
         game.players
             .push(free_agent("free_keeper", Position::Goalkeeper, 70));
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert!(squad_shortfall(&game, "club").is_empty());
         assert_eq!(body_keys(&game), vec!["be.msg.squadToppedUp.body"]);
@@ -1429,7 +1411,7 @@ mod tests {
         game.players
             .push(free_agent("keeper", Position::Goalkeeper, 70));
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert!(game.messages.is_empty());
         assert_eq!(team_of(&game, "keeper"), None);
@@ -1441,7 +1423,7 @@ mod tests {
         let mut game = users_club_with([1, 4, 4, 1]);
         free_agent_pool(&mut game);
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert!(squad_shortfall(&game, "club").is_empty());
         assert_eq!(body_keys(&game), vec!["be.msg.squadToppedUp.body"]);
@@ -1453,7 +1435,7 @@ mod tests {
     fn the_players_club_is_told_when_it_cannot_be_filled() {
         let mut game = users_club_with([0, 5, 5, 5]);
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert_eq!(body_keys(&game), vec!["be.msg.squadCannotBeFilled.body"]);
         assert_eq!(
@@ -1469,7 +1451,7 @@ mod tests {
     fn at_kick_off_an_ai_club_is_topped_up_without_a_message() {
         let mut game = club_with([0, 0, 0, 0]);
         free_agent_pool(&mut game);
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
         assert!(squad_shortfall(&game, "club").is_empty());
         assert!(game.messages.is_empty());
     }
@@ -1479,7 +1461,7 @@ mod tests {
         let mut game = users_club_with(SOUND);
         game.players
             .push(free_agent("keeper", Position::Goalkeeper, 70));
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
         assert!(game.messages.is_empty());
         assert_eq!(team_of(&game, "keeper"), None);
     }
