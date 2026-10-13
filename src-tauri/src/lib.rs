@@ -294,6 +294,8 @@ pub fn run() {
             check_season_complete,
             advance_to_next_season,
             get_season_awards,
+            get_hall_of_fame_legends,
+            get_retired_player,
             resolve_message_action,
             start_live_match,
             get_player_match_history,

@@ -47,6 +47,7 @@ pub mod player_wear;
 pub mod promotion;
 pub mod random_events;
 pub mod reputation;
+pub mod retirees;
 pub mod roster;
 pub mod schedule;
 pub mod scouting;
