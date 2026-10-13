@@ -1940,15 +1940,16 @@ fn season_end_ages_players_and_retires_out_of_contract_veterans() {
 
     process_end_of_season(&mut game);
 
-    let veteran = game
-        .players
-        .iter()
-        .find(|player| player.id == "p1")
-        .unwrap();
     assert!(
-        veteran.retired,
-        "older out-of-contract veterans should retire"
+        game.players.iter().all(|player| player.id != "p1"),
+        "a retired veteran leaves the roster"
     );
+    let veteran = game
+        .retired_players
+        .iter()
+        .find(|record| record.id == "p1")
+        .expect("older out-of-contract veterans should retire into the archive")
+        .to_player();
     assert_eq!(
         veteran.team_id, None,
         "retired players should leave their club"
