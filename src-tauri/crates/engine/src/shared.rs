@@ -277,13 +277,6 @@ pub(crate) fn play_style_modifier(
 // Role attribute modifier — applied per-player during zone resolution
 // ---------------------------------------------------------------------------
 
-/// The penalty half of AttackingFB, WingBack and ShadowStriker is gone: their
-/// boost is on a phase the resolvers never ask their position about, so only
-/// the penalty fired. Restore both halves together when that phase is wired.
-///
-/// Returns a multiplier (0.88–1.20) applied to the player's effective skill
-/// calculation based on their assigned tactical role. Values reflect the
-/// attribute biases described in domain::team::PlayerRole documentation.
 /// The phases the resolvers ask a player of this position about. A table entry
 /// for any other phase can never fire.
 pub(crate) fn consulted_phases(position: Position) -> &'static [PlayStylePhase] {
@@ -297,6 +290,8 @@ pub(crate) fn consulted_phases(position: Position) -> &'static [PlayStylePhase] 
 
 /// What the resolvers call: the table, but only for a phase the position is
 /// actually consulted on, so an entry nobody asks about stays inert.
+/// `position` is the position the resolver asked for in this phase, not the picked
+/// player's own: `snap_from_squad` can fall back to any available player.
 pub(crate) fn role_modifier(position: Position, role: PlayerRole, phase: PlayStylePhase) -> f64 {
     if consulted_phases(position).contains(&phase) {
         role_attribute_modifier(role, phase)
@@ -305,6 +300,13 @@ pub(crate) fn role_modifier(position: Position, role: PlayerRole, phase: PlaySty
     }
 }
 
+/// Returns a multiplier (0.88–1.20) applied to the player's effective skill
+/// calculation based on their assigned tactical role. Values reflect the
+/// attribute biases described in domain::team::PlayerRole documentation.
+//
+// The penalty half of AttackingFB, WingBack and ShadowStriker is gone: their boost is on
+// a phase the resolvers never ask their position about, so only the penalty fired.
+// Restore both halves together when that phase is wired.
 fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -> f64 {
     match (role, phase) {
         // Goalkeepers
