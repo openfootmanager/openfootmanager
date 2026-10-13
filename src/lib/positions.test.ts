@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   canonicalPosition,
+  naturalPositionOf,
   normalisePosition,
   positionGroupRank,
   positionSortRank,
@@ -89,5 +90,27 @@ describe("positions", () => {
     expect(positionSortRank("Defender")).toBeGreaterThan(positionSortRank("Goalkeeper"));
     expect(positionSortRank("Midfielder")).toBeGreaterThan(positionSortRank("RightWingBack"));
     expect(positionSortRank("Forward")).toBeGreaterThan(positionSortRank("RightMidfielder"));
+  });
+});
+
+describe("naturalPositionOf", () => {
+  /**
+   * Given a player whose natural position is granular and whose `position` is the legacy bucket
+   * When the position to show is asked for
+   * Then the granular natural position wins, so a new game reads like a reloaded one.
+   */
+  it("prefers the granular natural position over the legacy bucket", () => {
+    expect(naturalPositionOf({ position: "Defender", natural_position: "LeftBack" })).toBe(
+      "LeftBack",
+    );
+  });
+
+  /**
+   * Given a player from an old save whose natural position is empty
+   * When the position to show is asked for
+   * Then it falls back to `position`.
+   */
+  it("falls back to position when the natural position is empty", () => {
+    expect(naturalPositionOf({ position: "Midfielder", natural_position: "" })).toBe("Midfielder");
   });
 });

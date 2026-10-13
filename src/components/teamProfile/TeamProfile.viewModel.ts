@@ -3,7 +3,7 @@ import { positionGroupRank } from "../../lib/positions";
 import { getPlayerAnnualWageCommitment } from "../../lib/finance";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 
-import type { LeagueStanding, TeamProfileViewModel } from "./TeamProfile.types";
+import type { ClubLeagueStanding, TeamProfileViewModel } from "./TeamProfile.types";
 
 function sortRoster(players: PlayerData[]): PlayerData[] {
   return [...players].sort((leftPlayer, rightPlayer) => {
@@ -23,27 +23,12 @@ function calculateAverageOvr(roster: PlayerData[]): number {
   );
 }
 
-function getSortedStandings(gameState: GameStateData): LeagueStanding[] {
-  if (!gameState.league?.standings) {
-    return [];
-  }
-
-  return [...gameState.league.standings].sort(
-    (leftEntry, rightEntry) =>
-      rightEntry.points - leftEntry.points ||
-      rightEntry.goals_for -
-        rightEntry.goals_against -
-        (leftEntry.goals_for - leftEntry.goals_against) ||
-      rightEntry.goals_for - leftEntry.goals_for,
-  );
-}
-
 export function buildTeamProfileViewModel(
   team: TeamData,
   gameState: GameStateData,
+  leagueStanding: ClubLeagueStanding | null,
 ): TeamProfileViewModel {
   const roster = sortRoster(gameState.players.filter((player) => player.team_id === team.id));
-  const allStandings = getSortedStandings(gameState);
 
   return {
     roster,
@@ -54,7 +39,7 @@ export function buildTeamProfileViewModel(
     ),
     totalValue: roster.reduce((sum, player) => sum + player.market_value, 0),
     manager: gameState.manager.team_id === team.id ? gameState.manager : null,
-    leaguePos: allStandings.findIndex((entry) => entry.team_id === team.id) + 1,
-    standings: gameState.league?.standings.find((entry) => entry.team_id === team.id) ?? null,
+    leaguePos: leagueStanding?.league_pos ?? 0,
+    standings: leagueStanding?.standing ?? null,
   };
 }

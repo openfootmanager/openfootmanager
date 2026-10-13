@@ -36,8 +36,14 @@ function prefixCurrency(amount: string, value: number, currency: AppSettings["cu
  */
 export function calcAge(dob: string): number {
   const gameDate = useGameStore.getState().gameState?.clock?.current_date;
-  const asOfDate = gameDate ?? new Date().toISOString().slice(0, 10);
+  const asOfDate = gameDate ?? localDateIso();
   return calcAgeOnDate(dob, asOfDate);
+}
+
+/** The player's own calendar day as YYYY-MM-DD; `toISOString` is the UTC day, which near midnight is another one. */
+export function localDateIso(now: Date = new Date()): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 export function calcAgeOnDate(dob: string, asOfDate: string): number {

@@ -5,6 +5,7 @@ import type {
   LoanOfferData,
 } from "../../store/gameStore";
 import { canonicalPosition, normalisePosition } from "../squad/SquadTab.helpers";
+import { naturalPositionOf } from "../../lib/positions";
 
 // Specific positions grouped by the broad category they refine. Used both by
 // the position-refinement popover in TransfersTab.tsx and as default selections
@@ -178,7 +179,7 @@ export function filterTransferPlayers(
       return false;
     }
 
-    const rawPosition = player.natural_position || player.position;
+    const rawPosition = naturalPositionOf(player);
 
     if (posFilter && normalisePosition(rawPosition) !== posFilter) {
       return false;

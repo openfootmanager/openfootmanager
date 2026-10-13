@@ -8,6 +8,7 @@ import { Badge, InjuryBadge } from "../ui";
 import ContextMenu from "../ContextMenu";
 import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
 import TacticsFilters from "./TacticsFilters";
+import { naturalPositionOf } from "../../lib/positions";
 
 interface TacticsPlayerListProps {
   bench: PlayerData[];
@@ -79,10 +80,7 @@ function PlayerRow({
   const isCompare = comparePlayerId === player.id;
   // Starters show the slot they are deployed in (issue #272); the natural
   // position remains for bench players, who have no deployed slot.
-  const position = translatePositionAbbreviation(
-    t,
-    deployedPosition || player.natural_position || player.position,
-  );
+  const position = translatePositionAbbreviation(t, deployedPosition || naturalPositionOf(player));
   const contextItems = buildTacticsPlayerContextMenuItems({
     isSelected,
     matchRoles,

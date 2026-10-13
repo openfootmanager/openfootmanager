@@ -146,7 +146,7 @@ pub struct LiveMatchSession {
     ///
     /// `None` when the user has no competition, in which case the finish path falls back to
     /// today's context.
-    pub league_round_context: Option<(u32, Vec<StandingEntry>)>,
+    pub league_round_context: Option<crate::matchday::LeagueRoundContext>,
     pub home_team_id: String,
     pub away_team_id: String,
     pub user_side: Option<Side>,
@@ -420,7 +420,7 @@ pub struct UnwatchedFixture {
     pub away_team_id: String,
     /// The user's league round as it stood before this fixture was played, for
     /// the round digest — see [`crate::matchday::user_league_round_context`].
-    pub league_round_context: Option<(u32, Vec<StandingEntry>)>,
+    pub league_round_context: Option<crate::matchday::LeagueRoundContext>,
 }
 
 /// Play a fixture nobody is watching, start to finish.

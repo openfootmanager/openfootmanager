@@ -405,6 +405,12 @@
     "potLimited": "Sınırlı"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.",
+      "two": "{{n}}.",
+      "few": "{{n}}.",
+      "other": "{{n}}."
+    },
     "currentWage": "Mevcut maaş",
     "loading": "Yükleniyor...",
     "loadingGameState": "Oyun durumu yükleniyor...",
@@ -2058,7 +2064,7 @@
     "postMatchTeamTalk": "Maç Sonu Takım Konuşması",
     "addressPlayers": "Maçtan sonra oyuncularınıza hitap edin.",
     "matchOver": "Maç Bitti",
-    "performance": "{{team}} Performansı",
+    "ratings": "{{team}} Puanları",
     "motm": "Maçın Oyuncusu",
     "roundSummary": "Hafta Özeti",
     "roundSummaryUnavailable": "Hafta özeti mevcut değil.",
@@ -2534,7 +2540,7 @@
       }
     },
     "matchReport": "Maç Raporu",
-    "playerPerformance": "Oyuncu Performansı",
+    "playerRatings": "Oyuncu Puanları",
     "tacticsTab": "Taktikler",
     "goalSources": "Gol Kaynakları",
     "openPlay": "Akan Oyun",
@@ -3949,6 +3955,7 @@
     "playerPosition": "Pozisyon",
     "playerFoot": "Tercih Edilen Ayak",
     "playerDateOfBirth": "Doğum Tarihi",
+    "playerAgeToday": "bugün {{age}} yaşında",
     "playerAge": "Yaş",
     "playerAgeHelp": "Doğum tarihi verilmediğinde kullanılır: oyuncu, hangi yıl olursa olsun, kariyerin başladığı gün bu yaştadır.",
     "playerContractSection": "Sözleşme",

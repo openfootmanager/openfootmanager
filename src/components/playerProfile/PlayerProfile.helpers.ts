@@ -9,6 +9,7 @@ import {
 } from "../../lib/helpers";
 import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import { resolveInjuryName } from "../../lib/injury";
+import { naturalPositionOf } from "../../lib/positions";
 
 type TranslateFn = (key: string, options?: TOptions) => string;
 
@@ -62,21 +63,6 @@ export function getPlayerTeamName(
   return teams.find((team) => team.id === teamId)?.name ?? labels.unknown;
 }
 
-export function getPlayerAge(dateOfBirth: string, asOfDate: string = "2026-07-01"): number {
-  const birthDate = new Date(dateOfBirth);
-  const currentDate = new Date(asOfDate);
-  let age = currentDate.getFullYear() - birthDate.getFullYear();
-
-  if (
-    currentDate.getMonth() < birthDate.getMonth() ||
-    (currentDate.getMonth() === birthDate.getMonth() && currentDate.getDate() < birthDate.getDate())
-  ) {
-    age -= 1;
-  }
-
-  return age;
-}
-
 export function formatPlayerMarketValue(value: number): string {
   return formatVal(value);
 }
@@ -123,10 +109,6 @@ function calculatePassAccuracy(completed: number, attempted: number): number | n
   return roundTo((completed / attempted) * 100, 1);
 }
 
-function positionKey(player: PlayerData): string {
-  return player.natural_position || player.position;
-}
-
 function percentileRank(values: number[], target: number | null): number | null {
   if (target === null || values.length === 0) {
     return null;
@@ -141,11 +123,11 @@ function eligiblePeers(
   players: PlayerData[],
   minimumMinutes: number,
 ): PlayerData[] {
-  const targetPosition = positionKey(player);
+  const targetPosition = naturalPositionOf(player);
 
   return players.filter((candidate) => {
     return (
-      positionKey(candidate) === targetPosition &&
+      naturalPositionOf(candidate) === targetPosition &&
       statValue(candidate.stats.minutes_played) >= minimumMinutes
     );
   });

@@ -10,6 +10,7 @@ import TeamProfileLeagueStandingCard from "./TeamProfileLeagueStandingCard";
 import TeamProfileRecentMatchesCard from "./TeamProfileRecentMatchesCard";
 import TeamProfileRosterCard from "./TeamProfileRosterCard";
 import TeamProfileSummaryCard from "./TeamProfileSummaryCard";
+import { useClubLeagueStanding } from "./useClubLeagueStanding";
 import { useTeamProfileStats } from "./useTeamProfileStats";
 import { buildTeamProfileViewModel } from "./TeamProfile.viewModel";
 
@@ -22,7 +23,8 @@ export default function TeamProfile({
 }: TeamProfileProps) {
   const { t, i18n } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
-  const viewModel = buildTeamProfileViewModel(team, gameState);
+  const { standing: leagueStanding } = useClubLeagueStanding(team.id, gameState.clock.current_date);
+  const viewModel = buildTeamProfileViewModel(team, gameState, leagueStanding);
   const { teamStatsOverview, recentMatches } = useTeamProfileStats(team.id);
 
   return (

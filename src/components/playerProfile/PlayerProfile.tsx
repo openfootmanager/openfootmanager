@@ -12,10 +12,11 @@ import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
-import { getPlayerAge, getPlayerTeamName } from "./PlayerProfile.helpers";
+import { getPlayerTeamName } from "./PlayerProfile.helpers";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
+import { calcAgeOnDate } from "../../lib/valueFormatting";
 import { formatDate } from "../../lib/dateFormatting";
 import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
@@ -34,6 +35,7 @@ import { useInitialModalIntent } from "./useInitialModalIntent";
 import { usePlayerProfileData } from "./usePlayerProfileData";
 import { useScoutPlayerFlow } from "./useScoutPlayerFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
+import { naturalPositionOf } from "../../lib/positions";
 
 interface PlayerProfileProps {
   player: PlayerData;
@@ -58,7 +60,7 @@ export default function PlayerProfile({
 }: PlayerProfileProps) {
   const { t, i18n } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
-  const primaryPosition = player.natural_position || player.position;
+  const primaryPosition = naturalPositionOf(player);
   const footednessLabel = t(`common.footedness.${player.footedness || "Right"}`);
   const weakFootValue = player.weak_foot ?? 2;
 
@@ -72,7 +74,7 @@ export default function PlayerProfile({
     onGameUpdate,
   });
   const ovr = getPlayerOvr(player);
-  const age = getPlayerAge(player.date_of_birth);
+  const age = calcAgeOnDate(player.date_of_birth, gameState.clock.current_date);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
   // Offer roles for the deployed slot when the player is in the starting XI —

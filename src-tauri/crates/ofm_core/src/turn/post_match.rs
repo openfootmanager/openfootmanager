@@ -424,13 +424,7 @@ fn apply_player_stats(
             player.stats.interceptions += ps.interceptions as u32;
             player.stats.fouls_committed += ps.fouls_committed as u32;
 
-            // Update average rating (running average)
-            if player.stats.appearances == 1 {
-                player.stats.avg_rating = ps.rating;
-            } else {
-                let n = player.stats.appearances as f32;
-                player.stats.avg_rating = (player.stats.avg_rating * (n - 1.0) + ps.rating) / n;
-            }
+            crate::match_rating::record_rating(&mut player.stats, ps.rating);
 
             // Clean sheet for goalkeepers
             if matches!(player.position, DomainPosition::Goalkeeper) {
@@ -783,67 +777,35 @@ mod tests {
             .collect()
     }
 
-    /// Given an engine-produced unrated report for user and AI squads, when process_day runs,
-    /// then their morale equals the same report with neutral ratings and the same morale RNG.
+    /// Given a real match day for user and AI squads, when process_day runs,
+    /// then every captured player carries an engine rating on the 1-10 scale.
     #[test]
-    fn a_real_match_day_treats_unrated_reports_as_neutral_for_both_squads() {
+    fn a_real_match_day_rates_both_squads() {
         let mut game = match_game();
-        let mut neutral = game.clone();
         let mut captures = StatsState::default();
         crate::turn::process_day_with_capture(&mut game, &mut |stats| captures.append(stats));
         assert!(captures.player_matches.len() >= 22);
+        let rated: Vec<_> = captures
+            .player_matches
+            .iter()
+            .filter(|stats| stats.rating > 0.0)
+            .collect();
+        assert!(rated.len() >= 22, "only {} players were rated", rated.len());
         assert!(
-            captures
-                .player_matches
+            rated
                 .iter()
-                .all(|stats| stats.rating == 0.0)
+                .all(|stats| (1.0..=10.0).contains(&stats.rating))
         );
-        let result = game.league.as_ref().unwrap().fixtures[0]
-            .result
-            .as_ref()
-            .unwrap();
-        let mut neutral_report = report(
-            captures
-                .player_matches
-                .iter()
-                .map(|stats| {
-                    (
-                        stats.player_id.clone(),
-                        PlayerMatchStats {
-                            goals: stats.goals,
-                            assists: stats.assists,
-                            red_cards: stats.red_cards,
-                            rating: 6.8,
-                            ..Default::default()
-                        },
-                    )
-                })
-                .collect(),
-        );
-        neutral_report.home_goals = result.home_goals;
-        neutral_report.away_goals = result.away_goals;
-        update_post_match_morale(&mut neutral, &neutral_report, "home", "away");
-        for player in &neutral.players {
-            let actual = game
-                .players
-                .iter()
-                .find(|actual| actual.id == player.id)
-                .unwrap();
-            assert_eq!(
-                actual.morale, player.morale,
-                "{} has no rating component",
-                player.id
-            );
-        }
     }
 
-    /// Given a saved nonzero season average and a career row, when an unrated match is played,
-    /// then the existing average denominator is preserved and the career row survives unchanged.
+    /// Given a saved average over two rated matches and a career row, when a rated match is
+    /// played, then the average folds in the new rating and the career row survives unchanged.
     #[test]
-    fn an_unrated_match_preserves_the_existing_average_and_career_contract() {
+    fn a_rated_match_extends_the_existing_average_and_keeps_the_career() {
         let mut game = match_game();
         let player = &mut game.players[0];
         player.stats.appearances = 2;
+        player.stats.rated_appearances = 2;
         player.stats.avg_rating = 9.0;
         player.career.push(domain::player::CareerEntry {
             season: 2024,
@@ -856,8 +818,11 @@ mod tests {
         let mut game: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
         let career = serde_json::to_value(&game.players[0].career).unwrap();
         crate::turn::process_day(&mut game);
-        assert_eq!(game.players[0].stats.appearances, 3);
-        assert_eq!(game.players[0].stats.avg_rating, 6.0);
+        let stats = &game.players[0].stats;
+        assert_eq!(stats.appearances, 3);
+        assert_eq!(stats.rated_appearances, 3);
+        let played_rating = stats.avg_rating * 3.0 - 18.0;
+        assert!((1.0..=10.0).contains(&played_rating), "{played_rating}");
         assert_eq!(
             serde_json::to_value(&game.players[0].career).unwrap(),
             career

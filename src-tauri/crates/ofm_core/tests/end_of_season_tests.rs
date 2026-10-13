@@ -132,6 +132,7 @@ fn make_completed_season_game() -> Game {
         assists: 10,
         clean_sheets: 0,
         avg_rating: 7.5,
+        rated_appearances: 30,
         minutes_played: 2700,
         yellow_cards: 3,
         red_cards: 0,
@@ -145,6 +146,7 @@ fn make_completed_season_game() -> Game {
         assists: 8,
         clean_sheets: 0,
         avg_rating: 7.0,
+        rated_appearances: 28,
         minutes_played: 2500,
         yellow_cards: 1,
         red_cards: 0,
@@ -874,6 +876,7 @@ fn season_awards_are_scoped_to_the_users_division() {
         appearances: 20,
         goals: 30,
         avg_rating: 8.0,
+        rated_appearances: 20,
         minutes_played: 1800,
         ..PlayerSeasonStats::default()
     };

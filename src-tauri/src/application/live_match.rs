@@ -135,9 +135,8 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
             // back `None`, so the digest read "unavailable" for a round the response was
             // carrying. The matchday and standings are captured above, so the advanced clock
             // does not affect it.
-            let round_summary = summary_context.and_then(|(matchday, previous)| {
-                build_round_summary_dto(game, matchday, &previous)
-            });
+            let round_summary =
+                summary_context.and_then(|context| build_round_summary_dto(game, &context));
 
             Ok((game.clone(), round_summary))
         })
