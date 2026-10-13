@@ -471,6 +471,22 @@ describe("clubCompetitionLabel", () => {
   });
 
   /**
+   * Given the game carries two competitions and the backend names the second
+   * When the sidebar label is built
+   * Then it is the second's name, found by the backend's id, not the first competition's.
+   */
+  it("finds the competition by the backend's id, not by position", () => {
+    const gameState = {
+      competitions: [
+        { id: "cup-1", name: "First Cup" },
+        { id: "league-1", name: "The League" },
+      ],
+    } as unknown as GameStateData;
+
+    expect(clubCompetitionLabel(gameState, standing, translate)).toBe("The League");
+  });
+
+  /**
    * Given the backend names a competition the loaded game does not carry
    * When the sidebar label is built
    * Then it falls back to the backend's own name.
