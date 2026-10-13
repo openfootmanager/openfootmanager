@@ -228,6 +228,8 @@ export function SubPanel({
     setFocusRequest(null);
   }, [focusRequest]);
 
+  // Declared before the focus effect below on purpose: the hook records the opener in its mount
+  // effect, and effects run in order, so reversing them would record the panel as the opener.
   useDialogKeyboard(panelRef, onClose);
 
   // Opening a dialog has to move focus into it, or a keyboard user is left on the button behind
