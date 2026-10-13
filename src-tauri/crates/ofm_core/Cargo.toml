@@ -24,3 +24,6 @@ base64 = "0.22"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+proptest = "=1.12.0"

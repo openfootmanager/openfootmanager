@@ -153,6 +153,88 @@ const MIGRATIONS: &[(&str, &str)] = &[
 
 /// All migrations for a per-save game database.
 /// Each save `.db` file gets this schema applied via `rusqlite_migration`.
+/// Table name -> column names, as the first `applied` migrations create them.
+pub(crate) type Layout = std::collections::BTreeMap<String, std::collections::BTreeSet<String>>;
+
+/// The layout a save at schema version `applied` must have, built by running the
+/// first `applied` migrations on an empty in-memory database.
+pub(crate) fn expected_layout(applied: usize) -> Result<Layout, String> {
+    if applied == 0 {
+        // `Migrations` refuses an empty list, and a fresh file has no tables.
+        return Ok(Layout::new());
+    }
+    let mut reference = rusqlite::Connection::open_in_memory().map_err(|e| e.to_string())?;
+    Migrations::new(
+        MIGRATIONS
+            .iter()
+            .take(applied)
+            .map(|(_, sql)| M::up(sql))
+            .collect(),
+    )
+    .to_latest(&mut reference)
+    .map_err(|e| e.to_string())?;
+    layout_of(&reference)
+}
+
+/// Every user table of `conn` with its columns (SQLite's own tables excluded).
+pub(crate) fn layout_of(conn: &rusqlite::Connection) -> Result<Layout, String> {
+    let mut layout = Layout::new();
+    let mut tables = conn
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+        .map_err(|e| e.to_string())?;
+    let names: Vec<String> = tables
+        .query_map([], |row| row.get(0))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<_, _>>()
+        .map_err(|e| e.to_string())?;
+    for name in names {
+        // Bound, not interpolated: a foreign table may be named anything, quotes included. `xinfo`
+        // rather than `info`, which leaves out generated and hidden columns.
+        let mut info = conn
+            .prepare("SELECT name FROM pragma_table_xinfo(?1)")
+            .map_err(|e| e.to_string())?;
+        let columns = info
+            .query_map([&name], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<_, _>>()
+            .map_err(|e| e.to_string())?;
+        layout.insert(name, columns);
+    }
+    Ok(layout)
+}
+
+/// Every table any shipped migration creates: the names a save must never hold unless its
+/// version says it should.
+pub(crate) fn migration_owned_tables() -> Result<std::collections::BTreeSet<String>, String> {
+    Ok(expected_layout(MIGRATIONS.len())?.into_keys().collect())
+}
+
+/// The first table or column on which `found` disagrees with `expected`, if any. A table no
+/// migration ever creates is somebody's own (a debugging probe, a tool's cache) and harms
+/// nothing; but a table a *later* migration creates is not foreign, and one already present
+/// would make that migration's `CREATE TABLE IF NOT EXISTS` skip it and fail halfway.
+pub(crate) fn first_layout_difference(
+    expected: &Layout,
+    found: &Layout,
+    migration_owned: &std::collections::BTreeSet<String>,
+) -> Option<String> {
+    for (table, columns) in expected {
+        let Some(found_columns) = found.get(table) else {
+            return Some(format!("missing table {table}"));
+        };
+        if let Some(column) = columns.difference(found_columns).next() {
+            return Some(format!("missing column {table}.{column}"));
+        }
+        if let Some(column) = found_columns.difference(columns).next() {
+            return Some(format!("unexpected column {table}.{column}"));
+        }
+    }
+    found
+        .keys()
+        .find(|table| !expected.contains_key(*table) && migration_owned.contains(*table))
+        .map(|table| format!("unexpected table {table}"))
+}
+
 pub fn all_migrations() -> Migrations<'static> {
     Migrations::new(MIGRATIONS.iter().map(|(_, sql)| M::up(sql)).collect())
 }
@@ -758,6 +840,100 @@ mod tests {
             version, MIGRATION_COUNT as i64,
             "expected schema version {} after migrations",
             MIGRATION_COUNT
+        );
+    }
+
+    /// FNV-1a 64 over the file with carriage returns removed, so a Windows checkout of the
+    /// same migration hashes the same.
+    fn fingerprint(sql: &str) -> u64 {
+        sql.bytes()
+            .filter(|byte| *byte != b'\r')
+            .fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
+                (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
+            })
+    }
+
+    /// Shipped migrations, frozen. A save at version N was built by exactly these statements,
+    /// so editing one in place leaves existing saves at N with a layout the code no longer expects.
+    /// Add a new migration instead, and append its row here in the same change.
+    #[rustfmt::skip]
+    const SHIPPED: &[(&str, u64)] = &[
+    ("v001_initial_schema.sql", 0xed06e3806a80b990),
+    ("v002_training_groups.sql", 0x587e38819ef431d9),
+    ("v003_alternate_positions.sql", 0xae3ea2435e3d379e),
+    ("v004_natural_position.sql", 0xdf0a07b5a2d9c817),
+    ("v005_player_training_focus.sql", 0x5d98ec87b69e464c),
+    ("v006_team_match_roles.sql", 0x1d15390749d7d4a6),
+    ("v007_team_financial_ledger.sql", 0x31ec6a65bba43a34),
+    ("v008_team_sponsorship.sql", 0x2dec841687f8768c),
+    ("v009_team_facilities.sql", 0x73e7cfdbe588a760),
+    ("v010_player_morale_core.sql", 0x0241fb7805c6c2f5),
+    ("v011_player_footedness.sql", 0x8f6f5dd143459cff),
+    ("v012_fixture_competition.sql", 0xc54ab8e93659ddd1),
+    ("v013_player_fitness.sql", 0x0cc110dadfa27314),
+    ("v014_football_identity.sql", 0x478f5c28a51338ac),
+    ("v015_match_stats_history.sql", 0x57db76c8adc2f71b),
+    ("v016_manager_warning_stage.sql", 0x17e9fd6a796d799b),
+    ("v017_vacant_team_days.sql", 0xc54c0d585e586259),
+    ("v018_transfer_log.sql", 0x4e907c47cf4227bb),
+    ("v019_player_squad_role.sql", 0xa79ca67590bea7c2),
+    ("v020_player_ovr_potential.sql", 0x111e1fe83f07b2e9),
+    ("v021_youth_scouting_assignments.sql", 0xf8ca0afb47d51b60),
+    ("v022_youth_scouting_target_position.sql", 0x4f4ade988d8c15fa),
+    ("v023_youth_scouting_search_profile.sql", 0xed647b5f2f4af448),
+    ("v024_transfer_rumours.sql", 0x8ff846041844443b),
+    ("v025_player_retired.sql", 0x8ab28eca23a856bf),
+    ("v026_world_history_archive.sql", 0x253356d90eb53aab),
+    ("v027_available_staff_market_activity.sql", 0x967da647d9e138f5),
+    ("v028_entity_media.sql", 0x0fea8f4c1c27fd45),
+    ("v029_competition_save_metadata.sql", 0x661e6f978b415c5c),
+    ("v030_competitions_and_national_teams.sql", 0xb8865abfb0e6efe0),
+    ("v031_competition_groups.sql", 0xb6d4975982237820),
+    ("v032_competition_berths.sql", 0xa7e0bf974ee1bc6a),
+    ("v033_competition_season_start.sql", 0xd6a4033e79226f72),
+    ("v034_player_jersey_number.sql", 0xd7e28bd1d7122806),
+    ("v035_team_kit_pattern.sql", 0x7a375c40d876005f),
+    ("v036_player_jersey_number_unique.sql", 0x3b68eca99a6b9200),
+    ("v037_team_tactics.sql", 0x5ba0aa051c92396f),
+    ("v038_national_team_name_key.sql", 0xd6b369d67c57720a),
+    ("v039_game_extra_translations.sql", 0xf9ce5e9d4fd53d9b),
+    ("v040_player_loan_state.sql", 0xf430c87823e79d49),
+    ("v041_player_movement_history.sql", 0x35b7a832c4c19d47),
+    ("v042_game_package_lockfile.sql", 0x7427606582204a20),
+    ("v043_emitted_events.sql", 0x7973ce887e85964c),
+    ("v044_cash_journal.sql", 0x0f2cda907bb330f8),
+    ("v045_player_contract_start.sql", 0xe82234613477d74d),
+    ("v046_game_seed.sql", 0xd9cddb1327e8fb92),
+    ("v047_legacy_world_cup_draw.sql", 0x45671a737bc8f6f9),
+    ("v048_competition_calendar.sql", 0x24d66bf320f0a2dc),
+    ("v049_competition_edition_archive.sql", 0xce105022e5bed8c0),
+    ("v050_scouted_players.sql", 0x3536cbfaf1572f2b),
+    ("v051_competition_name_key.sql", 0x834ad58e7ffc2f0a),
+    ];
+
+    /// Given the migrations already shipped
+    /// When their SQL is compared with the pinned fingerprints
+    /// Then none was edited in place, renamed or reordered, and none is missing from the pinned list.
+    #[test]
+    fn shipped_migrations_are_never_edited_in_place() {
+        for (position, (name, pinned)) in SHIPPED.iter().enumerate() {
+            let (registered, sql) = MIGRATIONS[position];
+            assert_eq!(
+                registered,
+                *name,
+                "migration {} moved or was renamed",
+                position + 1
+            );
+            assert_eq!(
+                fingerprint(sql),
+                *pinned,
+                "{name} was edited after shipping; write a new migration instead"
+            );
+        }
+        assert_eq!(
+            MIGRATIONS.len(),
+            SHIPPED.len(),
+            "a migration was added without its fingerprint row in SHIPPED"
         );
     }
 }

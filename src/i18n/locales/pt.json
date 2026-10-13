@@ -2735,6 +2735,7 @@
       "saveLoad": {
         "corrupted": "Este ficheiro de gravação está corrompido e não pode ser carregado.",
         "incompatibleVersion": "Esta gravação foi criada por uma versão mais recente do jogo (gravação v{{saveVersion}}; esta versão suporta até à v{{supported}}). Atualize o jogo para a carregar.",
+        "incompatibleLayout": "Os dados desta gravação não correspondem à versão que ela indica, pelo que não pode ser carregada em segurança. O ficheiro não foi alterado.",
         "missingData": "Faltam dados necessários a esta gravação e não pode ser carregada.",
         "invalidWorld": "Os dados de mundo ou de mod desta gravação são inválidos e não podem ser carregados.",
         "unknown": "Não foi possível carregar esta gravação devido a um erro inesperado."

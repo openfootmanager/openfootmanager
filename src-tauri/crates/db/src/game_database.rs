@@ -2,7 +2,10 @@ use log::{debug, error, info};
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
-use crate::migrations::{MIGRATION_COUNT, all_migrations};
+use crate::migrations::{
+    MIGRATION_COUNT, all_migrations, expected_layout, first_layout_difference, layout_of,
+    migration_owned_tables,
+};
 use crate::save_load_error::SaveLoadError;
 
 const GAME_DATABASE_OPEN_FAILED: &str = "be.error.gameDatabase.openFailed";
@@ -11,6 +14,32 @@ const GAME_DATABASE_SCHEMA_VERSION_READ_FAILED: &str =
     "be.error.gameDatabase.schemaVersionReadFailed";
 const GAME_DATABASE_CURRENT_VERSION_READ_FAILED: &str =
     "be.error.gameDatabase.currentVersionReadFailed";
+
+fn verify_layout_matches_version(
+    conn: &Connection,
+    save_version: usize,
+    path: &Path,
+) -> Result<(), SaveLoadError> {
+    let expected = expected_layout(save_version).map_err(|e| {
+        error!("[game_db] cannot build the reference layout v{save_version}: {e}");
+        SaveLoadError::Unknown
+    })?;
+    let found = layout_of(conn).map_err(|e| {
+        error!("[game_db] cannot read the layout of {path:?}: {e}");
+        SaveLoadError::Corrupted
+    })?;
+    let owned = migration_owned_tables().map_err(|e| {
+        error!("[game_db] cannot list the tables the migrations own: {e}");
+        SaveLoadError::Unknown
+    })?;
+    match first_layout_difference(&expected, &found, &owned) {
+        None => Ok(()),
+        Some(first_difference) => {
+            error!("[game_db] save {path:?} claims schema v{save_version} but {first_difference}");
+            Err(SaveLoadError::IncompatibleLayout { first_difference })
+        }
+    }
+}
 
 /// Represents an open per-save game database with migrations applied.
 pub struct GameDatabase {
@@ -62,6 +91,11 @@ impl GameDatabase {
                 supported: MIGRATION_COUNT as i64,
             });
         }
+
+        // `user_version` alone decides which migrations run, so a file whose tables
+        // contradict it would be "migrated" into something half-built. Refuse it
+        // before touching a byte.
+        verify_layout_matches_version(&conn, save_version as usize, path)?;
 
         let migrations = all_migrations();
         migrations.to_latest(&mut conn).map_err(|e| {
@@ -259,5 +293,108 @@ mod tests {
 
         let db = GameDatabase::open_save(&db_path).expect("a current save should open");
         assert!(db.validate_schema().unwrap());
+    }
+
+    fn save_claiming_version(dir: &Path, claimed: usize, extra_sql: &str) -> PathBuf {
+        let path = dir.join(format!("claims-{claimed}.db"));
+        let mut conn = Connection::open(&path).unwrap();
+        all_migrations().to_version(&mut conn, claimed).unwrap();
+        conn.execute_batch(extra_sql).unwrap();
+        path
+    }
+
+    /// Given a save whose tables are exactly what its version says
+    /// When it is opened
+    /// Then it loads and is migrated to the latest.
+    #[test]
+    fn open_save_migrates_an_honest_older_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = save_claiming_version(dir.path(), MIGRATION_COUNT - 3, "");
+
+        let db = GameDatabase::open_save(&path).expect("an honest older save loads");
+
+        assert_eq!(db.schema_version().unwrap(), MIGRATION_COUNT as i64);
+    }
+
+    /// Given a save at version N that lacks a column migration N built
+    /// When it is opened
+    /// Then it is refused as an incompatible layout naming the column, and the file is byte-identical.
+    #[test]
+    fn open_save_refuses_a_layout_that_contradicts_its_version_and_leaves_the_file_alone() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = save_claiming_version(
+            dir.path(),
+            MIGRATION_COUNT,
+            "CREATE TABLE stray (id INTEGER); DROP TABLE game_meta;",
+        );
+        let before = std::fs::read(&path).unwrap();
+
+        match GameDatabase::open_save(&path) {
+            Err(SaveLoadError::IncompatibleLayout { first_difference }) => {
+                assert!(first_difference.contains("game_meta"), "{first_difference}");
+            }
+            Err(other) => panic!("expected IncompatibleLayout, got {other:?}"),
+            Ok(_) => panic!("expected IncompatibleLayout, got an open database"),
+        }
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+    }
+
+    /// Given an honest save that also carries a table of someone else's
+    /// When it is opened
+    /// Then it loads: only the migrations' own tables are held to the version.
+    #[test]
+    fn open_save_tolerates_a_table_no_migration_made() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = save_claiming_version(dir.path(), MIGRATION_COUNT, "CREATE TABLE probe (x);");
+
+        GameDatabase::open_save(&path).expect("an extra table is not a contradiction");
+    }
+
+    /// Given an honest save plus a foreign table whose name contains a double quote
+    /// When it is opened
+    /// Then it loads: inspecting the layout must not choke on an awkward table name.
+    #[test]
+    fn open_save_tolerates_a_foreign_table_with_a_quote_in_its_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let path =
+            save_claiming_version(dir.path(), MIGRATION_COUNT, r#"CREATE TABLE "a""b" (x);"#);
+
+        GameDatabase::open_save(&path).expect("an awkward foreign table is not a contradiction");
+    }
+
+    fn assert_refused_naming(path: &Path, expected: &str) {
+        match GameDatabase::open_save(path) {
+            Err(SaveLoadError::IncompatibleLayout { first_difference }) => {
+                assert!(first_difference.contains(expected), "{first_difference}");
+            }
+            Err(other) => panic!("expected IncompatibleLayout, got {other:?}"),
+            Ok(_) => panic!("expected IncompatibleLayout, got an open database"),
+        }
+    }
+
+    /// Given a save at v43 that already holds a `cash_journal` of its own making (v44 creates it)
+    /// When it is opened
+    /// Then it is refused as an incompatible layout, not migrated into a generic failure.
+    #[test]
+    fn open_save_refuses_a_table_a_later_migration_would_create() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = save_claiming_version(dir.path(), 43, "CREATE TABLE cash_journal (id INTEGER);");
+
+        assert_refused_naming(&path, "cash_journal");
+    }
+
+    /// Given an honest save with a generated (hidden) column added to one of its tables
+    /// When it is opened
+    /// Then the stray column is seen and the save refused.
+    #[test]
+    fn open_save_refuses_a_hidden_generated_column() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = save_claiming_version(
+            dir.path(),
+            MIGRATION_COUNT,
+            "ALTER TABLE game_meta ADD COLUMN sneaky INTEGER GENERATED ALWAYS AS (1) VIRTUAL;",
+        );
+
+        assert_refused_naming(&path, "sneaky");
     }
 }

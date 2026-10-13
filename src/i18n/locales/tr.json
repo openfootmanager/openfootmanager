@@ -2778,6 +2778,7 @@
       "saveLoad": {
         "corrupted": "Bu kayıt dosyası bozuk ve yüklenemiyor.",
         "incompatibleVersion": "Bu kayıt, oyunun daha yeni bir sürümüyle oluşturulmuş (kayıt v{{saveVersion}}; bu sürüm en fazla v{{supported}} destekler). Yüklemek için oyunu güncelleyin.",
+        "incompatibleLayout": "Bu kaydın verileri belirttiği sürümle uyuşmuyor, bu yüzden güvenle yüklenemiyor. Dosyada hiçbir değişiklik yapılmadı.",
         "missingData": "Bu kayıtta gerekli veriler eksik ve yüklenemiyor.",
         "invalidWorld": "Bu kaydın dünya veya mod verileri geçersiz ve yüklenemiyor.",
         "unknown": "Bu kayıt beklenmeyen bir hata nedeniyle yüklenemedi."
