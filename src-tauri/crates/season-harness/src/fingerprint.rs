@@ -142,9 +142,15 @@ fn news_line(article: &NewsArticle) -> String {
 #[derive(Debug, Default)]
 pub struct StatsLog {
     lines: Vec<String>,
+    captures: usize,
 }
 
 impl StatsLog {
+    /// How many matches have been captured.
+    pub fn captures(&self) -> usize {
+        self.captures
+    }
+
     /// Every capture seen, in the order the matches were applied: within a capture the player
     /// records by player id, then the team records as they came.
     pub fn fingerprint(&self) -> String {
@@ -156,6 +162,7 @@ impl SeasonObserver for StatsLog {
     fn on_stats_captured(&mut self, stats: &StatsState) {
         let mut players: Vec<_> = stats.player_matches.iter().collect();
         players.sort_unstable_by(|a, b| a.player_id.cmp(&b.player_id));
+        self.captures += 1;
         self.lines.push("capture".to_string());
         for record in players {
             self.lines.push(format!("  player_match {record:?}"));
