@@ -245,26 +245,24 @@ fn ensure_international_windows(game: &mut Game) {
 
     // Qualifying spreads each window's matches across a multi-day block, so club
     // fixtures must keep clear of the whole span rather than just the openers.
-    let reserved_dates = if leads_into_world_cup || starts_qualifying || qualifying_running {
-        crate::national_team::international_window_span_dates(&window_dates)
-    } else {
-        window_dates.clone()
-    };
-    for competition in &mut game.competitions {
-        // The World Cup and its qualifying own the reserved window — they are the
-        // reason it is reserved — so shifting them off it would move the fixtures
-        // we just scheduled there. Only club competitions step aside.
-        if crate::world_cup::is_world_cup_competition(competition)
-            || crate::world_cup::is_world_cup_qualifying(competition)
-        {
-            continue;
-        }
-        crate::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
-    }
-    crate::schedule::append_preseason_friendlies(
+    let blackout = crate::national_team::international_blackout_dates(
+        preseason_season_start(&game.clock),
+        qualifying_running,
+    );
+    place_club_calendar(game, &blackout);
+}
+
+/// Appends the preseason friendlies, then settles every club clash and window overlap once.
+/// The friendlies come first so the sweep sees, and where needed drops, them too.
+pub(crate) fn place_club_calendar(
+    game: &mut Game,
+    blackout: &std::collections::BTreeSet<chrono::NaiveDate>,
+) {
+    crate::schedule::append_preseason_friendlies(&mut game.competitions, game.clock.current_date);
+    crate::calendar_reconcile::settle_generated_calendar(
         &mut game.competitions,
-        &reserved_dates,
-        game.clock.current_date,
+        blackout,
+        game.clock.current_date.date_naive(),
     );
 }
 
@@ -810,7 +808,6 @@ mod tests {
         game.competitions = build_foundation_competitions(&game, TOP_DIVISION_SIZE);
         crate::schedule::append_preseason_friendlies(
             &mut game.competitions,
-            &[],
             game.clock.current_date,
         );
 
@@ -1030,6 +1027,53 @@ mod tests {
                 tier.id
             );
         }
+    }
+
+    /// Every unplayed fixture of every club, across all competitions, sorted by date.
+    fn closest_unplayed_pairs(game: &Game) -> Vec<String> {
+        use std::collections::BTreeMap;
+        let mut by_club: BTreeMap<&str, Vec<(chrono::NaiveDate, &str)>> = BTreeMap::new();
+        for fixture in game.competitions.iter().flat_map(|c| &c.fixtures) {
+            if fixture.competition == FixtureCompetition::InternationalNation {
+                continue;
+            }
+            let date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+            for club in [&fixture.home_team_id, &fixture.away_team_id] {
+                by_club.entry(club).or_default().push((date, &fixture.id));
+            }
+        }
+        let mut clashes = Vec::new();
+        for (club, mut rows) in by_club {
+            rows.sort();
+            for pair in rows.windows(2) {
+                if crate::calendar_booking::too_close(pair[0].0, pair[1].0) {
+                    clashes.push(format!("{club}: {} and {}", pair[0].1, pair[1].1));
+                }
+            }
+        }
+        clashes
+    }
+
+    /// Given a generated nation with a twenty-club league and its cup, when the world is built,
+    /// then no club has two matches closer than the minimum rest, whatever competition they are in
+    /// (the same-weekday cup and league clash of #553).
+    #[test]
+    fn same_weekday_cup_and_league_never_share_a_club_day() {
+        let teams: Vec<_> = (0..20)
+            .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2032).expect("a valid start year"));
+        let mut game = Game::new(clock, manager_for("eng-00"), teams, vec![], vec![], vec![]);
+
+        ensure_multi_competition_foundations(&mut game);
+
+        assert!(
+            game.competitions
+                .iter()
+                .any(|c| c.rules.format != CompetitionFormat::LeagueTable),
+            "the nation has a cup, or the test proves nothing"
+        );
+        assert_eq!(closest_unplayed_pairs(&game), Vec::<String>::new());
     }
 
     /// The default is unchanged: the same twelve clubs are one league.

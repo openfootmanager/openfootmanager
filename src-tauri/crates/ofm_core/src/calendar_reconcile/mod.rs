@@ -416,3 +416,21 @@ pub fn reconcile(
     apply(&plan, competitions, mark_postponed);
     Ok(plan)
 }
+
+/// Settles the calendar of a world that was just generated: every clash is resolved by the same
+/// rules as the daily sweep, but nothing is recorded as postponed because none of these dates was
+/// ever published to the player. `current_date` is the first day still to be played, so a match
+/// dated that day may move.
+///
+/// A calendar that cannot be settled is a defect, never a rejection: it is logged loudly and the
+/// competitions are left as generated.
+pub fn settle_generated_calendar(
+    competitions: &mut [League],
+    blackout: &BTreeSet<NaiveDate>,
+    current_date: NaiveDate,
+) {
+    let yesterday = current_date.pred_opt().unwrap_or(current_date);
+    if let Err(error) = reconcile(competitions, blackout, yesterday, false) {
+        log::error!("generated calendar could not be settled: {error:?}");
+    }
+}

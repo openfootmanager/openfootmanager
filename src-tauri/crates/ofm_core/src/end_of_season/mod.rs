@@ -606,36 +606,20 @@ fn manage_international_calendar(
     if window_dates.is_empty() {
         return;
     }
-    // Qualifying spreads each window's matches across a multi-day block, so club
-    // fixtures must keep clear of the whole span rather than just the openers.
     let leads_into_world_cup = crate::world_cup::season_leads_into_world_cup(next_start);
     let starts_qualifying = crate::world_cup::season_starts_world_cup_qualifying(next_start);
     let qualifying_in_progress = game
         .competitions
         .iter()
         .any(crate::world_cup::is_world_cup_qualifying);
-    let reserved_dates = if leads_into_world_cup || starts_qualifying || qualifying_in_progress {
-        crate::national_team::international_window_span_dates(&window_dates)
-    } else {
-        window_dates.clone()
-    };
+    // Qualifying spreads each window's matches across a multi-day block, so club
+    // fixtures must keep clear of the whole span rather than just the openers.
+    let blackout =
+        crate::national_team::international_blackout_dates(next_start, qualifying_in_progress);
     for national_team in game.national_teams.iter_mut() {
         national_team.fixtures.clear();
     }
-    for competition in game.competitions.iter_mut() {
-        // The World Cup's own competitions live *on* the reserved windows —
-        // shifting them off would move the very fixtures the reservation
-        // protects. Only club competitions step aside.
-        if crate::world_cup::is_world_cup_competition(competition) {
-            continue;
-        }
-        crate::schedule::shift_fixtures_off_reserved_dates(competition, &reserved_dates);
-    }
-    crate::schedule::append_preseason_friendlies(
-        &mut game.competitions,
-        &reserved_dates,
-        game.clock.current_date,
-    );
+    crate::world::foundations::place_club_calendar(game, &blackout);
 
     if leads_into_world_cup {
         // The windows host the qualifying campaign instead of friendlies: the

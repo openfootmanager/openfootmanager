@@ -489,31 +489,11 @@ pub fn generate_preseason_friendlies(
 }
 
 /// Add preseason friendlies to upcoming domestic divisions: three weekly
-/// rounds in South America and four elsewhere. Shared cup clubs are never
-/// booked twice on the same date, and reserved or past dates are excluded.
-pub fn append_preseason_friendlies(
-    competitions: &mut [League],
-    reserved_dates: &[String],
-    current_date: DateTime<Utc>,
-) {
-    use std::collections::HashSet;
+/// rounds in South America and four elsewhere. Past dates are never created.
+/// A friendly that clashes with anything else is not handled here: the calendar
+/// sweep drops it, because a friendly always yields.
+pub fn append_preseason_friendlies(competitions: &mut [League], current_date: DateTime<Utc>) {
     let today = current_date.date_naive();
-    let reserved: HashSet<String> = reserved_dates.iter().cloned().collect();
-    let mut occupied: HashSet<(String, String)> = competitions
-        .iter()
-        .flat_map(|competition| {
-            competition
-                .fixtures
-                .iter()
-                .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
-                .flat_map(|fixture| {
-                    [
-                        (fixture.home_team_id.clone(), fixture.date.clone()),
-                        (fixture.away_team_id.clone(), fixture.date.clone()),
-                    ]
-                })
-        })
-        .collect();
     let competitive_dates: Vec<(String, chrono::NaiveDate)> = competitions
         .iter()
         .flat_map(|competition| competition.fixtures.iter())
@@ -569,41 +549,9 @@ pub fn append_preseason_friendlies(
                     // A career may open partway through preseason. Keep today's
                     // games (fixtures run by calendar day), but never create past ones.
                     date_str_to_utc(&fixture.date).is_some_and(|date| date.date_naive() >= today)
-                        && !reserved.contains(&fixture.date)
-                        && !occupied.contains(&(fixture.home_team_id.clone(), fixture.date.clone()))
-                        && !occupied.contains(&(fixture.away_team_id.clone(), fixture.date.clone()))
                 })
                 .collect::<Vec<_>>();
-        for fixture in &friendlies {
-            occupied.insert((fixture.home_team_id.clone(), fixture.date.clone()));
-            occupied.insert((fixture.away_team_id.clone(), fixture.date.clone()));
-        }
         append_fixtures(competition, friendlies);
-    }
-}
-
-/// Push any fixture that lands on a reserved date (e.g. an international
-/// window) forward to the next free day, so club matches never clash with
-/// national-team call-ups. Order is preserved.
-pub fn shift_fixtures_off_reserved_dates(league: &mut League, reserved_dates: &[String]) {
-    if reserved_dates.is_empty() {
-        return;
-    }
-    let reserved: std::collections::HashSet<&str> =
-        reserved_dates.iter().map(|date| date.as_str()).collect();
-
-    for fixture in &mut league.fixtures {
-        let Some(mut date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").ok()
-        else {
-            continue;
-        };
-        while reserved.contains(date.format("%Y-%m-%d").to_string().as_str()) {
-            match date.succ_opt() {
-                Some(next) => date = next,
-                None => break,
-            }
-        }
-        fixture.date = date.format("%Y-%m-%d").to_string();
     }
 }
 
@@ -759,7 +707,7 @@ mod tests {
                 division.scope = CompetitionScope::Domestic;
                 let mut competitions = vec![division];
 
-                append_preseason_friendlies(&mut competitions, &[], now);
+                append_preseason_friendlies(&mut competitions, now);
 
                 let friendlies: Vec<_> = competitions[0]
                     .fixtures
@@ -797,7 +745,14 @@ mod tests {
             .collect();
         let reserved = vec!["2035-07-18".to_string()];
 
-        append_preseason_friendlies(&mut competitions, &reserved, now);
+        append_preseason_friendlies(&mut competitions, now);
+        crate::calendar_reconcile::settle_generated_calendar(
+            &mut competitions,
+            &std::collections::BTreeSet::from([
+                chrono::NaiveDate::from_ymd_opt(2035, 7, 18).unwrap()
+            ]),
+            now.date_naive(),
+        );
 
         let mut occupied = std::collections::HashSet::new();
         for (division, expected) in competitions.iter().zip([8, 12]) {
@@ -819,39 +774,45 @@ mod tests {
         }
     }
 
+    /// Given a league match forced onto an international window, when the generated calendar is
+    /// settled, then it moves to the next free day and nothing is recorded as postponed.
     #[test]
-    fn shift_fixtures_off_reserved_dates_moves_clashing_matches_forward() {
+    fn a_league_round_on_a_window_is_placed_off_it_at_generation() {
         let teams: Vec<String> = (0..2).map(|i| format!("team_{i}")).collect();
         let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
         let mut league = generate_league("Test League", 2026, &teams, start);
-
-        // Force a clash, then reserve that exact day.
         league.fixtures[0].date = "2026-09-09".to_string();
-        let reserved = vec!["2026-09-09".to_string()];
+        let blackout = std::collections::BTreeSet::from([chrono::NaiveDate::from_ymd_opt(
+            2026, 9, 9,
+        )
+        .unwrap()]);
+        let mut world = vec![league];
 
-        shift_fixtures_off_reserved_dates(&mut league, &reserved);
+        crate::calendar_reconcile::settle_generated_calendar(
+            &mut world,
+            &blackout,
+            start.date_naive(),
+        );
 
-        assert!(
-            league.fixtures.iter().all(|f| f.date != "2026-09-09"),
-            "no fixture should remain on a reserved date"
-        );
-        assert_eq!(
-            league.fixtures[0].date, "2026-09-10",
-            "clashing fixture should move to the next free day"
-        );
+        assert_eq!(world[0].fixtures[0].date, "2026-09-10");
+        assert!(world[0].fixtures.iter().all(|f| f.postponement.is_none()));
     }
 
+    /// Given a calendar without clashes, when it is settled, then not one date changes.
     #[test]
-    fn shift_fixtures_off_reserved_dates_is_noop_without_reservations() {
-        let teams: Vec<String> = (0..2).map(|i| format!("team_{i}")).collect();
+    fn a_world_without_clashes_is_unchanged_byte_for_byte() {
+        let teams: Vec<String> = (0..6).map(|i| format!("team_{i}")).collect();
         let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
-        let mut league = generate_league("Test League", 2026, &teams, start);
-        let before: Vec<String> = league.fixtures.iter().map(|f| f.date.clone()).collect();
+        let mut world = vec![generate_league("Test League", 2026, &teams, start)];
+        let before = serde_json::to_string(&world).unwrap();
 
-        shift_fixtures_off_reserved_dates(&mut league, &[]);
+        crate::calendar_reconcile::settle_generated_calendar(
+            &mut world,
+            &Default::default(),
+            start.date_naive(),
+        );
 
-        let after: Vec<String> = league.fixtures.iter().map(|f| f.date.clone()).collect();
-        assert_eq!(before, after);
+        assert_eq!(serde_json::to_string(&world).unwrap(), before);
     }
 
     fn resolve_scheduled_fixtures(cup: &mut League) {
@@ -1207,10 +1168,12 @@ mod tests {
         });
 
         let mut competitions = vec![league, cup];
-        append_preseason_friendlies(
+        let now = Utc.with_ymd_and_hms(2025, 12, 15, 0, 0, 0).unwrap();
+        append_preseason_friendlies(&mut competitions, now);
+        crate::calendar_reconcile::settle_generated_calendar(
             &mut competitions,
-            &[],
-            Utc.with_ymd_and_hms(2025, 12, 15, 0, 0, 0).unwrap(),
+            &Default::default(),
+            now.date_naive(),
         );
 
         let friendly_dates: std::collections::HashSet<&str> = competitions[0]
