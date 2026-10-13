@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::migrations::{
     MIGRATION_COUNT, all_migrations, expected_layout, first_layout_difference, layout_of,
+    migration_owned_tables,
 };
 use crate::save_load_error::SaveLoadError;
 
@@ -27,7 +28,11 @@ fn verify_layout_matches_version(
         error!("[game_db] cannot read the layout of {path:?}: {e}");
         SaveLoadError::Corrupted
     })?;
-    match first_layout_difference(&expected, &found) {
+    let owned = migration_owned_tables().map_err(|e| {
+        error!("[game_db] cannot list the tables the migrations own: {e}");
+        SaveLoadError::Unknown
+    })?;
+    match first_layout_difference(&expected, &found, &owned) {
         None => Ok(()),
         Some(first_difference) => {
             error!("[game_db] save {path:?} claims schema v{save_version} but {first_difference}");
@@ -355,5 +360,41 @@ mod tests {
             save_claiming_version(dir.path(), MIGRATION_COUNT, r#"CREATE TABLE "a""b" (x);"#);
 
         GameDatabase::open_save(&path).expect("an awkward foreign table is not a contradiction");
+    }
+
+    fn assert_refused_naming(path: &Path, expected: &str) {
+        match GameDatabase::open_save(path) {
+            Err(SaveLoadError::IncompatibleLayout { first_difference }) => {
+                assert!(first_difference.contains(expected), "{first_difference}");
+            }
+            Err(other) => panic!("expected IncompatibleLayout, got {other:?}"),
+            Ok(_) => panic!("expected IncompatibleLayout, got an open database"),
+        }
+    }
+
+    /// Given a save at v43 that already holds a `cash_journal` of its own making (v44 creates it)
+    /// When it is opened
+    /// Then it is refused as an incompatible layout, not migrated into a generic failure.
+    #[test]
+    fn open_save_refuses_a_table_a_later_migration_would_create() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = save_claiming_version(dir.path(), 43, "CREATE TABLE cash_journal (id INTEGER);");
+
+        assert_refused_naming(&path, "cash_journal");
+    }
+
+    /// Given an honest save with a generated (hidden) column added to one of its tables
+    /// When it is opened
+    /// Then the stray column is seen and the save refused.
+    #[test]
+    fn open_save_refuses_a_hidden_generated_column() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = save_claiming_version(
+            dir.path(),
+            MIGRATION_COUNT,
+            "ALTER TABLE game_meta ADD COLUMN sneaky INTEGER GENERATED ALWAYS AS (1) VIRTUAL;",
+        );
+
+        assert_refused_naming(&path, "sneaky");
     }
 }

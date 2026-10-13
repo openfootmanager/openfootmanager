@@ -188,9 +188,10 @@ pub(crate) fn layout_of(conn: &rusqlite::Connection) -> Result<Layout, String> {
         .collect::<Result<_, _>>()
         .map_err(|e| e.to_string())?;
     for name in names {
-        // Bound, not interpolated: a foreign table may be named anything, quotes included.
+        // Bound, not interpolated: a foreign table may be named anything, quotes included. `xinfo`
+        // rather than `info`, which leaves out generated and hidden columns.
         let mut info = conn
-            .prepare("SELECT name FROM pragma_table_info(?1)")
+            .prepare("SELECT name FROM pragma_table_xinfo(?1)")
             .map_err(|e| e.to_string())?;
         let columns = info
             .query_map([&name], |row| row.get::<_, String>(0))
@@ -202,9 +203,21 @@ pub(crate) fn layout_of(conn: &rusqlite::Connection) -> Result<Layout, String> {
     Ok(layout)
 }
 
-/// The first table or column on which `found` disagrees with `expected`, if any. Tables the
-/// migrations never created are ignored.
-pub(crate) fn first_layout_difference(expected: &Layout, found: &Layout) -> Option<String> {
+/// Every table any shipped migration creates: the names a save must never hold unless its
+/// version says it should.
+pub(crate) fn migration_owned_tables() -> Result<std::collections::BTreeSet<String>, String> {
+    Ok(expected_layout(MIGRATIONS.len())?.into_keys().collect())
+}
+
+/// The first table or column on which `found` disagrees with `expected`, if any. A table no
+/// migration ever creates is somebody's own (a debugging probe, a tool's cache) and harms
+/// nothing; but a table a *later* migration creates is not foreign, and one already present
+/// would make that migration's `CREATE TABLE IF NOT EXISTS` skip it and fail halfway.
+pub(crate) fn first_layout_difference(
+    expected: &Layout,
+    found: &Layout,
+    migration_owned: &std::collections::BTreeSet<String>,
+) -> Option<String> {
     for (table, columns) in expected {
         let Some(found_columns) = found.get(table) else {
             return Some(format!("missing table {table}"));
@@ -216,10 +229,10 @@ pub(crate) fn first_layout_difference(expected: &Layout, found: &Layout) -> Opti
             return Some(format!("unexpected column {table}.{column}"));
         }
     }
-    // A table no migration made is somebody's own (a debugging probe, a tool's cache) and
-    // harms nothing; only a table or column the version promises, or a stray column on one of
-    // ours, makes the next migration fail halfway.
-    None
+    found
+        .keys()
+        .find(|table| !expected.contains_key(*table) && migration_owned.contains(*table))
+        .map(|table| format!("unexpected table {table}"))
 }
 
 pub fn all_migrations() -> Migrations<'static> {
