@@ -939,7 +939,7 @@ mod tests {
     }
 
     #[test]
-    fn retired_players_are_excluded_from_award_tables() {
+    fn archived_retirees_are_excluded_from_award_tables() {
         let team = make_team("team1", "Test FC");
         let mut retired_star = make_player(
             "retired-star",
@@ -956,6 +956,8 @@ mod tests {
             },
         );
         retired_star.retired = true;
+        let archived_star =
+            domain::retired_player::RetiredPlayer::from_player(&retired_star, "2025-06-01", 2024);
 
         let active_player = make_player(
             "active-star",
@@ -972,8 +974,9 @@ mod tests {
             },
         );
 
-        let awards =
-            compute_season_awards(&make_game(vec![retired_star, active_player], vec![team]));
+        let mut game = make_game(vec![active_player], vec![team]);
+        game.retired_players.push(archived_star);
+        let awards = compute_season_awards(&game);
 
         assert_eq!(awards.golden_boot[0].player_id, "active-star");
         assert_eq!(awards.player_of_year[0].player_id, "active-star");
