@@ -12,7 +12,10 @@ use ofm_core::slices::scouted_report::{query_scouted_report, ScoutedReportView};
 use ofm_core::slices::session::{project_session, SessionState, SessionStateQuery};
 use ofm_core::slices::squad::{query_squad, SquadPlayer};
 use ofm_core::slices::staff::{query_staff, StaffSlice};
-use ofm_core::slices::teams::{query_directory, TeamsDirectory, TeamsDirectoryQuery};
+use ofm_core::slices::teams::{
+    query_club_league_standing, query_directory, ClubLeagueStanding, TeamsDirectory,
+    TeamsDirectoryQuery,
+};
 use ofm_core::state::StateManager;
 
 const NO_ACTIVE_GAME: &str = "be.error.noActiveGameSession";
@@ -85,6 +88,16 @@ pub async fn get_session_state(
 ) -> Result<SessionState, String> {
     state
         .get_game(project_session)
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+#[tauri::command]
+pub async fn get_club_league_standing(
+    state: State<'_, Arc<StateManager>>,
+    team_id: String,
+) -> Result<Option<ClubLeagueStanding>, String> {
+    state
+        .get_game(|game| query_club_league_standing(game, &team_id))
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 

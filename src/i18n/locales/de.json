@@ -2030,7 +2030,7 @@
     "postMatchTeamTalk": "Ansprache nach dem Spiel",
     "addressPlayers": "Sprich nach dem Spiel zu deinen Spielern.",
     "matchOver": "Spiel beendet",
-    "performance": "{{team}} Leistung",
+    "ratings": "{{team}} Bewertungen",
     "motm": "Spieler des Spiels",
     "roundSummary": "Spieltagsübersicht",
     "roundSummaryUnavailable": "Spieltagsübersicht nicht verfügbar.",
@@ -2540,7 +2540,7 @@
       }
     },
     "matchReport": "Spielbericht",
-    "playerPerformance": "Spielerleistung",
+    "playerRatings": "Spielerbewertungen",
     "tacticsTab": "Taktik",
     "goalSources": "Torquellen",
     "openPlay": "Aus dem Spiel heraus",

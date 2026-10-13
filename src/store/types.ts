@@ -179,6 +179,7 @@ export interface PlayerSeasonStats {
   yellow_cards: number;
   red_cards: number;
   avg_rating: number;
+  rated_appearances?: number;
   minutes_played: number;
   shots?: number;
   shots_on_target?: number;

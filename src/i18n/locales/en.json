@@ -2064,7 +2064,7 @@
     "postMatchTeamTalk": "Post-Match Team Talk",
     "addressPlayers": "Address your players after the match.",
     "matchOver": "Match Over",
-    "performance": "{{team}} Performance",
+    "ratings": "{{team}} Ratings",
     "motm": "Man of the Match",
     "roundSummary": "Round Summary",
     "roundSummaryUnavailable": "Round summary unavailable.",
@@ -2540,7 +2540,7 @@
       }
     },
     "matchReport": "Match Report",
-    "playerPerformance": "Player Performance",
+    "playerRatings": "Player Ratings",
     "tacticsTab": "Tactics",
     "goalSources": "Goal Sources",
     "openPlay": "Open Play",

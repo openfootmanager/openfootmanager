@@ -358,6 +358,7 @@ fn synthesize_player_season(
         red_cards: deterministic_u32((&player.id, season, "red"), 2),
         // Historical counts are synthesized, but no match ratings were recorded.
         avg_rating: 0.0,
+        rated_appearances: 0,
         minutes_played,
         shots,
         shots_on_target,

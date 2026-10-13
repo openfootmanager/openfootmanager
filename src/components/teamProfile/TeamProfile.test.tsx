@@ -232,6 +232,42 @@ describe("TeamProfile", () => {
     vi.mocked(invoke).mockResolvedValue(null);
   });
 
+  /**
+   * Given a club the backend places 3rd in its own division's table
+   * When its profile opens
+   * Then the position and the league standing card come from that answer
+   */
+  it("shows the league position the backend gives for the club", async () => {
+    const team = createTeam();
+    vi.mocked(invoke).mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "get_club_league_standing") {
+        expect(args).toEqual({ teamId: team.id });
+        return {
+          competition_id: "division-2",
+          competition_name: "Division 2",
+          league_pos: 3,
+          standing: {
+            played: 7,
+            won: 4,
+            drawn: 1,
+            lost: 2,
+            goals_for: 11,
+            goals_against: 6,
+            points: 13,
+          },
+        };
+      }
+      return null;
+    });
+    const state = createGameState(team);
+    state.league = null;
+
+    render(<TeamProfile team={team} gameState={state} isOwnTeam={false} onClose={vi.fn()} />);
+
+    expect(await screen.findAllByText("#3")).not.toHaveLength(0);
+    expect(screen.getByText("13")).toBeInTheDocument();
+  });
+
   it("loads and renders team stats overview from the backend", async () => {
     const team = createTeam();
     vi.mocked(invoke).mockImplementation(async (command: string) => {

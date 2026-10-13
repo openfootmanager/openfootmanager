@@ -108,6 +108,8 @@ export interface MatchSnapshot {
   away_yellows: Record<string, number>;
   sent_off: string[];
   penalty_shootout?: PenaltyShootoutSnapshot | null;
+  /** Engine marks out of ten by player id; filled once the match is over. */
+  player_ratings?: Record<string, number>;
 }
 
 export interface MinuteResult {
