@@ -738,3 +738,45 @@ fn assert_cups_stable_across_rolls_and_reload(
         "{route}: a reload must not change who is in the cups"
     );
 }
+
+/// Given a package loaded for a career,
+/// When the game is built from it,
+/// Then the game carries the seed the package world was built from, so the world a player started
+///      can be rebuilt from a bug report; and loading again draws another seed.
+#[test]
+fn a_package_career_records_the_seed_its_world_was_built_from() {
+    let dir = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../docs/modding/examples/classic-sixteen"
+    );
+    let sources = ofm_core::generator::DefinitionSources::embedded_only();
+    let load = || super::load_world_data_from_package(dir, &sources).unwrap();
+
+    let (world, authored) = load();
+    let seed = world
+        .generation_seed
+        .expect("a package world is built from a seed");
+    let options = StartupOptions {
+        start_year: 2031,
+        start_phase: StartPhase::SeasonStart,
+        history_depth_years: 0,
+    };
+    let clock = game_clock_for_world(&options, &world.metadata).unwrap();
+    let manager = domain::manager::Manager::new(
+        "mgr-user".into(),
+        "Alex".into(),
+        "Manager".into(),
+        "1980-01-01".into(),
+        "England".into(),
+    );
+    let (game, _) = super::build_game_from_world_data_ranked(
+        clock,
+        manager,
+        &options,
+        world,
+        ofm_core::generator::ReputationBasis::Authored(&authored),
+    );
+
+    assert_eq!(game.seed, seed);
+    assert_ne!(load().0.generation_seed, Some(seed));
+}

@@ -233,7 +233,9 @@ pub fn build_world_from_package_seeded(
     let mut world =
         super::build_world_data_from_package_with_rng(package, opening_year, sources, &mut rng);
     // The world's identity is part of the world: left empty it is a fresh UUID per build.
-    world.metadata.world_id = uuid::Uuid::from_u128(rng.random()).to_string();
+    world.metadata.world_id = uuid::Builder::from_random_bytes(rng.random())
+        .into_uuid()
+        .to_string();
     let mut world = finish_package_world(package, world)?;
     world.generation_seed = Some(seed);
     Ok(world)
@@ -1259,6 +1261,12 @@ mod tests {
         assert_eq!(everything(&one), everything(&again));
         assert_ne!(everything(&one), everything(&other));
         assert_eq!(one.metadata.world_id, again.metadata.world_id);
+        let world_id = uuid::Uuid::parse_str(&one.metadata.world_id).expect("a world id is a UUID");
+        assert_eq!(
+            world_id.get_version_num(),
+            4,
+            "a seeded id is still a version 4 UUID"
+        );
         assert_ne!(one.metadata.world_id, other.metadata.world_id);
     }
 
