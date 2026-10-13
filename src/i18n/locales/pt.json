@@ -2030,7 +2030,7 @@
     "postMatchTeamTalk": "Palestra Pós-Jogo",
     "addressPlayers": "Dirige-te aos teus jogadores após o jogo.",
     "matchOver": "Jogo Terminado",
-    "performance": "Desempenho do {{team}}",
+    "ratings": "Classificações de {{team}}",
     "motm": "Melhor em Campo",
     "roundSummary": "Resumo da Jornada",
     "roundSummaryUnavailable": "Resumo da jornada indisponível.",
@@ -2540,7 +2540,7 @@
       }
     },
     "matchReport": "Relatório do jogo",
-    "playerPerformance": "Desempenho dos jogadores",
+    "playerRatings": "Avaliações",
     "tacticsTab": "Tática",
     "goalSources": "Fontes de golo",
     "openPlay": "Jogo aberto",

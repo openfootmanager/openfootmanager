@@ -1395,6 +1395,8 @@ mod tests {
         player.stats.tackles_won = 33;
         player.stats.interceptions = 19;
         player.stats.fouls_committed = 14;
+        player.stats.avg_rating = 6.9;
+        player.stats.rated_appearances = 17;
 
         upsert_player(db.conn(), &player).unwrap();
         let loaded = load_all_players(db.conn()).unwrap();
@@ -1409,6 +1411,8 @@ mod tests {
         assert_eq!(loaded[0].stats.tackles_won, 33);
         assert_eq!(loaded[0].stats.interceptions, 19);
         assert_eq!(loaded[0].stats.fouls_committed, 14);
+        assert_eq!(loaded[0].stats.avg_rating, 6.9);
+        assert_eq!(loaded[0].stats.rated_appearances, 17);
     }
 
     #[test]

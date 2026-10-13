@@ -88,13 +88,18 @@ pub fn simulate_with_rng<R: Rng>(
         .map(|player| player.id.clone())
         .collect();
 
-    MatchReport::from_events_with_players(
+    let mut report = MatchReport::from_events_with_players(
         ctx.events,
         ctx.home_possession_ticks,
         ctx.away_possession_ticks,
         total_minutes,
         tracked_player_ids,
-    )
+    );
+    report.assign_ratings(
+        &home.players.iter().collect::<Vec<_>>(),
+        &away.players.iter().collect::<Vec<_>>(),
+    );
+    report
 }
 
 // ---------------------------------------------------------------------------
