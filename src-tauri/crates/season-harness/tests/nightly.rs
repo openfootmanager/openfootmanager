@@ -259,6 +259,13 @@ fn ratings_stay_within_their_bounds() {
                 "seed {seed}: no season rating exists for any player with {ENOUGH_APPEARANCES}+ appearances"
             );
         });
+        if measured {
+            assert_eq!(
+                watch.seasons.len(),
+                3,
+                "seed {seed}: every season was measured"
+            );
+        }
         for season in &watch.seasons {
             eprintln!(
                 "seed {seed} season {}: {} rated, mean {:.2}, {:.2}% at 8.5+",

@@ -54,22 +54,29 @@ jobs:
           path: failed-rehearsal.txt
           retention-days: 14
 
+  revision:
+    if: github.repository == 'openfootmanager/openfootmanager' && !(github.event_name == 'workflow_dispatch' && inputs.rehearse_failure)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.develop.outputs.sha }}
+    steps:
+      # Resolved once, so a push to develop during the night cannot give the jobs two revisions.
+      - name: Resolve develop
+        id: develop
+        run: echo "sha=$(git ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" refs/heads/develop | cut -f1)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: revision
     if: github.repository == 'openfootmanager/openfootmanager' && !(github.event_name == 'workflow_dispatch' && inputs.rehearse_failure)
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    outputs:
-      revision: ${{ steps.revision.outputs.revision }}
     steps:
-      - name: Checkout develop
+      - name: Checkout the resolved develop revision
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: develop
+          ref: ${{ needs.revision.outputs.sha }}
           persist-credentials: false
-
-      - name: Record the revision
-        id: revision
-        run: echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Install Linux build dependencies
         run: |
@@ -89,7 +96,7 @@ jobs:
 
       - name: Stage the binary with its revision and checksum
         env:
-          REVISION: ${{ steps.revision.outputs.revision }}
+          REVISION: ${{ needs.revision.outputs.sha }}
         run: |
           mkdir stage
           cp src-tauri/target/debug/openfootmanager stage/openfootmanager
@@ -105,14 +112,15 @@ jobs:
           if-no-files-found: error
 
   harness-nightly:
+    needs: revision
     if: github.repository == 'openfootmanager/openfootmanager' && !(github.event_name == 'workflow_dispatch' && inputs.rehearse_failure)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout develop
+      - name: Checkout the resolved develop revision
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: develop
+          ref: ${{ needs.revision.outputs.sha }}
           persist-credentials: false
 
       - name: Install Linux build dependencies
@@ -138,7 +146,9 @@ jobs:
         if: failure()
         run: |
           grep -E '^test .* FAILED|panicked at|^seed [0-9]+' harness-nightly.log > failed-harness-nightly.txt || true
-          echo "repro: cargo test -p season-harness --test nightly <scenario> -- --ignored --nocapture" >> failed-harness-nightly.txt
+          sed -nE 's/^test (.*) \.\.\. FAILED$/\1/p' harness-nightly.log | while read -r name; do
+            echo "repro: cargo test -p season-harness --test nightly -- --ignored --nocapture $name" >> failed-harness-nightly.txt
+          done
           { echo "### harness-nightly"; echo '```'; cat failed-harness-nightly.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the log
@@ -153,7 +163,7 @@ jobs:
           if-no-files-found: ignore
 
   e2e:
-    needs: build
+    needs: [revision, build]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
@@ -163,7 +173,7 @@ jobs:
       - name: Checkout the revision the binary was built from
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ needs.build.outputs.revision }}
+          ref: ${{ needs.revision.outputs.sha }}
           persist-credentials: false
 
       - name: Install Linux dependencies and a virtual display
@@ -179,7 +189,7 @@ jobs:
 
       - name: Verify the binary is today's, for this revision
         env:
-          REVISION: ${{ needs.build.outputs.revision }}
+          REVISION: ${{ needs.revision.outputs.sha }}
         run: |
           test "$(cat stage/REVISION)" = "$REVISION"
           (cd stage && sha256sum --check openfootmanager.sha256)
@@ -228,6 +238,9 @@ jobs:
         run: |
           grep -hE '^test .* FAILED|OFM_E2E_SEED=|smoke subset is red' e2e-*.log > failed-e2e.txt || true
           echo "seed: $OFM_E2E_SEED" >> failed-e2e.txt
+          sed -nE 's/^test (.*) \.\.\. FAILED$/\1/p' e2e-*.log | while read -r name; do
+            echo "repro: OFM_E2E_SEED=$OFM_E2E_SEED xvfb-run -a cargo test -p mcp-e2e -- --ignored --nocapture $name" >> failed-e2e.txt
+          done
           { echo "### e2e"; echo '```'; cat failed-e2e.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Keep the evidence
@@ -244,7 +257,7 @@ jobs:
 
   notify:
     if: always() && github.repository == 'openfootmanager/openfootmanager' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
-    needs: [rehearsal, build, harness-nightly, e2e]
+    needs: [rehearsal, revision, build, harness-nightly, e2e]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # The only job with write access, and it runs no code from the repository.
@@ -256,8 +269,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      REVISION: ${{ needs.build.outputs.revision }}
+      REVISION: ${{ needs.revision.outputs.sha }}
       REHEARSAL: ${{ needs.rehearsal.result }}
+      RESOLVE: ${{ needs.revision.result }}
       BUILD: ${{ needs.build.result }}
       HARNESS: ${{ needs.harness-nightly.result }}
       E2E: ${{ needs.e2e.result }}
@@ -279,7 +293,7 @@ jobs:
           today="$(date -u +%F)"
 
           red=false
-          for result in "$REHEARSAL" "$BUILD" "$HARNESS" "$E2E"; do
+          for result in "$REHEARSAL" "$RESOLVE" "$BUILD" "$HARNESS" "$E2E"; do
             if [ "$result" = failure ] || [ "$result" = cancelled ]; then red=true; fi
           done
 
@@ -296,6 +310,7 @@ jobs:
             echo "| job | result |"
             echo "|---|---|"
             echo "| rehearsal | $REHEARSAL |"
+            echo "| revision | $RESOLVE |"
             echo "| build | $BUILD |"
             echo "| harness-nightly | $HARNESS |"
             echo "| e2e | $E2E |"
