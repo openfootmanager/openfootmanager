@@ -463,6 +463,7 @@ pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
                 .to_string()
         })
         .collect();
+    let (first_day, last_day) = (soon[0].as_str(), soon[soon.len() - 1].as_str());
     // Both collections, not the usual "competitions, else the legacy slot". A
     // side is picked *during* simulation, and `simulate_competition_day_with_capture`
     // moves the competition being played out of `game.competitions` into
@@ -481,8 +482,11 @@ pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
         .chain(game.league.iter())
         .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
-        .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
+        // The window test comes first and costs two string comparisons: this reads every fixture in
+        // the world, twice per match, so it is where a populated world spends its kick-off.
+        .filter(|fixture| fixture.date.as_str() >= first_day && fixture.date.as_str() <= last_day)
         .filter(|fixture| soon.contains(&fixture.date))
+        .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
         .any(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id);
 
     if plays_again_soon {

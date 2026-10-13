@@ -519,6 +519,28 @@ fn a_match_a_week_after_this_one_is_a_normal_week() {
     assert_eq!(fixture_load(&game, "club"), FixtureLoad::Normal);
 }
 
+/// The edges of the window: tomorrow and four days on count; today's own match, yesterday's
+/// and five days on do not. A fixture already played does not count wherever it falls.
+#[test]
+fn only_the_next_four_days_make_a_congested_run() {
+    for (days, congested) in [(-1, false), (0, false), (1, true), (4, true), (5, false)] {
+        let game = game_with_fixtures_on(&[days]);
+        let expected = if congested {
+            FixtureLoad::Congested
+        } else {
+            FixtureLoad::Normal
+        };
+        assert_eq!(
+            fixture_load(&game, "club"),
+            expected,
+            "a match {days} days on"
+        );
+    }
+    let mut played = game_with_fixtures_on(&[3]);
+    played.league.as_mut().unwrap().fixtures[0].status = domain::league::FixtureStatus::Completed;
+    assert_eq!(fixture_load(&played, "club"), FixtureLoad::Normal);
+}
+
 /// The state a squad is actually picked in on a normal day advance: the
 /// competition being played has been moved into the legacy `game.league` slot
 /// for simulation, and its place in `game.competitions` holds an empty default.
