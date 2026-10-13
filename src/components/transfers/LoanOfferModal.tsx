@@ -6,6 +6,7 @@ import { formatExactMoney, formatVal, getTeamName, positionBadgeVariant } from "
 import { formatDate } from "../../lib/dateFormatting";
 import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { naturalPositionOf } from "../../lib/positions";
 import type { LoanPeriodOption, LoanPeriodOptionId } from "./TransfersTab.helpers";
 
 export interface LoanOfferFormProps {
@@ -87,8 +88,8 @@ export function LoanOfferForm({
       </h3>
       {showPlayerSummary ? (
         <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(loanTarget.position)} size="sm">
-            {translatePositionAbbreviation(t, loanTarget.position)}
+          <Badge variant={positionBadgeVariant(naturalPositionOf(loanTarget))} size="sm">
+            {translatePositionAbbreviation(t, naturalPositionOf(loanTarget))}
           </Badge>
           <div>
             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">

@@ -3,7 +3,7 @@ export {
   canonicalPosition,
   normalisePosition,
 } from "../../lib/positions";
-import { canonicalPosition, normalisePosition } from "../../lib/positions";
+import { canonicalPosition, naturalPositionOf, normalisePosition } from "../../lib/positions";
 
 import type { PlayerData } from "../../store/gameStore";
 import { getPlayerOvr } from "../../lib/helpers";
@@ -138,13 +138,13 @@ export function getCurrentPosition(
   player: PlayerData,
   xiActivePosition: Map<string, string>,
 ): string {
-  return xiActivePosition.get(player.id) || player.natural_position || player.position;
+  return xiActivePosition.get(player.id) || naturalPositionOf(player);
 }
 
 export function getPreferredPositions(player: PlayerData): string[] {
   return [
     ...new Set(
-      [player.natural_position || player.position, ...(player.alternate_positions || [])]
+      [naturalPositionOf(player), ...(player.alternate_positions || [])]
         .filter(Boolean)
         .map(canonicalPosition),
     ),

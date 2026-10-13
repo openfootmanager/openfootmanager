@@ -91,4 +91,20 @@ describe("HomeUnavailablePlayersCard", () => {
     expect(screen.getByText(/Hamstring/)).toBeInTheDocument();
     expect(screen.getByText(/6 days out/)).toBeInTheDocument();
   });
+
+  /**
+   * Given an injured player whose `position` is the legacy bucket and whose natural position is granular
+   * When the card lists the unavailable players
+   * Then the position label is the granular one.
+   */
+  it("labels the player by their granular natural position", () => {
+    render(
+      <HomeUnavailablePlayersCard
+        players={[createPlayer({ position: "Defender", natural_position: "LeftBack" })]}
+        resolveInjuryName={(name) => name}
+      />,
+    );
+
+    expect(screen.getByText("common.positions.LeftBack")).toBeInTheDocument();
+  });
 });

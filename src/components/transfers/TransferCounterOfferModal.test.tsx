@@ -224,4 +224,32 @@ describe("TransferCounterOfferModal", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  /**
+   * Given a counter target whose `position` is the legacy bucket and whose natural position is granular
+   * When the counter-offer modal opens
+   * Then the badge reads the granular position.
+   */
+  it("badges the player by their granular natural position", () => {
+    render(
+      <TransferCounterOfferModal
+        counterTarget={{
+          ...createCounterTarget(),
+          player: createPlayer({ position: "Defender", natural_position: "LeftBack" }),
+        }}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Buyer FC" })]}
+        counterAmount="1600000"
+        onCounterAmountChange={vi.fn()}
+        counterFeedback={null}
+        activeCounterOffer={createOffer()}
+        counterResult={null}
+        counterError={null}
+        counterLoading={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("common.posAbbr.LeftBack")).toBeInTheDocument();
+  });
 });
