@@ -2552,7 +2552,10 @@
     "yourResult": "O teu resultado",
     "continue": "Continuar",
     "notableUpset": "Grande surpresa",
-    "pts": "pts"
+    "pts": "pts",
+    "cupPenalties": "({{home}}–{{away}} nos penáltis)",
+    "cupAdvances": "{{team}} passa à eliminatória seguinte",
+    "cupTiesPending": "Ainda faltam eliminatórias por disputar"
   },
   "endOfSeason": {
     "seasonComplete": "Época Completa",

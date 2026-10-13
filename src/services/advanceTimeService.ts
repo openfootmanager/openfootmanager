@@ -34,6 +34,7 @@ export interface AdvanceTimeWithModeResponse {
   fixture_id?: string;
   mode?: string;
   round_summary?: unknown;
+  cup_round_summaries?: unknown;
   results?: AdvanceMatchResultData[];
 }
 

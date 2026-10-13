@@ -2552,7 +2552,10 @@
     "yourResult": "Váš výsledek",
     "continue": "Pokračovat",
     "notableUpset": "Velké překvapení",
-    "pts": "b."
+    "pts": "b.",
+    "cupPenalties": "({{home}}–{{away}} na penalty)",
+    "cupAdvances": "{{team}} postupuje dál",
+    "cupTiesPending": "Některá utkání se ještě odehrají"
   },
   "endOfSeason": {
     "seasonComplete": "Sezóna dokončena",
