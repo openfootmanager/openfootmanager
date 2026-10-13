@@ -50,11 +50,12 @@ pub fn validate_competition_definitions(
     definitions_json: String,
 ) -> Result<Vec<CompetitionDefinitionIssue>, String> {
     let file = parse_competition_definitions(&definitions_json)?;
-    let world = load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?;
+    let (world, authored) =
+        load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?;
     Ok(validate_against_world(
         &file,
         &world,
-        ofm_core::generator::ReputationBasis::Stored,
+        ofm_core::generator::ReputationBasis::Authored(&authored),
     ))
 }
 

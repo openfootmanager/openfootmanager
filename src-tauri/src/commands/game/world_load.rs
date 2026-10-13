@@ -27,17 +27,22 @@ pub(super) fn load_world_data_from_path(
         .map_err(|_| "be.error.worldReadFileFailed".to_string())
 }
 
+/// A world with the reputations its competitions were validated against: a package
+/// authors them, any other source ranks by the clubs' own.
+pub(super) type LoadedWorld = (ofm_core::generator::WorldData, AuthoredReputations);
+
 /// Load a world from a modular package directory (recursively scanned, schema
 /// typed). Rejects an invalid package so a broken mod never loads half-applied.
 pub(super) fn load_world_data_from_package(
     dir: &str,
     sources: &ofm_core::generator::DefinitionSources,
-) -> Result<ofm_core::generator::WorldData, String> {
+) -> Result<LoadedWorld, String> {
     let (package, errors) = ofm_core::generator::load_world_package(std::path::Path::new(dir));
     if !errors.is_empty() {
         return Err(first_package_error_message(&errors));
     }
-    ofm_core::generator::build_world_from_package(&package, None, sources)
+    let world = ofm_core::generator::build_world_from_package(&package, None, sources)?;
+    Ok((world, ofm_core::generator::authored_reputations(&package)))
 }
 
 /// Where the generator looks for definition files, in priority order.
@@ -64,15 +69,21 @@ pub(super) fn definition_sources(
 pub(super) fn load_world_data(
     world_source: Option<&str>,
     sources: &ofm_core::generator::DefinitionSources,
-) -> Result<ofm_core::generator::WorldData, String> {
+) -> Result<LoadedWorld, String> {
     match world_source {
-        None | Some("random") => Ok(ofm_core::generator::generate_world_data(sources)),
+        None | Some("random") => Ok((
+            ofm_core::generator::generate_world_data(sources),
+            AuthoredReputations::new(),
+        )),
         Some(source) => {
             let raw = source.strip_prefix("file:").unwrap_or(source);
             if std::path::Path::new(raw).is_dir() {
                 load_world_data_from_package(raw, sources)
             } else {
-                load_world_data_from_path(source)
+                Ok((
+                    load_world_data_from_path(source)?,
+                    AuthoredReputations::new(),
+                ))
             }
         }
     }
@@ -214,11 +225,16 @@ mod tests {
         )
         .unwrap();
 
-        let world = super::load_world_data(
+        let (world, authored) = super::load_world_data(
             Some(dir.to_string_lossy().as_ref()),
             &ofm_core::generator::DefinitionSources::embedded_only(),
         )
         .expect("package loads");
+        assert_eq!(
+            authored.len(),
+            2,
+            "a package directory brings its reputations"
+        );
         assert!(world.teams.iter().any(|t| t.id == "zed-fc"));
         assert!(world.teams.iter().any(|t| t.id == "zed-utd"));
 

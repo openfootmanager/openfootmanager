@@ -112,11 +112,9 @@ pub async fn start_new_game(
                 &definition_sources(&app_handle),
             )?
         } else {
-            (
-                load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?,
-                vec![],
-                AuthoredReputations::new(),
-            )
+            let (world, authored) =
+                load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?;
+            (world, vec![], authored)
         };
 
     // Competitions are resolved, here and below, with clubs ranked by the package's authored

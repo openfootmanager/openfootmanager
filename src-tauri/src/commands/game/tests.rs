@@ -544,7 +544,7 @@ fn authored_group_size_reaches_the_game_built_from_a_loaded_world() {
 /// A package whose cup fields depend on how its clubs rank by reputation: six clubs rated anywhere
 /// in 0..=1000, a cup of two named clubs, a cup of the top two by reputation, and a group cup of
 /// everyone left. The same package as the one `ofm_core`'s package tests use.
-fn package_whose_cups_depend_on_reputation() -> ofm_core::generator::WorldPackage {
+fn package_dir_whose_cups_depend_on_reputation() -> std::path::PathBuf {
     let teams: Vec<_> = (b'a'..=b'f')
         .map(|id| {
             serde_json::json!({
@@ -583,21 +583,15 @@ fn package_whose_cups_depend_on_reputation() -> ofm_core::generator::WorldPackag
         serde_json::json!({"schema":"competition", "items": competitions}).to_string(),
     )
     .unwrap();
-    let (package, errors) = ofm_core::generator::load_world_package(&dir);
-    assert!(errors.is_empty(), "{errors:?}");
-    std::fs::remove_dir_all(&dir).ok();
-    package
+    dir
 }
 
 /// The cups of a career started from `package`, as (id, sorted participants), the way
 /// `start_new_game` builds it: ranked by the package's authored reputations.
 fn cup_fields_of_a_career_from(
-    package: &ofm_core::generator::WorldPackage,
+    loaded: (ofm_core::generator::WorldData, super::AuthoredReputations),
 ) -> (ofm_core::game::Game, Vec<(String, Vec<String>)>) {
-    let sources = ofm_core::generator::DefinitionSources::embedded_only();
-    let world = ofm_core::generator::build_world_from_package(package, Some(2031), &sources)
-        .expect("a package the validator accepts builds");
-    let authored = ofm_core::generator::authored_reputations(package);
+    let (world, authored) = loaded;
     let options = StartupOptions {
         start_year: 2031,
         start_phase: StartPhase::SeasonStart,
@@ -637,23 +631,61 @@ fn cup_fields_of_a_career_from(
 /// Then every career has the same cups, the reload keeps them, and the rolled reputations still differ.
 #[test]
 fn a_package_career_keeps_the_cups_it_was_validated_with_on_every_roll_and_after_a_reload() {
-    let package = package_whose_cups_depend_on_reputation();
+    let dir = package_dir_whose_cups_depend_on_reputation();
+    let (package, errors) = ofm_core::generator::load_world_package(&dir);
+    assert!(errors.is_empty(), "{errors:?}");
     assert!(ofm_core::generator::validate_package(&package).is_empty());
+    let sources = ofm_core::generator::DefinitionSources::embedded_only();
 
+    // The same package reaches a career by two routes (an installed `.ofm` by id, and a
+    // directory as `world_source`); both must hand the career the reputations it was validated with.
+    let packages = tempfile::tempdir().unwrap();
+    ofm_core::generator::export_directory_to_ofm(
+        &dir,
+        &packages.path().join("reputation-cups.ofm"),
+    )
+    .unwrap();
+    let by_id = || {
+        let (world, _, authored) = super::load_world_data_from_package_ids(
+            packages.path(),
+            &["reputation-cups".to_string()],
+            Some(2031),
+            None,
+            &sources,
+        )
+        .unwrap();
+        (world, authored)
+    };
+    let by_directory =
+        || super::load_world_data(Some(dir.to_string_lossy().as_ref()), &sources).unwrap();
+
+    for (route, load) in [
+        ("package id", &by_id as &dyn Fn() -> _),
+        ("directory", &by_directory as &dyn Fn() -> _),
+    ] {
+        assert_cups_stable_across_rolls_and_reload(route, load);
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+fn assert_cups_stable_across_rolls_and_reload(
+    route: &str,
+    load: &dyn Fn() -> (ofm_core::generator::WorldData, super::AuthoredReputations),
+) {
     let careers: Vec<_> = (0..40)
-        .map(|_| cup_fields_of_a_career_from(&package))
+        .map(|_| cup_fields_of_a_career_from(load()))
         .collect();
 
     let distinct_fields: std::collections::BTreeSet<_> =
         careers.iter().map(|(_, cups)| cups.clone()).collect();
-    assert_eq!(distinct_fields.len(), 1, "{distinct_fields:?}");
+    assert_eq!(distinct_fields.len(), 1, "{route}: {distinct_fields:?}");
     let distinct_reputations: std::collections::BTreeSet<Vec<u32>> = careers
         .iter()
         .map(|(game, _)| game.teams.iter().map(|t| t.reputation).collect())
         .collect();
     assert!(
         distinct_reputations.len() > 1,
-        "every roll gave the same reputations"
+        "{route}: every roll gave the same reputations"
     );
 
     let (game, cups) = &careers[0];
@@ -674,6 +706,6 @@ fn a_package_career_keeps_the_cups_it_was_validated_with_on_every_roll_and_after
     reloaded_cups.sort();
     assert_eq!(
         &reloaded_cups, cups,
-        "a reload must not change who is in the cups"
+        "{route}: a reload must not change who is in the cups"
     );
 }
