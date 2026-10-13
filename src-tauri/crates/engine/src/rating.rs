@@ -77,8 +77,7 @@ fn rate(stats: &PlayerMatchStats, appearance: &Appearance) -> f32 {
     // A goal or a card counts the same whenever it happened, so these are not
     // scaled by minutes the way accumulating work is.
     let decisive = stats.goals as f32 * GOAL_BONUS + stats.assists as f32 * ASSIST_BONUS
-        - stats.yellow_cards as f32 * YELLOW_PENALTY
-        - stats.red_cards as f32 * RED_PENALTY
+        - card_penalty(stats)
         + clean_sheet_bonus(stats, appearance);
 
     let attacking = stats.shots_on_target as f32 * 0.12
@@ -114,6 +113,17 @@ fn passing_score(stats: &PlayerMatchStats, share: f32) -> f32 {
     let accuracy = stats.passes_completed as f32 / stats.passes_attempted as f32;
     let involvement = (stats.passes_attempted as f32 / (18.0 * share)).clamp(0.0, 2.0);
     (accuracy - 0.78) * 3.0 * involvement
+}
+
+/// The engine counts a second yellow as a second `yellow_cards`, never as a
+/// `red_cards`, and only a dismissal can produce two in one match.
+fn card_penalty(stats: &PlayerMatchStats) -> f32 {
+    let sent_off_on_a_second_yellow = stats.red_cards == 0 && stats.yellow_cards >= 2;
+    if sent_off_on_a_second_yellow {
+        RED_PENALTY
+    } else {
+        stats.yellow_cards as f32 * YELLOW_PENALTY + stats.red_cards as f32 * RED_PENALTY
+    }
 }
 
 fn clean_sheet_bonus(stats: &PlayerMatchStats, appearance: &Appearance) -> f32 {
@@ -205,6 +215,58 @@ mod tests {
         wasteful.passes_attempted = 60;
         wasteful.passes_completed = 38;
         assert!(mid(&tidy) > mid(&wasteful));
+    }
+
+    /// Given the real events of a second-yellow dismissal and of a straight red, When both
+    /// players are rated from the report, Then neither is rated above five.
+    #[test]
+    fn a_second_yellow_dismissal_costs_as_much_as_a_straight_red() {
+        use crate::event::{EventType, MatchEvent};
+        use crate::types::{Side, Zone};
+
+        let event = |minute, event_type, player: &str| {
+            MatchEvent::new(minute, event_type, Side::Home, Zone::Midfield).with_player(player)
+        };
+        let report = MatchReport::from_events(
+            vec![
+                event(20, EventType::YellowCard, "second-yellow"),
+                event(55, EventType::SecondYellow, "second-yellow"),
+                event(60, EventType::RedCard, "straight-red"),
+            ],
+            0,
+            0,
+            90,
+        );
+        let rate_player = |id: &str| {
+            let mut stats = report.player_stats[id].clone();
+            stats.minutes_played = 60;
+            rate(&stats, &appearance(Position::Midfielder))
+        };
+
+        assert!(
+            rate_player("second-yellow") < 5.0,
+            "{}",
+            rate_player("second-yellow")
+        );
+        assert!(rate_player("straight-red") < 5.0);
+        assert!((rate_player("second-yellow") - rate_player("straight-red")).abs() < 0.4);
+    }
+
+    /// Given a single yellow card, When rated, Then it costs the yellow penalty only.
+    #[test]
+    fn one_yellow_costs_only_the_yellow_penalty() {
+        let mut booked = stats(90);
+        booked.yellow_cards = 1;
+        let quiet = stats(90);
+        assert!((mid(&quiet) - mid(&booked) - YELLOW_PENALTY).abs() < 1e-4);
+    }
+
+    /// The threshold is a game rule, so its value is pinned once here.
+    #[test]
+    fn a_player_needs_ten_minutes_to_be_rated() {
+        assert_eq!(MIN_RATED_MINUTES, 10);
+        assert_eq!(mid(&stats(9)), 0.0);
+        assert!(mid(&stats(10)) > 0.0);
     }
 
     /// Given a short appearance, When rated, Then it stays near the base.

@@ -114,7 +114,10 @@ export function PlayerRatingsPanel({
   const team = side === "Home" ? snapshot.home_team : snapshot.away_team;
   const bench = side === "Home" ? snapshot.home_bench : snapshot.away_bench;
   const engineRatings = snapshot.player_ratings ?? {};
-  const sorted = [...team.players, ...bench.filter((p) => p.id in engineRatings)]
+  const playedFromBench = (id: string) =>
+    id in engineRatings ||
+    snapshot.substitutions.some((sub) => sub.player_on_id === id || sub.player_off_id === id);
+  const sorted = [...team.players, ...bench.filter((p) => playedFromBench(p.id))]
     .map((p) => ({ ...p, rating: engineRatings[p.id] ?? null }))
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
   const motm = sorted[0]?.rating != null ? sorted[0] : null;
