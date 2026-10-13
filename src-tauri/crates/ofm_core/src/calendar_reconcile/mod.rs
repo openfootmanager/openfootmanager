@@ -10,7 +10,7 @@ mod shadows;
 #[cfg(test)]
 mod tests;
 
-use crate::calendar_booking::{Booking, Layer, Occupancy};
+use crate::calendar_booking::{Booking, Layer, MIN_GAP_DAYS, Occupancy};
 use crate::knockout_dates::SEARCH_CAP_DAYS;
 use chrono::{Days, NaiveDate};
 use domain::league::{Fixture, FixtureStatus, League, Postponement, RescheduleReason};
@@ -67,9 +67,16 @@ impl<'a> Item<'a> {
 
 fn collect_items<'a>(
     competitions: &'a [League],
+    rounds: &HashMap<(&str, &str), usize>,
     today: NaiveDate,
 ) -> Result<Vec<Item<'a>>, ReconcileError> {
     let mut items = Vec::new();
+    // History further back than the rest window cannot touch anything that may still move, which
+    // is all dated after `today`; only a bracket's fixtures are kept, because a later round waits
+    // for the last match of the round that feeds it.
+    let horizon = today
+        .checked_sub_days(Days::new(MIN_GAP_DAYS as u64))
+        .unwrap_or(today);
     for competition in competitions {
         for fixture in &competition.fixtures {
             let layer = Layer::of(&fixture.competition);
@@ -83,6 +90,12 @@ fn collect_items<'a>(
                 }
             })?;
             let movable = fixture.status == FixtureStatus::Scheduled && date > today;
+            if !movable
+                && date < horizon
+                && !rounds.contains_key(&(competition.id.as_str(), fixture.id.as_str()))
+            {
+                continue;
+            }
             items.push(Item {
                 competition,
                 fixture,
@@ -93,8 +106,7 @@ fn collect_items<'a>(
             });
         }
     }
-    let rounds = round_index(competitions);
-    let latest_per_round = latest_date_per_round(&items, &rounds);
+    let latest_per_round = latest_date_per_round(&items, rounds);
     for item in &mut items {
         if let Some(&round) = rounds.get(&item.key()) {
             let earlier_rounds = latest_per_round
@@ -281,11 +293,12 @@ pub fn plan(
     blackout: &BTreeSet<NaiveDate>,
     today: NaiveDate,
 ) -> Result<Plan, ReconcileError> {
-    let items = collect_items(competitions, today)?;
+    let rounds = round_index(competitions);
+    let items = collect_items(competitions, &rounds, today)?;
     let mut settling = Settling {
         occupancy: Occupancy::default(),
         settled: HashMap::new(),
-        rounds: round_index(competitions),
+        rounds,
         blackout,
         today,
     };
@@ -375,14 +388,24 @@ fn book_all_shadows<'a>(
 /// each moved fixture (kept from the first move); generation passes false because those dates
 /// were never shown to the player. Returns how many fixtures changed.
 pub fn apply(plan: &Plan, competitions: &mut [League], mark_postponed: bool) -> usize {
+    apply_marking(plan, competitions, |_| mark_postponed)
+}
+
+/// As [`apply`], deciding per move whether the date it leaves had been shown to the player.
+pub fn apply_marking(
+    plan: &Plan,
+    competitions: &mut [League],
+    mut mark_postponed: impl FnMut(&Move) -> bool,
+) -> usize {
     let mut changed = 0;
     for planned in &plan.moves {
+        let marks = mark_postponed(planned);
         let Some(fixture) =
             find_fixture(competitions, &planned.competition_id, &planned.fixture_id)
         else {
             continue;
         };
-        if mark_postponed && fixture.postponement.is_none() {
+        if marks && fixture.postponement.is_none() {
             fixture.postponement = Some(Postponement {
                 original_date: planned.from.format("%Y-%m-%d").to_string(),
                 reason: planned.reason,
