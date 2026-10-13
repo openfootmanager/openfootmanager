@@ -687,7 +687,7 @@ mod tests {
             plan,
             &TrainingDay {
                 weekday_num,
-                year: 2026,
+                date: domain::age::season_midpoint(2026),
             },
             &mut LowestRoll,
         );
@@ -763,7 +763,7 @@ mod tests {
             &plan(TrainingFocus::Defending),
             &TrainingDay {
                 weekday_num: 0,
-                year: 2026,
+                date: domain::age::season_midpoint(2026),
             },
             &mut BetweenGainRates,
         );
