@@ -743,7 +743,7 @@ mod tests {
                 division
             })
             .collect();
-        let reserved = vec!["2035-07-18".to_string()];
+        let reserved = ["2035-07-18".to_string()];
 
         append_preseason_friendlies(&mut competitions, now);
         crate::calendar_reconcile::settle_generated_calendar(
