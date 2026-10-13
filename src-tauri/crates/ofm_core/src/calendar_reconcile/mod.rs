@@ -277,13 +277,19 @@ pub fn plan(
     Ok(plan)
 }
 
+/// Only a knockout, or a cup whose bracket already exists, can have shadows.
+fn has_knockout_bracket(competition: &League) -> bool {
+    !competition.knockout_rounds.is_empty()
+        || competition.rules.format == domain::league::CompetitionFormat::Knockout
+}
+
 fn book_all_shadows<'a>(
     settling: &mut Settling<'a>,
     competitions: &'a [League],
     items: &[Item<'a>],
     blackout: &BTreeSet<NaiveDate>,
 ) {
-    for cup in competitions {
+    for cup in competitions.iter().filter(|c| has_knockout_bracket(c)) {
         let layer = items
             .iter()
             .find(|item| item.competition.id == cup.id)
@@ -291,11 +297,10 @@ fn book_all_shadows<'a>(
                 item.layer.max(Layer::DomesticCup)
             });
         let others = cup_dates_outside(&settling.settled, items, &cup.id);
-        let settled = settling.settled.clone();
         shadows::book_cup_shadows(
             &mut settling.occupancy,
             cup,
-            &settled,
+            &settling.settled,
             blackout,
             &others,
             layer,
