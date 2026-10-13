@@ -4132,6 +4132,8 @@
     "staffId": "ID",
     "staffFirstName": "Nombre",
     "staffLastName": "Apellido",
+    "staffKnownAs": "Conocido como (opcional)",
+    "staffKnownAsPlaceholder": "p. ej. Cafu",
     "staffClub": "Club",
     "staffNationality": "Nacionalidad",
     "staffDateOfBirth": "Fecha de nacimiento",
