@@ -39,27 +39,38 @@ describe("missingRequiredFields", () => {
 
 describe("formatBytes", () => {
   it("keeps small sizes in bytes", () => {
-    expect(formatBytes(0)).toBe("0 B");
-    expect(formatBytes(999)).toBe("999 B");
+    expect(formatBytes(0, "en")).toBe("0 byte");
+    expect(formatBytes(999, "en")).toBe("999 byte");
   });
 
   it("shows one decimal below ten so a size does not round away", () => {
     // "1 MB" for a 1.4 MB bundle understates it on the one screen that promises full disclosure.
-    expect(formatBytes(1_468_006)).toBe("1.4 MB");
+    expect(formatBytes(1_468_006, "en")).toBe("1.4 MB");
   });
 
   it("drops the decimal above ten, where it is noise", () => {
-    expect(formatBytes(24 * 1024 * 1024)).toBe("24 MB");
+    expect(formatBytes(24 * 1024 * 1024, "en")).toBe("24 MB");
   });
 
   it("steps up through the units", () => {
-    expect(formatBytes(2048)).toBe("2.0 KB");
-    expect(formatBytes(3 * 1024 ** 3)).toBe("3.0 GB");
+    expect(formatBytes(2048, "en")).toBe("2.0 kB");
+    expect(formatBytes(3 * 1024 ** 3, "en")).toBe("3.0 GB");
   });
 
   it("does not invent a size it was not given", () => {
-    expect(formatBytes(Number.NaN)).toBe("—");
-    expect(formatBytes(-1)).toBe("—");
+    expect(formatBytes(Number.NaN, "en")).toBe("—");
+    expect(formatBytes(-1, "en")).toBe("—");
+  });
+
+  /**
+   * Given the UI language is German or Russian
+   * When a size is formatted
+   * Then the decimal separator and the unit both follow it.
+   */
+  it("follows the UI language for the number and the unit", () => {
+    expect(formatBytes(1_468_006, "de")).toBe("1,4 MB");
+    expect(formatBytes(1_468_006, "ru")).toBe("1,4 МБ");
+    expect(formatBytes(999, "ru")).toBe("999 Б");
   });
 });
 
@@ -109,13 +120,16 @@ describe("describeContext", () => {
 
 describe("describeBundle", () => {
   it("names the file and its size", () => {
-    const out = describeBundle({
-      path: "/home/x/ofm-report.zip",
-      bytes: 1_468_006,
-      log_files: ["a.log"],
-      included_save: false,
-      included_crash: false,
-    });
+    const out = describeBundle(
+      {
+        path: "/home/x/ofm-report.zip",
+        bytes: 1_468_006,
+        log_files: ["a.log"],
+        included_save: false,
+        included_crash: false,
+      },
+      "en",
+    );
 
     expect(out).toBe("/home/x/ofm-report.zip (1.4 MB)");
   });

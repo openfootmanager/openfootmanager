@@ -349,20 +349,15 @@ fn finances_in_range(game: &Game) -> Vec<String> {
 /// skipped for good — and a season can complete with fixtures never played,
 /// because completeness only looks forward. Nothing else notices.
 ///
-/// Counted from the day the career began, not from the start of time: the world
-/// builder's own catch-up leaves fixtures dated before the clock unplayed (the
-/// later rounds of a cup that ended months earlier, and the pre-season
-/// friendlies of a league that started before the game did). That is a defect of
-/// world creation, not of the turn, and folding it in here would make every run
-/// fail before a day was played and hide what this rule is for.
+///
+/// Counted from the world's creation too: a fixture dated before the career began that the world
+/// builder left unplayed is as stranded as one the turn skipped (#652, #653).
 fn no_stranded_fixture(game: &Game) -> Vec<String> {
-    let began = game.clock.start_date.format("%Y-%m-%d").to_string();
     let Some(yesterday) = game.clock.current_date.date_naive().pred_opt() else {
         return Vec::new();
     };
     ofm_core::matchday::stranded_fixtures(game, yesterday)
         .into_iter()
-        .filter(|fixture| fixture.date.as_str() >= began.as_str())
         .map(|fixture| {
             format!(
                 "{} fixture {} was due {} and is still Scheduled",
@@ -750,34 +745,6 @@ mod tests {
         game.clock.advance_days(10);
         let faults = no_stranded_fixture(&game);
         assert!(mentions(&faults, "still Scheduled"), "{faults:?}");
-    }
-
-    /// The exemption is real and has a cost, so it is pinned rather than
-    /// assumed: the world builder really does leave fixtures from before the
-    /// career unplayed (#652, #653), and the rule must not count them.
-    ///
-    /// When those are fixed this fails on its first assertion. That is the
-    /// signal to delete the exemption in `no_stranded_fixture` — so that the
-    /// rule guards world creation too — and then this test.
-    #[test]
-    fn a_fixture_dated_before_the_career_began_is_not_this_rules_business() {
-        let game = world();
-        let began = game.clock.start_date.format("%Y-%m-%d").to_string();
-        let carried_in = game
-            .competitions
-            .iter()
-            .flat_map(|competition| competition.fixtures.iter())
-            .filter(|fixture| {
-                fixture.status == FixtureStatus::Scheduled && fixture.date.as_str() < began.as_str()
-            })
-            .count();
-
-        assert!(
-            carried_in > 0,
-            "the built world no longer carries unplayed fixtures from before the career: \
-             remove the exemption in no_stranded_fixture and this test"
-        );
-        assert!(no_stranded_fixture(&game).is_empty());
     }
 
     /// Given one league, and a club in it,

@@ -129,6 +129,10 @@ pub struct Game {
     /// `competition_edition_archive` table, not Game JSON.
     #[serde(skip)]
     pub edition_archive: Vec<domain::edition_archive::CompletedEdition>,
+    /// Players who have stopped playing, frozen at retirement. Skipped on IPC serde like the
+    /// edition archive: it only grows. Persistence is the `retired_players` table.
+    #[serde(skip)]
+    pub retired_players: Vec<domain::retired_player::RetiredPlayer>,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -213,6 +217,7 @@ impl Game {
             vacant_team_days: HashMap::new(),
             world_history: WorldHistoryArchive::default(),
             edition_archive: Vec::new(),
+            retired_players: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],
