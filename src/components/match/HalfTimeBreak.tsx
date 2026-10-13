@@ -12,7 +12,8 @@ import {
 } from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
-import { SubPanel } from "./SubPanel";
+import { SubPanel, type SubstitutionSwap } from "./SubPanel";
+import { applySubstitutions } from "./applySubstitutions";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";
 import { Play, RefreshCw, Shield, Zap, Target, Crosshair, Flag, MessageCircle } from "lucide-react";
 
@@ -101,21 +102,9 @@ export default function HalfTimeBreak({
     }
   };
 
-  const handleSubstitution = async (playerOffId: string, playerOnId: string) => {
-    try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: {
-          Substitute: {
-            side: userSide,
-            player_off_id: playerOffId,
-            player_on_id: playerOnId,
-          },
-        },
-      });
-      onUpdateSnapshot(snap);
+  const handleSubstitutions = async (swaps: SubstitutionSwap[]) => {
+    if (await applySubstitutions(userSide, swaps, onUpdateSnapshot)) {
       setShowSubPanel(false);
-    } catch (err) {
-      console.error("Substitution failed:", err);
     }
   };
 
@@ -467,7 +456,7 @@ export default function HalfTimeBreak({
         <SubPanel
           snapshot={snapshot}
           side={userSide}
-          onSubstitute={handleSubstitution}
+          onSubstitute={handleSubstitutions}
           onFormationChange={handleFormationChange}
           onPlayStyleChange={handlePlayStyleChange}
           onClose={() => setShowSubPanel(false)}

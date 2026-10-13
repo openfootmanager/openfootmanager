@@ -46,6 +46,12 @@ const CompareBar = ({ label, valA, valB }: { label: string; valA: number; valB: 
   );
 };
 
+/** One swap the manager has lined up: the player coming off and the bench player replacing them. */
+export interface SubstitutionSwap {
+  offId: string;
+  onId: string;
+}
+
 export function SubPanel({
   snapshot,
   side,
@@ -56,7 +62,8 @@ export function SubPanel({
 }: {
   snapshot: MatchSnapshot;
   side: "Home" | "Away";
-  onSubstitute: (offId: string, onId: string) => void;
+  /** Commits every swap, in order; the panel keeps showing whatever the snapshot has not applied. */
+  onSubstitute: (swaps: SubstitutionSwap[]) => void;
   onFormationChange: (formation: string) => void;
   onPlayStyleChange: (playStyle: string) => void;
   onClose: () => void;
@@ -64,6 +71,7 @@ export function SubPanel({
   const { t } = useTranslation();
   const [selectedOff, setSelectedOff] = useState<string | null>(null);
   const [selectedBench, setSelectedBench] = useState<string | null>(null);
+  const [queuedSwaps, setQueuedSwaps] = useState<SubstitutionSwap[]>([]);
 
   const team = side === "Home" ? snapshot.home_team : snapshot.away_team;
   const bench = side === "Home" ? snapshot.home_bench : snapshot.away_bench;
@@ -75,8 +83,24 @@ export function SubPanel({
   const subbedOffIds = new Set(
     snapshot.substitutions.filter((s) => s.side === side).map((s) => s.player_off_id),
   );
+  // A queued swap the snapshot already shows as made is no longer waiting, so a batch the backend
+  // only partly applied leaves exactly the swaps still to do.
+  const pendingSwaps = queuedSwaps.filter(
+    (swap) =>
+      !snapshot.substitutions.some(
+        (made) =>
+          made.side === side &&
+          made.player_off_id === swap.offId &&
+          made.player_on_id === swap.onId,
+      ),
+  );
+  const queuedOffIds = new Set(pendingSwaps.map((swap) => swap.offId));
+  const queuedOnIds = new Set(pendingSwaps.map((swap) => swap.onId));
+  const substitutionsLeft = snapshot.max_subs - subsMade - pendingSwaps.length;
   const availableBench = sortByPositionGroup(
-    bench.filter((p) => !subbedOffIds.has(p.id) && !subbedOnIds.has(p.id)),
+    bench.filter(
+      (p) => !subbedOffIds.has(p.id) && !subbedOnIds.has(p.id) && !queuedOnIds.has(p.id),
+    ),
   );
   const selectedPlayer = selectedOff ? team.players.find((p) => p.id === selectedOff) : null;
   const comparedPlayer = selectedBench ? availableBench.find((p) => p.id === selectedBench) : null;
@@ -109,6 +133,7 @@ export function SubPanel({
   };
 
   const handleSelectOffPlayer = (playerId: string) => {
+    if (queuedOffIds.has(playerId)) return;
     setSelectedOff((cur) => {
       if (cur === playerId) {
         setSelectedBench(null);
@@ -124,9 +149,25 @@ export function SubPanel({
     setSelectedBench((cur) => (cur === playerId ? null : playerId));
   };
 
-  const handleConfirmSubstitution = () => {
-    if (!selectedOff || !selectedBench) return;
-    onSubstitute(selectedOff, selectedBench);
+  const handleQueueSubstitution = () => {
+    if (!selectedOff || !selectedBench || substitutionsLeft < 1) return;
+    setQueuedSwaps([...pendingSwaps, { offId: selectedOff, onId: selectedBench }]);
+    handleClearSelection();
+  };
+
+  const handleRemoveQueuedSwap = (swap: SubstitutionSwap) => {
+    setQueuedSwaps(pendingSwaps.filter((queued) => queued !== swap));
+  };
+
+  // The chosen pair joins whatever is queued, so a single substitution stays one click.
+  const handleConfirmSubstitutions = () => {
+    const chosen =
+      selectedOff && selectedBench && substitutionsLeft >= 1
+        ? [{ offId: selectedOff, onId: selectedBench }]
+        : [];
+    const swaps = [...pendingSwaps, ...chosen];
+    if (swaps.length === 0) return;
+    onSubstitute(swaps);
   };
 
   const handleApplyRecommendation = (offId: string, onId: string) => {
@@ -300,6 +341,7 @@ export function SubPanel({
                       ).map((p) => {
                         const isSelected = selectedOff === p.id;
                         const isSubOn = subbedOnIds.has(p.id);
+                        const isQueuedOff = queuedOffIds.has(p.id);
                         const row = (
                           <tr
                             key={p.id}
@@ -311,10 +353,13 @@ export function SubPanel({
                             role="button"
                             tabIndex={0}
                             aria-pressed={isSelected}
-                            className={`cursor-pointer text-sm transition-colors ${
-                              isSelected
-                                ? "bg-red-500/10"
-                                : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
+                            aria-disabled={isQueuedOff}
+                            className={`text-sm transition-colors ${
+                              isQueuedOff
+                                ? "opacity-50"
+                                : isSelected
+                                  ? "cursor-pointer bg-red-500/10"
+                                  : "cursor-pointer hover:bg-gray-100 dark:hover:bg-navy-700/50"
                             }`}
                           >
                             <td className="py-2 pr-2">
@@ -323,6 +368,7 @@ export function SubPanel({
                                   <UserMinus className="h-3.5 w-3.5 shrink-0 text-red-400" />
                                 )}
                                 {isSubOn && <span className="text-[10px] text-green-400">▲</span>}
+                                {isQueuedOff && <span className="text-[10px] text-red-400">▼</span>}
                                 <span
                                   className={`truncate font-medium ${isSelected ? "text-red-400" : "text-gray-700 dark:text-gray-300"}`}
                                 >
@@ -525,8 +571,45 @@ export function SubPanel({
               </div>
             </div>
 
-            {/* Sticky footer: comparison summary + confirm / cancel */}
+            {/* Sticky footer: the queue, comparison summary + queue / confirm / cancel */}
             <div className="shrink-0 border-t border-gray-200 bg-gray-50/60 px-4 py-3 dark:border-navy-700 dark:bg-navy-900/30">
+              {pendingSwaps.length > 0 && (
+                <div className="mb-3 border-b border-gray-200 pb-3 dark:border-navy-700">
+                  <p className="mb-1.5 font-heading text-[10px] uppercase tracking-widest text-gray-600 dark:text-gray-500">
+                    {t("match.queuedSubstitutions")}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {pendingSwaps.map((swap) => (
+                      <span
+                        key={`${swap.offId}-${swap.onId}`}
+                        data-testid={`queued-sub-${swap.offId}-${swap.onId}`}
+                        className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 font-heading text-[11px] font-bold dark:border-navy-600 dark:bg-navy-800"
+                      >
+                        <span className="text-red-400">{getPlayerName(snapshot, swap.offId)}</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="text-green-400">{getPlayerName(snapshot, swap.onId)}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveQueuedSwap(swap)}
+                          aria-label={t("match.removeQueuedSubstitution")}
+                          className="rounded px-1 text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-400 dark:hover:text-white"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                    {!(selectedPlayer && comparedPlayer) && (
+                      <button
+                        type="button"
+                        onClick={handleConfirmSubstitutions}
+                        className="ml-auto rounded-lg bg-green-500 px-3 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
+                      >
+                        {t("match.confirmAllSubstitutions", { count: pendingSwaps.length })}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
               {selectedPlayer && comparedPlayer ? (
                 <div>
                   {/* Player names + position match + action buttons */}
@@ -563,10 +646,21 @@ export function SubPanel({
                       </button>
                       <button
                         type="button"
-                        onClick={handleConfirmSubstitution}
-                        className="rounded-lg bg-green-500 px-3 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-green-400"
+                        onClick={handleQueueSubstitution}
+                        disabled={substitutionsLeft < 1}
+                        className="rounded-lg border border-green-500 px-3 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-green-600 transition-colors hover:bg-green-500/10 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 dark:text-green-400 dark:focus:ring-offset-navy-800"
                       >
-                        {t("match.confirmSubstitution")}
+                        {t("match.queueSubstitution")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmSubstitutions}
+                        disabled={substitutionsLeft < 1}
+                        className="rounded-lg bg-green-500 px-3 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-green-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 dark:focus:ring-offset-navy-800"
+                      >
+                        {pendingSwaps.length > 0
+                          ? t("match.confirmSubstitutions", { count: pendingSwaps.length + 1 })
+                          : t("match.confirmSubstitution")}
                       </button>
                     </div>
                   </div>
