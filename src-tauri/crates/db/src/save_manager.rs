@@ -525,11 +525,12 @@ impl SaveManager {
                 // a new game is drawn from its seed.
                 game.legacy_world_cup_draw = true;
             }
-            if save_format_version < 9 {
-                // Retirees used to stay on the roster flagged retired. They are archived
-                // once here; the resave below deletes their active rows.
-                ofm_core::retirees::archive_legacy_retirees(&mut game);
-            }
+            needs_resave = true;
+        }
+        // Retirees used to stay on the roster flagged retired (saves below format 9). Whatever the
+        // version, one found there is archived, so the roster only ever holds people who play;
+        // the resave deletes the old active rows.
+        if ofm_core::retirees::archive_legacy_retirees(&mut game) > 0 {
             needs_resave = true;
         }
         let manager_count_before = game.managers.len();
@@ -1970,7 +1971,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_and_load_game_preserves_retired_player_state() {
+    fn test_create_and_load_game_archives_a_retired_player() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
 
@@ -1982,8 +1983,11 @@ mod tests {
         let save_id = sm.create_save(&game, "Retired Career").unwrap();
         let loaded = sm.load_game(&save_id).unwrap();
 
-        assert!(loaded.players[0].retired);
-        assert_eq!(loaded.players[0].team_id, None);
+        assert!(loaded.players.is_empty(), "a retiree is not on the roster");
+        assert_eq!(loaded.retired_players.len(), 1);
+        let retired = loaded.retired_players[0].to_player();
+        assert!(retired.retired);
+        assert_eq!(retired.team_id, None);
     }
 
     #[test]
@@ -3675,10 +3679,10 @@ mod tests {
         assert_eq!(reloaded.retired_players.len(), 1);
     }
 
-    /// Given a save already at the current format, when it is loaded, then nothing is partitioned:
-    /// the format version, not the data, decides whether the one-time move happens.
+    /// Given a save at the current format whose roster somehow still holds a retiree, when it is
+    /// loaded, then he is archived too: the roster never plays a retiree, whatever the version.
     #[test]
-    fn a_save_at_the_current_format_is_not_partitioned() {
+    fn a_retiree_on_the_roster_of_a_current_save_is_archived_on_load() {
         let dir = tempfile::tempdir().unwrap();
         let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
         let (game, retiree_id) = game_with_a_retiree_on_the_roster();
@@ -3686,8 +3690,8 @@ mod tests {
 
         let loaded = manager.load_game(&id).unwrap();
 
-        assert!(loaded.players.iter().any(|player| player.id == retiree_id));
-        assert!(loaded.retired_players.is_empty());
+        assert!(loaded.players.iter().all(|player| player.id != retiree_id));
+        assert_eq!(loaded.retired_players.len(), 1);
     }
 
     fn world_cup_game() -> Game {

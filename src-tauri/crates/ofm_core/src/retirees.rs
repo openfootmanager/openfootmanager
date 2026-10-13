@@ -11,9 +11,10 @@ pub fn archive_retired_players(game: &mut Game, retired_on: &str, retired_season
     archive_retirees_dated_by(game, |_| (retired_on.to_string(), retired_season));
 }
 
-/// Moves retirees found in a save that predates the archive. Each keeps the date his own
-/// movement history gives, and the season of his last career entry.
-pub fn archive_legacy_retirees(game: &mut Game) {
+/// Moves retirees found on the roster of a loaded save (one that predates the archive). Each
+/// keeps the date his own movement history gives, and the season of his last career entry.
+/// Returns how many left the roster.
+pub fn archive_legacy_retirees(game: &mut Game) -> usize {
     let fallback_date = game.clock.current_date.format("%Y-%m-%d").to_string();
     archive_retirees_dated_by(game, |player| {
         let retired_on = player
@@ -29,14 +30,18 @@ pub fn archive_legacy_retirees(game: &mut Game) {
             .max()
             .unwrap_or(0);
         (retired_on, season)
-    });
+    })
 }
 
-fn archive_retirees_dated_by(game: &mut Game, dated_by: impl Fn(&Player) -> (String, u32)) {
+fn archive_retirees_dated_by(
+    game: &mut Game,
+    dated_by: impl Fn(&Player) -> (String, u32),
+) -> usize {
     let (retired, active): (Vec<Player>, Vec<Player>) = std::mem::take(&mut game.players)
         .into_iter()
         .partition(|player| player.retired);
     game.players = active;
+    let moved = retired.len();
 
     for player in retired {
         release_loan_references(game, &player);
@@ -53,6 +58,7 @@ fn archive_retirees_dated_by(game: &mut Game, dated_by: impl Fn(&Player) -> (Str
             ));
         }
     }
+    moved
 }
 
 /// A player who retires while out on loan is still named by both clubs.
