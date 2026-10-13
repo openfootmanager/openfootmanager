@@ -143,9 +143,11 @@ pub fn query_schedule(game: &Game, query: &ScheduleQuery) -> Option<ScheduleSlic
         }
     }
 
-    // Sort by date, not by BTreeMap key (which is lexicographic and breaks at matchday ≥ 10).
-    upcoming_groups.sort_by(|a, b| a.date.cmp(&b.date));
-    past_groups.sort_by(|a, b| b.date.cmp(&a.date));
+    // Sort by date, not by BTreeMap key (which is lexicographic and breaks at matchday ≥ 10), and
+    // numerically by matchday within a date, so matchdays 9 and 10 sharing a day stay in order.
+    upcoming_groups
+        .sort_by(|a, b| (&a.date, a.matchday, &a.key).cmp(&(&b.date, b.matchday, &b.key)));
+    past_groups.sort_by(|a, b| (&b.date, b.matchday, &b.key).cmp(&(&a.date, a.matchday, &a.key)));
 
     Some(ScheduleSlice {
         competition_id: competition.id.clone(),
@@ -282,6 +284,33 @@ mod tests {
             .collect();
         dates.sort();
         assert_eq!(dates, vec![(5, "2033-03-08"), (5, "2033-03-11")]);
+    }
+
+    /// Given matchdays 9 and 10 played on one date, when the schedule is queried, then they are
+    /// listed in numeric order (the group keys sort 10 before 9).
+    #[test]
+    fn matchdays_nine_and_ten_on_one_date_stay_in_numeric_order() {
+        let game = make_game(
+            vec![
+                make_completed_fixture("f1", 10, "2033-03-08", "user-team", "other-team", 1, 0),
+                make_completed_fixture("f2", 9, "2033-03-08", "x", "y", 0, 0),
+                make_fixture("f3", 10, "2033-03-20", "a", "b", FixtureStatus::Scheduled),
+                make_fixture("f4", 9, "2033-03-20", "c", "d", FixtureStatus::Scheduled),
+            ],
+            "2033-03-12",
+            "user-team",
+        );
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".into(),
+            },
+        )
+        .unwrap();
+        let upcoming: Vec<_> = slice.upcoming_groups.iter().map(|g| g.matchday).collect();
+        let past: Vec<_> = slice.past_groups.iter().map(|g| g.matchday).collect();
+        assert_eq!(upcoming, vec![9, 10]);
+        assert_eq!(past, vec![10, 9]);
     }
 
     /// Given a moved fixture, when the schedule is queried, then its row names the date it was first set for.

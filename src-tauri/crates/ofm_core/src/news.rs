@@ -172,14 +172,16 @@ pub(crate) fn day_of(date: &str) -> &str {
     date.get(..10).unwrap_or(date)
 }
 
-/// One roundup per competition, matchday and day: a round postponed in part gets a roundup for each
-/// day its matches are played.
-pub(crate) fn roundup_article_id(competition_id: &str, matchday: u32, day: &str) -> String {
-    format!("roundup_{competition_id}_md{matchday}_{day}")
+/// One roundup per competition and day: a round postponed in part gets a roundup for each day its
+/// matches are played. The matchday is not part of the id, because the day's lowest matchday can
+/// change while the day is still being played, and the second pass of the day must find the first
+/// pass's article instead of writing another.
+pub(crate) fn roundup_article_id(competition_id: &str, day: &str) -> String {
+    format!("roundup_{competition_id}_{day}")
 }
 
-pub(crate) fn standings_article_id(competition_id: &str, matchday: u32, day: &str) -> String {
-    format!("standings_{competition_id}_md{matchday}_{day}")
+pub(crate) fn standings_article_id(competition_id: &str, day: &str) -> String {
+    format!("standings_{competition_id}_{day}")
 }
 
 /// Generate a league roundup article summarising the results of one day of a matchday.
@@ -205,7 +207,7 @@ pub fn league_roundup_article(
     let headline_idx = rng.random_range(0..3);
 
     NewsArticle::new(
-        roundup_article_id(competition_id, matchday, day_of(date)),
+        roundup_article_id(competition_id, day_of(date)),
         String::new(),
         String::new(),
         String::new(),
@@ -253,7 +255,7 @@ pub fn standings_update_article(
     let headline_idx = rng.random_range(0..3);
 
     NewsArticle::new(
-        standings_article_id(competition_id, matchday, day_of(date)),
+        standings_article_id(competition_id, day_of(date)),
         String::new(),
         String::new(),
         String::new(),
@@ -864,7 +866,7 @@ mod tests {
 
         let article = league_roundup_article("league1", 4, &results, "2025-08-12");
 
-        assert_eq!(article.id, "roundup_league1_md4_2025-08-12");
+        assert_eq!(article.id, "roundup_league1_2025-08-12");
         assert_eq!(article.category, NewsCategory::LeagueRoundup);
         assert_eq!(article.headline, "");
         assert_eq!(article.body, "");
@@ -936,7 +938,7 @@ mod tests {
 
         let article = standings_update_article("league1", 4, &standings, "2025-08-12");
 
-        assert_eq!(article.id, "standings_league1_md4_2025-08-12");
+        assert_eq!(article.id, "standings_league1_2025-08-12");
         assert_eq!(article.category, NewsCategory::StandingsUpdate);
         assert_eq!(article.headline, "");
         assert_eq!(article.body, "");
