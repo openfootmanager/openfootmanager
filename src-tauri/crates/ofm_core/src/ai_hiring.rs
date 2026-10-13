@@ -3,7 +3,7 @@ use chrono::{Datelike, NaiveDate};
 use domain::manager::{Manager, ManagerCareerEntry};
 use domain::staff::{Staff, StaffRole};
 
-const BASE_AI_MANAGER_SATISFACTION: i32 = 50;
+pub(crate) const BASE_AI_MANAGER_SATISFACTION: i32 = 50;
 const AI_MANAGER_REPLACEMENT_DELAY_DAYS: u32 = 7;
 const USER_RIVALRY_SATISFACTION_PENALTY: i32 = 10;
 const USER_RIVALRY_LOOKBACK_DAYS: i64 = 14;

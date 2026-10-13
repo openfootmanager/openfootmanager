@@ -11,16 +11,20 @@ use domain::manager::{Manager, ManagerCareerEntry};
 
 use crate::game::Game;
 
-/// How long a stand-in covers before the club looks outside.
+/// How long a stand-in covers before the club looks outside. A month is long enough for the
+/// assistant to be judged on real results and short enough that a stop-gap does not become the
+/// manager by default (the bug this fixes).
 const INTERIM_WINDOW_DAYS: i64 = 30;
 
 /// After this long the club stops being picky about how well a candidate matches its stature.
+/// Three months is a full transfer window and a half: a club that has not found a fitting
+/// manager by then would rather have someone than the assistant for ever.
 const SETTLE_AFTER_DAYS: i64 = 90;
 
 /// How far a candidate's reputation may sit from the club's before the club keeps waiting.
+/// 150 is a quarter of the 200-900 reputation span: a visible step up or down in stature, a
+/// better fit than the worst candidate and not so tight that most clubs never find anyone.
 const MAX_REPUTATION_GAP: u32 = 150;
-
-const NEW_APPOINTMENT_SATISFACTION: u8 = 50;
 
 fn days_covered(stand_in: &Manager, today: NaiveDate) -> Option<i64> {
     let started = stand_in
@@ -106,7 +110,7 @@ fn appoint(game: &mut Game, team_id: &str, stand_in_id: &str, chosen_id: &str) {
         return;
     };
     chosen.hire(team_id.to_string());
-    chosen.satisfaction = NEW_APPOINTMENT_SATISFACTION;
+    chosen.satisfaction = crate::ai_hiring::BASE_AI_MANAGER_SATISFACTION as u8;
     chosen.career_history.push(ManagerCareerEntry::open(
         team_id.to_string(),
         team_name.clone(),
@@ -215,7 +219,10 @@ mod tests {
         assert_eq!(manager_of(&game, "c1"), "free1");
         let hired = game.managers.iter().find(|m| m.id == "free1").unwrap();
         assert_eq!(hired.team_id.as_deref(), Some("c1"));
-        assert_eq!(hired.satisfaction, NEW_APPOINTMENT_SATISFACTION);
+        assert_eq!(
+            hired.satisfaction,
+            crate::ai_hiring::BASE_AI_MANAGER_SATISFACTION as u8
+        );
         assert_eq!(hired.career_history.len(), 1);
         assert_eq!(hired.career_history[0].start_date, "2031-08-01");
         assert!(hired.career_history[0].end_date.is_none());
@@ -254,6 +261,8 @@ mod tests {
         let mut game = game_on("2031-08-01");
         add_club_covered_since(&mut game, "c1", 700, "2031-07-01");
         add_unemployed(&mut game, "star", 900);
+        // Inside the 150 gap, and more reputable than the match: closest still wins.
+        add_unemployed(&mut game, "rival", 820);
         add_unemployed(&mut game, "match", 690);
         add_unemployed(&mut game, "journeyman", 300);
 
