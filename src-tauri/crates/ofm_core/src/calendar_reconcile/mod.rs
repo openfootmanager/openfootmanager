@@ -53,6 +53,8 @@ struct Item<'a> {
     date: NaiveDate,
     layer: Layer,
     movable: bool,
+    /// Index of the fixture's knockout round in its competition, 0 outside a bracket.
+    round: usize,
     /// Where the fixture sorts among its competition's: a knockout match is never earlier than the
     /// latest match of any round before it, so a feeding round authored after its successor
     /// still settles first.
@@ -102,6 +104,10 @@ fn collect_items<'a>(
                 date,
                 layer,
                 movable,
+                round: rounds
+                    .get(&(competition.id.as_str(), fixture.id.as_str()))
+                    .copied()
+                    .unwrap_or(0),
                 settle_on: date,
             });
         }
@@ -119,14 +125,13 @@ fn collect_items<'a>(
                 .fold(item.date, NaiveDate::max);
         }
     }
-    let round_of = |item: &Item<'_>| rounds.get(&item.key()).copied().unwrap_or(0);
     items.sort_by(|a, b| {
         (
             a.movable,
             std::cmp::Reverse(a.layer),
             a.competition.priority,
             a.settle_on,
-            round_of(a),
+            a.round,
             a.date,
             a.key(),
         )
@@ -135,7 +140,7 @@ fn collect_items<'a>(
                 std::cmp::Reverse(b.layer),
                 b.competition.priority,
                 b.settle_on,
-                round_of(b),
+                b.round,
                 b.date,
                 b.key(),
             ))

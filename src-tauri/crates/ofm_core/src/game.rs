@@ -133,6 +133,11 @@ pub struct Game {
     /// edition archive: it only grows. Persistence is the `retired_players` table.
     #[serde(skip)]
     pub retired_players: Vec<domain::retired_player::RetiredPlayer>,
+    /// What the daily calendar sweep last saw of the calendar. The sweep runs only when this
+    /// differs from the calendar as it stands. `None` after a load, so the first day after one
+    /// always sweeps.
+    #[serde(skip)]
+    pub calendar_fingerprint: Option<u64>,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -218,6 +223,7 @@ impl Game {
             world_history: WorldHistoryArchive::default(),
             edition_archive: Vec::new(),
             retired_players: Vec::new(),
+            calendar_fingerprint: None,
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],

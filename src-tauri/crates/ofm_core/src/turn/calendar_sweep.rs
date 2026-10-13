@@ -50,9 +50,36 @@ fn blackout_dates(game: &Game, today: NaiveDate) -> BTreeSet<NaiveDate> {
         .collect()
 }
 
+/// The id and date of every fixture, played or not: a result changes neither, and neither does
+/// anything else a day does to a fixture. Only a fixture added or moved can create a clash, so a
+/// day that left this alone needs no sweep. That is nearly every day, and settling the whole
+/// calendar costs milliseconds.
+fn calendar_fingerprint(game: &Game) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    for competition in &game.competitions {
+        competition.id.hash(&mut hasher);
+        for fixture in &competition.fixtures {
+            fixture.id.hash(&mut hasher);
+            fixture.date.hash(&mut hasher);
+        }
+    }
+    hasher.finish()
+}
+
 /// Settles the world's calendar at the end of `today`, and tells the user about their own club's
 /// moved matches. A calendar that cannot be settled is a defect: it is logged and left as it is.
-pub(super) fn reconcile_calendar(game: &mut Game, today: &str, shown: &ShownFixtures) {
+pub(super) fn reconcile_calendar(game: &mut Game, today: &str, shown: &ShownFixtures) -> bool {
+    let before = calendar_fingerprint(game);
+    if game.calendar_fingerprint == Some(before) {
+        return false;
+    }
+    settle_calendar_today(game, today, shown);
+    game.calendar_fingerprint = Some(calendar_fingerprint(game));
+    true
+}
+
+fn settle_calendar_today(game: &mut Game, today: &str, shown: &ShownFixtures) {
     let Ok(day) = NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
         return;
     };
@@ -320,5 +347,63 @@ mod tests {
 
         assert_ne!(date_of(&game, "league", "l1"), "2033-03-10");
         assert_eq!(date_of(&game, "cup", "t1"), "2033-03-10");
+    }
+
+    /// Given a calendar the sweep has settled and no fixture added or moved since,
+    /// When the next day's sweep is asked for, Then it does no work; once a round is drawn it does.
+    #[test]
+    fn the_sweep_runs_only_when_the_calendar_changed() {
+        let mut game = game_on(2033, 3, 1, "a");
+        game.competitions = vec![
+            league(vec![fixture("league", "l1", "2033-03-10", "a", "z")]),
+            cup(vec![vec![fixture("cup", "t1", "2033-03-10", "a", "b")]]),
+        ];
+        let shown = shown_bracket_fixtures(&game);
+
+        assert!(
+            reconcile_calendar(&mut game, "2033-03-01", &shown),
+            "first sweep"
+        );
+        assert!(
+            !reconcile_calendar(&mut game, "2033-03-02", &shown),
+            "nothing changed"
+        );
+
+        game.competitions[1]
+            .fixtures
+            .push(fixture("cup", "t2", "2033-03-20", "c", "d"));
+        assert!(
+            reconcile_calendar(&mut game, "2033-03-03", &shown),
+            "a draw was made"
+        );
+
+        // A result changes neither the id nor the date of a fixture: no sweep.
+        game.competitions[1].fixtures[0].status = domain::league::FixtureStatus::Completed;
+        game.competitions[1].fixtures[0].result = Some(domain::league::MatchResult::default());
+        assert!(
+            !reconcile_calendar(&mut game, "2033-03-04", &shown),
+            "only a result"
+        );
+
+        // Anything that moves a fixture, whatever moved it, is seen.
+        game.competitions[0].fixtures[0].date = "2033-03-21".to_string();
+        assert!(
+            reconcile_calendar(&mut game, "2033-03-05", &shown),
+            "a date changed"
+        );
+
+        // A rollover replaces a competition's fixtures with new ones.
+        game.competitions[0].fixtures.clear();
+        game.competitions[0].fixtures.push(fixture(
+            "league",
+            "next-season",
+            "2033-08-20",
+            "a",
+            "z",
+        ));
+        assert!(
+            reconcile_calendar(&mut game, "2033-03-06", &shown),
+            "regenerated"
+        );
     }
 }

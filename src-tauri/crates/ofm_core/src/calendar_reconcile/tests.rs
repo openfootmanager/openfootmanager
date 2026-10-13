@@ -785,3 +785,43 @@ fn byes_are_not_halved_with_the_players_when_predicting_rounds() {
     // so its shadow blocks 19 March. Halving the byes too would put it on 16 March.
     assert!(!occupancy.is_free_of_shadows("e", march(19)));
 }
+
+/// Given a world with a clash and a long played history, when the plan is made, then it is exactly
+/// the plan of the world without the history: history beyond the rest window is not looked at,
+/// which is what keeps the daily sweep cheap.
+#[test]
+fn old_history_does_not_change_the_plan() {
+    let clash = || {
+        vec![
+            competition(
+                "league",
+                1,
+                vec![fx("league", "l1", march(10), "a", "z", Kind::League)],
+            ),
+            competition(
+                "cup",
+                2,
+                vec![fx("cup", "t1", march(10), "a", "b", Kind::Cup)],
+            ),
+        ]
+    };
+    let mut with_history = clash();
+    for index in 0..2_000u32 {
+        let mut played = fx(
+            "league",
+            &format!("old-{index}"),
+            day(2032, 1, 1) + chrono::Days::new(u64::from(index % 300)),
+            "a",
+            "z",
+            Kind::League,
+        );
+        played.status = FixtureStatus::Completed;
+        with_history[0].fixtures.push(played);
+    }
+
+    let lean = plan(&clash(), &none(), today()).unwrap();
+    let full = plan(&with_history, &none(), today()).unwrap();
+
+    assert_eq!(lean.moves, full.moves);
+    assert!(!lean.moves.is_empty(), "the world has a clash to plan for");
+}
