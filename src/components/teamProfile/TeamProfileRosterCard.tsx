@@ -6,6 +6,7 @@ import { buildViewProfileMenuItem } from "../playerActions/playerContextMenuItem
 import { Badge, Card, CardBody, CardHeader, CountryFlag, PlayerAvatar, ProgressBar } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import type { TeamProfileTranslate } from "./TeamProfile.types";
+import { naturalPositionOf } from "../../lib/positions";
 
 interface TeamProfileRosterCardProps {
   roster: PlayerData[];
@@ -76,13 +77,8 @@ export default function TeamProfileRosterCard({
                     }`}
                   >
                     <td className="py-3 px-5">
-                      <Badge
-                        variant={positionBadgeVariant(player.natural_position || player.position)}
-                      >
-                        {translatePositionAbbreviation(
-                          t,
-                          player.natural_position || player.position,
-                        )}
+                      <Badge variant={positionBadgeVariant(naturalPositionOf(player))}>
+                        {translatePositionAbbreviation(t, naturalPositionOf(player))}
                       </Badge>
                     </td>
                     <td className="py-3 px-5">

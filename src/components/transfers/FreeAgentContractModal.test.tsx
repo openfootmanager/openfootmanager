@@ -230,4 +230,32 @@ describe("FreeAgentContractModal", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalled();
   });
+
+  /**
+   * Given a free agent whose `position` is the legacy bucket and whose natural position is granular
+   * When the contract modal opens
+   * Then the badge reads the granular position.
+   */
+  it("badges the player by their granular natural position", () => {
+    render(
+      <FreeAgentContractModal
+        player={createPlayer({ position: "Defender", natural_position: "LeftBack" })}
+        teams={[createTeam()]}
+        wage="4000"
+        onWageChange={vi.fn()}
+        contractLength="3"
+        onContractLengthChange={vi.fn()}
+        projection={createProjection()}
+        feedback={null}
+        statusMessage=""
+        statusClassName=""
+        submitting={false}
+        submitDisabled={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("common.posAbbr.LeftBack")).toBeInTheDocument();
+  });
 });

@@ -1087,6 +1087,7 @@
     "seasonIncome": "赛季收入",
     "seasonExpenses": "赛季支出",
     "perWeekSuffix": "/周",
+    "snapshotLoadFailed": "无法加载俱乐部财务数据。",
     "perYearSuffix": "/年",
     "wagePerWeek": "周薪",
     "wagePerYear": "年薪",
@@ -1450,6 +1451,8 @@
     "fixtures": "赛程",
     "standings": "积分榜",
     "matchday": "第 {{number}} 轮",
+    "movedFrom": "由 {{date}} 改期",
+    "dateRange": "{{from}} 至 {{to}}",
     "season": "第 {{number}} 赛季",
     "international": "国际",
     "internationalDuty": "国家队征召",
@@ -1664,6 +1667,7 @@
     "passAccuracy": "传球成功率",
     "percentile": "百分位",
     "percentileUnavailable": "百分位不可用",
+    "percentileGroup": "对比对象：{{league}} 的{{position}}",
     "recentMatches": "近期比赛",
     "recentMatchesScore": "比分",
     "recentMatchesGoalsAssists": "进 / 助",
@@ -2731,6 +2735,7 @@
       "saveLoad": {
         "corrupted": "该存档文件已损坏，无法加载。",
         "incompatibleVersion": "该存档由更新版本的游戏创建（存档 v{{saveVersion}}；当前版本最高支持 v{{supported}}）。请更新游戏后再加载。",
+        "incompatibleLayout": "该存档的数据与其声明的版本不符，无法安全加载。文件未被改动。",
         "missingData": "该存档缺少必要数据，无法加载。",
         "invalidWorld": "该存档的世界或模组数据无效，无法加载。",
         "unknown": "由于发生意外错误，无法加载该存档。"

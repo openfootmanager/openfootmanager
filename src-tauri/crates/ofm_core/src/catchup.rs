@@ -134,11 +134,11 @@ fn apply_simulated_result(
 /// filling in random scorelines and updating standings. Called once at
 /// new-game creation for leagues that started before the game's anchor date.
 ///
-/// Returns how many fixtures it resolved. Note the due list is computed **once**, before any of it
-/// is played, while resolving a knockout round *seeds the next one* — dated later, but often still
-/// before `cutoff`. So one call advances a bracket by exactly one round. A caller that needs the
-/// whole bracket resolved must call again while the count is non-zero; see
-/// [`repair_stranded_fixtures`], which does.
+/// Resolving a knockout round *seeds the next one* — dated later, but often still before `cutoff` —
+/// so this plays again until a pass finds nothing due, and a bracket that ended before the career
+/// began finishes with a champion. [`MAX_REPAIR_PASSES`] is only a backstop.
+///
+/// Returns how many fixtures it resolved in all.
 pub fn simulate_past_fixtures(
     competition: &mut League,
     players: &[Player],
@@ -156,22 +156,27 @@ pub fn simulate_past_fixtures(
         .map(|id| (id.clone(), club_strength(players, id)))
         .collect();
 
-    let due: Vec<usize> = competition
-        .fixtures
-        .iter()
-        .enumerate()
-        .filter(|(_, fixture)| crate::matchday::is_stranded(fixture, on_or_before))
-        .map(|(i, _)| i)
-        .collect();
-
-    let resolved = due.len();
-    for idx in due {
-        resolve_fixture_with_strengths(
-            competition,
-            idx,
-            |team_id| strengths.get(team_id).copied().unwrap_or(50.0),
-            rng,
-        );
+    let mut resolved = 0;
+    for _ in 0..MAX_REPAIR_PASSES {
+        let due: Vec<usize> = competition
+            .fixtures
+            .iter()
+            .enumerate()
+            .filter(|(_, fixture)| crate::matchday::is_stranded(fixture, on_or_before))
+            .map(|(i, _)| i)
+            .collect();
+        if due.is_empty() {
+            break;
+        }
+        resolved += due.len();
+        for idx in due {
+            resolve_fixture_with_strengths(
+                competition,
+                idx,
+                |team_id| strengths.get(team_id).copied().unwrap_or(50.0),
+                rng,
+            );
+        }
     }
 
     resolved
@@ -821,6 +826,31 @@ mod tests {
             cup.knockout_rounds.iter().all(|round| round.completed),
             "the bracket reached a champion rather than stalling part-way"
         );
+    }
+
+    /// Given a knockout cup whose every round is dated before the career opens (#653)
+    /// When new-game catch-up plays the competition once
+    /// Then every round is played, including the ones earlier results seed, and the cup has a champion.
+    #[test]
+    fn new_game_catch_up_plays_every_round_of_a_past_cup() {
+        use rand::SeedableRng;
+
+        let mut cup = eight_team_cup_starting_on("2030-08-10");
+        let cutoff = game_on("2030-12-01").clock.current_date;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(653);
+
+        let played = super::simulate_past_fixtures(&mut cup, &[], cutoff, &mut rng);
+
+        assert_eq!(
+            played, 7,
+            "four quarter-finals, two semi-finals and a final"
+        );
+        assert!(
+            cup.fixtures
+                .iter()
+                .all(|fixture| fixture.status == FixtureStatus::Completed)
+        );
+        assert!(cup.knockout_rounds.iter().all(|round| round.completed));
     }
 
     // -----------------------------------------------------------------------

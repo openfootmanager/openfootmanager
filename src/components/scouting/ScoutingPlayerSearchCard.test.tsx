@@ -30,7 +30,7 @@ vi.mock("react-i18next", () => ({
       if (key === "common.freeAgent") return "Free Agent";
       if (key === "common.viewTeam") return "View team";
       if (key === "squad.viewProfile") return "View profile";
-      return key;
+      return typeof params?.defaultValue === "string" ? params.defaultValue : key;
     },
     i18n: { language: "en" },
   }),
@@ -191,5 +191,52 @@ describe("ScoutingPlayerSearchCard", () => {
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
     fireEvent.click(screen.getByRole("menuitem", { name: "View profile" }));
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
+  });
+
+  function renderCard(player: PlayerData) {
+    return render(
+      <ScoutingPlayerSearchCard
+        players={[player]}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC" })]}
+        posFilter="All"
+        searchQuery=""
+        alreadyScoutingIds={new Set<string>()}
+        availableScoutCount={1}
+        sendingPlayerId={null}
+        safePage={0}
+        totalPages={1}
+        totalPlayers={1}
+        pageSize={20}
+        onPositionFilterChange={vi.fn()}
+        onSearchQueryChange={vi.fn()}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onSendScout={vi.fn()}
+        onPreviousPage={vi.fn()}
+        onNextPage={vi.fn()}
+      />,
+    );
+  }
+
+  /**
+   * Given a player whose `position` is still the legacy bucket and whose natural position is granular
+   * When the search card renders the row
+   * Then the badge reads the granular abbreviation.
+   */
+  it("shows the granular natural position, not the legacy bucket", () => {
+    renderCard(createPlayer({ position: "Defender", natural_position: "LeftBack" }));
+
+    expect(screen.getByText("LB")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a left back
+   * When the search card renders the row
+   * Then the badge takes the defender colour, not the forward fallback red.
+   */
+  it("colours a granular defender as a defender", () => {
+    renderCard(createPlayer({ position: "LeftBack", natural_position: "LeftBack" }));
+
+    expect(screen.getByText("LB").className).not.toContain("text-red-700");
   });
 });

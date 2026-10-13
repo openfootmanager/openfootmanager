@@ -103,6 +103,16 @@ function normaliseKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z]/g, "");
 }
 
+/**
+ * The position that describes the player themselves, for display and grouping.
+ *
+ * `natural_position` carries the granular value; `position` can still be the legacy bucket on a
+ * player who has not been upgraded, and is the only one present in an old save.
+ */
+export function naturalPositionOf(player: { position: string; natural_position?: string }): string {
+  return player.natural_position || player.position;
+}
+
 export function canonicalPosition(position: string): string {
   const trimmed = position.trim();
   if (!trimmed) return trimmed;

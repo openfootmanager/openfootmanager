@@ -4,6 +4,7 @@ import { Badge, Button, Card, CountryFlag } from "../ui";
 import { Eye, GitCompareArrows, X } from "lucide-react";
 import { calcAge, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import { normalisePosition, translatePositionLabel } from "../squad/SquadTab.helpers";
+import { naturalPositionOf } from "../../lib/positions";
 
 const ATTRIBUTE_GROUPS: {
   labelKey: string;
@@ -58,13 +59,13 @@ function valueBarTone(value: number): string {
 }
 
 function getNormalizedPlayerPosition(player: PlayerData): string {
-  return normalisePosition(player.natural_position || player.position);
+  return normalisePosition(naturalPositionOf(player));
 }
 
 function PlayerSummary({ label, player }: { label: string; player: PlayerData }) {
   const { t } = useTranslation();
   const normalizedPosition = getNormalizedPlayerPosition(player);
-  const displayPosition = player.natural_position || player.position;
+  const displayPosition = naturalPositionOf(player);
   const overallRating = getPlayerOvr(player);
 
   return (

@@ -38,7 +38,15 @@ interface BackendMarketingCampaignPreviewData {
   cooldown_days: number;
 }
 
+interface BackendFacilityUpgradePreviewData {
+  facility: string;
+  next_cost: number;
+  can_afford: boolean;
+  block_reason: string | null;
+}
+
 interface BackendFinanceActionPreviewsData {
+  facility_upgrades?: BackendFacilityUpgradePreviewData[];
   board_support?: BackendBoardSupportPreviewData | null;
   sponsor_pitch?: BackendSponsorPitchPreviewData | null;
   marketing_campaign?: BackendMarketingCampaignPreviewData | null;
@@ -85,7 +93,17 @@ export interface MarketingCampaignPreviewData {
   cooldownDays: number;
 }
 
+export interface FacilityUpgradePreviewData {
+  /** The id `upgrade_facility` takes: `Training`, `Medical` or `Scouting`. */
+  facility: string;
+  nextCost: number;
+  canAfford: boolean;
+  /** A `be.error.finance.*` key when the club's finances forbid any upgrade. */
+  blockReason: string | null;
+}
+
 export interface FinanceRecoveryPreviewsData {
+  facilityUpgrades: FacilityUpgradePreviewData[];
   boardSupport: BoardSupportPreviewData | null;
   sponsorPitch: SponsorPitchPreviewData | null;
   marketingCampaign: MarketingCampaignPreviewData | null;
@@ -119,6 +137,12 @@ function mapPreviews(
   previews?: BackendFinanceActionPreviewsData | null,
 ): FinanceRecoveryPreviewsData {
   return {
+    facilityUpgrades: (previews?.facility_upgrades ?? []).map((upgrade) => ({
+      facility: upgrade.facility,
+      nextCost: upgrade.next_cost,
+      canAfford: upgrade.can_afford,
+      blockReason: upgrade.block_reason,
+    })),
     boardSupport: previews?.board_support
       ? {
           supportAmount: previews.board_support.support_amount,

@@ -26,6 +26,8 @@ pub fn archive_retired_players(conn: &Connection, retired: &[RetiredPlayer]) -> 
     Ok(())
 }
 
+/// Reads the whole archive back, ordered by id so a load is deterministic. A record that no
+/// longer parses fails the load rather than silently dropping a person.
 pub fn load_retired_players(conn: &Connection) -> Result<Vec<RetiredPlayer>, String> {
     let mut stmt = conn
         .prepare("SELECT record_json FROM retired_players ORDER BY player_id")
