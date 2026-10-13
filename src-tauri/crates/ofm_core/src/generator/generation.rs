@@ -1002,15 +1002,31 @@ fn bound_attributes_by_ceiling(
     }
 }
 
-/// What the player is called: the authored `name` (a single word, or the surname of a longer
-/// one), else the last name, else the whole name. `firstName`/`lastName` stay the real name.
-fn authored_match_name(name: &str, last_name: &str, full_name: &str) -> String {
-    if let Some(called) = name.split_whitespace().last() {
-        called.to_string()
-    } else if last_name.is_empty() {
-        full_name.to_string()
+/// What the player is called on the pitch.
+///
+/// The authored `name` without the leading words it shares with the first name, so "Alfredo Di
+/// Stefano" is "Di Stefano" and "Nicolás de la Cruz" keeps its particles; a `name` that shares
+/// none ("Pelé", "Kaká") is the whole `name`. With no `name`, the last name (or the full name
+/// when there is none), as before. `firstName`/`lastName` stay the real name.
+fn authored_match_name(name: &str, first_name: &str, last_name: &str, full_name: &str) -> String {
+    let name_words: Vec<&str> = name.split_whitespace().collect();
+    if name_words.is_empty() {
+        return if last_name.is_empty() {
+            full_name.to_string()
+        } else {
+            last_name.to_string()
+        };
+    }
+    let shared = name_words
+        .iter()
+        .zip(first_name.split_whitespace())
+        .take_while(|(called, real)| called.to_lowercase() == real.to_lowercase())
+        .count();
+    // A name that is only the first name stays whole rather than becoming empty.
+    if shared == 0 || shared == name_words.len() {
+        name_words.join(" ")
     } else {
-        last_name.to_string()
+        name_words[shared..].join(" ")
     }
 }
 
@@ -1024,7 +1040,7 @@ pub(super) fn generate_player_from_def(
     let nationality = canonicalize_generated_nationality(&def.nationality);
     let (first_name, last_name) = resolve_def_name(def, &nationality, names_def, rng);
     let full_name = format!("{first_name} {last_name}").trim().to_string();
-    let match_name = authored_match_name(&def.name, &last_name, &full_name);
+    let match_name = authored_match_name(&def.name, &first_name, &last_name, &full_name);
 
     let current_year: u32 = opening_year;
     let birth_year = resolve_birth_year(def, opening_year, rng);
@@ -1233,33 +1249,63 @@ mod tests {
         (player.full_name, player.match_name)
     }
 
-    /// Given players authored with a known-as `name` beside their real first and last names (#556)
+    /// Given players authored with a `name` beside their real first and last names (#556)
     /// When they are generated
-    /// Then `full_name` is the real name and `match_name` is what they are called.
+    /// Then `full_name` is the real name and `match_name` is what they are called: the `name`
+    ///      without the words it shares with the first name, or the whole `name` when it
+    ///      shares none (a nickname).
     #[test]
     fn an_authored_name_is_what_the_player_is_called() {
-        assert_eq!(
-            authored_names(serde_json::json!(
-                {"name": "Kaká", "firstName": "Ricardo Izecson", "lastName": "dos Santos Leite"}
-            )),
+        let cases = [
+            // nickname: shares nothing with the first name
             (
-                "Ricardo Izecson dos Santos Leite".to_string(),
-                "Kaká".to_string()
-            )
-        );
-        assert_eq!(
-            authored_names(serde_json::json!(
-                {"name": "Lionel Messi", "firstName": "Lionel Andrés", "lastName": "Messi Cuccittini"}
-            )),
+                serde_json::json!({"name": "Kaká", "firstName": "Ricardo Izecson", "lastName": "dos Santos Leite"}),
+                "Ricardo Izecson dos Santos Leite",
+                "Kaká",
+            ),
+            // plain "First Last" that repeats the first name
             (
-                "Lionel Andrés Messi Cuccittini".to_string(),
-                "Messi".to_string()
-            )
-        );
-        assert_eq!(
-            authored_names(serde_json::json!({"firstName": "John", "lastName": "Smith"})),
-            ("John Smith".to_string(), "Smith".to_string())
-        );
+                serde_json::json!({"name": "Iker Casillas", "firstName": "Iker", "lastName": "Casillas Fernández"}),
+                "Iker Casillas Fernández",
+                "Casillas",
+            ),
+            // the first name is longer than the part of it the name repeats
+            (
+                serde_json::json!({"name": "Lionel Messi", "firstName": "Lionel Andrés", "lastName": "Messi Cuccittini"}),
+                "Lionel Andrés Messi Cuccittini",
+                "Messi",
+            ),
+            // compound surname with particles: nothing past the first name is dropped
+            (
+                serde_json::json!({"name": "Nicolás de la Cruz", "firstName": "Nicolás", "lastName": "de la Cruz Bascuñán"}),
+                "Nicolás de la Cruz Bascuñán",
+                "de la Cruz",
+            ),
+            (
+                serde_json::json!({"name": "Alfredo Di Stefano", "firstName": "Alfredo", "lastName": "Di Stéfano Laulhé"}),
+                "Alfredo Di Stéfano Laulhé",
+                "Di Stefano",
+            ),
+            // no `name`: today's fallback, the last name
+            (
+                serde_json::json!({"firstName": "John", "lastName": "Smith"}),
+                "John Smith",
+                "Smith",
+            ),
+            // only a `name`, no first or last: it is split, and the first word is the first name
+            (
+                serde_json::json!({"name": "Lionel Messi"}),
+                "Lionel Messi",
+                "Messi",
+            ),
+        ];
+        for (authored, full_name, match_name) in cases {
+            assert_eq!(
+                authored_names(authored.clone()),
+                (full_name.to_string(), match_name.to_string()),
+                "{authored}"
+            );
+        }
     }
 
     /// Given a player authored with a very low `overall` (#495)
