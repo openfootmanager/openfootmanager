@@ -535,8 +535,10 @@ fn parse_entity<T: serde::de::DeserializeOwned>(
     }
 }
 
-/// Name pools accumulate within a package like every other schema do, a repeated country key
+/// Name pools accumulate within a package like every other schema does, a repeated country key
 /// being last-wins; a second file used to replace the first and drop its pools silently.
+/// "Last" means last in the sorted relative-path order of the data files. Within one file, the
+/// top-level `pools` win over `items` for the same key.
 fn add_name_pools(package: &mut WorldPackage, def: NamesDefinition) {
     let Some(existing) = package.names.as_mut() else {
         package.names = Some(def);
