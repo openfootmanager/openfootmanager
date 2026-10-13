@@ -108,7 +108,7 @@ fn collect_items<'a>(
 }
 
 /// Index of each knockout fixture's round within its competition.
-fn round_index<'a>(competitions: &'a [League]) -> HashMap<(&'a str, &'a str), usize> {
+fn round_index(competitions: &[League]) -> HashMap<(&str, &str), usize> {
     let mut rounds = HashMap::new();
     for competition in competitions {
         for (index, round) in competition.knockout_rounds.iter().enumerate() {
