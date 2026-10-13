@@ -2552,7 +2552,11 @@
     "yourResult": "Votre résultat",
     "continue": "Continuer",
     "notableUpset": "Résultat surprise",
-    "pts": "pts"
+    "pts": "pts",
+    "cupResults": "Résultats de coupe : {{competition}}",
+    "cupPenalties": "({{home}}–{{away}} aux tirs au but)",
+    "cupAdvances": "{{team}} se qualifie",
+    "cupTiesPending": "Certaines rencontres restent à jouer"
   },
   "endOfSeason": {
     "seasonComplete": "Saison Terminée",

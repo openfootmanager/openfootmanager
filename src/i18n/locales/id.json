@@ -2552,7 +2552,11 @@
     "yourResult": "Hasil Kamu",
     "continue": "Lanjut",
     "notableUpset": "Kejutan Menonjol",
-    "pts": "poin"
+    "pts": "poin",
+    "cupResults": "Hasil piala: {{competition}}",
+    "cupPenalties": "({{home}}–{{away}} lewat adu penalti)",
+    "cupAdvances": "{{team}} lolos ke babak berikutnya",
+    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan"
   },
   "endOfSeason": {
     "seasonComplete": "Musim Selesai",
