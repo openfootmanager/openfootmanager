@@ -900,6 +900,37 @@ mod tests {
         assert_eq!(game.players[2].stats.appearances, 0);
     }
 
+    /// Given a report naming a player who has left both clubs since kick-off, When the stats
+    /// records are captured, Then he has none: only the two clubs' players are credited, where a
+    /// whole-world lookup would have credited him to his new club.
+    #[test]
+    fn a_player_who_left_both_clubs_has_no_stats_record() {
+        let mut game = match_game();
+        game.players[0].team_id = Some("elsewhere".into());
+        let stats = HashMap::from([
+            ("home-0".to_string(), PlayerMatchStats::default()),
+            ("home-1".to_string(), PlayerMatchStats::default()),
+        ]);
+        let home = crate::match_day_eligibility::club_positions(&game.players, "home");
+        let away = crate::match_day_eligibility::club_positions(&game.players, "away");
+
+        let captured = build_stats_state_capture(
+            &game,
+            0,
+            "home",
+            "away",
+            &report(stats),
+            &merged_ascending(&home, &away),
+        );
+
+        let credited: Vec<&str> = captured
+            .player_matches
+            .iter()
+            .map(|record| record.player_id.as_str())
+            .collect();
+        assert_eq!(credited, vec!["home-1"]);
+    }
+
     /// Given two ascending lists that share a position, When merged, Then the result is
     /// ascending with each position once.
     #[test]
