@@ -7,6 +7,7 @@ import NegotiationFeedbackPanel from "../NegotiationFeedbackPanel";
 import { Badge } from "../ui";
 import { formatExactMoney, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { naturalPositionOf } from "../../lib/positions";
 
 const MAX_CONTRACT_YEARS = 5;
 
@@ -67,8 +68,8 @@ export function FreeAgentContractForm({
       </h3>
       {showPlayerSummary ? (
         <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(player.position)} size="sm">
-            {translatePositionAbbreviation(t, player.position)}
+          <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
+            {translatePositionAbbreviation(t, naturalPositionOf(player))}
           </Badge>
           <div>
             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">

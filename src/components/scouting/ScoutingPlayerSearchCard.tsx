@@ -2,7 +2,8 @@ import { ChevronLeft, ChevronRight, ScanSearch, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { countryName } from "../../lib/countries";
-import { calcAge, formatVal, getTeamName } from "../../lib/helpers";
+import { calcAge, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import { naturalPositionOf } from "../../lib/positions";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import {
@@ -201,19 +202,8 @@ export default function ScoutingPlayerSearchCard({
                       </div>
                     </td>
                     <td className="py-2 px-1">
-                      <Badge
-                        variant={
-                          player.position === "Goalkeeper"
-                            ? "accent"
-                            : player.position === "Defender"
-                              ? "primary"
-                              : player.position === "Midfielder"
-                                ? "success"
-                                : "danger"
-                        }
-                        size="sm"
-                      >
-                        {translatePositionAbbreviation(t, player.position)}
+                      <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
+                        {translatePositionAbbreviation(t, naturalPositionOf(player))}
                       </Badge>
                     </td>
                     <td className="text-center py-2 px-1 text-gray-600 dark:text-gray-400">

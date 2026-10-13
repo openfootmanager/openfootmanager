@@ -1,4 +1,4 @@
-import { positionGroupRank } from "../../lib/positions";
+import { naturalPositionOf, positionGroupRank } from "../../lib/positions";
 import type { PlayerData } from "../../store/gameStore";
 import type { TrainingGroupData } from "../../services/trainingService";
 
@@ -35,8 +35,8 @@ export function reassignPlayerTrainingGroup(
 
 export function sortTrainingRoster(roster: PlayerData[]): PlayerData[] {
   return [...roster].sort((left, right) => {
-    const leftOrder = positionGroupRank(left.natural_position || left.position);
-    const rightOrder = positionGroupRank(right.natural_position || right.position);
+    const leftOrder = positionGroupRank(naturalPositionOf(left));
+    const rightOrder = positionGroupRank(naturalPositionOf(right));
 
     return leftOrder - rightOrder || left.match_name.localeCompare(right.match_name);
   });

@@ -14,6 +14,7 @@ import {
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { Badge, CountryFlag, PlayerAvatar } from "../ui";
 import type { DealKind } from "./PlayerDealWorkspace";
+import { naturalPositionOf } from "../../lib/positions";
 
 export interface DealOption {
   kind: DealKind;
@@ -84,11 +85,8 @@ export function DealWorkspaceHeader({
               >
                 {player.full_name}
               </h2>
-              <Badge
-                variant={positionBadgeVariant(player.natural_position || player.position)}
-                size="sm"
-              >
-                {translatePositionAbbreviation(t, player.natural_position || player.position)}
+              <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
+                {translatePositionAbbreviation(t, naturalPositionOf(player))}
               </Badge>
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-300">

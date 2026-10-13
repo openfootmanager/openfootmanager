@@ -1,6 +1,6 @@
 import { getPlayerOvr } from "../../lib/helpers";
 import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
-import { normalisePosition, positionGroupRank } from "../../lib/positions";
+import { naturalPositionOf, normalisePosition, positionGroupRank } from "../../lib/positions";
 import type { PlayerData } from "../../store/gameStore";
 import {
   buildPitchRows,
@@ -142,7 +142,7 @@ export function getSectionPlayerPosition(
     return xiActivePosition.get(player.id) ?? player.position;
   }
 
-  return player.natural_position || player.position;
+  return naturalPositionOf(player);
 }
 
 export function sortTacticsPlayers(

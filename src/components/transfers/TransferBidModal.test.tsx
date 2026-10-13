@@ -391,4 +391,34 @@ describe("TransferBidModal", () => {
     expect(screen.getByText("Already agreed — awaiting registration")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Submit Bid" })).toBeDisabled();
   });
+
+  /**
+   * Given a bid target whose `position` is the legacy bucket and whose natural position is granular
+   * When the bid modal opens
+   * Then the badge reads the granular position.
+   */
+  it("badges the player by their granular natural position", () => {
+    render(
+      <TransferBidModal
+        bidTarget={createPlayer({ position: "Defender", natural_position: "LeftBack" })}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Seller FC" })]}
+        bidAmount="1.5"
+        onBidAmountChange={vi.fn()}
+        myTeam={createTeam()}
+        bidFee={1500000}
+        bidProjection={createProjection()}
+        bidFeedback={null}
+        activeBidOffer={null}
+        hasExistingOffer={false}
+        bidResult={null}
+        bidError={null}
+        bidLoading={false}
+        bidSubmitDisabled={false}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("common.posAbbr.LeftBack")).toBeInTheDocument();
+  });
 });

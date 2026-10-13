@@ -9,6 +9,7 @@ import NegotiationFeedbackPanel, {
 } from "../NegotiationFeedbackPanel";
 import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { naturalPositionOf } from "../../lib/positions";
 import TransferNegotiationHistory from "./TransferNegotiationHistory";
 import { parseTransferFeeInput } from "./TransfersTab.helpers";
 
@@ -68,8 +69,8 @@ export default function TransferCounterOfferModal({
           {t("transfers.counterOffer")}
         </h3>
         <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(counterTarget.player.position)} size="sm">
-            {translatePositionAbbreviation(t, counterTarget.player.position)}
+          <Badge variant={positionBadgeVariant(naturalPositionOf(counterTarget.player))} size="sm">
+            {translatePositionAbbreviation(t, naturalPositionOf(counterTarget.player))}
           </Badge>
           <div>
             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
