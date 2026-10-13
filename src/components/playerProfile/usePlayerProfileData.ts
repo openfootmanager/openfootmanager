@@ -9,6 +9,8 @@ const RECENT_MATCH_LIMIT = 5;
 
 interface UsePlayerProfileDataArgs {
   player: PlayerData;
+  /** The game date: the league peer group changes with a transfer or a split season's second half. */
+  currentDate: string;
 }
 
 interface UsePlayerProfileDataResult {
@@ -45,6 +47,7 @@ function haveSameFixtures(
  */
 export function usePlayerProfileData({
   player,
+  currentDate,
 }: UsePlayerProfileDataArgs): UsePlayerProfileDataResult {
   const [advancedStatsOverride, setAdvancedStatsOverride] =
     useState<PlayerAdvancedStatsSummary | null>(null);
@@ -83,6 +86,8 @@ export function usePlayerProfileData({
     // on each one.
   }, [
     player.id,
+    player.team_id,
+    currentDate,
     player.stats.minutes_played,
     player.stats.shots,
     player.stats.shots_on_target,

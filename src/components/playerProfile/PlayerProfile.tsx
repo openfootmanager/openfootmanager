@@ -64,7 +64,10 @@ export default function PlayerProfile({
   const footednessLabel = t(`common.footedness.${player.footedness || "Right"}`);
   const weakFootValue = player.weak_foot ?? 2;
 
-  const { advancedStats, recentMatches } = usePlayerProfileData({ player });
+  const { advancedStats, recentMatches } = usePlayerProfileData({
+    player,
+    currentDate: gameState.clock.current_date,
+  });
   const { scoutAvailability, scoutStatus, scoutError, sendScout } = useScoutPlayerFlow({
     player,
     gameState,
