@@ -284,7 +284,14 @@ mod tests {
 
         apply_seasonal_aging(&mut game, current_date, 1);
 
-        let veteran = &game.players[0];
+        assert!(
+            game.players.is_empty(),
+            "he leaves the roster for the archive"
+        );
+        assert_eq!(game.retired_players.len(), 1);
+        assert_eq!(game.retired_players[0].id, "older-pro");
+        assert_eq!(game.retired_players[0].retired_on, current_date.to_string());
+        let veteran = game.retired_players[0].to_player();
         assert!(veteran.retired);
         assert_eq!(veteran.team_id, None);
         assert_eq!(
@@ -293,7 +300,6 @@ mod tests {
             "a retired player has no agreement, so neither date survives"
         );
         assert_eq!(veteran.contract_end(), None);
-        assert!(!veteran.transfer_listed);
         assert!(veteran.attributes.pace < 20);
         assert!(game.teams[0].starting_xi_ids.is_empty());
         assert!(game.teams[0].training_groups[0].player_ids.is_empty());
@@ -319,7 +325,8 @@ mod tests {
 
         apply_seasonal_aging(&mut game, current_date, 1);
 
-        let veteran = &game.players[0];
+        assert!(game.players.is_empty());
+        let veteran = game.retired_players[0].to_player();
         assert!(veteran.retired);
         let entry = veteran
             .movement_history
