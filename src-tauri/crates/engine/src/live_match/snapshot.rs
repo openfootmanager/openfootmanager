@@ -77,6 +77,17 @@ impl LiveMatchState {
             None
         };
 
+        let player_ratings = if self.phase == MatchPhase::Finished {
+            self.report_from(self.events.clone())
+                .player_stats
+                .into_iter()
+                .filter(|(_, stats)| stats.rating > 0.0)
+                .map(|(id, stats)| (id, stats.rating))
+                .collect()
+        } else {
+            HashMap::new()
+        };
+
         MatchSnapshot {
             phase: self.phase,
             current_minute: self.current_minute,
@@ -102,6 +113,7 @@ impl LiveMatchState {
             away_yellows,
             sent_off: self.sent_off.clone(),
             penalty_shootout,
+            player_ratings,
         }
     }
 }

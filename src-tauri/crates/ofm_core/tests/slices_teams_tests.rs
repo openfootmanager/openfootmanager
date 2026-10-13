@@ -1,11 +1,16 @@
 use chrono::{TimeZone, Utc};
-use domain::league::{CompetitionScope, CompetitionType, League, StandingEntry};
+use domain::league::{
+    CompetitionFormat, CompetitionScope, CompetitionType, Fixture, FixtureStatus, League,
+    StandingEntry,
+};
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
-use ofm_core::slices::teams::{TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_directory};
+use ofm_core::slices::teams::{
+    TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_club_league_standing, query_directory,
+};
 
 fn default_attrs() -> PlayerAttributes {
     PlayerAttributes {
@@ -333,4 +338,163 @@ fn roster_stats_use_only_team_members() {
     assert_eq!(card_b.roster_size, 2);
     assert_eq!(card_b.avg_ovr, 55);
     assert_eq!(card_b.total_value, 300_000);
+}
+
+fn with_points(mut league: League, points: &[(&str, u32)]) -> League {
+    for (team_id, pts) in points {
+        league
+            .standings
+            .iter_mut()
+            .find(|entry| entry.team_id == *team_id)
+            .expect("a club in the table")
+            .points = *pts;
+    }
+    league
+}
+
+fn completed_on(date: &str) -> Fixture {
+    Fixture {
+        date: date.to_string(),
+        status: FixtureStatus::Completed,
+        ..Default::default()
+    }
+}
+
+/// Given the manager's club in one division and another club in a second division
+/// When the other club's league standing is asked for
+/// Then it is its own division's position and standing
+#[test]
+fn a_club_in_another_division_gets_its_own_divisions_position() {
+    let teams = vec![
+        make_team("t1", "One FC", "ENG", "A"),
+        make_team("t8", "Eight FC", "ENG", "B"),
+        make_team("t9", "Nine FC", "ENG", "C"),
+    ];
+    let top = make_domestic_league("div1", "Division 1", "ENG", None, &["t1"]);
+    let second = with_points(
+        make_domestic_league("div2", "Division 2", "ENG", None, &["t8", "t9"]),
+        &[("t8", 6), ("t9", 3)],
+    );
+    let game = make_game(teams, vec![], vec![top, second]);
+
+    let standing = query_club_league_standing(&game, "t9").expect("t9 is in a league");
+
+    assert_eq!(standing.competition_id, "div2");
+    assert_eq!(standing.league_pos, 2);
+    assert_eq!(standing.standing.points, 3);
+}
+
+/// Given a split season whose Apertura finished with the club 3rd and whose Clausura is in play
+/// with the club 1st
+/// When its league standing is asked for
+/// Then the Clausura counts, because it is the table the year is now on
+#[test]
+fn in_a_split_season_the_half_in_play_counts() {
+    let teams = vec![
+        make_team("a", "A FC", "ARG", "A"),
+        make_team("b", "B FC", "ARG", "B"),
+        make_team("c", "C FC", "ARG", "C"),
+    ];
+    let mut apertura = with_points(
+        make_domestic_league("apertura", "Apertura", "ARG", None, &["a", "b", "c"]),
+        &[("a", 10), ("b", 20), ("c", 30)],
+    );
+    apertura.priority = 1;
+    apertura.fixtures = vec![completed_on("2026-11-30")];
+    let mut clausura = with_points(
+        make_domestic_league("clausura", "Clausura", "ARG", None, &["a", "b", "c"]),
+        &[("a", 9), ("b", 6), ("c", 3)],
+    );
+    clausura.priority = 2;
+    clausura.fixtures = vec![completed_on("2027-03-15")];
+    let game = make_game(teams, vec![], vec![apertura, clausura]);
+
+    let standing = query_club_league_standing(&game, "a").expect("a is in a league");
+
+    assert_eq!(standing.competition_id, "clausura");
+    assert_eq!(standing.league_pos, 1);
+}
+
+/// Given a split season whose two halves last played on the same day
+/// When a club's league standing is asked for
+/// Then the half that ranks higher (the lower priority number) counts
+#[test]
+fn halves_that_last_played_together_resolve_to_the_higher_ranked() {
+    let teams = vec![
+        make_team("a", "A FC", "ARG", "A"),
+        make_team("b", "B FC", "ARG", "B"),
+    ];
+    let mut apertura = with_points(
+        make_domestic_league("apertura", "Apertura", "ARG", None, &["a", "b"]),
+        &[("a", 1), ("b", 2)],
+    );
+    apertura.priority = 1;
+    apertura.fixtures = vec![completed_on("2027-03-15")];
+    let mut clausura = with_points(
+        make_domestic_league("clausura", "Clausura", "ARG", None, &["a", "b"]),
+        &[("a", 2), ("b", 1)],
+    );
+    clausura.priority = 2;
+    clausura.fixtures = vec![completed_on("2027-03-15")];
+    let game = make_game(teams, vec![], vec![clausura, apertura]);
+
+    let standing = query_club_league_standing(&game, "a").expect("a is in a league");
+
+    assert_eq!(standing.competition_id, "apertura");
+}
+
+/// Given a club that is only in a knockout cup
+/// When its league standing is asked for
+/// Then it has none
+#[test]
+fn a_club_only_in_a_cup_has_no_league_standing() {
+    let teams = vec![
+        make_team("t1", "One FC", "ENG", "A"),
+        make_team("t5", "Five FC", "ENG", "B"),
+    ];
+    let league = make_domestic_league("div1", "Division 1", "ENG", None, &["t1"]);
+    let mut cup = make_domestic_league("cup", "Cup", "ENG", None, &["t1", "t5"]);
+    cup.kind = CompetitionType::Cup;
+    cup.rules.format = CompetitionFormat::Knockout;
+    let game = make_game(teams, vec![], vec![league, cup]);
+
+    assert!(query_club_league_standing(&game, "t5").is_none());
+}
+
+/// Given a club that is in no competition
+/// When its league standing is asked for
+/// Then it has none
+#[test]
+fn a_club_in_no_competition_has_no_league_standing() {
+    let teams = vec![make_team("t1", "One FC", "ENG", "A")];
+    let game = make_game(
+        teams,
+        vec![],
+        vec![make_domestic_league(
+            "div1",
+            "Division 1",
+            "ENG",
+            None,
+            &["t1"],
+        )],
+    );
+
+    assert!(query_club_league_standing(&game, "t404").is_none());
+}
+
+/// Given a club in both a cup and a league
+/// When its league standing is asked for
+/// Then the league table is used
+#[test]
+fn a_club_in_a_cup_and_a_league_gets_the_league() {
+    let teams = vec![make_team("t1", "One FC", "ENG", "A")];
+    let mut cup = make_domestic_league("cup", "Cup", "ENG", None, &["t1"]);
+    cup.kind = CompetitionType::Cup;
+    cup.rules.format = CompetitionFormat::Knockout;
+    let league = make_domestic_league("div1", "Division 1", "ENG", None, &["t1"]);
+    let game = make_game(teams, vec![], vec![cup, league]);
+
+    let standing = query_club_league_standing(&game, "t1").expect("in a league");
+
+    assert_eq!(standing.competition_id, "div1");
 }

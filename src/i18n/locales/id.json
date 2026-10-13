@@ -405,6 +405,12 @@
     "potLimited": "Terbatas"
   },
   "common": {
+    "ordinal": {
+      "one": "ke-{{n}}",
+      "two": "ke-{{n}}",
+      "few": "ke-{{n}}",
+      "other": "ke-{{n}}"
+    },
     "currentWage": "Gaji Saat Ini",
     "loading": "Memuat...",
     "loadingGameState": "Memuat status permainan...",
@@ -1081,6 +1087,7 @@
     "seasonIncome": "Pendapatan Musim",
     "seasonExpenses": "Pengeluaran Musim",
     "perWeekSuffix": "/mg",
+    "snapshotLoadFailed": "Tidak dapat memuat keuangan klub.",
     "perYearSuffix": "/th",
     "wagePerWeek": "Gaji/mg",
     "wagePerYear": "Gaji/th",
@@ -1444,6 +1451,8 @@
     "fixtures": "Jadwal Pertandingan",
     "standings": "Klasemen",
     "matchday": "Pekan {{number}}",
+    "movedFrom": "Dipindahkan dari {{date}}",
+    "dateRange": "{{from}} hingga {{to}}",
     "season": "Musim {{number}}",
     "international": "Internasional",
     "internationalDuty": "Tugas Internasional",
@@ -1658,6 +1667,7 @@
     "passAccuracy": "Akurasi Umpan",
     "percentile": "Persentil",
     "percentileUnavailable": "Persentil tidak tersedia",
+    "percentileGroup": "Dibandingkan dengan: {{position}} di {{league}}",
     "recentMatches": "Pertandingan Terakhir",
     "recentMatchesScore": "Skor",
     "recentMatchesGoalsAssists": "G / A",
@@ -2058,7 +2068,7 @@
     "postMatchTeamTalk": "Sesi Tim Pascapertandingan",
     "addressPlayers": "Sapa para pemain setelah pertandingan.",
     "matchOver": "Pertandingan Selesai",
-    "performance": "Performa {{team}}",
+    "ratings": "Rating {{team}}",
     "motm": "Pemain Terbaik",
     "roundSummary": "Ringkasan Pekan",
     "roundSummaryUnavailable": "Ringkasan pekan tidak tersedia.",
@@ -2534,7 +2544,7 @@
       }
     },
     "matchReport": "Laporan Pertandingan",
-    "playerPerformance": "Performa Pemain",
+    "playerRatings": "Rating Pemain",
     "tacticsTab": "Taktik",
     "goalSources": "Sumber Gol",
     "openPlay": "Permainan Terbuka",
@@ -2768,6 +2778,7 @@
       "saveLoad": {
         "corrupted": "Berkas penyimpanan ini rusak dan tidak dapat dimuat.",
         "incompatibleVersion": "Penyimpanan ini dibuat oleh versi permainan yang lebih baru (penyimpanan v{{saveVersion}}; build ini mendukung hingga v{{supported}}). Perbarui permainan untuk memuatnya.",
+        "incompatibleLayout": "Data penyimpanan ini tidak cocok dengan versi yang dinyatakannya, sehingga tidak dapat dimuat dengan aman. Berkas tidak diubah.",
         "missingData": "Penyimpanan ini kekurangan data yang diperlukan dan tidak dapat dimuat.",
         "invalidWorld": "Data dunia atau mod dari penyimpanan ini tidak valid dan tidak dapat dimuat.",
         "unknown": "Penyimpanan ini tidak dapat dimuat karena kesalahan yang tidak terduga."
@@ -3949,6 +3960,7 @@
     "playerPosition": "Posisi",
     "playerFoot": "Kaki Favorit",
     "playerDateOfBirth": "Tanggal Lahir",
+    "playerAgeToday": "{{age}} tahun hari ini",
     "playerAge": "Umur",
     "playerAgeHelp": "Dipakai bila tanggal lahir tidak diberikan: pemain berusia sekian pada hari karier dimulai, tahun berapa pun itu.",
     "playerContractSection": "Kontrak",

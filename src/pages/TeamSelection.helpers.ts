@@ -2,7 +2,7 @@ import type { TFunction } from "i18next";
 
 import type { GameStateData, LeagueData, PlayerData, WorldRegionData } from "../store/gameStore";
 import { getPlayerOvr } from "../lib/helpers";
-import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
+import { buildRegionLabel } from "../lib/teamRegions";
 
 export function competitionScopeLabel(t: TFunction, scope?: string): string | null {
   if (!scope) {
@@ -26,9 +26,11 @@ export function buildFallbackRegions(
   const byRegion = new Map<string, Set<string>>();
 
   for (const team of gameState.teams) {
-    const regionId =
-      competitions.find((competition) => competition.country_id === team.country)?.region_id ??
-      inferRegionId(team.country);
+    // Only a region an authored competition declares: guessing one from the country code filed
+    // every club the guess did not know under Europe.
+    const regionId = competitions.find(
+      (competition) => competition.country_id === team.country,
+    )?.region_id;
     if (!regionId) {
       continue;
     }

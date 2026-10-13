@@ -405,6 +405,12 @@
     "potLimited": "Omezený"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.",
+      "two": "{{n}}.",
+      "few": "{{n}}.",
+      "other": "{{n}}."
+    },
     "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
@@ -1081,6 +1087,7 @@
     "seasonIncome": "Sezónní příjmy",
     "seasonExpenses": "Sezónní výdaje",
     "perWeekSuffix": "/týd",
+    "snapshotLoadFailed": "Finance klubu se nepodařilo načíst.",
     "perYearSuffix": "/rok",
     "wagePerWeek": "Plat/týdně",
     "wagePerYear": "Plat/ročně",
@@ -1444,6 +1451,8 @@
     "fixtures": "Zápasy",
     "standings": "Tabulka",
     "matchday": "{{number}}. kolo",
+    "movedFrom": "Přesunuto z {{date}}",
+    "dateRange": "{{from}} až {{to}}",
     "season": "{{number}}. sezóna",
     "international": "Mezinárodní",
     "internationalDuty": "Plní reprezentační povinnosti",
@@ -1658,6 +1667,7 @@
     "passAccuracy": "Úspěšnost přihrávek",
     "percentile": "Percentil",
     "percentileUnavailable": "Percentil není k dispozici",
+    "percentileGroup": "Porovnání s: {{position}} v {{league}}",
     "recentMatches": "Nedávné zápasy",
     "recentMatchesScore": "Skóre",
     "recentMatchesGoalsAssists": "G / A",
@@ -2058,7 +2068,7 @@
     "postMatchTeamTalk": "Pozápasový proslov",
     "addressPlayers": "Promluvte k hráčům po skončení zápasu.",
     "matchOver": "Zápas skončil",
-    "performance": "Výkony týmu {{team}}",
+    "ratings": "Hodnocení týmu {{team}}",
     "motm": "Hráč zápasu",
     "roundSummary": "Shrnutí kola",
     "roundSummaryUnavailable": "Shrnutí kola není k dispozici.",
@@ -2534,7 +2544,7 @@
       }
     },
     "matchReport": "Zpráva ze zápasu",
-    "playerPerformance": "Výkony hráčů",
+    "playerRatings": "Hodnocení hráčů",
     "tacticsTab": "Taktika",
     "goalSources": "Zdroje gólů",
     "openPlay": "Ze hry",
@@ -2768,6 +2778,7 @@
       "saveLoad": {
         "corrupted": "Tento soubor uložené pozice je poškozený a nelze jej načíst.",
         "incompatibleVersion": "Tato uložená pozice byla vytvořena v novější verzi hry (uložená pozice v{{saveVersion}}; tato sestava podporuje verzi maximálně do v{{supported}}). Chcete-li ji načíst, aktualizujte hru.",
+        "incompatibleLayout": "Data této uložené pozice neodpovídají verzi, kterou udává, a nelze ji bezpečně načíst. Soubor nebyl nijak změněn.",
         "missingData": "V této uložené pozici chybí požadovaná data a nelze ji načíst.",
         "invalidWorld": "Data světa nebo modifikací v této uložené pozici jsou neplatná a nelze ji načíst.",
         "unknown": "Tuto uloženou pozici nebylo možné načíst kvůli neočekávané chybě."
@@ -3949,6 +3960,7 @@
     "playerPosition": "Pozice",
     "playerFoot": "Preferovaná noha",
     "playerDateOfBirth": "Datum narození",
+    "playerAgeToday": "dnes {{age}} let",
     "playerAge": "Věk",
     "playerAgeHelp": "Používá se, když chybí datum narození: hráči je tolik let v den zahájení kariéry, ať je to kterýkoli rok.",
     "playerContractSection": "Smlouva",

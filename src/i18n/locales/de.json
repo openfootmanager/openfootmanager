@@ -405,6 +405,12 @@
     "promoteToSeniorSquad": "In den Profikader befördern"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.",
+      "two": "{{n}}.",
+      "few": "{{n}}.",
+      "other": "{{n}}."
+    },
     "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",
@@ -1081,6 +1087,7 @@
     "seasonIncome": "Saisoneinnahmen",
     "seasonExpenses": "Saisonausgaben",
     "perWeekSuffix": "/Wo",
+    "snapshotLoadFailed": "Die Vereinsfinanzen konnten nicht geladen werden.",
     "perYearSuffix": "/Jahr",
     "wagePerWeek": "Gehalt/Wo",
     "wagePerYear": "Gehalt/Jahr",
@@ -1444,6 +1451,8 @@
     "fixtures": "Spiele",
     "standings": "Tabelle",
     "matchday": "Spieltag {{number}}",
+    "movedFrom": "Verlegt von {{date}}",
+    "dateRange": "{{from}} bis {{to}}",
     "season": "Saison {{number}}",
     "international": "International",
     "internationalDuty": "Im Länderspieleinsatz",
@@ -1658,6 +1667,7 @@
     "passAccuracy": "Passgenauigkeit",
     "percentile": "Perzentil",
     "percentileUnavailable": "Perzentil nicht verfügbar",
+    "percentileGroup": "Vergleich mit: {{position}} in {{league}}",
     "recentMatches": "Letzte Spiele",
     "recentMatchesScore": "Ergebnis",
     "recentMatchesGoalsAssists": "T / V",
@@ -2024,7 +2034,7 @@
     "postMatchTeamTalk": "Ansprache nach dem Spiel",
     "addressPlayers": "Sprich nach dem Spiel zu deinen Spielern.",
     "matchOver": "Spiel beendet",
-    "performance": "{{team}} Leistung",
+    "ratings": "{{team}} Bewertungen",
     "motm": "Spieler des Spiels",
     "roundSummary": "Spieltagsübersicht",
     "roundSummaryUnavailable": "Spieltagsübersicht nicht verfügbar.",
@@ -2534,7 +2544,7 @@
       }
     },
     "matchReport": "Spielbericht",
-    "playerPerformance": "Spielerleistung",
+    "playerRatings": "Spielerbewertungen",
     "tacticsTab": "Taktik",
     "goalSources": "Torquellen",
     "openPlay": "Aus dem Spiel heraus",
@@ -2725,6 +2735,7 @@
       "saveLoad": {
         "corrupted": "Diese Speicherdatei ist beschädigt und kann nicht geladen werden.",
         "incompatibleVersion": "Dieser Spielstand stammt aus einer neueren Spielversion (Stand v{{saveVersion}}; diese Version unterstützt bis v{{supported}}). Aktualisiere das Spiel, um ihn zu laden.",
+        "incompatibleLayout": "Die Daten dieses Spielstands passen nicht zu der Version, die er angibt, und er lässt sich nicht sicher laden. Die Datei wurde nicht verändert.",
         "missingData": "Diesem Spielstand fehlen erforderliche Daten und er kann nicht geladen werden.",
         "invalidWorld": "Die Welt- oder Mod-Daten dieses Spielstands sind ungültig und können nicht geladen werden.",
         "unknown": "Dieser Spielstand konnte aufgrund eines unerwarteten Fehlers nicht geladen werden."
@@ -3949,6 +3960,7 @@
     "playerPosition": "Position",
     "playerFoot": "Bevorzugter Fuß",
     "playerDateOfBirth": "Geburtsdatum",
+    "playerAgeToday": "heute {{age}} Jahre",
     "playerAge": "Alter",
     "playerAgeHelp": "Wird verwendet, wenn kein Geburtsdatum angegeben ist: Der Spieler ist am Tag des Karrierebeginns so alt, in welchem Jahr auch immer.",
     "playerContractSection": "Vertrag",

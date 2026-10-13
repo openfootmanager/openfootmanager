@@ -405,6 +405,12 @@
     "promoteToSeniorSquad": "Promover à equipa principal"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.º",
+      "two": "{{n}}.º",
+      "few": "{{n}}.º",
+      "other": "{{n}}.º"
+    },
     "currentWage": "Salário atual",
     "loading": "A carregar...",
     "loadingGameState": "A carregar estado do jogo...",
@@ -1081,6 +1087,7 @@
     "seasonIncome": "Receita da Temporada",
     "seasonExpenses": "Despesas da Temporada",
     "perWeekSuffix": "/sem",
+    "snapshotLoadFailed": "Não foi possível carregar as finanças do clube.",
     "perYearSuffix": "/ano",
     "wagePerWeek": "Salário/sem",
     "wagePerYear": "Salário/ano",
@@ -1444,6 +1451,8 @@
     "fixtures": "Jogos",
     "standings": "Classificação",
     "matchday": "Jornada {{number}}",
+    "movedFrom": "Adiado de {{date}}",
+    "dateRange": "de {{from}} a {{to}}",
     "season": "Temporada {{number}}",
     "international": "Internacional",
     "internationalDuty": "Ao serviço da seleção",
@@ -1658,6 +1667,7 @@
     "passAccuracy": "Precisão de passe",
     "percentile": "Percentil",
     "percentileUnavailable": "Percentil indisponível",
+    "percentileGroup": "Comparado com: {{position}} em {{league}}",
     "recentMatches": "Jogos recentes",
     "recentMatchesScore": "Resultado",
     "recentMatchesGoalsAssists": "G / A",
@@ -2024,7 +2034,7 @@
     "postMatchTeamTalk": "Palestra Pós-Jogo",
     "addressPlayers": "Dirige-te aos teus jogadores após o jogo.",
     "matchOver": "Jogo Terminado",
-    "performance": "Desempenho do {{team}}",
+    "ratings": "Classificações de {{team}}",
     "motm": "Melhor em Campo",
     "roundSummary": "Resumo da Jornada",
     "roundSummaryUnavailable": "Resumo da jornada indisponível.",
@@ -2534,7 +2544,7 @@
       }
     },
     "matchReport": "Relatório do jogo",
-    "playerPerformance": "Desempenho dos jogadores",
+    "playerRatings": "Avaliações",
     "tacticsTab": "Tática",
     "goalSources": "Fontes de golo",
     "openPlay": "Jogo aberto",
@@ -2725,6 +2735,7 @@
       "saveLoad": {
         "corrupted": "Este ficheiro de gravação está corrompido e não pode ser carregado.",
         "incompatibleVersion": "Esta gravação foi criada por uma versão mais recente do jogo (gravação v{{saveVersion}}; esta versão suporta até à v{{supported}}). Atualize o jogo para a carregar.",
+        "incompatibleLayout": "Os dados desta gravação não correspondem à versão que ela indica, pelo que não pode ser carregada em segurança. O ficheiro não foi alterado.",
         "missingData": "Faltam dados necessários a esta gravação e não pode ser carregada.",
         "invalidWorld": "Os dados de mundo ou de mod desta gravação são inválidos e não podem ser carregados.",
         "unknown": "Não foi possível carregar esta gravação devido a um erro inesperado."
@@ -3949,6 +3960,7 @@
     "playerPosition": "Posição",
     "playerFoot": "Pé Preferido",
     "playerDateOfBirth": "Data de nascimento",
+    "playerAgeToday": "{{age}} anos hoje",
     "playerAge": "Idade",
     "playerAgeHelp": "Usada quando não há data de nascimento: o jogador tem esta idade no dia em que a carreira começa, seja qual for o ano.",
     "playerContractSection": "Contrato",

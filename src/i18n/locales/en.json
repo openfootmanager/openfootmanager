@@ -405,6 +405,12 @@
     "potLimited": "Limited"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}st",
+      "two": "{{n}}nd",
+      "few": "{{n}}rd",
+      "other": "{{n}}th"
+    },
     "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",
@@ -1081,6 +1087,7 @@
     "seasonIncome": "Season Income",
     "seasonExpenses": "Season Expenses",
     "perWeekSuffix": "/wk",
+    "snapshotLoadFailed": "Could not load the club finances.",
     "perYearSuffix": "/yr",
     "wagePerWeek": "Wage/wk",
     "wagePerYear": "Wage/yr",
@@ -1444,6 +1451,8 @@
     "fixtures": "Fixtures",
     "standings": "Standings",
     "matchday": "Matchday {{number}}",
+    "movedFrom": "Moved from {{date}}",
+    "dateRange": "{{from}} to {{to}}",
     "season": "Season {{number}}",
     "international": "International",
     "internationalDuty": "On International Duty",
@@ -1658,6 +1667,7 @@
     "passAccuracy": "Pass Accuracy",
     "percentile": "Percentile",
     "percentileUnavailable": "Percentile unavailable",
+    "percentileGroup": "Compared with: {{position}} in {{league}}",
     "recentMatches": "Recent Matches",
     "recentMatchesScore": "Score",
     "recentMatchesGoalsAssists": "G / A",
@@ -2058,7 +2068,7 @@
     "postMatchTeamTalk": "Post-Match Team Talk",
     "addressPlayers": "Address your players after the match.",
     "matchOver": "Match Over",
-    "performance": "{{team}} Performance",
+    "ratings": "{{team}} Ratings",
     "motm": "Man of the Match",
     "roundSummary": "Round Summary",
     "roundSummaryUnavailable": "Round summary unavailable.",
@@ -2534,7 +2544,7 @@
       }
     },
     "matchReport": "Match Report",
-    "playerPerformance": "Player Performance",
+    "playerRatings": "Player Ratings",
     "tacticsTab": "Tactics",
     "goalSources": "Goal Sources",
     "openPlay": "Open Play",
@@ -2768,6 +2778,7 @@
       "saveLoad": {
         "corrupted": "This save file is corrupted and can't be loaded.",
         "incompatibleVersion": "This save was made by a newer version of the game (save v{{saveVersion}}; this build supports up to v{{supported}}). Update the game to load it.",
+        "incompatibleLayout": "This save's data doesn't match the version it claims to be, so it can't be loaded safely. Nothing in the file was changed.",
         "missingData": "This save is missing required data and can't be loaded.",
         "invalidWorld": "This save's world or mod data is invalid and can't be loaded.",
         "unknown": "This save couldn't be loaded due to an unexpected error."
@@ -3949,6 +3960,7 @@
     "playerPosition": "Position",
     "playerFoot": "Preferred Foot",
     "playerDateOfBirth": "Date of Birth",
+    "playerAgeToday": "age {{age}} today",
     "playerAge": "Age",
     "playerAgeHelp": "Used when no date of birth is given: the player is this old on the day a career opens, in whatever year that is.",
     "playerContractSection": "Contract",

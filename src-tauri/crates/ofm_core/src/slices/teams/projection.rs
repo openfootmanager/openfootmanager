@@ -59,7 +59,7 @@ fn project_team_data(team: &Team) -> TeamCardTeam {
     }
 }
 
-fn project_standing(entry: &StandingEntry) -> TeamStanding {
+pub(super) fn project_standing(entry: &StandingEntry) -> TeamStanding {
     TeamStanding {
         played: entry.played,
         won: entry.won,

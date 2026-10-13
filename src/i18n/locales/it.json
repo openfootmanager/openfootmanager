@@ -424,6 +424,12 @@
     "promoteToSeniorSquad": "Promuovi in prima squadra"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}º",
+      "two": "{{n}}º",
+      "few": "{{n}}º",
+      "other": "{{n}}º"
+    },
     "currentWage": "Stipendio attuale",
     "loading": "Caricamento...",
     "loadingGameState": "Caricamento stato di gioco...",
@@ -1100,6 +1106,7 @@
     "seasonIncome": "Entrate stagionali",
     "seasonExpenses": "Spese stagionali",
     "perWeekSuffix": "/sett",
+    "snapshotLoadFailed": "Impossibile caricare le finanze del club.",
     "perYearSuffix": "/anno",
     "wagePerWeek": "Stipendio/sett",
     "wagePerYear": "Stipendio/anno",
@@ -1463,6 +1470,8 @@
     "fixtures": "Partite",
     "standings": "Classifica",
     "matchday": "Giornata {{number}}",
+    "movedFrom": "Spostata da {{date}}",
+    "dateRange": "dal {{from}} al {{to}}",
     "season": "Stagione {{number}}",
     "international": "Internazionale",
     "internationalDuty": "In nazionale",
@@ -1677,6 +1686,7 @@
     "passAccuracy": "Precisione passaggi",
     "percentile": "Percentile",
     "percentileUnavailable": "Percentile non disponibile",
+    "percentileGroup": "Confronto con: {{position}} in {{league}}",
     "recentMatches": "Partite recenti",
     "recentMatchesScore": "Risultato",
     "recentMatchesGoalsAssists": "R / A",
@@ -2043,7 +2053,7 @@
     "postMatchTeamTalk": "Discorso post-partita",
     "addressPlayers": "Rivolgiti ai tuoi giocatori dopo la partita.",
     "matchOver": "Partita terminata",
-    "performance": "Prestazioni di {{team}}",
+    "ratings": "Voti di {{team}}",
     "motm": "Migliore in campo",
     "roundSummary": "Riepilogo del Turno",
     "roundSummaryUnavailable": "Riepilogo del turno non disponibile.",
@@ -2553,7 +2563,7 @@
       }
     },
     "matchReport": "Rapporto partita",
-    "playerPerformance": "Prestazioni dei giocatori",
+    "playerRatings": "Valutazioni",
     "tacticsTab": "Tattica",
     "goalSources": "Fonti dei gol",
     "openPlay": "Azione da gioco",
@@ -2725,6 +2735,7 @@
       "saveLoad": {
         "corrupted": "Questo file di salvataggio è danneggiato e non può essere caricato.",
         "incompatibleVersion": "Questo salvataggio è stato creato con una versione più recente del gioco (salvataggio v{{saveVersion}}; questa versione supporta fino alla v{{supported}}). Aggiorna il gioco per caricarlo.",
+        "incompatibleLayout": "I dati di questo salvataggio non corrispondono alla versione dichiarata, quindi non può essere caricato in sicurezza. Il file non è stato modificato.",
         "missingData": "A questo salvataggio mancano dati necessari e non può essere caricato.",
         "invalidWorld": "I dati del mondo o della mod di questo salvataggio non sono validi e non possono essere caricati.",
         "unknown": "Impossibile caricare questo salvataggio a causa di un errore imprevisto."
@@ -3949,6 +3960,7 @@
     "playerPosition": "Ruolo",
     "playerFoot": "Piede Preferito",
     "playerDateOfBirth": "Data di nascita",
+    "playerAgeToday": "{{age}} anni oggi",
     "playerAge": "Età",
     "playerAgeHelp": "Usata quando manca la data di nascita: il giocatore ha questa età il giorno in cui inizia la carriera, in qualunque anno sia.",
     "playerContractSection": "Contratto",

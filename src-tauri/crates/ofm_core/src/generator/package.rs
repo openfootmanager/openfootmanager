@@ -1299,6 +1299,23 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
     errors
 }
 
+/// The reputation each club of `package` ranks by in competition selectors: the middle of its
+/// authored range (the default range when it has none). A world built from the package samples a
+/// reputation inside that range for each club, and ranking by the sample would change who
+/// qualifies from one career to the next.
+pub fn authored_reputations(package: &WorldPackage) -> std::collections::HashMap<String, u32> {
+    package
+        .teams
+        .iter()
+        .map(|team| {
+            let [min, max] = team
+                .reputation_range
+                .unwrap_or(super::DEFAULT_TEAM_REPUTATION_RANGE);
+            (team.id.clone(), min.midpoint(max))
+        })
+        .collect()
+}
+
 /// Validate the package's constructed world with the same competition rules as
 /// the game loader. Preserve source locations when surfacing definition errors.
 fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> {
@@ -1306,81 +1323,78 @@ fn validate_competition_references(package: &WorldPackage) -> Vec<PackageError> 
         return Vec::new();
     }
 
-    // Reuse production construction for country and regional membership;
-    // project reputation below for a stable authoring check.
-    let mut world = super::build_world_data_from_package(
+    // Reuse production construction for country and regional membership. Clubs are ranked by their
+    // authored reputation, the same basis a career resolves the competitions with, so the verdict
+    // here is the verdict there however the world's reputations roll.
+    let world = super::build_world_data_from_package(
         package,
         None,
         &super::DefinitionSources::embedded_only(),
     );
-    // Only selector inputs need a fixed projection here. Game construction
-    // keeps sampling ranges, but a package's authoring verdict must not roll
-    // fresh reputations and change exclusion-chain membership on every run.
-    for (team, definition) in world.teams.iter_mut().zip(&package.teams) {
-        let [min, max] = definition
-            .reputation_range
-            .unwrap_or(super::DEFAULT_TEAM_REPUTATION_RANGE);
-        team.reputation = min.midpoint(max);
-    }
+    let authored = authored_reputations(package);
     let file = super::CompetitionDefinitionFile {
         format_version: super::SUPPORTED_DEFINITION_FORMAT_VERSION,
         competitions: package.competitions.clone(),
     };
 
-    super::validate_definitions_for_world(&file, &world)
-        .into_iter()
-        .map(|error| {
-            let mut params = error.params;
-            // Located by occurrence, which is what `source_at` is keyed on and
-            // what every other error path in this file uses. An error the
-            // validator raises about the package as a whole carries no
-            // occurrence and stays unlocated, which is honest: it is not about
-            // one entity.
-            let file = error
-                .competition_index
-                .map(|index| package.source_at("competition", index))
-                .unwrap_or_default();
-            if !error.competition_id.is_empty() {
-                params.push(("competition".to_string(), error.competition_id));
-            }
-            (
-                error.competition_index,
-                PackageError {
-                    code: error.code,
-                    file,
-                    params,
-                },
-            )
-        })
-        // One competition can raise the same problem from more than one field —
-        // an unknown country reaches the validator once as `countryId` and again
-        // as the participant selector's `country`, and the author sees the
-        // identical line twice with nothing to tell them apart. Collapse exact
-        // duplicates; two competitions with the same bad country still report
-        // separately, because the `competition` param differs.
-        //
-        // Keyed on the occurrence, so one competition raising the same problem
-        // from two fields — an unknown country reaches the validator once as
-        // `countryId` and again as the participant selector's `country` —
-        // collapses to one line, while two competitions each raising it stay
-        // two. Keying on the id instead cannot separate those two cases: a
-        // blank or repeated id makes distinct competitions indistinguishable,
-        // and every scheme built on it either hides a broken competition or
-        // prints one problem twice.
-        //
-        // Kept on a seen-set rather than scanning the output for each error: a
-        // package is untrusted input, and one with many broken competitions
-        // would make a linear scan quadratic in the size of its own mistakes.
-        .fold(
-            (Vec::new(), HashSet::new()),
-            |(mut unique, mut seen), (index, error)| {
-                if seen.insert((index, error.code.clone(), error.params.clone())) {
-                    unique.push(error);
-                }
-                (unique, seen)
+    super::validate_definitions_for_world_ranked(
+        &file,
+        &world,
+        super::ReputationBasis::Authored(&authored),
+    )
+    .into_iter()
+    .map(|error| {
+        let mut params = error.params;
+        // Located by occurrence, which is what `source_at` is keyed on and
+        // what every other error path in this file uses. An error the
+        // validator raises about the package as a whole carries no
+        // occurrence and stays unlocated, which is honest: it is not about
+        // one entity.
+        let file = error
+            .competition_index
+            .map(|index| package.source_at("competition", index))
+            .unwrap_or_default();
+        if !error.competition_id.is_empty() {
+            params.push(("competition".to_string(), error.competition_id));
+        }
+        (
+            error.competition_index,
+            PackageError {
+                code: error.code,
+                file,
+                params,
             },
         )
-        .0
+    })
+    // One competition can raise the same problem from more than one field —
+    // an unknown country reaches the validator once as `countryId` and again
+    // as the participant selector's `country`, and the author sees the
+    // identical line twice with nothing to tell them apart. Collapse exact
+    // duplicates; two competitions with the same bad country still report
+    // separately, because the `competition` param differs.
+    //
+    // Keyed on the occurrence, so one competition raising the same problem
+    // from two fields — an unknown country reaches the validator once as
+    // `countryId` and again as the participant selector's `country` —
+    // collapses to one line, while two competitions each raising it stay
+    // two. Keying on the id instead cannot separate those two cases: a
+    // blank or repeated id makes distinct competitions indistinguishable,
+    // and every scheme built on it either hides a broken competition or
+    // prints one problem twice.
+    //
+    // Kept on a seen-set rather than scanning the output for each error: a
+    // package is untrusted input, and one with many broken competitions
+    // would make a linear scan quadratic in the size of its own mistakes.
+    .fold(
+        (Vec::new(), HashSet::new()),
+        |(mut unique, mut seen), (index, error)| {
+            if seen.insert((index, error.code.clone(), error.params.clone())) {
+                unique.push(error);
+            }
+            (unique, seen)
+        },
+    )
+    .0
 }
 
 // ---------------------------------------------------------------------------
@@ -4201,6 +4215,122 @@ colors:
                 "the midpoint field has four clubs: {expected:?}"
             );
         }
+    }
+
+    /// Six clubs whose reputation is anywhere in 0..=1000, a cup that takes two named clubs, a cup that
+    /// takes the top two by reputation, and a group cup that takes everyone else. The group cup only
+    /// has a playable field when the first two cups hold four clubs between them, which a rolled
+    /// reputation order does not guarantee.
+    fn package_whose_field_depends_on_reputation() -> WorldPackage {
+        WorldPackage {
+            teams: (b'a'..=b'f')
+                .map(|id| {
+                    serde_json::from_value(serde_json::json!({
+                        "id": char::from(id).to_string(), "name": "Club", "city": "City",
+                        "country": "ENG", "reputationRange": [0, 1000],
+                        "colors": {"primary": "#000000", "secondary": "#ffffff"}
+                    }))
+                    .unwrap()
+                })
+                .collect(),
+            competitions: serde_json::from_value(serde_json::json!([
+                {"id":"a-cup", "name":"A", "type":"Cup", "scope":"Domestic",
+                 "format":{"kind":"Knockout"}, "participants":{"explicit":["a", "b"]}},
+                {"id":"b-cup", "name":"B", "type":"Cup", "scope":"Domestic",
+                 "format":{"kind":"Knockout"}, "participants":{"selector":{
+                     "kind":"topByReputation", "country":"ENG", "count":2}}},
+                {"id":"c-cup", "name":"C", "type":"Cup", "scope":"Domestic",
+                 "format":{"kind":"GroupAndKnockout", "groupSize":2, "qualifiersPerGroup":2},
+                 "participants":{"selector":{"kind":"allInCountry", "country":"ENG",
+                     "excludeCompetitions":["a-cup", "b-cup"]}}}
+            ]))
+            .unwrap(),
+            ..Default::default()
+        }
+    }
+
+    /// Given a package the validator accepts, whose competition field depends on club reputation
+    /// When careers are created from it many times, each rolling fresh reputations
+    /// Then none is refused for a competition-qualification reason (#707).
+    #[test]
+    fn an_accepted_package_never_fails_career_creation_on_a_reputation_roll() {
+        let package = package_whose_field_depends_on_reputation();
+        assert!(validate_package(&package).is_empty());
+
+        let refusals: Vec<String> = (0..200)
+            .filter_map(|_| {
+                crate::generator::build_world_from_package(&package, Some(2031), &embedded()).err()
+            })
+            .collect();
+
+        assert!(
+            refusals.is_empty(),
+            "{} of 200 careers were refused: {:?}",
+            refusals.len(),
+            refusals.first()
+        );
+    }
+
+    /// Given a package whose cups select and exclude clubs by reputation
+    /// When careers are created from it with different rolls
+    /// Then the cup fields resolve to the same clubs every time, the ones validation saw.
+    #[test]
+    fn authored_selector_resolves_the_same_at_validation_and_career_start() {
+        use chrono::TimeZone;
+        let package = package_whose_field_depends_on_reputation();
+        let start = chrono::Utc.with_ymd_and_hms(2031, 7, 1, 0, 0, 0).unwrap();
+        let authored = crate::generator::authored_reputations(&package);
+
+        let fields: std::collections::BTreeSet<Vec<(String, Vec<String>)>> = (0..60)
+            .filter_map(|_| {
+                let world =
+                    crate::generator::build_world_from_package(&package, Some(2031), &embedded())
+                        .ok()?;
+                // As a career resolves them: ranked by the package's authored reputations.
+                let leagues = crate::generator::resolve_definitions_ranked(
+                    world.competition_definitions.as_ref()?,
+                    &world,
+                    crate::generator::ReputationBasis::Authored(&authored),
+                    2031,
+                    start,
+                );
+                let mut fields: Vec<(String, Vec<String>)> = leagues
+                    .iter()
+                    .map(|league| {
+                        let mut ids = league.participant_ids.clone();
+                        ids.sort();
+                        (league.id.clone(), ids)
+                    })
+                    .collect();
+                fields.sort();
+                Some(fields)
+            })
+            .collect();
+
+        assert_eq!(
+            fields.len(),
+            1,
+            "the fields differed between rolls: {fields:?}"
+        );
+    }
+
+    /// Given a package whose clubs have a reputation range
+    /// When careers are created with different rolls
+    /// Then the clubs' reputations still differ, because only the selectors use the authored value.
+    #[test]
+    fn sampled_reputations_still_vary_where_selectors_do_not_depend_on_them() {
+        let package = package_whose_field_depends_on_reputation();
+        let reputations = |_: usize| -> Vec<u32> {
+            crate::generator::build_world_data_from_package(&package, Some(2031), &embedded())
+                .teams
+                .iter()
+                .map(|team| team.reputation)
+                .collect()
+        };
+
+        let distinct: std::collections::BTreeSet<Vec<u32>> = (0..10).map(reputations).collect();
+
+        assert!(distinct.len() > 1, "every roll gave {:?}", distinct.first());
     }
 
     #[test]

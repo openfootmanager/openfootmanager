@@ -11,6 +11,7 @@ pub mod calendar_booking;
 pub mod calendar_identity;
 pub mod calendar_reconcile;
 pub mod career;
+pub mod career_stage;
 pub mod catchup;
 pub mod clock;
 pub mod club;

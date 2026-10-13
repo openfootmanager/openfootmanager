@@ -1,4 +1,4 @@
-import type { PlayerData, PlayerSeasonStats, TeamData } from "../../store/gameStore";
+import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { TOptions } from "i18next";
 import { weeklyWageAmount } from "../../lib/finance";
 import {
@@ -25,8 +25,19 @@ interface PlayerAdvancedPassMetric {
   percentile: number | null;
 }
 
+/** Who the percentiles compare the player with; the backend names it. */
+export interface PercentilePeerGroup {
+  competitionId: string;
+  competitionName: string;
+  competitionNameKey: string | null;
+  countryId: string | null;
+  /** A `Position` name such as `Striker`. */
+  position: string;
+}
+
 export interface PlayerAdvancedStatsSummary {
   percentileEligible: boolean;
+  peerGroup: PercentilePeerGroup | null;
   /** Decided by the backend; the squad-data fallback cannot know it. */
   seasonRatingRated: boolean;
   metrics: {
@@ -38,14 +49,6 @@ export interface PlayerAdvancedStatsSummary {
     foulsCommitted: PlayerAdvancedMetric;
   };
 }
-
-interface BuildPlayerAdvancedStatsOptions {
-  minimumMinutes?: number;
-  minimumCohortSize?: number;
-}
-
-const DEFAULT_MINIMUM_MINUTES = 180;
-const DEFAULT_MINIMUM_COHORT_SIZE = 3;
 
 export function getPlayerTeamName(
   teams: TeamData[],
@@ -60,21 +63,6 @@ export function getPlayerTeamName(
   }
 
   return teams.find((team) => team.id === teamId)?.name ?? labels.unknown;
-}
-
-export function getPlayerAge(dateOfBirth: string, asOfDate: string = "2026-07-01"): number {
-  const birthDate = new Date(dateOfBirth);
-  const currentDate = new Date(asOfDate);
-  let age = currentDate.getFullYear() - birthDate.getFullYear();
-
-  if (
-    currentDate.getMonth() < birthDate.getMonth() ||
-    (currentDate.getMonth() === birthDate.getMonth() && currentDate.getDate() < birthDate.getDate())
-  ) {
-    age -= 1;
-  }
-
-  return age;
 }
 
 export function formatPlayerMarketValue(value: number): string {
@@ -123,58 +111,13 @@ function calculatePassAccuracy(completed: number, attempted: number): number | n
   return roundTo((completed / attempted) * 100, 1);
 }
 
-function positionKey(player: PlayerData): string {
-  return player.natural_position || player.position;
-}
-
-function percentileRank(values: number[], target: number | null): number | null {
-  if (target === null || values.length === 0) {
-    return null;
-  }
-
-  const rankedCount = values.filter((value) => value <= target).length;
-  return Math.round((rankedCount / values.length) * 100);
-}
-
-function eligiblePeers(
-  player: PlayerData,
-  players: PlayerData[],
-  minimumMinutes: number,
-): PlayerData[] {
-  const targetPosition = positionKey(player);
-
-  return players.filter((candidate) => {
-    return (
-      positionKey(candidate) === targetPosition &&
-      statValue(candidate.stats.minutes_played) >= minimumMinutes
-    );
-  });
-}
-
-function metricPercentile(
-  peers: PlayerData[],
-  selector: (stats: PlayerSeasonStats) => number | null,
-  playerStats: PlayerSeasonStats,
-): number | null {
-  const peerValues = peers
-    .map((candidate) => selector(candidate.stats))
-    .filter((value): value is number => value !== null);
-
-  return percentileRank(peerValues, selector(playerStats));
-}
-
-export function buildPlayerAdvancedStats(
-  player: PlayerData,
-  players: PlayerData[],
-  options: BuildPlayerAdvancedStatsOptions = {},
-): PlayerAdvancedStatsSummary {
-  const minimumMinutes = options.minimumMinutes ?? DEFAULT_MINIMUM_MINUTES;
-  const minimumCohortSize = options.minimumCohortSize ?? DEFAULT_MINIMUM_COHORT_SIZE;
+/**
+ * What the squad data alone can say before the backend's overview arrives: totals and per-90
+ * rates, no percentiles. Percentiles need a league peer group and each stat's direction, which
+ * only the backend defines, so none is guessed here.
+ */
+export function buildPlayerAdvancedStats(player: PlayerData): PlayerAdvancedStatsSummary {
   const minutesPlayed = statValue(player.stats.minutes_played);
-  const percentileEligible = minutesPlayed >= minimumMinutes;
-  const peers = eligiblePeers(player, players, minimumMinutes);
-  const canComputePercentiles = percentileEligible && peers.length >= minimumCohortSize;
-
   const shots = statValue(player.stats.shots);
   const shotsOnTarget = statValue(player.stats.shots_on_target);
   const passesCompleted = statValue(player.stats.passes_completed);
@@ -184,83 +127,36 @@ export function buildPlayerAdvancedStats(
   const foulsCommitted = statValue(player.stats.fouls_committed);
 
   return {
-    percentileEligible: canComputePercentiles,
+    percentileEligible: false,
+    peerGroup: null,
     seasonRatingRated: false,
     metrics: {
-      shots: {
-        total: shots,
-        per90: calculatePer90(shots, minutesPlayed),
-        percentile: canComputePercentiles
-          ? metricPercentile(
-              peers,
-              (stats) => calculatePer90(statValue(stats.shots), statValue(stats.minutes_played)),
-              player.stats,
-            )
-          : null,
-      },
+      shots: { total: shots, per90: calculatePer90(shots, minutesPlayed), percentile: null },
       shotsOnTarget: {
         total: shotsOnTarget,
         per90: calculatePer90(shotsOnTarget, minutesPlayed),
-        percentile: canComputePercentiles
-          ? metricPercentile(
-              peers,
-              (stats) =>
-                calculatePer90(statValue(stats.shots_on_target), statValue(stats.minutes_played)),
-              player.stats,
-            )
-          : null,
+        percentile: null,
       },
       passes: {
         completed: passesCompleted,
         attempted: passesAttempted,
         accuracy: calculatePassAccuracy(passesCompleted, passesAttempted),
-        percentile: canComputePercentiles
-          ? metricPercentile(
-              peers,
-              (stats) =>
-                calculatePassAccuracy(
-                  statValue(stats.passes_completed),
-                  statValue(stats.passes_attempted),
-                ),
-              player.stats,
-            )
-          : null,
+        percentile: null,
       },
       tacklesWon: {
         total: tacklesWon,
         per90: calculatePer90(tacklesWon, minutesPlayed),
-        percentile: canComputePercentiles
-          ? metricPercentile(
-              peers,
-              (stats) =>
-                calculatePer90(statValue(stats.tackles_won), statValue(stats.minutes_played)),
-              player.stats,
-            )
-          : null,
+        percentile: null,
       },
       interceptions: {
         total: interceptions,
         per90: calculatePer90(interceptions, minutesPlayed),
-        percentile: canComputePercentiles
-          ? metricPercentile(
-              peers,
-              (stats) =>
-                calculatePer90(statValue(stats.interceptions), statValue(stats.minutes_played)),
-              player.stats,
-            )
-          : null,
+        percentile: null,
       },
       foulsCommitted: {
         total: foulsCommitted,
         per90: calculatePer90(foulsCommitted, minutesPlayed),
-        percentile: canComputePercentiles
-          ? metricPercentile(
-              peers,
-              (stats) =>
-                calculatePer90(statValue(stats.fouls_committed), statValue(stats.minutes_played)),
-              player.stats,
-            )
-          : null,
+        percentile: null,
       },
     },
   };

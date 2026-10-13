@@ -1,5 +1,5 @@
 use chrono::{TimeZone, Utc};
-use domain::league::FixtureCompetition;
+use domain::league::{FixtureCompetition, League, StandingEntry};
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, PlayerSeasonStats, Position};
 use domain::stats::{PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord};
@@ -9,6 +9,7 @@ use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
 use super::player::{get_player_match_history_internal, get_player_stats_overview_internal};
+use super::shared::{percentile_rank, AdvancedStat, StatDirection};
 use super::team::{get_team_match_history_internal, get_team_stats_overview_internal};
 
 fn default_attrs() -> PlayerAttributes {
@@ -82,14 +83,29 @@ fn make_game(players: Vec<Player>) -> Game {
         18_000,
     );
 
-    Game::new(
+    let mut game = Game::new(
         clock,
         manager,
         vec![team, opponent],
         players,
         vec![],
         vec![],
-    )
+    );
+    game.competitions = vec![league("league-1", &["team-1", "team-2"])];
+    game
+}
+
+fn league(id: &str, team_ids: &[&str]) -> League {
+    League {
+        id: id.to_string(),
+        name: format!("{id} name"),
+        participant_ids: team_ids.iter().map(|team| (*team).to_string()).collect(),
+        standings: team_ids
+            .iter()
+            .map(|team| StandingEntry::new((*team).to_string()))
+            .collect(),
+        ..Default::default()
+    }
 }
 
 fn sample_stats_state() -> StatsState {
@@ -246,6 +262,7 @@ fn get_player_stats_overview_aggregates_history_and_uses_exact_position_cohorts(
         yellow_cards: 0,
         red_cards: 0,
         avg_rating: 7.0,
+        rated_appearances: 1,
         minutes_played: 90,
         shots: 2,
         shots_on_target: 1,
@@ -506,6 +523,7 @@ fn get_player_stats_overview_falls_back_to_current_season_totals_for_legacy_save
         yellow_cards: 1,
         red_cards: 0,
         avg_rating: 7.2,
+        rated_appearances: 1,
         minutes_played: 450,
         shots: 20,
         shots_on_target: 10,
@@ -524,6 +542,7 @@ fn get_player_stats_overview_falls_back_to_current_season_totals_for_legacy_save
         yellow_cards: 0,
         red_cards: 0,
         avg_rating: 7.0,
+        rated_appearances: 1,
         minutes_played: 450,
         shots: 10,
         shots_on_target: 5,
@@ -542,6 +561,7 @@ fn get_player_stats_overview_falls_back_to_current_season_totals_for_legacy_save
         yellow_cards: 0,
         red_cards: 0,
         avg_rating: 7.0,
+        rated_appearances: 1,
         minutes_played: 450,
         shots: 15,
         shots_on_target: 8,
@@ -729,4 +749,128 @@ fn get_team_match_history_returns_empty_when_stats_state_is_missing() {
     let history = get_team_match_history_internal(&state, "team-1", None).unwrap();
 
     assert!(history.is_empty());
+}
+
+fn with_stats(mut player: Player, shots: u32, fouls: u32) -> Player {
+    player.stats = PlayerSeasonStats {
+        appearances: 10,
+        minutes_played: 900,
+        shots,
+        fouls_committed: fouls,
+        ..Default::default()
+    };
+    player
+}
+
+fn overview_of(game: Game, player_id: &str) -> super::dto::PlayerStatsOverviewDto {
+    let state = StateManager::new();
+    state.set_game(game);
+    get_player_stats_overview_internal(&state, player_id).expect("an overview")
+}
+
+/// Given a striker in the second division, with strikers in the first division who shoot far less
+/// When his shooting percentile is read
+/// Then it is measured against strikers of his own league only, and the answer names that league
+#[test]
+fn the_peer_group_is_the_players_own_league() {
+    let players = vec![
+        with_stats(make_player("target", "team-3", Position::Striker), 20, 0),
+        with_stats(make_player("own-low", "team-3", Position::Striker), 10, 0),
+        with_stats(make_player("own-high", "team-4", Position::Striker), 30, 0),
+        with_stats(make_player("far-1", "team-1", Position::Striker), 5, 0),
+        with_stats(make_player("far-2", "team-2", Position::Striker), 5, 0),
+        with_stats(make_player("far-3", "team-1", Position::Striker), 5, 0),
+        with_stats(
+            make_player("other-position", "team-3", Position::Midfielder),
+            1,
+            0,
+        ),
+    ];
+    let mut game = make_game(players);
+    game.competitions
+        .push(league("league-2", &["team-3", "team-4"]));
+
+    let overview = overview_of(game, "target");
+
+    let group = overview.peer_group.expect("a peer group");
+    assert_eq!(group.competition_id, "league-2");
+    assert_eq!(group.position, "Striker");
+    // 2 of the 3 league-2 strikers shoot no more than he does. Against the whole world it
+    // would be 5 of 6.
+    assert_eq!(overview.metrics.shots.percentile, Some(67));
+}
+
+/// Given two midfielders in one league, one with 10 fouls and one with 40 (and a third in between)
+/// When their fouls percentiles are read
+/// Then the player with fewer fouls has the higher percentile
+#[test]
+fn fewer_fouls_rank_higher() {
+    let players = vec![
+        with_stats(make_player("clean", "team-1", Position::Midfielder), 0, 10),
+        with_stats(
+            make_player("middling", "team-1", Position::Midfielder),
+            0,
+            25,
+        ),
+        with_stats(make_player("dirty", "team-2", Position::Midfielder), 0, 40),
+    ];
+
+    let clean = overview_of(make_game(players.clone()), "clean");
+    let dirty = overview_of(make_game(players), "dirty");
+
+    assert_eq!(clean.metrics.fouls_committed.percentile, Some(100));
+    assert_eq!(dirty.metrics.fouls_committed.percentile, Some(33));
+}
+
+/// Given the stats that carry a percentile
+/// When each one's direction is asked
+/// Then fouls are the only stat where lower is better, from the one definition the backend ranks by
+#[test]
+fn every_stat_declares_its_direction() {
+    for stat in AdvancedStat::ALL {
+        let expected = if stat == AdvancedStat::FoulsCommitted {
+            StatDirection::LowerIsBetter
+        } else {
+            StatDirection::HigherIsBetter
+        };
+        assert_eq!(stat.direction(), expected, "{stat:?}");
+    }
+}
+
+/// Given the same peer values and a player in the middle
+/// When ranked in each direction
+/// Then higher-is-better counts the peers at or below him, and lower-is-better those at or above
+#[test]
+fn the_rank_follows_the_stat_direction() {
+    let values = [1.0, 2.0, 3.0, 4.0];
+
+    assert_eq!(
+        percentile_rank(&values, Some(3.0), StatDirection::HigherIsBetter),
+        Some(75)
+    );
+    assert_eq!(
+        percentile_rank(&values, Some(3.0), StatDirection::LowerIsBetter),
+        Some(50)
+    );
+}
+
+/// Given a player at no club
+/// When his overview is read
+/// Then there is no peer group and no percentile, rather than a ranking against strangers
+#[test]
+fn a_player_without_a_league_has_no_percentiles() {
+    let mut free_agent = with_stats(make_player("free", "team-1", Position::Striker), 20, 0);
+    free_agent.team_id = None;
+    let players = vec![
+        free_agent,
+        with_stats(make_player("a", "team-1", Position::Striker), 10, 0),
+        with_stats(make_player("b", "team-1", Position::Striker), 30, 0),
+        with_stats(make_player("c", "team-1", Position::Striker), 5, 0),
+    ];
+
+    let overview = overview_of(make_game(players), "free");
+
+    assert!(overview.peer_group.is_none());
+    assert!(!overview.percentile_eligible);
+    assert_eq!(overview.metrics.shots.percentile, None);
 }

@@ -405,6 +405,12 @@
     "potLimited": "Ограниченный"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}-й",
+      "two": "{{n}}-й",
+      "few": "{{n}}-й",
+      "other": "{{n}}-й"
+    },
     "currentWage": "Текущая зарплата",
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
@@ -1081,6 +1087,7 @@
     "seasonIncome": "Доход за сезон",
     "seasonExpenses": "Расходы за сезон",
     "perWeekSuffix": "/нед.",
+    "snapshotLoadFailed": "Не удалось загрузить финансы клуба.",
     "perYearSuffix": "/год",
     "wagePerWeek": "Зарплата/нед.",
     "wagePerYear": "Зарплата/год",
@@ -1444,6 +1451,8 @@
     "fixtures": "Матчи",
     "standings": "Таблица",
     "matchday": "Тур {{number}}",
+    "movedFrom": "Перенесено с {{date}}",
+    "dateRange": "с {{from}} по {{to}}",
     "season": "Сезон {{number}}",
     "international": "Сборные",
     "internationalDuty": "В сборной",
@@ -1658,6 +1667,7 @@
     "passAccuracy": "Точность передач",
     "percentile": "Процентиль",
     "percentileUnavailable": "Процентиль недоступен",
+    "percentileGroup": "Сравнение с: {{position}} в {{league}}",
     "recentMatches": "Последние матчи",
     "recentMatchesScore": "Счет",
     "recentMatchesGoalsAssists": "Г/А",
@@ -2024,7 +2034,7 @@
     "postMatchTeamTalk": "Речь после матча",
     "addressPlayers": "Обратитесь к игрокам после матча.",
     "matchOver": "Матч завершён",
-    "performance": "Выступление {{team}}",
+    "ratings": "Оценки {{team}}",
     "motm": "Игрок матча",
     "roundSummary": "Итоги тура",
     "roundSummaryUnavailable": "Итоги тура недоступны.",
@@ -2534,7 +2544,7 @@
       }
     },
     "matchReport": "Отчёт о матче",
-    "playerPerformance": "Игра футболистов",
+    "playerRatings": "Рейтинги игроков",
     "tacticsTab": "Тактика",
     "goalSources": "Источники голов",
     "openPlay": "С игры",
@@ -2760,6 +2770,7 @@
       "saveLoad": {
         "corrupted": "Этот файл сохранения повреждён и не может быть загружен.",
         "incompatibleVersion": "Это сохранение создано более новой версией игры (сохранение v{{saveVersion}}; эта сборка поддерживает до v{{supported}}). Обновите игру, чтобы загрузить его.",
+        "incompatibleLayout": "Данные этого сохранения не соответствуют заявленной версии, поэтому его нельзя безопасно загрузить. Файл не был изменён.",
         "missingData": "В этом сохранении отсутствуют необходимые данные, его нельзя загрузить.",
         "invalidWorld": "Данные мира или мода в этом сохранении недействительны, его нельзя загрузить.",
         "unknown": "Не удалось загрузить это сохранение из-за непредвиденной ошибки."
@@ -3949,6 +3960,7 @@
     "playerPosition": "Позиция",
     "playerFoot": "Рабочая нога",
     "playerDateOfBirth": "Дата рождения",
+    "playerAgeToday": "сегодня {{age}}",
     "playerAge": "Возраст",
     "playerAgeHelp": "Используется, если дата рождения не указана: игроку столько лет в день начала карьеры, в каком бы году она ни началась.",
     "playerContractSection": "Контракт",

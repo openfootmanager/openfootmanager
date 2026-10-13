@@ -242,7 +242,7 @@ pub(crate) fn trait_bonus(snap: &PlayerSnap, context: TraitContext) -> f64 {
 // Play-style modifiers
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum PlayStylePhase {
     Midfield,
     Attack,
@@ -277,10 +277,37 @@ pub(crate) fn play_style_modifier(
 // Role attribute modifier — applied per-player during zone resolution
 // ---------------------------------------------------------------------------
 
+/// The phases the resolvers ask a player of this position about. A table entry
+/// for any other phase can never fire.
+pub(crate) fn consulted_phases(position: Position) -> &'static [PlayStylePhase] {
+    match position {
+        Position::Goalkeeper => &[],
+        Position::Defender => &[PlayStylePhase::Defense],
+        Position::Midfielder => &[PlayStylePhase::Midfield, PlayStylePhase::Defense],
+        Position::Forward => &[PlayStylePhase::Attack],
+    }
+}
+
+/// What the resolvers call: the table, but only for a phase the position is
+/// actually consulted on, so an entry nobody asks about stays inert.
+/// `position` is the position the resolver asked for in this phase, not the picked
+/// player's own: `snap_from_squad` can fall back to any available player.
+pub(crate) fn role_modifier(position: Position, role: PlayerRole, phase: PlayStylePhase) -> f64 {
+    if consulted_phases(position).contains(&phase) {
+        role_attribute_modifier(role, phase)
+    } else {
+        1.0
+    }
+}
+
 /// Returns a multiplier (0.88–1.20) applied to the player's effective skill
 /// calculation based on their assigned tactical role. Values reflect the
 /// attribute biases described in domain::team::PlayerRole documentation.
-pub(crate) fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -> f64 {
+//
+// The penalty half of AttackingFB, WingBack and ShadowStriker is gone: their boost is on
+// a phase the resolvers never ask their position about, so only the penalty fired.
+// Restore both halves together when that phase is wired.
+fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -> f64 {
     match (role, phase) {
         // Goalkeepers
         (PlayerRole::SweeperKeeper, PlayStylePhase::Defense) => 1.06,
@@ -291,11 +318,9 @@ pub(crate) fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -
         (PlayerRole::CoverCB, PlayStylePhase::Defense) => 1.05,
         // Full Backs
         (PlayerRole::AttackingFB, PlayStylePhase::Attack) => 1.08,
-        (PlayerRole::AttackingFB, PlayStylePhase::Defense) => 0.93,
         (PlayerRole::DefensiveFB, PlayStylePhase::Defense) => 1.08,
         (PlayerRole::DefensiveFB, PlayStylePhase::Attack) => 0.93,
         (PlayerRole::WingBack, PlayStylePhase::Attack) => 1.10,
-        (PlayerRole::WingBack, PlayStylePhase::Defense) => 0.97,
         (PlayerRole::InvertedFB, PlayStylePhase::Midfield) => 1.06,
         // Defensive Midfielders
         (PlayerRole::AnchorMan, PlayStylePhase::Defense) => 1.10,
@@ -311,7 +336,6 @@ pub(crate) fn role_attribute_modifier(role: PlayerRole, phase: PlayStylePhase) -
         // Attacking Midfielders
         (PlayerRole::AdvancedPlaymaker, PlayStylePhase::Attack) => 1.10,
         (PlayerRole::ShadowStriker, PlayStylePhase::Attack) => 1.08,
-        (PlayerRole::ShadowStriker, PlayStylePhase::Defense) => 0.92,
         // Wide
         (PlayerRole::WideForward, PlayStylePhase::Attack) => 1.08,
         (PlayerRole::InsideForward, PlayStylePhase::Attack) => 1.10,
@@ -557,6 +581,69 @@ pub(crate) fn home_mod(side: Side, config: &MatchConfig) -> f64 {
 
 #[cfg(test)]
 mod phase_modifier_tests {
+    /// Given every role and the phases its position is consulted on,
+    /// When the modifiers the engine can actually apply are collected,
+    /// Then none is a penalty without a boost: no role is strictly worse than Standard.
+    #[test]
+    fn no_role_is_strictly_worse_than_standard_where_the_engine_consults_it() {
+        for role in PlayerRole::ALL {
+            for &group in role.position_groups() {
+                let applied: Vec<f64> = consulted_phases(group)
+                    .iter()
+                    .map(|phase| role_modifier(group, role, *phase))
+                    .filter(|modifier| *modifier != 1.0)
+                    .collect();
+                assert!(
+                    applied.is_empty() || applied.iter().any(|modifier| *modifier > 1.0),
+                    "{role:?} as a {group:?} only ever gets penalties from the engine: {applied:?}"
+                );
+            }
+        }
+    }
+
+    /// Given a table entry for a phase the position is never consulted on,
+    /// When the resolvers ask for it, Then it is inert.
+    #[test]
+    fn an_entry_for_a_phase_nobody_asks_about_never_fires() {
+        assert_eq!(
+            role_modifier(
+                Position::Defender,
+                PlayerRole::AttackingFB,
+                PlayStylePhase::Attack
+            ),
+            1.0
+        );
+        assert_eq!(
+            role_modifier(
+                Position::Goalkeeper,
+                PlayerRole::SweeperKeeper,
+                PlayStylePhase::Defense
+            ),
+            1.0
+        );
+    }
+
+    /// Given the entries the engine does consult, When asked, Then they still apply.
+    #[test]
+    fn an_entry_for_a_consulted_phase_still_fires() {
+        assert_eq!(
+            role_modifier(
+                Position::Defender,
+                PlayerRole::Stopper,
+                PlayStylePhase::Defense
+            ),
+            1.08
+        );
+        assert_eq!(
+            role_modifier(
+                Position::Forward,
+                PlayerRole::Poacher,
+                PlayStylePhase::Attack
+            ),
+            1.12
+        );
+    }
+
     use super::*;
 
     fn cfg(f: impl FnOnce(&mut TacticsConfig)) -> TacticsConfig {

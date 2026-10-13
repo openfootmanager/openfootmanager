@@ -685,31 +685,33 @@ fn manage_international_calendar(
 /// primary competition when the user has no club in any division (e.g. an
 /// unemployed manager) or for legacy single-league saves.
 pub fn user_division<'a>(game: &'a Game, user_team_id: &str) -> Option<&'a League> {
-    let contains_user = |competition: &League| {
+    club_league_table(game, user_team_id).or(game.league.as_ref())
+}
+
+/// The league table a club contests, for any club. `None` when no league table lists it (a cup
+/// has no table).
+///
+/// A split-season country runs a club through more than one table. Take the one the year
+/// ended on — the same one the payout and the club's record are taken from — or the summary
+/// crowns them from one half while they are paid for the other.
+pub fn club_league_table<'a>(game: &'a Game, club_id: &str) -> Option<&'a League> {
+    let contains_club = |competition: &League| {
         competition.rules.format == CompetitionFormat::LeagueTable
-            && (competition
-                .participant_ids
-                .iter()
-                .any(|id| id == user_team_id)
+            && (competition.participant_ids.iter().any(|id| id == club_id)
                 || competition
                     .standings
                     .iter()
-                    .any(|standing| standing.team_id == user_team_id))
+                    .any(|standing| standing.team_id == club_id))
     };
 
-    // A split-season country runs the user's club through more than one table.
-    // Take the one the year ended on — the same one the payout and the club's
-    // record are taken from — or the summary crowns them from one half while
-    // they are paid for the other.
     game.competitions
         .iter()
-        .filter(|competition| contains_user(competition))
+        .filter(|competition| contains_club(competition))
         .max_by(|left, right| {
             division_finished_on(left)
                 .cmp(&division_finished_on(right))
                 .then_with(|| right.priority.cmp(&left.priority))
         })
-        .or(game.league.as_ref())
 }
 
 /// Send a board message when the user's club starts the new season in a

@@ -207,6 +207,34 @@ fn snapshot_contains_valid_data() {
     assert_eq!(snap.max_subs, 5);
 }
 
+/// Given a finished live match, When snapshotted, Then every starter has the
+/// rating the final report gives him; a snapshot taken mid-match carries none.
+#[test]
+fn a_finished_snapshot_carries_the_ratings_of_the_final_report() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(9);
+    for _ in 0..30 {
+        state.step_minute(&mut rng);
+    }
+    assert!(state.snapshot().player_ratings.is_empty());
+    run_to_finish(&mut state, &mut rng);
+
+    let ratings = state.snapshot().player_ratings;
+    let report = state.into_report();
+    let starters_rated = report
+        .player_stats
+        .values()
+        .filter(|s| s.rating > 0.0)
+        .count();
+    assert!(starters_rated >= 22);
+    assert_eq!(ratings.len(), starters_rated);
+    for (id, stats) in &report.player_stats {
+        if stats.rating > 0.0 {
+            assert_eq!(ratings[id], stats.rating);
+        }
+    }
+}
+
 #[test]
 fn deterministic_with_same_seed() {
     let run = |seed| {

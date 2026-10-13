@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const crashNotice = vi.fn();
@@ -100,13 +100,15 @@ describe("CrashReportPrompt", () => {
   it("treats Escape as not now", async () => {
     const onReport = vi.fn();
     render(<CrashReportPrompt onReport={onReport} />);
-    await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("dialog");
+    // The keyboard listener is attached in the same effect pass that focuses the heading, which
+    // can run after the dialog is in the DOM; pressing Escape before that is pressing it into
+    // nothing. Focus on the heading is the signal that the listener is attached.
+    await waitFor(() => expect(within(dialog).getByRole("heading")).toHaveFocus());
 
-    await act(async () => {
-      fireEvent.keyDown(window, { key: "Escape" });
-    });
+    fireEvent.keyDown(window, { key: "Escape" });
 
-    expect(screen.queryByRole("dialog")).toBeNull();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(dismissCrashNotice).toHaveBeenCalledTimes(1);
     expect(onReport).not.toHaveBeenCalled();
   });

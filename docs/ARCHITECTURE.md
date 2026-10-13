@@ -186,6 +186,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `start_new_game` | first_name, last_name, dob, nationality, world_source? | — | Create game, generate or load world |
 | `choose_team` | team_id | `Game` | Assign manager to a team |
 | `get_active_game` | — | `GameStateData` | Get current game state |
+| `get_career_stage` | — | `awaitingClub` \| `unemployed` \| `employed` | Decided in Rust (`career_stage`): a manager with no club who has never held one is awaiting a club, so the menu and dashboard send them to team selection; a sacked manager stays on the dashboard |
 | `advance_time` | — | `Game` | Advance one day |
 | `advance_time_with_mode` | mode | `{action, game?, snapshot?}` | Advance with match mode preference |
 | `skip_to_match_day` | — | `Game` | Fast-forward to next fixture |
@@ -207,6 +208,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 
 | Command | Parameters | Returns | Description |
 |---------|-----------|---------|-------------|
+| `get_club_league_standing` | team_id | The club's league table, position and standing, or null | Any club, not only the manager's; in a split season the half the year is on; cups have no table |
 | `get_scouted_report` | player_id | The scout's dated attribute snapshot with `out_of_date`, or null | Out of date means scouted before the current season started; decided in Rust |
 | `get_squad` | team_id | Player rows with `match_day_eligible` | Complete club roster with computed match-day eligibility; youth call-ups retain their academy role |
 | `set_formation` | formation | `Game` | Change team formation |

@@ -1,3 +1,4 @@
+import { routeForActiveCareer } from "../services/careerService";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyExtraTranslations } from "../lib/extraTranslations";
 import type { JSX } from "react";
@@ -181,7 +182,12 @@ export default function Dashboard(): JSX.Element {
     } else {
       setActiveSaveId(null);
     }
-  }, [setGameState]);
+
+    const route = await routeForActiveCareer();
+    if (route !== "/dashboard") {
+      navigate(route);
+    }
+  }, [setGameState, navigate]);
 
   // Fetch initial state
   useEffect(() => {

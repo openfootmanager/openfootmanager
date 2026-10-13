@@ -1,8 +1,11 @@
+import { useTranslation } from "react-i18next";
+import { competitionDisplayName } from "../../lib/competitionName";
+import { formatOrdinal } from "../../lib/ordinal";
 import { Card, CardBody, CardHeader } from "../ui";
 import PlayerProfileStatCard from "./PlayerProfileStatCard";
 import type { PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 
-type TranslateFn = (key: string) => string;
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 interface PlayerProfileAdvancedStatsCardProps {
   summary: PlayerAdvancedStatsSummary;
@@ -30,28 +33,6 @@ function formatPercentage(value: number | null): string {
   return Number.isInteger(value) ? `${value}%` : `${value.toFixed(1)}%`;
 }
 
-function formatOrdinal(value: number | null, unavailableLabel: string): string {
-  if (value === null) {
-    return unavailableLabel;
-  }
-
-  const mod100 = value % 100;
-  if (mod100 >= 11 && mod100 <= 13) {
-    return `${value}th`;
-  }
-
-  switch (value % 10) {
-    case 1:
-      return `${value}st`;
-    case 2:
-      return `${value}nd`;
-    case 3:
-      return `${value}rd`;
-    default:
-      return `${value}th`;
-  }
-}
-
 function AdvancedStatCard({
   label,
   primaryValue,
@@ -69,6 +50,7 @@ function AdvancedStatCard({
   percentileLabel: string;
   percentileUnavailableLabel: string;
 }) {
+  const { t, i18n } = useTranslation();
   return (
     <PlayerProfileStatCard
       label={label}
@@ -77,7 +59,7 @@ function AdvancedStatCard({
           title={percentile === null ? percentileUnavailableLabel : percentileLabel}
           className="font-heading font-bold text-sm tabular-nums text-gray-700 dark:text-gray-200"
         >
-          {formatOrdinal(percentile, "-")}
+          {percentile === null ? "-" : formatOrdinal(percentile, i18n.language, t)}
         </span>
       }
     >
@@ -175,6 +157,21 @@ export default function PlayerProfileAdvancedStatsCard({
     <Card>
       <CardHeader>{labels.title}</CardHeader>
       <CardBody>
+        {summary.peerGroup && (
+          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+            {t("playerProfile.percentileGroup", {
+              position: t(`common.positions.${summary.peerGroup.position}`),
+              league: competitionDisplayName(
+                {
+                  name: summary.peerGroup.competitionName,
+                  name_key: summary.peerGroup.competitionNameKey,
+                  country_id: summary.peerGroup.countryId,
+                },
+                t,
+              ),
+            })}
+          </p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr">
           {rows.map((row) => (
             <AdvancedStatCard

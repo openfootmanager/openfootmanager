@@ -80,4 +80,25 @@ describe("dashboardProfileNavigation", () => {
     expect(teamSearchState.selectedTeamId).toBe("team-9");
     expect(teamSearchState.selectedPlayerId).toBeNull();
   });
+
+  /**
+   * Given a profile that is open
+   * When another profile is opened from search, and Back is pressed
+   * Then the first profile is shown again, instead of being lost
+   */
+  it("keeps the open profile in Back when another is opened from search", () => {
+    const withPlayerOpen = selectDashboardPlayer(
+      createDashboardProfileNavigationState("Squad"),
+      "player-1",
+    );
+
+    const fromSearch = openDashboardSearchPlayer(withPlayerOpen, "player-2");
+    const back = goBackDashboardProfile(fromSearch);
+
+    expect(fromSearch.selectedPlayerId).toBe("player-2");
+    expect(back.selectedPlayerId).toBe("player-1");
+
+    const teamFromSearch = openDashboardSearchTeam(withPlayerOpen, "team-9");
+    expect(goBackDashboardProfile(teamFromSearch).selectedPlayerId).toBe("player-1");
+  });
 });

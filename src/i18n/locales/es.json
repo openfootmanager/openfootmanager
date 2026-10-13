@@ -405,6 +405,12 @@
     "promoteToSeniorSquad": "Ascender al primer equipo"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}.º",
+      "two": "{{n}}.º",
+      "few": "{{n}}.º",
+      "other": "{{n}}.º"
+    },
     "currentWage": "Salario actual",
     "loading": "Cargando...",
     "loadingGameState": "Cargando estado del juego...",
@@ -1081,6 +1087,7 @@
     "seasonIncome": "Ingresos de Temporada",
     "seasonExpenses": "Gastos de Temporada",
     "perWeekSuffix": "/sem",
+    "snapshotLoadFailed": "No se pudieron cargar las finanzas del club.",
     "perYearSuffix": "/año",
     "wagePerWeek": "Salario/sem",
     "wagePerYear": "Salario/año",
@@ -1444,6 +1451,8 @@
     "fixtures": "Partidos",
     "standings": "Clasificación",
     "matchday": "Jornada {{number}}",
+    "movedFrom": "Aplazado desde el {{date}}",
+    "dateRange": "del {{from}} al {{to}}",
     "season": "Temporada {{number}}",
     "international": "Internacional",
     "internationalDuty": "Con la selección",
@@ -1658,6 +1667,7 @@
     "passAccuracy": "Precisión de pase",
     "percentile": "Percentil",
     "percentileUnavailable": "Percentil no disponible",
+    "percentileGroup": "Comparado con: {{position}} en {{league}}",
     "recentMatches": "Partidos recientes",
     "recentMatchesScore": "Marcador",
     "recentMatchesGoalsAssists": "G / A",
@@ -2024,7 +2034,7 @@
     "postMatchTeamTalk": "Charla Post-Partido",
     "addressPlayers": "Dirígete a tus jugadores después del partido.",
     "matchOver": "Partido Terminado",
-    "performance": "Rendimiento de {{team}}",
+    "ratings": "Calificaciones de {{team}}",
     "motm": "Mejor del Partido",
     "roundSummary": "Resumen de la Jornada",
     "roundSummaryUnavailable": "No hay resumen de la jornada disponible.",
@@ -2534,7 +2544,7 @@
       }
     },
     "matchReport": "Informe del partido",
-    "playerPerformance": "Rendimiento de jugadores",
+    "playerRatings": "Valoraciones",
     "tacticsTab": "Táctica",
     "goalSources": "Fuentes de gol",
     "openPlay": "Juego abierto",
@@ -2725,6 +2735,7 @@
       "saveLoad": {
         "corrupted": "Este archivo de guardado está dañado y no se puede cargar.",
         "incompatibleVersion": "Esta partida se creó con una versión más reciente del juego (guardado v{{saveVersion}}; esta versión admite hasta la v{{supported}}). Actualiza el juego para cargarla.",
+        "incompatibleLayout": "Los datos de esta partida no coinciden con la versión que indica, así que no se puede cargar de forma segura. El archivo no se ha modificado.",
         "missingData": "A esta partida le faltan datos necesarios y no se puede cargar.",
         "invalidWorld": "Los datos del mundo o del mod de esta partida no son válidos y no se puede cargar.",
         "unknown": "No se pudo cargar esta partida debido a un error inesperado."
@@ -3949,6 +3960,7 @@
     "playerPosition": "Posición",
     "playerFoot": "Pie Preferido",
     "playerDateOfBirth": "Fecha de nacimiento",
+    "playerAgeToday": "{{age}} años hoy",
     "playerAge": "Edad",
     "playerAgeHelp": "Se usa cuando no hay fecha de nacimiento: el jugador tiene esta edad el día en que empieza la carrera, sea cual sea el año.",
     "playerContractSection": "Contrato",
