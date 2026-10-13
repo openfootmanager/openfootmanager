@@ -1,3 +1,4 @@
+import { routeForActiveCareer } from "../services/careerService";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -313,7 +314,7 @@ export default function MainMenu() {
         applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
-        navigate("/dashboard");
+        return routeForActiveCareer().then(navigate);
       })
       .catch(() => {
         // No active game — stay on menu
@@ -329,7 +330,7 @@ export default function MainMenu() {
         applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
-        navigate("/dashboard");
+        navigate(await routeForActiveCareer());
       } catch {
         // Game not actually active — ignore
       }
@@ -556,7 +557,7 @@ export default function MainMenu() {
       }
       setGameState(activeGame);
       setGameActive(true, managerName);
-      navigate("/dashboard");
+      navigate(await routeForActiveCareer());
     } catch (error) {
       console.error("Failed to load game:", error);
       setLoadingSaveId(null);
