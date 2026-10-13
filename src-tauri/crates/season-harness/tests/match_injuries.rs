@@ -55,10 +55,7 @@ impl InjuryWatch {
 
 impl SeasonObserver for InjuryWatch {
     fn on_day_end(&mut self, game: &Game, season: u32, day: u32) {
-        // Weekly is enough to catch a club that cannot field a side, and keeps the run fast.
-        if day.is_multiple_of(7) {
-            self.note_floor(game, &format!("day {day}"), season);
-        }
+        self.note_floor(game, &format!("day {day}"), season);
     }
 
     fn on_before_rollover(&mut self, game: &Game, season: u32) {
@@ -107,7 +104,7 @@ fn play(seed: u64) -> InjuryWatch {
 ///       seeds with match injuries applied,
 /// When the engine-played matches are counted,
 /// Then the engine's injury events per match are reported, and no AI club is ever short of the
-///      squad floor (a club that cannot put a side out).
+///      squad floor (a club that cannot put a side out), checked after every simulated day.
 #[test]
 #[ignore = "measurement and nightly check, run by hand in release mode"]
 fn match_injuries_never_leave_a_club_unable_to_field_a_side() {
