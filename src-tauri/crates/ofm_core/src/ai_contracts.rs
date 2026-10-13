@@ -750,6 +750,47 @@ mod tests {
         assert_eq!(entry.to_team_id.as_deref(), Some("ai"));
     }
 
+    fn signed_by_ai(game: &Game, ids: &[&str]) -> usize {
+        ids.iter()
+            .filter(|id| club_of(game, id) == Some("ai"))
+            .count()
+    }
+
+    /// Given an AI club one keeper below its margin and three affordable free-agent keepers, when
+    /// it plans its squad, then it signs exactly one: the signing is counted before it asks again.
+    #[test]
+    fn a_club_one_keeper_below_its_margin_signs_exactly_one_of_three_free_keepers() {
+        let mut game = world();
+        game.players.retain(|p| p.id != "ai_Goalkeeper2");
+        let keepers = ["free_keeper_a", "free_keeper_b", "free_keeper_c"];
+        for id in keepers {
+            game.players.push(free_agent(id, Position::Goalkeeper, 70));
+        }
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(signed_by_ai(&game, &keepers), 1);
+    }
+
+    /// Given an AI club whose groups all meet their margin but whose squad is two short of the
+    /// planning target, and five affordable free-agent midfielders, when it plans its squad, then
+    /// it signs exactly two: each signing is counted toward the squad before it asks again.
+    #[test]
+    fn a_club_two_below_its_squad_target_signs_exactly_two_of_five_free_players() {
+        let mut game = world();
+        game.players.retain(|p| {
+            !["ai_Defender5", "ai_Midfielder5", "ai_Forward3"].contains(&p.id.as_str())
+        });
+        let agents = ["free_a", "free_b", "free_c", "free_d", "free_e"];
+        for id in agents {
+            game.players.push(free_agent(id, Position::Midfielder, 70));
+        }
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(signed_by_ai(&game, &agents), 2);
+    }
+
     /// The same, but paying him would break the wage policy: he is not signed,
     /// because the club is at its keeper minimum, not below it.
     #[test]
