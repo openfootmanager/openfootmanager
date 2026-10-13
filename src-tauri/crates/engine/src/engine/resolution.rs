@@ -2,7 +2,7 @@ use rand::{Rng, RngExt};
 
 use crate::event::{EventType, MatchEvent};
 use crate::shared::{
-    PlayStylePhase, TraitContext, home_mod, play_style_modifier, role_attribute_modifier,
+    PlayStylePhase, TraitContext, home_mod, play_style_modifier, role_modifier,
     tactics_buildup_mod, tactics_cross_probability, tactics_defensive_conversion_mod,
     tactics_foul_modifier, tactics_pressing_press, tactics_shape_modifier,
     tactics_tempo_progression, tactics_width_versus_shape, trait_bonus,
@@ -105,12 +105,16 @@ fn resolve_midfield<R: Rng>(
         ctx.team(att_side).play_style,
         PlayStylePhase::Midfield,
         true,
-    ) * role_attribute_modifier(attacker.role, PlayStylePhase::Midfield);
+    ) * role_modifier(
+        Position::Midfielder,
+        attacker.role,
+        PlayStylePhase::Midfield,
+    );
     let def_mod = play_style_modifier(
         ctx.team(def_side).play_style,
         PlayStylePhase::Midfield,
         false,
-    ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
+    ) * role_modifier(Position::Midfielder, defender.role, PlayStylePhase::Defense);
     let att_eff = att_rating
         * att_mod
         * home_mod(att_side, ctx.config)
@@ -182,12 +186,12 @@ fn resolve_attacking_third<R: Rng>(
         * trait_bonus(&defender, TraitContext::Tackling);
 
     let att_mod = play_style_modifier(ctx.team(att_side).play_style, PlayStylePhase::Attack, true)
-        * role_attribute_modifier(attacker.role, PlayStylePhase::Attack);
+        * role_modifier(Position::Forward, attacker.role, PlayStylePhase::Attack);
     let def_mod = play_style_modifier(
         ctx.team(def_side).play_style,
         PlayStylePhase::Defense,
         false,
-    ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
+    ) * role_modifier(Position::Defender, defender.role, PlayStylePhase::Defense);
     let att_eff = att_rating * att_mod * home_mod(att_side, ctx.config);
     let def_eff = def_rating
         * def_mod
