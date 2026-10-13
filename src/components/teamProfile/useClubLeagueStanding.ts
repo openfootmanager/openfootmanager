@@ -20,6 +20,9 @@ export function useClubLeagueStanding(
   });
 
   useEffect(() => {
+    // No club (a clubless career, or no game loaded yet) has no table to ask about.
+    if (!teamId) return;
+
     let cancelled = false;
     fetchClubLeagueStanding(teamId)
       .then((standing) => {

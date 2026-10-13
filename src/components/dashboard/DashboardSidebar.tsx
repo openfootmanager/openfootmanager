@@ -35,6 +35,8 @@ interface DashboardSidebarProps {
   todayHasMatch?: boolean;
   managerName: string | null;
   teamName: string | null;
+  /** The league the club plays in, shown under the club name from every tab. */
+  competitionName?: string | null;
   onNavigateSettings: () => void;
   onExitClick: () => void;
   isUnemployed: boolean;
@@ -104,6 +106,7 @@ export default function DashboardSidebar({
   todayHasMatch,
   managerName,
   teamName,
+  competitionName,
   onNavigateSettings,
   onExitClick,
   isUnemployed,
@@ -205,6 +208,9 @@ export default function DashboardSidebar({
               </p>
               <p className="text-sm font-semibold text-white mt-0.5">{managerName}</p>
               {teamName && <p className="text-xs text-primary-400 mt-0.5">{teamName}</p>}
+              {competitionName && (
+                <p className="text-[11px] text-gray-400 mt-0.5">{competitionName}</p>
+              )}
             </>
           )}
         </button>
