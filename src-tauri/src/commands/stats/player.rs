@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use domain::player::{Player, PlayerSeasonStats, Position};
 use domain::stats::PlayerMatchStatsRecord;
+use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
 use super::dto::{
@@ -25,6 +26,15 @@ struct PlayerAggregate {
     tackles_won: u32,
     interceptions: u32,
     fouls_committed: u32,
+}
+
+/// A player on the roster, or a retiree kept in the archive: both have a history page.
+fn find_player_or_retiree(game: &Game, player_id: &str) -> Option<Player> {
+    game.players
+        .iter()
+        .find(|candidate| candidate.id == player_id)
+        .cloned()
+        .or_else(|| ofm_core::retirees::find_retiree(game, player_id))
 }
 
 fn position_key(player: &Player) -> &Position {
@@ -214,19 +224,20 @@ fn build_history_overview(
     let game = state
         .get_game(|game| game.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
-    let Some(player) = game
-        .players
-        .iter()
-        .find(|candidate| candidate.id == player_id)
-    else {
+    let Some(player) = find_player_or_retiree(&game, player_id) else {
         return Err("be.error.playerNotFound".to_string());
     };
-    let target_position = position_key(player).clone();
-    let same_position_ids = game
-        .players
-        .iter()
-        .filter(|candidate| *position_key(candidate) == target_position)
-        .map(|candidate| candidate.id.clone())
+    let target_position = position_key(&player).clone();
+    // The target is named outright: a retiree is not in the roster to be found by position.
+    let same_position_ids = std::iter::once(player_id.to_string())
+        .chain(
+            game.players
+                .iter()
+                .filter(|candidate| {
+                    candidate.id != player_id && *position_key(candidate) == target_position
+                })
+                .map(|candidate| candidate.id.clone()),
+        )
         .collect::<Vec<_>>();
 
     let Some(history_aggregates) = state.get_stats_state(|stats| {
@@ -277,14 +288,10 @@ fn build_legacy_overview(
     let game = state
         .get_game(|game| game.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
-    let Some(player) = game
-        .players
-        .iter()
-        .find(|candidate| candidate.id == player_id)
-    else {
+    let Some(player) = find_player_or_retiree(&game, player_id) else {
         return Err("be.error.playerNotFound".to_string());
     };
-    let target_position = position_key(player).clone();
+    let target_position = position_key(&player).clone();
     let peers = game
         .players
         .iter()

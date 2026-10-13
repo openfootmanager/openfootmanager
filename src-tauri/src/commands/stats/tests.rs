@@ -734,3 +734,59 @@ fn get_team_match_history_returns_empty_when_stats_state_is_missing() {
 
     assert!(history.is_empty());
 }
+
+fn state_with_player_one_on_the_roster_or_archived(archived: bool) -> StateManager {
+    let player = make_player("player-1", "team-1", Position::Striker);
+    let peer = make_player("player-2", "team-1", Position::Striker);
+    let mut game = make_game(vec![player.clone(), peer]);
+    if archived {
+        let mut retired = player;
+        retired.retired = true;
+        retired.team_id = None;
+        game.players.retain(|candidate| candidate.id != "player-1");
+        game.retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &retired,
+                "2025-06-30",
+                2025,
+            ));
+    }
+    let state = StateManager::new();
+    state.set_game(game);
+    state.set_stats_state(sample_stats_state());
+    state
+}
+
+/// Given a retiree who has left the roster for the archive and whose matches are on record,
+/// when his stats overview is requested, then it is the overview he had on the roster.
+#[test]
+fn an_archived_retirees_stats_overview_matches_his_overview_on_the_roster() {
+    let on_roster = get_player_stats_overview_internal(
+        &state_with_player_one_on_the_roster_or_archived(false),
+        "player-1",
+    )
+    .unwrap();
+
+    let archived = get_player_stats_overview_internal(
+        &state_with_player_one_on_the_roster_or_archived(true),
+        "player-1",
+    )
+    .unwrap();
+
+    assert!(on_roster.metrics.shots.total > 0);
+    assert_eq!(archived.metrics.shots.total, on_roster.metrics.shots.total);
+    assert_eq!(archived.metrics.shots.per90, on_roster.metrics.shots.per90);
+}
+
+/// Given an id that is neither on the roster nor in the archive, when his overview is requested,
+/// then the player-not-found key comes back.
+#[test]
+fn a_stranger_has_no_stats_overview() {
+    let error = get_player_stats_overview_internal(
+        &state_with_player_one_on_the_roster_or_archived(true),
+        "player-nobody",
+    )
+    .unwrap_err();
+
+    assert_eq!(error, "be.error.playerNotFound");
+}
