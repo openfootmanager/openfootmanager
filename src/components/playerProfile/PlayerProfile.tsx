@@ -35,6 +35,7 @@ import { useInitialModalIntent } from "./useInitialModalIntent";
 import { usePlayerProfileData } from "./usePlayerProfileData";
 import { useScoutPlayerFlow } from "./useScoutPlayerFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
+import { naturalPositionOf } from "../../lib/positions";
 
 interface PlayerProfileProps {
   player: PlayerData;
@@ -59,7 +60,7 @@ export default function PlayerProfile({
 }: PlayerProfileProps) {
   const { t, i18n } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix", "/wk");
-  const primaryPosition = player.natural_position || player.position;
+  const primaryPosition = naturalPositionOf(player);
   const footednessLabel = t(`common.footedness.${player.footedness || "Right"}`);
   const weakFootValue = player.weak_foot ?? 2;
 
