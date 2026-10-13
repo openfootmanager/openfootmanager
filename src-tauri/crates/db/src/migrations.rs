@@ -911,6 +911,7 @@ mod tests {
     ("v049_competition_edition_archive.sql", 0xce105022e5bed8c0),
     ("v050_scouted_players.sql", 0x3536cbfaf1572f2b),
     ("v051_competition_name_key.sql", 0x834ad58e7ffc2f0a),
+    ("v052_retired_players.sql", 0x0c2e01efde5465fa),
     ];
 
     /// Given the migrations already shipped
