@@ -66,7 +66,7 @@ export default function PlayerProfile({
 
   const { advancedStats, recentMatches } = usePlayerProfileData({
     player,
-    gameState,
+    currentDate: gameState.clock.current_date,
   });
   const { scoutAvailability, scoutStatus, scoutError, sendScout } = useScoutPlayerFlow({
     player,

@@ -30,6 +30,8 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.relegationZone") return "Relegation";
       if (key === "schedule.loadMore") return "Load more";
       if (key === "schedule.nextMatch") return "Next match";
+      if (key === "schedule.movedFrom")
+        return `Moved from ${(params as Record<string, string>)?.date}`;
       if (key === "schedule.noUpcoming") return "No upcoming fixtures.";
       if (key === "schedule.pastResults") return "Past results";
       if (key === "schedule.calendar.title") return "Calendar";
@@ -246,6 +248,22 @@ describe("ScheduleTab", () => {
     expect(mockedInvoke).toHaveBeenCalledWith("get_schedule", {
       query: { competition_id: "league-1" },
     });
+  });
+
+  it("names the date a moved fixture was first scheduled for, and only on moved fixtures", async () => {
+    const moved = { ...makeGroup().fixtures[0], id: "moved", rescheduled_from: "2026-09-02" };
+    const unmoved = { ...makeGroup().fixtures[0], id: "unmoved", rescheduled_from: null };
+    mockedInvoke.mockResolvedValue(
+      makeSlice({ upcoming_groups: [makeGroup({ fixtures: [moved, unmoved] })] }),
+    );
+    render(<ScheduleTab gameState={makeGameState(true)} onSelectTeam={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId("schedule-fixture-moved")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("moved-from-moved")).toHaveTextContent(
+      `Moved from ${formatMatchDate("2026-09-02")}`,
+    );
+    expect(screen.queryByTestId("moved-from-unmoved")).not.toBeInTheDocument();
   });
 
   it("marks the next user match group with a badge", async () => {
