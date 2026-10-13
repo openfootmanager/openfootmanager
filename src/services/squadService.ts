@@ -42,6 +42,11 @@ export async function applyTacticPreset(
   return invoke<GameStateData>("apply_tactic_preset", { formation, playStyle });
 }
 
+/** Whether the user's phase dials differ from the blueprint their play style implies. */
+export async function getTacticsBlueprintStatus(): Promise<{ modified: boolean }> {
+  return invoke<{ modified: boolean }>("get_tactics_blueprint_status");
+}
+
 export async function setTacticsPhase(
   patch: Partial<TacticsPhaseSettings>,
 ): Promise<GameStateData> {
