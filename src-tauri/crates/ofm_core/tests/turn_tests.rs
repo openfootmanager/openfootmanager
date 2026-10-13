@@ -1315,8 +1315,8 @@ fn process_day_full_integration() {
 #[test]
 fn build_round_summary_collects_results_and_deltas() {
     let game = make_round_summary_game();
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings())
-        .expect("expected round summary");
+    let summary =
+        turn::build_round_summary(&game, &round_context(7)).expect("expected round summary");
 
     assert_eq!(summary.matchday, 7);
     assert!(summary.is_complete);
@@ -1354,8 +1354,8 @@ fn build_round_summary_collects_results_and_deltas() {
 #[test]
 fn build_round_summary_picks_biggest_overall_gap_upset() {
     let game = make_round_summary_game();
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings())
-        .expect("expected round summary");
+    let summary =
+        turn::build_round_summary(&game, &round_context(7)).expect("expected round summary");
 
     let upset = summary.notable_upset.expect("expected notable upset");
     assert_eq!(upset.fixture_id, "fix1");
@@ -1392,8 +1392,8 @@ fn build_round_summary_detects_a_penalty_decided_upset() {
         });
     }
 
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings())
-        .expect("expected round summary");
+    let summary =
+        turn::build_round_summary(&game, &round_context(7)).expect("expected round summary");
     let upset = summary
         .notable_upset
         .expect("a penalty-decided upset is reported");
@@ -1409,7 +1409,7 @@ fn build_round_summary_handles_incomplete_rounds() {
     league.fixtures[1].status = FixtureStatus::Scheduled;
     league.fixtures[1].result = None;
 
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings())
+    let summary = turn::build_round_summary(&game, &round_context(7))
         .expect("expected partial round summary");
 
     assert!(!summary.is_complete);
@@ -1426,7 +1426,7 @@ fn build_round_summary_returns_none_when_round_has_no_completed_matches() {
         fixture.result = None;
     });
 
-    let summary = turn::build_round_summary(&game, 7, &previous_round_standings());
+    let summary = turn::build_round_summary(&game, &round_context(7));
 
     assert!(summary.is_none());
 }
@@ -1441,7 +1441,7 @@ fn build_round_summary_ignores_non_competitive_matchday_zero_fixtures() {
         fixture.competition = FixtureCompetition::Friendly;
     });
 
-    let summary = turn::build_round_summary(&game, 0, &previous_round_standings());
+    let summary = turn::build_round_summary(&game, &round_context(0));
 
     assert!(summary.is_none());
 }

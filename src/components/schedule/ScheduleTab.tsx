@@ -25,6 +25,7 @@ import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/erro
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import { Badge, Card, CardBody, Select } from "../ui";
 import ScheduleCalendarGrid from "./ScheduleCalendarGrid";
+import MovedFromNote from "./MovedFromNote";
 
 interface ScheduleTabProps {
   gameState: GameStateData;
@@ -540,6 +541,12 @@ function MatchdayGroupCard({
                         <Badge variant="neutral" size="sm">
                           vs
                         </Badge>
+                      )}
+                      {fixture.rescheduled_from && (
+                        <MovedFromNote
+                          originalDate={fixture.rescheduled_from}
+                          testId={`moved-from-${fixture.id}`}
+                        />
                       )}
                     </div>
                     <span

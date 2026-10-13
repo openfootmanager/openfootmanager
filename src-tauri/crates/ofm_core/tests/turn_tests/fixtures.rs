@@ -609,6 +609,15 @@ pub(crate) fn set_player_overall(player: &mut Player, overall: u8) {
     player.attributes.decisions = overall;
 }
 
+/// The round context of the summary game: every fixture of it is dated on the game's first day.
+pub(crate) fn round_context(matchday: u32) -> ofm_core::matchday::LeagueRoundContext {
+    ofm_core::matchday::LeagueRoundContext {
+        date: "2025-06-15".to_string(),
+        matchday,
+        previous_standings: previous_round_standings(),
+    }
+}
+
 pub(crate) fn previous_round_standings() -> Vec<StandingEntry> {
     vec![
         standing_entry("team1", 10, 30, 30, 20),
