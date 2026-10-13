@@ -1430,6 +1430,33 @@ mod tests {
         }
     }
 
+    /// Given the same seed
+    /// When attributes are generated for an authored overall twice
+    /// Then they are identical, and the caller's rng has moved by exactly one draw each time,
+    ///      however many correction steps it took (a fresh seed per step would move it further).
+    #[test]
+    fn matching_an_overall_is_deterministic_and_draws_once() {
+        use rand::SeedableRng;
+        let position = Position::Striker;
+        let generate = |seed: u64| {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+            let attributes = attributes_matching_overall(10, &position, &mut rng);
+            (attributes, rng.random::<u64>())
+        };
+
+        let (first, first_next) = generate(5);
+        let (second, second_next) = generate(5);
+        assert_eq!(
+            serde_json::to_value(&first).unwrap(),
+            serde_json::to_value(&second).unwrap()
+        );
+
+        let mut one_draw = rand::rngs::StdRng::seed_from_u64(5);
+        let _: u64 = one_draw.random();
+        assert_eq!(first_next, one_draw.random::<u64>());
+        assert_eq!(first_next, second_next);
+    }
+
     /// Given a base so low the spread would reach below zero
     /// When attributes are jittered around it
     /// Then none is ever below 1: the floor is pinned, since 0 reads as "missing" elsewhere.
