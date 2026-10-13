@@ -889,4 +889,39 @@ describe("Dashboard", () => {
 
     getItemSpy.mockRestore();
   });
+
+  /**
+   * Given a career that has not taken its first club
+   * When the dashboard loads it
+   * Then the player is sent to team selection
+   */
+  it("sends_a_career_awaiting_a_club_to_team_selection", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") return gameState;
+      if (command === "get_career_stage") return "awaitingClub";
+      return null;
+    });
+
+    render(<Dashboard />);
+
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/select-team"));
+  });
+
+  /**
+   * Given a sacked manager (unemployed, not a new career)
+   * When the dashboard loads
+   * Then the dashboard stays: that is where the job offers are
+   */
+  it("keeps_an_unemployed_manager_on_the_dashboard", async () => {
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") return gameState;
+      if (command === "get_career_stage") return "unemployed";
+      return null;
+    });
+
+    render(<Dashboard />);
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("get_career_stage"));
+    expect(navigateMock).not.toHaveBeenCalledWith("/select-team");
+  });
 });

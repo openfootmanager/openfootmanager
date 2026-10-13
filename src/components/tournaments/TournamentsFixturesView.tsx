@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import TournamentsFixtureRow from "./TournamentsFixtureRow";
@@ -12,12 +13,17 @@ interface TournamentsFixturesViewProps {
   teams: TournamentsTeamLookup;
 }
 
-/**
- * The competition's fixture list, one card per matchday.
- *
- * Every matchday in a round is played on the same date, so the header takes its
- * date from the first fixture.
- */
+/** One date, or the first and last when a round was postponed in part. */
+function playedDates(fixtures: FixtureData[], t: TFunction): string {
+  const dates = fixtures.map((fixture) => fixture.date).sort();
+  const first = dates[0];
+  const last = dates[dates.length - 1];
+  return first === last
+    ? formatMatchDate(first)
+    : t("schedule.dateRange", { from: formatMatchDate(first), to: formatMatchDate(last) });
+}
+
+/** The competition's fixture list, one card per matchday. */
 export default function TournamentsFixturesView({
   sortedMatchdays,
   teams,
@@ -30,7 +36,7 @@ export default function TournamentsFixturesView({
         <Card key={matchday}>
           <div className="px-5 py-3 border-b border-gray-100 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 rounded-t-xl">
             <h4 className="font-heading font-bold text-sm uppercase tracking-wider text-gray-600 dark:text-gray-300">
-              {t("schedule.matchday", { number: matchday })} — {formatMatchDate(fixtures[0].date)}
+              {t("schedule.matchday", { number: matchday })} — {playedDates(fixtures, t)}
             </h4>
           </div>
           <CardBody className="p-0">

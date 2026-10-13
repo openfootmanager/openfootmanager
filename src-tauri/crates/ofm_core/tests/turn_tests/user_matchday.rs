@@ -121,10 +121,11 @@ fn playing_the_users_matchday_reports_the_pre_round_table() {
     let outcome = matchday::play_user_matchday_with_capture(&mut game, Some(0), 0, &mut |_| {})
         .expect("the user's matchday is played");
 
-    let (matchday_number, previous) = outcome
+    let context = outcome
         .league_round_context
         .expect("the user's league has a fixture today, so it has a round context");
-    assert_eq!(matchday_number, 1, "the league's round due today");
+    let previous = context.previous_standings;
+    assert_eq!(context.matchday, 1, "the league's round due today");
     assert!(
         previous.iter().all(|entry| entry.played == 0),
         "the baseline is the table before the round, so nobody has played yet: {:?}",

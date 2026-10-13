@@ -1,6 +1,7 @@
 import type { PlayerData, ScoutingAssignment, TeamData } from "../../store/gameStore";
 import { getPlayerOvr, getTeamName } from "../../lib/helpers";
 import { normalisePosition } from "../squad/SquadTab.helpers";
+import { naturalPositionOf } from "../../lib/positions";
 
 interface FilterScoutablePlayersParams {
   players: PlayerData[];
@@ -20,9 +21,7 @@ export function filterScoutablePlayers({
   return players
     .filter((player) => !player.retired && player.team_id !== myTeamId)
     .filter(
-      (player) =>
-        posFilter === "All" ||
-        normalisePosition(player.natural_position || player.position) === posFilter,
+      (player) => posFilter === "All" || normalisePosition(naturalPositionOf(player)) === posFilter,
     )
     .filter((player) => {
       if (!searchQuery) {

@@ -1087,6 +1087,7 @@
     "seasonIncome": "Saisoneinnahmen",
     "seasonExpenses": "Saisonausgaben",
     "perWeekSuffix": "/Wo",
+    "snapshotLoadFailed": "Die Vereinsfinanzen konnten nicht geladen werden.",
     "perYearSuffix": "/Jahr",
     "wagePerWeek": "Gehalt/Wo",
     "wagePerYear": "Gehalt/Jahr",
@@ -1450,6 +1451,8 @@
     "fixtures": "Spiele",
     "standings": "Tabelle",
     "matchday": "Spieltag {{number}}",
+    "movedFrom": "Verlegt von {{date}}",
+    "dateRange": "{{from}} bis {{to}}",
     "season": "Saison {{number}}",
     "international": "International",
     "internationalDuty": "Im Länderspieleinsatz",
@@ -1664,6 +1667,7 @@
     "passAccuracy": "Passgenauigkeit",
     "percentile": "Perzentil",
     "percentileUnavailable": "Perzentil nicht verfügbar",
+    "percentileGroup": "Vergleich mit: {{position}} in {{league}}",
     "recentMatches": "Letzte Spiele",
     "recentMatchesScore": "Ergebnis",
     "recentMatchesGoalsAssists": "T / V",
@@ -2731,6 +2735,7 @@
       "saveLoad": {
         "corrupted": "Diese Speicherdatei ist beschädigt und kann nicht geladen werden.",
         "incompatibleVersion": "Dieser Spielstand stammt aus einer neueren Spielversion (Stand v{{saveVersion}}; diese Version unterstützt bis v{{supported}}). Aktualisiere das Spiel, um ihn zu laden.",
+        "incompatibleLayout": "Die Daten dieses Spielstands passen nicht zu der Version, die er angibt, und er lässt sich nicht sicher laden. Die Datei wurde nicht verändert.",
         "missingData": "Diesem Spielstand fehlen erforderliche Daten und er kann nicht geladen werden.",
         "invalidWorld": "Die Welt- oder Mod-Daten dieses Spielstands sind ungültig und können nicht geladen werden.",
         "unknown": "Dieser Spielstand konnte aufgrund eines unerwarteten Fehlers nicht geladen werden."

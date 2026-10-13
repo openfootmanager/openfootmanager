@@ -178,3 +178,27 @@ describe("useTeamSelection scope toggles", () => {
     expect(result.current.scopeMessage).toBeNull();
   });
 });
+
+describe("useTeamSelection home-region club filter", () => {
+  /**
+   * Given a region the backend ships with no countries
+   * When the player picks it as their home region
+   * Then no club is listed: the frontend invents no membership of its own, as it did when it
+   * guessed a club's region from a table of country codes.
+   */
+  it("lists no club for a region the backend gives no countries", () => {
+    const gameState = {
+      teams: [createTeam({ id: "team-gb", country: "GB", short_name: "ENG" })],
+      players: [],
+      regions: [{ id: "europe", name: "Europe", country_codes: [] }],
+      competitions: [],
+      league: null,
+      manager: { first_name: "Sam", last_name: "Boss" },
+    } as unknown as GameStateData;
+    const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
+    const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
+
+    expect(result.current.selectedHomeRegionId).toBe("europe");
+    expect(result.current.filteredTeams).toEqual([]);
+  });
+});

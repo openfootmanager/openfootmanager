@@ -716,3 +716,53 @@ fn a_role_the_deployed_slot_does_not_admit_is_not_played() {
         "a role the striker's slot admits must still reach the engine"
     );
 }
+
+/// Given the domain's position groups and the roles each admits, When every role is bridged to
+/// the engine, Then the engine files it under the same groups, and its role list misses none.
+#[test]
+fn the_engines_role_groups_match_the_domains() {
+    use engine::Position as EnginePosition;
+
+    let groups = [
+        (DomainPos::Goalkeeper, EnginePosition::Goalkeeper),
+        (DomainPos::Defender, EnginePosition::Defender),
+        (DomainPos::Midfielder, EnginePosition::Midfielder),
+        (DomainPos::Forward, EnginePosition::Forward),
+    ];
+    let mut bridged = Vec::new();
+    for (domain_group, engine_group) in &groups {
+        for role in domain_group.valid_roles() {
+            let engine_role = domain_to_engine_role(role);
+            if engine_role != EnginePlayerRole::Standard {
+                assert!(
+                    engine_role.position_groups().contains(engine_group),
+                    "{role:?} is admitted by {domain_group:?} but not filed under it in the engine"
+                );
+            }
+            bridged.push(engine_role);
+        }
+    }
+    for engine_role in EnginePlayerRole::ALL {
+        assert!(
+            bridged.contains(&engine_role),
+            "{engine_role:?} is in the engine's list but no domain position admits it"
+        );
+        for engine_group in engine_role.position_groups() {
+            let (domain_group, _) = groups.iter().find(|(_, g)| g == engine_group).unwrap();
+            let admitted = domain_group
+                .valid_roles()
+                .iter()
+                .any(|role| domain_to_engine_role(role) == engine_role);
+            assert!(
+                admitted,
+                "{engine_role:?} is filed under {engine_group:?} but the domain does not admit it there"
+            );
+        }
+    }
+    for engine_role in bridged {
+        assert!(
+            EnginePlayerRole::ALL.contains(&engine_role),
+            "{engine_role:?} is missing from the engine's list of roles"
+        );
+    }
+}

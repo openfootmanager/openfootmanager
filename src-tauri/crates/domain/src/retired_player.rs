@@ -45,6 +45,9 @@ pub struct RetiredPlayer {
 }
 
 impl RetiredPlayer {
+    /// Freezes a retiring player into his archive record. Only what a person keeps after
+    /// his playing career is copied (identity, final ability, history), and his last club is
+    /// read from the retirement movement, because by now his `team_id` is already cleared.
     pub fn from_player(player: &Player, retired_on: &str, retired_season: u32) -> Self {
         let movements: Vec<PlayerMovementEntry> =
             player.movement_history.into_iter().cloned().collect();

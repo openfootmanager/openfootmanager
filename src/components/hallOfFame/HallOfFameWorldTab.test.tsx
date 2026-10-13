@@ -291,4 +291,19 @@ describe("HallOfFameWorldTab", () => {
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
   });
+
+  /**
+   * Given a retired legend whose `position` is the legacy bucket and whose natural position is granular
+   * When the hall of fame lists them
+   * Then the position is the translated granular label, not the raw legacy string.
+   */
+  it("shows a legend's granular natural position as a translated label", () => {
+    const state = createGameState();
+    state.players[0] = createPlayer({ position: "Defender", natural_position: "LeftBack" });
+
+    render(<HallOfFameWorldTab gameState={state} />);
+
+    expect(screen.getByText("common.positions.LeftBack")).toBeInTheDocument();
+    expect(screen.queryByText("Defender")).not.toBeInTheDocument();
+  });
 });

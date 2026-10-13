@@ -2,19 +2,19 @@ import { useTranslation } from "react-i18next";
 import { Card, CardHeader, CardBody, Button } from "../ui";
 import { formatExactMoney } from "../../lib/helpers";
 import { resolveBackendError } from "../../utils/backendI18n";
-import type { TeamFinanceSnapshotData } from "../../services/financeService";
+import type { FacilityUpgradePreviewData } from "../../services/financeService";
 import {
   type FacilityId,
   type FacilityUpgradeErrorState,
   FACILITY_DEFINITIONS,
-  getFacilityUpgradeCost,
-  facilityUpgradeBlockReason,
 } from "./FinancesTab.helpers";
 
 interface FinancesFacilitiesCardProps {
   facilities: Record<"training" | "medical" | "scouting", number>;
-  financeSnapshot: TeamFinanceSnapshotData;
-  teamFinance: number;
+  /** The backend's verdict per facility; the card decides nothing itself. */
+  facilityUpgrades: FacilityUpgradePreviewData[];
+  /** False while the verdict describes an older club state: every upgrade stays disabled. */
+  previewsCurrent: boolean;
   facilityUpgradeError: FacilityUpgradeErrorState | null;
   actionLoading: string | null;
   onUpgrade: (facility: FacilityId) => void;
@@ -22,14 +22,13 @@ interface FinancesFacilitiesCardProps {
 
 export default function FinancesFacilitiesCard({
   facilities,
-  financeSnapshot,
-  teamFinance,
+  facilityUpgrades,
+  previewsCurrent,
   facilityUpgradeError,
   actionLoading,
   onUpgrade,
 }: FinancesFacilitiesCardProps) {
   const { t } = useTranslation();
-  const financeBlockReason = facilityUpgradeBlockReason(financeSnapshot);
 
   return (
     <Card className="lg:col-span-3">
@@ -38,9 +37,11 @@ export default function FinancesFacilitiesCard({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {FACILITY_DEFINITIONS.map((facility) => {
             const level = facilities[facility.levelKey];
-            const nextUpgradeCost = getFacilityUpgradeCost(level);
-            const canAffordUpgrade = teamFinance >= nextUpgradeCost;
-            const canUpgrade = canAffordUpgrade && !financeBlockReason;
+            const upgrade = facilityUpgrades.find((entry) => entry.facility === facility.id);
+            const financeBlockReason = previewsCurrent ? upgrade?.blockReason : null;
+            const canAffordUpgrade = upgrade?.canAfford ?? true;
+            const canUpgrade =
+              previewsCurrent && upgrade !== undefined && canAffordUpgrade && !financeBlockReason;
             const isLoading = actionLoading === facility.id;
             const upgradeReason = financeBlockReason
               ? resolveBackendError(financeBlockReason)
@@ -66,11 +67,13 @@ export default function FinancesFacilitiesCard({
                 </div>
 
                 <div className="space-y-2 mt-auto">
-                  <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {t("finances.nextUpgradeCost", {
-                      amount: formatExactMoney(nextUpgradeCost),
-                    })}
-                  </p>
+                  {upgrade && (
+                    <p className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      {t("finances.nextUpgradeCost", {
+                        amount: formatExactMoney(upgrade.nextCost),
+                      })}
+                    </p>
+                  )}
                   <Button
                     disabled={!canUpgrade || isLoading}
                     onClick={() => onUpgrade(facility.id)}
@@ -78,7 +81,7 @@ export default function FinancesFacilitiesCard({
                   >
                     {t("finances.upgradeFacility")}
                   </Button>
-                  {!canAffordUpgrade && !upgradeReason && (
+                  {previewsCurrent && !canAffordUpgrade && !upgradeReason && (
                     <p className="text-xs text-red-500 dark:text-red-400">
                       {t("finances.insufficientFunds")}
                     </p>
