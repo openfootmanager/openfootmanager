@@ -25,7 +25,7 @@ mod world_load;
 // No private glob for `bootstrap`: everything this module still calls is
 // something `mcp_server/tools_impl/game.rs` drives a whole career opening
 // through, so it needs a real path anyway.
-pub(crate) use bootstrap::persist_chosen_club;
+pub(crate) use bootstrap::{delete_save_internal, persist_chosen_club};
 #[cfg(feature = "mcp")]
 pub(crate) use bootstrap::{
     start_career_for_mcp, McpCareerOptions, McpNewCareer, AUTO_START_NEEDS_CLUB_ERROR,
@@ -230,12 +230,13 @@ pub async fn get_saves(
 
 #[tauri::command]
 pub async fn delete_save(
+    state: State<'_, Arc<StateManager>>,
     sm_state: State<'_, Arc<SaveManagerState>>,
     save_id: String,
 ) -> Result<bool, String> {
     info!("[cmd] delete_save: save_id={}", save_id);
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    sm.delete_save(&save_id)
+    delete_save_internal(&state, &mut sm, &save_id)
 }
 
 #[tauri::command]

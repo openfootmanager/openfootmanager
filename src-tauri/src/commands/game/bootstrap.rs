@@ -48,6 +48,20 @@ pub(crate) fn persist_chosen_club(
     )
 }
 
+/// Deletes a save, and forgets it as the active one if it was: the career in memory would
+/// otherwise keep writing to, and choosing a club would target, a save that no longer exists.
+pub(crate) fn delete_save_internal(
+    state: &ofm_core::state::StateManager,
+    save_manager: &mut SaveManager,
+    save_id: &str,
+) -> Result<bool, String> {
+    let deleted = save_manager.delete_save(save_id)?;
+    if deleted && state.get_save_id().as_deref() == Some(save_id) {
+        state.clear_save_id();
+    }
+    Ok(deleted)
+}
+
 pub(crate) fn create_new_save(
     save_manager: &mut SaveManager,
     game: &Game,
@@ -287,6 +301,50 @@ mod tests {
 
         assert_eq!(save_manager.load_saves().unwrap().len(), 1);
         assert_eq!(save_manager.load_saves().unwrap()[0].id, saved_id);
+        // Read back through a fresh connection to the .db, not just the index.
+        assert_eq!(
+            save_manager.load_game(&saved_id).unwrap().manager.team_id,
+            Some("team1".to_string())
+        );
+    }
+
+    /// Given an active career whose save is deleted from the menu
+    /// When the active save id is read afterwards
+    /// Then it is cleared, so choosing a club cannot target a deleted save.
+    #[test]
+    fn deleting_the_active_save_clears_the_active_save_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut save_manager = SaveManager::init(dir.path()).unwrap();
+        let state = ofm_core::state::StateManager::new();
+        let game = make_bootstrap_test_game();
+        let active_id =
+            create_new_save(&mut save_manager, &game, &sample_stats_state(), "Active").unwrap();
+        state.set_save_id(active_id.clone());
+
+        let deleted = delete_save_internal(&state, &mut save_manager, &active_id).unwrap();
+
+        assert!(deleted);
+        assert_eq!(state.get_save_id(), None);
+    }
+
+    /// Given an active career and a different save
+    /// When the other save is deleted
+    /// Then the active save id is untouched.
+    #[test]
+    fn deleting_another_save_keeps_the_active_save_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut save_manager = SaveManager::init(dir.path()).unwrap();
+        let state = ofm_core::state::StateManager::new();
+        let game = make_bootstrap_test_game();
+        let active_id =
+            create_new_save(&mut save_manager, &game, &sample_stats_state(), "Active").unwrap();
+        let other_id =
+            create_new_save(&mut save_manager, &game, &sample_stats_state(), "Other").unwrap();
+        state.set_save_id(active_id.clone());
+
+        delete_save_internal(&state, &mut save_manager, &other_id).unwrap();
+
+        assert_eq!(state.get_save_id(), Some(active_id));
     }
 }
 
