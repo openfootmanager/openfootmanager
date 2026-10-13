@@ -825,3 +825,22 @@ fn old_history_does_not_change_the_plan() {
     assert_eq!(lean.moves, full.moves);
     assert!(!lean.moves.is_empty(), "the world has a clash to plan for");
 }
+
+/// Given a settle for a calendar whose first day still to be played is 10 March, and a match dated
+/// 10 March on a blackout date,
+/// When the calendar is settled,
+/// Then that match moves: the first day still to be played is not yet played.
+#[test]
+fn a_match_dated_the_first_day_still_to_be_played_may_move() {
+    let mut world = vec![competition(
+        "league",
+        1,
+        vec![fx("league", "l1", march(10), "a", "z", Kind::League)],
+    )];
+    let blackout = BTreeSet::from([march(10)]);
+
+    let moved = settle_calendar(&mut world, &blackout, march(10), |_| true);
+
+    assert_eq!(moved.len(), 1);
+    assert!(date_of(&world, "league", "l1") > march(10));
+}

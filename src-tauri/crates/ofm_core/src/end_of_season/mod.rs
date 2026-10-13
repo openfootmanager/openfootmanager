@@ -1545,7 +1545,9 @@ mod tests {
         let user_club = game.competitions[0].fixtures[last].home_team_id.clone();
         game.manager.hire(user_club);
 
-        initialize_rollover_calendar(&mut game);
+        // Through the production path, so the derivation of the retained set is the one the
+        // game runs: the division is kept (its season has not ended), not regenerated.
+        regenerate_competitions_for_new_season(&mut game, 2036, at(2035, 7, 18));
 
         let moved = game.competitions[0]
             .fixtures
@@ -1568,6 +1570,70 @@ mod tests {
                 .filter(|m| m.subject_key.as_deref() == Some("be.msg.matchesMoved.subject"))
                 .count(),
             1
+        );
+    }
+
+    /// Given a World Cup year, where the rollover returns before the windows and friendlies, and
+    /// two regenerated competitions whose dates clash for one club,
+    /// When the rollover builds the international calendar,
+    /// Then the clash is still settled and no friendly is added.
+    #[test]
+    fn the_world_cup_year_branch_still_settles_club_clashes() {
+        let mut game = calendar_game(at(2035, 6, 20));
+        let first_division_club = "ar-d1-apertura-0".to_string();
+        add_division(&mut game, "ar-d1-apertura", "south-america", at(2035, 9, 1));
+        let league_day = game.competitions[0].fixtures[0].date.clone();
+        let mut cup = League::new("cup".into(), "Cup".into(), 2035, &[]);
+        cup.id = "cup".into();
+        cup.rules.format = CompetitionFormat::Knockout;
+        cup.fixtures.push(domain::league::Fixture {
+            id: "tie".into(),
+            competition_id: "cup".into(),
+            date: league_day.clone(),
+            home_team_id: first_division_club,
+            away_team_id: "outsider".into(),
+            competition: FixtureCompetition::Cup,
+            ..Default::default()
+        });
+        game.competitions.push(cup);
+        // An existing tournament, so the branch has nothing to schedule.
+        let mut world_cup = League::new("world-cup".into(), "World Cup".into(), 2035, &[]);
+        world_cup.id = "world-cup".into();
+        world_cup.kind = CompetitionType::InternationalNation;
+        world_cup.scope = CompetitionScope::International;
+        game.competitions.push(world_cup);
+
+        manage_international_calendar(
+            &mut game,
+            at(2035, 7, 18),
+            at(2035, 6, 22),
+            true,
+            None,
+            &Default::default(),
+        );
+
+        let tie = game.competitions[1].fixtures[0].date.clone();
+        assert!(
+            game.competitions[0]
+                .fixtures
+                .iter()
+                .filter(|f| {
+                    f.home_team_id == "ar-d1-apertura-0" || f.away_team_id == "ar-d1-apertura-0"
+                })
+                .all(|f| {
+                    let apart = (chrono::NaiveDate::parse_from_str(&f.date, "%Y-%m-%d").unwrap()
+                        - chrono::NaiveDate::parse_from_str(&tie, "%Y-%m-%d").unwrap())
+                    .num_days()
+                    .abs();
+                    apart >= crate::calendar_booking::MIN_GAP_DAYS
+                }),
+            "the league and the cup tie of one club are inside the rest window"
+        );
+        assert!(
+            game.competitions
+                .iter()
+                .flat_map(|c| &c.fixtures)
+                .all(|f| f.competition != FixtureCompetition::Friendly)
         );
     }
 
