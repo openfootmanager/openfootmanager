@@ -417,7 +417,8 @@ pub fn play_national_knockout_match(
 }
 
 /// Distribute `goal_count` goals among squad players, weighted by OVR.
-/// Returns sorted `GoalEvent` entries (ascending minute).
+/// Returns sorted `GoalEvent` entries (ascending minute). `squad_positions` are positions in
+/// `players` (every squad member is a candidate, not only the XI), so each must be a valid index.
 pub fn simulate_goal_scorers(
     players: &[Player],
     squad_positions: &[usize],
