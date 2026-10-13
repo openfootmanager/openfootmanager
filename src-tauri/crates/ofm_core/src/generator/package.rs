@@ -534,6 +534,20 @@ fn parse_entity<T: serde::de::DeserializeOwned>(
     }
 }
 
+/// Name pools accumulate within a package like every other schema do, a repeated country key
+/// being last-wins; a second file used to replace the first and drop its pools silently.
+fn add_name_pools(package: &mut WorldPackage, def: NamesDefinition) {
+    let Some(existing) = package.names.as_mut() else {
+        package.names = Some(def);
+        return;
+    };
+    existing.version = existing.version.max(def.version);
+    if !def.description.is_empty() {
+        existing.description = def.description;
+    }
+    existing.pools.extend(def.pools);
+}
+
 fn classify_entity(
     schema: &str,
     value: Value,
@@ -580,7 +594,7 @@ fn classify_entity(
         }
         "names" => {
             if let Some(def) = parse_entity::<NamesDefinition>(value, file, schema, errors) {
-                package.names = Some(def);
+                add_name_pools(package, def);
             }
         }
         "world" => {
@@ -618,10 +632,17 @@ fn classify_file(
 
     // A file holds one entity (its fields at the top level) or a bulk `items`
     // list of entities of the same schema.
-    let entities: Vec<Value> = match map.get("items") {
+    let mut entities: Vec<Value> = match map.get("items") {
         Some(Value::Sequence(items)) => items.clone(),
         _ => vec![value.clone()],
     };
+    // `ofm-cli add names --append-to` adds an `items` list to a file that already declares
+    // `pools` at the top level; both halves are name pools, so neither may be dropped.
+    if schema == "names" && map.contains_key("items") && map.contains_key("pools") {
+        let mut own_pools = map.clone();
+        own_pools.remove("items");
+        entities.push(Value::Mapping(own_pools));
+    }
     for entity in entities {
         classify_entity(&schema, entity, file, package, errors);
     }
@@ -3728,6 +3749,66 @@ colors:
             .map(|(_, value)| value.as_str())
             .unwrap_or_default();
         assert!(detail.contains("CM"), "{error:?}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    const ENG_POOL: &str = r#""ENG": { "first_names": ["Tom"], "last_names": ["Smith"] }"#;
+    const BRA_POOL: &str = r#""BRA": { "first_names": ["Joao"], "last_names": ["Silva"] }"#;
+
+    fn pool_keys(package: &WorldPackage) -> Vec<String> {
+        let mut keys: Vec<String> = package
+            .names
+            .as_ref()
+            .map(|names| names.pools.keys().cloned().collect())
+            .unwrap_or_default();
+        keys.sort();
+        keys
+    }
+
+    /// Given a package with two name-pool files
+    /// When it is loaded
+    /// Then both files' pools are in the package, not only the last one's (#471).
+    #[test]
+    fn two_name_files_in_one_package_both_count() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/a.json",
+            &format!(r#"{{ "schema": "names", "pools": {{ {BRA_POOL} }} }}"#),
+        );
+        write(
+            &dir,
+            "names/b.json",
+            &format!(r#"{{ "schema": "names", "pools": {{ {ENG_POOL} }} }}"#),
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(pool_keys(&package), ["BRA", "ENG"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given one names file with top-level `pools` and an `items` list, the shape
+    /// `ofm-cli add names --append-to` produces
+    /// When it is loaded
+    /// Then the pools from both halves are read.
+    #[test]
+    fn a_names_file_with_pools_and_items_keeps_both() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/names.json",
+            &format!(
+                r#"{{ "schema": "names", "pools": {{ {BRA_POOL} }},
+                    "items": [ {{ "pools": {{ {ENG_POOL} }} }} ] }}"#
+            ),
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(pool_keys(&package), ["BRA", "ENG"]);
         std::fs::remove_dir_all(&dir).ok();
     }
 
