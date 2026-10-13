@@ -47,6 +47,8 @@ function buildProps(
     onDuplicate: vi.fn(),
     onFormationChange: vi.fn(),
     onPlayStyleChange: vi.fn(),
+    onReset: vi.fn(),
+    canReset: true,
     onSave: vi.fn(),
     onSelectTactic: vi.fn(),
     tacticLibrary: [customTactic, presetTactic],
@@ -132,5 +134,30 @@ describe("TacticsCommandBar", () => {
     expect(saveButton).toBeInTheDocument();
     expect(saveButton).toBeEnabled();
     expect(screen.queryByRole("button", { name: "tactics.tacticSaved" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a tactic that can be reset
+   * When the player presses Reset
+   * Then onReset is called.
+   */
+  it("calls onReset when Reset is pressed", () => {
+    const onReset = vi.fn();
+    renderCommandBar({ activeTactic: presetTactic, canReset: true, onReset });
+
+    fireEvent.click(screen.getByRole("button", { name: "tactics.resetTactic" }));
+
+    expect(onReset).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a tactic with nothing to reset
+   * When the command bar renders
+   * Then Reset is disabled.
+   */
+  it("disables Reset when there is nothing to reset", () => {
+    renderCommandBar({ activeTactic: customTactic, canReset: false });
+
+    expect(screen.getByRole("button", { name: "tactics.resetTactic" })).toBeDisabled();
   });
 });

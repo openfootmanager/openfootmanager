@@ -772,6 +772,7 @@
     "myTactics": "Мои тактики",
     "newTactic": "Новая тактика",
     "duplicateTactic": "Дублировать",
+    "resetTactic": "Сбросить к исходным",
     "saveAsTactic": "Сохранить как тактику",
     "updateTactic": "Обновить тактику",
     "tacticSaved": "Сохранено",

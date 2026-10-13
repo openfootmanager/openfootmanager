@@ -772,6 +772,7 @@
     "myTactics": "我的战术",
     "newTactic": "新建战术",
     "duplicateTactic": "复制",
+    "resetTactic": "恢复默认",
     "saveAsTactic": "保存为战术",
     "updateTactic": "更新战术",
     "tacticSaved": "已保存",

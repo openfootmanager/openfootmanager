@@ -772,6 +772,7 @@
     "myTactics": "Mes tactiques",
     "newTactic": "Nouvelle tactique",
     "duplicateTactic": "Dupliquer",
+    "resetTactic": "Réinitialiser",
     "saveAsTactic": "Enregistrer comme tactique",
     "updateTactic": "Mettre à jour la tactique",
     "tacticSaved": "Enregistré",

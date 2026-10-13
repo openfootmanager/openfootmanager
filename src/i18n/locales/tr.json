@@ -724,6 +724,7 @@
     "myTactics": "Taktiklerim",
     "newTactic": "Yeni taktik",
     "duplicateTactic": "Çoğalt",
+    "resetTactic": "Varsayılana sıfırla",
     "saveAsTactic": "Taktik olarak kaydet",
     "updateTactic": "Taktiği güncelle",
     "tacticSaved": "Kaydedildi",
