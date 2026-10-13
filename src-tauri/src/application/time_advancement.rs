@@ -6,6 +6,7 @@ use ofm_core::advance_results::{collect_advance_results, AdvanceMatchResult};
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
 use ofm_core::state::StateManager;
+use ofm_core::turn::{build_cup_round_summaries, CupRoundSummary};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdvanceTimeWithModeResponse {
@@ -19,6 +20,9 @@ pub struct AdvanceTimeWithModeResponse {
     pub fixture_id: Option<String>,
     pub mode: Option<String>,
     pub round_summary: Option<RoundSummaryDto>,
+    /// The user's cup ties of the day, shown beside the league round; empty on a league-only day.
+    #[serde(default)]
+    pub cup_round_summaries: Vec<CupRoundSummary>,
     /// Matches finished during this advance (user's competitions + nationals).
     #[serde(default)]
     pub results: Vec<AdvanceMatchResult>,
@@ -226,6 +230,7 @@ fn advance_live_matchday(
             fixture_id: Some(fixture_id),
             mode: Some(mode.to_string()),
             round_summary,
+            cup_round_summaries: build_cup_round_summaries(game, today),
             results: Vec::new(),
         },
         session,
@@ -299,6 +304,7 @@ fn advanced_day_response(
         fixture_id: None,
         mode: None,
         round_summary,
+        cup_round_summaries: build_cup_round_summaries(game, today),
         results,
     }
 }
