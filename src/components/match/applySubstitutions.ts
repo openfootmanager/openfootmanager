@@ -1,5 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
-
+import { sendMatchCommand } from "./matchCommands";
 import type { MatchSnapshot, SubstitutionOutcome, SubstitutionSwap } from "./types";
 
 /**
@@ -18,10 +17,8 @@ export async function applySubstitutions(
 ): Promise<SubstitutionOutcome> {
   for (const [appliedCount, swap] of swaps.entries()) {
     try {
-      const snapshot = await invoke<MatchSnapshot>("apply_match_command", {
-        command: {
-          Substitute: { side, player_off_id: swap.offId, player_on_id: swap.onId },
-        },
+      const snapshot = await sendMatchCommand({
+        Substitute: { side, player_off_id: swap.offId, player_on_id: swap.onId },
       });
       onSnapshot(snapshot);
     } catch (err) {

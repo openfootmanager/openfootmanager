@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getRoleOptions } from "../../lib/playerRoles";
@@ -31,8 +31,13 @@ export function PlayerRolesPanel({
     count: number;
   } | null>(null);
 
+  // Answers can arrive late; only the newest request may change what is shown.
+  const latestRequest = useRef(0);
+
   const handleChange = async (player: EnginePlayerData, role: string) => {
+    const request = ++latestRequest.current;
     const outcome = await onChangeRole(player.id, role);
+    if (request !== latestRequest.current) return;
     setRefusal((previous) =>
       outcome.applied
         ? null

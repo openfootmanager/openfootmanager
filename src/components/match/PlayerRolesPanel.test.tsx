@@ -185,4 +185,29 @@ describe("PlayerRolesPanel", () => {
 
     await vi.waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
+
+  /**
+   * Given two role changes made quickly, the first refused but answered last
+   * When the answers arrive newest first
+   * Then the older refusal does not appear: the newer, accepted change decides what is shown.
+   */
+  it("ignores a stale refusal that arrives after a newer change", async () => {
+    let answerFirst!: (outcome: RoleChangeOutcome) => void;
+    const onChangeRole = vi
+      .fn()
+      .mockImplementationOnce(
+        () => new Promise<RoleChangeOutcome>((resolve) => (answerFirst = resolve)),
+      )
+      .mockResolvedValueOnce({ applied: true });
+    renderPanel(onChangeRole);
+
+    pickPoacher();
+    fireEvent.click(screen.getByRole("combobox", { name: "match.roleFor:Striker" }));
+    fireEvent.click(screen.getByRole("option", { name: "tactics.playerRoles.TargetMan" }));
+    await vi.waitFor(() => expect(onChangeRole).toHaveBeenCalledTimes(2));
+    answerFirst(refused);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });

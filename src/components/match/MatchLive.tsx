@@ -22,6 +22,7 @@ import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
 import { SubPanel } from "./SubPanel";
 import { applyRoleChange } from "./applyRoleChange";
+import { sendMatchCommand } from "./matchCommands";
 import { applySubstitutions } from "./applySubstitutions";
 import {
   Play,
@@ -219,9 +220,7 @@ export default function MatchLive({
   const handleFormationChange = async (formation: string) => {
     if (!userSide || isSpectator) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangeFormation: { side: userSide, formation } },
-      });
+      const snap = await sendMatchCommand({ ChangeFormation: { side: userSide, formation } });
       onSnapshotUpdate(snap);
     } catch (err) {
       console.error("Formation change failed:", err);
@@ -236,8 +235,8 @@ export default function MatchLive({
   const handlePlayStyleChange = async (playStyle: string) => {
     if (!userSide || isSpectator) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangePlayStyle: { side: userSide, play_style: playStyle } },
+      const snap = await sendMatchCommand({
+        ChangePlayStyle: { side: userSide, play_style: playStyle },
       });
       onSnapshotUpdate(snap);
     } catch (err) {

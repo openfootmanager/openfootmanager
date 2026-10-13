@@ -1,5 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
-
+import { sendMatchCommand } from "./matchCommands";
 import type { MatchSnapshot, RoleChangeOutcome } from "./types";
 
 /**
@@ -14,8 +13,8 @@ export async function applyRoleChange(
   onSnapshot: (snapshot: MatchSnapshot) => void,
 ): Promise<RoleChangeOutcome> {
   try {
-    const snapshot = await invoke<MatchSnapshot>("apply_match_command", {
-      command: { ChangePlayerRole: { side, player_id: playerId, role } },
+    const snapshot = await sendMatchCommand({
+      ChangePlayerRole: { side, player_id: playerId, role },
     });
     onSnapshot(snapshot);
     return { applied: true };

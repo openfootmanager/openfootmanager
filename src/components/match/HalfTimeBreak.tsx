@@ -16,6 +16,7 @@ import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
 import { SubPanel } from "./SubPanel";
 import { applyRoleChange } from "./applyRoleChange";
+import { sendMatchCommand } from "./matchCommands";
 import { applySubstitutions } from "./applySubstitutions";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";
 import { Play, RefreshCw, Shield, Zap, Target, Crosshair, Flag, MessageCircle } from "lucide-react";
@@ -85,9 +86,7 @@ export default function HalfTimeBreak({
 
   const handleFormationChange = async (formation: string) => {
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangeFormation: { side: userSide, formation } },
-      });
+      const snap = await sendMatchCommand({ ChangeFormation: { side: userSide, formation } });
       onUpdateSnapshot(snap);
     } catch (err) {
       console.error("Formation change failed:", err);
@@ -99,8 +98,8 @@ export default function HalfTimeBreak({
 
   const handlePlayStyleChange = async (playStyle: string) => {
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangePlayStyle: { side: userSide, play_style: playStyle } },
+      const snap = await sendMatchCommand({
+        ChangePlayStyle: { side: userSide, play_style: playStyle },
       });
       onUpdateSnapshot(snap);
     } catch (err) {
