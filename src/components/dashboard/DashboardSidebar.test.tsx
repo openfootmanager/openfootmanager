@@ -50,4 +50,17 @@ describe("DashboardSidebar", () => {
 
     expect(screen.queryByText("England First Division")).not.toBeInTheDocument();
   });
+
+  /**
+   * Given the manager button is labelled "Manager" for its action
+   * When a screen reader reads it
+   * Then the description carries the manager, club and competition, which the label hides.
+   */
+  it("describes the manager button with the manager, club and competition", () => {
+    renderSidebar();
+
+    expect(screen.getByRole("button", { name: "dashboard.manager" })).toHaveAccessibleDescription(
+      "Ada Lovelace Alpha FC England First Division",
+    );
+  });
 });

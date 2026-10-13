@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { JSX, ReactNode } from "react";
+import { useId, type JSX, type ReactNode } from "react";
 import {
   Users,
   Calendar as CalendarIcon,
@@ -112,6 +112,9 @@ export default function DashboardSidebar({
   isUnemployed,
 }: DashboardSidebarProps): JSX.Element {
   const { t } = useTranslation();
+  const managerNameId = useId();
+  const teamNameId = useId();
+  const competitionNameId = useId();
   const appName = t("app.name");
   const [appNamePrimary, ...appNameSecondaryParts] = appName.split(" ");
   const appNameSecondary = appNameSecondaryParts.join(" ");
@@ -193,6 +196,18 @@ export default function DashboardSidebar({
           onClick={() => onNavClick("Manager")}
           title={collapsed ? t("dashboard.manager") : undefined}
           aria-label={t("dashboard.manager")}
+          // The label names the action; the description carries the lines it would otherwise hide.
+          aria-describedby={
+            collapsed
+              ? undefined
+              : [
+                  managerNameId,
+                  teamName ? teamNameId : null,
+                  competitionName ? competitionNameId : null,
+                ]
+                  .filter((id): id is string => id !== null)
+                  .join(" ")
+          }
           className={`hover:bg-white/5 mt-3 w-full rounded-lg transition-colors hover:cursor-pointer ${
             collapsed
               ? "flex justify-center px-0 py-2 text-gray-300"
@@ -206,10 +221,18 @@ export default function DashboardSidebar({
               <p className="text-xs text-gray-400 uppercase tracking-wider">
                 {t("dashboard.manager")}
               </p>
-              <p className="text-sm font-semibold text-white mt-0.5">{managerName}</p>
-              {teamName && <p className="text-xs text-primary-400 mt-0.5">{teamName}</p>}
+              <p id={managerNameId} className="text-sm font-semibold text-white mt-0.5">
+                {managerName}
+              </p>
+              {teamName && (
+                <p id={teamNameId} className="text-xs text-primary-400 mt-0.5">
+                  {teamName}
+                </p>
+              )}
               {competitionName && (
-                <p className="text-[11px] text-gray-400 mt-0.5">{competitionName}</p>
+                <p id={competitionNameId} className="text-[11px] text-gray-400 mt-0.5">
+                  {competitionName}
+                </p>
               )}
             </>
           )}

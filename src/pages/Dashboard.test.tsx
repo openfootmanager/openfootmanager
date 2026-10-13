@@ -560,7 +560,7 @@ describe("Dashboard", () => {
       if (command === "get_club_league_standing") {
         return Promise.resolve({
           competition_id: "league-1",
-          competition_name: "Premier Test League",
+          competition_name: "Backend Name",
           league_pos: 1,
           standing: {
             played: 0,
@@ -576,9 +576,15 @@ describe("Dashboard", () => {
       return original?.(command, ...args);
     });
 
+    gameState.competitions = [
+      { id: "cup-1", name: "Other Cup", season: 2025, fixtures: [], standings: [] },
+      { id: "league-1", name: "Premier Test League", season: 2025, fixtures: [], standings: [] },
+    ] as unknown as typeof gameState.competitions;
+
     render(<Dashboard />);
 
     expect(await screen.findByText("Premier Test League")).toBeInTheDocument();
+    expect(screen.queryByText("Other Cup")).not.toBeInTheDocument();
     expect(invokeMock).toHaveBeenCalledWith("get_club_league_standing", { teamId: "team-1" });
   });
 
