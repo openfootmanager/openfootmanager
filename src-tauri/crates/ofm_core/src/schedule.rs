@@ -815,6 +815,40 @@ mod tests {
         assert_eq!(serde_json::to_string(&world).unwrap(), before);
     }
 
+    /// Given two rounds of one league dated on consecutive days that both fall inside an
+    /// international window, when the generated calendar is settled, then the rounds land on
+    /// different days, at least the minimum rest apart (shifting each past the window one day at a
+    /// time put both on the first free day).
+    #[test]
+    fn two_rounds_in_one_blackout_land_on_different_days() {
+        let teams: Vec<String> = (0..2).map(|i| format!("team_{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap();
+        let mut league = generate_league("Test League", 2026, &teams, start);
+        league.fixtures[0].date = "2026-09-09".to_string();
+        league.fixtures[1].date = "2026-09-10".to_string();
+        let blackout = std::collections::BTreeSet::from([
+            chrono::NaiveDate::from_ymd_opt(2026, 9, 9).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 9, 10).unwrap(),
+        ]);
+        let mut world = vec![league];
+
+        crate::calendar_reconcile::settle_generated_calendar(
+            &mut world,
+            &blackout,
+            start.date_naive(),
+        );
+
+        let first =
+            chrono::NaiveDate::parse_from_str(&world[0].fixtures[0].date, "%Y-%m-%d").unwrap();
+        let second =
+            chrono::NaiveDate::parse_from_str(&world[0].fixtures[1].date, "%Y-%m-%d").unwrap();
+        assert!(!blackout.contains(&first) && !blackout.contains(&second));
+        assert!(
+            (second - first).num_days().abs() >= crate::calendar_booking::MIN_GAP_DAYS,
+            "{first} and {second} are closer than the minimum rest"
+        );
+    }
+
     fn resolve_scheduled_fixtures(cup: &mut League) {
         for fixture in cup.fixtures.iter_mut() {
             if fixture.status == FixtureStatus::Scheduled {

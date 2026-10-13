@@ -1029,7 +1029,7 @@ mod tests {
         }
     }
 
-    /// Every unplayed fixture of every club, across all competitions, sorted by date.
+    /// The pairs of a club's unplayed matches, across all competitions, that are closer than the rest.
     fn closest_unplayed_pairs(game: &Game) -> Vec<String> {
         use std::collections::BTreeMap;
         let mut by_club: BTreeMap<&str, Vec<(chrono::NaiveDate, &str)>> = BTreeMap::new();
@@ -1038,6 +1038,12 @@ mod tests {
                 continue;
             }
             let date = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+            // History is not a clash to settle: only matches still to be played count.
+            if fixture.status != domain::league::FixtureStatus::Scheduled
+                || date < game.clock.current_date.date_naive()
+            {
+                continue;
+            }
             for club in [&fixture.home_team_id, &fixture.away_team_id] {
                 by_club.entry(club).or_default().push((date, &fixture.id));
             }
@@ -1072,6 +1078,56 @@ mod tests {
                 .iter()
                 .any(|c| c.rules.format != CompetitionFormat::LeagueTable),
             "the nation has a cup, or the test proves nothing"
+        );
+        assert_eq!(closest_unplayed_pairs(&game), Vec::<String>::new());
+    }
+
+    /// Given a nation with a league, a cup and four regional state championships (Brazil),
+    /// when the world is built, then no club has two matches inside the minimum rest.
+    #[test]
+    fn league_cup_and_three_regional_leagues_have_no_clash() {
+        let cities = [
+            "São Paulo",
+            "Rio",
+            "Belo Horizonte",
+            "Porto Alegre",
+            "Salvador",
+            "Recife",
+            "Curitiba",
+            "Fortaleza",
+            "Goiânia",
+            "Santos",
+            "Campinas",
+            "Belém",
+            "Manaus",
+            "Vitória",
+            "Natal",
+            "Florianópolis",
+            "Cuiabá",
+            "Maceió",
+            "Bragantino",
+            "Juiz de Fora",
+        ];
+        let teams: Vec<_> = (0..40)
+            .map(|index| {
+                let mut team = nation_team(&format!("br-{index}"), "BR", 1000 - index);
+                team.city = cities[index as usize % cities.len()].to_string();
+                team
+            })
+            .collect();
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 12, 15, 0, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager_for("br-0"), teams, vec![], vec![], vec![]);
+
+        ensure_multi_competition_foundations(&mut game);
+
+        let states = game
+            .competitions
+            .iter()
+            .filter(|c| c.id.starts_with("br-state-"))
+            .count();
+        assert_eq!(
+            states, 4,
+            "the regional series exists, or the test proves nothing"
         );
         assert_eq!(closest_unplayed_pairs(&game), Vec::<String>::new());
     }
