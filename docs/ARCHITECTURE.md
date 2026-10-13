@@ -186,6 +186,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `start_new_game` | first_name, last_name, dob, nationality, world_source? | — | Create game, generate or load world |
 | `choose_team` | team_id | `Game` | Assign manager to a team |
 | `get_active_game` | — | `GameStateData` | Get current game state |
+| `get_career_stage` | — | `awaitingClub` \| `unemployed` \| `employed` | Decided in Rust (`career_stage`): a manager with no club who has never held one is awaiting a club, so the menu and dashboard send them to team selection; a sacked manager stays on the dashboard |
 | `advance_time` | — | `Game` | Advance one day |
 | `advance_time_with_mode` | mode | `{action, game?, snapshot?}` | Advance with match mode preference |
 | `skip_to_match_day` | — | `Game` | Fast-forward to next fixture |
