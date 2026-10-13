@@ -1,4 +1,4 @@
-import { type RefObject, useEffect } from "react";
+import { type RefObject, useEffect, useState } from "react";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -51,8 +51,8 @@ export function useDialogKeyboard(
   // A dialog that never takes focus is one a keyboard user cannot reach: `aria-modal` alone leaves
   // focus on the button behind the overlay. Whatever had focus when the dialog opened gets it back
   // when it closes.
-  useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    return () => previouslyFocused?.focus?.();
-  }, []);
+  // Read during the first render, not in an effect: a child that focuses itself on mount has
+  // already moved focus by the time any effect runs, and would be recorded as the opener.
+  const [opener] = useState(() => document.activeElement as HTMLElement | null);
+  useEffect(() => () => opener?.focus?.(), [opener]);
 }
