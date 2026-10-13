@@ -426,7 +426,8 @@ mod tests {
         let mut cup = league("cup", cup_fixtures);
         cup.rules.format = domain::league::CompetitionFormat::Knockout;
         cup.participant_ids = vec!["eng-00".to_string(), "eng-02".to_string()];
-        game_with(vec![league("league", league_fixtures), cup], None)
+        let domestic = league("league", league_fixtures);
+        game_with(vec![domestic.clone(), cup], Some(domestic))
     }
 
     fn cup_ties_in_response(game: &Game, today: &str) -> Vec<String> {
