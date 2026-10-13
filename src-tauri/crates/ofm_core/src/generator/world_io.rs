@@ -228,13 +228,12 @@ pub fn build_world_from_package_seeded(
     opening_year: Option<u32>,
     sources: &super::DefinitionSources,
 ) -> Result<WorldData, String> {
-    use rand::SeedableRng;
-    let world = super::build_world_data_from_package_with_rng(
-        package,
-        opening_year,
-        sources,
-        &mut rand::rngs::StdRng::seed_from_u64(seed),
-    );
+    use rand::{RngExt, SeedableRng};
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+    let mut world =
+        super::build_world_data_from_package_with_rng(package, opening_year, sources, &mut rng);
+    // The world's identity is part of the world: left empty it is a fresh UUID per build.
+    world.metadata.world_id = uuid::Uuid::from_u128(rng.random()).to_string();
     let mut world = finish_package_world(package, world)?;
     world.generation_seed = Some(seed);
     Ok(world)
@@ -1259,6 +1258,8 @@ mod tests {
         assert_eq!(one.generation_seed, Some(5));
         assert_eq!(everything(&one), everything(&again));
         assert_ne!(everything(&one), everything(&other));
+        assert_eq!(one.metadata.world_id, again.metadata.world_id);
+        assert_ne!(one.metadata.world_id, other.metadata.world_id);
     }
 
     /// Given a package of one club and no competitions, which the builder pads with generated
