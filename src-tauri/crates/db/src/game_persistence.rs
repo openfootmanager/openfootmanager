@@ -374,6 +374,7 @@ impl GamePersistenceReader {
             vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
             edition_archive,
             retired_players,
+            calendar_fingerprint: None,
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
             // A malformed ledger degrades to the legacy-save path rather than
