@@ -4133,6 +4133,8 @@
     "staffId": "ID",
     "staffFirstName": "Ad",
     "staffLastName": "Soyad",
+    "staffKnownAs": "Bilinen adı (isteğe bağlı)",
+    "staffKnownAsPlaceholder": "örn. Cafu",
     "staffClub": "Kulüp",
     "staffNationality": "Uyruk",
     "staffDateOfBirth": "Doğum Tarihi",

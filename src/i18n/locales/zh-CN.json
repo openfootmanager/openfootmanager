@@ -4132,6 +4132,8 @@
     "staffId": "ID",
     "staffFirstName": "名",
     "staffLastName": "姓",
+    "staffKnownAs": "通称（可选）",
+    "staffKnownAsPlaceholder": "例如：卡福",
     "staffClub": "俱乐部",
     "staffNationality": "国籍",
     "staffDateOfBirth": "出生日期",

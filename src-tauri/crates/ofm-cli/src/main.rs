@@ -242,6 +242,8 @@ const SCHEMA_STAFF: &str = r##"// Staff entity — place inside staff/*.json in 
                               //            | Attacking | GoalKeeping | Youth
   "dateOfBirth": "1975-01-01",// optional: ISO date (YYYY-MM-DD)
   "age": null,                // optional: integer (used if dateOfBirth absent)
+  "knownAs": null,            // optional: what they are called when it differs from their name
+                              //            ("Cafu" for Marcos Evangelista); first/last stay real
   "attributes": null          // optional: { "coaching": 60, "judgingAbility": 60,
                               //             "judgingPotential": 60, "physiotherapy": 60 }
 }"##;
@@ -1247,6 +1249,53 @@ mod tests {
             undocumented.is_empty(),
             "SCHEMA_REFERENCE.md does not document {undocumented:?}"
         );
+    }
+
+    #[test]
+    fn the_staff_docs_name_every_field_a_staff_member_can_author() {
+        // The scaffold template omits optional fields that are `None`, so the parity tests above
+        // cannot see them: `knownAs` was a real, loadable `StaffDef` field (#557) that neither
+        // `ofm-cli schema staff` nor SCHEMA_REFERENCE.md mentioned. A staff member with every
+        // optional field filled in serializes every key a modder can write.
+        let everything: ofm_core::generator::StaffDef = serde_json::from_value(json!({
+            "id": "sample", "firstName": "Sample", "lastName": "Staffer", "club": "club-id",
+            "nationality": "ENG", "role": "Coach",
+            "attributes": {
+                "coaching": 10, "judgingAbility": 10, "judgingPotential": 10, "physiotherapy": 10
+            },
+            "specialization": "Fitness", "dateOfBirth": "1975-01-01", "age": 50,
+            "knownAs": "Sam Staffer"
+        }))
+        .expect("a fully populated staff member");
+        let keys: Vec<String> = serde_json::to_value(&everything)
+            .expect("serializes")
+            .as_object()
+            .expect("an object")
+            .keys()
+            .cloned()
+            .collect();
+
+        let schema = entity_schema_text(&EntityKind::Staff);
+        let reference = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../../docs/modding/SCHEMA_REFERENCE.md"),
+        )
+        .expect("the schema reference");
+
+        let missing: Vec<String> = keys
+            .iter()
+            .flat_map(|key| {
+                let mut gaps = Vec::new();
+                if !schema.contains(&format!("\"{key}\"")) {
+                    gaps.push(format!("schema: {key}"));
+                }
+                if !reference.contains(&format!("`{key}`")) {
+                    gaps.push(format!("reference: {key}"));
+                }
+                gaps
+            })
+            .collect();
+        assert!(missing.is_empty(), "staff fields undocumented: {missing:?}");
     }
 
     #[test]

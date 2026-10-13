@@ -338,6 +338,7 @@ Defines a non-playing staff member (manager assistant, coach, scout, or physio).
 | `specialization` | string or null | no | `null` | Coaching focus (coaches only): `"Fitness"`, `"Technique"`, `"Tactics"`, `"Defending"`, `"Attacking"`, `"GoalKeeping"`, `"Youth"`. |
 | `dateOfBirth` | string or null | no | `null` | ISO 8601 date: `"YYYY-MM-DD"`. |
 | `age` | integer or null | no | `null` | Age at world generation start. Used if `dateOfBirth` is absent. |
+| `knownAs` | string or null | no | `null` | What they are called when it differs from their name, for example `"Cafu"` for Marcos Evangelista. `firstName` and `lastName` stay the real name; the game shows `knownAs` wherever a staff name is drawn. |
 | `attributes` | object or null | no | `null` | Explicit attribute overrides: `coaching`, `judgingAbility`, `judgingPotential`, `physiotherapy` (each 1–99). |
 
 **Example:**

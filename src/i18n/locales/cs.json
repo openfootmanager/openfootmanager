@@ -4133,6 +4133,8 @@
     "staffId": "ID",
     "staffFirstName": "Jméno",
     "staffLastName": "Příjmení",
+    "staffKnownAs": "Známý jako (volitelné)",
+    "staffKnownAsPlaceholder": "např. Cafu",
     "staffClub": "Klub",
     "staffNationality": "Národnost",
     "staffDateOfBirth": "Datum narození",
