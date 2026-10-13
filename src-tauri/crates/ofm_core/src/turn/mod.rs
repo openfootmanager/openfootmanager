@@ -199,6 +199,7 @@ fn process_day_common(game: &mut Game, today: &str) {
 
     crate::firing::check_manager_firing(game);
     crate::ai_hiring::process_vacant_ai_clubs(game);
+    crate::ai_manager_appointments::appoint_permanent_managers(game);
     crate::job_offers::check_job_offers(game);
 }
 
