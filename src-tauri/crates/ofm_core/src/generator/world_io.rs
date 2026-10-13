@@ -166,6 +166,8 @@ fn world_data_from_parts(
         players,
         staff,
         managers: vec![],
+        retired_managers: vec![],
+        retired_players: vec![],
         competitions: vec![],
         competition_definitions: None,
         national_teams: vec![],
@@ -273,6 +275,19 @@ fn load_world_from_manifest_path(
     let players = read_json_file(&manifest_shard_path(path, &manifest.shards.players))?;
     let staff = read_json_file(&manifest_shard_path(path, &manifest.shards.staff))?;
     let managers = read_json_file(&manifest_shard_path(path, &manifest.shards.managers))?;
+    // Absent from a manifest written before the archives existed: nothing to read.
+    fn read_optional<T: serde::de::DeserializeOwned>(
+        manifest_path: &Path,
+        shard: &str,
+    ) -> Result<Vec<T>, String> {
+        if shard.is_empty() {
+            Ok(Vec::new())
+        } else {
+            read_json_file(&manifest_shard_path(manifest_path, shard))
+        }
+    }
+    let retired_managers = read_optional(path, &manifest.shards.retired_managers)?;
+    let retired_players = read_optional(path, &manifest.shards.retired_players)?;
     let competitions = read_json_file(&manifest_shard_path(path, &manifest.shards.competitions))?;
     let national_teams =
         read_json_file(&manifest_shard_path(path, &manifest.shards.national_teams))?;
@@ -287,6 +302,8 @@ fn load_world_from_manifest_path(
         players,
         staff,
         managers,
+        retired_managers,
+        retired_players,
         competitions,
         competition_definitions: None,
         national_teams,
@@ -344,6 +361,14 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
     write_json(&shard_dir.join("staff.json"), &normalized.staff)?;
     write_json(&shard_dir.join("managers.json"), &normalized.managers)?;
     write_json(
+        &shard_dir.join("retired_managers.json"),
+        &normalized.retired_managers,
+    )?;
+    write_json(
+        &shard_dir.join("retired_players.json"),
+        &normalized.retired_players,
+    )?;
+    write_json(
         &shard_dir.join("competitions.json"),
         &normalized.competitions,
     )?;
@@ -371,6 +396,8 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
             players: format!("{stem}.shards/players.json"),
             staff: format!("{stem}.shards/staff.json"),
             managers: format!("{stem}.shards/managers.json"),
+            retired_managers: format!("{stem}.shards/retired_managers.json"),
+            retired_players: format!("{stem}.shards/retired_players.json"),
             competitions: format!("{stem}.shards/competitions.json"),
             national_teams: format!("{stem}.shards/national_teams.json"),
             news: format!("{stem}.shards/news.json"),
@@ -716,6 +743,67 @@ mod tests {
             everything(&one) == everything(&again),
             "the same seed gave different worlds"
         );
+    }
+
+    fn world_with_archives() -> WorldData {
+        let mut world = generate_world_data(&crate::generator::DefinitionSources::embedded_only());
+        let mut manager = domain::manager::Manager::new(
+            "retired-boss".to_string(),
+            "Old".to_string(),
+            "Boss".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                world.teams[0].id.clone(),
+                world.teams[0].name.clone(),
+                "2010-07-01".to_string(),
+            ));
+        world.retired_managers.push(manager);
+        let mut veteran = world.players[0].clone();
+        veteran.id = "retired-veteran".to_string();
+        veteran.retired = true;
+        veteran.team_id = None;
+        world
+            .retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &veteran,
+                "2030-06-30",
+                2030,
+            ));
+        world
+    }
+
+    /// Given a world carrying archived managers and retired players (#814, #799)
+    /// When it is exported as a sharded package, and as one JSON, and loaded back
+    /// Then both archives come back intact, so a re-import does not forget a club's past managers.
+    #[test]
+    fn the_archives_survive_a_world_export_round_trip() {
+        let world = world_with_archives();
+        let dir = std::env::temp_dir().join(format!(
+            "ofm-export-archives-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let manifest = dir.join("world.json");
+
+        export_world_package(&world, &manifest).unwrap();
+        let from_shards = load_world_from_path(&manifest).unwrap();
+        let from_json = load_world_from_json(&export_world_to_json(&world).unwrap()).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+
+        for loaded in [from_shards, from_json] {
+            assert_eq!(loaded.retired_players, world.retired_players);
+            assert_eq!(
+                serde_json::to_value(&loaded.retired_managers).unwrap(),
+                serde_json::to_value(&world.retired_managers).unwrap()
+            );
+        }
     }
 
     #[test]
