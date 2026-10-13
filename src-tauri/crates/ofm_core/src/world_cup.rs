@@ -1690,8 +1690,8 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str) -> usize {
                     fixture.id.clone(),
                 )
             };
-            // The tie's own stream, named by its two sides like every other match stage, so what a tie does never depends on which other ties were
-            // played before it that day.
+            // The tie's own stream, named by its two sides like every other match stage, so
+            // what a tie does never depends on which other ties were played before it that day.
             let mut rng = game.rng_for(&format!("world-cup/{home_id}/{away_id}"), today);
             // Knockout ties must produce a winner: extra time, then penalties.
             let is_knockout = game.competitions[competition_index]
