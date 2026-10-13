@@ -12,6 +12,7 @@ import type {
   RoundSummary,
 } from "../components/match/types";
 import { resolveMatchFixture } from "../components/match/helpers";
+import { resetMatchCommands } from "../components/match/matchCommands";
 import PreMatchSetup from "../components/match/PreMatchSetup";
 import MatchLive from "../components/match/MatchLive";
 import HalfTimeBreak from "../components/match/HalfTimeBreak";
@@ -56,6 +57,11 @@ export default function MatchSimulation() {
   const [hasFinalizedMatch, setHasFinalizedMatch] = useState(false);
   const [preferredSpeed, setPreferredSpeed] = useState<"slow" | "normal" | "fast">("normal");
   const [hasUserOverriddenSpeed, setHasUserOverriddenSpeed] = useState(false);
+
+  // Each match screen is a new live session; commands from an earlier one must not hold it up.
+  useEffect(() => {
+    resetMatchCommands();
+  }, []);
 
   useEffect(() => {
     console.info("[MatchSimulation] mount", {

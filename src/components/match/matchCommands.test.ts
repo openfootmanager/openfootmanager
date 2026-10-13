@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { sendMatchCommand } from "./matchCommands";
+import { resetMatchCommands, sendMatchCommand } from "./matchCommands";
 import type { MatchSnapshot } from "./types";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -69,5 +69,20 @@ describe("sendMatchCommand", () => {
 
     await expect(first).rejects.toBe("be.error.roleNotValidForPosition");
     await expect(second).resolves.toEqual(snapshot("second"));
+  });
+
+  /**
+   * Given a command in match A whose invoke never answers
+   * When a new live session begins for match B
+   * Then B's first command goes out at once instead of waiting behind A's.
+   */
+  it("does not let a hung command in one match block the next match", async () => {
+    mockedInvoke.mockReturnValueOnce(new Promise(() => {})).mockResolvedValueOnce(snapshot("b"));
+    void sendMatchCommand({ ChangePlayStyle: { side: "Home", play_style: "A" } });
+
+    resetMatchCommands();
+    const inMatchB = sendMatchCommand({ ChangePlayStyle: { side: "Home", play_style: "B" } });
+
+    await expect(inMatchB).resolves.toEqual(snapshot("b"));
   });
 });

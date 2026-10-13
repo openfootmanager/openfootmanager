@@ -8,6 +8,14 @@ import type { MatchSnapshot } from "./types";
 let chain: Promise<unknown> = Promise.resolve();
 
 /**
+ * Starts a fresh chain for a new live session. One command whose invoke never answers would
+ * otherwise hold up every later command, in this match and the next, until the app reloads.
+ */
+export function resetMatchCommands(): void {
+  chain = Promise.resolve();
+}
+
+/**
  * Sends one command to the live match once every earlier one has been answered. A refused command
  * rejects only its own caller; the commands behind it still go out.
  */
