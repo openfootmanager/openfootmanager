@@ -334,7 +334,7 @@ const PLAYERS_ON_THE_PITCH: usize = 11;
 /// Whether the club has eleven seniors, a goalkeeper among them — counted as
 /// the floor counts. Injured players count: the match builder fields them when
 /// it must.
-fn can_put_a_side_out(game: &Game, team_id: &str) -> bool {
+pub fn can_put_a_side_out(game: &Game, team_id: &str) -> bool {
     let seniors = senior_counts(game, team_id);
     seniors.iter().sum::<usize>() >= PLAYERS_ON_THE_PITCH
         && seniors[group_index(&Position::Goalkeeper)] > 0

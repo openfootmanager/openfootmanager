@@ -234,4 +234,18 @@ describe("HallOfFameWorldTab", () => {
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
   });
+
+  /**
+   * Given a legend whose backend position is granular
+   * When the hall of fame lists them
+   * Then the position is the translated granular label, not the raw string.
+   */
+  it("shows a legend's granular natural position as a translated label", async () => {
+    mockedFetchLegends.mockResolvedValue([createLegend({ position: "LeftBack" })]);
+
+    render(<HallOfFameWorldTab gameState={createGameState()} />);
+
+    expect(await screen.findByText("common.positions.LeftBack")).toBeInTheDocument();
+    expect(screen.queryByText("LeftBack")).not.toBeInTheDocument();
+  });
 });

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import type { GameStateData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
+import { translatePositionLabel } from "../squad/SquadTab.helpers";
 import { Badge, Card, CardBody, CardHeader, CountryFlag, TeamLogo } from "../ui";
 import { derivePastChampions } from "./HallOfFameWorldTab.model";
 import { useHallOfFameLegends } from "./useHallOfFameLegends";
@@ -141,7 +142,7 @@ export default function HallOfFameWorldTab({
                           <span>{countryName(footballNation, i18n.language)}</span>
                         </div>
                         <p className="mt-2 text-xl font-heading font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
-                          {legend.position}
+                          {translatePositionLabel(t, legend.position)}
                         </p>
                         {legend.last_club_name ? (
                           <p className="mt-1 text-sm text-primary-500">

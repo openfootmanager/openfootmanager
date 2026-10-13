@@ -14,6 +14,7 @@ pub struct HallOfFameLegend {
     pub full_name: String,
     pub nationality: String,
     pub football_nation: String,
+    /// His natural position, the one the squad screens name him by.
     pub position: Position,
     pub appearances: u32,
     pub goals: u32,
@@ -55,7 +56,7 @@ pub fn hall_of_fame_legends(game: &Game) -> Vec<HallOfFameLegend> {
             full_name: &player.full_name,
             nationality: &player.nationality,
             football_nation: &player.football_nation,
-            position: player.position.clone(),
+            position: player.natural_position.clone(),
             career: &player.career,
         });
 
@@ -363,5 +364,35 @@ mod tests {
             .collect();
 
         assert_eq!(order, vec!["p-1", "p-2", "p-4", "p-3"]);
+    }
+
+    /// Given retirees whose coarse position differs from their natural one, whether archived or
+    /// still on the roster, when legends are listed, then both carry the natural position.
+    #[test]
+    fn a_legend_carries_his_natural_position() {
+        let mut archived = veteran(
+            "p-archived",
+            "Ada Archived",
+            vec![career(1, "t-a", "Alpha FC", 10, 1)],
+        );
+        archived.natural_position = Position::LeftBack;
+        archived.position = Position::Defender;
+        let mut rostered = veteran(
+            "p-roster",
+            "Bo Roster",
+            vec![career(1, "t-a", "Alpha FC", 10, 1)],
+        );
+        rostered.natural_position = Position::Striker;
+        rostered.position = Position::Forward;
+        let mut game = game_with(vec![rostered], vec![]);
+        game.retired_players.push(archive(&archived));
+
+        let positions: HashMap<String, Position> = hall_of_fame_legends(&game)
+            .into_iter()
+            .map(|legend| (legend.player_id, legend.position))
+            .collect();
+
+        assert_eq!(positions["p-archived"], Position::LeftBack);
+        assert_eq!(positions["p-roster"], Position::Striker);
     }
 }

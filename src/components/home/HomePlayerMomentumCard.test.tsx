@@ -90,4 +90,23 @@ describe("HomePlayerMomentumCard", () => {
     expect(screen.getByText("John Smith")).toBeInTheDocument();
     expect(screen.getByText("Cold Player")).toBeInTheDocument();
   });
+
+  /**
+   * Given players whose `position` is the legacy bucket and whose natural position is granular
+   * When the card lists the in-form and low-morale players
+   * Then both badges read the granular position.
+   */
+  it("badges players by their granular natural position", () => {
+    const granular = { position: "Defender", natural_position: "LeftBack" };
+
+    render(
+      <HomePlayerMomentumCard
+        hotPlayers={[createPlayer(granular)]}
+        coldPlayers={[createPlayer({ id: "player-2", morale: 30, ...granular })]}
+      />,
+    );
+
+    expect(screen.getAllByText("common.posAbbr.LeftBack")).toHaveLength(2);
+    expect(screen.queryByText("common.posAbbr.Defender")).not.toBeInTheDocument();
+  });
 });

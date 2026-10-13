@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 
 import type { LeagueData, PlayerData, TeamData } from "../store/gameStore";
 import { getPlayerOvr } from "../lib/helpers";
+import { naturalPositionOf } from "../lib/positions";
+import { translatePositionLabel } from "../components/squad/SquadTab.helpers";
 import { competitionDisplayName } from "../lib/competitionName";
 import { Badge, Card, CardBody, TeamLocation } from "../components/ui";
 import { Globe, Shield, Target, Users } from "lucide-react";
@@ -80,7 +82,9 @@ export default function TeamSelectionSidebar({
                       <p className="font-semibold text-gray-900 dark:text-white">
                         {player.match_name}
                       </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{player.position}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {translatePositionLabel(t, naturalPositionOf(player))}
+                      </p>
                     </div>
                     <Badge variant="accent">{getPlayerOvr(player)}</Badge>
                   </div>
