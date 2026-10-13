@@ -567,6 +567,8 @@ fn get_career_stage_without_a_session_fails_with_the_session_key() {
     assert_eq!(
         super::get_career_stage_internal(&state),
         Err("be.error.noActiveGameSession".to_string())
+    );
+}
 
 /// A package whose cup fields depend on how its clubs rank by reputation: six clubs rated anywhere
 /// in 0..=1000, a cup of two named clubs, a cup of the top two by reputation, and a group cup of
