@@ -28,15 +28,19 @@ use {
 /// A career loaded from a save already has one, and the club goes into it; only a career that has
 /// never been saved gets a new save. Creating one regardless would fork the loaded career: the
 /// player continues in a second save and the one they loaded stays clubless.
+///
+/// `loaded_save_id` is the save id read together with `game` (see `snapshot_career`), never one
+/// read later from the state: a load that lands in between would otherwise redirect this write
+/// onto another career's save.
 pub(crate) fn persist_chosen_club(
-    state: &ofm_core::state::StateManager,
+    loaded_save_id: Option<&str>,
     save_manager: &mut SaveManager,
     game: &Game,
     stats_state: &StatsState,
 ) -> Result<String, String> {
-    if let Some(save_id) = state.get_save_id() {
-        save_manager.save_game_with_stats(game, stats_state, &save_id)?;
-        return Ok(save_id);
+    if let Some(save_id) = loaded_save_id {
+        save_manager.save_game_with_stats(game, stats_state, save_id)?;
+        return Ok(save_id.to_string());
     }
 
     let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
@@ -274,8 +278,13 @@ mod tests {
         state.set_save_id(loaded_id.clone());
 
         game.manager.team_id = Some("team1".to_string());
-        let saved_id =
-            persist_chosen_club(&state, &mut save_manager, &game, &sample_stats_state()).unwrap();
+        let saved_id = persist_chosen_club(
+            state.get_save_id().as_deref(),
+            &mut save_manager,
+            &game,
+            &sample_stats_state(),
+        )
+        .unwrap();
 
         assert_eq!(saved_id, loaded_id);
         assert_eq!(save_manager.load_saves().unwrap().len(), 1);
@@ -283,6 +292,45 @@ mod tests {
             save_manager.load_game(&loaded_id).unwrap().manager.team_id,
             Some("team1".to_string())
         );
+    }
+
+    /// Given a club chosen in career A while a concurrent load has already installed career B
+    /// When the choice is persisted with career A's own save id, captured with its game
+    /// Then A's save is the one written and B's save is untouched.
+    #[test]
+    fn choosing_a_club_writes_to_the_save_captured_with_its_career() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut save_manager = SaveManager::init(dir.path()).unwrap();
+        let state = ofm_core::state::StateManager::new();
+        let mut game_a = make_bootstrap_test_game();
+        game_a.manager.team_id = None;
+        let save_a =
+            create_new_save(&mut save_manager, &game_a, &sample_stats_state(), "A").unwrap();
+        let mut game_b = make_bootstrap_test_game();
+        game_b.manager.team_id = None;
+        game_b.manager.first_name = "Beatrix".to_string();
+        let save_b =
+            create_new_save(&mut save_manager, &game_b, &sample_stats_state(), "B").unwrap();
+        // The load of B lands between A's snapshot and A's write.
+        state.set_save_id(save_b.clone());
+
+        game_a.manager.team_id = Some("team1".to_string());
+        let written = persist_chosen_club(
+            Some(&save_a),
+            &mut save_manager,
+            &game_a,
+            &sample_stats_state(),
+        )
+        .unwrap();
+
+        assert_eq!(written, save_a);
+        assert_eq!(
+            save_manager.load_game(&save_a).unwrap().manager.team_id,
+            Some("team1".to_string())
+        );
+        let untouched_b = save_manager.load_game(&save_b).unwrap();
+        assert_eq!(untouched_b.manager.team_id, None);
+        assert_eq!(untouched_b.manager.first_name, "Beatrix");
     }
 
     /// Given a career that has never been saved
@@ -296,8 +344,13 @@ mod tests {
         let mut game = make_bootstrap_test_game();
         game.manager.team_id = Some("team1".to_string());
 
-        let saved_id =
-            persist_chosen_club(&state, &mut save_manager, &game, &sample_stats_state()).unwrap();
+        let saved_id = persist_chosen_club(
+            state.get_save_id().as_deref(),
+            &mut save_manager,
+            &game,
+            &sample_stats_state(),
+        )
+        .unwrap();
 
         assert_eq!(save_manager.load_saves().unwrap().len(), 1);
         assert_eq!(save_manager.load_saves().unwrap()[0].id, saved_id);

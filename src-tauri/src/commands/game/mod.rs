@@ -200,8 +200,7 @@ pub async fn select_team(
     active_competition_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
     info!("[cmd] select_team: team_id={}", team_id);
-    let mut game = state
-        .get_game(|g: &Game| g.clone())
+    let (mut game, loaded_save_id) = crate::application::career::snapshot_career(&state)
         .ok_or("be.error.noActiveGameSession".to_string())?;
     let current_stats_state = state
         .get_stats_state(|stats| stats.clone())
@@ -214,7 +213,7 @@ pub async fn select_team(
     let stats_state = begin_career(&mut game, &team_id, scope, current_stats_state)?;
 
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    let save_id = persist_chosen_club(&state, &mut sm, &game, &stats_state)?;
+    let save_id = persist_chosen_club(loaded_save_id.as_deref(), &mut sm, &game, &stats_state)?;
     crate::application::career::install_career(&state, game.clone(), stats_state, Some(save_id));
     Ok(game)
 }
@@ -267,6 +266,7 @@ pub async fn get_career_stage(
     get_career_stage_internal(&state)
 }
 
+/// The career stage of the active game, or the no-session error key when there is none.
 pub fn get_career_stage_internal(
     state: &StateManager,
 ) -> Result<ofm_core::career_stage::CareerStage, String> {

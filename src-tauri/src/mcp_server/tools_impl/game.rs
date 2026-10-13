@@ -6,7 +6,6 @@ use mcp_results::game::{
 };
 
 use crate::mcp_server::context::McpContext;
-use crate::mcp_server::tools_impl::helpers::require_game;
 use std::sync::Arc;
 use tauri::Manager as TauriManager;
 
@@ -102,7 +101,9 @@ fn create_career(
 // ─── game_select_team ───────────────────────────────────────────────────────
 
 pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<TeamSelected, String> {
-    let mut game = require_game(&ctx.state_manager)?;
+    let (mut game, loaded_save_id) =
+        crate::application::career::snapshot_career(&ctx.state_manager)
+            .ok_or_else(|| "be.error.noActiveGameSession".to_string())?;
 
     if game.manager.team_id.is_some() {
         return Err("be.error.mcp.teamAlreadyAssigned".to_string());
@@ -130,7 +131,7 @@ pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<TeamSel
         .lock()
         .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
     let save_id = crate::commands::game::persist_chosen_club(
-        &ctx.state_manager,
+        loaded_save_id.as_deref(),
         &mut sm,
         &game,
         &stats_state,
