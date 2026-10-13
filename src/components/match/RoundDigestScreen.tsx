@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FixtureData, GameStateData } from "../../store/gameStore";
 import type { CompactMatchEventData } from "../../store/types";
@@ -6,7 +6,7 @@ import type { CupRoundSummary, MatchSnapshot, MatchEvent, RoundSummary } from ".
 import CupRoundSection from "./CupRoundSection";
 import { getEventDisplay, makeTeamFallback } from "./helpers";
 import { QuickStat } from "./PostMatchHelpers";
-import { Badge, TeamLogo } from "../ui";
+import { Badge, Dialog, TeamLogo } from "../ui";
 import { Trophy, TrendingDown, Minus, ChevronRight, ArrowUp, ArrowDown, Flame } from "lucide-react";
 
 interface RoundDigestScreenProps {
@@ -33,17 +33,6 @@ export default function RoundDigestScreen({
 }: RoundDigestScreenProps) {
   const { t } = useTranslation();
   const [selectedOtherFixtureId, setSelectedOtherFixtureId] = useState<string | null>(null);
-  const modalCloseRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!selectedOtherFixtureId) return;
-    modalCloseRef.current?.focus();
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedOtherFixtureId(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedOtherFixtureId]);
 
   const userTeamId = gameState.manager.team_id;
 
@@ -471,138 +460,131 @@ export default function RoundDigestScreen({
 
       {/* Other Match Detail Modal */}
       {selectedOtherFixture && selectedOtherFixtureReport && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={t("match.matchDetails")}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
-          onClick={() => setSelectedOtherFixtureId(null)}
+        <Dialog
+          label={t("match.matchDetails")}
+          onClose={() => setSelectedOtherFixtureId(null)}
+          dismissOnBackdrop
+          overlayClassName="bg-black/70 px-4"
+          surfaceClassName="bg-white dark:bg-navy-900"
+          className="w-full max-w-3xl rounded-2xl transition-colors duration-300"
         >
-          <div
-            className="w-full max-w-3xl rounded-2xl border border-gray-200 dark:border-navy-700 bg-white dark:bg-navy-900 shadow-2xl transition-colors duration-300"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-gray-200 dark:border-navy-700 px-5 py-4">
-              <div>
-                <p className="text-xs font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                  {t("match.matchDetails")}
-                </p>
-                <p className="text-lg font-heading font-bold text-gray-900 dark:text-white">
-                  {getTeamNameById(selectedOtherFixture.home_team_id)}{" "}
-                  {selectedOtherFixture.result?.home_goals} –{" "}
-                  {selectedOtherFixture.result?.away_goals}{" "}
-                  {getTeamNameById(selectedOtherFixture.away_team_id)}
-                </p>
-              </div>
-              <button
-                ref={modalCloseRef}
-                type="button"
-                onClick={() => setSelectedOtherFixtureId(null)}
-                className="rounded-lg px-3 py-2 text-sm font-heading font-bold uppercase tracking-wider text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-navy-800 dark:hover:text-white transition-colors"
-              >
-                {t("common.close")}
-              </button>
+          <div className="flex items-center justify-between border-b border-gray-200 dark:border-navy-700 px-5 py-4">
+            <div>
+              <p className="text-xs font-heading uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                {t("match.matchDetails")}
+              </p>
+              <p className="text-lg font-heading font-bold text-gray-900 dark:text-white">
+                {getTeamNameById(selectedOtherFixture.home_team_id)}{" "}
+                {selectedOtherFixture.result?.home_goals} –{" "}
+                {selectedOtherFixture.result?.away_goals}{" "}
+                {getTeamNameById(selectedOtherFixture.away_team_id)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedOtherFixtureId(null)}
+              className="rounded-lg px-3 py-2 text-sm font-heading font-bold uppercase tracking-wider text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-navy-800 dark:hover:text-white transition-colors"
+            >
+              {t("common.close")}
+            </button>
+          </div>
+
+          <div className="grid gap-5 p-5 md:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-gray-50 dark:bg-navy-800 p-4 transition-colors duration-300">
+              <h4 className="mb-3 text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                {t("match.matchEvents")}
+              </h4>
+              {selectedOtherFixtureReport.events.length > 0 ? (
+                <div className="flex max-h-96 flex-col gap-2 overflow-auto">
+                  {selectedOtherFixtureReport.events.map((event, index) => {
+                    const display = getEventDisplay({
+                      ...event,
+                      zone: "Midfield",
+                    } as MatchEvent);
+                    const sideTeamId =
+                      event.side === "Home"
+                        ? selectedOtherFixture.home_team_id
+                        : selectedOtherFixture.away_team_id;
+                    const sideFallbackName =
+                      event.side === "Home"
+                        ? getTeamNameById(selectedOtherFixture.home_team_id)
+                        : getTeamNameById(selectedOtherFixture.away_team_id);
+                    return (
+                      <div
+                        key={`${event.minute}-${event.event_type}-${index}`}
+                        className="flex items-center gap-2 text-xs"
+                      >
+                        <span className="w-8 text-right font-heading tabular-nums text-gray-500 dark:text-gray-400">
+                          {event.minute}'
+                        </span>
+                        <span>{display.icon}</span>
+                        <span className={`${display.color} flex-1 truncate font-medium`}>
+                          {formatOtherMatchEvent(event)}
+                        </span>
+                        <Badge variant={event.side === "Home" ? "primary" : "accent"} size="sm">
+                          {getTeamShortName(sideTeamId, sideFallbackName)}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t("match.quietMatch")}</p>
+              )}
             </div>
 
-            <div className="grid gap-5 p-5 md:grid-cols-[1.15fr_0.85fr]">
+            <div className="flex flex-col gap-4">
               <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-gray-50 dark:bg-navy-800 p-4 transition-colors duration-300">
                 <h4 className="mb-3 text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                  {t("match.matchEvents")}
+                  {t("match.quickStats")}
                 </h4>
-                {selectedOtherFixtureReport.events.length > 0 ? (
-                  <div className="flex max-h-96 flex-col gap-2 overflow-auto">
-                    {selectedOtherFixtureReport.events.map((event, index) => {
-                      const display = getEventDisplay({
-                        ...event,
-                        zone: "Midfield",
-                      } as MatchEvent);
-                      const sideTeamId =
-                        event.side === "Home"
-                          ? selectedOtherFixture.home_team_id
-                          : selectedOtherFixture.away_team_id;
-                      const sideFallbackName =
-                        event.side === "Home"
-                          ? getTeamNameById(selectedOtherFixture.home_team_id)
-                          : getTeamNameById(selectedOtherFixture.away_team_id);
-                      return (
-                        <div
-                          key={`${event.minute}-${event.event_type}-${index}`}
-                          className="flex items-center gap-2 text-xs"
-                        >
-                          <span className="w-8 text-right font-heading tabular-nums text-gray-500 dark:text-gray-400">
-                            {event.minute}'
-                          </span>
-                          <span>{display.icon}</span>
-                          <span className={`${display.color} flex-1 truncate font-medium`}>
-                            {formatOtherMatchEvent(event)}
-                          </span>
-                          <Badge variant={event.side === "Home" ? "primary" : "accent"} size="sm">
-                            {getTeamShortName(sideTeamId, sideFallbackName)}
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {t("match.quietMatch")}
-                  </p>
-                )}
+                <QuickStat
+                  label={t("match.possession")}
+                  home={`${selectedOtherFixtureReport.home_stats.possession_pct}%`}
+                  away={`${selectedOtherFixtureReport.away_stats.possession_pct}%`}
+                  homePct={selectedOtherFixtureReport.home_stats.possession_pct}
+                />
+                <QuickStat
+                  label={t("match.shots")}
+                  home={selectedOtherFixtureReport.home_stats.shots}
+                  away={selectedOtherFixtureReport.away_stats.shots}
+                />
+                <QuickStat
+                  label={t("match.shotsOnTarget")}
+                  home={selectedOtherFixtureReport.home_stats.shots_on_target}
+                  away={selectedOtherFixtureReport.away_stats.shots_on_target}
+                />
+                <QuickStat
+                  label={t("match.fouls")}
+                  home={selectedOtherFixtureReport.home_stats.fouls}
+                  away={selectedOtherFixtureReport.away_stats.fouls}
+                />
+                <QuickStat
+                  label={t("match.corners")}
+                  home={selectedOtherFixtureReport.home_stats.corners}
+                  away={selectedOtherFixtureReport.away_stats.corners}
+                />
+                <QuickStat
+                  label={t("match.yellowCards")}
+                  home={selectedOtherFixtureReport.home_stats.yellow_cards}
+                  away={selectedOtherFixtureReport.away_stats.yellow_cards}
+                />
               </div>
-
-              <div className="flex flex-col gap-4">
-                <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-gray-50 dark:bg-navy-800 p-4 transition-colors duration-300">
-                  <h4 className="mb-3 text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                    {t("match.quickStats")}
-                  </h4>
-                  <QuickStat
-                    label={t("match.possession")}
-                    home={`${selectedOtherFixtureReport.home_stats.possession_pct}%`}
-                    away={`${selectedOtherFixtureReport.away_stats.possession_pct}%`}
-                    homePct={selectedOtherFixtureReport.home_stats.possession_pct}
-                  />
-                  <QuickStat
-                    label={t("match.shots")}
-                    home={selectedOtherFixtureReport.home_stats.shots}
-                    away={selectedOtherFixtureReport.away_stats.shots}
-                  />
-                  <QuickStat
-                    label={t("match.shotsOnTarget")}
-                    home={selectedOtherFixtureReport.home_stats.shots_on_target}
-                    away={selectedOtherFixtureReport.away_stats.shots_on_target}
-                  />
-                  <QuickStat
-                    label={t("match.fouls")}
-                    home={selectedOtherFixtureReport.home_stats.fouls}
-                    away={selectedOtherFixtureReport.away_stats.fouls}
-                  />
-                  <QuickStat
-                    label={t("match.corners")}
-                    home={selectedOtherFixtureReport.home_stats.corners}
-                    away={selectedOtherFixtureReport.away_stats.corners}
-                  />
-                  <QuickStat
-                    label={t("match.yellowCards")}
-                    home={selectedOtherFixtureReport.home_stats.yellow_cards}
-                    away={selectedOtherFixtureReport.away_stats.yellow_cards}
-                  />
-                </div>
-                <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-gray-50 dark:bg-navy-800 p-4 transition-colors duration-300">
-                  <h4 className="mb-3 text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                    {t("match.scorers")}
-                  </h4>
-                  {formatOtherMatchScorers(selectedOtherFixture) ? (
-                    <p className="text-xs text-gray-700 dark:text-gray-300">
-                      {formatOtherMatchScorers(selectedOtherFixture)}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{t("match.noGoals")}</p>
-                  )}
-                </div>
+              <div className="rounded-xl border border-gray-200 dark:border-navy-700 bg-gray-50 dark:bg-navy-800 p-4 transition-colors duration-300">
+                <h4 className="mb-3 text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                  {t("match.scorers")}
+                </h4>
+                {formatOtherMatchScorers(selectedOtherFixture) ? (
+                  <p className="text-xs text-gray-700 dark:text-gray-300">
+                    {formatOtherMatchScorers(selectedOtherFixture)}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t("match.noGoals")}</p>
+                )}
               </div>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
     </div>
   );

@@ -288,6 +288,8 @@ pub fn entity_template(kind: EntityKind, name: Option<&str>) -> Value {
                 "specialization": null,
                 "dateOfBirth": "1975-01-01",
                 "age": null,
+                // What they are called when it differs from their name.
+                "knownAs": null,
                 "attributes": null,
             })
         }
@@ -628,6 +630,7 @@ mod tests {
             specialization: Some(CoachingSpecialization::Fitness),
             date_of_birth: Some("1975-01-01".into()),
             age: Some(50),
+            known_as: Some("Sam Staffer".into()),
         };
 
         let country = CountryDef {

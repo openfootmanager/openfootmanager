@@ -1970,6 +1970,14 @@
     "benchPlayers": "替补球员",
     "selectBenchToCompare": "选择替补球员进行比较",
     "confirmSubstitution": "确认换人",
+    "queueSubstitution": "加入队列",
+    "queuedSubstitutions": "排队中的换人",
+    "confirmAllSubstitutions": "全部确认（{{count}}）",
+    "confirmSubstitutions": "确认 {{count}} 次换人",
+    "removeQueuedSubstitution": "将 {{off}} → {{on}} 从队列中移除",
+    "alreadyQueued": "已排队等待换人",
+    "substitutionsPartlyMade": "已完成 {{applied}}/{{total}} 次换人",
+    "substitutionRefused": "换人被拒绝：{{off}} 换 {{on}}。{{reason}}",
     "noBenchAvailable": "没有可用的替补球员",
     "history": "历史",
     "player": "球员",
@@ -3638,6 +3646,11 @@
     },
     "save": {
       "defaultName": "{{manager}} 的生涯"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "该包定义了不在游戏国家列表中的国家“{{name}}”（{{code}}），且未将其归入任何联合会，因此其俱乐部会被归入欧洲。请为其指定一个联合会。"
+      }
     }
   },
   "traits": {
@@ -3885,6 +3898,7 @@
     "saveSuccess": "已保存",
     "saveTeam": "保存球队",
     "issues": "{{count}} 个问题",
+    "warnings": "{{count}} 条警告",
     "packageId": "包 ID",
     "packageName": "包名称",
     "description": "描述",
@@ -4043,6 +4057,7 @@
     "openPackageFileInvalid": "请选择有效的 .ofm 包文件",
     "noItemSelected": "从列表中选择一项，或点击添加以创建",
     "issuesBadge": "{{count}} 个问题",
+    "warningsBadge": "{{count}} 条警告",
     "issuesTitle": "验证问题",
     "noIssues": "没有问题 — 世界有效",
     "saving": "保存中…",
@@ -4117,6 +4132,8 @@
     "staffId": "ID",
     "staffFirstName": "名",
     "staffLastName": "姓",
+    "staffKnownAs": "通称（可选）",
+    "staffKnownAsPlaceholder": "例如：卡福",
     "staffClub": "俱乐部",
     "staffNationality": "国籍",
     "staffDateOfBirth": "出生日期",

@@ -814,6 +814,7 @@ pub(super) fn generate_staff_from_authored_def(
     s.nationality = nationality.to_string();
     s.team_id = team_id.map(|t| t.to_string());
     s.specialization = def.specialization.clone();
+    s.set_known_as(def.known_as.clone());
     s
 }
 
@@ -1231,6 +1232,36 @@ mod tests {
             &names_def,
             &mut rng,
         )
+    }
+
+    /// Given staff authored with and without a `knownAs` name (#557)
+    /// When they are generated
+    /// Then the one with it is displayed by it, keeping the real name, and the other by first and last.
+    #[test]
+    fn authored_staff_are_displayed_by_what_they_are_called() {
+        let names_def = super::super::definitions::default_names_definition();
+        let generate = |value: serde_json::Value| {
+            let def: super::super::package::StaffDef = serde_json::from_value(value).unwrap();
+            generate_staff_from_authored_def(
+                &def,
+                Some("club-id"),
+                2026,
+                &names_def,
+                &mut rand::rng(),
+            )
+        };
+
+        let pep = generate(serde_json::json!({
+            "id": "pep", "firstName": "Josep", "lastName": "Guardiola i Sala",
+            "knownAs": "Pep Guardiola", "role": "AssistantManager",
+        }));
+        let plain = generate(serde_json::json!({
+            "id": "alice", "firstName": "Alice", "lastName": "Coach", "role": "Coach",
+        }));
+
+        assert_eq!(pep.display_name, "Pep Guardiola");
+        assert_eq!(pep.full_name(), "Josep Guardiola i Sala");
+        assert_eq!(plain.display_name, "Alice Coach");
     }
 
     fn authored_names(value: serde_json::Value) -> (String, String) {

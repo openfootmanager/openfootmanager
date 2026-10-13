@@ -258,4 +258,51 @@ describe("FreeAgentContractModal", () => {
 
     expect(screen.getByText("common.posAbbr.LeftBack")).toBeInTheDocument();
   });
+
+  /**
+   * Given the dialog is open over a button that had focus
+   * When it opens, Tab is pressed on its last control, and then Escape
+   * Then focus starts inside it, Tab wraps instead of leaving it, and Escape asks to close.
+   */
+  it("takes focus, traps Tab and closes on Escape", () => {
+    const onClose = vi.fn();
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+
+    render(
+      <FreeAgentContractModal
+        player={createPlayer()}
+        teams={[createTeam()]}
+        wage="4000"
+        onWageChange={vi.fn()}
+        contractLength="3"
+        onContractLengthChange={vi.fn()}
+        projection={createProjection()}
+        feedback={null}
+        statusMessage={null}
+        statusClassName="text-gray-500"
+        submitting={false}
+        submitDisabled={false}
+        onSubmit={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveFocus();
+    const controls = dialog.querySelectorAll<HTMLElement>(
+      "button:not([disabled]), input:not([disabled]), select:not([disabled])",
+    );
+    const last = controls[controls.length - 1];
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(controls[0]);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    opener.remove();
+  });
 });

@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../../store/gameStore";
 import {
   type MatchSnapshot,
+  type SubstitutionOutcome,
+  type SubstitutionSwap,
   type MatchEvent,
   type MinuteResult,
   type SimSpeed,
@@ -18,6 +20,7 @@ import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
 import { SubPanel } from "./SubPanel";
+import { applySubstitutions } from "./applySubstitutions";
 import {
   Play,
   Pause,
@@ -199,20 +202,16 @@ export default function MatchLive({
     }
   }, [importantEvents.length]);
 
-  // Apply substitution
-  const handleSubstitution = async (playerOffId: string, playerOnId: string) => {
-    if (!userSide || isSpectator) return;
-    try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: {
-          Substitute: { side: userSide, player_off_id: playerOffId, player_on_id: playerOnId },
-        },
-      });
-      onSnapshotUpdate(snap);
-      setShowSubPanel(false);
-    } catch (err) {
-      console.error("Substitution failed:", err);
+  // Apply the queued substitutions; the screen closes only when every one went through.
+  const handleSubstitutions = async (swaps: SubstitutionSwap[]): Promise<SubstitutionOutcome> => {
+    if (!userSide || isSpectator) {
+      return { applied: true };
     }
+    const outcome = await applySubstitutions(userSide, swaps, onSnapshotUpdate);
+    if (outcome.applied) {
+      setShowSubPanel(false);
+    }
+    return outcome;
   };
 
   const handleFormationChange = async (formation: string) => {
@@ -600,7 +599,7 @@ export default function MatchLive({
         <SubPanel
           snapshot={snapshot}
           side={userSide}
-          onSubstitute={handleSubstitution}
+          onSubstitute={handleSubstitutions}
           onFormationChange={handleFormationChange}
           onPlayStyleChange={handlePlayStyleChange}
           onClose={() => setShowSubPanel(false)}

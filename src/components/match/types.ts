@@ -298,3 +298,17 @@ export const PLAY_STYLES = [
   "Counter",
   "HighPress",
 ] as const;
+
+/** One swap the manager has lined up: the player coming off and the bench player replacing them. */
+export interface SubstitutionSwap {
+  offId: string;
+  onId: string;
+}
+
+/**
+ * How a batch of swaps went: all applied, or the first refused swap, the engine's reason and how
+ * many swaps before it were made.
+ */
+export type SubstitutionOutcome =
+  | { applied: true }
+  | { applied: false; refused: SubstitutionSwap; reason: string; appliedCount: number };

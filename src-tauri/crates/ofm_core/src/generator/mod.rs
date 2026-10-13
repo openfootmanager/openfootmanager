@@ -5,6 +5,7 @@ pub mod definitions;
 pub mod file_format;
 mod generation;
 pub mod package;
+mod package_warnings;
 pub mod scaffold;
 pub mod world_io;
 mod youth;
@@ -22,6 +23,7 @@ pub use package::{
     qualify_package_asset_paths, read_logo_from_ofm, read_package_manifest_from_ofm,
     validate_manifest, validate_package, validate_package_stack, validate_references,
 };
+pub use package_warnings::package_warnings;
 pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
     slugify,
