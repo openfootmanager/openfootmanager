@@ -290,8 +290,14 @@ export function useTacticsLibrary({
   const resetTarget = isActiveCustomTactic
     ? (customTactics.find((entry) => entry.id === activeTactic.id) ?? anchoredPresetEntry)
     : activeTactic;
+  // Reset is offered exactly when the badge says something differs: a preset against its whole
+  // definition (formation, style and the backend's verdict on the dials), a saved custom tactic
+  // against what it was saved with.
   const canResetTactic =
-    resetTarget !== null && (resetTarget.type === "preset" || isActiveTacticDirty);
+    resetTarget !== null &&
+    (resetTarget.type === "preset"
+      ? isActiveTacticDirty || isPresetDirty || blueprintModified
+      : isActiveTacticDirty);
 
   async function handleResetTactic(): Promise<void> {
     if (resetTarget) {

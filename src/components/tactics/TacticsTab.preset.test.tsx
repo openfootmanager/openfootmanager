@@ -349,14 +349,32 @@ describe("TacticsTab preset selection", () => {
   });
 
   /**
-   * Given a manager on the Balanced Control preset with formation and style untouched (their
-   * hand-tuned phase dials are not part of the unsaved-changes badge)
+   * Given a manager on the Balanced Control preset with nothing changed
    * When they look at Reset
-   * Then it is still available, and pressing it re-applies the preset's blueprint.
+   * Then it is disabled, as the badge says Synced.
    */
-  it("keeps Reset available on an untouched preset so tuned dials can be undone", async () => {
+  it("disables Reset on an untouched preset", () => {
     fakeBackend();
     render(<ControlledTacticsTab />);
+
+    expect(screen.getByText("Synced")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset to defaults" })).toBeDisabled();
+  });
+
+  /**
+   * Given a preset whose phase dial was tuned
+   * When the manager presses Reset
+   * Then Reset was enabled by the tuned dial, apply_tactic_preset restores the blueprint, and both
+   *      the badge and the button return to their idle state.
+   */
+  it("enables Reset when a dial is tuned and clears badge and button after resetting", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    openPhaseBlueprint();
+    const widthRow = screen.getByText("Width").parentElement as HTMLElement;
+    fireEvent.click(within(widthRow).getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Wide" }));
+    await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
     const reset = screen.getByRole("button", { name: "Reset to defaults" });
     expect(reset).toBeEnabled();
 
@@ -368,6 +386,8 @@ describe("TacticsTab preset selection", () => {
         playStyle: "Balanced",
       }),
     );
+    await waitFor(() => expect(screen.getByText("Synced")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Reset to defaults" })).toBeDisabled();
   });
 
   /**
