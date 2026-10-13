@@ -76,7 +76,6 @@ pub fn seed_opening_ai_loan_market(game: &mut Game) -> usize {
             .enumerate()
             .filter(|(_, player)| {
                 player.team_id.as_deref() == Some(team_id.as_str())
-                    && !player.retired
                     && !player.transfer_listed
                     && !player.loan_listed
                     && !player_has_pending_registration(player)

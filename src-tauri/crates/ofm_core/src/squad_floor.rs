@@ -654,7 +654,7 @@ fn free_agents_best_first(game: &Game, group: &Position) -> Vec<usize> {
         .players
         .iter()
         .enumerate()
-        .filter(|(_, player)| player.team_id.is_none() && !player.retired)
+        .filter(|(_, player)| player.team_id.is_none())
         .filter(|(_, player)| player.position.to_group_position() == *group)
         .map(|(index, _)| index)
         .collect();

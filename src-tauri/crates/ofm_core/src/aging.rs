@@ -75,7 +75,7 @@ fn has_expired_contract(player: &Player, current_date: NaiveDate) -> bool {
 }
 
 fn retirement_chance(player: &Player, age: i32, current_date: NaiveDate) -> u32 {
-    if player.retired || age < 33 {
+    if age < 33 {
         return 0;
     }
 
@@ -141,10 +141,6 @@ fn retire_player(player: &mut Player, current_date: NaiveDate) {
 
 pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u32) {
     for player in game.players.iter_mut() {
-        if player.retired {
-            continue;
-        }
-
         let age = player_age_on(current_date, &player.date_of_birth);
         apply_attribute_curve(player, age, season);
 

@@ -1,4 +1,4 @@
-//! Looking up someone who has stopped playing, wherever the game keeps him.
+//! Who has stopped playing: moving them into the archive, and looking them up there.
 
 use domain::player::{Player, PlayerMovementKind};
 use domain::retired_player::RetiredPlayer;
@@ -67,19 +67,11 @@ fn release_loan_references(game: &mut Game, player: &Player) {
     }
 }
 
-/// The archive first, then the roster, so the answer is the same on either side of the move
-/// that takes retirees out of the roster.
 pub fn find_retiree(game: &Game, player_id: &str) -> Option<Player> {
     game.retired_players
         .iter()
         .find(|retired| retired.id == player_id)
         .map(|retired| retired.to_player())
-        .or_else(|| {
-            game.players
-                .iter()
-                .find(|player| player.retired && player.id == player_id)
-                .cloned()
-        })
 }
 
 #[cfg(test)]
@@ -154,27 +146,6 @@ mod tests {
 
         assert_eq!(found.full_name, "Ada Old");
         assert!(found.retired);
-    }
-
-    /// Given a retiree still on the roster, when looked up, then he is found there.
-    #[test]
-    fn a_retiree_still_on_the_roster_is_found() {
-        let game = game_with(vec![person("p-old", "Ada Old", true)]);
-
-        assert_eq!(find_retiree(&game, "p-old").unwrap().full_name, "Ada Old");
-    }
-
-    /// Given a person in both places, when looked up, then the archive's record wins.
-    #[test]
-    fn the_archive_wins_over_the_roster() {
-        let mut game = game_with(vec![person("p-old", "Roster Copy", true)]);
-        game.retired_players.push(RetiredPlayer::from_player(
-            &person("p-old", "Ada Old", true),
-            "2039-06-30",
-            2039,
-        ));
-
-        assert_eq!(find_retiree(&game, "p-old").unwrap().full_name, "Ada Old");
     }
 
     /// Given an active player or an unknown id, when looked up, then nobody is found:
