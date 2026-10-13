@@ -1450,6 +1450,8 @@
     "fixtures": "Fikstür",
     "standings": "Puan Durumu",
     "matchday": "{{number}}. hafta",
+    "movedFrom": "{{date}} tarihinden ertelendi",
+    "dateRange": "{{from}} ile {{to}} arası",
     "season": "{{number}}. sezon",
     "international": "Uluslararası",
     "internationalDuty": "Millî Takım Görevinde",

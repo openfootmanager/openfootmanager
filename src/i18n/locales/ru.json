@@ -1450,6 +1450,8 @@
     "fixtures": "Матчи",
     "standings": "Таблица",
     "matchday": "Тур {{number}}",
+    "movedFrom": "Перенесено с {{date}}",
+    "dateRange": "с {{from}} по {{to}}",
     "season": "Сезон {{number}}",
     "international": "Сборные",
     "internationalDuty": "В сборной",

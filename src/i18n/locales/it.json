@@ -1469,6 +1469,8 @@
     "fixtures": "Partite",
     "standings": "Classifica",
     "matchday": "Giornata {{number}}",
+    "movedFrom": "Spostata da {{date}}",
+    "dateRange": "dal {{from}} al {{to}}",
     "season": "Stagione {{number}}",
     "international": "Internazionale",
     "internationalDuty": "In nazionale",

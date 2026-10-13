@@ -1450,6 +1450,8 @@
     "fixtures": "Zápasy",
     "standings": "Tabulka",
     "matchday": "{{number}}. kolo",
+    "movedFrom": "Přesunuto z {{date}}",
+    "dateRange": "{{from}} až {{to}}",
     "season": "{{number}}. sezóna",
     "international": "Mezinárodní",
     "internationalDuty": "Plní reprezentační povinnosti",
