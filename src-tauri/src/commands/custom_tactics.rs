@@ -1,0 +1,147 @@
+//! The player's saved tactics (#390): list, save and delete. The rules are in
+//! `ofm_core::custom_tactics`; these only reach the active game.
+
+use log::info;
+use std::sync::Arc;
+use tauri::State;
+
+use domain::custom_tactic::CustomTactic;
+use ofm_core::state::StateManager;
+
+use crate::commands::util::mutate_active_game;
+
+const NO_ACTIVE_GAME: &str = "be.error.noActiveGameSession";
+
+pub fn list_custom_tactics_internal(state: &StateManager) -> Result<Vec<CustomTactic>, String> {
+    state
+        .get_game(|game| game.custom_tactics.clone())
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+pub fn save_custom_tactic_internal(
+    state: &StateManager,
+    tactic: &CustomTactic,
+) -> Result<Vec<CustomTactic>, String> {
+    mutate_active_game(state, |game| {
+        ofm_core::custom_tactics::save_custom_tactic(game, tactic)
+    })
+    .map(|game| game.custom_tactics)
+}
+
+pub fn delete_custom_tactic_internal(
+    state: &StateManager,
+    id: &str,
+) -> Result<Vec<CustomTactic>, String> {
+    mutate_active_game(state, |game| {
+        ofm_core::custom_tactics::delete_custom_tactic(game, id)
+    })
+    .map(|game| game.custom_tactics)
+}
+
+#[tauri::command]
+pub fn list_custom_tactics(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<Vec<CustomTactic>, String> {
+    list_custom_tactics_internal(&state)
+}
+
+/// Adds the tactic, or replaces the one with the same id; returns the whole list.
+#[tauri::command]
+pub fn save_custom_tactic(
+    state: State<'_, Arc<StateManager>>,
+    tactic: CustomTactic,
+) -> Result<Vec<CustomTactic>, String> {
+    info!("[cmd] save_custom_tactic: {}", tactic.id);
+    save_custom_tactic_internal(&state, &tactic)
+}
+
+/// Removes the tactic; returns the list that is left.
+#[tauri::command]
+pub fn delete_custom_tactic(
+    state: State<'_, Arc<StateManager>>,
+    id: String,
+) -> Result<Vec<CustomTactic>, String> {
+    info!("[cmd] delete_custom_tactic: {id}");
+    delete_custom_tactic_internal(&state, &id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
+
+    fn state_with_game() -> StateManager {
+        let state = StateManager::new();
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2031, 7, 1, 12, 0, 0).unwrap());
+        let manager = Manager::new(
+            "m".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "England".into(),
+        );
+        state.set_game(Game::new(clock, manager, vec![], vec![], vec![], vec![]));
+        state
+    }
+
+    fn tactic(id: &str) -> CustomTactic {
+        CustomTactic {
+            id: id.into(),
+            name: format!("Tactic {id}"),
+            description: String::new(),
+            formation: "4-3-3".into(),
+            play_style: "Possession".into(),
+            source_preset_name: None,
+        }
+    }
+
+    /// Given an active career
+    /// When tactics are saved, listed, and one deleted
+    /// Then each call returns the library as it now stands, and the game keeps it.
+    #[test]
+    fn saving_listing_and_deleting_go_through_the_active_game() {
+        let state = state_with_game();
+        assert!(list_custom_tactics_internal(&state).unwrap().is_empty());
+
+        save_custom_tactic_internal(&state, &tactic("a")).unwrap();
+        let after_second = save_custom_tactic_internal(&state, &tactic("b")).unwrap();
+        assert_eq!(after_second.len(), 2);
+
+        let left = delete_custom_tactic_internal(&state, "a").unwrap();
+        assert_eq!(
+            left.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(),
+            ["b"]
+        );
+        assert_eq!(list_custom_tactics_internal(&state).unwrap(), left);
+    }
+
+    /// Given an invalid tactic, a missing id, and no game at all
+    /// When they are sent
+    /// Then each is a translation key, and the library is unchanged.
+    #[test]
+    fn failures_are_translation_keys_and_change_nothing() {
+        let state = state_with_game();
+        save_custom_tactic_internal(&state, &tactic("a")).unwrap();
+
+        let mut bad = tactic("b");
+        bad.formation = "1-1-1".into();
+        assert_eq!(
+            save_custom_tactic_internal(&state, &bad),
+            Err("be.error.customTactic.invalidFormation".to_string())
+        );
+        assert_eq!(
+            delete_custom_tactic_internal(&state, "missing"),
+            Err("be.error.customTactic.notFound".to_string())
+        );
+        assert_eq!(list_custom_tactics_internal(&state).unwrap().len(), 1);
+
+        let empty = StateManager::new();
+        assert_eq!(
+            list_custom_tactics_internal(&empty),
+            Err(NO_ACTIVE_GAME.to_string())
+        );
+    }
+}

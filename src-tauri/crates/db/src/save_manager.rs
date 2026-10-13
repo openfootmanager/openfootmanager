@@ -3658,6 +3658,42 @@ mod tests {
         assert_eq!(loaded.retired_managers[0].first_name, "Ada");
     }
 
+    /// Given a career with saved tactics in a chosen order, one of them since deleted (#390)
+    /// When it is saved and loaded
+    /// Then the tactics come back in order, with the deleted one gone.
+    #[test]
+    fn custom_tactics_survive_save_and_load_in_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let tactic = |id: &str, name: &str| domain::custom_tactic::CustomTactic {
+            id: id.to_string(),
+            name: name.to_string(),
+            description: "d".to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: "Counter".to_string(),
+            source_preset_name: Some("Counter".to_string()),
+        };
+        game.custom_tactics = vec![
+            tactic("a", "First"),
+            tactic("b", "Second"),
+            tactic("c", "Third"),
+        ];
+        let id = manager.create_save(&game, "Tactics").unwrap();
+
+        game.custom_tactics.remove(1);
+        manager.save_game(&game, &id).unwrap();
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(loaded.custom_tactics, game.custom_tactics);
+        let names: Vec<&str> = loaded
+            .custom_tactics
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
+        assert_eq!(names, ["First", "Third"]);
+    }
+
     /// Given a retiree archived in a transaction that is then abandoned, when the database is
     /// read, then the person is still active and no archive row exists: neither half committed.
     #[test]
