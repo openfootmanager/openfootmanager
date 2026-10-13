@@ -106,16 +106,12 @@ export default function InboxTab({
     [allMessages, selectedMessageId],
   );
 
-  // A message can leave the view without the filter changing (reading one in the Unread view), and
-  // it must leave the selection with it.
-  useEffect(() => {
+  // Only what is on screen counts as selected: a message can leave the view without the filter
+  // changing (reading one in the Unread view), and Delete must never remove it unseen.
+  const visibleSelectedMessageIds = useMemo(() => {
     const visibleMessageIds = new Set(filteredMessages.map((message) => message.id));
-
-    setSelectedMessageIds((currentIds) => {
-      const stillVisible = currentIds.filter((messageId) => visibleMessageIds.has(messageId));
-      return stillVisible.length === currentIds.length ? currentIds : stillVisible;
-    });
-  }, [filteredMessages]);
+    return selectedMessageIds.filter((messageId) => visibleMessageIds.has(messageId));
+  }, [filteredMessages, selectedMessageIds]);
 
   useEffect(() => {
     const availableMessageIds = new Set(allMessages.map((message) => message.id));
@@ -287,13 +283,13 @@ export default function InboxTab({
   }
 
   function handleRequestBulkDelete(): void {
-    if (selectedMessageIds.length === 0) {
+    if (visibleSelectedMessageIds.length === 0) {
       return;
     }
 
     setDeleteModalState({
       mode: "bulk",
-      messageIds: selectedMessageIds,
+      messageIds: visibleSelectedMessageIds,
     });
   }
 
@@ -355,15 +351,13 @@ export default function InboxTab({
         categories={categories}
         categoryCounts={categoryCounts}
         categoryFilter={categoryFilter}
-        selectedMessageCount={selectedMessageIds.length}
+        selectedMessageCount={visibleSelectedMessageIds.length}
         visibleMessageCount={filteredMessages.length}
         allVisibleSelected={
           filteredMessages.length > 0 &&
-          filteredMessages.every((message) => selectedMessageIds.includes(message.id))
+          visibleSelectedMessageIds.length === filteredMessages.length
         }
-        someVisibleSelected={filteredMessages.some((message) =>
-          selectedMessageIds.includes(message.id),
-        )}
+        someVisibleSelected={visibleSelectedMessageIds.length > 0}
         onToggleSelectAll={handleToggleSelectAll}
         sortOrder={sortOrder}
         unreadCount={unreadCount}

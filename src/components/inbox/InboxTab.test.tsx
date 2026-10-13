@@ -592,6 +592,40 @@ describe("InboxTab", (): void => {
   });
 
   /**
+   * Given a message ticked in the Unread view
+   * When opening it marks it read and it leaves that view
+   * Then it also leaves the selection, so Delete cannot remove what is no longer on screen.
+   */
+  it("drops a selected message from the selection when it leaves the view", async (): Promise<void> => {
+    mockedInvoke.mockResolvedValue([
+      createMessage({ id: "m1", subject: "First", read: false }),
+      createMessage({ id: "m2", subject: "Second", read: true }),
+    ]);
+    await renderInboxTab({
+      gameState: createGameState([
+        createMessage({ id: "m1", subject: "First", read: false }),
+        createMessage({ id: "m2", subject: "Second", read: false }),
+      ]),
+    });
+
+    fireEvent.click(screen.getByText(/inbox\.unread/));
+    fireEvent.click(screen.getByTestId("inbox-toggle-selection-mode"));
+    fireEvent.click(screen.getByTestId("inbox-select-message-m1"));
+    fireEvent.click(screen.getByTestId("inbox-select-message-m2"));
+    fireEvent.click(screen.getByText("Second"));
+
+    await waitFor((): void => {
+      expect(screen.queryByTestId("inbox-select-message-m2")).not.toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("inbox-delete-selected"));
+    fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
+
+    await waitFor((): void => {
+      expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", { messageIds: ["m1"] });
+    });
+  });
+
+  /**
    * Given selection mode is off
    * When the toolbar renders
    * Then there is no Select all control.
