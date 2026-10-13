@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../../store/gameStore";
 import {
   type MatchSnapshot,
+  type SubstitutionOutcome,
+  type SubstitutionSwap,
   type MatchEvent,
   type MinuteResult,
   type SimSpeed,
@@ -17,7 +19,7 @@ import { Badge, TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
-import { SubPanel, type SubstitutionSwap } from "./SubPanel";
+import { SubPanel } from "./SubPanel";
 import { applySubstitutions } from "./applySubstitutions";
 import {
   Play,
@@ -201,11 +203,15 @@ export default function MatchLive({
   }, [importantEvents.length]);
 
   // Apply the queued substitutions; the screen closes only when every one went through.
-  const handleSubstitutions = async (swaps: SubstitutionSwap[]) => {
-    if (!userSide || isSpectator) return;
-    if (await applySubstitutions(userSide, swaps, onSnapshotUpdate)) {
+  const handleSubstitutions = async (swaps: SubstitutionSwap[]): Promise<SubstitutionOutcome> => {
+    if (!userSide || isSpectator) {
+      return { applied: true };
+    }
+    const outcome = await applySubstitutions(userSide, swaps, onSnapshotUpdate);
+    if (outcome.applied) {
       setShowSubPanel(false);
     }
+    return outcome;
   };
 
   const handleFormationChange = async (formation: string) => {

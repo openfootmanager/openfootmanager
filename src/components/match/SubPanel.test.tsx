@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { SubPanel } from "./SubPanel";
 import type { EnginePlayerData, EngineTeamData, MatchSnapshot } from "./types";
 
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
     t: (key: string, arg?: unknown) => {
       if (typeof arg === "string") {
@@ -37,6 +38,21 @@ vi.mock("react-i18next", () => ({
 
       if (key === "match.confirmSubstitution") {
         return "Confirm substitution";
+      }
+
+      if (key === "match.removeQueuedSubstitution" && typeof arg === "object" && arg !== null) {
+        const { off, on } = arg as { off: string; on: string };
+        return `Remove ${off} → ${on} from the queue`;
+      }
+
+      if (key === "match.substitutionsPartlyMade" && typeof arg === "object" && arg !== null) {
+        const { applied, total } = arg as { applied: number; total: number };
+        return `${applied} of ${total} substitutions made`;
+      }
+
+      if (key === "match.substitutionRefused" && typeof arg === "object" && arg !== null) {
+        const { off, on, reason } = arg as { off: string; on: string; reason: string };
+        return `Refused ${off} for ${on}: ${reason}`;
       }
 
       return key;
@@ -139,7 +155,7 @@ describe("SubPanel", () => {
   const createProps = () => ({
     snapshot: createSnapshot(),
     side: "Home" as const,
-    onSubstitute: vi.fn(),
+    onSubstitute: vi.fn().mockResolvedValue({ applied: true }),
     onFormationChange: vi.fn(),
     onPlayStyleChange: vi.fn(),
     onClose: vi.fn(),
@@ -296,7 +312,7 @@ describe("SubPanel", () => {
     pickSwap("starter-1", "bench-1");
     fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "match.removeQueuedSubstitution" }));
+    fireEvent.click(screen.getByTestId("remove-queued-sub-starter-1-bench-1"));
 
     expect(screen.queryByTestId("queued-sub-starter-1-bench-1")).not.toBeInTheDocument();
     expect(screen.getByTestId("sub-panel-bench-bench-1")).toBeInTheDocument();
@@ -325,7 +341,7 @@ describe("SubPanel", () => {
   /**
    * Given the club has one substitution left and one is already queued
    * When another pair is chosen
-   * Then it cannot be queued or confirmed.
+   * Then it cannot be queued; Confirm commits the queue alone.
    */
   it("stops queuing once the substitutions left are spoken for", () => {
     const props = createProps();
@@ -336,7 +352,8 @@ describe("SubPanel", () => {
     pickSwap("starter-2", "bench-2");
 
     expect(screen.getByRole("button", { name: "match.queueSubstitution" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "match.confirmSubstitutions" })).toBeDisabled();
+    // The pair can no longer be added, so Confirm now commits the queue alone.
+    expect(screen.getByRole("button", { name: "match.confirmAllSubstitutions" })).toBeEnabled();
   });
 
   /**
@@ -358,5 +375,203 @@ describe("SubPanel", () => {
     rerender(<SubPanel {...props} snapshot={applied} />);
 
     expect(screen.queryByTestId("queued-sub-starter-1-bench-1")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a confirm that is still running
+   * When the manager clicks it again
+   * Then the batch is not sent twice, and the buttons are disabled meanwhile.
+   */
+  it("ignores a second confirm while the batch is being applied", () => {
+    const props = createProps();
+    props.onSubstitute = vi.fn(() => new Promise<never>(() => {}));
+    render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+    const confirm = screen.getByRole("button", { name: "match.confirmAllSubstitutions" });
+
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+
+    expect(props.onSubstitute).toHaveBeenCalledTimes(1);
+    expect(confirm).toBeDisabled();
+  });
+
+  /**
+   * Given every substitution left is already queued and another pair is selected
+   * When the manager confirms
+   * Then the queue alone is committed, without first clearing the selection.
+   */
+  it("commits a full queue even while another pair is selected", () => {
+    const props = createProps();
+    props.snapshot.home_subs_made = 4;
+    render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+    pickSwap("starter-2", "bench-2");
+
+    const confirm = screen.getByRole("button", { name: "match.confirmAllSubstitutions" });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+
+    expect(props.onSubstitute).toHaveBeenCalledWith([{ offId: "starter-1", onId: "bench-1" }]);
+  });
+
+  /**
+   * Given two queued swaps and focus on the first one's remove button
+   * When it is removed
+   * Then focus moves to the remaining swap's remove button, and when that is removed too, to the
+   *      first player who can still come off, never to the page body.
+   */
+  it("keeps keyboard focus inside the panel when queued swaps are removed", () => {
+    const props = createProps();
+    render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+    pickSwap("starter-2", "bench-2");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+
+    screen.getByTestId("remove-queued-sub-starter-1-bench-1").focus();
+    fireEvent.click(screen.getByTestId("remove-queued-sub-starter-1-bench-1"));
+    expect(screen.getByTestId("remove-queued-sub-starter-2-bench-2")).toHaveFocus();
+
+    fireEvent.click(screen.getByTestId("remove-queued-sub-starter-2-bench-2"));
+    expect(screen.getByTestId("sub-panel-off-starter-1")).toHaveFocus();
+  });
+
+  /**
+   * Given a pair is chosen
+   * When the manager adds it to the queue (the button unmounts)
+   * Then focus moves to the first player who can still come off.
+   */
+  it("moves focus to the next player to take off after queuing a swap", () => {
+    const props = createProps();
+    render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    const add = screen.getByRole("button", { name: "match.queueSubstitution" });
+    add.focus();
+
+    fireEvent.click(add);
+
+    expect(screen.getByTestId("sub-panel-off-starter-2")).toHaveFocus();
+  });
+
+  /**
+   * Given the engine refuses a queued swap
+   * When the batch comes back refused
+   * Then the panel stays open and says which swap was refused and why.
+   */
+  it("tells the manager which swap the engine refused and why", async () => {
+    const props = createProps();
+    props.onSubstitute = vi.fn().mockResolvedValue({
+      applied: false,
+      refused: { offId: "starter-1", onId: "bench-1" },
+      reason: "be.error.liveMatch.playerAlreadySubstitutedOff",
+      appliedCount: 0,
+    });
+    render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "match.confirmAllSubstitutions" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Starter One");
+    expect(alert).toHaveTextContent("Bench One");
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given two queued swaps
+   * When a screen reader reads the remove buttons
+   * Then each is named by the swap it removes, not by the same generic label.
+   */
+  it("names each remove button by the swap it removes", () => {
+    const props = createProps();
+    render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+    pickSwap("starter-2", "bench-2");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+
+    expect(
+      screen.getByRole("button", { name: "Remove Starter One → Bench One from the queue" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove Starter Two → Bench Two from the queue" }),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * Given a swap is queued
+   * When the formation pitch is read
+   * Then the queued player's token is marked unavailable and cannot be picked from the pitch.
+   */
+  it("marks a queued player as unavailable on the pitch too", () => {
+    const props = createProps();
+    const { container } = render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+
+    const token = container.querySelector<HTMLElement>('[aria-label="Starter One"]');
+    expect(token).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(token as HTMLElement);
+    expect(screen.queryByText("match.selectBenchToCompare")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a swap is queued
+   * When the context menu of the queued player's row is opened
+   * Then "Select to take off" is not offered; a disabled "already queued" entry stands in.
+   */
+  it("offers no take-off action in the context menu of a queued player", () => {
+    const props = createProps();
+    render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+
+    fireEvent.contextMenu(screen.getByTestId("sub-panel-off-starter-1"));
+
+    expect(screen.queryByRole("menuitem", { name: "Select to take off" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "match.alreadyQueued" })).toBeDisabled();
+  });
+
+  /**
+   * Given a swap is queued
+   * When the queued row's direction glyph is read
+   * Then it is hidden from assistive technology, since the row already says it is unavailable.
+   */
+  it("hides the direction glyph of a queued player from assistive technology", () => {
+    const props = createProps();
+    render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+
+    const row = screen.getByTestId("sub-panel-off-starter-1");
+    expect(within(row).getByText("▼")).toHaveAttribute("aria-hidden", "true");
+  });
+
+  /**
+   * Given a batch where the first swap was made and the second refused
+   * When the outcome comes back
+   * Then a polite status says how many of the substitutions were made.
+   */
+  it("announces how much of a partly refused batch was made", async () => {
+    const props = createProps();
+    props.onSubstitute = vi.fn().mockResolvedValue({
+      applied: false,
+      refused: { offId: "starter-2", onId: "bench-2" },
+      reason: "be.error.liveMatch.maxSubstitutionsReached",
+      appliedCount: 1,
+    });
+    render(<SubPanel {...props} />);
+    pickSwap("starter-1", "bench-1");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+    pickSwap("starter-2", "bench-2");
+    fireEvent.click(screen.getByRole("button", { name: "match.queueSubstitution" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "match.confirmAllSubstitutions" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("1 of 2 substitutions made");
   });
 });

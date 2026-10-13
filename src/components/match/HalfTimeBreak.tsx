@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../../store/gameStore";
 import {
   type MatchSnapshot,
+  type SubstitutionOutcome,
+  type SubstitutionSwap,
   type MatchEvent,
   FORMATIONS,
   PLAY_STYLES,
@@ -12,7 +14,7 @@ import {
 } from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
-import { SubPanel, type SubstitutionSwap } from "./SubPanel";
+import { SubPanel } from "./SubPanel";
 import { applySubstitutions } from "./applySubstitutions";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";
 import { Play, RefreshCw, Shield, Zap, Target, Crosshair, Flag, MessageCircle } from "lucide-react";
@@ -102,10 +104,12 @@ export default function HalfTimeBreak({
     }
   };
 
-  const handleSubstitutions = async (swaps: SubstitutionSwap[]) => {
-    if (await applySubstitutions(userSide, swaps, onUpdateSnapshot)) {
+  const handleSubstitutions = async (swaps: SubstitutionSwap[]): Promise<SubstitutionOutcome> => {
+    const outcome = await applySubstitutions(userSide, swaps, onUpdateSnapshot);
+    if (outcome.applied) {
       setShowSubPanel(false);
     }
+    return outcome;
   };
 
   const handleDeliverTalk = async () => {

@@ -33,7 +33,7 @@ describe("applySubstitutions", () => {
       onSnapshot,
     );
 
-    expect(applied).toBe(true);
+    expect(applied).toEqual({ applied: true });
     expect(mockedInvoke.mock.calls).toEqual([
       [
         "apply_match_command",
@@ -67,7 +67,12 @@ describe("applySubstitutions", () => {
       onSnapshot,
     );
 
-    expect(applied).toBe(false);
+    expect(applied).toEqual({
+      applied: false,
+      refused: { offId: "c", onId: "d" },
+      reason: "be.error.nope",
+      appliedCount: 1,
+    });
     expect(mockedInvoke).toHaveBeenCalledTimes(2);
     expect(onSnapshot).toHaveBeenCalledTimes(1);
   });

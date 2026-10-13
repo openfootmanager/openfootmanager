@@ -115,6 +115,8 @@ interface FormationPitchProps {
   sentOff?: string[];
   selectedId?: string | null;
   subbedOnIds?: Set<string>;
+  /** Players already lined up to come off: shown unavailable and not clickable. */
+  queuedOffIds?: Set<string>;
   onPlayerClick?: (id: string) => void;
   className?: string;
   /**
@@ -141,6 +143,7 @@ export function FormationPitch({
   sentOff = [],
   selectedId,
   subbedOnIds,
+  queuedOffIds,
   onPlayerClick,
   className,
   renderToken,
@@ -249,6 +252,7 @@ export function FormationPitch({
         const descriptionId = getDescriptionId(p.id);
         const isSelected = selectedId === p.id;
         const isSubOn = subbedOnIds?.has(p.id) ?? false;
+        const isQueuedOff = queuedOffIds?.has(p.id) ?? false;
         const initials = p.name
           .split(" ")
           .map((n) => n[0])
@@ -276,7 +280,13 @@ export function FormationPitch({
                     : "border-white/30 bg-navy-800/80"
               }`}
             >
-              {isSubOn ? "▲" : initials}
+              {isSubOn ? (
+                <span aria-hidden="true">▲</span>
+              ) : isQueuedOff ? (
+                <span aria-hidden="true">▼</span>
+              ) : (
+                initials
+              )}
             </div>
             <span
               className={`max-w-[44px] truncate text-center font-heading text-[8px] font-bold drop-shadow ${isSelected ? "text-red-300" : "text-white/80"}`}
@@ -296,13 +306,17 @@ export function FormationPitch({
               role="button"
               tabIndex={0}
               aria-label={p.name}
+              aria-disabled={isQueuedOff || undefined}
               aria-describedby={renderToken ? descriptionId : undefined}
               onFocus={() => focusToken(p.id)}
               onBlur={blurToken}
-              className={`${sharedClass} rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300/70`}
+              className={`${sharedClass} rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300/70 ${isQueuedOff ? "opacity-50" : ""}`}
               style={sharedStyle}
-              onClick={() => onPlayerClick(p.id)}
+              onClick={() => {
+                if (!isQueuedOff) onPlayerClick(p.id);
+              }}
               onKeyDown={(e) => {
+                if (isQueuedOff) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
                   onPlayerClick(p.id);

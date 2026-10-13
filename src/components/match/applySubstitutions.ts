@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { SubstitutionSwap } from "./SubPanel";
-import type { MatchSnapshot } from "./types";
+import type { MatchSnapshot, SubstitutionOutcome, SubstitutionSwap } from "./types";
 
 /**
  * Sends queued swaps to the engine one at a time, in the order they were queued.
@@ -9,14 +8,15 @@ import type { MatchSnapshot } from "./types";
  * Each swap is validated by the engine on its own (substitutions left, a player already off, a
  * player sent off), so the first refusal stops the batch: what was applied stays applied and is
  * reported through `onSnapshot` as it happens, and the rest are not attempted. Returns whether
- * the whole batch went through, which is when the caller may close the substitution screen.
+ * the whole batch went through (when the caller may close the substitution screen) or the swap that
+ * was refused with the engine's reason, a translation key, for the screen to show.
  */
 export async function applySubstitutions(
   side: "Home" | "Away",
   swaps: SubstitutionSwap[],
   onSnapshot: (snapshot: MatchSnapshot) => void,
-): Promise<boolean> {
-  for (const swap of swaps) {
+): Promise<SubstitutionOutcome> {
+  for (const [appliedCount, swap] of swaps.entries()) {
     try {
       const snapshot = await invoke<MatchSnapshot>("apply_match_command", {
         command: {
@@ -26,8 +26,8 @@ export async function applySubstitutions(
       onSnapshot(snapshot);
     } catch (err) {
       console.error("Substitution failed:", err);
-      return false;
+      return { applied: false, refused: swap, reason: String(err), appliedCount };
     }
   }
-  return true;
+  return { applied: true };
 }
