@@ -13,6 +13,11 @@ pub enum SaveLoadError {
     Corrupted,
     /// The save was written by a newer build than this one understands.
     IncompatibleVersion { save_version: i64, supported: i64 },
+    /// The file's tables and columns are not what its schema version says they
+    /// should be (a hand-edited or cross-branch save). `first_difference` names
+    /// the first table or column that disagrees, for the log; the player sees
+    /// only the generic message.
+    IncompatibleLayout { first_difference: String },
     /// The database opens, but required game data is missing or unreadable.
     MissingData,
     /// The save's embedded world / mod definition is invalid.
@@ -33,6 +38,9 @@ impl SaveLoadError {
             } => format!(
                 "be.error.saveLoad.incompatibleVersion?saveVersion={save_version}&supported={supported}"
             ),
+            SaveLoadError::IncompatibleLayout { .. } => {
+                "be.error.saveLoad.incompatibleLayout".to_string()
+            }
             SaveLoadError::MissingData => "be.error.saveLoad.missingData".to_string(),
             SaveLoadError::InvalidWorld => "be.error.saveLoad.invalidWorld".to_string(),
             SaveLoadError::Unknown => "be.error.saveLoad.unknown".to_string(),
@@ -64,6 +72,10 @@ mod tests {
             SaveLoadError::IncompatibleVersion {
                 save_version: 30,
                 supported: 29,
+            }
+            .i18n_key(),
+            SaveLoadError::IncompatibleLayout {
+                first_difference: "teams.reputation".to_string(),
             }
             .i18n_key(),
             SaveLoadError::MissingData.i18n_key(),
