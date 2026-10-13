@@ -1,6 +1,5 @@
 //! Shared helpers for MCP tool implementations.
 
-use chrono::Datelike;
 use ofm_core::state::StateManager;
 
 /// Get the active game from StateManager, returning a formatted error if none.
