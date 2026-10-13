@@ -28,6 +28,7 @@ pub mod football_identity;
 pub mod game;
 pub mod generator;
 pub mod group_stage;
+pub mod hall_of_fame;
 pub mod history_generation;
 pub mod inbox;
 pub mod job_offers;
