@@ -28,8 +28,9 @@ pub(super) fn parse_competition_definitions(
 pub(super) fn validate_against_world(
     file: &ofm_core::generator::CompetitionDefinitionFile,
     world: &ofm_core::generator::WorldData,
+    basis: ofm_core::generator::ReputationBasis<'_>,
 ) -> Vec<CompetitionDefinitionIssue> {
-    ofm_core::generator::validate_definitions_for_world(file, world)
+    ofm_core::generator::validate_definitions_for_world_ranked(file, world, basis)
         .into_iter()
         .map(|error| CompetitionDefinitionIssue {
             code: error.code,
@@ -49,8 +50,13 @@ pub fn validate_competition_definitions(
     definitions_json: String,
 ) -> Result<Vec<CompetitionDefinitionIssue>, String> {
     let file = parse_competition_definitions(&definitions_json)?;
-    let world = load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?;
-    Ok(validate_against_world(&file, &world))
+    let (world, authored) =
+        load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?;
+    Ok(validate_against_world(
+        &file,
+        &world,
+        ofm_core::generator::ReputationBasis::Authored(&authored),
+    ))
 }
 
 /// One problem found while loading a world package, shaped for the UI.
