@@ -1,6 +1,7 @@
 pub mod age;
 pub mod competition_calendar;
 pub mod contract_ledger;
+pub mod custom_tactic;
 pub mod edition_archive;
 pub mod finance;
 pub mod identity;
