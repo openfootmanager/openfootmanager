@@ -45,6 +45,39 @@ pub struct RetiredPlayer {
 }
 
 impl RetiredPlayer {
+    /// The record as a `Player`, for the screens that show a person. He is retired,
+    /// has no club, no offers and no season stats: only what the archive kept.
+    pub fn to_player(&self) -> Player {
+        let mut player = Player::new(
+            self.id.clone(),
+            self.match_name.clone(),
+            self.full_name.clone(),
+            self.date_of_birth.clone(),
+            self.nationality.clone(),
+            self.natural_position.to_group_position(),
+            self.attributes.clone(),
+        );
+        player.football_nation = self.football_nation.clone();
+        player.birth_country = self.birth_country.clone();
+        player.media = self.media.clone();
+        player.natural_position = self.natural_position.clone();
+        player.alternate_positions = self.alternate_positions.clone();
+        player.footedness = self.footedness;
+        player.weak_foot = self.weak_foot;
+        player.ovr = self.ovr;
+        player.potential = self.potential;
+        player.career = self.career.clone();
+        for movement in &self.movements {
+            // Each entry was accepted once already; one refused now means a damaged record,
+            // and a profile without that entry beats no profile.
+            if player.record_movement(movement.clone()).is_err() {
+                continue;
+            }
+        }
+        player.retired = true;
+        player
+    }
+
     /// Freezes a retiring player into his archive record. Only what a person keeps after
     /// his playing career is copied (identity, final ability, history), and his last club is
     /// read from the retirement movement, because by now his `team_id` is already cleared.
@@ -208,6 +241,48 @@ mod tests {
         player.movement_history = Default::default();
         let record = RetiredPlayer::from_player(&player, "2035-06-30", 2035);
         assert_eq!(record.last_team_id, None);
+    }
+
+    /// Given an archived record, when shown as a player, then he is a retired person with his
+    /// identity, abilities and history, and nothing that only a playing career has.
+    #[test]
+    fn an_archived_record_shows_as_a_retired_player() {
+        let record = RetiredPlayer::from_player(&veteran(), "2035-06-30", 2035);
+
+        let player = record.to_player();
+
+        assert!(player.retired);
+        assert_eq!(player.team_id, None);
+        assert_eq!(player.full_name, "John Veteran");
+        assert_eq!(player.match_name, "J. Veteran");
+        assert_eq!(player.date_of_birth, "1988-04-02");
+        assert_eq!(player.nationality, "Portugal");
+        assert_eq!(player.natural_position, Position::CentralMidfielder);
+        assert_eq!(player.position, Position::Midfielder);
+        assert_eq!(
+            player.alternate_positions,
+            vec![Position::DefensiveMidfielder]
+        );
+        assert_eq!(player.footedness, Footedness::Left);
+        assert_eq!(player.weak_foot, 4);
+        assert_eq!((player.ovr, player.potential), (71, 78));
+        assert_eq!(player.attributes.pace, 63);
+        assert_eq!(player.media.face.as_deref(), Some("faces/veteran.png"));
+        assert_eq!(player.career.len(), 1);
+        assert_eq!(player.movement_history.into_iter().count(), 1);
+        assert!(player.transfer_offers.is_empty() && player.loan_offers.is_empty());
+        assert_eq!(player.stats.appearances, 0);
+    }
+
+    /// Given a record shown as a player, when archived again, then it is the same record
+    /// (the archive loses nothing by being shown).
+    #[test]
+    fn showing_a_record_and_archiving_it_again_changes_nothing() {
+        let record = RetiredPlayer::from_player(&veteran(), "2035-06-30", 2035);
+
+        let again = RetiredPlayer::from_player(&record.to_player(), "2035-06-30", 2035);
+
+        assert_eq!(again, record);
     }
 
     /// Given an archived record, when serialized and read back, then it is equal.

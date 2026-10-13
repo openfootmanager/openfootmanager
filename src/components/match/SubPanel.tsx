@@ -1,10 +1,17 @@
-import { useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { type MatchSnapshot, FORMATIONS, PLAY_STYLES } from "./types";
+import {
+  type MatchSnapshot,
+  type SubstitutionOutcome,
+  type SubstitutionSwap,
+  FORMATIONS,
+  PLAY_STYLES,
+} from "./types";
 import { getPlayerName } from "./helpers";
+import { resolveBackendError } from "../../utils/backendI18n";
 import { FormationPitch } from "./FormationPitch";
 import { condBgColor, condColor } from "../../lib/playerConditionDisplay";
-import { Badge, Select } from "../ui";
+import { Badge, Button, Select } from "../ui";
 import {
   RefreshCw,
   AlertTriangle,
@@ -56,7 +63,8 @@ export function SubPanel({
 }: {
   snapshot: MatchSnapshot;
   side: "Home" | "Away";
-  onSubstitute: (offId: string, onId: string) => void;
+  /** Commits every swap, in order; the panel keeps showing whatever the snapshot has not applied. */
+  onSubstitute: (swaps: SubstitutionSwap[]) => Promise<SubstitutionOutcome>;
   onFormationChange: (formation: string) => void;
   onPlayStyleChange: (playStyle: string) => void;
   onClose: () => void;
@@ -64,6 +72,19 @@ export function SubPanel({
   const { t } = useTranslation();
   const [selectedOff, setSelectedOff] = useState<string | null>(null);
   const [selectedBench, setSelectedBench] = useState<string | null>(null);
+  const [queuedSwaps, setQueuedSwaps] = useState<SubstitutionSwap[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refusal, setRefusal] = useState<{
+    swap: SubstitutionSwap;
+    reason: string;
+    appliedCount: number;
+    total: number;
+  } | null>(null);
+  const [focusRequest, setFocusRequest] = useState<
+    { kind: "chip"; swap: SubstitutionSwap } | { kind: "off" } | null
+  >(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const submittingRef = useRef(false);
 
   const team = side === "Home" ? snapshot.home_team : snapshot.away_team;
   const bench = side === "Home" ? snapshot.home_bench : snapshot.away_bench;
@@ -75,8 +96,24 @@ export function SubPanel({
   const subbedOffIds = new Set(
     snapshot.substitutions.filter((s) => s.side === side).map((s) => s.player_off_id),
   );
+  // A queued swap the snapshot already shows as made is no longer waiting, so a batch the backend
+  // only partly applied leaves exactly the swaps still to do.
+  const pendingSwaps = queuedSwaps.filter(
+    (swap) =>
+      !snapshot.substitutions.some(
+        (made) =>
+          made.side === side &&
+          made.player_off_id === swap.offId &&
+          made.player_on_id === swap.onId,
+      ),
+  );
+  const queuedOffIds = new Set(pendingSwaps.map((swap) => swap.offId));
+  const queuedOnIds = new Set(pendingSwaps.map((swap) => swap.onId));
+  const substitutionsLeft = snapshot.max_subs - subsMade - pendingSwaps.length;
   const availableBench = sortByPositionGroup(
-    bench.filter((p) => !subbedOffIds.has(p.id) && !subbedOnIds.has(p.id)),
+    bench.filter(
+      (p) => !subbedOffIds.has(p.id) && !subbedOnIds.has(p.id) && !queuedOnIds.has(p.id),
+    ),
   );
   const selectedPlayer = selectedOff ? team.players.find((p) => p.id === selectedOff) : null;
   const comparedPlayer = selectedBench ? availableBench.find((p) => p.id === selectedBench) : null;
@@ -109,6 +146,7 @@ export function SubPanel({
   };
 
   const handleSelectOffPlayer = (playerId: string) => {
+    if (queuedOffIds.has(playerId)) return;
     setSelectedOff((cur) => {
       if (cur === playerId) {
         setSelectedBench(null);
@@ -124,10 +162,70 @@ export function SubPanel({
     setSelectedBench((cur) => (cur === playerId ? null : playerId));
   };
 
-  const handleConfirmSubstitution = () => {
-    if (!selectedOff || !selectedBench) return;
-    onSubstitute(selectedOff, selectedBench);
+  const handleQueueSubstitution = () => {
+    if (!selectedOff || !selectedBench || substitutionsLeft < 1 || isSubmitting) return;
+    setQueuedSwaps([...pendingSwaps, { offId: selectedOff, onId: selectedBench }]);
+    setRefusal(null);
+    handleClearSelection();
+    // The button that was pressed leaves with the selection, so focus goes on to the next swap.
+    setFocusRequest({ kind: "off" });
   };
+
+  const handleRemoveQueuedSwap = (swap: SubstitutionSwap) => {
+    const index = pendingSwaps.indexOf(swap);
+    const neighbour = pendingSwaps[index + 1] ?? pendingSwaps[index - 1];
+    setQueuedSwaps(pendingSwaps.filter((queued) => queued !== swap));
+    setRefusal(null);
+    setFocusRequest(neighbour ? { kind: "chip", swap: neighbour } : { kind: "off" });
+  };
+
+  // The chosen pair joins whatever is queued when a substitution is left for it, so a single
+  // substitution stays one click and a full queue can still be committed with a pair selected.
+  const pairToCommit =
+    selectedOff && selectedBench && substitutionsLeft >= 1
+      ? { offId: selectedOff, onId: selectedBench }
+      : null;
+  const confirmCount = pendingSwaps.length + (pairToCommit ? 1 : 0);
+
+  const handleConfirmSubstitutions = async () => {
+    if (submittingRef.current || confirmCount === 0) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+    setRefusal(null);
+    const swaps = pairToCommit ? [...pendingSwaps, pairToCommit] : pendingSwaps;
+    try {
+      const outcome = await onSubstitute(swaps);
+      if (!outcome.applied) {
+        setRefusal({
+          swap: outcome.refused,
+          reason: outcome.reason,
+          appliedCount: outcome.appliedCount,
+          total: swaps.length,
+        });
+      }
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  // Focus must not fall to the page when the control that held it unmounts, so it is moved once
+  // the new markup is in: to a neighbouring queued swap, or to the first player who can still
+  // come off.
+  useEffect(() => {
+    if (!focusRequest) return;
+    const panel = panelRef.current;
+    const target =
+      focusRequest.kind === "chip"
+        ? panel?.querySelector<HTMLElement>(
+            `[data-testid="remove-queued-sub-${focusRequest.swap.offId}-${focusRequest.swap.onId}"]`,
+          )
+        : panel?.querySelector<HTMLElement>(
+            '[data-testid^="sub-panel-off-"]:not([aria-disabled="true"])',
+          );
+    target?.focus();
+    setFocusRequest(null);
+  }, [focusRequest]);
 
   const handleApplyRecommendation = (offId: string, onId: string) => {
     setSelectedOff(offId);
@@ -154,6 +252,7 @@ export function SubPanel({
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         className="bg-white dark:bg-navy-800 rounded-2xl border border-gray-200 dark:border-navy-600 shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden transition-colors duration-300"
         onClick={(e) => e.stopPropagation()}
       >
@@ -279,6 +378,7 @@ export function SubPanel({
                   sentOff={snapshot.sent_off}
                   selectedId={selectedOff}
                   subbedOnIds={subbedOnIds}
+                  queuedOffIds={queuedOffIds}
                   onPlayerClick={handleSelectOffPlayer}
                   className="mx-4 mt-3 h-[210px] shrink-0"
                 />
@@ -300,6 +400,7 @@ export function SubPanel({
                       ).map((p) => {
                         const isSelected = selectedOff === p.id;
                         const isSubOn = subbedOnIds.has(p.id);
+                        const isQueuedOff = queuedOffIds.has(p.id);
                         const row = (
                           <tr
                             key={p.id}
@@ -311,10 +412,13 @@ export function SubPanel({
                             role="button"
                             tabIndex={0}
                             aria-pressed={isSelected}
-                            className={`cursor-pointer text-sm transition-colors ${
-                              isSelected
-                                ? "bg-red-500/10"
-                                : "hover:bg-gray-100 dark:hover:bg-navy-700/50"
+                            aria-disabled={isQueuedOff}
+                            className={`text-sm transition-colors ${
+                              isQueuedOff
+                                ? "opacity-50"
+                                : isSelected
+                                  ? "cursor-pointer bg-red-500/10"
+                                  : "cursor-pointer hover:bg-gray-100 dark:hover:bg-navy-700/50"
                             }`}
                           >
                             <td className="py-2 pr-2">
@@ -322,7 +426,16 @@ export function SubPanel({
                                 {isSelected && (
                                   <UserMinus className="h-3.5 w-3.5 shrink-0 text-red-400" />
                                 )}
-                                {isSubOn && <span className="text-[10px] text-green-400">▲</span>}
+                                {isSubOn && (
+                                  <span aria-hidden="true" className="text-[10px] text-green-400">
+                                    ▲
+                                  </span>
+                                )}
+                                {isQueuedOff && (
+                                  <span aria-hidden="true" className="text-[10px] text-red-400">
+                                    ▼
+                                  </span>
+                                )}
                                 <span
                                   className={`truncate font-medium ${isSelected ? "text-red-400" : "text-gray-700 dark:text-gray-300"}`}
                                 >
@@ -359,11 +472,20 @@ export function SubPanel({
                           <ContextMenu
                             key={p.id}
                             items={[
-                              {
-                                label: isSelected ? t("common.cancel") : t("match.selectToTakeOff"),
-                                icon: <UserMinus className="h-4 w-4" />,
-                                onClick: () => handleSelectOffPlayer(p.id),
-                              },
+                              isQueuedOff
+                                ? {
+                                    label: t("match.alreadyQueued"),
+                                    icon: <UserMinus className="h-4 w-4" />,
+                                    onClick: () => {},
+                                    disabled: true,
+                                  }
+                                : {
+                                    label: isSelected
+                                      ? t("common.cancel")
+                                      : t("match.selectToTakeOff"),
+                                    icon: <UserMinus className="h-4 w-4" />,
+                                    onClick: () => handleSelectOffPlayer(p.id),
+                                  },
                             ]}
                           >
                             {row}
@@ -525,8 +647,74 @@ export function SubPanel({
               </div>
             </div>
 
-            {/* Sticky footer: comparison summary + confirm / cancel */}
+            {/* Sticky footer: the queue, comparison summary + queue / confirm / cancel */}
             <div className="shrink-0 border-t border-gray-200 bg-gray-50/60 px-4 py-3 dark:border-navy-700 dark:bg-navy-900/30">
+              {refusal && (
+                <p
+                  role="alert"
+                  className="mb-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400"
+                >
+                  {t("match.substitutionRefused", {
+                    off: getPlayerName(snapshot, refusal.swap.offId),
+                    on: getPlayerName(snapshot, refusal.swap.onId),
+                    reason: resolveBackendError(refusal.reason),
+                  })}
+                </p>
+              )}
+              {refusal && refusal.appliedCount > 0 && (
+                <p role="status" className="mb-3 text-xs text-gray-600 dark:text-gray-400">
+                  {t("match.substitutionsPartlyMade", {
+                    applied: refusal.appliedCount,
+                    total: refusal.total,
+                  })}
+                </p>
+              )}
+              {pendingSwaps.length > 0 && (
+                <div className="mb-3 border-b border-gray-200 pb-3 dark:border-navy-700">
+                  <p className="mb-1.5 font-heading text-[10px] uppercase tracking-widest text-gray-600 dark:text-gray-500">
+                    {t("match.queuedSubstitutions")}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {pendingSwaps.map((swap) => (
+                      <span
+                        key={`${swap.offId}-${swap.onId}`}
+                        data-testid={`queued-sub-${swap.offId}-${swap.onId}`}
+                        className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 font-heading text-[11px] font-bold dark:border-navy-600 dark:bg-navy-800"
+                      >
+                        <span className="text-red-400">{getPlayerName(snapshot, swap.offId)}</span>
+                        <span className="text-gray-400">→</span>
+                        <span className="text-green-400">{getPlayerName(snapshot, swap.onId)}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          data-testid={`remove-queued-sub-${swap.offId}-${swap.onId}`}
+                          onClick={() => handleRemoveQueuedSwap(swap)}
+                          disabled={isSubmitting}
+                          aria-label={t("match.removeQueuedSubstitution", {
+                            off: getPlayerName(snapshot, swap.offId),
+                            on: getPlayerName(snapshot, swap.onId),
+                          })}
+                          className="px-1.5! py-0.5! normal-case"
+                        >
+                          <span aria-hidden="true">✕</span>
+                        </Button>
+                      </span>
+                    ))}
+                    {!(selectedPlayer && comparedPlayer) && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleConfirmSubstitutions}
+                        disabled={isSubmitting}
+                        className="ml-auto"
+                      >
+                        {t("match.confirmAllSubstitutions", { count: pendingSwaps.length })}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
               {selectedPlayer && comparedPlayer ? (
                 <div>
                   {/* Player names + position match + action buttons */}
@@ -554,20 +742,35 @@ export function SubPanel({
                         : t("match.fitAdjusted")}
                     </span>
                     <div className="ml-auto flex items-center gap-2">
-                      <button
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={handleClearSelection}
-                        className="rounded-lg border border-gray-300 px-3 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-gray-700 transition-colors hover:bg-gray-100 dark:border-navy-500 dark:text-gray-300 dark:hover:bg-navy-600"
                       >
                         {t("common.cancel")}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
-                        onClick={handleConfirmSubstitution}
-                        className="rounded-lg bg-green-500 px-3 py-1.5 font-heading text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-green-400"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleQueueSubstitution}
+                        disabled={substitutionsLeft < 1 || isSubmitting}
                       >
-                        {t("match.confirmSubstitution")}
-                      </button>
+                        {t("match.queueSubstitution")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleConfirmSubstitutions}
+                        disabled={confirmCount === 0 || isSubmitting}
+                      >
+                        {pendingSwaps.length === 0
+                          ? t("match.confirmSubstitution")
+                          : pairToCommit
+                            ? t("match.confirmSubstitutions", { count: confirmCount })
+                            : t("match.confirmAllSubstitutions", { count: confirmCount })}
+                      </Button>
                     </div>
                   </div>
                   {/* Attribute comparison bars */}

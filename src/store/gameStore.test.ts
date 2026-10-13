@@ -161,6 +161,7 @@ describe("useGameStore", () => {
             id: "s1",
             first_name: "Sam",
             last_name: "Coach",
+            display_name: "Sam Coach",
             date_of_birth: "1980-01-01",
             nationality: "British",
             football_nation: "ENG",
