@@ -112,21 +112,32 @@ fn division_team_ids(division: &League) -> HashSet<String> {
     }
 }
 
+/// Matches each club has played. Inside a division that is its table; across
+/// the world a club may sit in a league and several cups, and the league is
+/// the competition it plays most matches in.
+fn matches_played_by_club<'a>(
+    game: &'a Game,
+    division: Option<&'a League>,
+) -> std::collections::HashMap<&'a str, u32> {
+    let tables: Vec<&League> = match division {
+        Some(division) => vec![division],
+        None => game.league.iter().chain(&game.competitions).collect(),
+    };
+    let mut played = std::collections::HashMap::new();
+    for standing in tables.iter().flat_map(|table| &table.standings) {
+        let most = played.entry(standing.team_id.as_str()).or_insert(0);
+        *most = (*most).max(standing.played);
+    }
+    played
+}
+
 fn build_player_award_contexts<'a>(
     game: &'a Game,
     scope: Option<&HashSet<String>>,
-    standings_source: Option<&League>,
+    division: Option<&League>,
 ) -> Vec<PlayerAwardContext<'a>> {
     let today = game.clock.current_date.date_naive();
-    let matches_played_by_club: std::collections::HashMap<&str, u32> = standings_source
-        .map(|league| {
-            league
-                .standings
-                .iter()
-                .map(|standing| (standing.team_id.as_str(), standing.played))
-                .collect()
-        })
-        .unwrap_or_default();
+    let matches_played_by_club = matches_played_by_club(game, division);
 
     game.players
         .iter()
@@ -315,11 +326,7 @@ pub fn compute_division_season_awards(game: &Game, division: &League) -> SeasonA
 
 fn compute_awards(game: &Game, division: Option<&League>) -> SeasonAwards {
     let player_scope = division.map(division_team_ids);
-    let contexts = build_player_award_contexts(
-        game,
-        player_scope.as_ref(),
-        division.or(game.league.as_ref()),
-    );
+    let contexts = build_player_award_contexts(game, player_scope.as_ref(), division);
     let manager_contexts = build_manager_award_contexts(game, division);
 
     // Golden Boot — top scorers
@@ -811,6 +818,52 @@ mod tests {
             .map(|e| e.player_id.as_str())
             .collect();
         assert_eq!(ids, vec!["on-the-line"]);
+    }
+
+    /// Given a world-wide ranking and a club that sits in a league and a short cup table, when
+    /// awards are computed without a division, then its league matches set the threshold.
+    #[test]
+    fn world_awards_measure_a_club_by_its_league_matches() {
+        let mut game = make_game(
+            vec![
+                rated_player("cameo-star", "1998-01-01", 6, 8.7),
+                rated_player("regular", "1998-01-01", 35, 7.2),
+            ],
+            vec![make_team("team1", "Test FC")],
+        );
+        game.competitions = vec![
+            League {
+                standings: vec![standing_after("team1", 38)],
+                ..Default::default()
+            },
+            League {
+                standings: vec![standing_after("team1", 6)],
+                ..Default::default()
+            },
+        ];
+
+        let awards = compute_season_awards(&game);
+
+        let ids: Vec<_> = awards
+            .player_of_year
+            .iter()
+            .map(|e| e.player_id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["regular"]);
+    }
+
+    /// Given a club with no table anywhere, when world awards are computed, then the
+    /// absolute floor is all that is asked of its players.
+    #[test]
+    fn a_club_without_a_table_falls_back_to_the_floor() {
+        let game = make_game(
+            vec![rated_player("tableless", "1998-01-01", 5, 7.0)],
+            vec![make_team("team1", "Test FC")],
+        );
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(awards.player_of_year.len(), 1);
     }
 
     /// Given a season so short that half the matches is under the absolute floor,
