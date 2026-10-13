@@ -1,5 +1,6 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { localizedRoundName } from "../tournaments/TournamentsTab.helpers";
 import type { CupRoundSummary } from "./types";
 
 interface CupRoundSectionProps {
@@ -11,7 +12,7 @@ export default function CupRoundSection({ summary }: CupRoundSectionProps) {
   const { t } = useTranslation();
   const headingId = useId();
   const heading = summary.round_name
-    ? `${summary.competition_name} · ${summary.round_name}`
+    ? `${summary.competition_name} · ${localizedRoundName(t, summary.round_name)}`
     : summary.competition_name;
 
   return (
