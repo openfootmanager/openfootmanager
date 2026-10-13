@@ -5,6 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
+known-bug = { path = "../known-bug" }
 mcp-results = { path = "../mcp-results" }
 db = { path = "../db" }
 serde = "1"

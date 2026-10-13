@@ -45,6 +45,11 @@ const ISOLATED: &[(&str, &str)] = &[
          depend on. If it gains a dependency, it has stopped being data and started being logic.",
     ),
     (
+        "known-bug",
+        "The expected-failure guard shared by the season harness and the MCP end-to-end suite. It \
+         is std-only so that neither has to build the other's dependencies to use it.",
+    ),
+    (
         "mcp-results",
         "The wire contract of the MCP tools: plain result structs a test client deserializes. It \
          must not depend on a game crate, or editing a game type would silently change what agents \

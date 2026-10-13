@@ -8,7 +8,6 @@
 //! - [`expect_bug!`] records a known-broken route and tells you when it is fixed.
 
 mod app;
-mod bug;
 pub mod career;
 mod revision {
     include!("../../../build_revision.rs");
@@ -22,8 +21,8 @@ pub use app::{
     gui_launch_maps_a_window, real_startup_failures_file, App, AppConfig, GuiLaunch, LaunchError,
     Mode, Teardown,
 };
-pub use bug::expect_bug;
 pub use client::{CallError, Client, Refusal};
+pub use known_bug::expect_bug;
 pub use snapshot::{assert_refusal_changes_nothing, Snapshot};
 
 pub use mcp_results as results;

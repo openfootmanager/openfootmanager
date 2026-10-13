@@ -2526,6 +2526,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "known-bug"
+version = "0.1.0"
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2687,6 +2691,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "db",
+ "known-bug",
  "mcp-results",
  "reqwest",
  "serde",
@@ -3912,6 +3917,7 @@ version = "0.3.0"
 dependencies = [
  "chrono",
  "domain",
+ "known-bug",
  "ofm_core",
 ]
 

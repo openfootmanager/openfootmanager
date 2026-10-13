@@ -78,6 +78,7 @@ below is a `path` dependency in that crate's own `Cargo.toml`, and
 
   ofm-cli                 standalone CLI binary     → ofm_core
   sim-bench               balance benchmark harness → engine
+  known-bug               expected-failure guard for filed bugs → nothing in this workspace (std only)
   season-harness          multi-season invariant gate → domain, ofm_core
 ```
 

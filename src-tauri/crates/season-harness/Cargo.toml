@@ -5,6 +5,7 @@ edition = "2024"
 publish = false
 
 [dependencies]
+known-bug = { path = "../known-bug" }
 ofm_core = { version = "0.3.0", path = "../ofm_core" }
 domain = { version = "0.3.0", path = "../domain" }
 chrono = { version = "0.4.44", default-features = false }
