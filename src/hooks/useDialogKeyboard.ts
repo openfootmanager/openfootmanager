@@ -35,11 +35,14 @@ export function useDialogKeyboard(
       const last = focusable[focusable.length - 1];
       const active = document.activeElement;
       const outside = !dialog.contains(active);
+      // The panel itself and a heading take focus on open but are not Tab stops, so from either
+      // one Shift+Tab has no "first" to be on and the browser would leave for the page behind.
+      const onNonStop = !Array.from(focusable).includes(active as HTMLElement);
 
       if (!event.shiftKey && (active === last || outside)) {
         event.preventDefault();
         first.focus();
-      } else if (event.shiftKey && (active === first || outside)) {
+      } else if (event.shiftKey && (active === first || outside || onNonStop)) {
         event.preventDefault();
         last.focus();
       }

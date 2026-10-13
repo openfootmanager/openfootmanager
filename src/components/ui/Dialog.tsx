@@ -49,6 +49,9 @@ export function Dialog({
   surfaceClassName = "bg-white dark:bg-navy-800",
   children,
 }: DialogProps) {
+  // A press that starts inside the panel (selecting text in a field) and ends on the backdrop is
+  // not a click on the backdrop, though the browser reports one.
+  const pressStartedOnBackdrop = useRef(false);
   const ownPanelRef = useRef<HTMLDivElement>(null);
   const panelRef = callerPanelRef ?? ownPanelRef;
   useDialogKeyboard(panelRef, onClose);
@@ -63,7 +66,17 @@ export function Dialog({
     <div
       data-testid="dialog-backdrop"
       className={`fixed inset-0 z-50 flex items-center justify-center ${overlayClassName}`}
-      onClick={dismissOnBackdrop ? onClose : undefined}
+      onMouseDown={(event) => {
+        pressStartedOnBackdrop.current = event.target === event.currentTarget;
+      }}
+      onClick={(event) => {
+        if (
+          dismissOnBackdrop &&
+          event.target === event.currentTarget &&
+          pressStartedOnBackdrop.current
+        )
+          onClose();
+      }}
     >
       <div
         ref={panelRef}
@@ -75,7 +88,6 @@ export function Dialog({
         aria-busy={busy}
         tabIndex={-1}
         className={`${surfaceClassName} border border-gray-200 dark:border-navy-600 shadow-2xl focus:outline-none ${className}`}
-        onClick={(event) => event.stopPropagation()}
       >
         {children}
       </div>

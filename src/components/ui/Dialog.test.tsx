@@ -183,8 +183,40 @@ describe("Dialog", () => {
     fireEvent.click(screen.getByRole("heading", { name: "Title" }));
     expect(onClose).not.toHaveBeenCalled();
 
+    fireEvent.mouseDown(screen.getByTestId("dialog-backdrop"));
     fireEvent.click(screen.getByTestId("dialog-backdrop"));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a press that starts inside the panel, as when selecting text in a field
+   * When the pointer is released over the backdrop and the browser reports a click there
+   * Then the dialog stays open and what was typed is not lost.
+   */
+  it("stays open when a press starts in the panel and ends on the backdrop", () => {
+    const onClose = vi.fn();
+    render(<Harness onClose={onClose} dismissOnBackdrop />);
+
+    fireEvent.mouseDown(screen.getByRole("heading", { name: "Title" }));
+    fireEvent.click(screen.getByTestId("dialog-backdrop"));
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given the dialog has just opened with focus on the panel
+   * When Shift+Tab is pressed
+   * Then focus wraps to the last control instead of leaving for the page behind.
+   */
+  it("wraps Shift+Tab from the panel to the last control", () => {
+    render(<Harness />);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveFocus();
+
+    const allowed = fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+
+    expect(allowed).toBe(false);
+    expect(screen.getByRole("button", { name: "Last" })).toHaveFocus();
   });
 
   /**
@@ -196,6 +228,7 @@ describe("Dialog", () => {
     const onClose = vi.fn();
     render(<Harness onClose={onClose} />);
 
+    fireEvent.mouseDown(screen.getByTestId("dialog-backdrop"));
     fireEvent.click(screen.getByTestId("dialog-backdrop"));
 
     expect(onClose).not.toHaveBeenCalled();
