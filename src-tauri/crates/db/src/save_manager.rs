@@ -3458,6 +3458,146 @@ mod tests {
         assert_eq!(loaded.edition_archive.len(), 1);
     }
 
+    fn archived_veteran(id: &str, full_name: &str) -> domain::retired_player::RetiredPlayer {
+        let mut player = sample_game().players[0].clone();
+        player.id = id.to_string();
+        player.full_name = full_name.to_string();
+        player.retired = true;
+        player.team_id = None;
+        domain::retired_player::RetiredPlayer::from_player(&player, "2035-06-30", 2035)
+    }
+
+    fn rows(connection: &rusqlite::Connection, sql: &str, id: &str) -> i64 {
+        connection
+            .query_row(sql, [id], |row| row.get(0))
+            .expect("the query runs")
+    }
+
+    /// Given an archived retiree who is still a row in `players`, when the career is saved,
+    /// then a second connection finds one `retired_players` row and no active `players` row.
+    #[test]
+    fn saving_moves_an_archived_player_out_of_the_active_table() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let mut retiree = game.players[0].clone();
+        retiree.id = "p-retired".into();
+        retiree.retired = true;
+        retiree.team_id = None;
+        game.retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &retiree,
+                "2035-06-30",
+                2035,
+            ));
+        game.players.push(retiree);
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        let reader = rusqlite::Connection::open(manager.save_db_path(&id).unwrap()).unwrap();
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM retired_players WHERE player_id = ?1",
+                "p-retired"
+            ),
+            1
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM players WHERE id = ?1",
+                "p-retired"
+            ),
+            0
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM players WHERE id = ?1",
+                &game.players[0].id
+            ),
+            1,
+            "an active player is not touched"
+        );
+    }
+
+    /// Given a saved archive, when the career is loaded, then every field of every record survives.
+    #[test]
+    fn the_retired_archive_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.retired_players = vec![
+            archived_veteran("p-old-1", "Ada Old"),
+            archived_veteran("p-old-2", "Bo Older"),
+        ];
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(loaded.retired_players, game.retired_players);
+    }
+
+    /// Given an archived record, when a later save carries a different payload for the same id,
+    /// then the save succeeds and the first record stays (immutability is by id, not payload).
+    #[test]
+    fn an_archived_record_is_never_rewritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.retired_players = vec![archived_veteran("p-old", "Ada Old")];
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        game.retired_players = vec![archived_veteran("p-old", "Ada Renamed")];
+        manager.save_game(&game, &id).unwrap();
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(loaded.retired_players.len(), 1);
+        assert_eq!(loaded.retired_players[0].full_name, "Ada Old");
+    }
+
+    /// Given a retiree archived in a transaction that is then abandoned, when the database is
+    /// read, then the person is still active and no archive row exists: neither half committed.
+    #[test]
+    fn an_archive_write_that_is_abandoned_commits_neither_half() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let id = manager.create_save(&game, "Archive").unwrap();
+        let active_id = game.players[0].id.clone();
+        game.retired_players = vec![archived_veteran(&active_id, "Ada Old")];
+
+        let database =
+            crate::game_database::GameDatabase::open(&manager.save_db_path(&id).unwrap()).unwrap();
+        {
+            let transaction = database.conn().unchecked_transaction().unwrap();
+            crate::repositories::retired_player_repo::archive_retired_players(
+                &transaction,
+                &game.retired_players,
+            )
+            .unwrap();
+            // Dropped without commit: the transaction rolls back.
+        }
+
+        let reader = rusqlite::Connection::open(manager.save_db_path(&id).unwrap()).unwrap();
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM retired_players WHERE player_id = ?1",
+                &active_id
+            ),
+            0
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM players WHERE id = ?1",
+                &active_id
+            ),
+            1
+        );
+    }
+
     fn world_cup_game() -> Game {
         let mut game = sample_game_with_league();
         let kickoff = Utc.with_ymd_and_hms(2030, 6, 10, 0, 0, 0).unwrap();

@@ -12,8 +12,8 @@ use ofm_core::game::{
 use crate::game_database::GameDatabase;
 use crate::repositories::{
     competition_repo, edition_archive_repo, journal_repo, league_repo, manager_repo, message_repo,
-    meta_repo, national_team_repo, news_repo, objective_repo, player_repo, scouting_repo,
-    staff_repo, stats_repo, team_repo,
+    meta_repo, national_team_repo, news_repo, objective_repo, player_repo, retired_player_repo,
+    scouting_repo, staff_repo, stats_repo, team_repo,
 };
 
 pub struct GamePersistenceWriter;
@@ -155,6 +155,7 @@ fn write_game_to_connection(
     }
     competition_repo::replace_competitions(conn, &game.competitions)?;
     edition_archive_repo::persist_new_editions(conn, &game.edition_archive)?;
+    retired_player_repo::archive_retired_players(conn, &game.retired_players)?;
     national_team_repo::replace_national_teams(conn, &game.national_teams)?;
 
     let objective_rows: Vec<objective_repo::BoardObjectiveRow> = game
@@ -282,6 +283,7 @@ impl GamePersistenceReader {
         let league = league_repo::load_league(conn)?;
         let mut competitions = competition_repo::load_competitions(conn)?;
         let edition_archive = edition_archive_repo::load_editions(conn)?;
+        let retired_players = retired_player_repo::load_retired_players(conn)?;
         let national_teams = national_team_repo::load_national_teams(conn)?;
         if competitions.is_empty()
             && let Some(existing_league) = league.clone()
@@ -371,6 +373,7 @@ impl GamePersistenceReader {
                 .available_staff_market_last_activity_date,
             vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
             edition_archive,
+            retired_players,
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
             // A malformed ledger degrades to the legacy-save path rather than
