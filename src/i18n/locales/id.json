@@ -724,6 +724,7 @@
     "myTactics": "Taktik Saya",
     "newTactic": "Taktik Baru",
     "duplicateTactic": "Duplikat",
+    "resetTactic": "Atur ulang ke default",
     "saveAsTactic": "Simpan sebagai taktik",
     "updateTactic": "Perbarui taktik",
     "tacticSaved": "Tersimpan",
@@ -1174,6 +1175,7 @@
     "sortNewest": "Terbaru dulu",
     "sortOldest": "Terlama dulu",
     "selectMessages": "Pilih pesan",
+    "selectAll": "Pilih semua",
     "cancelSelection": "Batalkan pilihan",
     "selectedCount": "{{count}} dipilih",
     "deleteSelected": "Hapus yang dipilih",
@@ -1972,6 +1974,14 @@
     "quickTacticalTweaks": "Penyesuaian taktik cepat",
     "selectBenchToCompare": "Pilih pemain cadangan untuk dibandingkan",
     "confirmSubstitution": "Konfirmasi pergantian",
+    "queueSubstitution": "Tambahkan ke antrean",
+    "queuedSubstitutions": "Pergantian dalam antrean",
+    "confirmAllSubstitutions": "Konfirmasi semua ({{count}})",
+    "confirmSubstitutions": "Konfirmasi {{count}} pergantian",
+    "removeQueuedSubstitution": "Hapus {{off}} → {{on}} dari antrean",
+    "alreadyQueued": "Sudah masuk antrean pergantian",
+    "substitutionsPartlyMade": "{{applied}} dari {{total}} pergantian dilakukan",
+    "substitutionRefused": "Pergantian ditolak: {{off}} diganti {{on}}. {{reason}}",
     "noBenchAvailable": "Tidak ada pemain cadangan tersedia",
     "history": "Riwayat",
     "player": "Pemain",
@@ -2556,7 +2566,10 @@
     "yourResult": "Hasil Kamu",
     "continue": "Lanjut",
     "notableUpset": "Kejutan Menonjol",
-    "pts": "poin"
+    "pts": "poin",
+    "cupPenalties": "({{home}}–{{away}} lewat adu penalti)",
+    "cupAdvances": "{{team}} lolos ke babak berikutnya",
+    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan"
   },
   "endOfSeason": {
     "seasonComplete": "Musim Selesai",
@@ -3637,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Karier {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya."
+      }
     }
   },
   "traits": {
@@ -3884,6 +3902,7 @@
     "saveSuccess": "Tersimpan",
     "saveTeam": "Simpan Tim",
     "issues": "{{count}} masalah",
+    "warnings": "{{count}} peringatan",
     "packageId": "ID Paket",
     "packageName": "Nama Paket",
     "description": "Deskripsi",
@@ -4042,6 +4061,7 @@
     "openPackageFileInvalid": "Pilih berkas paket .ofm yang valid",
     "noItemSelected": "Pilih item dari daftar, atau klik Tambah untuk membuatnya",
     "issuesBadge": "{{count}} masalah",
+    "warningsBadge": "{{count}} peringatan",
     "issuesTitle": "Masalah Validasi",
     "noIssues": "Tidak ada masalah — dunia valid",
     "saving": "Menyimpan…",
@@ -4117,6 +4137,8 @@
     "staffId": "ID",
     "staffFirstName": "Nama Depan",
     "staffLastName": "Nama Belakang",
+    "staffKnownAs": "Dikenal sebagai (opsional)",
+    "staffKnownAsPlaceholder": "mis. Cafu",
     "staffClub": "Klub",
     "staffNationality": "Kewarganegaraan",
     "staffDateOfBirth": "Tanggal Lahir",

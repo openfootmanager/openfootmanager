@@ -41,6 +41,7 @@ import {
 import {
   getDashboardAlerts,
   getDashboardSearchResults,
+  clubCompetitionLabel,
   getManagerTeamName,
   getTodayMatchFixture,
   getUnreadMessagesCount,
@@ -54,6 +55,7 @@ import {
   isSeasonComplete as isLeagueSeasonComplete,
 } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
+import { useClubLeagueStanding } from "../components/teamProfile/useClubLeagueStanding";
 import { useSettingsStore } from "../store/settingsStore";
 import {
   getBackgroundPortraitPrewarmKey,
@@ -499,6 +501,11 @@ export default function Dashboard(): JSX.Element {
     navigate("/settings", { state: { from: "/dashboard" } });
   }
 
+  const clubStanding = useClubLeagueStanding(
+    gameState?.manager.team_id ?? "",
+    gameState?.clock.current_date ?? "",
+  );
+
   if (!gameState) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex items-center justify-center transition-colors">
@@ -516,6 +523,7 @@ export default function Dashboard(): JSX.Element {
   const unreadMessagesCount =
     sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
+  const myCompetitionName = clubCompetitionLabel(gameState, clubStanding.standing, t);
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const currentFinanceVerdict =
     financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
@@ -553,6 +561,7 @@ export default function Dashboard(): JSX.Element {
         todayHasMatch={hasMatchToday}
         managerName={managerName}
         teamName={myTeamName}
+        competitionName={myCompetitionName}
         onNavigateSettings={handleNavigateSettings}
         isUnemployed={isUnemployed ?? false}
         onExitClick={() => {

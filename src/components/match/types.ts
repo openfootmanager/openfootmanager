@@ -133,6 +133,22 @@ export interface RoundResultSummary {
   away_goals: number;
 }
 
+export interface CupTieResult extends RoundResultSummary {
+  home_penalties: number | null;
+  away_penalties: number | null;
+  advancing_team_id: string | null;
+  advancing_team_name: string | null;
+}
+
+export interface CupRoundSummary {
+  competition_id: string;
+  competition_name: string;
+  round_name: string | null;
+  is_complete: boolean;
+  pending_fixture_count: number;
+  results: CupTieResult[];
+}
+
 export interface StandingDelta {
   team_id: string;
   team_name: string;
@@ -282,3 +298,17 @@ export const PLAY_STYLES = [
   "Counter",
   "HighPress",
 ] as const;
+
+/** One swap the manager has lined up: the player coming off and the bench player replacing them. */
+export interface SubstitutionSwap {
+  offId: string;
+  onId: string;
+}
+
+/**
+ * How a batch of swaps went: all applied, or the first refused swap, the engine's reason and how
+ * many swaps before it were made.
+ */
+export type SubstitutionOutcome =
+  | { applied: true }
+  | { applied: false; refused: SubstitutionSwap; reason: string; appliedCount: number };

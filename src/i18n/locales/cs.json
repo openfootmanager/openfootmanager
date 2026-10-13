@@ -724,6 +724,7 @@
     "myTactics": "Moje taktiky",
     "newTactic": "Nová taktika",
     "duplicateTactic": "Duplikovat",
+    "resetTactic": "Obnovit výchozí",
     "saveAsTactic": "Uložit jako taktiku",
     "updateTactic": "Aktualizovat taktiku",
     "tacticSaved": "Uloženo",
@@ -1174,6 +1175,7 @@
     "sortNewest": "Nejnovější jako první",
     "sortOldest": "Nejstarší jako první",
     "selectMessages": "Vybrat zprávy",
+    "selectAll": "Vybrat vše",
     "cancelSelection": "Zrušit výběr",
     "selectedCount": "Vybráno: {{count}}",
     "deleteSelected": "Smazat vybrané",
@@ -1972,6 +1974,14 @@
     "quickTacticalTweaks": "Rychlé taktické úpravy",
     "selectBenchToCompare": "Vyberte hráče z lavičky pro porovnání",
     "confirmSubstitution": "Potvrdit střídání",
+    "queueSubstitution": "Přidat do fronty",
+    "queuedSubstitutions": "Střídání ve frontě",
+    "confirmAllSubstitutions": "Potvrdit vše ({{count}})",
+    "confirmSubstitutions": "Potvrdit střídání: {{count}}",
+    "removeQueuedSubstitution": "Odebrat {{off}} → {{on}} z fronty",
+    "alreadyQueued": "Už čeká ve frontě na střídání",
+    "substitutionsPartlyMade": "Provedeno střídání: {{applied}} z {{total}}",
+    "substitutionRefused": "Střídání zamítnuto: {{off}} za {{on}}. {{reason}}",
     "noBenchAvailable": "Na lavičce nejsou k dispozici žádní hráči",
     "history": "Historie",
     "player": "Hráč",
@@ -2556,7 +2566,10 @@
     "yourResult": "Váš výsledek",
     "continue": "Pokračovat",
     "notableUpset": "Velké překvapení",
-    "pts": "b."
+    "pts": "b.",
+    "cupPenalties": "({{home}}–{{away}} na penalty)",
+    "cupAdvances": "{{team}} postupuje dál",
+    "cupTiesPending": "Některá utkání se ještě odehrají"
   },
   "endOfSeason": {
     "seasonComplete": "Sezóna dokončena",
@@ -3637,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Kariéra {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Tento balíček definuje zemi „{{name}}“ ({{code}}), která není v seznamu zemí hry, a nezařazuje ji do žádné konfederace, takže její kluby jsou vedeny v Evropě. Přiřaďte jí konfederaci."
+      }
     }
   },
   "traits": {
@@ -3884,6 +3902,7 @@
     "saveSuccess": "Uloženo",
     "saveTeam": "Uložit tým",
     "issues": "{{count}} problém(ů)",
+    "warnings": "Varování: {{count}}",
     "packageId": "ID balíčku",
     "packageName": "Název balíčku",
     "description": "Popis",
@@ -4042,6 +4061,7 @@
     "openPackageFileInvalid": "Vyberte platný soubor balíčku .ofm",
     "noItemSelected": "Vyberte položku ze seznamu, nebo klikněte na Přidat pro vytvoření nové",
     "issuesBadge": "{{count}} problémů",
+    "warningsBadge": "Varování: {{count}}",
     "issuesTitle": "Problémy s validací",
     "noIssues": "Žádné problémy — svět je validní",
     "saving": "Ukládání…",
@@ -4117,6 +4137,8 @@
     "staffId": "ID",
     "staffFirstName": "Jméno",
     "staffLastName": "Příjmení",
+    "staffKnownAs": "Známý jako (volitelné)",
+    "staffKnownAsPlaceholder": "např. Cafu",
     "staffClub": "Klub",
     "staffNationality": "Národnost",
     "staffDateOfBirth": "Datum narození",

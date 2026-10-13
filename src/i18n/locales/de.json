@@ -772,6 +772,7 @@
     "myTactics": "Meine Taktiken",
     "newTactic": "Neue Taktik",
     "duplicateTactic": "Duplizieren",
+    "resetTactic": "Auf Standard zurücksetzen",
     "saveAsTactic": "Als Taktik speichern",
     "updateTactic": "Taktik aktualisieren",
     "tacticSaved": "Gespeichert",
@@ -1174,6 +1175,7 @@
     "sortNewest": "Neueste zuerst",
     "sortOldest": "Älteste zuerst",
     "selectMessages": "Nachrichten auswählen",
+    "selectAll": "Alle auswählen",
     "cancelSelection": "Auswahl abbrechen",
     "selectedCount": "{{count}} ausgewählt",
     "deleteSelected": "Auswahl löschen",
@@ -1968,6 +1970,14 @@
     "benchPlayers": "Bankspieler",
     "selectBenchToCompare": "Wähle einen Bankspieler zum Vergleichen",
     "confirmSubstitution": "Wechsel bestätigen",
+    "queueSubstitution": "Zur Warteschlange hinzufügen",
+    "queuedSubstitutions": "Vorgemerkte Wechsel",
+    "confirmAllSubstitutions": "Alle bestätigen ({{count}})",
+    "confirmSubstitutions": "{{count}} Wechsel bestätigen",
+    "removeQueuedSubstitution": "{{off}} → {{on}} aus der Warteschlange entfernen",
+    "alreadyQueued": "Bereits für einen Wechsel vorgemerkt",
+    "substitutionsPartlyMade": "{{applied}} von {{total}} Wechseln durchgeführt",
+    "substitutionRefused": "Wechsel abgelehnt: {{off}} für {{on}}. {{reason}}",
     "noBenchAvailable": "Keine Bankspieler verfügbar",
     "history": "Verlauf",
     "player": "Spieler",
@@ -2556,7 +2566,10 @@
     "yourResult": "Dein Ergebnis",
     "continue": "Weiter",
     "notableUpset": "Überraschungsergebnis",
-    "pts": "Pkt."
+    "pts": "Pkt.",
+    "cupPenalties": "({{home}}–{{away}} im Elfmeterschießen)",
+    "cupAdvances": "{{team}} kommt weiter",
+    "cupTiesPending": "Einige Partien stehen noch aus"
   },
   "endOfSeason": {
     "seasonComplete": "Saison beendet",
@@ -3637,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Karriere von {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Dieses Paket definiert das Land „{{name}}“ ({{code}}) außerhalb der Länderliste des Spiels und ordnet es keinem Verband zu, daher werden seine Vereine unter Europa geführt. Weise ihm einen Verband zu."
+      }
     }
   },
   "traits": {
@@ -3884,6 +3902,7 @@
     "saveSuccess": "Gespeichert",
     "saveTeam": "Verein speichern",
     "issues": "{{count}} Problem(e)",
+    "warnings": "{{count}} Warnung(en)",
     "packageId": "Paket-ID",
     "packageName": "Paketname",
     "description": "Beschreibung",
@@ -4042,6 +4061,7 @@
     "openPackageFileInvalid": "Bitte eine gültige .ofm-Paketdatei auswählen",
     "noItemSelected": "Wähle ein Element aus der Liste oder klicke auf Hinzufügen",
     "issuesBadge": "{{count}} Problem(e)",
+    "warningsBadge": "{{count}} Warnungen",
     "issuesTitle": "Validierungsprobleme",
     "noIssues": "Keine Probleme – Welt ist gültig",
     "saving": "Speichern…",
@@ -4116,6 +4136,8 @@
     "staffId": "ID",
     "staffFirstName": "Vorname",
     "staffLastName": "Nachname",
+    "staffKnownAs": "Bekannt als (optional)",
+    "staffKnownAsPlaceholder": "z. B. Cafu",
     "staffClub": "Verein",
     "staffNationality": "Nationalität",
     "staffDateOfBirth": "Geburtsdatum",

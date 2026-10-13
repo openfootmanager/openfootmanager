@@ -11,7 +11,6 @@ use season_harness::fingerprint::{fingerprint, first_difference};
 use season_harness::invariants::{
     CLUB_RESTS_BETWEEN_MATCHES, Invariants, MIN_DAYS_BETWEEN_MATCHES,
 };
-use season_harness::known_bug::expect_bug;
 use season_harness::worlds::WorldSpec;
 
 const SEASONS: u32 = 2;
@@ -20,23 +19,21 @@ const SEEDS: &[u64] = &[1];
 /// The GitHub issue for clubs booked less than the minimum rest apart.
 const CLASHING_CALENDAR_ISSUE: u32 = 553;
 
-/// Every rule but one must hold. The one is carried as the known bug it is: the gate passes while
-/// clubs are still booked inside the minimum rest, fails with "remove the guard" the day they
-/// are not, and fails on any other broken rule. Calendar slice S4a removes the guard.
+/// Every rule but one must hold. The one is #553's exemption: clubs still play inside the minimum
+/// rest, and the gate asserts that they do, so the day the calendar is legal this fails and says to
+/// delete the exemption.
 ///
-/// The guard is per rule, not per bug: a new club-rest clash of another shape would also pass as
-/// #553 until S4a removes the guard.
+/// The exemption covers the whole rule, not one bug: a new club-rest clash of another shape would
+/// also pass as #553 until it is deleted.
 fn assert_holds_every_invariant_but_the_known_calendar_bug(invariants: &Invariants, run: &str) {
     let others = invariants.report_except(CLUB_RESTS_BETWEEN_MATCHES);
     assert!(others.is_empty(), "{run} broke an invariant:\n{others}");
 
     let clashes = invariants.report_of(CLUB_RESTS_BETWEEN_MATCHES);
-    expect_bug(CLASHING_CALENDAR_ISSUE, "days apart", || {
-        assert!(
-            clashes.is_empty(),
-            "{run}: clubs play inside the {MIN_DAYS_BETWEEN_MATCHES}-day rest:\n{clashes}"
-        );
-    });
+    assert!(
+        !clashes.is_empty(),
+        "#{CLASHING_CALENDAR_ISSUE} is fixed: delete this exemption ({run}: no club played inside the {MIN_DAYS_BETWEEN_MATCHES}-day rest)"
+    );
 }
 
 /// Given a generated world with the player in charge of a club,

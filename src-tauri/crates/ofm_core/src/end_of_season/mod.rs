@@ -1009,6 +1009,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     // 5b. Convert retired players to unemployed manager/scout candidates, then
     //     ensure the unemployed pools meet the season-end floor.
     convert_retired_players_to_candidates(game);
+    crate::manager_retirement::retire_unemployed_managers(game);
     crate::generator::replenish_manager_and_scout_market(game);
 
     // 6. Update manager career stats
@@ -1290,8 +1291,13 @@ fn convert_retired_players_to_candidates(game: &mut Game) {
         return;
     }
 
-    let existing_mgr_ids: std::collections::HashSet<String> =
-        game.managers.iter().map(|m| m.id.clone()).collect();
+    // The archive counts: a retired manager must not be converted afresh every season.
+    let existing_mgr_ids: std::collections::HashSet<String> = game
+        .managers
+        .iter()
+        .chain(&game.retired_managers)
+        .map(|m| m.id.clone())
+        .collect();
     let existing_staff_ids: std::collections::HashSet<String> =
         game.staff.iter().map(|s| s.id.clone()).collect();
 

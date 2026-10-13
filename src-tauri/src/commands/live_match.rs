@@ -1417,6 +1417,7 @@ mod tests {
         // lets this test tell apart "the digest used the league's round context" from "it used
         // the cup session's" — with both on matchday 1 the two are indistinguishable.
         cup.fixtures[0].matchday = 2;
+        cup.participant_ids = vec!["team1".to_string(), "team3".to_string()];
         game.competitions.push(cup.clone());
 
         // Mimic the GUI match-day flow: the cup is swapped into game.league,
@@ -1501,6 +1502,24 @@ mod tests {
                 .all(|result| result.home_team_id != "team1" || result.away_team_id != "team3"),
             "the cup tie must not appear in the league round digest"
         );
+
+        // The cup tie the user played comes back as the cup's own summary. The day finishing
+        // advances the clock, so a summary dated by the clock after the sweep would be empty:
+        // the date has to be read before it.
+        assert_eq!(
+            response
+                .game
+                .clock
+                .current_date
+                .format("%Y-%m-%d")
+                .to_string(),
+            "2025-06-16"
+        );
+        let [cup_summary] = response.cup_round_summaries.as_slice() else {
+            panic!("the user's cup tie is summarised");
+        };
+        assert_eq!(cup_summary.results.len(), 1);
+        assert_eq!(cup_summary.results[0].result.home_team_id, "team1");
     }
 
     #[test]

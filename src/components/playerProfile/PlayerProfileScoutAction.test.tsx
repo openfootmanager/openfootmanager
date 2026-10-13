@@ -21,6 +21,7 @@ describe("PlayerProfileScoutAction", () => {
     id: "scout-1",
     first_name: "Sam",
     last_name: "Scout",
+    display_name: "Sam Scout",
     date_of_birth: "1990-01-01",
     nationality: "ES",
     role: "Scout",

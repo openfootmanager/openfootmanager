@@ -146,6 +146,12 @@ fn execute_ai_firing_on_date(game: &mut Game, manager_index: usize, today: &str)
     }
 
     game.managers[manager_index].fire(today);
+    // A stand-in was never a candidate: they go back to being only an assistant, so the directory
+    // and the unemployed pool never list them while they wait for the season-end clear-out.
+    if game.managers[manager_index].interim {
+        let stand_in = game.managers.remove(manager_index);
+        game.retired_managers.push(stand_in);
+    }
     game.news.push(ai_managerial_change_article(
         &manager.id,
         &manager.full_name(),

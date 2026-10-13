@@ -138,6 +138,11 @@ pub struct Game {
     /// always sweeps.
     #[serde(skip)]
     pub calendar_fingerprint: Option<u64>,
+    /// Unemployed managers who have left the active pool, whole and frozen, so a club's past
+    /// managers stay readable without every reader of `managers` filtering them out. Skipped on
+    /// IPC serde like the other archives. Persistence is the `retired_managers` table.
+    #[serde(skip)]
+    pub retired_managers: Vec<Manager>,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -224,6 +229,7 @@ impl Game {
             edition_archive: Vec::new(),
             retired_players: Vec::new(),
             calendar_fingerprint: None,
+            retired_managers: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],

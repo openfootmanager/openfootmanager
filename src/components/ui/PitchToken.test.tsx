@@ -133,6 +133,20 @@ describe("PitchToken summary reachability", () => {
   });
 
   /**
+   * Given a focused token showing its summary inside a dialog
+   * When Escape dismisses the summary
+   * Then the keydown is marked handled, so the dialog does not close on it.
+   */
+  it("marks the Escape that dismisses the summary as handled", () => {
+    render(<PitchToken name="Rossi" positionAbbr="ST" ovr={74} condition={74} focused />);
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+
+    const notPrevented = fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(notPrevented).toBe(false);
+  });
+
+  /**
    * Given a hovered token and a summary offset from it
    * When the pointer leaves the token and enters the summary within the grace period
    * Then the summary stays open, and closes once the pointer leaves it
