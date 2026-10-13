@@ -23,6 +23,7 @@ fn age_on(manager: &Manager, today: NaiveDate) -> Option<u32> {
 
 /// Moves old and surplus unemployed managers into the archive. Returns how many moved.
 ///
+/// A fired stand-in goes at once: they are an assistant who covered, not a candidate.
 /// The user's manager and anyone employed stay. Past the ceiling the least reputable go first,
 /// the id breaking a tie so the same world retires the same people.
 pub fn retire_unemployed_managers(game: &mut Game) -> usize {
@@ -38,7 +39,7 @@ pub fn retire_unemployed_managers(game: &mut Game) -> usize {
         .managers
         .iter()
         .filter(unemployed)
-        .filter(|m| age_on(m, today).is_some_and(|age| age >= RETIREMENT_AGE))
+        .filter(|m| m.interim || age_on(m, today).is_some_and(|age| age >= RETIREMENT_AGE))
         .map(|m| m.id.clone())
         .collect();
 
@@ -182,5 +183,21 @@ mod tests {
         assert_eq!(retire_unemployed_managers(&mut game), 1);
         assert_eq!(retire_unemployed_managers(&mut game), 0);
         assert_eq!(ids(&game.retired_managers), ["old"]);
+    }
+
+    /// Given an unemployed stand-in (a fired interim) among ordinary unemployed managers
+    /// When the retirement runs
+    /// Then only the stand-in is archived, however young.
+    #[test]
+    fn a_fired_stand_in_is_archived_at_once() {
+        let mut game = game_in_2031();
+        game.teams = vec![club("t1")];
+        let mut stand_in = unemployed("stand-in", "1990-01-01", 500);
+        stand_in.interim = true;
+        game.managers
+            .extend([stand_in, unemployed("candidate", "1990-01-01", 500)]);
+
+        assert_eq!(retire_unemployed_managers(&mut game), 1);
+        assert_eq!(ids(&game.retired_managers), ["stand-in"]);
     }
 }
