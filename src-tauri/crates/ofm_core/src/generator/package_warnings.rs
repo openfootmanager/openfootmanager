@@ -4,15 +4,54 @@
 //! game will not do what the author probably meant. Today there is one: a country code the game
 //! has never heard of, which `nations::region_for_code` quietly files under Europe.
 
+use std::collections::HashSet;
+
 use super::package::{PackageError, WorldPackage};
+use crate::nations::nation_by_name;
 
 pub(super) const UNKNOWN_COUNTRY_CODE: &str = "be.warning.package.unknownCountryCode";
 
 /// Problems that leave the package usable. Empty for a package whose country codes are all
 /// ones the game knows or the package itself defines.
 pub fn package_warnings(package: &WorldPackage) -> Vec<PackageError> {
-    let _ = (package, UNKNOWN_COUNTRY_CODE);
-    Vec::new()
+    let own_countries: HashSet<&str> = package.countries.iter().map(|c| c.id.as_str()).collect();
+    let is_unknown = |code: &str| {
+        !code.trim().is_empty() && nation_by_name(code).is_none() && !own_countries.contains(code)
+    };
+
+    let teams = package
+        .teams
+        .iter()
+        .enumerate()
+        .filter(|(_, team)| is_unknown(&team.country))
+        .map(|(index, team)| warning("team", index, &team.name, &team.country, package));
+    let players = package
+        .players
+        .iter()
+        .enumerate()
+        .filter(|(_, player)| is_unknown(&player.nationality))
+        .map(|(index, player)| {
+            let called = if player.name.is_empty() {
+                format!("{} {}", player.first_name, player.last_name)
+            } else {
+                player.name.clone()
+            };
+            warning("player", index, called.trim(), &player.nationality, package)
+        });
+    teams.chain(players).collect()
+}
+
+fn warning(
+    schema: &str,
+    index: usize,
+    name: &str,
+    code: &str,
+    package: &WorldPackage,
+) -> PackageError {
+    PackageError::new(UNKNOWN_COUNTRY_CODE, &package.source_at(schema, index))
+        .with("kind", schema)
+        .with("name", name)
+        .with("code", code)
 }
 
 #[cfg(test)]
