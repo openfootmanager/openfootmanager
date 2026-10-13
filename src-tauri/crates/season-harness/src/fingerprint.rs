@@ -112,12 +112,18 @@ fn team_decisions(team: &Team) -> String {
 fn inbox_line(message: &InboxMessage) -> String {
     let mut params: Vec<_> = message.i18n_params.iter().collect();
     params.sort_unstable();
+    // Text fields in `{:?}` form, quoted and escaped, so no character inside one can read as the
+    // boundary between two.
     format!(
-        "message {} {:?} {:?} read{} {:?}/{:?} {}|{} params{:?}",
+        "message {} {:?} {:?} read{} from{:?}/{:?}/{:?}/{:?} {:?}/{:?} {:?} {:?} params{:?}",
         message.date,
         message.category,
         message.priority,
         message.read,
+        message.sender,
+        message.sender_role,
+        message.sender_key,
+        message.sender_role_key,
         message.subject_key,
         message.body_key,
         message.subject,
@@ -345,5 +351,36 @@ mod tests {
             other.teams[0].player_roles.insert(id.to_string(), role);
         }
         assert_eq!(fingerprint(&one), fingerprint(&other));
+    }
+
+    fn a_message(subject: &str, body: &str, sender: &str) -> domain::message::InboxMessage {
+        domain::message::InboxMessage::new(
+            "any-id".to_string(),
+            subject.to_string(),
+            body.to_string(),
+            sender.to_string(),
+            "2033-07-02".to_string(),
+        )
+    }
+
+    #[test]
+    fn it_sees_who_a_message_is_from() {
+        let with_sender = |sender: &str| {
+            let mut game = built();
+            game.messages.push(a_message("Subject", "Body", sender));
+            fingerprint(&game)
+        };
+        assert_ne!(with_sender("Assistant"), with_sender("Chairman"));
+    }
+
+    /// A pipe inside the subject must not read as the boundary between subject and body.
+    #[test]
+    fn two_messages_that_split_their_text_differently_are_two_messages() {
+        let with = |subject: &str, body: &str| {
+            let mut game = built();
+            game.messages.push(a_message(subject, body, "Assistant"));
+            fingerprint(&game)
+        };
+        assert_ne!(with("A|B", "C"), with("A", "B|C"));
     }
 }
