@@ -821,8 +821,12 @@ pub(super) fn generate_staff_from_authored_def(
 // Authored players (world packages)
 // ---------------------------------------------------------------------------
 
+/// `base` plus or minus `spread`, kept within `lo..=hi`. The floor gives way to a base so low
+/// that the spread reaches under it: an authored `overall` of 10 used to come out near 21,
+/// because every attribute was clamped up to 30.
 fn jitter(base: i32, spread: i32, lo: u8, hi: u8, rng: &mut impl Rng) -> u8 {
-    (base + rng.random_range(-spread..=spread)).clamp(lo as i32, hi as i32) as u8
+    let lo = i32::from(lo).min((base - spread).max(1));
+    (base + rng.random_range(-spread..=spread)).clamp(lo, i32::from(hi)) as u8
 }
 
 /// Build a realistic attribute spread centred on a target `overall`, shaped by
@@ -998,6 +1002,18 @@ fn bound_attributes_by_ceiling(
     }
 }
 
+/// What the player is called: the authored `name` (a single word, or the surname of a longer
+/// one), else the last name, else the whole name. `firstName`/`lastName` stay the real name.
+fn authored_match_name(name: &str, last_name: &str, full_name: &str) -> String {
+    if let Some(called) = name.split_whitespace().last() {
+        called.to_string()
+    } else if last_name.is_empty() {
+        full_name.to_string()
+    } else {
+        last_name.to_string()
+    }
+}
+
 pub(super) fn generate_player_from_def(
     def: &super::package::PlayerDef,
     team_id: &str,
@@ -1008,11 +1024,7 @@ pub(super) fn generate_player_from_def(
     let nationality = canonicalize_generated_nationality(&def.nationality);
     let (first_name, last_name) = resolve_def_name(def, &nationality, names_def, rng);
     let full_name = format!("{first_name} {last_name}").trim().to_string();
-    let match_name = if last_name.is_empty() {
-        full_name.clone()
-    } else {
-        last_name
-    };
+    let match_name = authored_match_name(&def.name, &last_name, &full_name);
 
     let current_year: u32 = opening_year;
     let birth_year = resolve_birth_year(def, opening_year, rng);
@@ -1207,6 +1219,68 @@ mod tests {
             &names_def,
             &mut rng,
         )
+    }
+
+    fn authored_names(value: serde_json::Value) -> (String, String) {
+        let mut def = serde_json::json!({
+            "id": "p1", "club": "club-id", "nationality": "BRA", "position": "Striker",
+            "dateOfBirth": "1990-01-01", "overall": 70,
+        });
+        def.as_object_mut()
+            .unwrap()
+            .extend(value.as_object().unwrap().clone());
+        let player = generate_from_json(def, 2026);
+        (player.full_name, player.match_name)
+    }
+
+    /// Given players authored with a known-as `name` beside their real first and last names (#556)
+    /// When they are generated
+    /// Then `full_name` is the real name and `match_name` is what they are called.
+    #[test]
+    fn an_authored_name_is_what_the_player_is_called() {
+        assert_eq!(
+            authored_names(serde_json::json!(
+                {"name": "Kaká", "firstName": "Ricardo Izecson", "lastName": "dos Santos Leite"}
+            )),
+            (
+                "Ricardo Izecson dos Santos Leite".to_string(),
+                "Kaká".to_string()
+            )
+        );
+        assert_eq!(
+            authored_names(serde_json::json!(
+                {"name": "Lionel Messi", "firstName": "Lionel Andrés", "lastName": "Messi Cuccittini"}
+            )),
+            (
+                "Lionel Andrés Messi Cuccittini".to_string(),
+                "Messi".to_string()
+            )
+        );
+        assert_eq!(
+            authored_names(serde_json::json!({"firstName": "John", "lastName": "Smith"})),
+            ("John Smith".to_string(), "Smith".to_string())
+        );
+    }
+
+    /// Given a player authored with a very low `overall` (#495)
+    /// When many are generated
+    /// Then their ability stays near what was written instead of being floored at about 21.
+    #[test]
+    fn a_very_low_authored_overall_is_honoured() {
+        let mut total = 0u32;
+        for _ in 0..100 {
+            let player = generate_from_json(
+                serde_json::json!({
+                    "id": "p1", "firstName": "Weak", "lastName": "Link", "club": "club-id",
+                    "nationality": "ENG", "position": "Striker",
+                    "dateOfBirth": "1990-01-01", "overall": 10,
+                }),
+                2026,
+            );
+            total += u32::from(player.ovr);
+        }
+        let mean = f64::from(total) / 100.0;
+        assert!(mean < 16.0, "an authored 10 averaged {mean}");
     }
 
     /// An authored ceiling is the author's to set.
