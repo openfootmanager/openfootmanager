@@ -539,6 +539,59 @@ describe("InboxTab", (): void => {
   });
 
   /**
+   * Given everything is selected under the All view
+   * When the player switches to a category
+   * Then the selection is cleared, so Delete can only remove messages that are on screen.
+   */
+  it("clears the selection when the category filter changes", async (): Promise<void> => {
+    await renderInboxTab({
+      gameState: createGameState([
+        createMessage({ id: "m1", subject: "Contract news", category: "Contract", read: true }),
+        createMessage({ id: "m2", subject: "Injury news", category: "Injury", read: true }),
+      ]),
+    });
+
+    fireEvent.click(screen.getByTestId("inbox-toggle-selection-mode"));
+    fireEvent.click(screen.getByTestId("inbox-select-all"));
+    fireEvent.click(screen.getByText(/inbox\.categories\.Injury/));
+
+    expect(screen.getByTestId("inbox-select-message-m2")).not.toBeChecked();
+    expect(screen.getByTestId("inbox-delete-selected")).toBeDisabled();
+  });
+
+  /**
+   * Given two messages with one ticked
+   * When the toolbar renders
+   * Then Select all reads as mixed to assistive technology.
+   */
+  it("shows Select all as mixed when only some messages are selected", async (): Promise<void> => {
+    await renderInboxTab({
+      gameState: createGameState([
+        createMessage({ id: "m1", read: true }),
+        createMessage({ id: "m2", read: true }),
+      ]),
+    });
+
+    fireEvent.click(screen.getByTestId("inbox-toggle-selection-mode"));
+    fireEvent.click(screen.getByTestId("inbox-select-message-m1"));
+
+    expect(screen.getByTestId("inbox-select-all")).toHaveAttribute("aria-checked", "mixed");
+  });
+
+  /**
+   * Given selection mode on an empty view
+   * When the toolbar renders
+   * Then Select all is disabled.
+   */
+  it("disables Select all when nothing is visible", async (): Promise<void> => {
+    await renderInboxTab({ gameState: createGameState([]) });
+
+    fireEvent.click(screen.getByTestId("inbox-toggle-selection-mode"));
+
+    expect(screen.getByTestId("inbox-select-all")).toBeDisabled();
+  });
+
+  /**
    * Given selection mode is off
    * When the toolbar renders
    * Then there is no Select all control.

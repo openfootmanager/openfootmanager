@@ -13,6 +13,7 @@ import {
 interface InboxToolbarProps {
   allMessagesCount: number;
   allVisibleSelected: boolean;
+  someVisibleSelected: boolean;
   visibleMessageCount: number;
   bulkSelectionEnabled: boolean;
   categories: string[];
@@ -35,6 +36,7 @@ interface InboxToolbarProps {
 export default function InboxToolbar({
   allMessagesCount,
   allVisibleSelected,
+  someVisibleSelected,
   visibleMessageCount,
   bulkSelectionEnabled,
   categories,
@@ -127,6 +129,7 @@ export default function InboxToolbar({
               <Checkbox
                 id="inbox-select-all"
                 checked={allVisibleSelected}
+                indeterminate={someVisibleSelected && !allVisibleSelected}
                 onChange={onToggleSelectAll}
                 disabled={visibleMessageCount === 0}
                 data-testid="inbox-select-all"

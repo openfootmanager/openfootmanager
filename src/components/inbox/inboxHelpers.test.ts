@@ -102,34 +102,29 @@ describe("inboxHelpers", () => {
 
 describe("toggleVisibleSelection", () => {
   /**
-   * Given some messages are selected and others are visible but not selected
+   * Given some visible messages are selected and others are not
    * When the visible set is toggled
-   * Then every visible message becomes selected and a selection outside the filter is kept.
+   * Then every visible message becomes selected.
    */
-  it("selects every visible message and keeps a hidden selection", () => {
-    expect(toggleVisibleSelection(["hidden", "a"], ["a", "b", "c"])).toEqual([
-      "hidden",
-      "a",
-      "b",
-      "c",
-    ]);
+  it("selects every visible message", () => {
+    expect(toggleVisibleSelection(["a"], ["a", "b", "c"])).toEqual(["a", "b", "c"]);
   });
 
   /**
    * Given every visible message is already selected
    * When the visible set is toggled
-   * Then the visible messages are deselected and a selection outside the filter is kept.
+   * Then nothing is selected.
    */
-  it("deselects the visible messages when all of them are selected", () => {
-    expect(toggleVisibleSelection(["hidden", "a", "b"], ["a", "b"])).toEqual(["hidden"]);
+  it("clears the selection when every visible message is selected", () => {
+    expect(toggleVisibleSelection(["a", "b"], ["a", "b"])).toEqual([]);
   });
 
   /**
    * Given nothing is visible
    * When the visible set is toggled
-   * Then the selection is unchanged.
+   * Then nothing is selected.
    */
-  it("does nothing when no message is visible", () => {
-    expect(toggleVisibleSelection(["x"], [])).toEqual(["x"]);
+  it("selects nothing when no message is visible", () => {
+    expect(toggleVisibleSelection(["x"], [])).toEqual([]);
   });
 });

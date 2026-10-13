@@ -106,12 +106,19 @@ export default function InboxTab({
     [allMessages, selectedMessageId],
   );
 
+  // A message can leave the view without the filter changing (reading one in the Unread view), and
+  // it must leave the selection with it.
+  useEffect(() => {
+    const visibleMessageIds = new Set(filteredMessages.map((message) => message.id));
+
+    setSelectedMessageIds((currentIds) => {
+      const stillVisible = currentIds.filter((messageId) => visibleMessageIds.has(messageId));
+      return stillVisible.length === currentIds.length ? currentIds : stillVisible;
+    });
+  }, [filteredMessages]);
+
   useEffect(() => {
     const availableMessageIds = new Set(allMessages.map((message) => message.id));
-
-    setSelectedMessageIds((currentIds) =>
-      currentIds.filter((messageId) => availableMessageIds.has(messageId)),
-    );
 
     if (selectedMessageId && !availableMessageIds.has(selectedMessageId)) {
       setSelectedMessageId(null);
@@ -310,15 +317,19 @@ export default function InboxTab({
     });
   }
 
+  // A new view starts with nothing ticked, so Delete only ever removes what is on screen.
   function handleShowAll(): void {
+    setSelectedMessageIds([]);
     setCategoryFilter(null);
   }
 
   function handleShowUnread(): void {
+    setSelectedMessageIds([]);
     setCategoryFilter("__unread");
   }
 
   function handleToggleCategory(category: string): void {
+    setSelectedMessageIds([]);
     setCategoryFilter((currentFilter) => {
       if (currentFilter === category) {
         return null;
@@ -350,6 +361,9 @@ export default function InboxTab({
           filteredMessages.length > 0 &&
           filteredMessages.every((message) => selectedMessageIds.includes(message.id))
         }
+        someVisibleSelected={filteredMessages.some((message) =>
+          selectedMessageIds.includes(message.id),
+        )}
         onToggleSelectAll={handleToggleSelectAll}
         sortOrder={sortOrder}
         unreadCount={unreadCount}

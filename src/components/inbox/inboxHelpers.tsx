@@ -132,21 +132,14 @@ export function getFilterButtonClassName(isActive: boolean, extraClasses = ""): 
 }
 
 /**
- * Select all / deselect all over what is on screen. A selection made under another filter stays,
- * so switching filters never silently drops a message the player already ticked.
+ * Select all / deselect all over what is on screen: Delete must only ever remove messages the
+ * player can see, so the selection never extends past the visible set.
  */
 export function toggleVisibleSelection(selectedIds: string[], visibleIds: string[]): string[] {
-  if (visibleIds.length === 0) {
-    return selectedIds;
-  }
-
   const selected = new Set(selectedIds);
-  if (visibleIds.every((id) => selected.has(id))) {
-    const visible = new Set(visibleIds);
-    return selectedIds.filter((id) => !visible.has(id));
-  }
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
 
-  return [...selectedIds, ...visibleIds.filter((id) => !selected.has(id))];
+  return allVisibleSelected ? [] : visibleIds;
 }
 
 export function getFilteredMessages(
