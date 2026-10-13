@@ -129,6 +129,53 @@ where
     percentile_rank(&values, selector(player_aggregate), stat.direction())
 }
 
+/// The player and the peers they are ranked against, so each metric is built the same way.
+struct Cohort<'a> {
+    player: &'a PlayerAggregate,
+    eligible_peers: Vec<&'a PlayerAggregate>,
+    percentiles_computable: bool,
+}
+
+impl Cohort<'_> {
+    fn percentile(
+        &self,
+        stat: AdvancedStat,
+        rate: impl Fn(&PlayerAggregate) -> Option<f32>,
+    ) -> Option<u32> {
+        if !self.percentiles_computable {
+            return None;
+        }
+        metric_percentile(stat, &self.eligible_peers, rate, self.player)
+    }
+
+    fn per90_metric(
+        &self,
+        stat: AdvancedStat,
+        total: fn(&PlayerAggregate) -> u32,
+    ) -> PlayerAdvancedMetricDto {
+        let per90 = |aggregate: &PlayerAggregate| {
+            calculate_per90(total(aggregate), aggregate.minutes_played)
+        };
+        PlayerAdvancedMetricDto {
+            total: total(self.player),
+            per90: per90(self.player),
+            percentile: self.percentile(stat, per90),
+        }
+    }
+
+    fn pass_metric(&self) -> PlayerAdvancedPassMetricDto {
+        let accuracy = |aggregate: &PlayerAggregate| {
+            calculate_pass_accuracy(aggregate.passes_completed, aggregate.passes_attempted)
+        };
+        PlayerAdvancedPassMetricDto {
+            completed: self.player.passes_completed,
+            attempted: self.player.passes_attempted,
+            accuracy: accuracy(self.player),
+            percentile: self.percentile(AdvancedStat::PassAccuracy, accuracy),
+        }
+    }
+}
+
 fn build_overview_from_aggregate(
     player_aggregate: &PlayerAggregate,
     peers: &[PlayerAggregate],
@@ -139,127 +186,26 @@ fn build_overview_from_aggregate(
         .iter()
         .filter(|aggregate| aggregate.minutes_played >= DEFAULT_MINIMUM_MINUTES)
         .collect::<Vec<_>>();
-    let can_compute_percentiles = player_aggregate.minutes_played >= DEFAULT_MINIMUM_MINUTES
-        && eligible_peers.len() >= DEFAULT_MINIMUM_COHORT_SIZE;
+    let cohort = Cohort {
+        player: player_aggregate,
+        percentiles_computable: player_aggregate.minutes_played >= DEFAULT_MINIMUM_MINUTES
+            && eligible_peers.len() >= DEFAULT_MINIMUM_COHORT_SIZE,
+        eligible_peers,
+    };
 
     PlayerStatsOverviewDto {
-        percentile_eligible: can_compute_percentiles,
+        percentile_eligible: cohort.percentiles_computable,
         peer_group,
         season_rating_rated: ofm_core::match_rating::is_rated(season_avg_rating),
         metrics: PlayerStatsOverviewMetricsDto {
-            shots: PlayerAdvancedMetricDto {
-                total: player_aggregate.shots,
-                per90: calculate_per90(player_aggregate.shots, player_aggregate.minutes_played),
-                percentile: if can_compute_percentiles {
-                    metric_percentile(
-                        AdvancedStat::Shots,
-                        &eligible_peers,
-                        |aggregate| calculate_per90(aggregate.shots, aggregate.minutes_played),
-                        player_aggregate,
-                    )
-                } else {
-                    None
-                },
-            },
-            shots_on_target: PlayerAdvancedMetricDto {
-                total: player_aggregate.shots_on_target,
-                per90: calculate_per90(
-                    player_aggregate.shots_on_target,
-                    player_aggregate.minutes_played,
-                ),
-                percentile: if can_compute_percentiles {
-                    metric_percentile(
-                        AdvancedStat::ShotsOnTarget,
-                        &eligible_peers,
-                        |aggregate| {
-                            calculate_per90(aggregate.shots_on_target, aggregate.minutes_played)
-                        },
-                        player_aggregate,
-                    )
-                } else {
-                    None
-                },
-            },
-            passes: PlayerAdvancedPassMetricDto {
-                completed: player_aggregate.passes_completed,
-                attempted: player_aggregate.passes_attempted,
-                accuracy: calculate_pass_accuracy(
-                    player_aggregate.passes_completed,
-                    player_aggregate.passes_attempted,
-                ),
-                percentile: if can_compute_percentiles {
-                    metric_percentile(
-                        AdvancedStat::PassAccuracy,
-                        &eligible_peers,
-                        |aggregate| {
-                            calculate_pass_accuracy(
-                                aggregate.passes_completed,
-                                aggregate.passes_attempted,
-                            )
-                        },
-                        player_aggregate,
-                    )
-                } else {
-                    None
-                },
-            },
-            tackles_won: PlayerAdvancedMetricDto {
-                total: player_aggregate.tackles_won,
-                per90: calculate_per90(
-                    player_aggregate.tackles_won,
-                    player_aggregate.minutes_played,
-                ),
-                percentile: if can_compute_percentiles {
-                    metric_percentile(
-                        AdvancedStat::TacklesWon,
-                        &eligible_peers,
-                        |aggregate| {
-                            calculate_per90(aggregate.tackles_won, aggregate.minutes_played)
-                        },
-                        player_aggregate,
-                    )
-                } else {
-                    None
-                },
-            },
-            interceptions: PlayerAdvancedMetricDto {
-                total: player_aggregate.interceptions,
-                per90: calculate_per90(
-                    player_aggregate.interceptions,
-                    player_aggregate.minutes_played,
-                ),
-                percentile: if can_compute_percentiles {
-                    metric_percentile(
-                        AdvancedStat::Interceptions,
-                        &eligible_peers,
-                        |aggregate| {
-                            calculate_per90(aggregate.interceptions, aggregate.minutes_played)
-                        },
-                        player_aggregate,
-                    )
-                } else {
-                    None
-                },
-            },
-            fouls_committed: PlayerAdvancedMetricDto {
-                total: player_aggregate.fouls_committed,
-                per90: calculate_per90(
-                    player_aggregate.fouls_committed,
-                    player_aggregate.minutes_played,
-                ),
-                percentile: if can_compute_percentiles {
-                    metric_percentile(
-                        AdvancedStat::FoulsCommitted,
-                        &eligible_peers,
-                        |aggregate| {
-                            calculate_per90(aggregate.fouls_committed, aggregate.minutes_played)
-                        },
-                        player_aggregate,
-                    )
-                } else {
-                    None
-                },
-            },
+            shots: cohort.per90_metric(AdvancedStat::Shots, |a| a.shots),
+            shots_on_target: cohort
+                .per90_metric(AdvancedStat::ShotsOnTarget, |a| a.shots_on_target),
+            passes: cohort.pass_metric(),
+            tackles_won: cohort.per90_metric(AdvancedStat::TacklesWon, |a| a.tackles_won),
+            interceptions: cohort.per90_metric(AdvancedStat::Interceptions, |a| a.interceptions),
+            fouls_committed: cohort
+                .per90_metric(AdvancedStat::FoulsCommitted, |a| a.fouls_committed),
         },
     }
 }
