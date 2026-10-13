@@ -2,7 +2,7 @@ use rand::{Rng, RngExt};
 
 use crate::event::{EventDetail, EventType, MatchEvent};
 use crate::shared::{
-    PlayStylePhase, PlayerSnap, TraitContext, play_style_modifier, role_attribute_modifier,
+    PlayStylePhase, PlayerSnap, TraitContext, play_style_modifier, role_modifier,
     tactics_buildup_mod, tactics_cross_probability, tactics_defensive_conversion_mod,
     tactics_foul_modifier, tactics_shape_modifier, tactics_tempo_progression,
     tactics_width_versus_shape, trait_bonus,
@@ -107,12 +107,17 @@ impl LiveMatchState {
             self.team_ref(att_side).play_style,
             PlayStylePhase::Midfield,
             true,
-        ) * role_attribute_modifier(attacker.role, PlayStylePhase::Midfield);
-        let def_mod = play_style_modifier(
-            self.team_ref(def_side).play_style,
+        ) * role_modifier(
+            Position::Midfielder,
+            attacker.role,
             PlayStylePhase::Midfield,
-            false,
-        ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
+        );
+        let def_mod =
+            play_style_modifier(
+                self.team_ref(def_side).play_style,
+                PlayStylePhase::Midfield,
+                false,
+            ) * role_modifier(Position::Midfielder, defender.role, PlayStylePhase::Defense);
         let att_eff = att_rating
             * att_mod
             * crate::shared::home_mod(att_side, &self.config)
@@ -193,12 +198,12 @@ impl LiveMatchState {
             self.team_ref(att_side).play_style,
             PlayStylePhase::Attack,
             true,
-        ) * role_attribute_modifier(attacker.role, PlayStylePhase::Attack);
+        ) * role_modifier(Position::Forward, attacker.role, PlayStylePhase::Attack);
         let def_mod = play_style_modifier(
             self.team_ref(def_side).play_style,
             PlayStylePhase::Defense,
             false,
-        ) * role_attribute_modifier(defender.role, PlayStylePhase::Defense);
+        ) * role_modifier(Position::Defender, defender.role, PlayStylePhase::Defense);
         let att_eff = att_rating * att_mod * crate::shared::home_mod(att_side, &self.config);
         let def_eff = def_rating
             * def_mod
