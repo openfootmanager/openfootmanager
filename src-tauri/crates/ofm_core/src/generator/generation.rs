@@ -825,8 +825,52 @@ pub(super) fn generate_staff_from_authored_def(
 // Authored players (world packages)
 // ---------------------------------------------------------------------------
 
+/// `base` plus or minus `spread`, kept within `lo..=hi`. The floor gives way to a base so low
+/// that the spread reaches under it, but never below 1: an attribute of 0 reads as missing.
 fn jitter(base: i32, spread: i32, lo: u8, hi: u8, rng: &mut impl Rng) -> u8 {
-    (base + rng.random_range(-spread..=spread)).clamp(lo as i32, hi as i32) as u8
+    let lo = i32::from(lo).min((base - spread).max(1));
+    (base + rng.random_range(-spread..=spread)).clamp(lo, i32::from(hi)) as u8
+}
+
+/// How many times the attribute centre is corrected against the real rating.
+const OVERALL_CORRECTION_STEPS: usize = 8;
+
+/// Attributes whose rating, as `player_rating::ovr_from_attributes` computes it, lands on
+/// `overall`.
+///
+/// Jittering every attribute around `overall` does not give an `ovr` of `overall`: the rating
+/// subtracts a penalty for a weak critical attribute, so a low target came out far from itself.
+/// Rather than invert that formula here (a second copy of the rating rule), the centre is
+/// moved by the remaining difference, computed with the real rating, until it lands within one
+/// point. The same seed is replayed each time so only the centre moves, and the result is
+/// deterministic for a seeded `rng`.
+fn attributes_matching_overall(
+    overall: u8,
+    position: &Position,
+    rng: &mut impl Rng,
+) -> PlayerAttributes {
+    let seed: u64 = rng.random();
+    let target = i32::from(overall);
+    let mut centre = target;
+    let mut closest: Option<(i32, PlayerAttributes)> = None;
+    for _ in 0..OVERALL_CORRECTION_STEPS {
+        let mut replay = crate::seed::rng_from_u64(seed);
+        let attributes = attributes_for_overall(centre.clamp(1, 99) as u8, position, &mut replay);
+        let rated = crate::player_rating::ovr_from_attributes(&attributes, position).round() as i32;
+        let off = target - rated;
+        if closest.as_ref().is_none_or(|(best, _)| off.abs() < *best) {
+            closest = Some((off.abs(), attributes));
+        }
+        if off.abs() <= 1 {
+            break;
+        }
+        centre += off;
+    }
+    closest
+        .map(|(_, attributes)| attributes)
+        .unwrap_or_else(|| {
+            attributes_for_overall(overall, position, &mut crate::seed::rng_from_u64(seed))
+        })
 }
 
 /// Build a realistic attribute spread centred on a target `overall`, shaped by
@@ -1051,7 +1095,7 @@ pub(super) fn generate_player_from_def(
     let age = current_year.saturating_sub(birth_year);
 
     let mut attributes = def.attributes.clone().unwrap_or_else(|| {
-        attributes_for_overall(
+        attributes_matching_overall(
             def.overall.unwrap_or(DEFAULT_AUTHORED_OVERALL),
             &def.position,
             rng,
@@ -1351,6 +1395,50 @@ mod tests {
                 "{authored}"
             );
         }
+    }
+
+    fn mean_ovr_of_authored(overall: u8, position: &str) -> f64 {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let def = player_def_from_json(serde_json::json!({
+            "id": "p", "firstName": "A", "lastName": "B", "club": "club-id",
+            "nationality": "ENG", "position": position,
+            "dateOfBirth": "1995-01-01", "overall": overall,
+        }));
+        let total: u32 = (0..100u64)
+            .map(|seed| {
+                let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+                u32::from(generate_player_from_def(&def, "club-id", 2026, &names_def, &mut rng).ovr)
+            })
+            .sum();
+        f64::from(total) / 100.0
+    }
+
+    /// Given players authored at a low, middling and high `overall` (#495)
+    /// When many are generated
+    /// Then the mean rating of each lands within 3 of what was written, for any position.
+    #[test]
+    fn an_authored_overall_comes_out_near_itself() {
+        for position in ["Striker", "CenterBack", "Goalkeeper"] {
+            for overall in [10u8, 20, 30, 40, 50, 70, 90] {
+                let mean = mean_ovr_of_authored(overall, position);
+                assert!(
+                    (mean - f64::from(overall)).abs() <= 3.0,
+                    "{position} authored {overall} averaged {mean}"
+                );
+            }
+        }
+    }
+
+    /// Given a base so low the spread would reach below zero
+    /// When attributes are jittered around it
+    /// Then none is ever below 1: the floor is pinned, since 0 reads as "missing" elsewhere.
+    #[test]
+    fn jittered_attributes_never_fall_below_one() {
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+        let draws: Vec<u8> = (0..2000).map(|_| jitter(1, 8, 30, 97, &mut rng)).collect();
+        assert_eq!(draws.iter().copied().min(), Some(1));
     }
 
     /// An authored ceiling is the author's to set.
