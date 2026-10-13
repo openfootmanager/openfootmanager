@@ -1152,6 +1152,67 @@ mod tests {
         assert_eq!(closest_unplayed_pairs(&game), Vec::<String>::new());
     }
 
+    /// Given a season that leads into a World Cup, so national-team qualifying fills each
+    /// international window for several days, and a league match on the third day of a window
+    /// (not its opener),
+    /// When the world's calendar is placed,
+    /// Then the match moves out of the whole span: a club cannot play while its internationals are away.
+    #[test]
+    fn a_league_match_inside_a_window_span_but_not_on_its_opener_is_moved() {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2033, 7, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager_for("a"), vec![], vec![], vec![], vec![]);
+        let teams: Vec<String> = ["a", "b", "c", "d"].map(String::from).to_vec();
+        let start = Utc.with_ymd_and_hms(2033, 8, 1, 0, 0, 0).unwrap();
+        let mut league = crate::schedule::generate_league("League", 2033, &teams, start);
+        // 9 September is the first window's opener; the 11th is inside its five-day span.
+        league.fixtures[0].date = "2033-09-11".to_string();
+        let moved_id = league.fixtures[0].id.clone();
+        game.competitions = vec![league];
+
+        ensure_international_windows(&mut game);
+
+        let moved = game.competitions[0]
+            .fixtures
+            .iter()
+            .find(|f| f.id == moved_id)
+            .expect("the match is kept");
+        assert!(
+            !("2033-09-09"..="2033-09-13").contains(&moved.date.as_str()),
+            "the match is still inside the window span, on {}",
+            moved.date
+        );
+    }
+
+    /// Given a division with preseason friendlies appended, one of which falls on a blackout date,
+    /// When the club calendar is placed,
+    /// Then that friendly is settled like everything else: it is dropped, and the others stay.
+    #[test]
+    fn appended_preseason_friendlies_are_settled_off_the_blackout() {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2035, 7, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager_for("e-0"), vec![], vec![], vec![], vec![]);
+        let teams: Vec<String> = (0..8).map(|i| format!("e-{i}")).collect();
+        let start = Utc.with_ymd_and_hms(2035, 8, 1, 0, 0, 0).unwrap();
+        let mut division = crate::schedule::generate_league("Europe", 2035, &teams, start);
+        division.region_id = Some("europe".into());
+        division.scope = CompetitionScope::Domestic;
+        game.competitions = vec![division];
+        let blackout =
+            std::collections::BTreeSet::from([
+                chrono::NaiveDate::from_ymd_opt(2035, 7, 18).unwrap()
+            ]);
+
+        place_club_calendar(&mut game, &blackout, &Default::default());
+
+        let friendly_dates: std::collections::BTreeSet<&str> = game.competitions[0]
+            .fixtures
+            .iter()
+            .filter(|f| f.competition == FixtureCompetition::Friendly)
+            .map(|f| f.date.as_str())
+            .collect();
+        assert!(!friendly_dates.contains("2035-07-18"), "{friendly_dates:?}");
+        assert!(friendly_dates.contains("2035-07-11"), "{friendly_dates:?}");
+    }
+
     /// The default is unchanged: the same twelve clubs are one league.
     #[test]
     fn the_default_division_size_still_keeps_a_small_nation_in_one_league() {
