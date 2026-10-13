@@ -62,7 +62,6 @@ export function PositionGroupFilter({ state, pos }: PositionGroupFilterProps) {
       <button
         type="button"
         onClick={() => handleSelectPositionGroup(pos)}
-        aria-haspopup={refinable ? "true" : undefined}
         aria-expanded={refinable ? openPositionPopover === pos : undefined}
         aria-pressed={isPartial ? "mixed" : isActive}
         aria-label={
@@ -88,7 +87,7 @@ export function PositionGroupFilter({ state, pos }: PositionGroupFilterProps) {
       </button>
       {refinable && openPositionPopover === pos && (
         <div
-          role="dialog"
+          role="group"
           aria-label={t("transfers.refinePositionGroup", {
             group: groupLabel,
           })}
