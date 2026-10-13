@@ -54,7 +54,9 @@ describe("CupRoundSection", () => {
   /** Given a stored English round name, when rendered, then the heading uses the translated round. */
   it("translates the round name", () => {
     render(<CupRoundSection summary={summary()} />);
-    expect(screen.getByRole("heading", { name: /tournaments\.rounds\.semifinal/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /tournaments\.rounds\.semifinal/ }),
+    ).toBeInTheDocument();
   });
 
   /** Given a tie settled on penalties, when rendered, then the shootout score is shown. */
