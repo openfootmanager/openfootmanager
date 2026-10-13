@@ -1,4 +1,5 @@
 use super::*;
+use crate::turn::matchday_lookups::MatchdayLookups;
 use domain::player::{Player, PlayerAttributes, Position as DomainPos};
 
 /// Uniform attributes: `weighted_score` averages attributes, so setting them
@@ -546,7 +547,7 @@ fn only_the_next_four_days_make_a_congested_run() {
 #[test]
 fn the_clubs_found_in_one_pass_are_the_clubs_the_fixtures_make_congested() {
     let game = game_with_fixtures_on(&[0, 3]);
-    let found = clubs_with_a_match_soon(&game);
+    let found = MatchdayLookups::of(&game);
 
     for club in ["club", "rival", "bystander"] {
         assert_eq!(
@@ -555,7 +556,8 @@ fn the_clubs_found_in_one_pass_are_the_clubs_the_fixtures_make_congested() {
             "{club}"
         );
     }
-    assert_eq!(found.len(), 2);
+    assert!(found.is_congested("club") && found.is_congested("rival"));
+    assert!(!found.is_congested("bystander"));
 }
 
 /// The state a squad is actually picked in on a normal day advance: the
@@ -816,7 +818,7 @@ fn a_team_built_from_the_clubs_players_is_the_team_built_by_scanning() {
 
         let from_club = build_team_with_bench_from(&game, "club", &club, None);
         let with_the_set =
-            build_team_with_bench_from(&game, "club", &club, Some(&clubs_with_a_match_soon(&game)));
+            build_team_with_bench_from(&game, "club", &club, Some(&MatchdayLookups::of(&game)));
         assert_eq!(format!("{from_club:?}"), format!("{with_the_set:?}"));
         let by_scanning = build_team_with_bench(&game, "club");
 

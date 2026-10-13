@@ -3,6 +3,7 @@ pub(crate) mod cup_renewal;
 mod cup_round_summary;
 mod dormant;
 mod match_injuries;
+pub(crate) mod matchday_lookups;
 mod news;
 mod post_match;
 mod round_summary;
@@ -494,34 +495,19 @@ pub fn simulate_other_matches_with_capture<F>(
             .collect()
     });
 
-    // Which clubs play again soon is asked of two clubs per match, so it is read off the fixtures
-    // once. An applied match can add fixtures (a knockout round's successor); the answer is
-    // found again when it did.
-    let mut clubs_with_a_match_soon = squad::clubs_with_a_match_soon(game);
-    let mut fixtures_counted = fixtures_in_play(game);
+    // What a match asks of the whole world is asked once for the competition-day; the lookups are
+    // told when a match changed what they hold.
+    let mut lookups = matchday_lookups::MatchdayLookups::of(game);
     for idx in fixture_indices {
-        simulate_single_match_with_capture(game, idx, Some(&clubs_with_a_match_soon), on_capture);
-        let fixtures_now = fixtures_in_play(game);
-        if fixtures_now != fixtures_counted {
-            clubs_with_a_match_soon = squad::clubs_with_a_match_soon(game);
-            fixtures_counted = fixtures_now;
-        }
+        simulate_single_match_with_capture(game, idx, Some(&mut lookups), on_capture);
+        lookups.after_match_applied(game);
     }
-}
-
-/// How many fixtures the world holds, which a match that adds some changes.
-fn fixtures_in_play(game: &Game) -> usize {
-    game.competitions
-        .iter()
-        .chain(game.league.iter())
-        .map(|competition| competition.fixtures.len())
-        .sum()
 }
 
 fn simulate_single_match_with_capture<F>(
     game: &mut Game,
     idx: usize,
-    clubs_with_a_match_soon: Option<&std::collections::HashSet<String>>,
+    mut lookups: Option<&mut matchday_lookups::MatchdayLookups>,
     on_capture: &mut F,
 ) where
     F: FnMut(StatsState),
@@ -533,13 +519,13 @@ fn simulate_single_match_with_capture<F>(
     // and no tactical change was possible in any match but the player's own.
     // Extra time, and the engine's own shootout, follow the one knockout
     // predicate inside `play_unwatched_fixture`.
-    match live_match_manager::play_unwatched_fixture_with(game, idx, clubs_with_a_match_soon) {
-        Ok(played) => apply_match_report_with_capture(
+    match live_match_manager::play_unwatched_fixture_with(game, idx, lookups.as_deref_mut()) {
+        Ok(played) => post_match::apply_match_report_in(
             game,
             idx,
-            &played.home_team_id,
-            &played.away_team_id,
+            (&played.home_team_id, &played.away_team_id),
             &played.report,
+            lookups.as_deref(),
             on_capture,
         ),
         // A side nobody could field, after the kick-off gate found no academy

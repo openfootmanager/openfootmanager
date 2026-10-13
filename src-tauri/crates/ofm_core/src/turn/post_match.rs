@@ -88,6 +88,28 @@ pub fn apply_match_report_with_capture<F>(
 ) where
     F: FnMut(StatsState),
 {
+    apply_match_report_in(
+        game,
+        fixture_index,
+        (home_team_id, away_team_id),
+        report,
+        None,
+        on_capture,
+    );
+}
+
+/// [`apply_match_report_with_capture`] for a matchday that has already found where each club's
+/// players stand (`lookups`); `None` finds them by asking the world.
+pub(super) fn apply_match_report_in<F>(
+    game: &mut Game,
+    fixture_index: usize,
+    (home_team_id, away_team_id): (&str, &str),
+    report: &engine::MatchReport,
+    lookups: Option<&super::matchday_lookups::MatchdayLookups>,
+    on_capture: &mut F,
+) where
+    F: FnMut(StatsState),
+{
     // Convert engine GoalDetails → domain GoalEvents
     let home_scorers: Vec<GoalEvent> = report
         .goals
@@ -151,8 +173,11 @@ pub fn apply_match_report_with_capture<F>(
 
     // Where the two clubs' players stand, found once for every step below. None of them moves a
     // player between clubs, so the positions hold from here to the end of the report.
-    let home_club = crate::match_day_eligibility::club_positions(&game.players, home_team_id);
-    let away_club = crate::match_day_eligibility::club_positions(&game.players, away_team_id);
+    let club_of = |team_id: &str| match lookups {
+        Some(lookups) => lookups.club(team_id).to_vec(),
+        None => crate::match_day_eligibility::club_positions(&game.players, team_id),
+    };
+    let (home_club, away_club) = (club_of(home_team_id), club_of(away_team_id));
     let both_clubs = merged_ascending(&home_club, &away_club);
 
     on_capture(build_stats_state_capture(
