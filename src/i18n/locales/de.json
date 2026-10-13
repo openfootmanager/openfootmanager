@@ -1087,6 +1087,7 @@
     "seasonIncome": "Saisoneinnahmen",
     "seasonExpenses": "Saisonausgaben",
     "perWeekSuffix": "/Wo",
+    "snapshotLoadFailed": "Die Vereinsfinanzen konnten nicht geladen werden.",
     "perYearSuffix": "/Jahr",
     "wagePerWeek": "Gehalt/Wo",
     "wagePerYear": "Gehalt/Jahr",
