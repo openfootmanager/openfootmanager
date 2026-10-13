@@ -7,7 +7,6 @@
 use crate::game::Game;
 use crate::messages;
 use crate::player_wear::roll_injury;
-use std::collections::HashSet;
 
 /// Turns the engine's injury events into player injuries.
 ///
@@ -21,7 +20,6 @@ pub(super) fn apply_match_injuries(
 ) {
     let user_team_id = game.manager.team_id.clone();
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let mut injured_this_match = HashSet::new();
     let mut physio_reports = Vec::new();
 
     for event in report
@@ -32,9 +30,6 @@ pub(super) fn apply_match_injuries(
         let Some(player_id) = event.player_id.as_deref() else {
             continue;
         };
-        if !injured_this_match.insert(player_id) {
-            continue;
-        }
 
         let mut rng = game.rng_today(&format!("post-match/injury/{fixture_id}/{player_id}"));
         let Some(player) = game
