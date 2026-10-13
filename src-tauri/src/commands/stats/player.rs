@@ -70,7 +70,11 @@ fn league_peers(game: &Game, player: &Player) -> (Option<PeerGroupDto>, HashSet<
         competition_name: table.name.clone(),
         competition_name_key: table.name_key.clone(),
         country_id: table.country_id.clone(),
-        position: format!("{position:?}"),
+        // The serialized name, the same one `PlayerData.natural_position` sends.
+        position: serde_json::to_value(position)
+            .ok()
+            .and_then(|name| name.as_str().map(str::to_owned))
+            .unwrap_or_default(),
     };
     (Some(group), peer_ids)
 }
