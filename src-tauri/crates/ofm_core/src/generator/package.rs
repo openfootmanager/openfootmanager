@@ -3898,6 +3898,42 @@ colors:
             .expect("world should have players with parseable birth years")
     }
 
+    /// Given a package with a player who names no club (#595)
+    /// When the world is built
+    /// Then the player exists, as a free agent with their authored identity, instead of being dropped.
+    #[test]
+    fn an_authored_player_with_no_club_becomes_a_free_agent() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","id":"fc","name":"FC","city":"C","country":"ENG",
+                "colors":{"primary":"#000000","secondary":"#ffffff"}}"##,
+        );
+        write(
+            &dir,
+            "players/free.json",
+            r#"{"schema":"player","id":"free-agent-1","firstName":"Free","lastName":"Agent",
+                "nationality":"ENG","position":"Striker","dateOfBirth":"1995-03-04","overall":71}"#,
+        );
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        let world =
+            crate::generator::build_world_data_from_package(&package, Some(2026), &embedded());
+        std::fs::remove_dir_all(&dir).ok();
+
+        let player = world
+            .players
+            .iter()
+            .find(|p| p.id == "free-agent-1")
+            .expect("an authored player with no club still exists");
+        assert_eq!(player.team_id, None);
+        assert_eq!(player.full_name, "Free Agent");
+        assert_eq!(player.date_of_birth, "1995-03-04");
+        assert_eq!(player.wage(), 0);
+        assert!(player.contract_end().is_none());
+    }
+
     #[test]
     fn package_base_year_ages_squads_when_no_career_year_is_given() {
         let dir = temp_package();

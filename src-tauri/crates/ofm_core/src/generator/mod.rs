@@ -1320,6 +1320,13 @@ pub fn build_world_data_from_package_with_rng(
         players.extend(team_players);
         staff.extend(team_staff);
     }
+    // An authored player with no club is a free agent: the package format says so ("empty /
+    // omitted = unattached"), and they used to be dropped without a word. Generated against a
+    // placeholder club and then unattached, like every other free agent.
+    for pdef in package.players.iter().filter(|p| p.club.is_empty()) {
+        let agent = generation::generate_player_from_def(pdef, "", opening_year, &names_def, rng);
+        players.push(as_free_agent(agent));
+    }
     // Unattached authored staff (no club) go directly into the staff list.
     for sdef in package.staff.iter().filter(|s| s.club.is_empty()) {
         staff.push(generation::generate_staff_from_authored_def(
