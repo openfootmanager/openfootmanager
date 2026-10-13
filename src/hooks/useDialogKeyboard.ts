@@ -11,7 +11,9 @@ export function useDialogKeyboard(
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onEscape();
+        // A control inside the dialog (an open menu, a select list) that already used this Escape
+        // to close itself has handled it; the dialog stays.
+        if (!event.defaultPrevented) onEscape();
         return;
       }
       if (event.key !== "Tab") return;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useDialogKeyboard } from "../../hooks/useDialogKeyboard";
 import { useTranslation } from "react-i18next";
 import {
   type MatchSnapshot,
@@ -227,6 +228,14 @@ export function SubPanel({
     setFocusRequest(null);
   }, [focusRequest]);
 
+  useDialogKeyboard(panelRef, onClose);
+
+  // Opening a dialog has to move focus into it, or a keyboard user is left on the button behind
+  // the overlay; the hook gives focus back to that button on close.
+  useEffect(() => {
+    panelRef.current?.focus();
+  }, []);
+
   const handleApplyRecommendation = (offId: string, onId: string) => {
     setSelectedOff(offId);
     setSelectedBench(onId);
@@ -253,6 +262,10 @@ export function SubPanel({
     >
       <div
         ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sub-panel-title"
+        tabIndex={-1}
         className="bg-white dark:bg-navy-800 rounded-2xl border border-gray-200 dark:border-navy-600 shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden transition-colors duration-300"
         onClick={(e) => e.stopPropagation()}
       >
@@ -260,7 +273,10 @@ export function SubPanel({
         <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-linear-to-r from-gray-100 to-white px-5 py-3 dark:border-navy-700 dark:from-navy-700 dark:to-navy-800">
           <div className="flex items-center gap-2.5">
             <RefreshCw className="h-4 w-4 text-accent-400" />
-            <h3 className="font-heading text-sm font-bold uppercase tracking-widest text-gray-900 dark:text-white">
+            <h3
+              id="sub-panel-title"
+              className="font-heading text-sm font-bold uppercase tracking-widest text-gray-900 dark:text-white"
+            >
               {t("match.substitutionsTitle")}
             </h3>
             <Badge variant={subsMade >= snapshot.max_subs ? "danger" : "primary"} size="sm">
@@ -270,9 +286,12 @@ export function SubPanel({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-navy-600 dark:hover:text-white"
+            aria-label={t("common.close")}
+            className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:text-gray-400 dark:hover:bg-navy-600 dark:hover:text-white"
           >
-            <span className="font-heading text-sm">✕</span>
+            <span aria-hidden="true" className="font-heading text-sm">
+              ✕
+            </span>
           </button>
         </div>
 

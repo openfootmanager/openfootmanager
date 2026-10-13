@@ -22,7 +22,7 @@ import { ReportDialogHeader } from "./ReportDialogHeader";
 import { ReportDoneStep } from "./ReportDoneStep";
 import { ReportPreviewStep } from "./ReportPreviewStep";
 import { ReportSentStep } from "./ReportSentStep";
-import { useDialogKeyboard } from "./useDialogKeyboard";
+import { useDialogKeyboard } from "../../hooks/useDialogKeyboard";
 import { useReportSubmission } from "./useReportSubmission";
 
 type Step = "describe" | "preview" | "done" | "sent";
