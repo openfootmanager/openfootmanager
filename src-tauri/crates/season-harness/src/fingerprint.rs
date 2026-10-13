@@ -292,6 +292,37 @@ mod tests {
     }
 
     #[test]
+    fn it_sees_a_clubs_training_schedule() {
+        assert_sees(|game| {
+            game.teams[0].training_schedule = match game.teams[0].training_schedule {
+                domain::team::TrainingSchedule::Light => domain::team::TrainingSchedule::Intense,
+                _ => domain::team::TrainingSchedule::Light,
+            };
+        });
+    }
+
+    #[test]
+    fn it_sees_a_clubs_formation() {
+        assert_sees(|game| {
+            game.teams[0].formation = if game.teams[0].formation == "4-4-2" {
+                "3-5-2".to_string()
+            } else {
+                "4-4-2".to_string()
+            };
+        });
+    }
+
+    #[test]
+    fn it_sees_a_clubs_play_style() {
+        assert_sees(|game| {
+            game.teams[0].play_style = match game.teams[0].play_style {
+                domain::team::PlayStyle::Counter => domain::team::PlayStyle::HighPress,
+                _ => domain::team::PlayStyle::Counter,
+            };
+        });
+    }
+
+    #[test]
     fn it_sees_a_clubs_training_intensity() {
         assert_sees(|game| {
             game.teams[0].training_intensity = match game.teams[0].training_intensity {
