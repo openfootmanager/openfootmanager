@@ -1359,51 +1359,73 @@ mod tests {
     /// Then what is left is the entity's own struct, so the printed shape is the one that loads.
     #[test]
     fn every_schema_template_parses_into_its_own_definition() {
+        use clap::ValueEnum;
         use ofm_core::generator::{
-            CompetitionDefinition, ConfederationDef, CountryDef, PlayerDef, StaffDef, TeamDef,
-            WorldMetaDef,
+            CompetitionDefinition, ConfederationDef, CountryDef, NamesDefinition, PlayerDef,
+            StaffDef, TeamDef, WorldMetaDef,
         };
-        let json = |entity: &EntityKind| template_without_comments(entity_schema_text(entity));
-        let results: Vec<(&str, Result<(), String>)> = vec![
-            (
-                "world",
-                serde_json::from_str::<WorldMetaDef>(&json(&EntityKind::World)).map(|_| ()),
-            ),
-            (
-                "team",
-                serde_json::from_str::<TeamDef>(&json(&EntityKind::Team)).map(|_| ()),
-            ),
-            (
-                "player",
-                serde_json::from_str::<PlayerDef>(&json(&EntityKind::Player)).map(|_| ()),
-            ),
-            (
-                "staff",
-                serde_json::from_str::<StaffDef>(&json(&EntityKind::Staff)).map(|_| ()),
-            ),
-            (
-                "confederation",
-                serde_json::from_str::<ConfederationDef>(&json(&EntityKind::Confederation))
-                    .map(|_| ()),
-            ),
-            (
-                "country",
-                serde_json::from_str::<CountryDef>(&json(&EntityKind::Country)).map(|_| ()),
-            ),
-            (
-                "competition",
-                serde_json::from_str::<CompetitionDefinition>(&json(&EntityKind::Competition))
-                    .map(|_| ()),
-            ),
-        ]
-        .into_iter()
-        .map(|(name, result)| (name, result.map_err(|e| e.to_string())))
-        .collect();
-        let broken: Vec<String> = results
-            .into_iter()
-            .filter_map(|(name, result)| result.err().map(|e| format!("{name}: {e}")))
+        // An exhaustive `match`: a new `EntityKind` does not compile until it says how its
+        // reference is checked, and `value_variants` visits every one.
+        fn parses(entity: &EntityKind) -> Result<(), String> {
+            let json = template_without_comments(entity_schema_text(entity));
+            match entity {
+                EntityKind::World => serde_json::from_str::<WorldMetaDef>(&json).map(|_| ()),
+                EntityKind::Team => serde_json::from_str::<TeamDef>(&json).map(|_| ()),
+                EntityKind::Player => serde_json::from_str::<PlayerDef>(&json).map(|_| ()),
+                EntityKind::Staff => serde_json::from_str::<StaffDef>(&json).map(|_| ()),
+                EntityKind::Confederation => {
+                    serde_json::from_str::<ConfederationDef>(&json).map(|_| ())
+                }
+                EntityKind::Country => serde_json::from_str::<CountryDef>(&json).map(|_| ()),
+                EntityKind::Competition => {
+                    serde_json::from_str::<CompetitionDefinition>(&json).map(|_| ())
+                }
+                EntityKind::Names => serde_json::from_str::<NamesDefinition>(&json).map(|_| ()),
+            }
+            .map_err(|e| e.to_string())
+        }
+        let broken: Vec<String> = EntityKind::value_variants()
+            .iter()
+            .filter_map(|entity| parses(entity).err().map(|e| format!("{entity:?}: {e}")))
             .collect();
         assert!(broken.is_empty(), "{broken:#?}");
+    }
+
+    /// Given the `fallbackLeague` example in `ofm-cli schema world`, which is commented out
+    /// When its comment markers are removed and it is put in the manifest
+    /// Then the manifest deserializes.
+    #[test]
+    fn the_fallback_league_example_in_the_world_reference_loads() {
+        use ofm_core::generator::WorldMetaDef;
+        let lines: Vec<&str> = SCHEMA_WORLD
+            .lines()
+            .skip_while(|line| !line.contains("\"fallbackLeague\""))
+            .collect();
+        let comment: String = lines
+            .iter()
+            .map(|line| {
+                line.split_once("//")
+                    .map_or("", |(_, comment)| comment.trim())
+            })
+            .take_while(|text| !text.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let open = comment.find('{').expect("the reference shows an example");
+        let close = comment.rfind('}').expect("the example closes");
+        let example: serde_json::Value =
+            serde_json::from_str(&comment[open..=close]).expect("the example is JSON");
+
+        let mut manifest: serde_json::Value = serde_json::from_str(&template_without_comments(
+            entity_schema_text(&EntityKind::World),
+        ))
+        .unwrap();
+        manifest["fallbackLeague"] = example;
+        let loaded = serde_json::from_value::<WorldMetaDef>(manifest);
+        assert!(
+            loaded.is_ok(),
+            "the example does not load: {:?}",
+            loaded.err()
+        );
     }
 
     /// Given the berth example in `ofm-cli schema competition`, which is commented out
@@ -1444,6 +1466,8 @@ mod tests {
     /// Then it loads, so the reference teaches only shapes that deserialize (#552).
     #[test]
     fn the_competition_examples_in_the_reference_load() {
+        // Counted by hand when written; changing the reference means changing this on purpose.
+        const EXAMPLES_IN_THE_REFERENCE: usize = 4;
         use ofm_core::generator::CompetitionDefinition;
         let reference = include_str!("../../../../docs/modding/SCHEMA_REFERENCE.md");
         let template: serde_json::Value = serde_json::from_str(&template_without_comments(
@@ -1476,9 +1500,9 @@ mod tests {
                 checked += 1;
             }
         }
-        assert!(
-            checked >= 3,
-            "the reference lost its examples ({checked} found)"
+        assert_eq!(
+            checked, EXAMPLES_IN_THE_REFERENCE,
+            "an example appeared or vanished"
         );
     }
 }
