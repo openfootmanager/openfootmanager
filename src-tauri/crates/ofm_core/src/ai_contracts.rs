@@ -79,20 +79,25 @@ pub(crate) fn plan_every_ai_squad(game: &mut Game) {
 
 fn plan_squads(game: &mut Game, clubs: &[String]) {
     let current_date = game.clock.current_date.date_naive();
+    // Where each club's players are, found once. A signing changes one club's list and is
+    // recounted where it happens; nothing else here moves a player between clubs.
+    let mut positions = crate::match_day_eligibility::positions_by_club(&game.players);
     for team_id in clubs {
         let Some(team) = game.teams.iter().find(|team| &team.id == team_id).cloned() else {
             continue;
         };
-        graduate_overage_academy_players(game, team_id, current_date);
-        plan_squad_depth(game, &team);
+        let club = positions.entry(team_id.clone()).or_default();
+        graduate_overage_academy_players(game, club, current_date);
+        plan_squad_depth(game, &team, club);
     }
 }
 
-/// An academy player past the academy's age limit joins the senior squad.
-fn graduate_overage_academy_players(game: &mut Game, team_id: &str, current_date: NaiveDate) {
-    for player in game.players.iter_mut() {
-        if player.team_id.as_deref() == Some(team_id)
-            && player.squad_role == domain::player::SquadRole::Youth
+/// An academy player past the academy's age limit joins the senior squad. `club` is where the
+/// club's players stand in `game.players`.
+fn graduate_overage_academy_players(game: &mut Game, club: &[usize], current_date: NaiveDate) {
+    for &position in club {
+        let player = &mut game.players[position];
+        if player.squad_role == domain::player::SquadRole::Youth
             && domain::age::age_on_or_unknown(current_date, &player.date_of_birth)
                 > crate::roster::YOUTH_ACADEMY_MAX_AGE
         {
@@ -109,34 +114,35 @@ fn graduate_overage_academy_players(game: &mut Game, team_id: &str, current_date
 /// contract he may walk. Generated contracts share an end date, so several can
 /// leave a group on the same day — planning replaces them before they go, not
 /// after.
-fn plan_squad_depth(game: &mut Game, team: &Team) {
+fn plan_squad_depth(game: &mut Game, team: &Team, club: &mut Vec<usize>) {
     use crate::squad_floor::{MIN_PLAYERS_PER_GROUP, bring_in_one, groups_thinnest_first};
 
     for (group, floor) in MIN_PLAYERS_PER_GROUP {
-        while seniors_in(game, &team.id, Some(&group)) < floor + PLANNING_MARGIN_PER_GROUP {
+        while seniors_in(game, club, Some(&group)) < floor + PLANNING_MARGIN_PER_GROUP {
             if bring_in_one(game, team, &group).is_none() {
                 break;
             }
+            *club = crate::match_day_eligibility::club_positions(&game.players, &team.id);
         }
     }
-    while seniors_in(game, &team.id, None) < PLANNING_TARGET_SENIORS {
+    while seniors_in(game, club, None) < PLANNING_TARGET_SENIORS {
         let groups = groups_thinnest_first(game, &team.id);
-        if !groups
+        let brought_one = groups
             .iter()
-            .any(|group| bring_in_one(game, team, group).is_some())
-        {
+            .any(|group| bring_in_one(game, team, group).is_some());
+        if !brought_one {
             break;
         }
+        *club = crate::match_day_eligibility::club_positions(&game.players, &team.id);
     }
 }
 
-/// Seniors registered to the club who will still be under contract past the
-/// renewal horizon, in one group or in all.
-fn seniors_in(game: &Game, team_id: &str, group: Option<&domain::player::Position>) -> usize {
+/// Seniors among the club's players (`club`: where they stand in `game.players`) who will still
+/// be under contract past the renewal horizon, in one group or in all.
+fn seniors_in(game: &Game, club: &[usize], group: Option<&domain::player::Position>) -> usize {
     let current_date = game.clock.current_date.date_naive();
-    game.players
-        .iter()
-        .filter(|player| player.team_id.as_deref() == Some(team_id))
+    club.iter()
+        .map(|&position| &game.players[position])
         .filter(|player| player.squad_role == domain::player::SquadRole::Senior)
         // No end date is a contract the expiry sweep never ends: he stays.
         .filter(|player| {

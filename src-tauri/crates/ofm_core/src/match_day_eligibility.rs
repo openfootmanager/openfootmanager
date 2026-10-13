@@ -26,6 +26,32 @@ pub(crate) fn players_by_club(players: &[Player]) -> HashMap<&str, Vec<&Player>>
     by_club
 }
 
+/// Where each club's players stand in `players`, found in one pass: owned positions, for work that
+/// changes players while it goes (a signing moves a player to a club) and so cannot hold borrows of
+/// them. A club's list is in the order of `players`. Looked up by club, never iterated.
+pub(crate) fn positions_by_club(players: &[Player]) -> HashMap<String, Vec<usize>> {
+    let mut by_club: HashMap<String, Vec<usize>> = HashMap::new();
+    for (position, player) in players.iter().enumerate() {
+        if let Some(team_id) = player.team_id.as_deref() {
+            by_club
+                .entry(team_id.to_string())
+                .or_default()
+                .push(position);
+        }
+    }
+    by_club
+}
+
+/// Where the club `team_id`'s players stand in `players`.
+pub(crate) fn club_positions(players: &[Player], team_id: &str) -> Vec<usize> {
+    players
+        .iter()
+        .enumerate()
+        .filter(|(_, player)| player.team_id.as_deref() == Some(team_id))
+        .map(|(position, _)| position)
+        .collect()
+}
+
 /// [`eligible_among`] for the club `team_id`, found by scanning `players`.
 pub(crate) fn match_day_eligible_players<'a>(
     players: &'a [Player],
