@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlayerData } from "../store/gameStore";
-import {
-  weeklyWageAmount,
-  getPlayerAnnualWageCommitment,
-} from "./finance";
+import { weeklyWageAmount, getPlayerAnnualWageCommitment } from "./finance";
 
 function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   return {

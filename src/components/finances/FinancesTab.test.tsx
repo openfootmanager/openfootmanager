@@ -524,7 +524,13 @@ describe("FinancesTab facilities", () => {
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
           },
-          previews: { sponsor_pitch: { sponsor_name: "Summit Capital", weekly_amount: 85000, duration_weeks: 12 } },
+          previews: {
+            sponsor_pitch: {
+              sponsor_name: "Summit Capital",
+              weekly_amount: 85000,
+              duration_weeks: 12,
+            },
+          },
         });
       }
 
@@ -588,7 +594,14 @@ describe("FinancesTab facilities", () => {
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
           },
-          previews: { marketing_campaign: { gross_revenue: 150000, campaign_cost: 50000, net_income: 100000, cooldown_days: 28 } },
+          previews: {
+            marketing_campaign: {
+              gross_revenue: 150000,
+              campaign_cost: 50000,
+              net_income: 100000,
+              cooldown_days: 28,
+            },
+          },
         });
       }
 
