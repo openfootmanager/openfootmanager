@@ -11,8 +11,8 @@ import {
   getContractRiskLevel,
   getContractYearsRemaining,
 } from "../../lib/helpers";
-import { weeklyWageAmount, getTeamFinanceSnapshot } from "../../lib/finance";
-import { getFinanceSnapshot } from "../../services/financeService";
+import { weeklyWageAmount } from "../../lib/finance";
+import { getFinanceSnapshot, type FinanceSnapshotData } from "../../services/financeService";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError, resolveMessage } from "../../utils/backendI18n";
 import {
@@ -29,7 +29,7 @@ import {
   boardSupportAvailable,
   sponsorPitchAvailable,
   marketingCampaignAvailable,
-  mapLocalFinanceSnapshot,
+  buildFinanceSnapshotKey,
   isChooseOptionAction,
   isPendingSponsorOffer,
 } from "./FinancesTab.helpers";
@@ -75,6 +75,14 @@ interface FinancesTabContentProps extends FinancesTabProps {
   myTeam: TeamData;
 }
 
+/**
+ * Shows the finances the backend computed, and nothing else.
+ *
+ * The tab used to fall back to a TypeScript projection while the backend snapshot was loading
+ * and on every refetch, so the figures visibly changed once the real ones arrived. The last
+ * backend snapshot is kept across a refetch instead, and until the first one lands there is a
+ * placeholder, never a guess.
+ */
 function FinancesTabContent({
   gameState,
   myTeam,
@@ -82,13 +90,81 @@ function FinancesTabContent({
   onSelectPlayer,
 }: FinancesTabContentProps) {
   const { t } = useTranslation();
+  const financeSnapshotKey = buildFinanceSnapshotKey(gameState, myTeam);
+  const [remoteFinanceData, setRemoteFinanceData] = useState<TaggedFinanceSnapshotData | null>(
+    null,
+  );
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const requestKey = financeSnapshotKey;
+
+    void getFinanceSnapshot(myTeam.id)
+      .then((financeData) => {
+        if (!cancelled) {
+          setRemoteFinanceData({ key: requestKey, teamId: myTeam.id, data: financeData });
+          setLoadFailed(false);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load finance snapshot:", error);
+        if (!cancelled) {
+          setLoadFailed(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [financeSnapshotKey, myTeam.id, loadAttempt]);
+
+  const ownData = remoteFinanceData?.teamId === myTeam.id ? remoteFinanceData : null;
+  if (!ownData) {
+    return loadFailed ? (
+      <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+        <p role="alert">{t("finances.snapshotLoadFailed")}</p>
+        <Button size="sm" variant="outline" onClick={() => setLoadAttempt((n) => n + 1)}>
+          {t("common.retry")}
+        </Button>
+      </div>
+    ) : (
+      <p className="text-gray-500 dark:text-gray-400">{t("common.loading")}</p>
+    );
+  }
+
+  return (
+    <FinancesTabLoaded
+      gameState={gameState}
+      myTeam={myTeam}
+      financeData={ownData.data}
+      previewsCurrent={ownData.key === financeSnapshotKey}
+      onGameUpdate={onGameUpdate}
+      onSelectPlayer={onSelectPlayer}
+    />
+  );
+}
+
+interface FinancesTabLoadedProps extends FinancesTabContentProps {
+  financeData: FinanceSnapshotData;
+  /** Previews describe the club as it was when fetched; a stale set must not enable an action. */
+  previewsCurrent: boolean;
+}
+
+function FinancesTabLoaded({
+  gameState,
+  myTeam,
+  financeData,
+  previewsCurrent,
+  onGameUpdate,
+  onSelectPlayer,
+}: FinancesTabLoadedProps) {
+  const { t } = useTranslation();
   const weeklySuffix = t("finances.perWeekSuffix");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
   const [selectedRiskPlayerIds, setSelectedRiskPlayerIds] = useState<string[]>([]);
-  const [remoteFinanceData, setRemoteFinanceData] = useState<TaggedFinanceSnapshotData | null>(
-    null,
-  );
   const [facilityUpgradeError, setFacilityUpgradeError] =
     useState<FacilityUpgradeErrorState | null>(null);
   const [boardSupportFeedback, setBoardSupportFeedback] = useState<{
@@ -105,56 +181,8 @@ function FinancesTabContent({
   } | null>(null);
 
   const roster = gameState.players.filter((p) => p.team_id === myTeam.id);
-  const financePlayers = gameState.players.filter(
-    (player) =>
-      player.team_id === myTeam.id ||
-      player.active_loan?.parent_team_id === myTeam.id ||
-      player.active_loan?.loan_team_id === myTeam.id,
-  );
-  const teamStaff = gameState.staff.filter((staffMember) => staffMember.team_id === myTeam.id);
-  const financeSnapshotKey = [
-    myTeam.id,
-    gameState.clock.current_date,
-    myTeam.finance,
-    myTeam.wage_budget,
-    myTeam.transfer_budget,
-    myTeam.season_income,
-    myTeam.season_expenses,
-    myTeam.facilities?.training ?? DEFAULT_FACILITIES.training,
-    myTeam.facilities?.medical ?? DEFAULT_FACILITIES.medical,
-    myTeam.facilities?.scouting ?? DEFAULT_FACILITIES.scouting,
-    myTeam.sponsorship?.sponsor_name ?? "",
-    myTeam.sponsorship?.base_value ?? 0,
-    myTeam.sponsorship?.remaining_weeks ?? 0,
-    financePlayers
-      .map((player) =>
-        [
-          player.id,
-          player.team_id ?? "",
-          player.wage,
-          player.contract_end ?? "",
-          player.active_loan?.parent_team_id ?? "",
-          player.active_loan?.loan_team_id ?? "",
-          player.active_loan?.wage_contribution_pct ?? "",
-          player.active_loan?.end_date ?? "",
-        ].join(":"),
-      )
-      .join("|"),
-    teamStaff.map((staffMember) => `${staffMember.id}:${staffMember.wage}`).join("|"),
-    gameState.messages
-      .filter(isPendingSponsorOffer)
-      .map((message) => message.id)
-      .join("|"),
-  ].join("::");
-  const isRemoteFinanceDataCurrent = remoteFinanceData?.key === financeSnapshotKey;
-  const localFinanceSnapshot = mapLocalFinanceSnapshot(
-    myTeam,
-    getTeamFinanceSnapshot(myTeam, financePlayers, teamStaff, gameState.clock.current_date),
-  );
-  const financeSnapshot = isRemoteFinanceDataCurrent
-    ? remoteFinanceData.data.snapshot
-    : localFinanceSnapshot;
-  const recoveryPreviews = isRemoteFinanceDataCurrent ? remoteFinanceData.data.previews : null;
+  const recoveryPreviews = previewsCurrent ? financeData.previews : null;
+  const financeSnapshot = financeData.snapshot;
   const totalWages = financeSnapshot.weeklyWageSpend;
   const totalValue = roster.reduce((s, p) => s + p.market_value, 0);
   const facilities = myTeam.facilities ?? DEFAULT_FACILITIES;
@@ -257,30 +285,6 @@ function FinancesTabContent({
     selectedRiskPlayerIds.includes(player.id),
   );
   const allRiskPlayerIds = contractRiskPlayers.map(({ player }) => player.id);
-
-  useEffect(() => {
-    let cancelled = false;
-    const requestKey = financeSnapshotKey;
-
-    setRemoteFinanceData(null);
-
-    void getFinanceSnapshot(myTeam.id)
-      .then((financeData) => {
-        if (!cancelled) {
-          setRemoteFinanceData({ key: requestKey, data: financeData });
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load finance snapshot:", error);
-        if (!cancelled) {
-          setRemoteFinanceData(null);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [financeSnapshotKey, myTeam.id]);
 
   useEffect(() => {
     setSelectedRiskPlayerIds((currentIds) => {
