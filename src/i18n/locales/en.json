@@ -724,6 +724,7 @@
     "myTactics": "My tactics",
     "newTactic": "New tactic",
     "duplicateTactic": "Duplicate",
+    "resetTactic": "Reset to defaults",
     "saveAsTactic": "Save as tactic",
     "updateTactic": "Update tactic",
     "tacticSaved": "Saved",

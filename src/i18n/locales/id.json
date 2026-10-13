@@ -724,6 +724,7 @@
     "myTactics": "Taktik Saya",
     "newTactic": "Taktik Baru",
     "duplicateTactic": "Duplikat",
+    "resetTactic": "Atur ulang ke default",
     "saveAsTactic": "Simpan sebagai taktik",
     "updateTactic": "Perbarui taktik",
     "tacticSaved": "Tersimpan",

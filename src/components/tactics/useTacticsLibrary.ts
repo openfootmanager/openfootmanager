@@ -259,10 +259,29 @@ export function useTacticsLibrary({
     setDraftTacticName(nextTactic.name);
   }
 
+  // What Reset goes back to: a preset applies as a whole (formation, style and phase blueprint, the
+  // backend's own preset); a saved custom tactic goes back to the formation and style it was
+  // saved with; an unsaved setup falls back to the preset it was started from, if any.
+  const anchoredPresetEntry =
+    translatedPresetLibrary.find((entry) => entry.id === `preset:${presetAnchorId}`) ?? null;
+  const resetTarget = isActiveCustomTactic
+    ? (customTactics.find((entry) => entry.id === activeTactic.id) ?? anchoredPresetEntry)
+    : activeTactic;
+  const canResetTactic =
+    resetTarget !== null && (resetTarget.type === "preset" || isActiveTacticDirty);
+
+  async function handleResetTactic(): Promise<void> {
+    if (resetTarget) {
+      await applyTacticSelection(resetTarget);
+    }
+  }
+
   return {
     activeTactic,
     tacticLibrary,
     isCommandBarDirty,
+    canResetTactic,
+    handleResetTactic,
     applyTacticSelection,
     handleCreateCustomTactic,
     handleDuplicateTactic,

@@ -724,6 +724,7 @@
     "myTactics": "Moje taktiky",
     "newTactic": "Nová taktika",
     "duplicateTactic": "Duplikovat",
+    "resetTactic": "Obnovit výchozí",
     "saveAsTactic": "Uložit jako taktiku",
     "updateTactic": "Aktualizovat taktiku",
     "tacticSaved": "Uloženo",
