@@ -4,6 +4,8 @@
 //!
 //! Budget: a few minutes. The PR gate (`gate.rs`) stays under two minutes and is not touched here.
 
+use std::collections::BTreeSet;
+
 use ofm_core::end_of_season::EndOfSeasonSummary;
 use ofm_core::game::Game;
 use ofm_core::squad_floor::squad_shortfall;
@@ -120,22 +122,46 @@ fn five_seasons_leave_no_club_below_the_squad_floor() {
 }
 
 /// Notes the day a World Cup final has been played and who won it.
-#[derive(Default)]
+///
+/// A tournament that already had a champion when the run began is not counted until it is
+/// rebuilt and unfinished again, so an earlier edition cannot stand in for the one under test.
 struct WorldCupWatch {
+    already_decided: BTreeSet<String>,
     champions: Vec<(u32, String)>,
+}
+
+impl WorldCupWatch {
+    fn new(game: &Game) -> Self {
+        let already_decided = game
+            .competitions
+            .iter()
+            .filter(|competition| is_world_cup_competition(competition))
+            .filter(|competition| world_cup_champion(competition).is_some())
+            .map(|competition| competition.id.clone())
+            .collect();
+        Self {
+            already_decided,
+            champions: Vec::new(),
+        }
+    }
 }
 
 impl SeasonObserver for WorldCupWatch {
     fn on_day_end(&mut self, game: &Game, season: u32, _day: u32) {
-        let champion = game
+        for competition in game
             .competitions
             .iter()
             .filter(|competition| is_world_cup_competition(competition))
-            .find_map(world_cup_champion);
-        if let Some(champion) = champion
-            && !self.champions.iter().any(|(played, _)| *played == season)
         {
-            self.champions.push((season, champion));
+            let Some(champion) = world_cup_champion(competition) else {
+                self.already_decided.remove(&competition.id);
+                continue;
+            };
+            if !self.already_decided.contains(&competition.id)
+                && !self.champions.iter().any(|(played, _)| *played == season)
+            {
+                self.champions.push((season, champion));
+            }
         }
     }
 }
@@ -147,7 +173,7 @@ impl SeasonObserver for WorldCupWatch {
 #[ignore = "nightly tier"]
 fn a_world_cup_is_played_to_its_final() {
     let mut game = WorldSpec::gate(1).build().expect("the world builds");
-    let mut watch = WorldCupWatch::default();
+    let mut watch = WorldCupWatch::new(&game);
 
     run_seasons(&mut game, RunOptions::seasons(2), &mut watch).expect("the seasons play");
 

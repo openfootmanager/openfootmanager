@@ -215,7 +215,13 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          xvfb-run -a -s "-screen 0 1280x800x24" cargo test --locked --manifest-path src-tauri/Cargo.toml -p mcp-e2e -- --ignored --test-threads=2 2>&1 | tee e2e-suite.log
+          # Every test target but the smoke subset, which has just run.
+          targets=(--lib)
+          for file in src-tauri/crates/mcp-e2e/tests/*.rs; do
+            name="$(basename "$file" .rs)"
+            if [ "$name" != smoke ]; then targets+=(--test "$name"); fi
+          done
+          xvfb-run -a -s "-screen 0 1280x800x24" cargo test --locked --manifest-path src-tauri/Cargo.toml -p mcp-e2e "${targets[@]}" -- --ignored --test-threads=2 2>&1 | tee e2e-suite.log
 
       - name: List what failed
         if: failure()
