@@ -1088,6 +1088,66 @@ fn the_lever_message_is_sent_once_per_season_per_open_set_even_after_deletion() 
     assert!(lever_messages(&game).is_empty());
 }
 
+/// Given a club in debt told about every lever, whose sponsor lever then closes (a sponsor signs)
+///       and later reopens (the sponsor leaves), all in one season
+/// When the weekly finances run each week
+/// Then it is not told again: a lever closing never triggers a message, and a lever that reopens
+///      has already been announced this season.
+#[test]
+fn levers_that_close_and_reopen_in_a_season_are_not_announced_again() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+    finances::process_weekly_finances(&mut game);
+    assert_eq!(lever_messages(&game).len(), 1);
+
+    game.teams[0].sponsorship = Some(Sponsorship {
+        sponsor_name: "Acme Corp".to_string(),
+        base_value: 2_000,
+        remaining_weeks: 8,
+        bonus_criteria: vec![],
+    });
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+    game.teams[0].sponsorship = None;
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+
+    assert_eq!(lever_messages(&game).len(), 1);
+}
+
+/// Given a club told only about the levers open to it (a sponsor is signed, so no pitch)
+/// When the sponsor leaves and the pitch becomes a lever it has not been told about
+/// Then it is told again, and the message names every lever open now.
+#[test]
+fn a_lever_that_opens_for_the_first_time_in_a_season_is_announced() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 5_000_000;
+    game.teams[0].wage_budget = 1_000;
+    game.teams[0].sponsorship = Some(Sponsorship {
+        sponsor_name: "Acme Corp".to_string(),
+        base_value: 2_000,
+        remaining_weeks: 8,
+        bonus_criteria: vec![],
+    });
+    finances::process_weekly_finances(&mut game);
+    assert_eq!(lever_messages(&game).len(), 1);
+    assert_eq!(
+        offered_levers(lever_messages(&game)[0]),
+        ["lever_marketing_campaign"]
+    );
+
+    game.teams[0].sponsorship = None;
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+
+    let messages = lever_messages(&game);
+    assert_eq!(messages.len(), 2);
+    assert_eq!(
+        offered_levers(messages[1]),
+        ["lever_sponsor_pitch", "lever_marketing_campaign"]
+    );
+}
+
 /// Given a club told about the levers that is still in trouble a season later
 /// When the weekly finances run in the new season
 /// Then it is told again, because the key is scoped to the season.

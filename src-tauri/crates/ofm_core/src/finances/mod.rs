@@ -514,13 +514,25 @@ fn finance_levers_message(game: &Game, team_id: &str, today: &str) -> Option<Inb
         return None;
     }
 
+    // Only a lever not yet announced this season is news. A lever closing never triggers a
+    // message and the same lever reopening does not either, so a club gets at most one message per
+    // lever per season (three at most), and each still names everything open now.
+    let season = board_support_season(game);
+    let announced = announced_levers(game, season);
+    if open
+        .iter()
+        .all(|(id, _)| announced.contains(id.trim_start_matches("lever_")))
+    {
+        return None;
+    }
+
     let open_set = open
         .iter()
         .map(|(id, _)| id.trim_start_matches("lever_"))
         .collect::<Vec<_>>()
         .join("+");
     let mut message = InboxMessage::new(
-        format!("finance_levers_{}_{}", board_support_season(game), open_set),
+        format!("finance_levers_{season}_{open_set}"),
         String::new(),
         String::new(),
         String::new(),
@@ -546,6 +558,18 @@ fn finance_levers_message(game: &Game, team_id: &str, today: &str) -> Option<Inb
         ));
     }
     Some(message)
+}
+
+/// The levers already announced in `season`, read back from the sent-ledger: each lever message's
+/// key (`finance_levers_{season}_{lever}+{lever}...`) names the levers it announced.
+fn announced_levers(game: &Game, season: u32) -> std::collections::HashSet<String> {
+    let prefix = format!("finance_levers_{season}_");
+    game.emitted_events
+        .iter()
+        .filter_map(|key| key.strip_prefix(&prefix))
+        .flat_map(|levers| levers.split('+'))
+        .map(str::to_string)
+        .collect()
 }
 
 fn board_support_season(game: &Game) -> u32 {
