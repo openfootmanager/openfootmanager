@@ -6,9 +6,10 @@
 
 use std::collections::BTreeSet;
 
+use domain::league::FixtureStatus;
 use ofm_core::end_of_season::EndOfSeasonSummary;
 use ofm_core::game::Game;
-use ofm_core::squad_floor::squad_shortfall;
+use ofm_core::squad_floor::{can_put_a_side_out, squad_shortfall};
 use ofm_core::world_cup::{is_world_cup_competition, world_cup_champion};
 use season_harness::driver::{RunOptions, SeasonObserver, run_seasons};
 use season_harness::invariants::{CLUB_RESTS_BETWEEN_MATCHES, Invariants};
@@ -59,6 +60,90 @@ impl SeasonObserver for SquadFloorWatch {
     }
 }
 
+/// The rule for the player's own club, which the game never signs for: at kick-off it can still
+/// put a side out (the kick-off gate tops it up only when it cannot).
+#[derive(Default)]
+struct PlayerClubWatch {
+    problems: Vec<String>,
+}
+
+impl PlayerClubWatch {
+    fn check_kick_off(&mut self, game: &Game, club: &str, today: &str, season: u32, day: u32) {
+        let played_today = game
+            .competitions
+            .iter()
+            .flat_map(|competition| &competition.fixtures)
+            .any(|fixture| {
+                fixture.date == today
+                    && fixture.status == FixtureStatus::Completed
+                    && (fixture.home_team_id == club || fixture.away_team_id == club)
+            });
+        if played_today && !can_put_a_side_out(game, club) {
+            self.problems.push(format!(
+                "[season {season} day {day}] {club} played with fewer than 11 seniors or no goalkeeper"
+            ));
+        }
+    }
+}
+
+impl SeasonObserver for PlayerClubWatch {
+    fn on_day_end(&mut self, game: &Game, season: u32, day: u32) {
+        let Some(club) = game.manager.team_id.clone() else {
+            return;
+        };
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        self.check_kick_off(game, &club, &today, season, day);
+    }
+}
+
+fn players_club(game: &Game) -> String {
+    game.manager.team_id.clone().expect("the player has a club")
+}
+
+/// Given the player's club has only ten seniors and a fixture today that is completed,
+/// When the day ends,
+/// Then the watch reports a club that kicked off without a side; with eleven it does not.
+#[test]
+#[ignore = "nightly tier"]
+fn the_player_club_must_be_able_to_field_a_side_at_kick_off() {
+    let mut game = WorldSpec::gate(1).build().expect("the world builds");
+    let club = players_club(&game);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let fixture = game
+        .competitions
+        .iter_mut()
+        .flat_map(|competition| competition.fixtures.iter_mut())
+        .find(|fixture| fixture.home_team_id == club || fixture.away_team_id == club)
+        .expect("the club has a fixture");
+    fixture.date = today.clone();
+    fixture.status = FixtureStatus::Completed;
+    let mut fine = PlayerClubWatch::default();
+    fine.on_day_end(&game, 1, 1);
+    assert!(fine.problems.is_empty(), "{:?}", fine.problems);
+
+    let keepers: Vec<String> = game
+        .players
+        .iter()
+        .filter(|player| player.team_id.as_deref() == Some(club.as_str()))
+        .filter(|player| player.position == domain::player::Position::Goalkeeper)
+        .map(|player| player.id.clone())
+        .collect();
+    game.players.retain(|player| !keepers.contains(&player.id));
+    let mut without_keeper = PlayerClubWatch::default();
+    without_keeper.on_day_end(&game, 1, 1);
+
+    assert_eq!(
+        without_keeper
+            .problems
+            .iter()
+            .filter(|problem| problem.contains("goalkeeper"))
+            .count(),
+        1,
+        "{:?}",
+        without_keeper.problems
+    );
+}
+
 /// Given a club with no players,
 /// When the squad floor is read,
 /// Then the club is named. The watch below is only as good as this.
@@ -87,7 +172,9 @@ fn a_club_with_no_players_is_a_floor_breach() {
 
 /// Given generated worlds from three seeds,
 /// When each is played through five seasons,
-/// Then no club is below the squad floor at the end of any season, and every other rule holds
+/// Then no AI club is below the squad floor at the end of any season, the player's club was warned
+///      whenever it was below the floor and could always field a side at kick-off, and every other
+///      rule holds
 ///      (bar the #553 clash that the gate carries).
 #[test]
 #[ignore = "nightly tier"]
@@ -96,11 +183,12 @@ fn five_seasons_leave_no_club_below_the_squad_floor() {
         let mut game = WorldSpec::gate(seed).build().expect("the world builds");
         let mut invariants = Invariants::new(&game);
         let mut watch = SquadFloorWatch::default();
+        let mut player_club = PlayerClubWatch::default();
 
         run_seasons(
             &mut game,
             RunOptions::seasons(5),
-            &mut (&mut invariants, &mut watch),
+            &mut (&mut invariants, (&mut watch, &mut player_club)),
         )
         .unwrap_or_else(|error| panic!("seed {seed}: {error}"));
 
@@ -108,6 +196,11 @@ fn five_seasons_leave_no_club_below_the_squad_floor() {
             watch.breaches.is_empty(),
             "seed {seed} left clubs below the floor:\n{}",
             watch.breaches.join("\n")
+        );
+        assert!(
+            player_club.problems.is_empty(),
+            "seed {seed}: the player's club was not looked after:\n{}",
+            player_club.problems.join("\n")
         );
         let others = invariants.report_except(CLUB_RESTS_BETWEEN_MATCHES);
         assert!(
