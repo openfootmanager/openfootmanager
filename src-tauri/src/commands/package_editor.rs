@@ -1034,6 +1034,7 @@ mod tests {
             specialization: None,
             date_of_birth: Some("1941-12-31".to_string()),
             age: None,
+            known_as: None,
         }];
 
         save_package_project(
