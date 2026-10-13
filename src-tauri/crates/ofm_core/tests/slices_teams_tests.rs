@@ -399,11 +399,13 @@ fn in_a_split_season_the_half_in_play_counts() {
         make_domestic_league("apertura", "Apertura", "ARG", None, &["a", "b", "c"]),
         &[("a", 10), ("b", 20), ("c", 30)],
     );
+    apertura.priority = 1;
     apertura.fixtures = vec![completed_on("2026-11-30")];
     let mut clausura = with_points(
         make_domestic_league("clausura", "Clausura", "ARG", None, &["a", "b", "c"]),
         &[("a", 9), ("b", 6), ("c", 3)],
     );
+    clausura.priority = 2;
     clausura.fixtures = vec![completed_on("2027-03-15")];
     let game = make_game(teams, vec![], vec![apertura, clausura]);
 
@@ -411,6 +413,34 @@ fn in_a_split_season_the_half_in_play_counts() {
 
     assert_eq!(standing.competition_id, "clausura");
     assert_eq!(standing.league_pos, 1);
+}
+
+/// Given a split season whose two halves last played on the same day
+/// When a club's league standing is asked for
+/// Then the half that ranks higher (the lower priority number) counts
+#[test]
+fn halves_that_last_played_together_resolve_to_the_higher_ranked() {
+    let teams = vec![
+        make_team("a", "A FC", "ARG", "A"),
+        make_team("b", "B FC", "ARG", "B"),
+    ];
+    let mut apertura = with_points(
+        make_domestic_league("apertura", "Apertura", "ARG", None, &["a", "b"]),
+        &[("a", 1), ("b", 2)],
+    );
+    apertura.priority = 1;
+    apertura.fixtures = vec![completed_on("2027-03-15")];
+    let mut clausura = with_points(
+        make_domestic_league("clausura", "Clausura", "ARG", None, &["a", "b"]),
+        &[("a", 2), ("b", 1)],
+    );
+    clausura.priority = 2;
+    clausura.fixtures = vec![completed_on("2027-03-15")];
+    let game = make_game(teams, vec![], vec![clausura, apertura]);
+
+    let standing = query_club_league_standing(&game, "a").expect("a is in a league");
+
+    assert_eq!(standing.competition_id, "apertura");
 }
 
 /// Given a club that is only in a knockout cup
