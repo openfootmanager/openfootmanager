@@ -373,10 +373,8 @@ pub const CLUB_RESTS_BETWEEN_MATCHES: &str = "club-rests-between-matches";
 /// The maintainer's ruling of 12 Oct 2026: a club's competitive matches are at least this many
 /// days apart, so Saturday then Tuesday is legal and Saturday then Monday is a clash.
 ///
-/// Held here rather than read from `ofm_core::calendar_booking`: that module books on a
-/// two-date rule and exposes no constant, and the calendar rework is rewriting it. Point this at
-/// the game's own constant once it has one.
-pub const MIN_DAYS_BETWEEN_MATCHES: i64 = 3;
+/// The game's own minimum rest, under the name the gate uses, so the rule has one source.
+pub use ofm_core::calendar_booking::MIN_GAP_DAYS as MIN_DAYS_BETWEEN_MATCHES;
 
 /// Given the clubs' competitions as they stand,
 /// When a club has two competitive fixtures less than [`MIN_DAYS_BETWEEN_MATCHES`] apart,
