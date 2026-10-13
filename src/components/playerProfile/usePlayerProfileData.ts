@@ -52,7 +52,7 @@ export function usePlayerProfileData({
     useState<PlayerAdvancedStatsSummary | null>(null);
   const [recentMatches, setRecentMatches] = useState<PlayerRecentMatchEntry[]>([]);
 
-  const fallbackAdvancedStats = buildPlayerAdvancedStats(player, gameState.players);
+  const fallbackAdvancedStats = buildPlayerAdvancedStats(player);
 
   useEffect(() => {
     let cancelled = false;

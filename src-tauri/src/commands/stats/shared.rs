@@ -43,14 +43,68 @@ pub(super) fn calculate_average(total: u32, count: u32) -> Option<f32> {
     Some(round_to(total as f32 / count as f32, 1))
 }
 
-pub(super) fn percentile_rank(values: &[f32], target: Option<f32>) -> Option<u32> {
+/// Whether a bigger or a smaller value of a stat is the better one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum StatDirection {
+    HigherIsBetter,
+    LowerIsBetter,
+}
+
+/// The advanced stats that carry a percentile, each with the one definition of which way is
+/// better. A high percentile always means the player does well, so the frontend never decides.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AdvancedStat {
+    Shots,
+    ShotsOnTarget,
+    PassAccuracy,
+    TacklesWon,
+    Interceptions,
+    FoulsCommitted,
+}
+
+impl AdvancedStat {
+    #[cfg(test)]
+    pub(super) const ALL: [AdvancedStat; 6] = [
+        AdvancedStat::Shots,
+        AdvancedStat::ShotsOnTarget,
+        AdvancedStat::PassAccuracy,
+        AdvancedStat::TacklesWon,
+        AdvancedStat::Interceptions,
+        AdvancedStat::FoulsCommitted,
+    ];
+
+    pub(super) fn direction(self) -> StatDirection {
+        match self {
+            AdvancedStat::FoulsCommitted => StatDirection::LowerIsBetter,
+            AdvancedStat::Shots
+            | AdvancedStat::ShotsOnTarget
+            | AdvancedStat::PassAccuracy
+            | AdvancedStat::TacklesWon
+            | AdvancedStat::Interceptions => StatDirection::HigherIsBetter,
+        }
+    }
+}
+
+/// The share of peers the player does at least as well as, in the stat's own direction, as a
+/// whole percentage.
+pub(super) fn percentile_rank(
+    values: &[f32],
+    target: Option<f32>,
+    direction: StatDirection,
+) -> Option<u32> {
     let target = target?;
     if values.is_empty() {
         return None;
     }
 
-    let ranked_count = values.iter().filter(|value| **value <= target).count();
-    Some(((ranked_count as f32 / values.len() as f32) * 100.0).round() as u32)
+    let as_good_or_worse = values
+        .iter()
+        .filter(|value| match direction {
+            StatDirection::HigherIsBetter => **value <= target,
+            StatDirection::LowerIsBetter => **value >= target,
+        })
+        .count();
+    Some(((as_good_or_worse as f32 / values.len() as f32) * 100.0).round() as u32)
 }
 
 pub(super) fn opponent_name(state: &StateManager, opponent_team_id: &str) -> String {
