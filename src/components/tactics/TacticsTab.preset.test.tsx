@@ -184,7 +184,13 @@ function openPhaseBlueprint() {
 
 const commandsCalled = () => mockedInvoke.mock.calls.map(([command]) => command);
 
-describe("TacticsTab preset selection", () => {
+// Every case mounts the whole TacticsTab with the real i18n and then drives several controls; that
+// takes 2-5 s on a CI runner under load, and vitest's default 5 s cut-off turned the slowest cases
+// into flaky failures. A generous per-describe limit keeps them honest without making them faster
+// than the screen they exercise.
+const TACTICS_TAB_CASE_TIMEOUT_MS = 20_000;
+
+describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }, () => {
   beforeAll(async () => {
     await i18nReady;
   });
