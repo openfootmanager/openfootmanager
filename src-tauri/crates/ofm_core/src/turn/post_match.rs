@@ -149,21 +149,28 @@ pub fn apply_match_report_with_capture<F>(
         crate::schedule::advance_knockout_competition_round(league);
     }
 
+    // Where the two clubs' players stand, found once for every step below. None of them moves a
+    // player between clubs, so the positions hold from here to the end of the report.
+    let home_club = crate::match_day_eligibility::club_positions(&game.players, home_team_id);
+    let away_club = crate::match_day_eligibility::club_positions(&game.players, away_team_id);
+    let both_clubs = merged_ascending(&home_club, &away_club);
+
     on_capture(build_stats_state_capture(
         game,
         fixture_index,
         home_team_id,
         away_team_id,
         report,
+        &both_clubs,
     ));
 
     // Update player season stats from the engine report
-    apply_player_stats(game, report, home_team_id, away_team_id);
-    resolve_post_match_promises(game, report, home_team_id, away_team_id);
+    apply_player_stats(game, report, home_team_id, away_team_id, &both_clubs);
+    resolve_post_match_promises(game, report, &both_clubs);
 
     // Deplete stamina for players who played, scaled by minutes on pitch
-    deplete_match_stamina(game, home_team_id, report);
-    deplete_match_stamina(game, away_team_id, report);
+    deplete_match_stamina(game, &home_club, home_team_id, report);
+    deplete_match_stamina(game, &away_club, away_team_id, report);
 
     // The engine's injury events become real injuries, and the user's physio reports theirs.
     let fixture_id = game
@@ -175,11 +182,15 @@ pub fn apply_match_report_with_capture<F>(
     super::match_injuries::apply_match_injuries(game, &fixture_id, report);
 
     // Update morale based on result and individual performance
-    update_post_match_morale(game, report, home_team_id, away_team_id);
+    update_post_match_morale(game, report, &both_clubs, home_team_id, away_team_id);
 
     // Update team form (last 5 results)
     if counts_for_standings {
-        update_team_form(game, report, home_team_id, away_team_id);
+        update_team_form(
+            game,
+            report,
+            [(home_team_id, &home_club), (away_team_id, &away_club)],
+        );
     }
 
     // Update board satisfaction based on match result
@@ -278,12 +289,21 @@ pub fn apply_match_report_with_capture<F>(
     }
 }
 
+/// Two ascending position lists as one ascending list, each position once.
+fn merged_ascending(first: &[usize], second: &[usize]) -> Vec<usize> {
+    let mut merged = [first, second].concat();
+    merged.sort_unstable();
+    merged.dedup();
+    merged
+}
+
 fn build_stats_state_capture(
     game: &Game,
     fixture_index: usize,
     home_team_id: &str,
     away_team_id: &str,
     report: &engine::MatchReport,
+    both_clubs: &[usize],
 ) -> StatsState {
     let Some(league) = game.league.as_ref() else {
         return StatsState::default();
@@ -294,9 +314,10 @@ fn build_stats_state_capture(
 
     let home_possession_pct = report.home_possession.round().clamp(0.0, 100.0) as u8;
     let away_possession_pct = (100.0 - report.home_possession).round().clamp(0.0, 100.0) as u8;
-    let team_by_player_id: std::collections::HashMap<&str, &str> = game
-        .players
+    // Only the two clubs' players can be a record's player, so only they are looked up.
+    let team_by_player_id: std::collections::HashMap<&str, &str> = both_clubs
         .iter()
+        .map(|&position| &game.players[position])
         .filter_map(|player| {
             player
                 .team_id
@@ -411,13 +432,31 @@ fn build_stats_state_capture(
 // Post-match: feed engine report stats back into domain Player models
 // ---------------------------------------------------------------------------
 
+/// Positions in `game.players` of everyone the report has stats for: found among the two clubs,
+/// and by a scan of the world only when the report names someone who has since left both.
+fn report_players(game: &Game, report: &engine::MatchReport, both_clubs: &[usize]) -> Vec<usize> {
+    let among_clubs: Vec<usize> = both_clubs
+        .iter()
+        .copied()
+        .filter(|&position| report.player_stats.contains_key(&game.players[position].id))
+        .collect();
+    if among_clubs.len() == report.player_stats.len() {
+        return among_clubs;
+    }
+    (0..game.players.len())
+        .filter(|&position| report.player_stats.contains_key(&game.players[position].id))
+        .collect()
+}
+
 fn apply_player_stats(
     game: &mut Game,
     report: &engine::MatchReport,
     home_team_id: &str,
     away_team_id: &str,
+    both_clubs: &[usize],
 ) {
-    for player in game.players.iter_mut() {
+    for position in report_players(game, report, both_clubs) {
+        let player = &mut game.players[position];
         if let Some(ps) = report.player_stats.get(&player.id) {
             player.stats.appearances += 1;
             player.stats.goals += ps.goals as u32;
@@ -456,17 +495,10 @@ fn apply_player_stats(
 fn resolve_post_match_promises(
     game: &mut Game,
     report: &engine::MatchReport,
-    home_team_id: &str,
-    away_team_id: &str,
+    both_clubs: &[usize],
 ) {
-    for player in game.players.iter_mut() {
-        let Some(team_id) = player.team_id.as_deref() else {
-            continue;
-        };
-        if team_id != home_team_id && team_id != away_team_id {
-            continue;
-        }
-
+    for &position in both_clubs {
+        let player = &mut game.players[position];
         let Some(promise) = player.morale_core.pending_promise.clone() else {
             continue;
         };
@@ -531,6 +563,7 @@ fn capped_positive_recovery(delta: i16, player: &domain::player::Player) -> i16 
 fn update_post_match_morale(
     game: &mut Game,
     report: &engine::MatchReport,
+    both_clubs: &[usize],
     home_team_id: &str,
     away_team_id: &str,
 ) {
@@ -541,13 +574,9 @@ fn update_post_match_morale(
     let away_won = report.away_goals > report.home_goals;
     let is_draw = report.home_goals == report.away_goals;
 
-    for player in game.players.iter_mut() {
-        let tid = match player.team_id.as_deref() {
-            Some(t) if t == home_team_id || t == away_team_id => t.to_string(),
-            _ => continue,
-        };
-
-        let is_home = tid == home_team_id;
+    for &position in both_clubs {
+        let player = &mut game.players[position];
+        let is_home = player.team_id.as_deref() == Some(home_team_id);
         let base_morale = player.morale as i16;
 
         // Team result effect — scale loss impact by goal difference
@@ -595,9 +624,9 @@ fn update_post_match_morale(
 fn update_team_form(
     game: &mut Game,
     report: &engine::MatchReport,
-    home_team_id: &str,
-    away_team_id: &str,
+    clubs: [(&str, &Vec<usize>); 2],
 ) {
+    let [(home_team_id, _), (away_team_id, _)] = clubs;
     use rand::RngExt;
     let mut rng = game.rng_today(&format!("post-match/form/{home_team_id}/{away_team_id}"));
 
@@ -627,7 +656,7 @@ fn update_team_form(
     }
 
     // Apply streak-based morale bonus/penalty
-    for team_id_str in [home_team_id, away_team_id] {
+    for (team_id_str, club) in clubs {
         let form = game
             .teams
             .iter()
@@ -646,31 +675,34 @@ fn update_team_form(
             };
 
             if streak_delta != 0 {
-                for player in game.players.iter_mut() {
-                    if player.team_id.as_deref() == Some(team_id_str) {
-                        let base = player.morale as i16;
-                        let adjusted_delta = capped_positive_recovery(streak_delta, player);
-                        player.morale = (base + adjusted_delta).clamp(10, 100) as u8;
-                    }
+                for &position in club {
+                    let player = &mut game.players[position];
+                    let base = player.morale as i16;
+                    let adjusted_delta = capped_positive_recovery(streak_delta, player);
+                    player.morale = (base + adjusted_delta).clamp(10, 100) as u8;
                 }
             }
         }
     }
 }
 
-fn deplete_match_stamina(game: &mut Game, team_id: &str, report: &engine::MatchReport) {
+fn deplete_match_stamina(
+    game: &mut Game,
+    club: &[usize],
+    team_id: &str,
+    report: &engine::MatchReport,
+) {
     let mut rng = game.rng_today(&format!("post-match/wear/{team_id}"));
-    for player in game.players.iter_mut() {
-        if player.team_id.as_deref() == Some(team_id) {
-            let minutes = report
-                .player_stats
-                .get(&player.id)
-                .map(|ps| ps.minutes_played)
-                .unwrap_or(0);
-            // Shared with national-team friendlies so call-ups wear players
-            // identically to club fixtures.
-            crate::player_wear::apply_match_wear(player, minutes, &mut rng);
-        }
+    for &position in club {
+        let player = &mut game.players[position];
+        let minutes = report
+            .player_stats
+            .get(&player.id)
+            .map(|ps| ps.minutes_played)
+            .unwrap_or(0);
+        // Shared with national-team friendlies so call-ups wear players
+        // identically to club fixtures.
+        crate::player_wear::apply_match_wear(player, minutes, &mut rng);
     }
 }
 
@@ -763,6 +795,18 @@ mod tests {
         game
     }
 
+    fn settle_morale(game: &mut Game, report: &MatchReport) {
+        let home = crate::match_day_eligibility::club_positions(&game.players, "home");
+        let away = crate::match_day_eligibility::club_positions(&game.players, "away");
+        update_post_match_morale(
+            game,
+            report,
+            &merged_ascending(&home, &away),
+            "home",
+            "away",
+        );
+    }
+
     fn report(player_stats: HashMap<String, PlayerMatchStats>) -> MatchReport {
         MatchReport {
             home_goals: 1,
@@ -838,6 +882,34 @@ mod tests {
         );
     }
 
+    /// Given a report naming a player who has left both clubs since kick-off, When the report is
+    /// applied, Then he still gets his appearance, as when the whole world was searched.
+    #[test]
+    fn a_player_who_left_both_clubs_still_gets_his_appearance() {
+        let mut game = match_game();
+        game.players[0].team_id = Some("elsewhere".into());
+        let stats = HashMap::from([
+            ("home-0".to_string(), PlayerMatchStats::default()),
+            ("home-1".to_string(), PlayerMatchStats::default()),
+        ]);
+
+        apply_match_report(&mut game, 0, "home", "away", &report(stats));
+
+        assert_eq!(game.players[0].stats.appearances, 1);
+        assert_eq!(game.players[1].stats.appearances, 1);
+        assert_eq!(game.players[2].stats.appearances, 0);
+    }
+
+    /// Given two ascending lists that share a position, When merged, Then the result is
+    /// ascending with each position once.
+    #[test]
+    fn merging_two_clubs_positions_keeps_them_ascending_and_distinct() {
+        assert_eq!(
+            merged_ascending(&[1, 4, 6], &[2, 4, 9]),
+            vec![1, 2, 4, 6, 9]
+        );
+    }
+
     /// Given an unrated substitute with goals, assists and a red card, when morale is applied,
     /// then those contributions survive and only the unavailable rating is ignored.
     #[test]
@@ -855,9 +927,9 @@ mod tests {
                 ..Default::default()
             },
         )]));
-        update_post_match_morale(&mut unrated, &match_report, "home", "away");
+        settle_morale(&mut unrated, &match_report);
         match_report.player_stats.get_mut("home-12").unwrap().rating = 6.8;
-        update_post_match_morale(&mut neutral, &match_report, "home", "away");
+        settle_morale(&mut neutral, &match_report);
         assert_eq!(morales(&unrated), morales(&neutral));
     }
 
@@ -867,13 +939,13 @@ mod tests {
         let game = match_game();
         let mut empty = game.clone();
         let mut unrated = game;
-        update_post_match_morale(&mut empty, &report(HashMap::new()), "home", "away");
+        settle_morale(&mut empty, &report(HashMap::new()));
         let entries = unrated
             .players
             .iter()
             .map(|player| (player.id.clone(), PlayerMatchStats::default()))
             .collect();
-        update_post_match_morale(&mut unrated, &report(entries), "home", "away");
+        settle_morale(&mut unrated, &report(entries));
         assert_eq!(morales(&empty), morales(&unrated));
     }
     /// Given an available poor or good rating, when morale is applied, then its established modifier survives.
@@ -897,13 +969,13 @@ mod tests {
                 },
             ),
         ]));
-        update_post_match_morale(&mut neutral, &match_report, "home", "away");
+        settle_morale(&mut neutral, &match_report);
         for (rating, delta) in [(5.4, -3), (7.6, 2)] {
             let mut rated = game.clone();
             for stats in match_report.player_stats.values_mut() {
                 stats.rating = rating;
             }
-            update_post_match_morale(&mut rated, &match_report, "home", "away");
+            settle_morale(&mut rated, &match_report);
             for id in ["home-0", "away-0"] {
                 let actual = rated.players.iter().find(|player| player.id == id).unwrap();
                 let baseline = neutral
