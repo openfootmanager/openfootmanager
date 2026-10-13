@@ -705,3 +705,83 @@ fn unrelated_cups_do_not_hide_a_cups_predicted_round() {
     run(&mut world);
     assert_eq!(date_of(&world, "league", "l1"), aug(7));
 }
+
+/// Given a tie of a friendly cup that clashes with a league match, when reconciled, then the tie is
+/// moved, not dropped: the next round of its bracket names the winner.
+#[test]
+fn a_clashing_friendly_cup_tie_moves_instead_of_being_dropped() {
+    let tie = fx("fc", "t1", march(10), "a", "b", Kind::FriendlyCup);
+    let mut world = vec![
+        knockout("fc", 5, vec![vec![tie]], &[]),
+        competition(
+            "league",
+            1,
+            vec![fx("league", "l1", march(10), "a", "z", Kind::League)],
+        ),
+    ];
+    let plan = run(&mut world);
+    assert!(plan.dropped_friendlies.is_empty());
+    assert!(date_of(&world, "fc", "t1") > march(10));
+    assert_eq!(date_of(&world, "league", "l1"), march(10));
+}
+
+/// Given a one-off friendly that clashes with a league match, when reconciled, then it is still dropped.
+#[test]
+fn a_clashing_one_off_friendly_is_still_dropped() {
+    let mut world = vec![competition(
+        "league",
+        1,
+        vec![
+            fx("league", "l1", march(10), "a", "z", Kind::League),
+            fx("league", "f1", march(10), "a", "y", Kind::Friendly),
+        ],
+    )];
+    let plan = run(&mut world);
+    assert_eq!(plan.dropped_friendlies.len(), 1);
+}
+
+/// Given a cup whose round gap is seven days and a feeder moved to a later day, when reconciled,
+/// then the successor is dated the gap after the feeder, not one day after.
+#[test]
+fn a_successor_waits_the_cups_round_gap_after_its_feeder() {
+    let round_one = vec![fx("cup", "c1", march(10), "a", "b", Kind::Cup)];
+    let round_two = vec![fx("cup", "c2", march(11), "c", "d", Kind::Cup)];
+    let mut cup = knockout("cup", 1, vec![round_one, round_two], &[]);
+    cup.rules.knockout_round_gap_days = 7;
+    let mut world = vec![cup];
+    run(&mut world);
+    assert_eq!(date_of(&world, "cup", "c1"), march(10));
+    assert_eq!(date_of(&world, "cup", "c2"), march(17));
+}
+
+/// Given six entrants whose first round has two byes and the next round four clubs, when shadows
+/// are booked one match a day, then the final's shadow lands where the four-club round leaves it.
+#[test]
+fn byes_are_not_halved_with_the_players_when_predicting_rounds() {
+    let ties = vec![
+        fx("cup", "c1", march(10), "a", "b", Kind::Cup),
+        fx("cup", "c2", march(10), "c", "d", Kind::Cup),
+    ];
+    let mut cup = knockout("cup", 1, vec![ties], &[]);
+    cup.rules.knockout_matches_per_day = 1;
+    cup.knockout_rounds[0].bye_team_ids = vec!["e".into(), "f".into()];
+    let settled: HashMap<(&str, &str), NaiveDate> = cup
+        .fixtures
+        .iter()
+        .map(|f| (("cup", f.id.as_str()), march(10)))
+        .collect();
+    let mut occupancy = Occupancy::default();
+
+    shadows::book_cup_shadows(
+        &mut occupancy,
+        &cup,
+        &settled,
+        &none(),
+        &none(),
+        Layer::DomesticCup,
+    );
+
+    // Round two: four clubs, two ties, one a day: 13 and 14 March. The final follows on 17 March,
+    // so its shadow blocks 19 March. Halving the byes too would put it on 16 March.
+    assert!(!occupancy.is_free_of_shadows("e", march(19)));
+}

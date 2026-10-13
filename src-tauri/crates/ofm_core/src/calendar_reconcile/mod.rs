@@ -185,7 +185,8 @@ impl<'a> Settling<'a> {
         self.settled.insert(item.key(), date);
     }
 
-    /// A knockout match cannot be played before the last match of the round that feeds it.
+    /// A knockout match cannot be played before the last match of the round that feeds it, plus
+    /// the cup's round gap.
     fn not_before(&self, item: &Item<'a>) -> NaiveDate {
         let tomorrow = self
             .today
@@ -205,7 +206,11 @@ impl<'a> Settling<'a> {
                     .get(&(item.competition.id.as_str(), id.as_str()))
             })
             .max();
-        let after_feeding = feeding_last.and_then(|last| last.checked_add_days(Days::new(1)));
+        // The same wait `knockout_round_date` leaves between rounds (at least a day, so a round
+        // is never on the day of its feeders), or a moved feeder would pull its successor
+        // closer than the cup's own rule when the two are dated separately.
+        let wait = u64::from(item.competition.rules.knockout_round_gap_days.max(1));
+        let after_feeding = feeding_last.and_then(|last| last.checked_add_days(Days::new(wait)));
         after_feeding.map_or(tomorrow.max(item.date), |date| {
             date.max(tomorrow).max(item.date)
         })
@@ -300,7 +305,10 @@ pub fn plan(
             settling.book(item, item.date);
             continue;
         }
-        if item.layer == Layer::Friendly {
+        // A one-off friendly yields by being dropped. A tie of a friendly cup or a preseason
+        // tournament is part of a bracket whose next round names its winner, so it moves like
+        // any cup tie.
+        if item.layer == Layer::Friendly && !settling.rounds.contains_key(&item.key()) {
             plan.dropped_friendlies
                 .push((item.competition.id.clone(), item.fixture.id.clone()));
             continue;
