@@ -891,6 +891,78 @@ describe("FinancesTab facilities", () => {
     });
   });
 
+  /**
+   * Given a squad with two players whose contracts are at risk
+   * When the finance panel first appears on screen
+   * Then both are already selected, so a click that lands before any effect has run cannot flip
+   * the default (the delegate test below clicks the moment "Facilities" shows).
+   */
+  it("shows every at-risk player selected from the first frame they are on screen", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.reject(new Error(`Unexpected command: ${command}`)),
+    );
+    // The snapshot resolves outside act, so React renders it as an ordinary update and flushes the
+    // effects of that render later. Reading the checkbox in the mutation callback sees the DOM as
+    // that first commit left it, before any effect.
+    let checkedOnFirstAppearance: boolean | null = null;
+    const observer = new MutationObserver(() => {
+      const box = screen.queryByLabelText<HTMLInputElement>("Select Ben Warning");
+      if (box && checkedOnFirstAppearance === null) checkedOnFirstAppearance = box.checked;
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    await renderFinances(
+      <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />,
+    );
+    observer.disconnect();
+
+    expect(checkedOnFirstAppearance).toBe(true);
+  });
+
+  /**
+   * Given two at-risk players, both selected
+   * When "Select all" is pressed twice
+   * Then the first press clears the selection and the second selects everyone again.
+   */
+  it("toggles every at-risk player off and back on with Select all", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.reject(new Error(`Unexpected command: ${command}`)),
+    );
+    await renderFinances(
+      <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />,
+    );
+    const critical = screen.getByLabelText("Select Alex Critical");
+    const warning = screen.getByLabelText("Select Ben Warning");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(critical).not.toBeChecked();
+    expect(warning).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(critical).toBeChecked();
+    expect(warning).toBeChecked();
+  });
+
   it("delegates only the selected risky renewals to the assistant and publishes the updated state", async () => {
     const riskyPlayers = [
       createPlayer({
