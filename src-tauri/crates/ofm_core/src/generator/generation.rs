@@ -623,7 +623,7 @@ pub(super) fn generate_random_player_from_def(
     }
 
     // Set position-weighted OVR, potential, and traits (Wonderkid included if applicable)
-    let player_age = current_year.saturating_sub(birth_year);
+    let player_age = potential_age(&player.date_of_birth, current_year);
     // Pre-generate a potential so Wonderkid trait is assigned correctly on first refresh
     let temp_ovr = {
         use crate::player_rating::natural_ovr;
@@ -754,6 +754,12 @@ pub(super) fn generate_random_staff_unattached_from_def(
 // ---------------------------------------------------------------------------
 
 /// Convert a hand-authored [`super::package::StaffDef`] into a domain [`Staff`].
+/// The age a generated ceiling is rolled for: reckoned on the season's midpoint, the same day
+/// `refresh_player_derived` judges the Wonderkid gate on, so the two cannot disagree.
+fn potential_age(date_of_birth: &str, year: u32) -> u32 {
+    domain::age::playing_age(domain::age::season_midpoint(year as i32), date_of_birth)
+}
+
 /// Fills any missing fields (id, dob, attributes) with sensible random defaults.
 pub(super) fn generate_staff_from_authored_def(
     def: &super::package::StaffDef,
@@ -1171,9 +1177,13 @@ pub(super) fn generate_player_from_def(
     // An authored ceiling is the author's to set; only roll one when they did
     // not. `refresh_player_derived` then leaves a non-zero potential alone,
     // floored at current ovr — so nothing further is needed to make it stick.
-    player.potential = def
-        .potential
-        .unwrap_or_else(|| generate_potential(temp_ovr, age, rng));
+    player.potential = def.potential.unwrap_or_else(|| {
+        generate_potential(
+            temp_ovr,
+            potential_age(&player.date_of_birth, current_year),
+            rng,
+        )
+    });
     refresh_player_derived(
         &mut player,
         domain::age::season_midpoint(current_year as i32),

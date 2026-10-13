@@ -889,6 +889,47 @@ mod tests {
         assert_eq!(attributes(&player), before);
     }
 
+    /// Given two injured players on 1 March 2026, one born 2004-12-15 (21) and one born 2004-01-15
+    /// (22), when a rest day is processed, then the younger recovers more condition. The year of
+    /// birth alone would call them both 22 and recover them the same.
+    #[test]
+    fn a_player_not_yet_twenty_two_recovers_better_than_one_who_is() {
+        let strong_physio = TeamTrainingPlan {
+            bonus: TeamCoachingBonus {
+                physio_mult: 3.0,
+                ..plan(TrainingFocus::Technical).bonus
+            },
+            ..plan(TrainingFocus::Technical)
+        };
+        let recovered_after_a_rest_day = |date_of_birth: &str| {
+            let mut player = keeper("team1");
+            player.date_of_birth = date_of_birth.to_string();
+            player.condition = 40;
+            player.injury = Some(Injury {
+                name: "test injury".to_string(),
+                days_remaining: 30,
+            });
+            train_player(
+                &mut player,
+                &strong_physio,
+                &TrainingDay {
+                    weekday_num: 2,
+                    date: chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap(),
+                },
+                &mut LowestRoll,
+            );
+            player.condition - 40
+        };
+
+        let twenty_one = recovered_after_a_rest_day("2004-12-15");
+        let twenty_two = recovered_after_a_rest_day("2004-01-15");
+
+        assert!(
+            twenty_one > twenty_two,
+            "a 21-year-old recovered {twenty_one}, a 22-year-old {twenty_two}"
+        );
+    }
+
     /// Given a keeper on a scheduled rest day, when training is processed, then rest restores condition without improving keeper skills.
     #[test]
     fn a_goalkeeper_rest_day_cannot_grant_attribute_gains() {
