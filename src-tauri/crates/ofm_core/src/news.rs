@@ -168,17 +168,17 @@ fn preseason_unbeaten_data(unbeaten_teams: &[String]) -> String {
 }
 
 /// The calendar day of an RFC 3339 timestamp or plain date.
-pub fn day_of(date: &str) -> &str {
+pub(crate) fn day_of(date: &str) -> &str {
     date.get(..10).unwrap_or(date)
 }
 
 /// One roundup per competition, matchday and day: a round postponed in part gets a roundup for each
 /// day its matches are played.
-pub fn roundup_article_id(competition_id: &str, matchday: u32, day: &str) -> String {
+pub(crate) fn roundup_article_id(competition_id: &str, matchday: u32, day: &str) -> String {
     format!("roundup_{competition_id}_md{matchday}_{day}")
 }
 
-pub fn standings_article_id(competition_id: &str, matchday: u32, day: &str) -> String {
+pub(crate) fn standings_article_id(competition_id: &str, matchday: u32, day: &str) -> String {
     format!("standings_{competition_id}_md{matchday}_{day}")
 }
 
