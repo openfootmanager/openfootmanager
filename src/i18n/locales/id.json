@@ -2777,6 +2777,7 @@
       "saveLoad": {
         "corrupted": "Berkas penyimpanan ini rusak dan tidak dapat dimuat.",
         "incompatibleVersion": "Penyimpanan ini dibuat oleh versi permainan yang lebih baru (penyimpanan v{{saveVersion}}; build ini mendukung hingga v{{supported}}). Perbarui permainan untuk memuatnya.",
+        "incompatibleLayout": "Data penyimpanan ini tidak cocok dengan versi yang dinyatakannya, sehingga tidak dapat dimuat dengan aman. Berkas tidak diubah.",
         "missingData": "Penyimpanan ini kekurangan data yang diperlukan dan tidak dapat dimuat.",
         "invalidWorld": "Data dunia atau mod dari penyimpanan ini tidak valid dan tidak dapat dimuat.",
         "unknown": "Penyimpanan ini tidak dapat dimuat karena kesalahan yang tidak terduga."
