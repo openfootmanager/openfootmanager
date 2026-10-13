@@ -3,7 +3,7 @@ import { useEffect, useRef, type ChangeEvent } from "react";
 
 interface CheckboxProps {
   checked: boolean;
-  /** Some, not all, of a group are selected. The native input and `aria-checked` say so, and a dash is drawn. */
+  /** Some, not all, of a group are selected: set on the native input, which assistive technology reads as mixed, and a dash is drawn. */
   indeterminate?: boolean;
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
   disabled?: boolean;
@@ -50,7 +50,6 @@ export function Checkbox({
         ref={inputRef}
         type="checkbox"
         checked={checked}
-        aria-checked={indeterminate ? "mixed" : undefined}
         onChange={onChange}
         disabled={disabled}
         aria-label={ariaLabel}

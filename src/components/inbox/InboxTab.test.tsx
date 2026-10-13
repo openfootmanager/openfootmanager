@@ -575,7 +575,7 @@ describe("InboxTab", (): void => {
     fireEvent.click(screen.getByTestId("inbox-toggle-selection-mode"));
     fireEvent.click(screen.getByTestId("inbox-select-message-m1"));
 
-    expect(screen.getByTestId("inbox-select-all")).toHaveAttribute("aria-checked", "mixed");
+    expect(screen.getByTestId("inbox-select-all")).toBePartiallyChecked();
   });
 
   /**

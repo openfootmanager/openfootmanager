@@ -74,7 +74,7 @@ describe("Checkbox", () => {
 
     const input = screen.getByRole("checkbox", { name: "Select item" }) as HTMLInputElement;
     expect(input.indeterminate).toBe(true);
-    expect(input).toHaveAttribute("aria-checked", "mixed");
+    expect(input).toBePartiallyChecked();
     expect(document.querySelector("svg")).toBeInTheDocument();
   });
 
@@ -83,6 +83,6 @@ describe("Checkbox", () => {
 
     const input = screen.getByRole("checkbox", { name: "Select item" }) as HTMLInputElement;
     expect(input.indeterminate).toBe(false);
-    expect(input).not.toHaveAttribute("aria-checked");
+    expect(input).not.toBePartiallyChecked();
   });
 });
