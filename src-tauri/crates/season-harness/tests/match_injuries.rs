@@ -56,7 +56,7 @@ impl InjuryWatch {
 impl SeasonObserver for InjuryWatch {
     fn on_day_end(&mut self, game: &Game, season: u32, day: u32) {
         // Weekly is enough to catch a club that cannot field a side, and keeps the run fast.
-        if day % 7 == 0 {
+        if day.is_multiple_of(7) {
             self.note_floor(game, &format!("day {day}"), season);
         }
     }
