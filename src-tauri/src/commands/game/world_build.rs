@@ -15,6 +15,8 @@ use ofm_core::world::preseason_league_year;
 
 use super::{apply_generated_past_history, ensure_multi_competition_foundations, StartupOptions};
 
+/// Only a world that is not built from a package comes through here: the MCP bootstrap, and tests.
+#[cfg(any(test, feature = "mcp"))]
 pub(super) fn build_game_from_world_data(
     clock: GameClock,
     manager: Manager,
