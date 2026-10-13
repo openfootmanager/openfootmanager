@@ -1,43 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlayerData, StaffData, TeamData } from "../store/gameStore";
+import type { PlayerData } from "../store/gameStore";
 import {
   weeklyWageAmount,
   getPlayerAnnualWageCommitment,
 } from "./finance";
-
-function createTeam(overrides: Partial<TeamData> = {}): TeamData {
-  return {
-    id: "team-1",
-    name: "Alpha FC",
-    short_name: "ALP",
-    country: "BR",
-    city: "Rio",
-    stadium_name: "Alpha Arena",
-    stadium_capacity: 50000,
-    finance: 180000,
-    manager_id: "manager-1",
-    reputation: 50,
-    wage_budget: 520000,
-    transfer_budget: 300000,
-    season_income: 0,
-    season_expenses: 0,
-    formation: "4-4-2",
-    play_style: "Balanced",
-    training_focus: "Physical",
-    training_intensity: "Medium",
-    training_schedule: "Balanced",
-    founded_year: 1900,
-    colors: {
-      primary: "#111111",
-      secondary: "#ffffff",
-    },
-    starting_xi_ids: [],
-    form: [],
-    history: [],
-    ...overrides,
-  };
-}
 
 function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   return {

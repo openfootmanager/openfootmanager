@@ -1087,6 +1087,7 @@
     "seasonIncome": "Доход за сезон",
     "seasonExpenses": "Расходы за сезон",
     "perWeekSuffix": "/нед.",
+    "snapshotLoadFailed": "Не удалось загрузить финансы клуба.",
     "perYearSuffix": "/год",
     "wagePerWeek": "Зарплата/нед.",
     "wagePerYear": "Зарплата/год",

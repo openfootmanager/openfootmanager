@@ -1106,6 +1106,7 @@
     "seasonIncome": "Entrate stagionali",
     "seasonExpenses": "Spese stagionali",
     "perWeekSuffix": "/sett",
+    "snapshotLoadFailed": "Impossibile caricare le finanze del club.",
     "perYearSuffix": "/anno",
     "wagePerWeek": "Stipendio/sett",
     "wagePerYear": "Stipendio/anno",
