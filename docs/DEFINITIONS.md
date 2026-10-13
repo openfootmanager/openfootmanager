@@ -301,7 +301,7 @@ Provide **exactly one** of `explicit` or `selector`.
 
 | Selector `kind` | Fields | Resolves to |
 |-----------------|--------|-------------|
-| `topByReputation` | `country`, `count` | The strongest `count` clubs of a country. |
+| `topByReputation` | `country`, `count` | The strongest `count` clubs of a country. In a package, clubs are ranked by the middle of their `reputationRange` (the default range when it has none), never by the value a career rolls inside it, so a package that validates resolves to the same clubs in every career. |
 | `allInCountry` | `country` | Every club of a country. |
 | `allInRegion` | `region` | Every club of a region. |
 | `championsOf` | `sourceCompetition`, `count` | The top `count` finishers of another competition (continental qualification). |

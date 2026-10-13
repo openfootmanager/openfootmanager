@@ -93,7 +93,7 @@ pub async fn start_new_game(
         .map_err(|_| "be.error.createManager.invalidDobFormat".to_string())?;
 
     let startup_options = normalize_startup_options(startup_options)?;
-    let (mut world, package_lockfile) =
+    let (mut world, package_lockfile, authored_reputations) =
         if let Some(ids) = package_ids.as_deref().filter(|ids| !ids.is_empty()) {
             let packages_dir = app_handle
                 .path()
@@ -115,15 +115,20 @@ pub async fn start_new_game(
             (
                 load_world_data(world_source.as_deref(), &definition_sources(&app_handle))?,
                 vec![],
+                AuthoredReputations::new(),
             )
         };
+
+    // Competitions are resolved, here and below, with clubs ranked by the package's authored
+    // reputations; a world that did not come from a package has none and ranks by its own.
+    let reputation_basis = ofm_core::generator::ReputationBasis::Authored(&authored_reputations);
 
     // Layer a user-picked standalone definition file onto the world. It is
     // validated strictly; the UI has already shown any details via
     // validate_competition_definitions.
     if let Some(json) = &competition_definitions_json {
         let file = parse_competition_definitions(json)?;
-        if !validate_against_world(&file, &world).is_empty() {
+        if !validate_against_world(&file, &world, reputation_basis).is_empty() {
             return Err("be.error.competitionDef.invalidStandalone".to_string());
         }
         world.competition_definitions = Some(file);
@@ -167,8 +172,13 @@ pub async fn start_new_game(
         world_source
     );
 
-    let (mut new_game, stats_state) =
-        build_game_from_world_data(clock, manager, &startup_options, world);
+    let (mut new_game, stats_state) = build_game_from_world_data_ranked(
+        clock,
+        manager,
+        &startup_options,
+        world,
+        reputation_basis,
+    );
 
     new_game.package_lockfile = package_lockfile;
 

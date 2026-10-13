@@ -78,6 +78,9 @@ pub(super) fn load_world_data(
     }
 }
 
+/// The authored reputation of each club by id, which competition selectors rank by.
+pub(super) type AuthoredReputations = std::collections::HashMap<String, u32>;
+
 /// Load world data from a stack of installed `.ofm` packages (by id).
 /// Packages are merged in order with last-wins semantics for duplicate ids.
 /// Also returns the package lockfile entries for saving alongside the game.
@@ -91,6 +94,7 @@ pub(super) fn load_world_data_from_package_ids(
     (
         ofm_core::generator::WorldData,
         Vec<ofm_core::generator::PackageLock>,
+        AuthoredReputations,
     ),
     String,
 > {
@@ -142,7 +146,11 @@ pub(super) fn load_world_data_from_package_ids(
     if world.teams.is_empty() {
         return Err("be.error.package.noDatabasePackage".to_string());
     }
-    Ok((world, lockfile))
+    Ok((
+        world,
+        lockfile,
+        ofm_core::generator::authored_reputations(&merged),
+    ))
 }
 
 pub(super) fn world_start_year(
