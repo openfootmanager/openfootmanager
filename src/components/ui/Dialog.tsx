@@ -25,8 +25,10 @@ type DialogProps = (NamedBy | Labelled) & {
   panelRef?: RefObject<HTMLDivElement | null>;
   /** Backdrop colour and padding. */
   overlayClassName?: string;
-  /** Size, rounding and padding of the panel; the surface colours and border come from the shell. */
+  /** Size, rounding and padding of the panel; the border and shadow come from the shell. */
   className?: string;
+  /** Panel colours in both themes, for a dialog whose contents sit on a different surface. */
+  surfaceClassName?: string;
   children: ReactNode;
 };
 
@@ -44,6 +46,7 @@ export function Dialog({
   busy,
   overlayClassName = "bg-black/50 p-4",
   className = "",
+  surfaceClassName = "bg-white dark:bg-navy-800",
   children,
 }: DialogProps) {
   const ownPanelRef = useRef<HTMLDivElement>(null);
@@ -71,7 +74,7 @@ export function Dialog({
         aria-describedby={describedBy}
         aria-busy={busy}
         tabIndex={-1}
-        className={`bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 shadow-2xl focus:outline-none ${className}`}
+        className={`${surfaceClassName} border border-gray-200 dark:border-navy-600 shadow-2xl focus:outline-none ${className}`}
         onClick={(event) => event.stopPropagation()}
       >
         {children}
