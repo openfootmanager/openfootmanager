@@ -20,7 +20,7 @@ use std::fmt;
 
 use chrono::NaiveDate;
 
-use domain::league::{CompetitionFormat, FixtureCompetition, FixtureStatus};
+use domain::league::{CompetitionFormat, CompetitionType, FixtureCompetition, FixtureStatus};
 use domain::player::PlayerSeasonStats;
 use ofm_core::end_of_season::{EndOfSeasonSummary, has_full_schedule, is_regenerated_at_rollover};
 use ofm_core::game::Game;
@@ -69,6 +69,10 @@ const EVERY_DAY: &[(&str, DayRule)] = &[
     (
         "completed-fixtures-have-results",
         completed_fixtures_have_results,
+    ),
+    (
+        "completed-club-fixtures-have-reports",
+        completed_club_fixtures_have_reports,
     ),
     ("standings-are-consistent", standings_are_consistent),
     (CLUB_RESTS_BETWEEN_MATCHES, club_rests_between_matches),
@@ -431,6 +435,43 @@ fn club_rests_between_matches(game: &Game) -> Vec<String> {
         }
     }
     faults
+}
+
+/// Given any club fixture marked Completed on or after the career's first day,
+/// When it has no match report,
+/// Then that is reported: a match the engine played leaves a report, and one settled by scoreline
+///      does not.
+///
+/// The allowlist is the dormant tier: a competition outside the game's active scope is settled by
+/// scoreline today and has no reports. Removing the dormant tier empties the allowlist, at which
+/// point this rule holds for every club fixture. National-team tournaments are not club fixtures.
+fn completed_club_fixtures_have_reports(game: &Game) -> Vec<String> {
+    let began = game.clock.start_date.format("%Y-%m-%d").to_string();
+    game.competitions
+        .iter()
+        .filter(|competition| competition.kind != CompetitionType::InternationalNation)
+        .filter(|competition| game.competition_in_active_scope(competition))
+        .flat_map(|competition| {
+            competition
+                .fixtures
+                .iter()
+                .map(move |fixture| (competition.id.as_str(), fixture))
+        })
+        .filter(|(_, fixture)| {
+            fixture.status == FixtureStatus::Completed
+                && fixture.date.as_str() >= began.as_str()
+                && fixture
+                    .result
+                    .as_ref()
+                    .is_some_and(|result| result.report.is_none())
+        })
+        .map(|(owner, fixture)| {
+            format!(
+                "{owner} fixture {} on {} is Completed with a result but no match report",
+                fixture.id, fixture.date
+            )
+        })
+        .collect()
 }
 
 /// Given any fixture marked Completed,
@@ -1201,5 +1242,107 @@ mod tests {
             "{flood}"
         );
         assert!(invariants.report_of("quiet").contains("one fault"));
+    }
+
+    fn an_empty_report() -> domain::league::CompactMatchReport {
+        let side = domain::league::CompactTeamMatchStats {
+            possession_pct: 50,
+            shots: 0,
+            shots_on_target: 0,
+            fouls: 0,
+            corners: 0,
+            yellow_cards: 0,
+            red_cards: 0,
+        };
+        domain::league::CompactMatchReport {
+            total_minutes: 90,
+            home_stats: side.clone(),
+            away_stats: side,
+            events: Vec::new(),
+        }
+    }
+
+    /// Completes the first scheduled club fixture on `day` with a result and no report, and
+    /// returns the competition and fixture it was.
+    fn complete_a_club_fixture_without_report(game: &mut Game, day: &str) -> (String, String) {
+        let competition = game
+            .competitions
+            .iter_mut()
+            .filter(|competition| competition.kind != CompetitionType::InternationalNation)
+            .find(|competition| {
+                competition
+                    .fixtures
+                    .iter()
+                    .any(|fixture| fixture.status == FixtureStatus::Scheduled)
+            })
+            .expect("the world has a club fixture to play");
+        let fixture = competition
+            .fixtures
+            .iter_mut()
+            .find(|fixture| fixture.status == FixtureStatus::Scheduled)
+            .expect("checked above");
+        fixture.status = FixtureStatus::Completed;
+        fixture.date = day.to_string();
+        fixture.result = Some(domain::league::MatchResult {
+            home_goals: 1,
+            away_goals: 0,
+            ..Default::default()
+        });
+        (competition.id.clone(), fixture.id.clone())
+    }
+
+    /// Given a club fixture played during the career with a result and no report,
+    /// When the rule reads the world,
+    /// Then the fixture is named; with a report it is not.
+    #[test]
+    fn a_played_club_fixture_without_a_report_is_noticed() {
+        let mut game = world();
+        // Every competition active, so the fixture cannot be on the dormant allowlist.
+        game.active_competition_ids.clear();
+        game.active_region_ids.clear();
+        let day = game.clock.current_date.format("%Y-%m-%d").to_string();
+        let (owner, fixture_id) = complete_a_club_fixture_without_report(&mut game, &day);
+
+        let faults = completed_club_fixtures_have_reports(&game);
+        assert!(
+            mentions(&faults, &format!("{owner} fixture {fixture_id}")),
+            "{faults:?}"
+        );
+
+        let fixture = game
+            .competitions
+            .iter_mut()
+            .filter(|competition| competition.id == owner)
+            .flat_map(|competition| competition.fixtures.iter_mut())
+            .find(|fixture| fixture.id == fixture_id)
+            .unwrap();
+        fixture.result.as_mut().unwrap().report = Some(an_empty_report());
+        assert!(completed_club_fixtures_have_reports(&game).is_empty());
+    }
+
+    /// Given a fixture completed without a report in a competition outside the active scope,
+    /// When the rule reads the world,
+    /// Then it is allowed, as the dormant tier settles by scoreline; with no scope it is not.
+    #[test]
+    fn a_dormant_competition_is_on_the_allowlist() {
+        let mut game = world();
+        let day = game.clock.current_date.format("%Y-%m-%d").to_string();
+        complete_a_club_fixture_without_report(&mut game, &day);
+        game.active_competition_ids = vec!["some-other-competition".to_string()];
+        assert!(completed_club_fixtures_have_reports(&game).is_empty());
+
+        game.active_competition_ids.clear();
+        game.active_region_ids.clear();
+        assert!(!completed_club_fixtures_have_reports(&game).is_empty());
+    }
+
+    /// Given a fixture completed without a report before the career began,
+    /// When the rule reads the world,
+    /// Then it is not this rule's business (the world builder's catch-up settles those).
+    #[test]
+    fn a_fixture_from_before_the_career_is_not_this_rules_business() {
+        let mut game = world();
+        complete_a_club_fixture_without_report(&mut game, "2000-01-01");
+        assert!(completed_club_fixtures_have_reports(&game).is_empty());
     }
 }
