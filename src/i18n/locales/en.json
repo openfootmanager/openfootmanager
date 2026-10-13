@@ -724,6 +724,7 @@
     "myTactics": "My tactics",
     "newTactic": "New tactic",
     "duplicateTactic": "Duplicate",
+    "resetTactic": "Reset to defaults",
     "saveAsTactic": "Save as tactic",
     "updateTactic": "Update tactic",
     "tacticSaved": "Saved",
@@ -2557,7 +2558,10 @@
     "yourResult": "Your Result",
     "continue": "Continue",
     "notableUpset": "Notable Upset",
-    "pts": "pts"
+    "pts": "pts",
+    "cupPenalties": "({{home}}–{{away}} on penalties)",
+    "cupAdvances": "{{team}} go through",
+    "cupTiesPending": "Some ties are still to be played"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",

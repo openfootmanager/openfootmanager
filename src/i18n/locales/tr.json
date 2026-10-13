@@ -724,6 +724,7 @@
     "myTactics": "Taktiklerim",
     "newTactic": "Yeni taktik",
     "duplicateTactic": "Çoğalt",
+    "resetTactic": "Varsayılana sıfırla",
     "saveAsTactic": "Taktik olarak kaydet",
     "updateTactic": "Taktiği güncelle",
     "tacticSaved": "Kaydedildi",
@@ -2557,7 +2558,10 @@
     "yourResult": "Sizin Sonucunuz",
     "continue": "Devam Et",
     "notableUpset": "Dikkat Çeken Sürpriz",
-    "pts": "P"
+    "pts": "P",
+    "cupPenalties": "(penaltılarla {{home}}–{{away}})",
+    "cupAdvances": "{{team}} bir üst tura çıktı",
+    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",

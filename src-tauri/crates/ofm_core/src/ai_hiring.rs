@@ -3,7 +3,7 @@ use chrono::{Datelike, NaiveDate};
 use domain::manager::{Manager, ManagerCareerEntry};
 use domain::staff::{Staff, StaffRole};
 
-const BASE_AI_MANAGER_SATISFACTION: i32 = 50;
+pub(crate) const BASE_AI_MANAGER_SATISFACTION: i32 = 50;
 const AI_MANAGER_REPLACEMENT_DELAY_DAYS: u32 = 7;
 const USER_RIVALRY_SATISFACTION_PENALTY: i32 = 10;
 const USER_RIVALRY_LOOKBACK_DAYS: i64 = 14;
@@ -1081,5 +1081,43 @@ mod tests {
             .find(|m| m.team_id.as_deref() == Some("team2"))
             .unwrap();
         assert_ne!(second.id, first_id);
+    }
+
+    /// Given an assistant standing in for a vacant club
+    /// When the board sacks them
+    /// Then they leave the active pool at once for the archive, not at the season end (an ordinary
+    ///      sacked manager stays on the market: see `vacate_club`).
+    #[test]
+    fn a_sacked_stand_in_is_archived_at_once() {
+        let mut game = make_game();
+        seed_ai_managers(&mut game);
+        vacate_club(&mut game, "team2");
+        process_vacant_ai_clubs(&mut game);
+        let stand_in_id = game
+            .managers
+            .iter()
+            .find(|m| m.team_id.as_deref() == Some("team2"))
+            .map(|m| m.id.clone())
+            .unwrap();
+
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        assert!(crate::firing::fire_ai_manager_for_team(
+            &mut game, "team2", &today
+        ));
+
+        assert!(game.managers.iter().all(|m| m.id != stand_in_id));
+        let archived = game
+            .retired_managers
+            .iter()
+            .find(|m| m.id == stand_in_id)
+            .expect("the sacked stand-in is archived");
+        assert_eq!(archived.team_id, None);
+        assert_eq!(
+            archived
+                .career_history
+                .last()
+                .and_then(|e| e.end_date.as_deref()),
+            Some(today.as_str())
+        );
     }
 }

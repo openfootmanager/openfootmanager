@@ -5,6 +5,7 @@ import type { TeamFinanceSnapshotData } from "../../services/financeService";
 import {
   getDashboardAlerts,
   getDashboardSearchResults,
+  clubCompetitionLabel,
   getManagerTeamName,
   getTodayMatchFixture,
   getUnreadMessagesCount,
@@ -444,5 +445,64 @@ describe("dashboardHelpers", (): void => {
     expect(alertIds).not.toContain("xi");
     expect(alertIds).not.toContain("matchxi");
     expect(alertIds).not.toContain("injured_xi");
+  });
+});
+
+describe("clubCompetitionLabel", () => {
+  const standing = { competition_id: "league-1", competition_name: "Raw League Name" };
+  const translate = (key: string, options?: Record<string, unknown>) =>
+    key === "league.template"
+      ? `${options?.country} First Division`
+      : String(options?.defaultValue ?? key);
+
+  /**
+   * Given the backend names the club's league and the game holds that competition with a name key
+   * When the sidebar label is built
+   * Then it is the translated display name, with the nation filled in.
+   */
+  it("uses the translated display name of the backend's competition", () => {
+    const gameState = {
+      competitions: [
+        { id: "league-1", name: "Raw", name_key: "league.template", country_id: "BR" },
+      ],
+    } as unknown as GameStateData;
+
+    expect(clubCompetitionLabel(gameState, standing, translate)).toBe("BR First Division");
+  });
+
+  /**
+   * Given the game carries two competitions and the backend names the second
+   * When the sidebar label is built
+   * Then it is the second's name, found by the backend's id, not the first competition's.
+   */
+  it("finds the competition by the backend's id, not by position", () => {
+    const gameState = {
+      competitions: [
+        { id: "cup-1", name: "First Cup" },
+        { id: "league-1", name: "The League" },
+      ],
+    } as unknown as GameStateData;
+
+    expect(clubCompetitionLabel(gameState, standing, translate)).toBe("The League");
+  });
+
+  /**
+   * Given the backend names a competition the loaded game does not carry
+   * When the sidebar label is built
+   * Then it falls back to the backend's own name.
+   */
+  it("falls back to the backend's name when the game has no such competition", () => {
+    const gameState = { competitions: [] } as unknown as GameStateData;
+
+    expect(clubCompetitionLabel(gameState, standing, translate)).toBe("Raw League Name");
+  });
+
+  /**
+   * Given the club has no league table (no standing from the backend)
+   * When the sidebar label is built
+   * Then there is no label.
+   */
+  it("has no label without a standing", () => {
+    expect(clubCompetitionLabel({} as GameStateData, null, translate)).toBeNull();
   });
 });

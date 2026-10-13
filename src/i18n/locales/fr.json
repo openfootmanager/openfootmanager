@@ -772,6 +772,7 @@
     "myTactics": "Mes tactiques",
     "newTactic": "Nouvelle tactique",
     "duplicateTactic": "Dupliquer",
+    "resetTactic": "Réinitialiser",
     "saveAsTactic": "Enregistrer comme tactique",
     "updateTactic": "Mettre à jour la tactique",
     "tacticSaved": "Enregistré",
@@ -2557,7 +2558,10 @@
     "yourResult": "Votre résultat",
     "continue": "Continuer",
     "notableUpset": "Résultat surprise",
-    "pts": "pts"
+    "pts": "pts",
+    "cupPenalties": "({{home}}–{{away}} aux tirs au but)",
+    "cupAdvances": "{{team}} se qualifie",
+    "cupTiesPending": "Certaines rencontres restent à jouer"
   },
   "endOfSeason": {
     "seasonComplete": "Saison Terminée",

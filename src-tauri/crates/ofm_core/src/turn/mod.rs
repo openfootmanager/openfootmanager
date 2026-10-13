@@ -1,3 +1,4 @@
+mod cup_round_summary;
 mod dormant;
 mod news;
 mod post_match;
@@ -18,6 +19,7 @@ use domain::stats::StatsState;
 use log::{debug, info};
 
 // Re-export public items
+pub use cup_round_summary::{CupRoundSummary, CupTieResult, build_cup_round_summaries};
 pub use news::generate_matchday_news;
 pub use post_match::{apply_match_report, apply_match_report_with_capture};
 pub use round_summary::{

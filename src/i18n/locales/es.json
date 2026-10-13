@@ -772,6 +772,7 @@
     "myTactics": "Mis tácticas",
     "newTactic": "Nueva táctica",
     "duplicateTactic": "Duplicar",
+    "resetTactic": "Restablecer valores",
     "saveAsTactic": "Guardar como táctica",
     "updateTactic": "Actualizar táctica",
     "tacticSaved": "Guardado",
@@ -2557,7 +2558,10 @@
     "yourResult": "Tu resultado",
     "continue": "Continuar",
     "notableUpset": "Sorpresa notable",
-    "pts": "pts."
+    "pts": "pts.",
+    "cupPenalties": "({{home}}–{{away}} en penaltis)",
+    "cupAdvances": "{{team}} pasa de ronda",
+    "cupTiesPending": "Aún quedan eliminatorias por jugar"
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Completa",

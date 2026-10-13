@@ -724,6 +724,7 @@
     "myTactics": "Taktik Saya",
     "newTactic": "Taktik Baru",
     "duplicateTactic": "Duplikat",
+    "resetTactic": "Atur ulang ke default",
     "saveAsTactic": "Simpan sebagai taktik",
     "updateTactic": "Perbarui taktik",
     "tacticSaved": "Tersimpan",
@@ -2557,7 +2558,10 @@
     "yourResult": "Hasil Kamu",
     "continue": "Lanjut",
     "notableUpset": "Kejutan Menonjol",
-    "pts": "poin"
+    "pts": "poin",
+    "cupPenalties": "({{home}}–{{away}} lewat adu penalti)",
+    "cupAdvances": "{{team}} lolos ke babak berikutnya",
+    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan"
   },
   "endOfSeason": {
     "seasonComplete": "Musim Selesai",
