@@ -167,7 +167,22 @@ fn preseason_unbeaten_data(unbeaten_teams: &[String]) -> String {
     serde_json::to_string(unbeaten_teams).unwrap_or_else(|_| "[]".to_string())
 }
 
-/// Generate a league roundup article summarising all matchday results.
+/// The calendar day of an RFC 3339 timestamp or plain date.
+pub fn day_of(date: &str) -> &str {
+    date.get(..10).unwrap_or(date)
+}
+
+/// One roundup per competition, matchday and day: a round postponed in part gets a roundup for each
+/// day its matches are played.
+pub fn roundup_article_id(competition_id: &str, matchday: u32, day: &str) -> String {
+    format!("roundup_{competition_id}_md{matchday}_{day}")
+}
+
+pub fn standings_article_id(competition_id: &str, matchday: u32, day: &str) -> String {
+    format!("standings_{competition_id}_md{matchday}_{day}")
+}
+
+/// Generate a league roundup article summarising the results of one day of a matchday.
 pub fn league_roundup_article(
     competition_id: &str,
     matchday: u32,
@@ -190,7 +205,7 @@ pub fn league_roundup_article(
     let headline_idx = rng.random_range(0..3);
 
     NewsArticle::new(
-        format!("roundup_{}_md{}", competition_id, matchday),
+        roundup_article_id(competition_id, matchday, day_of(date)),
         String::new(),
         String::new(),
         String::new(),
@@ -238,7 +253,7 @@ pub fn standings_update_article(
     let headline_idx = rng.random_range(0..3);
 
     NewsArticle::new(
-        format!("standings_{}_md{}", competition_id, matchday),
+        standings_article_id(competition_id, matchday, day_of(date)),
         String::new(),
         String::new(),
         String::new(),

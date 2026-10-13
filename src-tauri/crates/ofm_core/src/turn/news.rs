@@ -741,14 +741,18 @@ pub fn generate_matchday_news(game: &mut Game, today: &str) {
         return;
     }
 
-    let matchday = todays_fixtures[0].matchday;
+    let matchday = todays_fixtures
+        .iter()
+        .map(|fixture| fixture.matchday)
+        .min()
+        .unwrap_or_default();
     let date_str = game.clock.current_date.to_rfc3339();
 
     // Don't duplicate. The competition id is part of the key because the live-match day now
     // sweeps every competition due today: without it, a foreign league reaching matchday 2 first
     // would silently suppress the user's own matchday-2 roundup and standings article, and news
     // is only cleared at rollover.
-    let roundup_id = format!("roundup_{}_md{}", league.id, matchday);
+    let roundup_id = news::roundup_article_id(&league.id, matchday, news::day_of(&date_str));
     if game.news.iter().any(|n| n.id == roundup_id) {
         return;
     }
@@ -1051,7 +1055,7 @@ mod tests {
         let roundup = game
             .news
             .iter()
-            .find(|article| article.id == "roundup_league1_md4")
+            .find(|article| article.id == "roundup_league1_md4_2025-08-12")
             .unwrap();
         assert_eq!(roundup.category, NewsCategory::LeagueRoundup);
         assert_eq!(roundup.body, "");
@@ -1071,7 +1075,7 @@ mod tests {
         let standings = game
             .news
             .iter()
-            .find(|article| article.id == "standings_league1_md4")
+            .find(|article| article.id == "standings_league1_md4_2025-08-12")
             .unwrap();
         assert_eq!(standings.category, NewsCategory::StandingsUpdate);
         assert_eq!(standings.body, "");
@@ -1092,6 +1096,64 @@ mod tests {
         generate_matchday_news(&mut game, "2025-08-12");
 
         assert!(game.news.is_empty());
+    }
+
+    /// Given a round whose second match was played a day later, when the news is generated on each day,
+    /// then each day gets its own roundup and standings article, listing only that day's match.
+    #[test]
+    fn news_for_a_split_round_posts_each_date_once() {
+        let mut game = make_game("2025-08-12", FixtureStatus::Completed);
+
+        generate_matchday_news(&mut game, "2025-08-12");
+        set_current_date(&mut game, 2025, 8, 13);
+        generate_matchday_news(&mut game, "2025-08-13");
+        generate_matchday_news(&mut game, "2025-08-13");
+
+        let roundups: Vec<_> = game
+            .news
+            .iter()
+            .filter(|article| article.category == NewsCategory::LeagueRoundup)
+            .collect();
+        assert_eq!(roundups.len(), 2, "one roundup for each date");
+        assert_eq!(
+            game.news.len(),
+            4,
+            "plus one standings article for each date"
+        );
+        let first = roundups
+            .iter()
+            .find(|a| a.id == "roundup_league1_md4_2025-08-12")
+            .unwrap();
+        let second = roundups
+            .iter()
+            .find(|a| a.id == "roundup_league1_md4_2025-08-13")
+            .unwrap();
+        assert_eq!(
+            first.i18n_params.get("results"),
+            Some(&"  Alpha FC 2 - 1 Beta FC".to_string())
+        );
+        assert_eq!(
+            second.i18n_params.get("results"),
+            Some(&"  Gamma FC 0 - 0 Beta FC".to_string())
+        );
+    }
+
+    /// Given a late match of one round and an on-time match of the next played on one day, when the news
+    /// is generated, then the roundup is labelled with the lowest matchday of the day.
+    #[test]
+    fn a_day_with_two_matchdays_is_labelled_by_the_lowest() {
+        let mut game = make_game("2025-08-12", FixtureStatus::Completed);
+        let league = game.league.as_mut().unwrap();
+        league.fixtures[1].date = "2025-08-12".to_string();
+        league.fixtures[1].matchday = 3;
+
+        generate_matchday_news(&mut game, "2025-08-12");
+
+        assert!(
+            game.news
+                .iter()
+                .any(|article| article.id == "roundup_league1_md3_2025-08-12")
+        );
     }
 
     #[test]
@@ -1115,10 +1177,10 @@ mod tests {
         generate_matchday_news(&mut game, "2025-08-12");
 
         for id in [
-            "roundup_league2_md4",
-            "standings_league2_md4",
-            "roundup_league1_md4",
-            "standings_league1_md4",
+            "roundup_league2_md4_2025-08-12",
+            "standings_league2_md4_2025-08-12",
+            "roundup_league1_md4_2025-08-12",
+            "standings_league1_md4_2025-08-12",
         ] {
             assert_eq!(
                 game.news.iter().filter(|article| article.id == id).count(),
@@ -1140,14 +1202,14 @@ mod tests {
         assert_eq!(
             game.news
                 .iter()
-                .filter(|article| article.id == "roundup_league1_md4")
+                .filter(|article| article.id == "roundup_league1_md4_2025-08-12")
                 .count(),
             1
         );
         assert_eq!(
             game.news
                 .iter()
-                .filter(|article| article.id == "standings_league1_md4")
+                .filter(|article| article.id == "standings_league1_md4_2025-08-12")
                 .count(),
             1
         );
