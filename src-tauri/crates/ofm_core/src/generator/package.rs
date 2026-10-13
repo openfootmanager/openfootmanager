@@ -436,6 +436,7 @@ const MISSING_ID: &str = "be.error.package.missingId";
 /// fragment inside a translated sentence.
 const MISSING_METADATA: &str = "be.error.package.missingMetadata";
 const DUPLICATE_ID: &str = "be.error.package.duplicateId";
+const DUPLICATE_WORLD: &str = "be.error.package.duplicateWorld";
 const INVALID_PACKAGE_ID: &str = "be.error.package.invalidPackageId";
 const WORLD_EXPORT_NOT_PACKAGE: &str = "be.error.package.worldExportNotPackage";
 const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
@@ -598,10 +599,15 @@ fn classify_entity(
             }
         }
         "world" => {
-            if let Some(def) = parse_entity::<WorldMetaDef>(value, file, schema, errors) {
+            // One manifest per package: a second used to replace the first, quietly changing the
+            // package's identity and default regions depending on which file was read last.
+            if package.meta.is_some() {
+                errors.push(
+                    PackageError::new(DUPLICATE_WORLD, file)
+                        .with("first", package.manifest_file.clone()),
+                );
+            } else if let Some(def) = parse_entity::<WorldMetaDef>(value, file, schema, errors) {
                 package.meta = Some(def);
-                // Overwritten alongside `meta`, so the recorded path always
-                // belongs to the manifest that actually survived.
                 package.manifest_file = file.to_string();
             }
         }
@@ -3809,6 +3815,39 @@ colors:
 
         assert!(errors.is_empty(), "{errors:?}");
         assert_eq!(pool_keys(&package), ["BRA", "ENG"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given a package with two files whose schema is `world`
+    /// When it is loaded
+    /// Then the second is reported as a duplicate manifest naming the first, and the first stays
+    ///      the package's identity (SCHEMA_REFERENCE promises one world per package; #595).
+    #[test]
+    fn a_second_world_manifest_is_an_error_not_a_silent_replacement() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "a-package.json",
+            r#"{"schema":"world","id":"first","name":"First"}"#,
+        );
+        write(
+            &dir,
+            "b-other.json",
+            r#"{"schema":"world","id":"second","name":"Second"}"#,
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        let duplicate = errors
+            .iter()
+            .find(|e| e.code == DUPLICATE_WORLD)
+            .unwrap_or_else(|| panic!("a second manifest is reported, got {errors:?}"));
+        assert_eq!(duplicate.file, "b-other.json");
+        assert_eq!(
+            duplicate.params,
+            vec![("first".to_string(), "a-package.json".to_string())]
+        );
+        assert_eq!(package.meta.as_ref().map(|m| m.id.as_str()), Some("first"));
         std::fs::remove_dir_all(&dir).ok();
     }
 

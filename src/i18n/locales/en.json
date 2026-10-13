@@ -2693,6 +2693,7 @@
         "notAProjectDirectory": "This is not a package project folder. Pick the folder that contains the package's package.json — or, for an installed .ofm package, use \"Open .ofm File\".",
         "unknownSchema": "Unknown schema \"{{schema}}\".",
         "invalidEntity": "A \"{{schema}}\" entry is invalid: {{detail}}",
+        "duplicateWorld": "The package already has a manifest in \"{{first}}\"; a package can have only one \"world\" file.",
         "missingId": "A {{kind}} entry is missing its id.",
         "missingMetadata": "The package manifest is missing the required field \"{{field}}\".",
         "duplicateId": "Duplicate {{kind}} id \"{{id}}\".",

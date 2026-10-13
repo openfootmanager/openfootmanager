@@ -2658,6 +2658,7 @@
         "notAProjectDirectory": "Esta no es una carpeta de proyecto de paquete. Elige la carpeta que contiene el package.json del paquete; si es un paquete .ofm instalado, usa «Abrir archivo .ofm».",
         "unknownSchema": "Esquema desconocido \"{{schema}}\".",
         "invalidEntity": "Una entrada \"{{schema}}\" no es válida: {{detail}}",
+        "duplicateWorld": "El paquete ya tiene un manifiesto en «{{first}}»; un paquete solo puede tener un archivo «world».",
         "missingId": "A una entrada {{kind}} le falta el id.",
         "missingMetadata": "Al manifiesto del paquete le falta el campo obligatorio \"{{field}}\".",
         "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",

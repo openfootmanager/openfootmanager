@@ -2658,6 +2658,7 @@
         "notAProjectDirectory": "这不是数据包项目文件夹。请选择包含数据包 package.json 的文件夹；如果是已安装的 .ofm 数据包，请使用“打开 .ofm 文件”。",
         "unknownSchema": "未知的 schema \"{{schema}}\"。",
         "invalidEntity": "\"{{schema}}\" 条目无效：{{detail}}",
+        "duplicateWorld": "该包已在“{{first}}”中有清单；一个包只能有一个“world”文件。",
         "missingId": "某个 {{kind}} 条目缺少 id。",
         "missingMetadata": "包清单缺少必填字段“{{field}}”。",
         "duplicateId": "重复的 {{kind}} id \"{{id}}\"。",

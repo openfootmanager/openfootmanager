@@ -2693,6 +2693,7 @@
         "notAProjectDirectory": "Bu bir paket proje klasörü değil. Paketin package.json dosyasını içeren klasörü seçin; kurulu bir .ofm paketi için \".ofm dosyası aç\" seçeneğini kullanın.",
         "unknownSchema": "Bilinmeyen şema \"{{schema}}\".",
         "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz: {{detail}}",
+        "duplicateWorld": "Paketin zaten \"{{first}}\" içinde bir manifestosu var; bir paketin yalnızca bir \"world\" dosyası olabilir.",
         "missingId": "Bir {{kind}} kaydında id eksik.",
         "missingMetadata": "Paket bildiriminde zorunlu \"{{field}}\" alanı eksik.",
         "duplicateId": "Yinelenen {{kind}} id'si \"{{id}}\".",

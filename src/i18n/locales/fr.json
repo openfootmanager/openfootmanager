@@ -2658,6 +2658,7 @@
         "notAProjectDirectory": "Ce dossier n'est pas un projet de paquet. Choisissez le dossier qui contient le package.json du paquet — ou, pour un paquet .ofm installé, utilisez « Ouvrir un fichier .ofm ».",
         "unknownSchema": "Schéma inconnu « {{schema}} ».",
         "invalidEntity": "Une entrée « {{schema}} » est invalide : {{detail}}",
+        "duplicateWorld": "Le paquet a déjà un manifeste dans « {{first}} » ; un paquet ne peut avoir qu'un seul fichier « world ».",
         "missingId": "Une entrée {{kind}} n’a pas d’id.",
         "missingMetadata": "Le champ obligatoire « {{field}} » est absent du manifeste du paquet.",
         "duplicateId": "Id {{kind}} en double « {{id}} ».",

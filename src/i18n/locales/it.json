@@ -2658,6 +2658,7 @@
         "notAProjectDirectory": "Questa non è una cartella di progetto di un pacchetto. Scegli la cartella che contiene il package.json del pacchetto — oppure, per un pacchetto .ofm installato, usa «Apri file .ofm».",
         "unknownSchema": "Schema sconosciuto \"{{schema}}\".",
         "invalidEntity": "Una voce \"{{schema}}\" non è valida: {{detail}}",
+        "duplicateWorld": "Il pacchetto ha già un manifesto in \"{{first}}\"; un pacchetto può avere un solo file \"world\".",
         "missingId": "A una voce {{kind}} manca l’id.",
         "missingMetadata": "Nel manifest del pacchetto manca il campo obbligatorio \"{{field}}\".",
         "duplicateId": "Id {{kind}} duplicato \"{{id}}\".",

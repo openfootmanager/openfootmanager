@@ -2693,6 +2693,7 @@
         "notAProjectDirectory": "Ini bukan folder proyek paket. Pilih folder yang berisi package.json paket tersebut — atau, untuk paket .ofm yang terpasang, gunakan \"Buka File .ofm\".",
         "unknownSchema": "Skema \"{{schema}}\" tidak dikenal.",
         "invalidEntity": "Entri \"{{schema}}\" tidak valid: {{detail}}",
+        "duplicateWorld": "Paket sudah memiliki manifes di \"{{first}}\"; sebuah paket hanya boleh memiliki satu berkas \"world\".",
         "missingId": "Entri {{kind}} kekurangan id.",
         "missingMetadata": "Manifest paket kekurangan bidang wajib \"{{field}}\".",
         "duplicateId": "Id {{kind}} \"{{id}}\" duplikat.",

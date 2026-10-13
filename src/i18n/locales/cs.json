@@ -2693,6 +2693,7 @@
         "notAProjectDirectory": "Toto není složka projektu balíčku. Vyberte složku, která obsahuje package.json balíčku — nebo pro nainstalovaný balíček .ofm použijte „Otevřít soubor .ofm“.",
         "unknownSchema": "Neznámé schéma „{{schema}}“.",
         "invalidEntity": "Záznam „{{schema}}“ je neplatný: {{detail}}",
+        "duplicateWorld": "Balíček už má manifest v souboru „{{first}}“; balíček může mít jen jeden soubor „world“.",
         "missingId": "Záznamu typu {{kind}} chybí ID.",
         "missingMetadata": "V manifestu balíčku chybí povinné pole „{{field}}“.",
         "duplicateId": "Duplicitní ID typu {{kind}}: „{{id}}“.",

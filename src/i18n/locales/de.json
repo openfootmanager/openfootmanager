@@ -2658,6 +2658,7 @@
         "notAProjectDirectory": "Dies ist kein Paketprojekt-Ordner. Wähle den Ordner, der die package.json des Pakets enthält — oder nutze für ein installiertes .ofm-Paket „.ofm-Datei öffnen“.",
         "unknownSchema": "Unbekanntes Schema \"{{schema}}\".",
         "invalidEntity": "Ein \"{{schema}}\"-Eintrag ist ungültig: {{detail}}",
+        "duplicateWorld": "Das Paket hat bereits ein Manifest in „{{first}}“; ein Paket kann nur eine „world“-Datei haben.",
         "missingId": "Einem {{kind}}-Eintrag fehlt die id.",
         "missingMetadata": "Im Paketmanifest fehlt das erforderliche Feld „{{field}}“.",
         "duplicateId": "Doppelte {{kind}}-id \"{{id}}\".",
