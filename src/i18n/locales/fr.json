@@ -582,7 +582,11 @@
       "twistedAnkle": "Entorse de la cheville",
       "kneeBruise": "Contusion au genou",
       "hamstringTightness": "Raideur aux ischio-jambiers",
-      "calfStrain": "Élongation du mollet"
+      "calfStrain": "Élongation du mollet",
+      "ankleLigamentSprain": "Entorse des ligaments de la cheville",
+      "hamstringTear": "Déchirure des ischio-jambiers",
+      "kneeLigamentTear": "Rupture des ligaments du genou",
+      "metatarsalFracture": "Fracture d'un métatarsien"
     },
     "scoutRatings": {
       "excellent": "Excellent",
@@ -3167,6 +3171,11 @@
         "subject": "Blessure — {{player}} ({{injury}})",
         "body0": "Mauvaise nouvelle depuis le centre d'entraînement. {{player}} s'est blessé ({{injury}}) lors de la séance d'aujourd'hui.\n\nL'équipe médicale estime {{days}} jours d'absence. Nous suivrons la récupération de près.",
         "body1": "Malheureusement, {{player}} s'est blessé ({{injury}}) à l'entraînement aujourd'hui.\n\nBilan initial : environ {{days}} jours d'absence. Nous vous tiendrons informé de l'évolution."
+      },
+      "matchInjury": {
+        "subject": "Blessure en match — {{player}} ({{injury}})",
+        "body0": "Mauvaises nouvelles du match : {{player}} s'est blessé sur le terrain.\n\nDiagnostic : {{injury}}. Le staff médical estime l'indisponibilité à {{days}} jours et nous suivrons la guérison de près.",
+        "body1": "{{player}} n'est pas sorti indemne du match d'aujourd'hui.\n\nDiagnostic : {{injury}}. Première évaluation : absent environ {{days}} jours. Nous vous tiendrons informé de son évolution."
       },
       "mediaPositive": {
         "subject": "Presse positive — {{player}}",

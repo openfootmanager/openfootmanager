@@ -586,7 +586,11 @@
       "twistedAnkle": "Ayak bileği burkulması",
       "kneeBruise": "Diz ezilmesi",
       "hamstringTightness": "Arka adale gerginliği",
-      "calfStrain": "Baldır zorlanması"
+      "calfStrain": "Baldır zorlanması",
+      "ankleLigamentSprain": "Ayak bileği bağ burkulması",
+      "hamstringTear": "Hamstring yırtığı",
+      "kneeLigamentTear": "Diz bağı kopması",
+      "metatarsalFracture": "Metatars kırığı"
     },
     "scoutRatings": {
       "excellent": "Mükemmel",
@@ -3167,6 +3171,11 @@
         "subject": "Sakatlık — {{player}} ({{injury}})",
         "body0": "Antrenman sahasından kötü haber. {{player}} bugünkü antrenmanda {{injury}} yaşadı.\n\nSağlık ekibi {{days}} gün sahalardan uzak kalacağını öngörüyor. İyileşme sürecini yakından takip edeceğiz.",
         "body1": "Ne yazık ki {{player}} bugün antrenmanda {{injury}} sorunu yaşadı.\n\nİlk değerlendirme: yaklaşık {{days}} gün yok. Gelişmeler hakkında sizi bilgilendireceğiz."
+      },
+      "matchInjury": {
+        "subject": "Maç sakatlığı — {{player}} ({{injury}})",
+        "body0": "Maçtan kötü haber: {{player}} sahada sakatlandı.\n\nTeşhis: {{injury}}. Sağlık ekibi {{days}} günlük bir ara öngörüyor ve iyileşmeyi yakından izleyeceğiz.",
+        "body1": "{{player}} bugünkü maçtan sağlam çıkamadı.\n\nTeşhis: {{injury}}. İlk değerlendirme: yaklaşık {{days}} gün yok. Gelişmeleri size bildireceğiz."
       },
       "mediaPositive": {
         "subject": "Olumlu Basın — {{player}}",

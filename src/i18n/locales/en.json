@@ -586,7 +586,11 @@
       "twistedAnkle": "Twisted ankle",
       "kneeBruise": "Knee bruise",
       "hamstringTightness": "Hamstring tightness",
-      "calfStrain": "Calf strain"
+      "calfStrain": "Calf strain",
+      "ankleLigamentSprain": "Ankle ligament sprain",
+      "hamstringTear": "Hamstring tear",
+      "kneeLigamentTear": "Knee ligament tear",
+      "metatarsalFracture": "Metatarsal fracture"
     },
     "scoutRatings": {
       "excellent": "Excellent",
@@ -3167,6 +3171,11 @@
         "subject": "Injury — {{player}} ({{injury}})",
         "body0": "Bad news from the training ground. {{player}} has picked up a {{injury}} during today's session.\n\nThe medical team estimates {{days}} days on the sidelines. We'll monitor the recovery closely.",
         "body1": "Unfortunately, {{player}} went down in training today with a {{injury}}.\n\nInitial assessment: out for approximately {{days}} days. We'll keep you updated on their progress."
+      },
+      "matchInjury": {
+        "subject": "Match injury — {{player}} ({{injury}})",
+        "body0": "Bad news from the match: {{player}} was injured on the pitch.\n\nDiagnosis: {{injury}}. The medical team estimates {{days}} days on the sidelines, and we'll monitor the recovery closely.",
+        "body1": "{{player}} did not come through today's match unharmed.\n\nDiagnosis: {{injury}}. Initial assessment: out for approximately {{days}} days. We'll keep you updated on the progress."
       },
       "mediaPositive": {
         "subject": "Positive Press — {{player}}",

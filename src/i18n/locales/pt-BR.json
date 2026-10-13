@@ -582,7 +582,11 @@
       "twistedAnkle": "Tornozelo torcido",
       "kneeBruise": "Contusão no joelho",
       "hamstringTightness": "Tensão no posterior da coxa",
-      "calfStrain": "Distensão na panturrilha"
+      "calfStrain": "Distensão na panturrilha",
+      "ankleLigamentSprain": "Entorse de ligamento do tornozelo",
+      "hamstringTear": "Ruptura de isquiotibiais",
+      "kneeLigamentTear": "Ruptura de ligamento do joelho",
+      "metatarsalFracture": "Fratura de metatarso"
     },
     "scoutRatings": {
       "excellent": "Excelente",
@@ -3167,6 +3171,11 @@
         "subject": "Lesão — {{player}} ({{injury}})",
         "body0": "Más notícias do treino. {{player}} sofreu uma {{injury}} durante a sessão de hoje.\n\nA equipe médica estima {{days}} dias afastado. Vamos acompanhar a recuperação de perto.",
         "body1": "Infelizmente, {{player}} caiu no treino hoje com uma {{injury}}.\n\nAvaliação inicial: fora por aproximadamente {{days}} dias. Manteremos você informado sobre o progresso."
+      },
+      "matchInjury": {
+        "subject": "Lesão no jogo — {{player}} ({{injury}})",
+        "body0": "Más notícias da partida: {{player}} se lesionou em campo.\n\nDiagnóstico: {{injury}}. O departamento médico estima {{days}} dias de afastamento e vamos acompanhar a recuperação de perto.",
+        "body1": "{{player}} não saiu ileso da partida de hoje.\n\nDiagnóstico: {{injury}}. Avaliação inicial: fora por cerca de {{days}} dias. Manteremos você informado sobre a evolução."
       },
       "mediaPositive": {
         "subject": "Imprensa Positiva — {{player}}",

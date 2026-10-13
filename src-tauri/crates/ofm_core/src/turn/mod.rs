@@ -1,4 +1,5 @@
 mod dormant;
+mod match_injuries;
 mod news;
 mod post_match;
 mod round_summary;

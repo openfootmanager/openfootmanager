@@ -582,7 +582,11 @@
       "twistedAnkle": "脚踝扭伤",
       "kneeBruise": "膝盖挫伤",
       "hamstringTightness": "腿筋紧张",
-      "calfStrain": "小腿拉伤"
+      "calfStrain": "小腿拉伤",
+      "ankleLigamentSprain": "踝关节韧带扭伤",
+      "hamstringTear": "腘绳肌撕裂",
+      "kneeLigamentTear": "膝关节韧带撕裂",
+      "metatarsalFracture": "跖骨骨折"
     },
     "scoutRatings": {
       "excellent": "极佳",
@@ -3167,6 +3171,11 @@
         "subject": "伤病——{{player}}({{injury}})",
         "body0": "训练场传来坏消息。{{player}}在今天的训练中遭遇了{{injury}}。\n\n医疗团队估计需要缺阵{{days}}天。我们会密切关注恢复情况。",
         "body1": "不幸的是,{{player}}今天在训练中因{{injury}}倒下。\n\n初步评估:缺阵约{{days}}天。我们会随时向您通报进展。"
+      },
+      "matchInjury": {
+        "subject": "比赛伤病 — {{player}}（{{injury}}）",
+        "body0": "比赛传来坏消息：{{player}} 在场上受伤了。\n\n诊断：{{injury}}。医疗团队预计需要休养 {{days}} 天，我们会密切关注恢复情况。",
+        "body1": "{{player}} 在今天的比赛中受了伤。\n\n诊断：{{injury}}。初步评估：缺阵约 {{days}} 天。我们会随时向你通报进展。"
       },
       "mediaPositive": {
         "subject": "正面媒体报道——{{player}}",

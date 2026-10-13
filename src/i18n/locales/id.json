@@ -586,7 +586,11 @@
       "twistedAnkle": "Pergelangan kaki terkilir",
       "kneeBruise": "Memar lutut",
       "hamstringTightness": "Otot hamstring menegang",
-      "calfStrain": "Cedera betis"
+      "calfStrain": "Cedera betis",
+      "ankleLigamentSprain": "Keseleo ligamen pergelangan kaki",
+      "hamstringTear": "Robekan hamstring",
+      "kneeLigamentTear": "Robekan ligamen lutut",
+      "metatarsalFracture": "Patah tulang metatarsal"
     },
     "scoutRatings": {
       "excellent": "Sangat Baik",
@@ -3167,6 +3171,11 @@
         "subject": "Cedera — {{player}} ({{injury}})",
         "body0": "Kabar buruk dari lapangan latihan. {{player}} mengalami {{injury}} selama sesi hari ini.\n\nTim medis memperkirakan {{days}} hari di luar lapangan. Kami akan memantau pemulihan dengan saksama.",
         "body1": "Sayangnya, {{player}} mengalami {{injury}} dalam latihan hari ini.\n\nPenilaian awal: absen sekitar {{days}} hari. Kami akan terus memberi kabar perkembangan mereka."
+      },
+      "matchInjury": {
+        "subject": "Cedera di pertandingan — {{player}} ({{injury}})",
+        "body0": "Kabar buruk dari pertandingan: {{player}} cedera di lapangan.\n\nDiagnosis: {{injury}}. Tim medis memperkirakan absen {{days}} hari, dan kami akan memantau pemulihannya dengan cermat.",
+        "body1": "{{player}} tidak keluar dari pertandingan hari ini dengan selamat.\n\nDiagnosis: {{injury}}. Penilaian awal: absen sekitar {{days}} hari. Kami akan terus mengabari perkembangannya."
       },
       "mediaPositive": {
         "subject": "Kabar Positif — {{player}}",
