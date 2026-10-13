@@ -20,7 +20,7 @@ export default function CupRoundSection({ summary }: CupRoundSectionProps) {
       aria-labelledby={headingId}
       className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300"
     >
-      <h2 id={headingId} className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+      <h2 id={headingId} className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
         {heading}
       </h2>
       <ul className="flex flex-col gap-2">

@@ -564,6 +564,36 @@ mod tests {
             4
         );
     }
+
+    fn entry(team: &str, wins: u32, goals_for: u8, goals_against: u8) -> StandingEntry {
+        let mut entry = StandingEntry::new(team.to_string());
+        for _ in 0..wins {
+            entry.record_result(goals_for, goals_against);
+        }
+        entry
+    }
+
+    /// Given a table in no order, when it is sorted, then points decide first, then goal
+    /// difference, then goals scored.
+    #[test]
+    fn a_table_is_ordered_by_points_then_goal_difference_then_goals_scored() {
+        let unsorted = vec![
+            entry("lowest", 1, 1, 0),
+            entry("more_goals", 2, 3, 1),
+            entry("best_difference", 2, 4, 1),
+            entry("fewer_goals", 2, 2, 0),
+        ];
+
+        let sorted: Vec<_> = sort_standings(unsorted)
+            .into_iter()
+            .map(|e| e.team_id)
+            .collect();
+
+        assert_eq!(
+            sorted,
+            ["best_difference", "more_goals", "fewer_goals", "lowest"]
+        );
+    }
 }
 
 #[cfg(test)]
