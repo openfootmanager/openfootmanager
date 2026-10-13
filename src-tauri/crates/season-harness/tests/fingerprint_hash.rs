@@ -3,8 +3,6 @@
 //!
 //! `cargo test --release -p season-harness --test fingerprint_hash -- --ignored --nocapture --test-threads=1`
 //!
-//! The shipped 440-club world joins these runs once `WorldSpec::shipped` exists.
-//!
 //! The hash is `DefaultHasher` with its fixed keys, so it is stable for one toolchain; compare runs from the same one.
 
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -40,4 +38,8 @@ fn the_fingerprint_hash_of_fixed_runs() {
             play(&WorldSpec::gate(seed), 2)
         );
     }
+    eprintln!(
+        "FINGERPRINT shipped seed 1 one season {:016x}",
+        play(&WorldSpec::shipped(1), 1)
+    );
 }
