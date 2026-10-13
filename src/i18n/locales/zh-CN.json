@@ -1087,6 +1087,7 @@
     "seasonIncome": "赛季收入",
     "seasonExpenses": "赛季支出",
     "perWeekSuffix": "/周",
+    "snapshotLoadFailed": "无法加载俱乐部财务数据。",
     "perYearSuffix": "/年",
     "wagePerWeek": "周薪",
     "wagePerYear": "年薪",

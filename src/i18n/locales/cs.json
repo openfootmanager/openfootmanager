@@ -1087,6 +1087,7 @@
     "seasonIncome": "Sezónní příjmy",
     "seasonExpenses": "Sezónní výdaje",
     "perWeekSuffix": "/týd",
+    "snapshotLoadFailed": "Finance klubu se nepodařilo načíst.",
     "perYearSuffix": "/rok",
     "wagePerWeek": "Plat/týdně",
     "wagePerYear": "Plat/ročně",

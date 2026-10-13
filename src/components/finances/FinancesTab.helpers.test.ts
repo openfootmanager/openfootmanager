@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { formatVal } from "../../lib/helpers";
-import type { TeamFinanceSnapshot } from "../../lib/finance";
 import type { TeamFinanceSnapshotData } from "../../services/financeService";
 import type { MessageAction, MessageData } from "../../store/gameStore";
-import { createTeam } from "../../test-utils/factories";
 import {
   boardSupportAvailable,
   facilityUpgradeBlockReason,
@@ -11,7 +9,6 @@ import {
   getFacilityUpgradeCost,
   isChooseOptionAction,
   isPendingSponsorOffer,
-  mapLocalFinanceSnapshot,
   marketingCampaignAvailable,
   sponsorPitchAvailable,
 } from "./FinancesTab.helpers";
@@ -125,54 +122,6 @@ describe("board support and commercial actions", () => {
       const snapshot = healthySnapshot(trigger);
       expect(marketingCampaignAvailable(snapshot)).toBe(sponsorPitchAvailable(snapshot));
     }
-  });
-});
-
-describe("mapLocalFinanceSnapshot", () => {
-  const snapshot: TeamFinanceSnapshot = {
-    annualWageBill: 1_000_000,
-    weeklyWageSpend: 19_230,
-    weeklyWageBudget: 30_000,
-    weeklySponsorIncome: 25_000,
-    projectedWeeklyNet: 5_770,
-    cashRunwayWeeks: 12,
-    wageBudgetUsagePercent: 64,
-    wageBudgetStatus: "watch",
-    runwayStatus: "warning",
-    overallStatus: "warning",
-    marketingCampaignCooldownDaysRemaining: 7,
-  };
-
-  it("derives debt and over-budget from the team, not the snapshot", () => {
-    // These two are the only fields the local snapshot cannot supply, so they
-    // are the ones a mapping mistake would silently drop.
-    const broke = mapLocalFinanceSnapshot(
-      createTeam({ finance: -50_000, wage_budget: 500_000 }),
-      snapshot,
-    );
-
-    expect(broke.currentlyInDebt).toBe(true);
-    expect(broke.currentlyOverBudget).toBe(true);
-
-    const solvent = mapLocalFinanceSnapshot(
-      createTeam({ finance: 2_000_000, wage_budget: 1_500_000 }),
-      snapshot,
-    );
-
-    expect(solvent.currentlyInDebt).toBe(false);
-    expect(solvent.currentlyOverBudget).toBe(false);
-  });
-
-  it("carries every snapshot field through, including the duplicated income", () => {
-    const mapped = mapLocalFinanceSnapshot(createTeam(), snapshot);
-
-    expect(mapped.weeklyRecurringIncome).toBe(snapshot.weeklySponsorIncome);
-    expect(mapped.weeklySponsorIncome).toBe(snapshot.weeklySponsorIncome);
-    expect(mapped.cashRunwayWeeks).toBe(12);
-    expect(mapped.wageBudgetStatus).toBe("watch");
-    expect(mapped.runwayStatus).toBe("warning");
-    expect(mapped.overallStatus).toBe("warning");
-    expect(mapped.marketingCampaignCooldownDaysRemaining).toBe(7);
   });
 });
 
