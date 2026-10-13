@@ -64,9 +64,17 @@ pub(super) fn book_cup_shadows<'a>(
         return;
     };
     let per_day = cup.rules.knockout_matches_per_day.max(1) as usize;
+    // Byes go straight into the next round: only the clubs that play halve.
+    let mut byes = cup
+        .knockout_rounds
+        .iter()
+        .rev()
+        .find(|round| !round.completed)
+        .map_or(0, |round| round.bye_team_ids.len());
     let mut remaining = alive.len();
     loop {
-        remaining = remaining.div_ceil(2);
+        remaining = remaining.saturating_sub(byes).div_ceil(2) + byes;
+        byes = 0;
         if remaining < 2 {
             return;
         }

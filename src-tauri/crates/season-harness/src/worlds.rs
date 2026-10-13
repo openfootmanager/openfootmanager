@@ -17,6 +17,18 @@ use ofm_core::world::start_date_for_year;
 /// Argentina's split season, all berthing into one continental cup.
 pub const GATE_NATIONS: &[&str] = &["ENG", "PT", "AR"];
 
+/// Which competitions the game plays in full. The game's default follows the player's own
+/// competitions and settles the rest of the world by scoreline (the dormant tier).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Scope {
+    /// What a new career gets: the player's competitions and the regions they need.
+    #[default]
+    Followed,
+    /// No scope at all, which the game reads as "everything is active": every club fixture is
+    /// played by the match engine, and every club is simulated in full each day.
+    Everything,
+}
+
 /// A world to play: the shipped one, minus some nations.
 ///
 /// Divisions keep their real size. Shrinking them is tempting — a season costs
@@ -28,10 +40,12 @@ pub const GATE_NATIONS: &[&str] = &["ENG", "PT", "AR"];
 #[derive(Debug, Clone)]
 pub struct WorldSpec {
     pub seed: u64,
+    /// The nations kept from the shipped world; empty keeps all of them.
     pub nations: &'static [&'static str],
     /// The manager takes this nation's strongest club.
     pub user_nation: &'static str,
     pub start_year: i32,
+    pub scope: Scope,
 }
 
 impl WorldSpec {
@@ -43,15 +57,30 @@ impl WorldSpec {
             nations: GATE_NATIONS,
             user_nation: "ENG",
             start_year: 2033,
+            scope: Scope::Followed,
         }
+    }
+
+    /// Every nation the game ships with (440 clubs), as a player gets it.
+    pub fn shipped(seed: u64) -> Self {
+        Self {
+            nations: &[],
+            ..Self::gate(seed)
+        }
+    }
+
+    pub fn with_scope(self, scope: Scope) -> Self {
+        Self { scope, ..self }
     }
 
     pub fn build(&self) -> Result<Game, String> {
         let sources = DefinitionSources::embedded_only();
         let mut config = WorldGenConfig::standard_from(&sources);
-        config
-            .nations
-            .retain(|nation| self.nations.contains(&nation.code.as_str()));
+        if !self.nations.is_empty() {
+            config
+                .nations
+                .retain(|nation| self.nations.contains(&nation.code.as_str()));
+        }
         // Dated for the year the clock opens in. Left to default it follows the
         // wall clock, which makes a run differ by the day it is made and opens
         // a 2033 game with every contract a few years expired.
@@ -88,6 +117,10 @@ impl WorldSpec {
             CareerScope::default(),
             StatsState::default(),
         )?;
+        if self.scope == Scope::Everything {
+            game.active_region_ids.clear();
+            game.active_competition_ids.clear();
+        }
         Ok(game)
     }
 

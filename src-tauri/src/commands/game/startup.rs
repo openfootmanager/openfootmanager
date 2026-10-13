@@ -8,7 +8,6 @@
 use chrono::{Datelike, Duration, Utc};
 
 use ofm_core::career::StartPhase;
-use ofm_core::game::Game;
 use ofm_core::world::{start_date_for_year, MIN_START_YEAR};
 
 pub(super) const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS: u32 = 12;
@@ -100,14 +99,6 @@ pub(super) fn normalize_startup_options(
     })
 }
 
-pub(super) fn apply_generated_past_history(game: &mut Game, startup_options: &StartupOptions) {
-    ofm_core::history_generation::generate_past_world_history(
-        game,
-        startup_options.start_year,
-        startup_options.history_depth_years,
-    );
-}
-
 /// What a career-start request asked for, rendered for the log.
 ///
 /// `start_new_game` had no log line at all, so every early `Err` it returned — an empty name, a
@@ -181,6 +172,7 @@ world_source={:?} packages={}",
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ofm_core::game::Game;
 
     fn summary_for<'a>(
         first: &'a str,
@@ -495,7 +487,7 @@ mod tests {
     }
 
     #[test]
-    fn apply_generated_past_history_populates_default_twelve_prior_seasons() {
+    fn generating_past_history_populates_default_twelve_prior_seasons() {
         let clock = GameClock::new(start_date_for_year(2032).unwrap());
         let manager = domain::manager::Manager::new(
             "mgr-user".to_string(),
@@ -706,13 +698,10 @@ mod tests {
         ];
         let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
 
-        apply_generated_past_history(
+        ofm_core::history_generation::generate_past_world_history(
             &mut game,
-            &StartupOptions {
-                start_year: 2032,
-                start_phase: StartPhase::SeasonStart,
-                history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
-            },
+            2032,
+            DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
         );
 
         assert!(game.teams.iter().all(|team| team.history.len() == 12));
