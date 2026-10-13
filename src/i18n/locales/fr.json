@@ -3638,6 +3638,11 @@
     },
     "save": {
       "defaultName": "Carrière de {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Ce paquet définit le pays « {{name}} » ({{code}}) en dehors de la liste des pays du jeu et ne le place dans aucune confédération ; ses clubs sont donc classés en Europe. Donnez-lui une confédération."
+      }
     }
   },
   "traits": {
@@ -3885,6 +3890,7 @@
     "saveSuccess": "Enregistré",
     "saveTeam": "Enregistrer l'équipe",
     "issues": "{{count}} problème(s)",
+    "warnings": "{{count}} avertissement(s)",
     "packageId": "ID du Paquet",
     "packageName": "Nom du Paquet",
     "description": "Description",

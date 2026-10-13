@@ -3638,6 +3638,11 @@
     },
     "save": {
       "defaultName": "{{manager}} 的生涯"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "该包定义了不在游戏国家列表中的国家“{{name}}”（{{code}}），且未将其归入任何联合会，因此其俱乐部会被归入欧洲。请为其指定一个联合会。"
+      }
     }
   },
   "traits": {
@@ -3885,6 +3890,7 @@
     "saveSuccess": "已保存",
     "saveTeam": "保存球队",
     "issues": "{{count}} 个问题",
+    "warnings": "{{count}} 条警告",
     "packageId": "包 ID",
     "packageName": "包名称",
     "description": "描述",

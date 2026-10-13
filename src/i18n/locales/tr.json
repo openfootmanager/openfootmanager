@@ -3638,6 +3638,11 @@
     },
     "save": {
       "defaultName": "{{manager}} Kariyeri"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin."
+      }
     }
   },
   "traits": {
@@ -3885,6 +3890,7 @@
     "saveSuccess": "Kaydedildi",
     "saveTeam": "Takımı Kaydet",
     "issues": "{{count}} sorun",
+    "warnings": "{{count}} uyarı",
     "packageId": "Paket ID'si",
     "packageName": "Paket Adı",
     "description": "Açıklama",

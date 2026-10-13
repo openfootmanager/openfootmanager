@@ -1,57 +1,36 @@
 //! Things a package author should hear about that do not stop the package loading.
 //!
 //! Errors (`validate_package`) say the package cannot be used. A warning says it can, but the
-//! game will not do what the author probably meant. Today there is one: a country code the game
-//! has never heard of, which `nations::region_for_code` quietly files under Europe.
-
-use std::collections::HashSet;
+//! game will not do what the author probably meant. Today there is one: a country the package
+//! defines itself, outside the nation catalog, with no `confederation`. Nothing places it, so
+//! `nations::region_for_code` quietly files it, and its clubs, under Europe.
+//!
+//! (A club or player naming a country that neither the catalog nor the package defines is
+//! already an error, `unknownCountry`.)
 
 use super::package::{PackageError, WorldPackage};
-use crate::nations::nation_by_name;
+use crate::nations::nation_by_code;
 
-pub(super) const UNKNOWN_COUNTRY_CODE: &str = "be.warning.package.unknownCountryCode";
+pub(super) const COUNTRY_WITHOUT_REGION: &str = "be.warning.package.countryWithoutRegion";
 
-/// Problems that leave the package usable. Empty for a package whose country codes are all
-/// ones the game knows or the package itself defines.
+/// Problems that leave the package usable. Empty for a package whose own countries are all in
+/// the catalog or placed in a confederation.
 pub fn package_warnings(package: &WorldPackage) -> Vec<PackageError> {
-    let own_countries: HashSet<&str> = package.countries.iter().map(|c| c.id.as_str()).collect();
-    let is_unknown = |code: &str| {
-        !code.trim().is_empty() && nation_by_name(code).is_none() && !own_countries.contains(code)
-    };
-
-    let teams = package
-        .teams
+    package
+        .countries
         .iter()
         .enumerate()
-        .filter(|(_, team)| is_unknown(&team.country))
-        .map(|(index, team)| warning("team", index, &team.name, &team.country, package));
-    let players = package
-        .players
-        .iter()
-        .enumerate()
-        .filter(|(_, player)| is_unknown(&player.nationality))
-        .map(|(index, player)| {
-            let called = if player.name.is_empty() {
-                format!("{} {}", player.first_name, player.last_name)
-            } else {
-                player.name.clone()
-            };
-            warning("player", index, called.trim(), &player.nationality, package)
-        });
-    teams.chain(players).collect()
-}
-
-fn warning(
-    schema: &str,
-    index: usize,
-    name: &str,
-    code: &str,
-    package: &WorldPackage,
-) -> PackageError {
-    PackageError::new(UNKNOWN_COUNTRY_CODE, &package.source_at(schema, index))
-        .with("kind", schema)
-        .with("name", name)
-        .with("code", code)
+        .filter(|(_, country)| {
+            !country.id.trim().is_empty()
+                && country.confederation.trim().is_empty()
+                && nation_by_code(&country.id).is_none()
+        })
+        .map(|(index, country)| {
+            PackageError::new(COUNTRY_WITHOUT_REGION, &package.source_at("country", index))
+                .with("name", country.name.clone())
+                .with("code", country.id.clone())
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -86,95 +65,72 @@ mod tests {
         package_warnings(&package)
     }
 
-    const CLUB_IN_QQ: (&str, &str) = (
-        "teams/teams.json",
-        r##"{"schema":"team","items":[{"id":"qq-fc","name":"QQ FC","city":"Qtown","country":"QQ",
-            "colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+    const COUNTRY_QQ: (&str, &str) = (
+        "countries/qq.json",
+        r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
     );
 
-    /// Given a package with a club whose country code is not in the catalog
+    /// Given a package that defines a country outside the catalog and puts it in no confederation
     /// When its warnings are listed
-    /// Then one names the club, the file and the unknown code.
+    /// Then one names the country, the file and the code.
     #[test]
-    fn a_club_in_an_unknown_country_is_warned_about() {
-        let warnings = warnings_for("club", &[CLUB_IN_QQ]);
+    fn a_country_with_no_region_is_warned_about() {
+        let warnings = warnings_for("qq", &[COUNTRY_QQ]);
 
         assert_eq!(warnings.len(), 1, "{warnings:?}");
-        assert_eq!(warnings[0].code, UNKNOWN_COUNTRY_CODE);
-        assert_eq!(warnings[0].file, "teams/teams.json");
-        let param = |key: &str| {
-            warnings[0]
-                .params
-                .iter()
-                .find(|(k, _)| k == key)
-                .map(|(_, v)| v.as_str())
-        };
-        assert_eq!(param("name"), Some("QQ FC"));
-        assert_eq!(param("code"), Some("QQ"));
-    }
-
-    /// Given a package with a player of an unknown nationality
-    /// When its warnings are listed
-    /// Then one names the player, the file and the code.
-    #[test]
-    fn a_player_of_an_unknown_nationality_is_warned_about() {
-        let warnings = warnings_for(
-            "player",
-            &[(
-                "players/players.json",
-                r#"{"schema":"player","id":"p1","name":"Pat Q","nationality":"QQ","club":"x"}"#,
-            )],
-        );
-
-        assert_eq!(warnings.len(), 1, "{warnings:?}");
-        assert_eq!(warnings[0].file, "players/players.json");
-        assert!(warnings[0].params.contains(&("code".into(), "QQ".into())));
+        assert_eq!(warnings[0].code, COUNTRY_WITHOUT_REGION);
+        assert_eq!(warnings[0].file, "countries/qq.json");
         assert!(
             warnings[0]
                 .params
-                .contains(&("name".into(), "Pat Q".into()))
+                .contains(&("name".into(), "Qland".into()))
         );
+        assert!(warnings[0].params.contains(&("code".into(), "QQ".into())));
     }
 
-    /// Given a package whose club and player codes are all in the catalog, by code or by name
-    /// When it is validated
-    /// Then there is no country-code warning.
+    /// Given the same country placed in a confederation the package defines
+    /// When its warnings are listed
+    /// Then there is none: the package placed it.
     #[test]
-    fn known_country_codes_are_silent() {
+    fn a_country_placed_in_a_confederation_is_silent() {
         let warnings = warnings_for(
-            "known",
+            "placed",
             &[
-                (
-                    "teams/teams.json",
-                    r##"{"schema":"team","id":"t","name":"T","city":"C","country":"ENG",
-                        "colors":{"primary":"#000000","secondary":"#ffffff"}}"##,
-                ),
-                (
-                    "players/players.json",
-                    r#"{"schema":"player","id":"p1","name":"Pat","nationality":"England","club":"t"}"#,
-                ),
-            ],
-        );
-
-        assert!(warnings.is_empty(), "{warnings:?}");
-    }
-
-    /// Given a club in a country the package itself defines, outside the catalog
-    /// When it is validated
-    /// Then it is silent: the package placed that country, so nothing falls back to Europe.
-    #[test]
-    fn a_country_the_package_defines_is_silent() {
-        let warnings = warnings_for(
-            "own",
-            &[
-                CLUB_IN_QQ,
                 (
                     "countries/qq.json",
                     r#"{"schema":"country","id":"QQ","name":"Qland","confederation":"qconf"}"#,
                 ),
+                (
+                    "confederations/qconf.json",
+                    r#"{"schema":"confederation","id":"qconf","name":"Q Confed"}"#,
+                ),
             ],
         );
 
         assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    /// Given a package whose countries are all in the catalog, placed or not
+    /// When it is validated
+    /// Then there is no warning.
+    #[test]
+    fn a_catalog_country_is_silent() {
+        let warnings = warnings_for(
+            "catalog",
+            &[(
+                "countries/eng.json",
+                r#"{"schema":"country","id":"ENG","name":"England"}"#,
+            )],
+        );
+
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    /// Given a package that defines no country
+    /// When it is validated
+    /// Then there is no warning.
+    #[test]
+    fn a_package_without_countries_is_silent() {
+        assert!(warnings_for("none", &[]).is_empty());
     }
 }

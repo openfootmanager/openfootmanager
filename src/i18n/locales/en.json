@@ -3638,6 +3638,11 @@
     },
     "save": {
       "defaultName": "{{manager}}'s Career"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it."
+      }
     }
   },
   "traits": {
@@ -3885,6 +3890,7 @@
     "saveSuccess": "Saved",
     "saveTeam": "Save Team",
     "issues": "{{count}} issue(s)",
+    "warnings": "{{count}} warning(s)",
     "packageId": "Package ID",
     "packageName": "Package Name",
     "description": "Description",

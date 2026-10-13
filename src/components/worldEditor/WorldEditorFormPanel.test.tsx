@@ -68,6 +68,7 @@ function renderPanel(formPanel: FormPanel, playerId: string, youthId: string) {
         namePools: 0,
       }}
       issues={[]}
+      warnings={[]}
       teamEditor={stub as never}
       confEditor={stub as never}
       countryEditor={stub as never}

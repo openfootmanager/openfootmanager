@@ -3638,6 +3638,11 @@
     },
     "save": {
       "defaultName": "Karier {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya."
+      }
     }
   },
   "traits": {
@@ -3885,6 +3890,7 @@
     "saveSuccess": "Tersimpan",
     "saveTeam": "Simpan Tim",
     "issues": "{{count}} masalah",
+    "warnings": "{{count}} peringatan",
     "packageId": "ID Paket",
     "packageName": "Nama Paket",
     "description": "Deskripsi",

@@ -89,6 +89,7 @@ export default function WorldEditor() {
   const [names, setNames] = useState<NamesDefinition>(emptyNamesDefinition());
   const [competitions, setCompetitions] = useState<CompetitionDef[]>([]);
   const [issues, setIssues] = useState<PackageProjectData["issues"]>([]);
+  const [warnings, setWarnings] = useState<PackageProjectData["warnings"]>([]);
 
   // Layout state
   const [selectedSection, setSelectedSection] = useState<EditTab>("metadata");
@@ -220,6 +221,7 @@ export default function WorldEditor() {
     setNames(data.names ?? emptyNamesDefinition());
     setCompetitions(data.competitions);
     setIssues(data.issues);
+    setWarnings(data.warnings ?? []);
     clearHistory();
     setIsDirty(false);
   }
@@ -423,6 +425,7 @@ export default function WorldEditor() {
       await persist();
       const data = await invoke<PackageProjectData>("read_package_project", { dir: projectDir });
       setIssues(data.issues);
+      setWarnings(data.warnings ?? []);
     } catch {
       // persist already handled the error
     } finally {
@@ -745,6 +748,7 @@ export default function WorldEditor() {
               namePools: Object.keys(names.pools).length,
             }}
             issues={issues}
+            warnings={warnings}
             teamEditor={teamEditor}
             confEditor={confEditor}
             countryEditor={countryEditor}

@@ -3638,6 +3638,11 @@
     },
     "save": {
       "defaultName": "Karriere von {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Dieses Paket definiert das Land „{{name}}“ ({{code}}) außerhalb der Länderliste des Spiels und ordnet es keinem Verband zu, daher werden seine Vereine unter Europa geführt. Weise ihm einen Verband zu."
+      }
     }
   },
   "traits": {
@@ -3885,6 +3890,7 @@
     "saveSuccess": "Gespeichert",
     "saveTeam": "Verein speichern",
     "issues": "{{count}} Problem(e)",
+    "warnings": "{{count}} Warnung(en)",
     "packageId": "Paket-ID",
     "packageName": "Paketname",
     "description": "Beschreibung",

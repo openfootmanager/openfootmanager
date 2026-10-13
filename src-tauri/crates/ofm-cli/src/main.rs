@@ -3,8 +3,9 @@ use colored::Colorize;
 use comfy_table::{presets::UTF8_FULL, Table};
 use ofm_core::generator::{
     entity_template, export_directory_to_ofm, is_valid_package_id, load_world_package,
-    load_world_package_from_ofm, new_package_meta, read_package_manifest_from_ofm,
-    scaffold_package, slugify, validate_package, EntityKind as CoreEntityKind,
+    load_world_package_from_ofm, new_package_meta, package_warnings,
+    read_package_manifest_from_ofm, scaffold_package, slugify, validate_package,
+    EntityKind as CoreEntityKind,
 };
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -605,7 +606,8 @@ fn cmd_validate(path: &Path) -> i32 {
         errors.extend(validate_package(&pkg));
     }
 
-    if errors.is_empty() {
+    let warnings = package_warnings(&pkg);
+    let code = if errors.is_empty() {
         println!(
             "{} Valid — {} teams, {} players, {} competitions, {} countries, {} confederations",
             "✓".green().bold(),
@@ -619,19 +621,30 @@ fn cmd_validate(path: &Path) -> i32 {
     } else {
         println!("{} {} error(s):", "✗".red().bold(), errors.len());
         for err in &errors {
-            let params: Vec<String> = err
-                .params
-                .iter()
-                .map(|(k, v)| format!("{}={}", k, v))
-                .collect();
-            let param_str = if params.is_empty() {
-                String::new()
-            } else {
-                format!(" ({})", params.join(", "))
-            };
-            println!("  {} {}{}", err.file.yellow(), err.code.red(), param_str);
+            println!("  {} {}", err.file.yellow(), issue_text(err).red());
         }
         1
+    };
+    if !warnings.is_empty() {
+        println!("{} {} warning(s):", "!".yellow().bold(), warnings.len());
+        for warning in &warnings {
+            println!("  {} {}", warning.file.yellow(), issue_text(warning));
+        }
+    }
+    code
+}
+
+/// A package issue as the CLI prints it: its translation key and, in parentheses, its parameters.
+fn issue_text(issue: &ofm_core::generator::PackageError) -> String {
+    let params: Vec<String> = issue
+        .params
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect();
+    if params.is_empty() {
+        issue.code.clone()
+    } else {
+        format!("{} ({})", issue.code, params.join(", "))
     }
 }
 
@@ -1254,5 +1267,64 @@ mod tests {
                 kind.schema_name()
             );
         }
+    }
+
+    /// Given a package whose own country is outside the catalog and in no confederation (#830)
+    /// When `validate` runs
+    /// Then it exits successfully, and the warning it prints names the file, the country and the code.
+    #[test]
+    fn validate_warns_about_a_country_with_no_region_and_still_succeeds() {
+        let dir = scratch_dir("validate-warns");
+        assert_eq!(
+            cmd_new("demo", Some(&dir), "Author", "1.0.0", "database"),
+            0
+        );
+        std::fs::create_dir_all(dir.join("countries")).unwrap();
+        std::fs::write(
+            dir.join("countries/qq.json"),
+            r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
+        )
+        .unwrap();
+
+        let exit = cmd_validate(&dir);
+        let (package, _errors) = load_world_package(&dir);
+        let warnings = package_warnings(&package);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(exit, 0, "a warning does not fail validation");
+        assert_eq!(warnings.len(), 1);
+        let text = issue_text(&warnings[0]);
+        assert!(text.contains("countryWithoutRegion"), "{text}");
+        assert!(
+            text.contains("name=Qland") && text.contains("code=QQ"),
+            "{text}"
+        );
+        assert_eq!(warnings[0].file, "countries/qq.json");
+    }
+
+    /// Given a package whose countries are all in the catalog
+    /// When `validate` runs
+    /// Then there is no warning.
+    #[test]
+    fn validate_is_silent_for_a_package_with_known_countries() {
+        let dir = scratch_dir("validate-silent");
+        assert_eq!(
+            cmd_new("demo", Some(&dir), "Author", "1.0.0", "database"),
+            0
+        );
+        std::fs::create_dir_all(dir.join("countries")).unwrap();
+        std::fs::write(
+            dir.join("countries/eng.json"),
+            r#"{"schema":"country","id":"ENG","name":"England"}"#,
+        )
+        .unwrap();
+
+        let exit = cmd_validate(&dir);
+        let (package, _errors) = load_world_package(&dir);
+        let warnings = package_warnings(&package);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(exit, 0);
+        assert!(warnings.is_empty(), "{warnings:?}");
     }
 }
