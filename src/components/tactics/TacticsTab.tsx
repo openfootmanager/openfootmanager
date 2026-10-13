@@ -77,6 +77,8 @@ export default function TacticsTab({
     activeTactic,
     tacticLibrary,
     isCommandBarDirty,
+    canResetTactic,
+    handleResetTactic,
     applyTacticSelection,
     handleCreateCustomTactic,
     handleDuplicateTactic,
@@ -107,6 +109,10 @@ export default function TacticsTab({
         activePlayStyle={activePlayStyle}
         formation={formation}
         isDirty={isCommandBarDirty}
+        canReset={canResetTactic}
+        onReset={() => {
+          void handleResetTactic();
+        }}
         onCreateNew={handleCreateCustomTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {

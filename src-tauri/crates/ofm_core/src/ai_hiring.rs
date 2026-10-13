@@ -218,13 +218,16 @@ fn recent_loss_to_user_penalty(game: &Game, team_id: &str) -> i32 {
 }
 
 fn team_has_manager_history(game: &Game, team_id: &str) -> bool {
-    game.managers.iter().any(|manager| {
-        manager.team_id.as_deref() == Some(team_id)
-            || manager
-                .career_history
-                .iter()
-                .any(|entry| entry.team_id == team_id)
-    })
+    game.managers
+        .iter()
+        .chain(&game.retired_managers)
+        .any(|manager| {
+            manager.team_id.as_deref() == Some(team_id)
+                || manager
+                    .career_history
+                    .iter()
+                    .any(|entry| entry.team_id == team_id)
+        })
 }
 
 pub fn seed_ai_managers(game: &mut Game) {
@@ -976,5 +979,33 @@ mod tests {
             offer.body_key.as_deref(),
             Some("be.msg.jobOfferExpired.body")
         );
+    }
+
+    /// Given a club whose only manager on record has since retired into the archive
+    /// When managers are seeded
+    /// Then the club still counts as having had a manager, so nobody is conjured for it.
+    #[test]
+    fn a_retired_managers_club_is_not_seeded_as_if_it_never_had_one() {
+        let mut game = make_game();
+        let mut retired = Manager::new(
+            "retired".to_string(),
+            "Old".to_string(),
+            "Boss".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        );
+        retired
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                "team2".to_string(),
+                "Rival FC".to_string(),
+                "2020-07-01".to_string(),
+            ));
+        game.retired_managers.push(retired);
+
+        seed_ai_managers(&mut game);
+
+        let rival = game.teams.iter().find(|t| t.id == "team2").unwrap();
+        assert_eq!(rival.manager_id, None);
     }
 }
