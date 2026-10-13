@@ -153,7 +153,8 @@ describe("DashboardHeader", () => {
     expect(onSelectSearchPlayer).not.toHaveBeenCalled();
   });
 
-  // Every position positionBadgeVariant names explicitly. The dashboard used to
+  // `position` is held at a legacy bucket that matches none of these rows, so only a read of
+  // `natural_position` can pass. Every position positionBadgeVariant names explicitly. The dashboard used to
   // keep its own four-bucket copy, so each granular position rendered red here
   // while the rest of the app rendered it blue or green.
   it.each([
@@ -189,7 +190,7 @@ describe("DashboardHeader", () => {
           isUnemployed={false}
           isSaving={false}
           matchMode="live"
-          matchedPlayers={[createPlayer({ position, natural_position: position })]}
+          matchedPlayers={[createPlayer({ position: "Midfielder", natural_position: position })]}
           matchedTeams={teams}
           modeMeta={createModeMeta()}
           onBack={vi.fn()}
