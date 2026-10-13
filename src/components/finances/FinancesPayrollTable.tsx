@@ -3,6 +3,7 @@ import { User } from "lucide-react";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 import { formatExactMoney, formatVal, positionBadgeVariant } from "../../lib/helpers";
 import { weeklyWageAmount } from "../../lib/finance";
+import { naturalPositionOf } from "../../lib/positions";
 import type { PlayerData, PlayerSelectionOptions } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
@@ -82,8 +83,8 @@ export default function FinancesPayrollTable({
                         </span>
                       </td>
                       <td className="py-3 px-5">
-                        <Badge variant={positionBadgeVariant(p.position)}>
-                          {translatePositionAbbreviation(t, p.position)}
+                        <Badge variant={positionBadgeVariant(naturalPositionOf(p))}>
+                          {translatePositionAbbreviation(t, naturalPositionOf(p))}
                         </Badge>
                       </td>
                       <td className="py-3 px-5 text-sm font-medium text-gray-700 dark:text-gray-300">

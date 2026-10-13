@@ -1450,6 +1450,8 @@
     "fixtures": "Zápasy",
     "standings": "Tabulka",
     "matchday": "{{number}}. kolo",
+    "movedFrom": "Přesunuto z {{date}}",
+    "dateRange": "{{from}} až {{to}}",
     "season": "{{number}}. sezóna",
     "international": "Mezinárodní",
     "internationalDuty": "Plní reprezentační povinnosti",
@@ -1664,6 +1666,7 @@
     "passAccuracy": "Úspěšnost přihrávek",
     "percentile": "Percentil",
     "percentileUnavailable": "Percentil není k dispozici",
+    "percentileGroup": "Porovnání s: {{position}} v {{league}}",
     "recentMatches": "Nedávné zápasy",
     "recentMatchesScore": "Skóre",
     "recentMatchesGoalsAssists": "G / A",
@@ -2774,6 +2777,7 @@
       "saveLoad": {
         "corrupted": "Tento soubor uložené pozice je poškozený a nelze jej načíst.",
         "incompatibleVersion": "Tato uložená pozice byla vytvořena v novější verzi hry (uložená pozice v{{saveVersion}}; tato sestava podporuje verzi maximálně do v{{supported}}). Chcete-li ji načíst, aktualizujte hru.",
+        "incompatibleLayout": "Data této uložené pozice neodpovídají verzi, kterou udává, a nelze ji bezpečně načíst. Soubor nebyl nijak změněn.",
         "missingData": "V této uložené pozici chybí požadovaná data a nelze ji načíst.",
         "invalidWorld": "Data světa nebo modifikací v této uložené pozici jsou neplatná a nelze ji načíst.",
         "unknown": "Tuto uloženou pozici nebylo možné načíst kvůli neočekávané chybě."

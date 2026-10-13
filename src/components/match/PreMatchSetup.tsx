@@ -27,6 +27,7 @@ import { getRoleOptions } from "../../lib/playerRoles";
 import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import { PitchToken, Select, TeamLogo, ThemeToggle, type PitchFitTone } from "../ui";
 import { ChevronRight, Crown, Footprints, CornerDownRight, CircleDot, Wand2 } from "lucide-react";
+import { naturalPositionOf } from "../../lib/positions";
 
 interface PreMatchSetupProps {
   snapshot: MatchSnapshot;
@@ -134,7 +135,7 @@ export default function PreMatchSetup({
           : isPlayerOutOfPosition(sp, slotPosition)
             ? "out"
             : "adapted"
-        : normalisePosition(sp.natural_position || sp.position) === player.position
+        : normalisePosition(naturalPositionOf(sp)) === player.position
           ? "exact"
           : "out";
     const displayPosition = slotPosition ?? player.position;

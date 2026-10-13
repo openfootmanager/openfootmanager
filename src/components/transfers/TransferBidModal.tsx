@@ -12,6 +12,7 @@ import NegotiationFeedbackPanel, {
 } from "../NegotiationFeedbackPanel";
 import { Badge } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { naturalPositionOf } from "../../lib/positions";
 import TransferNegotiationHistory from "./TransferNegotiationHistory";
 import { playerHasPendingRegistration } from "./TransfersTab.model";
 
@@ -79,8 +80,8 @@ export function TransferBidForm({
 
       {showPlayerSummary ? (
         <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(bidTarget.position)} size="sm">
-            {translatePositionAbbreviation(t, bidTarget.position)}
+          <Badge variant={positionBadgeVariant(naturalPositionOf(bidTarget))} size="sm">
+            {translatePositionAbbreviation(t, naturalPositionOf(bidTarget))}
           </Badge>
           <div>
             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">

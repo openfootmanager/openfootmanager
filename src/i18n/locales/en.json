@@ -1450,6 +1450,8 @@
     "fixtures": "Fixtures",
     "standings": "Standings",
     "matchday": "Matchday {{number}}",
+    "movedFrom": "Moved from {{date}}",
+    "dateRange": "{{from}} to {{to}}",
     "season": "Season {{number}}",
     "international": "International",
     "internationalDuty": "On International Duty",
@@ -1664,6 +1666,7 @@
     "passAccuracy": "Pass Accuracy",
     "percentile": "Percentile",
     "percentileUnavailable": "Percentile unavailable",
+    "percentileGroup": "Compared with: {{position}} in {{league}}",
     "recentMatches": "Recent Matches",
     "recentMatchesScore": "Score",
     "recentMatchesGoalsAssists": "G / A",
@@ -2774,6 +2777,7 @@
       "saveLoad": {
         "corrupted": "This save file is corrupted and can't be loaded.",
         "incompatibleVersion": "This save was made by a newer version of the game (save v{{saveVersion}}; this build supports up to v{{supported}}). Update the game to load it.",
+        "incompatibleLayout": "This save's data doesn't match the version it claims to be, so it can't be loaded safely. Nothing in the file was changed.",
         "missingData": "This save is missing required data and can't be loaded.",
         "invalidWorld": "This save's world or mod data is invalid and can't be loaded.",
         "unknown": "This save couldn't be loaded due to an unexpected error."
