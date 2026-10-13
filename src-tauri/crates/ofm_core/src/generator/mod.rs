@@ -172,17 +172,8 @@ pub fn default_opening_year() -> u32 {
 /// Age on 1 July of `opening_year`, by month and day (not day-of-year, which is off by one
 /// for birthdays after 28 February across a leap boundary). `None` for an unparseable date.
 pub(crate) fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
-    use chrono::{Datelike, NaiveDate};
-
-    let opening_date = NaiveDate::from_ymd_opt(opening_year, 7, 1)?;
-    let birth_date = NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d").ok()?;
-    let mut age = opening_date.year() - birth_date.year();
-
-    if (birth_date.month(), birth_date.day()) > (opening_date.month(), opening_date.day()) {
-        age -= 1;
-    }
-
-    Some(age)
+    let opening_date = chrono::NaiveDate::from_ymd_opt(opening_year, 7, 1)?;
+    domain::age::age_on(opening_date, date_of_birth)
 }
 
 fn is_opening_youth_candidate(player: &Player, opening_year: i32) -> bool {

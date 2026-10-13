@@ -61,16 +61,6 @@ pub(super) fn current_date_for_phase(
     })
 }
 
-pub(super) fn age_on_date(birth_date: chrono::NaiveDate, reference_date: chrono::NaiveDate) -> i64 {
-    let mut age = i64::from(reference_date.year() - birth_date.year());
-    let has_had_birthday =
-        (reference_date.month(), reference_date.day()) >= (birth_date.month(), birth_date.day());
-    if !has_had_birthday {
-        age -= 1;
-    }
-    age
-}
-
 pub(super) fn normalize_startup_options(
     raw: Option<RawStartupOptions>,
 ) -> Result<StartupOptions, String> {
@@ -393,7 +383,10 @@ mod tests {
             .unwrap()
             .date_naive();
 
-        assert_eq!(age_on_date(birth_date, reference_date), 30);
+        assert_eq!(
+            i64::from(domain::age::age_between(birth_date, reference_date)),
+            30
+        );
     }
 
     #[test]
@@ -406,8 +399,14 @@ mod tests {
             .unwrap()
             .date_naive();
 
-        assert_eq!(age_on_date(birth_date, season_start), 29);
-        assert_eq!(age_on_date(birth_date, midseason), 30);
+        assert_eq!(
+            i64::from(domain::age::age_between(birth_date, season_start)),
+            29
+        );
+        assert_eq!(
+            i64::from(domain::age::age_between(birth_date, midseason)),
+            30
+        );
     }
 
     #[test]
@@ -425,7 +424,10 @@ mod tests {
         let birth_date = chrono::NaiveDate::from_ymd_opt(2001, 12, 15).unwrap();
 
         assert_eq!(reference_date.to_string(), "2031-11-20");
-        assert_eq!(age_on_date(birth_date, reference_date), 29);
+        assert_eq!(
+            i64::from(domain::age::age_between(birth_date, reference_date)),
+            29
+        );
     }
 
     #[test]

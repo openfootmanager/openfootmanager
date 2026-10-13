@@ -21,6 +21,11 @@ pub fn age_on(on: NaiveDate, date_of_birth: &str) -> Option<i32> {
     Some(age_between(born, on))
 }
 
+/// `age_on`, with a birth date that cannot be read taken as `UNKNOWN_BIRTH_AGE`.
+pub fn age_on_or_unknown(on: NaiveDate, date_of_birth: &str) -> i32 {
+    age_on(on, date_of_birth).unwrap_or(UNKNOWN_BIRTH_AGE)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -63,6 +68,16 @@ mod tests {
     fn a_leap_day_birthday_is_reached_on_the_first_of_march() {
         assert_eq!(age_between(day(2000, 2, 29), day(2026, 2, 28)), 25);
         assert_eq!(age_between(day(2000, 2, 29), day(2026, 3, 1)), 26);
+    }
+
+    /// Given a birth date nobody can read, when the age is wanted anyway, then it is the assumed age.
+    #[test]
+    fn an_unreadable_birth_date_is_taken_as_the_assumed_age() {
+        assert_eq!(
+            age_on_or_unknown(day(2026, 3, 1), "garbage"),
+            UNKNOWN_BIRTH_AGE
+        );
+        assert_eq!(age_on_or_unknown(day(2026, 3, 1), "2000-03-01"), 26);
     }
 
     /// Given a birth date as text, when it is read, then the age follows; unreadable text has none.

@@ -1,24 +1,12 @@
 use crate::contracts::{iso, record_movement};
 use crate::game::Game;
-use chrono::{Datelike, NaiveDate};
+use chrono::NaiveDate;
 use domain::player::{Player, PlayerMovementEntry, PlayerMovementKind};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 const MIN_ATTRIBUTE: u8 = 1;
 const MAX_ATTRIBUTE: u8 = 99;
-
-fn player_age_on(current_date: NaiveDate, date_of_birth: &str) -> i32 {
-    let Ok(dob) = NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d") else {
-        return 30;
-    };
-
-    let mut age = current_date.year() - dob.year();
-    if current_date.ordinal() < dob.ordinal() {
-        age -= 1;
-    }
-    age
-}
 
 fn seeded_value(player_id: &str, season: u32, salt: &str) -> u32 {
     let mut hasher = DefaultHasher::new();
@@ -145,7 +133,7 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
             continue;
         }
 
-        let age = player_age_on(current_date, &player.date_of_birth);
+        let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
         apply_attribute_curve(player, age, season);
 
         if should_retire(player, age, current_date, season) {
@@ -162,8 +150,7 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_seasonal_aging, player_age_on, retirement_chance, should_retire, technical_growth,
-        veteran_pace_loss,
+        apply_seasonal_aging, retirement_chance, should_retire, technical_growth, veteran_pace_loss,
     };
     use crate::clock::GameClock;
     use crate::game::Game;
@@ -254,7 +241,7 @@ mod tests {
             ..PlayerSeasonStats::default()
         };
 
-        let age = player_age_on(current_date, &player.date_of_birth);
+        let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
         assert!(should_retire(&player, age, current_date, 1));
     }
 
