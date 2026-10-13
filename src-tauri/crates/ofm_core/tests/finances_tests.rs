@@ -950,11 +950,21 @@ fn lever_messages(game: &Game) -> Vec<&domain::message::InboxMessage> {
         .collect()
 }
 
+/// The levers a message offers, by the id of the action that takes the manager to each.
+fn offered_levers(message: &domain::message::InboxMessage) -> Vec<&str> {
+    message
+        .actions
+        .iter()
+        .map(|action| action.id.as_str())
+        .collect()
+}
+
 /// Given a club whose wage bill is over its budget but which is not in debt
 /// When the weekly finances run
-/// Then the financial director points at the commercial levers, with a link to the Finances tab.
+/// Then the financial director offers the two commercial levers the Finances tab would allow, each
+///      taking the manager to that tab, and not board support, which the tab would refuse.
 #[test]
-fn an_over_budget_club_is_told_about_the_commercial_levers() {
+fn an_over_budget_club_is_offered_exactly_the_commercial_levers() {
     let mut game = make_monday_game();
     game.teams[0].finance = 5_000_000;
     game.teams[0].wage_budget = 1_000;
@@ -965,13 +975,17 @@ fn an_over_budget_club_is_told_about_the_commercial_levers() {
     assert_eq!(messages.len(), 1);
     assert_eq!(
         messages[0].body_key.as_deref(),
-        Some("be.msg.financeLevers.bodyCommercial")
+        Some("be.msg.financeLevers.body")
     );
     assert_eq!(
         messages[0].sender_key.as_deref(),
         Some("be.sender.financialDirector")
     );
-    assert!(messages[0].actions.iter().any(|action| matches!(
+    assert_eq!(
+        offered_levers(messages[0]),
+        ["lever_sponsor_pitch", "lever_marketing_campaign"]
+    );
+    assert!(messages[0].actions.iter().all(|action| matches!(
         &action.action_type,
         domain::message::ActionType::NavigateTo { route } if route == "/dashboard?tab=Finances"
     )));
@@ -979,9 +993,9 @@ fn an_over_budget_club_is_told_about_the_commercial_levers() {
 
 /// Given a club in debt
 /// When the weekly finances run
-/// Then the message names every lever, board support included.
+/// Then every lever is offered, board support first.
 #[test]
-fn a_club_in_debt_is_told_about_every_lever() {
+fn a_club_in_debt_is_offered_every_lever() {
     let mut game = make_monday_game();
     game.teams[0].finance = -100_000;
 
@@ -990,9 +1004,58 @@ fn a_club_in_debt_is_told_about_every_lever() {
     let messages = lever_messages(&game);
     assert_eq!(messages.len(), 1);
     assert_eq!(
-        messages[0].body_key.as_deref(),
-        Some("be.msg.financeLevers.bodyAll")
+        offered_levers(messages[0]),
+        [
+            "lever_board_support",
+            "lever_sponsor_pitch",
+            "lever_marketing_campaign"
+        ]
     );
+}
+
+/// Given a club in debt with a sponsor already signed and a marketing campaign still cooling down
+/// When the weekly finances run
+/// Then only board support is offered: the sponsor pitch and the campaign are refused by the tab.
+#[test]
+fn a_lever_the_tab_would_refuse_is_not_offered() {
+    let mut game = make_monday_game();
+    // Deep enough that the campaign's income does not lift the club out of debt.
+    game.teams[0].finance = -5_000_000;
+    game.teams[0].wage_budget = 1_000;
+    game.teams[0].sponsorship = Some(Sponsorship {
+        sponsor_name: "Acme Corp".to_string(),
+        base_value: 2_000,
+        remaining_weeks: 8,
+        bonus_criteria: vec![],
+    });
+    finances::request_marketing_campaign(&mut game, "team1").expect("campaign");
+
+    finances::process_weekly_finances(&mut game);
+
+    let messages = lever_messages(&game);
+    assert_eq!(messages.len(), 1);
+    assert_eq!(offered_levers(messages[0]), ["lever_board_support"]);
+}
+
+/// Given an over-budget club with a sponsor signed and a campaign cooling down
+/// When the weekly finances run
+/// Then no lever message is sent, because nothing is open to it.
+#[test]
+fn no_message_is_sent_when_no_lever_is_open() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 5_000_000;
+    game.teams[0].wage_budget = 1_000;
+    game.teams[0].sponsorship = Some(Sponsorship {
+        sponsor_name: "Acme Corp".to_string(),
+        base_value: 2_000,
+        remaining_weeks: 8,
+        bonus_criteria: vec![],
+    });
+    finances::request_marketing_campaign(&mut game, "team1").expect("campaign");
+
+    finances::process_weekly_finances(&mut game);
+
+    assert!(lever_messages(&game).is_empty());
 }
 
 /// Given a club in good financial health
@@ -1009,10 +1072,10 @@ fn a_healthy_club_hears_nothing_about_levers() {
 }
 
 /// Given a club that stays in trouble for several weeks and whose manager deletes the message
-/// When the weekly finances keep running in the same season
+/// When the weekly finances keep running in the same season with the same levers open
 /// Then the message is not sent again: the ledger remembers it, not the mailbox.
 #[test]
-fn the_lever_message_is_sent_once_per_season_even_after_it_is_deleted() {
+fn the_lever_message_is_sent_once_per_season_per_open_set_even_after_deletion() {
     let mut game = make_monday_game();
     game.teams[0].finance = -100_000;
 

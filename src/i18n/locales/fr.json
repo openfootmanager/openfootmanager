@@ -2981,8 +2981,12 @@
       },
       "financeLevers": {
         "subject": "Des options de redressement s'ouvrent au club",
-        "bodyCommercial": "La masse salariale demande de l'attention, ce qui ouvre des options commerciales de redressement. Dans l'onglet Finances, vous pouvez démarcher un nouveau sponsor ou lancer une campagne marketing pour générer des revenus.",
-        "bodyAll": "La trésorerie du club est en difficulté, ce qui ouvre toutes les options de redressement. Dans l'onglet Finances, vous pouvez demander l'aide du conseil, démarcher un nouveau sponsor ou lancer une campagne marketing."
+        "body": "L'argent manque, ce qui ouvre des options de redressement. Celles qui s'offrent au club en ce moment sont listées ci-dessous ; chacune vous mène à l'onglet Finances.",
+        "action": {
+          "boardSupport": "Demander l'aide du conseil",
+          "sponsorPitch": "Démarcher un nouveau sponsor",
+          "marketingCampaign": "Lancer une campagne marketing"
+        }
       },
       "marketingCampaign": {
         "subject": "Rapport de campagne marketing",

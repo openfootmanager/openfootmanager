@@ -2981,8 +2981,12 @@
       },
       "financeLevers": {
         "subject": "Há opções de recuperação disponíveis para o clube",
-        "bodyCommercial": "A situação salarial exige atenção, o que abre opções comerciais de recuperação. Na aba Finanças você pode buscar um novo patrocinador ou lançar uma campanha de marketing para gerar receita.",
-        "bodyAll": "A situação de caixa do clube é grave, o que abre todas as opções de recuperação. Na aba Finanças você pode pedir apoio à diretoria, buscar um novo patrocinador ou lançar uma campanha de marketing."
+        "body": "O dinheiro está curto, o que abre opções de recuperação. As disponíveis para o clube agora aparecem abaixo; cada uma leva você à aba Finanças.",
+        "action": {
+          "boardSupport": "Pedir apoio à diretoria",
+          "sponsorPitch": "Buscar um novo patrocinador",
+          "marketingCampaign": "Lançar uma campanha de marketing"
+        }
       },
       "marketingCampaign": {
         "subject": "Relatório da campanha de marketing",

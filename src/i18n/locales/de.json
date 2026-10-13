@@ -2981,8 +2981,12 @@
       },
       "financeLevers": {
         "subject": "Dem Verein stehen Sanierungsoptionen offen",
-        "bodyCommercial": "Die Gehaltssituation braucht Aufmerksamkeit, wodurch kommerzielle Sanierungsoptionen frei werden. Im Reiter Finanzen können Sie einen neuen Sponsor ansprechen oder eine Marketingkampagne starten, um Einnahmen zu erzielen.",
-        "bodyAll": "Die Liquidität des Vereins ist angespannt, wodurch alle Sanierungsoptionen frei werden. Im Reiter Finanzen können Sie den Vorstand um Unterstützung bitten, einen neuen Sponsor ansprechen oder eine Marketingkampagne starten."
+        "body": "Das Geld ist knapp, wodurch Sanierungsoptionen frei werden. Die derzeit offenen stehen unten; jede führt Sie zum Reiter Finanzen.",
+        "action": {
+          "boardSupport": "Vorstand um Unterstützung bitten",
+          "sponsorPitch": "Neuen Sponsor ansprechen",
+          "marketingCampaign": "Marketingkampagne starten"
+        }
       },
       "marketingCampaign": {
         "subject": "Bericht zur Marketingkampagne",

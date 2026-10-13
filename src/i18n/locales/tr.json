@@ -2981,8 +2981,12 @@
       },
       "financeLevers": {
         "subject": "Kulüp için toparlanma seçenekleri açıldı",
-        "bodyCommercial": "Maaş durumu dikkat gerektiriyor ve bu, ticari toparlanma seçeneklerini açıyor. Finans sekmesinde yeni bir sponsora teklif götürebilir veya gelir sağlamak için pazarlama kampanyası başlatabilirsiniz.",
-        "bodyAll": "Kulübün nakit durumu kötü ve bu, tüm toparlanma seçeneklerini açıyor. Finans sekmesinde yönetimden destek isteyebilir, yeni bir sponsora teklif götürebilir veya pazarlama kampanyası başlatabilirsiniz."
+        "body": "Para sıkışık ve bu, toparlanma seçeneklerini açıyor. Kulübün şu anda kullanabildikleri aşağıda; her biri sizi Finans sekmesine götürür.",
+        "action": {
+          "boardSupport": "Yönetimden destek iste",
+          "sponsorPitch": "Yeni bir sponsora teklif götür",
+          "marketingCampaign": "Pazarlama kampanyası başlat"
+        }
       },
       "marketingCampaign": {
         "subject": "Pazarlama Kampanyası Raporu",

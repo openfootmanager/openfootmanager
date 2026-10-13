@@ -2998,8 +2998,12 @@
       },
       "financeLevers": {
         "subject": "Si aprono opzioni di recupero per il club",
-        "bodyCommercial": "La situazione degli stipendi richiede attenzione e questo apre opzioni commerciali di recupero. Nella scheda Finanze puoi proporti a un nuovo sponsor o avviare una campagna di marketing per incassare.",
-        "bodyAll": "La liquidità del club è in difficoltà e questo apre tutte le opzioni di recupero. Nella scheda Finanze puoi chiedere sostegno al consiglio, proporti a un nuovo sponsor o avviare una campagna di marketing."
+        "body": "I soldi scarseggiano, e questo apre opzioni di recupero. Quelle aperte al club in questo momento sono elencate qui sotto; ognuna ti porta alla scheda Finanze.",
+        "action": {
+          "boardSupport": "Chiedere sostegno al consiglio",
+          "sponsorPitch": "Proporsi a un nuovo sponsor",
+          "marketingCampaign": "Avviare una campagna di marketing"
+        }
       },
       "marketingCampaign": {
         "subject": "Rapporto campagna marketing",

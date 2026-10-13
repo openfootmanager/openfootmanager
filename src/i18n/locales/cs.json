@@ -2981,8 +2981,12 @@
       },
       "financeLevers": {
         "subject": "Klubu se otevřely možnosti záchrany",
-        "bodyCommercial": "Mzdová situace vyžaduje pozornost, a tím se otevírají komerční možnosti nápravy. Na kartě Finance můžete oslovit nového sponzora nebo spustit marketingovou kampaň, která přinese příjmy.",
-        "bodyAll": "Hotovostní situace klubu je vážná, a tím se otevírají všechny možnosti nápravy. Na kartě Finance můžete požádat o podporu vedení, oslovit nového sponzora nebo spustit marketingovou kampaň."
+        "body": "Peněz je málo, a tím se otevírají možnosti nápravy. Ty, které jsou klubu právě dostupné, jsou uvedeny níže; každá vás zavede na kartu Finance.",
+        "action": {
+          "boardSupport": "Požádat o podporu vedení",
+          "sponsorPitch": "Oslovit nového sponzora",
+          "marketingCampaign": "Spustit marketingovou kampaň"
+        }
       },
       "marketingCampaign": {
         "subject": "Zpráva o marketingové kampani",

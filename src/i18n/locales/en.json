@@ -2981,8 +2981,12 @@
       },
       "financeLevers": {
         "subject": "Recovery options are open to the club",
-        "bodyCommercial": "Our wage position needs attention, and that opens commercial recovery options. In the Finances tab you can pitch for a new sponsor or run a marketing campaign to bring in income.",
-        "bodyAll": "The club's cash position is in trouble, which opens every recovery option. In the Finances tab you can ask the board for support, pitch for a new sponsor or run a marketing campaign."
+        "body": "Money is tight, which opens recovery options. The ones open to the club right now are listed below; each takes you to the Finances tab.",
+        "action": {
+          "boardSupport": "Ask the board for support",
+          "sponsorPitch": "Pitch to a new sponsor",
+          "marketingCampaign": "Run a marketing campaign"
+        }
       },
       "marketingCampaign": {
         "subject": "Marketing Campaign Report",

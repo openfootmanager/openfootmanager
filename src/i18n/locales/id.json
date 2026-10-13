@@ -2981,8 +2981,12 @@
       },
       "financeLevers": {
         "subject": "Opsi pemulihan terbuka untuk klub",
-        "bodyCommercial": "Kondisi gaji perlu diperhatikan, dan itu membuka opsi pemulihan komersial. Di tab Keuangan, Anda dapat menawarkan diri ke sponsor baru atau menjalankan kampanye pemasaran untuk mendatangkan pemasukan.",
-        "bodyAll": "Kondisi kas klub sedang genting, dan itu membuka semua opsi pemulihan. Di tab Keuangan, Anda dapat meminta dukungan dewan, menawarkan diri ke sponsor baru, atau menjalankan kampanye pemasaran."
+        "body": "Uang sedang seret, dan itu membuka opsi pemulihan. Opsi yang terbuka untuk klub saat ini tercantum di bawah; masing-masing membawa Anda ke tab Keuangan.",
+        "action": {
+          "boardSupport": "Minta dukungan dewan",
+          "sponsorPitch": "Tawarkan diri ke sponsor baru",
+          "marketingCampaign": "Jalankan kampanye pemasaran"
+        }
       },
       "marketingCampaign": {
         "subject": "Laporan Kampanye Pemasaran",

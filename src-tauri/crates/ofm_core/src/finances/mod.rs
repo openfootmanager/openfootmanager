@@ -475,51 +475,77 @@ fn marketing_campaign_message(
     ))
 }
 
-/// Tells the manager, once a season per situation, which recovery levers have just unlocked and
-/// where to find them. The conditions come from the same `*_available` rules that gate the
-/// levers, so the message never promises one the Finances tab would refuse.
+/// Tells the manager, once a season per distinct set, which recovery levers are open to the club
+/// right now and takes them to the Finances tab.
 ///
-/// Board support unlocks only on debt or a runway problem, a subset of the commercial conditions,
-/// so there are two situations: commercial levers only, or every lever.
-fn finance_levers_message(
-    game: &Game,
-    snapshot: &TeamFinanceSnapshot,
-    today: &str,
-) -> Option<InboxMessage> {
-    let (variant, body_key) = if board_support_available(snapshot) {
-        ("all", "be.msg.financeLevers.bodyAll")
-    } else if sponsor_pitch_available(snapshot) || marketing_campaign_available(snapshot) {
-        ("commercial", "be.msg.financeLevers.bodyCommercial")
-    } else {
+/// The levers come from `finance_action_previews`, the same verdicts the tab consumes, so the
+/// message names exactly what the tab would allow and never a lever it would refuse (board support
+/// already used this season, a sponsor already signed or a pitch pending, a campaign cooling
+/// down). Each open lever is an action; the body only introduces them. Nothing open, no message.
+fn finance_levers_message(game: &Game, team_id: &str, today: &str) -> Option<InboxMessage> {
+    let previews = finance_action_previews(game, team_id)?;
+    let open: Vec<(&str, &str)> = [
+        (
+            previews.board_support.is_some(),
+            (
+                "lever_board_support",
+                "be.msg.financeLevers.action.boardSupport",
+            ),
+        ),
+        (
+            previews.sponsor_pitch.is_some(),
+            (
+                "lever_sponsor_pitch",
+                "be.msg.financeLevers.action.sponsorPitch",
+            ),
+        ),
+        (
+            previews.marketing_campaign.is_some(),
+            (
+                "lever_marketing_campaign",
+                "be.msg.financeLevers.action.marketingCampaign",
+            ),
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(is_open, lever)| is_open.then_some(lever))
+    .collect();
+    if open.is_empty() {
         return None;
-    };
+    }
 
-    Some(
-        InboxMessage::new(
-            format!("finance_levers_{}_{}", board_support_season(game), variant),
-            String::new(),
-            String::new(),
-            String::new(),
-            today.to_string(),
-        )
-        .with_category(MessageCategory::Finance)
-        .with_priority(MessagePriority::High)
-        .with_sender_role("")
-        .with_i18n(
-            "be.msg.financeLevers.subject",
-            body_key,
-            std::collections::HashMap::new(),
-        )
-        .with_sender_i18n("be.sender.financialDirector", "be.role.financialDirector")
-        .with_action(action(
-            "view_finances",
+    let open_set = open
+        .iter()
+        .map(|(id, _)| id.trim_start_matches("lever_"))
+        .collect::<Vec<_>>()
+        .join("+");
+    let mut message = InboxMessage::new(
+        format!("finance_levers_{}_{}", board_support_season(game), open_set),
+        String::new(),
+        String::new(),
+        String::new(),
+        today.to_string(),
+    )
+    .with_category(MessageCategory::Finance)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("")
+    .with_i18n(
+        "be.msg.financeLevers.subject",
+        "be.msg.financeLevers.body",
+        std::collections::HashMap::new(),
+    )
+    .with_sender_i18n("be.sender.financialDirector", "be.role.financialDirector");
+    for (id, label_key) in open {
+        message = message.with_action(action(
+            id,
             "",
-            "be.msg.action.viewFinances",
+            label_key,
             ActionType::NavigateTo {
                 route: "/dashboard?tab=Finances".to_string(),
             },
-        )),
-    )
+        ));
+    }
+    Some(message)
 }
 
 fn board_support_season(game: &Game) -> u32 {
@@ -1384,7 +1410,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         }
     }
 
-    new_messages.extend(finance_levers_message(game, &snapshot, today));
+    new_messages.extend(finance_levers_message(game, &user_team_id, today));
 
     crate::inbox::emit_all(game, new_messages);
 }
