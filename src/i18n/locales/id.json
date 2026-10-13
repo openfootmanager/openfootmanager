@@ -1087,6 +1087,7 @@
     "seasonIncome": "Pendapatan Musim",
     "seasonExpenses": "Pengeluaran Musim",
     "perWeekSuffix": "/mg",
+    "snapshotLoadFailed": "Tidak dapat memuat keuangan klub.",
     "perYearSuffix": "/th",
     "wagePerWeek": "Gaji/mg",
     "wagePerYear": "Gaji/th",

@@ -158,4 +158,21 @@ describe("buildFallbackRegions", () => {
     expect(byId.europe).toEqual(["ES", "FR"]);
     expect(byId.south_america).toEqual(["BR"]);
   });
+
+  /**
+   * Given a club whose country no competition declares a region for
+   * When the fallback regions are built
+   * Then the club lands in no region, instead of being filed under Europe by a guess.
+   */
+  it("files a country no competition declares under no region", () => {
+    const gameState = {
+      teams: [createTeam({ id: "t1", country: "ES" }), createTeam({ id: "t2", country: "NG" })],
+    } as unknown as GameStateData;
+    const competitions = [league({ country_id: "ES", region_id: "europe" })];
+
+    const regions = buildFallbackRegions(t, gameState, competitions);
+
+    expect(regions.map((region) => region.id)).toEqual(["europe"]);
+    expect(regions.flatMap((region) => region.country_codes)).not.toContain("NG");
+  });
 });

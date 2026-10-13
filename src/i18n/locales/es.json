@@ -1087,6 +1087,7 @@
     "seasonIncome": "Ingresos de Temporada",
     "seasonExpenses": "Gastos de Temporada",
     "perWeekSuffix": "/sem",
+    "snapshotLoadFailed": "No se pudieron cargar las finanzas del club.",
     "perYearSuffix": "/año",
     "wagePerWeek": "Salario/sem",
     "wagePerYear": "Salario/año",
