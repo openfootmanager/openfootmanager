@@ -31,6 +31,11 @@ pub struct Manager {
 
     // Employment history
     pub career_history: Vec<ManagerCareerEntry>,
+
+    /// A stand-in: an assistant manager covering a vacant post until the club appoints someone.
+    /// Never a market candidate, and archived when the permanent appointment arrives.
+    #[serde(default)]
+    pub interim: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -97,6 +102,7 @@ impl Manager {
             warning_stage: 0,
             career_stats: ManagerCareerStats::default(),
             career_history: Vec::new(),
+            interim: false,
         }
     }
 

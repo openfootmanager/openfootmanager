@@ -1,7 +1,7 @@
 use crate::game::Game;
 use crate::matchday::LeagueRoundContext;
 use crate::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
-use domain::league::{Fixture, FixtureStatus, StandingEntry};
+use domain::league::{Fixture, FixtureStatus, StandingEntry, sort_standings};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -330,17 +330,6 @@ fn round_goal_counts(fixtures: &[&Fixture]) -> HashMap<String, u32> {
     }
 
     counts
-}
-
-fn sort_standings(mut standings: Vec<StandingEntry>) -> Vec<StandingEntry> {
-    standings.sort_by(|left, right| {
-        right
-            .points
-            .cmp(&left.points)
-            .then(right.goal_difference().cmp(&left.goal_difference()))
-            .then(right.goals_for.cmp(&left.goals_for))
-    });
-    standings
 }
 
 fn team_strength(game: &Game, team_id: &str) -> f64 {

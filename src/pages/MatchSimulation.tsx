@@ -8,6 +8,7 @@ import type {
   MatchSnapshot,
   MatchEvent,
   MatchDayStage,
+  CupRoundSummary,
   RoundSummary,
 } from "../components/match/types";
 import { resolveMatchFixture } from "../components/match/helpers";
@@ -34,6 +35,7 @@ interface MatchRouteState {
 interface FinishLiveMatchResponse {
   game: GameStateData;
   round_summary?: RoundSummary | null;
+  cup_round_summaries?: CupRoundSummary[];
 }
 
 export default function MatchSimulation() {
@@ -50,6 +52,7 @@ export default function MatchSimulation() {
   const [userSide, setUserSide] = useState<"Home" | "Away" | null>(null);
   const [isSpectator, setIsSpectator] = useState(matchMode === "spectator");
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
+  const [cupRoundSummaries, setCupRoundSummaries] = useState<CupRoundSummary[]>([]);
   const [hasFinalizedMatch, setHasFinalizedMatch] = useState(false);
   const [preferredSpeed, setPreferredSpeed] = useState<"slow" | "normal" | "fast">("normal");
   const [hasUserOverriddenSpeed, setHasUserOverriddenSpeed] = useState(false);
@@ -232,6 +235,7 @@ export default function MatchSimulation() {
       });
       setGameState(response.game);
       setRoundSummary(response.round_summary ?? null);
+      setCupRoundSummaries(response.cup_round_summaries ?? []);
       setHasFinalizedMatch(true);
       return true;
     } catch (err) {
@@ -401,6 +405,7 @@ export default function MatchSimulation() {
           userSide={userSide}
           isLeagueFixture={isLeagueFixture}
           roundSummary={roundSummary}
+          cupRoundSummaries={cupRoundSummaries}
           onPressConference={handlePressConference}
           onFinish={handleFinishMatch}
         />

@@ -2501,7 +2501,10 @@
     "yourResult": "Seu resultado",
     "continue": "Continuar",
     "notableUpset": "Grande surpresa",
-    "pts": "pts"
+    "pts": "pts",
+    "cupPenalties": "({{home}}–{{away}} nos pênaltis)",
+    "cupAdvances": "{{team}} avança de fase",
+    "cupTiesPending": "Ainda faltam confrontos a serem disputados"
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Encerrada",
