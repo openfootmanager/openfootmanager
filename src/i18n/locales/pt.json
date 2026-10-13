@@ -2657,7 +2657,7 @@
         "worldExportNotPackage": "Esta pasta é um mundo exportado, não um projeto de pacote. Os mundos exportados usam um formato diferente e não podem ser editados aqui.",
         "notAProjectDirectory": "Esta não é uma pasta de projeto de pacote. Escolhe a pasta que contém o package.json do pacote — ou, para um pacote .ofm instalado, usa «Abrir ficheiro .ofm».",
         "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
-        "invalidEntity": "Uma entrada \"{{schema}}\" é inválida.",
+        "invalidEntity": "Uma entrada \"{{schema}}\" é inválida: {{detail}}",
         "missingId": "Falta o id numa entrada {{kind}}.",
         "missingMetadata": "Falta o campo obrigatório \"{{field}}\" no manifesto do pacote.",
         "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",

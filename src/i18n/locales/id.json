@@ -2692,7 +2692,7 @@
         "worldExportNotPackage": "Folder ini adalah dunia yang diekspor, bukan proyek paket. Dunia yang diekspor menggunakan format berbeda dan tidak dapat diedit di sini.",
         "notAProjectDirectory": "Ini bukan folder proyek paket. Pilih folder yang berisi package.json paket tersebut — atau, untuk paket .ofm yang terpasang, gunakan \"Buka File .ofm\".",
         "unknownSchema": "Skema \"{{schema}}\" tidak dikenal.",
-        "invalidEntity": "Entri \"{{schema}}\" tidak valid.",
+        "invalidEntity": "Entri \"{{schema}}\" tidak valid: {{detail}}",
         "missingId": "Entri {{kind}} kekurangan id.",
         "missingMetadata": "Manifest paket kekurangan bidang wajib \"{{field}}\".",
         "duplicateId": "Id {{kind}} \"{{id}}\" duplikat.",

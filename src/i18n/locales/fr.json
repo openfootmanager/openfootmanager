@@ -2657,7 +2657,7 @@
         "worldExportNotPackage": "Ce dossier est une sauvegarde de monde exportée, pas un projet de paquet. Les mondes exportés utilisent un format différent et ne peuvent pas être modifiés ici.",
         "notAProjectDirectory": "Ce dossier n'est pas un projet de paquet. Choisissez le dossier qui contient le package.json du paquet — ou, pour un paquet .ofm installé, utilisez « Ouvrir un fichier .ofm ».",
         "unknownSchema": "Schéma inconnu « {{schema}} ».",
-        "invalidEntity": "Une entrée « {{schema}} » est invalide.",
+        "invalidEntity": "Une entrée « {{schema}} » est invalide : {{detail}}",
         "missingId": "Une entrée {{kind}} n’a pas d’id.",
         "missingMetadata": "Le champ obligatoire « {{field}} » est absent du manifeste du paquet.",
         "duplicateId": "Id {{kind}} en double « {{id}} ».",

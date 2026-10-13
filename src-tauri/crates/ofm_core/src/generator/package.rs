@@ -521,8 +521,14 @@ fn parse_entity<T: serde::de::DeserializeOwned>(
 ) -> Option<T> {
     match serde_yaml::from_value::<T>(value) {
         Ok(parsed) => Some(parsed),
-        Err(_) => {
-            errors.push(PackageError::new(INVALID_ENTITY, file).with("schema", schema));
+        // `detail` is serde's own diagnostic (the field, the unexpected value, a location), shown
+        // verbatim after the translated message: it names what the author has to fix.
+        Err(error) => {
+            errors.push(
+                PackageError::new(INVALID_ENTITY, file)
+                    .with("schema", schema)
+                    .with("detail", error.to_string()),
+            );
             None
         }
     }
@@ -3693,6 +3699,35 @@ colors:
         let spain = package.countries.iter().position(|c| c.id == "ES").unwrap();
         assert_eq!(package.source_at("country", spain), "countries/two.json");
 
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given a package whose player has a position that is not one
+    /// When it is loaded
+    /// Then the invalid-entity error carries serde's own account of what is wrong, so the author
+    ///      is told which value, not only that one of the file's entries is bad (#550).
+    #[test]
+    fn an_invalid_entity_says_what_is_wrong_with_it() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "players/players.json",
+            r#"{ "schema": "player", "id": "p1", "name": "Pat", "position": "CM" }"#,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+
+        let error = errors
+            .iter()
+            .find(|e| e.code == INVALID_ENTITY)
+            .expect("the bad position is reported");
+        let detail = error
+            .params
+            .iter()
+            .find(|(key, _)| key == "detail")
+            .map(|(_, value)| value.as_str())
+            .unwrap_or_default();
+        assert!(detail.contains("CM"), "{error:?}");
         std::fs::remove_dir_all(&dir).ok();
     }
 
