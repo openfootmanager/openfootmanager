@@ -4117,6 +4117,8 @@
     "staffId": "ID",
     "staffFirstName": "Vorname",
     "staffLastName": "Nachname",
+    "staffKnownAs": "Bekannt als (optional)",
+    "staffKnownAsPlaceholder": "z. B. Cafu",
     "staffClub": "Verein",
     "staffNationality": "Nationalität",
     "staffDateOfBirth": "Geburtsdatum",

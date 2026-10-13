@@ -202,6 +202,8 @@ export interface StaffDef {
   specialization?: string | null;
   dateOfBirth?: string | null;
   age?: number | null;
+  /** What they are called when it differs from their name; first/last stay the real name. */
+  knownAs?: string | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -4117,6 +4117,8 @@
     "staffId": "ID",
     "staffFirstName": "Имя",
     "staffLastName": "Фамилия",
+    "staffKnownAs": "Известен как (необязательно)",
+    "staffKnownAsPlaceholder": "напр. Кафу",
     "staffClub": "Клуб",
     "staffNationality": "Национальность",
     "staffDateOfBirth": "Дата рождения",

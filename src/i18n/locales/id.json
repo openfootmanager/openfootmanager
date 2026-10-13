@@ -4118,6 +4118,8 @@
     "staffId": "ID",
     "staffFirstName": "Nama Depan",
     "staffLastName": "Nama Belakang",
+    "staffKnownAs": "Dikenal sebagai (opsional)",
+    "staffKnownAsPlaceholder": "mis. Cafu",
     "staffClub": "Klub",
     "staffNationality": "Kewarganegaraan",
     "staffDateOfBirth": "Tanggal Lahir",
