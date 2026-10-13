@@ -187,6 +187,10 @@ pub struct StaffDef {
     pub date_of_birth: Option<String>,
     #[serde(default)]
     pub age: Option<u32>,
+    /// What they are called when it differs from their name ("Pep Guardiola" for Josep Guardiola
+    /// i Sala). `firstName`/`lastName` stay the real name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub known_as: Option<String>,
 }
 
 /// Package-level metadata (at most one per package).

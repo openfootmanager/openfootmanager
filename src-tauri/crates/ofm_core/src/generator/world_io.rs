@@ -78,6 +78,11 @@ fn normalize_world(mut world: WorldData) -> WorldData {
         &mut world.staff,
     );
     crate::football_identity::upgrade_world_manager_identities(&world.teams, &mut world.managers);
+    // A world file written before the display name existed carries none.
+    world
+        .staff
+        .iter_mut()
+        .for_each(domain::staff::Staff::refresh_display_name);
     if world.competitions.is_empty()
         && let Some(league) = world.league.clone()
     {
@@ -526,6 +531,36 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+
+    /// Given a world file whose staff predate the display name (no `display_name` in their JSON)
+    /// When it is loaded
+    /// Then each is displayed by their known-as name or their full name, not left blank (#557).
+    #[test]
+    fn a_world_file_without_display_names_gets_them_on_load() {
+        let json = r#"{"staff":[
+            {"id":"s1","first_name":"Josep","last_name":"Guardiola i Sala","date_of_birth":"1971-01-18",
+             "nationality":"ES","role":"Coach","known_as":"Pep Guardiola",
+             "attributes":{"coaching":80,"judgingAbility":50,"judgingPotential":50,"physiotherapy":10},
+             "team_id":null},
+            {"id":"s2","first_name":"Alice","last_name":"Coach","date_of_birth":"1980-05-10",
+             "nationality":"GB","role":"Physio",
+             "attributes":{"coaching":80,"judgingAbility":50,"judgingPotential":50,"physiotherapy":10},
+             "team_id":null}]}"#;
+
+        let world = load_world_from_json(json).expect("the world loads");
+
+        let name = |id: &str| {
+            world
+                .staff
+                .iter()
+                .find(|s| s.id == id)
+                .unwrap()
+                .display_name
+                .clone()
+        };
+        assert_eq!(name("s1"), "Pep Guardiola");
+        assert_eq!(name("s2"), "Alice Coach");
     }
 
     #[test]
