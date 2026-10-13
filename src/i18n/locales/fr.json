@@ -3462,6 +3462,10 @@
         "LoanConflict": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur est prêté ou a un prêt convenu en attente d'enregistrement. Aucune indemnité de transfert n'a été versée.",
         "PlayerUnavailable": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur n'est plus disponible auprès d'un club vendeur. Aucune indemnité de transfert n'a été versée.",
         "RegistrationBlocked": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car une condition d'enregistrement n'est plus remplie. Aucune indemnité de transfert n'a été versée."
+      },
+      "matchesMoved": {
+        "subject": "Matchs reprogrammés",
+        "body": "Certains de vos matchs ont été déplacés afin que vos joueurs gardent leur repos et que les trêves internationales soient respectées :\n{{matches}}"
       }
     },
     "news": {

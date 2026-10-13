@@ -9,6 +9,7 @@ pub mod ai_training;
 pub mod board_objectives;
 pub mod calendar_booking;
 pub mod calendar_identity;
+pub(crate) mod calendar_notice;
 pub mod calendar_reconcile;
 pub mod career;
 pub mod career_stage;

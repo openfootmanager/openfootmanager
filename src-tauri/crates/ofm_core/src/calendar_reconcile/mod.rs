@@ -375,14 +375,24 @@ fn book_all_shadows<'a>(
 /// each moved fixture (kept from the first move); generation passes false because those dates
 /// were never shown to the player. Returns how many fixtures changed.
 pub fn apply(plan: &Plan, competitions: &mut [League], mark_postponed: bool) -> usize {
+    apply_marking(plan, competitions, |_| mark_postponed)
+}
+
+/// As [`apply`], deciding per move whether the date it leaves had been shown to the player.
+pub fn apply_marking(
+    plan: &Plan,
+    competitions: &mut [League],
+    mut mark_postponed: impl FnMut(&Move) -> bool,
+) -> usize {
     let mut changed = 0;
     for planned in &plan.moves {
+        let marks = mark_postponed(planned);
         let Some(fixture) =
             find_fixture(competitions, &planned.competition_id, &planned.fixture_id)
         else {
             continue;
         };
-        if mark_postponed && fixture.postponement.is_none() {
+        if marks && fixture.postponement.is_none() {
             fixture.postponement = Some(Postponement {
                 original_date: planned.from.format("%Y-%m-%d").to_string(),
                 reason: planned.reason,
@@ -437,8 +447,32 @@ pub fn settle_generated_calendar(
     blackout: &BTreeSet<NaiveDate>,
     current_date: NaiveDate,
 ) {
+    settle_calendar(competitions, blackout, current_date, |_| false);
+}
+
+/// As [`settle_generated_calendar`], for a calendar part of which the player has already seen:
+/// `was_shown` says which moves leave a date they were shown, and those are recorded as
+/// postponed. Returns exactly those moves, for the caller to announce.
+pub fn settle_calendar(
+    competitions: &mut [League],
+    blackout: &BTreeSet<NaiveDate>,
+    current_date: NaiveDate,
+    mut was_shown: impl FnMut(&Move) -> bool,
+) -> Vec<Move> {
     let yesterday = current_date.pred_opt().unwrap_or(current_date);
-    if let Err(error) = reconcile(competitions, blackout, yesterday, false) {
-        log::error!("generated calendar could not be settled: {error:?}");
-    }
+    let plan = match plan(competitions, blackout, yesterday) {
+        Ok(plan) => plan,
+        Err(failure) => {
+            log::error!("generated calendar could not be settled: {failure:?}");
+            return Vec::new();
+        }
+    };
+    let shown: Vec<Move> = plan
+        .moves
+        .iter()
+        .filter(|planned| was_shown(planned))
+        .cloned()
+        .collect();
+    apply_marking(&plan, competitions, |planned| shown.contains(planned));
+    shown
 }

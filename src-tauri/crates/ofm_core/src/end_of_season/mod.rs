@@ -478,6 +478,14 @@ fn regenerate_competitions_for_new_season(
         }
     }
 
+    // The competitions the player has already seen the dates of: a league kept through the
+    // rollover because its season has not ended. The calendar step records a move of theirs.
+    let retained: std::collections::HashSet<String> = game
+        .competitions
+        .iter()
+        .filter(|competition| !is_regenerated_at_rollover(competition))
+        .map(|competition| competition.id.clone())
+        .collect();
     for competition in game.competitions.iter_mut() {
         // A surviving mid-campaign qualifying competition must not be rebuilt
         // as a plain league — its groups and played results carry over; the
@@ -531,6 +539,7 @@ fn regenerate_competitions_for_new_season(
         kickoff,
         world_cup_due,
         qualified_field,
+        &retained,
     );
     refresh_user_competition_scope(game);
     game.sync_legacy_league();
@@ -581,6 +590,7 @@ fn manage_international_calendar(
     kickoff: DateTime<Utc>,
     world_cup_due: bool,
     qualified_field: Option<Vec<String>>,
+    retained: &std::collections::HashSet<String>,
 ) {
     if world_cup_due {
         if !game
@@ -601,11 +611,7 @@ fn manage_international_calendar(
         }
         // No windows to keep clear of and no preseason friendlies, but the regenerated club
         // competitions still have to share the calendar with each other.
-        crate::calendar_reconcile::settle_generated_calendar(
-            &mut game.competitions,
-            &Default::default(),
-            game.clock.current_date.date_naive(),
-        );
+        crate::world::foundations::settle_club_calendar(game, &Default::default(), retained);
         return;
     }
 
@@ -626,7 +632,7 @@ fn manage_international_calendar(
     for national_team in game.national_teams.iter_mut() {
         national_team.fixtures.clear();
     }
-    crate::world::foundations::place_club_calendar(game, &blackout);
+    crate::world::foundations::place_club_calendar(game, &blackout, retained);
 
     if leads_into_world_cup {
         // The windows host the qualifying campaign instead of friendlies: the
@@ -1413,12 +1419,19 @@ mod tests {
 
     fn initialize_rollover_calendar(game: &mut Game) {
         let now = game.clock.current_date;
+        let retained = game
+            .competitions
+            .iter()
+            .filter(|competition| !is_regenerated_at_rollover(competition))
+            .map(|competition| competition.id.clone())
+            .collect();
         manage_international_calendar(
             game,
             now + Duration::days(28),
             now + Duration::days(2),
             false,
             None,
+            &retained,
         );
     }
 
@@ -1510,6 +1523,51 @@ mod tests {
                 .count(),
             expected,
             "{id} keeps all remaining preseason slots"
+        );
+    }
+
+    /// Given a division kept through the rollover because its season has not ended, with a match
+    /// the player has already seen dated on the coming season's first international window,
+    /// When the rollover settles the calendar,
+    /// Then the match moves off the window, is recorded as postponed from the date the player saw,
+    ///      and the user, whose club plays in it, is told.
+    #[test]
+    fn a_retained_divisions_match_moved_at_rollover_is_marked_postponed_and_announced() {
+        let mut game = calendar_game(at(2035, 6, 20));
+        add_division(&mut game, "ar-d1-apertura", "south-america", at(2035, 4, 1));
+        let last = game.competitions[0]
+            .fixtures
+            .iter()
+            .rposition(|f| f.status == FixtureStatus::Scheduled)
+            .expect("the division still has matches to play");
+        game.competitions[0].fixtures[last].date = "2035-09-09".to_string();
+        let seen_id = game.competitions[0].fixtures[last].id.clone();
+        let user_club = game.competitions[0].fixtures[last].home_team_id.clone();
+        game.manager.hire(user_club);
+
+        initialize_rollover_calendar(&mut game);
+
+        let moved = game.competitions[0]
+            .fixtures
+            .iter()
+            .find(|f| f.id == seen_id)
+            .expect("the match is kept");
+        assert_ne!(moved.date, "2035-09-09");
+        let postponement = moved
+            .postponement
+            .as_ref()
+            .expect("a moved match is marked");
+        assert_eq!(postponement.original_date, "2035-09-09");
+        assert_eq!(
+            postponement.reason,
+            domain::league::RescheduleReason::InternationalWindow
+        );
+        assert_eq!(
+            game.messages
+                .iter()
+                .filter(|m| m.subject_key.as_deref() == Some("be.msg.matchesMoved.subject"))
+                .count(),
+            1
         );
     }
 
