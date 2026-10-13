@@ -31,7 +31,7 @@ pub struct ManagerAwardEntry {
 pub struct SeasonAwards {
     pub golden_boot: Vec<AwardEntry>,      // Top scorers
     pub assist_king: Vec<AwardEntry>,      // Top assists
-    pub player_of_year: Vec<AwardEntry>,   // Best avg rating (min 5 apps)
+    pub player_of_year: Vec<AwardEntry>,   // Best avg rating over half the club's season
     pub clean_sheet_king: Vec<AwardEntry>, // Most clean sheets (GKs only)
     pub most_appearances: Vec<AwardEntry>,
     pub young_player: Vec<AwardEntry>, // Best avg rating, age <= 21
@@ -121,7 +121,7 @@ fn matches_played_by_club<'a>(
 ) -> std::collections::HashMap<&'a str, u32> {
     let tables: Vec<&League> = match division {
         Some(division) => vec![division],
-        None => game.league.iter().chain(&game.competitions).collect(),
+        None => game.competitions_in_play().iter().collect(),
     };
     let mut played = std::collections::HashMap::new();
     for standing in tables.iter().flat_map(|table| &table.standings) {
@@ -850,6 +850,32 @@ mod tests {
             .map(|e| e.player_id.as_str())
             .collect();
         assert_eq!(ids, vec!["regular"]);
+    }
+
+    /// Given a stale legacy league mirror that disagrees with the competitions, when world awards
+    /// are computed, then the competitions are the source of the club's matches played.
+    #[test]
+    fn world_awards_ignore_a_stale_legacy_league_mirror() {
+        let mut game = make_game(
+            vec![rated_player("regular", "1998-01-01", 19, 7.2)],
+            vec![make_team("team1", "Test FC")],
+        );
+        game.competitions = vec![League {
+            standings: vec![standing_after("team1", 38)],
+            ..Default::default()
+        }];
+        game.league = Some(League {
+            standings: vec![standing_after("team1", 60)],
+            ..Default::default()
+        });
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(
+            awards.player_of_year.len(),
+            1,
+            "19 of 38 is half the season"
+        );
     }
 
     /// Given a club with no table anywhere, when world awards are computed, then the
