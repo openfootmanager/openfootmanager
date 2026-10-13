@@ -1169,4 +1169,63 @@ describe("FinancesTab backend snapshot", () => {
 
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
+
+  /**
+   * Given figures on screen
+   * When a live match finishes: the team's form changes, but the game date does not move
+   * Then the snapshot is fetched again, because sponsorship and matchday figures changed.
+   */
+  it("refetches when a finished match changes the form on an unchanged date", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      return Promise.resolve(wireSnapshot());
+    });
+    const { rerender } = render(<FinancesTab gameState={createGameState({ form: [] })} />);
+    await waitFor(() => expect(calls).toBe(1));
+
+    rerender(<FinancesTab gameState={createGameState({ form: ["W"] })} />);
+
+    await waitFor(() => expect(calls).toBe(2));
+  });
+
+  /**
+   * Given figures on screen
+   * When a fixture of the club completes on an unchanged date and the form is unchanged
+   * Then the snapshot is fetched again: standings and matchday income moved.
+   */
+  it("refetches when the club's completed fixtures change on an unchanged date", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      return Promise.resolve(wireSnapshot());
+    });
+    const before = createGameState();
+    const after = createGameState();
+    after.league = {
+      ...after.league!,
+      fixtures: [
+        {
+          id: "fx-1",
+          date: "2025-01-20",
+          home_team_id: "team-1",
+          away_team_id: "team-2",
+          status: "Completed",
+          result: null,
+        } as unknown as NonNullable<GameStateData["league"]>["fixtures"][number],
+      ],
+    };
+    const { rerender } = render(<FinancesTab gameState={before} />);
+    await waitFor(() => expect(calls).toBe(1));
+
+    rerender(<FinancesTab gameState={after} />);
+
+    await waitFor(() => expect(calls).toBe(2));
+  });
 });

@@ -1,4 +1,5 @@
 import type { GameStateData, MessageAction, MessageData } from "../../store/gameStore";
+import { getAllFixturesAcrossCompetitions } from "../../lib/fixtures";
 import { formatVal } from "../../lib/helpers";
 import type { FinanceSnapshotData } from "../../services/financeService";
 
@@ -49,6 +50,14 @@ export function formatSignedAmount(value: number): string {
   return formatVal(value);
 }
 
+function completedFixtureCount(gameState: GameStateData, teamId: string): number {
+  return getAllFixturesAcrossCompetitions(gameState).filter(
+    (fixture) =>
+      fixture.status === "Completed" &&
+      (fixture.home_team_id === teamId || fixture.away_team_id === teamId),
+  ).length;
+}
+
 /**
  * Identifies the club state a backend finance snapshot was computed from, so a snapshot fetched
  * for an older state is recognised as stale.
@@ -97,6 +106,11 @@ export function buildFinanceSnapshotKey(
       .filter(isPendingSponsorOffer)
       .map((message) => message.id)
       .join("|"),
+    // A live match can finish without the date moving, and it changes the form, the standings
+    // and the matchday income the backend bases its figures on. These two are the cheap
+    // post-match signals; the backend stays the only one that computes from them.
+    myTeam.form.join(""),
+    completedFixtureCount(gameState, myTeam.id),
   ].join("::");
 }
 
