@@ -93,6 +93,42 @@ pub fn apply_tactic_preset(
     apply_tactic_preset_internal(&state, &formation, &play_style)
 }
 
+/// Whether the manager's phase dials differ from the blueprint their play style implies.
+///
+/// The Tactics screen's unsaved-changes badge compares formation and style on its own; this is the
+/// part only the backend can answer, because `blueprint_for` is the rule that defines a style's
+/// dials and the frontend holds no copy of it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct TacticsBlueprintStatus {
+    pub modified: bool,
+}
+
+pub fn get_tactics_blueprint_status_internal(
+    state: &StateManager,
+) -> Result<TacticsBlueprintStatus, String> {
+    state
+        .get_game(|game| {
+            let team_id = user_team_id(game)?;
+            let team = game
+                .teams
+                .iter()
+                .find(|team| team.id == team_id)
+                .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
+            Ok(TacticsBlueprintStatus {
+                modified: team.tactics_phase
+                    != ofm_core::ai_tactics::blueprint_for(&team.play_style),
+            })
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
+}
+
+#[tauri::command]
+pub fn get_tactics_blueprint_status(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<TacticsBlueprintStatus, String> {
+    get_tactics_blueprint_status_internal(&state)
+}
+
 pub fn set_starting_xi_internal(
     state: &StateManager,
     player_ids: Vec<String>,
@@ -682,10 +718,11 @@ pub fn set_tactics_phase(
 
 #[cfg(test)]
 mod tests {
+    use super::TacticsBlueprintStatus;
     use super::{
-        apply_tactic_preset_internal, set_formation_internal, set_play_style_internal,
-        set_player_role_internal, set_player_squad_role_internal,
-        set_player_training_focus_internal,
+        apply_tactic_preset_internal, get_tactics_blueprint_status_internal,
+        set_formation_internal, set_play_style_internal, set_player_role_internal,
+        set_player_squad_role_internal, set_player_training_focus_internal,
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
@@ -833,6 +870,59 @@ mod tests {
         assert_eq!(team.formation, "3-4-3");
         assert_eq!(team.play_style, PlayStyle::Defensive);
         assert_eq!(team.tactics_phase, blueprint_for(&PlayStyle::Defensive));
+    }
+
+    /// Given a manager whose phase dials were tuned away from their style's blueprint
+    /// When the blueprint status is read
+    /// Then it reports the blueprint as modified
+    #[test]
+    fn tuned_dials_report_the_blueprint_as_modified() {
+        let state = state_with_custom_dials();
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state),
+            Ok(TacticsBlueprintStatus { modified: true })
+        );
+    }
+
+    /// Given a manager whose dials are exactly their style's blueprint
+    /// When the blueprint status is read
+    /// Then it reports the blueprint as unmodified
+    #[test]
+    fn a_style_blueprint_left_alone_is_not_modified() {
+        let state = state_with_custom_dials();
+        apply_tactic_preset_internal(&state, "4-4-2", "Defensive").expect("preset applies");
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state),
+            Ok(TacticsBlueprintStatus { modified: false })
+        );
+    }
+
+    /// Given dials that equal the blueprint of the previous style
+    /// When only the play style changes
+    /// Then the blueprint reads as modified, because it no longer matches the new style
+    #[test]
+    fn changing_the_style_alone_leaves_the_old_blueprint_modified() {
+        let state = state_with_custom_dials();
+        apply_tactic_preset_internal(&state, "4-4-2", "Balanced").expect("preset applies");
+        set_play_style_internal(&state, "Attacking").expect("style applies");
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state),
+            Ok(TacticsBlueprintStatus { modified: true })
+        );
+    }
+
+    /// Given no active game session
+    /// When the blueprint status is read
+    /// Then it fails with the no-session key
+    #[test]
+    fn the_blueprint_status_needs_a_session() {
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&StateManager::new()),
+            Err("be.error.noActiveGameSession".to_string())
+        );
     }
 
     /// Given a manager with custom dials
