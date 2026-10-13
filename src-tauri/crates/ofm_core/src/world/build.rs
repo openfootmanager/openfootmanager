@@ -76,6 +76,8 @@ pub fn build_game_from_world_data(
         players,
         staff,
         managers,
+        retired_managers,
+        retired_players,
         competitions,
         national_teams,
         default_active_regions,
@@ -92,6 +94,9 @@ pub fn build_game_from_world_data(
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
     // Stored on the game, which is the one place the day's dice come from.
     game.seed = seed;
+    // Before any history is generated: seeding managers asks the archive whether a club has had one.
+    game.retired_managers = retired_managers;
+    game.retired_players = retired_players;
     if game
         .staff
         .iter()
@@ -193,5 +198,39 @@ mod tests {
         assert!(game.players.len() >= players);
         assert!(!game.competitions.is_empty());
         assert!(game.teams.iter().all(|team| team.history.len() == 2));
+    }
+
+    /// Given a world that carries archived managers and retired players
+    /// When a game is built from it
+    /// Then the game holds both archives, so an imported career remembers a club's past managers.
+    #[test]
+    fn a_world_s_archives_become_the_games_archives() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        let mut retired_manager = manager();
+        retired_manager.id = "retired-boss".to_string();
+        world.retired_managers.push(retired_manager);
+        let mut veteran = world.players[0].clone();
+        veteran.id = "retired-veteran".to_string();
+        world
+            .retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &veteran,
+                "2030-06-30",
+                2030,
+            ));
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 0,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        assert_eq!(game.retired_managers.len(), 1);
+        assert_eq!(game.retired_managers[0].id, "retired-boss");
+        assert_eq!(game.retired_players.len(), 1);
+        assert_eq!(game.retired_players[0].id, "retired-veteran");
     }
 }
