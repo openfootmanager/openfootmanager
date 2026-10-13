@@ -1,12 +1,71 @@
 //! Looking up someone who has stopped playing, wherever the game keeps him.
 
-use domain::player::Player;
+use domain::player::{Player, PlayerMovementKind};
 use domain::retired_player::RetiredPlayer;
 
 use crate::game::Game;
 
-/// Moves everyone the roster still flags as retired into the archive.
-pub fn archive_retired_players(_game: &mut Game, _retired_on: &str, _retired_season: u32) {}
+/// Moves everyone the roster flags as retired into the archive, dated `retired_on` in
+/// `retired_season`. Used when the season's retirements have just been decided.
+pub fn archive_retired_players(game: &mut Game, retired_on: &str, retired_season: u32) {
+    archive_retirees_dated_by(game, |_| (retired_on.to_string(), retired_season));
+}
+
+/// Moves retirees found in a save that predates the archive. Each keeps the date his own
+/// movement history gives, and the season of his last career entry.
+pub fn archive_legacy_retirees(game: &mut Game) {
+    let fallback_date = game.clock.current_date.format("%Y-%m-%d").to_string();
+    archive_retirees_dated_by(game, |player| {
+        let retired_on = player
+            .movement_history
+            .into_iter()
+            .rev()
+            .find(|movement| movement.kind == PlayerMovementKind::Retired)
+            .map_or_else(|| fallback_date.clone(), |movement| movement.date.clone());
+        let season = player
+            .career
+            .iter()
+            .map(|entry| entry.season)
+            .max()
+            .unwrap_or(0);
+        (retired_on, season)
+    });
+}
+
+fn archive_retirees_dated_by(game: &mut Game, dated_by: impl Fn(&Player) -> (String, u32)) {
+    let (retired, active): (Vec<Player>, Vec<Player>) = std::mem::take(&mut game.players)
+        .into_iter()
+        .partition(|player| player.retired);
+    game.players = active;
+
+    for player in retired {
+        release_loan_references(game, &player);
+        let already_archived = game
+            .retired_players
+            .iter()
+            .any(|record| record.id == player.id);
+        if !already_archived {
+            let (retired_on, retired_season) = dated_by(&player);
+            game.retired_players.push(RetiredPlayer::from_player(
+                &player,
+                &retired_on,
+                retired_season,
+            ));
+        }
+    }
+}
+
+/// A player who retires while out on loan is still named by both clubs.
+fn release_loan_references(game: &mut Game, player: &Player) {
+    let Some(loan) = &player.active_loan else {
+        return;
+    };
+    for team_id in [&loan.parent_team_id, &loan.loan_team_id] {
+        if let Some(team) = game.teams.iter_mut().find(|team| &team.id == team_id) {
+            team.remove_player_references(&player.id);
+        }
+    }
+}
 
 /// The archive first, then the roster, so the answer is the same on either side of the move
 /// that takes retirees out of the roster.
@@ -255,7 +314,7 @@ mod tests {
         .unwrap();
         let mut game = game_with_teams(vec![old], vec![]);
 
-        archive_retired_players(&mut game, "2040-06-30", 2040);
+        archive_legacy_retirees(&mut game);
 
         assert_eq!(game.retired_players[0].retired_on, "2031-05-20");
     }
