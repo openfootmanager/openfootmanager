@@ -1658,6 +1658,7 @@
     "passAccuracy": "Úspěšnost přihrávek",
     "percentile": "Percentil",
     "percentileUnavailable": "Percentil není k dispozici",
+    "percentileGroup": "Porovnání s: {{position}} v {{league}}",
     "recentMatches": "Nedávné zápasy",
     "recentMatchesScore": "Skóre",
     "recentMatchesGoalsAssists": "G / A",

@@ -1658,6 +1658,7 @@
     "passAccuracy": "Точность передач",
     "percentile": "Процентиль",
     "percentileUnavailable": "Процентиль недоступен",
+    "percentileGroup": "Сравнение с: {{position}} в {{league}}",
     "recentMatches": "Последние матчи",
     "recentMatchesScore": "Счет",
     "recentMatchesGoalsAssists": "Г/А",

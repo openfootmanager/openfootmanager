@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { PlayerData } from "../../store/gameStore";
 import { buildPlayerAdvancedStats, type PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 import type { PlayerRecentMatchEntry } from "./PlayerProfileRecentMatchesCard";
 
@@ -9,7 +9,6 @@ const RECENT_MATCH_LIMIT = 5;
 
 interface UsePlayerProfileDataArgs {
   player: PlayerData;
-  gameState: GameStateData;
 }
 
 interface UsePlayerProfileDataResult {
@@ -46,7 +45,6 @@ function haveSameFixtures(
  */
 export function usePlayerProfileData({
   player,
-  gameState,
 }: UsePlayerProfileDataArgs): UsePlayerProfileDataResult {
   const [advancedStatsOverride, setAdvancedStatsOverride] =
     useState<PlayerAdvancedStatsSummary | null>(null);

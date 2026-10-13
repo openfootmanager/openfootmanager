@@ -1658,6 +1658,7 @@
     "passAccuracy": "Akurasi Umpan",
     "percentile": "Persentil",
     "percentileUnavailable": "Persentil tidak tersedia",
+    "percentileGroup": "Dibandingkan dengan: {{position}} di {{league}}",
     "recentMatches": "Pertandingan Terakhir",
     "recentMatchesScore": "Skor",
     "recentMatchesGoalsAssists": "G / A",
