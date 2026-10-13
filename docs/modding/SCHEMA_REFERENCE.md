@@ -477,6 +477,7 @@ Competitions are the most complex entity. A competition defines a league, cup, o
 | `calendar.division.phase` | enum | `"annual"` | `"annual"`, `"opening"` or `"closing"`. Opening/closing declarations require `windowEnd`. |
 | `calendar.windowEnd` | object | absent | Optional valid `{ "month": 6, "day": 30 }` end date. An end before the opener belongs to the following year. |
 | `nameKey` | string or null | `null` | i18n key for a translated competition name. |
+| `logo` | string or null | `null` | Relative path to the competition's badge image inside the package. |
 
 ### Competition Types
 
