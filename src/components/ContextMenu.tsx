@@ -98,11 +98,13 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(function Con
     const close = () => setOpen(false);
     const closeOnEscape = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      // Claimed in the capture phase so a dialog around the menu sees it as handled and stays open.
+      e.preventDefault();
       closeAndRestoreFocus();
     };
     window.addEventListener("click", close);
     window.addEventListener("scroll", close, true);
-    window.addEventListener("keydown", closeOnEscape);
+    window.addEventListener("keydown", closeOnEscape, true);
     // Move keyboard focus into the menu so arrow-key navigation / Enter
     // selection is available without tabbing through the rest of the page.
     const firstItem = menuRef.current?.querySelector<HTMLButtonElement>(
@@ -112,7 +114,7 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(function Con
     return () => {
       window.removeEventListener("click", close);
       window.removeEventListener("scroll", close, true);
-      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("keydown", closeOnEscape, true);
     };
   }, [visible, setOpen, closeAndRestoreFocus]);
 

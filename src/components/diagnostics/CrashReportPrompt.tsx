@@ -6,7 +6,7 @@ import { formatDate } from "../../lib/dateFormatting";
 import { logError } from "../../lib/logger";
 import { type CrashNotice, crashNotice, dismissCrashNotice } from "../../services/reportService";
 import { Button } from "../ui";
-import { useDialogKeyboard } from "./useDialogKeyboard";
+import { useDialogKeyboard } from "../../hooks/useDialogKeyboard";
 
 interface CrashReportPromptProps {
   onReport: () => void;

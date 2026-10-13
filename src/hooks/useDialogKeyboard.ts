@@ -3,7 +3,13 @@ import { type RefObject, useEffect } from "react";
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** Escape asks to close, Tab stays inside, focus returns where it was. Shared so the report dialog and crash prompt cannot drift apart. */
+/**
+ * Escape asks to close, Tab stays inside, focus returns where it was. Shared so the dialogs cannot
+ * drift apart.
+ *
+ * A control inside the dialog that uses Escape for itself (a menu, a select list, a tooltip) must
+ * call `preventDefault()` on it, or the dialog closes too.
+ */
 export function useDialogKeyboard(
   dialogRef: RefObject<HTMLElement | null>,
   onEscape: () => void,
@@ -11,7 +17,9 @@ export function useDialogKeyboard(
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        onEscape();
+        // A control inside the dialog (an open menu, a select list) that already used this Escape
+        // to close itself has handled it; the dialog stays.
+        if (!event.defaultPrevented) onEscape();
         return;
       }
       if (event.key !== "Tab") return;
