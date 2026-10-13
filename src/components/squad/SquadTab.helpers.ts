@@ -397,9 +397,7 @@ export function isPlayerOutOfPosition(player: PlayerData, currentPos: string): b
 }
 
 export function isPlayerExactForSlot(player: PlayerData, currentPos: string): boolean {
-  return (
-    canonicalPosition(player.natural_position || player.position) === canonicalPosition(currentPos)
-  );
+  return canonicalPosition(naturalPositionOf(player)) === canonicalPosition(currentPos);
 }
 
 export function getSquadTacticalFit(player: PlayerData, currentPos: string): SquadTacticalFit {
@@ -427,7 +425,7 @@ export function getBestRoleForFormation(player: PlayerData, formation: string): 
   const formationSlots = buildPitchRows(formation).flatMap((row) => row.positions);
   // Best role is an ability recommendation, so it is driven by the player's
   // natural position (not player.position, which is only a coarse bucket).
-  const naturalPosition = canonicalPosition(player.natural_position || player.position);
+  const naturalPosition = canonicalPosition(naturalPositionOf(player));
   const alternatePositions = (player.alternate_positions || []).map(canonicalPosition);
 
   // 1. The player's natural position has an exact slot in this formation.

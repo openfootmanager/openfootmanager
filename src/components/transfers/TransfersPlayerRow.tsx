@@ -24,6 +24,7 @@ import {
 import type { TransfersTabController } from "./useTransfersTabController";
 import { getRelevantTransferOffers, getRelevantLoanOffers } from "./TransfersTab.model";
 import { PlayerOffersCell } from "./TransfersPlayerOffers";
+import { naturalPositionOf } from "../../lib/positions";
 type PlayerRowDetailsProps = {
   state: Pick<
     TransfersTabController,
@@ -117,8 +118,8 @@ export function PlayerRowDetails({
       onClick={() => onSelectPlayer(player.id)}
     >
       <td className="py-2.5 px-4">
-        <Badge variant={positionBadgeVariant(player.natural_position || player.position)} size="sm">
-          {translatePositionAbbreviation(t, player.natural_position || player.position)}
+        <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
+          {translatePositionAbbreviation(t, naturalPositionOf(player))}
         </Badge>
       </td>
       <td className="py-2.5 px-4">
