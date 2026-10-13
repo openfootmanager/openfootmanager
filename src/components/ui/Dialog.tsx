@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, type RefObject, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useDialogKeyboard } from "../../hooks/useDialogKeyboard";
@@ -21,6 +21,8 @@ type DialogProps = (NamedBy | Labelled) & {
   /** Set while the dialog refuses to close, so the refusal is not silent to a screen reader. */
   busy?: boolean;
   describedBy?: string;
+  /** For a caller that has to look inside the panel, to move focus to a control it renders. */
+  panelRef?: RefObject<HTMLDivElement | null>;
   /** Backdrop colour and padding. */
   overlayClassName?: string;
   /** Size, rounding and padding of the panel; the surface colours and border come from the shell. */
@@ -36,6 +38,7 @@ export function Dialog({
   labelledBy,
   label,
   describedBy,
+  panelRef: callerPanelRef,
   onClose,
   dismissOnBackdrop = false,
   busy,
@@ -43,7 +46,8 @@ export function Dialog({
   className = "",
   children,
 }: DialogProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const ownPanelRef = useRef<HTMLDivElement>(null);
+  const panelRef = callerPanelRef ?? ownPanelRef;
   useDialogKeyboard(panelRef, onClose);
 
   // A child that asked for focus (an amount field, a step heading) keeps it.
