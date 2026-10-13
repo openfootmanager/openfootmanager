@@ -256,6 +256,7 @@ mod tests {
 
         let feeder = date_of(&game, "cup", "r1");
         let successor = date_of(&game, "cup", "r2");
+        assert_ne!(feeder, "2033-09-09", "the feeder was on the window");
         let days = |s: &str| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap();
         assert!(days(&successor) >= days(&feeder) + chrono::Duration::days(3));
     }
