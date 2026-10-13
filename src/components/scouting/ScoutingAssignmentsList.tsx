@@ -10,6 +10,7 @@ import {
 } from "../playerActions/playerContextMenuItems";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
 import { Card, CardBody, CardHeader } from "../ui";
+import { naturalPositionOf } from "../../lib/positions";
 
 interface ScoutingAssignmentsListProps {
   assignments: ScoutingAssignment[];
@@ -75,7 +76,7 @@ export default function ScoutingAssignmentsList({
                     {player.full_name}
                   </button>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {translatePositionLabel(t, player.natural_position || player.position)} · {team}
+                    {translatePositionLabel(t, naturalPositionOf(player))} · {team}
                   </p>
                 </div>
                 <div className="text-right">

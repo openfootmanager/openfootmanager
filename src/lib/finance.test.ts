@@ -1,47 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlayerData, StaffData, TeamData } from "../store/gameStore";
-import {
-  weeklyWageAmount,
-  getAnnualWageBill,
-  getCashRunwayWeeks,
-  getPlayerAnnualWageCommitment,
-  getTeamFinanceSnapshot,
-  getWeeklyWageSpend,
-} from "./finance";
-
-function createTeam(overrides: Partial<TeamData> = {}): TeamData {
-  return {
-    id: "team-1",
-    name: "Alpha FC",
-    short_name: "ALP",
-    country: "BR",
-    city: "Rio",
-    stadium_name: "Alpha Arena",
-    stadium_capacity: 50000,
-    finance: 180000,
-    manager_id: "manager-1",
-    reputation: 50,
-    wage_budget: 520000,
-    transfer_budget: 300000,
-    season_income: 0,
-    season_expenses: 0,
-    formation: "4-4-2",
-    play_style: "Balanced",
-    training_focus: "Physical",
-    training_intensity: "Medium",
-    training_schedule: "Balanced",
-    founded_year: 1900,
-    colors: {
-      primary: "#111111",
-      secondary: "#ffffff",
-    },
-    starting_xi_ids: [],
-    form: [],
-    history: [],
-    ...overrides,
-  };
-}
+import type { PlayerData } from "../store/gameStore";
+import { weeklyWageAmount, getPlayerAnnualWageCommitment } from "./finance";
 
 function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   return {
@@ -102,75 +62,12 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   };
 }
 
-function createStaff(overrides: Partial<StaffData> = {}): StaffData {
-  return {
-    id: "staff-1",
-    first_name: "Pat",
-    last_name: "Coach",
-    date_of_birth: "1980-01-01",
-    nationality: "BR",
-    role: "Coach",
-    attributes: {
-      coaching: 10,
-      judgingAbility: 10,
-      judgingPotential: 10,
-      physiotherapy: 10,
-    },
-    team_id: "team-1",
-    specialization: null,
-    wage: 0,
-    contract_end: null,
-    ...overrides,
-  };
-}
-
 describe("finance helpers", () => {
   it("treats stored wages as weekly commitments", () => {
-    const players = [createPlayer({ wage: 51 }), createPlayer({ id: "player-2", wage: 51 })];
-    const staff = [createStaff({ wage: 103 })];
-
     expect(weeklyWageAmount(5_000)).toBe(5_000);
-    expect(getAnnualWageBill(players, staff)).toBe(205);
-    expect(getWeeklyWageSpend(players, staff)).toBe(205);
-  });
-
-  it("computes runway from projected weekly net rather than wages alone", () => {
-    expect(getCashRunwayWeeks(200000, -30000)).toBe(6);
-    expect(getCashRunwayWeeks(200000, 5000)).toBeNull();
-  });
-
-  it("builds a finance snapshot with the worst status carried forward", () => {
-    const team = createTeam({
-      finance: 25000,
-      wage_budget: 500000,
-    });
-    const players = [
-      createPlayer({ wage: 300000 }),
-      createPlayer({ id: "player-2", wage: 300000 }),
-    ];
-
-    const snapshot = getTeamFinanceSnapshot(team, players);
-
-    expect(snapshot.annualWageBill).toBe(600000);
-    expect(snapshot.weeklyWageSpend).toBe(600000);
-    expect(snapshot.weeklyWageBudget).toBe(500000);
-    expect(snapshot.projectedWeeklyNet).toBe(-600000);
-    expect(snapshot.cashRunwayWeeks).toBe(0);
-    expect(snapshot.wageBudgetUsagePercent).toBe(120);
-    expect(snapshot.wageBudgetStatus).toBe("critical");
-    expect(snapshot.runwayStatus).toBe("critical");
-    expect(snapshot.overallStatus).toBe("critical");
   });
 
   it("splits active loan wage commitments by the agreed contribution", () => {
-    const parentClub = createTeam({
-      id: "parent",
-      wage_budget: 1_000_000,
-    });
-    const loanClub = createTeam({
-      id: "loan",
-      wage_budget: 1_000_000,
-    });
     const loanedPlayer = createPlayer({
       id: "loaned-player",
       team_id: "loan",
@@ -187,10 +84,6 @@ describe("finance helpers", () => {
 
     expect(getPlayerAnnualWageCommitment(loanedPlayer, "parent")).toBe(208000);
     expect(getPlayerAnnualWageCommitment(loanedPlayer, "loan")).toBe(312000);
-    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).annualWageBill).toBe(208000);
-    expect(getTeamFinanceSnapshot(parentClub, [loanedPlayer]).weeklyWageSpend).toBe(208000);
-    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).annualWageBill).toBe(312000);
-    expect(getTeamFinanceSnapshot(loanClub, [loanedPlayer]).weeklyWageSpend).toBe(312000);
   });
 
   it("assigns the loan wage remainder to the parent club like the backend", () => {

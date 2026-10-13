@@ -2,7 +2,7 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
-use ofm_core::finances::{self, FinanceHealthLevel};
+use ofm_core::finances;
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 
@@ -36,14 +36,8 @@ pub fn upgrade_facility_internal(state: &StateManager, facility: &str) -> Result
 
         let snapshot = finances::team_finance_snapshot(game, &team_id)
             .ok_or("be.error.managedTeamNotFound".to_string())?;
-        if snapshot.currently_over_budget {
-            return Err("be.error.finance.facilityUpgradeOverBudget".to_string());
-        }
-        if matches!(
-            snapshot.overall_status,
-            FinanceHealthLevel::Warning | FinanceHealthLevel::Critical
-        ) {
-            return Err("be.error.finance.facilityUpgradeCritical".to_string());
+        if let Some(reason) = finances::facility_upgrade_block_reason(&snapshot) {
+            return Err(reason.to_string());
         }
 
         ofm_core::club::upgrade_facility(game, &team_id, facility_type)?;

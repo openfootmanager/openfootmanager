@@ -1,10 +1,11 @@
 import { useTranslation } from "react-i18next";
+import { competitionDisplayName } from "../../lib/competitionName";
 import { formatOrdinal } from "../../lib/ordinal";
 import { Card, CardBody, CardHeader } from "../ui";
 import PlayerProfileStatCard from "./PlayerProfileStatCard";
 import type { PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 
-type TranslateFn = (key: string) => string;
+type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
 interface PlayerProfileAdvancedStatsCardProps {
   summary: PlayerAdvancedStatsSummary;
@@ -156,6 +157,21 @@ export default function PlayerProfileAdvancedStatsCard({
     <Card>
       <CardHeader>{labels.title}</CardHeader>
       <CardBody>
+        {summary.peerGroup && (
+          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+            {t("playerProfile.percentileGroup", {
+              position: t(`common.positions.${summary.peerGroup.position}`),
+              league: competitionDisplayName(
+                {
+                  name: summary.peerGroup.competitionName,
+                  name_key: summary.peerGroup.competitionNameKey,
+                  country_id: summary.peerGroup.countryId,
+                },
+                t,
+              ),
+            })}
+          </p>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr">
           {rows.map((row) => (
             <AdvancedStatCard

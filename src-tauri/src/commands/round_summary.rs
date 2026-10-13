@@ -1,4 +1,3 @@
-use domain::league::StandingEntry;
 use ofm_core::turn::{
     NotableUpset, RoundResultSummary, RoundSummary, StandingDelta, TopScorerDelta,
 };
@@ -31,8 +30,7 @@ impl From<RoundSummary> for RoundSummaryDto {
 
 pub fn build_round_summary_dto(
     game: &ofm_core::game::Game,
-    matchday: u32,
-    previous_standings: &[StandingEntry],
+    round: &ofm_core::matchday::LeagueRoundContext,
 ) -> Option<RoundSummaryDto> {
-    ofm_core::turn::build_round_summary(game, matchday, previous_standings).map(Into::into)
+    ofm_core::turn::build_round_summary(game, round).map(Into::into)
 }

@@ -70,6 +70,73 @@ pub enum PlayerRole {
     CompleteForward,
 }
 
+impl PlayerRole {
+    /// Every role, so a test can walk the table. `ofm_core` checks it against
+    /// the domain's roles, which is what keeps it complete.
+    pub const ALL: [PlayerRole; 27] = [
+        Self::Standard,
+        Self::BallPlayingKeeper,
+        Self::SweeperKeeper,
+        Self::Stopper,
+        Self::CoverCB,
+        Self::BallPlayingCB,
+        Self::AttackingFB,
+        Self::DefensiveFB,
+        Self::InvertedFB,
+        Self::WingBack,
+        Self::AnchorMan,
+        Self::BallWinner,
+        Self::DeepLyingPlaymaker,
+        Self::BoxToBox,
+        Self::Carrilero,
+        Self::Mezzala,
+        Self::AdvancedPlaymaker,
+        Self::ShadowStriker,
+        Self::WideForward,
+        Self::InsideForward,
+        Self::InvertedWinger,
+        Self::Poacher,
+        Self::TargetMan,
+        Self::DeepLyingForward,
+        Self::False9,
+        Self::PressingForward,
+        Self::CompleteForward,
+    ];
+
+    /// The position groups whose players may be given this role. The wide roles
+    /// are open to wide midfielders and to wingers; `Standard` suits everyone
+    /// and is left out.
+    pub fn position_groups(self) -> &'static [Position] {
+        const MIDFIELDER_OR_FORWARD: &[Position] = &[Position::Midfielder, Position::Forward];
+        match self {
+            Self::Standard => &[],
+            Self::BallPlayingKeeper | Self::SweeperKeeper => &[Position::Goalkeeper],
+            Self::Stopper
+            | Self::CoverCB
+            | Self::BallPlayingCB
+            | Self::AttackingFB
+            | Self::DefensiveFB
+            | Self::InvertedFB
+            | Self::WingBack => &[Position::Defender],
+            Self::AnchorMan
+            | Self::BallWinner
+            | Self::DeepLyingPlaymaker
+            | Self::BoxToBox
+            | Self::Carrilero
+            | Self::Mezzala
+            | Self::AdvancedPlaymaker
+            | Self::ShadowStriker => &[Position::Midfielder],
+            Self::WideForward | Self::InsideForward | Self::InvertedWinger => MIDFIELDER_OR_FORWARD,
+            Self::Poacher
+            | Self::TargetMan
+            | Self::DeepLyingForward
+            | Self::False9
+            | Self::PressingForward
+            | Self::CompleteForward => &[Position::Forward],
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // PlayerData — a snapshot of a player for engine consumption
 // ---------------------------------------------------------------------------

@@ -103,7 +103,7 @@ pub struct Player {
     pub jersey_number: Option<u8>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PlayerMedia {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub face: Option<String>,
@@ -285,7 +285,7 @@ pub enum SquadRole {
     Youth,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PlayerAttributes {
     // Physical
     pub pace: u8,
@@ -516,7 +516,7 @@ pub struct PlayerSeasonStats {
     pub fouls_committed: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CareerEntry {
     pub season: u32,
     pub team_id: String,

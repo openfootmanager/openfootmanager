@@ -1,4 +1,5 @@
 use crate::game::Game;
+use crate::matchday::LeagueRoundContext;
 use crate::player_rating::{effective_rating_for_assignment, formation_slots, natural_ovr};
 use domain::league::{Fixture, FixtureStatus, StandingEntry};
 use serde::{Deserialize, Serialize};
@@ -71,16 +72,16 @@ struct ScorerSnapshot {
     current_goals: u32,
 }
 
-pub fn build_round_summary(
-    game: &Game,
-    matchday: u32,
-    previous_standings: &[StandingEntry],
-) -> Option<RoundSummary> {
+/// The league matches played on one date. A round postponed in part is summarised once per date, and
+/// a match moved to another day appears under the day it is played, not the day it was first set.
+pub fn build_round_summary(game: &Game, round: &LeagueRoundContext) -> Option<RoundSummary> {
     let league = game.league.as_ref()?;
+    let matchday = round.matchday;
+    let previous_standings = round.previous_standings.as_slice();
     let round_fixtures: Vec<&Fixture> = league
         .fixtures
         .iter()
-        .filter(|fixture| fixture.matchday == matchday && fixture.counts_for_league_standings())
+        .filter(|fixture| fixture.date == round.date && fixture.counts_for_league_standings())
         .collect();
 
     if round_fixtures.is_empty() {
@@ -384,5 +385,138 @@ fn team_strength(game: &Game, team_id: &str) -> f64 {
                     / selected_players.len() as f64
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::clock::GameClock;
+    use chrono::{TimeZone, Utc};
+    use domain::league::{FixtureCompetition, League, MatchResult};
+    use domain::manager::Manager;
+
+    fn game_with(fixtures: Vec<Fixture>) -> Game {
+        let manager = Manager::new(
+            "mgr".into(),
+            "A".into(),
+            "B".into(),
+            "1980-01-01".into(),
+            "England".into(),
+        );
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2033, 3, 1, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        let teams: Vec<String> = ["a", "b", "c", "d", "e", "f"].map(String::from).to_vec();
+        let mut league = League::new("league".into(), "League".into(), 2033, &teams);
+        league.standings = teams
+            .iter()
+            .map(|t| StandingEntry::new(t.clone()))
+            .collect();
+        league.fixtures = fixtures;
+        game.league = Some(league);
+        game
+    }
+
+    fn fixture(id: &str, matchday: u32, date: &str, home: &str, away: &str, done: bool) -> Fixture {
+        Fixture {
+            id: id.into(),
+            competition_id: "league".into(),
+            matchday,
+            date: date.into(),
+            home_team_id: home.into(),
+            away_team_id: away.into(),
+            status: if done {
+                FixtureStatus::Completed
+            } else {
+                FixtureStatus::Scheduled
+            },
+            result: done.then(|| MatchResult {
+                home_goals: 2,
+                away_goals: 1,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn round(game: &Game, date: &str, matchday: u32) -> LeagueRoundContext {
+        LeagueRoundContext {
+            date: date.into(),
+            matchday,
+            previous_standings: game.league.as_ref().unwrap().standings.clone(),
+        }
+    }
+
+    fn ids(summary: &RoundSummary) -> Vec<&str> {
+        summary
+            .completed_results
+            .iter()
+            .map(|r| r.fixture_id.as_str())
+            .collect()
+    }
+
+    /// Given a round whose second match was postponed and played three days later, when the summary of
+    /// the round's date is built, then only the match played that day is in it.
+    #[test]
+    fn a_match_not_played_on_the_round_date_is_not_in_that_summary() {
+        let game = game_with(vec![
+            fixture("f1", 5, "2033-03-08", "a", "b", true),
+            fixture("f2", 5, "2033-03-11", "c", "d", true),
+        ]);
+        let summary = build_round_summary(&game, &round(&game, "2033-03-08", 5)).unwrap();
+        assert_eq!(ids(&summary), vec!["f1"]);
+        assert!(summary.is_complete);
+        assert_eq!(summary.pending_fixture_count, 0);
+    }
+
+    /// Given the same round, when the summary of the later date is built, then the moved match appears
+    /// there, under the day it is played.
+    #[test]
+    fn the_moved_match_appears_in_the_summary_of_the_day_it_is_played() {
+        let game = game_with(vec![
+            fixture("f1", 5, "2033-03-08", "a", "b", true),
+            fixture("f2", 5, "2033-03-11", "c", "d", true),
+        ]);
+        let summary = build_round_summary(&game, &round(&game, "2033-03-11", 5)).unwrap();
+        assert_eq!(ids(&summary), vec!["f2"]);
+    }
+
+    /// Given a match of the date that has not been played, when the summary is built, then it counts as pending.
+    #[test]
+    fn a_scheduled_match_on_the_date_counts_as_pending() {
+        let game = game_with(vec![
+            fixture("f1", 5, "2033-03-08", "a", "b", true),
+            fixture("f3", 5, "2033-03-08", "e", "f", false),
+        ]);
+        let summary = build_round_summary(&game, &round(&game, "2033-03-08", 5)).unwrap();
+        assert_eq!(
+            (summary.is_complete, summary.pending_fixture_count),
+            (false, 1)
+        );
+    }
+
+    /// Given a late match of one round and an on-time match of the next on one date, when the summary
+    /// is built, then both are listed.
+    #[test]
+    fn two_matchdays_played_on_one_date_are_both_listed() {
+        let game = game_with(vec![
+            fixture("late", 20, "2033-03-08", "a", "b", true),
+            fixture("ontime", 21, "2033-03-08", "c", "d", true),
+        ]);
+        let summary = build_round_summary(&game, &round(&game, "2033-03-08", 20)).unwrap();
+        assert_eq!(ids(&summary), vec!["late", "ontime"]);
+    }
+
+    /// Given a friendly on the same date, when the summary is built, then it is not part of the round.
+    #[test]
+    fn friendlies_are_not_part_of_the_round() {
+        let mut friendly = fixture("fr", 0, "2033-03-08", "e", "f", true);
+        friendly.competition = FixtureCompetition::Friendly;
+        let game = game_with(vec![
+            fixture("f1", 5, "2033-03-08", "a", "b", true),
+            friendly,
+        ]);
+        let summary = build_round_summary(&game, &round(&game, "2033-03-08", 5)).unwrap();
+        assert_eq!(ids(&summary), vec!["f1"]);
     }
 }

@@ -21,3 +21,12 @@ pub(crate) fn install_career(
         None => state.clear_save_id(),
     }
 }
+
+/// The active game together with the save it belongs to, read under the career lock
+/// `install_career` holds. Both come from one career: a load or a new game installed meanwhile
+/// cannot hand back one career's game with another's save id.
+pub(crate) fn snapshot_career(state: &StateManager) -> Option<(Game, Option<String>)> {
+    let _operation = super::live_session::operation();
+    let game = state.get_game(|game| game.clone())?;
+    Some((game, state.get_save_id()))
+}

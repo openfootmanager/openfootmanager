@@ -23,6 +23,8 @@ export interface FixtureSummary {
   /** "Scheduled" | "InProgress" | "Completed" */
   status: string;
   result: FixtureResult | null;
+  /** The date the match was first scheduled for, when it has been moved. */
+  rescheduled_from?: string | null;
 }
 
 export interface MatchdayGroup {
