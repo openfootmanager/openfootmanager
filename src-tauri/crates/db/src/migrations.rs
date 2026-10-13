@@ -842,7 +842,7 @@ mod tests {
 
     /// Shipped migrations, frozen. A save at version N was built by exactly these statements,
     /// so editing one in place leaves existing saves at N with a layout the code no longer expects.
-    /// Add a new migration instead; append its row here.
+    /// Add a new migration instead, and append its row here in the same change.
     #[rustfmt::skip]
     const SHIPPED: &[(&str, u64)] = &[
     ("v001_initial_schema.sql", 0xed06e3806a80b990),
@@ -900,7 +900,7 @@ mod tests {
 
     /// Given the migrations already shipped
     /// When their SQL is compared with the pinned fingerprints
-    /// Then none was edited in place, renamed or reordered; only new ones follow the pinned list.
+    /// Then none was edited in place, renamed or reordered, and none is missing from the pinned list.
     #[test]
     fn shipped_migrations_are_never_edited_in_place() {
         for (position, (name, pinned)) in SHIPPED.iter().enumerate() {
@@ -917,6 +917,10 @@ mod tests {
                 "{name} was edited after shipping; write a new migration instead"
             );
         }
-        assert!(MIGRATIONS.len() >= SHIPPED.len());
+        assert_eq!(
+            MIGRATIONS.len(),
+            SHIPPED.len(),
+            "a migration was added without its fingerprint row in SHIPPED"
+        );
     }
 }
