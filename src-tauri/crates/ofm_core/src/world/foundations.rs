@@ -249,21 +249,41 @@ fn ensure_international_windows(game: &mut Game) {
         preseason_season_start(&game.clock),
         qualifying_running,
     );
-    place_club_calendar(game, &blackout);
+    place_club_calendar(game, &blackout, &Default::default());
 }
 
 /// Appends the preseason friendlies, then settles every club clash and window overlap once.
 /// The friendlies come first so the sweep sees, and where needed drops, them too.
+///
+/// `retained` names the competitions the player has already seen the dates of (a league kept
+/// through a rollover): their moves are recorded as postponed and announced, where the dates of
+/// everything else were never shown.
 pub(crate) fn place_club_calendar(
     game: &mut Game,
     blackout: &std::collections::BTreeSet<chrono::NaiveDate>,
+    retained: &std::collections::HashSet<String>,
 ) {
     crate::schedule::append_preseason_friendlies(&mut game.competitions, game.clock.current_date);
-    crate::calendar_reconcile::settle_generated_calendar(
+    settle_club_calendar(game, blackout, retained);
+}
+
+/// Settles every club clash and window overlap once, without adding any friendlies.
+pub(crate) fn settle_club_calendar(
+    game: &mut Game,
+    blackout: &std::collections::BTreeSet<chrono::NaiveDate>,
+    retained: &std::collections::HashSet<String>,
+) {
+    let shown = crate::calendar_reconcile::settle_calendar(
         &mut game.competitions,
         blackout,
         game.clock.current_date.date_naive(),
+        |planned| retained.contains(&planned.competition_id),
     );
+    let event = format!(
+        "postponed_rollover_{}",
+        game.clock.current_date.format("%Y-%m-%d")
+    );
+    crate::calendar_notice::announce_moved_matches(game, &event, &shown);
 }
 
 pub fn resolve_simulation_scope(
