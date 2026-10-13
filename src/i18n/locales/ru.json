@@ -2553,7 +2553,6 @@
     "continue": "Продолжить",
     "notableUpset": "Неожиданный результат",
     "pts": "очк.",
-    "cupResults": "Результаты кубка: {{competition}}",
     "cupPenalties": "({{home}}–{{away}} по пенальти)",
     "cupAdvances": "{{team}} проходит дальше",
     "cupTiesPending": "Некоторые матчи ещё не сыграны"

@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { CupRoundSummary } from "./types";
 
@@ -8,16 +9,17 @@ interface CupRoundSectionProps {
 /** The user's cup ties of the day, shown beside the league round on a cup day. */
 export default function CupRoundSection({ summary }: CupRoundSectionProps) {
   const { t } = useTranslation();
+  const headingId = useId();
   const heading = summary.round_name
     ? `${summary.competition_name} · ${summary.round_name}`
     : summary.competition_name;
 
   return (
     <section
-      aria-label={t("match.cupResults", { competition: heading })}
+      aria-labelledby={headingId}
       className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300"
     >
-      <h2 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+      <h2 id={headingId} className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
         {heading}
       </h2>
       <ul className="flex flex-col gap-2">

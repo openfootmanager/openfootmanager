@@ -45,6 +45,7 @@ describe("CupRoundSection", () => {
   it("shows the score and who went through", () => {
     render(<CupRoundSection summary={summary()} />);
     expect(screen.getByText("National Cup · Semifinal")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "National Cup · Semifinal" })).toBeInTheDocument();
     expect(screen.getByText("Alpha 1 – 1 Beta")).toBeInTheDocument();
     expect(screen.getByText("match.cupAdvances:Alpha")).toBeInTheDocument();
     expect(screen.queryByText("match.cupTiesPending")).not.toBeInTheDocument();
