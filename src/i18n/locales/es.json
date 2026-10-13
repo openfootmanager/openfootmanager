@@ -1175,6 +1175,7 @@
     "sortNewest": "Más recientes primero",
     "sortOldest": "Más antiguas primero",
     "selectMessages": "Seleccionar mensajes",
+    "selectAll": "Seleccionar todo",
     "cancelSelection": "Cancelar selección",
     "selectedCount": "{{count}} seleccionado(s)",
     "deleteSelected": "Eliminar seleccionados",

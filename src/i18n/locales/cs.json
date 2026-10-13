@@ -1175,6 +1175,7 @@
     "sortNewest": "Nejnovější jako první",
     "sortOldest": "Nejstarší jako první",
     "selectMessages": "Vybrat zprávy",
+    "selectAll": "Vybrat vše",
     "cancelSelection": "Zrušit výběr",
     "selectedCount": "Vybráno: {{count}}",
     "deleteSelected": "Smazat vybrané",

@@ -1175,6 +1175,7 @@
     "sortNewest": "Önce en yeni",
     "sortOldest": "Önce en eski",
     "selectMessages": "Mesaj seç",
+    "selectAll": "Tümünü seç",
     "cancelSelection": "Seçimi iptal et",
     "selectedCount": "{{count}} seçildi",
     "deleteSelected": "Seçilenleri sil",

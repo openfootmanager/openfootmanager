@@ -12,7 +12,7 @@ it yet: S4a, S5 and S6 wire it in. Layers, lowest first: friendly, league, domes
 
 | Named scenario | Given | When | Then |
 | --- | --- | --- | --- |
-| the_minimum_rest_is_three_days | A match on Saturday | Sunday to Monday and Tuesday are checked | The first three are too close; Tuesday is legal |
+| the_minimum_rest_is_three_days | A match on Saturday | Saturday itself, Sunday, Monday and Tuesday are checked | The first three are too close; Tuesday is legal |
 | the_rule_looks_backwards_as_well_as_forwards / the_rule_crosses_the_new_year | A match on March 8, or on December 31 | The days before, or January 1 to 3, are checked | The window is symmetric and ignores the year |
 | a_league_match_moves_to_the_earliest_day_free_for_both_clubs | A cup tie and a league match of one club on one day | The calendar is reconciled | The league match moves to the first day three days clear, reason cup tie |
 | only_the_clashing_match_moves | A league round with one clashing match | Reconciled | Only that match moves |
@@ -35,11 +35,19 @@ it yet: S4a, S5 and S6 wire it in. Layers, lowest first: friendly, league, domes
 | an_unreadable_date_is_an_error_not_a_guess | A fixture with an unreadable date | Reconciled | An error names the fixture |
 | the_sweep_changes_nothing_on_a_clean_calendar / the_result_does_not_depend_on_input_order / moves_are_forward_only | Any world | Reconciled twice, or in another order | The second sweep moves nothing, the result is identical, and every move goes forward |
 | postponements_are_recorded_only_when_asked_and_keep_the_first_date | A moved fixture | Applied with and without marking | Generation records nothing; a published move records the original date once |
-| the_sweep_keeps_every_invariant (property) | Random worlds up to 120 clubs: leagues, cups, a continental cup, windows, partial knockouts | Reconciled | No two fixtures of a club closer than the rest window (history aside), valid dates, immovables unchanged, nothing lost but friendlies, forward moves, rounds after their feeders, idempotent |
+| a_successor_authored_before_its_feeders_is_moved_after_them | Round two authored on an earlier date than round one | Reconciled | Items settle feeders first, so round two moves after round one |
+| rounds_authored_out_of_order_are_put_back_in_order (property) | Cups of two to four rounds with shuffled round dates | Reconciled | Every round starts after the round that feeds it ends |
+| unrelated_cups_do_not_hide_a_cups_predicted_round | Nineteen unrelated cups play near the dates a cup's next round would claim | A league match must move | The cup's predicted round is not pushed away: only cups sharing a club count |
+| a_successor_waits_the_cups_round_gap_after_its_feeder | A cup with a seven-day round gap and a successor dated one day after its feeder | Reconciled | The successor moves to the feeder's date plus the gap |
+| a_clashing_friendly_cup_tie_moves_instead_of_being_dropped | A tie of a friendly cup clashes with a league match | Reconciled | The tie moves and stays in its bracket; it is never dropped |
+| a_clashing_one_off_friendly_is_still_dropped | A one-off friendly clashes with a league match | Reconciled | The friendly is dropped |
+| byes_are_not_halved_with_the_players_when_predicting_rounds | Six entrants, two ties and two byes in the current round | Shadow dates are predicted | The next round has four clubs, so later predicted rounds do not come a day early |
+| the_sweep_keeps_every_invariant (property) | Random worlds up to 120 clubs: leagues, cups, a continental cup, a second cup sharing its clubs, friendlies, national-team matches, windows, partial knockouts | Reconciled | No two fixtures of a club closer than the rest window (history aside), valid dates, immovables unchanged, nothing lost but friendlies, forward moves, rounds after their feeders, idempotent |
 | the_result_does_not_depend_on_order (property) | The same random world in another competition order | Reconciled | Identical output |
 | the_generator_produces_clashes_for_the_sweep_to_resolve | 40 seeds | Generated | At least 30 start with clashes and the sweep moves hundreds of fixtures: the properties are not passing on empty worlds |
 
 ## Open questions and limits
+
 - A group-and-knockout cup has no shadows until its bracket exists.
 - Real organisers sometimes move matches earlier; this engine only moves forward, so the real-case tests assert the
   invariants, not the real new dates.
