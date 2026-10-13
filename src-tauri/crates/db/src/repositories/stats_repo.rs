@@ -1,5 +1,5 @@
 use domain::stats::{PlayerMatchStatsRecord, StatsState, TeamMatchStatsRecord};
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 use super::fixture_competition::{fixture_competition_to_string, parse_fixture_competition};
 
@@ -12,7 +12,15 @@ pub fn replace_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), 
     conn.execute("DELETE FROM team_match_stats", [])
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
 
-    for record in &stats.player_matches {
+    insert_player_records(conn, &stats.player_matches)?;
+    insert_team_records(conn, &stats.team_matches)
+}
+
+fn insert_player_records(
+    conn: &Connection,
+    records: &[PlayerMatchStatsRecord],
+) -> Result<(), String> {
+    for record in records {
         conn.execute(
             "INSERT INTO player_match_stats (
                 fixture_id, season, matchday, date, competition, player_id, team_id,
@@ -52,7 +60,11 @@ pub fn replace_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), 
         .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
     }
 
-    for record in &stats.team_matches {
+    Ok(())
+}
+
+fn insert_team_records(conn: &Connection, records: &[TeamMatchStatsRecord]) -> Result<(), String> {
+    for record in records {
         conn.execute(
             "INSERT INTO team_match_stats (
                 fixture_id, season, matchday, date, competition, team_id, opponent_team_id,
@@ -88,6 +100,71 @@ pub fn replace_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), 
     }
 
     Ok(())
+}
+
+/// Writes the match records the file does not hold yet.
+///
+/// The history only ever grows by appending, and rows are written in order, so the file's newest
+/// row (`MAX(rowid)`) says how many records it already holds: those are skipped and only the tail
+/// is inserted. Before trusting that, the newest row must be the record it should be; a file that
+/// holds more than memory, or a different history, is rewritten in full instead of appended to.
+pub fn persist_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), String> {
+    let players_held = held_prefix(
+        conn,
+        "player_match_stats",
+        "player_id",
+        &stats.player_matches,
+        |r| (r.fixture_id.as_str(), r.player_id.as_str()),
+    )?;
+    let teams_held = held_prefix(
+        conn,
+        "team_match_stats",
+        "team_id",
+        &stats.team_matches,
+        |r| (r.fixture_id.as_str(), r.team_id.as_str()),
+    )?;
+    match (players_held, teams_held) {
+        (Some(players), Some(teams)) => {
+            insert_player_records(conn, &stats.player_matches[players..])?;
+            insert_team_records(conn, &stats.team_matches[teams..])
+        }
+        _ => replace_stats_state(conn, stats),
+    }
+}
+
+/// How many of `records` the table already holds, or `None` when the table is not a prefix of them.
+fn held_prefix<T>(
+    conn: &Connection,
+    table: &str,
+    subject_column: &str,
+    records: &[T],
+    key: impl Fn(&T) -> (&str, &str),
+) -> Result<Option<usize>, String> {
+    let newest: Option<i64> = conn
+        .query_row(&format!("SELECT MAX(rowid) FROM {table}"), [], |row| {
+            row.get(0)
+        })
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let Some(held) = newest else {
+        return Ok(Some(0));
+    };
+    let held = usize::try_from(held).map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let Some(last_held) = held.checked_sub(1).and_then(|index| records.get(index)) else {
+        return Ok(None);
+    };
+    let stored: Option<(String, String)> = conn
+        .query_row(
+            &format!("SELECT fixture_id, {subject_column} FROM {table} WHERE rowid = ?1"),
+            [held as i64],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    let (fixture, subject) = key(last_held);
+    Ok(
+        (stored.as_ref().map(|(f, s)| (f.as_str(), s.as_str())) == Some((fixture, subject)))
+            .then_some(held),
+    )
 }
 
 pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
@@ -264,6 +341,176 @@ mod tests {
 
         assert_eq!(loaded.player_matches, stats.player_matches);
         assert_eq!(loaded.team_matches, stats.team_matches);
+    }
+
+    fn player_row(fixture: &str, player: &str) -> PlayerMatchStatsRecord {
+        PlayerMatchStatsRecord {
+            fixture_id: fixture.to_string(),
+            player_id: player.to_string(),
+            ..sample_stats_state().player_matches[0].clone()
+        }
+    }
+
+    fn team_row(fixture: &str, team: &str) -> TeamMatchStatsRecord {
+        TeamMatchStatsRecord {
+            fixture_id: fixture.to_string(),
+            team_id: team.to_string(),
+            ..sample_stats_state().team_matches[0].clone()
+        }
+    }
+
+    /// One played match: 22 players and the two teams.
+    fn a_match(fixture: &str) -> StatsState {
+        StatsState {
+            player_matches: (0..22)
+                .map(|n| player_row(fixture, &format!("{fixture}-p{n}")))
+                .collect(),
+            team_matches: vec![
+                team_row(fixture, &format!("{fixture}-home")),
+                team_row(fixture, &format!("{fixture}-away")),
+            ],
+        }
+    }
+
+    fn history_of(matches: usize) -> StatsState {
+        let mut stats = StatsState::default();
+        for n in 0..matches {
+            stats.append(a_match(&format!("fixture-{n:04}")));
+        }
+        stats
+    }
+
+    /// The records of two states, whatever order a load returns them in.
+    fn assert_same_records(left: &StatsState, right: &StatsState) {
+        let players = |s: &StatsState| {
+            let mut keys: Vec<_> = s
+                .player_matches
+                .iter()
+                .map(|r| (r.fixture_id.clone(), r.player_id.clone()))
+                .collect();
+            keys.sort();
+            keys
+        };
+        let teams = |s: &StatsState| {
+            let mut keys: Vec<_> = s
+                .team_matches
+                .iter()
+                .map(|r| (r.fixture_id.clone(), r.team_id.clone()))
+                .collect();
+            keys.sort();
+            keys
+        };
+        assert_eq!(players(left), players(right));
+        assert_eq!(teams(left), teams(right));
+    }
+
+    fn rows_written_by(conn: &Connection, save: impl FnOnce()) -> u64 {
+        let before = conn.total_changes();
+        save();
+        conn.total_changes() - before
+    }
+
+    /// Given a history already saved, when the same history is saved again,
+    /// then nothing is written.
+    #[test]
+    fn saving_an_unchanged_history_writes_nothing() {
+        let db = test_db();
+        let stats = history_of(40);
+        persist_stats_state(db.conn(), &stats).unwrap();
+
+        let written = rows_written_by(db.conn(), || {
+            persist_stats_state(db.conn(), &stats).unwrap();
+        });
+
+        assert_eq!(written, 0);
+    }
+
+    /// Given a saved history and one more match played, when it is saved, then only that
+    /// match's 22 player rows and 2 team rows are written, however long the history is.
+    #[test]
+    fn saving_one_more_match_writes_only_that_match() {
+        let db = test_db();
+        let mut stats = history_of(60);
+        persist_stats_state(db.conn(), &stats).unwrap();
+        stats.append(a_match("fixture-new"));
+
+        let written = rows_written_by(db.conn(), || {
+            persist_stats_state(db.conn(), &stats).unwrap();
+        });
+
+        assert_eq!(written, 24);
+        assert_same_records(&load_stats_state(db.conn()).unwrap(), &stats);
+    }
+
+    /// Given a history saved, loaded, extended and saved again, when the file is read through a
+    /// second connection, then every record is there exactly once.
+    #[test]
+    fn nothing_is_lost_or_duplicated_across_save_reload_and_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("save.db");
+        let writer = GameDatabase::open(&path).unwrap();
+        persist_stats_state(writer.conn(), &history_of(10)).unwrap();
+
+        let mut reloaded = load_stats_state(writer.conn()).unwrap();
+        reloaded.append(a_match("fixture-after-reload"));
+        persist_stats_state(writer.conn(), &reloaded).unwrap();
+        persist_stats_state(writer.conn(), &reloaded).unwrap();
+
+        let reader = Connection::open(&path).unwrap();
+        let count = |sql: &str| {
+            reader
+                .query_row(sql, [], |row| row.get::<_, i64>(0))
+                .unwrap()
+        };
+        assert_eq!(count("SELECT COUNT(*) FROM player_match_stats"), 11 * 22);
+        assert_eq!(
+            count(
+                "SELECT COUNT(*) FROM (SELECT DISTINCT fixture_id, player_id FROM player_match_stats)"
+            ),
+            11 * 22
+        );
+        assert_eq!(count("SELECT COUNT(*) FROM team_match_stats"), 11 * 2);
+        assert_eq!(
+            count(
+                "SELECT COUNT(*) FROM (SELECT DISTINCT fixture_id, team_id FROM team_match_stats)"
+            ),
+            11 * 2
+        );
+    }
+
+    /// Given a file holding different records than memory, when memory is saved, then the file
+    /// ends up holding exactly memory: a file that disagrees is rewritten, not appended to.
+    #[test]
+    fn a_file_that_disagrees_with_memory_is_rewritten_in_full() {
+        let db = test_db();
+        persist_stats_state(db.conn(), &history_of(5)).unwrap();
+        let mut elsewhere = StatsState::default();
+        for n in 0..8 {
+            elsewhere.append(a_match(&format!("other-{n}")));
+        }
+
+        persist_stats_state(db.conn(), &elsewhere).unwrap();
+
+        let loaded = load_stats_state(db.conn()).unwrap();
+        assert_eq!(loaded.player_matches.len(), elsewhere.player_matches.len());
+        assert!(
+            loaded
+                .player_matches
+                .iter()
+                .all(|r| r.fixture_id.starts_with("other-"))
+        );
+    }
+
+    /// Given a file holding more than memory, when memory is saved, then the extra is removed.
+    #[test]
+    fn a_shorter_history_removes_what_it_no_longer_holds() {
+        let db = test_db();
+        persist_stats_state(db.conn(), &history_of(9)).unwrap();
+        let shorter = history_of(4);
+
+        persist_stats_state(db.conn(), &shorter).unwrap();
+
+        assert_same_records(&load_stats_state(db.conn()).unwrap(), &shorter);
     }
 
     #[test]

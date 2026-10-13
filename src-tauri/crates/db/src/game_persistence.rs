@@ -52,7 +52,7 @@ impl GamePersistenceWriter {
             .unchecked_transaction()
             .map_err(|_| game_persistence_write_error())?;
         write_game_to_connection(&transaction, game, save_id, save_name)?;
-        stats_repo::replace_stats_state(&transaction, stats)?;
+        stats_repo::persist_stats_state(&transaction, stats)?;
         transaction
             .commit()
             .map_err(|_| game_persistence_write_error())?;
@@ -64,7 +64,7 @@ impl GamePersistenceWriter {
             .conn()
             .unchecked_transaction()
             .map_err(|_| game_persistence_write_error())?;
-        stats_repo::replace_stats_state(&transaction, stats)?;
+        stats_repo::persist_stats_state(&transaction, stats)?;
         transaction
             .commit()
             .map_err(|_| game_persistence_write_error())?;
