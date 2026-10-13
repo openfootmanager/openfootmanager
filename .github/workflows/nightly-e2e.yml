@@ -64,7 +64,12 @@ jobs:
       # Resolved once, so a push to develop during the night cannot give the jobs two revisions.
       - name: Resolve develop
         id: develop
-        run: echo "sha=$(git ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" refs/heads/develop | cut -f1)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          sha="$(git ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" refs/heads/develop | cut -f1)"
+          # An empty value would make every checkout fall back to the default branch.
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "develop did not resolve to a commit: '$sha'" >&2; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   build:
     needs: revision
@@ -251,7 +256,17 @@ jobs:
           path: |
             e2e-*.log
             failed-e2e.txt
-            ${{ runner.temp }}/e2e
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # Its own artifact, and not named failed-*: the scratch directory sits outside the workspace,
+      # and mixing the two would nest every file and hide the failure list from `notify`.
+      - name: Keep the scratch directories
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-scratch
+          path: ${{ runner.temp }}/e2e
           retention-days: 14
           if-no-files-found: ignore
 
