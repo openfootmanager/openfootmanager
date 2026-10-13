@@ -405,6 +405,12 @@
     "potLimited": "Ограниченный"
   },
   "common": {
+    "ordinal": {
+      "one": "{{n}}-й",
+      "two": "{{n}}-й",
+      "few": "{{n}}-й",
+      "other": "{{n}}-й"
+    },
     "currentWage": "Текущая зарплата",
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
@@ -2024,7 +2030,7 @@
     "postMatchTeamTalk": "Речь после матча",
     "addressPlayers": "Обратитесь к игрокам после матча.",
     "matchOver": "Матч завершён",
-    "performance": "Выступление {{team}}",
+    "ratings": "Оценки {{team}}",
     "motm": "Игрок матча",
     "roundSummary": "Итоги тура",
     "roundSummaryUnavailable": "Итоги тура недоступны.",
@@ -2534,7 +2540,7 @@
       }
     },
     "matchReport": "Отчёт о матче",
-    "playerPerformance": "Игра футболистов",
+    "playerRatings": "Рейтинги игроков",
     "tacticsTab": "Тактика",
     "goalSources": "Источники голов",
     "openPlay": "С игры",
@@ -3949,6 +3955,7 @@
     "playerPosition": "Позиция",
     "playerFoot": "Рабочая нога",
     "playerDateOfBirth": "Дата рождения",
+    "playerAgeToday": "сегодня {{age}}",
     "playerAge": "Возраст",
     "playerAgeHelp": "Используется, если дата рождения не указана: игроку столько лет в день начала карьеры, в каком бы году она ни началась.",
     "playerContractSection": "Контракт",
