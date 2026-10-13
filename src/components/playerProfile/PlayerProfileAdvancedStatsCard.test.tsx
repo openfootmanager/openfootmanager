@@ -1,12 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { changeAppLanguage, i18nReady } from "../../i18n";
+import i18n, { changeAppLanguage, i18nReady } from "../../i18n";
 import type { PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 
 const SUMMARY: PlayerAdvancedStatsSummary = {
   percentileEligible: true,
+  peerGroup: null,
   seasonRatingRated: false,
   metrics: {
     shots: { total: 20, per90: 4, percentile: 2 },
@@ -52,5 +53,41 @@ describe("PlayerProfileAdvancedStatsCard percentiles", () => {
     render(<PlayerProfileAdvancedStatsCard summary={SUMMARY} t={(key) => key} />);
 
     expect(screen.getByText("2nd")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend names a striker's group as the second division
+   * When the card renders
+   * Then the screen says which group the percentiles compare with
+   */
+  it("states the league and position the percentiles are measured within", () => {
+    render(
+      <PlayerProfileAdvancedStatsCard
+        summary={{
+          ...SUMMARY,
+          peerGroup: {
+            competitionId: "div-2",
+            competitionName: "Second Division",
+            competitionNameKey: null,
+            countryId: null,
+            position: "Striker",
+          },
+        }}
+        t={i18n.t}
+      />,
+    );
+
+    expect(screen.getByText("Compared with: Striker in Second Division")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend gives no peer group (a player with no league)
+   * When the card renders
+   * Then no group line is shown
+   */
+  it("shows no group line without a peer group", () => {
+    render(<PlayerProfileAdvancedStatsCard summary={SUMMARY} t={i18n.t} />);
+
+    expect(screen.queryByText(/Compared with/)).not.toBeInTheDocument();
   });
 });

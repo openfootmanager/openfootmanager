@@ -1666,6 +1666,7 @@
     "passAccuracy": "Precisão de passe",
     "percentile": "Percentil",
     "percentileUnavailable": "Percentil indisponível",
+    "percentileGroup": "Comparado com: {{position}} em {{league}}",
     "recentMatches": "Partidas recentes",
     "recentMatchesScore": "Placar",
     "recentMatchesGoalsAssists": "G / A",

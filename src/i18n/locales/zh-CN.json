@@ -1666,6 +1666,7 @@
     "passAccuracy": "传球成功率",
     "percentile": "百分位",
     "percentileUnavailable": "百分位不可用",
+    "percentileGroup": "对比对象：{{league}} 的{{position}}",
     "recentMatches": "近期比赛",
     "recentMatchesScore": "比分",
     "recentMatchesGoalsAssists": "进 / 助",
