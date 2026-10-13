@@ -157,6 +157,7 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
             retire_player(player, current_date);
         }
     }
+    crate::retirees::archive_retired_players(game, &iso(current_date), season);
 }
 
 #[cfg(test)]
