@@ -305,7 +305,7 @@ pub fn plan(
             settling.book(item, item.date);
             continue;
         }
-        // A one-off friendly yields by being dropped. A tie of a friendly cup or a preseason
+        // A friendly outside a knockout bracket yields by being dropped. A tie of a friendly cup or a preseason
         // tournament is part of a bracket whose next round names its winner, so it moves like
         // any cup tie.
         if item.layer == Layer::Friendly && !settling.rounds.contains_key(&item.key()) {

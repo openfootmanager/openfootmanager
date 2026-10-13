@@ -725,7 +725,7 @@ fn a_clashing_friendly_cup_tie_moves_instead_of_being_dropped() {
     assert_eq!(date_of(&world, "league", "l1"), march(10));
 }
 
-/// Given a one-off friendly that clashes with a league match, when reconciled, then it is still dropped.
+/// Given a friendly outside any knockout bracket that clashes with a league match, when reconciled, then it is still dropped.
 #[test]
 fn a_clashing_one_off_friendly_is_still_dropped() {
     let mut world = vec![competition(
