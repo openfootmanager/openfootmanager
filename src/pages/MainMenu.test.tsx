@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { countryName } from "../lib/countries";
@@ -1121,5 +1122,40 @@ describe("MainMenu routing of an active career", () => {
     fireEvent.click(await screen.findByText("Abandoned"));
 
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith("/select-team"));
+  });
+
+  /**
+   * Given the menu is open with no active game, and an MCP client then creates a clubless career
+   * When the backend announces `game-state-changed`
+   * Then team selection is shown, from the same stage rule as on load.
+   */
+  it("an_mcp_created_clubless_career_routes_to_team_selection", async () => {
+    let careerCreated = false;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_active_game") {
+        if (!careerCreated) throw "be.error.noActiveGameSession";
+        return activeGame(null);
+      }
+      if (command === "get_career_stage") return "awaitingClub";
+      if (command === "get_manager_profiles" || command === "list_installed_packages") return [];
+      return null;
+    });
+    render(<MainMenu />);
+    await waitFor(() =>
+      expect(listen).toHaveBeenCalledWith("game-state-changed", expect.any(Function)),
+    );
+    const onGameStateChanged = vi
+      .mocked(listen)
+      .mock.calls.find(([eventName]) => eventName === "game-state-changed")?.[1];
+    expect(navigateMock).not.toHaveBeenCalled();
+
+    careerCreated = true;
+    await act(async () => {
+      await onGameStateChanged?.({ event: "game-state-changed", id: 1, payload: null });
+    });
+
+    expect(navigateMock).toHaveBeenCalledWith("/select-team");
+    expect(navigateMock).not.toHaveBeenCalledWith("/dashboard");
   });
 });

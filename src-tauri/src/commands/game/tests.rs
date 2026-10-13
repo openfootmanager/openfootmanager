@@ -540,3 +540,32 @@ fn authored_group_size_reaches_the_game_built_from_a_loaded_world() {
             .all(|g| g.team_ids.len() == size.unwrap_or(4)));
     }
 }
+
+/// Given an active career whose manager has no club and no history
+/// When the career stage command reads it
+/// Then it answers awaitingClub, from the active game and nothing else.
+#[test]
+fn get_career_stage_reads_the_active_game() {
+    let state = ofm_core::state::StateManager::new();
+    let mut game = make_bootstrap_test_game();
+    game.manager.team_id = None;
+    state.set_game(game);
+
+    assert_eq!(
+        super::get_career_stage_internal(&state),
+        Ok(ofm_core::career_stage::CareerStage::AwaitingClub)
+    );
+}
+
+/// Given no active game session
+/// When the career stage command is called
+/// Then it fails with the no-session translation key.
+#[test]
+fn get_career_stage_without_a_session_fails_with_the_session_key() {
+    let state = ofm_core::state::StateManager::new();
+
+    assert_eq!(
+        super::get_career_stage_internal(&state),
+        Err("be.error.noActiveGameSession".to_string())
+    );
+}

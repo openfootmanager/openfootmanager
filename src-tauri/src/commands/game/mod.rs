@@ -25,7 +25,7 @@ mod world_load;
 // No private glob for `bootstrap`: everything this module still calls is
 // something `mcp_server/tools_impl/game.rs` drives a whole career opening
 // through, so it needs a real path anyway.
-pub(crate) use bootstrap::create_new_save;
+pub(crate) use bootstrap::persist_chosen_club;
 #[cfg(feature = "mcp")]
 pub(crate) use bootstrap::{
     start_career_for_mcp, McpCareerOptions, McpNewCareer, AUTO_START_NEEDS_CLUB_ERROR,
@@ -205,12 +205,8 @@ pub async fn select_team(
     };
     let stats_state = begin_career(&mut game, &team_id, scope, current_stats_state)?;
 
-    // Save to new per-save DB
-    let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
-    let save_name = default_save_name(&manager_name);
-
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    let save_id = create_new_save(&mut sm, &game, &stats_state, &save_name)?;
+    let save_id = persist_chosen_club(&state, &mut sm, &game, &stats_state)?;
     crate::application::career::install_career(&state, game.clone(), stats_state, Some(save_id));
     Ok(game)
 }
@@ -258,6 +254,12 @@ pub async fn load_game(
 #[tauri::command]
 pub async fn get_career_stage(
     state: State<'_, Arc<StateManager>>,
+) -> Result<ofm_core::career_stage::CareerStage, String> {
+    get_career_stage_internal(&state)
+}
+
+pub fn get_career_stage_internal(
+    state: &StateManager,
 ) -> Result<ofm_core::career_stage::CareerStage, String> {
     state
         .get_game(ofm_core::career_stage::career_stage)

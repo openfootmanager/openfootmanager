@@ -23,6 +23,31 @@ use {
     ofm_core::state::StateManager,
 };
 
+/// Persists a career that has just chosen its first club.
+///
+/// A career loaded from a save already has one, and the club goes into it; only a career that has
+/// never been saved gets a new save. Creating one regardless would fork the loaded career: the
+/// player continues in a second save and the one they loaded stays clubless.
+pub(crate) fn persist_chosen_club(
+    state: &ofm_core::state::StateManager,
+    save_manager: &mut SaveManager,
+    game: &Game,
+    stats_state: &StatsState,
+) -> Result<String, String> {
+    if let Some(save_id) = state.get_save_id() {
+        save_manager.save_game_with_stats(game, stats_state, &save_id)?;
+        return Ok(save_id);
+    }
+
+    let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
+    create_new_save(
+        save_manager,
+        game,
+        stats_state,
+        &super::default_save_name(&manager_name),
+    )
+}
+
 pub(crate) fn create_new_save(
     save_manager: &mut SaveManager,
     game: &Game,
@@ -218,6 +243,50 @@ mod tests {
         assert_eq!(loaded_stats.team_matches[0].team_id, "team1");
 
         std::fs::remove_dir_all(&saves_dir).unwrap();
+    }
+
+    /// Given a clubless career loaded from a save
+    /// When the player picks a club
+    /// Then the loaded save is updated in place: same id, now with the club, and no second save.
+    #[test]
+    fn choosing_a_club_in_a_loaded_career_updates_its_own_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut save_manager = SaveManager::init(dir.path()).unwrap();
+        let state = ofm_core::state::StateManager::new();
+        let mut game = make_bootstrap_test_game();
+        game.manager.team_id = None;
+        let loaded_id =
+            create_new_save(&mut save_manager, &game, &sample_stats_state(), "Loaded").unwrap();
+        state.set_save_id(loaded_id.clone());
+
+        game.manager.team_id = Some("team1".to_string());
+        let saved_id =
+            persist_chosen_club(&state, &mut save_manager, &game, &sample_stats_state()).unwrap();
+
+        assert_eq!(saved_id, loaded_id);
+        assert_eq!(save_manager.load_saves().unwrap().len(), 1);
+        assert_eq!(
+            save_manager.load_game(&loaded_id).unwrap().manager.team_id,
+            Some("team1".to_string())
+        );
+    }
+
+    /// Given a career that has never been saved
+    /// When the player picks a club
+    /// Then a new save is created and its id returned.
+    #[test]
+    fn choosing_a_club_in_a_never_saved_career_creates_a_save() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut save_manager = SaveManager::init(dir.path()).unwrap();
+        let state = ofm_core::state::StateManager::new();
+        let mut game = make_bootstrap_test_game();
+        game.manager.team_id = Some("team1".to_string());
+
+        let saved_id =
+            persist_chosen_club(&state, &mut save_manager, &game, &sample_stats_state()).unwrap();
+
+        assert_eq!(save_manager.load_saves().unwrap().len(), 1);
+        assert_eq!(save_manager.load_saves().unwrap()[0].id, saved_id);
     }
 }
 

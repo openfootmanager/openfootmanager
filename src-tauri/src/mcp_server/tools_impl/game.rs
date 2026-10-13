@@ -124,15 +124,17 @@ pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<TeamSel
         current_stats_state,
     )?;
 
-    // Save
-    let manager_name = format!("{} {}", game.manager.first_name, game.manager.last_name);
-    let save_name = crate::commands::game::default_save_name(&manager_name);
     let mut sm = ctx
         .save_manager_state
         .0
         .lock()
         .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
-    let save_id = crate::commands::game::create_new_save(&mut sm, &game, &stats_state, &save_name)?;
+    let save_id = crate::commands::game::persist_chosen_club(
+        &ctx.state_manager,
+        &mut sm,
+        &game,
+        &stats_state,
+    )?;
 
     // Commit after save creation, without holding the game mutex across I/O.
     // Career installation serializes publication with a concurrent start/finish.
