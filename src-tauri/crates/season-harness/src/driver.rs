@@ -101,7 +101,10 @@ pub struct RunOptions {
     /// the turn, so a run long enough will eventually sack a mid-table club's
     /// manager; and a manager with no club turns every later rollover into a
     /// silent no-op, so the harness would keep running and test nothing. This is
-    /// a deliberate deviation from the game, and it is the only one.
+    /// a deliberate deviation from the game, and it is the only one: a scaffold of
+    /// the harness (its manager makes no decisions), not a hidden bug, so no issue
+    /// is filed for it. `a_manager_the_board_would_sack_is_reported_when_nothing_holds_them_on`
+    /// in `tests/gate.rs` covers a run without it.
     pub keep_manager_employed: bool,
 }
 
