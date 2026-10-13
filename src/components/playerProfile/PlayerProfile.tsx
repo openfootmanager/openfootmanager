@@ -12,10 +12,11 @@ import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
-import { getPlayerAge, getPlayerTeamName } from "./PlayerProfile.helpers";
+import { getPlayerTeamName } from "./PlayerProfile.helpers";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
+import { calcAgeOnDate } from "../../lib/valueFormatting";
 import { formatDate } from "../../lib/dateFormatting";
 import PlayerProfileAttributesCard from "./PlayerProfileAttributesCard";
 import PlayerProfileCareerHistoryCard from "./PlayerProfileCareerHistoryCard";
@@ -72,7 +73,7 @@ export default function PlayerProfile({
     onGameUpdate,
   });
   const ovr = getPlayerOvr(player);
-  const age = getPlayerAge(player.date_of_birth);
+  const age = calcAgeOnDate(player.date_of_birth, gameState.clock.current_date);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
   // Offer roles for the deployed slot when the player is in the starting XI —
