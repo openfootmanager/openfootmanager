@@ -308,8 +308,10 @@ const SCHEMA_COMPETITION: &str = r##"// Competition entity — place inside comp
     "windowEnd": null    // optional: { "month": 6, "day": 30 }; required for opening/closing
   },
   // Berths - qualification spots this competition awards into others:
+  // rule.kind: "positionRange" (+ from, to) | "cupWinner" | "playoffWinner" (+ from, to);
+  // optional "fallbackTo": a competition id for a place a club cannot take.
   "berths": [
-    // { "rule": "TopN", "count": 4, "targetCompetition": "ucl", "fromTop": true }
+    // { "target": "ucl", "rule": { "kind": "positionRange", "from": 1, "to": 4 } }
   ],
   "nameKey": null,        // optional: i18n key; translated via t(nameKey, { year }) instead of "name"
   "logo": null            // optional: relative path to a badge image asset
@@ -1326,5 +1328,157 @@ mod tests {
 
         assert_eq!(exit, 0);
         assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    /// The text of a schema template with its `//` comments removed (outside strings), as JSON.
+    fn template_without_comments(template: &str) -> String {
+        template
+            .lines()
+            .map(|line| {
+                let mut in_string = false;
+                let mut previous = ' ';
+                let mut end = line.len();
+                for (index, c) in line.char_indices() {
+                    if c == '"' && previous != '\\' {
+                        in_string = !in_string;
+                    }
+                    if !in_string && c == '/' && previous == '/' {
+                        end = index - 1;
+                        break;
+                    }
+                    previous = c;
+                }
+                &line[..end]
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Given each `ofm-cli schema <entity>` reference (#552)
+    /// When its comments are removed
+    /// Then what is left is the entity's own struct, so the printed shape is the one that loads.
+    #[test]
+    fn every_schema_template_parses_into_its_own_definition() {
+        use ofm_core::generator::{
+            CompetitionDefinition, ConfederationDef, CountryDef, PlayerDef, StaffDef, TeamDef,
+            WorldMetaDef,
+        };
+        let json = |entity: &EntityKind| template_without_comments(entity_schema_text(entity));
+        let results: Vec<(&str, Result<(), String>)> = vec![
+            (
+                "world",
+                serde_json::from_str::<WorldMetaDef>(&json(&EntityKind::World)).map(|_| ()),
+            ),
+            (
+                "team",
+                serde_json::from_str::<TeamDef>(&json(&EntityKind::Team)).map(|_| ()),
+            ),
+            (
+                "player",
+                serde_json::from_str::<PlayerDef>(&json(&EntityKind::Player)).map(|_| ()),
+            ),
+            (
+                "staff",
+                serde_json::from_str::<StaffDef>(&json(&EntityKind::Staff)).map(|_| ()),
+            ),
+            (
+                "confederation",
+                serde_json::from_str::<ConfederationDef>(&json(&EntityKind::Confederation))
+                    .map(|_| ()),
+            ),
+            (
+                "country",
+                serde_json::from_str::<CountryDef>(&json(&EntityKind::Country)).map(|_| ()),
+            ),
+            (
+                "competition",
+                serde_json::from_str::<CompetitionDefinition>(&json(&EntityKind::Competition))
+                    .map(|_| ()),
+            ),
+        ]
+        .into_iter()
+        .map(|(name, result)| (name, result.map_err(|e| e.to_string())))
+        .collect();
+        let broken: Vec<String> = results
+            .into_iter()
+            .filter_map(|(name, result)| result.err().map(|e| format!("{name}: {e}")))
+            .collect();
+        assert!(broken.is_empty(), "{broken:#?}");
+    }
+
+    /// Given the berth example in `ofm-cli schema competition`, which is commented out
+    /// When its comment marker is removed and it is put in the competition
+    /// Then the competition deserializes: the example an author copies is one that loads.
+    #[test]
+    fn the_berth_example_in_the_competition_reference_loads() {
+        use ofm_core::generator::CompetitionDefinition;
+        let example: Vec<serde_json::Value> = SCHEMA_COMPETITION
+            .lines()
+            .skip_while(|line| !line.contains("\"berths\": ["))
+            .skip(1)
+            .take_while(|line| !line.trim_start().starts_with(']'))
+            .filter_map(|line| line.trim_start().strip_prefix("//"))
+            .map(|line| {
+                let text = line.trim().trim_end_matches(',');
+                serde_json::from_str(text)
+                    .unwrap_or_else(|e| panic!("the berth example is not JSON: {e}: {text}"))
+            })
+            .collect();
+        assert!(!example.is_empty(), "the reference shows a berth example");
+
+        let mut competition: serde_json::Value = serde_json::from_str(&template_without_comments(
+            entity_schema_text(&EntityKind::Competition),
+        ))
+        .unwrap();
+        competition["berths"] = serde_json::Value::Array(example);
+        let loaded = serde_json::from_value::<CompetitionDefinition>(competition);
+        assert!(
+            loaded.is_ok(),
+            "the berth example does not load: {:?}",
+            loaded.err()
+        );
+    }
+
+    /// Given every berth and competition example in `docs/modding/SCHEMA_REFERENCE.md`
+    /// When it is parsed
+    /// Then it loads, so the reference teaches only shapes that deserialize (#552).
+    #[test]
+    fn the_competition_examples_in_the_reference_load() {
+        use ofm_core::generator::CompetitionDefinition;
+        let reference = include_str!("../../../../docs/modding/SCHEMA_REFERENCE.md");
+        let template: serde_json::Value = serde_json::from_str(&template_without_comments(
+            entity_schema_text(&EntityKind::Competition),
+        ))
+        .unwrap();
+
+        let mut checked = 0;
+        for block in reference.split("```json").skip(1) {
+            let body = block.split("```").next().unwrap_or("").trim();
+            if body.starts_with("\"berths\"") {
+                let wrapped: serde_json::Value = serde_json::from_str(&format!("{{{body}}}"))
+                    .unwrap_or_else(|e| panic!("berth example is not JSON: {e}\n{body}"));
+                let mut competition = template.clone();
+                competition["berths"] = wrapped["berths"].clone();
+                let loaded = serde_json::from_value::<CompetitionDefinition>(competition);
+                assert!(
+                    loaded.is_ok(),
+                    "berth example does not load: {:?}\n{body}",
+                    loaded.err()
+                );
+                checked += 1;
+            } else if body.contains("\"schema\": \"competition\"") {
+                let loaded = serde_json::from_str::<CompetitionDefinition>(body);
+                assert!(
+                    loaded.is_ok(),
+                    "competition example does not load: {:?}\n{body}",
+                    loaded.err()
+                );
+                checked += 1;
+            }
+        }
+        assert!(
+            checked >= 3,
+            "the reference lost its examples ({checked} found)"
+        );
     }
 }
