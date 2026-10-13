@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import { formatExactMoney, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
 import { formatDate } from "../../lib/dateFormatting";
-import { Badge } from "../ui";
+import { Badge, Dialog } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import type { LoanPeriodOption, LoanPeriodOptionId } from "./TransfersTab.helpers";
@@ -315,20 +315,13 @@ export function LoanOfferForm({
 
 export default function LoanOfferModal(props: LoanOfferModalProps) {
   return (
-    <div
-      role="presentation"
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={props.onClose}
+    <Dialog
+      labelledBy="loan-offer-modal-title"
+      onClose={props.onClose}
+      dismissOnBackdrop
+      className="w-full max-w-md rounded-xl p-6"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="loan-offer-modal-title"
-        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-md"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <LoanOfferForm {...props} />
-      </div>
-    </div>
+      <LoanOfferForm {...props} />
+    </Dialog>
   );
 }
