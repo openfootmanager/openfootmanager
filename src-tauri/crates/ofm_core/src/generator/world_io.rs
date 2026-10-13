@@ -217,16 +217,8 @@ pub fn build_world_from_package(
     opening_year: Option<u32>,
     sources: &super::DefinitionSources,
 ) -> Result<WorldData, String> {
-    let world = normalize_world(super::build_world_data_from_package(
-        package,
-        opening_year,
-        sources,
-    ));
-    // Ranked by the package's authored reputations, as `resolve_definitions_ranked` will be when a
-    // career starts, so a package that builds here is not refused there on a reputation roll.
-    let authored = super::authored_reputations(package);
-    validate_embedded_definitions(&world, super::ReputationBasis::Authored(&authored))?;
-    Ok(world)
+    let world = super::build_world_data_from_package(package, opening_year, sources);
+    finish_package_world(package, world)
 }
 
 /// [`build_world_from_package`] from `seed`: the same package, year and seed give the same world.
@@ -237,14 +229,26 @@ pub fn build_world_from_package_seeded(
     sources: &super::DefinitionSources,
 ) -> Result<WorldData, String> {
     use rand::SeedableRng;
-    let mut world = normalize_world(super::build_world_data_from_package_with_rng(
+    let world = super::build_world_data_from_package_with_rng(
         package,
         opening_year,
         sources,
         &mut rand::rngs::StdRng::seed_from_u64(seed),
-    ));
-    validate_embedded_definitions(&world)?;
+    );
+    let mut world = finish_package_world(package, world)?;
     world.generation_seed = Some(seed);
+    Ok(world)
+}
+
+fn finish_package_world(
+    package: &super::package::WorldPackage,
+    world: WorldData,
+) -> Result<WorldData, String> {
+    let world = normalize_world(world);
+    // Ranked by the package's authored reputations, as `resolve_definitions_ranked` will be when a
+    // career starts, so a package that builds here is not refused there on a reputation roll.
+    let authored = super::authored_reputations(package);
+    validate_embedded_definitions(&world, super::ReputationBasis::Authored(&authored))?;
     Ok(world)
 }
 
