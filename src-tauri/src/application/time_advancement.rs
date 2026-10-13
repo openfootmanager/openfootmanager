@@ -114,7 +114,7 @@ pub fn advance_time_with_mode(
     Ok(response)
 }
 
-type LeagueRoundContext = (u32, Vec<domain::league::StandingEntry>);
+use ofm_core::matchday::LeagueRoundContext;
 
 fn advance_day_in_mode(
     game: &mut Game,
@@ -214,9 +214,7 @@ fn advance_live_matchday(
     }
     let round_summary = round_context
         .as_ref()
-        .and_then(|(matchday, previous_standings)| {
-            build_round_summary_dto(game, *matchday, previous_standings)
-        });
+        .and_then(|context| build_round_summary_dto(game, context));
 
     Ok((
         AdvanceTimeWithModeResponse {
@@ -257,11 +255,10 @@ fn advance_delegated_matchday(
     // The baseline comes from the session, captured before the round was played;
     // reading the table now would report every delta as zero. Built after the day
     // so it describes the round the response is carrying.
-    let round_summary = outcome.league_round_context.or(round_context).and_then(
-        |(matchday, previous_standings)| {
-            build_round_summary_dto(game, matchday, &previous_standings)
-        },
-    );
+    let round_summary = outcome
+        .league_round_context
+        .or(round_context)
+        .and_then(|context| build_round_summary_dto(game, &context));
 
     Ok(advanced_day_response(game, today, round_summary))
 }
@@ -282,9 +279,7 @@ fn advance_simulated_day(
     });
     let round_summary = round_context
         .as_ref()
-        .and_then(|(matchday, previous_standings)| {
-            build_round_summary_dto(game, *matchday, previous_standings)
-        });
+        .and_then(|context| build_round_summary_dto(game, context));
 
     advanced_day_response(game, today, round_summary)
 }
