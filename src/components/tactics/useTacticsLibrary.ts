@@ -57,7 +57,15 @@ export function useTacticsLibrary({
   const userTeam = gameState?.teams.find((team) => team.id === gameState.manager.team_id);
   const blueprintKey = `${activePlayStyle}|${JSON.stringify(userTeam?.tactics_phase ?? null)}`;
 
+  const hasClub = Boolean(userTeam);
+
   useEffect(() => {
+    // No game or no club has no blueprint to ask about.
+    if (!hasClub) {
+      setBlueprintModified(false);
+      return;
+    }
+
     let cancelled = false;
     getTacticsBlueprintStatus()
       .then(({ modified }) => {
@@ -69,7 +77,7 @@ export function useTacticsLibrary({
     return () => {
       cancelled = true;
     };
-  }, [blueprintKey]);
+  }, [blueprintKey, hasClub]);
 
   useEffect(() => {
     if (!gameState || !customTacticsStorageKey) return;
