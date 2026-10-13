@@ -299,8 +299,7 @@ fn facility_upgrade_previews_carry_the_block_reason_and_affordability() {
     assert_eq!(previews.facility_upgrades.len(), 3);
     assert!(previews.facility_upgrades.iter().all(|preview| {
         !preview.can_afford
-            && preview.block_reason.as_deref()
-                == Some("be.error.finance.facilityUpgradeOverBudget")
+            && preview.block_reason.as_deref() == Some("be.error.finance.facilityUpgradeOverBudget")
     }));
 }
 
