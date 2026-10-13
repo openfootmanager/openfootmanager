@@ -599,9 +599,13 @@ fn manage_international_calendar(
         for national_team in game.national_teams.iter_mut() {
             national_team.fixtures.clear();
         }
-        // No windows to keep clear of, but the regenerated club competitions still have to
-        // share the calendar with each other.
-        crate::world::foundations::place_club_calendar(game, &Default::default());
+        // No windows to keep clear of and no preseason friendlies, but the regenerated club
+        // competitions still have to share the calendar with each other.
+        crate::calendar_reconcile::settle_generated_calendar(
+            &mut game.competitions,
+            &Default::default(),
+            game.clock.current_date.date_naive(),
+        );
         return;
     }
 
