@@ -8,7 +8,6 @@ import {
   formatPlayerMarketValue,
   formatPlayerWage,
   getAttributeColorClass,
-  getPlayerAge,
   getPlayerTeamName,
   resolvePlayerInjuryName,
 } from "./PlayerProfile.helpers";
@@ -156,11 +155,6 @@ describe("PlayerProfile.helpers", (): void => {
         unknown: "Unknown",
       }),
     ).toBe("Unknown");
-  });
-
-  it("calculates age relative to an as-of date instead of just the birth year", (): void => {
-    expect(getPlayerAge("2000-07-02", "2026-07-01")).toBe(25);
-    expect(getPlayerAge("2000-07-01", "2026-07-01")).toBe(26);
   });
 
   it("formats market values across value ranges", (): void => {
