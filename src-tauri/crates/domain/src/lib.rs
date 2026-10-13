@@ -10,6 +10,7 @@ pub mod national_team;
 pub mod negotiation;
 pub mod news;
 pub mod player;
+pub mod retired_player;
 pub mod season;
 pub mod staff;
 pub mod stats;

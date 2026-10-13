@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { GameStateData } from "../../store/gameStore";
+import { getTacticsBlueprintStatus } from "../../services/squadService";
 import {
   TACTICS_PRESETS,
   findTacticsPresetBySetup,
@@ -49,6 +50,26 @@ export function useTacticsLibrary({
   const hydratedCustomTacticsScopeRef = useRef<string | null>(null);
 
   const customTacticsStorageKey = gameState ? buildCustomTacticsStorageKey(gameState) : null;
+
+  // Whether the phase dials still equal the style's blueprint is the backend's rule (`blueprint_for`);
+  // it is asked again whenever the dials or the style change.
+  const [blueprintModified, setBlueprintModified] = useState(false);
+  const userTeam = gameState?.teams.find((team) => team.id === gameState.manager.team_id);
+  const blueprintKey = `${activePlayStyle}|${JSON.stringify(userTeam?.tactics_phase ?? null)}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    getTacticsBlueprintStatus()
+      .then(({ modified }) => {
+        if (!cancelled) setBlueprintModified(modified);
+      })
+      .catch(() => {
+        if (!cancelled) setBlueprintModified(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [blueprintKey]);
 
   useEffect(() => {
     if (!gameState || !customTacticsStorageKey) return;
@@ -116,9 +137,11 @@ export function useTacticsLibrary({
           draftTacticName.trim().length > 0 &&
           draftTacticName.trim() !== activeTactic.name)),
   );
+  // A custom tactic saves formation, style and name only, so its dials are not part of what could
+  // be "unsaved"; a preset is also its blueprint, so tuned dials make it differ from the preset.
   const isCommandBarDirty = isActiveCustomTactic
     ? isActiveTacticDirty
-    : isActiveTacticDirty || isPresetDirty;
+    : isActiveTacticDirty || isPresetDirty || blueprintModified;
 
   useEffect(() => {
     if (!matchedPreset) {

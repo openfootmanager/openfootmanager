@@ -39,11 +39,11 @@ export function ReportPreviewStep({
   failure,
   failureKind,
 }: ReportPreviewStepProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const saveSize =
     canAttachSave && diagnostics !== null && diagnostics.save_bytes !== null ? (
       <span className="text-[11px] font-mono text-gray-600 dark:text-gray-400 shrink-0">
-        {formatBytes(diagnostics.save_bytes)}
+        {formatBytes(diagnostics.save_bytes, i18n.language)}
       </span>
     ) : undefined;
 
@@ -65,7 +65,7 @@ export function ReportPreviewStep({
         icon={<FileText className="w-4 h-4" />}
         name={t("reportBug.itemLogs")}
         detail={t("reportBug.itemLogsDesc")}
-        size={logBytes === null ? undefined : formatBytes(logBytes)}
+        size={logBytes === null ? undefined : formatBytes(logBytes, i18n.language)}
         files={diagnostics?.log_files}
       />
       {diagnostics?.crash_on_previous_run && (
