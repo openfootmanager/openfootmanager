@@ -2558,7 +2558,10 @@
     "yourResult": "Sizin Sonucunuz",
     "continue": "Devam Et",
     "notableUpset": "Dikkat Çeken Sürpriz",
-    "pts": "P"
+    "pts": "P",
+    "cupPenalties": "(penaltılarla {{home}}–{{away}})",
+    "cupAdvances": "{{team}} bir üst tura çıktı",
+    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",

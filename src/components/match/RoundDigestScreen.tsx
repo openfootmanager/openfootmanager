@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { FixtureData, GameStateData } from "../../store/gameStore";
 import type { CompactMatchEventData } from "../../store/types";
-import type { MatchSnapshot, MatchEvent, RoundSummary } from "./types";
+import type { CupRoundSummary, MatchSnapshot, MatchEvent, RoundSummary } from "./types";
+import CupRoundSection from "./CupRoundSection";
 import { getEventDisplay, makeTeamFallback } from "./helpers";
 import { QuickStat } from "./PostMatchHelpers";
 import { Badge, TeamLogo } from "../ui";
@@ -15,6 +16,7 @@ interface RoundDigestScreenProps {
   userSide: "Home" | "Away" | null;
   isLeagueFixture: boolean;
   roundSummary: RoundSummary | null;
+  cupRoundSummaries?: CupRoundSummary[];
   onPressConference: () => void;
   onFinish: () => void;
 }
@@ -25,6 +27,7 @@ export default function RoundDigestScreen({
   userSide,
   isLeagueFixture,
   roundSummary,
+  cupRoundSummaries = [],
   onPressConference,
   onFinish,
 }: RoundDigestScreenProps) {
@@ -440,6 +443,10 @@ export default function RoundDigestScreen({
               </div>
             )}
           </div>
+
+          {cupRoundSummaries.map((summary) => (
+            <CupRoundSection key={summary.competition_id} summary={summary} />
+          ))}
 
           {/* Notable Upset */}
           {isLeagueFixture && roundSummary?.notable_upset && (

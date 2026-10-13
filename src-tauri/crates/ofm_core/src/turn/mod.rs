@@ -1,3 +1,4 @@
+mod cup_round_summary;
 mod dormant;
 mod news;
 mod post_match;
@@ -18,6 +19,7 @@ use domain::stats::StatsState;
 use log::{debug, info};
 
 // Re-export public items
+pub use cup_round_summary::{CupRoundSummary, CupTieResult, build_cup_round_summaries};
 pub use news::generate_matchday_news;
 pub use post_match::{apply_match_report, apply_match_report_with_capture};
 pub use round_summary::{
@@ -199,6 +201,7 @@ fn process_day_common(game: &mut Game, today: &str) {
 
     crate::firing::check_manager_firing(game);
     crate::ai_hiring::process_vacant_ai_clubs(game);
+    crate::ai_manager_appointments::appoint_permanent_managers(game);
     crate::job_offers::check_job_offers(game);
 }
 

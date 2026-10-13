@@ -628,6 +628,7 @@ mod tests {
             specialization: Some(CoachingSpecialization::Fitness),
             date_of_birth: Some("1975-01-01".into()),
             age: Some(50),
+            known_as: None,
         };
 
         let country = CountryDef {

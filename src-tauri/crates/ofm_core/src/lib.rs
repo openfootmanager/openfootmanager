@@ -2,6 +2,7 @@ pub mod advance_results;
 pub mod aging;
 pub mod ai_contracts;
 pub mod ai_hiring;
+pub mod ai_manager_appointments;
 mod ai_math;
 mod ai_roles;
 pub mod ai_tactics;
