@@ -4049,6 +4049,7 @@
     "openPackageFileInvalid": "Lütfen geçerli bir .ofm paket dosyası seçin",
     "noItemSelected": "Listeden bir öğe seçin veya oluşturmak için Ekle'ye tıklayın",
     "issuesBadge": "{{count}} sorun",
+    "warningsBadge": "{{count}} uyarı",
     "issuesTitle": "Doğrulama Sorunları",
     "noIssues": "Sorun yok — dünya geçerli",
     "saving": "Kaydediliyor…",

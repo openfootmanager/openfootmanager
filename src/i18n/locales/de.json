@@ -4049,6 +4049,7 @@
     "openPackageFileInvalid": "Bitte eine gültige .ofm-Paketdatei auswählen",
     "noItemSelected": "Wähle ein Element aus der Liste oder klicke auf Hinzufügen",
     "issuesBadge": "{{count}} Problem(e)",
+    "warningsBadge": "{{count}} Warnungen",
     "issuesTitle": "Validierungsprobleme",
     "noIssues": "Keine Probleme – Welt ist gültig",
     "saving": "Speichern…",

@@ -4049,6 +4049,7 @@
     "openPackageFileInvalid": "Выберите допустимый файл пакета .ofm",
     "noItemSelected": "Выберите элемент из списка или нажмите Добавить",
     "issuesBadge": "{{count}} проблем(а)",
+    "warningsBadge": "Предупреждений: {{count}}",
     "issuesTitle": "Ошибки валидации",
     "noIssues": "Нет проблем — мир действителен",
     "saving": "Сохранение…",

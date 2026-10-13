@@ -4049,6 +4049,7 @@
     "openPackageFileInvalid": "请选择有效的 .ofm 包文件",
     "noItemSelected": "从列表中选择一项，或点击添加以创建",
     "issuesBadge": "{{count}} 个问题",
+    "warningsBadge": "{{count}} 条警告",
     "issuesTitle": "验证问题",
     "noIssues": "没有问题 — 世界有效",
     "saving": "保存中…",

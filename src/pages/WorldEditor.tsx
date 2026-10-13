@@ -35,6 +35,7 @@ import { WorldEditorHome, type RecentProject } from "../components/worldEditor/W
 import type { SamplePackage } from "../components/menu/PackageEditor/sampleData";
 import { WorldEditorLayout } from "../components/worldEditor/WorldEditorLayout";
 import { WorldEditorTopBar, type SaveState } from "../components/worldEditor/WorldEditorTopBar";
+import { findingsToShow } from "../components/worldEditor/validationOutcome";
 import { WorldEditorSidebar } from "../components/worldEditor/WorldEditorSidebar";
 import {
   WorldEditorFormPanel,
@@ -426,6 +427,8 @@ export default function WorldEditor() {
       const data = await invoke<PackageProjectData>("read_package_project", { dir: projectDir });
       setIssues(data.issues);
       setWarnings(data.warnings ?? []);
+      // An explicit Validate shows what it found, warnings included.
+      if (findingsToShow(data)) setFormPanel("issues");
     } catch {
       // persist already handled the error
     } finally {
@@ -683,6 +686,7 @@ export default function WorldEditor() {
             saveState={saveState}
             isBusy={isBusy}
             issueCount={issues.length}
+            warningCount={warnings.length}
             autoSave={autoSave}
             canUndo={canUndo}
             canRedo={canRedo}
@@ -714,6 +718,7 @@ export default function WorldEditor() {
             namePoolCount={Object.keys(names.pools).length}
             competitionCount={competitions.length}
             issueCount={issues.length}
+            warningCount={warnings.length}
             onShowIssues={handleShowIssues}
             showingIssues={formPanel === "issues"}
           />

@@ -4049,6 +4049,7 @@
     "openPackageFileInvalid": "Pilih berkas paket .ofm yang valid",
     "noItemSelected": "Pilih item dari daftar, atau klik Tambah untuk membuatnya",
     "issuesBadge": "{{count}} masalah",
+    "warningsBadge": "{{count}} peringatan",
     "issuesTitle": "Masalah Validasi",
     "noIssues": "Tidak ada masalah — dunia valid",
     "saving": "Menyimpan…",
