@@ -467,6 +467,88 @@ describe("InboxTab", (): void => {
     expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
+  /**
+   * Given an inbox of three messages and selection mode on
+   * When the player ticks Select all and deletes
+   * Then every message is deleted in one call.
+   */
+  it("selects every message with Select all and deletes them together", async (): Promise<void> => {
+    mockedInvoke.mockResolvedValue([]);
+    await renderInboxTab({
+      gameState: createGameState([
+        createMessage({ id: "m1", subject: "One", read: true, date: "2025-01-01" }),
+        createMessage({ id: "m2", subject: "Two", read: true, date: "2025-01-02" }),
+        createMessage({ id: "m3", subject: "Three", read: true, date: "2025-01-03" }),
+      ]),
+    });
+
+    fireEvent.click(screen.getByTestId("inbox-toggle-selection-mode"));
+    fireEvent.click(screen.getByTestId("inbox-select-all"));
+    fireEvent.click(screen.getByTestId("inbox-delete-selected"));
+    fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
+
+    await waitFor((): void => {
+      expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
+        messageIds: ["m3", "m2", "m1"],
+      });
+    });
+  });
+
+  /**
+   * Given a category filter is active
+   * When the player ticks Select all
+   * Then only the messages in that category are selected.
+   */
+  it("selects only the filtered messages with Select all", async (): Promise<void> => {
+    await renderInboxTab({
+      gameState: createGameState([
+        createMessage({ id: "m1", subject: "Contract news", category: "Contract", read: true }),
+        createMessage({ id: "m2", subject: "Injury news", category: "Injury", read: true }),
+      ]),
+    });
+
+    fireEvent.click(screen.getByTestId("inbox-toggle-selection-mode"));
+    fireEvent.click(screen.getByText(/inbox\.categories\.Injury/));
+    fireEvent.click(screen.getByTestId("inbox-select-all"));
+
+    expect(screen.getByTestId("inbox-select-message-m2")).toBeChecked();
+    fireEvent.click(screen.getByText("common.all", { exact: false }));
+    expect(screen.getByTestId("inbox-select-message-m1")).not.toBeChecked();
+  });
+
+  /**
+   * Given every message is selected
+   * When the player unticks Select all
+   * Then nothing is selected and Delete is disabled.
+   */
+  it("clears the selection when Select all is unticked", async (): Promise<void> => {
+    await renderInboxTab({
+      gameState: createGameState([
+        createMessage({ id: "m1", read: true }),
+        createMessage({ id: "m2", read: true }),
+      ]),
+    });
+
+    fireEvent.click(screen.getByTestId("inbox-toggle-selection-mode"));
+    fireEvent.click(screen.getByTestId("inbox-select-all"));
+    expect(screen.getByTestId("inbox-select-all")).toBeChecked();
+    fireEvent.click(screen.getByTestId("inbox-select-all"));
+
+    expect(screen.getByTestId("inbox-select-all")).not.toBeChecked();
+    expect(screen.getByTestId("inbox-delete-selected")).toBeDisabled();
+  });
+
+  /**
+   * Given selection mode is off
+   * When the toolbar renders
+   * Then there is no Select all control.
+   */
+  it("offers Select all only in selection mode", async (): Promise<void> => {
+    await renderInboxTab({ gameState: createGameState([createMessage({ read: true })]) });
+
+    expect(screen.queryByTestId("inbox-select-all")).not.toBeInTheDocument();
+  });
+
   it("navigates to a team route without resolving the message action", async (): Promise<void> => {
     const onNavigate = vi.fn();
     const action: MessageAction = {

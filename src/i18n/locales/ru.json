@@ -1174,6 +1174,7 @@
     "sortNewest": "Сначала новые",
     "sortOldest": "Сначала старые",
     "selectMessages": "Выбрать сообщения",
+    "selectAll": "Выбрать все",
     "cancelSelection": "Отменить выбор",
     "selectedCount": "Выбрано: {{count}}",
     "deleteSelected": "Удалить выбранные",

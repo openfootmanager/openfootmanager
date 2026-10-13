@@ -25,6 +25,7 @@ import {
   isNavigateAction,
   type MessageSortOrder,
   sortInboxMessages,
+  toggleVisibleSelection,
 } from "./inboxHelpers";
 
 const EMPTY_MESSAGES: MessageData[] = [];
@@ -259,6 +260,15 @@ export default function InboxTab({
     });
   }
 
+  function handleToggleSelectAll(): void {
+    setSelectedMessageIds((currentIds) =>
+      toggleVisibleSelection(
+        currentIds,
+        filteredMessages.map((message) => message.id),
+      ),
+    );
+  }
+
   function handleToggleMessageSelection(messageId: string): void {
     setSelectedMessageIds((currentIds) => {
       if (currentIds.includes(messageId)) {
@@ -335,6 +345,12 @@ export default function InboxTab({
         categoryCounts={categoryCounts}
         categoryFilter={categoryFilter}
         selectedMessageCount={selectedMessageIds.length}
+        visibleMessageCount={filteredMessages.length}
+        allVisibleSelected={
+          filteredMessages.length > 0 &&
+          filteredMessages.every((message) => selectedMessageIds.includes(message.id))
+        }
+        onToggleSelectAll={handleToggleSelectAll}
         sortOrder={sortOrder}
         unreadCount={unreadCount}
         onClearOld={() => {

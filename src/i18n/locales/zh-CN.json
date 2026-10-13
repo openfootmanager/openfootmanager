@@ -1174,6 +1174,7 @@
     "sortNewest": "最新优先",
     "sortOldest": "最早优先",
     "selectMessages": "选择消息",
+    "selectAll": "全选",
     "cancelSelection": "取消选择",
     "selectedCount": "已选 {{count}} 条",
     "deleteSelected": "删除所选",
