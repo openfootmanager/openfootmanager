@@ -161,8 +161,12 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
     if (roleFilter && s.role !== roleFilter) return false;
     if (search.length >= 2) {
       const q = search.toLowerCase();
-      const fullName = `${s.first_name} ${s.last_name}`.toLowerCase();
-      if (!fullName.includes(q)) return false;
+      // The name shown and the full name both find the person; which one is shown is the
+      // backend's call (`display_name`).
+      const names = [s.display_name, `${s.first_name} ${s.last_name}`].map((name) =>
+        name.toLowerCase(),
+      );
+      if (!names.some((name) => name.includes(q))) return false;
     }
     return true;
   });
@@ -309,7 +313,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 uppercase tracking-wide truncate">
-                            {staff.first_name} {staff.last_name}
+                            {staff.display_name}
                           </h3>
                           <Badge
                             variant={ovr >= 65 ? "success" : ovr >= 45 ? "primary" : "neutral"}

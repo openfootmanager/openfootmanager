@@ -74,6 +74,7 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
     id: "staff-1",
     first_name: "Alex",
     last_name: "Coach",
+    display_name: "Alex Coach",
     date_of_birth: "1980-01-01",
     nationality: "GB",
     role: "Coach",
@@ -294,6 +295,7 @@ describe("StaffTab", () => {
         id: "staff-2",
         first_name: "Sam",
         last_name: "Scout",
+        display_name: "Sam Scout",
         role: "Scout",
         team_id: null,
       }),
@@ -301,6 +303,7 @@ describe("StaffTab", () => {
         id: "staff-3",
         first_name: "Pat",
         last_name: "Physio",
+        display_name: "Pat Physio",
         role: "Physio",
         team_id: null,
       }),
@@ -482,5 +485,59 @@ describe("StaffTab", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open scouting workflow" }));
 
     expect(onNavigate).toHaveBeenCalledWith("Scouting");
+  });
+
+  /**
+   * Given a staff member known as "Cafu" whose full name is Marcos Evangelista
+   * When the staff card is drawn
+   * Then it shows the backend's display name, not the first and last name put together.
+   */
+  it("shows the staff member's display name on their card", async () => {
+    const known = createStaff({
+      id: "staff-cafu",
+      first_name: "Marcos",
+      last_name: "Evangelista",
+      display_name: "Cafu",
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff") return makeStaffSlice([known]);
+      return createGameState([known]);
+    });
+
+    render(<StaffTab gameState={createGameState([known])} />);
+
+    const card = await screen.findByTestId("staff-card-staff-cafu");
+    expect(within(card).getByText("Cafu")).toBeInTheDocument();
+    expect(within(card).queryByText("Marcos Evangelista")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given an available staff member known as "Cafu" (Marcos Evangelista)
+   * When the manager searches by either name
+   * Then the staff member is found.
+   */
+  it("finds a known-as staff member by their display name or their full name", async () => {
+    const known = createStaff({
+      id: "staff-cafu",
+      first_name: "Marcos",
+      last_name: "Evangelista",
+      display_name: "Cafu",
+      role: "Scout",
+      team_id: null,
+    });
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_staff") return makeStaffSlice([known]);
+      return createGameState([known]);
+    });
+    render(<StaffTab gameState={createGameState([known])} />);
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Available 1/i })).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Available 1/i }));
+
+    for (const query of ["cafu", "evangelista"]) {
+      fireEvent.change(screen.getByPlaceholderText("Search staff"), { target: { value: query } });
+      expect(screen.getByText("Cafu")).toBeInTheDocument();
+    }
   });
 });

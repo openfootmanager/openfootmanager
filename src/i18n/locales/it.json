@@ -791,6 +791,7 @@
     "myTactics": "Le mie tattiche",
     "newTactic": "Nuova tattica",
     "duplicateTactic": "Duplica",
+    "resetTactic": "Ripristina predefiniti",
     "saveAsTactic": "Salva come tattica",
     "updateTactic": "Aggiorna tattica",
     "tacticSaved": "Salvato",
@@ -1193,6 +1194,7 @@
     "sortNewest": "Più recenti prima",
     "sortOldest": "Meno recenti prima",
     "selectMessages": "Seleziona messaggi",
+    "selectAll": "Seleziona tutto",
     "cancelSelection": "Annulla selezione",
     "selectedCount": "{{count}} selezionato/i",
     "deleteSelected": "Elimina selezionati",
@@ -1987,6 +1989,14 @@
     "benchPlayers": "Giocatori in panchina",
     "selectBenchToCompare": "Seleziona una riserva da confrontare",
     "confirmSubstitution": "Conferma sostituzione",
+    "queueSubstitution": "Aggiungi alla coda",
+    "queuedSubstitutions": "Sostituzioni in coda",
+    "confirmAllSubstitutions": "Conferma tutte ({{count}})",
+    "confirmSubstitutions": "Conferma {{count}} sostituzioni",
+    "removeQueuedSubstitution": "Rimuovi {{off}} → {{on}} dalla coda",
+    "alreadyQueued": "Già in coda per una sostituzione",
+    "substitutionsPartlyMade": "{{applied}} sostituzioni su {{total}} effettuate",
+    "substitutionRefused": "Sostituzione rifiutata: {{off}} per {{on}}. {{reason}}",
     "noBenchAvailable": "Nessun giocatore disponibile in panchina",
     "history": "Cronologia",
     "player": "Giocatore",
@@ -2575,7 +2585,10 @@
     "yourResult": "Il tuo risultato",
     "continue": "Continua",
     "notableUpset": "Sorpresa del turno",
-    "pts": "pts."
+    "pts": "pts.",
+    "cupPenalties": "({{home}}–{{away}} ai rigori)",
+    "cupAdvances": "{{team}} passa il turno",
+    "cupTiesPending": "Alcune sfide sono ancora da giocare"
   },
   "notifications": {
     "attentionRequired": "Attenzione Richiesta",
@@ -3637,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Carriera di {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Questo pacchetto definisce il paese \"{{name}}\" ({{code}}) fuori dall'elenco dei paesi del gioco e non lo colloca in nessuna confederazione, quindi i suoi club sono archiviati in Europa. Assegnagli una confederazione."
+      }
     }
   },
   "traits": {
@@ -3884,6 +3902,7 @@
     "saveSuccess": "Salvato",
     "saveTeam": "Salva squadra",
     "issues": "{{count}} problema/i",
+    "warnings": "{{count}} avviso/i",
     "packageId": "ID Pacchetto",
     "packageName": "Nome Pacchetto",
     "description": "Descrizione",
@@ -4042,6 +4061,7 @@
     "openPackageFileInvalid": "Seleziona un file di pacchetto .ofm valido",
     "noItemSelected": "Seleziona un elemento dall'elenco o fai clic su Aggiungi",
     "issuesBadge": "{{count}} problema/i",
+    "warningsBadge": "{{count}} avvisi",
     "issuesTitle": "Problemi di validazione",
     "noIssues": "Nessun problema — il mondo è valido",
     "saving": "Salvataggio…",
@@ -4116,6 +4136,8 @@
     "staffId": "ID",
     "staffFirstName": "Nome",
     "staffLastName": "Cognome",
+    "staffKnownAs": "Noto come (facoltativo)",
+    "staffKnownAsPlaceholder": "es. Cafu",
     "staffClub": "Club",
     "staffNationality": "Nazionalità",
     "staffDateOfBirth": "Data di nascita",

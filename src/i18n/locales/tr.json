@@ -724,6 +724,7 @@
     "myTactics": "Taktiklerim",
     "newTactic": "Yeni taktik",
     "duplicateTactic": "Çoğalt",
+    "resetTactic": "Varsayılana sıfırla",
     "saveAsTactic": "Taktik olarak kaydet",
     "updateTactic": "Taktiği güncelle",
     "tacticSaved": "Kaydedildi",
@@ -1174,6 +1175,7 @@
     "sortNewest": "Önce en yeni",
     "sortOldest": "Önce en eski",
     "selectMessages": "Mesaj seç",
+    "selectAll": "Tümünü seç",
     "cancelSelection": "Seçimi iptal et",
     "selectedCount": "{{count}} seçildi",
     "deleteSelected": "Seçilenleri sil",
@@ -1972,6 +1974,14 @@
     "quickTacticalTweaks": "Hızlı taktik ayarları",
     "selectBenchToCompare": "Karşılaştırmak için bir yedek oyuncu seç",
     "confirmSubstitution": "Değişikliği onayla",
+    "queueSubstitution": "Kuyruğa ekle",
+    "queuedSubstitutions": "Sıradaki oyuncu değişiklikleri",
+    "confirmAllSubstitutions": "Tümünü onayla ({{count}})",
+    "confirmSubstitutions": "{{count}} değişikliği onayla",
+    "removeQueuedSubstitution": "{{off}} → {{on}} değişikliğini kuyruktan kaldır",
+    "alreadyQueued": "Zaten bir oyuncu değişikliği için sırada",
+    "substitutionsPartlyMade": "{{total}} değişiklikten {{applied}} tanesi yapıldı",
+    "substitutionRefused": "Oyuncu değişikliği reddedildi: {{off}} yerine {{on}}. {{reason}}",
     "noBenchAvailable": "Uygun yedek oyuncu yok",
     "history": "Geçmiş",
     "player": "Oyuncu",
@@ -2556,7 +2566,10 @@
     "yourResult": "Sizin Sonucunuz",
     "continue": "Devam Et",
     "notableUpset": "Dikkat Çeken Sürpriz",
-    "pts": "P"
+    "pts": "P",
+    "cupPenalties": "(penaltılarla {{home}}–{{away}})",
+    "cupAdvances": "{{team}} bir üst tura çıktı",
+    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",
@@ -3637,6 +3650,11 @@
     },
     "save": {
       "defaultName": "{{manager}} Kariyeri"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin."
+      }
     }
   },
   "traits": {
@@ -3884,6 +3902,7 @@
     "saveSuccess": "Kaydedildi",
     "saveTeam": "Takımı Kaydet",
     "issues": "{{count}} sorun",
+    "warnings": "{{count}} uyarı",
     "packageId": "Paket ID'si",
     "packageName": "Paket Adı",
     "description": "Açıklama",
@@ -4042,6 +4061,7 @@
     "openPackageFileInvalid": "Lütfen geçerli bir .ofm paket dosyası seçin",
     "noItemSelected": "Listeden bir öğe seçin veya oluşturmak için Ekle'ye tıklayın",
     "issuesBadge": "{{count}} sorun",
+    "warningsBadge": "{{count}} uyarı",
     "issuesTitle": "Doğrulama Sorunları",
     "noIssues": "Sorun yok — dünya geçerli",
     "saving": "Kaydediliyor…",
@@ -4117,6 +4137,8 @@
     "staffId": "ID",
     "staffFirstName": "Ad",
     "staffLastName": "Soyad",
+    "staffKnownAs": "Bilinen adı (isteğe bağlı)",
+    "staffKnownAsPlaceholder": "örn. Cafu",
     "staffClub": "Kulüp",
     "staffNationality": "Uyruk",
     "staffDateOfBirth": "Doğum Tarihi",

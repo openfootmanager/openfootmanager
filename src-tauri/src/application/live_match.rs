@@ -5,13 +5,18 @@ use domain::league::FixtureStatus;
 use ofm_core::game::Game;
 use ofm_core::live_match_manager::{self, MatchMode};
 use ofm_core::state::StateManager;
+use ofm_core::turn::{build_cup_round_summaries, CupRoundSummary};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FinishLiveMatchResponse {
     pub game: Game,
     pub round_summary: Option<RoundSummaryDto>,
+    #[serde(default)]
+    pub cup_round_summaries: Vec<CupRoundSummary>,
 }
+
+type FinishedDay = (Game, Option<RoundSummaryDto>, Vec<CupRoundSummary>);
 
 pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
     let _operation = super::live_session::operation();
@@ -50,8 +55,8 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     // GUI/MCP write is never clobbered by a stale whole-game clone. Stats
     // captures are appended after the lock is released.
     let mut captures = Vec::new();
-    let (game, round_summary) = state
-        .update_game(|game| -> Result<(Game, Option<RoundSummaryDto>), String> {
+    let (game, round_summary, cup_round_summaries) = state
+        .update_game(|game| -> Result<FinishedDay, String> {
             // Check the authoritative competition before changing the legacy
             // mirror. A stale session must not replay a completed fixture or
             // leave the mirror pointing at a cup when finish is rejected.
@@ -126,6 +131,9 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
             let summary_context = league_round_context
                 .or_else(|| ofm_core::matchday::user_league_round_context(game));
 
+            // The sweep advances the clock, and the cup summary is scoped to the day just played.
+            let played_on = game.clock.current_date.format("%Y-%m-%d").to_string();
+
             ofm_core::turn::finish_live_match_day_with_capture(game, &mut |capture| {
                 captures.push(capture)
             });
@@ -138,7 +146,9 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
             let round_summary =
                 summary_context.and_then(|context| build_round_summary_dto(game, &context));
 
-            Ok((game.clone(), round_summary))
+            let cup_round_summaries = build_cup_round_summaries(game, &played_on);
+
+            Ok((game.clone(), round_summary, cup_round_summaries))
         })
         .ok_or("be.error.noActiveGameSession")??;
     for capture in captures {
@@ -148,6 +158,7 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
     Ok(FinishLiveMatchResponse {
         game,
         round_summary,
+        cup_round_summaries,
     })
 }
 

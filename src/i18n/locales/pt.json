@@ -772,6 +772,7 @@
     "myTactics": "As minhas táticas",
     "newTactic": "Nova tática",
     "duplicateTactic": "Duplicar",
+    "resetTactic": "Repor predefinições",
     "saveAsTactic": "Guardar como tática",
     "updateTactic": "Atualizar tática",
     "tacticSaved": "Guardado",
@@ -1174,6 +1175,7 @@
     "sortNewest": "Mais recentes primeiro",
     "sortOldest": "Mais antigas primeiro",
     "selectMessages": "Selecionar mensagens",
+    "selectAll": "Selecionar tudo",
     "cancelSelection": "Cancelar seleção",
     "selectedCount": "{{count}} selecionada(s)",
     "deleteSelected": "Eliminar selecionadas",
@@ -1968,6 +1970,14 @@
     "benchPlayers": "Jogadores do banco",
     "selectBenchToCompare": "Seleciona um jogador do banco para comparar",
     "confirmSubstitution": "Confirmar substituição",
+    "queueSubstitution": "Adicionar à fila",
+    "queuedSubstitutions": "Substituições em fila",
+    "confirmAllSubstitutions": "Confirmar todas ({{count}})",
+    "confirmSubstitutions": "Confirmar {{count}} substituições",
+    "removeQueuedSubstitution": "Remover {{off}} → {{on}} da fila",
+    "alreadyQueued": "Já está na fila para uma substituição",
+    "substitutionsPartlyMade": "{{applied}} de {{total}} substituições feitas",
+    "substitutionRefused": "Substituição recusada: {{off}} por {{on}}. {{reason}}",
     "noBenchAvailable": "Sem jogadores no banco",
     "history": "Histórico",
     "player": "Jogador",
@@ -2556,7 +2566,10 @@
     "yourResult": "O teu resultado",
     "continue": "Continuar",
     "notableUpset": "Grande surpresa",
-    "pts": "pts"
+    "pts": "pts",
+    "cupPenalties": "({{home}}–{{away}} nos penáltis)",
+    "cupAdvances": "{{team}} passa à eliminatória seguinte",
+    "cupTiesPending": "Ainda faltam eliminatórias por disputar"
   },
   "endOfSeason": {
     "seasonComplete": "Época Completa",
@@ -3637,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Carreira de {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, pelo que os seus clubes ficam na Europa. Atribua-lhe uma confederação."
+      }
     }
   },
   "traits": {
@@ -3884,6 +3902,7 @@
     "saveSuccess": "Guardado",
     "saveTeam": "Guardar equipa",
     "issues": "{{count}} problema(s)",
+    "warnings": "{{count}} aviso(s)",
     "packageId": "ID do Pacote",
     "packageName": "Nome do Pacote",
     "description": "Descrição",
@@ -4042,6 +4061,7 @@
     "openPackageFileInvalid": "Selecione um ficheiro de pacote .ofm válido",
     "noItemSelected": "Selecione um item da lista ou clique em Adicionar",
     "issuesBadge": "{{count}} problema(s)",
+    "warningsBadge": "{{count}} avisos",
     "issuesTitle": "Problemas de validação",
     "noIssues": "Sem problemas — o mundo é válido",
     "saving": "A guardar…",
@@ -4116,6 +4136,8 @@
     "staffId": "ID",
     "staffFirstName": "Nome",
     "staffLastName": "Apelido",
+    "staffKnownAs": "Conhecido como (opcional)",
+    "staffKnownAsPlaceholder": "p. ex. Cafu",
     "staffClub": "Clube",
     "staffNationality": "Nacionalidade",
     "staffDateOfBirth": "Data de nascimento",

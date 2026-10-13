@@ -187,6 +187,10 @@ pub struct StaffDef {
     pub date_of_birth: Option<String>,
     #[serde(default)]
     pub age: Option<u32>,
+    /// What they are called when it differs from their name ("Pep Guardiola" for Josep Guardiola
+    /// i Sala). `firstName`/`lastName` stay the real name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub known_as: Option<String>,
 }
 
 /// Package-level metadata (at most one per package).
@@ -375,7 +379,7 @@ impl WorldPackage {
     /// The file the `index`-th entity of `schema` was declared in, or `""` when
     /// it is not known — a package assembled in memory rather than loaded from
     /// disk has no files to name.
-    fn source_at(&self, schema: &str, index: usize) -> String {
+    pub(super) fn source_at(&self, schema: &str, index: usize) -> String {
         self.sources
             .get(schema)
             .and_then(|files| files.get(index))

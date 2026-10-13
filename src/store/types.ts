@@ -190,6 +190,20 @@ export interface PlayerSeasonStats {
   fouls_committed?: number;
 }
 
+export interface HallOfFameLegendData {
+  player_id: string;
+  full_name: string;
+  nationality: string;
+  football_nation: string;
+  position: string;
+  appearances: number;
+  goals: number;
+  assists: number;
+  titles: number;
+  last_club_name: string | null;
+  final_season: number | null;
+}
+
 export interface CareerEntry {
   season: number;
   team_id: string;
@@ -398,6 +412,8 @@ export interface StaffData {
   id: string;
   first_name: string;
   last_name: string;
+  /** The name to show: the known-as name, or the full name. The backend chooses; never rebuild it. */
+  display_name: string;
   date_of_birth: string;
   nationality: string;
   football_nation?: string;

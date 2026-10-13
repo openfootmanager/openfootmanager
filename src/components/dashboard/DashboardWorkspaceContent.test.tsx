@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fetchRetiredPlayer } from "../../services/retireesService";
 import type { GameStateData } from "../../store/gameStore";
 import {
   createDashboardProfileNavigationState,
@@ -8,6 +9,12 @@ import {
 } from "./dashboardProfileNavigation";
 import { createDashboardTabContentModel } from "./dashboardTabContentModel";
 import DashboardWorkspaceContent from "./DashboardWorkspaceContent";
+
+vi.mock("../../services/retireesService", () => ({
+  fetchRetiredPlayer: vi.fn(),
+}));
+
+const mockedFetchRetiredPlayer = vi.mocked(fetchRetiredPlayer);
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -221,7 +228,43 @@ function createGameState(): GameStateData {
   };
 }
 
+function renderWorkspace(
+  gameState: GameStateData,
+  profileNavigation: ReturnType<typeof selectDashboardPlayer>,
+) {
+  return render(
+    <DashboardWorkspaceContent
+      dashboardAlerts={[]}
+      gameState={gameState}
+      profileNavigation={profileNavigation}
+      dashboardTabContentModel={createDashboardTabContentModel({
+        activeTab: "Squad",
+        gameState,
+        seasonComplete: false,
+        visitedOnboardingTabs: new Set<string>(),
+        initialMessageId: null,
+        handlers: {
+          onSelectPlayer: vi.fn(),
+          onSelectTeam: vi.fn(),
+          onGameUpdate: vi.fn(),
+          onNavigate: vi.fn(),
+        },
+      })}
+      onBack={vi.fn()}
+      onNavigate={vi.fn()}
+      onSelectPlayer={vi.fn()}
+      onSelectTeam={vi.fn()}
+      onGameUpdate={vi.fn()}
+      isUnemployed={false}
+    />,
+  );
+}
+
 describe("DashboardWorkspaceContent", () => {
+  beforeEach(() => {
+    mockedFetchRetiredPlayer.mockReset();
+  });
+
   it("renders alerts and tab content when no profile is selected", () => {
     const gameState = createGameState();
     const onNavigate = vi.fn();
@@ -299,6 +342,44 @@ describe("DashboardWorkspaceContent", () => {
     expect(screen.getByText("renewal-open")).toBeInTheDocument();
     expect(screen.getByText("termination-closed")).toBeInTheDocument();
     expect(screen.queryByText("Tab Content Squad")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a player who is not in the roster (a retiree kept in the archive)
+   * When his profile is selected
+   * Then the profile opens from what the backend returns for him
+   */
+  it("opens the profile of a player who is not in the roster by fetching him", async () => {
+    const gameState = createGameState();
+    const archived = { ...gameState.players[0], id: "archived-legend", retired: true };
+    mockedFetchRetiredPlayer.mockResolvedValue(archived);
+    const profileNavigation = selectDashboardPlayer(
+      createDashboardProfileNavigationState("HallOfFame"),
+      "archived-legend",
+    );
+
+    renderWorkspace(gameState, profileNavigation);
+
+    expect(await screen.findByText("Player Profile Mock")).toBeInTheDocument();
+    expect(mockedFetchRetiredPlayer).toHaveBeenCalledWith("archived-legend");
+  });
+
+  /**
+   * Given a player who is in the roster
+   * When his profile is selected
+   * Then nothing is fetched
+   */
+  it("does not fetch a player who is in the roster", () => {
+    const gameState = createGameState();
+    const profileNavigation = selectDashboardPlayer(
+      createDashboardProfileNavigationState("Squad"),
+      gameState.players[0].id,
+    );
+
+    renderWorkspace(gameState, profileNavigation);
+
+    expect(screen.getByText("Player Profile Mock")).toBeInTheDocument();
+    expect(mockedFetchRetiredPlayer).not.toHaveBeenCalled();
   });
 
   it("passes the termination intent to the player profile branch", () => {

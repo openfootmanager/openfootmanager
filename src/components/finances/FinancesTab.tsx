@@ -168,7 +168,9 @@ function FinancesTabLoaded({
   const weeklySuffix = t("finances.perWeekSuffix");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
-  const [selectedRiskPlayerIds, setSelectedRiskPlayerIds] = useState<string[]>([]);
+  // What the manager has switched off, not what is switched on: everyone at risk is selected until
+  // told otherwise, so the default needs no effect to fill it in and no click can beat that effect.
+  const [deselectedRiskPlayerIds, setDeselectedRiskPlayerIds] = useState<string[]>([]);
   const [facilityUpgradeError, setFacilityUpgradeError] =
     useState<FacilityUpgradeErrorState | null>(null);
   const [boardSupportFeedback, setBoardSupportFeedback] = useState<{
@@ -266,42 +268,23 @@ function FinancesTabLoaded({
     (sum, { player }) => sum + weeklyWageAmount(player.wage),
     0,
   );
-  const selectedRiskPlayers = contractRiskPlayers.filter(({ player }) =>
-    selectedRiskPlayerIds.includes(player.id),
+  const selectedRiskPlayers = contractRiskPlayers.filter(
+    ({ player }) => !deselectedRiskPlayerIds.includes(player.id),
   );
   const allRiskPlayerIds = contractRiskPlayers.map(({ player }) => player.id);
 
-  useEffect(() => {
-    setSelectedRiskPlayerIds((currentIds) => {
-      const availableIdSet = new Set(allRiskPlayerIds);
-      const nextIds = currentIds.filter((playerId) => availableIdSet.has(playerId));
-
-      if (nextIds.length > 0) {
-        return nextIds;
-      }
-
-      return allRiskPlayerIds;
-    });
-  }, [allRiskPlayerIds.join("|")]);
-
   function handleToggleRiskPlayer(playerId: string): void {
-    setSelectedRiskPlayerIds((currentIds) => {
-      if (currentIds.includes(playerId)) {
-        return currentIds.filter((currentId) => currentId !== playerId);
-      }
-
-      return [...currentIds, playerId];
-    });
+    setDeselectedRiskPlayerIds((currentIds) =>
+      currentIds.includes(playerId)
+        ? currentIds.filter((currentId) => currentId !== playerId)
+        : [...currentIds, playerId],
+    );
   }
 
   function handleToggleAllRiskPlayers(): void {
-    setSelectedRiskPlayerIds((currentIds) => {
-      if (currentIds.length === allRiskPlayerIds.length) {
-        return [];
-      }
-
-      return allRiskPlayerIds;
-    });
+    setDeselectedRiskPlayerIds(
+      selectedRiskPlayers.length === allRiskPlayerIds.length ? allRiskPlayerIds : [],
+    );
   }
 
   async function handleUpgradeFacility(facility: FacilityId): Promise<void> {
@@ -703,7 +686,7 @@ function FinancesTabLoaded({
                     >
                       <div className="flex items-start gap-3">
                         <Checkbox
-                          checked={selectedRiskPlayerIds.includes(player.id)}
+                          checked={!deselectedRiskPlayerIds.includes(player.id)}
                           onChange={() => handleToggleRiskPlayer(player.id)}
                           aria-label={t("finances.selectRiskPlayer", {
                             player: player.full_name,

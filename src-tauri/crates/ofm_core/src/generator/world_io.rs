@@ -78,6 +78,11 @@ fn normalize_world(mut world: WorldData) -> WorldData {
         &mut world.staff,
     );
     crate::football_identity::upgrade_world_manager_identities(&world.teams, &mut world.managers);
+    // A world file written before the display name existed carries none.
+    world
+        .staff
+        .iter_mut()
+        .for_each(domain::staff::Staff::refresh_display_name);
     if world.competitions.is_empty()
         && let Some(league) = world.league.clone()
     {
@@ -217,11 +222,35 @@ pub fn build_world_from_package(
     opening_year: Option<u32>,
     sources: &super::DefinitionSources,
 ) -> Result<WorldData, String> {
-    let world = normalize_world(super::build_world_data_from_package(
-        package,
-        opening_year,
-        sources,
-    ));
+    let world = super::build_world_data_from_package(package, opening_year, sources);
+    finish_package_world(package, world)
+}
+
+/// [`build_world_from_package`] from `seed`: the same package, year and seed give the same world.
+pub fn build_world_from_package_seeded(
+    seed: u64,
+    package: &super::package::WorldPackage,
+    opening_year: Option<u32>,
+    sources: &super::DefinitionSources,
+) -> Result<WorldData, String> {
+    use rand::{RngExt, SeedableRng};
+    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+    let mut world =
+        super::build_world_data_from_package_with_rng(package, opening_year, sources, &mut rng);
+    // The world's identity is part of the world: left empty it is a fresh UUID per build.
+    world.metadata.world_id = uuid::Builder::from_random_bytes(rng.random())
+        .into_uuid()
+        .to_string();
+    let mut world = finish_package_world(package, world)?;
+    world.generation_seed = Some(seed);
+    Ok(world)
+}
+
+fn finish_package_world(
+    package: &super::package::WorldPackage,
+    world: WorldData,
+) -> Result<WorldData, String> {
+    let world = normalize_world(world);
     // Ranked by the package's authored reputations, as `resolve_definitions_ranked` will be when a
     // career starts, so a package that builds here is not refused there on a reputation roll.
     let authored = super::authored_reputations(package);
@@ -502,6 +531,36 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+
+    /// Given a world file whose staff predate the display name (no `display_name` in their JSON)
+    /// When it is loaded
+    /// Then each is displayed by their known-as name or their full name, not left blank (#557).
+    #[test]
+    fn a_world_file_without_display_names_gets_them_on_load() {
+        let json = r#"{"staff":[
+            {"id":"s1","first_name":"Josep","last_name":"Guardiola i Sala","date_of_birth":"1971-01-18",
+             "nationality":"ES","role":"Coach","known_as":"Pep Guardiola",
+             "attributes":{"coaching":80,"judgingAbility":50,"judgingPotential":50,"physiotherapy":10},
+             "team_id":null},
+            {"id":"s2","first_name":"Alice","last_name":"Coach","date_of_birth":"1980-05-10",
+             "nationality":"GB","role":"Physio",
+             "attributes":{"coaching":80,"judgingAbility":50,"judgingPotential":50,"physiotherapy":10},
+             "team_id":null}]}"#;
+
+        let world = load_world_from_json(json).expect("the world loads");
+
+        let name = |id: &str| {
+            world
+                .staff
+                .iter()
+                .find(|s| s.id == id)
+                .unwrap()
+                .display_name
+                .clone()
+        };
+        assert_eq!(name("s1"), "Pep Guardiola");
+        assert_eq!(name("s2"), "Alice Coach");
     }
 
     #[test]
@@ -1210,5 +1269,69 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Given a package and a seed,
+    /// When a world is built from them twice,
+    /// Then it is the same world, ids included, it records the seed, and another seed gives
+    ///      another world.
+    #[test]
+    fn a_seed_builds_the_same_package_world_ids_included() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../docs/modding/examples/classic-sixteen");
+        let (package, errors) = crate::generator::load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        let everything = |world: &WorldData| {
+            serde_json::to_value((&world.teams, &world.players, &world.staff))
+                .unwrap()
+                .to_string()
+        };
+
+        let one = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let again = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let other = build_world_from_package_seeded(6, &package, Some(2033), &sources).unwrap();
+
+        assert_eq!(one.generation_seed, Some(5));
+        assert_eq!(everything(&one), everything(&again));
+        assert_ne!(everything(&one), everything(&other));
+        assert_eq!(one.metadata.world_id, again.metadata.world_id);
+        let world_id = uuid::Uuid::parse_str(&one.metadata.world_id).expect("a world id is a UUID");
+        assert_eq!(
+            world_id.get_version_num(),
+            4,
+            "a seeded id is still a version 4 UUID"
+        );
+        assert_ne!(one.metadata.world_id, other.metadata.world_id);
+    }
+
+    /// Given a package of one club and no competitions, which the builder pads with generated
+    ///       opponents,
+    /// When it is built twice from one seed,
+    /// Then the padding is the same too — clubs, players and staff — so the dice drawn for it come
+    ///      from the seed like every other.
+    #[test]
+    fn a_seed_builds_the_same_padded_one_club_package() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../docs/modding/examples/classic-sixteen");
+        let (mut package, errors) = crate::generator::load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        package.teams.truncate(1);
+        package.competitions.clear();
+        package.players.clear();
+        let everything = |world: &WorldData| {
+            serde_json::to_value((&world.teams, &world.players, &world.staff))
+                .unwrap()
+                .to_string()
+        };
+
+        let one = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let again = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let other = build_world_from_package_seeded(6, &package, Some(2033), &sources).unwrap();
+
+        assert!(one.teams.len() > 1, "the opponents were generated");
+        assert_eq!(everything(&one), everything(&again));
+        assert_ne!(everything(&one), everything(&other));
     }
 }

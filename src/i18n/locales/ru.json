@@ -772,6 +772,7 @@
     "myTactics": "Мои тактики",
     "newTactic": "Новая тактика",
     "duplicateTactic": "Дублировать",
+    "resetTactic": "Сбросить к исходным",
     "saveAsTactic": "Сохранить как тактику",
     "updateTactic": "Обновить тактику",
     "tacticSaved": "Сохранено",
@@ -1174,6 +1175,7 @@
     "sortNewest": "Сначала новые",
     "sortOldest": "Сначала старые",
     "selectMessages": "Выбрать сообщения",
+    "selectAll": "Выбрать все",
     "cancelSelection": "Отменить выбор",
     "selectedCount": "Выбрано: {{count}}",
     "deleteSelected": "Удалить выбранные",
@@ -1968,6 +1970,14 @@
     "benchPlayers": "Игроки на скамейке",
     "selectBenchToCompare": "Выберите запасного для сравнения",
     "confirmSubstitution": "Подтвердить замену",
+    "queueSubstitution": "Добавить в очередь",
+    "queuedSubstitutions": "Замены в очереди",
+    "confirmAllSubstitutions": "Подтвердить все ({{count}})",
+    "confirmSubstitutions": "Подтвердить замен: {{count}}",
+    "removeQueuedSubstitution": "Убрать {{off}} → {{on}} из очереди",
+    "alreadyQueued": "Уже в очереди на замену",
+    "substitutionsPartlyMade": "Выполнено замен: {{applied}} из {{total}}",
+    "substitutionRefused": "Замена отклонена: {{off}} на {{on}}. {{reason}}",
     "noBenchAvailable": "На скамейке нет игроков",
     "history": "Ход матча",
     "player": "Игрок",
@@ -2556,7 +2566,10 @@
     "yourResult": "Ваш результат",
     "continue": "Продолжить",
     "notableUpset": "Неожиданный результат",
-    "pts": "очк."
+    "pts": "очк.",
+    "cupPenalties": "({{home}}–{{away}} по пенальти)",
+    "cupAdvances": "{{team}} проходит дальше",
+    "cupTiesPending": "Некоторые матчи ещё не сыграны"
   },
   "endOfSeason": {
     "seasonComplete": "Сезон завершён",
@@ -3637,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Карьера {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Этот пакет определяет страну «{{name}}» ({{code}}), которой нет в списке стран игры, и не относит её ни к одной конфедерации, поэтому её клубы попадают в Европу. Назначьте ей конфедерацию."
+      }
     }
   },
   "traits": {
@@ -3884,6 +3902,7 @@
     "saveSuccess": "Сохранено",
     "saveTeam": "Сохранить команду",
     "issues": "{{count}} ошибок(а)",
+    "warnings": "Предупреждений: {{count}}",
     "packageId": "ID Пакета",
     "packageName": "Название Пакета",
     "description": "Описание",
@@ -4042,6 +4061,7 @@
     "openPackageFileInvalid": "Выберите допустимый файл пакета .ofm",
     "noItemSelected": "Выберите элемент из списка или нажмите Добавить",
     "issuesBadge": "{{count}} проблем(а)",
+    "warningsBadge": "Предупреждений: {{count}}",
     "issuesTitle": "Ошибки валидации",
     "noIssues": "Нет проблем — мир действителен",
     "saving": "Сохранение…",
@@ -4116,6 +4136,8 @@
     "staffId": "ID",
     "staffFirstName": "Имя",
     "staffLastName": "Фамилия",
+    "staffKnownAs": "Известен как (необязательно)",
+    "staffKnownAsPlaceholder": "напр. Кафу",
     "staffClub": "Клуб",
     "staffNationality": "Национальность",
     "staffDateOfBirth": "Дата рождения",
