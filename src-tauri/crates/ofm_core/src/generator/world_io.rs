@@ -1260,4 +1260,34 @@ mod tests {
         assert_eq!(everything(&one), everything(&again));
         assert_ne!(everything(&one), everything(&other));
     }
+
+    /// Given a package of one club and no competitions, which the builder pads with generated
+    ///       opponents,
+    /// When it is built twice from one seed,
+    /// Then the padding is the same too — clubs, players and staff — so the dice drawn for it come
+    ///      from the seed like every other.
+    #[test]
+    fn a_seed_builds_the_same_padded_one_club_package() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../docs/modding/examples/classic-sixteen");
+        let (mut package, errors) = crate::generator::load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        package.teams.truncate(1);
+        package.competitions.clear();
+        package.players.clear();
+        let everything = |world: &WorldData| {
+            serde_json::to_value((&world.teams, &world.players, &world.staff))
+                .unwrap()
+                .to_string()
+        };
+
+        let one = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let again = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let other = build_world_from_package_seeded(6, &package, Some(2033), &sources).unwrap();
+
+        assert!(one.teams.len() > 1, "the opponents were generated");
+        assert_eq!(everything(&one), everything(&again));
+        assert_ne!(everything(&one), everything(&other));
+    }
 }
