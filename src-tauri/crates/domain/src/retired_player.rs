@@ -2,7 +2,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::contract_ledger::MovementLedger;
 use crate::player::{
     CareerEntry, Footedness, Player, PlayerAttributes, PlayerMedia, PlayerMovementEntry,
     PlayerMovementKind, Position,
@@ -68,7 +67,13 @@ impl RetiredPlayer {
         player.ovr = self.ovr;
         player.potential = self.potential;
         player.career = self.career.clone();
-        player.movement_history = MovementLedger::restore(self.movements.clone(), None, None, 0);
+        for movement in &self.movements {
+            // Each entry was accepted once already; one refused now means a damaged record,
+            // and a profile without that entry beats no profile.
+            if player.record_movement(movement.clone()).is_err() {
+                continue;
+            }
+        }
         player.retired = true;
         player
     }
