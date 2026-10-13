@@ -7,6 +7,7 @@
 use std::collections::BTreeSet;
 
 use domain::league::FixtureStatus;
+use domain::message::InboxMessage;
 use ofm_core::end_of_season::EndOfSeasonSummary;
 use ofm_core::game::Game;
 use ofm_core::squad_floor::{can_put_a_side_out, squad_shortfall};
@@ -60,14 +61,64 @@ impl SeasonObserver for SquadFloorWatch {
     }
 }
 
-/// The rule for the player's own club, which the game never signs for: at kick-off it can still
-/// put a side out (the kick-off gate tops it up only when it cannot).
+/// The rule for the player's own club, which the game never signs for: it is warned when it goes
+/// below the floor and again whenever its shortfall changes (never a repeat for an unchanged one,
+/// so the inbox is not flooded), and at kick-off it can still put a side out (the kick-off gate
+/// tops it up only when it cannot).
 #[derive(Default)]
 struct PlayerClubWatch {
+    shortfall: String,
+    changed_on: String,
+    reported: bool,
     problems: Vec<String>,
 }
 
+const SQUAD_WARNING_KEY: &str = "be.msg.squadBelowFloor";
+
+fn is_squad_warning(message: &InboxMessage) -> bool {
+    message
+        .body_key
+        .as_deref()
+        .is_some_and(|key| key.starts_with(SQUAD_WARNING_KEY))
+}
+
 impl PlayerClubWatch {
+    fn check_warning(&mut self, game: &Game, club: &str, today: &str, season: u32, day: u32) {
+        let shortfall = squad_shortfall(game, club);
+        let described = if shortfall.is_empty() {
+            String::new()
+        } else {
+            format!("{shortfall:?}")
+        };
+        if described != self.shortfall {
+            self.shortfall = described;
+            self.changed_on = today.to_string();
+            self.reported = false;
+        }
+        if shortfall.is_empty() || self.reported {
+            return;
+        }
+        // The daily check that warns runs after the day that changed the squad, so a change gets
+        // one day's grace before a missing warning counts.
+        let warned = game.messages.iter().any(|message| {
+            message.date.as_str() >= self.changed_on.as_str() && is_squad_warning(message)
+        });
+        if !warned && self.changed_on.as_str() < today {
+            let last_warning = game
+                .messages
+                .iter()
+                .filter(|message| is_squad_warning(message))
+                .map(|message| message.date.as_str())
+                .max()
+                .unwrap_or("never");
+            self.reported = true;
+            self.problems.push(format!(
+                "[season {season} day {day}] {club}'s shortfall changed on {} to {} and was not warned about (last warning: {last_warning})",
+                self.changed_on, self.shortfall
+            ));
+        }
+    }
+
     fn check_kick_off(&mut self, game: &Game, club: &str, today: &str, season: u32, day: u32) {
         let played_today = game
             .competitions
@@ -92,12 +143,60 @@ impl SeasonObserver for PlayerClubWatch {
             return;
         };
         let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        self.check_warning(game, &club, &today, season, day);
         self.check_kick_off(game, &club, &today, season, day);
     }
 }
 
 fn players_club(game: &Game) -> String {
     game.manager.team_id.clone().expect("the player has a club")
+}
+
+fn drop_midfielders(game: &mut Game, club: &str) {
+    game.players.retain(|player| {
+        player.team_id.as_deref() != Some(club)
+            || player.position != domain::player::Position::Midfielder
+    });
+}
+
+fn a_warning_for(game: &Game) -> InboxMessage {
+    InboxMessage::new(
+        "squad_below_floor_test".to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        game.clock.current_date.format("%Y-%m-%d").to_string(),
+    )
+    .with_i18n(
+        &format!("{SQUAD_WARNING_KEY}.subject"),
+        &format!("{SQUAD_WARNING_KEY}.body"),
+        std::collections::HashMap::new(),
+    )
+}
+
+/// Given the player's club has fallen below the floor and nobody has warned them,
+/// When two days pass,
+/// Then the watch reports it; with the warning sent it does not.
+#[test]
+#[ignore = "nightly tier"]
+fn the_player_club_below_the_floor_must_have_been_warned() {
+    let mut game = WorldSpec::gate(1).build().expect("the world builds");
+    let club = players_club(&game);
+    drop_midfielders(&mut game, &club);
+    let mut silent = PlayerClubWatch::default();
+    silent.on_day_end(&game, 1, 1);
+    assert!(silent.problems.is_empty(), "one day's grace");
+    game.clock.advance_days(1);
+    silent.on_day_end(&game, 1, 2);
+    assert_eq!(silent.problems.len(), 1, "{:?}", silent.problems);
+
+    let mut warned = PlayerClubWatch::default();
+    let warning = a_warning_for(&game);
+    game.messages.push(warning);
+    warned.on_day_end(&game, 1, 1);
+    game.clock.advance_days(1);
+    warned.on_day_end(&game, 1, 2);
+    assert!(warned.problems.is_empty(), "{:?}", warned.problems);
 }
 
 /// Given the player's club has only ten seniors and a fixture today that is completed,
@@ -197,11 +296,30 @@ fn five_seasons_leave_no_club_below_the_squad_floor() {
             "seed {seed} left clubs below the floor:\n{}",
             watch.breaches.join("\n")
         );
+        let (unwarned, unplayable): (Vec<_>, Vec<_>) = player_club
+            .problems
+            .iter()
+            .partition(|problem| problem.contains("was not warned about"));
         assert!(
-            player_club.problems.is_empty(),
+            unplayable.is_empty(),
             "seed {seed}: the player's club was not looked after:\n{}",
-            player_club.problems.join("\n")
+            unplayable
+                .iter()
+                .map(|problem| problem.as_str())
+                .collect::<Vec<_>>()
+                .join("\n")
         );
+        expect_bug(787, "was not warned about", || {
+            assert!(
+                unwarned.is_empty(),
+                "seed {seed}: the player's club:\n{}",
+                unwarned
+                    .iter()
+                    .map(|problem| problem.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            );
+        });
         let others = invariants.report_except(CLUB_RESTS_BETWEEN_MATCHES);
         assert!(
             others.is_empty(),
