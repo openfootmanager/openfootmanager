@@ -117,6 +117,11 @@ struct SeasonTimer {
     last: Option<Instant>,
     club_fixtures: usize,
     with_report: usize,
+    /// Settled by scoreline during the career, which is what a dormant competition does today.
+    without_report_during_career: usize,
+    /// Dated before the career began: the world builder's catch-up, which the same way settles
+    /// by scoreline.
+    without_report_before_career: usize,
     national_fixtures: usize,
 }
 
@@ -131,7 +136,10 @@ impl SeasonObserver for SeasonTimer {
         let now = Instant::now();
         let before = self.last.unwrap_or(now);
         self.started.get_or_insert(before);
-        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        // The driver has already moved the clock on, so the day just played is yesterday.
+        let today = (game.clock.current_date - chrono::Duration::days(1))
+            .format("%Y-%m-%d")
+            .to_string();
         let matches_played = game
             .competitions
             .iter()
@@ -147,6 +155,7 @@ impl SeasonObserver for SeasonTimer {
     }
 
     fn on_before_rollover(&mut self, game: &Game, _season: u32) {
+        let began = game.clock.start_date.format("%Y-%m-%d").to_string();
         for competition in &game.competitions {
             let completed = competition
                 .fixtures
@@ -158,12 +167,14 @@ impl SeasonObserver for SeasonTimer {
             }
             for fixture in completed {
                 self.club_fixtures += 1;
-                if fixture
+                let has_report = fixture
                     .result
                     .as_ref()
-                    .is_some_and(|result| result.report.is_some())
-                {
-                    self.with_report += 1;
+                    .is_some_and(|result| result.report.is_some());
+                match (has_report, fixture.date.as_str() < began.as_str()) {
+                    (true, _) => self.with_report += 1,
+                    (false, true) => self.without_report_before_career += 1,
+                    (false, false) => self.without_report_during_career += 1,
                 }
             }
         }
@@ -195,11 +206,12 @@ fn report(label: &str, timer: &SeasonTimer, total: Duration) {
         .max_by_key(|day| day.took)
         .expect("a season has days");
     eprintln!(
-        "P1 {label}: season in {total:.1?} over {} days; club fixtures {} ({} with a match report, {} settled by scoreline); national-team fixtures {}",
+        "P1 {label}: season in {total:.1?} over {} days; club fixtures {} ({} with a match report, {} settled by scoreline during the career, {} before it by the world builder's catch-up); national-team fixtures {}",
         timer.days.len(),
         timer.club_fixtures,
         timer.with_report,
-        timer.club_fixtures - timer.with_report,
+        timer.without_report_during_career,
+        timer.without_report_before_career,
         timer.national_fixtures
     );
     eprintln!(
