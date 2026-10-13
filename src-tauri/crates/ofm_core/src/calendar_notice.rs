@@ -9,7 +9,8 @@ use crate::inbox;
 
 /// Sends the user one message about the matches of their club among `moves`, unless there are
 /// none or `event_key` has been announced before. `event_key` names the event (a day's sweep, a
-/// rollover) and is the message id, so the sent-ledger dedupes it.
+/// rollover) and is the message id, so the sent-ledger dedupes it. Keys follow one convention:
+/// `postponed_rollover_<date>` for the season rollover, `postponed_<date>` for a day's sweep.
 pub(crate) fn announce_moved_matches(game: &mut Game, event_key: &str, moves: &[Move]) {
     let Some(user_team_id) = game.manager.team_id.clone() else {
         return;

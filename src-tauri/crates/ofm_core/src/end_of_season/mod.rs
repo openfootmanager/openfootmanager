@@ -1618,6 +1618,41 @@ mod tests {
         );
     }
 
+    /// Given a finished division regenerated at the rollover whose new first round falls on the
+    /// coming season's first international window,
+    /// When the rollover settles the calendar,
+    /// Then the round moves off the window and nothing is recorded as postponed: its dates were
+    ///      never shown to the player, and the user is told nothing.
+    #[test]
+    fn a_regenerated_divisions_moves_at_rollover_record_no_postponement() {
+        let mut game = calendar_game(at(2035, 6, 20));
+        add_division(&mut game, "eng-d1", "europe", at(2034, 9, 9));
+        for fixture in &mut game.competitions[0].fixtures {
+            fixture.status = FixtureStatus::Completed;
+            fixture.result = Some(domain::league::MatchResult::default());
+        }
+        let season = game.competitions[0].season;
+        let user_club = game.competitions[0].participant_ids[0].clone();
+        game.manager.hire(user_club);
+
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2035, 7, 18));
+
+        let division = &game.competitions[0];
+        assert!(
+            division
+                .fixtures
+                .iter()
+                .any(|f| f.status == FixtureStatus::Scheduled)
+        );
+        assert!(division.fixtures.iter().all(|f| f.date != "2035-09-09"));
+        assert!(division.fixtures.iter().all(|f| f.postponement.is_none()));
+        assert!(
+            game.messages
+                .iter()
+                .all(|m| m.subject_key.as_deref() != Some("be.msg.matchesMoved.subject"))
+        );
+    }
+
     #[test]
     fn preseason_rollover_regenerates_next_season_clausura() {
         regenerated_division_receives_future_friendlies(
