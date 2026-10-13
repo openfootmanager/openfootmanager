@@ -45,8 +45,20 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
       setOpenPositionPopover(null);
     };
 
+    // Not a modal, so Escape only closes it, and puts focus back on the chip that opened it
+    // (the one marked expanded) rather than leaving it on a control that has just disappeared.
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      positionFilterRef.current?.querySelector<HTMLElement>('[aria-expanded="true"]')?.focus();
+      setOpenPositionPopover(null);
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [openPositionPopover]);
   const handleSelectPositionGroup = (group: string | null) => {
     setMarketPage(1);
