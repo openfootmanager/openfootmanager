@@ -145,6 +145,8 @@ pub struct StatsLog {
 }
 
 impl StatsLog {
+    /// Every capture seen, in the order the matches were applied: within a capture the player
+    /// records by player id, then the team records as they came.
     pub fn fingerprint(&self) -> String {
         self.lines.join("\n")
     }
