@@ -13,8 +13,8 @@ pub fn upsert_manager(conn: &Connection, m: &Manager) -> Result<(), String> {
 
     conn.execute(
         "INSERT OR REPLACE INTO managers
-         (id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, reputation, satisfaction, fan_approval, team_id, warning_stage, career_stats, career_history)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+         (id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, reputation, satisfaction, fan_approval, team_id, warning_stage, career_stats, career_history, interim)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
         params![
             m.id,
             m.first_name,
@@ -30,6 +30,7 @@ pub fn upsert_manager(conn: &Connection, m: &Manager) -> Result<(), String> {
             m.warning_stage,
             career_stats_json,
             career_history_json,
+            m.interim,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -40,7 +41,7 @@ pub fn upsert_manager(conn: &Connection, m: &Manager) -> Result<(), String> {
 pub fn load_manager(conn: &Connection, id: &str) -> Result<Option<Manager>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, reputation, satisfaction, fan_approval, team_id, warning_stage, career_stats, career_history
+            "SELECT id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, reputation, satisfaction, fan_approval, team_id, warning_stage, career_stats, career_history, interim
              FROM managers WHERE id = ?1",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -64,6 +65,7 @@ pub fn load_manager(conn: &Connection, id: &str) -> Result<Option<Manager>, Stri
                 row.get::<_, u8>(11)?,
                 career_stats_json,
                 career_history_json,
+                row.get::<_, bool>(14)?,
             ))
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -84,6 +86,7 @@ pub fn load_manager(conn: &Connection, id: &str) -> Result<Option<Manager>, Stri
             warning_stage,
             stats_json,
             history_json,
+            interim,
         ))) => {
             let career_stats: ManagerCareerStats = serde_json::from_str(&stats_json)
                 .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -105,6 +108,7 @@ pub fn load_manager(conn: &Connection, id: &str) -> Result<Option<Manager>, Stri
                 warning_stage,
                 career_stats,
                 career_history,
+                interim,
             }))
         }
         Some(Err(_)) => Err(GAME_PERSISTENCE_LOAD_ERROR.to_string()),
@@ -116,7 +120,7 @@ pub fn load_manager(conn: &Connection, id: &str) -> Result<Option<Manager>, Stri
 pub fn load_all_managers(conn: &Connection) -> Result<Vec<Manager>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, reputation, satisfaction, fan_approval, team_id, warning_stage, career_stats, career_history
+            "SELECT id, first_name, last_name, date_of_birth, nationality, football_nation, birth_country, reputation, satisfaction, fan_approval, team_id, warning_stage, career_stats, career_history, interim
              FROM managers",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -138,6 +142,7 @@ pub fn load_all_managers(conn: &Connection) -> Result<Vec<Manager>, String> {
                 row.get::<_, u8>(11)?,
                 row.get::<_, String>(12)?,
                 row.get::<_, String>(13)?,
+                row.get::<_, bool>(14)?,
             ))
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -159,6 +164,7 @@ pub fn load_all_managers(conn: &Connection) -> Result<Vec<Manager>, String> {
             warning_stage,
             stats_json,
             history_json,
+            interim,
         ) = row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
         let career_stats: ManagerCareerStats = serde_json::from_str(&stats_json)
             .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -179,6 +185,7 @@ pub fn load_all_managers(conn: &Connection) -> Result<Vec<Manager>, String> {
             warning_stage,
             career_stats,
             career_history,
+            interim,
         });
     }
     Ok(managers)
@@ -202,6 +209,38 @@ mod tests {
             "1990-01-15".to_string(),
             "British".to_string(),
         )
+    }
+
+    /// Given a stand-in manager and a permanent one
+    /// When both are stored and read back by id and in bulk
+    /// Then each keeps its own interim flag.
+    #[test]
+    fn the_interim_flag_survives_a_round_trip() {
+        let db = test_db();
+        let mut stand_in = sample_manager();
+        stand_in.id = "mgr_stand_in".to_string();
+        stand_in.interim = true;
+        let permanent = sample_manager();
+
+        upsert_manager(db.conn(), &stand_in).unwrap();
+        upsert_manager(db.conn(), &permanent).unwrap();
+
+        assert!(
+            load_manager(db.conn(), "mgr_stand_in")
+                .unwrap()
+                .unwrap()
+                .interim
+        );
+        assert!(
+            !load_manager(db.conn(), "mgr_user")
+                .unwrap()
+                .unwrap()
+                .interim
+        );
+        let all = load_all_managers(db.conn()).unwrap();
+        let flags: Vec<(&str, bool)> = all.iter().map(|m| (m.id.as_str(), m.interim)).collect();
+        assert!(flags.contains(&("mgr_stand_in", true)));
+        assert!(flags.contains(&("mgr_user", false)));
     }
 
     #[test]

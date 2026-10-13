@@ -791,6 +791,7 @@
     "myTactics": "Le mie tattiche",
     "newTactic": "Nuova tattica",
     "duplicateTactic": "Duplica",
+    "resetTactic": "Ripristina predefiniti",
     "saveAsTactic": "Salva come tattica",
     "updateTactic": "Aggiorna tattica",
     "tacticSaved": "Salvato",
@@ -1193,6 +1194,7 @@
     "sortNewest": "Più recenti prima",
     "sortOldest": "Meno recenti prima",
     "selectMessages": "Seleziona messaggi",
+    "selectAll": "Seleziona tutto",
     "cancelSelection": "Annulla selezione",
     "selectedCount": "{{count}} selezionato/i",
     "deleteSelected": "Elimina selezionati",
@@ -2575,7 +2577,10 @@
     "yourResult": "Il tuo risultato",
     "continue": "Continua",
     "notableUpset": "Sorpresa del turno",
-    "pts": "pts."
+    "pts": "pts.",
+    "cupPenalties": "({{home}}–{{away}} ai rigori)",
+    "cupAdvances": "{{team}} passa il turno",
+    "cupTiesPending": "Alcune sfide sono ancora da giocare"
   },
   "notifications": {
     "attentionRequired": "Attenzione Richiesta",

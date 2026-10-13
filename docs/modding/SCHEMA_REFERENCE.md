@@ -178,7 +178,7 @@ Defines a specific player. Reference teams and countries by their `id`.
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `id` | string | no | _(auto-UUID)_ | Stable slug. Auto-generated from `name` if empty. |
-| `name` | string | no | `""` | Full display name (used as fallback if `firstName`/`lastName` are empty). |
+| `name` | string | no | `""` | What the player is called. With `firstName`/`lastName` it is the on-pitch and schedule name: `"Pelé"` stays `"Pelé"`, and a name that starts with the first name drops those words (`"Alfredo Di Stefano"` with `firstName: "Alfredo"` is `"Di Stefano"`, `"Nicolás de la Cruz"` is `"de la Cruz"`). The squad and finance tables show the real name, `firstName` + `lastName`. Alone, without `firstName`/`lastName`, it is split at the first space into first and last name. If `name` is omitted or empty, the on-pitch name falls back to `lastName`, then the full name. |
 | `firstName` | string | no | `""` | First name. Used for display and name pool lookup. |
 | `lastName` | string | no | `""` | Last name. |
 | `club` | string | no | `""` | Team `id` this player starts at. Must match an existing team. |
