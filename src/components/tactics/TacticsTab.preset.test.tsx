@@ -329,6 +329,28 @@ describe("TacticsTab preset selection", () => {
   });
 
   /**
+   * Given a manager on the Balanced Control preset with formation and style untouched (their
+   * hand-tuned phase dials are not part of the unsaved-changes badge)
+   * When they look at Reset
+   * Then it is still available, and pressing it re-applies the preset's blueprint.
+   */
+  it("keeps Reset available on an untouched preset so tuned dials can be undone", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    const reset = screen.getByRole("button", { name: "Reset to defaults" });
+    expect(reset).toBeEnabled();
+
+    fireEvent.click(reset);
+
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        formation: "4-4-2",
+        playStyle: "Balanced",
+      }),
+    );
+  });
+
+  /**
    * Given a saved custom tactic whose formation was then changed
    * When the manager presses Reset
    * Then the formation goes back to the saved one, and no preset is applied.
