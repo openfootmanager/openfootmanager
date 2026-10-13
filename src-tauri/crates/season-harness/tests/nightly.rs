@@ -345,20 +345,11 @@ fn ratings_stay_within_their_bounds() {
         run_seasons(&mut game, RunOptions::seasons(3), &mut watch)
             .unwrap_or_else(|error| panic!("seed {seed}: {error}"));
 
-        let measured = !watch.seasons.is_empty();
-        expect_bug(607, "no season rating", || {
-            assert!(
-                measured,
-                "seed {seed}: no season rating exists for any player with {ENOUGH_APPEARANCES}+ appearances"
-            );
-        });
-        if measured {
-            assert_eq!(
-                watch.seasons.len(),
-                3,
-                "seed {seed}: every season was measured"
-            );
-        }
+        assert_eq!(
+            watch.seasons.len(),
+            3,
+            "seed {seed}: every season has players with {ENOUGH_APPEARANCES}+ rated appearances"
+        );
         for season in &watch.seasons {
             eprintln!(
                 "seed {seed} season {}: {} rated, mean {:.2}, {:.2}% at 8.5+",
