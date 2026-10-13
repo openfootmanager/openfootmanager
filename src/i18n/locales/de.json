@@ -2558,7 +2558,10 @@
     "yourResult": "Dein Ergebnis",
     "continue": "Weiter",
     "notableUpset": "Überraschungsergebnis",
-    "pts": "Pkt."
+    "pts": "Pkt.",
+    "cupPenalties": "({{home}}–{{away}} im Elfmeterschießen)",
+    "cupAdvances": "{{team}} kommt weiter",
+    "cupTiesPending": "Einige Partien stehen noch aus"
   },
   "endOfSeason": {
     "seasonComplete": "Saison beendet",

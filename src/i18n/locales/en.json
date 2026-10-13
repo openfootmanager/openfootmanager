@@ -2558,7 +2558,10 @@
     "yourResult": "Your Result",
     "continue": "Continue",
     "notableUpset": "Notable Upset",
-    "pts": "pts"
+    "pts": "pts",
+    "cupPenalties": "({{home}}–{{away}} on penalties)",
+    "cupAdvances": "{{team}} go through",
+    "cupTiesPending": "Some ties are still to be played"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",

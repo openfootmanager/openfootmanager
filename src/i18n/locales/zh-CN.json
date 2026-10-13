@@ -2558,7 +2558,10 @@
     "yourResult": "你的成绩",
     "continue": "继续",
     "notableUpset": "重大爆冷",
-    "pts": "分"
+    "pts": "分",
+    "cupPenalties": "（点球 {{home}}–{{away}}）",
+    "cupAdvances": "{{team}} 晋级",
+    "cupTiesPending": "部分对阵尚未进行"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",
