@@ -3646,6 +3646,11 @@
     },
     "save": {
       "defaultName": "Carriera di {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Questo pacchetto definisce il paese \"{{name}}\" ({{code}}) fuori dall'elenco dei paesi del gioco e non lo colloca in nessuna confederazione, quindi i suoi club sono archiviati in Europa. Assegnagli una confederazione."
+      }
     }
   },
   "traits": {
@@ -3893,6 +3898,7 @@
     "saveSuccess": "Salvato",
     "saveTeam": "Salva squadra",
     "issues": "{{count}} problema/i",
+    "warnings": "{{count}} avviso/i",
     "packageId": "ID Pacchetto",
     "packageName": "Nome Pacchetto",
     "description": "Descrizione",
@@ -4051,6 +4057,7 @@
     "openPackageFileInvalid": "Seleziona un file di pacchetto .ofm valido",
     "noItemSelected": "Seleziona un elemento dall'elenco o fai clic su Aggiungi",
     "issuesBadge": "{{count}} problema/i",
+    "warningsBadge": "{{count}} avvisi",
     "issuesTitle": "Problemi di validazione",
     "noIssues": "Nessun problema — il mondo è valido",
     "saving": "Salvataggio…",

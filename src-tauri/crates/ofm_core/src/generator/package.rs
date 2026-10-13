@@ -379,7 +379,7 @@ impl WorldPackage {
     /// The file the `index`-th entity of `schema` was declared in, or `""` when
     /// it is not known — a package assembled in memory rather than loaded from
     /// disk has no files to name.
-    fn source_at(&self, schema: &str, index: usize) -> String {
+    pub(super) fn source_at(&self, schema: &str, index: usize) -> String {
         self.sources
             .get(schema)
             .and_then(|files| files.get(index))

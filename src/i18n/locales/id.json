@@ -3646,6 +3646,11 @@
     },
     "save": {
       "defaultName": "Karier {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya."
+      }
     }
   },
   "traits": {
@@ -3893,6 +3898,7 @@
     "saveSuccess": "Tersimpan",
     "saveTeam": "Simpan Tim",
     "issues": "{{count}} masalah",
+    "warnings": "{{count}} peringatan",
     "packageId": "ID Paket",
     "packageName": "Nama Paket",
     "description": "Deskripsi",
@@ -4051,6 +4057,7 @@
     "openPackageFileInvalid": "Pilih berkas paket .ofm yang valid",
     "noItemSelected": "Pilih item dari daftar, atau klik Tambah untuk membuatnya",
     "issuesBadge": "{{count}} masalah",
+    "warningsBadge": "{{count}} peringatan",
     "issuesTitle": "Masalah Validasi",
     "noIssues": "Tidak ada masalah — dunia valid",
     "saving": "Menyimpan…",

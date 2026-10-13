@@ -290,6 +290,7 @@ export interface PackageProjectData {
   names: NamesDefinition | null;
   competitions: CompetitionDef[];
   issues: PackageIssue[];
+  warnings: PackageIssue[];
 }
 
 export type EditTab =
