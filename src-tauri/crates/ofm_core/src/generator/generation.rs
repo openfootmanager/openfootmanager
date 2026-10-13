@@ -1286,6 +1286,18 @@ mod tests {
                 "Alfredo Di Stéfano Laulhé",
                 "Di Stefano",
             ),
+            // the comparison ignores case
+            (
+                serde_json::json!({"name": "Nicolás de la Cruz", "firstName": "nicolás", "lastName": "de la Cruz Bascuñán"}),
+                "nicolás de la Cruz Bascuñán",
+                "de la Cruz",
+            ),
+            // a name that is only the first name stays whole, never empty
+            (
+                serde_json::json!({"name": "Ronaldo", "firstName": "Ronaldo", "lastName": "Nazário de Lima"}),
+                "Ronaldo Nazário de Lima",
+                "Ronaldo",
+            ),
             // no `name`: today's fallback, the last name
             (
                 serde_json::json!({"firstName": "John", "lastName": "Smith"}),
