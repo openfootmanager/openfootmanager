@@ -1451,6 +1451,7 @@
     "standings": "Tabelle",
     "matchday": "Spieltag {{number}}",
     "movedFrom": "Verlegt von {{date}}",
+    "dateRange": "{{from}} bis {{to}}",
     "season": "Saison {{number}}",
     "international": "International",
     "internationalDuty": "Im Länderspieleinsatz",

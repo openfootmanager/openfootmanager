@@ -1451,6 +1451,7 @@
     "standings": "Standings",
     "matchday": "Matchday {{number}}",
     "movedFrom": "Moved from {{date}}",
+    "dateRange": "{{from}} to {{to}}",
     "season": "Season {{number}}",
     "international": "International",
     "internationalDuty": "On International Duty",

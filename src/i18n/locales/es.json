@@ -1451,6 +1451,7 @@
     "standings": "Clasificación",
     "matchday": "Jornada {{number}}",
     "movedFrom": "Aplazado desde el {{date}}",
+    "dateRange": "del {{from}} al {{to}}",
     "season": "Temporada {{number}}",
     "international": "Internacional",
     "internationalDuty": "Con la selección",

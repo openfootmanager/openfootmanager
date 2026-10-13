@@ -14,8 +14,11 @@ vi.mock("react-i18next", async () => {
     useTranslation: () => {
       useRef(null);
       return {
-        t: (key: string, params?: Record<string, unknown>) =>
-          key === "schedule.matchday" ? `Matchday ${params?.number}` : key,
+        t: (key: string, params?: Record<string, unknown>) => {
+          if (key === "schedule.matchday") return `Matchday ${params?.number}`;
+          if (key === "schedule.dateRange") return `${params?.from} to ${params?.to}`;
+          return key;
+        },
       };
     },
   };

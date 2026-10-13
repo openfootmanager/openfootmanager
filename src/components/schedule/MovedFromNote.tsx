@@ -12,7 +12,7 @@ export default function MovedFromNote({ originalDate, testId }: MovedFromNotePro
   const { t } = useTranslation();
 
   return (
-    <span data-testid={testId} className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+    <span data-testid={testId} className="mt-1 block text-xs text-gray-600 dark:text-gray-300">
       {t("schedule.movedFrom", { date: formatMatchDate(originalDate) })}
     </span>
   );

@@ -1451,6 +1451,7 @@
     "standings": "Klasemen",
     "matchday": "Pekan {{number}}",
     "movedFrom": "Dipindahkan dari {{date}}",
+    "dateRange": "{{from}} hingga {{to}}",
     "season": "Musim {{number}}",
     "international": "Internasional",
     "internationalDuty": "Tugas Internasional",

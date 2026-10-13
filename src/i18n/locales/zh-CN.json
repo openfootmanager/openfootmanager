@@ -1451,6 +1451,7 @@
     "standings": "积分榜",
     "matchday": "第 {{number}} 轮",
     "movedFrom": "由 {{date}} 改期",
+    "dateRange": "{{from}} 至 {{to}}",
     "season": "第 {{number}} 赛季",
     "international": "国际",
     "internationalDuty": "国家队征召",

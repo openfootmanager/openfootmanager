@@ -1451,6 +1451,7 @@
     "standings": "Classificação",
     "matchday": "Rodada {{number}}",
     "movedFrom": "Remarcada de {{date}}",
+    "dateRange": "de {{from}} a {{to}}",
     "season": "Temporada {{number}}",
     "international": "Internacional",
     "internationalDuty": "A serviço da seleção",
