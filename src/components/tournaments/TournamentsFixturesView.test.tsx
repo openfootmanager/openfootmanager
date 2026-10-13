@@ -51,6 +51,33 @@ function renderView(matchdays: Array<[number, FixtureData[]]>) {
   };
 }
 
+describe("TournamentsFixturesView dates", () => {
+  it("shows the range of dates of a round postponed in part", () => {
+    renderView([
+      [
+        5,
+        [
+          fixture({ id: "on-time", date: "2026-08-15" }),
+          fixture({ id: "late", date: "2026-08-19" }),
+        ],
+      ],
+    ]);
+
+    const header = screen.getByRole("heading", { level: 4 });
+    expect(header).toHaveTextContent(formatMatchDate("2026-08-15"));
+    expect(header).toHaveTextContent(formatMatchDate("2026-08-19"));
+  });
+
+  it("shows a single date for a round played on one day", () => {
+    renderView([
+      [5, [fixture({ id: "a", date: "2026-08-15" }), fixture({ id: "b", date: "2026-08-15" })]],
+    ]);
+
+    const header = screen.getByRole("heading", { level: 4 });
+    expect(header.textContent).toBe(`Matchday 5 — ${formatMatchDate("2026-08-15")}`);
+  });
+});
+
 describe("TournamentsFixturesView", () => {
   it("renders one card per matchday, in the order given", () => {
     renderView([
@@ -101,20 +128,6 @@ describe("TournamentsFixturesView", () => {
     expect(screen.getByRole("button", { name: "Name of home" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Name of third" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Name of away" })).toHaveLength(2);
-  });
-
-  // Every fixture in a round shares a date, so the header takes the first one's.
-  // The second fixture carries a different date on purpose: with only one
-  // fixture rendered, "takes the first one's date" and "takes any date" look the
-  // same, and the test would pass either way.
-  it("dates the matchday from its first fixture", () => {
-    renderView([
-      [4, [fixture({ id: "f1", date: "2026-09-12" }), fixture({ id: "f2", date: "2026-09-13" })]],
-    ]);
-
-    const heading = screen.getByRole("heading");
-    expect(heading).toHaveTextContent(`Matchday 4 — ${formatMatchDate("2026-09-12")}`);
-    expect(heading.textContent).not.toContain(formatMatchDate("2026-09-13"));
   });
 
   it("renders nothing when the competition has no fixtures yet", () => {

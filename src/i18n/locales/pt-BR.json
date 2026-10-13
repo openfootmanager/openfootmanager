@@ -1450,6 +1450,7 @@
     "fixtures": "Jogos",
     "standings": "Classificação",
     "matchday": "Rodada {{number}}",
+    "movedFrom": "Remarcada de {{date}}",
     "season": "Temporada {{number}}",
     "international": "Internacional",
     "internationalDuty": "A serviço da seleção",

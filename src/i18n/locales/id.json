@@ -1450,6 +1450,7 @@
     "fixtures": "Jadwal Pertandingan",
     "standings": "Klasemen",
     "matchday": "Pekan {{number}}",
+    "movedFrom": "Dipindahkan dari {{date}}",
     "season": "Musim {{number}}",
     "international": "Internasional",
     "internationalDuty": "Tugas Internasional",

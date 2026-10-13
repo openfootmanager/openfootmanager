@@ -1450,6 +1450,7 @@
     "fixtures": "Fixtures",
     "standings": "Standings",
     "matchday": "Matchday {{number}}",
+    "movedFrom": "Moved from {{date}}",
     "season": "Season {{number}}",
     "international": "International",
     "internationalDuty": "On International Duty",

@@ -41,6 +41,24 @@ function renderRow(props: Partial<React.ComponentProps<typeof TournamentsFixture
   );
 }
 
+describe("TournamentsFixtureRow moved matches", () => {
+  it("names the date a postponed fixture was first scheduled for", () => {
+    renderRow({
+      fixture: fixture({
+        postponement: { original_date: "2026-08-15", reason: "CupTie" },
+      } as Partial<FixtureData>),
+    });
+
+    expect(screen.getByTestId("moved-from-fixture-1")).toHaveTextContent("schedule.movedFrom");
+  });
+
+  it("shows nothing extra for a fixture that was never moved", () => {
+    renderRow();
+
+    expect(screen.queryByTestId("moved-from-fixture-1")).not.toBeInTheDocument();
+  });
+});
+
 describe("TournamentsFixtureRow", () => {
   it("shows both teams and no score before a fixture is played", () => {
     renderRow();

@@ -1450,6 +1450,7 @@
     "fixtures": "Spiele",
     "standings": "Tabelle",
     "matchday": "Spieltag {{number}}",
+    "movedFrom": "Verlegt von {{date}}",
     "season": "Saison {{number}}",
     "international": "International",
     "internationalDuty": "Im Länderspieleinsatz",
