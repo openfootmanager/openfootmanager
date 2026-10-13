@@ -412,6 +412,8 @@ export interface StaffData {
   id: string;
   first_name: string;
   last_name: string;
+  /** The name to show: the known-as name, or the full name. The backend chooses; never rebuild it. */
+  display_name: string;
   date_of_birth: string;
   nationality: string;
   football_nation?: string;

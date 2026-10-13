@@ -281,6 +281,7 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
     id: "staff-1",
     first_name: "Alex",
     last_name: "Assistant",
+    display_name: "Alex Assistant",
     date_of_birth: "1980-01-01",
     nationality: "GB",
     role: "AssistantManager" as const,
