@@ -5,8 +5,8 @@
 
 use chrono::{Days, NaiveDate, TimeZone, Utc};
 use domain::league::{
-    CompetitionScope, CompetitionType, Fixture, FixtureCompetition, FixtureStatus, League,
-    MatchResult,
+    CompetitionScope, CompetitionType, Fixture, FixtureCompetition, FixtureStatus,
+    KnockoutRoundState, League, MatchResult,
 };
 use ofm_core::calendar_booking::too_close;
 use ofm_core::calendar_reconcile::{plan, reconcile};
@@ -111,6 +111,7 @@ fn world(shape: &Shape) -> World {
         league.priority = index as u32;
         competitions.push(league);
     }
+    let mut continental_entry: Option<(Vec<String>, chrono::DateTime<Utc>)> = None;
     for index in 0..shape.cups {
         let size = rng.random_range(4..=shape.clubs.min(32)).max(4);
         let members = subset(&mut rng, &clubs, size);
@@ -124,6 +125,18 @@ fn world(shape: &Shape) -> World {
                 0,
             )
             .unwrap();
+        // The second cup shares the continental cup's clubs and starts within days of it, so
+        // that a domestic tie and a continental tie of one club regularly land in one rest window.
+        let (members, start) = match (index, &continental_entry) {
+            (1, Some((first_members, first_start))) => (
+                first_members.clone(),
+                *first_start + Days::new(rng.random_range(0..=3)),
+            ),
+            _ => (members, start),
+        };
+        if index == 0 {
+            continental_entry = Some((members.clone(), start));
+        }
         let mut cup = generate_knockout_cup(
             &format!("Cup {index}"),
             2033,
@@ -151,6 +164,8 @@ fn world(shape: &Shape) -> World {
         }
     }
     let today = date(2033, 8, 1) + Days::new(rng.random_range(0..120));
+    competitions.push(friendlies(&mut rng, &clubs));
+    competitions.push(national_team_matches(&blackout));
     let played = text(today);
     for fixture in competitions.iter_mut().flat_map(|c| c.fixtures.iter_mut()) {
         if fixture.date <= played && fixture.status == FixtureStatus::Scheduled {
@@ -163,6 +178,46 @@ fn world(shape: &Shape) -> World {
         blackout,
         today,
     }
+}
+
+/// Filler matches between random clubs; they are the only fixtures a clash may delete.
+fn friendlies(rng: &mut impl Rng, clubs: &[String]) -> League {
+    let mut league = League::new("Friendlies".into(), "Friendlies".into(), 2033, &[]);
+    league.priority = 100;
+    for index in 0..clubs.len() {
+        let pair = subset(rng, clubs, 2);
+        league.fixtures.push(Fixture {
+            id: format!("friendly-{index}"),
+            competition_id: league.id.clone(),
+            matchday: 1,
+            date: text(date(2033, 8, 1) + Days::new(rng.random_range(0..200))),
+            home_team_id: pair[0].clone(),
+            away_team_id: pair[1].clone(),
+            competition: FixtureCompetition::Friendly,
+            ..Default::default()
+        });
+    }
+    league
+}
+
+/// National-team matches played inside the international windows: no club is involved, and they
+/// must never be moved or counted as a club's match.
+fn national_team_matches(blackout: &BTreeSet<NaiveDate>) -> League {
+    let mut league = League::new("Nations".into(), "Nations".into(), 2033, &[]);
+    league.priority = 0;
+    for (index, day) in blackout.iter().enumerate() {
+        league.fixtures.push(Fixture {
+            id: format!("nation-{index}"),
+            competition_id: league.id.clone(),
+            matchday: 1,
+            date: text(*day),
+            home_team_id: format!("nation-{}", index % 4),
+            away_team_id: format!("nation-{}", (index + 1) % 4),
+            competition: FixtureCompetition::InternationalNation,
+            ..Default::default()
+        });
+    }
+    league
 }
 
 fn parsed(fixture: &Fixture) -> NaiveDate {
@@ -227,6 +282,30 @@ fn clashes_involving_movable(competitions: &[League], today: NaiveDate) -> Vec<S
     found
 }
 
+/// Whether some club has a continental and a domestic cup match closer than the rest window.
+fn shares_a_rest_window(competitions: &[League]) -> bool {
+    let mut by_club: BTreeMap<&str, Vec<(NaiveDate, bool)>> = BTreeMap::new();
+    for fixture in competitions.iter().flat_map(|c| &c.fixtures) {
+        let continental = match fixture.competition {
+            FixtureCompetition::ContinentalClub => true,
+            FixtureCompetition::Cup => false,
+            _ => continue,
+        };
+        for club in [&fixture.home_team_id, &fixture.away_team_id] {
+            by_club
+                .entry(club)
+                .or_default()
+                .push((parsed(fixture), continental));
+        }
+    }
+    by_club.values().any(|rows| {
+        rows.iter().any(|(a, a_continental)| {
+            rows.iter()
+                .any(|(b, b_continental)| a_continental != b_continental && too_close(*a, *b))
+        })
+    })
+}
+
 proptest! {
     #![proptest_config(ProptestConfig { cases: 40, failure_persistence: None, ..ProptestConfig::default() })]
 
@@ -252,6 +331,14 @@ proptest! {
         let after = dates_by_key(&competitions);
         for key in &immovable {
             prop_assert_eq!(before.get(key), after.get(key), "immovable {:?} moved", key);
+        }
+
+        // 3b. national-team matches are the calendar's fixed points, and only friendlies are dropped
+        for key in before.keys().filter(|(competition, _)| competition == "Nations") {
+            prop_assert_eq!(before.get(key), after.get(key), "national-team match {:?} moved", key);
+        }
+        for (competition, fixture) in &applied.dropped_friendlies {
+            prop_assert_eq!(competition, "Friendlies", "{} was dropped but is not a friendly", fixture);
         }
 
         // 4. nothing is lost except friendlies, and moves only go forward
@@ -301,12 +388,70 @@ proptest! {
     }
 }
 
+/// A knockout cup whose rounds are authored in any order of dates: a feeding round may be dated
+/// after the round it feeds, as in a corrupted or hand-authored save.
+fn cup_with_shuffled_rounds(seed: u64, rounds: usize) -> League {
+    let mut rng = rng_from_u64(seed);
+    let mut cup = League::new("Shuffled".into(), "Shuffled".into(), 2033, &[]);
+    cup.rules.format = domain::league::CompetitionFormat::Knockout;
+    for round in 0..rounds {
+        let ties = 1usize << (rounds - 1 - round);
+        let mut state = KnockoutRoundState {
+            id: format!("round-{round}"),
+            ..Default::default()
+        };
+        for tie in 0..ties {
+            let id = format!("r{round}-t{tie}");
+            state.fixture_ids.push(id.clone());
+            cup.fixtures.push(Fixture {
+                id,
+                competition_id: cup.id.clone(),
+                matchday: 1,
+                date: text(date(2033, 9, 1) + Days::new(rng.random_range(0..30))),
+                home_team_id: format!("r{round}-t{tie}-home"),
+                away_team_id: format!("r{round}-t{tie}-away"),
+                competition: FixtureCompetition::Cup,
+                ..Default::default()
+            });
+        }
+        cup.knockout_rounds.push(state);
+    }
+    cup
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 200, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// Given a cup whose rounds are dated in any order, when reconciled, then every round starts
+    /// after the round that feeds it has ended.
+    #[test]
+    fn rounds_authored_out_of_order_are_put_back_in_order(seed in any::<u64>(), rounds in 2usize..=4) {
+        let mut world = vec![cup_with_shuffled_rounds(seed, rounds)];
+        reconcile(&mut world, &BTreeSet::new(), date(2033, 8, 1), true).unwrap();
+        let cup = &world[0];
+        let span = |round: &KnockoutRoundState| {
+            let dates: Vec<NaiveDate> = cup
+                .fixtures
+                .iter()
+                .filter(|f| round.fixture_ids.contains(&f.id))
+                .map(parsed)
+                .collect();
+            (*dates.iter().min().unwrap(), *dates.iter().max().unwrap())
+        };
+        for pair in cup.knockout_rounds.windows(2) {
+            prop_assert!(span(&pair[1]).0 > span(&pair[0]).1, "a round starts before its feeders end");
+        }
+    }
+}
+
 /// Given a spread of seeds, when worlds are generated, then most start with clashes and the sweep
 /// moves fixtures: the properties above are not passing on empty worlds.
 #[test]
 fn the_generator_produces_clashes_for_the_sweep_to_resolve() {
     let mut dirty = 0;
     let mut moved = 0;
+    let mut dropped = 0;
+    let mut continental_overlaps = 0;
     let mut total_fixtures = 0;
     for seed in 0..40u64 {
         let shape = Shape {
@@ -326,11 +471,21 @@ fn the_generator_produces_clashes_for_the_sweep_to_resolve() {
         if !clashes_involving_movable(&competitions, today).is_empty() {
             dirty += 1;
         }
-        moved += reconcile(&mut competitions, &blackout, today, true)
-            .unwrap()
-            .moves
-            .len();
+        if shares_a_rest_window(&competitions) {
+            continental_overlaps += 1;
+        }
+        let applied = reconcile(&mut competitions, &blackout, today, true).unwrap();
+        moved += applied.moves.len();
+        dropped += applied.dropped_friendlies.len();
     }
+    assert!(
+        dropped > 0,
+        "no friendly was dropped, so \"nothing is lost but friendlies\" is untested"
+    );
+    assert!(
+        continental_overlaps >= 20,
+        "only {continental_overlaps} of 40 worlds put a continental and a domestic cup tie of one club in one rest window"
+    );
     assert!(
         total_fixtures > 10_000,
         "worlds are too small to be meaningful: {total_fixtures}"
