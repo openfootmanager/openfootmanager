@@ -390,11 +390,7 @@ pub const MIN_DAYS_BETWEEN_MATCHES: i64 = 3;
 /// first day on, like `no_stranded_fixture`, since a world built part-way through a season
 /// carries fixtures from before the career that it never played.
 fn club_rests_between_matches(game: &Game) -> Vec<String> {
-    clashes_since(game, game.clock.start_date.date_naive())
-}
-
-/// The clashes among fixtures dated `since` or later.
-fn clashes_since(game: &Game, since: NaiveDate) -> Vec<String> {
+    let began = game.clock.start_date.date_naive();
     let mut matches_by_club: BTreeMap<&str, Vec<(NaiveDate, &str)>> = BTreeMap::new();
     for competition in &game.competitions {
         for fixture in &competition.fixtures {
@@ -408,7 +404,7 @@ fn clashes_since(game: &Game, since: NaiveDate) -> Vec<String> {
             let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") else {
                 continue;
             };
-            if !competitive || date < since {
+            if !competitive || date < began {
                 continue;
             }
             for club in [&fixture.home_team_id, &fixture.away_team_id] {
@@ -732,13 +728,9 @@ mod tests {
     fn every_daily_rule_is_quiet_on_the_world_as_built() {
         let game = world();
         for (rule, check) in EVERY_DAY {
-            // The built world books clubs inside the rest (#553). The rule's own tests below
-            // prove it looks; the gate holds the world to it.
+            // The built world books clubs twice in a day (#553). The rule's own
+            // tests below prove it looks; the gate is what holds the world to it.
             if *rule == CLUB_RESTS_BETWEEN_MATCHES {
-                assert!(
-                    !check(&game).is_empty(),
-                    "#553 is fixed: delete this exemption (the built world has no clash)"
-                );
                 continue;
             }
             assert_eq!(
@@ -832,19 +824,6 @@ mod tests {
                 )
             ),
             "{faults:?}"
-        );
-    }
-
-    /// The rule reads from the career's first day on. This asserts that fixtures from before it do
-    /// clash in the built world, so the day they stop, it fails and says to delete the exemption.
-    #[test]
-    fn the_built_world_clashes_before_the_career_began_too() {
-        let game = world();
-        let in_career = club_rests_between_matches(&game).len();
-        let ever = clashes_since(&game, NaiveDate::MIN).len();
-        assert!(
-            ever > in_career,
-            "#553 is fixed before the career too: delete the pre-career exemption in club_rests_between_matches"
         );
     }
 

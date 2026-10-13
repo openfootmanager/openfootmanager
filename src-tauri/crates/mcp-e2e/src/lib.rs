@@ -5,8 +5,10 @@
 //! - [`Client`] speaks the protocol. It never retries: a call that timed out may have run.
 //! - [`tools`] is one typed method per tool.
 //! - [`assert_refusal_changes_nothing`] proves a refused call left every layer as it was.
+//! - [`expect_bug!`] records a known-broken route and tells you when it is fixed.
 
 mod app;
+mod bug;
 pub mod career;
 mod revision {
     include!("../../../build_revision.rs");
@@ -20,6 +22,7 @@ pub use app::{
     gui_launch_maps_a_window, real_startup_failures_file, App, AppConfig, GuiLaunch, LaunchError,
     Mode, Teardown,
 };
+pub use bug::expect_bug;
 pub use client::{CallError, Client, Refusal};
 pub use snapshot::{assert_refusal_changes_nothing, Snapshot};
 

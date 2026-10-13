@@ -1,12 +1,7 @@
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { TOptions } from "i18next";
 import { weeklyWageAmount } from "../../lib/finance";
-import {
-  formatAnnualAmount,
-  formatExactMoney,
-  formatVal,
-  formatWeeklyAmount,
-} from "../../lib/helpers";
+import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import { resolveInjuryName } from "../../lib/injury";
 
@@ -69,13 +64,13 @@ export function formatPlayerMarketValue(value: number): string {
   return formatVal(value);
 }
 
-export function formatPlayerWage(annualWage: number, weeklySuffix: string): string {
-  const weeklyWage = weeklyWageAmount(annualWage);
-  return formatWeeklyAmount(formatExactMoney(weeklyWage), weeklySuffix);
+export function formatPlayerWage(weeklyWage: number): string {
+  return formatWeeklyWage(weeklyWageAmount(weeklyWage));
 }
 
-export function formatPlayerAnnualWage(annualWage: number, annualSuffix: string): string {
-  return formatAnnualAmount(formatVal(annualWage), annualSuffix);
+/** The compact form for the profile's header tiles. */
+export function formatPlayerWageCompact(weeklyWage: number): string {
+  return formatWeeklyWage(weeklyWage, "compact");
 }
 
 export function getAttributeColorClass(value: number): string {

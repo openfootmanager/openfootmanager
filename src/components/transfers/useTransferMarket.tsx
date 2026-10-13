@@ -170,7 +170,7 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
   const marketRangeFrom = filteredList.length === 0 ? 0 : marketPageStart + 1;
   const marketRangeTo = Math.min(marketPageStart + TRANSFER_MARKET_PAGE_SIZE, filteredList.length);
 
-  const annualWageBudget = myTeam?.wage_budget ?? 0;
+  const weeklyWageBudget = myTeam?.wage_budget ?? 0;
   return {
     view,
     setView,
@@ -201,6 +201,6 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     marketRangeFrom,
     marketRangeTo,
     availabilityFilters,
-    annualWageBudget,
+    weeklyWageBudget,
   };
 }

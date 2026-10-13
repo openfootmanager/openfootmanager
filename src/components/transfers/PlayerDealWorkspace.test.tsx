@@ -111,6 +111,31 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 }
 
 describe("PlayerDealWorkspace", () => {
+  /**
+   * Given a player on €12,345 a week and a club with a €50,000 weekly wage budget
+   * When the deal workspace, where an offer is decided, shows their figures
+   * Then wages are exact and carry the per-week unit, not shortened to "€12K".
+   */
+  it("shows wages exactly, with the weekly unit, on the decision surface", () => {
+    render(
+      <PlayerDealWorkspace
+        player={createPlayer({ wage: 12345 })}
+        teams={[createTeam()]}
+        myTeam={createTeam()}
+        transferWindowBlocksRegistration={false}
+        transferWindowSummary="Window open"
+        loanNoticeDetail={null}
+        selectedKind="transfer"
+        onSelectKind={vi.fn()}
+        onClose={vi.fn()}
+        renderDealPanel={() => <div>Deal panel</div>}
+      />,
+    );
+
+    expect(screen.getByText("€12,345/wk")).toBeInTheDocument();
+    expect(screen.getByText("€50,000/wk")).toBeInTheDocument();
+  });
+
   it("uses a page-style back affordance instead of a close icon", () => {
     const onClose = vi.fn();
 
@@ -119,7 +144,6 @@ describe("PlayerDealWorkspace", () => {
         player={createPlayer()}
         teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })]}
         myTeam={createTeam()}
-        weeklySuffix="/wk"
         transferWindowBlocksRegistration={false}
         transferWindowSummary="Window open"
         loanNoticeDetail={null}
@@ -143,7 +167,6 @@ describe("PlayerDealWorkspace", () => {
         player={createPlayer({ team_id: null, wage: 0 })}
         teams={[createTeam()]}
         myTeam={createTeam()}
-        weeklySuffix="/wk"
         transferWindowBlocksRegistration={false}
         transferWindowSummary="Window open"
         loanNoticeDetail={null}
@@ -167,7 +190,6 @@ describe("PlayerDealWorkspace", () => {
         player={createPlayer()}
         teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })]}
         myTeam={createTeam()}
-        weeklySuffix="/wk"
         transferWindowBlocksRegistration={false}
         transferWindowSummary="Window open"
         loanNoticeDetail={null}
@@ -189,7 +211,6 @@ describe("PlayerDealWorkspace", () => {
         player={createPlayer({ transfer_listed: false, loan_listed: true })}
         teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC", short_name: "BET" })]}
         myTeam={createTeam()}
-        weeklySuffix="/wk"
         transferWindowBlocksRegistration={false}
         transferWindowSummary="Window open"
         loanNoticeDetail={null}
@@ -247,7 +268,6 @@ function workspace(
       player={player}
       teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC" })]}
       myTeam={createTeam()}
-      weeklySuffix="/wk"
       transferWindowBlocksRegistration={false}
       transferWindowSummary="Window open"
       loanNoticeDetail={null}
