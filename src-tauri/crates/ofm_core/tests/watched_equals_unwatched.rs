@@ -163,8 +163,19 @@ fn watched_and_unwatched_give_the_same_match_over_a_long_run() {
 /// The manager commands a person gives during the match, keyed by the minute they are given at.
 fn scripted_commands(session: &LiveMatchSession) -> Vec<(u8, MatchCommand)> {
     let snapshot = session.snapshot();
-    let off = snapshot.home_team.players[5].id.clone();
-    let on = snapshot.home_bench[0].id.clone();
+    // A like-for-like change, so the substitution is one the engine accepts.
+    let (off, on) = snapshot
+        .home_team
+        .players
+        .iter()
+        .find_map(|starter| {
+            snapshot
+                .home_bench
+                .iter()
+                .find(|candidate| candidate.position == starter.position)
+                .map(|candidate| (starter.id.clone(), candidate.id.clone()))
+        })
+        .expect("some starter has a bench player for his position");
     vec![
         (
             55,
@@ -200,7 +211,9 @@ fn scripted_live_match(
     while !session.is_finished() {
         let minute = u16::from(session.match_state.minute());
         while let Some((_, command)) = script.next_if(|(at, _)| u16::from(*at) <= minute) {
-            let _ = session.apply_command(command);
+            session
+                .apply_command(command)
+                .expect("a scripted command is one the match accepts");
         }
         let until_next_command = script.peek().map_or(u16::MAX, |(at, _)| {
             u16::from(*at).saturating_sub(minute).max(1)
