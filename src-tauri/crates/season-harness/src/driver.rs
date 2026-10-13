@@ -46,6 +46,38 @@ pub trait SeasonObserver {
     fn on_season_end(&mut self, _game: &Game, _summary: &EndOfSeasonSummary, _season: u32) {}
 }
 
+impl<T: SeasonObserver + ?Sized> SeasonObserver for &mut T {
+    fn on_day_end(&mut self, game: &Game, season: u32, day: u32) {
+        (**self).on_day_end(game, season, day);
+    }
+
+    fn on_before_rollover(&mut self, game: &Game, season: u32) {
+        (**self).on_before_rollover(game, season);
+    }
+
+    fn on_season_end(&mut self, game: &Game, summary: &EndOfSeasonSummary, season: u32) {
+        (**self).on_season_end(game, summary, season);
+    }
+}
+
+/// Two observers watching one run, told in order.
+impl<A: SeasonObserver, B: SeasonObserver> SeasonObserver for (A, B) {
+    fn on_day_end(&mut self, game: &Game, season: u32, day: u32) {
+        self.0.on_day_end(game, season, day);
+        self.1.on_day_end(game, season, day);
+    }
+
+    fn on_before_rollover(&mut self, game: &Game, season: u32) {
+        self.0.on_before_rollover(game, season);
+        self.1.on_before_rollover(game, season);
+    }
+
+    fn on_season_end(&mut self, game: &Game, summary: &EndOfSeasonSummary, season: u32) {
+        self.0.on_season_end(game, summary, season);
+        self.1.on_season_end(game, summary, season);
+    }
+}
+
 /// How a day on which the player's own club has a fixture is played.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DayPath {

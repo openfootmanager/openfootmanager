@@ -1,0 +1,309 @@
+name: nightly-e2e
+
+# What runs, and when:
+#   - 03:15 UTC every night, and on demand (workflow_dispatch): never on a pull request or a push.
+#   - Only on openfootmanager/openfootmanager: a fork's copy of this file stays idle.
+#   - From `develop`, checked out explicitly: a dispatch from another branch still tests develop.
+#
+# Jobs: `build` makes the `--features mcp` binary once; `harness-nightly` plays the season harness's
+# nightly tier; `e2e` runs the MCP suite against the binary `build` made, smoke subset first;
+# `notify` is the only job that can write issues. A red night opens ONE issue labelled
+# `nightly-failure`; the next red night comments on it; a green night comments "green" on it and
+# leaves it open for a person to close.
+#
+# The ordinary feature-off Tauri smoke build (build-check.yml) is untouched, so the `mcp`
+# feature cannot hide a packaging failure.
+
+on:
+  schedule:
+    - cron: "15 3 * * *"
+  workflow_dispatch:
+    inputs:
+      rehearse_failure:
+        description: Skip the suites and fail on purpose, to exercise the issue path
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+# One nightly at a time; a late run waits rather than cancelling the one in progress.
+concurrency:
+  group: nightly-e2e
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  rehearsal:
+    if: github.repository == 'openfootmanager/openfootmanager' && github.event_name == 'workflow_dispatch' && inputs.rehearse_failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail on purpose
+        run: |
+          echo "rehearsal: this failure is forced by workflow_dispatch rehearse_failure" | tee failed-rehearsal.txt
+          exit 1
+      - name: Keep what failed for the notify job
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: failed-rehearsal
+          path: failed-rehearsal.txt
+          retention-days: 14
+
+  build:
+    if: github.repository == 'openfootmanager/openfootmanager' && !(github.event_name == 'workflow_dispatch' && inputs.rehearse_failure)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      revision: ${{ steps.revision.outputs.revision }}
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: develop
+          persist-credentials: false
+
+      - name: Record the revision
+        id: revision
+        run: echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0 # the pin check (scripts/check-toolchain-pin.sh) requires the version form
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Build the app with the mcp feature
+        run: cargo build --locked --manifest-path src-tauri/Cargo.toml --features mcp --bin openfootmanager
+
+      - name: Stage the binary with its revision and checksum
+        env:
+          REVISION: ${{ steps.revision.outputs.revision }}
+        run: |
+          mkdir stage
+          cp src-tauri/target/debug/openfootmanager stage/openfootmanager
+          echo "$REVISION" > stage/REVISION
+          (cd stage && sha256sum openfootmanager > openfootmanager.sha256)
+
+      - name: Keep the binary for the e2e job
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mcp-binary
+          path: stage
+          retention-days: 1
+          if-no-files-found: error
+
+  harness-nightly:
+    if: github.repository == 'openfootmanager/openfootmanager' && !(github.event_name == 'workflow_dispatch' && inputs.rehearse_failure)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: develop
+          persist-credentials: false
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0 # the pin check (scripts/check-toolchain-pin.sh) requires the version form
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Play the season harness nightly tier
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --locked --manifest-path src-tauri/Cargo.toml -p season-harness --test nightly -- --ignored --nocapture 2>&1 | tee harness-nightly.log
+
+      - name: List what failed
+        if: failure()
+        run: |
+          grep -E '^test .* FAILED|panicked at|^seed [0-9]+' harness-nightly.log > failed-harness-nightly.txt || true
+          echo "repro: cargo test -p season-harness --test nightly <scenario> -- --ignored --nocapture" >> failed-harness-nightly.txt
+          { echo "### harness-nightly"; echo '```'; cat failed-harness-nightly.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: failed-harness-nightly
+          path: |
+            harness-nightly.log
+            failed-harness-nightly.txt
+          retention-days: 14
+          if-no-files-found: ignore
+
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+      OFM_GPU_PROFILE: safe
+    steps:
+      - name: Checkout the revision the binary was built from
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.build.outputs.revision }}
+          persist-credentials: false
+
+      - name: Install Linux dependencies and a virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xdg-utils xvfb xauth
+
+      - name: Fetch the binary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: mcp-binary
+          path: stage
+
+      - name: Verify the binary is today's, for this revision
+        env:
+          REVISION: ${{ needs.build.outputs.revision }}
+        run: |
+          test "$(cat stage/REVISION)" = "$REVISION"
+          (cd stage && sha256sum --check openfootmanager.sha256)
+          chmod +x stage/openfootmanager
+
+      - name: Install Rust 1.95.0
+        uses: dtolnay/rust-toolchain@1.95.0 # the pin check (scripts/check-toolchain-pin.sh) requires the version form
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Choose the night's seed and a scratch directory
+        run: |
+          echo "OFM_E2E_SEED=$(date -u +%j | sed 's/^0*//')" >> "$GITHUB_ENV"
+          echo "OFM_E2E_BIN=$GITHUB_WORKSPACE/stage/openfootmanager" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/e2e"
+          echo "TMPDIR=$RUNNER_TEMP/e2e" >> "$GITHUB_ENV"
+
+      - name: Smoke subset
+        id: smoke
+        shell: bash
+        run: |
+          set -o pipefail
+          xvfb-run -a -s "-screen 0 1280x800x24" cargo test --locked --manifest-path src-tauri/Cargo.toml -p mcp-e2e --test smoke -- --ignored --test-threads=2 2>&1 | tee e2e-smoke.log
+
+      - name: Say that the smoke failed first
+        if: failure() && steps.smoke.outcome == 'failure'
+        run: echo "The smoke subset is red, so the rest of the MCP suite was not run." | tee -a e2e-smoke.log
+
+      - name: Full MCP suite
+        shell: bash
+        run: |
+          set -o pipefail
+          xvfb-run -a -s "-screen 0 1280x800x24" cargo test --locked --manifest-path src-tauri/Cargo.toml -p mcp-e2e -- --ignored --test-threads=2 2>&1 | tee e2e-suite.log
+
+      - name: List what failed
+        if: failure()
+        run: |
+          grep -hE '^test .* FAILED|OFM_E2E_SEED=|smoke subset is red' e2e-*.log > failed-e2e.txt || true
+          echo "seed: $OFM_E2E_SEED" >> failed-e2e.txt
+          { echo "### e2e"; echo '```'; cat failed-e2e.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: failed-e2e
+          path: |
+            e2e-*.log
+            failed-e2e.txt
+            ${{ runner.temp }}/e2e
+          retention-days: 14
+          if-no-files-found: ignore
+
+  notify:
+    if: always() && github.repository == 'openfootmanager/openfootmanager' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    needs: [rehearsal, build, harness-nightly, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # The only job with write access, and it runs no code from the repository.
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      REVISION: ${{ needs.build.outputs.revision }}
+      REHEARSAL: ${{ needs.rehearsal.result }}
+      BUILD: ${{ needs.build.result }}
+      HARNESS: ${{ needs.harness-nightly.result }}
+      E2E: ${{ needs.e2e.result }}
+    steps:
+      - name: Fetch what each job reported
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: failed-*
+          path: reports
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Open, update or confirm the nightly issue
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh label create nightly-failure --color B60205 --description "The nightly e2e run was red" || true
+          number="$(gh issue list --label nightly-failure --state open --json number --jq '.[0].number // empty')"
+          today="$(date -u +%F)"
+
+          red=false
+          for result in "$REHEARSAL" "$BUILD" "$HARNESS" "$E2E"; do
+            if [ "$result" = failure ] || [ "$result" = cancelled ]; then red=true; fi
+          done
+
+          if [ "$red" = false ]; then
+            if [ -n "$number" ]; then
+              gh issue comment "$number" --body "Green on $today: $RUN_URL. Left open for a person to close."
+            fi
+            exit 0
+          fi
+
+          {
+            echo "Nightly e2e was red on $today (revision \`${REVISION:-unknown}\`): $RUN_URL"
+            echo
+            echo "| job | result |"
+            echo "|---|---|"
+            echo "| rehearsal | $REHEARSAL |"
+            echo "| build | $BUILD |"
+            echo "| harness-nightly | $HARNESS |"
+            echo "| e2e | $E2E |"
+            echo
+            echo "Failed scenarios and repro lines (evidence is in the run's artifacts for 14 days):"
+            echo '```'
+            cat reports/failed-*.txt 2>/dev/null || echo "(no failed-scenario list; the job failed before tests ran)"
+            echo '```'
+            echo
+            echo "Triage: infrastructure, adapter or protocol, gameplay invariant, persistence, UI (backend right, view stale), rendering."
+          } > body.md
+
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body-file body.md
+          else
+            gh issue create --title "Nightly e2e red: $today" --label nightly-failure --body-file body.md
+          fi
