@@ -7,7 +7,7 @@
 //! `SEEDS` only with a measurement beside the change.
 
 use season_harness::driver::{DayPath, HarnessError, RunOptions, run_seasons};
-use season_harness::fingerprint::{fingerprint, first_difference};
+use season_harness::fingerprint::{StatsLog, fingerprint, first_difference};
 use season_harness::invariants::Invariants;
 use season_harness::worlds::WorldSpec;
 
@@ -233,10 +233,16 @@ fn the_same_seed_plays_the_same_seasons() {
     let play = || {
         let mut game = WorldSpec::gate(1).build().expect("the world builds");
         let mut invariants = Invariants::new(&game);
+        let mut stats = StatsLog::default();
         // The invariants are not under test here, only that the two runs agree; but a run that
         // stopped early would agree with itself without having played the season.
-        run_seasons(&mut game, RunOptions::seasons(1), &mut invariants).expect("the season plays");
-        fingerprint(&game)
+        run_seasons(
+            &mut game,
+            RunOptions::seasons(1),
+            &mut (&mut invariants, &mut stats),
+        )
+        .expect("the season plays");
+        format!("{}\n{}", fingerprint(&game), stats.fingerprint())
     };
 
     let first = play();
