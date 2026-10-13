@@ -3556,6 +3556,114 @@ mod tests {
         assert_eq!(loaded.retired_players[0].full_name, "Ada Old");
     }
 
+    fn retired_veteran_manager(id: &str, first_name: &str) -> domain::manager::Manager {
+        let mut manager = domain::manager::Manager::new(
+            id.to_string(),
+            first_name.to_string(),
+            "Veteran".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.reputation = 640;
+        manager.career_stats.trophies = 4;
+        manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                "club-1".to_string(),
+                "Club One".to_string(),
+                "2010-07-01".to_string(),
+            ));
+        manager
+    }
+
+    /// Given an archived manager who is still a row in `managers`, when the career is saved,
+    /// then a second connection finds one `retired_managers` row and no active `managers` row.
+    #[test]
+    fn saving_moves_an_archived_manager_out_of_the_active_table() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let veteran = retired_veteran_manager("mgr-veteran", "Ada");
+        let id = manager.create_save(&game, "Archive").unwrap();
+        game.managers.push(veteran.clone());
+        manager.save_game(&game, &id).unwrap();
+        game.managers.retain(|m| m.id != veteran.id);
+        game.retired_managers.push(veteran);
+        manager.save_game(&game, &id).unwrap();
+
+        let reader = rusqlite::Connection::open(manager.save_db_path(&id).unwrap()).unwrap();
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM retired_managers WHERE manager_id = ?1",
+                "mgr-veteran"
+            ),
+            1
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM managers WHERE id = ?1",
+                "mgr-veteran"
+            ),
+            0
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM managers WHERE id = ?1",
+                &game.manager.id
+            ),
+            1,
+            "the user's manager is not touched"
+        );
+    }
+
+    /// Given an archive of managers, when the career is loaded, then every record survives whole
+    /// and none of them is back in the active pool.
+    #[test]
+    fn the_retired_manager_archive_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.retired_managers = vec![
+            retired_veteran_manager("veteran-a", "Ada"),
+            retired_veteran_manager("veteran-b", "Bo"),
+        ];
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&loaded.retired_managers).unwrap(),
+            serde_json::to_value(&game.retired_managers).unwrap()
+        );
+        assert!(
+            loaded
+                .managers
+                .iter()
+                .all(|m| !m.id.starts_with("veteran-"))
+        );
+    }
+
+    /// Given an archived manager, when a later save carries a different payload for the same id,
+    /// then the save succeeds and the first record stays.
+    #[test]
+    fn an_archived_manager_is_never_rewritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.retired_managers = vec![retired_veteran_manager("mgr-old", "Ada")];
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        game.retired_managers = vec![retired_veteran_manager("mgr-old", "Renamed")];
+        manager.save_game(&game, &id).unwrap();
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(loaded.retired_managers.len(), 1);
+        assert_eq!(loaded.retired_managers[0].first_name, "Ada");
+    }
+
     /// Given a retiree archived in a transaction that is then abandoned, when the database is
     /// read, then the person is still active and no archive row exists: neither half committed.
     #[test]

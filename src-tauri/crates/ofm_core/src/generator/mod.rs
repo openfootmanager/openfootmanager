@@ -1204,6 +1204,17 @@ pub fn build_world_data_from_package(
     opening_year: Option<u32>,
     sources: &definitions::DefinitionSources,
 ) -> WorldData {
+    build_world_data_from_package_with_rng(package, opening_year, sources, &mut rand::rng())
+}
+
+/// [`build_world_data_from_package`] drawing every die from `rng`, so a seeded one gives the same
+/// world twice.
+pub fn build_world_data_from_package_with_rng(
+    package: &package::WorldPackage,
+    opening_year: Option<u32>,
+    sources: &definitions::DefinitionSources,
+    rng: &mut impl rand::Rng,
+) -> WorldData {
     #[cfg(test)]
     PACKAGE_WORLD_BUILDS.with(|count| count.set(count.get() + 1));
     let opening_year = opening_year
@@ -1221,7 +1232,6 @@ pub fn build_world_data_from_package(
         })
         .unwrap_or_else(default_opening_year)
         .clamp(MIN_OPENING_YEAR, MAX_OPENING_YEAR);
-    let mut rng = rand::rng();
     let names_def = {
         // From `sources`, so a package's own pools layer on top of whatever the
         // player resolved rather than on top of the embedded copy — the same
@@ -1285,7 +1295,7 @@ pub fn build_world_data_from_package(
             &country_codes,
             opening_year,
             &names_def,
-            &mut rng,
+            &mut *rng,
         );
         // Replace auto-generated staff with authored versions, consuming each slot
         // at most once so multiple authored staff of the same role all survive.
@@ -1296,7 +1306,7 @@ pub fn build_world_data_from_package(
                 Some(&team.id),
                 opening_year,
                 &names_def,
-                &mut rng,
+                &mut *rng,
             );
             // Only the original auto-generated slots are replacement candidates;
             // already-placed authored staff (appended below) are never overwritten.
@@ -1324,7 +1334,7 @@ pub fn build_world_data_from_package(
             None,
             opening_year,
             &names_def,
-            &mut rng,
+            &mut *rng,
         ));
     }
 
@@ -1338,9 +1348,9 @@ pub fn build_world_data_from_package(
     if package.competitions.is_empty() && teams.len() == 1 {
         build_notices.push("be.error.notice.fallbackTeamsFilled".to_string());
         let country = teams[0].country.clone();
-        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, sources, &mut rng) {
+        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, sources, &mut *rng) {
             let (team, team_players, team_staff) =
-                build_club(def, &country_codes, opening_year, &names_def, &mut rng);
+                build_club(def, &country_codes, opening_year, &names_def, &mut *rng);
             teams.push(team);
             players.extend(team_players);
             staff.extend(team_staff);

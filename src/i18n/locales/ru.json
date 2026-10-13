@@ -772,6 +772,7 @@
     "myTactics": "Мои тактики",
     "newTactic": "Новая тактика",
     "duplicateTactic": "Дублировать",
+    "resetTactic": "Сбросить к исходным",
     "saveAsTactic": "Сохранить как тактику",
     "updateTactic": "Обновить тактику",
     "tacticSaved": "Сохранено",
@@ -1174,6 +1175,7 @@
     "sortNewest": "Сначала новые",
     "sortOldest": "Сначала старые",
     "selectMessages": "Выбрать сообщения",
+    "selectAll": "Выбрать все",
     "cancelSelection": "Отменить выбор",
     "selectedCount": "Выбрано: {{count}}",
     "deleteSelected": "Удалить выбранные",
@@ -2556,7 +2558,10 @@
     "yourResult": "Ваш результат",
     "continue": "Продолжить",
     "notableUpset": "Неожиданный результат",
-    "pts": "очк."
+    "pts": "очк.",
+    "cupPenalties": "({{home}}–{{away}} по пенальти)",
+    "cupAdvances": "{{team}} проходит дальше",
+    "cupTiesPending": "Некоторые матчи ещё не сыграны"
   },
   "endOfSeason": {
     "seasonComplete": "Сезон завершён",

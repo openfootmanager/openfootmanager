@@ -724,6 +724,7 @@
     "myTactics": "Moje taktiky",
     "newTactic": "Nová taktika",
     "duplicateTactic": "Duplikovat",
+    "resetTactic": "Obnovit výchozí",
     "saveAsTactic": "Uložit jako taktiku",
     "updateTactic": "Aktualizovat taktiku",
     "tacticSaved": "Uloženo",
@@ -1174,6 +1175,7 @@
     "sortNewest": "Nejnovější jako první",
     "sortOldest": "Nejstarší jako první",
     "selectMessages": "Vybrat zprávy",
+    "selectAll": "Vybrat vše",
     "cancelSelection": "Zrušit výběr",
     "selectedCount": "Vybráno: {{count}}",
     "deleteSelected": "Smazat vybrané",
@@ -2556,7 +2558,10 @@
     "yourResult": "Váš výsledek",
     "continue": "Pokračovat",
     "notableUpset": "Velké překvapení",
-    "pts": "b."
+    "pts": "b.",
+    "cupPenalties": "({{home}}–{{away}} na penalty)",
+    "cupAdvances": "{{team}} postupuje dál",
+    "cupTiesPending": "Některá utkání se ještě odehrají"
   },
   "endOfSeason": {
     "seasonComplete": "Sezóna dokončena",

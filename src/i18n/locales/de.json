@@ -772,6 +772,7 @@
     "myTactics": "Meine Taktiken",
     "newTactic": "Neue Taktik",
     "duplicateTactic": "Duplizieren",
+    "resetTactic": "Auf Standard zurücksetzen",
     "saveAsTactic": "Als Taktik speichern",
     "updateTactic": "Taktik aktualisieren",
     "tacticSaved": "Gespeichert",
@@ -1174,6 +1175,7 @@
     "sortNewest": "Neueste zuerst",
     "sortOldest": "Älteste zuerst",
     "selectMessages": "Nachrichten auswählen",
+    "selectAll": "Alle auswählen",
     "cancelSelection": "Auswahl abbrechen",
     "selectedCount": "{{count}} ausgewählt",
     "deleteSelected": "Auswahl löschen",
@@ -2556,7 +2558,10 @@
     "yourResult": "Dein Ergebnis",
     "continue": "Weiter",
     "notableUpset": "Überraschungsergebnis",
-    "pts": "Pkt."
+    "pts": "Pkt.",
+    "cupPenalties": "({{home}}–{{away}} im Elfmeterschießen)",
+    "cupAdvances": "{{team}} kommt weiter",
+    "cupTiesPending": "Einige Partien stehen noch aus"
   },
   "endOfSeason": {
     "seasonComplete": "Saison beendet",

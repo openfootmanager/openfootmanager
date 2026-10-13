@@ -772,6 +772,7 @@
     "myTactics": "我的战术",
     "newTactic": "新建战术",
     "duplicateTactic": "复制",
+    "resetTactic": "恢复默认",
     "saveAsTactic": "保存为战术",
     "updateTactic": "更新战术",
     "tacticSaved": "已保存",
@@ -1174,6 +1175,7 @@
     "sortNewest": "最新优先",
     "sortOldest": "最早优先",
     "selectMessages": "选择消息",
+    "selectAll": "全选",
     "cancelSelection": "取消选择",
     "selectedCount": "已选 {{count}} 条",
     "deleteSelected": "删除所选",
@@ -2556,7 +2558,10 @@
     "yourResult": "你的成绩",
     "continue": "继续",
     "notableUpset": "重大爆冷",
-    "pts": "分"
+    "pts": "分",
+    "cupPenalties": "（点球 {{home}}–{{away}}）",
+    "cupAdvances": "{{team}} 晋级",
+    "cupTiesPending": "部分对阵尚未进行"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",

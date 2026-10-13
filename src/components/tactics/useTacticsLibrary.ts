@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { GameStateData } from "../../store/gameStore";
+import { getTacticsBlueprintStatus } from "../../services/squadService";
 import {
   TACTICS_PRESETS,
   findTacticsPresetBySetup,
@@ -49,6 +50,34 @@ export function useTacticsLibrary({
   const hydratedCustomTacticsScopeRef = useRef<string | null>(null);
 
   const customTacticsStorageKey = gameState ? buildCustomTacticsStorageKey(gameState) : null;
+
+  // Whether the phase dials still equal the style's blueprint is the backend's rule (`blueprint_for`);
+  // it is asked again whenever the dials or the style change.
+  const [blueprintModified, setBlueprintModified] = useState(false);
+  const userTeam = gameState?.teams.find((team) => team.id === gameState.manager.team_id);
+  const blueprintKey = `${activePlayStyle}|${JSON.stringify(userTeam?.tactics_phase ?? null)}`;
+
+  const hasClub = Boolean(userTeam);
+
+  useEffect(() => {
+    // No game or no club has no blueprint to ask about.
+    if (!hasClub) {
+      setBlueprintModified(false);
+      return;
+    }
+
+    let cancelled = false;
+    getTacticsBlueprintStatus()
+      .then(({ modified }) => {
+        if (!cancelled) setBlueprintModified(modified);
+      })
+      .catch(() => {
+        if (!cancelled) setBlueprintModified(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [blueprintKey, hasClub]);
 
   useEffect(() => {
     if (!gameState || !customTacticsStorageKey) return;
@@ -116,9 +145,11 @@ export function useTacticsLibrary({
           draftTacticName.trim().length > 0 &&
           draftTacticName.trim() !== activeTactic.name)),
   );
+  // A custom tactic saves formation, style and name only, so its dials are not part of what could
+  // be "unsaved"; a preset is also its blueprint, so tuned dials make it differ from the preset.
   const isCommandBarDirty = isActiveCustomTactic
     ? isActiveTacticDirty
-    : isActiveTacticDirty || isPresetDirty;
+    : isActiveTacticDirty || isPresetDirty || blueprintModified;
 
   useEffect(() => {
     if (!matchedPreset) {
@@ -259,10 +290,35 @@ export function useTacticsLibrary({
     setDraftTacticName(nextTactic.name);
   }
 
+  // What Reset goes back to: a preset applies as a whole (formation, style and phase blueprint, the
+  // backend's own preset); a saved custom tactic goes back to the formation and style it was
+  // saved with; an unsaved setup falls back to the preset it was started from, if any.
+  const anchoredPresetEntry =
+    translatedPresetLibrary.find((entry) => entry.id === `preset:${presetAnchorId}`) ?? null;
+  const resetTarget = isActiveCustomTactic
+    ? (customTactics.find((entry) => entry.id === activeTactic.id) ?? anchoredPresetEntry)
+    : activeTactic;
+  // Reset is offered exactly when the badge says something differs: a preset against its whole
+  // definition (formation, style and the backend's verdict on the dials), a saved custom tactic
+  // against what it was saved with.
+  const canResetTactic =
+    resetTarget !== null &&
+    (resetTarget.type === "preset"
+      ? isActiveTacticDirty || isPresetDirty || blueprintModified
+      : isActiveTacticDirty);
+
+  async function handleResetTactic(): Promise<void> {
+    if (resetTarget) {
+      await applyTacticSelection(resetTarget);
+    }
+  }
+
   return {
     activeTactic,
     tacticLibrary,
     isCommandBarDirty,
+    canResetTactic,
+    handleResetTactic,
     applyTacticSelection,
     handleCreateCustomTactic,
     handleDuplicateTactic,
