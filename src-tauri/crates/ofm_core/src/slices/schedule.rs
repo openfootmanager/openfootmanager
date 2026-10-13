@@ -29,9 +29,12 @@ pub struct FixtureSummary {
     /// "Scheduled" | "InProgress" | "Completed"
     pub status: String,
     pub result: Option<FixtureResult>,
+    /// The date the match was first scheduled for, when it has been moved.
+    pub rescheduled_from: Option<String>,
 }
 
-/// A group of fixtures sharing the same matchday (or date for cup rounds).
+/// A group of fixtures sharing a matchday and a date (a round postponed in part is several groups),
+/// or a competition and a date for cup rounds.
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct MatchdayGroup {
     /// Stable key used as React list key and scroll anchor target.
@@ -156,7 +159,10 @@ pub fn query_schedule(game: &Game, query: &ScheduleQuery) -> Option<ScheduleSlic
 
 fn group_key(fixture: &Fixture) -> String {
     if fixture.competition == FixtureCompetition::League {
-        format!("{}-league-{}", fixture.competition_id, fixture.matchday)
+        format!(
+            "{}-league-{}-{}",
+            fixture.competition_id, fixture.matchday, fixture.date
+        )
     } else {
         format!(
             "{}-{}-{}",
@@ -215,6 +221,10 @@ fn project_fixture(fixture: &Fixture, team_name: &BTreeMap<&str, &str>) -> Fixtu
         competition_id: fixture.competition_id.clone(),
         status: status.to_string(),
         result,
+        rescheduled_from: fixture
+            .postponement
+            .as_ref()
+            .map(|postponement| postponement.original_date.clone()),
     }
 }
 
@@ -244,6 +254,91 @@ mod tests {
             status,
             result: None,
         }
+    }
+
+    /// Given a round with one match played three days after the others, when the schedule is queried,
+    /// then the round is two groups, each carrying its own date.
+    #[test]
+    fn schedule_groups_a_split_round_by_date() {
+        let game = make_game(
+            vec![
+                make_completed_fixture("f1", 5, "2033-03-08", "user-team", "other-team", 1, 0),
+                make_completed_fixture("f2", 5, "2033-03-11", "other-team", "user-team", 0, 0),
+            ],
+            "2033-03-12",
+            "user-team",
+        );
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".into(),
+            },
+        )
+        .unwrap();
+        let mut dates: Vec<_> = slice
+            .past_groups
+            .iter()
+            .map(|g| (g.matchday, g.date.as_str()))
+            .collect();
+        dates.sort();
+        assert_eq!(dates, vec![(5, "2033-03-08"), (5, "2033-03-11")]);
+    }
+
+    /// Given a moved fixture, when the schedule is queried, then its row names the date it was first set for.
+    #[test]
+    fn a_moved_fixture_row_names_its_original_date() {
+        use domain::league::{Postponement, RescheduleReason};
+        let mut moved = make_fixture(
+            "f1",
+            5,
+            "2033-03-11",
+            "user-team",
+            "other-team",
+            FixtureStatus::Scheduled,
+        );
+        moved.postponement = Some(Postponement {
+            original_date: "2033-03-08".into(),
+            reason: RescheduleReason::CupTie,
+        });
+        let game = make_game(
+            vec![
+                moved,
+                make_fixture(
+                    "f2",
+                    6,
+                    "2033-03-18",
+                    "other-team",
+                    "user-team",
+                    FixtureStatus::Scheduled,
+                ),
+            ],
+            "2033-03-01",
+            "user-team",
+        );
+        let slice = query_schedule(
+            &game,
+            &ScheduleQuery {
+                competition_id: "league-1".into(),
+            },
+        )
+        .unwrap();
+        let rows: Vec<_> = slice
+            .upcoming_groups
+            .iter()
+            .flat_map(|g| &g.fixtures)
+            .collect();
+        assert_eq!(
+            rows.iter()
+                .find(|f| f.id == "f1")
+                .unwrap()
+                .rescheduled_from
+                .as_deref(),
+            Some("2033-03-08")
+        );
+        assert_eq!(
+            rows.iter().find(|f| f.id == "f2").unwrap().rescheduled_from,
+            None
+        );
     }
 
     fn make_completed_fixture(
