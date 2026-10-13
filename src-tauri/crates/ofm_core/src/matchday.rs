@@ -24,7 +24,16 @@ pub struct UserMatchdayOutcome {
     /// The user's league table and round number as they stood *before* the day, for the round
     /// digest. Captured at session creation, because by the time the day is finished the round has
     /// been played and every delta would read as zero.
-    pub league_round_context: Option<(u32, Vec<StandingEntry>)>,
+    pub league_round_context: Option<LeagueRoundContext>,
+}
+
+/// The user's league round on one date: which matchday it is, and the table before it was played.
+/// Scoped to the DATE, because a round can be spread over several days once a match is postponed.
+#[derive(Debug, Clone)]
+pub struct LeagueRoundContext {
+    pub date: String,
+    pub matchday: u32,
+    pub previous_standings: Vec<StandingEntry>,
 }
 
 /// The user's league round as it stands right now: the matchday of its fixture due today, and its
@@ -41,7 +50,7 @@ pub struct UserMatchdayOutcome {
 /// The legacy mirror is a fallback only when there are no competitions at all — a save written
 /// before `competitions` existed, where the mirror *is* the league. Reaching for it whenever no
 /// league is found would hand a cup-only club whatever the mirror happened to hold.
-pub fn user_league_round_context(game: &Game) -> Option<(u32, Vec<StandingEntry>)> {
+pub fn user_league_round_context(game: &Game) -> Option<LeagueRoundContext> {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
     let league = game.user_league().or_else(|| {
         game.competitions
@@ -52,10 +61,15 @@ pub fn user_league_round_context(game: &Game) -> Option<(u32, Vec<StandingEntry>
     let matchday = league
         .fixtures
         .iter()
-        .find(|fixture| fixture.date == today)
-        .map(|fixture| fixture.matchday)?;
+        .filter(|fixture| fixture.date == today && fixture.counts_for_league_standings())
+        .map(|fixture| fixture.matchday)
+        .min()?;
 
-    Some((matchday, league.standings.clone()))
+    Some(LeagueRoundContext {
+        date: today,
+        matchday,
+        previous_standings: league.standings.clone(),
+    })
 }
 
 /// Whether a fixture may go to extra time, i.e. whether it is a knockout tie.
@@ -284,11 +298,41 @@ mod tests {
             competition("eng-d1", CompetitionType::League, &["eng-00", "eng-01"], 32),
         ];
 
-        let (matchday, standings) =
-            user_league_round_context(&game).expect("the user is in a league");
+        let context = user_league_round_context(&game).expect("the user is in a league");
 
-        assert_eq!(matchday, 32, "the league's round, not the cup's");
-        assert_eq!(standings.len(), 2);
+        assert_eq!(context.matchday, 32, "the league's round, not the cup's");
+        assert_eq!(context.previous_standings.len(), 2);
+    }
+
+    /// **Given** a late match of one round and an on-time match of the next both fall today, **when**
+    /// the round context is asked for, **then** it carries today's date and the lowest of the two matchdays.
+    #[test]
+    fn the_context_is_scoped_to_today_with_the_lowest_matchday_played() {
+        let mut game = game_managing("eng-00");
+        let mut league = competition("eng-d1", CompetitionType::League, &["eng-00", "eng-01"], 21);
+        let mut late = league.fixtures[0].clone();
+        late.id = "late".into();
+        late.matchday = 20;
+        late.home_team_id = "eng-02".into();
+        late.away_team_id = "eng-03".into();
+        league.fixtures.push(late);
+        game.competitions = vec![league];
+
+        let context = user_league_round_context(&game).expect("the user is in a league");
+
+        assert_eq!((context.date.as_str(), context.matchday), (TODAY, 20));
+    }
+
+    /// **Given** only a friendly is played today, **when** the round context is asked for, **then**
+    /// there is none: a friendly is not a league round.
+    #[test]
+    fn a_day_with_only_a_friendly_has_no_league_round() {
+        let mut game = game_managing("eng-00");
+        let mut league = competition("eng-d1", CompetitionType::League, &["eng-00", "eng-01"], 0);
+        league.fixtures[0].competition = FixtureCompetition::Friendly;
+        game.competitions = vec![league];
+
+        assert!(user_league_round_context(&game).is_none());
     }
 
     /// **Given** the user's club is in a cup and no league at all, **when** the round context is
@@ -325,11 +369,11 @@ mod tests {
             14,
         ));
 
-        let (matchday, standings) =
+        let context =
             user_league_round_context(&game).expect("the mirror is the only copy this save has");
 
-        assert_eq!(matchday, 14);
-        assert_eq!(standings.len(), 2);
+        assert_eq!(context.matchday, 14);
+        assert_eq!(context.previous_standings.len(), 2);
     }
 
     /// **Given** competitions exist but none is the user's league, **when** the round context is

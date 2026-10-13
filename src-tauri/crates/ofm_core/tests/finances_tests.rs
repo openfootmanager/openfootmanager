@@ -263,6 +263,46 @@ fn finance_action_previews_are_available_without_mutating_state() {
     assert!(game.teams[0].financial_ledger.is_empty());
 }
 
+/// Given a club in good financial health with funds for the first upgrade
+/// When the finance previews are read
+/// Then each facility reports its next cost, can be afforded, and has no block reason.
+#[test]
+fn facility_upgrade_previews_report_cost_and_availability_for_a_healthy_club() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 10_000_000;
+    game.teams[0].facilities.training = 2;
+
+    let previews = finances::finance_action_previews(&game, "team1").expect("previews");
+
+    let training = previews
+        .facility_upgrades
+        .iter()
+        .find(|preview| preview.facility == "Training")
+        .expect("training preview");
+    assert_eq!(previews.facility_upgrades.len(), 3);
+    assert_eq!(training.next_cost, 500_000);
+    assert!(training.can_afford);
+    assert_eq!(training.block_reason, None);
+}
+
+/// Given a club whose wage bill is over its budget and which cannot afford an upgrade
+/// When the finance previews are read
+/// Then every facility carries the backend's block reason and reports it cannot be afforded.
+#[test]
+fn facility_upgrade_previews_carry_the_block_reason_and_affordability() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 1_000;
+    game.teams[0].wage_budget = 1_000;
+
+    let previews = finances::finance_action_previews(&game, "team1").expect("previews");
+
+    assert_eq!(previews.facility_upgrades.len(), 3);
+    assert!(previews.facility_upgrades.iter().all(|preview| {
+        !preview.can_afford
+            && preview.block_reason.as_deref() == Some("be.error.finance.facilityUpgradeOverBudget")
+    }));
+}
+
 #[test]
 fn request_board_support_can_recover_runway_without_random_events() {
     let mut game = make_monday_game();

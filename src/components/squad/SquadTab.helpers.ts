@@ -3,7 +3,7 @@ export {
   canonicalPosition,
   normalisePosition,
 } from "../../lib/positions";
-import { canonicalPosition, normalisePosition } from "../../lib/positions";
+import { canonicalPosition, naturalPositionOf, normalisePosition } from "../../lib/positions";
 
 import type { PlayerData } from "../../store/gameStore";
 import { getPlayerOvr } from "../../lib/helpers";
@@ -138,13 +138,13 @@ export function getCurrentPosition(
   player: PlayerData,
   xiActivePosition: Map<string, string>,
 ): string {
-  return xiActivePosition.get(player.id) || player.natural_position || player.position;
+  return xiActivePosition.get(player.id) || naturalPositionOf(player);
 }
 
 export function getPreferredPositions(player: PlayerData): string[] {
   return [
     ...new Set(
-      [player.natural_position || player.position, ...(player.alternate_positions || [])]
+      [naturalPositionOf(player), ...(player.alternate_positions || [])]
         .filter(Boolean)
         .map(canonicalPosition),
     ),
@@ -397,9 +397,7 @@ export function isPlayerOutOfPosition(player: PlayerData, currentPos: string): b
 }
 
 export function isPlayerExactForSlot(player: PlayerData, currentPos: string): boolean {
-  return (
-    canonicalPosition(player.natural_position || player.position) === canonicalPosition(currentPos)
-  );
+  return canonicalPosition(naturalPositionOf(player)) === canonicalPosition(currentPos);
 }
 
 export function getSquadTacticalFit(player: PlayerData, currentPos: string): SquadTacticalFit {
@@ -427,7 +425,7 @@ export function getBestRoleForFormation(player: PlayerData, formation: string): 
   const formationSlots = buildPitchRows(formation).flatMap((row) => row.positions);
   // Best role is an ability recommendation, so it is driven by the player's
   // natural position (not player.position, which is only a coarse bucket).
-  const naturalPosition = canonicalPosition(player.natural_position || player.position);
+  const naturalPosition = canonicalPosition(naturalPositionOf(player));
   const alternatePositions = (player.alternate_positions || []).map(canonicalPosition);
 
   // 1. The player's natural position has an exact slot in this formation.

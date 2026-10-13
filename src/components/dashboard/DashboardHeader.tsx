@@ -11,6 +11,7 @@ import type { JSX, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import { naturalPositionOf } from "../../lib/positions";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
@@ -241,8 +242,8 @@ function renderSearchResults(props: {
                     player={player}
                     className="h-7 w-7 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-300"
                   />
-                  <Badge variant={positionBadgeVariant(player.position)} size="sm">
-                    {translatePositionAbbreviation(t, player.position)}
+                  <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
+                    {translatePositionAbbreviation(t, naturalPositionOf(player))}
                   </Badge>
                   <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
                     {player.full_name}

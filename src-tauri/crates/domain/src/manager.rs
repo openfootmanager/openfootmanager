@@ -105,6 +105,20 @@ impl Manager {
         self.warning_stage = 0;
     }
 
+    /// Saves from before `career_history` existed can hold a club with no open entry, so leaving
+    /// that club would leave no trace of it and `career_stage` would read the manager as one who
+    /// never had a club. Open the missing entry so the tenure that is about to end is recorded.
+    pub fn ensure_open_career_entry(&mut self, team_id: &str, team_name: &str, date: &str) {
+        if self.career_history.iter().any(|e| e.end_date.is_none()) {
+            return;
+        }
+        self.career_history.push(ManagerCareerEntry::open(
+            team_id.to_string(),
+            team_name.to_string(),
+            date.to_string(),
+        ));
+    }
+
     pub fn fire(&mut self, date: &str) {
         if let Some(entry) = self
             .career_history

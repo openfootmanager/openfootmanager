@@ -1087,6 +1087,7 @@
     "seasonIncome": "Sezon Geliri",
     "seasonExpenses": "Sezon Gideri",
     "perWeekSuffix": "/hf",
+    "snapshotLoadFailed": "Kulübün mali durumu yüklenemedi.",
     "perYearSuffix": "/yıl",
     "wagePerWeek": "Maaş/hf",
     "wagePerYear": "Yıllık maaş",
@@ -1450,6 +1451,8 @@
     "fixtures": "Fikstür",
     "standings": "Puan Durumu",
     "matchday": "{{number}}. hafta",
+    "movedFrom": "{{date}} tarihinden ertelendi",
+    "dateRange": "{{from}} ile {{to}} arası",
     "season": "{{number}}. sezon",
     "international": "Uluslararası",
     "internationalDuty": "Millî Takım Görevinde",
@@ -1664,6 +1667,7 @@
     "passAccuracy": "Pas İsabeti",
     "percentile": "Yüzdelik Dilim",
     "percentileUnavailable": "Yüzdelik dilim mevcut değil",
+    "percentileGroup": "Karşılaştırma: {{league}} içinde {{position}}",
     "recentMatches": "Son Maçlar",
     "recentMatchesScore": "Skor",
     "recentMatchesGoalsAssists": "G / A",
@@ -2774,6 +2778,7 @@
       "saveLoad": {
         "corrupted": "Bu kayıt dosyası bozuk ve yüklenemiyor.",
         "incompatibleVersion": "Bu kayıt, oyunun daha yeni bir sürümüyle oluşturulmuş (kayıt v{{saveVersion}}; bu sürüm en fazla v{{supported}} destekler). Yüklemek için oyunu güncelleyin.",
+        "incompatibleLayout": "Bu kaydın verileri belirttiği sürümle uyuşmuyor, bu yüzden güvenle yüklenemiyor. Dosyada hiçbir değişiklik yapılmadı.",
         "missingData": "Bu kayıtta gerekli veriler eksik ve yüklenemiyor.",
         "invalidWorld": "Bu kaydın dünya veya mod verileri geçersiz ve yüklenemiyor.",
         "unknown": "Bu kayıt beklenmeyen bir hata nedeniyle yüklenemedi."
