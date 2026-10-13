@@ -917,6 +917,7 @@ mod tests {
     ("v051_competition_name_key.sql", 0x834ad58e7ffc2f0a),
     ("v052_retired_players.sql", 0x0c2e01efde5465fa),
     ("v053_retired_managers.sql", 0xf6c0ab807199ea9d),
+    ("v054_manager_interim.sql", 0x9e73288fe3dd855b),
     ];
 
     /// Given the migrations already shipped
