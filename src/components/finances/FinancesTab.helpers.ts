@@ -1,6 +1,6 @@
 import type { GameStateData, MessageAction, MessageData } from "../../store/gameStore";
 import { formatVal } from "../../lib/helpers";
-import type { FinanceSnapshotData, TeamFinanceSnapshotData } from "../../services/financeService";
+import type { FinanceSnapshotData } from "../../services/financeService";
 
 export type FacilityId = "Training" | "Medical" | "Scouting";
 
@@ -43,49 +43,10 @@ export const FACILITY_DEFINITIONS: FacilityDefinition[] = [
   },
 ];
 
-export function getFacilityUpgradeCost(level: number): number {
-  return level * 250_000;
-}
-
 export function formatSignedAmount(value: number): string {
   // formatVal already renders the sign (see prefixCurrency), so taking the
   // absolute value and re-attaching "-" here only duplicated that work.
   return formatVal(value);
-}
-
-export function facilityUpgradeBlockReason(snapshot: TeamFinanceSnapshotData): string | null {
-  if (snapshot.currentlyOverBudget) {
-    return "be.error.finance.facilityUpgradeOverBudget";
-  }
-
-  if (snapshot.overallStatus === "warning" || snapshot.overallStatus === "critical") {
-    return "be.error.finance.facilityUpgradeCritical";
-  }
-
-  return null;
-}
-
-export function boardSupportAvailable(snapshot: TeamFinanceSnapshotData): boolean {
-  return (
-    snapshot.currentlyInDebt ||
-    snapshot.runwayStatus === "warning" ||
-    snapshot.runwayStatus === "critical"
-  );
-}
-
-export function sponsorPitchAvailable(snapshot: TeamFinanceSnapshotData): boolean {
-  return (
-    snapshot.currentlyOverBudget ||
-    snapshot.currentlyInDebt ||
-    snapshot.wageBudgetStatus === "warning" ||
-    snapshot.wageBudgetStatus === "critical" ||
-    snapshot.runwayStatus === "warning" ||
-    snapshot.runwayStatus === "critical"
-  );
-}
-
-export function marketingCampaignAvailable(snapshot: TeamFinanceSnapshotData): boolean {
-  return sponsorPitchAvailable(snapshot);
 }
 
 /**

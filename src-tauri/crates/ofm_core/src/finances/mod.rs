@@ -98,11 +98,25 @@ pub struct MarketingCampaignPreview {
     pub cooldown_days: u32,
 }
 
+/// What upgrading one facility would cost and whether the club may do it now.
+///
+/// The UI renders this and decides nothing: the same verdict gates `upgrade_facility`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FacilityUpgradePreview {
+    /// The id `upgrade_facility` takes: `Training`, `Medical` or `Scouting`.
+    pub facility: String,
+    pub next_cost: i64,
+    pub can_afford: bool,
+    /// A `be.error.finance.*` key when the club's finances forbid any upgrade.
+    pub block_reason: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Default)]
 pub struct FinanceActionPreviews {
     pub board_support: Option<BoardSupportResult>,
     pub sponsor_pitch: Option<SponsorPitchPreview>,
     pub marketing_campaign: Option<MarketingCampaignPreview>,
+    pub facility_upgrades: Vec<FacilityUpgradePreview>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -743,13 +757,54 @@ pub fn preview_marketing_campaign(
     })
 }
 
+/// The finance-health reason a club may not upgrade any facility, shared by the preview the UI
+/// renders and the `upgrade_facility` command that enforces it.
+pub fn facility_upgrade_block_reason(snapshot: &TeamFinanceSnapshot) -> Option<&'static str> {
+    if snapshot.currently_over_budget {
+        return Some("be.error.finance.facilityUpgradeOverBudget");
+    }
+    if matches!(
+        snapshot.overall_status,
+        FinanceHealthLevel::Warning | FinanceHealthLevel::Critical
+    ) {
+        return Some("be.error.finance.facilityUpgradeCritical");
+    }
+    None
+}
+
+fn facility_upgrade_previews(
+    team: &domain::team::Team,
+    snapshot: &TeamFinanceSnapshot,
+) -> Vec<FacilityUpgradePreview> {
+    let block_reason = facility_upgrade_block_reason(snapshot);
+
+    [
+        ("Training", domain::team::FacilityType::Training),
+        ("Medical", domain::team::FacilityType::Medical),
+        ("Scouting", domain::team::FacilityType::Scouting),
+    ]
+    .into_iter()
+    .map(|(facility, facility_type)| {
+        let next_cost = crate::club::next_upgrade_cost(team, &facility_type);
+        FacilityUpgradePreview {
+            facility: facility.to_string(),
+            next_cost,
+            can_afford: team.finance >= next_cost,
+            block_reason: block_reason.map(str::to_string),
+        }
+    })
+    .collect()
+}
+
 pub fn finance_action_previews(game: &Game, team_id: &str) -> Option<FinanceActionPreviews> {
-    game.teams.iter().find(|team| team.id == team_id)?;
+    let team = game.teams.iter().find(|team| team.id == team_id)?;
+    let snapshot = team_finance_snapshot(game, team_id)?;
 
     Some(FinanceActionPreviews {
         board_support: preview_board_support(game, team_id).ok(),
         sponsor_pitch: preview_sponsor_pitch(game, team_id).ok(),
         marketing_campaign: preview_marketing_campaign(game, team_id).ok(),
+        facility_upgrades: facility_upgrade_previews(team, &snapshot),
     })
 }
 

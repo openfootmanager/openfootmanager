@@ -126,9 +126,22 @@ function pendingPromise<T>(): Promise<T> {
   return new Promise(() => {});
 }
 
+/** The backend's per-facility upgrade verdicts in wire shape. */
+function wireFacilityUpgrades(overrides: Record<string, unknown> = {}) {
+  return [
+    { facility: "Training", next_cost: 500_000, can_afford: true, block_reason: null },
+    { facility: "Medical", next_cost: 250_000, can_afford: true, block_reason: null },
+    { facility: "Scouting", next_cost: 750_000, can_afford: true, block_reason: null },
+  ].map((upgrade) => ({ ...upgrade, ...overrides }));
+}
+
 /** A backend finance snapshot in wire shape; the tab renders exactly these figures. */
-function wireSnapshot(overrides: Record<string, unknown> = {}) {
+function wireSnapshot(
+  overrides: Record<string, unknown> = {},
+  previews: Record<string, unknown> = {},
+) {
   return {
+    previews,
     snapshot: {
       annual_wage_bill: 10000,
       weekly_wage_spend: 10000,
@@ -364,6 +377,9 @@ describe("FinancesTab facilities", () => {
 
   it("renders facility cards with levels and disables upgrades when funds are insufficient", async () => {
     const gameState = createGameState({ finance: 200000 });
+    mockedInvoke.mockResolvedValue(
+      wireSnapshot({}, { facility_upgrades: wireFacilityUpgrades({ can_afford: false }) }),
+    );
 
     await renderFinances(<FinancesTab gameState={gameState} />);
 
@@ -397,7 +413,7 @@ describe("FinancesTab facilities", () => {
     const onGameUpdate = vi.fn();
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_finance_snapshot") {
-        return Promise.resolve(wireSnapshot());
+        return Promise.resolve(wireSnapshot({}, { facility_upgrades: wireFacilityUpgrades() }));
       }
 
       if (command === "upgrade_facility") {
@@ -1058,5 +1074,99 @@ describe("FinancesTab backend snapshot", () => {
     fireEvent.click(screen.getByRole("button", { name: "common.retry" }));
 
     expect(await screen.findByText("Facilities")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend offers board support and every facility upgrade
+   * When the club state changes and the next snapshot is still in flight
+   * Then no action is enabled: a verdict about the older state must not authorise anything.
+   */
+  it("never enables an action from previews that describe an older club state", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      return calls === 1
+        ? Promise.resolve(
+            wireSnapshot(
+              {},
+              {
+                facility_upgrades: wireFacilityUpgrades(),
+                board_support: {
+                  support_amount: 1,
+                  transfer_budget_reduction: 1,
+                  satisfaction_penalty: 1,
+                },
+              },
+            ),
+          )
+        : pendingPromise();
+    });
+    const { rerender } = render(<FinancesTab gameState={createGameState()} />);
+    await screen.findByText("Facilities");
+    const fresh = screen.getAllByRole("button", { name: "Upgrade" });
+    expect(fresh.every((button) => !(button as HTMLButtonElement).disabled)).toBe(true);
+    expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeEnabled();
+
+    rerender(<FinancesTab gameState={createGameState({ finance: 123_456 })} />);
+
+    await waitFor(() => expect(calls).toBe(2));
+    const stale = screen.getAllByRole("button", { name: "Upgrade" });
+    expect(stale.every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
+    expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeDisabled();
+  });
+
+  /**
+   * Given a snapshot retained for one club
+   * When the manager's club changes and the new club's snapshot has not arrived
+   * Then the other club's figures are not shown.
+   */
+  it("does not render another club's retained snapshot", async () => {
+    mockedInvoke.mockImplementationOnce(() =>
+      Promise.resolve(wireSnapshot({ weekly_sponsor_income: 777_000 })),
+    );
+    mockedInvoke.mockImplementation(() => pendingPromise());
+    const { rerender } = render(<FinancesTab gameState={createGameState()} />);
+    await screen.findByText(/777/);
+
+    const otherClub = createGameState({ id: "team-2", name: "Beta FC" });
+    otherClub.manager.team_id = "team-2";
+    rerender(<FinancesTab gameState={otherClub} />);
+
+    expect(screen.queryByText(/777/)).not.toBeInTheDocument();
+    expect(screen.getByText("common.loading")).toBeInTheDocument();
+  });
+
+  /**
+   * Given figures on screen and a refetch that fails
+   * When the tab renders
+   * Then the figures stay and the failure shows with Retry, and a club change clears it.
+   */
+  it("shows a failed refetch beside the retained figures and clears it on a club change", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      if (calls === 1) return Promise.resolve(wireSnapshot({ weekly_sponsor_income: 777_000 }));
+      if (calls === 2) return Promise.reject(new Error("boom"));
+      return pendingPromise();
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { rerender } = render(<FinancesTab gameState={createGameState()} />);
+    await screen.findByText(/777/);
+
+    rerender(<FinancesTab gameState={createGameState({ finance: 123_456 })} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("finances.snapshotLoadFailed");
+    expect(screen.getByText(/777/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "common.retry" })).toBeInTheDocument();
+
+    rerender(<FinancesTab gameState={createGameState({ finance: 99 })} />);
+
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
 });

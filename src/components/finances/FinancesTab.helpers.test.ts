@@ -1,40 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { formatVal } from "../../lib/helpers";
-import type { TeamFinanceSnapshotData } from "../../services/financeService";
 import type { MessageAction, MessageData } from "../../store/gameStore";
 import {
-  boardSupportAvailable,
-  facilityUpgradeBlockReason,
   formatSignedAmount,
-  getFacilityUpgradeCost,
   isChooseOptionAction,
   isPendingSponsorOffer,
-  marketingCampaignAvailable,
-  sponsorPitchAvailable,
 } from "./FinancesTab.helpers";
-
-/** A club in good financial health; each test disturbs only what it is about. */
-function healthySnapshot(
-  overrides: Partial<TeamFinanceSnapshotData> = {},
-): TeamFinanceSnapshotData {
-  return {
-    annualWageBill: 1_000_000,
-    weeklyWageSpend: 19_230,
-    weeklyWageBudget: 30_000,
-    weeklyRecurringIncome: 25_000,
-    weeklySponsorIncome: 25_000,
-    projectedWeeklyNet: 5_770,
-    cashRunwayWeeks: null,
-    wageBudgetUsagePercent: 64,
-    currentlyInDebt: false,
-    currentlyOverBudget: false,
-    wageBudgetStatus: "stable",
-    runwayStatus: "stable",
-    overallStatus: "stable",
-    marketingCampaignCooldownDaysRemaining: 0,
-    ...overrides,
-  };
-}
 
 describe("formatSignedAmount", () => {
   it("renders a negative amount with a leading minus", () => {
@@ -47,80 +18,6 @@ describe("formatSignedAmount", () => {
     // already renders the sign, so the two agree for every input.
     for (const value of [-5_000_000, -1_250, 0, 1_250, 5_000_000]) {
       expect(formatSignedAmount(value)).toBe(formatVal(value));
-    }
-  });
-});
-
-describe("getFacilityUpgradeCost", () => {
-  it("scales linearly with the current level", () => {
-    expect(getFacilityUpgradeCost(1)).toBe(250_000);
-    expect(getFacilityUpgradeCost(4)).toBe(1_000_000);
-  });
-});
-
-describe("facilityUpgradeBlockReason", () => {
-  it("lets a healthy club spend", () => {
-    expect(facilityUpgradeBlockReason(healthySnapshot())).toBeNull();
-  });
-
-  it("blocks a club already over its wage budget, and says which problem it is", () => {
-    // Over-budget outranks distress: a club can be both, and the over-budget
-    // message is the actionable one.
-    expect(
-      facilityUpgradeBlockReason(
-        healthySnapshot({ currentlyOverBudget: true, overallStatus: "critical" }),
-      ),
-    ).toBe("be.error.finance.facilityUpgradeOverBudget");
-  });
-
-  it("blocks a club in financial distress", () => {
-    for (const overallStatus of ["warning", "critical"] as const) {
-      expect(facilityUpgradeBlockReason(healthySnapshot({ overallStatus }))).toBe(
-        "be.error.finance.facilityUpgradeCritical",
-      );
-    }
-  });
-
-  it("treats a watch-level warning as still spendable", () => {
-    expect(facilityUpgradeBlockReason(healthySnapshot({ overallStatus: "watch" }))).toBeNull();
-  });
-});
-
-describe("board support and commercial actions", () => {
-  it("keeps all three away from a healthy club", () => {
-    const healthy = healthySnapshot();
-    expect(boardSupportAvailable(healthy)).toBe(false);
-    expect(sponsorPitchAvailable(healthy)).toBe(false);
-    expect(marketingCampaignAvailable(healthy)).toBe(false);
-  });
-
-  it("offers board support on debt or a runway problem only", () => {
-    expect(boardSupportAvailable(healthySnapshot({ currentlyInDebt: true }))).toBe(true);
-    expect(boardSupportAvailable(healthySnapshot({ runwayStatus: "warning" }))).toBe(true);
-    expect(boardSupportAvailable(healthySnapshot({ runwayStatus: "critical" }))).toBe(true);
-    // Wage pressure alone is the commercial team's problem, not the board's.
-    expect(boardSupportAvailable(healthySnapshot({ wageBudgetStatus: "critical" }))).toBe(false);
-    expect(boardSupportAvailable(healthySnapshot({ currentlyOverBudget: true }))).toBe(false);
-  });
-
-  it("offers a sponsor pitch on wage pressure as well as cash pressure", () => {
-    const triggers: Array<Partial<TeamFinanceSnapshotData>> = [
-      { currentlyOverBudget: true },
-      { currentlyInDebt: true },
-      { wageBudgetStatus: "warning" },
-      { wageBudgetStatus: "critical" },
-      { runwayStatus: "warning" },
-      { runwayStatus: "critical" },
-    ];
-    for (const trigger of triggers) {
-      expect(sponsorPitchAvailable(healthySnapshot(trigger))).toBe(true);
-    }
-  });
-
-  it("gates the marketing campaign exactly as the sponsor pitch", () => {
-    for (const trigger of [{ currentlyInDebt: true }, { wageBudgetStatus: "warning" as const }]) {
-      const snapshot = healthySnapshot(trigger);
-      expect(marketingCampaignAvailable(snapshot)).toBe(sponsorPitchAvailable(snapshot));
     }
   });
 });

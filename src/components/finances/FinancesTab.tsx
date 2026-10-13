@@ -26,9 +26,6 @@ import {
   type MarketingCampaignResponseData,
   DEFAULT_FACILITIES,
   formatSignedAmount,
-  boardSupportAvailable,
-  sponsorPitchAvailable,
-  marketingCampaignAvailable,
   buildFinanceSnapshotKey,
   isChooseOptionAction,
   isPendingSponsorOffer,
@@ -94,24 +91,24 @@ function FinancesTabContent({
   const [remoteFinanceData, setRemoteFinanceData] = useState<TaggedFinanceSnapshotData | null>(
     null,
   );
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadFailure, setLoadFailure] = useState<{ teamId: string; key: string } | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const requestKey = financeSnapshotKey;
 
+    setLoadFailure(null);
     void getFinanceSnapshot(myTeam.id)
       .then((financeData) => {
         if (!cancelled) {
           setRemoteFinanceData({ key: requestKey, teamId: myTeam.id, data: financeData });
-          setLoadFailed(false);
         }
       })
       .catch((error) => {
         console.error("Failed to load finance snapshot:", error);
         if (!cancelled) {
-          setLoadFailed(true);
+          setLoadFailure({ teamId: myTeam.id, key: requestKey });
         }
       });
 
@@ -121,28 +118,35 @@ function FinancesTabContent({
   }, [financeSnapshotKey, myTeam.id, loadAttempt]);
 
   const ownData = remoteFinanceData?.teamId === myTeam.id ? remoteFinanceData : null;
+  const failedForThisState =
+    loadFailure?.teamId === myTeam.id && loadFailure.key === financeSnapshotKey;
+  const failureBanner = failedForThisState ? (
+    <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+      <p role="alert">{t("finances.snapshotLoadFailed")}</p>
+      <Button size="sm" variant="outline" onClick={() => setLoadAttempt((n) => n + 1)}>
+        {t("common.retry")}
+      </Button>
+    </div>
+  ) : null;
+
   if (!ownData) {
-    return loadFailed ? (
-      <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
-        <p role="alert">{t("finances.snapshotLoadFailed")}</p>
-        <Button size="sm" variant="outline" onClick={() => setLoadAttempt((n) => n + 1)}>
-          {t("common.retry")}
-        </Button>
-      </div>
-    ) : (
-      <p className="text-gray-500 dark:text-gray-400">{t("common.loading")}</p>
+    return (
+      failureBanner ?? <p className="text-gray-500 dark:text-gray-400">{t("common.loading")}</p>
     );
   }
 
   return (
-    <FinancesTabLoaded
-      gameState={gameState}
-      myTeam={myTeam}
-      financeData={ownData.data}
-      previewsCurrent={ownData.key === financeSnapshotKey}
-      onGameUpdate={onGameUpdate}
-      onSelectPlayer={onSelectPlayer}
-    />
+    <>
+      {failureBanner}
+      <FinancesTabLoaded
+        gameState={gameState}
+        myTeam={myTeam}
+        financeData={ownData.data}
+        previewsCurrent={ownData.key === financeSnapshotKey}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={onSelectPlayer}
+      />
+    </>
   );
 }
 
@@ -195,37 +199,20 @@ function FinancesTabLoaded({
   const sponsorOffers = gameState.messages.filter(isPendingSponsorOffer).map(resolveMessage);
   const hasPendingSponsorOffer = sponsorOffers.length > 0;
   const hasActiveSponsor = Boolean(activeSponsorship && activeSponsorship.remaining_weeks > 0);
-  const previewsLoaded = recoveryPreviews !== null;
-  const previewBoardSupportAvailable = recoveryPreviews
-    ? Boolean(recoveryPreviews.boardSupport)
-    : null;
-  const previewSponsorPitchAvailable = recoveryPreviews
-    ? Boolean(recoveryPreviews.sponsorPitch)
-    : null;
-  const previewMarketingCampaignAvailable = recoveryPreviews
-    ? Boolean(recoveryPreviews.marketingCampaign)
-    : null;
-  const canRequestBoardSupport = previewsLoaded
-    ? (previewBoardSupportAvailable ?? false)
-    : boardSupportAvailable(financeSnapshot);
+  // Availability is the backend's verdict alone. While the previews describe an older club state
+  // (`recoveryPreviews` is null) nothing is offered, rather than a guess from the snapshot.
+  const canRequestBoardSupport = Boolean(recoveryPreviews?.boardSupport);
+  const sponsorPitchOffered = Boolean(recoveryPreviews?.sponsorPitch);
+  const marketingCampaignOffered = Boolean(recoveryPreviews?.marketingCampaign);
   const canRequestSponsorPitch =
-    (previewsLoaded
-      ? (previewSponsorPitchAvailable ?? false)
-      : sponsorPitchAvailable(financeSnapshot)) &&
-    !hasPendingSponsorOffer &&
-    !hasActiveSponsor;
+    sponsorPitchOffered && !hasPendingSponsorOffer && !hasActiveSponsor;
   const canRequestMarketingCampaign =
-    (previewsLoaded
-      ? (previewMarketingCampaignAvailable ?? false)
-      : marketingCampaignAvailable(financeSnapshot)) &&
-    financeSnapshot.marketingCampaignCooldownDaysRemaining === 0;
+    marketingCampaignOffered && financeSnapshot.marketingCampaignCooldownDaysRemaining === 0;
   const sponsorPitchDisabledReason = hasActiveSponsor
     ? t("finances.sponsorPitchActiveSponsor")
     : hasPendingSponsorOffer
       ? t("finances.sponsorPitchPendingOffer")
-      : !(previewsLoaded
-            ? (previewSponsorPitchAvailable ?? false)
-            : sponsorPitchAvailable(financeSnapshot))
+      : previewsCurrent && !sponsorPitchOffered
         ? t("finances.sponsorPitchUnavailable")
         : null;
   const marketingCampaignDisabledReason =
@@ -233,9 +220,7 @@ function FinancesTabLoaded({
       ? t("finances.marketingCampaignCoolingDown", {
           days: financeSnapshot.marketingCampaignCooldownDaysRemaining,
         })
-      : !(previewsLoaded
-            ? (previewMarketingCampaignAvailable ?? false)
-            : marketingCampaignAvailable(financeSnapshot))
+      : previewsCurrent && !marketingCampaignOffered
         ? t("finances.marketingCampaignUnavailable")
         : null;
   const boardSupportPreviewText = recoveryPreviews?.boardSupport
@@ -641,7 +626,7 @@ function FinancesTabLoaded({
                 {boardSupportFeedback.text}
               </p>
             ) : null}
-            {!canRequestBoardSupport ? (
+            {previewsCurrent && !canRequestBoardSupport ? (
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {t("finances.boardSupportUnavailable")}
               </p>
@@ -961,8 +946,8 @@ function FinancesTabLoaded({
 
       <FinancesFacilitiesCard
         facilities={facilities}
-        financeSnapshot={financeSnapshot}
-        teamFinance={myTeam.finance}
+        facilityUpgrades={financeData.previews.facilityUpgrades}
+        previewsCurrent={previewsCurrent}
         facilityUpgradeError={facilityUpgradeError}
         actionLoading={actionLoading}
         onUpgrade={(facility) => void handleUpgradeFacility(facility)}
