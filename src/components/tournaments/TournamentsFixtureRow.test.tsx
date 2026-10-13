@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import TournamentsFixtureRow from "./TournamentsFixtureRow";
+import { formatMatchDate } from "../../lib/helpers";
 import type { TournamentsTeamLookup } from "./teamLookup";
 import type { FixtureData } from "../../store/gameStore";
 
@@ -10,7 +11,10 @@ vi.mock("react-i18next", async () => {
   return {
     useTranslation: () => {
       useRef(null);
-      return { t: (key: string) => key };
+      return {
+        t: (key: string, params?: Record<string, string>) =>
+          key === "schedule.movedFrom" ? `Moved from ${params?.date}` : key,
+      };
     },
   };
 });
@@ -49,7 +53,9 @@ describe("TournamentsFixtureRow moved matches", () => {
       } as Partial<FixtureData>),
     });
 
-    expect(screen.getByTestId("moved-from-fixture-1")).toHaveTextContent("schedule.movedFrom");
+    expect(screen.getByTestId("moved-from-fixture-1")).toHaveTextContent(
+      `Moved from ${formatMatchDate("2026-08-15")}`,
+    );
   });
 
   it("shows nothing extra for a fixture that was never moved", () => {
