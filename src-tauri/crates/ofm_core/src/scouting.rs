@@ -612,7 +612,15 @@ pub fn apply_youth_recruitment_response(
             })
         }
         "sign" => {
-            if game.players.iter().any(|player| player.id == prospect.id) {
+            // A prospect who was signed and has since retired is in the archive, not the roster:
+            // replaying his report must not make him a live player again.
+            let already_resolved = game.messages[message_index].actions[action_index].resolved;
+            let known_person = game.players.iter().any(|player| player.id == prospect.id)
+                || game
+                    .retired_players
+                    .iter()
+                    .any(|retired| retired.id == prospect.id);
+            if already_resolved || known_person {
                 return None;
             }
 
