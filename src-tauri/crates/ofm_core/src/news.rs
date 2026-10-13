@@ -864,7 +864,7 @@ mod tests {
 
         let article = league_roundup_article("league1", 4, &results, "2025-08-12");
 
-        assert_eq!(article.id, "roundup_league1_md4");
+        assert_eq!(article.id, "roundup_league1_md4_2025-08-12");
         assert_eq!(article.category, NewsCategory::LeagueRoundup);
         assert_eq!(article.headline, "");
         assert_eq!(article.body, "");
@@ -936,7 +936,7 @@ mod tests {
 
         let article = standings_update_article("league1", 4, &standings, "2025-08-12");
 
-        assert_eq!(article.id, "standings_league1_md4");
+        assert_eq!(article.id, "standings_league1_md4_2025-08-12");
         assert_eq!(article.category, NewsCategory::StandingsUpdate);
         assert_eq!(article.headline, "");
         assert_eq!(article.body, "");
