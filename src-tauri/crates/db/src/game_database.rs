@@ -344,4 +344,16 @@ mod tests {
 
         GameDatabase::open_save(&path).expect("an extra table is not a contradiction");
     }
+
+    /// Given an honest save plus a foreign table whose name contains a double quote
+    /// When it is opened
+    /// Then it loads: inspecting the layout must not choke on an awkward table name.
+    #[test]
+    fn open_save_tolerates_a_foreign_table_with_a_quote_in_its_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let path =
+            save_claiming_version(dir.path(), MIGRATION_COUNT, r#"CREATE TABLE "a""b" (x);"#);
+
+        GameDatabase::open_save(&path).expect("an awkward foreign table is not a contradiction");
+    }
 }

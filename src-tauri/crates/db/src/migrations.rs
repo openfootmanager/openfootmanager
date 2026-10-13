@@ -188,11 +188,12 @@ pub(crate) fn layout_of(conn: &rusqlite::Connection) -> Result<Layout, String> {
         .collect::<Result<_, _>>()
         .map_err(|e| e.to_string())?;
     for name in names {
+        // Bound, not interpolated: a foreign table may be named anything, quotes included.
         let mut info = conn
-            .prepare(&format!("PRAGMA table_info(\"{name}\")"))
+            .prepare("SELECT name FROM pragma_table_info(?1)")
             .map_err(|e| e.to_string())?;
         let columns = info
-            .query_map([], |row| row.get::<_, String>(1))
+            .query_map([&name], |row| row.get::<_, String>(0))
             .map_err(|e| e.to_string())?
             .collect::<Result<_, _>>()
             .map_err(|e| e.to_string())?;
