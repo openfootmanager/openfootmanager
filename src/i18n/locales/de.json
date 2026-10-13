@@ -2731,6 +2731,7 @@
       "saveLoad": {
         "corrupted": "Diese Speicherdatei ist beschädigt und kann nicht geladen werden.",
         "incompatibleVersion": "Dieser Spielstand stammt aus einer neueren Spielversion (Stand v{{saveVersion}}; diese Version unterstützt bis v{{supported}}). Aktualisiere das Spiel, um ihn zu laden.",
+        "incompatibleLayout": "Die Daten dieses Spielstands passen nicht zu der Version, die er angibt, und er lässt sich nicht sicher laden. Die Datei wurde nicht verändert.",
         "missingData": "Diesem Spielstand fehlen erforderliche Daten und er kann nicht geladen werden.",
         "invalidWorld": "Die Welt- oder Mod-Daten dieses Spielstands sind ungültig und können nicht geladen werden.",
         "unknown": "Dieser Spielstand konnte aufgrund eines unerwarteten Fehlers nicht geladen werden."

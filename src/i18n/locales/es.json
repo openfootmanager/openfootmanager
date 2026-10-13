@@ -2731,6 +2731,7 @@
       "saveLoad": {
         "corrupted": "Este archivo de guardado está dañado y no se puede cargar.",
         "incompatibleVersion": "Esta partida se creó con una versión más reciente del juego (guardado v{{saveVersion}}; esta versión admite hasta la v{{supported}}). Actualiza el juego para cargarla.",
+        "incompatibleLayout": "Los datos de esta partida no coinciden con la versión que indica, así que no se puede cargar de forma segura. El archivo no se ha modificado.",
         "missingData": "A esta partida le faltan datos necesarios y no se puede cargar.",
         "invalidWorld": "Los datos del mundo o del mod de esta partida no son válidos y no se puede cargar.",
         "unknown": "No se pudo cargar esta partida debido a un error inesperado."

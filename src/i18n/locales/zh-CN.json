@@ -2731,6 +2731,7 @@
       "saveLoad": {
         "corrupted": "该存档文件已损坏，无法加载。",
         "incompatibleVersion": "该存档由更新版本的游戏创建（存档 v{{saveVersion}}；当前版本最高支持 v{{supported}}）。请更新游戏后再加载。",
+        "incompatibleLayout": "该存档的数据与其声明的版本不符，无法安全加载。文件未被改动。",
         "missingData": "该存档缺少必要数据，无法加载。",
         "invalidWorld": "该存档的世界或模组数据无效，无法加载。",
         "unknown": "由于发生意外错误，无法加载该存档。"

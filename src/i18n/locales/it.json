@@ -2731,6 +2731,7 @@
       "saveLoad": {
         "corrupted": "Questo file di salvataggio è danneggiato e non può essere caricato.",
         "incompatibleVersion": "Questo salvataggio è stato creato con una versione più recente del gioco (salvataggio v{{saveVersion}}; questa versione supporta fino alla v{{supported}}). Aggiorna il gioco per caricarlo.",
+        "incompatibleLayout": "I dati di questo salvataggio non corrispondono alla versione dichiarata, quindi non può essere caricato in sicurezza. Il file non è stato modificato.",
         "missingData": "A questo salvataggio mancano dati necessari e non può essere caricato.",
         "invalidWorld": "I dati del mondo o della mod di questo salvataggio non sono validi e non possono essere caricati.",
         "unknown": "Impossibile caricare questo salvataggio a causa di un errore imprevisto."

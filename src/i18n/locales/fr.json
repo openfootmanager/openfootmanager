@@ -2731,6 +2731,7 @@
       "saveLoad": {
         "corrupted": "Ce fichier de sauvegarde est corrompu et ne peut pas être chargé.",
         "incompatibleVersion": "Cette sauvegarde a été créée avec une version plus récente du jeu (sauvegarde v{{saveVersion}} ; cette version prend en charge jusqu'à la v{{supported}}). Mettez le jeu à jour pour la charger.",
+        "incompatibleLayout": "Les données de cette sauvegarde ne correspondent pas à la version qu'elle indique ; elle ne peut pas être chargée en toute sécurité. Le fichier n'a pas été modifié.",
         "missingData": "Il manque des données requises à cette sauvegarde, elle ne peut pas être chargée.",
         "invalidWorld": "Les données de monde ou de mod de cette sauvegarde sont invalides et ne peuvent pas être chargées.",
         "unknown": "Impossible de charger cette sauvegarde en raison d'une erreur inattendue."
