@@ -471,6 +471,43 @@ describe("PostMatchScreen", (): void => {
     expect(bobRow).toBeDefined();
   });
 
+  /**
+   * Given a starter substituted off before the engine's minutes threshold and an unused substitute
+   * When the ratings panel renders
+   * Then the starter is listed with a dash and the unused substitute is not listed
+   */
+  it("lists a player who was on the pitch but unrated, and hides one who never played", (): void => {
+    const base = makeSnapshot();
+    const benchPlayer = (id: string, name: string) => ({ ...base.home_team.players[0], id, name });
+    const snapshot = {
+      ...base,
+      player_ratings: { p1: 7.0 },
+      home_bench: [benchPlayer("early-off", "Early Off"), benchPlayer("unused", "Unused Sub")],
+      substitutions: [
+        { minute: 6, side: "Home" as const, player_off_id: "early-off", player_on_id: "p1" },
+      ],
+    };
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={snapshot}
+          gameState={makeGameState()}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[]}
+          onContinue={() => {}}
+          onFinish={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    const earlyOffRow = screen
+      .getAllByText("Early Off")
+      .find((node) => node.previousElementSibling?.textContent === "–");
+    expect(earlyOffRow).toBeDefined();
+    expect(screen.queryByText("Unused Sub")).not.toBeInTheDocument();
+  });
+
   it("switches to Match Report tab and shows scorers section", (): void => {
     render(
       <ThemeProvider>

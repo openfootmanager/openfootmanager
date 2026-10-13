@@ -196,3 +196,37 @@ fn no_position_is_systematically_over_or_under_rated() {
         "positions spread {lowest}..{highest}"
     );
 }
+
+/// Given a live match with one substitution at minute 30, When it finishes, Then both the player
+/// who came on and the player who went off are rated, whichever list they now sit in.
+#[test]
+fn a_substitute_who_came_on_and_the_player_he_replaced_are_both_rated() {
+    let mut live = LiveMatchState::new(
+        team("home", 70),
+        team("away", 70),
+        MatchConfig::default(),
+        vec![player("home_spare", Position::Midfielder, 70)],
+        vec![],
+        false,
+    );
+    let mut rng = StdRng::seed_from_u64(5);
+    for _ in 0..30 {
+        live.step_minute(&mut rng);
+    }
+    live.apply_command(MatchCommand::Substitute {
+        side: Side::Home,
+        player_off_id: "home_Midfielder_0".to_string(),
+        player_on_id: "home_spare".to_string(),
+    })
+    .expect("the substitution is legal");
+    while !live.is_finished() {
+        live.step_minute(&mut rng);
+    }
+    let report = live.into_report();
+
+    assert!(report.player_stats["home_spare"].rating > 0.0, "came on");
+    assert!(
+        report.player_stats["home_Midfielder_0"].rating > 0.0,
+        "went off"
+    );
+}
