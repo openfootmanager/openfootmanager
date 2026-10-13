@@ -40,6 +40,7 @@ import FreeAgentContractModal from "../transfers/FreeAgentContractModal";
 import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
+import { naturalPositionOf } from "../../lib/positions";
 
 interface PlayersListTabProps {
   gameState: GameStateData;
@@ -443,16 +444,8 @@ export default function PlayersListTab({
                       className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer group"
                     >
                       <td className="py-2.5 px-4">
-                        <Badge
-                          variant={positionBadgeVariant(
-                            summary.natural_position || summary.position,
-                          )}
-                          size="sm"
-                        >
-                          {translatePositionAbbreviation(
-                            t,
-                            summary.natural_position || summary.position,
-                          )}
+                        <Badge variant={positionBadgeVariant(naturalPositionOf(summary))} size="sm">
+                          {translatePositionAbbreviation(t, naturalPositionOf(summary))}
                         </Badge>
                       </td>
                       <td className="py-2.5 px-4">

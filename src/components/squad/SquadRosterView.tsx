@@ -50,6 +50,7 @@ import {
 } from "./SquadTab.helpers";
 import {
   CORE_POSITIONS,
+  naturalPositionOf,
   normalisePosition,
   positionGroupRank,
   positionSortRank,
@@ -272,8 +273,8 @@ export default function SquadRosterView({
           const bXi = xiIds.has(b.id) ? 0 : 1;
           if (aXi !== bXi) return aXi - bXi;
 
-          const aRank = positionSortRank(a.natural_position || a.position);
-          const bRank = positionSortRank(b.natural_position || b.position);
+          const aRank = positionSortRank(naturalPositionOf(a));
+          const bRank = positionSortRank(naturalPositionOf(b));
           if (aRank !== bRank) return aRank - bRank;
 
           return getPlayerOvr(b) - getPlayerOvr(a);

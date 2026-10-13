@@ -1,4 +1,5 @@
 import type { PlayerData } from "../../store/gameStore";
+import { naturalPositionOf } from "../../lib/positions";
 
 type TranslateFn = (key: string) => string;
 
@@ -77,7 +78,7 @@ function createAttributeGroup(label: string, attrs: PlayerAttributeEntry[]): Pla
 // primaryPosition in PlayerProfile) so temporary re-deployments don't hide GK
 // attributes from a natural keeper's card.
 export function isGoalkeeper(player: PlayerData): boolean {
-  return (player.natural_position || player.position) === "Goalkeeper";
+  return naturalPositionOf(player) === "Goalkeeper";
 }
 
 function isGroupApplicable(group: AttributeGroupKey, player: PlayerData): boolean {

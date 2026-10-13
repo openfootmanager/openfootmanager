@@ -43,6 +43,7 @@ import type { DashboardNavigateContext } from "../dashboard/dashboardProfileNavi
 import type { PlayerSquadRole } from "../../store/types";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import ScoutingYouthRecruitmentCard from "../scouting/ScoutingYouthRecruitmentCard";
+import { naturalPositionOf } from "../../lib/positions";
 
 interface YouthAcademyTabProps {
   gameState: GameStateData | null;
@@ -334,11 +335,8 @@ export default function YouthAcademyTab({
                           {player.full_name}
                         </button>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                          {translatePositionAbbreviation(
-                            t,
-                            player.natural_position || player.position,
-                          )}{" "}
-                          · {t("youthAcademy.age")} {player.age}
+                          {translatePositionAbbreviation(t, naturalPositionOf(player))} ·{" "}
+                          {t("youthAcademy.age")} {player.age}
                         </p>
                       </div>
                     </div>
@@ -505,15 +503,10 @@ export default function YouthAcademyTab({
                         </td>
                         <td className="py-2.5 px-4">
                           <Badge
-                            variant={positionBadgeVariant(
-                              player.natural_position || player.position,
-                            )}
+                            variant={positionBadgeVariant(naturalPositionOf(player))}
                             size="sm"
                           >
-                            {translatePositionAbbreviation(
-                              t,
-                              player.natural_position || player.position,
-                            )}
+                            {translatePositionAbbreviation(t, naturalPositionOf(player))}
                           </Badge>
                         </td>
                         <td className="py-2.5 px-4 text-center">
