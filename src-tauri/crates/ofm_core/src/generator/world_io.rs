@@ -222,6 +222,25 @@ pub fn build_world_from_package(
     Ok(world)
 }
 
+/// [`build_world_from_package`] from `seed`: the same package, year and seed give the same world.
+pub fn build_world_from_package_seeded(
+    seed: u64,
+    package: &super::package::WorldPackage,
+    opening_year: Option<u32>,
+    sources: &super::DefinitionSources,
+) -> Result<WorldData, String> {
+    use rand::SeedableRng;
+    let mut world = normalize_world(super::build_world_data_from_package_with_rng(
+        package,
+        opening_year,
+        sources,
+        &mut rand::rngs::StdRng::seed_from_u64(seed),
+    ));
+    validate_embedded_definitions(&world)?;
+    world.generation_seed = Some(seed);
+    Ok(world)
+}
+
 /// Serialise a `WorldData` to a pretty-printed JSON string.
 pub fn export_world_to_json(world: &WorldData) -> Result<String, String> {
     let normalized = normalize_world(world.clone());
@@ -1203,5 +1222,31 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Given a package and a seed,
+    /// When a world is built from them twice,
+    /// Then it is the same world, ids included, it records the seed, and another seed gives
+    ///      another world.
+    #[test]
+    fn a_seed_builds_the_same_package_world_ids_included() {
+        let sources = crate::generator::DefinitionSources::embedded_only();
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../docs/modding/examples/classic-sixteen");
+        let (package, errors) = crate::generator::load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        let everything = |world: &WorldData| {
+            serde_json::to_value((&world.teams, &world.players, &world.staff))
+                .unwrap()
+                .to_string()
+        };
+
+        let one = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let again = build_world_from_package_seeded(5, &package, Some(2033), &sources).unwrap();
+        let other = build_world_from_package_seeded(6, &package, Some(2033), &sources).unwrap();
+
+        assert_eq!(one.generation_seed, Some(5));
+        assert_eq!(everything(&one), everything(&again));
+        assert_ne!(everything(&one), everything(&other));
     }
 }
