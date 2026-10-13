@@ -513,15 +513,20 @@ impl League {
     }
 
     pub fn sorted_standings(&self) -> Vec<StandingEntry> {
-        let mut sorted = self.standings.clone();
-        sorted.sort_by(|a, b| {
-            b.points
-                .cmp(&a.points)
-                .then(b.goal_difference().cmp(&a.goal_difference()))
-                .then(b.goals_for.cmp(&a.goals_for))
-        });
-        sorted
+        sort_standings(self.standings.clone())
     }
+}
+
+/// Orders a table: points, then goal difference, then goals scored. The one ordering of a league
+/// table, for a live table and for a snapshot of one alike.
+pub fn sort_standings(mut standings: Vec<StandingEntry>) -> Vec<StandingEntry> {
+    standings.sort_by(|a, b| {
+        b.points
+            .cmp(&a.points)
+            .then(b.goal_difference().cmp(&a.goal_difference()))
+            .then(b.goals_for.cmp(&a.goals_for))
+    });
+    standings
 }
 
 impl Default for Fixture {
