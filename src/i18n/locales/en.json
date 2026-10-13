@@ -2979,6 +2979,11 @@
         "bodyWarning": "The board remains concerned about the club's finances. Confidence in your management has fallen by {{penalty}} points this week.\n\nYou need to improve the wage position and short-term cash outlook before patience wears thinner.",
         "bodyCritical": "The board has reviewed the club's worsening financial position and confidence in your management has fallen by {{penalty}} points this week.\n\nCash reserves and wage commitments are now in a critical state. Immediate corrective action is expected."
       },
+      "financeLevers": {
+        "subject": "Recovery options are open to the club",
+        "bodyCommercial": "Our wage position needs attention, and that opens commercial recovery options. In the Finances tab you can pitch for a new sponsor or run a marketing campaign to bring in income.",
+        "bodyAll": "The club's cash position is in trouble, which opens every recovery option. In the Finances tab you can ask the board for support, pitch for a new sponsor or run a marketing campaign."
+      },
       "marketingCampaign": {
         "subject": "Marketing Campaign Report",
         "body": "The commercial push has finished with gross sales of {{grossRevenue}}. After {{campaignCost}} in campaign costs, the club banks {{netIncome}} in fresh income.\n\nThe commercial team will need {{days}} days before launching another campaign."

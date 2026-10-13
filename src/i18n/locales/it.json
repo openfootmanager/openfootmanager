@@ -2996,6 +2996,11 @@
         "bodyWarning": "Il consiglio resta preoccupato per la situazione finanziaria del club. La fiducia nel tuo operato è scesa di {{penalty}} punti questa settimana.\n\nDevi migliorare la situazione salariale e la liquidità a breve termine prima che la pazienza si assottigli ulteriormente.",
         "bodyCritical": "Il consiglio ha riesaminato il peggioramento della situazione finanziaria del club e la fiducia nel tuo operato è scesa di {{penalty}} punti questa settimana.\n\nLiquidità e impegni salariali sono ormai in stato critico. Ci si aspetta un intervento immediato."
       },
+      "financeLevers": {
+        "subject": "Si aprono opzioni di recupero per il club",
+        "bodyCommercial": "La situazione degli stipendi richiede attenzione e questo apre opzioni commerciali di recupero. Nella scheda Finanze puoi proporti a un nuovo sponsor o avviare una campagna di marketing per incassare.",
+        "bodyAll": "La liquidità del club è in difficoltà e questo apre tutte le opzioni di recupero. Nella scheda Finanze puoi chiedere sostegno al consiglio, proporti a un nuovo sponsor o avviare una campagna di marketing."
+      },
       "marketingCampaign": {
         "subject": "Rapporto campagna marketing",
         "body": "L'iniziativa commerciale si è conclusa con vendite lorde per {{grossRevenue}}. Dopo {{campaignCost}} di costi di campagna, il club incassa {{netIncome}} di nuova liquidità.\n\nIl team commerciale dovrà attendere {{days}} giorni prima di lanciare un'altra campagna."

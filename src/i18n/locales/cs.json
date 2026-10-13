@@ -2979,6 +2979,11 @@
         "bodyWarning": "Představenstvo má i nadále obavy o finance klubu. Důvěra ve vaše vedení tento týden klesla o {{penalty}} bodů.\n\nMusíte zlepšit situaci ohledně mezd a krátkodobého cash flow, než představenstvu dojde trpělivost.",
         "bodyCritical": "Představenstvo zhodnotilo zhoršující se finanční situaci klubu a důvěra ve vaše vedení tento týden klesla o {{penalty}} bodů.\n\nFinanční rezervy a mzdové závazky jsou nyní v kritickém stavu. Očekávají se okamžitá nápravná opatření."
       },
+      "financeLevers": {
+        "subject": "Klubu se otevřely možnosti záchrany",
+        "bodyCommercial": "Mzdová situace vyžaduje pozornost, a tím se otevírají komerční možnosti nápravy. Na kartě Finance můžete oslovit nového sponzora nebo spustit marketingovou kampaň, která přinese příjmy.",
+        "bodyAll": "Hotovostní situace klubu je vážná, a tím se otevírají všechny možnosti nápravy. Na kartě Finance můžete požádat o podporu vedení, oslovit nového sponzora nebo spustit marketingovou kampaň."
+      },
       "marketingCampaign": {
         "subject": "Zpráva o marketingové kampani",
         "body": "Marketingová kampaň skončila s hrubými tržbami ve výši {{grossRevenue}}. Po odečtení nákladů na kampaň ve výši {{campaignCost}} získává klub do pokladny {{netIncome}} jako nový příjem.\n\nObchodní tým bude potřebovat {{days}} dní, než bude moci spustit další kampaň."

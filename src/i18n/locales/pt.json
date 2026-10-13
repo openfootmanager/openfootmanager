@@ -2979,6 +2979,11 @@
         "bodyWarning": "A direção continua preocupada com a situação financeira do clube. A confiança na sua gestão caiu {{penalty}} pontos esta semana.\n\nPrecisa de melhorar a posição salarial e a tesouraria de curto prazo antes que a paciência diminua ainda mais.",
         "bodyCritical": "A direção reviu o agravamento da situação financeira do clube e a confiança na sua gestão caiu {{penalty}} pontos esta semana.\n\nA tesouraria e os compromissos salariais estão agora num estado crítico. Esperam-se medidas imediatas."
       },
+      "financeLevers": {
+        "subject": "Há opções de recuperação disponíveis para o clube",
+        "bodyCommercial": "A situação salarial exige atenção, o que abre opções comerciais de recuperação. No separador Finanças podes procurar um novo patrocinador ou lançar uma campanha de marketing para gerar receitas.",
+        "bodyAll": "A situação de tesouraria do clube é grave, o que abre todas as opções de recuperação. No separador Finanças podes pedir apoio à direção, procurar um novo patrocinador ou lançar uma campanha de marketing."
+      },
       "marketingCampaign": {
         "subject": "Relatório da campanha de marketing",
         "body": "A ação comercial terminou com vendas brutas de {{grossRevenue}}. Depois de {{campaignCost}} em custos de campanha, o clube encaixa {{netIncome}} de nova receita.\n\nA equipa comercial precisará de {{days}} dias antes de lançar outra campanha."

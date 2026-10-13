@@ -475,6 +475,53 @@ fn marketing_campaign_message(
     ))
 }
 
+/// Tells the manager, once a season per situation, which recovery levers have just unlocked and
+/// where to find them. The conditions come from the same `*_available` rules that gate the
+/// levers, so the message never promises one the Finances tab would refuse.
+///
+/// Board support unlocks only on debt or a runway problem, a subset of the commercial conditions,
+/// so there are two situations: commercial levers only, or every lever.
+fn finance_levers_message(
+    game: &Game,
+    snapshot: &TeamFinanceSnapshot,
+    today: &str,
+) -> Option<InboxMessage> {
+    let (variant, body_key) = if board_support_available(snapshot) {
+        ("all", "be.msg.financeLevers.bodyAll")
+    } else if sponsor_pitch_available(snapshot) || marketing_campaign_available(snapshot) {
+        ("commercial", "be.msg.financeLevers.bodyCommercial")
+    } else {
+        return None;
+    };
+
+    Some(
+        InboxMessage::new(
+            format!("finance_levers_{}_{}", board_support_season(game), variant),
+            String::new(),
+            String::new(),
+            String::new(),
+            today.to_string(),
+        )
+        .with_category(MessageCategory::Finance)
+        .with_priority(MessagePriority::High)
+        .with_sender_role("")
+        .with_i18n(
+            "be.msg.financeLevers.subject",
+            body_key,
+            std::collections::HashMap::new(),
+        )
+        .with_sender_i18n("be.sender.financialDirector", "be.role.financialDirector")
+        .with_action(action(
+            "view_finances",
+            "",
+            "be.msg.action.viewFinances",
+            ActionType::NavigateTo {
+                route: "/dashboard?tab=Finances".to_string(),
+            },
+        )),
+    )
+}
+
 fn board_support_season(game: &Game) -> u32 {
     game.league
         .as_ref()
@@ -1336,6 +1383,8 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
             ));
         }
     }
+
+    new_messages.extend(finance_levers_message(game, &snapshot, today));
 
     crate::inbox::emit_all(game, new_messages);
 }
