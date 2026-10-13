@@ -1174,6 +1174,7 @@
     "sortNewest": "Terbaru dulu",
     "sortOldest": "Terlama dulu",
     "selectMessages": "Pilih pesan",
+    "selectAll": "Pilih semua",
     "cancelSelection": "Batalkan pilihan",
     "selectedCount": "{{count}} dipilih",
     "deleteSelected": "Hapus yang dipilih",
