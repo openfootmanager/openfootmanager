@@ -525,6 +525,11 @@ impl SaveManager {
                 // a new game is drawn from its seed.
                 game.legacy_world_cup_draw = true;
             }
+            if save_format_version < 9 {
+                // Retirees used to stay on the roster flagged retired. They are archived
+                // once here; the resave below deletes their active rows.
+                ofm_core::retirees::archive_legacy_retirees(&mut game);
+            }
             needs_resave = true;
         }
         let manager_count_before = game.managers.len();
@@ -3596,6 +3601,93 @@ mod tests {
             ),
             1
         );
+    }
+
+    fn game_with_a_retiree_on_the_roster() -> (Game, String) {
+        let mut game = sample_game();
+        let mut retiree = game.players[0].clone();
+        retiree.id = "p-legacy-retiree".into();
+        retiree.full_name = "Ada Old".into();
+        retiree.retired = true;
+        retiree.team_id = None;
+        let id = retiree.id.clone();
+        game.players.push(retiree);
+        (game, id)
+    }
+
+    fn stamp_format(manager: &SaveManager, save_id: &str, version: u32) {
+        let connection =
+            rusqlite::Connection::open(manager.save_db_path(save_id).unwrap()).unwrap();
+        connection
+            .execute("UPDATE game_meta SET save_format_version = ?1", [version])
+            .unwrap();
+    }
+
+    /// Given a save written before the archive (format 8) whose roster still holds a retiree,
+    /// when it is loaded, then he is in the archive and off the roster, once.
+    #[test]
+    fn a_save_from_before_the_archive_partitions_its_retirees_on_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let (game, retiree_id) = game_with_a_retiree_on_the_roster();
+        let id = manager.create_save(&game, "Old career").unwrap();
+        stamp_format(&manager, &id, 8);
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert!(loaded.players.iter().all(|player| player.id != retiree_id));
+        assert_eq!(loaded.retired_players.len(), 1);
+        assert_eq!(loaded.retired_players[0].id, retiree_id);
+    }
+
+    /// Given that old save loaded and saved again, when the `.db` is read through a second
+    /// connection, then the retiree has an archive row and no active row, and a further load
+    /// finds him in the archive once.
+    #[test]
+    fn the_next_save_moves_the_legacy_retiree_in_the_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let (game, retiree_id) = game_with_a_retiree_on_the_roster();
+        let id = manager.create_save(&game, "Old career").unwrap();
+        stamp_format(&manager, &id, 8);
+        let loaded = manager.load_game(&id).unwrap();
+
+        manager.save_game(&loaded, &id).unwrap();
+
+        let reader = rusqlite::Connection::open(manager.save_db_path(&id).unwrap()).unwrap();
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM retired_players WHERE player_id = ?1",
+                &retiree_id
+            ),
+            1
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM players WHERE id = ?1",
+                &retiree_id
+            ),
+            0
+        );
+        let reloaded = manager.load_game(&id).unwrap();
+        assert_eq!(reloaded.retired_players.len(), 1);
+    }
+
+    /// Given a save already at the current format, when it is loaded, then nothing is partitioned:
+    /// the format version, not the data, decides whether the one-time move happens.
+    #[test]
+    fn a_save_at_the_current_format_is_not_partitioned() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let (game, retiree_id) = game_with_a_retiree_on_the_roster();
+        let id = manager.create_save(&game, "New career").unwrap();
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert!(loaded.players.iter().any(|player| player.id == retiree_id));
+        assert!(loaded.retired_players.is_empty());
     }
 
     fn world_cup_game() -> Game {
