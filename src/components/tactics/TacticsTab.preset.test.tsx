@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
@@ -141,16 +141,29 @@ const makeGame = (): GameStateData => ({
 
 /** The faked backend: applies commands to its own copy and returns it. */
 let backend: GameStateData;
+/** The backend's verdict on whether the phase dials still equal the style's blueprint. */
+let blueprintModified = false;
 
 function fakeBackend(failPreset = false) {
   mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
     const params = (args ?? {}) as Record<string, string>;
     if (command === "get_squad") return backend.players;
     const team = backend.teams[0];
+    if (command === "get_tactics_blueprint_status") return { modified: blueprintModified };
+    if (command === "set_tactics_phase") {
+      team.tactics_phase = {
+        ...(team.tactics_phase as object),
+        width: params.width,
+      } as TeamData["tactics_phase"];
+      blueprintModified = true;
+    }
     if (command === "apply_tactic_preset") {
       if (failPreset) throw new Error("boom");
       team.formation = params.formation;
       team.play_style = params.playStyle;
+      // The real command puts the dials back to the style's blueprint.
+      team.tactics_phase = {} as TeamData["tactics_phase"];
+      blueprintModified = false;
     }
     if (command === "set_formation") team.formation = params.formation;
     if (command === "set_play_style") team.play_style = params.playStyle;
@@ -163,6 +176,12 @@ function ControlledTacticsTab() {
   return <TacticsTab gameState={game} onSelectPlayer={vi.fn()} onGameUpdate={setGame} />;
 }
 
+/** The phase dials sit in a collapsible section; open it when it is closed. */
+function openPhaseBlueprint() {
+  const toggle = screen.getByRole("button", { name: /Phase Blueprint/i });
+  if (toggle.getAttribute("aria-expanded") !== "true") fireEvent.click(toggle);
+}
+
 const commandsCalled = () => mockedInvoke.mock.calls.map(([command]) => command);
 
 describe("TacticsTab preset selection", () => {
@@ -173,6 +192,7 @@ describe("TacticsTab preset selection", () => {
   beforeEach(() => {
     localStorage.clear();
     mockedInvoke.mockReset();
+    blueprintModified = false;
     backend = makeGame();
   });
 
@@ -297,5 +317,44 @@ describe("TacticsTab preset selection", () => {
     expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
       "Balanced Control",
     );
+  });
+
+  /**
+   * Given a manager on a preset whose formation and style are untouched
+   * When they tune a phase dial
+   * Then the badge turns from Synced to Unsaved changes, because the backend says the dials no
+   *      longer match the style's blueprint.
+   */
+  it("shows the unsaved-changes badge once a phase dial is tuned", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    expect(screen.getByText("Synced")).toBeInTheDocument();
+
+    openPhaseBlueprint();
+    const widthRow = screen.getByText("Width").parentElement as HTMLElement;
+    fireEvent.click(within(widthRow).getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Wide" }));
+
+    await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
+  });
+
+  /**
+   * Given a preset whose dials were tuned
+   * When the manager picks that preset again
+   * Then the badge returns to Synced.
+   */
+  it("clears the badge when the preset is picked again", async () => {
+    fakeBackend();
+    render(<ControlledTacticsTab />);
+    openPhaseBlueprint();
+    const widthRow = screen.getByText("Width").parentElement as HTMLElement;
+    fireEvent.click(within(widthRow).getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Wide" }));
+    await waitFor(() => expect(screen.getByText("Unsaved changes")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
+    fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
+
+    await waitFor(() => expect(screen.getByText("Synced")).toBeInTheDocument());
   });
 });
