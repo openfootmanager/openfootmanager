@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlayersPageQuery } from "../../services/playersService";
@@ -51,6 +52,24 @@ const renderFilters = (
   return onChange;
 };
 
+/** The filters owned by a parent that keeps the query, as every screen does, so a press sees the last one. */
+const renderOwned = (initial: Partial<PlayersPageQuery> = {}) => {
+  const seen: PlayersPageQuery[] = [];
+  function Owner() {
+    const [query, setQuery] = useState<PlayersPageQuery>({ ...baseQuery, ...initial });
+    seen.push(query);
+    return (
+      <PlayerListFilters
+        query={query}
+        onChange={(patch) => setQuery((current) => ({ ...current, ...patch }))}
+        statusOptions={["all"]}
+      />
+    );
+  }
+  render(<Owner />);
+  return () => seen[seen.length - 1].positions;
+};
+
 describe("PlayerListFilters", () => {
   /**
    * Given the search box
@@ -88,19 +107,51 @@ describe("PlayerListFilters", () => {
    * Then the remaining four are sent as exact positions.
    */
   it("narrows a group to exact positions in its refinement panel", () => {
-    const onChange = renderFilters({ positions: [{ group: "Defender" }] });
+    const positionsNow = renderOwned();
 
     fireEvent.click(screen.getByRole("button", { name: "common.positionGroups.Defender" }));
     fireEvent.click(screen.getByRole("button", { name: "common.positions.CenterBack" }));
 
-    expect(onChange).toHaveBeenLastCalledWith({
-      positions: [
-        { exact: "LeftBack" },
-        { exact: "RightBack" },
-        { exact: "LeftWingBack" },
-        { exact: "RightWingBack" },
-      ],
+    expect(positionsNow()).toEqual([
+      { exact: "LeftBack" },
+      { exact: "RightBack" },
+      { exact: "LeftWingBack" },
+      { exact: "RightWingBack" },
+    ]);
+  });
+
+  /**
+   * Given defenders and midfielders chosen, with no refinement panel open
+   * When the defenders chip is pressed
+   * Then the defenders are un-chosen and the midfielders stay, rather than the panel opening and
+   *      the whole group being chosen again on the next press.
+   */
+  it("un-chooses a fully chosen group with its chip and leaves the others alone", () => {
+    const positionsNow = renderOwned({
+      positions: [{ group: "Defender" }, { group: "Midfielder" }],
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "common.positionGroups.Defender" }));
+
+    expect(positionsNow()).toEqual([{ group: "Midfielder" }]);
+  });
+
+  /**
+   * Given only some defenders chosen
+   * When the defenders chip is pressed
+   * Then the whole group is chosen and its panel opens, as before.
+   */
+  it("chooses the whole group when only part of it was chosen", () => {
+    const positionsNow = renderOwned({ positions: [{ exact: "CenterBack" }] });
+
+    fireEvent.click(screen.getByRole("button", { name: /positionGroupPartialSelection/ }));
+
+    expect(positionsNow()).toEqual([{ group: "Defender" }]);
+    expect(
+      screen.getByRole("group", {
+        name: "transfers.refinePositionGroup:common.positionGroups.Defender",
+      }),
+    ).toBeTruthy();
   });
 
   /**
@@ -109,7 +160,7 @@ describe("PlayerListFilters", () => {
    * Then the panel closes and focus returns to its chip.
    */
   it("closes the refinement on Escape and returns focus to its chip", () => {
-    renderFilters({ positions: [{ group: "Midfielder" }] });
+    renderOwned();
     const chip = screen.getByRole("button", { name: "common.positionGroups.Midfielder" });
     chip.focus();
     fireEvent.click(chip);

@@ -207,6 +207,14 @@ export default function PlayerListFilters({
       setOpenGroup(null);
       return;
     }
+    // A chip that has the whole group chosen takes it back, so a group can be un-chosen without
+    // clearing the others; to refine, press it again and its panel opens.
+    if (members.every((member) => chosen.has(member))) {
+      const rest = new Set(chosen);
+      for (const member of members) rest.delete(member);
+      onChange({ positions: toPositionFilters(rest) });
+      return;
+    }
     // Otherwise the group is chosen whole, which is a shortcut that keeps earlier picks elsewhere.
     onChange({ positions: toPositionFilters(new Set([...chosen, ...members])) });
     setOpenGroup(group);
