@@ -421,4 +421,52 @@ describe("TransferBidModal", () => {
 
     expect(screen.getByText("common.posAbbr.LeftBack")).toBeInTheDocument();
   });
+
+  /**
+   * Given the dialog is open over a button that had focus
+   * When it opens, Tab is pressed on its last control, and then Escape
+   * Then focus starts inside it, Tab wraps instead of leaving it, and Escape asks to close.
+   */
+  it("takes focus, traps Tab and closes on Escape", () => {
+    const onClose = vi.fn();
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+
+    render(
+      <TransferBidModal
+        bidTarget={createPlayer()}
+        teams={[createTeam()]}
+        bidAmount="1.0"
+        onBidAmountChange={vi.fn()}
+        myTeam={createTeam()}
+        bidFee={1000000}
+        bidProjection={createProjection()}
+        bidFeedback={null}
+        activeBidOffer={null}
+        hasExistingOffer={false}
+        bidResult={null}
+        bidLoading={false}
+        bidSubmitDisabled={false}
+        onSubmit={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveFocus();
+    const controls = dialog.querySelectorAll<HTMLElement>(
+      "button:not([disabled]), input:not([disabled]), select:not([disabled])",
+    );
+    const last = controls[controls.length - 1];
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).toBe(controls[0]);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    opener.remove();
+  });
 });

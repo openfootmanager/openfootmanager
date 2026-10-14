@@ -1982,6 +1982,9 @@
     "alreadyQueued": "Already queued for a substitution",
     "substitutionsPartlyMade": "{{applied}} of {{total}} substitutions made",
     "substitutionRefused": "Substitution refused: {{off}} for {{on}}. {{reason}}",
+    "playerRoles": "Player roles",
+    "roleFor": "Role for {{player}}",
+    "roleChangeRefused": "Could not change {{player}}'s role. {{reason}}",
     "noBenchAvailable": "No bench players available",
     "history": "History",
     "player": "Player",
@@ -3475,6 +3478,10 @@
         "LoanConflict": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player has an active loan or an agreed loan awaiting registration. No transfer fee was paid.",
         "PlayerUnavailable": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because the player is no longer available from a selling club. No transfer fee was paid.",
         "RegistrationBlocked": "The agreed transfer of {{player}} to {{buyer}} for {{fee}} could not be registered on {{start}} because a registration requirement is no longer met. No transfer fee was paid."
+      },
+      "matchesMoved": {
+        "subject": "Fixtures rescheduled",
+        "body": "Some of your matches have been moved so that your players keep their rest and the international breaks are respected:\n{{matches}}"
       }
     },
     "news": {

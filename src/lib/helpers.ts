@@ -38,8 +38,8 @@ export {
 } from "./contractUtils";
 export {
   calcAge,
-  formatAnnualAmount,
   formatExactMoney,
   formatVal,
   formatWeeklyAmount,
+  formatWeeklyWage,
 } from "./valueFormatting";

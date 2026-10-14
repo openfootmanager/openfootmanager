@@ -1978,6 +1978,9 @@
     "alreadyQueued": "Bereits für einen Wechsel vorgemerkt",
     "substitutionsPartlyMade": "{{applied}} von {{total}} Wechseln durchgeführt",
     "substitutionRefused": "Wechsel abgelehnt: {{off}} für {{on}}. {{reason}}",
+    "playerRoles": "Spielerrollen",
+    "roleFor": "Rolle von {{player}}",
+    "roleChangeRefused": "Die Rolle von {{player}} konnte nicht geändert werden. {{reason}}",
     "noBenchAvailable": "Keine Bankspieler verfügbar",
     "history": "Verlauf",
     "player": "Spieler",
@@ -3475,6 +3478,10 @@
         "LoanConflict": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler verliehen ist oder eine vereinbarte Leihe auf die Registrierung wartet. Es wurde keine Ablöse gezahlt.",
         "PlayerUnavailable": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler bei keinem verkaufenden Verein mehr verfügbar ist. Es wurde keine Ablöse gezahlt.",
         "RegistrationBlocked": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil eine Registrierungsvoraussetzung nicht mehr erfüllt ist. Es wurde keine Ablöse gezahlt."
+      },
+      "matchesMoved": {
+        "subject": "Spiele verlegt",
+        "body": "Einige Ihrer Spiele wurden verlegt, damit Ihre Spieler ihre Ruhezeit behalten und die Länderspielpausen eingehalten werden:\n{{matches}}"
       }
     },
     "news": {

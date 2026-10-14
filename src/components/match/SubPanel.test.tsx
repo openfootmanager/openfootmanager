@@ -158,6 +158,7 @@ describe("SubPanel", () => {
     onSubstitute: vi.fn().mockResolvedValue({ applied: true }),
     onFormationChange: vi.fn(),
     onPlayStyleChange: vi.fn(),
+    onChangeRole: vi.fn().mockResolvedValue({ applied: true }),
     onClose: vi.fn(),
   });
 
@@ -226,6 +227,45 @@ describe("SubPanel", () => {
     fireEvent.click(screen.getByRole("option", { name: "4-3-3" }));
 
     expect(props.onFormationChange).toHaveBeenCalledWith("4-3-3");
+  });
+
+  /**
+   * Given the substitution panel is open beside the formation and play-style controls
+   * When a starter is given a new role from the roles section
+   * Then the panel asks its owner for that change.
+   */
+  it("hands a role change to its owner", () => {
+    const props = createProps();
+    render(<SubPanel {...props} />);
+
+    fireEvent.click(screen.getByText("match.playerRoles"));
+    // Listed by position group, so the forward is the second starter.
+    const [, forwardPicker] = screen.getAllByRole("combobox", { name: "match.roleFor" });
+    fireEvent.click(forwardPicker);
+    fireEvent.click(screen.getByRole("option", { name: "tactics.playerRoles.Poacher" }));
+
+    expect(props.onChangeRole).toHaveBeenCalledWith("starter-2", "Poacher");
+  });
+
+  /**
+   * Given a role picker's list is open inside the substitution dialog
+   * When Escape is pressed
+   * Then only the list closes; a second Escape closes the dialog.
+   */
+  it("closes an open role list on the first Escape and the dialog on the second", () => {
+    const props = createProps();
+    render(<SubPanel {...props} />);
+    fireEvent.click(screen.getByText("match.playerRoles"));
+    const [picker] = screen.getAllByRole("combobox", { name: "match.roleFor" });
+    fireEvent.click(picker);
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    fireEvent.keyDown(picker, { key: "Escape" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(props.onClose).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(picker, { key: "Escape" });
+    expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 
   it("lets a recommendation prefill the swap flow", () => {
@@ -573,5 +613,78 @@ describe("SubPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "match.confirmAllSubstitutions" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("1 of 2 substitutions made");
+  });
+});
+
+describe("SubPanel as a dialog", () => {
+  const renderPanel = () => {
+    const onClose = vi.fn();
+    render(
+      <SubPanel
+        snapshot={createSnapshot()}
+        side="Home"
+        onSubstitute={vi.fn().mockResolvedValue({ applied: true })}
+        onFormationChange={vi.fn()}
+        onPlayStyleChange={vi.fn()}
+        onChangeRole={vi.fn().mockResolvedValue({ applied: true })}
+        onClose={onClose}
+      />,
+    );
+    return onClose;
+  };
+
+  /**
+   * Given the substitution panel is open over the match
+   * When assistive technology looks for it
+   * Then it is a modal dialog named by its heading, and focus is inside it.
+   */
+  it("is a named modal dialog that holds focus", () => {
+    renderPanel();
+
+    const dialog = screen.getByRole("dialog", { name: "match.substitutionsTitle" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveFocus();
+  });
+
+  /**
+   * Given the panel is open
+   * When the player presses Escape
+   * Then the panel closes.
+   */
+  it("closes on Escape", () => {
+    const onClose = renderPanel();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a player's context menu is open inside the panel
+   * When the player presses Escape
+   * Then only the menu closes and the panel stays.
+   */
+  it("keeps the panel open when Escape closes a context menu", () => {
+    const onClose = renderPanel();
+    fireEvent.contextMenu(screen.getByTestId("sub-panel-off-starter-1"));
+    expect(screen.getByRole("menuitem", { name: "Select to take off" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given the panel is open
+   * When the player activates the close control by its accessible name
+   * Then the panel closes.
+   */
+  it("has a close button a screen reader can name", () => {
+    const onClose = renderPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: "common.close" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

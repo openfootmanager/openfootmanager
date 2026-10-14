@@ -1978,6 +1978,9 @@
     "alreadyQueued": "已排队等待换人",
     "substitutionsPartlyMade": "已完成 {{applied}}/{{total}} 次换人",
     "substitutionRefused": "换人被拒绝：{{off}} 换 {{on}}。{{reason}}",
+    "playerRoles": "球员角色",
+    "roleFor": "{{player}}的角色",
+    "roleChangeRefused": "无法更改{{player}}的角色。{{reason}}",
     "noBenchAvailable": "没有可用的替补球员",
     "history": "历史",
     "player": "球员",
@@ -3475,6 +3478,10 @@
         "LoanConflict": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员仍在租借中，或已有一份等待注册的租借协议。此次转会未支付任何转会费。",
         "PlayerUnavailable": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员已无法从出售方俱乐部转会。此次转会未支付任何转会费。",
         "RegistrationBlocked": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为某项注册条件已不再满足。此次转会未支付任何转会费。"
+      },
+      "matchesMoved": {
+        "subject": "比赛已改期",
+        "body": "您的部分比赛已改期，以保证球员的休息时间并避开国际比赛日：\n{{matches}}"
       }
     },
     "news": {

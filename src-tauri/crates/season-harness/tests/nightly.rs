@@ -12,9 +12,9 @@ use ofm_core::end_of_season::EndOfSeasonSummary;
 use ofm_core::game::Game;
 use ofm_core::squad_floor::{can_put_a_side_out, squad_shortfall};
 use ofm_core::world_cup::{is_world_cup_competition, world_cup_champion};
+use season_harness::calendar::{reloaded, unplayed_clashes};
 use season_harness::driver::{RunOptions, SeasonObserver, run_seasons};
 use season_harness::invariants::{CLUB_RESTS_BETWEEN_MATCHES, Invariants};
-use season_harness::known_bug::expect_bug;
 use season_harness::worlds::WorldSpec;
 
 const SEEDS: &[u64] = &[1, 2, 3];
@@ -70,7 +70,10 @@ struct PlayerClubWatch {
     shortfall: String,
     changed_on: String,
     reported: bool,
-    problems: Vec<String>,
+    /// A change in the shortfall that was never warned about (#787).
+    unwarned: Vec<String>,
+    /// A day the club played without eleven seniors or a goalkeeper.
+    could_not_field_a_side: Vec<String>,
 }
 
 const SQUAD_WARNING_KEY: &str = "be.msg.squadBelowFloor";
@@ -112,7 +115,7 @@ impl PlayerClubWatch {
                 .max()
                 .unwrap_or("never");
             self.reported = true;
-            self.problems.push(format!(
+            self.unwarned.push(format!(
                 "[season {season} day {day}] {club}'s shortfall changed on {} to {} and was not warned about (last warning: {last_warning})",
                 self.changed_on, self.shortfall
             ));
@@ -130,7 +133,7 @@ impl PlayerClubWatch {
                     && (fixture.home_team_id == club || fixture.away_team_id == club)
             });
         if played_today && !can_put_a_side_out(game, club) {
-            self.problems.push(format!(
+            self.could_not_field_a_side.push(format!(
                 "[season {season} day {day}] {club} played with fewer than 11 seniors or no goalkeeper"
             ));
         }
@@ -185,10 +188,10 @@ fn the_player_club_below_the_floor_must_have_been_warned() {
     drop_midfielders(&mut game, &club);
     let mut silent = PlayerClubWatch::default();
     silent.on_day_end(&game, 1, 1);
-    assert!(silent.problems.is_empty(), "one day's grace");
+    assert!(silent.unwarned.is_empty(), "one day's grace");
     game.clock.advance_days(1);
     silent.on_day_end(&game, 1, 2);
-    assert_eq!(silent.problems.len(), 1, "{:?}", silent.problems);
+    assert_eq!(silent.unwarned.len(), 1, "{:?}", silent.unwarned);
 
     let mut warned = PlayerClubWatch::default();
     let warning = a_warning_for(&game);
@@ -196,7 +199,7 @@ fn the_player_club_below_the_floor_must_have_been_warned() {
     warned.on_day_end(&game, 1, 1);
     game.clock.advance_days(1);
     warned.on_day_end(&game, 1, 2);
-    assert!(warned.problems.is_empty(), "{:?}", warned.problems);
+    assert!(warned.unwarned.is_empty(), "{:?}", warned.unwarned);
 }
 
 /// Given the player's club has only ten seniors and a fixture today that is completed,
@@ -218,7 +221,11 @@ fn the_player_club_must_be_able_to_field_a_side_at_kick_off() {
     fixture.status = FixtureStatus::Completed;
     let mut fine = PlayerClubWatch::default();
     fine.on_day_end(&game, 1, 1);
-    assert!(fine.problems.is_empty(), "{:?}", fine.problems);
+    assert!(
+        fine.could_not_field_a_side.is_empty(),
+        "{:?}",
+        fine.could_not_field_a_side
+    );
 
     let keepers: Vec<String> = game
         .players
@@ -232,14 +239,10 @@ fn the_player_club_must_be_able_to_field_a_side_at_kick_off() {
     without_keeper.on_day_end(&game, 1, 1);
 
     assert_eq!(
-        without_keeper
-            .problems
-            .iter()
-            .filter(|problem| problem.contains("goalkeeper"))
-            .count(),
+        without_keeper.could_not_field_a_side.len(),
         1,
         "{:?}",
-        without_keeper.problems
+        without_keeper.could_not_field_a_side
     );
 }
 
@@ -296,39 +299,24 @@ fn five_seasons_leave_no_club_below_the_squad_floor() {
             "seed {seed} left clubs below the floor:\n{}",
             watch.breaches.join("\n")
         );
-        let (unwarned, unplayable): (Vec<_>, Vec<_>) = player_club
-            .problems
-            .iter()
-            .partition(|problem| problem.contains("was not warned about"));
         assert!(
-            unplayable.is_empty(),
-            "seed {seed}: the player's club was not looked after:\n{}",
-            unplayable
-                .iter()
-                .map(|problem| problem.as_str())
-                .collect::<Vec<_>>()
-                .join("\n")
+            player_club.could_not_field_a_side.is_empty(),
+            "seed {seed}: the player's club could not field a side:\n{}",
+            player_club.could_not_field_a_side.join("\n")
         );
-        expect_bug(787, "was not warned about", || {
-            assert!(
-                unwarned.is_empty(),
-                "seed {seed}: the player's club:\n{}",
-                unwarned
-                    .iter()
-                    .map(|problem| problem.as_str())
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            );
-        });
+        assert!(
+            !player_club.unwarned.is_empty(),
+            "#787 is fixed: delete this exemption (seed {seed}: every change of shortfall was warned about)"
+        );
         let others = invariants.report_except(CLUB_RESTS_BETWEEN_MATCHES);
         assert!(
             others.is_empty(),
             "seed {seed} broke an invariant:\n{others}"
         );
-        let clashes = invariants.report_of(CLUB_RESTS_BETWEEN_MATCHES);
-        expect_bug(553, "days apart", || {
-            assert!(clashes.is_empty(), "seed {seed}:\n{clashes}");
-        });
+        assert!(
+            !invariants.report_of(CLUB_RESTS_BETWEEN_MATCHES).is_empty(),
+            "#553 is fixed: delete this exemption (seed {seed}: no club played inside the rest)"
+        );
     }
 }
 
@@ -490,4 +478,29 @@ fn ratings_stay_within_their_bounds() {
             );
         }
     }
+}
+
+/// Given a generated world played through four seasons, saved and reloaded between each,
+/// When every rollover has generated the next season's calendar,
+/// Then no club has two matches to play within the minimum rest in it.
+#[test]
+#[ignore = "nightly tier"]
+fn four_seasons_generate_clash_free_calendars_with_reloads() {
+    let mut game = WorldSpec::gate(1).build().expect("the world builds");
+    let mut clashes = Vec::new();
+
+    for season in 1..=4 {
+        let mut invariants = Invariants::new(&game);
+        run_seasons(&mut game, RunOptions::seasons(1), &mut invariants)
+            .unwrap_or_else(|error| panic!("season {season}: {error}"));
+        // The run ends on the rollover, so this is the calendar it has just generated.
+        clashes.extend(
+            unplayed_clashes(&game)
+                .into_iter()
+                .map(|clash| format!("after season {season}: {clash}")),
+        );
+        game = reloaded(&game);
+    }
+
+    assert_eq!(clashes, Vec::<String>::new());
 }

@@ -725,7 +725,7 @@ fn a_clashing_friendly_cup_tie_moves_instead_of_being_dropped() {
     assert_eq!(date_of(&world, "league", "l1"), march(10));
 }
 
-/// Given a one-off friendly that clashes with a league match, when reconciled, then it is still dropped.
+/// Given a friendly outside any knockout bracket that clashes with a league match, when reconciled, then it is still dropped.
 #[test]
 fn a_clashing_one_off_friendly_is_still_dropped() {
     let mut world = vec![competition(
@@ -784,4 +784,23 @@ fn byes_are_not_halved_with_the_players_when_predicting_rounds() {
     // Round two: four clubs, two ties, one a day: 13 and 14 March. The final follows on 17 March,
     // so its shadow blocks 19 March. Halving the byes too would put it on 16 March.
     assert!(!occupancy.is_free_of_shadows("e", march(19)));
+}
+
+/// Given a settle for a calendar whose first day still to be played is 10 March, and a match dated
+/// 10 March on a blackout date,
+/// When the calendar is settled,
+/// Then that match moves: the first day still to be played is not yet played.
+#[test]
+fn a_match_dated_the_first_day_still_to_be_played_may_move() {
+    let mut world = vec![competition(
+        "league",
+        1,
+        vec![fx("league", "l1", march(10), "a", "z", Kind::League)],
+    )];
+    let blackout = BTreeSet::from([march(10)]);
+
+    let moved = settle_calendar(&mut world, &blackout, march(10), |_| true);
+
+    assert_eq!(moved.len(), 1);
+    assert!(date_of(&world, "league", "l1") > march(10));
 }

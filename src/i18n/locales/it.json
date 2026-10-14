@@ -1997,6 +1997,9 @@
     "alreadyQueued": "Già in coda per una sostituzione",
     "substitutionsPartlyMade": "{{applied}} sostituzioni su {{total}} effettuate",
     "substitutionRefused": "Sostituzione rifiutata: {{off}} per {{on}}. {{reason}}",
+    "playerRoles": "Ruoli dei giocatori",
+    "roleFor": "Ruolo di {{player}}",
+    "roleChangeRefused": "Impossibile cambiare il ruolo di {{player}}. {{reason}}",
     "noBenchAvailable": "Nessun giocatore disponibile in panchina",
     "history": "Cronologia",
     "player": "Giocatore",
@@ -3475,6 +3478,10 @@
         "LoanConflict": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore è in prestito o ha un prestito concordato in attesa di registrazione. Non è stato pagato alcun importo per il trasferimento.",
         "PlayerUnavailable": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché il giocatore non è più disponibile presso un club venditore. Non è stato pagato alcun importo per il trasferimento.",
         "RegistrationBlocked": "Il trasferimento concordato di {{player}} a {{buyer}} per {{fee}} non è stato registrato il {{start}} perché un requisito di registrazione non è più soddisfatto. Non è stato pagato alcun importo per il trasferimento."
+      },
+      "matchesMoved": {
+        "subject": "Partite riprogrammate",
+        "body": "Alcune delle tue partite sono state spostate affinché i tuoi giocatori mantengano il loro riposo e le pause internazionali siano rispettate:\n{{matches}}"
       }
     },
     "news": {

@@ -1982,6 +1982,9 @@
     "alreadyQueued": "Už čeká ve frontě na střídání",
     "substitutionsPartlyMade": "Provedeno střídání: {{applied}} z {{total}}",
     "substitutionRefused": "Střídání zamítnuto: {{off}} za {{on}}. {{reason}}",
+    "playerRoles": "Role hráčů",
+    "roleFor": "Role hráče {{player}}",
+    "roleChangeRefused": "Roli hráče {{player}} se nepodařilo změnit. {{reason}}",
     "noBenchAvailable": "Na lavičce nejsou k dispozici žádní hráči",
     "history": "Historie",
     "player": "Hráč",
@@ -3475,6 +3478,10 @@
         "LoanConflict": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč hostuje nebo má dohodnuté hostování čekající na registraci. Nebyla zaplacena žádná přestupová částka.",
         "PlayerUnavailable": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč již není dostupný v prodávajícím klubu. Nebyla zaplacena žádná přestupová částka.",
         "RegistrationBlocked": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože již není splněna některá podmínka registrace. Nebyla zaplacena žádná přestupová částka."
+      },
+      "matchesMoved": {
+        "subject": "Zápasy přesunuty",
+        "body": "Některé vaše zápasy byly přesunuty, aby si hráči zachovali odpočinek a byly dodrženy reprezentační přestávky:\n{{matches}}"
       }
     },
     "news": {
