@@ -1,4 +1,3 @@
-use chrono::Datelike;
 use log::info;
 use std::sync::Arc;
 use tauri::State;
@@ -14,17 +13,6 @@ fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
         "Youth" => Some(domain::player::SquadRole::Youth),
         _ => None,
     }
-}
-
-fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option<i32> {
-    let dob = chrono::NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d").ok()?;
-    let mut age = current_date.year() - dob.year();
-
-    if (current_date.month(), current_date.day()) < (dob.month(), dob.day()) {
-        age -= 1;
-    }
-
-    Some(age)
 }
 
 /// Sets the user's formation and drops roles the new shape no longer admits.
@@ -380,7 +368,7 @@ pub fn set_player_squad_role_internal(
         }
 
         if matches!(target_role, domain::player::SquadRole::Youth) {
-            let age = player_age_on(current_date, &game.players[player_index].date_of_birth)
+            let age = domain::age::age_on(current_date, &game.players[player_index].date_of_birth)
                 .ok_or("be.error.invalidDateOfBirth".to_string())?;
             if age > ofm_core::roster::YOUTH_ACADEMY_MAX_AGE {
                 return Err("be.error.youthAcademyOverage".to_string());
