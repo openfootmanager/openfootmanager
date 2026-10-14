@@ -50,11 +50,12 @@ fn blackout_dates(game: &Game, today: NaiveDate) -> BTreeSet<NaiveDate> {
         .collect()
 }
 
-/// The id and date of every fixture, played or not: a result changes neither, and neither does
-/// anything else a day does to a fixture. Only a fixture added or moved can create a clash, so a
-/// day that left this alone needs no sweep. That is nearly every day, and settling the whole
+/// The id and date of every fixture, played or not, and the dates the calendar must keep clear
+/// of: a result changes neither, and neither does anything else a day does to a fixture. Only a
+/// fixture added or moved, or a window that has come into force, can create a clash, so a day that
+/// left all of this alone needs no sweep. That is nearly every day, and settling the whole
 /// calendar costs milliseconds.
-fn calendar_fingerprint(game: &Game) -> u64 {
+fn calendar_fingerprint(game: &Game, blackout: &BTreeSet<NaiveDate>) -> u64 {
     use std::hash::{Hash, Hasher};
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     for competition in &game.competitions {
@@ -64,53 +65,59 @@ fn calendar_fingerprint(game: &Game) -> u64 {
             fixture.date.hash(&mut hasher);
         }
     }
+    blackout.hash(&mut hasher);
     hasher.finish()
 }
 
 /// Settles the world's calendar at the end of `today`, and tells the user about their own club's
 /// moved matches. A calendar that cannot be settled is a defect: it is logged and left as it is.
+/// Returns whether it ran: it is skipped when nothing it looks at has changed since it last did.
 pub(super) fn reconcile_calendar(game: &mut Game, today: &str, shown: &ShownFixtures) -> bool {
-    let before = calendar_fingerprint(game);
+    let Ok(day) = NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
+        return false;
+    };
+    let blackout = blackout_dates(game, day);
+    let before = calendar_fingerprint(game, &blackout);
     if game.calendar_fingerprint == Some(before) {
         return false;
     }
-    settle_calendar_today(game, today, shown);
-    game.calendar_fingerprint = Some(calendar_fingerprint(game));
+    let moved_after_being_shown = settle_calendar_today(game, day, &blackout, shown);
+    let after = calendar_fingerprint(game, &blackout);
+    if after != before {
+        // Something moved or was dropped, announced or not: the mirror the dashboard reads has to
+        // follow. A sweep that changed nothing leaves it alone.
+        game.sync_legacy_league();
+    }
+    calendar_notice::announce_moved_matches(
+        game,
+        &format!("postponed_{today}"),
+        &moved_after_being_shown,
+    );
+    game.calendar_fingerprint = Some(after);
     true
 }
 
-fn settle_calendar_today(game: &mut Game, today: &str, shown: &ShownFixtures) {
-    let Ok(day) = NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
-        return;
-    };
+/// Settles the calendar for the days from tomorrow on; returns the moves of fixtures the player
+/// had been shown.
+fn settle_calendar_today(
+    game: &mut Game,
+    day: NaiveDate,
+    blackout: &BTreeSet<NaiveDate>,
+    shown: &ShownFixtures,
+) -> Vec<calendar_reconcile::Move> {
     let Some(tomorrow) = day.succ_opt() else {
-        return;
+        return Vec::new();
     };
-    let blackout = blackout_dates(game, day);
     let bracket_competitions: HashSet<String> = game
         .competitions
         .iter()
         .filter(|competition| has_bracket(competition))
         .map(|competition| competition.id.clone())
         .collect();
-    let moved_after_being_shown = calendar_reconcile::settle_calendar(
-        &mut game.competitions,
-        &blackout,
-        tomorrow,
-        |planned| {
-            !bracket_competitions.contains(&planned.competition_id)
-                || shown.contains(&(planned.competition_id.clone(), planned.fixture_id.clone()))
-        },
-    );
-    if moved_after_being_shown.is_empty() {
-        return;
-    }
-    game.sync_legacy_league();
-    calendar_notice::announce_moved_matches(
-        game,
-        &format!("postponed_{today}"),
-        &moved_after_being_shown,
-    );
+    calendar_reconcile::settle_calendar(&mut game.competitions, blackout, tomorrow, |planned| {
+        !bracket_competitions.contains(&planned.competition_id)
+            || shown.contains(&(planned.competition_id.clone(), planned.fixture_id.clone()))
+    })
 }
 
 #[cfg(test)]
@@ -404,6 +411,55 @@ mod tests {
         assert!(
             reconcile_calendar(&mut game, "2033-03-06", &shown),
             "regenerated"
+        );
+    }
+
+    /// Given a tie drawn today that the sweep moves, and a user whose dashboard mirrors that cup,
+    /// When the sweep runs, Then the mirror has the new date, though nobody is told.
+    #[test]
+    fn a_move_nobody_is_told_about_still_reaches_the_mirror() {
+        let mut game = game_on(2033, 9, 1, "z");
+        game.competitions = vec![cup(vec![vec![fixture(
+            "cup",
+            "t1",
+            "2033-09-09",
+            "a",
+            "b",
+        )]])];
+        game.league = Some(game.competitions[0].clone());
+
+        reconcile_calendar(&mut game, "2033-09-01", &ShownFixtures::new());
+
+        let mirrored = &game.league.as_ref().unwrap().fixtures[0].date;
+        assert_ne!(mirrored, "2033-09-09");
+        assert_eq!(mirrored, &game.competitions[0].fixtures[0].date);
+    }
+
+    /// Given a calendar nobody has touched, When a new year brings new windows into force, Then
+    /// the sweep runs again, because what it keeps clear of has changed.
+    #[test]
+    fn a_window_coming_into_force_is_a_change() {
+        let mut game = game_on(2033, 12, 30, "a");
+        game.competitions = vec![league(vec![fixture(
+            "league",
+            "l1",
+            "2034-03-10",
+            "a",
+            "z",
+        )])];
+        let shown = ShownFixtures::new();
+
+        assert!(
+            reconcile_calendar(&mut game, "2033-12-30", &shown),
+            "first sweep"
+        );
+        assert!(
+            !reconcile_calendar(&mut game, "2033-12-31", &shown),
+            "same windows"
+        );
+        assert!(
+            reconcile_calendar(&mut game, "2034-01-02", &shown),
+            "a new year of windows"
         );
     }
 }
