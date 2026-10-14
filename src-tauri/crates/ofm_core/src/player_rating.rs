@@ -37,14 +37,15 @@ pub fn deployed_position(team: &domain::team::Team, player_id: &str) -> Option<P
 /// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied only
 ///   after the v0.2.1 rebalance for age <= 20, potential >= 90, and growth room >= 14.
 ///
-/// Pass `current_year` for accurate age calculation (use the game clock year).
-pub fn refresh_player_derived(player: &mut Player, current_year: u32) {
+/// Ages are reckoned on `on`: the game's date, or `domain::age::season_midpoint` when only a
+/// year is known.
+pub fn refresh_player_derived(player: &mut Player, on: chrono::NaiveDate) {
     // 1. Compute position-weighted OVR
     let ovr_f = natural_ovr(player);
     let ovr = ovr_f.round() as u8;
 
     // 2. Compute potential if not yet set (initial generation or legacy saves)
-    let age = player_age(&player.date_of_birth, current_year);
+    let age = domain::age::playing_age(on, &player.date_of_birth);
     let potential = if player.potential == 0 {
         // A player with no potential yet (a legacy save, a hand-built player): drawn from
         // the player's own id, so the same player gets the same ceiling every time.
@@ -156,16 +157,6 @@ fn lower_each_attribute_by_one(attributes: &mut PlayerAttributes) -> bool {
         }
     }
     lowered
-}
-
-/// Parse birth year from a "YYYY-MM-DD" date string and return approximate age.
-fn player_age(date_of_birth: &str, current_year: u32) -> u32 {
-    let birth_year: u32 = date_of_birth
-        .split('-')
-        .next()
-        .and_then(|y| y.parse().ok())
-        .unwrap_or(2000);
-    current_year.saturating_sub(birth_year)
 }
 
 fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {
@@ -802,6 +793,35 @@ mod tests {
         assert_eq!(slots[10], Position::Striker);
     }
 
+    /// Given a high-potential player born in December of the year he turns 21, when his derived
+    /// ratings are refreshed in 2026, then he is still 20 in July and is a Wonderkid: the year of
+    /// his birth alone would call him 21.
+    #[test]
+    fn a_december_birthday_does_not_age_a_player_a_year_early() {
+        let mut player = make_player(Position::Striker);
+        player.date_of_birth = "2005-12-01".to_string();
+        player.natural_position = Position::Striker;
+        player.potential = 95;
+
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+
+        assert!(player.traits.contains(&PlayerTrait::Wonderkid));
+    }
+
+    /// Given the same player born in January, when refreshed, then he is a Wonderkid too:
+    /// the fix moves the December birthdays, not the January ones.
+    #[test]
+    fn a_january_birthday_is_the_same_age_as_before() {
+        let mut player = make_player(Position::Striker);
+        player.date_of_birth = "2006-01-01".to_string();
+        player.natural_position = Position::Striker;
+        player.potential = 95;
+
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+
+        assert!(player.traits.contains(&PlayerTrait::Wonderkid));
+    }
+
     #[test]
     fn refresh_does_not_award_wonderkid_below_elite_potential_threshold() {
         let mut player = make_player(Position::Striker);
@@ -817,7 +837,7 @@ mod tests {
         player.attributes.aerial = 70;
         player.potential = 84;
 
-        refresh_player_derived(&mut player, 2026);
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
         assert!(player.potential >= player.ovr.saturating_add(10));
         assert!(!player.traits.contains(&PlayerTrait::Wonderkid));
