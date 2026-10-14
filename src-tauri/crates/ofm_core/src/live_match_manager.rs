@@ -284,7 +284,7 @@ pub(crate) fn prepare_kick_off(
     let brought_in = crate::squad_floor::ready_for_kick_off(game, &home_team_id, home_seniors);
     let brought_in =
         crate::squad_floor::ready_for_kick_off(game, &away_team_id, away_seniors) || brought_in;
-    if brought_in && let Some(lookups) = lookups.as_deref_mut() {
+    if brought_in && let Some(lookups) = lookups {
         lookups.players_moved(game);
     }
     crate::turn::squad::reconcile_user_starting_xi(game, &home_team_id);
