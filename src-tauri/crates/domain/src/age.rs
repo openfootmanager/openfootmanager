@@ -21,6 +21,20 @@ pub fn age_on(on: NaiveDate, date_of_birth: &str) -> Option<i32> {
     Some(age_between(born, on))
 }
 
+/// The day a year's ages are reckoned on when only the year is known: 1 July, the middle of a
+/// season, so a player born in December is not counted a year older for the whole of it.
+///
+/// Total: a year beyond what a date can hold (no real game has one) reads as the earliest date.
+pub fn season_midpoint(year: i32) -> NaiveDate {
+    NaiveDate::from_ymd_opt(year, 7, 1).unwrap_or(NaiveDate::MIN)
+}
+
+/// Whole years old on `on`, for the ratings and recovery bands that work in unsigned ages. A
+/// birth date that cannot be read is `UNKNOWN_BIRTH_AGE`, and a birth after `on` is zero.
+pub fn playing_age(on: NaiveDate, date_of_birth: &str) -> u32 {
+    u32::try_from(age_on_or_unknown(on, date_of_birth)).unwrap_or(0)
+}
+
 /// `age_on`, with a birth date that cannot be read taken as `UNKNOWN_BIRTH_AGE`.
 pub fn age_on_or_unknown(on: NaiveDate, date_of_birth: &str) -> i32 {
     age_on(on, date_of_birth).unwrap_or(UNKNOWN_BIRTH_AGE)
@@ -78,6 +92,27 @@ mod tests {
             UNKNOWN_BIRTH_AGE
         );
         assert_eq!(age_on_or_unknown(day(2026, 3, 1), "2000-03-01"), 26);
+    }
+
+    /// Given a year and a birth date, when the age is reckoned on the season's midpoint, then a
+    /// December birth is a year younger than the year of his birth alone would say.
+    #[test]
+    fn a_year_alone_is_reckoned_on_the_first_of_july() {
+        let midpoint = season_midpoint(2026);
+        assert_eq!(midpoint, day(2026, 7, 1));
+        assert_eq!(playing_age(midpoint, "2000-12-31"), 25);
+        assert_eq!(playing_age(midpoint, "2000-01-01"), 26);
+    }
+
+    /// Given a birth after the day asked about or an unreadable one, when the unsigned age is
+    /// wanted, then it is zero or the assumed age.
+    #[test]
+    fn the_unsigned_age_never_goes_negative() {
+        assert_eq!(playing_age(day(2026, 7, 1), "2030-01-01"), 0);
+        assert_eq!(
+            playing_age(day(2026, 7, 1), "garbage"),
+            UNKNOWN_BIRTH_AGE as u32
+        );
     }
 
     /// Given a birth date as text, when it is read, then the age follows; unreadable text has none.
