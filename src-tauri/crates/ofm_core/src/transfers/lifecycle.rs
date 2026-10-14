@@ -35,14 +35,20 @@ pub(crate) fn pending_approach_clubs(player: &domain::player::Player) -> HashSet
 ///
 /// Read from the offers already on the player, so this costs no new saved state. `closed_on` is
 /// when talks ended; offers written before that field existed fall back to their arrival date.
+/// Whether an offer closed (or, for one written before `closed_on` existed, arrived) within
+/// [`REBID_COOLDOWN_DAYS`] of `today`. The one statement of that window: the incoming sweep, an
+/// outgoing permanent bid and an outgoing loan bid all ask it.
+pub(crate) fn within_rebid_cooldown(closed_on: Option<&str>, date: &str, today: NaiveDate) -> bool {
+    NaiveDate::parse_from_str(closed_on.unwrap_or(date), "%Y-%m-%d")
+        .is_ok_and(|day| (today - day).num_days() < REBID_COOLDOWN_DAYS)
+}
+
 pub(crate) fn clubs_in_rebid_cooldown(
     player: &domain::player::Player,
     current_date: NaiveDate,
 ) -> HashSet<String> {
-    let cooling = |closed_on: Option<&str>, date: &str| {
-        NaiveDate::parse_from_str(closed_on.unwrap_or(date), "%Y-%m-%d")
-            .is_ok_and(|day| (current_date - day).num_days() < REBID_COOLDOWN_DAYS)
-    };
+    let cooling =
+        |closed_on: Option<&str>, date: &str| within_rebid_cooldown(closed_on, date, current_date);
 
     player
         .transfer_offers

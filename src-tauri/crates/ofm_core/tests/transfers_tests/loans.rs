@@ -100,6 +100,80 @@ fn opening_loan_market_is_idempotent_after_each_ai_club_reaches_target() {
     );
 }
 
+fn loan_negotiation_game(id: &str) -> Game {
+    let mut player = make_player(id);
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 2;
+    player.stats.minutes_played = 180;
+    player.stage_wage(520_000);
+    make_game_with_player(player, vec![id.to_string()], 5_000_000, 2_000_000)
+}
+
+fn own_loan_offers(game: &Game, id: &str) -> Vec<LoanOffer> {
+    find_player(game, id)
+        .loan_offers
+        .iter()
+        .filter(|offer| offer.from_team_id == "team-1")
+        .cloned()
+        .collect()
+}
+
+/// Given a loan approach the owner turns down (#302)
+/// When the same club asks again the next day
+/// Then it is the same negotiation one round on, not a fresh row.
+#[test]
+fn a_loan_bid_after_a_rejection_continues_the_negotiation() {
+    let mut game = loan_negotiation_game("player-loan-memory");
+    let first = make_loan_offer(&mut game, "player-loan-memory", "2027-01-01", 0, None)
+        .expect("first approach");
+    assert_eq!(first.decision, LoanOfferDecision::Rejected);
+
+    game.clock.advance_days(1);
+    make_loan_offer(&mut game, "player-loan-memory", "2027-01-01", 0, None)
+        .expect("second approach");
+
+    let offers = own_loan_offers(&game, "player-loan-memory");
+    assert_eq!(offers.len(), 1, "one negotiation, one row: {offers:?}");
+    assert_eq!(offers[0].negotiation_round, 2);
+}
+
+/// Given a club that keeps lowballing the same loan
+/// When it reaches the fourth refusal
+/// Then the owner ends the talks until the shared cooldown has passed, after which it starts at
+///      round one: the same rule as a permanent bid.
+#[test]
+fn the_owner_stops_taking_loan_approaches_after_four_refusals() {
+    let mut game = loan_negotiation_game("player-loan-walkaway");
+    for day in 0..4 {
+        if day > 0 {
+            game.clock.advance_days(1);
+        }
+        let outcome = make_loan_offer(&mut game, "player-loan-walkaway", "2027-01-01", 0, None)
+            .expect("an approach");
+        assert_eq!(outcome.decision, LoanOfferDecision::Rejected);
+    }
+
+    game.clock.advance_days(1);
+    assert_eq!(
+        make_loan_offer(&mut game, "player-loan-walkaway", "2027-01-01", 0, None).unwrap_err(),
+        "be.error.transfers.talksBrokenOff"
+    );
+
+    game.clock.advance_days(31);
+    make_loan_offer(&mut game, "player-loan-walkaway", "2027-01-01", 0, None)
+        .expect("talks reopen after the cooldown");
+    let rounds: Vec<u8> = own_loan_offers(&game, "player-loan-walkaway")
+        .iter()
+        .map(|offer| offer.negotiation_round)
+        .collect();
+    assert!(
+        rounds.contains(&1),
+        "a new negotiation starts at round one: {rounds:?}"
+    );
+}
+
 #[test]
 fn accepted_loan_offer_moves_player_until_return_date() {
     let mut player = make_player("player-loan-target");

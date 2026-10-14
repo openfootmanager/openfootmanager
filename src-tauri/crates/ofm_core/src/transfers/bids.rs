@@ -96,9 +96,7 @@ pub(crate) fn latest_negotiation_with_club<'a>(
 }
 
 fn closed_within_cooldown(offer: &domain::player::TransferOffer, today: NaiveDate) -> bool {
-    let stamp = offer.closed_on.as_deref().unwrap_or(&offer.date);
-    NaiveDate::parse_from_str(stamp, "%Y-%m-%d")
-        .is_ok_and(|closed| (today - closed).num_days() < REBID_COOLDOWN_DAYS)
+    within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, today)
 }
 
 /// Whether the owner has walked away from this buyer and the cooldown still holds.
