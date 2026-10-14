@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
 import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
-import { formatExactMoney, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import { formatExactMoney, getTeamName, positionBadgeVariant } from "../../lib/helpers";
 import type { TransferNegotiationResponseData } from "../../services/transfersService";
 import NegotiationFeedbackPanel, {
   type NegotiationFeedbackPanelData,
@@ -79,7 +79,7 @@ export default function TransferCounterOfferModal({
             <p className="text-xs text-gray-400">
               {getTeamName(teams, counterTarget.fromTeamId)} •
               {t("transfers.currentOffer", {
-                fee: formatVal(counterTarget.fee),
+                fee: formatExactMoney(counterTarget.fee),
               })}
             </p>
           </div>
