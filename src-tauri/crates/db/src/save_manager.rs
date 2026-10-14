@@ -674,6 +674,9 @@ impl SaveManager {
     /// Create a new game by loading an existing save, stripping session data,
     /// and resetting the clock. Returns the loaded Game with clean session state.
     /// This does NOT create a new save — the caller should use `create_save` afterwards.
+    ///
+    /// The custom tactics library is kept (maintainer ruling on #883): it is the manager's own
+    /// toolkit, not something the old career was told.
     pub fn new_game_from_save(&mut self, source_save_id: &str) -> Result<Game, String> {
         let mut game = self.load_game(source_save_id)?;
 
@@ -3692,6 +3695,29 @@ mod tests {
             .map(|t| t.name.as_str())
             .collect();
         assert_eq!(names, ["First", "Third"]);
+    }
+
+    /// Given a save whose career has saved tactics
+    /// When a new career is started from it
+    /// Then it has the same tactics library: the tactics are the manager's, not the session's.
+    #[test]
+    fn a_career_started_from_a_save_keeps_the_custom_tactics_library() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.custom_tactics = vec![domain::custom_tactic::CustomTactic {
+            id: "a".to_string(),
+            name: "Mine".to_string(),
+            description: String::new(),
+            formation: "3-5-2".to_string(),
+            play_style: "Counter".to_string(),
+            source_preset_name: None,
+        }];
+        let id = manager.create_save(&game, "Source").unwrap();
+
+        let fresh = manager.new_game_from_save(&id).unwrap();
+
+        assert_eq!(fresh.custom_tactics, game.custom_tactics);
     }
 
     /// Given a retiree archived in a transaction that is then abandoned, when the database is

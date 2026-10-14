@@ -8,7 +8,7 @@ use domain::custom_tactic::CustomTactic;
 use domain::team::PlayStyle;
 
 use crate::game::Game;
-use crate::player_rating::formation_slots;
+use crate::player_rating::parse_formation;
 
 pub const NAME_REQUIRED_ERROR: &str = "be.error.customTactic.nameRequired";
 pub const INVALID_FORMATION_ERROR: &str = "be.error.customTactic.invalidFormation";
@@ -18,27 +18,18 @@ pub const NOT_FOUND_ERROR: &str = "be.error.customTactic.notFound";
 /// The longest name kept; longer ones are a mistake rather than a name.
 const MAX_NAME_CHARS: usize = 60;
 
-const PLAY_STYLES: [(&str, PlayStyle); 6] = [
-    ("Balanced", PlayStyle::Balanced),
-    ("Attacking", PlayStyle::Attacking),
-    ("Defensive", PlayStyle::Defensive),
-    ("Possession", PlayStyle::Possession),
-    ("Counter", PlayStyle::Counter),
-    ("HighPress", PlayStyle::HighPress),
-];
-
 /// The tactic as it will be kept, or the translation key of what is wrong with it.
 fn validated(tactic: &CustomTactic) -> Result<CustomTactic, String> {
     let name = tactic.name.trim();
     if tactic.id.trim().is_empty() || name.is_empty() || name.chars().count() > MAX_NAME_CHARS {
         return Err(NAME_REQUIRED_ERROR.to_string());
     }
-    if formation_slots(&tactic.formation).len() != 11 {
+    if parse_formation(&tactic.formation).is_none() {
         return Err(INVALID_FORMATION_ERROR.to_string());
     }
-    if !PLAY_STYLES
-        .iter()
-        .any(|(style, _)| *style == tactic.play_style)
+    // `PlayStyle` is the one list of styles: what it can deserialize from is what is allowed.
+    if serde_json::from_value::<PlayStyle>(serde_json::Value::String(tactic.play_style.clone()))
+        .is_err()
     {
         return Err(INVALID_PLAY_STYLE_ERROR.to_string());
     }
@@ -164,6 +155,60 @@ mod tests {
             assert_eq!(save_custom_tactic(&mut game, &case), Err(key.to_string()));
         }
         assert!(game.custom_tactics.is_empty());
+    }
+
+    /// Given strings that name no formation the game can lay out
+    /// When they are saved as a tactic
+    /// Then each is refused as an invalid formation, and a real one is kept.
+    #[test]
+    fn a_formation_the_game_cannot_lay_out_is_refused() {
+        let mut game = game();
+        for formation in [
+            "",
+            "abc",
+            "5-5",
+            "4-4-2-extra",
+            "10-0-0",
+            "4-4-1",
+            "4-4-3",
+            "4--6",
+        ] {
+            let mut bad = tactic("a", "Named");
+            bad.formation = formation.into();
+            assert_eq!(
+                save_custom_tactic(&mut game, &bad),
+                Err(INVALID_FORMATION_ERROR.to_string()),
+                "{formation:?}"
+            );
+        }
+        for formation in ["4-4-2", "3-5-2", "4-1-4-1", "5-3-2"] {
+            let mut good = tactic(formation, "Named");
+            good.formation = formation.into();
+            save_custom_tactic(&mut game, &good).unwrap();
+        }
+        assert_eq!(game.custom_tactics.len(), 4);
+    }
+
+    /// Given every play style the game has
+    /// When a tactic is saved with its name
+    /// Then it is accepted: the list of styles is `PlayStyle`'s own.
+    #[test]
+    fn every_play_style_is_accepted() {
+        let mut game = game();
+        for style in [
+            PlayStyle::Balanced,
+            PlayStyle::Attacking,
+            PlayStyle::Defensive,
+            PlayStyle::Possession,
+            PlayStyle::Counter,
+            PlayStyle::HighPress,
+        ] {
+            let name = serde_json::to_value(&style).unwrap();
+            let mut case = tactic(name.as_str().unwrap(), "Named");
+            case.play_style = name.as_str().unwrap().to_string();
+            save_custom_tactic(&mut game, &case).unwrap();
+        }
+        assert_eq!(game.custom_tactics.len(), 6);
     }
 
     /// Given names of exactly the longest allowed length, and one character more

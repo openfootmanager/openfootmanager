@@ -92,11 +92,24 @@ pub fn generate_potential(ovr: u8, age: u32, rng: &mut impl rand::Rng) -> u8 {
     (ovr.saturating_add(bonus)).min(99).max(ovr.max(1))
 }
 
-fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {
+/// The lines of a formation read strictly: `"4-4-2"` is `[4, 4, 2]` and `"4-1-4-1"` is
+/// `[4, 1, 4, 1]`. Three or four numeric parts, none empty, adding up to the ten outfield
+/// players; anything else is not a formation the game can lay out.
+pub fn parse_formation(formation: &str) -> Option<Vec<usize>> {
     let parts: Vec<usize> = formation
         .split('-')
-        .filter_map(|part| part.parse::<usize>().ok())
-        .collect();
+        .map(|part| part.parse::<usize>().ok())
+        .collect::<Option<_>>()?;
+    let well_formed = matches!(parts.len(), 3 | 4)
+        && parts.iter().all(|&line| line > 0)
+        && parts.iter().sum::<usize>() == 10;
+    well_formed.then_some(parts)
+}
+
+fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {
+    // A formation that does not parse is 4-4-2: old saves may hold one, and the lineup must
+    // still be laid out. New ones are refused where they are set (`parse_formation`).
+    let parts = parse_formation(formation).unwrap_or_else(|| vec![4, 4, 2]);
 
     match parts.as_slice() {
         [defenders, midfielders, forwards] => vec![
@@ -112,7 +125,8 @@ fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {
             attacking_midfield_line(*attacking_midfielders),
             forward_line(*forwards),
         ],
-        _ => formation_slot_rows("4-4-2"),
+        // `parse_formation` yields three or four lines, so this is not reached.
+        _ => Vec::new(),
     }
 }
 
