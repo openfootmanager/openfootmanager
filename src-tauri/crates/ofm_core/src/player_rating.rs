@@ -843,19 +843,19 @@ mod tests {
         let mut player = make_player(Position::Striker);
         player.date_of_birth = "2007-01-01".to_string();
         player.natural_position = Position::Striker;
-        player.attributes.shooting = 70;
-        player.attributes.positioning = 70;
-        player.attributes.decisions = 70;
-        player.attributes.pace = 70;
-        player.attributes.dribbling = 70;
-        player.attributes.strength = 70;
-        player.attributes.composure = 70;
-        player.attributes.aerial = 70;
-        player.potential = 84;
+        player.attributes.shooting = 55;
+        player.attributes.positioning = 55;
+        player.attributes.decisions = 55;
+        player.attributes.pace = 55;
+        player.attributes.dribbling = 55;
+        player.attributes.strength = 55;
+        player.attributes.composure = 55;
+        player.attributes.aerial = 55;
+        player.potential = 80;
 
         refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
-        assert!(player.potential >= player.ovr.saturating_add(10));
+        assert!(player.potential >= player.ovr.saturating_add(14));
         assert!(!player.traits.contains(&PlayerTrait::Wonderkid));
     }
 }
