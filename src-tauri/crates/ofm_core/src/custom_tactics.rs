@@ -166,6 +166,23 @@ mod tests {
         assert!(game.custom_tactics.is_empty());
     }
 
+    /// Given names of exactly the longest allowed length, and one character more
+    /// When they are saved
+    /// Then the first is kept and the second refused: the limit is inclusive.
+    #[test]
+    fn the_longest_allowed_name_is_kept_and_one_more_is_refused() {
+        let mut game = game();
+        let longest = "x".repeat(MAX_NAME_CHARS);
+        save_custom_tactic(&mut game, &tactic("a", &longest)).unwrap();
+        assert_eq!(game.custom_tactics[0].name, longest);
+
+        let too_long = "x".repeat(MAX_NAME_CHARS + 1);
+        assert_eq!(
+            save_custom_tactic(&mut game, &tactic("b", &too_long)),
+            Err(NAME_REQUIRED_ERROR.to_string())
+        );
+    }
+
     /// Given saved tactics
     /// When one is deleted, and then a missing one
     /// Then the first goes and the second is reported as not found.
