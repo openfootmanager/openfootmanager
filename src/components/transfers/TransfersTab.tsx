@@ -21,6 +21,7 @@ export default function TransfersTab(props: TransfersTabProps) {
     marketQuery,
     marketError,
     marketLoaded,
+    marketFiltered,
     filteredList,
     scoutError,
     isScoutingView,
@@ -73,28 +74,32 @@ export default function TransfersTab(props: TransfersTabProps) {
       ) : null}
 
       {/* Content */}
-      {view === "my_list" && filteredList.length === 0 && (
+      {view === "my_list" && marketLoaded && filteredList.length === 0 && (
         <Card>
           <CardBody>
             <div className="text-center py-8">
               <ShoppingCart className="w-10 h-10 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {t("transfers.noPlayersListed")}
+                {marketFiltered ? t("players.noMatch") : t("transfers.noPlayersListed")}
               </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                {t("transfers.goToProfile")}
-              </p>
+              {!marketFiltered && (
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  {t("transfers.goToProfile")}
+                </p>
+              )}
             </div>
           </CardBody>
         </Card>
       )}
 
-      {view === "offers" && filteredList.length === 0 && (
+      {view === "offers" && marketLoaded && filteredList.length === 0 && (
         <Card>
           <CardBody>
             <div className="text-center py-8">
               <Handshake className="w-10 h-10 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
-              <p className="text-sm text-gray-500 dark:text-gray-400">{t("transfers.noOffers")}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {marketFiltered ? t("players.noMatch") : t("transfers.noOffers")}
+              </p>
             </div>
           </CardBody>
         </Card>

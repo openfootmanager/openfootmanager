@@ -8,7 +8,7 @@ export type PlayerStatusFilter = "all" | "transfer" | "loan" | "free_agent" | "a
 export type PositionFilter = { group: string } | { exact: string };
 
 /** Which players a list is about, before any other filter narrows it. */
-export type PlayerScope = "all" | "market" | "scoutable";
+export type PlayerScope = "all" | "market" | "scoutable" | "user_listed" | "with_offers";
 
 export interface PlayersPageQuery {
   search: string | null;

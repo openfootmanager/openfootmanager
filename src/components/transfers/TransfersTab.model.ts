@@ -99,20 +99,6 @@ export function deriveTransferCollections(
   };
 }
 
-export function getCurrentTransferList(
-  view: TransferTabView,
-  collections: TransferCollections,
-): PlayerData[] {
-  switch (view) {
-    case "my_list":
-      return getMyListedPlayers(collections);
-    case "players":
-      return collections.availablePlayers;
-    default:
-      return collections.playersWithOffers;
-  }
-}
-
 /** Saved offer records involving the current club; historical parent IDs keep loans reachable after registration. */
 export function getRelevantTransferOffers(
   player: PlayerData,

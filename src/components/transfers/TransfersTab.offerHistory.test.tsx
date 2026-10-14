@@ -23,17 +23,34 @@ vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(() => false),
 }));
 
-import { createPlayer, createGameState, marketPageOf } from "./TransfersTab.testFixtures";
+import {
+  createPlayer,
+  createGameState,
+  marketPageOf,
+  playersOfScope,
+} from "./TransfersTab.testFixtures";
 import type { PlayerData } from "../../store/gameStore";
 
 // The players the backend would put on the market for the test in hand.
 let marketPlayers: PlayerData[] = [];
+let listedPlayers: PlayerData[] = [];
+let offeredPlayers: PlayerData[] = [];
 
 beforeEach(() => {
   marketPlayers = [];
+  listedPlayers = [];
+  offeredPlayers = [];
   vi.mocked(invoke).mockReset();
-  vi.mocked(invoke).mockImplementation(async (command: string) =>
-    command === "get_players_page" ? marketPageOf(marketPlayers) : {},
+  vi.mocked(invoke).mockImplementation(async (command: string, payload?: unknown) =>
+    command === "get_players_page"
+      ? marketPageOf(
+          playersOfScope(payload, {
+            market: marketPlayers,
+            user_listed: listedPlayers,
+            with_offers: offeredPlayers,
+          }),
+        )
+      : {},
   );
 });
 
@@ -143,9 +160,10 @@ it.each(["transfer", "loan"] as const)(
           : [],
     });
     const restored: GameStateData = JSON.parse(JSON.stringify(createGameState([player])));
+    offeredPlayers = [player];
     render(<TransfersTab gameState={restored} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Offers (1)" }));
-    fireEvent.click(screen.getByRole("button", { name: "View offer history" }));
+    fireEvent.click(await screen.findByRole("button", { name: "View offer history" }));
     const dialog = screen.getByRole("dialog", { name: player.full_name });
     const history = within(dialog).getByRole("region", { name: "Offer history" });
     expect(within(history).getByText("Pending registration")).toBeInTheDocument();
@@ -195,6 +213,7 @@ it.each(["transfer", "loan"] as const)(
             ]
           : [],
     });
+    offeredPlayers = [player];
     render(
       <TransfersTab
         gameState={createGameState([player])}
@@ -203,7 +222,7 @@ it.each(["transfer", "loan"] as const)(
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Angebote \(1\)/ }));
-    expect(screen.getByText("Unbekannt")).toBeInTheDocument();
+    expect(await screen.findByText("Unbekannt")).toBeInTheDocument();
     expect(screen.queryByText("Unknown")).not.toBeInTheDocument();
   },
 );

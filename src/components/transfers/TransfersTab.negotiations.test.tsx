@@ -37,6 +37,7 @@ import {
   createPlayer,
   createGameState,
   marketPageOf,
+  playersOfScope,
   routedResponses,
   transferTestTranslation,
 } from "./TransfersTab.testFixtures";
@@ -44,15 +45,25 @@ import type { PlayerData } from "../../store/gameStore";
 
 describe("TransfersTab", (): void => {
   let marketPlayers: PlayerData[] = [];
+  let listedPlayers: PlayerData[] = [];
+  let offeredPlayers: PlayerData[] = [];
   let routes: ReturnType<typeof routedResponses>;
   beforeEach(function resetMocks(): void {
     mockedInvoke.mockReset();
     mockedIsTauri.mockReturnValue(false);
     marketPlayers = [];
+    listedPlayers = [];
+    offeredPlayers = [];
     mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
       const args = payload as MockInvokePayload | undefined;
       if (command === "get_players_page") {
-        return marketPageOf(marketPlayers);
+        return marketPageOf(
+          playersOfScope(payload, {
+            market: marketPlayers,
+            user_listed: listedPlayers,
+            with_offers: offeredPlayers,
+          }),
+        );
       }
       if (command === "generate_player_portrait") {
         const playerId = String(args?.request?.playerId ?? "player");
@@ -113,7 +124,7 @@ describe("TransfersTab", (): void => {
     routes = routedResponses(mockedInvoke);
   });
   // Given a voided pending registration, when viewing offers, then its funds failure replaces the cooled-off label.
-  it("renders the persisted registration failure reason in the offers list", (): void => {
+  it("renders the persisted registration failure reason in the offers list", async (): Promise<void> => {
     const state = createGameState([
       createPlayer({
         transfer_offers: [
@@ -134,13 +145,16 @@ describe("TransfersTab", (): void => {
         ],
       }),
     ]);
+    offeredPlayers = state.players;
     render(<TransfersTab gameState={state} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    expect(screen.getByText(/Registration failed: insufficient buyer funds/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Registration failed: insufficient buyer funds/),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Talks cooled off/i)).not.toBeInTheDocument();
   });
 
-  it("renders withdrawn transfer offers with a localized cooled-off status", (): void => {
+  it("renders withdrawn transfer offers with a localized cooled-off status", async (): Promise<void> => {
     const state = createGameState([
       createPlayer({
         transfer_offers: [
@@ -159,6 +173,7 @@ describe("TransfersTab", (): void => {
       }),
     ]);
 
+    offeredPlayers = state.players;
     render(
       <TransfersTab
         gameState={state}
@@ -170,7 +185,7 @@ describe("TransfersTab", (): void => {
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
 
-    expect(screen.getByText(/Talks cooled off/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Talks cooled off/i)).toBeInTheDocument();
   });
   it("shows bid impact preview and blocks impossible bids", async (): Promise<void> => {
     const state = createGameState([
@@ -220,7 +235,13 @@ describe("TransfersTab", (): void => {
     mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
       const args = payload as MockInvokePayload | undefined;
       if (command === "get_players_page") {
-        return marketPageOf(marketPlayers);
+        return marketPageOf(
+          playersOfScope(payload, {
+            market: marketPlayers,
+            user_listed: listedPlayers,
+            with_offers: offeredPlayers,
+          }),
+        );
       }
       if (command === "preview_transfer_bid_financial_impact") {
         const fee = Number(args?.fee ?? 0);
@@ -503,7 +524,13 @@ describe("TransfersTab", (): void => {
     mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
       const args = payload as MockInvokePayload | undefined;
       if (command === "get_players_page") {
-        return marketPageOf(marketPlayers);
+        return marketPageOf(
+          playersOfScope(payload, {
+            market: marketPlayers,
+            user_listed: listedPlayers,
+            with_offers: offeredPlayers,
+          }),
+        );
       }
       if (command === "preview_transfer_bid_financial_impact") {
         const fee = Number(args?.fee ?? 0);

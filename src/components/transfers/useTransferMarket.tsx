@@ -4,7 +4,6 @@ import type { PlayersPageQuery } from "../../services/playersService";
 import { usePlayersPage } from "../../hooks/usePlayersPage";
 import {
   deriveTransferCollections,
-  getCurrentTransferList,
   getMyListedPlayers,
   type TransferTabView,
 } from "./TransfersTab.model";
@@ -35,6 +34,13 @@ const MARKET_QUERY: PlayersPageQuery = {
   page_size: TRANSFER_MARKET_PAGE_SIZE,
 };
 
+// Each view of the centre is its own list with its own filters, asked of the same backend query.
+const VIEW_LISTS: Record<TransferTabView, Pick<PlayersPageQuery, "scope" | "status">> = {
+  players: { scope: "market", status: "available" },
+  my_list: { scope: "user_listed", status: "all" },
+  offers: { scope: "with_offers", status: "all" },
+};
+
 interface Input {
   gameState: GameStateData;
   userTeamId: string | null;
@@ -47,10 +53,21 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
   const {
     query: marketQuery,
     patchQuery: patchMarketQuery,
-    slice: marketSlice,
+    slice: answeredSlice,
+    answeredQuery,
     error: marketError,
     refetch: refetchMarket,
   } = usePlayersPage(MARKET_QUERY, t);
+  const marketSlice = answeredQuery?.scope === marketQuery.scope ? answeredSlice : null;
+
+  // Coming back to a view finds its filters as they were left.
+  const leftQueries = useRef<Partial<Record<TransferTabView, PlayersPageQuery>>>({});
+  const changeView = (next: TransferTabView) => {
+    if (next === view) return;
+    leftQueries.current[view] = marketQuery;
+    setView(next);
+    patchMarketQuery(leftQueries.current[next] ?? { ...MARKET_QUERY, ...VIEW_LISTS[next] });
+  };
 
   // A deal, a listing or a day passing changes who is on the market: ask again whenever the game
   // the screen is showing is a new one (not on first render, which has just asked).
@@ -83,22 +100,20 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     () => new Map(gameState.players.map((player) => [player.id, player])),
     [gameState.players],
   );
-  const marketPlayers = useMemo(
+  const listedPlayers = useMemo(
     () =>
       (marketSlice?.items ?? [])
         .map((summary) => playersById.get(summary.id))
         .filter((player): player is PlayerData => player !== undefined),
     [marketSlice, playersById],
   );
-  const filteredList = isPlayersView
-    ? marketPlayers
-    : getCurrentTransferList(view, transferCollections);
+  const filteredList = listedPlayers;
 
   const marketTotal = marketSlice?.total ?? 0;
   const marketTotalPages = Math.max(1, Math.ceil(marketTotal / TRANSFER_MARKET_PAGE_SIZE));
   const safeMarketPage = Math.min(marketQuery.page, marketTotalPages);
   const marketPageStart = (safeMarketPage - 1) * TRANSFER_MARKET_PAGE_SIZE;
-  const showMarketPagination = isPlayersView && marketTotal > TRANSFER_MARKET_PAGE_SIZE;
+  const showMarketPagination = marketTotal > TRANSFER_MARKET_PAGE_SIZE;
   const marketRangeFrom = marketTotal === 0 ? 0 : marketPageStart + 1;
   const marketRangeTo = Math.min(marketPageStart + TRANSFER_MARKET_PAGE_SIZE, marketTotal);
   const setMarketPage = (page: number) => patchMarketQuery({ page });
@@ -108,14 +123,26 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     marketQuery.sort_key !== "ovr" ? "none" : marketQuery.sort_asc ? "asc" : "desc";
   const cycleOvrSort = () => patchMarketQuery({ sort_key: "ovr", sort_asc: ovrSortDir === "desc" });
 
+  // Whether the user has narrowed the list, so an empty one can say "nothing matches" rather than
+  // "there is nothing".
+  const marketFiltered =
+    marketQuery.search !== null ||
+    marketQuery.positions.length > 0 ||
+    marketQuery.in_budget ||
+    marketQuery.status !== VIEW_LISTS[view].status ||
+    [marketQuery.age_min, marketQuery.age_max, marketQuery.ovr_min, marketQuery.ovr_max].some(
+      (bound) => bound !== null,
+    );
+
   const weeklyWageBudget = myTeam?.wage_budget ?? 0;
   return {
     view,
-    setView,
+    setView: changeView,
     marketQuery,
     patchMarketQuery,
     marketError,
     marketTotal,
+    marketFiltered,
     marketLoaded: marketSlice !== null,
     ovrSortDir,
     setMarketPage,

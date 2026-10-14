@@ -42,6 +42,7 @@ import {
   createPlayer,
   createGameState,
   marketPageOf,
+  playersOfScope,
   routedResponses,
   transferTestTranslation,
 } from "./TransfersTab.testFixtures";
@@ -49,15 +50,25 @@ import type { PlayerData } from "../../store/gameStore";
 
 describe("TransfersTab", (): void => {
   let marketPlayers: PlayerData[] = [];
+  let listedPlayers: PlayerData[] = [];
+  let offeredPlayers: PlayerData[] = [];
   let routes: ReturnType<typeof routedResponses>;
   beforeEach(function resetMocks(): void {
     mockedInvoke.mockReset();
     mockedIsTauri.mockReturnValue(false);
     marketPlayers = [];
+    listedPlayers = [];
+    offeredPlayers = [];
     mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
       const args = payload as MockInvokePayload | undefined;
       if (command === "get_players_page") {
-        return marketPageOf(marketPlayers);
+        return marketPageOf(
+          playersOfScope(payload, {
+            market: marketPlayers,
+            user_listed: listedPlayers,
+            with_offers: offeredPlayers,
+          }),
+        );
       }
       if (command === "generate_player_portrait") {
         const playerId = String(args?.request?.playerId ?? "player");
@@ -214,6 +225,7 @@ describe("TransfersTab", (): void => {
 
     routes.resolveOnce("respond_to_loan_offer", updatedState);
 
+    offeredPlayers = initialState.players;
     render(
       <TransfersTab
         gameState={initialState}
@@ -224,8 +236,8 @@ describe("TransfersTab", (): void => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    expect(screen.getByText("Loan 75% wages until 2027-01-01 — Live")).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle("Accept Loan"));
+    expect(await screen.findByText("Loan 75% wages until 2027-01-01 — Live")).toBeInTheDocument();
+    fireEvent.click(await screen.findByTitle("Accept Loan"));
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("respond_to_loan_offer", {
@@ -262,6 +274,7 @@ describe("TransfersTab", (): void => {
       "be.error.transfers.loanBorrowerCannotAffordWages?budget=40000",
     );
 
+    offeredPlayers = gameState.players;
     render(
       <TransfersTab
         gameState={gameState}
@@ -272,7 +285,7 @@ describe("TransfersTab", (): void => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    fireEvent.click(screen.getByTitle("Accept Loan"));
+    fireEvent.click(await screen.findByTitle("Accept Loan"));
 
     await waitFor((): void => {
       expect(screen.getByRole("alert")).toHaveTextContent(
@@ -305,6 +318,7 @@ describe("TransfersTab", (): void => {
     routes.rejectOnce("respond_to_loan_offer", "be.error.transfers.playerAlreadyLoaned");
     routes.resolveOnce("respond_to_loan_offer", gameState);
 
+    offeredPlayers = gameState.players;
     render(
       <TransfersTab
         gameState={gameState}
@@ -315,7 +329,7 @@ describe("TransfersTab", (): void => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    fireEvent.click(screen.getByTitle("Accept Loan"));
+    fireEvent.click(await screen.findByTitle("Accept Loan"));
     await screen.findByRole("alert");
     fireEvent.click(screen.getByTitle("Accept Loan"));
 
@@ -363,6 +377,7 @@ describe("TransfersTab", (): void => {
       game: updatedState,
     });
 
+    offeredPlayers = initialState.players;
     render(
       <TransfersTab
         gameState={initialState}
@@ -373,7 +388,7 @@ describe("TransfersTab", (): void => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    fireEvent.click(screen.getByRole("button", { name: /counter loan offer/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /counter loan offer/i }));
     fireEvent.change(screen.getByLabelText(/wage contribution/i), {
       target: { value: "85" },
     });
@@ -431,6 +446,7 @@ describe("TransfersTab", (): void => {
 
     routes.resolveOnce("exercise_loan_buy_option", updatedState);
 
+    offeredPlayers = initialState.players;
     render(
       <TransfersTab
         gameState={initialState}
@@ -441,7 +457,7 @@ describe("TransfersTab", (): void => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    fireEvent.click(screen.getByRole("button", { name: /exercise option/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /exercise option/i }));
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("exercise_loan_buy_option", {
@@ -456,6 +472,7 @@ describe("TransfersTab", (): void => {
 
     routes.resolveOnce("toggle_transfer_list", gameState);
 
+    listedPlayers = gameState.players;
     render(
       <TransfersTab
         gameState={gameState}
@@ -467,7 +484,7 @@ describe("TransfersTab", (): void => {
 
     fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
 
-    const playerRow = screen.getByText("John Smith").closest("tr");
+    const playerRow = (await screen.findByText("John Smith")).closest("tr");
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
@@ -488,6 +505,7 @@ describe("TransfersTab", (): void => {
 
     routes.rejectOnce("toggle_loan_list", "be.error.transfers.playerAlreadyLoaned");
 
+    listedPlayers = gameState.players;
     render(
       <TransfersTab
         gameState={gameState}
@@ -499,7 +517,7 @@ describe("TransfersTab", (): void => {
 
     fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
 
-    const playerRow = screen.getByText("John Smith").closest("tr");
+    const playerRow = (await screen.findByText("John Smith")).closest("tr");
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);
@@ -529,9 +547,10 @@ describe("TransfersTab", (): void => {
     expect(wageBudgetCard.textContent).toContain("/wk");
     expect(wageBudgetCard.textContent).not.toContain("/yr");
   });
-  it("shows a dual-listed player once in the my-list view", (): void => {
+  it("shows a dual-listed player once in the my-list view", async (): Promise<void> => {
     const gameState = createGameState([createPlayer({ transfer_listed: true, loan_listed: true })]);
 
+    listedPlayers = gameState.players;
     render(
       <TransfersTab
         gameState={gameState}
@@ -543,6 +562,6 @@ describe("TransfersTab", (): void => {
 
     expect(screen.getByRole("button", { name: /my transfer list \(1\)/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
-    expect(screen.getAllByText("John Smith")).toHaveLength(1);
+    expect(await screen.findAllByText("John Smith")).toHaveLength(1);
   });
 });

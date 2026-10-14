@@ -1,5 +1,5 @@
 import type { Mock } from "vitest";
-import type { PlayersPage } from "../../services/playersService";
+import type { PlayersPage, PlayersPageQuery } from "../../services/playersService";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -370,6 +370,20 @@ export const transferTestTranslation = (key: string, params?: Record<string, str
  * players the market shows. It does not filter: who belongs on the market is the backend's rule,
  * tested once in Rust, and a test here only decides what the screen does with the answer.
  */
+export interface ListsByScope {
+  market: PlayerData[];
+  user_listed: PlayerData[];
+  with_offers: PlayerData[];
+}
+
+/** The players the backend would answer a `get_players_page` call with, by the list asked for. */
+export function playersOfScope(payload: unknown, lists: ListsByScope): PlayerData[] {
+  const { scope } = (payload as { query: PlayersPageQuery }).query;
+  if (scope === "user_listed") return lists.user_listed;
+  if (scope === "with_offers") return lists.with_offers;
+  return lists.market;
+}
+
 export function marketPageOf(
   players: PlayerData[],
   { total = players.length, page = 1 }: { total?: number; page?: number } = {},
