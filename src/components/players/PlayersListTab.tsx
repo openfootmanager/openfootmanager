@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Card, CardBody, Badge, Select, CountryFlag, PlayerAvatar } from "../ui";
@@ -12,7 +12,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-import { calcAge, formatVal } from "../../lib/helpers";
+import { formatVal } from "../../lib/helpers";
 import { positionBadgeVariant } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
@@ -20,12 +20,8 @@ import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { sendScout } from "../../services/scoutingService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
-import {
-  fetchPlayersPage,
-  type PlayerSortKey,
-  type PlayersPage,
-  type PlayersPageQuery,
-} from "../../services/playersService";
+import type { PlayerSortKey, PlayersPageQuery } from "../../services/playersService";
+import { usePlayersPage } from "../../hooks/usePlayersPage";
 import {
   buildDividerMenuItem,
   buildOfferFreeAgentContractMenuItem,
@@ -54,6 +50,15 @@ const PAGE_SIZE = 30;
 const DEFAULT_QUERY: PlayersPageQuery = {
   search: null,
   position: null,
+  positions: [],
+  age_min: null,
+  age_max: null,
+  ovr_min: null,
+  ovr_max: null,
+  value_min: null,
+  value_max: null,
+  in_budget: false,
+  scope: "all",
   team_id: null,
   status: "all",
   sort_key: "ovr",
@@ -69,22 +74,16 @@ export default function PlayersListTab({
   onSelectTeam,
 }: PlayersListTabProps) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState<PlayersPageQuery>(DEFAULT_QUERY);
-  const [slice, setSlice] = useState<PlayersPage | null>(null);
-  const [refetchKey, setRefetchKey] = useState(0);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const {
+    query,
+    patchQuery,
+    slice,
+    error: fetchError,
+    refetch: refetchSlice,
+  } = usePlayersPage(DEFAULT_QUERY, t);
   const [sendingPlayerId, setSendingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
   const managerTeamId = gameState.manager.team_id ?? "";
-
-  const patchQuery = useCallback((patch: Partial<PlayersPageQuery>) => {
-    setQuery((q) => {
-      const resetPage = !("page" in patch);
-      return { ...q, ...patch, ...(resetPage ? { page: 1 } : {}) };
-    });
-  }, []);
-
-  const refetchSlice = useCallback(() => setRefetchKey((k) => k + 1), []);
 
   const handleGameUpdate = useCallback(
     (game: GameStateData) => {
@@ -93,23 +92,6 @@ export default function PlayersListTab({
     },
     [onGameUpdate, refetchSlice],
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchPlayersPage(query)
-      .then((result) => {
-        if (cancelled) return;
-        setSlice(result);
-        setFetchError(null);
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setFetchError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [query, refetchKey, t]);
 
   const findFullPlayer = useCallback(
     (id: string) => gameState.players.find((p) => p.id === id),
@@ -366,7 +348,6 @@ export default function PlayersListTab({
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
                 {items.map((summary) => {
-                  const age = calcAge(summary.date_of_birth);
                   const scoutState = alreadyScoutingIds.has(summary.id)
                     ? "already-assigned"
                     : sendingPlayerId === summary.id
@@ -457,7 +438,7 @@ export default function PlayersListTab({
                         </div>
                       </td>
                       <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                        {age}
+                        {summary.age}
                       </td>
                       <td
                         className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400"

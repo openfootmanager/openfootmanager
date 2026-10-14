@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
+import { calcAge } from "../../lib/helpers";
 import type { PlayerSummary, PlayersPage, PlayersPageQuery } from "../../services/playersService";
 import { resetPackageAssetRoot } from "../../hooks/usePackageAssetSrc";
 import PlayersListTab from "./PlayersListTab";
@@ -275,6 +276,8 @@ function summaryFrom(player: PlayerData, teams: TeamData[]): PlayerSummary {
     full_name: player.full_name,
     match_name: player.match_name,
     date_of_birth: player.date_of_birth,
+    age: calcAge(player.date_of_birth),
+    wage: player.wage,
     nationality: player.nationality,
     position: player.position,
     natural_position: player.natural_position ?? player.position,
