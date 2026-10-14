@@ -145,7 +145,16 @@ impl SeasonObserver for PlayerClubWatch {
             return;
         };
         let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-        self.check_warning(game, &club, &today, season, day);
+        // `process_day` advances the clock as its last step, so the clock now reads the day after
+        // the one just processed, while a warning sent during that processing is dated the day
+        // itself. The warning is compared against the day it could have been sent.
+        let processed = game
+            .clock
+            .current_date
+            .date_naive()
+            .pred_opt()
+            .map_or_else(|| today.clone(), |day| day.format("%Y-%m-%d").to_string());
+        self.check_warning(game, &club, &processed, season, day);
         self.check_kick_off(game, &club, &today, season, day);
     }
 }
@@ -304,8 +313,9 @@ fn five_seasons_leave_no_club_below_the_squad_floor() {
             player_club.could_not_field_a_side.join("\n")
         );
         assert!(
-            !player_club.unwarned.is_empty(),
-            "#787 is fixed: delete this exemption (seed {seed}: every change of shortfall was warned about)"
+            player_club.unwarned.is_empty(),
+            "seed {seed}: the player's club was not warned of a change in its shortfall:\n{}",
+            player_club.unwarned.join("\n")
         );
         let others = invariants.report_except(CLUB_RESTS_BETWEEN_MATCHES);
         assert!(
