@@ -1,6 +1,6 @@
 use domain::player::{Player, PlayerAttributes, PlayerTrait, Position};
 use ofm_core::player_rating::{
-    generate_potential, growth_headroom_range, lower_attributes_to, ovr_from_attributes,
+    generate_potential, growth_headroom_range, move_attributes_to, ovr_from_attributes,
     qualifies_for_wonderkid, refresh_player_derived, roll_growth_headroom,
 };
 
@@ -145,7 +145,7 @@ fn refresh_awards_wonderkid_trait_for_young_high_potential_player() {
     refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
     assert!(
-        player.potential >= 90 && player.potential.saturating_sub(player.ovr) >= 14,
+        player.potential >= 81 && player.potential.saturating_sub(player.ovr) >= 14,
         "Expected deterministic Wonderkid setup to qualify with potential={} ovr={}",
         player.potential,
         player.ovr
@@ -173,22 +173,22 @@ fn refresh_does_not_award_wonderkid_for_old_player() {
 
 #[test]
 fn wonderkid_qualification_accepts_exact_boundary() {
-    assert!(qualifies_for_wonderkid(20, 90, 76));
+    assert!(qualifies_for_wonderkid(20, 81, 67));
 }
 
 #[test]
 fn wonderkid_qualification_rejects_age_above_boundary() {
-    assert!(!qualifies_for_wonderkid(21, 90, 76));
+    assert!(!qualifies_for_wonderkid(21, 81, 67));
 }
 
 #[test]
 fn wonderkid_qualification_rejects_potential_below_boundary() {
-    assert!(!qualifies_for_wonderkid(20, 89, 75));
+    assert!(!qualifies_for_wonderkid(20, 80, 66));
 }
 
 #[test]
 fn wonderkid_qualification_rejects_growth_room_below_boundary() {
-    assert!(!qualifies_for_wonderkid(20, 90, 77));
+    assert!(!qualifies_for_wonderkid(20, 81, 68));
 }
 
 // ---------------------------------------------------------------------------
@@ -292,36 +292,54 @@ fn a_rolled_headroom_stays_inside_the_range_for_the_age() {
 }
 
 /// Given an outfielder and a keeper,
-/// When their attributes are lowered to a rating 20 below their own,
-/// Then each lands at or just below that rating, never above.
+/// When their attributes are moved to a rating 20 below and 10 above their own,
+/// Then each lands within a point of it.
 #[test]
-fn lowering_attributes_lands_at_or_just_below_the_target() {
-    for (mut attributes, position) in [
+fn moving_attributes_lands_within_a_point_of_the_target() {
+    for (attributes, position) in [
         (gk_attrs(), Position::Goalkeeper),
         (striker_attrs(), Position::Forward),
     ] {
-        let target = ovr_from_attributes(&attributes, &position).round() as u8 - 20;
+        let own = ovr_from_attributes(&attributes, &position).round() as u8;
+        for target in [own - 20, own + 10] {
+            let mut moved = attributes.clone();
 
-        lower_attributes_to(&mut attributes, &position, target);
+            move_attributes_to(&mut moved, &position, target);
 
-        let lowered = ovr_from_attributes(&attributes, &position);
-        assert!(lowered <= f64::from(target), "{lowered} is above {target}");
-        assert!(
-            lowered > f64::from(target) - 2.0,
-            "{lowered} overshot {target}"
-        );
+            let landed = ovr_from_attributes(&moved, &position);
+            assert!(
+                (landed - f64::from(target)).abs() <= 1.0,
+                "{landed} is not within a point of {target}"
+            );
+        }
     }
 }
 
-/// Given attributes already below the target,
-/// When they are lowered to it,
+/// Given attributes already at the target,
+/// When they are moved to it,
 /// Then nothing changes.
 #[test]
-fn lowering_to_a_higher_target_changes_nothing() {
+fn moving_to_the_rating_they_have_changes_nothing() {
     let mut attributes = striker_attrs();
     let before = attributes.clone();
+    let own = ovr_from_attributes(&attributes, &Position::Forward).round() as u8;
 
-    lower_attributes_to(&mut attributes, &Position::Forward, 99);
+    move_attributes_to(&mut attributes, &Position::Forward, own);
 
     assert_eq!(attributes, before);
+}
+
+/// Given a target no attribute block can reach in either direction,
+/// When attributes are moved toward it,
+/// Then the move ends, with every attribute clamped inside 1..=99.
+#[test]
+fn moving_toward_an_unreachable_target_still_ends() {
+    for target in [1u8, 99] {
+        let mut attributes = striker_attrs();
+
+        move_attributes_to(&mut attributes, &Position::Forward, target);
+
+        let landed = ovr_from_attributes(&attributes, &Position::Forward);
+        assert!((1.0..=99.0).contains(&landed), "{landed}");
+    }
 }

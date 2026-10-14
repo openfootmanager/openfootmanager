@@ -722,7 +722,7 @@ pub enum PlayerTrait {
     Engine,          // MID: stamina >= 85 && pace >= 70 && teamwork >= 75
     SetPieceSpecialist, // passing >= 80 && shooting >= 75 && vision >= 75
     // Potential / Star
-    Wonderkid, // age <= 21 && potential >= 85 && (potential - ovr) >= 10
+    Wonderkid, // age <= 20 && an S-tier ceiling (potential >= 81) && (potential - ovr) >= 14; see ofm_core::player_rating::qualifies_for_wonderkid
 }
 
 /// Derive traits purely from a player's attributes (position-independent).

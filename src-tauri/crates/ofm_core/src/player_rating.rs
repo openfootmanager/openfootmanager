@@ -1,13 +1,11 @@
+use crate::player_tier::{PlayerTier, player_tier};
 use domain::player::{
     Footedness, Player, PlayerAttributes, PlayerTrait, Position, WEAK_FOOT_MAX, WEAK_FOOT_MIN,
 };
 use rand::RngExt;
 
 const WONDERKID_MAX_AGE: u32 = 20;
-const WONDERKID_MIN_POTENTIAL: u8 = 90;
 const WONDERKID_MIN_GROWTH_ROOM: u8 = 14;
-// Wonderkid rebalance for v0.2.1: tightened from age <= 21, potential >= 85,
-// and growth room >= 10 to reduce how often the tag appears in playtesting.
 
 pub fn formation_slots(formation: &str) -> Vec<Position> {
     formation_slot_rows(formation)
@@ -69,12 +67,13 @@ pub fn refresh_player_derived(player: &mut Player, on: chrono::NaiveDate) {
 }
 
 /// Returns `true` when a player qualifies as a wonderkid: they are at or below
-/// `WONDERKID_MAX_AGE`, have at least `WONDERKID_MIN_POTENTIAL`, and their
-/// remaining growth (`potential - ovr`) meets `WONDERKID_MIN_GROWTH_ROOM`,
-/// reducing the number of qualifying players after playtesting.
+/// `WONDERKID_MAX_AGE`, have an S-tier ceiling (the game's one definition of elite, see
+/// `player_tier`), and their remaining growth (`potential - ovr`) meets
+/// `WONDERKID_MIN_GROWTH_ROOM`. The gate is read from the tier so it moves with the scale, and is
+/// applied alike to a player generated now and to one loaded from an older save.
 pub fn qualifies_for_wonderkid(age: u32, potential: u8, ovr: u8) -> bool {
     age <= WONDERKID_MAX_AGE
-        && potential >= WONDERKID_MIN_POTENTIAL
+        && player_tier(potential) == PlayerTier::S
         && potential.saturating_sub(ovr) >= WONDERKID_MIN_GROWTH_ROOM
 }
 
@@ -111,15 +110,33 @@ pub fn generate_potential(ovr: u8, age: u32, rng: &mut impl rand::Rng) -> u8 {
     (ovr.saturating_add(bonus)).min(99).max(ovr.max(1))
 }
 
-/// Lower every attribute by the same amount, one point at a time, until the position-weighted
-/// rating is at or below `target_ovr`. Keeps the shape of the player (a keeper stays a keeper)
-/// and moves only his level, which is how a ceiling becomes a younger, less developed self.
-/// A target at or above the current rating changes nothing.
-pub fn lower_attributes_to(attributes: &mut PlayerAttributes, position: &Position, target_ovr: u8) {
-    while ovr_from_attributes(attributes, position) > f64::from(target_ovr) {
-        if !lower_each_attribute_by_one(attributes) {
-            break;
+/// Move every attribute by the same amount, one point at a time in one direction, until the
+/// position-weighted rating reaches `target_ovr` or passes it, then keep whichever of the last two
+/// steps is closer (or stop at an attribute running into 1 or 99). Keeps the shape of the player (a
+/// keeper stays a keeper) and moves only his level: down, a ceiling becomes a younger, less
+/// developed self; up, a rolled rating is lifted onto a ceiling. A rating already within half a
+/// point of the target is left alone. Moving in one direction only is what guarantees it ends.
+pub fn move_attributes_to(attributes: &mut PlayerAttributes, position: &Position, target_ovr: u8) {
+    let target = f64::from(target_ovr);
+    let mut current = ovr_from_attributes(attributes, position);
+    if (current - target).abs() <= 0.5 {
+        return;
+    }
+    let step: i8 = if current > target { -1 } else { 1 };
+    loop {
+        let before = attributes.clone();
+        if !shift_each_attribute(attributes, step) {
+            return;
         }
+        let next = ovr_from_attributes(attributes, position);
+        let passed = (step < 0 && next <= target) || (step > 0 && next >= target);
+        if passed {
+            if (current - target).abs() < (next - target).abs() {
+                *attributes = before;
+            }
+            return;
+        }
+        current = next;
     }
 }
 
@@ -147,16 +164,15 @@ fn every_attribute_mut(a: &mut PlayerAttributes) -> [&mut u8; 19] {
     ]
 }
 
-/// Takes one point off every attribute still above 1. `false` when none could be lowered.
-fn lower_each_attribute_by_one(attributes: &mut PlayerAttributes) -> bool {
-    let mut lowered = false;
+/// Moves every attribute by `step` (+1 or -1) inside 1..=99. `false` when none could move.
+fn shift_each_attribute(attributes: &mut PlayerAttributes, step: i8) -> bool {
+    let mut moved = false;
     for value in every_attribute_mut(attributes) {
-        if *value > 1 {
-            *value -= 1;
-            lowered = true;
-        }
+        let shifted = (i16::from(*value) + i16::from(step)).clamp(1, 99) as u8;
+        moved |= shifted != *value;
+        *value = shifted;
     }
-    lowered
+    moved
 }
 
 fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {

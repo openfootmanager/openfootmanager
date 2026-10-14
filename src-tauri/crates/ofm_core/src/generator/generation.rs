@@ -7,7 +7,7 @@ use super::authored_player::resolve_authored_contract;
 use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
 use crate::player_rating::{
-    generate_potential, lower_attributes_to, natural_ovr, ovr_from_attributes,
+    generate_potential, move_attributes_to, natural_ovr, ovr_from_attributes,
     refresh_player_derived, roll_growth_headroom,
 };
 
@@ -473,6 +473,22 @@ pub(super) fn senior_slot(slot: usize) -> usize {
     }
 }
 
+/// The mean rating of the attributes the generator rolls.
+const ROLLED_RATING_MEAN: f64 = 67.6;
+/// Where the generated ceilings centre. Young players open below their ceiling, so the ceilings
+/// sit above the mean rating a world should open at (about 68).
+const CEILING_MEAN: f64 = 70.0;
+/// How much of the rolled spread the ceilings keep. Lifting the centre alone would push the S tier
+/// past its 1 to 3% target, so the bell is narrowed as it is lifted.
+const CEILING_SPREAD: f64 = 0.80;
+
+/// The ceiling a rolled rating becomes: the same ranking, on the bell the world is meant to have.
+fn shaped_ceiling(rolled: f64) -> u8 {
+    (CEILING_MEAN + CEILING_SPREAD * (rolled - ROLLED_RATING_MEAN))
+        .round()
+        .clamp(1.0, 99.0) as u8
+}
+
 /// A generated player for squad slot `index`. `age` fixes his age; `None`
 /// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
 /// exactly as before the parameter existed, so every seeded world — all of
@@ -570,20 +586,12 @@ pub(super) fn generate_random_player_from_def(
     };
 
     // The attributes just rolled are the player at his best: they set his ceiling, and a player
-    // who has years of growth left is lowered from them by the headroom for his age. Ceiling
-    // first, rating second, so the whole world's ceilings follow the bell the rolls make and a
-    // teenager is an earlier version of a prime-age player rather than a better one.
-    let at_best = ovr_from_attributes(&attributes, &position);
+    // who has years of growth left is lowered from it by the headroom for his age. Ceiling
+    // first, rating second, so the whole world's ceilings follow one bell and a teenager is an
+    // earlier version of a prime-age player rather than a better one.
+    let ceiling = shaped_ceiling(ovr_from_attributes(&attributes, &position));
     let headroom = roll_growth_headroom(age, rng);
-    if headroom > 0 {
-        lower_attributes_to(
-            &mut attributes,
-            &position,
-            (at_best.round() as u8).saturating_sub(headroom),
-        );
-    }
-    let growth_left = (at_best - ovr_from_attributes(&attributes, &position)).round() as u8;
-
+    move_attributes_to(&mut attributes, &position, ceiling.saturating_sub(headroom));
     // Size market value and wage from the same position-weighted rating the
     // player will be shown with, so a keeper is priced on keeping.
     let current_year: u32 = opening_year;
@@ -641,7 +649,7 @@ pub(super) fn generate_random_player_from_def(
 
     // Set position-weighted OVR and traits (Wonderkid included if applicable) around the ceiling.
     player.potential = (natural_ovr(&player).round() as u8)
-        .saturating_add(growth_left)
+        .saturating_add(headroom)
         .min(99);
     refresh_player_derived(
         &mut player,
@@ -1346,6 +1354,45 @@ mod tests {
         assert!(
             (teenage_ceiling - veteran_rating).abs() < 1.5,
             "teenagers' ceilings average {teenage_ceiling:.1}, veterans' ratings {veteran_rating:.1}"
+        );
+    }
+
+    /// Given a generated world of 360 clubs,
+    /// When its senior players are averaged,
+    /// Then the world opens near the mean the maintainer asked to keep (about 68).
+    #[test]
+    fn a_new_world_opens_near_the_intended_mean_rating() {
+        let seniors: Vec<f64> = generated_players(360)
+            .into_iter()
+            .filter(|(_, age)| *age >= 21)
+            .map(|(player, _)| f64::from(player.ovr))
+            .collect();
+        let mean = seniors.iter().sum::<f64>() / seniors.len() as f64;
+
+        assert!((67.0..=68.5).contains(&mean), "seniors average {mean:.2}");
+    }
+
+    /// Given the same world,
+    /// When the players the game tags as wonderkids are counted,
+    /// Then they are rare: between 0.2% and 1.2% of everyone.
+    #[test]
+    fn a_new_worlds_wonderkids_are_rare() {
+        let world = generated_players(360);
+        let wonderkids = world
+            .iter()
+            .filter(|(player, _)| {
+                player
+                    .traits
+                    .contains(&domain::player::PlayerTrait::Wonderkid)
+            })
+            .count();
+        let share = wonderkids as f64 / world.len() as f64;
+
+        assert!(
+            (0.002..=0.012).contains(&share),
+            "{wonderkids} of {} are wonderkids ({:.2}%)",
+            world.len(),
+            share * 100.0
         );
     }
 
