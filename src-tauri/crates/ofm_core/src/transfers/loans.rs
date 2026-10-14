@@ -182,7 +182,6 @@ pub(crate) fn default_loan_end_date(
 
     Some(end_date.format("%Y-%m-%d").to_string())
 }
-#[allow(clippy::too_many_arguments)]
 /// The loan negotiation `club_id` is in over this player: its live offer, or the one the owner
 /// refused within [`REBID_COOLDOWN_DAYS`], which the next approach continues. The same rule as
 /// `latest_negotiation_with_club` for permanent bids, and the same cooldown.
@@ -213,6 +212,7 @@ pub(crate) fn latest_loan_negotiation_with_club<'a>(
         })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn upsert_loan_offer(
     player: &mut domain::player::Player,
     from_team_id: &str,
