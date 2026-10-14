@@ -1851,6 +1851,65 @@ mod tests {
     }
 
     #[test]
+    fn only_the_calendar_repairs_own_resave_flag_writes_a_late_clash_back() {
+        // As above, for the calendar: let the save settle, inject a clash straight into the
+        // database, and let the repair's own flag be the only thing that can persist the move.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let save_id = sm.create_save(&game, "Settled Clash Career").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        sm.load_game(&save_id).unwrap();
+
+        let day = |offset: i64| {
+            (game.clock.current_date + chrono::Duration::days(offset))
+                .format("%Y-%m-%d")
+                .to_string()
+        };
+        {
+            let db = GameDatabase::open_save(&db_path).unwrap();
+            let mut competitions = competition_repo::load_competitions(db.conn()).unwrap();
+            let competition = competitions.first_mut().expect("a settled competition");
+            for (id, date) in [("late-clash-1", day(40)), ("late-clash-2", day(41))] {
+                competition.fixtures.push(Fixture {
+                    postponement: None,
+                    id: id.to_string(),
+                    competition_id: competition.id.clone(),
+                    matchday: 98,
+                    date,
+                    home_team_id: "team-001".to_string(),
+                    away_team_id: "team-002".to_string(),
+                    competition: FixtureCompetition::League,
+                    status: FixtureStatus::Scheduled,
+                    result: None,
+                });
+            }
+            competition_repo::replace_competitions(db.conn(), &competitions).unwrap();
+        }
+
+        sm.load_game(&save_id).unwrap();
+
+        let db = GameDatabase::open_save(&db_path).unwrap();
+        let from_disk = competition_repo::load_competitions(db.conn()).unwrap();
+        let persisted: Vec<_> = from_disk
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter(|fixture| fixture.id.starts_with("late-clash-"))
+            .collect();
+        assert_eq!(persisted.len(), 2);
+        assert!(
+            persisted
+                .iter()
+                .any(|fixture| fixture.postponement.is_some()),
+            "the repair's own resave flag is what writes the move back"
+        );
+    }
+
+    #[test]
     fn loading_a_pre_v3_save_promotes_competitions_and_restamps_format() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
