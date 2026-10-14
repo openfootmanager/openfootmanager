@@ -34,7 +34,6 @@ interface Input {
 }
 export function useTransferWindow({ gameState }: Input) {
   const { t, i18n } = useTranslation();
-  const weeklySuffix = t("finances.perWeekSuffix");
   const userTeamId = gameState.manager.team_id;
   const seasonContext = resolveSeasonContext(gameState);
   const transferWindow = seasonContext.transfer_window;
@@ -87,7 +86,6 @@ export function useTransferWindow({ gameState }: Input) {
   return {
     t,
     i18n,
-    weeklySuffix,
     userTeamId,
     transferWindow,
     closedWindowRegistrationDate,

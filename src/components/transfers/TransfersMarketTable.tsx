@@ -39,7 +39,6 @@ type TransfersMarketTableProps = {
     | "openDealHistory"
     | "i18n"
     | "gameState"
-    | "weeklySuffix"
     | "userTeamId"
     | "handleRespondOffer"
     | "openCounterNegotiation"

@@ -550,9 +550,8 @@ describe("formatExactMoney", () => {
 });
 
 describe("formatWeeklyAmount", () => {
-  it("appends the localized weekly suffix to a formatted amount", () => {
-    expect(formatWeeklyAmount("€10K", "/wk")).toBe("€10K/wk");
-    expect(formatWeeklyAmount("€10K", "/sem")).toBe("€10K/sem");
+  it("appends the weekly unit to a formatted amount", () => {
+    expect(formatWeeklyAmount("€10K")).toBe("€10K/wk");
   });
 });
 
