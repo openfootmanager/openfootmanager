@@ -1156,6 +1156,37 @@ mod tests {
     use crate::transfers::tests::{make_game, sample_attributes};
     use chrono::{TimeZone, Utc};
 
+    /// Given a 19-year-old midfielder with room to grow who plays a season on loan,
+    /// When the loan's development is applied on a date,
+    /// Then his attributes rise and his rating is recomputed from them, as of that date.
+    #[test]
+    fn loan_development_refreshes_the_rating_it_raised() {
+        let mut player = Player::new(
+            "loanee".to_string(),
+            "Loanee".to_string(),
+            "Loanee".to_string(),
+            "2007-01-01".to_string(),
+            "England".to_string(),
+            Position::Midfielder,
+            sample_attributes(),
+        );
+        player.potential = 99;
+        let on = chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+        crate::player_rating::refresh_player_derived(&mut player, on);
+        player.potential = 99;
+
+        let (ovr_before, ovr_after, gains) = apply_loan_development(&mut player, 500, on, 900, 10);
+
+        assert_eq!(gains, 6, "two cycles of three attributes");
+        assert!(ovr_after > ovr_before, "{ovr_before} -> {ovr_after}");
+        assert_eq!(ovr_after, player.ovr);
+        assert_eq!(
+            player.ovr,
+            crate::player_rating::natural_ovr(&player).round() as u8,
+            "the stored rating is not the one the raised attributes give"
+        );
+    }
+
     fn contract_end_loan_game(user_is_parent: bool) -> Game {
         let mut game = make_game();
         let player = &mut game.players[0];
