@@ -1,5 +1,5 @@
+import type { AutoSetPieces } from "../../services/squadService";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
-import { getSetPieceStats } from "../match/SetPieceSelector";
 
 export const EMPTY_MATCH_ROLES: TeamMatchRolesData = {
   captain: null,
@@ -9,114 +9,71 @@ export const EMPTY_MATCH_ROLES: TeamMatchRolesData = {
   corner_taker: null,
 };
 
-function roleAllowsGoalkeeper(role: string): boolean {
-  return role === "captain" || role === "vicecaptain";
-}
-
-function pickBestCandidate(
-  players: PlayerData[],
-  role: string,
-  excludedIds: string[] = [],
-): string | null {
-  const excludedIdSet = new Set(excludedIds);
-  const candidates = players
-    .filter((player) => {
-      if (excludedIdSet.has(player.id)) {
-        return false;
-      }
-
-      if (roleAllowsGoalkeeper(role)) {
-        return true;
-      }
-
-      return player.position !== "Goalkeeper";
-    })
-    .sort((leftPlayer, rightPlayer) => {
-      return (
-        getSetPieceStats(role, rightPlayer).score - getSetPieceStats(role, leftPlayer).score ||
-        leftPlayer.full_name.localeCompare(rightPlayer.full_name)
-      );
-    });
-
-  return candidates[0]?.id ?? null;
-}
-
+/** The manager's assignment if that player is in the eleven, else the backend's pick (if he is). */
 function resolveAssignedRole(
   assignedId: string | null | undefined,
   availableIds: Set<string>,
-  fallbackId: string | null,
+  backendId: string | null | undefined,
 ): string | null {
   if (assignedId && availableIds.has(assignedId)) {
     return assignedId;
   }
 
-  return fallbackId;
+  return backendId && availableIds.has(backendId) ? backendId : null;
 }
 
+/**
+ * The takers the match will use. Where the manager has assigned none, that is the backend's own
+ * choice (`auto_select_set_pieces`), not a ranking of ours; the backend has no vice-captain rule,
+ * so that slot is only ever the manager's.
+ */
 export function resolveEffectiveMatchRoles(
   startingPlayers: PlayerData[],
-  matchRoles?: TeamMatchRolesData,
+  matchRoles: TeamMatchRolesData | undefined,
+  backendPicks: AutoSetPieces | null,
 ): TeamMatchRolesData {
   const availableIds = new Set(startingPlayers.map((player) => player.id));
   const storedRoles = matchRoles ?? EMPTY_MATCH_ROLES;
-  const captain = resolveAssignedRole(
-    storedRoles.captain,
-    availableIds,
-    pickBestCandidate(startingPlayers, "captain"),
-  );
-  const viceCaptain = resolveAssignedRole(
-    storedRoles.vice_captain,
-    availableIds,
-    pickBestCandidate(startingPlayers, "vicecaptain", captain ? [captain] : []),
-  );
 
   return {
-    captain,
-    vice_captain: viceCaptain,
+    captain: resolveAssignedRole(storedRoles.captain, availableIds, backendPicks?.captain),
+    vice_captain: resolveAssignedRole(storedRoles.vice_captain, availableIds, null),
     penalty_taker: resolveAssignedRole(
       storedRoles.penalty_taker,
       availableIds,
-      pickBestCandidate(startingPlayers, "penalty"),
+      backendPicks?.penalty_taker,
     ),
     free_kick_taker: resolveAssignedRole(
       storedRoles.free_kick_taker,
       availableIds,
-      pickBestCandidate(startingPlayers, "freekick"),
+      backendPicks?.free_kick_taker,
     ),
     corner_taker: resolveAssignedRole(
       storedRoles.corner_taker,
       availableIds,
-      pickBestCandidate(startingPlayers, "corner"),
+      backendPicks?.corner_taker,
     ),
   };
 }
 
 export function buildUpdatedMatchRolesForAssignment(
   effectiveRoles: TeamMatchRolesData,
-  startingPlayers: PlayerData[],
   role: keyof TeamMatchRolesData,
   playerId: string,
+  backendPicks: AutoSetPieces | null,
 ): TeamMatchRolesData {
-  let nextRoles: TeamMatchRolesData = {
-    ...effectiveRoles,
-    [role]: playerId,
-  };
+  const nextRoles: TeamMatchRolesData = { ...effectiveRoles, [role]: playerId };
 
+  // Nobody holds both armbands: the one displaced gives way. A vice-captain made captain is
+  // cleared; a captain made vice falls back to the backend's captain unless that is him again.
   if (role === "captain" && nextRoles.vice_captain === playerId) {
-    nextRoles = {
-      ...nextRoles,
-      vice_captain: pickBestCandidate(startingPlayers, "vicecaptain", playerId ? [playerId] : []),
-    };
+    return { ...nextRoles, vice_captain: null };
   }
 
   if (role === "vice_captain" && nextRoles.captain === playerId) {
-    nextRoles = {
-      ...nextRoles,
-      captain: pickBestCandidate(startingPlayers, "captain", playerId ? [playerId] : []),
-    };
+    const fallback = backendPicks?.captain;
+    return { ...nextRoles, captain: fallback && fallback !== playerId ? fallback : null };
   }
 
   return nextRoles;
 }
-
-export { pickBestCandidate };

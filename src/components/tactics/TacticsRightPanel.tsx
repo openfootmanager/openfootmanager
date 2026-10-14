@@ -11,6 +11,7 @@ import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
+import { useAutoSetPieces } from "../../hooks/useAutoSetPieces";
 
 interface TacticsRightPanelProps {
   allSquad: PlayerData[];
@@ -41,9 +42,10 @@ export default function TacticsRightPanel({
     [startingPlayers],
   );
 
+  const autoSetPieces = useAutoSetPieces(startingPlayers.map((player) => player.id));
   const effectiveRoles = useMemo(
-    () => resolveEffectiveMatchRoles(startingPlayers, matchRoles),
-    [matchRoles, startingPlayers],
+    () => resolveEffectiveMatchRoles(startingPlayers, matchRoles, autoSetPieces),
+    [matchRoles, startingPlayers, autoSetPieces],
   );
 
   async function persistMatchRoles(nextRoles: TeamMatchRolesData): Promise<void> {
@@ -59,7 +61,7 @@ export default function TacticsRightPanel({
 
   async function handleRoleChange(role: keyof TeamMatchRolesData, playerId: string): Promise<void> {
     await persistMatchRoles(
-      buildUpdatedMatchRolesForAssignment(effectiveRoles, startingPlayers, role, playerId),
+      buildUpdatedMatchRolesForAssignment(effectiveRoles, role, playerId, autoSetPieces),
     );
   }
 

@@ -809,22 +809,36 @@ describe("TacticsTab", () => {
     });
   });
 
-  it("persists default set piece and team role assignments from the right panel", async () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
+  /** Given the backend's own set-piece picks for the eleven, when the manager auto-selects,
+   * then those picks are saved, and no vice-captain is invented for them. */
+  it("persists the backend's set-piece picks when the manager auto-selects", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", {
+        playerIds: ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+      });
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "tactics.autoSelectAssignments" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
-        matchRoles: expect.objectContaining({
-          captain: expect.any(String),
-          vice_captain: expect.any(String),
-          penalty_taker: expect.any(String),
-          free_kick_taker: expect.any(String),
-          corner_taker: expect.any(String),
-        }),
+        matchRoles: {
+          captain: "m2",
+          vice_captain: null,
+          penalty_taker: "f2",
+          free_kick_taker: "m3",
+          corner_taker: "d4",
+        },
       });
     });
   });
