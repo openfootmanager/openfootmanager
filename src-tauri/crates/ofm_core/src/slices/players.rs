@@ -46,6 +46,11 @@ pub enum PlayerScope {
     /// Players a scout can still be sent to watch: not in the user's own club and not already
     /// being scouted.
     Scoutable,
+    /// The user's own players put up for transfer or loan and still free to move.
+    UserListed,
+    /// Players the user's club has dealings over: offers on its own players, and offers its club
+    /// has made for others'.
+    WithOffers,
 }
 
 /// One position test: an exact position, or every position in a group (a defender of any kind).
@@ -219,7 +224,30 @@ fn matches_scope(player: &Player, scope: PlayerScope, context: &ListContext) -> 
         PlayerScope::Scoutable => {
             !context.is_users_own(player) && !context.scouted.contains(player.id.as_str())
         }
+        PlayerScope::UserListed => {
+            context.is_users_own(player)
+                && (player.transfer_listed || player.loan_listed)
+                && !player_has_active_or_pending_loan(player)
+                && !has_pending_transfer_registration(player)
+        }
+        PlayerScope::WithOffers => context
+            .user_team
+            .is_some_and(|team| has_offer_involving(player, &team.id)),
     }
+}
+
+/// An offer concerns a club when it made it, when it owns the player the transfer offer is for, or
+/// when it is the parent club of a loan offer.
+fn has_offer_involving(player: &Player, club_id: &str) -> bool {
+    let owns_player = player.team_id.as_deref() == Some(club_id);
+    player
+        .transfer_offers
+        .iter()
+        .any(|offer| owns_player || offer.from_team_id == club_id)
+        || player
+            .loan_offers
+            .iter()
+            .any(|offer| offer.parent_team_id == club_id || offer.from_team_id == club_id)
 }
 
 fn matches_position(player: &Player, filters: &[PositionFilter]) -> bool {

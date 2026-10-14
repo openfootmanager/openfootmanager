@@ -721,6 +721,163 @@ fn the_scoutable_scope_leaves_out_own_and_already_scouted_players() {
     assert_eq!(ids(&game, &q), vec!["open"]);
 }
 
+fn transfer_offer_from(from_team_id: &str) -> domain::player::TransferOffer {
+    use domain::player::{TransferOffer, TransferOfferStatus};
+    TransferOffer {
+        id: format!("offer-from-{from_team_id}"),
+        from_team_id: from_team_id.to_string(),
+        fee: 1,
+        wage_offered: 1,
+        last_manager_fee: None,
+        negotiation_round: 1,
+        suggested_counter_fee: None,
+        status: TransferOfferStatus::Pending,
+        date: "2026-06-01".to_string(),
+        registration_date: None,
+        registration_failure_reason: None,
+        closed_on: None,
+    }
+}
+
+/// Given the user's own players, one listed for transfer, one listed for loan, one unlisted, one
+/// listed but already agreed to move, and another club's listed player, when the user-listed scope
+/// is on, then only the two listed and still-free own players are returned.
+#[test]
+fn the_user_listed_scope_is_the_own_players_put_up_for_transfer_or_loan() {
+    let mut for_sale = PlayerSpec::new("for_sale", "For Sale", Some("mine"));
+    for_sale.transfer_listed = true;
+    let mut for_loan = PlayerSpec::new("for_loan", "For Loan", Some("mine"));
+    for_loan.loan_listed = true;
+    let unlisted = PlayerSpec::new("unlisted", "Unlisted", Some("mine")).build();
+    let mut agreed = PlayerSpec::new("agreed", "Agreed", Some("mine"));
+    agreed.transfer_listed = true;
+    let mut agreed = agreed.build();
+    let mut offer = transfer_offer_from("other");
+    offer.status = domain::player::TransferOfferStatus::PendingRegistration;
+    agreed.transfer_offers.push(offer);
+    let mut elsewhere = PlayerSpec::new("elsewhere", "Elsewhere", Some("other"));
+    elsewhere.transfer_listed = true;
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            for_sale.build(),
+            for_loan.build(),
+            unlisted,
+            agreed,
+            elsewhere.build(),
+        ],
+    );
+    let mut q = baseline_query();
+    q.scope = PlayerScope::UserListed;
+
+    assert_eq!(ids(&game, &q), vec!["for_loan", "for_sale"]);
+}
+
+/// Given a player listed for transfer who is out on loan, when the user-listed scope is on, then
+/// he is not offered for sale again.
+#[test]
+fn the_user_listed_scope_leaves_out_a_player_out_on_loan() {
+    let mut spec = PlayerSpec::new("away", "Away", Some("mine"));
+    spec.transfer_listed = true;
+    let mut away = spec.build();
+    away.active_loan = Some(domain::player::ActiveLoan {
+        parent_team_id: "mine".to_string(),
+        loan_team_id: "other".to_string(),
+        start_date: "2026-01-01".to_string(),
+        end_date: "2026-12-31".to_string(),
+        wage_contribution_pct: 50,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+    let game = game_managing_mine(0, 0, vec![away]);
+    let mut q = baseline_query();
+    q.scope = PlayerScope::UserListed;
+
+    assert!(ids(&game, &q).is_empty());
+}
+
+/// Given an own player with an offer on him, another club's player the user has bid for, another
+/// club's player only a third club has bid for, and a player with no offers, when the with-offers
+/// scope is on, then the first two are returned.
+#[test]
+fn the_with_offers_scope_is_the_players_the_users_club_has_dealings_over() {
+    let mut own = PlayerSpec::new("own", "Own", Some("mine")).build();
+    own.transfer_offers.push(transfer_offer_from("other"));
+    let mut bid_for = PlayerSpec::new("bid_for", "Bid For", Some("other")).build();
+    bid_for.transfer_offers.push(transfer_offer_from("mine"));
+    let mut third_party = PlayerSpec::new("third_party", "Third Party", Some("other")).build();
+    third_party
+        .transfer_offers
+        .push(transfer_offer_from("third"));
+    let quiet = PlayerSpec::new("quiet", "Quiet", Some("other")).build();
+    let game = game_managing_mine(0, 0, vec![own, bid_for, third_party, quiet]);
+    let mut q = baseline_query();
+    q.scope = PlayerScope::WithOffers;
+
+    assert_eq!(ids(&game, &q), vec!["bid_for", "own"]);
+}
+
+/// Given loan offers, when the with-offers scope is on, then a loan the user's club made, or one
+/// for a player the user's club owns, counts; a loan between two other clubs does not.
+#[test]
+fn the_with_offers_scope_counts_loan_offers_by_either_end() {
+    use domain::player::{LoanOffer, LoanOfferStatus};
+    fn loan(from: &str, parent: &str) -> LoanOffer {
+        LoanOffer {
+            id: format!("loan-{from}-{parent}"),
+            from_team_id: from.to_string(),
+            parent_team_id: parent.to_string(),
+            start_date: "2026-07-01".to_string(),
+            end_date: "2027-06-30".to_string(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 1,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: LoanOfferStatus::Pending,
+            date: "2026-06-01".to_string(),
+            closed_on: None,
+        }
+    }
+    let mut made_by_user = PlayerSpec::new("made_by_user", "Made By User", Some("other")).build();
+    made_by_user.loan_offers.push(loan("mine", "other"));
+    let mut users_player = PlayerSpec::new("users_player", "Users Player", Some("mine")).build();
+    users_player.loan_offers.push(loan("other", "mine"));
+    let mut elsewhere = PlayerSpec::new("elsewhere", "Elsewhere", Some("other")).build();
+    elsewhere.loan_offers.push(loan("third", "other"));
+    let game = game_managing_mine(0, 0, vec![made_by_user, users_player, elsewhere]);
+    let mut q = baseline_query();
+    q.scope = PlayerScope::WithOffers;
+
+    assert_eq!(ids(&game, &q), vec!["made_by_user", "users_player"]);
+}
+
+/// Given a game with no user club, when either club-bound scope is on, then nothing matches:
+/// there is no club to have a list or offers.
+#[test]
+fn the_club_bound_scopes_are_empty_without_a_user_club() {
+    let mut listed = PlayerSpec::new("listed", "Listed", Some("mine"));
+    listed.transfer_listed = true;
+    let mut offered = PlayerSpec::new("offered", "Offered", Some("other")).build();
+    offered.transfer_offers.push(transfer_offer_from("mine"));
+    let mut game = game_managing_mine(0, 0, vec![listed.build(), offered]);
+    game.manager.team_id = None;
+
+    for scope in [PlayerScope::UserListed, PlayerScope::WithOffers] {
+        let mut q = baseline_query();
+        q.scope = scope;
+        assert!(ids(&game, &q).is_empty());
+    }
+}
+
 fn with_position(id: &str, position: Position) -> Player {
     let mut spec = PlayerSpec::new(id, id, Some("other"));
     spec.position = position;
