@@ -237,4 +237,46 @@ mod tests {
         assert!(changed > 0);
         assert!(game.messages.is_empty());
     }
+
+    /// Given a save with nothing to repair and a legacy mirror that differs from the competitions,
+    /// When it is repaired, Then nothing is touched, the mirror included: a clean load is not a write.
+    #[test]
+    fn a_repair_with_nothing_to_do_leaves_the_game_alone() {
+        let mut game = game_on(2033, 3, 1, "a");
+        game.competitions = vec![competition(
+            "league",
+            1,
+            vec![fixture("league", "l1", "2033-03-10", "a", "z")],
+        )];
+        let mut stale_mirror = game.competitions[0].clone();
+        stale_mirror.name = "a mirror that is not synced".to_string();
+        game.league = Some(stale_mirror);
+
+        let changed = repair_loaded_calendar(&mut game);
+
+        assert_eq!(changed, 0);
+        assert_eq!(
+            game.league.as_ref().unwrap().name,
+            "a mirror that is not synced"
+        );
+    }
+
+    /// Given a friendly that clashes with a league match, When the save is repaired, Then the
+    /// friendly is dropped and counted: the caller must save.
+    #[test]
+    fn a_dropped_friendly_is_counted_so_the_repair_is_saved() {
+        let mut game = game_on(2033, 3, 1, "a");
+        let mut friendly = fixture("league", "f1", "2033-03-10", "a", "y");
+        friendly.competition = FixtureCompetition::Friendly;
+        game.competitions = vec![competition(
+            "league",
+            1,
+            vec![fixture("league", "l1", "2033-03-10", "a", "z"), friendly],
+        )];
+
+        let changed = repair_loaded_calendar(&mut game);
+
+        assert_eq!(changed, 1);
+        assert!(game.competitions[0].fixtures.iter().all(|f| f.id != "f1"));
+    }
 }
