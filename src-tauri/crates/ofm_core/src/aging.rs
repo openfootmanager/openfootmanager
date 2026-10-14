@@ -24,6 +24,24 @@ fn veteran_pace_loss(player_id: &str, age: i32, season: u32) -> u8 {
     1 + (seeded_value(player_id, season, "pace-loss") % 3) as u8
 }
 
+/// Stamina and agility go from 31, a point or two a summer.
+fn veteran_endurance_loss(player_id: &str, age: i32, season: u32) -> u8 {
+    if age < 31 {
+        return 0;
+    }
+
+    1 + (seeded_value(player_id, season, "endurance-loss") % 2) as u8
+}
+
+/// Strength goes from 33, a point or two a summer.
+fn veteran_strength_loss(player_id: &str, age: i32, season: u32) -> u8 {
+    if age < 33 {
+        return 0;
+    }
+
+    1 + (seeded_value(player_id, season, "strength-loss") % 2) as u8
+}
+
 fn technical_growth(player_id: &str, age: i32, season: u32) -> u8 {
     if age > 32 {
         return 0;
@@ -45,8 +63,23 @@ fn apply_attribute_curve(player: &mut Player, age: i32, season: u32) {
     if pace_loss > 0 {
         decrease_attribute(&mut player.attributes.pace, pace_loss);
     }
+    let endurance_loss = veteran_endurance_loss(&player.id, age, season);
+    if endurance_loss > 0 {
+        decrease_attribute(&mut player.attributes.stamina, endurance_loss);
+        decrease_attribute(&mut player.attributes.agility, endurance_loss);
+    }
+    let strength_loss = veteran_strength_loss(&player.id, age, season);
+    if strength_loss > 0 {
+        decrease_attribute(&mut player.attributes.strength, strength_loss);
+    }
 
-    let growth = technical_growth(&player.id, age, season);
+    // A player who has reached his ceiling has nothing left to learn; without this the
+    // ceiling was lifted by the growth below every summer (it is floored at the rating).
+    let growth = if player.potential > player.ovr {
+        technical_growth(&player.id, age, season)
+    } else {
+        0
+    };
     if growth > 0 {
         increase_attribute(&mut player.attributes.passing, growth);
         increase_attribute(&mut player.attributes.vision, growth);
@@ -93,9 +126,6 @@ fn retirement_chance(player: &Player, age: i32, current_date: NaiveDate) -> u32 
             chance = chance.saturating_sub(10);
         }
     }
-    if player.ovr >= 80 {
-        chance = chance.saturating_sub(15);
-    }
 
     chance.min(100)
 }
@@ -135,6 +165,8 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
 
         let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
         apply_attribute_curve(player, age, season);
+        crate::player_rating::refresh_player_derived(player, current_date);
+        crate::player_rating::settle_ceiling(player, age);
 
         if should_retire(player, age, current_date, season) {
             if let Some(team_id) = player.team_id.clone()
@@ -150,7 +182,8 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_seasonal_aging, retirement_chance, should_retire, technical_growth, veteran_pace_loss,
+        apply_attribute_curve, apply_seasonal_aging, retirement_chance, should_retire,
+        technical_growth, veteran_pace_loss,
     };
     use crate::clock::GameClock;
     use crate::game::Game;
@@ -215,6 +248,95 @@ mod tests {
         );
 
         Game::new(clock, manager, vec![team], players, vec![], vec![])
+    }
+
+    /// Given two players of 36 in the same situation, one rated 85 and one rated 60,
+    /// When their chance of retiring this summer is read,
+    /// Then it is the same: how good a player is does not keep him playing.
+    #[test]
+    fn a_star_retires_no_later_than_anyone_else_of_his_age() {
+        let current_date = NaiveDate::from_ymd_opt(2026, 5, 20).unwrap();
+        let mut star = make_player("star", "1990-01-01");
+        star.ovr = 85;
+        let mut journeyman = make_player("journeyman", "1990-01-01");
+        journeyman.ovr = 60;
+
+        assert_eq!(
+            retirement_chance(&star, 36, current_date),
+            retirement_chance(&journeyman, 36, current_date)
+        );
+    }
+
+    /// Given a 34-year-old who has played every season of the run,
+    /// When twenty summers of ageing are applied,
+    /// Then his stamina, agility and strength only ever fall, and they do fall.
+    #[test]
+    fn a_veterans_stamina_agility_and_strength_fall() {
+        let mut veteran = make_player("veteran", "1992-01-01");
+        let before = veteran.attributes.clone();
+        for season in 1..=20 {
+            let (stamina, agility, strength) = (
+                veteran.attributes.stamina,
+                veteran.attributes.agility,
+                veteran.attributes.strength,
+            );
+
+            apply_attribute_curve(&mut veteran, 34, season);
+
+            assert!(veteran.attributes.stamina <= stamina);
+            assert!(veteran.attributes.agility <= agility);
+            assert!(veteran.attributes.strength <= strength);
+        }
+        assert!(veteran.attributes.stamina < before.stamina);
+        assert!(veteran.attributes.agility < before.agility);
+        assert!(veteran.attributes.strength < before.strength);
+    }
+
+    /// Given a 24-year-old at his ceiling and one with room to grow,
+    /// When twenty summers of ageing are applied to each,
+    /// Then the peaked one gains no technical attributes and the other does.
+    #[test]
+    fn technical_growth_needs_room_under_the_ceiling() {
+        let mut peaked = make_player("peaked", "2002-01-01");
+        peaked.ovr = 70;
+        peaked.potential = 70;
+        let mut promising = make_player("promising", "2002-01-01");
+        promising.ovr = 70;
+        promising.potential = 85;
+        for season in 1..=20 {
+            apply_attribute_curve(&mut peaked, 24, season);
+            apply_attribute_curve(&mut promising, 24, season);
+        }
+
+        assert_eq!(peaked.attributes.passing, 70);
+        assert!(promising.attributes.passing > 70);
+    }
+
+    /// Given a 34-year-old whose stored ceiling is 90 and a 19-year-old whose ceiling is 30 above his rating,
+    /// When a summer's ageing is applied,
+    /// Then the veteran's ceiling is no more than his rating and the youth's no more than the headroom for 19.
+    #[test]
+    fn a_ceiling_cannot_sit_above_the_headroom_for_the_age() {
+        let mut veteran = make_player("veteran", "1992-01-01");
+        veteran.potential = 90;
+        let mut youth = make_player("youth", "2007-01-01");
+        youth.potential = 99;
+        let mut game = make_game(vec![veteran, youth]);
+
+        apply_seasonal_aging(&mut game, NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(), 1);
+
+        let veteran = &game.players[0];
+        assert!(veteran.retired || veteran.potential <= veteran.ovr);
+        let youth = &game.players[1];
+        let room = crate::player_rating::growth_headroom_range(19)
+            .end()
+            .to_owned();
+        assert!(
+            youth.potential <= youth.ovr + room,
+            "{} vs {}",
+            youth.potential,
+            youth.ovr
+        );
     }
 
     #[test]

@@ -102,6 +102,17 @@ pub fn roll_growth_headroom(age: u32, rng: &mut impl rand::Rng) -> u8 {
     }
 }
 
+/// Bring a ceiling back inside what his age allows: no more than `growth_headroom_range(age)`
+/// above his rating, and never below it. A veteran's ceiling is his rating, so it falls when his
+/// rating does instead of being held up at the best he once was.
+pub fn settle_ceiling(player: &mut Player, age: i32) {
+    let headroom = *growth_headroom_range(age.max(0) as u32).end();
+    player.potential = player
+        .potential
+        .min(player.ovr.saturating_add(headroom))
+        .max(player.ovr);
+}
+
 /// Generate a potential rating for a player whose current rating is already known: `ovr` plus a
 /// headroom for `age`. Returns a value in [1, 99] that is always >= `ovr`.
 /// The lower bound of 1 (via `ovr.max(1)`) ensures potential is never 0 even when `ovr` is 0.
