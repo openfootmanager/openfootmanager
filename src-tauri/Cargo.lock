@@ -4016,6 +4016,7 @@ dependencies = [
  "chrono",
  "domain",
  "ofm_core",
+ "serde_json",
 ]
 
 [[package]]

@@ -3475,6 +3475,10 @@
         "LoanConflict": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč hostuje nebo má dohodnuté hostování čekající na registraci. Nebyla zaplacena žádná přestupová částka.",
         "PlayerUnavailable": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč již není dostupný v prodávajícím klubu. Nebyla zaplacena žádná přestupová částka.",
         "RegistrationBlocked": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože již není splněna některá podmínka registrace. Nebyla zaplacena žádná přestupová částka."
+      },
+      "matchesMoved": {
+        "subject": "Zápasy přesunuty",
+        "body": "Některé vaše zápasy byly přesunuty, aby si hráči zachovali odpočinek a byly dodrženy reprezentační přestávky:\n{{matches}}"
       }
     },
     "news": {

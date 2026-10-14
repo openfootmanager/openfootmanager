@@ -377,10 +377,8 @@ pub const CLUB_RESTS_BETWEEN_MATCHES: &str = "club-rests-between-matches";
 /// The maintainer's ruling of 12 Oct 2026: a club's competitive matches are at least this many
 /// days apart, so Saturday then Tuesday is legal and Saturday then Monday is a clash.
 ///
-/// Held here rather than read from `ofm_core::calendar_booking`: that module books on a
-/// two-date rule and exposes no constant, and the calendar rework is rewriting it. Point this at
-/// the game's own constant once it has one.
-pub const MIN_DAYS_BETWEEN_MATCHES: i64 = 3;
+/// The game's own minimum rest, under the name the gate uses, so the rule has one source.
+pub use ofm_core::calendar_booking::MIN_GAP_DAYS as MIN_DAYS_BETWEEN_MATCHES;
 
 /// Given the clubs' competitions as they stand,
 /// When a club has two competitive fixtures less than [`MIN_DAYS_BETWEEN_MATCHES`] apart,
@@ -732,15 +730,6 @@ mod tests {
     fn every_daily_rule_is_quiet_on_the_world_as_built() {
         let game = world();
         for (rule, check) in EVERY_DAY {
-            // The built world books clubs inside the rest (#553). The rule's own tests below
-            // prove it looks; the gate holds the world to it.
-            if *rule == CLUB_RESTS_BETWEEN_MATCHES {
-                assert!(
-                    !check(&game).is_empty(),
-                    "#553 is fixed: delete this exemption (the built world has no clash)"
-                );
-                continue;
-            }
             assert_eq!(
                 check(&game),
                 Vec::<String>::new(),
@@ -801,8 +790,8 @@ mod tests {
     /// Then the club is reported as playing twice that day — and is not before.
     ///
     /// The world is cut down to a single competition first so the control is
-    /// real: the built world has double bookings of its own (#553), and a rule
-    /// that "passes" there could not be told from one that does not look.
+    /// real: a rule that passes on the full built world could not be told from one that does not
+    /// look at all.
     #[test]
     fn a_club_booked_twice_on_one_day_is_noticed() {
         let mut game = world();

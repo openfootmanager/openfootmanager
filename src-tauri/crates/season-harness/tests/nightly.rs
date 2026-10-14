@@ -12,6 +12,7 @@ use ofm_core::end_of_season::EndOfSeasonSummary;
 use ofm_core::game::Game;
 use ofm_core::squad_floor::{can_put_a_side_out, squad_shortfall};
 use ofm_core::world_cup::{is_world_cup_competition, world_cup_champion};
+use season_harness::calendar::{reloaded, unplayed_clashes};
 use season_harness::driver::{RunOptions, SeasonObserver, run_seasons};
 use season_harness::invariants::{CLUB_RESTS_BETWEEN_MATCHES, Invariants};
 use season_harness::worlds::WorldSpec;
@@ -477,4 +478,29 @@ fn ratings_stay_within_their_bounds() {
             );
         }
     }
+}
+
+/// Given a generated world played through four seasons, saved and reloaded between each,
+/// When every rollover has generated the next season's calendar,
+/// Then no club has two matches to play within the minimum rest in it.
+#[test]
+#[ignore = "nightly tier"]
+fn four_seasons_generate_clash_free_calendars_with_reloads() {
+    let mut game = WorldSpec::gate(1).build().expect("the world builds");
+    let mut clashes = Vec::new();
+
+    for season in 1..=4 {
+        let mut invariants = Invariants::new(&game);
+        run_seasons(&mut game, RunOptions::seasons(1), &mut invariants)
+            .unwrap_or_else(|error| panic!("season {season}: {error}"));
+        // The run ends on the rollover, so this is the calendar it has just generated.
+        clashes.extend(
+            unplayed_clashes(&game)
+                .into_iter()
+                .map(|clash| format!("after season {season}: {clash}")),
+        );
+        game = reloaded(&game);
+    }
+
+    assert_eq!(clashes, Vec::<String>::new());
 }
