@@ -1,6 +1,7 @@
 use domain::player::{Player, PlayerAttributes, PlayerTrait, Position};
 use ofm_core::player_rating::{
-    generate_potential, qualifies_for_wonderkid, refresh_player_derived,
+    generate_potential, growth_headroom_range, lower_attributes_to, ovr_from_attributes,
+    qualifies_for_wonderkid, refresh_player_derived, roll_growth_headroom,
 };
 
 // ---------------------------------------------------------------------------
@@ -249,4 +250,78 @@ fn generate_potential_young_player_has_higher_ceiling() {
         any_higher,
         "At least some calls for a 17-year-old should produce potential > ovr"
     );
+}
+
+// ---------------------------------------------------------------------------
+// growth headroom and lowering a player to a younger self
+// ---------------------------------------------------------------------------
+
+/// Given players of every age,
+/// When the headroom each can still grow is asked for,
+/// Then it only ever narrows with age, and a veteran has none.
+#[test]
+fn headroom_narrows_with_age_and_a_veteran_has_none() {
+    let ages = [16u32, 18, 19, 20, 21, 22, 23, 25, 26, 33];
+    for pair in ages.windows(2) {
+        let (younger, older) = (
+            growth_headroom_range(pair[0]),
+            growth_headroom_range(pair[1]),
+        );
+        assert!(
+            older.end() <= younger.end() && older.start() <= younger.start(),
+            "age {} has {younger:?} but age {} has {older:?}",
+            pair[0],
+            pair[1]
+        );
+    }
+    assert_eq!(growth_headroom_range(26), 0..=0);
+    assert_eq!(growth_headroom_range(17), 15..=30);
+}
+
+/// Given a headroom drawn many times for a 17-year-old,
+/// When the draws are collected,
+/// Then every one is inside the 17-year-old's range and not all are equal.
+#[test]
+fn a_rolled_headroom_stays_inside_the_range_for_the_age() {
+    let mut stream = rng();
+    let draws: Vec<u8> = (0..200)
+        .map(|_| roll_growth_headroom(17, &mut stream))
+        .collect();
+    assert!(draws.iter().all(|d| growth_headroom_range(17).contains(d)));
+    assert!(draws.iter().any(|d| *d != draws[0]));
+}
+
+/// Given an outfielder and a keeper,
+/// When their attributes are lowered to a rating 20 below their own,
+/// Then each lands at or just below that rating, never above.
+#[test]
+fn lowering_attributes_lands_at_or_just_below_the_target() {
+    for (mut attributes, position) in [
+        (gk_attrs(), Position::Goalkeeper),
+        (striker_attrs(), Position::Forward),
+    ] {
+        let target = ovr_from_attributes(&attributes, &position).round() as u8 - 20;
+
+        lower_attributes_to(&mut attributes, &position, target);
+
+        let lowered = ovr_from_attributes(&attributes, &position);
+        assert!(lowered <= f64::from(target), "{lowered} is above {target}");
+        assert!(
+            lowered > f64::from(target) - 2.0,
+            "{lowered} overshot {target}"
+        );
+    }
+}
+
+/// Given attributes already below the target,
+/// When they are lowered to it,
+/// Then nothing changes.
+#[test]
+fn lowering_to_a_higher_target_changes_nothing() {
+    let mut attributes = striker_attrs();
+    let before = attributes.clone();
+
+    lower_attributes_to(&mut attributes, &Position::Forward, 99);
+
+    assert_eq!(attributes, before);
 }

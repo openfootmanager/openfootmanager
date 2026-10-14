@@ -77,18 +77,85 @@ pub fn qualifies_for_wonderkid(age: u32, potential: u8, ovr: u8) -> bool {
         && potential.saturating_sub(ovr) >= WONDERKID_MIN_GROWTH_ROOM
 }
 
-/// Generate a potential rating for a newly-created player based on current OVR and age.
-/// Returns a value in [1, 99] that is always >= `ovr`.
+/// How far above his current rating a player of `age` can still grow: the one rule for the gap
+/// between current ability and ceiling. Read forwards (ceiling minus this) when a player is
+/// generated ceiling-first, and backwards (rating plus this) when an author gave a rating and no
+/// ceiling, so the two can never disagree about what a 17-year-old's headroom is.
+pub fn growth_headroom_range(age: u32) -> std::ops::RangeInclusive<u8> {
+    match age {
+        ..=18 => 15..=30,
+        19..=20 => 8..=22,
+        21..=22 => 4..=14,
+        23..=25 => 0..=7,
+        _ => 0..=0,
+    }
+}
+
+/// A headroom drawn from `growth_headroom_range(age)`. A range of one value is returned without
+/// drawing, so a veteran costs the stream nothing.
+pub fn roll_growth_headroom(age: u32, rng: &mut impl rand::Rng) -> u8 {
+    let range = growth_headroom_range(age);
+    if range.start() == range.end() {
+        *range.start()
+    } else {
+        rng.random_range(range)
+    }
+}
+
+/// Generate a potential rating for a player whose current rating is already known: `ovr` plus a
+/// headroom for `age`. Returns a value in [1, 99] that is always >= `ovr`.
 /// The lower bound of 1 (via `ovr.max(1)`) ensures potential is never 0 even when `ovr` is 0.
 pub fn generate_potential(ovr: u8, age: u32, rng: &mut impl rand::Rng) -> u8 {
-    let bonus: u8 = match age {
-        ..=18 => rng.random_range(15u8..=30),
-        19..=20 => rng.random_range(8u8..=22),
-        21..=22 => rng.random_range(4u8..=14),
-        23..=25 => rng.random_range(0u8..=7),
-        _ => 0,
-    };
+    let bonus = roll_growth_headroom(age, rng);
     (ovr.saturating_add(bonus)).min(99).max(ovr.max(1))
+}
+
+/// Lower every attribute by the same amount, one point at a time, until the position-weighted
+/// rating is at or below `target_ovr`. Keeps the shape of the player (a keeper stays a keeper)
+/// and moves only his level, which is how a ceiling becomes a younger, less developed self.
+/// A target at or above the current rating changes nothing.
+pub fn lower_attributes_to(attributes: &mut PlayerAttributes, position: &Position, target_ovr: u8) {
+    while ovr_from_attributes(attributes, position) > f64::from(target_ovr) {
+        if !lower_each_attribute_by_one(attributes) {
+            break;
+        }
+    }
+}
+
+fn every_attribute_mut(a: &mut PlayerAttributes) -> [&mut u8; 19] {
+    [
+        &mut a.pace,
+        &mut a.stamina,
+        &mut a.strength,
+        &mut a.agility,
+        &mut a.passing,
+        &mut a.shooting,
+        &mut a.tackling,
+        &mut a.dribbling,
+        &mut a.defending,
+        &mut a.positioning,
+        &mut a.vision,
+        &mut a.decisions,
+        &mut a.composure,
+        &mut a.aggression,
+        &mut a.teamwork,
+        &mut a.leadership,
+        &mut a.handling,
+        &mut a.reflexes,
+        &mut a.aerial,
+    ]
+}
+
+/// Takes one point off every attribute still above 1. `false` when none could be lowered.
+fn lower_each_attribute_by_one(attributes: &mut PlayerAttributes) -> bool {
+    let mut lowered = false;
+    for value in every_attribute_mut(attributes) {
+        if *value > 1 {
+            *value -= 1;
+            lowered = true;
+        }
+    }
+    lowered
 }
 
 /// Parse birth year from a "YYYY-MM-DD" date string and return approximate age.

@@ -6,7 +6,10 @@ use rand::{Rng, RngExt};
 use super::authored_player::resolve_authored_contract;
 use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
-use crate::player_rating::{generate_potential, refresh_player_derived};
+use crate::player_rating::{
+    generate_potential, lower_attributes_to, natural_ovr, ovr_from_attributes,
+    refresh_player_derived, roll_growth_headroom,
+};
 
 pub(super) fn standard_available_staff_roles() -> [StaffRole; 12] {
     [
@@ -512,7 +515,7 @@ pub(super) fn generate_random_player_from_def(
     let is_def = matches!(group, Position::Defender);
     let is_fwd = matches!(group, Position::Forward);
 
-    let attributes = PlayerAttributes {
+    let mut attributes = PlayerAttributes {
         pace: rng.random_range(40..95),
         stamina: rng.random_range(40..95),
         strength: rng.random_range(40..95),
@@ -566,12 +569,26 @@ pub(super) fn generate_random_player_from_def(
         },
     };
 
+    // The attributes just rolled are the player at his best: they set his ceiling, and a player
+    // who has years of growth left is lowered from them by the headroom for his age. Ceiling
+    // first, rating second, so the whole world's ceilings follow the bell the rolls make and a
+    // teenager is an earlier version of a prime-age player rather than a better one.
+    let at_best = ovr_from_attributes(&attributes, &position);
+    let headroom = roll_growth_headroom(age, rng);
+    if headroom > 0 {
+        lower_attributes_to(
+            &mut attributes,
+            &position,
+            (at_best.round() as u8).saturating_sub(headroom),
+        );
+    }
+    let growth_left = (at_best - ovr_from_attributes(&attributes, &position)).round() as u8;
+
     // Size market value and wage from the same position-weighted rating the
     // player will be shown with, so a keeper is priced on keeping.
     let current_year: u32 = opening_year;
 
-    let approx_ovr =
-        crate::player_rating::ovr_from_attributes(&attributes, &position).round() as u32;
+    let approx_ovr = ovr_from_attributes(&attributes, &position).round() as u32;
 
     let age_factor = if age <= 23 {
         1.5
@@ -622,14 +639,10 @@ pub(super) fn generate_random_player_from_def(
         }
     }
 
-    // Set position-weighted OVR, potential, and traits (Wonderkid included if applicable)
-    let player_age = current_year.saturating_sub(birth_year);
-    // Pre-generate a potential so Wonderkid trait is assigned correctly on first refresh
-    let temp_ovr = {
-        use crate::player_rating::natural_ovr;
-        natural_ovr(&player).round() as u8
-    };
-    player.potential = generate_potential(temp_ovr, player_age, rng);
+    // Set position-weighted OVR and traits (Wonderkid included if applicable) around the ceiling.
+    player.potential = (natural_ovr(&player).round() as u8)
+        .saturating_add(growth_left)
+        .min(99);
     refresh_player_derived(&mut player, current_year);
 
     player.jersey_number = jersey_number_for_slot(index);
@@ -1234,6 +1247,134 @@ mod tests {
         )
     }
 
+    /// A fixed-seed league's worth of generated players, 23 slots a club, with the age each was
+    /// generated at (the opening year less the year of birth, which is what the generator sets
+    /// its headroom by).
+    fn generated_players(clubs: usize) -> Vec<(Player, i32)> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(869);
+        (0..clubs * 23)
+            .map(|n| {
+                let player = generate_random_player_from_def(
+                    "club-id",
+                    n % 23,
+                    "ENG",
+                    2026,
+                    None,
+                    &names_def,
+                    &mut rng,
+                );
+                let birth_year: i32 = player.date_of_birth[..4].parse().unwrap();
+                (player, 2026 - birth_year)
+            })
+            .collect()
+    }
+
+    /// Given generated teenagers (18 or younger),
+    /// When their rating is compared with their ceiling,
+    /// Then the ceiling is the headroom for their age above the rating: they are an earlier self.
+    #[test]
+    fn a_generated_teenager_is_an_earlier_version_of_his_ceiling() {
+        let teenagers: Vec<_> = generated_players(120)
+            .into_iter()
+            .filter(|(_, age)| *age <= 18)
+            .collect();
+        assert!(teenagers.len() > 200, "the fixture has too few teenagers");
+        for (player, age) in teenagers {
+            let room = player.potential - player.ovr;
+            assert!(
+                (13..=32).contains(&room),
+                "a {age}-year-old rated {} has a ceiling of {}, {room} above",
+                player.ovr,
+                player.potential
+            );
+        }
+    }
+
+    /// Given generated players of 26 or older,
+    /// When their rating is compared with their ceiling,
+    /// Then they are at it: a prime-age player has nothing left to grow into.
+    #[test]
+    fn a_generated_veteran_is_at_his_ceiling() {
+        let veterans: Vec<_> = generated_players(120)
+            .into_iter()
+            .filter(|(_, age)| *age >= 26)
+            .collect();
+        assert!(veterans.len() > 500, "the fixture has too few veterans");
+        for (player, age) in veterans {
+            assert!(
+                player.potential - player.ovr <= 1,
+                "a {age}-year-old rated {} has a ceiling of {}",
+                player.ovr,
+                player.potential
+            );
+        }
+    }
+
+    /// Given the same generated world,
+    /// When the average ceiling of its teenagers is compared with the average rating of its veterans,
+    /// Then they match: a teenager's ceiling is drawn from the bell a veteran's rating is, not
+    /// from that bell plus his headroom.
+    #[test]
+    fn a_teenagers_ceiling_is_drawn_from_the_same_bell_as_a_veterans_rating() {
+        let world = generated_players(360);
+        let mean = |values: Vec<u8>| {
+            values.iter().map(|v| f64::from(*v)).sum::<f64>() / values.len() as f64
+        };
+        let teenage_ceiling = mean(
+            world
+                .iter()
+                .filter(|(_, age)| *age <= 18)
+                .map(|(p, _)| p.potential)
+                .collect(),
+        );
+        let veteran_rating = mean(
+            world
+                .iter()
+                .filter(|(_, age)| *age >= 26)
+                .map(|(p, _)| p.ovr)
+                .collect(),
+        );
+
+        assert!(
+            (teenage_ceiling - veteran_rating).abs() < 1.5,
+            "teenagers' ceilings average {teenage_ceiling:.1}, veterans' ratings {veteran_rating:.1}"
+        );
+    }
+
+    /// Given a generated world of 360 clubs,
+    /// When the ceilings of its senior players are tiered,
+    /// Then S is 1 to 3.5% and A is 4.5 to 9%, the maintainer's targets.
+    #[test]
+    fn the_ceilings_of_senior_players_follow_the_tier_targets() {
+        use crate::player_tier::{PlayerTier, player_tier};
+        let seniors: Vec<_> = generated_players(360)
+            .into_iter()
+            .filter(|(_, age)| *age >= 21)
+            .collect();
+        let share = |tier: PlayerTier| {
+            seniors
+                .iter()
+                .filter(|(player, _)| player_tier(player.potential) == tier)
+                .count() as f64
+                / seniors.len() as f64
+        };
+
+        let (s, a) = (share(PlayerTier::S), share(PlayerTier::A));
+
+        assert!(
+            (0.01..=0.035).contains(&s),
+            "S ceilings are {:.1}%",
+            s * 100.0
+        );
+        assert!(
+            (0.045..=0.09).contains(&a),
+            "A ceilings are {:.1}%",
+            a * 100.0
+        );
+    }
+
     /// Given staff authored with and without a `knownAs` name (#557)
     /// When they are generated
     /// Then the one with it is displayed by it, keeping the real name, and the other by first and last.
@@ -1419,10 +1560,11 @@ mod tests {
             2026,
         );
 
-        // `generate_potential` gives an under-18 a 15..=30 bonus over ovr,
-        // capped at 99.
-        let floor = player.ovr.saturating_add(15).min(99);
-        let ceiling = player.ovr.saturating_add(30).min(99);
+        // The inverse of the ceiling-first roll: an authored rating gets the headroom for his
+        // age above it, from the same range a generated player's ceiling is lowered by.
+        let headroom = crate::player_rating::growth_headroom_range(17);
+        let floor = player.ovr.saturating_add(*headroom.start()).min(99);
+        let ceiling = player.ovr.saturating_add(*headroom.end()).min(99);
         assert!(
             (floor..=ceiling).contains(&player.potential),
             "a 17-year-old's rolled ceiling should sit {floor}..={ceiling}, got {}",
