@@ -2395,7 +2395,9 @@ mod tests {
     /// order the .db hands them back in (priority, season descending, then name).
     fn game_with_dormant_leagues_today() -> Game {
         let mut game = sample_game();
-        game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 9, 0, 0, 0).unwrap();
+        // Not an international-window date (9 September is one): a loaded save moves a match off
+        // a window, and this test is about the reload not changing what is played.
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 16, 0, 0, 0).unwrap();
         // No players: a free agent in the save would be signed by a short squad on load, and the
         // reloaded game's clubs would no longer be the ones it is compared with.
         game.players.clear();
@@ -2428,7 +2430,7 @@ mod tests {
                 id: format!("df-{n}"),
                 competition_id: format!("dormant-{n}"),
                 matchday: 1,
-                date: "2026-09-09".to_string(),
+                date: "2026-09-16".to_string(),
                 home_team_id: home,
                 away_team_id: away,
                 competition: domain::league::FixtureCompetition::League,
