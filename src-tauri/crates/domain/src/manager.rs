@@ -36,6 +36,15 @@ pub struct Manager {
     /// Never a market candidate, and archived when the permanent appointment arrives.
     #[serde(default)]
     pub interim: bool,
+
+    /// What they are called when it differs from their name ("Pep" for Josep Guardiola i Sala).
+    #[serde(default)]
+    pub known_as: Option<String>,
+    /// The one name to show for them: `known_as` if set, else first and last name. Kept up to
+    /// date by [`Manager::new`], [`Manager::set_known_as`] and the loaders, so a reader renders
+    /// it as it is and never decides between the names itself.
+    #[serde(default)]
+    pub display_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -103,7 +112,30 @@ impl Manager {
             career_stats: ManagerCareerStats::default(),
             career_history: Vec::new(),
             interim: false,
+            known_as: None,
+            display_name: String::new(),
         }
+        .with_display_name_refreshed()
+    }
+
+    fn with_display_name_refreshed(mut self) -> Self {
+        self.refresh_display_name();
+        self
+    }
+
+    /// Sets what they are called; blank means nothing in particular.
+    pub fn set_known_as(&mut self, known_as: Option<String>) {
+        self.known_as = crate::identity::tidy_known_as(known_as);
+        self.refresh_display_name();
+    }
+
+    /// Recomputes `display_name` from the names it depends on.
+    pub fn refresh_display_name(&mut self) {
+        self.display_name = crate::identity::display_name(
+            self.known_as.as_deref(),
+            &self.first_name,
+            &self.last_name,
+        );
     }
 
     pub fn hire(&mut self, team_id: String) {
@@ -183,6 +215,23 @@ mod tests {
             "1980-01-01".to_string(),
             "GB".to_string(),
         )
+    }
+
+    /// Given a manager with and without a known-as name (#557)
+    /// When their display name is read
+    /// Then it is the known-as name when set, else the full name, and a blank known-as is none.
+    #[test]
+    fn the_display_name_is_the_known_as_name_or_the_full_name() {
+        let mut m = manager();
+        assert_eq!(m.display_name, "Test Manager");
+
+        m.set_known_as(Some("Pep Guardiola".into()));
+        assert_eq!(m.display_name, "Pep Guardiola");
+        assert_eq!(m.full_name(), "Test Manager");
+
+        m.set_known_as(Some("   ".into()));
+        assert_eq!(m.known_as, None);
+        assert_eq!(m.display_name, "Test Manager");
     }
 
     #[test]

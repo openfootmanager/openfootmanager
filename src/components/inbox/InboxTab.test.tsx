@@ -199,6 +199,7 @@ function createGameState(messages: MessageData[]): GameStateData {
       start_date: "2025-01-01",
     },
     manager: {
+      display_name: "John Doe",
       id: "manager-1",
       first_name: "John",
       last_name: "Doe",

@@ -83,6 +83,10 @@ fn normalize_world(mut world: WorldData) -> WorldData {
         .staff
         .iter_mut()
         .for_each(domain::staff::Staff::refresh_display_name);
+    world
+        .managers
+        .iter_mut()
+        .for_each(domain::manager::Manager::refresh_display_name);
     if world.competitions.is_empty()
         && let Some(league) = world.league.clone()
     {
@@ -531,6 +535,36 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+
+    /// Given a world file whose managers predate the display name (no `display_name` in their JSON)
+    /// When it is loaded
+    /// Then each is displayed by their known-as name or their full name, not left blank (#557).
+    #[test]
+    fn a_world_file_without_manager_display_names_gets_them_on_load() {
+        let json = r#"{"managers":[
+            {"id":"m1","first_name":"Josep","last_name":"Guardiola i Sala","date_of_birth":"1971-01-18",
+             "nationality":"ES","reputation":900,"satisfaction":80,"team_id":null,"known_as":"Pep Guardiola",
+             "career_stats":{"matches_managed":0,"wins":0,"draws":0,"losses":0,"trophies":0,"best_finish":null},
+             "career_history":[]},
+            {"id":"m2","first_name":"Alice","last_name":"Boss","date_of_birth":"1970-05-10",
+             "nationality":"GB","reputation":500,"satisfaction":50,"team_id":null,
+             "career_stats":{"matches_managed":0,"wins":0,"draws":0,"losses":0,"trophies":0,"best_finish":null},
+             "career_history":[]}]}"#;
+
+        let world = load_world_from_json(json).expect("the world loads");
+
+        let name = |id: &str| {
+            world
+                .managers
+                .iter()
+                .find(|m| m.id == id)
+                .unwrap()
+                .display_name
+                .clone()
+        };
+        assert_eq!(name("m1"), "Pep Guardiola");
+        assert_eq!(name("m2"), "Alice Boss");
     }
 
     /// Given a world file whose staff predate the display name (no `display_name` in their JSON)

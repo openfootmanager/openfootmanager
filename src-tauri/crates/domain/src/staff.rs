@@ -107,22 +107,22 @@ impl Staff {
 
     /// First and last name together.
     pub fn full_name(&self) -> String {
-        format!("{} {}", self.first_name, self.last_name)
-            .trim()
-            .to_string()
+        crate::identity::display_name(None, &self.first_name, &self.last_name)
     }
 
     /// Sets what they are called; blank means nothing in particular.
     pub fn set_known_as(&mut self, known_as: Option<String>) {
-        self.known_as = known_as
-            .map(|name| name.trim().to_string())
-            .filter(|name| !name.is_empty());
+        self.known_as = crate::identity::tidy_known_as(known_as);
         self.refresh_display_name();
     }
 
     /// Recomputes `display_name` from the names it depends on.
     pub fn refresh_display_name(&mut self) {
-        self.display_name = self.known_as.clone().unwrap_or_else(|| self.full_name());
+        self.display_name = crate::identity::display_name(
+            self.known_as.as_deref(),
+            &self.first_name,
+            &self.last_name,
+        );
     }
 }
 
