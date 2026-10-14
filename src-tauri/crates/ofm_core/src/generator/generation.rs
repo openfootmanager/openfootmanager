@@ -477,7 +477,7 @@ pub(super) fn senior_slot(slot: usize) -> usize {
 const ROLLED_RATING_MEAN: f64 = 67.6;
 /// Where the generated ceilings centre. Young players open below their ceiling, so the ceilings
 /// sit above the mean rating a world should open at (about 68).
-const CEILING_MEAN: f64 = 70.0;
+const CEILING_MEAN: f64 = 69.6;
 /// How much of the rolled spread the ceilings keep. Lifting the centre alone would push the S tier
 /// past its 1 to 3% target, so the bell is narrowed as it is lifted.
 const CEILING_SPREAD: f64 = 0.80;
