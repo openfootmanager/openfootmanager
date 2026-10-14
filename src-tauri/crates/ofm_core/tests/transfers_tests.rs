@@ -850,6 +850,23 @@ fn an_old_rejection_is_forgotten() {
     assert_eq!(later.feedback.round, 1);
 }
 
+/// Given a rejection exactly the cooldown ago, and one a day short of it
+/// When the club bids again
+/// Then the first is forgotten (round one) and the second is still remembered (round two): the
+///      cooldown ends on its thirtieth day.
+#[test]
+fn the_cooldown_ends_on_its_last_day() {
+    for (days, expected_round) in [(29, 2), (30, 1)] {
+        let mut game = negotiation_game("player-boundary");
+        make_transfer_bid(&mut game, "player-boundary", 100_000).expect("first bid");
+
+        game.clock.advance_days(days);
+        let later = make_transfer_bid(&mut game, "player-boundary", 100_000).expect("later bid");
+
+        assert_eq!(later.feedback.round, expected_round, "{days} days later");
+    }
+}
+
 #[test]
 fn stale_outgoing_transfer_negotiation_is_withdrawn_before_new_bid() {
     let mut player = make_player("player-stale-bid");
