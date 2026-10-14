@@ -1702,6 +1702,7 @@ mod tests {
 
         let renewed = &game.competitions[0];
         assert!(renewed.season > season, "a new edition");
+        assert!(!renewed.fixtures.is_empty(), "with its ties scheduled");
         assert!(
             renewed
                 .fixtures
