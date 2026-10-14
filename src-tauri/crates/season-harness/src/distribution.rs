@@ -223,6 +223,28 @@ mod tests {
         assert_eq!(report.wonderkid_share, 0.5);
     }
 
+    /// Given a generated world and two season ends told to the log,
+    /// When the log is read,
+    /// Then it holds one report per season end, each the world's report at that moment.
+    #[test]
+    fn the_log_keeps_one_report_per_season_end() {
+        let mut game = crate::worlds::WorldSpec::gate(1)
+            .build()
+            .expect("the world builds");
+        let mut log = DistributionLog::default();
+        let summary = EndOfSeasonSummary::default();
+
+        log.on_season_end(&game, &summary, 1);
+        let first = distribution_report(&game);
+        game.players.truncate(game.players.len() / 2);
+        log.on_season_end(&game, &summary, 2);
+
+        assert_eq!(log.after_each_season.len(), 2);
+        assert_eq!(log.after_each_season[0], first);
+        assert_eq!(log.after_each_season[1], distribution_report(&game));
+        assert_ne!(log.after_each_season[0], log.after_each_season[1]);
+    }
+
     /// Given no players, when the world is reported, then every figure is zero rather than NaN.
     #[test]
     fn an_empty_world_reports_zeros() {
