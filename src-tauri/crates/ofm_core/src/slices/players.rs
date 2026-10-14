@@ -39,8 +39,8 @@ pub enum PlayerScope {
     /// Players the user's club could still approach: not on loan, not already agreed to move, and
     /// not in the user's own club.
     Market,
-    /// Players a scout can still be sent to watch: not in the user's own club and not already
-    /// being scouted.
+    /// Players a scout can still be sent to watch: not retired, not in the user's own club and not
+    /// already being scouted.
     Scoutable,
 }
 
@@ -148,7 +148,7 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
     let mut matches: Vec<&Player> = game
         .players
         .iter()
-        .filter(|player| matches_filters(player, query, needle.as_deref(), &context))
+        .filter(|player| matches_filters(player, query, needle.as_deref(), &context, &teams))
         .collect();
 
     sort_matches(&mut matches, query, &teams, context.today);
@@ -212,7 +212,9 @@ fn matches_scope(player: &Player, scope: PlayerScope, context: &ListContext) -> 
                 && !has_pending_transfer_registration(player)
         }
         PlayerScope::Scoutable => {
-            !context.is_users_own(player) && !context.scouted.contains(player.id.as_str())
+            !player.retired
+                && !context.is_users_own(player)
+                && !context.scouted.contains(player.id.as_str())
         }
     }
 }
@@ -242,9 +244,10 @@ fn matches_filters(
     query: &PlayersPageQuery,
     needle: Option<&str>,
     context: &ListContext,
+    teams: &TeamLookup,
 ) -> bool {
     if let Some(needle) = needle
-        && !matches_search(player, needle)
+        && !matches_search(player, needle, teams)
     {
         return false;
     }
@@ -288,10 +291,18 @@ fn matches_filters(
     }
 }
 
-fn matches_search(player: &Player, needle: &str) -> bool {
-    [&player.full_name, &player.match_name, &player.nationality]
-        .iter()
-        .any(|haystack| haystack.to_ascii_lowercase().contains(needle))
+/// A name, a nationality or the player's club: the scouting search has always found by club, and
+/// every list shares the one rule.
+fn matches_search(player: &Player, needle: &str, teams: &TeamLookup) -> bool {
+    let club = team_name_for(player, teams);
+    [
+        player.full_name.as_str(),
+        player.match_name.as_str(),
+        player.nationality.as_str(),
+        club,
+    ]
+    .iter()
+    .any(|haystack| haystack.to_ascii_lowercase().contains(needle))
 }
 
 fn sort_matches(
