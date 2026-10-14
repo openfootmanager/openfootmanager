@@ -512,7 +512,7 @@ describe("getContractRiskLevel", () => {
 
 describe("formatVal", () => {
   it("formats millions", () => {
-    expect(formatVal(5000000)).toBe("€5.0M");
+    expect(formatVal(5000000)).toBe("€5M");
     expect(formatVal(1500000)).toBe("€1.5M");
   });
 

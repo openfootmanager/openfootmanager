@@ -13,21 +13,10 @@ function getFormattingSettings(): {
   };
 }
 
-export function getCurrencySymbol(
-  currency: AppSettings["currency"] = getFormattingSettings().currency.code,
-): string {
-  const { supportedCurrencies } = useSettingsStore.getState();
-  return supportedCurrencies[currency]?.symbol ?? getFormattingSettings().currency.symbol ?? "€";
-}
-
+/** Rounds the magnitude and reapplies the sign, so 25 and -25 convert to the same size. */
 function convertCurrencyValue(value: number, exchangeRate?: number): number {
   const resolvedExchangeRate = exchangeRate ?? getFormattingSettings().currency.exchange_rate;
-  return Math.round(value * resolvedExchangeRate);
-}
-
-function prefixCurrency(amount: string, value: number, currency: AppSettings["currency"]): string {
-  const sign = value < 0 ? "-" : "";
-  return `${sign}${getCurrencySymbol(currency)}${amount}`;
+  return Math.sign(value) * Math.round(Math.abs(value) * resolvedExchangeRate);
 }
 
 /**
@@ -76,49 +65,61 @@ export function calcAgeOnDate(dob: string, asOfDate: string): number {
   return age;
 }
 
-export function formatExactMoney(value: number): string {
+/**
+ * Presentation only: the amount is converted by the app's own exchange rate (the game keeps one
+ * display currency, chosen in settings), and Intl then places the symbol, groups the digits and
+ * picks the compact units the way the player's language does.
+ */
+function presentMoney(
+  value: number,
+  options: Pick<Intl.NumberFormatOptions, "notation" | "maximumFractionDigits">,
+): string {
   const { currency, language } = getFormattingSettings();
-  const absoluteValue = convertCurrencyValue(Math.abs(value), currency.exchange_rate);
+  const converted = convertCurrencyValue(value, currency.exchange_rate);
 
-  return prefixCurrency(
-    absoluteValue.toLocaleString(language, {
-      maximumFractionDigits: 0,
-    }),
-    value,
-    currency.code,
-  );
+  return new Intl.NumberFormat(language, {
+    style: "currency",
+    currency: currency.code,
+    currencyDisplay: "narrowSymbol",
+    minimumFractionDigits: 0,
+    ...options,
+  }).format(converted === 0 ? 0 : converted);
+}
+
+export function formatExactMoney(value: number): string {
+  return presentMoney(value, { maximumFractionDigits: 0 });
+}
+
+/**
+ * How many decimals a compact amount keeps. Languages whose units step by a thousand (K, M) keep
+ * the established rule: thousands whole, millions to one decimal. A language whose unit steps by
+ * ten thousand (万) would lose a fifth of €12,345 that way, so it keeps one decimal until the
+ * number in front of the unit reaches three digits.
+ */
+function compactFractionDigits(amount: number, language: string): number {
+  if (amount === 0) return 0;
+  const digits = new Intl.NumberFormat(language, { notation: "compact", maximumFractionDigits: 3 })
+    .formatToParts(amount)
+    .filter((part) => part.type === "integer" || part.type === "fraction");
+  const integer = digits.filter((part) => part.type === "integer").map((part) => part.value);
+  const fraction = digits.filter((part) => part.type === "fraction").map((part) => part.value);
+  const scaled = Number(`${integer.join("")}.${fraction.join("") || "0"}`);
+  const unitExponent = Math.round(Math.log10(amount / scaled));
+
+  if (unitExponent % 3 === 0) {
+    return amount >= 1_000_000 ? 1 : 0;
+  }
+  return scaled < 100 ? 1 : 0;
 }
 
 export function formatVal(value: number): string {
   const { currency, language } = getFormattingSettings();
-  const absoluteValue = convertCurrencyValue(Math.abs(value), currency.exchange_rate);
+  const converted = Math.abs(convertCurrencyValue(value, currency.exchange_rate));
 
-  if (absoluteValue >= 1_000_000) {
-    return `${prefixCurrency(
-      (absoluteValue / 1_000_000).toLocaleString(language, {
-        minimumFractionDigits: 1,
-        maximumFractionDigits: 1,
-      }),
-      value,
-      currency.code,
-    )}M`;
-  }
-
-  if (absoluteValue >= 1_000) {
-    return `${prefixCurrency(
-      (absoluteValue / 1_000).toLocaleString(language, {
-        maximumFractionDigits: 0,
-      }),
-      value,
-      currency.code,
-    )}K`;
-  }
-
-  return prefixCurrency(
-    absoluteValue.toLocaleString(language, { maximumFractionDigits: 0 }),
-    value,
-    currency.code,
-  );
+  return presentMoney(value, {
+    notation: "compact",
+    maximumFractionDigits: compactFractionDigits(converted, language),
+  });
 }
 
 /** Exact on the surfaces where a decision is made, compact in tiles and list columns. */
