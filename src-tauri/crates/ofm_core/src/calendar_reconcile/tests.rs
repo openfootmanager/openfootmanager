@@ -877,7 +877,10 @@ fn collecting_items_skips_history_beyond_the_rest_window() {
     let items = collect_items(&competitions, &rounds, day(2033, 2, 1)).unwrap();
 
     let ids: Vec<&str> = items.iter().map(|item| item.fixture.id.as_str()).collect();
-    assert!(ids.contains(&"l1") && ids.contains(&"inside"), "{ids:?}");
+    assert!(
+        ids.contains(&"l1") && ids.contains(&"inside") && ids.contains(&"edge"),
+        "{ids:?}"
+    );
     assert!(ids.len() <= 3, "history was collected: {} items", ids.len());
 }
 

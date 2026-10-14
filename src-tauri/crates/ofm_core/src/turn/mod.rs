@@ -206,6 +206,14 @@ fn process_day_common(game: &mut Game, today: &str) {
     crate::job_offers::check_job_offers(game);
 }
 
+/// Marks the start of a day, before any match of it is played: notes which knockout fixtures the
+/// player has been shown, so a round drawn later in the day, by the player's own result or any
+/// other, is known to be new. Safe to call again the same day. Every way of playing a day that
+/// applies results before it finishes the day calls this first.
+pub fn begin_day(game: &mut Game) {
+    calendar_sweep::begin_day(game);
+}
+
 /// The football that happens today outside the fixture the player was watching.
 ///
 /// Every competition still holding a scheduled fixture for `today`, then the dormant tier, then
@@ -215,7 +223,7 @@ fn simulate_the_rest_of_the_world<F>(game: &mut Game, today: &str, on_capture: &
 where
     F: FnMut(StatsState),
 {
-    let shown_fixtures = calendar_sweep::shown_bracket_fixtures(game);
+    let shown_fixtures = calendar_sweep::take_shown_at_day_start(game, today);
     let due = competition_indices_due_today(game, today);
     if !due.is_empty() {
         info!("[turn] {}: matchday in {} competition(s)", today, due.len());

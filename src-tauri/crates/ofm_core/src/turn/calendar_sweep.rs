@@ -17,6 +17,32 @@ fn has_bracket(competition: &domain::league::League) -> bool {
     !competition.knockout_rounds.is_empty()
 }
 
+/// Notes, once per day and before anything is played, which bracket fixtures the player has been
+/// shown. Calling it again the same day changes nothing.
+pub(super) fn begin_day(game: &mut Game) {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    if game
+        .day_start
+        .as_ref()
+        .is_some_and(|start| start.date == today)
+    {
+        return;
+    }
+    game.day_start = Some(crate::game::DayStart {
+        date: today,
+        bracket_fixtures: shown_bracket_fixtures(game),
+    });
+}
+
+/// The fixtures shown when `today` began: the noted ones if the day was begun, otherwise what
+/// the calendar holds right now. Consumes the note.
+pub(super) fn take_shown_at_day_start(game: &mut Game, today: &str) -> ShownFixtures {
+    match game.day_start.take() {
+        Some(start) if start.date == today => start.bracket_fixtures,
+        _ => shown_bracket_fixtures(game),
+    }
+}
+
 pub(super) fn shown_bracket_fixtures(game: &Game) -> ShownFixtures {
     game.competitions
         .iter()
@@ -524,5 +550,54 @@ mod tests {
 
         assert!(reconcile_calendar(&mut game, "2033-03-02", &shown));
         assert_ne!(date_of(&game, "league", "l1"), "2033-03-10");
+    }
+
+    /// Given the user's club playing the last tie of a cup round on the live path, so that its
+    /// result is applied and the next round drawn before the day is finished, and the drawn final
+    /// landing on an international window,
+    /// When the day is finished,
+    /// Then the final moves off the window without a postponement or a message: its date was
+    /// never shown, whoever's result drew it.
+    #[test]
+    fn a_round_drawn_by_the_players_own_last_tie_is_not_a_shown_date() {
+        let mut game = game_on(2033, 9, 1, "a");
+        let mut round_one = vec![
+            fixture("cup", "t1", "2033-09-01", "a", "b"),
+            fixture("cup", "t2", "2033-09-01", "c", "d"),
+        ];
+        round_one[1].status = domain::league::FixtureStatus::Completed;
+        round_one[1].result = Some(domain::league::MatchResult {
+            home_goals: 1,
+            ..Default::default()
+        });
+        let mut cup = cup(vec![round_one]);
+        cup.rules.knockout_round_gap_days = 8;
+        game.competitions = vec![cup];
+        super::super::begin_day(&mut game);
+
+        // What applying the user's result does: record it and draw the next round.
+        let cup = &mut game.competitions[0];
+        cup.fixtures[0].status = domain::league::FixtureStatus::Completed;
+        cup.fixtures[0].result = Some(domain::league::MatchResult {
+            home_goals: 2,
+            ..Default::default()
+        });
+        crate::schedule::advance_knockout_competition_round(cup);
+        let drawn = cup.fixtures.last().unwrap().clone();
+        assert_eq!(
+            drawn.date, "2033-09-09",
+            "the premise: the final is drawn on the window"
+        );
+
+        super::super::finish_live_match_day(&mut game);
+
+        let final_tie = game.competitions[0]
+            .fixtures
+            .iter()
+            .find(|f| f.id == drawn.id)
+            .unwrap();
+        assert_ne!(final_tie.date, "2033-09-09", "the sweep moved it");
+        assert!(final_tie.postponement.is_none(), "it was never shown");
+        assert_eq!(moved_message_count(&game), 0);
     }
 }

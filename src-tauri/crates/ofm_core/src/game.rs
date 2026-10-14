@@ -75,6 +75,14 @@ pub struct YouthScoutingAssignment {
     pub days_remaining: u32,
 }
 
+/// What the calendar sweep needs to know about the day it ends: which bracket fixtures had
+/// already been shown to the player when `date` began.
+#[derive(Debug, Clone)]
+pub struct DayStart {
+    pub date: String,
+    pub bracket_fixtures: std::collections::HashSet<(String, String)>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Game {
     pub clock: GameClock,
@@ -138,6 +146,12 @@ pub struct Game {
     /// always sweeps.
     #[serde(skip)]
     pub calendar_fingerprint: Option<u64>,
+    /// The bracket fixtures that existed when the current day began, taken before anything is
+    /// played. A round drawn during the day is not among them, however it came to be drawn (the
+    /// player's own result, another match): its dates were never shown to the player. Dropped at
+    /// the end of the day it describes.
+    #[serde(skip)]
+    pub day_start: Option<DayStart>,
     /// Unemployed managers who have left the active pool, whole and frozen, so a club's past
     /// managers stay readable without every reader of `managers` filtering them out. Skipped on
     /// IPC serde like the other archives. Persistence is the `retired_managers` table.
@@ -229,6 +243,7 @@ impl Game {
             edition_archive: Vec::new(),
             retired_players: Vec::new(),
             calendar_fingerprint: None,
+            day_start: None,
             retired_managers: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
