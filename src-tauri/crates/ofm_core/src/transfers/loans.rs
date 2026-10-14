@@ -807,7 +807,8 @@ pub(crate) fn ai_should_exercise_loan_buy_option(
     loan_minutes: u32,
     loan_appearances: u32,
 ) -> bool {
-    if fee == 0 || loan_team.finance < fee as i64 || loan_team.transfer_budget < fee as i64 {
+    // A zero buy option is no option at all, so it is refused before the club's means are asked.
+    if fee == 0 || !can_afford_fee(loan_team, fee) {
         return false;
     }
 

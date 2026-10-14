@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use uuid::Uuid;
 
+mod affordability;
 mod bids;
 mod consts;
 mod execution;
@@ -31,6 +32,7 @@ mod market;
 mod notifications;
 mod registration;
 
+pub(crate) use affordability::{can_afford_fee, fee_block, transfer_fee_ceiling};
 pub use bids::*;
 use consts::*;
 pub use execution::*;
