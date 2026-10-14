@@ -13,7 +13,7 @@ import {
   GraduationCap,
   Star,
 } from "lucide-react";
-import { getTeamName, calcAge, formatVal, formatWeeklyAmount } from "../../lib/helpers";
+import { getTeamName, calcAge, formatWeeklyWage } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { useTranslation } from "react-i18next";
 import { hireStaff, releaseStaff } from "../../services/staffService";
@@ -112,7 +112,6 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
       .catch(() => {});
   }, [teamId]);
 
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
   const openScoutingWorkflowLabel = t("staff.openScoutingWorkflow");
 
   const myStaff =
@@ -349,7 +348,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                           )}
                           {staff.wage > 0 && (
                             <span className="text-[10px] bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded font-heading uppercase tracking-wider">
-                              {formatWeeklyAmount(formatVal(staff.wage), weeklySuffix)}
+                              {formatWeeklyWage(staff.wage, "compact")}
                             </span>
                           )}
                           {staff.role === "Scout" ? (
