@@ -30,6 +30,8 @@ pub struct PackageProjectData {
     pub names: Option<NamesDefinition>,
     pub competitions: Vec<CompetitionDefinition>,
     pub issues: Vec<PackageIssue>,
+    /// Problems that leave the package usable: shown to the author, never blocking.
+    pub warnings: Vec<PackageIssue>,
 }
 
 // ---------------------------------------------------------------------------
@@ -146,14 +148,17 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
         return Err("be.error.package.notAProjectDirectory".to_string());
     }
 
-    let issues = errors
-        .into_iter()
-        .map(|e| PackageIssue {
-            code: e.code,
-            file: e.file,
-            params: e.params.into_iter().collect(),
-        })
-        .collect();
+    let as_issues = |list: Vec<ofm_core::generator::PackageError>| -> Vec<PackageIssue> {
+        list.into_iter()
+            .map(|e| PackageIssue {
+                code: e.code,
+                file: e.file,
+                params: e.params.into_iter().collect(),
+            })
+            .collect()
+    };
+    let warnings = as_issues(ofm_core::generator::package_warnings(&pkg));
+    let issues = as_issues(errors);
 
     Ok(PackageProjectData {
         meta: pkg.meta.unwrap_or_default(),
@@ -165,6 +170,7 @@ pub fn read_package_project(dir: String) -> Result<PackageProjectData, String> {
         names: pkg.names,
         competitions: pkg.competitions,
         issues,
+        warnings,
     })
 }
 
@@ -286,6 +292,44 @@ mod tests {
         let project = root.join("world-editor").join(project_name_for(&archive));
         let legacy = root.join("world-editor-temp").join("pkg");
         (archive, project, legacy)
+    }
+
+    /// Given a package with a country outside the catalog and in no confederation (#830)
+    /// When it is opened in the editor
+    /// Then it opens, and a warning names the file, the country and its code.
+    #[test]
+    fn opening_a_project_reports_a_country_with_no_region_as_a_warning() {
+        let dir = temp_project(
+            "warns-no-region",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"qland","name":"Qland","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "countries/qq.json",
+                    r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
+                ),
+            ],
+        );
+
+        let project = read_package_project(dir.to_string_lossy().to_string()).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(project.countries.len(), 1, "the package still opens");
+        assert_eq!(project.warnings.len(), 1);
+        let warning = &project.warnings[0];
+        assert_eq!(warning.code, "be.warning.package.countryWithoutRegion");
+        assert_eq!(warning.file, "countries/qq.json");
+        assert_eq!(warning.params.get("code").map(String::as_str), Some("QQ"));
+        assert_eq!(
+            warning.params.get("name").map(String::as_str),
+            Some("Qland")
+        );
+        assert!(
+            project.issues.iter().all(|i| i.code != warning.code),
+            "a warning is not an error"
+        );
     }
 
     #[test]

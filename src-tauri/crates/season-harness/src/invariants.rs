@@ -377,10 +377,8 @@ pub const CLUB_RESTS_BETWEEN_MATCHES: &str = "club-rests-between-matches";
 /// The maintainer's ruling of 12 Oct 2026: a club's competitive matches are at least this many
 /// days apart, so Saturday then Tuesday is legal and Saturday then Monday is a clash.
 ///
-/// Held here rather than read from `ofm_core::calendar_booking`: that module books on a
-/// two-date rule and exposes no constant, and the calendar rework is rewriting it. Point this at
-/// the game's own constant once it has one.
-pub const MIN_DAYS_BETWEEN_MATCHES: i64 = 3;
+/// The game's own minimum rest, under the name the gate uses, so the rule has one source.
+pub use ofm_core::calendar_booking::MIN_GAP_DAYS as MIN_DAYS_BETWEEN_MATCHES;
 
 /// Given the clubs' competitions as they stand,
 /// When a club has two competitive fixtures less than [`MIN_DAYS_BETWEEN_MATCHES`] apart,
@@ -390,7 +388,11 @@ pub const MIN_DAYS_BETWEEN_MATCHES: i64 = 3;
 /// first day on, like `no_stranded_fixture`, since a world built part-way through a season
 /// carries fixtures from before the career that it never played.
 fn club_rests_between_matches(game: &Game) -> Vec<String> {
-    let began = game.clock.start_date.date_naive();
+    clashes_since(game, game.clock.start_date.date_naive())
+}
+
+/// The clashes among fixtures dated `since` or later.
+fn clashes_since(game: &Game, since: NaiveDate) -> Vec<String> {
     let mut matches_by_club: BTreeMap<&str, Vec<(NaiveDate, &str)>> = BTreeMap::new();
     for competition in &game.competitions {
         for fixture in &competition.fixtures {
@@ -404,7 +406,7 @@ fn club_rests_between_matches(game: &Game) -> Vec<String> {
             let Ok(date) = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") else {
                 continue;
             };
-            if !competitive || date < began {
+            if !competitive || date < since {
                 continue;
             }
             for club in [&fixture.home_team_id, &fixture.away_team_id] {
@@ -728,11 +730,6 @@ mod tests {
     fn every_daily_rule_is_quiet_on_the_world_as_built() {
         let game = world();
         for (rule, check) in EVERY_DAY {
-            // The built world books clubs twice in a day (#553). The rule's own
-            // tests below prove it looks; the gate is what holds the world to it.
-            if *rule == CLUB_RESTS_BETWEEN_MATCHES {
-                continue;
-            }
             assert_eq!(
                 check(&game),
                 Vec::<String>::new(),
@@ -793,8 +790,8 @@ mod tests {
     /// Then the club is reported as playing twice that day — and is not before.
     ///
     /// The world is cut down to a single competition first so the control is
-    /// real: the built world has double bookings of its own (#553), and a rule
-    /// that "passes" there could not be told from one that does not look.
+    /// real: a rule that passes on the full built world could not be told from one that does not
+    /// look at all.
     #[test]
     fn a_club_booked_twice_on_one_day_is_noticed() {
         let mut game = world();
@@ -824,6 +821,19 @@ mod tests {
                 )
             ),
             "{faults:?}"
+        );
+    }
+
+    /// The rule reads from the career's first day on. This asserts that fixtures from before it do
+    /// clash in the built world, so the day they stop, it fails and says to delete the exemption.
+    #[test]
+    fn the_built_world_clashes_before_the_career_began_too() {
+        let game = world();
+        let in_career = club_rests_between_matches(&game).len();
+        let ever = clashes_since(&game, NaiveDate::MIN).len();
+        assert!(
+            ever > in_career,
+            "#553 is fixed before the career too: delete the pre-career exemption in club_rests_between_matches"
         );
     }
 

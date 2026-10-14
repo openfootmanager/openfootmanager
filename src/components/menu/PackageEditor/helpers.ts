@@ -244,6 +244,7 @@ export function emptyStaff(): StaffDef {
     specialization: null,
     dateOfBirth: null,
     age: null,
+    knownAs: null,
   };
 }
 

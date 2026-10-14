@@ -3475,6 +3475,10 @@
         "LoanConflict": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{start}} porque o jogador está emprestado ou tem um empréstimo acertado aguardando registro. Nenhum valor foi pago pela transferência.",
         "PlayerUnavailable": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{start}} porque o jogador não está mais disponível em um clube vendedor. Nenhum valor foi pago pela transferência.",
         "RegistrationBlocked": "A transferência acertada de {{player}} para {{buyer}} por {{fee}} não pôde ser registrada em {{start}} porque um requisito de registro deixou de ser atendido. Nenhum valor foi pago pela transferência."
+      },
+      "matchesMoved": {
+        "subject": "Jogos reagendados",
+        "body": "Alguns dos seus jogos foram alterados para que seus jogadores mantenham o descanso e as datas FIFA sejam respeitadas:\n{{matches}}"
       }
     },
     "news": {
@@ -3646,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Carreira de {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, então seus clubes ficam em Europa. Dê a ele uma confederação."
+      }
     }
   },
   "traits": {
@@ -3893,6 +3902,7 @@
     "saveSuccess": "Salvo",
     "saveTeam": "Salvar time",
     "issues": "{{count}} problema(s)",
+    "warnings": "{{count}} aviso(s)",
     "packageId": "ID do Pacote",
     "packageName": "Nome do Pacote",
     "description": "Descrição",
@@ -4051,6 +4061,7 @@
     "openPackageFileInvalid": "Selecione um arquivo de pacote .ofm válido",
     "noItemSelected": "Selecione um item da lista ou clique em Adicionar",
     "issuesBadge": "{{count}} problema(s)",
+    "warningsBadge": "{{count}} avisos",
     "issuesTitle": "Problemas de validação",
     "noIssues": "Sem problemas — o mundo é válido",
     "saving": "Salvando…",
@@ -4125,6 +4136,8 @@
     "staffId": "ID",
     "staffFirstName": "Nome",
     "staffLastName": "Sobrenome",
+    "staffKnownAs": "Conhecido como (opcional)",
+    "staffKnownAsPlaceholder": "ex.: Cafu",
     "staffClub": "Clube",
     "staffNationality": "Nacionalidade",
     "staffDateOfBirth": "Data de nascimento",

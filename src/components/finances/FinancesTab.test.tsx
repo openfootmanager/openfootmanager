@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactElement } from "react";
+import { Profiler, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
@@ -888,6 +888,121 @@ describe("FinancesTab facilities", () => {
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-critical", {
       openRenewal: true,
+    });
+  });
+
+  /**
+   * Given a squad with two players whose contracts are at risk
+   * When the finance panel first appears on screen
+   * Then both are already selected, so a click that lands before any effect has run cannot flip
+   * the default (the delegate test below clicks the moment "Facilities" shows).
+   */
+  it("shows every at-risk player selected from the first frame they are on screen", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.reject(new Error(`Unexpected command: ${command}`)),
+    );
+    // A Profiler's onRender runs while a commit is being made, after the DOM has changed and before
+    // that commit's passive effects, whatever the scheduler does. Reading the checkbox there sees
+    // the first frame by construction rather than by how React happens to order its tasks.
+    let checkedOnFirstAppearance: boolean | null = null;
+    const readFirstFrame = () => {
+      const box = document.querySelector<HTMLInputElement>(
+        'input[aria-label="Select Ben Warning"]',
+      );
+      if (box && checkedOnFirstAppearance === null) checkedOnFirstAppearance = box.checked;
+    };
+
+    await renderFinances(
+      <Profiler id="finances" onRender={readFirstFrame}>
+        <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />
+      </Profiler>,
+    );
+
+    expect(checkedOnFirstAppearance).toBe(true);
+  });
+
+  /**
+   * Given two at-risk players, both selected
+   * When "Select all" is pressed twice
+   * Then the first press clears the selection and the second selects everyone again.
+   */
+  it("toggles every at-risk player off and back on with Select all", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.reject(new Error(`Unexpected command: ${command}`)),
+    );
+    await renderFinances(
+      <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />,
+    );
+    const critical = screen.getByLabelText("Select Alex Critical");
+    const warning = screen.getByLabelText("Select Ben Warning");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(critical).not.toBeChecked();
+    expect(warning).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(critical).toBeChecked();
+    expect(warning).toBeChecked();
+  });
+
+  /**
+   * Given two at-risk players, both selected
+   * When Ben is switched off and then on again
+   * Then the delegate call carries both players.
+   */
+  it("delegates a player who was switched off and then on again", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "delegate_renewals") {
+        return Promise.resolve({
+          game: createGameState({ wage_budget: 50000 }, [], riskyPlayers),
+          report: { success_count: 2, failure_count: 0, stalled_count: 0, cases: [] },
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(
+      <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Select Ben Warning"));
+    fireEvent.click(screen.getByLabelText("Select Ben Warning"));
+    fireEvent.click(screen.getByRole("button", { name: "Delegate Selected Renewals" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {
+        playerIds: ["player-critical", "player-warning"],
+        maxWageIncreasePct: 35,
+        maxContractYears: 3,
+      });
     });
   });
 

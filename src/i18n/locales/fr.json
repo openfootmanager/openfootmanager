@@ -3475,6 +3475,10 @@
         "LoanConflict": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur est prêté ou a un prêt convenu en attente d'enregistrement. Aucune indemnité de transfert n'a été versée.",
         "PlayerUnavailable": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur n'est plus disponible auprès d'un club vendeur. Aucune indemnité de transfert n'a été versée.",
         "RegistrationBlocked": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car une condition d'enregistrement n'est plus remplie. Aucune indemnité de transfert n'a été versée."
+      },
+      "matchesMoved": {
+        "subject": "Matchs reprogrammés",
+        "body": "Certains de vos matchs ont été déplacés afin que vos joueurs gardent leur repos et que les trêves internationales soient respectées :\n{{matches}}"
       }
     },
     "news": {
@@ -3646,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Carrière de {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Ce paquet définit le pays « {{name}} » ({{code}}) en dehors de la liste des pays du jeu et ne le place dans aucune confédération ; ses clubs sont donc classés en Europe. Donnez-lui une confédération."
+      }
     }
   },
   "traits": {
@@ -3893,6 +3902,7 @@
     "saveSuccess": "Enregistré",
     "saveTeam": "Enregistrer l'équipe",
     "issues": "{{count}} problème(s)",
+    "warnings": "{{count}} avertissement(s)",
     "packageId": "ID du Paquet",
     "packageName": "Nom du Paquet",
     "description": "Description",
@@ -4051,6 +4061,7 @@
     "openPackageFileInvalid": "Veuillez sélectionner un fichier de package .ofm valide",
     "noItemSelected": "Sélectionnez un élément dans la liste ou cliquez sur Ajouter",
     "issuesBadge": "{{count}} problème(s)",
+    "warningsBadge": "{{count}} avertissements",
     "issuesTitle": "Problèmes de validation",
     "noIssues": "Aucun problème — le monde est valide",
     "saving": "Enregistrement…",
@@ -4125,6 +4136,8 @@
     "staffId": "ID",
     "staffFirstName": "Prénom",
     "staffLastName": "Nom",
+    "staffKnownAs": "Connu sous le nom de (facultatif)",
+    "staffKnownAsPlaceholder": "p. ex. Cafu",
     "staffClub": "Club",
     "staffNationality": "Nationalité",
     "staffDateOfBirth": "Date de naissance",

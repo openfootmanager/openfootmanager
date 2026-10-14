@@ -3475,6 +3475,10 @@
         "LoanConflict": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler verliehen ist oder eine vereinbarte Leihe auf die Registrierung wartet. Es wurde keine Ablöse gezahlt.",
         "PlayerUnavailable": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler bei keinem verkaufenden Verein mehr verfügbar ist. Es wurde keine Ablöse gezahlt.",
         "RegistrationBlocked": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil eine Registrierungsvoraussetzung nicht mehr erfüllt ist. Es wurde keine Ablöse gezahlt."
+      },
+      "matchesMoved": {
+        "subject": "Spiele verlegt",
+        "body": "Einige Ihrer Spiele wurden verlegt, damit Ihre Spieler ihre Ruhezeit behalten und die Länderspielpausen eingehalten werden:\n{{matches}}"
       }
     },
     "news": {
@@ -3646,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Karriere von {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Dieses Paket definiert das Land „{{name}}“ ({{code}}) außerhalb der Länderliste des Spiels und ordnet es keinem Verband zu, daher werden seine Vereine unter Europa geführt. Weise ihm einen Verband zu."
+      }
     }
   },
   "traits": {
@@ -3893,6 +3902,7 @@
     "saveSuccess": "Gespeichert",
     "saveTeam": "Verein speichern",
     "issues": "{{count}} Problem(e)",
+    "warnings": "{{count}} Warnung(en)",
     "packageId": "Paket-ID",
     "packageName": "Paketname",
     "description": "Beschreibung",
@@ -4051,6 +4061,7 @@
     "openPackageFileInvalid": "Bitte eine gültige .ofm-Paketdatei auswählen",
     "noItemSelected": "Wähle ein Element aus der Liste oder klicke auf Hinzufügen",
     "issuesBadge": "{{count}} Problem(e)",
+    "warningsBadge": "{{count}} Warnungen",
     "issuesTitle": "Validierungsprobleme",
     "noIssues": "Keine Probleme – Welt ist gültig",
     "saving": "Speichern…",
@@ -4125,6 +4136,8 @@
     "staffId": "ID",
     "staffFirstName": "Vorname",
     "staffLastName": "Nachname",
+    "staffKnownAs": "Bekannt als (optional)",
+    "staffKnownAsPlaceholder": "z. B. Cafu",
     "staffClub": "Verein",
     "staffNationality": "Nationalität",
     "staffDateOfBirth": "Geburtsdatum",

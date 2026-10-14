@@ -3162,7 +3162,7 @@
         "options": {
           "accept": {
             "label": "Anlaşmayı kabul et",
-            "description": "Receive €{{amount}} in sponsorship income."
+            "description": "Sponsorluk gelirinde {{amount}} kazan."
           },
           "decline": {
             "label": "Kibarca reddet",
@@ -3475,6 +3475,10 @@
         "LoanConflict": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu kiralık durumda veya tescil bekleyen bir kiralama anlaşması var. Transfer bedeli ödenmedi.",
         "PlayerUnavailable": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu artık bir satıcı kulüpten transfer edilebilir durumda değil. Transfer bedeli ödenmedi.",
         "RegistrationBlocked": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; bir tescil koşulu artık sağlanmıyor. Transfer bedeli ödenmedi."
+      },
+      "matchesMoved": {
+        "subject": "Maçlar yeniden planlandı",
+        "body": "Oyuncularınızın dinlenme süresini korumak ve milli maç aralarına uyabilmek için bazı maçlarınızın tarihi değiştirildi:\n{{matches}}"
       }
     },
     "news": {
@@ -3646,6 +3650,11 @@
     },
     "save": {
       "defaultName": "{{manager}} Kariyeri"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin."
+      }
     }
   },
   "traits": {
@@ -3893,6 +3902,7 @@
     "saveSuccess": "Kaydedildi",
     "saveTeam": "Takımı Kaydet",
     "issues": "{{count}} sorun",
+    "warnings": "{{count}} uyarı",
     "packageId": "Paket ID'si",
     "packageName": "Paket Adı",
     "description": "Açıklama",
@@ -4051,6 +4061,7 @@
     "openPackageFileInvalid": "Lütfen geçerli bir .ofm paket dosyası seçin",
     "noItemSelected": "Listeden bir öğe seçin veya oluşturmak için Ekle'ye tıklayın",
     "issuesBadge": "{{count}} sorun",
+    "warningsBadge": "{{count}} uyarı",
     "issuesTitle": "Doğrulama Sorunları",
     "noIssues": "Sorun yok — dünya geçerli",
     "saving": "Kaydediliyor…",
@@ -4126,6 +4137,8 @@
     "staffId": "ID",
     "staffFirstName": "Ad",
     "staffLastName": "Soyad",
+    "staffKnownAs": "Bilinen adı (isteğe bağlı)",
+    "staffKnownAsPlaceholder": "örn. Cafu",
     "staffClub": "Kulüp",
     "staffNationality": "Uyruk",
     "staffDateOfBirth": "Doğum Tarihi",

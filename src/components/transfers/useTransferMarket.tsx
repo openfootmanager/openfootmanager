@@ -45,8 +45,20 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
       setOpenPositionPopover(null);
     };
 
+    // Not a modal, so Escape only closes it, and puts focus back on the chip that opened it
+    // (the one marked expanded) rather than leaving it on a control that has just disappeared.
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      positionFilterRef.current?.querySelector<HTMLElement>('[aria-expanded="true"]')?.focus();
+      setOpenPositionPopover(null);
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [openPositionPopover]);
   const handleSelectPositionGroup = (group: string | null) => {
     setMarketPage(1);
@@ -158,7 +170,7 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
   const marketRangeFrom = filteredList.length === 0 ? 0 : marketPageStart + 1;
   const marketRangeTo = Math.min(marketPageStart + TRANSFER_MARKET_PAGE_SIZE, filteredList.length);
 
-  const annualWageBudget = myTeam?.wage_budget ?? 0;
+  const weeklyWageBudget = myTeam?.wage_budget ?? 0;
   return {
     view,
     setView,
@@ -189,6 +201,6 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     marketRangeFrom,
     marketRangeTo,
     availabilityFilters,
-    annualWageBudget,
+    weeklyWageBudget,
   };
 }

@@ -3475,6 +3475,10 @@
         "LoanConflict": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč hostuje nebo má dohodnuté hostování čekající na registraci. Nebyla zaplacena žádná přestupová částka.",
         "PlayerUnavailable": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč již není dostupný v prodávajícím klubu. Nebyla zaplacena žádná přestupová částka.",
         "RegistrationBlocked": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože již není splněna některá podmínka registrace. Nebyla zaplacena žádná přestupová částka."
+      },
+      "matchesMoved": {
+        "subject": "Zápasy přesunuty",
+        "body": "Některé vaše zápasy byly přesunuty, aby si hráči zachovali odpočinek a byly dodrženy reprezentační přestávky:\n{{matches}}"
       }
     },
     "news": {
@@ -3646,6 +3650,11 @@
     },
     "save": {
       "defaultName": "Kariéra {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Tento balíček definuje zemi „{{name}}“ ({{code}}), která není v seznamu zemí hry, a nezařazuje ji do žádné konfederace, takže její kluby jsou vedeny v Evropě. Přiřaďte jí konfederaci."
+      }
     }
   },
   "traits": {
@@ -3893,6 +3902,7 @@
     "saveSuccess": "Uloženo",
     "saveTeam": "Uložit tým",
     "issues": "{{count}} problém(ů)",
+    "warnings": "Varování: {{count}}",
     "packageId": "ID balíčku",
     "packageName": "Název balíčku",
     "description": "Popis",
@@ -4051,6 +4061,7 @@
     "openPackageFileInvalid": "Vyberte platný soubor balíčku .ofm",
     "noItemSelected": "Vyberte položku ze seznamu, nebo klikněte na Přidat pro vytvoření nové",
     "issuesBadge": "{{count}} problémů",
+    "warningsBadge": "Varování: {{count}}",
     "issuesTitle": "Problémy s validací",
     "noIssues": "Žádné problémy — svět je validní",
     "saving": "Ukládání…",
@@ -4126,6 +4137,8 @@
     "staffId": "ID",
     "staffFirstName": "Jméno",
     "staffLastName": "Příjmení",
+    "staffKnownAs": "Známý jako (volitelné)",
+    "staffKnownAsPlaceholder": "např. Cafu",
     "staffClub": "Klub",
     "staffNationality": "Národnost",
     "staffDateOfBirth": "Datum narození",

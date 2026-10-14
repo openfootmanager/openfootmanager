@@ -575,3 +575,75 @@ describe("SubPanel", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("1 of 2 substitutions made");
   });
 });
+
+describe("SubPanel as a dialog", () => {
+  const renderPanel = () => {
+    const onClose = vi.fn();
+    render(
+      <SubPanel
+        snapshot={createSnapshot()}
+        side="Home"
+        onSubstitute={vi.fn().mockResolvedValue({ applied: true })}
+        onFormationChange={vi.fn()}
+        onPlayStyleChange={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    return onClose;
+  };
+
+  /**
+   * Given the substitution panel is open over the match
+   * When assistive technology looks for it
+   * Then it is a modal dialog named by its heading, and focus is inside it.
+   */
+  it("is a named modal dialog that holds focus", () => {
+    renderPanel();
+
+    const dialog = screen.getByRole("dialog", { name: "match.substitutionsTitle" });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(dialog).toHaveFocus();
+  });
+
+  /**
+   * Given the panel is open
+   * When the player presses Escape
+   * Then the panel closes.
+   */
+  it("closes on Escape", () => {
+    const onClose = renderPanel();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a player's context menu is open inside the panel
+   * When the player presses Escape
+   * Then only the menu closes and the panel stays.
+   */
+  it("keeps the panel open when Escape closes a context menu", () => {
+    const onClose = renderPanel();
+    fireEvent.contextMenu(screen.getByTestId("sub-panel-off-starter-1"));
+    expect(screen.getByRole("menuitem", { name: "Select to take off" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("menuitem")).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given the panel is open
+   * When the player activates the close control by its accessible name
+   * Then the panel closes.
+   */
+  it("has a close button a screen reader can name", () => {
+    const onClose = renderPanel();
+
+    fireEvent.click(screen.getByRole("button", { name: "common.close" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});

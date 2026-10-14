@@ -5,6 +5,7 @@ pub mod definitions;
 pub mod file_format;
 mod generation;
 pub mod package;
+mod package_warnings;
 pub mod scaffold;
 pub mod world_io;
 mod youth;
@@ -22,6 +23,7 @@ pub use package::{
     qualify_package_asset_paths, read_logo_from_ofm, read_package_manifest_from_ofm,
     validate_manifest, validate_package, validate_package_stack, validate_references,
 };
+pub use package_warnings::package_warnings;
 pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
     slugify,
@@ -283,7 +285,10 @@ pub fn generate_national_team_player(
         &names_def,
         rng,
     );
-    as_free_agent(player)
+    let mut agent = as_free_agent(player);
+    // Specific from the start, like every other player made after the world is built.
+    crate::player_identity::upgrade_player_identity(&mut agent, None);
+    agent
 }
 
 /// A generated player belonging to nobody: no club, no contract, no wage, not
@@ -2656,6 +2661,69 @@ mod tests {
 
         assert_eq!(player.nationality, "ENG");
         assert_eq!(player.football_nation, "ENG");
+    }
+
+    /// Given a youngster a youth scout finds, or a club takes in at its intake (#225)
+    /// When he is generated, in every outfield position group
+    /// Then he carries a specific natural position (LB, CM, ...) from the start, not the generic
+    ///      group that only a save and a reload used to refine.
+    #[test]
+    fn a_youth_recruit_has_a_specific_natural_position_when_he_arrives() {
+        let team = domain::team::Team::new(
+            "team-1".to_string(),
+            "London FC".to_string(),
+            "LON".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            20000,
+        );
+        // The goalkeeper is already as specific as that position gets.
+        for group in [
+            domain::player::Position::Defender,
+            domain::player::Position::Midfielder,
+            domain::player::Position::Forward,
+        ] {
+            for _ in 0..20 {
+                let scouted = generate_youth_academy_recruit(
+                    &team,
+                    Some(&group),
+                    TEST_OPENING_YEAR,
+                    &mut rand::rng(),
+                );
+                let intake = generate_youth_intake_recruit(
+                    &team,
+                    &group,
+                    16,
+                    TEST_OPENING_YEAR,
+                    &mut rand::rng(),
+                );
+                for player in [scouted, intake] {
+                    assert!(
+                        !player.natural_position.is_legacy_bucket(),
+                        "a {group:?} recruit arrived as the generic {:?}",
+                        player.natural_position
+                    );
+                }
+            }
+        }
+    }
+
+    /// Given national-team players generated mid-game (#225)
+    /// When they are made for an outfield slot
+    /// Then they carry a specific natural position, not the generic group.
+    #[test]
+    fn a_national_team_player_has_a_specific_natural_position() {
+        // Outfield slots of the standard layout: DEF 2-8, MID 9-15, FWD 16-21.
+        for slot in 2..SQUAD_SLOTS {
+            let player =
+                generate_national_team_player("ENG", slot, TEST_OPENING_YEAR, &mut rand::rng());
+            assert!(
+                !player.natural_position.is_legacy_bucket(),
+                "slot {slot} arrived as the generic {:?}",
+                player.natural_position
+            );
+        }
     }
 
     #[test]

@@ -65,6 +65,7 @@
     "dateOfBirth",
     "firstName",
     "id",
+    "knownAs",
     "lastName",
     "nationality",
     "role",
