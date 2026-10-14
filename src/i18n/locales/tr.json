@@ -3162,7 +3162,7 @@
         "options": {
           "accept": {
             "label": "Anlaşmayı kabul et",
-            "description": "Receive €{{amount}} in sponsorship income."
+            "description": "Sponsorluk gelirinde {{amount}} kazan."
           },
           "decline": {
             "label": "Kibarca reddet",

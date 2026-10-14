@@ -1,3 +1,4 @@
+import i18n from "i18next";
 import { useSettingsStore, type AppSettings } from "../store/settingsStore";
 import { useGameStore } from "../store/gameStore";
 
@@ -120,10 +121,26 @@ export function formatVal(value: number): string {
   );
 }
 
-export function formatWeeklyAmount(formattedAmount: string, weeklySuffix: string): string {
-  return `${formattedAmount}${weeklySuffix}`;
+/** Exact on the surfaces where a decision is made, compact in tiles and list columns. */
+export type MoneyPrecision = "exact" | "compact";
+
+/** The per-week unit, from the active language; "/wk" only before i18n has started. */
+function weeklyUnit(): string {
+  const unit = i18n.isInitialized ? i18n.t("finances.perWeekSuffix", { defaultValue: "/wk" }) : "";
+  return unit || "/wk";
 }
 
-export function formatAnnualAmount(formattedAmount: string, annualSuffix: string): string {
-  return `${formattedAmount}${annualSuffix}`;
+/** Puts the weekly unit on an already formatted amount, for the signed figures a caller builds itself. */
+export function formatWeeklyAmount(formattedAmount: string): string {
+  return `${formattedAmount}${weeklyUnit()}`;
+}
+
+/**
+ * A weekly wage. Stored wages are weekly, so there is no annual counterpart: the unit belongs to
+ * the formatter, and no caller fetches or drills it.
+ */
+export function formatWeeklyWage(weeklyWage: number, precision: MoneyPrecision = "exact"): string {
+  return formatWeeklyAmount(
+    precision === "exact" ? formatExactMoney(weeklyWage) : formatVal(weeklyWage),
+  );
 }

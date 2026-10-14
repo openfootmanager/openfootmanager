@@ -5,8 +5,8 @@ import type { PlayerData, TeamData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
 import {
   calcAge,
-  formatAnnualAmount,
   formatVal,
+  formatWeeklyWage,
   getPlayerOvr,
   getTeamName,
   positionBadgeVariant,
@@ -174,12 +174,10 @@ export function DealWorkspaceFacts({
   player,
   myTeam,
   offeredWage,
-  weeklySuffix,
 }: {
   player: PlayerData;
   myTeam: TeamData | null;
   offeredWage?: number | null;
-  weeklySuffix: string;
 }) {
   const { t } = useTranslation();
   const ovr = getPlayerOvr(player);
@@ -197,17 +195,13 @@ export function DealWorkspaceFacts({
           </div>
           <div>
             <p className={factLabelClass()}>{t("common.currentWage")}</p>
-            <p className={`${factValueClass()} tabular-nums`}>
-              {formatAnnualAmount(formatVal(player.wage), weeklySuffix)}
-            </p>
+            <p className={`${factValueClass()} tabular-nums`}>{formatWeeklyWage(player.wage)}</p>
           </div>
         </div>
         {offeredWage != null && offeredWage > 0 ? (
           <div className="mt-3 border-t border-gray-100 pt-3 dark:border-navy-700">
             <p className={factLabelClass()}>{t("playerProfile.renewalWage")}</p>
-            <p className={`${factValueClass()} tabular-nums`}>
-              {formatAnnualAmount(formatVal(offeredWage), weeklySuffix)}
-            </p>
+            <p className={`${factValueClass()} tabular-nums`}>{formatWeeklyWage(offeredWage)}</p>
           </div>
         ) : null}
       </div>
@@ -219,7 +213,7 @@ export function DealWorkspaceFacts({
           <div className="mt-4">
             <p className={factLabelClass()}>{t("finances.wageBudget")}</p>
             <p className={`${factValueClass()} tabular-nums`}>
-              {formatAnnualAmount(formatVal(myTeam.wage_budget), weeklySuffix)}
+              {formatWeeklyWage(myTeam.wage_budget)}
             </p>
           </div>
         </div>

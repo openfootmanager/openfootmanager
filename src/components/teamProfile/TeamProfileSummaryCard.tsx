@@ -1,7 +1,7 @@
 import { DollarSign, Trophy, Users } from "lucide-react";
 
 import { weeklyWageAmount } from "../../lib/finance";
-import { formatVal, formatWeeklyAmount } from "../../lib/helpers";
+import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import type { TeamData } from "../../store/gameStore";
 import { Card, CardBody, CardHeader } from "../ui";
 import type { TeamProfileTranslate, TeamProfileViewModel } from "./TeamProfile.types";
@@ -11,7 +11,6 @@ interface TeamProfileSummaryCardProps {
   team: TeamData;
   isOwnTeam: boolean;
   viewModel: TeamProfileViewModel;
-  weeklySuffix: string;
   t: TeamProfileTranslate;
 }
 
@@ -19,7 +18,6 @@ export default function TeamProfileSummaryCard({
   team,
   isOwnTeam,
   viewModel,
-  weeklySuffix,
   t,
 }: TeamProfileSummaryCardProps) {
   if (isOwnTeam) {
@@ -36,10 +34,7 @@ export default function TeamProfileSummaryCard({
             <InfoRow
               icon={<DollarSign className="w-4 h-4" />}
               label={t("finances.wageBudget")}
-              value={formatWeeklyAmount(
-                formatVal(weeklyWageAmount(team.wage_budget)),
-                weeklySuffix,
-              )}
+              value={formatWeeklyWage(weeklyWageAmount(team.wage_budget), "compact")}
             />
             <InfoRow
               icon={<DollarSign className="w-4 h-4" />}
@@ -49,10 +44,7 @@ export default function TeamProfileSummaryCard({
             <InfoRow
               icon={<DollarSign className="w-4 h-4" />}
               label={t("teamProfile.totalWages")}
-              value={formatWeeklyAmount(
-                formatVal(weeklyWageAmount(viewModel.totalWages)),
-                weeklySuffix,
-              )}
+              value={formatWeeklyWage(weeklyWageAmount(viewModel.totalWages), "compact")}
             />
             <InfoRow
               icon={<DollarSign className="w-4 h-4" />}

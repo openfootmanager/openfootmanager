@@ -11,7 +11,6 @@ type ActiveDealWorkspaceProps = {
     | "dealWorkspaceTarget"
     | "gameState"
     | "myTeam"
-    | "weeklySuffix"
     | "transferWindowBlocksRegistration"
     | "transferWindowSummary"
     | "loanWindowNoticeDetail"
@@ -204,7 +203,6 @@ export function ActiveDealWorkspace({ state }: ActiveDealWorkspaceProps) {
     dealWorkspaceTarget,
     gameState,
     myTeam,
-    weeklySuffix,
     transferWindowBlocksRegistration,
     transferWindowSummary,
     loanWindowNoticeDetail,
@@ -267,7 +265,6 @@ export function ActiveDealWorkspace({ state }: ActiveDealWorkspaceProps) {
         player={dealWorkspaceTarget}
         teams={gameState.teams}
         myTeam={myTeam ?? null}
-        weeklySuffix={weeklySuffix}
         transferWindowBlocksRegistration={transferWindowBlocksRegistration}
         transferWindowSummary={transferWindowSummary}
         loanNoticeDetail={loanWindowNoticeDetail}

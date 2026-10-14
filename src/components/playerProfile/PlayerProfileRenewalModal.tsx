@@ -10,7 +10,6 @@ interface PlayerProfileRenewalModalProps {
   show: boolean;
   playerName: string;
   t: TranslateFn;
-  weeklySuffix: string;
   renewalWage: string;
   renewalLength: string;
   renewalIsTerminal: boolean;
@@ -34,7 +33,6 @@ export default function PlayerProfileRenewalModal({
   show,
   playerName,
   t,
-  weeklySuffix,
   renewalWage,
   renewalLength,
   renewalIsTerminal,
@@ -123,8 +121,8 @@ export default function PlayerProfileRenewalModal({
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
               {t("playerProfile.renewalProjectionWageBill", {
-                before: formatPlayerWage(renewalProjection.current_annual_wage_bill, weeklySuffix),
-                after: formatPlayerWage(renewalProjection.projected_annual_wage_bill, weeklySuffix),
+                before: formatPlayerWage(renewalProjection.current_weekly_wage_spend),
+                after: formatPlayerWage(renewalProjection.projected_weekly_wage_spend),
               })}
             </p>
             <p className="text-xs text-gray-600 dark:text-gray-300">
@@ -132,7 +130,7 @@ export default function PlayerProfileRenewalModal({
                 before:
                   renewalProjection.annual_wage_budget > 0
                     ? Math.round(
-                        (renewalProjection.current_annual_wage_bill /
+                        (renewalProjection.current_weekly_wage_spend /
                           renewalProjection.annual_wage_budget) *
                           100,
                       )
@@ -140,7 +138,7 @@ export default function PlayerProfileRenewalModal({
                 after:
                   renewalProjection.annual_wage_budget > 0
                     ? Math.round(
-                        (renewalProjection.projected_annual_wage_bill /
+                        (renewalProjection.projected_weekly_wage_spend /
                           renewalProjection.annual_wage_budget) *
                           100,
                       )
