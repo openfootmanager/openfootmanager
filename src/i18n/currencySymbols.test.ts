@@ -35,7 +35,7 @@ describe("money in translations", () => {
     }
 
     const offenders = scanned.flatMap(({ code, entries }) =>
-      entries.filter(([, value]) => /[€$£]\s?\{\{/.test(value)).map(([key]) => `${code}: ${key}`),
+      entries.filter(([, value]) => /\p{Sc}\s?\{\{/u.test(value)).map(([key]) => `${code}: ${key}`),
     );
 
     expect(offenders).toEqual([]);

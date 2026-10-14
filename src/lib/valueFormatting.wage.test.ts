@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import i18n, { changeAppLanguage, i18nReady } from "../i18n";
 import { useSettingsStore } from "../store/settingsStore";
@@ -12,6 +12,11 @@ const speak = async (language: string) => {
 describe("formatWeeklyWage", () => {
   beforeAll(async () => {
     await i18nReady;
+  });
+
+  // A first assertion must not depend on the machine's own language.
+  beforeEach(async () => {
+    await speak("en");
   });
 
   afterEach(async () => {
