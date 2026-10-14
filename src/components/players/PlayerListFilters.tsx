@@ -151,6 +151,8 @@ interface PlayerListFiltersProps {
   statusOptions: PlayerStatusFilter[];
   /** Offered where the user's club buys players: only those it can pay for. */
   showInBudget?: boolean;
+  /** Overrides the search box's placeholder where the screen searches more (or less) than names. */
+  searchPlaceholder?: string;
   /** Anything else this screen filters by (a team picker, say), shown at the end of the row. */
   trailing?: ReactNode;
 }
@@ -165,6 +167,7 @@ export default function PlayerListFilters({
   onChange,
   statusOptions,
   showInBudget = false,
+  searchPlaceholder,
   trailing,
 }: PlayerListFiltersProps) {
   const { t } = useTranslation();
@@ -225,7 +228,7 @@ export default function PlayerListFilters({
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
         <input
           type="text"
-          placeholder={t("players.searchPlaceholder")}
+          placeholder={searchPlaceholder ?? t("players.searchPlaceholder")}
           value={query.search ?? ""}
           onChange={(event) => onChange({ search: event.target.value || null })}
           className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"

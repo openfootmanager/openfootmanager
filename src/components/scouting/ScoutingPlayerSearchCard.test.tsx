@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import type { PlayersPageQuery } from "../../services/playersService";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import ScoutingPlayerSearchCard from "./ScoutingPlayerSearchCard";
 
@@ -125,10 +126,29 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   };
 }
 
+const baseQuery: PlayersPageQuery = {
+  search: null,
+  position: null,
+  positions: [],
+  age_min: null,
+  age_max: null,
+  ovr_min: null,
+  ovr_max: null,
+  value_min: null,
+  value_max: null,
+  in_budget: false,
+  scope: "scoutable",
+  team_id: null,
+  status: "all",
+  sort_key: "ovr",
+  sort_asc: false,
+  page: 1,
+  page_size: 20,
+};
+
 describe("ScoutingPlayerSearchCard", () => {
   it("renders players and delegates search, filter, selection, scout, and pagination actions", () => {
-    const onPositionFilterChange = vi.fn();
-    const onSearchQueryChange = vi.fn();
+    const onFilterChange = vi.fn();
     const onSelectPlayer = vi.fn();
     const onSelectTeam = vi.fn();
     const onSendScout = vi.fn();
@@ -142,8 +162,7 @@ describe("ScoutingPlayerSearchCard", () => {
           createTeam(),
           createTeam({ id: "team-2", name: "Beta FC", manager_id: "manager-2" }),
         ]}
-        posFilter="All"
-        searchQuery=""
+        query={baseQuery}
         alreadyScoutingIds={new Set<string>()}
         availableScoutCount={1}
         sendingPlayerId={null}
@@ -151,8 +170,7 @@ describe("ScoutingPlayerSearchCard", () => {
         totalPages={2}
         totalPlayers={21}
         pageSize={20}
-        onPositionFilterChange={onPositionFilterChange}
-        onSearchQueryChange={onSearchQueryChange}
+        onFilterChange={onFilterChange}
         onSelectPlayer={onSelectPlayer}
         onSelectTeam={onSelectTeam}
         onSendScout={onSendScout}
@@ -164,13 +182,13 @@ describe("ScoutingPlayerSearchCard", () => {
     expect(screen.getByText("Find Players")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "John Smith" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Def" }));
-    expect(onPositionFilterChange).toHaveBeenCalledWith("Defender");
+    fireEvent.click(screen.getByRole("button", { name: "Defender" }));
+    expect(onFilterChange).toHaveBeenCalledWith({ positions: [{ group: "Defender" }] });
 
     fireEvent.change(screen.getByPlaceholderText("Search players"), {
       target: { value: "john" },
     });
-    expect(onSearchQueryChange).toHaveBeenCalledWith("john");
+    expect(onFilterChange).toHaveBeenCalledWith({ search: "john" });
 
     fireEvent.click(screen.getByRole("button", { name: "John Smith" }));
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
@@ -198,8 +216,7 @@ describe("ScoutingPlayerSearchCard", () => {
       <ScoutingPlayerSearchCard
         players={[player]}
         teams={[createTeam(), createTeam({ id: "team-2", name: "Beta FC" })]}
-        posFilter="All"
-        searchQuery=""
+        query={baseQuery}
         alreadyScoutingIds={new Set<string>()}
         availableScoutCount={1}
         sendingPlayerId={null}
@@ -207,8 +224,7 @@ describe("ScoutingPlayerSearchCard", () => {
         totalPages={1}
         totalPlayers={1}
         pageSize={20}
-        onPositionFilterChange={vi.fn()}
-        onSearchQueryChange={vi.fn()}
+        onFilterChange={vi.fn()}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
         onSendScout={vi.fn()}
