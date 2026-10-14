@@ -513,6 +513,37 @@ mod tests {
         assert_same_records(&load_stats_state(db.conn()).unwrap(), &shorter);
     }
 
+    /// Given a file already holding a history of 400, 2,000 and 10,000 matches (24 rows each),
+    /// When one more match is saved the old way (rewrite everything) and the new way,
+    /// Then the time of each is printed: the new one stays flat as the history grows.
+    ///
+    /// `cargo test --release -p db --lib a_save_costs_the_new_match_not_the_history -- --ignored --nocapture`
+    #[test]
+    #[ignore = "measurement, run by hand in release mode"]
+    fn a_save_costs_the_new_match_not_the_history() {
+        use std::time::Instant;
+
+        for held in [400, 2_000, 10_000] {
+            let mut stats = history_of(held);
+            let rewriting = test_db();
+            let incremental = test_db();
+            replace_stats_state(rewriting.conn(), &stats).unwrap();
+            persist_stats_state(incremental.conn(), &stats).unwrap();
+            stats.append(a_match("fixture-newest"));
+
+            let started = Instant::now();
+            replace_stats_state(rewriting.conn(), &stats).unwrap();
+            let rewrite = started.elapsed();
+            let started = Instant::now();
+            persist_stats_state(incremental.conn(), &stats).unwrap();
+            let incremental_time = started.elapsed();
+
+            eprintln!(
+                "{held} matches held: rewrite {rewrite:.2?}, incremental {incremental_time:.2?}"
+            );
+        }
+    }
+
     #[test]
     fn test_replace_stats_state_returns_backend_key_when_schema_is_missing() {
         let conn = Connection::open_in_memory().unwrap();
