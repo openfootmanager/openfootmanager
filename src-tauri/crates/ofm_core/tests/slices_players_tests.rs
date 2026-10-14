@@ -4,7 +4,10 @@ use domain::player::{Injury, Player, PlayerAttributes, Position};
 use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
-use ofm_core::slices::players::{PlayerSortKey, PlayerStatusFilter, PlayersPageQuery, query_page};
+use ofm_core::game::ScoutingAssignment;
+use ofm_core::slices::players::{
+    PlayerScope, PlayerSortKey, PlayerStatusFilter, PlayersPageQuery, PositionFilter, query_page,
+};
 
 fn default_attrs(ovr_hint: u8) -> PlayerAttributes {
     PlayerAttributes {
@@ -122,6 +125,15 @@ fn baseline_query() -> PlayersPageQuery {
     PlayersPageQuery {
         search: None,
         position: None,
+        positions: vec![],
+        age_min: None,
+        age_max: None,
+        ovr_min: None,
+        ovr_max: None,
+        value_min: None,
+        value_max: None,
+        in_budget: false,
+        scope: PlayerScope::All,
         team_id: None,
         status: PlayerStatusFilter::All,
         sort_key: PlayerSortKey::Ovr,
@@ -512,4 +524,394 @@ fn projection_leaves_the_photo_empty_for_a_generated_player() {
     let page = query_page(&game, &baseline_query());
 
     assert_eq!(page.items[0].media.face, None);
+}
+
+// ---------------------------------------------------------------------------
+// Filters added for the one shared player list (#570): ranges, budget, scope, exact positions
+// ---------------------------------------------------------------------------
+
+/// A game where the user manages "mine", with `mine_cash` / `mine_budget` to spend.
+fn game_managing_mine(mine_cash: i64, mine_budget: i64, players: Vec<Player>) -> Game {
+    let mut mine = make_team("mine", "Mine FC");
+    mine.finance = mine_cash;
+    mine.transfer_budget = mine_budget;
+    let mut game = make_game(vec![mine, make_team("other", "Other FC")], players);
+    game.manager.team_id = Some("mine".to_string());
+    game
+}
+
+fn ids(game: &Game, query: &PlayersPageQuery) -> Vec<String> {
+    let mut found: Vec<String> = query_page(game, query)
+        .items
+        .into_iter()
+        .map(|p| p.id)
+        .collect();
+    found.sort();
+    found
+}
+
+/// Given players born on either side of a birthday that falls just after the game date
+/// (1 July 2026), when the age range starts at 26, then only the one who has turned 26 passes:
+/// the age is the age on the game's date, not the year of birth.
+#[test]
+fn the_age_range_counts_whole_years_on_the_game_date() {
+    let mut turned = PlayerSpec::new("turned", "Has Turned", Some("other"));
+    turned.dob = "2000-06-30";
+    let mut not_yet = PlayerSpec::new("not_yet", "Not Yet", Some("other"));
+    not_yet.dob = "2000-07-02";
+    let game = game_managing_mine(0, 0, vec![turned.build(), not_yet.build()]);
+    let mut q = baseline_query();
+    q.age_min = Some(26);
+
+    assert_eq!(ids(&game, &q), vec!["turned"]);
+
+    q.age_min = None;
+    q.age_max = Some(25);
+    assert_eq!(ids(&game, &q), vec!["not_yet"]);
+}
+
+/// Given players of different overall rating, when an ovr range is set, then both ends are
+/// inclusive.
+#[test]
+fn the_ovr_range_is_inclusive() {
+    let game = game_managing_mine(
+        0,
+        0,
+        [60u8, 70, 80]
+            .iter()
+            .map(|ovr| {
+                let id = format!("p{ovr}");
+                let mut spec = PlayerSpec::new(&id, &id, Some("other"));
+                spec.ovr = *ovr;
+                spec.build()
+            })
+            .collect(),
+    );
+    let mut q = baseline_query();
+    q.ovr_min = Some(70);
+    q.ovr_max = Some(80);
+
+    assert_eq!(ids(&game, &q), vec!["p70", "p80"]);
+}
+
+/// Given players of different market value, when a value range is set, then both ends are
+/// inclusive.
+#[test]
+fn the_value_range_is_inclusive() {
+    let game = game_managing_mine(
+        0,
+        0,
+        [1_000_000u64, 2_000_000, 3_000_000]
+            .iter()
+            .map(|value| {
+                let id = format!("v{value}");
+                let mut spec = PlayerSpec::new(&id, &id, Some("other"));
+                spec.market_value = *value;
+                spec.build()
+            })
+            .collect(),
+    );
+    let mut q = baseline_query();
+    q.value_min = Some(2_000_000);
+    q.value_max = Some(2_000_000);
+
+    assert_eq!(ids(&game, &q), vec!["v2000000"]);
+}
+
+/// Given a club with 3M cash but a 5M transfer budget, when "in budget" is on, then a 2M player
+/// passes and a 4M one does not: the fee must fit both, as `can_afford_fee` decides everywhere.
+#[test]
+fn in_budget_means_the_fee_fits_both_cash_and_transfer_budget() {
+    let mut cheap = PlayerSpec::new("cheap", "Cheap", Some("other"));
+    cheap.market_value = 2_000_000;
+    let mut dear = PlayerSpec::new("dear", "Dear", Some("other"));
+    dear.market_value = 4_000_000;
+    let game = game_managing_mine(3_000_000, 5_000_000, vec![cheap.build(), dear.build()]);
+    let mut q = baseline_query();
+    q.in_budget = true;
+
+    assert_eq!(ids(&game, &q), vec!["cheap"]);
+}
+
+/// Given a free agent and a loan-only player worth more than the club can pay, when "in budget" is
+/// on, then both still pass: neither is bought for a fee.
+#[test]
+fn free_agents_and_loan_only_players_skip_the_affordability_check() {
+    let mut free_agent = PlayerSpec::new("free", "Free", None);
+    free_agent.market_value = 9_000_000;
+    let mut loan_only = PlayerSpec::new("loan", "Loan", Some("other"));
+    loan_only.market_value = 9_000_000;
+    loan_only.loan_listed = true;
+    let mut dear = PlayerSpec::new("dear", "Dear", Some("other"));
+    dear.market_value = 9_000_000;
+    dear.transfer_listed = true;
+    let game = game_managing_mine(
+        1_000_000,
+        1_000_000,
+        vec![free_agent.build(), loan_only.build(), dear.build()],
+    );
+    let mut q = baseline_query();
+    q.in_budget = true;
+
+    assert_eq!(ids(&game, &q), vec!["free", "loan"]);
+}
+
+/// Given players the user's club could and could not approach, when the market scope is on, then
+/// the user's own player, a player out on loan and one with an agreed move are left out, while
+/// free agents and ordinary players stay.
+#[test]
+fn the_market_scope_leaves_out_own_loaned_and_already_agreed_players() {
+    use domain::player::{ActiveLoan, TransferOffer, TransferOfferStatus};
+
+    let own = PlayerSpec::new("own", "Own", Some("mine")).build();
+    let mut on_loan = PlayerSpec::new("on_loan", "On Loan", Some("other")).build();
+    on_loan.active_loan = Some(ActiveLoan {
+        parent_team_id: "other".to_string(),
+        loan_team_id: "third".to_string(),
+        start_date: "2026-01-01".to_string(),
+        end_date: "2026-12-31".to_string(),
+        wage_contribution_pct: 50,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+    let mut agreed = PlayerSpec::new("agreed", "Agreed", Some("other")).build();
+    agreed.transfer_offers.push(TransferOffer {
+        id: "o1".to_string(),
+        from_team_id: "someone".to_string(),
+        fee: 1,
+        wage_offered: 1,
+        last_manager_fee: None,
+        negotiation_round: 1,
+        suggested_counter_fee: None,
+        status: TransferOfferStatus::PendingRegistration,
+        date: "2026-06-01".to_string(),
+        registration_date: None,
+        registration_failure_reason: None,
+        closed_on: None,
+    });
+    let free = PlayerSpec::new("free", "Free", None).build();
+    let ordinary = PlayerSpec::new("ordinary", "Ordinary", Some("other")).build();
+    let game = game_managing_mine(0, 0, vec![own, on_loan, agreed, free, ordinary]);
+    let mut q = baseline_query();
+    q.scope = PlayerScope::Market;
+
+    assert_eq!(ids(&game, &q), vec!["free", "ordinary"]);
+}
+
+/// Given the user's own player and one a scout is already watching, when the scoutable scope is
+/// on, then neither is listed, while a loaned player (who can be watched) still is.
+#[test]
+fn the_scoutable_scope_leaves_out_own_and_already_scouted_players() {
+    let own = PlayerSpec::new("own", "Own", Some("mine")).build();
+    let watched = PlayerSpec::new("watched", "Watched", Some("other")).build();
+    let open = PlayerSpec::new("open", "Open", Some("other")).build();
+    let mut game = game_managing_mine(0, 0, vec![own, watched, open]);
+    game.scouting_assignments.push(ScoutingAssignment {
+        id: "a1".to_string(),
+        scout_id: "s1".to_string(),
+        player_id: "watched".to_string(),
+        days_remaining: 3,
+    });
+    let mut q = baseline_query();
+    q.scope = PlayerScope::Scoutable;
+
+    assert_eq!(ids(&game, &q), vec!["open"]);
+}
+
+fn with_position(id: &str, position: Position) -> Player {
+    let mut spec = PlayerSpec::new(id, id, Some("other"));
+    spec.position = position;
+    spec.build()
+}
+
+/// Given centre-backs, left-backs and a striker, when one exact position is asked for, then only
+/// that position matches, not the rest of its group.
+#[test]
+fn an_exact_position_matches_only_that_position() {
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            with_position("cb", Position::CenterBack),
+            with_position("lb", Position::LeftBack),
+            with_position("st", Position::Striker),
+        ],
+    );
+    let mut q = baseline_query();
+    q.positions = vec![PositionFilter::Exact(Position::CenterBack)];
+
+    assert_eq!(ids(&game, &q), vec!["cb"]);
+}
+
+/// Given the same players, when the defender group is asked for, then every kind of defender
+/// matches and the striker does not.
+#[test]
+fn a_group_shorthand_matches_every_position_in_the_group() {
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            with_position("cb", Position::CenterBack),
+            with_position("lb", Position::LeftBack),
+            with_position("st", Position::Striker),
+        ],
+    );
+    let mut q = baseline_query();
+    q.positions = vec![PositionFilter::Group(Position::Defender)];
+
+    assert_eq!(ids(&game, &q), vec!["cb", "lb"]);
+}
+
+/// Given an exact position and a group together, when both are asked for, then a player matching
+/// either passes.
+#[test]
+fn several_position_tests_are_combined_with_or() {
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            with_position("cb", Position::CenterBack),
+            with_position("lb", Position::LeftBack),
+            with_position("st", Position::Striker),
+            with_position("gk", Position::Goalkeeper),
+        ],
+    );
+    let mut q = baseline_query();
+    q.positions = vec![
+        PositionFilter::Exact(Position::CenterBack),
+        PositionFilter::Group(Position::Forward),
+    ];
+
+    assert_eq!(ids(&game, &q), vec!["cb", "st"]);
+}
+
+/// Given the JSON the frontend sends, when a position test is read, then `{"group": ...}` and
+/// `{"exact": ...}` are the two shapes, and a query without the new fields still reads.
+#[test]
+fn the_new_query_fields_read_from_json_and_default_when_absent() {
+    let query: PlayersPageQuery = serde_json::from_value(serde_json::json!({
+        "search": null, "position": null, "team_id": null, "status": "all",
+        "sort_key": "ovr", "sort_asc": false, "page": 1, "page_size": 10,
+        "positions": [{"group": "Defender"}, {"exact": "Striker"}],
+        "age_min": 18, "in_budget": true, "scope": "market"
+    }))
+    .expect("a query with the new fields");
+    assert_eq!(
+        query.positions,
+        vec![
+            PositionFilter::Group(Position::Defender),
+            PositionFilter::Exact(Position::Striker)
+        ]
+    );
+    assert_eq!(query.age_min, Some(18));
+    assert!(query.in_budget);
+    assert_eq!(query.scope, PlayerScope::Market);
+
+    let legacy: PlayersPageQuery = serde_json::from_value(serde_json::json!({
+        "search": null, "position": null, "team_id": null, "status": "all",
+        "sort_key": "ovr", "sort_asc": false, "page": 1, "page_size": 10
+    }))
+    .expect("a query from before the new fields");
+    assert!(legacy.positions.is_empty() && !legacy.in_budget);
+    assert_eq!(legacy.scope, PlayerScope::All);
+}
+
+/// Given a player born 1 January 2000 on a 5,000 weekly wage, when summarised on 1 July 2026,
+/// then the row carries his age on that date and his weekly wage.
+#[test]
+fn the_summary_carries_age_on_the_game_date_and_the_weekly_wage() {
+    let mut player = PlayerSpec::new("p1", "John Smith", Some("other")).build();
+    player.stage_wage(5_000);
+    let game = game_managing_mine(0, 0, vec![player]);
+
+    let item = &query_page(&game, &baseline_query()).items[0];
+
+    assert_eq!(item.age, 26);
+    assert_eq!(item.wage, 5_000);
+}
+
+/// Given two players born in the same year, one in January and one in November, when sorted by
+/// age ascending, then the younger (November) comes first: the order uses the whole birth date.
+#[test]
+fn sorting_by_age_uses_the_whole_birth_date_not_the_year() {
+    let mut january = PlayerSpec::new("jan", "Jan", Some("other"));
+    january.dob = "2000-01-15";
+    let mut november = PlayerSpec::new("nov", "Nov", Some("other"));
+    november.dob = "2000-11-15";
+    let game = game_managing_mine(0, 0, vec![january.build(), november.build()]);
+    let mut q = baseline_query();
+    q.sort_key = PlayerSortKey::Age;
+    q.sort_asc = true;
+
+    let order: Vec<String> = query_page(&game, &q)
+        .items
+        .into_iter()
+        .map(|p| p.id)
+        .collect();
+
+    assert_eq!(order, vec!["nov", "jan"]);
+}
+
+/// Given players tied on the sort key, when the list is sorted either way, then they keep one
+/// order by name and then id, so a page boundary never reshuffles them.
+#[test]
+fn ties_are_broken_by_name_then_id_in_either_direction() {
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            PlayerSpec::new("b", "Same Name", Some("other")).build(),
+            PlayerSpec::new("a", "Same Name", Some("other")).build(),
+            PlayerSpec::new("c", "Another", Some("other")).build(),
+        ],
+    );
+    for sort_asc in [true, false] {
+        let mut q = baseline_query();
+        q.sort_asc = sort_asc;
+        let order: Vec<String> = query_page(&game, &q)
+            .items
+            .into_iter()
+            .map(|p| p.id)
+            .collect();
+        assert_eq!(order, vec!["c", "a", "b"], "sort_asc = {sort_asc}");
+    }
+}
+
+/// Given a budget, a scope, an age range and a position together, when all are set, then a player
+/// must satisfy every one of them.
+#[test]
+fn filters_combine_with_and() {
+    let mut fits = PlayerSpec::new("fits", "Fits", Some("other"));
+    fits.dob = "2004-03-01";
+    fits.position = Position::CenterBack;
+    fits.market_value = 1_000_000;
+    fits.transfer_listed = true;
+    let mut too_old = PlayerSpec::new("old", "Old", Some("other"));
+    too_old.dob = "1990-03-01";
+    too_old.position = Position::CenterBack;
+    too_old.market_value = 1_000_000;
+    let mut too_dear = PlayerSpec::new("dear", "Dear", Some("other"));
+    too_dear.dob = "2004-03-01";
+    too_dear.position = Position::CenterBack;
+    too_dear.market_value = 9_000_000;
+    too_dear.transfer_listed = true;
+    let mut own = PlayerSpec::new("own", "Own", Some("mine"));
+    own.dob = "2004-03-01";
+    own.position = Position::CenterBack;
+    own.market_value = 1_000_000;
+    let game = game_managing_mine(
+        2_000_000,
+        2_000_000,
+        vec![fits.build(), too_old.build(), too_dear.build(), own.build()],
+    );
+    let mut q = baseline_query();
+    q.age_max = Some(25);
+    q.in_budget = true;
+    q.scope = PlayerScope::Market;
+    q.positions = vec![PositionFilter::Exact(Position::CenterBack)];
+
+    assert_eq!(ids(&game, &q), vec!["fits"]);
 }

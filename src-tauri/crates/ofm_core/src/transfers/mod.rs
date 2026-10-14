@@ -41,6 +41,9 @@ pub use loans::*;
 pub use market::*;
 use notifications::*;
 use registration::*;
+pub(crate) use registration::{
+    has_pending_transfer_registration, player_has_active_or_pending_loan,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
