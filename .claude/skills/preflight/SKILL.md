@@ -75,8 +75,13 @@ root, with everything under `src-tauri/` committed:
 
 ```bash
 scripts/mutants-in-diff.sh                        # base defaults to upstream/develop
-CARGO="<build-slot wrapper> cargo" scripts/mutants-in-diff.sh   # on a machine shared with other agents
 ```
+
+On a machine shared with other agents, wrap **the whole run** in one lock of its own, and do not
+pass a build-slot wrapper as `CARGO`. A run lasts from twenty minutes to hours, and a build-slot
+wrapper would hold one of the machine's build slots for all of it: two such runs at once starved
+every other build on 13 Oct 2026. One mutants run at a time, with few build jobs, leaves the
+build slots to everyone else.
 
 The script prints the counts line and one line per missed or timed-out mutant; that output is what
 goes in the PR body. What it does, and why:
