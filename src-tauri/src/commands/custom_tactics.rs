@@ -12,12 +12,14 @@ use crate::commands::util::mutate_active_game;
 
 const NO_ACTIVE_GAME: &str = "be.error.noActiveGameSession";
 
+/// The career's saved tactics, in the order the player keeps them.
 pub fn list_custom_tactics_internal(state: &StateManager) -> Result<Vec<CustomTactic>, String> {
     state
         .get_game(|game| game.custom_tactics.clone())
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
+/// Validates and stores the tactic; returns the whole list, or the key of what is wrong.
 pub fn save_custom_tactic_internal(
     state: &StateManager,
     tactic: &CustomTactic,
@@ -28,6 +30,7 @@ pub fn save_custom_tactic_internal(
     .map(|game| game.custom_tactics)
 }
 
+/// Removes the tactic with `id`; returns the list that is left, or the not-found key.
 pub fn delete_custom_tactic_internal(
     state: &StateManager,
     id: &str,
@@ -38,6 +41,7 @@ pub fn delete_custom_tactic_internal(
     .map(|game| game.custom_tactics)
 }
 
+/// The career's saved tactics.
 #[tauri::command]
 pub fn list_custom_tactics(
     state: State<'_, Arc<StateManager>>,
