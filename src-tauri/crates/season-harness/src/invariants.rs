@@ -730,15 +730,6 @@ mod tests {
     fn every_daily_rule_is_quiet_on_the_world_as_built() {
         let game = world();
         for (rule, check) in EVERY_DAY {
-            // The built world books clubs inside the rest (#553). The rule's own tests below
-            // prove it looks; the gate holds the world to it.
-            if *rule == CLUB_RESTS_BETWEEN_MATCHES {
-                assert!(
-                    !check(&game).is_empty(),
-                    "#553 is fixed: delete this exemption (the built world has no clash)"
-                );
-                continue;
-            }
             assert_eq!(
                 check(&game),
                 Vec::<String>::new(),
@@ -799,8 +790,8 @@ mod tests {
     /// Then the club is reported as playing twice that day — and is not before.
     ///
     /// The world is cut down to a single competition first so the control is
-    /// real: the built world has double bookings of its own (#553), and a rule
-    /// that "passes" there could not be told from one that does not look.
+    /// real: a rule that passes on the full built world could not be told from one that does not
+    /// look at all.
     #[test]
     fn a_club_booked_twice_on_one_day_is_noticed() {
         let mut game = world();
