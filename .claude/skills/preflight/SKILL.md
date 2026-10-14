@@ -97,14 +97,15 @@ cat "$out/mutants.out/missed.txt" "$out/mutants.out/timeout.txt"
   and a copied tree would rebuild every dependency from scratch.
 - `--profile mutants` and `CARGO_INCREMENTAL=1` are the two settings that brought an `ofm_core`
   mutant from 115 s to 34 s in CI; `mutation-tests.yml` explains both. `--timeout 300` stops a
-  mutant that loops forever; such a mutant counts as caught, but costs the full five minutes.
+  mutant that loops forever. cargo-mutants reports it as a timeout, not as caught, and it costs the
+  full five minutes; triage it like a survivor (usually "a loop that never ends").
   `timeout 180m` caps the whole run.
 - **Expect about a minute per listed mutant**, plus five to six minutes for the unmutated baseline
   (measured on a loaded 8-core machine with two build jobs; see the PR that added this step).
   Multiply the `--list` count before you start, and run it while you do something else.
 - Each mutant is tested with its own crate's tests. `#[cfg(test)]` code is never mutated.
-- `scripts/mutation-outcome.sh` separates "mutants survived" (exit 2 or 3, the result you report)
-  from a tool or build failure, which is not a result. A failure there means no evidence.
+- `scripts/mutation-outcome.sh` accepts exit 2 (some mutants missed) and exit 3 (some timed out):
+  both are results you report. Anything else is a tool or build failure, which means no evidence.
 - On a machine shared with other agents, run the `cargo mutants` call through your build-slot
   wrapper, as you would any other cargo command.
 
