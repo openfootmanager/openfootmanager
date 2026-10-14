@@ -144,6 +144,7 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     marketTotal,
     marketFiltered,
     marketLoaded: marketSlice !== null,
+    marketStatusCounts: marketSlice?.status_counts,
     ovrSortDir,
     setMarketPage,
     cycleOvrSort,

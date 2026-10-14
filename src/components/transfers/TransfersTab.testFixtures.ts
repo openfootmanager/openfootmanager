@@ -1,5 +1,5 @@
 import type { Mock } from "vitest";
-import type { PlayersPage, PlayersPageQuery } from "../../services/playersService";
+import type { PlayersPage, PlayersPageQuery, StatusCounts } from "../../services/playersService";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -386,7 +386,11 @@ export function playersOfScope(payload: unknown, lists: ListsByScope): PlayerDat
 
 export function marketPageOf(
   players: PlayerData[],
-  { total = players.length, page = 1 }: { total?: number; page?: number } = {},
+  {
+    total = players.length,
+    page = 1,
+    statusCounts,
+  }: { total?: number; page?: number; statusCounts?: Partial<StatusCounts> } = {},
 ): PlayersPage {
   return {
     items: players.map((player) => ({
@@ -409,6 +413,15 @@ export function marketPageOf(
       retired: false,
       media: { face: null },
     })),
+    // What the backend counted for the chips; a test that shows the chips says the numbers.
+    status_counts: {
+      all: total,
+      transfer: 0,
+      loan: 0,
+      free_agent: 0,
+      available: total,
+      ...statusCounts,
+    },
     total,
     page,
     page_size: 30,

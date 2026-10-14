@@ -7,7 +7,13 @@ import type { TransfersTabController } from "./useTransfersTabController";
 type TransfersMarketFiltersProps = {
   state: Pick<
     TransfersTabController,
-    "t" | "view" | "marketQuery" | "patchMarketQuery" | "marketTotal" | "myTeam"
+    | "t"
+    | "view"
+    | "marketQuery"
+    | "patchMarketQuery"
+    | "marketTotal"
+    | "marketStatusCounts"
+    | "myTeam"
   >;
 };
 
@@ -20,13 +26,14 @@ const STATUS_OPTIONS: Record<TransferTabView, PlayerStatusFilter[]> = {
 
 /** Every view of the centre filters its list with the shared player-list controls. */
 export function TransfersMarketFilters({ state }: TransfersMarketFiltersProps) {
-  const { t, view, marketQuery, patchMarketQuery, marketTotal, myTeam } = state;
+  const { t, view, marketQuery, patchMarketQuery, marketTotal, marketStatusCounts, myTeam } = state;
   return (
     <div>
       <PlayerListFilters
         query={marketQuery}
         onChange={patchMarketQuery}
         statusOptions={STATUS_OPTIONS[view]}
+        statusCounts={marketStatusCounts}
         showInBudget={view === "players" && myTeam !== null}
       />
       <p className="text-xs text-gray-500 dark:text-gray-300 font-heading uppercase tracking-wider mb-4">

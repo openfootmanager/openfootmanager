@@ -212,7 +212,7 @@ describe("TransfersTab", (): void => {
       );
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Free Agent" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Free Agent/ }));
     fireEvent.click(screen.getByRole("button", { name: "transfers.affordableOnly" }));
 
     await waitFor((): void => {

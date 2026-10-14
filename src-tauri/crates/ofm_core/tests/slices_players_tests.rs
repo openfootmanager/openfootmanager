@@ -6,7 +6,8 @@ use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::game::ScoutingAssignment;
 use ofm_core::slices::players::{
-    PlayerScope, PlayerSortKey, PlayerStatusFilter, PlayersPageQuery, PositionFilter, query_page,
+    PlayerScope, PlayerSortKey, PlayerStatusFilter, PlayersPageQuery, PositionFilter, StatusCounts,
+    query_page,
 };
 
 fn default_attrs(ovr_hint: u8) -> PlayerAttributes {
@@ -876,6 +877,70 @@ fn the_club_bound_scopes_are_empty_without_a_user_club() {
         q.scope = scope;
         assert!(ids(&game, &q).is_empty());
     }
+}
+
+/// Given one player listed for transfer, one for loan, one for both, a free agent and one on no
+/// list, when the page is asked for transfer-listed players, then the page holds the two transfer
+/// ones while the counts say how many players each status would have shown.
+#[test]
+fn the_page_counts_every_status_whichever_one_it_was_asked_for() {
+    let mut transfer = PlayerSpec::new("transfer", "Transfer", Some("other"));
+    transfer.transfer_listed = true;
+    let mut loan = PlayerSpec::new("loan", "Loan", Some("other"));
+    loan.loan_listed = true;
+    let mut both = PlayerSpec::new("both", "Both", Some("other"));
+    both.transfer_listed = true;
+    both.loan_listed = true;
+    let free = PlayerSpec::new("free", "Free", None).build();
+    let unlisted = PlayerSpec::new("unlisted", "Unlisted", Some("other")).build();
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![transfer.build(), loan.build(), both.build(), free, unlisted],
+    );
+    let mut q = baseline_query();
+    q.status = PlayerStatusFilter::Transfer;
+
+    let page = query_page(&game, &q);
+
+    assert_eq!(page.total, 2);
+    assert_eq!(
+        page.status_counts,
+        StatusCounts {
+            all: 5,
+            transfer: 2,
+            loan: 2,
+            free_agent: 1,
+            available: 4,
+        }
+    );
+}
+
+/// Given the same players, when a search narrows the list, then the counts follow the search: a
+/// status chip says how many players it would show with every other filter as it is.
+#[test]
+fn the_status_counts_follow_the_other_filters() {
+    let mut wanted = PlayerSpec::new("wanted", "Wanted Winger", Some("other"));
+    wanted.transfer_listed = true;
+    let mut other = PlayerSpec::new("other", "Someone Else", Some("other"));
+    other.transfer_listed = true;
+    let free = PlayerSpec::new("free", "Wanted Free", None).build();
+    let game = game_managing_mine(0, 0, vec![wanted.build(), other.build(), free]);
+    let mut q = baseline_query();
+    q.search = Some("wanted".to_string());
+
+    let counts = query_page(&game, &q).status_counts;
+
+    assert_eq!(
+        counts,
+        StatusCounts {
+            all: 2,
+            transfer: 1,
+            loan: 0,
+            free_agent: 1,
+            available: 2,
+        }
+    );
 }
 
 fn with_position(id: &str, position: Position) -> Player {

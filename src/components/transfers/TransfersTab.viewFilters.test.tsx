@@ -103,7 +103,7 @@ it("filters the offers through the backend", async () => {
   fireEvent.click(screen.getByRole("button", { name: /offers/i }));
   expect(await screen.findByText("Bid For")).toBeInTheDocument();
 
-  fireEvent.click(screen.getByRole("button", { name: "Loan" }));
+  fireEvent.click(screen.getByRole("button", { name: /^Loan/ }));
 
   await waitFor(() => expect(lastAsked()).toMatchObject({ scope: "with_offers", status: "loan" }));
 });
@@ -160,4 +160,26 @@ it("says nothing matches, not that nothing is listed, when a filter empties the 
 
   expect(await screen.findByText("No players match your filters.")).toBeInTheDocument();
   expect(screen.queryByText(en.transfers.noPlayersListed)).not.toBeInTheDocument();
+});
+
+/**
+ * Given the backend counted the market's players by status
+ * When the market is shown
+ * Then each status chip shows the backend's number, and the chips count what the other filters
+ *      leave rather than a number of their own.
+ */
+it("shows the backend's count on each status chip", async () => {
+  vi.mocked(invoke).mockImplementation(async (command: string) =>
+    command === "get_players_page"
+      ? marketPageOf([onMarket], {
+          statusCounts: { all: 31, transfer: 12, loan: 7, free_agent: 5, available: 24 },
+        })
+      : {},
+  );
+  renderCentre();
+
+  expect(await screen.findByRole("button", { name: "All (24)" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^Transfer \(12\)/ })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^Loan \(7\)/ })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /^Free agent \(5\)/i })).toBeInTheDocument();
 });

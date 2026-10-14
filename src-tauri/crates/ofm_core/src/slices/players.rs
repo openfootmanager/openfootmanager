@@ -129,9 +129,38 @@ pub struct PlayerSummaryMedia {
     pub face: Option<String>,
 }
 
+/// How many players each status chip would show, with every filter but status as the query has it.
+#[derive(Debug, Default, Serialize, PartialEq, Eq)]
+pub struct StatusCounts {
+    pub all: usize,
+    pub transfer: usize,
+    pub loan: usize,
+    pub free_agent: usize,
+    pub available: usize,
+}
+
+impl StatusCounts {
+    fn of(players: &[&Player]) -> Self {
+        let count_of = |status| {
+            players
+                .iter()
+                .filter(|player| matches_status(player, status))
+                .count()
+        };
+        Self {
+            all: count_of(PlayerStatusFilter::All),
+            transfer: count_of(PlayerStatusFilter::Transfer),
+            loan: count_of(PlayerStatusFilter::Loan),
+            free_agent: count_of(PlayerStatusFilter::FreeAgent),
+            available: count_of(PlayerStatusFilter::Available),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct PlayersPage {
     pub items: Vec<PlayerSummary>,
+    pub status_counts: StatusCounts,
     pub total: usize,
     pub page: usize,
     pub page_size: usize,
@@ -154,10 +183,15 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
         .map(str::to_ascii_lowercase);
 
     let context = ListContext::new(game);
-    let mut matches: Vec<&Player> = game
+    let candidates: Vec<&Player> = game
         .players
         .iter()
-        .filter(|player| matches_filters(player, query, needle.as_deref(), &context))
+        .filter(|player| matches_all_but_status(player, query, needle.as_deref(), &context))
+        .collect();
+    let status_counts = StatusCounts::of(&candidates);
+    let mut matches: Vec<&Player> = candidates
+        .into_iter()
+        .filter(|player| matches_status(player, query.status))
         .collect();
 
     sort_matches(&mut matches, query, &teams, context.today);
@@ -175,6 +209,7 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
 
     PlayersPage {
         items,
+        status_counts,
         total,
         page,
         page_size: query.page_size,
@@ -270,7 +305,8 @@ fn within_budget(player: &Player, context: &ListContext) -> bool {
     player.team_id.is_none() || loan_only || can_afford_fee(team, player.market_value)
 }
 
-fn matches_filters(
+/// Every filter of the query except status, which is counted separately for the status chips.
+fn matches_all_but_status(
     player: &Player,
     query: &PlayersPageQuery,
     needle: Option<&str>,
@@ -314,7 +350,11 @@ fn matches_filters(
         return false;
     }
 
-    match query.status {
+    true
+}
+
+fn matches_status(player: &Player, status: PlayerStatusFilter) -> bool {
+    match status {
         PlayerStatusFilter::All => true,
         PlayerStatusFilter::Transfer => player.transfer_listed,
         PlayerStatusFilter::Loan => player.loan_listed,

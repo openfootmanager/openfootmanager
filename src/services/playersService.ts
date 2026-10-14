@@ -59,8 +59,12 @@ export interface PlayerSummary {
   media: PlayerSummaryMedia;
 }
 
+/** How many players each status chip would show, with every other filter as the query has it. */
+export type StatusCounts = Record<PlayerStatusFilter, number>;
+
 export interface PlayersPage {
   items: PlayerSummary[];
+  status_counts: StatusCounts;
   total: number;
   page: number;
   page_size: number;

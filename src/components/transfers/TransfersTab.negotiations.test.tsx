@@ -341,7 +341,7 @@ describe("TransfersTab", (): void => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Free Agent" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Free Agent/ }));
 
     expect(await screen.findByText("John Smith")).toBeInTheDocument();
     expect(screen.getAllByText("Free Agent").length).toBeGreaterThan(0);

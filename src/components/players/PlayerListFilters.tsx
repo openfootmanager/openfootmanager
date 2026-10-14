@@ -7,6 +7,7 @@ import type {
   PlayerStatusFilter,
   PlayersPageQuery,
   PositionFilter,
+  StatusCounts,
 } from "../../services/playersService";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
 
@@ -152,6 +153,8 @@ interface PlayerListFiltersProps {
   onChange: (patch: Partial<PlayersPageQuery>) => void;
   /** The status chips this screen offers, in order. */
   statusOptions: PlayerStatusFilter[];
+  /** What the backend counted for each status chip; the chips show them when given. */
+  statusCounts?: StatusCounts;
   /** Offered where the user's club buys players: only those it can pay for. */
   showInBudget?: boolean;
   /** Anything else this screen filters by (a team picker, say), shown at the end of the row. */
@@ -167,6 +170,7 @@ export default function PlayerListFilters({
   query,
   onChange,
   statusOptions,
+  statusCounts,
   showInBudget = false,
   trailing,
 }: PlayerListFiltersProps) {
@@ -270,6 +274,7 @@ export default function PlayerListFilters({
             className={`${chip} ${query.status === status ? "bg-accent-500 text-navy-900 shadow-sm" : chipOff}`}
           >
             {t(STATUS_LABEL_KEY[status])}
+            {statusCounts ? ` (${statusCounts[status]})` : ""}
           </button>
         ))}
         {showInBudget && (
