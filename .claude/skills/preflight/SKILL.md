@@ -2,7 +2,7 @@
 name: preflight
 description: Verify a pull request with the frontend scripts, default and MCP backend tests and clippy, formatting, architecture checks and review evidence. Report results and unrun checks without claiming a local pass guarantees CI.
 when_to_use: Before opening or updating a pull request or asking for review.
-allowed-tools: Read, Grep, Glob, Bash(npm ci), Bash(npm test*), Bash(npm run*), Bash(cargo test*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(cargo mutants*), Bash(scripts/mutation-outcome.sh*), Bash(git status*), Bash(git diff*), Bash(git log*), Bash(git branch*), Bash(git rev-parse*)
+allowed-tools: Read, Grep, Glob, Bash(npm ci), Bash(npm test*), Bash(npm run*), Bash(cargo test*), Bash(cargo clippy*), Bash(cargo fmt*), Bash(cargo mutants*), Bash(scripts/mutants-in-diff.sh*), Bash(git status*), Bash(git diff*), Bash(git log*), Bash(git branch*), Bash(git rev-parse*)
 ---
 
 # Preflight
@@ -69,52 +69,49 @@ Rust production lines your branch changes and reports which mutants your tests m
 two-week trial, from 13 to 27 Oct 2026: there is no baseline file and no CI gate. On 27 Oct the
 results pasted in PR bodies decide whether it stays.
 
-Run it when the branch changes Rust production code. Use cargo-mutants 25.3.1, the version
+Run it on any branch that touches `src-tauri/`. Use cargo-mutants 25.3.1, the version
 `mutation-tests.yml` pins (`cargo install --locked cargo-mutants@25.3.1`). From the repository
-root, with everything committed:
+root, with everything under `src-tauri/` committed:
 
 ```bash
-out="$(realpath -m "$(git rev-parse --git-path mutants-in-diff)")"; rm -rf "$out"; mkdir -p "$out"
-git diff --relative=src-tauri upstream/develop...HEAD -- src-tauri > "$out/diff.patch"
-(cd src-tauri && cargo mutants --workspace --in-diff "$out/diff.patch" --list) | wc -l
-git status --short
-(cd src-tauri && CARGO_INCREMENTAL=1 timeout --signal=INT 180m cargo mutants --workspace \
-    --in-diff "$out/diff.patch" --in-place --profile mutants --timeout 300 --output "$out"); \
-  status=$?; git status --short; \
-  scripts/mutation-outcome.sh "$status" "$out/mutants.out/outcomes.json"
-cat "$out/mutants.out/missed.txt" "$out/mutants.out/timeout.txt"
+scripts/mutants-in-diff.sh                        # base defaults to upstream/develop
+CARGO="<build-slot wrapper> cargo" scripts/mutants-in-diff.sh   # on a machine shared with other agents
 ```
 
-- **The diff must be relative to `src-tauri/`.** cargo-mutants matches the diff's paths against
-  the workspace, which lives in `src-tauri/`. A diff taken from the repository root names
-  `src-tauri/crates/…`, matches nothing, and the run prints `No mutants to filter` and exits 0: a
-  pass that tested nothing. If the `--list` count is 0 while the branch changes Rust production
-  code, the diff is wrong; do not report a result.
+The script prints the counts line and one line per missed or timed-out mutant; that output is what
+goes in the PR body. What it does, and why:
+
+- **It refuses every way of passing without testing anything.** cargo-mutants matches the diff's
+  paths against the workspace in `src-tauri/`. A diff rooted at the repository (`src-tauri/crates/…`)
+  matches nothing, and cargo-mutants prints `No mutants to filter` and exits 0. The script takes the
+  diff with `--relative=src-tauri` and refuses a patch whose paths are not under `src-tauri/`.
+  `scripts/mutation-outcome.sh` then refuses a run that wrote no report or tested no mutant.
+- **Zero is a real answer for a branch that changes no Rust production line.** A test-only Rust PR
+  (an integration test, or a `#[cfg(test)]` module), a docs PR and a frontend PR all list 0 mutants:
+  cargo-mutants never mutates test code. The script then prints `Mutants on the diff: 0 mutants`
+  and runs nothing. Paste that line too.
 - **`--in-place` edits your working tree while it runs**, one mutant at a time, restoring each
-  file afterwards. That is why the tree must be clean before the run, and why `git status --short`
-  runs again after it. If a run is interrupted and the second check shows changes, they are
-  mutants: `git checkout -- src-tauri` restores the committed code. In-place reuses your build,
-  and a copied tree would rebuild every dependency from scratch.
+  file afterwards. That is why the script refuses uncommitted changes under `src-tauri/`, and why
+  it restores `src-tauri/` from HEAD if an interrupted run leaves a mutant behind. In-place reuses
+  your build; a copied tree would rebuild every dependency from scratch.
 - `--profile mutants` and `CARGO_INCREMENTAL=1` are the two settings that brought an `ofm_core`
   mutant from 115 s to 34 s in CI; `mutation-tests.yml` explains both. `--timeout 300` stops a
   mutant that loops forever. cargo-mutants reports it as a timeout, not as caught, and it costs the
   full five minutes; triage it like a survivor (usually "a loop that never ends").
-  `timeout 180m` caps the whole run.
-- **Expect about a minute per listed mutant**, plus five to six minutes for the unmutated baseline
-  (measured on a loaded 8-core machine with two build jobs; see the PR that added this step).
-  Multiply the `--list` count before you start, and run it while you do something else.
-- Each mutant is tested with its own crate's tests. `#[cfg(test)]` code is never mutated.
-- `scripts/mutation-outcome.sh` accepts exit 2 (some mutants missed) and exit 3 (some timed out):
-  both are results you report. Anything else is a tool or build failure, which means no evidence.
-- On a machine shared with other agents, run the `cargo mutants` call through your build-slot
-  wrapper, as you would any other cargo command.
+  `MUTANTS_TIMEOUT` (default `180m`) caps the whole run.
+- **Expect about a minute per mutant**, plus five to six minutes for the unmutated baseline
+  (measured on a loaded 8-core machine with two build jobs; see the PR that added this step). The
+  script prints the count before it starts; run it while you do something else.
+- Each mutant is tested with its own crate's tests. Exit 2 (some missed) and exit 3 (some timed
+  out) are results; the script exits 0 for both and lists the survivors. Any other failure means
+  no evidence: report the step as not run.
 
-Paste the result into the PR body, one line per surviving or timed-out mutant:
+Paste the result into the PR body, with a triage after each surviving or timed-out mutant:
 
 ```text
 Mutants on the diff: 14 caught, 2 missed, 0 timed out, 1 unviable (6 min)
-- crates/ofm_core/src/aging.rs:85:9: delete match arm 35 in retirement_chance: real gap, test added (`a_35_year_old_retires_at_the_ages_rate`)
-- crates/ofm_core/src/finances/journal.rs:202:15: replace < with <= in credit_opening_cash: equivalent, because 0 already returned two lines above
+- [missed] crates/ofm_core/src/aging.rs:85:9: delete match arm 35 in retirement_chance: real gap, test added (`the_retirement_chance_rises_with_each_year_from_33`)
+- [missed] crates/ofm_core/src/finances/journal.rs:202:15: replace < with <= in credit_opening_cash: equivalent, because 0 already returned two lines above
 ```
 
 "Real gap, test added" means you wrote the test and re-ran it with the mutant applied by hand, and
