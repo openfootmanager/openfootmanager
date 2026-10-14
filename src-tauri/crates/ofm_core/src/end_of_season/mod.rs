@@ -83,16 +83,28 @@ pub fn is_league_complete(league: &League) -> bool {
             .all(|fixture| fixture.status == FixtureStatus::Completed)
 }
 
-/// Whether the rollover regenerates this competition. League
-/// tables that are mid-season (started but not finished) return false so their
-/// fixtures are not wiped during a hemisphere-foreign rollover. Cups and
-/// group-knockout competitions are always regenerated — freshly-seeded cups
-/// have no fixtures yet and must receive new participants each season.
+/// Whether the rollover regenerates this competition. League tables that are mid-season (started
+/// but not finished) return false so their fixtures are not wiped during a hemisphere-foreign
+/// rollover. A cup is regenerated once its edition is finished, or when it has no fixtures yet
+/// (freshly-seeded cups must receive new participants each season). A cup with a tie still to
+/// play, a final the calendar postponed past the league's last round, say, is kept: the sweep
+/// plays or moves it, and it is never dropped unplayed.
 pub fn is_regenerated_at_rollover(competition: &League) -> bool {
     match competition.rules.format {
         CompetitionFormat::LeagueTable => is_league_season_ended(competition),
-        _ => true,
+        CompetitionFormat::Knockout | CompetitionFormat::GroupAndKnockout => {
+            is_cup_edition_finished(competition)
+        }
     }
+}
+
+/// A cup with nothing in it is a fresh one; otherwise it is finished once every tie is played.
+/// The round bookkeeping is not asked: a round closes, and the next one is drawn, in the same step
+/// that records its last result.
+fn is_cup_edition_finished(cup: &League) -> bool {
+    cup.fixtures
+        .iter()
+        .all(|fixture| fixture.status == FixtureStatus::Completed)
 }
 
 /// Check if the season is complete for the purposes of allowing rollover.
@@ -727,7 +739,6 @@ fn notify_user_division_change(
     game: &mut Game,
     division_before: Option<(String, u32)>,
     user_team_id: &str,
-    next_season: u32,
     date: &str,
 ) {
     let Some((old_division_id, old_priority)) = division_before else {
@@ -757,15 +768,18 @@ fn notify_user_division_change(
         });
     let promoted = new_division.priority < old_priority || promoted_by_berth;
     let division_name = new_division.name.clone();
+    // The renewed edition's own label: a delayed edition renews to the calendar year, which is not
+    // always last season plus one.
+    let renewed_season = new_division.season;
     let kind = if promoted { "promotion" } else { "relegation" };
-    let msg_id = format!("{kind}_{next_season}");
+    let msg_id = format!("{kind}_{renewed_season}");
     if crate::inbox::already_emitted(game, &msg_id) {
         return;
     }
 
     let mut params = std::collections::HashMap::new();
     params.insert("division".to_string(), division_name);
-    params.insert("season".to_string(), next_season.to_string());
+    params.insert("season".to_string(), renewed_season.to_string());
 
     let message = InboxMessage::new(
         msg_id,
@@ -1094,7 +1108,6 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         game,
         user_division_before,
         &user_team_id,
-        next_season,
         &last_fixture_date,
     );
 
@@ -1641,6 +1654,117 @@ mod tests {
                 .flat_map(|c| &c.fixtures)
                 .all(|f| f.competition != FixtureCompetition::Friendly)
         );
+    }
+
+    /// Given a cup whose final was postponed past the rollover, so its edition is not finished,
+    /// When the rollover regenerates the competitions,
+    /// Then the edition is kept with its unplayed final: it is played or moved by the sweep, never
+    ///      dropped.
+    #[test]
+    fn an_unplayed_cup_edition_is_not_dropped_at_rollover() {
+        let mut game = calendar_game(at(2033, 7, 1));
+        let mut cup = crate::competition_test_support::cup(8);
+        let final_round = cup.knockout_rounds.last_mut().expect("a cup has a final");
+        final_round.completed = false;
+        let final_id = final_round.fixture_ids[0].clone();
+        let unplayed = cup
+            .fixtures
+            .iter_mut()
+            .find(|fixture| fixture.id == final_id)
+            .expect("the final is a fixture");
+        unplayed.status = FixtureStatus::Scheduled;
+        unplayed.result = None;
+        let season = cup.season;
+        game.competitions.push(cup);
+
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2033, 7, 1));
+
+        let kept = &game.competitions[0];
+        assert_eq!(kept.season, season, "the edition was not replaced");
+        assert!(
+            kept.fixtures
+                .iter()
+                .any(|fixture| fixture.id == final_id && fixture.status == FixtureStatus::Scheduled),
+            "the postponed final is still to be played"
+        );
+    }
+
+    /// Given a cup whose edition is finished, When the rollover regenerates, Then it starts the next
+    /// edition: the guard above must not keep a finished cup.
+    #[test]
+    fn a_finished_cup_is_regenerated_at_rollover() {
+        let mut game = calendar_game(at(2033, 7, 1));
+        let cup = crate::competition_test_support::cup(8);
+        let season = cup.season;
+        game.competitions.push(cup);
+
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2033, 7, 1));
+
+        let renewed = &game.competitions[0];
+        assert!(renewed.season > season, "a new edition");
+        assert!(
+            renewed
+                .fixtures
+                .iter()
+                .all(|fixture| fixture.status == FixtureStatus::Scheduled)
+        );
+    }
+
+    /// Given a club that moves division at a rollover whose renewed edition carries a different
+    /// season label than "last season plus one" (a delayed edition renews to the calendar year),
+    /// When the board writes to the user,
+    /// Then the message names the renewed edition, in its id and in its text.
+    #[test]
+    fn the_division_change_message_uses_the_renewed_edition() {
+        let mut game = calendar_game(at(2035, 7, 1));
+        add_division(&mut game, "eng-d2", "europe", at(2035, 8, 1));
+        game.competitions[0].priority = 1;
+        game.competitions[0].season = 2036;
+        game.manager.hire("eng-d2-0".to_string());
+
+        notify_user_division_change(
+            &mut game,
+            Some(("eng-d3".to_string(), 2)),
+            "eng-d2-0",
+            "2035-07-01",
+        );
+
+        let message = game
+            .messages
+            .iter()
+            .find(|message| message.id.starts_with("promotion_"))
+            .expect("a promotion to a higher-ranked division is announced");
+        assert_eq!(message.id, "promotion_2036");
+        assert_eq!(message.i18n_params["season"], "2036");
+    }
+
+    /// Given the user's league whose last round is played but one match, postponed past it, is not,
+    /// When the season-over check is made, Then the season is not over; once that match is played,
+    /// it is. "Season over" means every fixture is played, wherever the calendar put the last one.
+    #[test]
+    fn season_over_means_all_fixtures_played() {
+        let mut game = calendar_game(at(2035, 7, 1));
+        add_division(&mut game, "eng-d1", "europe", at(2034, 8, 1));
+        game.manager.hire("eng-d1-0".to_string());
+        for fixture in &mut game.competitions[0].fixtures {
+            fixture.status = FixtureStatus::Completed;
+            fixture.result = Some(domain::league::MatchResult::default());
+        }
+        let postponed = game.competitions[0].fixtures.len() - 1;
+        game.competitions[0].fixtures[postponed].status = FixtureStatus::Scheduled;
+        game.competitions[0].fixtures[postponed].result = None;
+        game.competitions[0].fixtures[postponed].date = "2035-09-20".to_string();
+        game.sync_legacy_league();
+        assert!(
+            !is_season_complete(&game),
+            "one match is still to be played"
+        );
+
+        game.competitions[0].fixtures[postponed].status = FixtureStatus::Completed;
+        game.competitions[0].fixtures[postponed].result =
+            Some(domain::league::MatchResult::default());
+        game.sync_legacy_league();
+        assert!(is_season_complete(&game), "every fixture is played");
     }
 
     #[test]
