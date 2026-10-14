@@ -53,9 +53,12 @@ export function PlayerRolesPanel({
   return (
     <details
       className="rounded-lg border border-gray-200 bg-white px-3 py-2 dark:border-navy-600 dark:bg-navy-800"
-      // A refusal is about the last change made; once the section is put away it is stale.
+      // A refusal is about the last change made; once the section is put away it is stale, and so is
+      // any change still in flight, whose answer must not bring it back.
       onToggle={(event) => {
-        if (!event.currentTarget.open) setRefusal(null);
+        if (event.currentTarget.open) return;
+        latestRequest.current += 1;
+        setRefusal(null);
       }}
     >
       <summary className="cursor-pointer rounded font-heading text-xs font-bold uppercase tracking-widest text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-gray-200">

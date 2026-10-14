@@ -210,4 +210,30 @@ describe("PlayerRolesPanel", () => {
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
+
+  /**
+   * Given a role change still pending when the section is closed
+   * When the engine refuses it after the close, and the section is opened again
+   * Then no refusal shows: closing put the change out of date.
+   */
+  it("shows no refusal for a change answered after the section was closed", async () => {
+    let answer!: (outcome: RoleChangeOutcome) => void;
+    renderPanel(
+      vi
+        .fn()
+        .mockImplementationOnce(
+          () => new Promise<RoleChangeOutcome>((resolve) => (answer = resolve)),
+        ),
+    );
+    pickPoacher();
+
+    fireEvent.click(screen.getByText("match.playerRoles"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    answer(refused);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fireEvent.click(screen.getByText("match.playerRoles"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
