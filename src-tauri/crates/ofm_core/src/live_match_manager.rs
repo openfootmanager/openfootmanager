@@ -254,7 +254,7 @@ impl LiveMatchSession {
 pub(crate) fn prepare_kick_off(
     game: &mut Game,
     fixture_index: usize,
-    mut lookups: Option<&mut MatchdayLookups>,
+    lookups: Option<&mut MatchdayLookups>,
 ) {
     let Some((home_team_id, away_team_id)) = game.league.as_ref().and_then(|league| {
         league
