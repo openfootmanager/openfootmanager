@@ -42,6 +42,19 @@ pub fn archive_completed_edition(
     Ok(ArchiveOutcome::Archived)
 }
 
+/// The champion of the most recent archived edition of `competition_id` earlier than `season`.
+pub(crate) fn champion_of_latest_edition_before<'a>(
+    archive: &'a [CompletedEdition],
+    competition_id: &str,
+    season: u32,
+) -> Option<&'a str> {
+    archive
+        .iter()
+        .filter(|edition| edition.competition_id == competition_id && edition.season < season)
+        .max_by_key(|edition| edition.season)
+        .map(|edition| edition.champion_id.as_str())
+}
+
 pub fn archive_finished_editions(archive: &mut Vec<CompletedEdition>, competitions: &[League]) {
     for competition in competitions {
         if let Err(failure) = archive_completed_edition(archive, competition) {

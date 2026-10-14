@@ -407,6 +407,127 @@ fn default_berths_reproduce_the_inferred_continental_field() {
     );
 }
 
+/// A cup that has already been renewed for its next edition: unplayed, one season on, with the
+/// edition it just finished frozen in the archive under `winner`.
+fn renewed_cup_with_archived_winner(game: &mut Game, cup: &mut League, winner: &str) {
+    game.edition_archive
+        .push(domain::edition_archive::CompletedEdition {
+            competition_id: cup.id.clone(),
+            season: cup.season,
+            completed_on: "2026-05-10".to_string(),
+            champion_id: winner.to_string(),
+            participant_ids: vec![],
+            standings: vec![],
+            groups: vec![],
+            knockout_rounds: vec![],
+            fixtures: vec![],
+        });
+    cup.season += 1;
+    for fixture in &mut cup.fixtures {
+        fixture.status = FixtureStatus::Scheduled;
+        fixture.result = None;
+    }
+    for round in &mut cup.knockout_rounds {
+        round.completed = false;
+    }
+}
+
+fn europe_game_with_a_renewed_cup(berth: bool) -> Game {
+    let teams = ["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"]
+        .iter()
+        .enumerate()
+        .map(|(rank, id)| make_club(id, "ES", 900 - rank as u32 * 50))
+        .collect();
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("es-a".to_string());
+    let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+    let mut cup = domestic_cup("es-cup", "ES", "europe", "es-f", "es-e");
+    if berth {
+        cup.berths = vec![Berth {
+            target: "europe-cup".to_string(),
+            rule: BerthRule::CupWinner,
+            fallback_to: None,
+        }];
+    }
+    renewed_cup_with_archived_winner(&mut game, &mut cup, "es-f");
+    game.competitions = vec![
+        first_division(
+            "es-1",
+            "ES",
+            "europe",
+            &["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"],
+        ),
+        cup,
+        continental_cup("europe-cup", "europe", 5),
+    ];
+    game
+}
+
+/// Given a domestic cup that was archived and renewed before the rollover, so its live bracket is
+/// the next edition and unplayed,
+/// When the continental field is worked out,
+/// Then the winner of the edition that finished still qualifies: the archive holds it.
+#[test]
+fn a_cup_renewed_before_the_rollover_still_sends_its_winner_to_continental_qualification() {
+    let game = europe_game_with_a_renewed_cup(false);
+    let europe = game
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+
+    let field = continental_qualified_entrants(&game, europe);
+
+    assert!(
+        field.contains(&"es-f".to_string()),
+        "the cup winner is missing: {field:?}"
+    );
+}
+
+/// As above, for a data-defined `CupWinner` berth.
+#[test]
+fn a_renewed_cups_cup_winner_berth_reads_the_archived_champion() {
+    let game = europe_game_with_a_renewed_cup(true);
+    let europe = game
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+
+    let field = berth_qualified_entrants(&game, europe);
+
+    assert!(
+        field.contains(&"es-f".to_string()),
+        "the cup winner is missing: {field:?}"
+    );
+}
+
+/// Given an unplayed cup that was never archived (a first edition), When the field is worked out,
+/// Then it has no winner to send: nothing is invented.
+#[test]
+fn a_cup_with_no_archived_edition_and_no_winner_sends_nobody() {
+    let mut game = europe_game_with_a_renewed_cup(false);
+    game.edition_archive.clear();
+    let europe = game
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+
+    let field = continental_qualified_entrants(&game, europe);
+
+    // es-f finished last in a six-club league and is the weakest club, so only the cup could
+    // have qualified it.
+    assert!(!field.contains(&"es-f".to_string()), "{field:?}");
+}
+
 /// Multi-tier qualification: a club lands in only its most prestigious target,
 /// so a cup winner who'd otherwise be a Europa club via league position is
 /// promoted to the Champions Cup and dropped from Europa.
