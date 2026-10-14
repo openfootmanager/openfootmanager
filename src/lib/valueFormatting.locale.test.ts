@@ -65,7 +65,40 @@ describe("money in the player's language", () => {
     speak("zh-CN");
 
     expect(formatVal(1_250_000)).toBe("€125万");
-    expect(formatVal(12_345)).toBe("€1万");
+  });
+
+  /**
+   * Given a Chinese player, whose compact unit (万) is ten thousand
+   * When amounts of different sizes are shown compactly
+   * Then no digit is lost to the unit: €12,345 is €1.2万 and €941,250 is €94.1万, not €1万 and €94万.
+   */
+  it("keeps a digit after the decimal where the myriad unit needs it (zh-CN)", () => {
+    speak("zh-CN");
+
+    expect(formatVal(12_345)).toBe("\u20ac1.2\u4e07");
+    expect(formatVal(941_250)).toBe("\u20ac94.1\u4e07");
+    expect(formatVal(1_250_000)).toBe("\u20ac125\u4e07");
+  });
+
+  /**
+   * Given English
+   * When tens of millions are shown compactly
+   * Then they keep their one decimal, as before the move to Intl.
+   */
+  it("keeps one decimal on tens of millions in thousand-based languages", () => {
+    expect(formatVal(12_500_000)).toBe("\u20ac12.5M");
+  });
+
+  /**
+   * Given a display currency worth 0.86 of the euro
+   * When 25 and -25 are converted
+   * Then both round the same way (22), the sign reapplied after rounding the magnitude.
+   */
+  it("rounds a negative amount the way it rounds the positive one", () => {
+    speak("en", "GBP");
+
+    expect(formatExactMoney(25)).toBe("\u00a322");
+    expect(formatExactMoney(-25)).toBe("-\u00a322");
   });
 
   /**

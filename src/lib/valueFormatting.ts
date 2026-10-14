@@ -13,9 +13,10 @@ function getFormattingSettings(): {
   };
 }
 
+/** Rounds the magnitude and reapplies the sign, so 25 and -25 convert to the same size. */
 function convertCurrencyValue(value: number, exchangeRate?: number): number {
   const resolvedExchangeRate = exchangeRate ?? getFormattingSettings().currency.exchange_rate;
-  return Math.round(value * resolvedExchangeRate);
+  return Math.sign(value) * Math.round(Math.abs(value) * resolvedExchangeRate);
 }
 
 /**
@@ -89,15 +90,35 @@ export function formatExactMoney(value: number): string {
   return presentMoney(value, { maximumFractionDigits: 0 });
 }
 
-/** Compact: thousands whole, millions to one decimal, in the language's own units. */
+/**
+ * How many decimals a compact amount keeps. Languages whose units step by a thousand (K, M) keep
+ * the established rule: thousands whole, millions to one decimal. A language whose unit steps by
+ * ten thousand (万) would lose a fifth of €12,345 that way, so it keeps one decimal until the
+ * number in front of the unit reaches three digits.
+ */
+function compactFractionDigits(amount: number, language: string): number {
+  if (amount === 0) return 0;
+  const digits = new Intl.NumberFormat(language, { notation: "compact", maximumFractionDigits: 3 })
+    .formatToParts(amount)
+    .filter((part) => part.type === "integer" || part.type === "fraction");
+  const integer = digits.filter((part) => part.type === "integer").map((part) => part.value);
+  const fraction = digits.filter((part) => part.type === "fraction").map((part) => part.value);
+  const scaled = Number(`${integer.join("")}.${fraction.join("") || "0"}`);
+  const unitExponent = Math.round(Math.log10(amount / scaled));
+
+  if (unitExponent % 3 === 0) {
+    return amount >= 1_000_000 ? 1 : 0;
+  }
+  return scaled < 100 ? 1 : 0;
+}
+
 export function formatVal(value: number): string {
-  const converted = Math.abs(
-    convertCurrencyValue(value, getFormattingSettings().currency.exchange_rate),
-  );
+  const { currency, language } = getFormattingSettings();
+  const converted = Math.abs(convertCurrencyValue(value, currency.exchange_rate));
 
   return presentMoney(value, {
     notation: "compact",
-    maximumFractionDigits: converted >= 1_000_000 ? 1 : 0,
+    maximumFractionDigits: compactFractionDigits(converted, language),
   });
 }
 
