@@ -26,7 +26,7 @@ pub fn repair_loaded_calendar(game: &mut Game) -> usize {
     );
 
     let fixtures_after: usize = game.competitions.iter().map(|c| c.fixtures.len()).sum();
-    let dropped = fixtures_before - fixtures_after;
+    let dropped = fixtures_before.saturating_sub(fixtures_after);
     let changed = moved.len() + dropped;
     if changed > 0 {
         game.sync_legacy_league();
