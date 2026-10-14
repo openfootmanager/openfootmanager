@@ -844,3 +844,62 @@ fn a_match_dated_the_first_day_still_to_be_played_may_move() {
     assert_eq!(moved.len(), 1);
     assert!(date_of(&world, "league", "l1") > march(10));
 }
+
+/// Given a world with a long played history, when its items are collected, then the history is
+/// not among them: that is the whole saving of the daily sweep, so it is counted, not timed.
+#[test]
+fn collecting_items_skips_history_beyond_the_rest_window() {
+    let mut competitions = vec![competition(
+        "league",
+        1,
+        vec![fx("league", "l1", march(10), "a", "z", Kind::League)],
+    )];
+    for index in 0..300u32 {
+        let mut played = fx(
+            "league",
+            &format!("old-{index}"),
+            day(2032, 1, 1) + chrono::Days::new(u64::from(index)),
+            "a",
+            "z",
+            Kind::League,
+        );
+        played.status = FixtureStatus::Completed;
+        competitions[0].fixtures.push(played);
+    }
+    // One played fixture each side of the window's edge, and one on the day itself.
+    for (id, date) in [("edge", day(2033, 1, 29)), ("inside", day(2033, 1, 31))] {
+        let mut played = fx("league", id, date, "a", "z", Kind::League);
+        played.status = FixtureStatus::Completed;
+        competitions[0].fixtures.push(played);
+    }
+
+    let rounds = round_index(&competitions);
+    let items = collect_items(&competitions, &rounds, day(2033, 2, 1)).unwrap();
+
+    let ids: Vec<&str> = items.iter().map(|item| item.fixture.id.as_str()).collect();
+    assert!(ids.contains(&"l1") && ids.contains(&"inside"), "{ids:?}");
+    assert!(ids.len() <= 3, "history was collected: {} items", ids.len());
+}
+
+/// Given a cup whose round gap is thirty days and a feeding match played long before today, with
+/// its successor still scheduled inside that gap,
+/// When the plan is made,
+/// Then the successor waits out the gap: a played match of a bracket is never dropped as history.
+#[test]
+fn a_played_feeder_long_ago_still_holds_back_its_successor() {
+    let mut feeder = fx("cup", "c1", day(2033, 1, 10), "a", "b", Kind::Cup);
+    feeder.status = FixtureStatus::Completed;
+    let successor = fx("cup", "c2", day(2033, 2, 5), "c", "d", Kind::Cup);
+    let mut cup = knockout(
+        "cup",
+        1,
+        vec![vec![feeder], vec![successor]],
+        &[true, false],
+    );
+    cup.rules.knockout_round_gap_days = 30;
+    let mut world = vec![cup];
+
+    run(&mut world);
+
+    assert_eq!(date_of(&world, "cup", "c2"), day(2033, 2, 9));
+}

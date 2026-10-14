@@ -462,4 +462,67 @@ mod tests {
             "a new year of windows"
         );
     }
+
+    /// Given a league match on a window that belongs to the season that began the year before
+    /// (24 March), and a day in January,
+    /// When the sweep runs, Then the match moves off the window.
+    #[test]
+    fn the_windows_of_the_season_that_began_last_year_are_kept_clear() {
+        let mut game = game_on(2034, 1, 10, "z");
+        game.competitions = vec![league(vec![fixture(
+            "league",
+            "l1",
+            "2034-03-24",
+            "a",
+            "b",
+        )])];
+
+        reconcile_calendar(&mut game, "2034-01-10", &ShownFixtures::new());
+
+        assert_ne!(date_of(&game, "league", "l1"), "2034-03-24");
+    }
+
+    /// Given a league match the sweep moves that was not in the day's snapshot of bracket fixtures,
+    /// When the sweep runs, Then it is still recorded as postponed and announced: only a round
+    /// drawn the same day is unshown, and a league's dates are always shown.
+    #[test]
+    fn a_league_match_is_always_a_shown_date() {
+        let mut game = game_on(2033, 3, 1, "a");
+        game.competitions = vec![
+            league(vec![fixture("league", "l1", "2033-03-10", "a", "z")]),
+            cup(vec![vec![fixture("cup", "t1", "2033-03-10", "a", "b")]]),
+        ];
+
+        reconcile_calendar(&mut game, "2033-03-01", &ShownFixtures::new());
+
+        assert!(game.competitions[0].fixtures[0].postponement.is_some());
+        assert_eq!(moved_message_count(&game), 1);
+    }
+
+    /// Given a sweep that has run, When the calendar changes (a draw), Then the sweep runs
+    /// again: the cache key is the calendar, not merely "has run once".
+    #[test]
+    fn a_changed_calendar_is_never_mistaken_for_the_one_already_swept() {
+        let mut game = game_on(2033, 3, 1, "a");
+        game.competitions = vec![league(vec![fixture(
+            "league",
+            "l1",
+            "2033-03-10",
+            "a",
+            "z",
+        )])];
+        let shown = ShownFixtures::new();
+        assert!(reconcile_calendar(&mut game, "2033-03-01", &shown));
+
+        game.competitions.push(cup(vec![vec![fixture(
+            "cup",
+            "t1",
+            "2033-03-10",
+            "a",
+            "b",
+        )]]));
+
+        assert!(reconcile_calendar(&mut game, "2033-03-02", &shown));
+        assert_ne!(date_of(&game, "league", "l1"), "2033-03-10");
+    }
 }
