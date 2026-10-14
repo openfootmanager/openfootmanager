@@ -312,3 +312,6 @@ export interface SubstitutionSwap {
 export type SubstitutionOutcome =
   | { applied: true }
   | { applied: false; refused: SubstitutionSwap; reason: string; appliedCount: number };
+
+/** What the engine said to a role change: taken, or refused with its translation key. */
+export type RoleChangeOutcome = { applied: true } | { applied: false; reason: string };

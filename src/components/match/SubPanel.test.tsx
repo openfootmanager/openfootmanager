@@ -158,6 +158,7 @@ describe("SubPanel", () => {
     onSubstitute: vi.fn().mockResolvedValue({ applied: true }),
     onFormationChange: vi.fn(),
     onPlayStyleChange: vi.fn(),
+    onChangeRole: vi.fn().mockResolvedValue({ applied: true }),
     onClose: vi.fn(),
   });
 
@@ -226,6 +227,45 @@ describe("SubPanel", () => {
     fireEvent.click(screen.getByRole("option", { name: "4-3-3" }));
 
     expect(props.onFormationChange).toHaveBeenCalledWith("4-3-3");
+  });
+
+  /**
+   * Given the substitution panel is open beside the formation and play-style controls
+   * When a starter is given a new role from the roles section
+   * Then the panel asks its owner for that change.
+   */
+  it("hands a role change to its owner", () => {
+    const props = createProps();
+    render(<SubPanel {...props} />);
+
+    fireEvent.click(screen.getByText("match.playerRoles"));
+    // Listed by position group, so the forward is the second starter.
+    const [, forwardPicker] = screen.getAllByRole("combobox", { name: "match.roleFor" });
+    fireEvent.click(forwardPicker);
+    fireEvent.click(screen.getByRole("option", { name: "tactics.playerRoles.Poacher" }));
+
+    expect(props.onChangeRole).toHaveBeenCalledWith("starter-2", "Poacher");
+  });
+
+  /**
+   * Given a role picker's list is open inside the substitution dialog
+   * When Escape is pressed
+   * Then only the list closes; a second Escape closes the dialog.
+   */
+  it("closes an open role list on the first Escape and the dialog on the second", () => {
+    const props = createProps();
+    render(<SubPanel {...props} />);
+    fireEvent.click(screen.getByText("match.playerRoles"));
+    const [picker] = screen.getAllByRole("combobox", { name: "match.roleFor" });
+    fireEvent.click(picker);
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+
+    fireEvent.keyDown(picker, { key: "Escape" });
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(props.onClose).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(picker, { key: "Escape" });
+    expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 
   it("lets a recommendation prefill the swap flow", () => {
@@ -586,6 +626,7 @@ describe("SubPanel as a dialog", () => {
         onSubstitute={vi.fn().mockResolvedValue({ applied: true })}
         onFormationChange={vi.fn()}
         onPlayStyleChange={vi.fn()}
+        onChangeRole={vi.fn().mockResolvedValue({ applied: true })}
         onClose={onClose}
       />,
     );

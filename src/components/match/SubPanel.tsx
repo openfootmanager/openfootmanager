@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import {
   type MatchSnapshot,
+  type RoleChangeOutcome,
   type SubstitutionOutcome,
   type SubstitutionSwap,
   FORMATIONS,
@@ -10,6 +11,7 @@ import {
 import { getPlayerName } from "./helpers";
 import { resolveBackendError } from "../../utils/backendI18n";
 import { FormationPitch } from "./FormationPitch";
+import { PlayerRolesPanel } from "./PlayerRolesPanel";
 import { condBgColor, condColor } from "../../lib/playerConditionDisplay";
 import { Badge, Button, Dialog, DialogCloseButton, Select } from "../ui";
 import {
@@ -59,6 +61,7 @@ export function SubPanel({
   onSubstitute,
   onFormationChange,
   onPlayStyleChange,
+  onChangeRole,
   onClose,
 }: {
   snapshot: MatchSnapshot;
@@ -67,6 +70,7 @@ export function SubPanel({
   onSubstitute: (swaps: SubstitutionSwap[]) => Promise<SubstitutionOutcome>;
   onFormationChange: (formation: string) => void;
   onPlayStyleChange: (playStyle: string) => void;
+  onChangeRole: (playerId: string, role: string) => Promise<RoleChangeOutcome>;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -353,6 +357,10 @@ export function SubPanel({
                 ))}
               </Select>
             </div>
+          </div>
+
+          <div className="shrink-0 border-b border-gray-200 px-4 py-2 dark:border-navy-700">
+            <PlayerRolesPanel players={team.players} onChangeRole={onChangeRole} />
           </div>
 
           {/* Main body: two columns */}

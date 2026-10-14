@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../../store/gameStore";
 import {
   type MatchSnapshot,
+  type RoleChangeOutcome,
   type SubstitutionOutcome,
   type SubstitutionSwap,
   type MatchEvent,
@@ -20,6 +21,8 @@ import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
 import { SubPanel } from "./SubPanel";
+import { applyRoleChange } from "./applyRoleChange";
+import { sendMatchCommand } from "./matchCommands";
 import { applySubstitutions } from "./applySubstitutions";
 import {
   Play,
@@ -217,20 +220,23 @@ export default function MatchLive({
   const handleFormationChange = async (formation: string) => {
     if (!userSide || isSpectator) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangeFormation: { side: userSide, formation } },
-      });
+      const snap = await sendMatchCommand({ ChangeFormation: { side: userSide, formation } });
       onSnapshotUpdate(snap);
     } catch (err) {
       console.error("Formation change failed:", err);
     }
   };
 
+  const handleRoleChange = async (playerId: string, role: string): Promise<RoleChangeOutcome> => {
+    if (!userSide || isSpectator) return { applied: true };
+    return applyRoleChange(userSide, playerId, role, onSnapshotUpdate);
+  };
+
   const handlePlayStyleChange = async (playStyle: string) => {
     if (!userSide || isSpectator) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
-        command: { ChangePlayStyle: { side: userSide, play_style: playStyle } },
+      const snap = await sendMatchCommand({
+        ChangePlayStyle: { side: userSide, play_style: playStyle },
       });
       onSnapshotUpdate(snap);
     } catch (err) {
@@ -602,6 +608,7 @@ export default function MatchLive({
           onSubstitute={handleSubstitutions}
           onFormationChange={handleFormationChange}
           onPlayStyleChange={handlePlayStyleChange}
+          onChangeRole={handleRoleChange}
           onClose={() => setShowSubPanel(false)}
         />
       )}
