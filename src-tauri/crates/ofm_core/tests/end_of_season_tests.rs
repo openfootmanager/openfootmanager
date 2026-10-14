@@ -950,10 +950,14 @@ fn relegated_user_receives_a_relegation_message() {
 
     process_end_of_season(&mut game);
 
+    // Named by the edition the user's new division was renewed to, not by last season plus one.
+    let renewed_season = ofm_core::end_of_season::user_division(&game, "team2")
+        .expect("the user still has a division")
+        .season;
     let msg = game
         .messages
         .iter()
-        .find(|m| m.id == "relegation_2")
+        .find(|m| m.id == format!("relegation_{renewed_season}"))
         .expect("relegated user must be told");
     assert_eq!(
         msg.subject_key.as_deref(),
@@ -965,7 +969,7 @@ fn relegated_user_receives_a_relegation_message() {
         Some(&"ENG Second Division".to_string())
     );
     assert!(
-        !game.messages.iter().any(|m| m.id == "promotion_2"),
+        !game.messages.iter().any(|m| m.id.starts_with("promotion_")),
         "a relegated user must not also be congratulated"
     );
 }
@@ -976,10 +980,13 @@ fn promoted_user_receives_a_promotion_message() {
 
     process_end_of_season(&mut game);
 
+    let renewed_season = ofm_core::end_of_season::user_division(&game, "team3")
+        .expect("the user still has a division")
+        .season;
     let msg = game
         .messages
         .iter()
-        .find(|m| m.id == "promotion_2")
+        .find(|m| m.id == format!("promotion_{renewed_season}"))
         .expect("promoted user must be told");
     assert_eq!(msg.subject_key.as_deref(), Some("be.msg.promotion.subject"));
     assert_eq!(
