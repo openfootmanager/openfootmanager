@@ -5,7 +5,8 @@
 #
 # Usage: scripts/mutants-in-diff.sh [base]      base defaults to upstream/develop
 #
-#   CARGO                  the cargo command, e.g. "cargo-slot cargo" on a shared machine
+#   CARGO                  the cargo command (default cargo). On a shared machine, wrap the whole run in
+#                          one lock instead of passing a build-slot wrapper here: a run lasts hours.
 #   MUTANTS_IN_DIFF_PATCH  a patch to use instead of `git diff base...HEAD` (relative to src-tauri/)
 #   MUTANTS_TIMEOUT        cap on the whole run, as for timeout(1); default 180m
 #
