@@ -66,6 +66,8 @@ const makePlayer = (
     team_id: "team1",
     wage: 1000,
     market_value: 100000,
+    // The backend's verdict for a healthy senior; a test that needs another says so.
+    match_day_eligible: true,
     ...overrides,
   });
 
@@ -231,6 +233,7 @@ describe("SquadTab", () => {
         name: "Knee bruise",
         days_remaining: 10,
       },
+      match_day_eligible: false,
     });
 
     render(
