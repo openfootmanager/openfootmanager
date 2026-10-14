@@ -24,10 +24,18 @@ describe("money in translations", () => {
    *      or dollars.
    */
   it("never writes a currency symbol before a money parameter", () => {
-    const offenders = SUPPORTED_LANGUAGES.flatMap(({ code }) =>
-      strings(localeModules[`./locales/${code}.json`])
-        .filter(([, value]) => /[€$£]\s?\{\{/.test(value))
-        .map(([key]) => `${code}: ${key}`),
+    // A locale missing from the glob would scan as empty and pass: prove the scan saw every
+    // language, and a believable amount of text, before trusting an empty result.
+    const scanned = SUPPORTED_LANGUAGES.map(({ code }) => ({
+      code,
+      entries: strings(localeModules[`./locales/${code}.json`]),
+    }));
+    for (const { code, entries } of scanned) {
+      expect(entries.length, `${code} was not scanned`).toBeGreaterThan(1000);
+    }
+
+    const offenders = scanned.flatMap(({ code, entries }) =>
+      entries.filter(([, value]) => /[€$£]\s?\{\{/.test(value)).map(([key]) => `${code}: ${key}`),
     );
 
     expect(offenders).toEqual([]);
