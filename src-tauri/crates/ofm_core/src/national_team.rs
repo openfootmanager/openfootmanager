@@ -91,6 +91,29 @@ pub fn international_blackout_dates(
         .collect()
 }
 
+/// Dates club football keeps clear of around `today`: the windows of the season that started the
+/// year before and of the one starting this year, since a date belongs to either. National-team
+/// qualifying widens each window to its whole block.
+pub fn international_blackout_around(
+    competitions: &[domain::league::League],
+    today: chrono::NaiveDate,
+) -> std::collections::BTreeSet<chrono::NaiveDate> {
+    let qualifying = competitions
+        .iter()
+        .any(crate::world_cup::is_world_cup_qualifying);
+    [today.year() - 1, today.year()]
+        .into_iter()
+        .filter_map(|year| chrono::NaiveDate::from_ymd_opt(year, 7, 1))
+        .filter_map(|start| start.and_hms_opt(0, 0, 0))
+        .flat_map(|start| {
+            international_blackout_dates(
+                DateTime::from_naive_utc_and_offset(start, Utc),
+                qualifying,
+            )
+        })
+        .collect()
+}
+
 /// Schedule one friendly per international window for every national team that
 /// can field a squad. Fixtures are stored on the **home** team only so each
 /// match is simulated exactly once during day processing.

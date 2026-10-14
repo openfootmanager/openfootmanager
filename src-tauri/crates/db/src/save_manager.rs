@@ -624,6 +624,18 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        // After the stranded fixtures are resolved, so that what remains unplayed is the calendar
+        // from here on. Matches inside the rest window, or on an international window, move to the
+        // earliest legal day; each is recorded as postponed and the user is told once. Idempotent.
+        let repaired_calendar = ofm_core::calendar_repair::repair_loaded_calendar(&mut game);
+        if repaired_calendar > 0 {
+            info!(
+                "[save_manager] moved {} clashing fixture(s) for save {}",
+                repaired_calendar, save_id
+            );
+            needs_resave = true;
+        }
+
         if league_repo::needs_cleanup(
             db.conn(),
             game.league.as_ref().map(|league| league.id.as_str()),
@@ -1512,6 +1524,75 @@ mod tests {
             persisted.result.is_some(),
             "and the scoreline it chose is the one on disk"
         );
+    }
+
+    /// Given a save whose unplayed matches clash (one club, two matches on consecutive days),
+    /// When it is loaded, Then the clash is repaired, the move is recorded as a postponement, and
+    /// the repair is on disk: it is not recomputed, or lost, on the next load.
+    #[test]
+    fn loading_a_save_repairs_clashing_matches_and_persists_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let day = |offset: i64| {
+            (game.clock.current_date + chrono::Duration::days(offset))
+                .format("%Y-%m-%d")
+                .to_string()
+        };
+        let (first_day, second_day) = (day(30), day(31));
+        let competition = game.competitions.first_mut().expect("a league");
+        for (id, date) in [("clash-1", first_day), ("clash-2", second_day)] {
+            competition.fixtures.push(Fixture {
+                postponement: None,
+                id: id.to_string(),
+                competition_id: competition.id.clone(),
+                matchday: 99,
+                date,
+                home_team_id: "team-001".to_string(),
+                away_team_id: "team-002".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            });
+        }
+        let save_id = sm.create_save(&game, "Clashing Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        let dates = |game: &Game| -> Vec<(String, String, bool)> {
+            game.competitions
+                .iter()
+                .flat_map(|competition| competition.fixtures.iter())
+                .filter(|fixture| fixture.id.starts_with("clash-"))
+                .map(|fixture| {
+                    (
+                        fixture.id.clone(),
+                        fixture.date.clone(),
+                        fixture.postponement.is_some(),
+                    )
+                })
+                .collect()
+        };
+        let in_memory = dates(&loaded);
+        let gap = |rows: &[(String, String, bool)]| {
+            let parse = |date: &str| chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap();
+            (parse(&rows[1].1) - parse(&rows[0].1)).num_days().abs()
+        };
+        assert!(gap(&in_memory) >= 3, "{in_memory:?}");
+        assert_eq!(
+            in_memory.iter().filter(|row| row.2).count(),
+            1,
+            "exactly one of the two moved, and is marked: {in_memory:?}"
+        );
+
+        // From the file itself, not a second load (which would repair again and prove nothing).
+        let db = GameDatabase::open_save(&saves_dir.join(format!("{save_id}.db"))).unwrap();
+        let from_disk = GamePersistenceReader::read_game(&db).unwrap();
+        assert_eq!(dates(&from_disk), in_memory);
     }
 
     /// Every attribute at `value`. `ofm_core` has the same helper for its own unit tests, but a
