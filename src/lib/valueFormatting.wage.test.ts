@@ -50,7 +50,7 @@ describe("formatWeeklyWage", () => {
   it("takes the unit from the active language", async () => {
     await speak("de");
 
-    expect(formatWeeklyWage(12_345)).toBe(`€12.345${i18n.t("finances.perWeekSuffix")}`);
+    expect(formatWeeklyWage(12_345)).toBe("12.345\u00a0\u20ac/Wo");
     expect(i18n.t("finances.perWeekSuffix")).toBe("/Wo");
   });
 
