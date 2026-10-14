@@ -18,7 +18,9 @@ export default function TransfersTab(props: TransfersTabProps) {
   const {
     t,
     view,
-    availabilityFilter,
+    marketQuery,
+    marketError,
+    marketLoaded,
     filteredList,
     scoutError,
     isScoutingView,
@@ -36,6 +38,14 @@ export default function TransfersTab(props: TransfersTabProps) {
       {/* Filters */}
       <TransfersMarketFilters state={state} />
 
+      {marketError && isScoutingView ? (
+        <p
+          role="alert"
+          className="mb-4 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
+        >
+          {marketError}
+        </p>
+      ) : null}
       {scoutError && isScoutingView ? (
         <p
           role="alert"
@@ -92,17 +102,17 @@ export default function TransfersTab(props: TransfersTabProps) {
 
       {<TransfersMarketTable state={state} />}
 
-      {isScoutingView && filteredList.length === 0 && (
+      {isScoutingView && marketLoaded && filteredList.length === 0 && (
         <Card>
           <CardBody>
             <div className="text-center py-8">
               <TrendingUp className="w-10 h-10 text-gray-300 dark:text-navy-600 mx-auto mb-3" />
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {availabilityFilter === "transfer"
+                {marketQuery.status === "transfer"
                   ? t("transfers.noTransferMarket")
-                  : availabilityFilter === "free_agent"
+                  : marketQuery.status === "free_agent"
                     ? t("transfers.noFreeAgents")
-                    : availabilityFilter === "loan"
+                    : marketQuery.status === "loan"
                       ? t("transfers.noLoanMarket")
                       : t("transfers.noAvailablePlayers")}
               </p>

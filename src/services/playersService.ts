@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type PlayerSortKey = "name" | "position" | "age" | "ovr" | "value" | "team";
 
-export type PlayerStatusFilter = "all" | "transfer" | "loan";
+export type PlayerStatusFilter = "all" | "transfer" | "loan" | "free_agent" | "available";
 
 /** One position test: an exact position, or every position in a group. */
 export type PositionFilter = { group: string } | { exact: string };

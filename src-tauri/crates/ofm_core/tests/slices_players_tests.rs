@@ -915,3 +915,69 @@ fn filters_combine_with_and() {
 
     assert_eq!(ids(&game, &q), vec!["fits"]);
 }
+
+/// Given players with and without a club, listed and not, when the free-agent status is asked for,
+/// then only the players without a club are returned.
+#[test]
+fn the_free_agent_status_lists_only_players_without_a_club() {
+    let mut listed = PlayerSpec::new("listed", "Listed", Some("other"));
+    listed.transfer_listed = true;
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            PlayerSpec::new("free", "Free", None).build(),
+            listed.build(),
+            PlayerSpec::new("kept", "Kept", Some("other")).build(),
+        ],
+    );
+    let mut q = baseline_query();
+    q.status = PlayerStatusFilter::FreeAgent;
+
+    assert_eq!(ids(&game, &q), vec!["free"]);
+}
+
+/// Given players listed for transfer, listed for loan, unlisted and without a club, when the
+/// available status is asked for, then everyone a club can approach is returned and the unlisted
+/// player under contract is not.
+#[test]
+fn the_available_status_lists_listed_and_free_players() {
+    let mut for_sale = PlayerSpec::new("sale", "Sale", Some("other"));
+    for_sale.transfer_listed = true;
+    let mut for_loan = PlayerSpec::new("loan", "Loan", Some("other"));
+    for_loan.loan_listed = true;
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            for_sale.build(),
+            for_loan.build(),
+            PlayerSpec::new("free", "Free", None).build(),
+            PlayerSpec::new("kept", "Kept", Some("other")).build(),
+        ],
+    );
+    let mut q = baseline_query();
+    q.status = PlayerStatusFilter::Available;
+
+    assert_eq!(ids(&game, &q), vec!["free", "loan", "sale"]);
+}
+
+/// Given a retired free agent among the players, when the market scope is on, then he is left
+/// out: nobody can sign him. The world directory (scope all) still lists him.
+#[test]
+fn the_market_scope_leaves_out_retired_players() {
+    let retired = {
+        let mut spec = PlayerSpec::new("retired", "Retired", None);
+        spec.retired = true;
+        spec.build()
+    };
+    let free = PlayerSpec::new("free", "Free", None).build();
+    let game = game_managing_mine(0, 0, vec![retired, free]);
+    let mut q = baseline_query();
+    q.scope = PlayerScope::Market;
+
+    assert_eq!(ids(&game, &q), vec!["free"]);
+
+    q.scope = PlayerScope::All;
+    assert_eq!(ids(&game, &q), vec!["free", "retired"]);
+}

@@ -27,6 +27,10 @@ pub enum PlayerStatusFilter {
     All,
     Transfer,
     Loan,
+    /// Not under contract to any club.
+    FreeAgent,
+    /// Anyone a club can approach: listed for transfer or for loan, or without a club.
+    Available,
 }
 
 /// Which players a list is about, before any other filter narrows it.
@@ -36,8 +40,8 @@ pub enum PlayerScope {
     /// Everyone in the world.
     #[default]
     All,
-    /// Players the user's club could still approach: not on loan, not already agreed to move, and
-    /// not in the user's own club.
+    /// Players the user's club could still approach: not retired, not on loan, not already agreed
+    /// to move, and not in the user's own club.
     Market,
     /// Players a scout can still be sent to watch: not in the user's own club and not already
     /// being scouted.
@@ -207,7 +211,8 @@ fn matches_scope(player: &Player, scope: PlayerScope, context: &ListContext) -> 
     match scope {
         PlayerScope::All => true,
         PlayerScope::Market => {
-            !context.is_users_own(player)
+            !player.retired
+                && !context.is_users_own(player)
                 && !player_has_active_or_pending_loan(player)
                 && !has_pending_transfer_registration(player)
         }
@@ -285,6 +290,10 @@ fn matches_filters(
         PlayerStatusFilter::All => true,
         PlayerStatusFilter::Transfer => player.transfer_listed,
         PlayerStatusFilter::Loan => player.loan_listed,
+        PlayerStatusFilter::FreeAgent => player.team_id.is_none(),
+        PlayerStatusFilter::Available => {
+            player.team_id.is_none() || player.transfer_listed || player.loan_listed
+        }
     }
 }
 

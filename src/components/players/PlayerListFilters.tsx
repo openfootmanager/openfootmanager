@@ -20,6 +20,9 @@ const STATUS_LABEL_KEY: Record<PlayerStatusFilter, string> = {
   all: "common.all",
   transfer: "transfers.transfer",
   loan: "transfers.loan",
+  free_agent: "common.freeAgent",
+  // On the transfer market "everyone you can approach" is what All means.
+  available: "common.all",
 };
 
 /** The detailed positions a query's position tests stand for, whichever shorthand wrote them. */
