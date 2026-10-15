@@ -12,7 +12,7 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
 
 mod berths;
-mod season_calendar;
+pub(crate) mod season_calendar;
 use berths::{
     apply_domestic_berth_promotion_relegation, apply_pyramid_promotion_relegation,
     resolve_domestic_berth_fields,
@@ -101,7 +101,7 @@ pub fn is_regenerated_at_rollover(competition: &League) -> bool {
 /// A cup with nothing in it is a fresh one; otherwise it is finished once every tie is played.
 /// The round bookkeeping is not asked: a round closes, and the next one is drawn, in the same step
 /// that records its last result.
-fn is_cup_edition_finished(cup: &League) -> bool {
+pub(crate) fn is_cup_edition_finished(cup: &League) -> bool {
     cup.fixtures
         .iter()
         .all(|fixture| fixture.status == FixtureStatus::Completed)
