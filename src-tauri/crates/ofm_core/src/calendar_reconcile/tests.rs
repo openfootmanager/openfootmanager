@@ -422,6 +422,43 @@ fn a_shadow_date_is_never_a_displacement_target() {
     assert_eq!(date_of(&world, "league", "l1"), march(7));
 }
 
+/// Given a cup whose first knockout round is drawn, as a straight knockout and as a group stage
+/// whose bracket now exists, and a league match that has to move off that round's eve
+/// When the calendar is reconciled
+/// Then in both cups the league match stays clear of the date the next round could claim
+#[test]
+fn a_drawn_bracket_keeps_its_next_round_clear_whatever_the_cups_format() {
+    for format in [
+        CompetitionFormat::Knockout,
+        CompetitionFormat::GroupAndKnockout,
+    ] {
+        let mut cup = knockout(
+            "cup",
+            1,
+            vec![vec![
+                fx("cup", "c1", march(1), "a", "b", Kind::Cup),
+                fx("cup", "c2", march(1), "c", "d", Kind::Cup),
+            ]],
+            &[],
+        );
+        cup.rules.format = format.clone();
+        let league = competition(
+            "league",
+            2,
+            vec![fx("league", "l1", march(2), "a", "x", Kind::League)],
+        );
+        let mut world = vec![cup, league];
+
+        run(&mut world);
+
+        assert_eq!(
+            date_of(&world, "league", "l1"),
+            march(7),
+            "{format:?}: the league match took the date the next round may claim"
+        );
+    }
+}
+
 /// Given a league match that already sits on a day a cup draw could claim but clashes with nothing firm,
 /// when reconciled, then it stays: shadows constrain targets only.
 #[test]
