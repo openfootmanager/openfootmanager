@@ -8,7 +8,7 @@ use domain::player::{Player, Position};
 use domain::team::Team;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -39,8 +39,8 @@ pub enum PlayerScope {
     /// Players the user's club could still approach: not on loan, not already agreed to move, and
     /// not in the user's own club.
     Market,
-    /// Players a scout can still be sent to watch: not retired, not in the user's own club and not
-    /// already being scouted.
+    /// Players a scout can be sent to watch: not retired and not in the user's own club. One
+    /// already being scouted stays listed, so the screen can say so; `send_scout` refuses a second.
     Scoutable,
 }
 
@@ -176,7 +176,6 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
 struct ListContext<'a> {
     today: NaiveDate,
     user_team: Option<&'a Team>,
-    scouted: HashSet<&'a str>,
 }
 
 impl<'a> ListContext<'a> {
@@ -189,11 +188,6 @@ impl<'a> ListContext<'a> {
         Self {
             today: game.clock.current_date.date_naive(),
             user_team,
-            scouted: game
-                .scouting_assignments
-                .iter()
-                .map(|assignment| assignment.player_id.as_str())
-                .collect(),
         }
     }
 
@@ -211,11 +205,7 @@ fn matches_scope(player: &Player, scope: PlayerScope, context: &ListContext) -> 
                 && !player_has_active_or_pending_loan(player)
                 && !has_pending_transfer_registration(player)
         }
-        PlayerScope::Scoutable => {
-            !player.retired
-                && !context.is_users_own(player)
-                && !context.scouted.contains(player.id.as_str())
-        }
+        PlayerScope::Scoutable => !player.retired && !context.is_users_own(player),
     }
 }
 

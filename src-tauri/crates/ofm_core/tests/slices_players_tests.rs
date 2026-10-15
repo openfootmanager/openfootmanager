@@ -702,9 +702,10 @@ fn the_market_scope_leaves_out_own_loaned_and_already_agreed_players() {
 }
 
 /// Given the user's own player and one a scout is already watching, when the scoutable scope is
-/// on, then neither is listed, while a loaned player (who can be watched) still is.
+/// on, then the own player is left out and the watched one stays listed: the screen marks him as
+/// already being scouted, and `send_scout` refuses a second scout.
 #[test]
-fn the_scoutable_scope_leaves_out_own_and_already_scouted_players() {
+fn the_scoutable_scope_leaves_out_own_players_but_keeps_those_already_scouted() {
     let own = PlayerSpec::new("own", "Own", Some("mine")).build();
     let watched = PlayerSpec::new("watched", "Watched", Some("other")).build();
     let open = PlayerSpec::new("open", "Open", Some("other")).build();
@@ -718,7 +719,7 @@ fn the_scoutable_scope_leaves_out_own_and_already_scouted_players() {
     let mut q = baseline_query();
     q.scope = PlayerScope::Scoutable;
 
-    assert_eq!(ids(&game, &q), vec!["open"]);
+    assert_eq!(ids(&game, &q), vec!["open", "watched"]);
 }
 
 fn with_position(id: &str, position: Position) -> Player {

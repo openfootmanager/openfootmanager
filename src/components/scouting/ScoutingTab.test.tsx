@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -321,6 +321,25 @@ describe("ScoutingTab", () => {
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });
+  });
+
+  /**
+   * Given a player a scout is already watching, whom the backend still lists
+   * When the search shows him
+   * Then his row says scouting is in progress instead of offering another scout.
+   */
+  it("lists a player already being scouted, marked as in progress", async () => {
+    const state = createGameState({
+      scouts: [createScout()],
+      assignments: [{ id: "a1", scout_id: "staff-1", player_id: "player-1", days_remaining: 3 }],
+    });
+    marketPlayers = state.players;
+
+    render(<ScoutingTab gameState={state} onGameUpdate={vi.fn()} />);
+
+    const table = within(await screen.findByRole("table"));
+    expect(table.getByText("Scouting in progress")).toBeInTheDocument();
+    expect(table.queryByRole("button", { name: "Scout" })).not.toBeInTheDocument();
   });
 
   it("shows scout assignment errors inline in the player search card", async () => {
