@@ -1768,6 +1768,71 @@ mod tests {
         assert!(is_season_complete(&game), "every fixture is played");
     }
 
+    /// Given a cup the completion hook has already renewed, When the rollover regenerates the
+    /// competitions, Then the cup is not renewed a second time and its finished edition is archived
+    /// once: renewal changes the state both the hook and the rollover test.
+    #[test]
+    fn a_cup_renewed_by_the_hook_is_not_renewed_again_at_the_rollover() {
+        let mut game = calendar_game(at(2033, 5, 20));
+        let finished = crate::competition_test_support::cup(8);
+        let season = finished.season;
+        game.competitions.push(finished);
+
+        assert_eq!(
+            crate::turn::cup_renewal::renew_finished_cups(&mut game, "2033-05-20"),
+            1
+        );
+        let renewed = serde_json::to_string(&game.competitions[0]).unwrap();
+
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2033, 7, 1));
+
+        assert_eq!(
+            serde_json::to_string(&game.competitions[0]).unwrap(),
+            renewed
+        );
+        assert_eq!(game.edition_archive.len(), 1);
+    }
+
+    /// Given a cup kept at the rollover because its final was postponed past it, When the final is
+    /// played, Then the day's hook renews the cup without waiting for the next rollover.
+    #[test]
+    fn a_cup_that_finishes_after_the_rollover_is_renewed_without_waiting() {
+        let mut game = calendar_game(at(2033, 7, 1));
+        let mut cup = crate::competition_test_support::cup(8);
+        let season = cup.season;
+        let final_round = cup.knockout_rounds.last_mut().expect("a final");
+        final_round.completed = false;
+        let final_id = final_round.fixture_ids[0].clone();
+        let final_tie = cup
+            .fixtures
+            .iter_mut()
+            .find(|fixture| fixture.id == final_id)
+            .unwrap();
+        let played = final_tie.result.take();
+        final_tie.status = FixtureStatus::Scheduled;
+        game.competitions.push(cup);
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2033, 7, 1));
+        assert_eq!(game.competitions[0].season, season, "kept at the rollover");
+
+        // The postponed final is played.
+        let cup = &mut game.competitions[0];
+        cup.fixtures
+            .iter_mut()
+            .find(|fixture| fixture.id == final_id)
+            .map(|fixture| {
+                fixture.status = FixtureStatus::Completed;
+                fixture.result = played;
+            });
+        crate::schedule::advance_knockout_competition_round(cup);
+        assert_eq!(
+            crate::turn::cup_renewal::renew_finished_cups(&mut game, "2033-08-20"),
+            1
+        );
+
+        assert!(game.competitions[0].season > season, "renewed at once");
+        assert_eq!(game.edition_archive.len(), 1);
+    }
+
     #[test]
     fn preseason_rollover_retains_midseason_apertura() {
         retained_division_receives_no_friendlies("ar-d1-apertura", at(2035, 4, 18), at(2035, 2, 1));
