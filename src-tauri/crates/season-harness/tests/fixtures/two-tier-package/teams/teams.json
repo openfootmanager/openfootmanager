@@ -13,14 +13,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Ashford Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "brackley-fc",
@@ -34,14 +28,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Brackley Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "carlow-fc",
@@ -55,14 +43,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Carlow Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "dunmore-fc",
@@ -76,14 +58,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Dunmore Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "eastleigh-fc",
@@ -97,14 +73,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Eastleigh Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "fenwick-fc",
@@ -118,14 +88,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Fenwick Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "garston-fc",
@@ -139,14 +103,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Garston Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "hartley-fc",
@@ -160,14 +118,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Hartley Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "ivybridge-fc",
@@ -181,14 +133,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Ivybridge Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "jarrow-fc",
@@ -202,14 +148,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Jarrow Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "kenton-fc",
@@ -223,14 +163,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Kenton Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "lydford-fc",
@@ -244,14 +178,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Lydford Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "marlow-fc",
@@ -265,14 +193,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Marlow Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "netley-fc",
@@ -286,14 +208,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Netley Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "oakham-fc",
@@ -307,14 +223,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Oakham Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "penrith-fc",
@@ -328,14 +238,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Penrith Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "queensbury-fc",
@@ -349,14 +253,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Queensbury Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "redcar-fc",
@@ -370,14 +268,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Redcar Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "sandford-fc",
@@ -391,14 +283,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Sandford Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "thornbury-fc",
@@ -412,14 +298,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Thornbury Park",
-      "reputationRange": [
-        600,
-        900
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "upton-fc",
@@ -433,14 +313,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Upton Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "vernham-fc",
@@ -454,14 +328,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Vernham Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "walcott-fc",
@@ -475,14 +343,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Walcott Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "yarnton-fc",
@@ -496,14 +358,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Yarnton Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "zennor-fc",
@@ -517,14 +373,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Zennor Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "appleby-fc",
@@ -538,14 +388,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Appleby Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "bampton-fc",
@@ -559,14 +403,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Bampton Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "cranleigh-fc",
@@ -580,14 +418,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Cranleigh Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "dartford-fc",
@@ -601,14 +433,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Dartford Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "elmsworth-fc",
@@ -622,14 +448,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Elmsworth Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "frodsham-fc",
@@ -643,14 +463,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Frodsham Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "glossop-fc",
@@ -664,14 +478,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Glossop Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "hexham-fc",
@@ -685,14 +493,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Hexham Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "ilkley-fc",
@@ -706,14 +508,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Ilkley Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "kendal-fc",
@@ -727,14 +523,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Kendal Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "ludlow-fc",
@@ -748,14 +538,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Ludlow Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "matlock-fc",
@@ -769,14 +553,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Matlock Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "nantwich-fc",
@@ -790,14 +568,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Nantwich Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "ormskirk-fc",
@@ -811,14 +583,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Ormskirk Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     },
     {
       "id": "pewsey-fc",
@@ -832,14 +598,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Pewsey Park",
-      "reputationRange": [
-        300,
-        600
-      ],
-      "financeRange": [
-        800000,
-        2500000
-      ]
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
     }
   ]
 }
