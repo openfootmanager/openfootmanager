@@ -117,11 +117,18 @@ mod tests {
         let next = &game.competitions[0];
         assert!(next.season > season, "a new edition");
         assert!(!next.fixtures.is_empty());
-        assert!(next.fixtures.iter().all(|f| f.status == FixtureStatus::Scheduled));
+        assert!(
+            next.fixtures
+                .iter()
+                .all(|f| f.status == FixtureStatus::Scheduled)
+        );
         let [edition] = game.edition_archive.as_slice() else {
             panic!("the finished edition is archived once");
         };
-        assert_eq!((edition.competition_id.as_str(), edition.season), (next.id.as_str(), season));
+        assert_eq!(
+            (edition.competition_id.as_str(), edition.season),
+            (next.id.as_str(), season)
+        );
     }
 
     /// Given a cup that has just been renewed, When the next day ends, Then it is not renewed (or
