@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Award, ChevronDown, CircleDot, CornerDownRight, Crown, Footprints } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -67,12 +67,20 @@ export default function TacticsRightPanel({
     );
   }
 
+  // What the eleven and the saved roles are right now, read when an answer lands: an ask can
+  // outlive the screen it was made from, and its answer must not overwrite what the manager did
+  // meanwhile (the same guard `useEntityEditor.commitField` keeps for an asset pick).
+  const rolesShown = JSON.stringify([startingPlayers.map((player) => player.id), matchRoles]);
+  const latestRolesShown = useRef(rolesShown);
+  latestRolesShown.current = rolesShown;
+
   // Asks the backend now rather than saving what the display last showed: an answer still on its
   // way, or one a day old, would save empty or stale takers. A failed ask saves nothing, and
   // pressing the button again is the retry.
   async function handleAutoSelectAssignments(): Promise<void> {
     try {
       const picks = await autoSelectSetPieces(startingPlayers.map((player) => player.id));
+      if (latestRolesShown.current !== rolesShown) return;
       await persistMatchRoles(resolveEffectiveMatchRoles(startingPlayers, matchRoles, picks));
     } catch (error) {
       console.error("Failed to read the automatic set-piece takers:", error);

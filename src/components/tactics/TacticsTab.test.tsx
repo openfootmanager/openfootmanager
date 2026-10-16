@@ -891,4 +891,56 @@ describe("TacticsTab", () => {
       },
     });
   });
+
+  /** Given an auto-select still waiting on the backend, when the manager's roles change
+   * meanwhile, then the late answer is dropped instead of overwriting them. */
+  it("drops a late auto-select answer when the roles changed while it was pending", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    const releases: Array<(picks: object) => void> = [];
+    let pending = false;
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        if (!pending)
+          return { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" };
+        return new Promise((resolve) => releases.push(resolve));
+      }
+      return gameState;
+    });
+    const props = { onSelectPlayer: vi.fn(), onGameUpdate: vi.fn() };
+    const { rerender } = render(<TacticsTab gameState={gameState} {...props} />);
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+    pending = true;
+    fireEvent.click(screen.getByRole("button", { name: "tactics.autoSelectAssignments" }));
+    await waitFor(() => expect(releases).toHaveLength(1));
+
+    const reassigned = {
+      ...gameState,
+      teams: gameState.teams.map((team) =>
+        team.id === "team1"
+          ? {
+              ...team,
+              match_roles: {
+                captain: "d2",
+                vice_captain: null,
+                penalty_taker: null,
+                free_kick_taker: null,
+                corner_taker: null,
+              },
+            }
+          : team,
+      ),
+    };
+    rerender(<TacticsTab gameState={reassigned} {...props} />);
+    // The panel's own display refreshes with the new game too; every pending ask is answered.
+    for (const release of releases) {
+      release({ captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(mockedInvoke.mock.calls.filter(([c]) => c === "set_team_match_roles")).toHaveLength(0);
+  });
 });
