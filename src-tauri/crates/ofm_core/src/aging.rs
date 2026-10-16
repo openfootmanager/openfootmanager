@@ -5,87 +5,12 @@ use domain::player::{Player, PlayerMovementEntry, PlayerMovementKind};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-const MIN_ATTRIBUTE: u8 = 1;
-const MAX_ATTRIBUTE: u8 = 99;
-
 fn seeded_value(player_id: &str, season: u32, salt: &str) -> u32 {
     let mut hasher = DefaultHasher::new();
     player_id.hash(&mut hasher);
     season.hash(&mut hasher);
     salt.hash(&mut hasher);
     (hasher.finish() % u32::MAX as u64) as u32
-}
-
-fn veteran_pace_loss(player_id: &str, age: i32, season: u32) -> u8 {
-    if age < 30 {
-        return 0;
-    }
-
-    1 + (seeded_value(player_id, season, "pace-loss") % 3) as u8
-}
-
-/// Stamina and agility go from 31, a point or two a summer.
-fn veteran_endurance_loss(player_id: &str, age: i32, season: u32) -> u8 {
-    if age < 31 {
-        return 0;
-    }
-
-    1 + (seeded_value(player_id, season, "endurance-loss") % 2) as u8
-}
-
-/// Strength goes from 33, a point or two a summer.
-fn veteran_strength_loss(player_id: &str, age: i32, season: u32) -> u8 {
-    if age < 33 {
-        return 0;
-    }
-
-    1 + (seeded_value(player_id, season, "strength-loss") % 2) as u8
-}
-
-fn technical_growth(player_id: &str, age: i32, season: u32) -> u8 {
-    if age > 32 {
-        return 0;
-    }
-
-    (seeded_value(player_id, season, "technical-growth") % 2) as u8
-}
-
-fn increase_attribute(value: &mut u8, delta: u8) {
-    *value = value.saturating_add(delta).min(MAX_ATTRIBUTE);
-}
-
-fn decrease_attribute(value: &mut u8, delta: u8) {
-    *value = value.saturating_sub(delta).max(MIN_ATTRIBUTE);
-}
-
-fn apply_attribute_curve(player: &mut Player, age: i32, season: u32) {
-    let pace_loss = veteran_pace_loss(&player.id, age, season);
-    if pace_loss > 0 {
-        decrease_attribute(&mut player.attributes.pace, pace_loss);
-    }
-    let endurance_loss = veteran_endurance_loss(&player.id, age, season);
-    if endurance_loss > 0 {
-        decrease_attribute(&mut player.attributes.stamina, endurance_loss);
-        decrease_attribute(&mut player.attributes.agility, endurance_loss);
-    }
-    let strength_loss = veteran_strength_loss(&player.id, age, season);
-    if strength_loss > 0 {
-        decrease_attribute(&mut player.attributes.strength, strength_loss);
-    }
-
-    // A player who has reached his ceiling has nothing left to learn; without this the
-    // ceiling was lifted by the growth below every summer (it is floored at the rating).
-    let growth = if player.potential > player.ovr {
-        technical_growth(&player.id, age, season)
-    } else {
-        0
-    };
-    if growth > 0 {
-        increase_attribute(&mut player.attributes.passing, growth);
-        increase_attribute(&mut player.attributes.vision, growth);
-        increase_attribute(&mut player.attributes.decisions, growth);
-        increase_attribute(&mut player.attributes.composure, growth);
-    }
 }
 
 fn has_expired_contract(player: &Player, current_date: NaiveDate) -> bool {
@@ -158,15 +83,20 @@ fn retire_player(player: &mut Player, current_date: NaiveDate) {
 }
 
 pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u32) {
+    let world_seed = game.seed;
     for player in game.players.iter_mut() {
         if player.retired {
             continue;
         }
 
         let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
-        apply_attribute_curve(player, age, season);
+        let mut stream = crate::seed::rng_for_seed(
+            world_seed,
+            &format!("development/{}", player.id),
+            &iso(current_date),
+        );
+        crate::development::develop_one_season(player, age, world_seed, &mut stream);
         crate::player_rating::refresh_player_derived(player, current_date);
-        crate::player_rating::settle_ceiling(player, age);
 
         if should_retire(player, age, current_date, season) {
             if let Some(team_id) = player.team_id.clone()
@@ -181,10 +111,7 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        apply_attribute_curve, apply_seasonal_aging, retirement_chance, should_retire,
-        technical_growth, veteran_endurance_loss, veteran_pace_loss, veteran_strength_loss,
-    };
+    use super::{apply_seasonal_aging, retirement_chance, should_retire};
     use crate::clock::GameClock;
     use crate::game::Game;
     use chrono::{NaiveDate, TimeZone, Utc};
@@ -267,158 +194,6 @@ mod tests {
         );
     }
 
-    /// Given players of every age around the ages the physical decline starts,
-    /// When the stamina and agility loss is rolled,
-    /// Then there is none at 30 and a point or two from 31 on.
-    #[test]
-    fn endurance_loss_starts_at_thirty_one() {
-        for season in 1..=20 {
-            assert_eq!(veteran_endurance_loss("player", 30, season), 0);
-        }
-        for age in [31, 35, 40] {
-            let losses: Vec<u8> = (1..=20)
-                .map(|season| veteran_endurance_loss("player", age, season))
-                .collect();
-            assert!(
-                losses.iter().all(|loss| (1..=2).contains(loss)),
-                "age {age}: {losses:?}"
-            );
-            assert!(
-                losses.contains(&1) && losses.contains(&2),
-                "age {age}: {losses:?}"
-            );
-        }
-    }
-
-    /// Given players of every age around the age strength starts to go,
-    /// When the strength loss is rolled,
-    /// Then there is none at 32 and a point or two from 33 on.
-    #[test]
-    fn strength_loss_starts_at_thirty_three() {
-        for season in 1..=20 {
-            assert_eq!(veteran_strength_loss("player", 32, season), 0);
-        }
-        for age in [33, 36, 40] {
-            let losses: Vec<u8> = (1..=20)
-                .map(|season| veteran_strength_loss("player", age, season))
-                .collect();
-            assert!(
-                losses.iter().all(|loss| (1..=2).contains(loss)),
-                "age {age}: {losses:?}"
-            );
-            assert!(
-                losses.contains(&1) && losses.contains(&2),
-                "age {age}: {losses:?}"
-            );
-        }
-    }
-
-    /// Given a 34-year-old who has played every season of the run,
-    /// When twenty summers of ageing are applied,
-    /// Then his stamina, agility and strength only ever fall, and they do fall.
-    #[test]
-    fn a_veterans_stamina_agility_and_strength_fall() {
-        let mut veteran = make_player("veteran", "1992-01-01");
-        let before = veteran.attributes.clone();
-        for season in 1..=20 {
-            let (stamina, agility, strength) = (
-                veteran.attributes.stamina,
-                veteran.attributes.agility,
-                veteran.attributes.strength,
-            );
-
-            apply_attribute_curve(&mut veteran, 34, season);
-
-            assert!(veteran.attributes.stamina <= stamina);
-            assert!(veteran.attributes.agility <= agility);
-            assert!(veteran.attributes.strength <= strength);
-        }
-        assert!(veteran.attributes.stamina < before.stamina);
-        assert!(veteran.attributes.agility < before.agility);
-        assert!(veteran.attributes.strength < before.strength);
-    }
-
-    /// Given a 24-year-old at his ceiling and one with room to grow,
-    /// When twenty summers of ageing are applied to each,
-    /// Then the peaked one gains no technical attributes and the other does.
-    #[test]
-    fn technical_growth_needs_room_under_the_ceiling() {
-        let mut peaked = make_player("peaked", "2002-01-01");
-        peaked.ovr = 70;
-        peaked.potential = 70;
-        let mut promising = make_player("promising", "2002-01-01");
-        promising.ovr = 70;
-        promising.potential = 85;
-        for season in 1..=20 {
-            apply_attribute_curve(&mut peaked, 24, season);
-            apply_attribute_curve(&mut promising, 24, season);
-        }
-
-        assert_eq!(peaked.attributes.passing, 70);
-        assert!(promising.attributes.passing > 70);
-    }
-
-    /// Given a 34-year-old whose stored ceiling is 90 and a 19-year-old whose ceiling is 30 above his rating,
-    /// When a summer's ageing is applied,
-    /// Then the veteran's ceiling is no more than his rating and the youth's no more than the headroom for 19.
-    #[test]
-    fn a_ceiling_cannot_sit_above_the_headroom_for_the_age() {
-        let mut veteran = make_player("veteran", "1992-01-01");
-        veteran.potential = 90;
-        let mut youth = make_player("youth", "2007-01-01");
-        youth.potential = 99;
-        let mut game = make_game(vec![veteran, youth]);
-
-        apply_seasonal_aging(&mut game, NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(), 1);
-
-        let veteran = &game.players[0];
-        assert!(veteran.retired || veteran.potential <= veteran.ovr);
-        let youth = &game.players[1];
-        let room = crate::player_rating::growth_headroom_range(19)
-            .end()
-            .to_owned();
-        assert!(
-            youth.potential <= youth.ovr + room,
-            "{} vs {}",
-            youth.potential,
-            youth.ovr
-        );
-    }
-
-    #[test]
-    fn veteran_pace_loss_stays_within_supported_range() {
-        let loss = veteran_pace_loss("veteran", 34, 5);
-        assert!((1..=3).contains(&loss));
-        assert_eq!(veteran_pace_loss("prospect", 24, 5), 0);
-    }
-
-    /// Given players aged 33 to 40, when ten seasons of technical growth are drawn,
-    /// then none of them grows.
-    #[test]
-    fn technical_growth_stops_after_age_32() {
-        for age in 33..=40 {
-            for season in 1..=10 {
-                assert_eq!(technical_growth("player", age, season), 0, "age {age}");
-            }
-        }
-    }
-
-    /// Given players aged 18 to 32, when ten seasons of technical growth are drawn,
-    /// then each age grows by one point in some seasons and never by more.
-    #[test]
-    fn technical_growth_continues_up_to_age_32() {
-        for age in 18..=32 {
-            let growth: Vec<u8> = (1..=10)
-                .map(|season| technical_growth("player", age, season))
-                .collect();
-            assert!(
-                growth.iter().all(|&points| points <= 1),
-                "age {age}: {growth:?}"
-            );
-            assert!(growth.contains(&1), "age {age} never grew: {growth:?}");
-        }
-    }
-
     #[test]
     fn deterministic_retirement_favors_older_out_of_contract_players() {
         let current_date = NaiveDate::from_ymd_opt(2026, 5, 20).unwrap();
@@ -435,11 +210,10 @@ mod tests {
     }
 
     #[test]
-    fn apply_seasonal_aging_retires_veteran_and_reduces_pace() {
+    fn apply_seasonal_aging_retires_a_veteran() {
         let mut veteran = make_player("older-pro", "1988-01-01");
         veteran.stage_contract_start(Some("2023-07-01".to_string()));
         veteran.stage_contract_end(Some("2026-05-01".to_string()));
-        veteran.attributes.pace = 20;
         veteran.transfer_listed = true;
         veteran.stats = PlayerSeasonStats {
             appearances: 6,
@@ -470,7 +244,6 @@ mod tests {
         );
         assert_eq!(veteran.contract_end(), None);
         assert!(!veteran.transfer_listed);
-        assert!(veteran.attributes.pace < 20);
         assert!(game.teams[0].starting_xi_ids.is_empty());
         assert!(game.teams[0].training_groups[0].player_ids.is_empty());
         assert_eq!(game.teams[0].match_roles.captain, None);
@@ -578,5 +351,55 @@ mod tests {
         assert_eq!(retirement_chance(&player, 34, date), 32);
         player.stats.avg_rating = 7.4;
         assert_eq!(retirement_chance(&player, 34, date), 14);
+    }
+
+    /// A cohort of `count` players of `age` rated like `make_player`, with the given ceiling, in a
+    /// game that has played `seasons` seasons of ageing; the mean change in rating of the cohort.
+    fn mean_change_after_a_season(age: i32, potential: u8, count: usize) -> f64 {
+        let born = format!("{}-01-01", 2026 - age);
+        let players: Vec<Player> = (0..count)
+            .map(|n| {
+                let mut player = make_player(&format!("cohort-{age}-{n}"), &born);
+                player.stage_contract_end(Some("2030-06-30".to_string()));
+                crate::player_rating::refresh_player_derived(
+                    &mut player,
+                    chrono::NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(),
+                );
+                player.potential = potential;
+                player
+            })
+            .collect();
+        let before: Vec<f64> = players.iter().map(|p| f64::from(p.ovr)).collect();
+        let mut game = make_game(players);
+        let date = game.clock.current_date.date_naive();
+
+        apply_seasonal_aging(&mut game, date, 1);
+
+        game.players
+            .iter()
+            .zip(&before)
+            .map(|(after, before)| f64::from(after.ovr) - before)
+            .sum::<f64>()
+            / count as f64
+    }
+
+    /// Given a cohort of 17-year-olds with room to grow and a cohort of 35-year-olds,
+    /// When a season of ageing is applied,
+    /// Then the young gain rating on average and the old lose it.
+    #[test]
+    fn a_season_develops_the_young_and_wears_the_old() {
+        assert!(mean_change_after_a_season(17, 90, 80) > 2.0);
+        assert!(mean_change_after_a_season(35, 70, 80) < -1.0);
+    }
+
+    /// Given a cohort of 26-year-olds rated 70 with a ceiling of 85,
+    /// When a season of ageing is applied,
+    /// Then they are still growing: development tapers, it does not stop at 26.
+    #[test]
+    fn development_tapers_through_the_late_twenties_and_does_not_stop_dead() {
+        let at_26 = mean_change_after_a_season(26, 85, 120);
+        let at_30 = mean_change_after_a_season(30, 85, 120);
+        assert!(at_26 > 0.0, "26-year-olds changed by {at_26}");
+        assert!(at_26 > at_30, "26: {at_26}, 30: {at_30}");
     }
 }
