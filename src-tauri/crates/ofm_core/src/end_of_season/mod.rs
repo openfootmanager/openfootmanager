@@ -1233,6 +1233,7 @@ pub fn advance_to_next_season(game: &mut Game) -> Result<EndOfSeasonSummary, Str
 
     let summary = process_end_of_season(game);
     crate::firing::check_manager_firing(game);
+    crate::inbox_archive::archive_old_mail(game);
     Ok(summary)
 }
 

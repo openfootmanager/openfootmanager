@@ -204,6 +204,7 @@ fn process_day_common(game: &mut Game, today: &str) {
     crate::ai_hiring::process_vacant_ai_clubs(game);
     crate::ai_manager_appointments::appoint_permanent_managers(game);
     crate::job_offers::check_job_offers(game);
+    crate::inbox_archive::archive_on_the_first_of_the_month(game);
 }
 
 /// Marks the start of a day, before any match of it is played: notes which knockout fixtures the

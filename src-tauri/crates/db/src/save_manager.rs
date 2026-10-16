@@ -3720,6 +3720,63 @@ mod tests {
         assert_eq!(fresh.custom_tactics, game.custom_tactics);
     }
 
+    /// Given a career with mail old enough to archive, read and unread
+    /// When it is archived, saved and loaded
+    /// Then the archive survives in its own table, nothing is left behind in `messages`, and the
+    ///      live inbox keeps what stayed.
+    #[test]
+    fn archived_mail_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let mail = |id: &str, date: &str, read: bool| {
+            let mut m = domain::message::InboxMessage::new(
+                id.to_string(),
+                "S".to_string(),
+                "B".to_string(),
+                "Board".to_string(),
+                date.to_string(),
+            );
+            m.read = read;
+            m
+        };
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        game.messages = vec![
+            mail("old-read", "1990-01-01", true),
+            mail("old-unread", "1990-01-02", false),
+            mail("fresh", &today, true),
+        ];
+        ofm_core::inbox_archive::archive_old_mail(&mut game);
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        let ids = |messages: &[domain::message::InboxMessage]| {
+            let mut ids: Vec<String> = messages.iter().map(|m| m.id.clone()).collect();
+            ids.sort();
+            ids
+        };
+        assert_eq!(ids(&loaded.archived_messages), ["old-read"]);
+        // Loading may add its own mail (the squad-floor warnings), so look for ours by id.
+        let live = ids(&loaded.messages);
+        assert!(live.contains(&"fresh".to_string()) && live.contains(&"old-unread".to_string()));
+        assert!(!live.contains(&"old-read".to_string()));
+
+        let conn =
+            rusqlite::Connection::open(dir.path().join("saves").join(format!("{id}.db"))).unwrap();
+        let archived_rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM archived_messages", [], |r| r.get(0))
+            .unwrap();
+        let live_copy: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM messages WHERE id = 'old-read'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!((archived_rows, live_copy), (1, 0));
+    }
+
     /// Given a retiree archived in a transaction that is then abandoned, when the database is
     /// read, then the person is still active and no archive row exists: neither half committed.
     #[test]
