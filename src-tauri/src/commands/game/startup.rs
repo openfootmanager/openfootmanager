@@ -8,7 +8,6 @@
 use chrono::{Datelike, Duration, Utc};
 
 use ofm_core::career::StartPhase;
-use ofm_core::game::Game;
 use ofm_core::world::{start_date_for_year, MIN_START_YEAR};
 
 pub(super) const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS: u32 = 12;
@@ -62,16 +61,6 @@ pub(super) fn current_date_for_phase(
     })
 }
 
-pub(super) fn age_on_date(birth_date: chrono::NaiveDate, reference_date: chrono::NaiveDate) -> i64 {
-    let mut age = i64::from(reference_date.year() - birth_date.year());
-    let has_had_birthday =
-        (reference_date.month(), reference_date.day()) >= (birth_date.month(), birth_date.day());
-    if !has_had_birthday {
-        age -= 1;
-    }
-    age
-}
-
 pub(super) fn normalize_startup_options(
     raw: Option<RawStartupOptions>,
 ) -> Result<StartupOptions, String> {
@@ -98,14 +87,6 @@ pub(super) fn normalize_startup_options(
         start_phase,
         history_depth_years,
     })
-}
-
-pub(super) fn apply_generated_past_history(game: &mut Game, startup_options: &StartupOptions) {
-    ofm_core::history_generation::generate_past_world_history(
-        game,
-        startup_options.start_year,
-        startup_options.history_depth_years,
-    );
 }
 
 /// What a career-start request asked for, rendered for the log.
@@ -181,6 +162,7 @@ world_source={:?} packages={}",
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ofm_core::game::Game;
 
     fn summary_for<'a>(
         first: &'a str,
@@ -401,7 +383,10 @@ mod tests {
             .unwrap()
             .date_naive();
 
-        assert_eq!(age_on_date(birth_date, reference_date), 30);
+        assert_eq!(
+            i64::from(domain::age::age_between(birth_date, reference_date)),
+            30
+        );
     }
 
     #[test]
@@ -414,8 +399,14 @@ mod tests {
             .unwrap()
             .date_naive();
 
-        assert_eq!(age_on_date(birth_date, season_start), 29);
-        assert_eq!(age_on_date(birth_date, midseason), 30);
+        assert_eq!(
+            i64::from(domain::age::age_between(birth_date, season_start)),
+            29
+        );
+        assert_eq!(
+            i64::from(domain::age::age_between(birth_date, midseason)),
+            30
+        );
     }
 
     #[test]
@@ -433,7 +424,10 @@ mod tests {
         let birth_date = chrono::NaiveDate::from_ymd_opt(2001, 12, 15).unwrap();
 
         assert_eq!(reference_date.to_string(), "2031-11-20");
-        assert_eq!(age_on_date(birth_date, reference_date), 29);
+        assert_eq!(
+            i64::from(domain::age::age_between(birth_date, reference_date)),
+            29
+        );
     }
 
     #[test]
@@ -495,7 +489,7 @@ mod tests {
     }
 
     #[test]
-    fn apply_generated_past_history_populates_default_twelve_prior_seasons() {
+    fn generating_past_history_populates_default_twelve_prior_seasons() {
         let clock = GameClock::new(start_date_for_year(2032).unwrap());
         let manager = domain::manager::Manager::new(
             "mgr-user".to_string(),
@@ -706,13 +700,10 @@ mod tests {
         ];
         let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
 
-        apply_generated_past_history(
+        ofm_core::history_generation::generate_past_world_history(
             &mut game,
-            &StartupOptions {
-                start_year: 2032,
-                start_phase: StartPhase::SeasonStart,
-                history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
-            },
+            2032,
+            DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
         );
 
         assert!(game.teams.iter().all(|team| team.history.len() == 12));

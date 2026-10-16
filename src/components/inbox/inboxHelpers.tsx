@@ -131,6 +131,17 @@ export function getFilterButtonClassName(isActive: boolean, extraClasses = ""): 
   return `${className} ${FILTER_BUTTON_INACTIVE_CLASS}`;
 }
 
+/**
+ * Select all / deselect all over what is on screen: Delete must only ever remove messages the
+ * player can see, so the selection never extends past the visible set.
+ */
+export function toggleVisibleSelection(selectedIds: string[], visibleIds: string[]): string[] {
+  const selected = new Set(selectedIds);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+
+  return allVisibleSelected ? [] : visibleIds;
+}
+
 export function getFilteredMessages(
   messages: MessageData[],
   categoryFilter: string | null,

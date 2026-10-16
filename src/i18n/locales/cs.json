@@ -586,7 +586,11 @@
       "twistedAnkle": "Podvrtnutý kotník",
       "kneeBruise": "Pohmožděné koleno",
       "hamstringTightness": "Ztuhlý zadní stehenní sval",
-      "calfStrain": "Natažené lýtko"
+      "calfStrain": "Natažené lýtko",
+      "ankleLigamentSprain": "Podvrtnutí vazů kotníku",
+      "hamstringTear": "Natržení hamstringu",
+      "kneeLigamentTear": "Přetržení vazů v koleni",
+      "metatarsalFracture": "Zlomenina metatarzu"
     },
     "scoutRatings": {
       "excellent": "Vynikající",
@@ -724,6 +728,7 @@
     "myTactics": "Moje taktiky",
     "newTactic": "Nová taktika",
     "duplicateTactic": "Duplikovat",
+    "resetTactic": "Obnovit výchozí",
     "saveAsTactic": "Uložit jako taktiku",
     "updateTactic": "Aktualizovat taktiku",
     "tacticSaved": "Uloženo",
@@ -1087,6 +1092,7 @@
     "seasonIncome": "Sezónní příjmy",
     "seasonExpenses": "Sezónní výdaje",
     "perWeekSuffix": "/týd",
+    "snapshotLoadFailed": "Finance klubu se nepodařilo načíst.",
     "perYearSuffix": "/rok",
     "wagePerWeek": "Plat/týdně",
     "wagePerYear": "Plat/ročně",
@@ -1173,6 +1179,7 @@
     "sortNewest": "Nejnovější jako první",
     "sortOldest": "Nejstarší jako první",
     "selectMessages": "Vybrat zprávy",
+    "selectAll": "Vybrat vše",
     "cancelSelection": "Zrušit výběr",
     "selectedCount": "Vybráno: {{count}}",
     "deleteSelected": "Smazat vybrané",
@@ -1421,6 +1428,8 @@
     "transferFeedbackCounterDetail": "Nabídka byla dostatečně vysoká na to, aby se pokračovalo v jednání, ale druhá strana dává najevo, že si představuje cenu bližší k {{fee}}.",
     "transferFeedbackRejectedHeadline": "Tato fáze vyjednávání byla ukončena.",
     "transferFeedbackRejectedDetail": "Návrh je nepřesvědčil. Pro opětovné zahájení vážných rozhovorů budete muset nabídnout vyšší částku, bližší k {{fee}}.",
+    "transferFeedbackBrokeOffHeadline": "Odešli od jednání.",
+    "transferFeedbackBrokeOffDetail": "Po několika nabídkách, které nestačily, klub jednání ukončil. Bylo by potřeba odstupné kolem {{fee}}. Dejte jim čas, než to zkusíte znovu.",
     "registrationFailureInsufficientFunds": "Registrace selhala: kupující nemá dost peněz",
     "registrationFailureLoanConflict": "Registrace selhala: konflikt s hostováním",
     "registrationFailurePlayerUnavailable": "Registrace selhala: hráč není dostupný",
@@ -1480,6 +1489,10 @@
   "players": {
     "searchPlaceholder": "Hledat podle jména nebo národnosti...",
     "allPos": "Všechny pozice",
+    "filterAgeMin": "Min. věk",
+    "filterAgeMax": "Max. věk",
+    "filterOvrMin": "Min. hodnocení",
+    "filterOvrMax": "Max. hodnocení",
     "allTeams": "Všechny týmy",
     "nPlayersFound": "Nalezení hráči: {{count}}",
     "noMatch": "Vašim filtrům neodpovídají žádní hráči.",
@@ -1971,6 +1984,17 @@
     "quickTacticalTweaks": "Rychlé taktické úpravy",
     "selectBenchToCompare": "Vyberte hráče z lavičky pro porovnání",
     "confirmSubstitution": "Potvrdit střídání",
+    "queueSubstitution": "Přidat do fronty",
+    "queuedSubstitutions": "Střídání ve frontě",
+    "confirmAllSubstitutions": "Potvrdit vše ({{count}})",
+    "confirmSubstitutions": "Potvrdit střídání: {{count}}",
+    "removeQueuedSubstitution": "Odebrat {{off}} → {{on}} z fronty",
+    "alreadyQueued": "Už čeká ve frontě na střídání",
+    "substitutionsPartlyMade": "Provedeno střídání: {{applied}} z {{total}}",
+    "substitutionRefused": "Střídání zamítnuto: {{off}} za {{on}}. {{reason}}",
+    "playerRoles": "Role hráčů",
+    "roleFor": "Role hráče {{player}}",
+    "roleChangeRefused": "Roli hráče {{player}} se nepodařilo změnit. {{reason}}",
     "noBenchAvailable": "Na lavičce nejsou k dispozici žádní hráči",
     "history": "Historie",
     "player": "Hráč",
@@ -2555,7 +2579,10 @@
     "yourResult": "Váš výsledek",
     "continue": "Pokračovat",
     "notableUpset": "Velké překvapení",
-    "pts": "b."
+    "pts": "b.",
+    "cupPenalties": "({{home}}–{{away}} na penalty)",
+    "cupAdvances": "{{team}} postupuje dál",
+    "cupTiesPending": "Některá utkání se ještě odehrají"
   },
   "endOfSeason": {
     "seasonComplete": "Sezóna dokončena",
@@ -2837,6 +2864,7 @@
         "transferBudgetTooLow": "Přestupový rozpočet je příliš nízký",
         "playerNotOwnedByUser": "Hráč nebyl nalezen nebo není váš",
         "offerNotPending": "Nabídka nebyla nalezena nebo nečeká na vyřízení",
+        "talksBrokenOff": "Tento klub ukončil jednání o tomto hráči. Zkuste to později.",
         "loanBorrowerCannotAffordWages": "Hostující klub si tento podíl na mzdě nemůže dovolit. Jeho týdenní mzdový rozpočet je {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Protinabídka musí být vyšší než aktuální nabídka",
         "loanCounterMustImproveTerms": "Protinabídka hostování musí vylepšit stávající podmínky",
@@ -2873,7 +2901,13 @@
         "youthAssignmentNotFound": "Úkol pro nábor mládeže nebyl nalezen",
         "scoutAlreadyAssignedToSearch": "Skaut je již k tomuto vyhledávání přiřazen"
       },
-      "invalidPath": "Neplatná cesta."
+      "invalidPath": "Neplatná cesta.",
+      "customTactic": {
+        "nameRequired": "Dejte taktice název dlouhý nejvýše 60 znaků.",
+        "invalidFormation": "Tuto formaci hra nezná.",
+        "invalidPlayStyle": "Tento herní styl hra nezná.",
+        "notFound": "Tato taktika už neexistuje."
+      }
     },
     "sender": {
       "boardOfDirectors": "Představenstvo",
@@ -2971,12 +3005,21 @@
       },
       "wageOverBudget": {
         "subject": "Mzdové náklady překračují rozpočet",
-        "body": "Naše týdenní mzdové náklady ({{annualWages}}) momentálně překračují vyhrazený rozpočet na platy ({{wageBudget}}).\n\nAčkoliv to v krátkodobém horizontu dokážeme utáhnout, představenstvo by rádo vidělo mzdové náklady pod kontrolou."
+        "body": "Naše týdenní mzdové náklady ({{weeklyWageBill}}) momentálně překračují vyhrazený rozpočet na platy ({{wageBudget}}).\n\nAčkoliv to v krátkodobém horizontu dokážeme utáhnout, představenstvo by rádo vidělo mzdové náklady pod kontrolou."
       },
       "financeBoardPressure": {
         "subject": "Hodnocení představenstva — Finanční tlak",
         "bodyWarning": "Představenstvo má i nadále obavy o finance klubu. Důvěra ve vaše vedení tento týden klesla o {{penalty}} bodů.\n\nMusíte zlepšit situaci ohledně mezd a krátkodobého cash flow, než představenstvu dojde trpělivost.",
         "bodyCritical": "Představenstvo zhodnotilo zhoršující se finanční situaci klubu a důvěra ve vaše vedení tento týden klesla o {{penalty}} bodů.\n\nFinanční rezervy a mzdové závazky jsou nyní v kritickém stavu. Očekávají se okamžitá nápravná opatření."
+      },
+      "financeLevers": {
+        "subject": "Klubu se otevřely možnosti záchrany",
+        "body": "Peněz je málo, a tím se otevírají možnosti nápravy. Ty, které jsou klubu právě dostupné, jsou uvedeny níže; každá vás zavede na kartu Finance.",
+        "action": {
+          "boardSupport": "Požádat o podporu vedení",
+          "sponsorPitch": "Oslovit nového sponzora",
+          "marketingCampaign": "Spustit marketingovou kampaň"
+        }
       },
       "marketingCampaign": {
         "subject": "Zpráva o marketingové kampani",
@@ -3165,6 +3208,11 @@
         "subject": "Zranění — {{player}} ({{injury}})",
         "body0": "Špatné zprávy z tréninkového areálu. Hráč {{player}} utrpěl během dnešního tréninku zranění: {{injury}}.\n\nLékařský tým odhaduje dobu rekonvalescence na {{days}} dní. Jeho zotavení budeme pečlivě sledovat.",
         "body1": "Hráč {{player}} se bohužel na dnešním tréninku zranil a jeho diagnózou je {{injury}}.\n\nPrvní odhad: mimo hru přibližně na {{days}} dní. O jeho pokroku vás budeme průběžně informovat."
+      },
+      "matchInjury": {
+        "subject": "Zranění v zápase — {{player}} ({{injury}})",
+        "body0": "Špatné zprávy ze zápasu: {{player}} se na hřišti zranil.\n\nDiagnóza: {{injury}}. Lékařský tým odhaduje výpadek na {{days}} dní a bude průběh léčby pozorně sledovat.",
+        "body1": "{{player}} z dnešního zápasu neodešel bez úhony.\n\nDiagnóza: {{injury}}. První odhad: mimo hru přibližně {{days}} dní. Budeme vás informovat o postupu."
       },
       "mediaPositive": {
         "subject": "Pozitivní ohlas v tisku — {{player}}",
@@ -3462,6 +3510,10 @@
         "LoanConflict": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč hostuje nebo má dohodnuté hostování čekající na registraci. Nebyla zaplacena žádná přestupová částka.",
         "PlayerUnavailable": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože hráč již není dostupný v prodávajícím klubu. Nebyla zaplacena žádná přestupová částka.",
         "RegistrationBlocked": "Dohodnutý přestup hráče {{player}} do {{buyer}} za {{fee}} nebylo možné zaregistrovat dne {{start}}, protože již není splněna některá podmínka registrace. Nebyla zaplacena žádná přestupová částka."
+      },
+      "matchesMoved": {
+        "subject": "Zápasy přesunuty",
+        "body": "Některé vaše zápasy byly přesunuty, aby si hráči zachovali odpočinek a byly dodrženy reprezentační přestávky:\n{{matches}}"
       }
     },
     "news": {
@@ -3633,6 +3685,12 @@
     },
     "save": {
       "defaultName": "Kariéra {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Tento balíček definuje zemi „{{name}}“ ({{code}}), která není v seznamu zemí hry, a nezařazuje ji do žádné konfederace, takže její kluby jsou vedeny v Evropě. Přiřaďte jí konfederaci.",
+        "freeAgentFieldIgnored": "Hráč „{{id}}“ nemá klub, je tedy volný hráč bez smlouvy: pole „{{field}}“ se ignoruje. Přiřaďte mu klub, aby se použilo, nebo pole odstraňte."
+      }
     }
   },
   "traits": {
@@ -3880,6 +3938,7 @@
     "saveSuccess": "Uloženo",
     "saveTeam": "Uložit tým",
     "issues": "{{count}} problém(ů)",
+    "warnings": "Varování: {{count}}",
     "packageId": "ID balíčku",
     "packageName": "Název balíčku",
     "description": "Popis",
@@ -4038,6 +4097,7 @@
     "openPackageFileInvalid": "Vyberte platný soubor balíčku .ofm",
     "noItemSelected": "Vyberte položku ze seznamu, nebo klikněte na Přidat pro vytvoření nové",
     "issuesBadge": "{{count}} problémů",
+    "warningsBadge": "Varování: {{count}}",
     "issuesTitle": "Problémy s validací",
     "noIssues": "Žádné problémy — svět je validní",
     "saving": "Ukládání…",
@@ -4113,6 +4173,8 @@
     "staffId": "ID",
     "staffFirstName": "Jméno",
     "staffLastName": "Příjmení",
+    "staffKnownAs": "Známý jako (volitelné)",
+    "staffKnownAsPlaceholder": "např. Cafu",
     "staffClub": "Klub",
     "staffNationality": "Národnost",
     "staffDateOfBirth": "Datum narození",

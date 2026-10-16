@@ -187,6 +187,10 @@ pub struct StaffDef {
     pub date_of_birth: Option<String>,
     #[serde(default)]
     pub age: Option<u32>,
+    /// What they are called when it differs from their name ("Pep Guardiola" for Josep Guardiola
+    /// i Sala). `firstName`/`lastName` stay the real name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub known_as: Option<String>,
 }
 
 /// Package-level metadata (at most one per package).
@@ -379,7 +383,7 @@ impl WorldPackage {
     /// The file the `index`-th entity of `schema` was declared in, or `""` when
     /// it is not known — a package assembled in memory rather than loaded from
     /// disk has no files to name.
-    fn source_at(&self, schema: &str, index: usize) -> String {
+    pub(super) fn source_at(&self, schema: &str, index: usize) -> String {
         self.sources
             .get(schema)
             .and_then(|files| files.get(index))
@@ -4051,6 +4055,77 @@ colors:
             .filter_map(|year| year.parse::<i32>().ok())
             .max()
             .expect("world should have players with parseable birth years")
+    }
+
+    /// Given a package with a player who names no club (#595)
+    /// When the world is built
+    /// Then the player exists, as a free agent with their authored identity, instead of being dropped.
+    #[test]
+    fn an_authored_player_with_no_club_becomes_a_free_agent() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","id":"fc","name":"FC","city":"C","country":"ENG",
+                "colors":{"primary":"#000000","secondary":"#ffffff"}}"##,
+        );
+        write(
+            &dir,
+            "players/free.json",
+            r#"{"schema":"player","id":"free-agent-1","firstName":"Free","lastName":"Agent",
+                "nationality":"ENG","position":"Striker","dateOfBirth":"1995-03-04","overall":71}"#,
+        );
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        let world =
+            crate::generator::build_world_data_from_package(&package, Some(2026), &embedded());
+        std::fs::remove_dir_all(&dir).ok();
+
+        let player = world
+            .players
+            .iter()
+            .find(|p| p.id == "free-agent-1")
+            .expect("an authored player with no club still exists");
+        assert_eq!(player.team_id, None);
+        assert_eq!(player.full_name, "Free Agent");
+        assert_eq!(player.date_of_birth, "1995-03-04");
+        assert_eq!(player.wage(), 0);
+        assert!(player.contract_end().is_none());
+    }
+
+    /// Given a club-less authored player flagged `youth` (a flag only a club's academy can honour)
+    /// When the world is built
+    /// Then they are a senior free agent: the youth squad role does not outlive the club it
+    ///      belonged to, so the warning that `youth` is ignored is true.
+    #[test]
+    fn a_clubless_player_flagged_youth_is_a_senior_free_agent() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "teams/teams.json",
+            r##"{"schema":"team","id":"fc","name":"FC","city":"C","country":"ENG",
+                "colors":{"primary":"#000000","secondary":"#ffffff"}}"##,
+        );
+        write(
+            &dir,
+            "players/free.json",
+            r#"{"schema":"player","id":"free-youth","firstName":"Free","lastName":"Youth",
+                "nationality":"ENG","position":"Striker","dateOfBirth":"2008-03-04","overall":55,
+                "youth":true}"#,
+        );
+        let (package, errors) = load_world_package(&dir);
+        assert!(errors.is_empty(), "{errors:?}");
+        let world =
+            crate::generator::build_world_data_from_package(&package, Some(2026), &embedded());
+        std::fs::remove_dir_all(&dir).ok();
+
+        let player = world
+            .players
+            .iter()
+            .find(|p| p.id == "free-youth")
+            .expect("the player exists");
+        assert_eq!(player.team_id, None);
+        assert_eq!(player.squad_role, domain::player::SquadRole::Senior);
     }
 
     #[test]

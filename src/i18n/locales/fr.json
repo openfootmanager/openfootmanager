@@ -582,7 +582,11 @@
       "twistedAnkle": "Entorse de la cheville",
       "kneeBruise": "Contusion au genou",
       "hamstringTightness": "Raideur aux ischio-jambiers",
-      "calfStrain": "Élongation du mollet"
+      "calfStrain": "Élongation du mollet",
+      "ankleLigamentSprain": "Entorse des ligaments de la cheville",
+      "hamstringTear": "Déchirure des ischio-jambiers",
+      "kneeLigamentTear": "Rupture des ligaments du genou",
+      "metatarsalFracture": "Fracture d'un métatarsien"
     },
     "scoutRatings": {
       "excellent": "Excellent",
@@ -772,6 +776,7 @@
     "myTactics": "Mes tactiques",
     "newTactic": "Nouvelle tactique",
     "duplicateTactic": "Dupliquer",
+    "resetTactic": "Réinitialiser",
     "saveAsTactic": "Enregistrer comme tactique",
     "updateTactic": "Mettre à jour la tactique",
     "tacticSaved": "Enregistré",
@@ -1087,6 +1092,7 @@
     "seasonIncome": "Revenus de Saison",
     "seasonExpenses": "Dépenses de Saison",
     "perWeekSuffix": "/sem",
+    "snapshotLoadFailed": "Impossible de charger les finances du club.",
     "perYearSuffix": "/an",
     "wagePerWeek": "Salaire/sem",
     "wagePerYear": "Salaire/an",
@@ -1173,6 +1179,7 @@
     "sortNewest": "Plus récents d'abord",
     "sortOldest": "Plus anciens d'abord",
     "selectMessages": "Sélectionner des messages",
+    "selectAll": "Tout sélectionner",
     "cancelSelection": "Annuler la sélection",
     "selectedCount": "{{count}} sélectionné(s)",
     "deleteSelected": "Supprimer la sélection",
@@ -1421,6 +1428,8 @@
     "transferFeedbackCounterDetail": "L'offre était assez proche pour continuer à parler, mais leur camp vise plutôt un prix autour de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Ils ont fermé cette manche.",
     "transferFeedbackRejectedDetail": "La proposition ne les a pas assez fait bouger. Il faudrait une somme plus forte, plus proche de {{fee}}, pour rouvrir des discussions sérieuses.",
+    "transferFeedbackBrokeOffHeadline": "Ils ont quitté la table.",
+    "transferFeedbackBrokeOffDetail": "Après plusieurs offres insuffisantes, le club a mis fin aux discussions. Il aurait fallu un montant proche de {{fee}}. Laissez-leur du temps avant de réessayer.",
     "registrationFailureInsufficientFunds": "Enregistrement échoué : fonds insuffisants de l'acheteur",
     "registrationFailureLoanConflict": "Enregistrement échoué : conflit avec un prêt",
     "registrationFailurePlayerUnavailable": "Enregistrement échoué : joueur indisponible",
@@ -1480,6 +1489,10 @@
   "players": {
     "searchPlaceholder": "Rechercher par nom ou nationalité...",
     "allPos": "Toutes Pos",
+    "filterAgeMin": "Âge min.",
+    "filterAgeMax": "Âge max.",
+    "filterOvrMin": "Note min.",
+    "filterOvrMax": "Note max.",
     "allTeams": "Toutes les Équipes",
     "nPlayersFound": "{{count}} joueur(s) trouvé(s)",
     "noMatch": "Aucun joueur ne correspond à vos filtres.",
@@ -1967,6 +1980,17 @@
     "benchPlayers": "Joueurs du banc",
     "selectBenchToCompare": "Sélectionnez un joueur du banc à comparer",
     "confirmSubstitution": "Confirmer le remplacement",
+    "queueSubstitution": "Ajouter à la file",
+    "queuedSubstitutions": "Remplacements en attente",
+    "confirmAllSubstitutions": "Tout confirmer ({{count}})",
+    "confirmSubstitutions": "Confirmer {{count}} remplacements",
+    "removeQueuedSubstitution": "Retirer {{off}} → {{on}} de la file",
+    "alreadyQueued": "Déjà en attente d'un remplacement",
+    "substitutionsPartlyMade": "{{applied}} remplacement(s) sur {{total}} effectué(s)",
+    "substitutionRefused": "Remplacement refusé : {{off}} par {{on}}. {{reason}}",
+    "playerRoles": "Rôles des joueurs",
+    "roleFor": "Rôle de {{player}}",
+    "roleChangeRefused": "Impossible de changer le rôle de {{player}}. {{reason}}",
     "noBenchAvailable": "Aucun joueur disponible sur le banc",
     "history": "Historique",
     "player": "Joueur",
@@ -2555,7 +2579,10 @@
     "yourResult": "Votre résultat",
     "continue": "Continuer",
     "notableUpset": "Résultat surprise",
-    "pts": "pts"
+    "pts": "pts",
+    "cupPenalties": "({{home}}–{{away}} aux tirs au but)",
+    "cupAdvances": "{{team}} se qualifie",
+    "cupTiesPending": "Certaines rencontres restent à jouer"
   },
   "endOfSeason": {
     "seasonComplete": "Saison Terminée",
@@ -2829,6 +2856,7 @@
         "transferBudgetTooLow": "Le budget transferts est trop faible",
         "playerNotOwnedByUser": "Joueur introuvable ou ne vous appartenant pas",
         "offerNotPending": "Offre introuvable ou plus en attente",
+        "talksBrokenOff": "Ce club a mis fin aux discussions pour ce joueur. Réessayez plus tard.",
         "loanBorrowerCannotAffordWages": "Le club emprunteur ne peut pas assumer cette part du salaire. Son budget salarial hebdomadaire est de {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "La contre-offre doit dépasser l'offre actuelle",
         "loanCounterMustImproveTerms": "La contre-offre de prêt doit améliorer l'offre actuelle",
@@ -2873,6 +2901,12 @@
       "notice": {
         "fallbackLeagueGenerated": "Aucune compétition n'a été définie. Une ligue à division unique par défaut a été générée automatiquement pour toutes les équipes.",
         "fallbackTeamsFilled": "Une seule équipe a été définie. Des adversaires procéduraux ont été générés automatiquement pour rendre le jeu jouable."
+      },
+      "customTactic": {
+        "nameRequired": "Donnez à la tactique un nom de 60 caractères au plus.",
+        "invalidFormation": "Le jeu ne connaît pas cette formation.",
+        "invalidPlayStyle": "Le jeu ne connaît pas ce style de jeu.",
+        "notFound": "Cette tactique n'existe plus."
       }
     },
     "sender": {
@@ -2971,12 +3005,21 @@
       },
       "wageOverBudget": {
         "subject": "La masse salariale dépasse le budget",
-        "body": "Notre masse salariale hebdomadaire ({{annualWages}}) dépasse actuellement le budget salarial alloué ({{wageBudget}}).\n\nMême si cela reste soutenable à court terme, le conseil préférerait voir la masse salariale revenir sous contrôle."
+        "body": "Notre masse salariale hebdomadaire ({{weeklyWageBill}}) dépasse actuellement le budget salarial alloué ({{wageBudget}}).\n\nMême si cela reste soutenable à court terme, le conseil préférerait voir la masse salariale revenir sous contrôle."
       },
       "financeBoardPressure": {
         "subject": "Conseil — Pression financière",
         "bodyWarning": "Le conseil reste préoccupé par la situation financière du club. La confiance dans votre gestion a chuté de {{penalty}} points cette semaine.\n\nVous devez améliorer la masse salariale et la trésorerie à court terme avant que la patience ne s'épuise davantage.",
         "bodyCritical": "Le conseil a réévalué la détérioration de la situation financière du club, et sa confiance dans votre gestion a chuté de {{penalty}} points cette semaine.\n\nLa trésorerie et les engagements salariaux sont désormais dans un état critique. Des mesures immédiates sont attendues."
+      },
+      "financeLevers": {
+        "subject": "Des options de redressement s'ouvrent au club",
+        "body": "L'argent manque, ce qui ouvre des options de redressement. Celles qui s'offrent au club en ce moment sont listées ci-dessous ; chacune vous mène à l'onglet Finances.",
+        "action": {
+          "boardSupport": "Demander l'aide du conseil",
+          "sponsorPitch": "Démarcher un nouveau sponsor",
+          "marketingCampaign": "Lancer une campagne marketing"
+        }
       },
       "marketingCampaign": {
         "subject": "Rapport de campagne marketing",
@@ -3165,6 +3208,11 @@
         "subject": "Blessure — {{player}} ({{injury}})",
         "body0": "Mauvaise nouvelle depuis le centre d'entraînement. {{player}} s'est blessé ({{injury}}) lors de la séance d'aujourd'hui.\n\nL'équipe médicale estime {{days}} jours d'absence. Nous suivrons la récupération de près.",
         "body1": "Malheureusement, {{player}} s'est blessé ({{injury}}) à l'entraînement aujourd'hui.\n\nBilan initial : environ {{days}} jours d'absence. Nous vous tiendrons informé de l'évolution."
+      },
+      "matchInjury": {
+        "subject": "Blessure en match — {{player}} ({{injury}})",
+        "body0": "Mauvaises nouvelles du match : {{player}} s'est blessé sur le terrain.\n\nDiagnostic : {{injury}}. Le staff médical estime l'indisponibilité à {{days}} jours et nous suivrons la guérison de près.",
+        "body1": "{{player}} n'est pas sorti indemne du match d'aujourd'hui.\n\nDiagnostic : {{injury}}. Première évaluation : absent environ {{days}} jours. Nous vous tiendrons informé de son évolution."
       },
       "mediaPositive": {
         "subject": "Presse positive — {{player}}",
@@ -3462,6 +3510,10 @@
         "LoanConflict": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur est prêté ou a un prêt convenu en attente d'enregistrement. Aucune indemnité de transfert n'a été versée.",
         "PlayerUnavailable": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car le joueur n'est plus disponible auprès d'un club vendeur. Aucune indemnité de transfert n'a été versée.",
         "RegistrationBlocked": "Le transfert convenu de {{player}} vers {{buyer}} pour {{fee}} n'a pas pu être enregistré le {{start}}, car une condition d'enregistrement n'est plus remplie. Aucune indemnité de transfert n'a été versée."
+      },
+      "matchesMoved": {
+        "subject": "Matchs reprogrammés",
+        "body": "Certains de vos matchs ont été déplacés afin que vos joueurs gardent leur repos et que les trêves internationales soient respectées :\n{{matches}}"
       }
     },
     "news": {
@@ -3633,6 +3685,12 @@
     },
     "save": {
       "defaultName": "Carrière de {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Ce paquet définit le pays « {{name}} » ({{code}}) en dehors de la liste des pays du jeu et ne le place dans aucune confédération ; ses clubs sont donc classés en Europe. Donnez-lui une confédération.",
+        "freeAgentFieldIgnored": "Le joueur « {{id}} » n’a pas de club : il est donc libre, sans contrat, et « {{field}} » est ignoré. Donnez-lui un club pour l’utiliser, ou retirez ce champ."
+      }
     }
   },
   "traits": {
@@ -3880,6 +3938,7 @@
     "saveSuccess": "Enregistré",
     "saveTeam": "Enregistrer l'équipe",
     "issues": "{{count}} problème(s)",
+    "warnings": "{{count}} avertissement(s)",
     "packageId": "ID du Paquet",
     "packageName": "Nom du Paquet",
     "description": "Description",
@@ -4038,6 +4097,7 @@
     "openPackageFileInvalid": "Veuillez sélectionner un fichier de package .ofm valide",
     "noItemSelected": "Sélectionnez un élément dans la liste ou cliquez sur Ajouter",
     "issuesBadge": "{{count}} problème(s)",
+    "warningsBadge": "{{count}} avertissements",
     "issuesTitle": "Problèmes de validation",
     "noIssues": "Aucun problème — le monde est valide",
     "saving": "Enregistrement…",
@@ -4112,6 +4172,8 @@
     "staffId": "ID",
     "staffFirstName": "Prénom",
     "staffLastName": "Nom",
+    "staffKnownAs": "Connu sous le nom de (facultatif)",
+    "staffKnownAsPlaceholder": "p. ex. Cafu",
     "staffClub": "Club",
     "staffNationality": "Nationalité",
     "staffDateOfBirth": "Date de naissance",

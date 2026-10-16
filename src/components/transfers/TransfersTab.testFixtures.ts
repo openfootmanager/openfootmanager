@@ -1,3 +1,5 @@
+import type { Mock } from "vitest";
+import type { PlayersPage, PlayersPageQuery, StatusCounts } from "../../services/playersService";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -118,6 +120,7 @@ export function createScout(overrides: Partial<StaffData> = {}): StaffData {
     id: "staff-1",
     first_name: "Sam",
     last_name: "Scout",
+    display_name: "Sam Scout",
     date_of_birth: "1985-01-01",
     nationality: "England",
     role: "Scout",
@@ -141,6 +144,7 @@ export function createGameState(players: PlayerData[] = [createPlayer()]): GameS
       start_date: "2026-07-01T12:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",
@@ -361,3 +365,91 @@ export const transferTestTranslation = (key: string, params?: Record<string, str
   }
   return key;
 };
+
+/**
+ * The page the backend would answer `get_players_page` with, for a test that says exactly which
+ * players the market shows. It does not filter: who belongs on the market is the backend's rule,
+ * tested once in Rust, and a test here only decides what the screen does with the answer.
+ */
+export interface ListsByScope {
+  market: PlayerData[];
+  user_listed: PlayerData[];
+  with_offers: PlayerData[];
+}
+
+/** The players the backend would answer a `get_players_page` call with, by the list asked for. */
+export function playersOfScope(payload: unknown, lists: ListsByScope): PlayerData[] {
+  const { scope } = (payload as { query: PlayersPageQuery }).query;
+  if (scope === "user_listed") return lists.user_listed;
+  if (scope === "with_offers") return lists.with_offers;
+  return lists.market;
+}
+
+export function marketPageOf(
+  players: PlayerData[],
+  {
+    total = players.length,
+    page = 1,
+    statusCounts,
+  }: { total?: number; page?: number; statusCounts?: Partial<StatusCounts> } = {},
+): PlayersPage {
+  return {
+    items: players.map((player) => ({
+      id: player.id,
+      full_name: player.full_name,
+      match_name: player.match_name,
+      date_of_birth: player.date_of_birth,
+      age: 26,
+      wage: player.wage,
+      nationality: player.nationality,
+      position: player.position,
+      natural_position: player.natural_position ?? player.position,
+      team_id: player.team_id,
+      team_name: null,
+      market_value: player.market_value,
+      ovr: 70,
+      transfer_listed: player.transfer_listed,
+      loan_listed: player.loan_listed,
+      injured: false,
+      retired: false,
+      media: { face: null },
+    })),
+    // What the backend counted for the chips; a test that shows the chips says the numbers.
+    status_counts: {
+      all: total,
+      transfer: 0,
+      loan: 0,
+      free_agent: 0,
+      available: total,
+      ...statusCounts,
+    },
+    total,
+    page,
+    page_size: 30,
+  };
+}
+
+/**
+ * One-shot answers keyed by command. `mockResolvedValueOnce` answers whichever call comes next,
+ * and the market now asks the backend for its page on mount and after every game update, so an
+ * ordered once-value would be spent on that instead of the action it was written for.
+ */
+export function routedResponses(mocked: Mock) {
+  const queued = new Map<string, Array<() => unknown>>();
+  const base = mocked.getMockImplementation();
+  mocked.mockImplementation(async (command: string, payload?: unknown) => {
+    const next = queued.get(command)?.shift();
+    if (next) return next();
+    return base?.(command, payload);
+  });
+  const push = (command: string, answer: () => unknown) => {
+    queued.set(command, [...(queued.get(command) ?? []), answer]);
+  };
+  return {
+    resolveOnce: (command: string, value: unknown) => push(command, () => value),
+    rejectOnce: (command: string, error: unknown) =>
+      push(command, () => {
+        throw error;
+      }),
+  };
+}

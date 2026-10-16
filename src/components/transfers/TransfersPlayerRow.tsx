@@ -7,7 +7,7 @@ import {
   getTeamName,
   calcAge,
   formatVal,
-  formatWeeklyAmount,
+  formatWeeklyWage,
   getPlayerOvr,
   positionBadgeVariant,
 } from "../../lib/helpers";
@@ -33,7 +33,6 @@ type PlayerRowDetailsProps = {
     | "i18n"
     | "onSelectTeam"
     | "gameState"
-    | "weeklySuffix"
     | "view"
     | "userTeamId"
     | "handleRespondOffer"
@@ -75,7 +74,6 @@ type TransferPlayerRowProps = {
     | "openDealHistory"
     | "i18n"
     | "gameState"
-    | "weeklySuffix"
     | "userTeamId"
     | "handleRespondOffer"
     | "openCounterNegotiation"
@@ -103,7 +101,6 @@ export function PlayerRowDetails({
     i18n,
     onSelectTeam,
     gameState,
-    weeklySuffix,
     isScoutingView,
     openDealEntry,
     openDealHistory,
@@ -161,7 +158,7 @@ export function PlayerRowDetails({
         {formatVal(player.market_value)}
       </td>
       <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-        {formatWeeklyAmount(formatVal(player.wage), weeklySuffix)}
+        {formatWeeklyWage(player.wage, "compact")}
       </td>
       <td className="py-2.5 px-4">
         <span

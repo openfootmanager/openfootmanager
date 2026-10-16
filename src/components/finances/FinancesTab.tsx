@@ -7,12 +7,13 @@ import {
   formatExactMoney,
   formatVal,
   formatWeeklyAmount,
+  formatWeeklyWage,
   getContractRiskBadgeVariant,
   getContractRiskLevel,
   getContractYearsRemaining,
 } from "../../lib/helpers";
-import { weeklyWageAmount, getTeamFinanceSnapshot } from "../../lib/finance";
-import { getFinanceSnapshot } from "../../services/financeService";
+import { weeklyWageAmount } from "../../lib/finance";
+import { getFinanceSnapshot, type FinanceSnapshotData } from "../../services/financeService";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError, resolveMessage } from "../../utils/backendI18n";
 import {
@@ -26,10 +27,7 @@ import {
   type MarketingCampaignResponseData,
   DEFAULT_FACILITIES,
   formatSignedAmount,
-  boardSupportAvailable,
-  sponsorPitchAvailable,
-  marketingCampaignAvailable,
-  mapLocalFinanceSnapshot,
+  buildFinanceSnapshotKey,
   isChooseOptionAction,
   isPendingSponsorOffer,
 } from "./FinancesTab.helpers";
@@ -75,6 +73,14 @@ interface FinancesTabContentProps extends FinancesTabProps {
   myTeam: TeamData;
 }
 
+/**
+ * Shows the finances the backend computed, and nothing else.
+ *
+ * The tab used to fall back to a TypeScript projection while the backend snapshot was loading
+ * and on every refetch, so the figures visibly changed once the real ones arrived. The last
+ * backend snapshot is kept across a refetch instead, and until the first one lands there is a
+ * placeholder, never a guess.
+ */
 function FinancesTabContent({
   gameState,
   myTeam,
@@ -82,13 +88,89 @@ function FinancesTabContent({
   onSelectPlayer,
 }: FinancesTabContentProps) {
   const { t } = useTranslation();
-  const weeklySuffix = t("finances.perWeekSuffix");
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
-  const [selectedRiskPlayerIds, setSelectedRiskPlayerIds] = useState<string[]>([]);
+  const financeSnapshotKey = buildFinanceSnapshotKey(gameState, myTeam);
   const [remoteFinanceData, setRemoteFinanceData] = useState<TaggedFinanceSnapshotData | null>(
     null,
   );
+  const [loadFailure, setLoadFailure] = useState<{ teamId: string; key: string } | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const requestKey = financeSnapshotKey;
+
+    setLoadFailure(null);
+    void getFinanceSnapshot(myTeam.id)
+      .then((financeData) => {
+        if (!cancelled) {
+          setRemoteFinanceData({ key: requestKey, teamId: myTeam.id, data: financeData });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load finance snapshot:", error);
+        if (!cancelled) {
+          setLoadFailure({ teamId: myTeam.id, key: requestKey });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [financeSnapshotKey, myTeam.id, loadAttempt]);
+
+  const ownData = remoteFinanceData?.teamId === myTeam.id ? remoteFinanceData : null;
+  const failedForThisState =
+    loadFailure?.teamId === myTeam.id && loadFailure.key === financeSnapshotKey;
+  const failureBanner = failedForThisState ? (
+    <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+      <p role="alert">{t("finances.snapshotLoadFailed")}</p>
+      <Button size="sm" variant="outline" onClick={() => setLoadAttempt((n) => n + 1)}>
+        {t("common.retry")}
+      </Button>
+    </div>
+  ) : null;
+
+  if (!ownData) {
+    return (
+      failureBanner ?? <p className="text-gray-500 dark:text-gray-400">{t("common.loading")}</p>
+    );
+  }
+
+  return (
+    <>
+      {failureBanner}
+      <FinancesTabLoaded
+        gameState={gameState}
+        myTeam={myTeam}
+        financeData={ownData.data}
+        previewsCurrent={ownData.key === financeSnapshotKey}
+        onGameUpdate={onGameUpdate}
+        onSelectPlayer={onSelectPlayer}
+      />
+    </>
+  );
+}
+
+interface FinancesTabLoadedProps extends FinancesTabContentProps {
+  financeData: FinanceSnapshotData;
+  /** Previews describe the club as it was when fetched; a stale set must not enable an action. */
+  previewsCurrent: boolean;
+}
+
+function FinancesTabLoaded({
+  gameState,
+  myTeam,
+  financeData,
+  previewsCurrent,
+  onGameUpdate,
+  onSelectPlayer,
+}: FinancesTabLoadedProps) {
+  const { t } = useTranslation();
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
+  // What the manager has switched off, not what is switched on: everyone at risk is selected until
+  // told otherwise, so the default needs no effect to fill it in and no click can beat that effect.
+  const [deselectedRiskPlayerIds, setDeselectedRiskPlayerIds] = useState<string[]>([]);
   const [facilityUpgradeError, setFacilityUpgradeError] =
     useState<FacilityUpgradeErrorState | null>(null);
   const [boardSupportFeedback, setBoardSupportFeedback] = useState<{
@@ -105,56 +187,8 @@ function FinancesTabContent({
   } | null>(null);
 
   const roster = gameState.players.filter((p) => p.team_id === myTeam.id);
-  const financePlayers = gameState.players.filter(
-    (player) =>
-      player.team_id === myTeam.id ||
-      player.active_loan?.parent_team_id === myTeam.id ||
-      player.active_loan?.loan_team_id === myTeam.id,
-  );
-  const teamStaff = gameState.staff.filter((staffMember) => staffMember.team_id === myTeam.id);
-  const financeSnapshotKey = [
-    myTeam.id,
-    gameState.clock.current_date,
-    myTeam.finance,
-    myTeam.wage_budget,
-    myTeam.transfer_budget,
-    myTeam.season_income,
-    myTeam.season_expenses,
-    myTeam.facilities?.training ?? DEFAULT_FACILITIES.training,
-    myTeam.facilities?.medical ?? DEFAULT_FACILITIES.medical,
-    myTeam.facilities?.scouting ?? DEFAULT_FACILITIES.scouting,
-    myTeam.sponsorship?.sponsor_name ?? "",
-    myTeam.sponsorship?.base_value ?? 0,
-    myTeam.sponsorship?.remaining_weeks ?? 0,
-    financePlayers
-      .map((player) =>
-        [
-          player.id,
-          player.team_id ?? "",
-          player.wage,
-          player.contract_end ?? "",
-          player.active_loan?.parent_team_id ?? "",
-          player.active_loan?.loan_team_id ?? "",
-          player.active_loan?.wage_contribution_pct ?? "",
-          player.active_loan?.end_date ?? "",
-        ].join(":"),
-      )
-      .join("|"),
-    teamStaff.map((staffMember) => `${staffMember.id}:${staffMember.wage}`).join("|"),
-    gameState.messages
-      .filter(isPendingSponsorOffer)
-      .map((message) => message.id)
-      .join("|"),
-  ].join("::");
-  const isRemoteFinanceDataCurrent = remoteFinanceData?.key === financeSnapshotKey;
-  const localFinanceSnapshot = mapLocalFinanceSnapshot(
-    myTeam,
-    getTeamFinanceSnapshot(myTeam, financePlayers, teamStaff, gameState.clock.current_date),
-  );
-  const financeSnapshot = isRemoteFinanceDataCurrent
-    ? remoteFinanceData.data.snapshot
-    : localFinanceSnapshot;
-  const recoveryPreviews = isRemoteFinanceDataCurrent ? remoteFinanceData.data.previews : null;
+  const recoveryPreviews = previewsCurrent ? financeData.previews : null;
+  const financeSnapshot = financeData.snapshot;
   const totalWages = financeSnapshot.weeklyWageSpend;
   const totalValue = roster.reduce((s, p) => s + p.market_value, 0);
   const facilities = myTeam.facilities ?? DEFAULT_FACILITIES;
@@ -167,37 +201,20 @@ function FinancesTabContent({
   const sponsorOffers = gameState.messages.filter(isPendingSponsorOffer).map(resolveMessage);
   const hasPendingSponsorOffer = sponsorOffers.length > 0;
   const hasActiveSponsor = Boolean(activeSponsorship && activeSponsorship.remaining_weeks > 0);
-  const previewsLoaded = recoveryPreviews !== null;
-  const previewBoardSupportAvailable = recoveryPreviews
-    ? Boolean(recoveryPreviews.boardSupport)
-    : null;
-  const previewSponsorPitchAvailable = recoveryPreviews
-    ? Boolean(recoveryPreviews.sponsorPitch)
-    : null;
-  const previewMarketingCampaignAvailable = recoveryPreviews
-    ? Boolean(recoveryPreviews.marketingCampaign)
-    : null;
-  const canRequestBoardSupport = previewsLoaded
-    ? (previewBoardSupportAvailable ?? false)
-    : boardSupportAvailable(financeSnapshot);
+  // Availability is the backend's verdict alone. While the previews describe an older club state
+  // (`recoveryPreviews` is null) nothing is offered, rather than a guess from the snapshot.
+  const canRequestBoardSupport = Boolean(recoveryPreviews?.boardSupport);
+  const sponsorPitchOffered = Boolean(recoveryPreviews?.sponsorPitch);
+  const marketingCampaignOffered = Boolean(recoveryPreviews?.marketingCampaign);
   const canRequestSponsorPitch =
-    (previewsLoaded
-      ? (previewSponsorPitchAvailable ?? false)
-      : sponsorPitchAvailable(financeSnapshot)) &&
-    !hasPendingSponsorOffer &&
-    !hasActiveSponsor;
+    sponsorPitchOffered && !hasPendingSponsorOffer && !hasActiveSponsor;
   const canRequestMarketingCampaign =
-    (previewsLoaded
-      ? (previewMarketingCampaignAvailable ?? false)
-      : marketingCampaignAvailable(financeSnapshot)) &&
-    financeSnapshot.marketingCampaignCooldownDaysRemaining === 0;
+    marketingCampaignOffered && financeSnapshot.marketingCampaignCooldownDaysRemaining === 0;
   const sponsorPitchDisabledReason = hasActiveSponsor
     ? t("finances.sponsorPitchActiveSponsor")
     : hasPendingSponsorOffer
       ? t("finances.sponsorPitchPendingOffer")
-      : !(previewsLoaded
-            ? (previewSponsorPitchAvailable ?? false)
-            : sponsorPitchAvailable(financeSnapshot))
+      : previewsCurrent && !sponsorPitchOffered
         ? t("finances.sponsorPitchUnavailable")
         : null;
   const marketingCampaignDisabledReason =
@@ -205,9 +222,7 @@ function FinancesTabContent({
       ? t("finances.marketingCampaignCoolingDown", {
           days: financeSnapshot.marketingCampaignCooldownDaysRemaining,
         })
-      : !(previewsLoaded
-            ? (previewMarketingCampaignAvailable ?? false)
-            : marketingCampaignAvailable(financeSnapshot))
+      : previewsCurrent && !marketingCampaignOffered
         ? t("finances.marketingCampaignUnavailable")
         : null;
   const boardSupportPreviewText = recoveryPreviews?.boardSupport
@@ -253,66 +268,23 @@ function FinancesTabContent({
     (sum, { player }) => sum + weeklyWageAmount(player.wage),
     0,
   );
-  const selectedRiskPlayers = contractRiskPlayers.filter(({ player }) =>
-    selectedRiskPlayerIds.includes(player.id),
+  const selectedRiskPlayers = contractRiskPlayers.filter(
+    ({ player }) => !deselectedRiskPlayerIds.includes(player.id),
   );
   const allRiskPlayerIds = contractRiskPlayers.map(({ player }) => player.id);
 
-  useEffect(() => {
-    let cancelled = false;
-    const requestKey = financeSnapshotKey;
-
-    setRemoteFinanceData(null);
-
-    void getFinanceSnapshot(myTeam.id)
-      .then((financeData) => {
-        if (!cancelled) {
-          setRemoteFinanceData({ key: requestKey, data: financeData });
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load finance snapshot:", error);
-        if (!cancelled) {
-          setRemoteFinanceData(null);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [financeSnapshotKey, myTeam.id]);
-
-  useEffect(() => {
-    setSelectedRiskPlayerIds((currentIds) => {
-      const availableIdSet = new Set(allRiskPlayerIds);
-      const nextIds = currentIds.filter((playerId) => availableIdSet.has(playerId));
-
-      if (nextIds.length > 0) {
-        return nextIds;
-      }
-
-      return allRiskPlayerIds;
-    });
-  }, [allRiskPlayerIds.join("|")]);
-
   function handleToggleRiskPlayer(playerId: string): void {
-    setSelectedRiskPlayerIds((currentIds) => {
-      if (currentIds.includes(playerId)) {
-        return currentIds.filter((currentId) => currentId !== playerId);
-      }
-
-      return [...currentIds, playerId];
-    });
+    setDeselectedRiskPlayerIds((currentIds) =>
+      currentIds.includes(playerId)
+        ? currentIds.filter((currentId) => currentId !== playerId)
+        : [...currentIds, playerId],
+    );
   }
 
   function handleToggleAllRiskPlayers(): void {
-    setSelectedRiskPlayerIds((currentIds) => {
-      if (currentIds.length === allRiskPlayerIds.length) {
-        return [];
-      }
-
-      return allRiskPlayerIds;
-    });
+    setDeselectedRiskPlayerIds(
+      selectedRiskPlayers.length === allRiskPlayerIds.length ? allRiskPlayerIds : [],
+    );
   }
 
   async function handleUpgradeFacility(facility: FacilityId): Promise<void> {
@@ -536,11 +508,10 @@ function FinancesTabContent({
               {t("finances.weeklyTotal")}
             </p>
             <p className="font-heading font-bold text-2xl text-gray-800 dark:text-gray-100 mt-1">
-              {formatWeeklyAmount(formatVal(totalWages), weeklySuffix)}
+              {formatWeeklyWage(totalWages, "compact")}
             </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-              {t("finances.budget")}:{" "}
-              {formatWeeklyAmount(formatVal(weeklyWageBudget), weeklySuffix)} —{" "}
+              {t("finances.budget")}: {formatWeeklyWage(weeklyWageBudget, "compact")} —{" "}
               {totalWages <= weeklyWageBudget ? (
                 <span className="text-primary-500">{t("finances.underBudget")}</span>
               ) : (
@@ -566,7 +537,7 @@ function FinancesTabContent({
                 {t("finances.weeklyWageSpend")}
               </p>
               <p className="font-heading font-bold text-xl text-red-500">
-                {formatWeeklyAmount(formatSignedAmount(-totalWages), weeklySuffix)}
+                {formatWeeklyAmount(formatSignedAmount(-totalWages))}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-4 text-center">
@@ -574,7 +545,7 @@ function FinancesTabContent({
                 {t("finances.weeklySponsorIncome")}
               </p>
               <p className="font-heading font-bold text-xl text-primary-500">
-                {formatWeeklyAmount(formatSignedAmount(weeklySponsorIncome), weeklySuffix)}
+                {formatWeeklyAmount(formatSignedAmount(weeklySponsorIncome))}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-4 text-center">
@@ -584,7 +555,7 @@ function FinancesTabContent({
               <p
                 className={`font-heading font-bold text-xl ${projectedWeeklyNet >= 0 ? "text-primary-500" : "text-red-500"}`}
               >
-                {formatWeeklyAmount(formatSignedAmount(projectedWeeklyNet), weeklySuffix)}
+                {formatWeeklyAmount(formatSignedAmount(projectedWeeklyNet))}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 p-4 text-center">
@@ -637,7 +608,7 @@ function FinancesTabContent({
                 {boardSupportFeedback.text}
               </p>
             ) : null}
-            {!canRequestBoardSupport ? (
+            {previewsCurrent && !canRequestBoardSupport ? (
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {t("finances.boardSupportUnavailable")}
               </p>
@@ -714,7 +685,7 @@ function FinancesTabContent({
                     >
                       <div className="flex items-start gap-3">
                         <Checkbox
-                          checked={selectedRiskPlayerIds.includes(player.id)}
+                          checked={!deselectedRiskPlayerIds.includes(player.id)}
                           onChange={() => handleToggleRiskPlayer(player.id)}
                           aria-label={t("finances.selectRiskPlayer", {
                             player: player.full_name,
@@ -746,10 +717,7 @@ function FinancesTabContent({
                             : t("finances.contractRiskWarning")}
                         </Badge>
                         <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                          {formatWeeklyAmount(
-                            formatExactMoney(weeklyWageAmount(player.wage)),
-                            weeklySuffix,
-                          )}
+                          {formatWeeklyWage(weeklyWageAmount(player.wage))}
                         </span>
                         {onSelectPlayer ? (
                           <Button
@@ -957,8 +925,8 @@ function FinancesTabContent({
 
       <FinancesFacilitiesCard
         facilities={facilities}
-        financeSnapshot={financeSnapshot}
-        teamFinance={myTeam.finance}
+        facilityUpgrades={financeData.previews.facilityUpgrades}
+        previewsCurrent={previewsCurrent}
         facilityUpgradeError={facilityUpgradeError}
         actionLoading={actionLoading}
         onUpgrade={(facility) => void handleUpgradeFacility(facility)}

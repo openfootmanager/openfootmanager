@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Profiler, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
+import { resolveBackendError } from "../../utils/backendI18n";
 import FinancesTab from "./FinancesTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -123,6 +125,48 @@ const mockedInvoke = vi.mocked(invoke);
 
 function pendingPromise<T>(): Promise<T> {
   return new Promise(() => {});
+}
+
+/** The backend's per-facility upgrade verdicts in wire shape. */
+function wireFacilityUpgrades(overrides: Record<string, unknown> = {}) {
+  return [
+    { facility: "Training", next_cost: 500_000, can_afford: true, block_reason: null },
+    { facility: "Medical", next_cost: 250_000, can_afford: true, block_reason: null },
+    { facility: "Scouting", next_cost: 750_000, can_afford: true, block_reason: null },
+  ].map((upgrade) => ({ ...upgrade, ...overrides }));
+}
+
+/** A backend finance snapshot in wire shape; the tab renders exactly these figures. */
+function wireSnapshot(
+  overrides: Record<string, unknown> = {},
+  previews: Record<string, unknown> = {},
+) {
+  return {
+    previews,
+    snapshot: {
+      annual_wage_bill: 10000,
+      weekly_wage_spend: 10000,
+      weekly_wage_budget: 50000,
+      weekly_recurring_income: 20000,
+      weekly_sponsor_income: 20000,
+      projected_weekly_net: 10000,
+      cash_runway_weeks: null,
+      wage_budget_usage_percent: 20,
+      currently_in_debt: false,
+      currently_over_budget: false,
+      wage_budget_status: "stable",
+      runway_status: "stable",
+      overall_status: "stable",
+      marketing_campaign_cooldown_days_remaining: 0,
+      ...overrides,
+    },
+  };
+}
+
+async function renderFinances(ui: ReactElement) {
+  const result = render(ui);
+  await screen.findByText("Facilities");
+  return result;
 }
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -284,6 +328,7 @@ function createGameState(
       start_date: "2025-01-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",
@@ -325,17 +370,20 @@ describe("FinancesTab facilities", () => {
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_finance_snapshot") {
-        return pendingPromise();
+        return Promise.resolve(wireSnapshot());
       }
 
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
   });
 
-  it("renders facility cards with levels and disables upgrades when funds are insufficient", () => {
+  it("renders facility cards with levels and disables upgrades when funds are insufficient", async () => {
     const gameState = createGameState({ finance: 200000 });
+    mockedInvoke.mockResolvedValue(
+      wireSnapshot({}, { facility_upgrades: wireFacilityUpgrades({ can_afford: false }) }),
+    );
 
-    render(<FinancesTab gameState={gameState} />);
+    await renderFinances(<FinancesTab gameState={gameState} />);
 
     expect(screen.getByText("Facilities")).toBeInTheDocument();
     expect(screen.getByText("Training Facility")).toBeInTheDocument();
@@ -367,7 +415,7 @@ describe("FinancesTab facilities", () => {
     const onGameUpdate = vi.fn();
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_finance_snapshot") {
-        return pendingPromise();
+        return Promise.resolve(wireSnapshot({}, { facility_upgrades: wireFacilityUpgrades() }));
       }
 
       if (command === "upgrade_facility") {
@@ -377,7 +425,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     const upgradeButtons = screen.getAllByRole("button", { name: "Upgrade" });
     fireEvent.click(upgradeButtons[1]);
@@ -390,7 +438,7 @@ describe("FinancesTab facilities", () => {
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
   });
 
-  it("renders active sponsorship and pending sponsor offers", () => {
+  it("renders active sponsorship and pending sponsor offers", async () => {
     const gameState = createGameState(
       {
         sponsorship: {
@@ -403,7 +451,7 @@ describe("FinancesTab facilities", () => {
       [createSponsorOfferMessage()],
     );
 
-    render(<FinancesTab gameState={gameState} />);
+    await renderFinances(<FinancesTab gameState={gameState} />);
 
     expect(screen.getByText("Sponsors")).toBeInTheDocument();
     expect(screen.getByText("Active Sponsor")).toBeInTheDocument();
@@ -434,7 +482,7 @@ describe("FinancesTab facilities", () => {
 
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_finance_snapshot") {
-        return pendingPromise();
+        return Promise.resolve(wireSnapshot());
       }
 
       if (command === "resolve_message_action") {
@@ -447,7 +495,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Accept the deal" }));
 
@@ -494,6 +542,13 @@ describe("FinancesTab facilities", () => {
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
           },
+          previews: {
+            sponsor_pitch: {
+              sponsor_name: "Summit Capital",
+              weekly_amount: 85000,
+              duration_weeks: 12,
+            },
+          },
         });
       }
 
@@ -512,7 +567,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Pitch Sponsor" }));
 
@@ -521,7 +576,8 @@ describe("FinancesTab facilities", () => {
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
-    expect(screen.getByText("Summit Capital will pay €85,000 for 12 weeks")).toBeInTheDocument();
+    // The preview and the result summary read the same, so both are on screen.
+    expect(screen.getAllByText("Summit Capital will pay €85,000 for 12 weeks")).toHaveLength(2);
   });
 
   it("launches a marketing campaign for a pressured club and publishes the updated state", async () => {
@@ -556,6 +612,14 @@ describe("FinancesTab facilities", () => {
             overall_status: "critical",
             marketing_campaign_cooldown_days_remaining: 0,
           },
+          previews: {
+            marketing_campaign: {
+              gross_revenue: 150000,
+              campaign_cost: 50000,
+              net_income: 100000,
+              cooldown_days: 28,
+            },
+          },
         });
       }
 
@@ -575,7 +639,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Launch Campaign" }));
 
@@ -643,7 +707,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(<FinancesTab gameState={initialState} />);
+    await renderFinances(<FinancesTab gameState={initialState} />);
 
     await waitFor(() => {
       expect(
@@ -695,7 +759,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(<FinancesTab gameState={initialState} />);
+    await renderFinances(<FinancesTab gameState={initialState} />);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Launch Campaign" })).toBeDisabled();
@@ -704,42 +768,50 @@ describe("FinancesTab facilities", () => {
     expect(screen.getByText("Marketing campaign available again in 9 days")).toBeInTheDocument();
   });
 
-  it("blocks facility upgrades when the backend reports warning-level financial distress", async () => {
-    const gameState = createGameState({ finance: 1000000 });
+  /**
+   * Given the backend blocks every facility upgrade because the club is in financial distress,
+   * and, as the control, the same club state with nothing blocked,
+   * when the Finances tab shows the facilities,
+   * then the blocked upgrades are disabled and say why, and the unblocked ones are enabled.
+   * The rule (which statuses block) is Rust's and is tested in finances_tests.rs; this tab only
+   * presents the verdict the previews carry.
+   */
+  it.each([
+    { blockReason: "be.error.finance.facilityUpgradeCritical", blocked: true },
+    { blockReason: null, blocked: false },
+  ])(
+    "presents the backend's facility-upgrade block (blocked: $blocked)",
+    async ({ blockReason, blocked }) => {
+      const gameState = createGameState({ finance: 1000000 });
+      mockedInvoke.mockImplementation((command) => {
+        if (command === "get_finance_snapshot") {
+          return Promise.resolve(
+            wireSnapshot(
+              { runway_status: "warning", overall_status: "warning" },
+              { facility_upgrades: wireFacilityUpgrades({ block_reason: blockReason }) },
+            ),
+          );
+        }
 
-    mockedInvoke.mockImplementation((command) => {
-      if (command === "get_finance_snapshot") {
-        return Promise.resolve({
-          snapshot: {
-            annual_wage_bill: 88400,
-            weekly_wage_spend: 1700,
-            weekly_wage_budget: 38461,
-            weekly_recurring_income: 0,
-            weekly_sponsor_income: 0,
-            projected_weekly_net: -1700,
-            cash_runway_weeks: 8,
-            wage_budget_usage_percent: 4,
-            currently_in_debt: false,
-            currently_over_budget: false,
-            wage_budget_status: "stable",
-            runway_status: "warning",
-            overall_status: "warning",
-            marketing_campaign_cooldown_days_remaining: 0,
-          },
-        });
-      }
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      });
 
-      return Promise.reject(new Error(`Unexpected command: ${command}`));
-    });
+      await renderFinances(<FinancesTab gameState={gameState} />);
 
-    render(<FinancesTab gameState={gameState} />);
+      const upgradeButtons = await screen.findAllByRole("button", { name: "Upgrade" });
+      expect(upgradeButtons).toHaveLength(3);
+      await waitFor(() => {
+        for (const button of upgradeButtons) {
+          if (blocked) expect(button).toBeDisabled();
+          else expect(button).toBeEnabled();
+        }
+      });
+      const reason = resolveBackendError("be.error.finance.facilityUpgradeCritical");
+      expect(screen.queryAllByText(reason)).toHaveLength(blocked ? 3 : 0);
+    },
+  );
 
-    await waitFor(() => {
-      expect(screen.getAllByRole("button", { name: "Upgrade" })[0]).toBeDisabled();
-    });
-  });
-
-  it("renders a cash-flow projection panel using wages, sponsorship income, and runway", () => {
+  it("renders a cash-flow projection panel using wages, sponsorship income, and runway", async () => {
     const gameState = createGameState(
       {
         finance: 280000,
@@ -754,7 +826,16 @@ describe("FinancesTab facilities", () => {
       [createPlayer({ wage: 40000, market_value: 200000 })],
     );
 
-    render(<FinancesTab gameState={gameState} />);
+    mockedInvoke.mockResolvedValue(
+      wireSnapshot({
+        weekly_wage_spend: 40000,
+        weekly_sponsor_income: 10000,
+        projected_weekly_net: -30000,
+        cash_runway_weeks: 9,
+      }),
+    );
+
+    await renderFinances(<FinancesTab gameState={gameState} />);
 
     expect(screen.getByText("Cash Flow")).toBeInTheDocument();
     expect(screen.getByText("Weekly Wage Spend")).toBeInTheDocument();
@@ -766,7 +847,7 @@ describe("FinancesTab facilities", () => {
     expect(screen.getByText("9 weeks at current pace")).toBeInTheDocument();
   });
 
-  it("renders wage pressure and contract risk indicators for expiring players", () => {
+  it("renders wage pressure and contract risk indicators for expiring players", async () => {
     const onSelectPlayer = vi.fn();
     const gameState = createGameState(
       {
@@ -795,7 +876,11 @@ describe("FinancesTab facilities", () => {
       ],
     );
 
-    render(<FinancesTab gameState={gameState} onSelectPlayer={onSelectPlayer} />);
+    mockedInvoke.mockResolvedValue(
+      wireSnapshot({ weekly_wage_spend: 60000, wage_budget_usage_percent: 130 }),
+    );
+
+    await renderFinances(<FinancesTab gameState={gameState} onSelectPlayer={onSelectPlayer} />);
 
     expect(screen.getAllByText("Wage Pressure").length).toBeGreaterThan(0);
     expect(screen.getByText("130% of wage budget used")).toBeInTheDocument();
@@ -813,6 +898,121 @@ describe("FinancesTab facilities", () => {
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-critical", {
       openRenewal: true,
+    });
+  });
+
+  /**
+   * Given a squad with two players whose contracts are at risk
+   * When the finance panel first appears on screen
+   * Then both are already selected, so a click that lands before any effect has run cannot flip
+   * the default (the delegate test below clicks the moment "Facilities" shows).
+   */
+  it("shows every at-risk player selected from the first frame they are on screen", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.reject(new Error(`Unexpected command: ${command}`)),
+    );
+    // A Profiler's onRender runs while a commit is being made, after the DOM has changed and before
+    // that commit's passive effects, whatever the scheduler does. Reading the checkbox there sees
+    // the first frame by construction rather than by how React happens to order its tasks.
+    let checkedOnFirstAppearance: boolean | null = null;
+    const readFirstFrame = () => {
+      const box = document.querySelector<HTMLInputElement>(
+        'input[aria-label="Select Ben Warning"]',
+      );
+      if (box && checkedOnFirstAppearance === null) checkedOnFirstAppearance = box.checked;
+    };
+
+    await renderFinances(
+      <Profiler id="finances" onRender={readFirstFrame}>
+        <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />
+      </Profiler>,
+    );
+
+    expect(checkedOnFirstAppearance).toBe(true);
+  });
+
+  /**
+   * Given two at-risk players, both selected
+   * When "Select all" is pressed twice
+   * Then the first press clears the selection and the second selects everyone again.
+   */
+  it("toggles every at-risk player off and back on with Select all", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.reject(new Error(`Unexpected command: ${command}`)),
+    );
+    await renderFinances(
+      <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />,
+    );
+    const critical = screen.getByLabelText("Select Alex Critical");
+    const warning = screen.getByLabelText("Select Ben Warning");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(critical).not.toBeChecked();
+    expect(warning).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(critical).toBeChecked();
+    expect(warning).toBeChecked();
+  });
+
+  /**
+   * Given two at-risk players, both selected
+   * When Ben is switched off and then on again
+   * Then the delegate call carries both players.
+   */
+  it("delegates a player who was switched off and then on again", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "delegate_renewals") {
+        return Promise.resolve({
+          game: createGameState({ wage_budget: 50000 }, [], riskyPlayers),
+          report: { success_count: 2, failure_count: 0, stalled_count: 0, cases: [] },
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(
+      <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Select Ben Warning"));
+    fireEvent.click(screen.getByLabelText("Select Ben Warning"));
+    fireEvent.click(screen.getByRole("button", { name: "Delegate Selected Renewals" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {
+        playerIds: ["player-critical", "player-warning"],
+        maxWageIncreasePct: 35,
+        maxContractYears: 3,
+      });
     });
   });
 
@@ -854,7 +1054,7 @@ describe("FinancesTab facilities", () => {
 
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_finance_snapshot") {
-        return pendingPromise();
+        return Promise.resolve(wireSnapshot());
       }
 
       if (command === "delegate_renewals") {
@@ -872,7 +1072,7 @@ describe("FinancesTab facilities", () => {
       return Promise.reject(new Error(`Unexpected command: ${command}`));
     });
 
-    render(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
+    await renderFinances(<FinancesTab gameState={initialState} onGameUpdate={onGameUpdate} />);
 
     fireEvent.click(screen.getByLabelText("Select Ben Warning"));
 
@@ -896,7 +1096,7 @@ describe("FinancesTab team guard", () => {
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_finance_snapshot") {
-        return pendingPromise();
+        return Promise.resolve(wireSnapshot());
       }
 
       return Promise.reject(new Error(`Unexpected command: ${command}`));
@@ -912,7 +1112,7 @@ describe("FinancesTab team guard", () => {
     expect(screen.getByText("No team")).toBeInTheDocument();
   });
 
-  it("survives the manager gaining a team without remounting", () => {
+  it("survives the manager gaining a team without remounting", async () => {
     const unemployed = createGameState();
     unemployed.manager.team_id = null;
 
@@ -925,6 +1125,232 @@ describe("FinancesTab team guard", () => {
     rerender(<FinancesTab gameState={createGameState()} />);
 
     expect(screen.queryByText("No team")).not.toBeInTheDocument();
+    expect(await screen.findByText("Facilities")).toBeInTheDocument();
+  });
+});
+
+describe("FinancesTab backend snapshot", () => {
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+  });
+
+  /**
+   * Given the backend snapshot has not arrived
+   * When the tab renders
+   * Then it shows a placeholder and no figures, rather than a locally projected guess.
+   */
+  it("shows a placeholder until the backend snapshot arrives", () => {
+    mockedInvoke.mockImplementation(() => pendingPromise());
+
+    render(<FinancesTab gameState={createGameState()} />);
+
+    expect(screen.getByText("common.loading")).toBeInTheDocument();
+    expect(screen.queryByText("Facilities")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a rendered tab and a club whose state then changes
+   * When the next snapshot is still in flight
+   * Then the previous backend figures stay on screen instead of flipping to another source.
+   */
+  it("keeps the last backend figures while a newer snapshot is loading", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      return calls === 1
+        ? Promise.resolve(wireSnapshot({ weekly_sponsor_income: 777_000 }))
+        : pendingPromise();
+    });
+
+    const { rerender } = render(<FinancesTab gameState={createGameState()} />);
+    await screen.findByText("Facilities");
+    const sponsorFigure = screen.getByText(/777/);
+
+    rerender(<FinancesTab gameState={createGameState({ finance: 123_456 })} />);
+
+    await waitFor(() => expect(calls).toBe(2));
     expect(screen.getByText("Facilities")).toBeInTheDocument();
+    expect(sponsorFigure).toBeInTheDocument();
+    expect(screen.queryByText("common.loading")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend snapshot fails to load
+   * When the player presses Retry
+   * Then the snapshot is requested again and the tab renders.
+   */
+  it("offers a retry when the snapshot cannot be loaded", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      return calls === 1 ? Promise.reject(new Error("boom")) : Promise.resolve(wireSnapshot());
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<FinancesTab gameState={createGameState()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("finances.snapshotLoadFailed");
+    fireEvent.click(screen.getByRole("button", { name: "common.retry" }));
+
+    expect(await screen.findByText("Facilities")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend offers board support and every facility upgrade
+   * When the club state changes and the next snapshot is still in flight
+   * Then no action is enabled: a verdict about the older state must not authorise anything.
+   */
+  it("never enables an action from previews that describe an older club state", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      return calls === 1
+        ? Promise.resolve(
+            wireSnapshot(
+              {},
+              {
+                facility_upgrades: wireFacilityUpgrades(),
+                board_support: {
+                  support_amount: 1,
+                  transfer_budget_reduction: 1,
+                  satisfaction_penalty: 1,
+                },
+              },
+            ),
+          )
+        : pendingPromise();
+    });
+    const { rerender } = render(<FinancesTab gameState={createGameState()} />);
+    await screen.findByText("Facilities");
+    const fresh = screen.getAllByRole("button", { name: "Upgrade" });
+    expect(fresh.every((button) => !(button as HTMLButtonElement).disabled)).toBe(true);
+    expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeEnabled();
+
+    rerender(<FinancesTab gameState={createGameState({ finance: 123_456 })} />);
+
+    await waitFor(() => expect(calls).toBe(2));
+    const stale = screen.getAllByRole("button", { name: "Upgrade" });
+    expect(stale.every((button) => (button as HTMLButtonElement).disabled)).toBe(true);
+    expect(screen.getByRole("button", { name: "finances.requestBoardSupport" })).toBeDisabled();
+  });
+
+  /**
+   * Given a snapshot retained for one club
+   * When the manager's club changes and the new club's snapshot has not arrived
+   * Then the other club's figures are not shown.
+   */
+  it("does not render another club's retained snapshot", async () => {
+    mockedInvoke.mockImplementationOnce(() =>
+      Promise.resolve(wireSnapshot({ weekly_sponsor_income: 777_000 })),
+    );
+    mockedInvoke.mockImplementation(() => pendingPromise());
+    const { rerender } = render(<FinancesTab gameState={createGameState()} />);
+    await screen.findByText(/777/);
+
+    const otherClub = createGameState({ id: "team-2", name: "Beta FC" });
+    otherClub.manager.team_id = "team-2";
+    rerender(<FinancesTab gameState={otherClub} />);
+
+    expect(screen.queryByText(/777/)).not.toBeInTheDocument();
+    expect(screen.getByText("common.loading")).toBeInTheDocument();
+  });
+
+  /**
+   * Given figures on screen and a refetch that fails
+   * When the tab renders
+   * Then the figures stay and the failure shows with Retry, and a club change clears it.
+   */
+  it("shows a failed refetch beside the retained figures and clears it on a club change", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      if (calls === 1) return Promise.resolve(wireSnapshot({ weekly_sponsor_income: 777_000 }));
+      if (calls === 2) return Promise.reject(new Error("boom"));
+      return pendingPromise();
+    });
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { rerender } = render(<FinancesTab gameState={createGameState()} />);
+    await screen.findByText(/777/);
+
+    rerender(<FinancesTab gameState={createGameState({ finance: 123_456 })} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("finances.snapshotLoadFailed");
+    expect(screen.getByText(/777/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "common.retry" })).toBeInTheDocument();
+
+    rerender(<FinancesTab gameState={createGameState({ finance: 99 })} />);
+
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+  });
+
+  /**
+   * Given figures on screen
+   * When a live match finishes: the team's form changes, but the game date does not move
+   * Then the snapshot is fetched again, because sponsorship and matchday figures changed.
+   */
+  it("refetches when a finished match changes the form on an unchanged date", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      return Promise.resolve(wireSnapshot());
+    });
+    const { rerender } = render(<FinancesTab gameState={createGameState({ form: [] })} />);
+    await waitFor(() => expect(calls).toBe(1));
+
+    rerender(<FinancesTab gameState={createGameState({ form: ["W"] })} />);
+
+    await waitFor(() => expect(calls).toBe(2));
+  });
+
+  /**
+   * Given figures on screen
+   * When a fixture of the club completes on an unchanged date and the form is unchanged
+   * Then the snapshot is fetched again: standings and matchday income moved.
+   */
+  it("refetches when the club's completed fixtures change on an unchanged date", async () => {
+    let calls = 0;
+    mockedInvoke.mockImplementation((command) => {
+      if (command !== "get_finance_snapshot") {
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      }
+      calls += 1;
+      return Promise.resolve(wireSnapshot());
+    });
+    const before = createGameState();
+    const after = createGameState();
+    after.league = {
+      ...after.league!,
+      fixtures: [
+        {
+          id: "fx-1",
+          date: "2025-01-20",
+          home_team_id: "team-1",
+          away_team_id: "team-2",
+          status: "Completed",
+          result: null,
+        } as unknown as NonNullable<GameStateData["league"]>["fixtures"][number],
+      ],
+    };
+    const { rerender } = render(<FinancesTab gameState={before} />);
+    await waitFor(() => expect(calls).toBe(1));
+
+    rerender(<FinancesTab gameState={after} />);
+
+    await waitFor(() => expect(calls).toBe(2));
   });
 });

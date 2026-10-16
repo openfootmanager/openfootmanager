@@ -13,11 +13,10 @@ use ofm_core::game::Game;
 #[cfg(feature = "mcp")]
 use {
     super::{
-        build_game_from_world_data, default_save_name, game_clock_for_world,
-        load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        RawStartupOptions, StartupOptions,
+        build_game_from_imported_world_ranked, build_game_from_world_data, default_save_name,
+        game_clock_for_world, load_world_data_from_path, map_save_manager_lock_error,
+        normalize_startup_options, RawStartupOptions, StartupOptions,
     },
-    chrono::Datelike,
     domain::manager::Manager,
     log::info,
     ofm_core::state::StateManager,
@@ -118,20 +117,21 @@ pub fn start_career_for_mcp(
     )))?;
     let mut world = load_world_for_mcp(request.world_source, request.options.seed)?;
 
-    let opening_year = u32::try_from(
-        game_clock_for_world(&startup_options, &world.metadata)?
-            .start_date
-            .year(),
-    )
-    .unwrap_or_else(|_| ofm_core::generator::default_opening_year());
-    if is_world_file(request.world_source) {
-        ofm_core::generator::normalize_imported_world_for_career_start(&mut world, opening_year);
-    }
-
     let manager = take_or_create_manager(&mut world, request, &startup_options)?;
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
-    let (mut game, current_stats_state) =
-        build_game_from_world_data(clock, manager, &startup_options, world);
+    // A world file is made ready for a career as it is built, by the one preparation `ofm_core`
+    // owns; a generated world is built as it is.
+    let (mut game, current_stats_state) = if is_world_file(request.world_source) {
+        build_game_from_imported_world_ranked(
+            clock,
+            manager,
+            &startup_options,
+            world,
+            ofm_core::generator::ReputationBasis::Stored,
+        )
+    } else {
+        build_game_from_world_data(clock, manager, &startup_options, world)
+    };
 
     info!(
         "[mcp-bootstrap] Built game: {} teams, {} players, manager.team_id={:?}",
@@ -292,45 +292,6 @@ mod tests {
             save_manager.load_game(&loaded_id).unwrap().manager.team_id,
             Some("team1".to_string())
         );
-    }
-
-    /// Given a club chosen in career A while a concurrent load has already installed career B
-    /// When the choice is persisted with career A's own save id, captured with its game
-    /// Then A's save is the one written and B's save is untouched.
-    #[test]
-    fn choosing_a_club_writes_to_the_save_captured_with_its_career() {
-        let dir = tempfile::tempdir().unwrap();
-        let mut save_manager = SaveManager::init(dir.path()).unwrap();
-        let state = ofm_core::state::StateManager::new();
-        let mut game_a = make_bootstrap_test_game();
-        game_a.manager.team_id = None;
-        let save_a =
-            create_new_save(&mut save_manager, &game_a, &sample_stats_state(), "A").unwrap();
-        let mut game_b = make_bootstrap_test_game();
-        game_b.manager.team_id = None;
-        game_b.manager.first_name = "Beatrix".to_string();
-        let save_b =
-            create_new_save(&mut save_manager, &game_b, &sample_stats_state(), "B").unwrap();
-        // The load of B lands between A's snapshot and A's write.
-        state.set_save_id(save_b.clone());
-
-        game_a.manager.team_id = Some("team1".to_string());
-        let written = persist_chosen_club(
-            Some(&save_a),
-            &mut save_manager,
-            &game_a,
-            &sample_stats_state(),
-        )
-        .unwrap();
-
-        assert_eq!(written, save_a);
-        assert_eq!(
-            save_manager.load_game(&save_a).unwrap().manager.team_id,
-            Some("team1".to_string())
-        );
-        let untouched_b = save_manager.load_game(&save_b).unwrap();
-        assert_eq!(untouched_b.manager.team_id, None);
-        assert_eq!(untouched_b.manager.first_name, "Beatrix");
     }
 
     /// Given a career that has never been saved

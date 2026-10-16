@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { LogFileSummary } from "../../services/reportService";
 import { formatBytes } from "./ReportBugModal.helpers";
@@ -12,6 +13,7 @@ interface PreviewRowProps {
 }
 
 export function PreviewRow({ icon, name, detail, size, files }: PreviewRowProps) {
+  const { i18n } = useTranslation();
   return (
     <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600">
       <span className="text-primary-600 dark:text-primary-400 shrink-0 mt-0.5">{icon}</span>
@@ -26,7 +28,7 @@ export function PreviewRow({ icon, name, detail, size, files }: PreviewRowProps)
                 className="flex items-baseline justify-between gap-3 text-[11px] font-mono text-gray-500 dark:text-gray-400"
               >
                 <span className="truncate">{file.name}</span>
-                <span className="shrink-0">{formatBytes(file.bytes)}</span>
+                <span className="shrink-0">{formatBytes(file.bytes, i18n.language)}</span>
               </li>
             ))}
           </ul>

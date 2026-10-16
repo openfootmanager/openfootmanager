@@ -68,4 +68,21 @@ describe("Checkbox", () => {
       "I have reviewed the list.",
     );
   });
+
+  it("exposes a mixed state to the native input and assistive technology", () => {
+    render(<Checkbox checked={false} indeterminate onChange={vi.fn()} aria-label="Select item" />);
+
+    const input = screen.getByRole("checkbox", { name: "Select item" }) as HTMLInputElement;
+    expect(input.indeterminate).toBe(true);
+    expect(input).toBePartiallyChecked();
+    expect(document.querySelector("svg")).toBeInTheDocument();
+  });
+
+  it("is not mixed by default", () => {
+    render(<Checkbox checked={false} onChange={vi.fn()} aria-label="Select item" />);
+
+    const input = screen.getByRole("checkbox", { name: "Select item" }) as HTMLInputElement;
+    expect(input.indeterminate).toBe(false);
+    expect(input).not.toBePartiallyChecked();
+  });
 });

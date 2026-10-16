@@ -2,8 +2,6 @@ use log::info;
 use std::sync::Arc;
 use tauri::{Manager as TauriManager, State};
 
-use chrono::Datelike;
-
 use db::save_index::SaveEntry;
 use domain::manager::Manager;
 use ofm_core::game::Game;
@@ -135,16 +133,8 @@ pub async fn start_new_game(
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
     let is_non_random = package_ids.as_deref().is_some_and(|ids| !ids.is_empty())
         || matches!(world_source.as_deref(), Some(source) if source != "random");
-    if is_non_random {
-        // Staff generated to fill an imported world are aged against the year the
-        // career actually opens in, so a historical world does not get a backroom
-        // team born decades after the season it models.
-        let opening_year = u32::try_from(clock.start_date.year())
-            .unwrap_or_else(|_| ofm_core::generator::default_opening_year());
-        ofm_core::generator::normalize_imported_world_for_career_start(&mut world, opening_year);
-    }
     let reference_date = clock.current_date.date_naive();
-    let age = age_on_date(birth_date, reference_date);
+    let age = domain::age::age_between(birth_date, reference_date);
     if age < 30 {
         return Err("be.error.createManager.minAge".to_string());
     }
@@ -170,13 +160,15 @@ pub async fn start_new_game(
         world_source
     );
 
-    let (mut new_game, stats_state) = build_game_from_world_data_ranked(
-        clock,
-        manager,
-        &startup_options,
-        world,
-        reputation_basis,
-    );
+    // An imported world (a package or a world file) is made ready for a career as it is built, by
+    // the one preparation `ofm_core` owns; a generated one is built as it is.
+    let build = if is_non_random {
+        build_game_from_imported_world_ranked
+    } else {
+        build_game_from_world_data_ranked
+    };
+    let (mut new_game, stats_state) =
+        build(clock, manager, &startup_options, world, reputation_basis);
 
     new_game.package_lockfile = package_lockfile;
 

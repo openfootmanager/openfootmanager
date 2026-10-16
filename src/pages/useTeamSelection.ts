@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import type { GameStateData, LeagueData, PlayerData, TeamData } from "../store/gameStore";
 import { getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
-import { buildRegionLabel, inferRegionId } from "../lib/teamRegions";
+import { buildRegionLabel } from "../lib/teamRegions";
 import { competitionDisplayName } from "../lib/competitionName";
 import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
@@ -156,7 +156,7 @@ export function useTeamSelection({
       return team.country === selectedCountryCode;
     }
     if (selectedHomeRegionId) {
-      return inferRegionId(team.country) === selectedHomeRegionId;
+      return regionCountries.includes(team.country);
     }
     return true;
   });
@@ -408,7 +408,7 @@ export function useTeamSelection({
       }
       setGameState(updatedGame);
       const mgr = updatedGame.manager;
-      setGameActive(true, `${mgr.first_name} ${mgr.last_name}`);
+      setGameActive(true, mgr.display_name);
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to select team:", error);

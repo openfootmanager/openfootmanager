@@ -1,3 +1,5 @@
+#[path = "transfers_tests/bid_money.rs"]
+mod bid_money;
 #[path = "transfers_tests/loans.rs"]
 mod loans;
 
@@ -731,6 +733,182 @@ fn repeated_bid_advances_transfer_negotiation_round() {
             .find(|player| player.id == "player-repeat-bid")
             .and_then(|player| player.team_id.as_deref()),
         Some("team-1")
+    );
+}
+
+fn negotiation_game(id: &str) -> Game {
+    let mut player = make_player(id);
+    player.morale = 35;
+    player.stats.appearances = 1;
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    game.teams[0].reputation = 700;
+    game.teams[1].reputation = 350;
+    game
+}
+
+fn own_offers(game: &Game, id: &str) -> Vec<TransferOffer> {
+    game.players
+        .iter()
+        .find(|player| player.id == id)
+        .map(|player| {
+            player
+                .transfer_offers
+                .iter()
+                .filter(|offer| offer.from_team_id == "team-1")
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Given a bid the owner rejects outright (#302)
+/// When the same club bids again the next day
+/// Then the talks go on from where they were: the round advances and it is the same offer, not a
+///      fresh negotiation with a new row.
+#[test]
+fn a_bid_after_a_rejection_continues_the_negotiation() {
+    let mut game = negotiation_game("player-memory");
+    let first = make_transfer_bid(&mut game, "player-memory", 100_000).expect("first bid");
+    assert_eq!(first.decision, TransferNegotiationDecision::Rejected);
+    assert_eq!(first.feedback.round, 1);
+
+    game.clock.advance_days(1);
+    let second = make_transfer_bid(&mut game, "player-memory", 100_000).expect("second bid");
+
+    assert_eq!(second.decision, TransferNegotiationDecision::Rejected);
+    assert_eq!(second.feedback.round, 2, "the owner remembers the refusal");
+    let offers = own_offers(&game, "player-memory");
+    assert_eq!(offers.len(), 1, "one negotiation, one row: {offers:?}");
+    assert_eq!(offers[0].negotiation_round, 2);
+}
+
+/// Given a club that keeps lowballing the same player
+/// When the talks reach the fourth round without agreement
+/// Then the owner breaks them off: the outcome says so and is terminal, and the club cannot bid
+///      again until the cooldown has passed, after which it starts afresh at round one.
+#[test]
+fn the_owner_walks_away_after_repeated_lowballs_and_talks_reopen_after_the_cooldown() {
+    let mut game = negotiation_game("player-walkaway");
+    let mut last = None;
+    for day in 0..4 {
+        if day > 0 {
+            game.clock.advance_days(1);
+        }
+        last = Some(make_transfer_bid(&mut game, "player-walkaway", 100_000).expect("a bid"));
+    }
+    let last = last.unwrap();
+    assert_eq!(last.decision, TransferNegotiationDecision::Rejected);
+    assert!(last.is_terminal);
+    assert_eq!(
+        last.feedback.headline_key,
+        "transfers.transferFeedbackBrokeOffHeadline"
+    );
+
+    game.clock.advance_days(1);
+    assert_eq!(
+        make_transfer_bid(&mut game, "player-walkaway", 100_000).unwrap_err(),
+        "be.error.transfers.talksBrokenOff"
+    );
+
+    game.clock.advance_days(31);
+    let reopened = make_transfer_bid(&mut game, "player-walkaway", 100_000).expect("reopened");
+    assert_eq!(reopened.feedback.round, 1, "the old talks are forgotten");
+}
+
+/// Given talks that keep getting counter-offers without agreement
+/// When the fourth round is reached
+/// Then the counter-offer branch is no longer open-ended: the owner breaks off too.
+#[test]
+fn counter_offers_cannot_go_on_for_ever() {
+    let mut game = negotiation_game("player-counters");
+    let mut decisions = Vec::new();
+    let mut last = None;
+    for day in 0..4 {
+        if day > 0 {
+            game.clock.advance_days(1);
+        }
+        let outcome = make_transfer_bid(&mut game, "player-counters", 900_000).expect("a bid");
+        decisions.push(outcome.decision.clone());
+        last = Some(outcome);
+    }
+
+    let last = last.unwrap();
+    assert_eq!(decisions[0], TransferNegotiationDecision::CounterOffer);
+    assert_eq!(last.decision, TransferNegotiationDecision::Rejected);
+    assert!(last.is_terminal);
+}
+
+/// Given a rejection older than the cooldown
+/// When the club bids again
+/// Then it is a new negotiation at round one.
+#[test]
+fn an_old_rejection_is_forgotten() {
+    let mut game = negotiation_game("player-forgotten");
+    make_transfer_bid(&mut game, "player-forgotten", 100_000).expect("first bid");
+
+    game.clock.advance_days(40);
+    let later = make_transfer_bid(&mut game, "player-forgotten", 100_000).expect("later bid");
+
+    assert_eq!(later.feedback.round, 1);
+}
+
+/// Given a rejection exactly the cooldown ago, and one a day short of it
+/// When the club bids again
+/// Then the first is forgotten (round one) and the second is still remembered (round two): the
+///      cooldown ends on its thirtieth day.
+#[test]
+fn the_cooldown_ends_on_its_last_day() {
+    for (days, expected_round) in [(29, 2), (30, 1)] {
+        let mut game = negotiation_game("player-boundary");
+        make_transfer_bid(&mut game, "player-boundary", 100_000).expect("first bid");
+
+        game.clock.advance_days(days);
+        let later = make_transfer_bid(&mut game, "player-boundary", 100_000).expect("later bid");
+
+        assert_eq!(later.feedback.round, expected_round, "{days} days later");
+    }
+}
+
+/// Given a bid the owner (team-2) refused
+/// When the player is sold to another club (team-3) and the user bids to them
+/// Then it is a new negotiation at round one: team-3 has refused nobody.
+#[test]
+fn a_refusal_by_the_previous_owner_is_not_remembered_by_the_new_one() {
+    let mut game = negotiation_game("player-sold-on");
+    make_transfer_bid(&mut game, "player-sold-on", 100_000).expect("first bid");
+
+    game.clock.advance_days(1);
+    let mut third = make_seller_team(vec![]);
+    third.id = "team-3".to_string();
+    third.name = "Third Town".to_string();
+    third.reputation = 350;
+    game.teams.push(third);
+    give_every_club_squad_depth(&mut game);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-sold-on")
+        .expect("player present");
+    player.team_id = Some("team-3".to_string());
+    player
+        .record_movement(domain::player::PlayerMovementEntry {
+            from_team_id: Some("team-2".to_string()),
+            to_team_id: Some("team-3".to_string()),
+            ..domain::player::PlayerMovementEntry::new(
+                today,
+                domain::player::PlayerMovementKind::PermanentTransfer,
+            )
+        })
+        .expect("the move is recorded");
+
+    game.clock.advance_days(1);
+    let to_new_owner =
+        make_transfer_bid(&mut game, "player-sold-on", 100_000).expect("a bid to the new owner");
+
+    assert_eq!(
+        to_new_owner.feedback.round, 1,
+        "the new owner starts afresh"
     );
 }
 

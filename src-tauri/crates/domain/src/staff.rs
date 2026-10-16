@@ -26,6 +26,15 @@ pub struct Staff {
     pub wage: u32,
     #[serde(default)]
     pub contract_end: Option<String>,
+
+    /// What they are called when it differs from their name ("Pep" for Josep Guardiola i Sala).
+    #[serde(default)]
+    pub known_as: Option<String>,
+    /// The one name to show for them: `known_as` if set, else first and last name. Kept up to
+    /// date by [`Staff::new`], [`Staff::set_known_as`] and the loader, so a reader renders it
+    /// as it is and never decides between the names itself.
+    #[serde(default)]
+    pub display_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -85,13 +94,77 @@ impl Staff {
             specialization: None,
             wage: 0,
             contract_end: None,
+            known_as: None,
+            display_name: String::new(),
         }
+        .with_display_name_refreshed()
+    }
+
+    fn with_display_name_refreshed(mut self) -> Self {
+        self.refresh_display_name();
+        self
+    }
+
+    /// First and last name together.
+    pub fn full_name(&self) -> String {
+        crate::identity::display_name(None, &self.first_name, &self.last_name)
+    }
+
+    /// Sets what they are called; blank means nothing in particular.
+    pub fn set_known_as(&mut self, known_as: Option<String>) {
+        self.known_as = known_as;
+        self.refresh_display_name();
+    }
+
+    /// Tidies `known_as` and recomputes `display_name` from the names it depends on. Every way a
+    /// record enters the game (a setter, a world file, a save) ends here, so a blank known-as
+    /// can never survive as a blank display name.
+    pub fn refresh_display_name(&mut self) {
+        self.known_as = crate::identity::tidy_known_as(self.known_as.take());
+        self.display_name = crate::identity::display_name(
+            self.known_as.as_deref(),
+            &self.first_name,
+            &self.last_name,
+        );
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::StaffAttributes;
+    use super::{Staff, StaffAttributes, StaffRole};
+
+    fn staff() -> Staff {
+        Staff::new(
+            "s1".into(),
+            "Josep".into(),
+            "Guardiola i Sala".into(),
+            "1971-01-18".into(),
+            StaffRole::Coach,
+            StaffAttributes {
+                coaching: 80,
+                judging_ability: 50,
+                judging_potential: 50,
+                physiotherapy: 10,
+            },
+        )
+    }
+
+    /// Given a staff member with and without a known-as name (#557)
+    /// When their display name is read
+    /// Then it is the known-as name when set, else the full name, and a blank known-as is none.
+    #[test]
+    fn the_display_name_is_the_known_as_name_or_the_full_name() {
+        let mut member = staff();
+        assert_eq!(member.display_name, "Josep Guardiola i Sala");
+
+        member.set_known_as(Some("Pep Guardiola".into()));
+        assert_eq!(member.display_name, "Pep Guardiola");
+        assert_eq!(member.full_name(), "Josep Guardiola i Sala");
+
+        member.set_known_as(Some("   ".into()));
+        assert_eq!(member.known_as, None);
+        assert_eq!(member.display_name, "Josep Guardiola i Sala");
+    }
 
     #[test]
     fn deserializes_camelcase_attributes() {

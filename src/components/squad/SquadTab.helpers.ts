@@ -1,12 +1,9 @@
-export {
-  CORE_POSITIONS,
-  canonicalPosition,
-  normalisePosition,
-} from "../../lib/positions";
+export { CORE_POSITIONS, normalisePosition } from "../../lib/positions";
 import { canonicalPosition, naturalPositionOf, normalisePosition } from "../../lib/positions";
 
 import type { PlayerData } from "../../store/gameStore";
 import { getPlayerOvr } from "../../lib/helpers";
+import { isMatchDayEligible } from "../../lib/playerSquad";
 
 export type SquadSection = "xi" | "bench";
 export type DragState = {
@@ -607,7 +604,7 @@ export function buildPromoteToStartingXi(
     return null;
   }
 
-  if (promotedPlayer.injury) {
+  if (!isMatchDayEligible(promotedPlayer)) {
     return null;
   }
 

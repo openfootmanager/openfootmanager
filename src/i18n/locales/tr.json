@@ -586,7 +586,11 @@
       "twistedAnkle": "Ayak bileği burkulması",
       "kneeBruise": "Diz ezilmesi",
       "hamstringTightness": "Arka adale gerginliği",
-      "calfStrain": "Baldır zorlanması"
+      "calfStrain": "Baldır zorlanması",
+      "ankleLigamentSprain": "Ayak bileği bağ burkulması",
+      "hamstringTear": "Hamstring yırtığı",
+      "kneeLigamentTear": "Diz bağı kopması",
+      "metatarsalFracture": "Metatars kırığı"
     },
     "scoutRatings": {
       "excellent": "Mükemmel",
@@ -724,6 +728,7 @@
     "myTactics": "Taktiklerim",
     "newTactic": "Yeni taktik",
     "duplicateTactic": "Çoğalt",
+    "resetTactic": "Varsayılana sıfırla",
     "saveAsTactic": "Taktik olarak kaydet",
     "updateTactic": "Taktiği güncelle",
     "tacticSaved": "Kaydedildi",
@@ -1087,6 +1092,7 @@
     "seasonIncome": "Sezon Geliri",
     "seasonExpenses": "Sezon Gideri",
     "perWeekSuffix": "/hf",
+    "snapshotLoadFailed": "Kulübün mali durumu yüklenemedi.",
     "perYearSuffix": "/yıl",
     "wagePerWeek": "Maaş/hf",
     "wagePerYear": "Yıllık maaş",
@@ -1173,6 +1179,7 @@
     "sortNewest": "Önce en yeni",
     "sortOldest": "Önce en eski",
     "selectMessages": "Mesaj seç",
+    "selectAll": "Tümünü seç",
     "cancelSelection": "Seçimi iptal et",
     "selectedCount": "{{count}} seçildi",
     "deleteSelected": "Seçilenleri sil",
@@ -1421,6 +1428,8 @@
     "transferFeedbackCounterDetail": "Teklif görüşmeyi sürdürecek kadar yakındı, ancak karşı taraf {{fee}} civarında bir fiyata işaret ediyor.",
     "transferFeedbackRejectedHeadline": "Bu turu kapattılar.",
     "transferFeedbackRejectedDetail": "Öneri onları yeterince etkilemedi. Ciddi görüşmeleri yeniden başlatmak için {{fee}} civarında daha güçlü bir bonservis gerekir.",
+    "transferFeedbackBrokeOffHeadline": "Görüşmeleri bıraktılar.",
+    "transferFeedbackBrokeOffDetail": "Yetersiz kalan birkaç tekliften sonra kulüp görüşmeleri sonlandırdı. {{fee}} civarında bir bedel gerekirdi. Tekrar denemeden önce onlara zaman tanıyın.",
     "registrationFailureInsufficientFunds": "Tescil başarısız: alıcının fonları yetersiz",
     "registrationFailureLoanConflict": "Tescil başarısız: kiralama çakışması",
     "registrationFailurePlayerUnavailable": "Tescil başarısız: oyuncu uygun değil",
@@ -1480,6 +1489,10 @@
   "players": {
     "searchPlaceholder": "Ad veya uyruğa göre ara...",
     "allPos": "Tüm Poz",
+    "filterAgeMin": "En az yaş",
+    "filterAgeMax": "En çok yaş",
+    "filterOvrMin": "En düşük GEN",
+    "filterOvrMax": "En yüksek GEN",
     "allTeams": "Tüm Takımlar",
     "nPlayersFound": "{{count}} oyuncu bulundu",
     "noMatch": "Filtrelerinize uyan oyuncu yok.",
@@ -1971,6 +1984,17 @@
     "quickTacticalTweaks": "Hızlı taktik ayarları",
     "selectBenchToCompare": "Karşılaştırmak için bir yedek oyuncu seç",
     "confirmSubstitution": "Değişikliği onayla",
+    "queueSubstitution": "Kuyruğa ekle",
+    "queuedSubstitutions": "Sıradaki oyuncu değişiklikleri",
+    "confirmAllSubstitutions": "Tümünü onayla ({{count}})",
+    "confirmSubstitutions": "{{count}} değişikliği onayla",
+    "removeQueuedSubstitution": "{{off}} → {{on}} değişikliğini kuyruktan kaldır",
+    "alreadyQueued": "Zaten bir oyuncu değişikliği için sırada",
+    "substitutionsPartlyMade": "{{total}} değişiklikten {{applied}} tanesi yapıldı",
+    "substitutionRefused": "Oyuncu değişikliği reddedildi: {{off}} yerine {{on}}. {{reason}}",
+    "playerRoles": "Oyuncu rolleri",
+    "roleFor": "{{player}} oyuncusunun rolü",
+    "roleChangeRefused": "{{player}} oyuncusunun rolü değiştirilemedi. {{reason}}",
     "noBenchAvailable": "Uygun yedek oyuncu yok",
     "history": "Geçmiş",
     "player": "Oyuncu",
@@ -2555,7 +2579,10 @@
     "yourResult": "Sizin Sonucunuz",
     "continue": "Devam Et",
     "notableUpset": "Dikkat Çeken Sürpriz",
-    "pts": "P"
+    "pts": "P",
+    "cupPenalties": "(penaltılarla {{home}}–{{away}})",
+    "cupAdvances": "{{team}} bir üst tura çıktı",
+    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",
@@ -2837,6 +2864,7 @@
         "transferBudgetTooLow": "Transfer bütçesi çok düşük",
         "playerNotOwnedByUser": "Oyuncu bulunamadı veya size ait değil",
         "offerNotPending": "Teklif bulunamadı veya beklemede değil",
+        "talksBrokenOff": "Bu kulüp bu oyuncuyla ilgili görüşmeleri sonlandırdı. Daha sonra tekrar deneyin.",
         "loanBorrowerCannotAffordWages": "Kiralayan kulüp bu maaş payını karşılayamıyor. Haftalık maaş bütçesi {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Karşı teklif mevcut teklifi aşmalıdır",
         "loanCounterMustImproveTerms": "Karşı kiralama teklifi mevcut teklifi iyileştirmelidir",
@@ -2873,7 +2901,13 @@
         "youthAssignmentNotFound": "Genç oyuncu kazanım görevi bulunamadı",
         "scoutAlreadyAssignedToSearch": "Gözlemci bu aramaya zaten atanmış"
       },
-      "invalidPath": "Geçersiz yol."
+      "invalidPath": "Geçersiz yol.",
+      "customTactic": {
+        "nameRequired": "Taktiğe en fazla 60 karakterlik bir ad verin.",
+        "invalidFormation": "Oyun bu diziliş şemasını tanımıyor.",
+        "invalidPlayStyle": "Oyun bu oyun tarzını tanımıyor.",
+        "notFound": "Bu taktik artık yok."
+      }
     },
     "sender": {
       "boardOfDirectors": "Yönetim Kurulu",
@@ -2971,12 +3005,21 @@
       },
       "wageOverBudget": {
         "subject": "Maaş Yükü Bütçeyi Aşıyor",
-        "body": "Haftalık maaş yükümüz ({{annualWages}}) şu anda ayrılan maaş bütçesini ({{wageBudget}}) aşıyor.\n\nBunu kısa vadede sürdürebilsek de yönetim, maaş yükünün kontrol altına alındığını görmek istiyor."
+        "body": "Haftalık maaş yükümüz ({{weeklyWageBill}}) şu anda ayrılan maaş bütçesini ({{wageBudget}}) aşıyor.\n\nBunu kısa vadede sürdürebilsek de yönetim, maaş yükünün kontrol altına alındığını görmek istiyor."
       },
       "financeBoardPressure": {
         "subject": "Yönetim Değerlendirmesi — Finansal Baskı",
         "bodyWarning": "Yönetim, kulübün mali durumundan endişe duymaya devam ediyor. Yönetiminize olan güven bu hafta {{penalty}} puan düştü.\n\nSabır iyice tükenmeden maaş dengesini ve kısa vadeli nakit görünümünü iyileştirmeniz gerekiyor.",
         "bodyCritical": "Yönetim, kulübün kötüleşen mali durumunu değerlendirdi ve yönetiminize olan güven bu hafta {{penalty}} puan düştü.\n\nNakit rezervleri ve maaş taahhütleri artık kritik durumda. Derhal düzeltici adımlar bekleniyor."
+      },
+      "financeLevers": {
+        "subject": "Kulüp için toparlanma seçenekleri açıldı",
+        "body": "Para sıkışık ve bu, toparlanma seçeneklerini açıyor. Kulübün şu anda kullanabildikleri aşağıda; her biri sizi Finans sekmesine götürür.",
+        "action": {
+          "boardSupport": "Yönetimden destek iste",
+          "sponsorPitch": "Yeni bir sponsora teklif götür",
+          "marketingCampaign": "Pazarlama kampanyası başlat"
+        }
       },
       "marketingCampaign": {
         "subject": "Pazarlama Kampanyası Raporu",
@@ -3149,7 +3192,7 @@
         "options": {
           "accept": {
             "label": "Anlaşmayı kabul et",
-            "description": "Receive €{{amount}} in sponsorship income."
+            "description": "Sponsorluk gelirinde {{amount}} kazan."
           },
           "decline": {
             "label": "Kibarca reddet",
@@ -3165,6 +3208,11 @@
         "subject": "Sakatlık — {{player}} ({{injury}})",
         "body0": "Antrenman sahasından kötü haber. {{player}} bugünkü antrenmanda {{injury}} yaşadı.\n\nSağlık ekibi {{days}} gün sahalardan uzak kalacağını öngörüyor. İyileşme sürecini yakından takip edeceğiz.",
         "body1": "Ne yazık ki {{player}} bugün antrenmanda {{injury}} sorunu yaşadı.\n\nİlk değerlendirme: yaklaşık {{days}} gün yok. Gelişmeler hakkında sizi bilgilendireceğiz."
+      },
+      "matchInjury": {
+        "subject": "Maç sakatlığı — {{player}} ({{injury}})",
+        "body0": "Maçtan kötü haber: {{player}} sahada sakatlandı.\n\nTeşhis: {{injury}}. Sağlık ekibi {{days}} günlük bir ara öngörüyor ve iyileşmeyi yakından izleyeceğiz.",
+        "body1": "{{player}} bugünkü maçtan sağlam çıkamadı.\n\nTeşhis: {{injury}}. İlk değerlendirme: yaklaşık {{days}} gün yok. Gelişmeleri size bildireceğiz."
       },
       "mediaPositive": {
         "subject": "Olumlu Basın — {{player}}",
@@ -3462,6 +3510,10 @@
         "LoanConflict": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu kiralık durumda veya tescil bekleyen bir kiralama anlaşması var. Transfer bedeli ödenmedi.",
         "PlayerUnavailable": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; oyuncu artık bir satıcı kulüpten transfer edilebilir durumda değil. Transfer bedeli ödenmedi.",
         "RegistrationBlocked": "{{player}} için {{buyer}} kulübüne {{fee}} bedelle yapılan transfer anlaşması {{start}} tarihinde tescil edilemedi; bir tescil koşulu artık sağlanmıyor. Transfer bedeli ödenmedi."
+      },
+      "matchesMoved": {
+        "subject": "Maçlar yeniden planlandı",
+        "body": "Oyuncularınızın dinlenme süresini korumak ve milli maç aralarına uyabilmek için bazı maçlarınızın tarihi değiştirildi:\n{{matches}}"
       }
     },
     "news": {
@@ -3633,6 +3685,12 @@
     },
     "save": {
       "defaultName": "{{manager}} Kariyeri"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin.",
+        "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın."
+      }
     }
   },
   "traits": {
@@ -3880,6 +3938,7 @@
     "saveSuccess": "Kaydedildi",
     "saveTeam": "Takımı Kaydet",
     "issues": "{{count}} sorun",
+    "warnings": "{{count}} uyarı",
     "packageId": "Paket ID'si",
     "packageName": "Paket Adı",
     "description": "Açıklama",
@@ -4038,6 +4097,7 @@
     "openPackageFileInvalid": "Lütfen geçerli bir .ofm paket dosyası seçin",
     "noItemSelected": "Listeden bir öğe seçin veya oluşturmak için Ekle'ye tıklayın",
     "issuesBadge": "{{count}} sorun",
+    "warningsBadge": "{{count}} uyarı",
     "issuesTitle": "Doğrulama Sorunları",
     "noIssues": "Sorun yok — dünya geçerli",
     "saving": "Kaydediliyor…",
@@ -4113,6 +4173,8 @@
     "staffId": "ID",
     "staffFirstName": "Ad",
     "staffLastName": "Soyad",
+    "staffKnownAs": "Bilinen adı (isteğe bağlı)",
+    "staffKnownAsPlaceholder": "örn. Cafu",
     "staffClub": "Kulüp",
     "staffNationality": "Uyruk",
     "staffDateOfBirth": "Doğum Tarihi",

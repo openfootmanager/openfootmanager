@@ -50,6 +50,11 @@ jobs:
       - name: Check the mutation-testing exit-status check
         run: ./scripts/mutation-outcome.test.sh
 
+      # The /preflight mutants step runs on contributors' machines, never in CI, so its refusals
+      # (a patch that matches nothing, a run that tests nothing) are proved here against a fake.
+      - name: Check the preflight mutants step refuses an empty run
+        run: ./scripts/mutants-in-diff.test.sh
+
       # The AppImage check itself only runs at release time, against a real AppImage that should
       # pass. That run can't show the check still rejects a bad one, so its fixtures run on every
       # pull request instead. They need no toolchain either, hence this job.

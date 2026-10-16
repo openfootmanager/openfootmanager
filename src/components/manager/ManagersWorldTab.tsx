@@ -177,7 +177,7 @@ export default function ManagersWorldTab({ gameState, onSelectTeam }: ManagersWo
                     </Badge>
                   }
                 >
-                  {`${manager.first_name} ${manager.last_name}`}
+                  {manager.display_name}
                 </CardHeader>
                 <CardBody className="space-y-4">
                   <div className="flex items-start justify-between gap-4">

@@ -24,6 +24,10 @@ mod determinism;
 mod fixtures;
 #[path = "turn_tests/live_match_day.rs"]
 mod live_match_day;
+#[path = "turn_tests/match_injuries.rs"]
+mod match_injuries;
+#[path = "turn_tests/post_match_reactions.rs"]
+mod post_match_reactions;
 #[path = "turn_tests/squad_floor.rs"]
 mod squad_floor;
 #[path = "turn_tests/training_ground.rs"]
@@ -221,6 +225,62 @@ fn process_day_hires_replacement_for_long_vacant_ai_club() {
                 && manager.team_id.as_deref() == Some("team2"))
     );
     assert!(!game.vacant_team_days.contains_key("team2"));
+}
+
+/// Given an AI club covered for two months by an interim and an unemployed manager of matching standing
+/// When a day is processed
+/// Then the unemployed manager takes the club and the interim leaves the active pool.
+#[test]
+fn process_day_replaces_a_long_serving_interim_from_the_unemployed_market() {
+    let mut game = make_game_without_match_today();
+    let reputation = game
+        .teams
+        .iter()
+        .find(|t| t.id == "team2")
+        .unwrap()
+        .reputation;
+    let mut stand_in = Manager::new(
+        "mgr_team2_assistant".to_string(),
+        "Stand".to_string(),
+        "In".to_string(),
+        "1975-01-01".to_string(),
+        "England".to_string(),
+    );
+    stand_in.interim = true;
+    stand_in.hire("team2".to_string());
+    stand_in.satisfaction = 80;
+    stand_in
+        .career_history
+        .push(domain::manager::ManagerCareerEntry::open(
+            "team2".to_string(),
+            "Rival FC".to_string(),
+            "2020-01-01".to_string(),
+        ));
+    game.teams
+        .iter_mut()
+        .find(|t| t.id == "team2")
+        .unwrap()
+        .manager_id = Some(stand_in.id.clone());
+    game.managers.push(stand_in);
+    let mut free = Manager::new(
+        "free-agent".to_string(),
+        "Free".to_string(),
+        "Agent".to_string(),
+        "1975-01-01".to_string(),
+        "England".to_string(),
+    );
+    free.reputation = reputation;
+    game.managers.push(free);
+
+    turn::process_day(&mut game);
+
+    let team2 = game.teams.iter().find(|t| t.id == "team2").unwrap();
+    assert_eq!(team2.manager_id.as_deref(), Some("free-agent"));
+    assert!(
+        game.retired_managers
+            .iter()
+            .any(|m| m.id == "mgr_team2_assistant")
+    );
 }
 
 // ---------------------------------------------------------------------------

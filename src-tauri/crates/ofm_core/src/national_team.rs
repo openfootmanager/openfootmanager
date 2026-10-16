@@ -68,6 +68,59 @@ pub fn international_window_span_dates(window_dates: &[String]) -> Vec<String> {
         .collect()
 }
 
+/// Every date club football must keep clear of in the season starting at `season_start`: the
+/// international windows, expanded to their whole multi-day block when national-team qualifying
+/// is (or is about to be) played on them. The one definition, shared by world creation and the
+/// season rollover.
+pub fn international_blackout_dates(
+    season_start: DateTime<Utc>,
+    qualifying_in_progress: bool,
+) -> std::collections::BTreeSet<chrono::NaiveDate> {
+    let window_dates = international_window_dates(season_start);
+    let blocks = qualifying_in_progress
+        || crate::world_cup::season_leads_into_world_cup(season_start)
+        || crate::world_cup::season_starts_world_cup_qualifying(season_start);
+    let dates = if blocks {
+        international_window_span_dates(&window_dates)
+    } else {
+        window_dates
+    };
+    dates
+        .iter()
+        .filter_map(|date| chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").ok())
+        .collect()
+}
+
+/// Dates club football keeps clear of from the season before `today` to the season of the last
+/// fixture any competition holds: a calendar already generated for next season, or the one after,
+/// has its windows kept clear as much as this season's. National-team qualifying widens each
+/// window to its whole block.
+pub fn international_blackout_around(
+    competitions: &[domain::league::League],
+    today: chrono::NaiveDate,
+) -> std::collections::BTreeSet<chrono::NaiveDate> {
+    let qualifying = competitions
+        .iter()
+        .any(crate::world_cup::is_world_cup_qualifying);
+    let last_fixture_year = competitions
+        .iter()
+        .flat_map(|competition| &competition.fixtures)
+        .filter_map(|fixture| fixture.date.get(..4)?.parse::<i32>().ok())
+        .max()
+        .unwrap_or(today.year())
+        .max(today.year());
+    (today.year() - 1..=last_fixture_year)
+        .filter_map(|year| chrono::NaiveDate::from_ymd_opt(year, 7, 1))
+        .filter_map(|start| start.and_hms_opt(0, 0, 0))
+        .flat_map(|start| {
+            international_blackout_dates(
+                DateTime::from_naive_utc_and_offset(start, Utc),
+                qualifying,
+            )
+        })
+        .collect()
+}
+
 /// Schedule one friendly per international window for every national team that
 /// can field a squad. Fixtures are stored on the **home** team only so each
 /// match is simulated exactly once during day processing.

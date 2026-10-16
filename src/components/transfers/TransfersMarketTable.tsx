@@ -9,7 +9,7 @@ type TransfersMarketPaginationProps = {
     | "t"
     | "marketRangeFrom"
     | "marketRangeTo"
-    | "filteredList"
+    | "marketTotal"
     | "setMarketPage"
     | "safeMarketPage"
     | "marketTotalPages"
@@ -39,7 +39,6 @@ type TransfersMarketTableProps = {
     | "openDealHistory"
     | "i18n"
     | "gameState"
-    | "weeklySuffix"
     | "userTeamId"
     | "handleRespondOffer"
     | "openCounterNegotiation"
@@ -49,6 +48,7 @@ type TransfersMarketTableProps = {
     | "showMarketPagination"
     | "marketRangeFrom"
     | "marketRangeTo"
+    | "marketTotal"
     | "setMarketPage"
     | "safeMarketPage"
     | "marketTotalPages"
@@ -61,7 +61,7 @@ export function TransfersMarketPagination({ state }: TransfersMarketPaginationPr
     t,
     marketRangeFrom,
     marketRangeTo,
-    filteredList,
+    marketTotal,
     setMarketPage,
     safeMarketPage,
     marketTotalPages,
@@ -72,7 +72,7 @@ export function TransfersMarketPagination({ state }: TransfersMarketPaginationPr
         {t("players.showingRange", {
           from: marketRangeFrom,
           to: marketRangeTo,
-          total: filteredList.length,
+          total: marketTotal,
         })}
       </p>
       <div className="flex items-center gap-1">

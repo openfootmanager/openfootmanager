@@ -5,6 +5,7 @@ pub mod definitions;
 pub mod file_format;
 mod generation;
 pub mod package;
+mod package_warnings;
 pub mod scaffold;
 pub mod world_io;
 mod youth;
@@ -22,6 +23,7 @@ pub use package::{
     qualify_package_asset_paths, read_logo_from_ofm, read_package_manifest_from_ofm,
     validate_manifest, validate_package, validate_package_stack, validate_references,
 };
+pub use package_warnings::package_warnings;
 pub use scaffold::{
     EntityKind, entity_template, manifest_json, names_json, new_package_meta, scaffold_package,
     slugify,
@@ -172,17 +174,7 @@ pub fn default_opening_year() -> u32 {
 /// Age on 1 July of `opening_year`, by month and day (not day-of-year, which is off by one
 /// for birthdays after 28 February across a leap boundary). `None` for an unparseable date.
 pub(crate) fn opening_player_age(date_of_birth: &str, opening_year: i32) -> Option<i32> {
-    use chrono::{Datelike, NaiveDate};
-
-    let opening_date = NaiveDate::from_ymd_opt(opening_year, 7, 1)?;
-    let birth_date = NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d").ok()?;
-    let mut age = opening_date.year() - birth_date.year();
-
-    if (birth_date.month(), birth_date.day()) > (opening_date.month(), opening_date.day()) {
-        age -= 1;
-    }
-
-    Some(age)
+    domain::age::age_on(domain::age::season_midpoint(opening_year), date_of_birth)
 }
 
 fn is_opening_youth_candidate(player: &Player, opening_year: i32) -> bool {
@@ -293,13 +285,19 @@ pub fn generate_national_team_player(
         &names_def,
         rng,
     );
-    as_free_agent(player)
+    let mut agent = as_free_agent(player);
+    // Specific from the start, like every other player made after the world is built.
+    crate::player_identity::upgrade_player_identity(&mut agent, None);
+    agent
 }
 
 /// A generated player belonging to nobody: no club, no contract, no wage, not
 /// on any list.
 fn as_free_agent(mut player: Player) -> Player {
     player.team_id = None;
+    // The academy squad belongs to a club; a player generated for one (an authored `youth` flag)
+    // is a senior free agent once he has none.
+    player.squad_role = domain::player::SquadRole::Senior;
     // Both dates, not just the end: this player is generated from a club
     // template and then unattached, so leaving a start behind would describe an
     // agreement with no employer and no expiry.
@@ -1202,6 +1200,17 @@ pub fn build_world_data_from_package(
     opening_year: Option<u32>,
     sources: &definitions::DefinitionSources,
 ) -> WorldData {
+    build_world_data_from_package_with_rng(package, opening_year, sources, &mut rand::rng())
+}
+
+/// [`build_world_data_from_package`] drawing every die from `rng`, so a seeded one gives the same
+/// world twice.
+pub fn build_world_data_from_package_with_rng(
+    package: &package::WorldPackage,
+    opening_year: Option<u32>,
+    sources: &definitions::DefinitionSources,
+    rng: &mut impl rand::Rng,
+) -> WorldData {
     #[cfg(test)]
     PACKAGE_WORLD_BUILDS.with(|count| count.set(count.get() + 1));
     let opening_year = opening_year
@@ -1219,7 +1228,6 @@ pub fn build_world_data_from_package(
         })
         .unwrap_or_else(default_opening_year)
         .clamp(MIN_OPENING_YEAR, MAX_OPENING_YEAR);
-    let mut rng = rand::rng();
     let names_def = {
         // From `sources`, so a package's own pools layer on top of whatever the
         // player resolved rather than on top of the embedded copy — the same
@@ -1283,7 +1291,7 @@ pub fn build_world_data_from_package(
             &country_codes,
             opening_year,
             &names_def,
-            &mut rng,
+            &mut *rng,
         );
         // Replace auto-generated staff with authored versions, consuming each slot
         // at most once so multiple authored staff of the same role all survive.
@@ -1294,7 +1302,7 @@ pub fn build_world_data_from_package(
                 Some(&team.id),
                 opening_year,
                 &names_def,
-                &mut rng,
+                &mut *rng,
             );
             // Only the original auto-generated slots are replacement candidates;
             // already-placed authored staff (appended below) are never overwritten.
@@ -1315,6 +1323,13 @@ pub fn build_world_data_from_package(
         players.extend(team_players);
         staff.extend(team_staff);
     }
+    // An authored player with no club is a free agent: the package format says so ("empty /
+    // omitted = unattached"), and they used to be dropped without a word. Generated against a
+    // placeholder club and then unattached, like every other free agent.
+    for pdef in package.players.iter().filter(|p| p.club.is_empty()) {
+        let agent = generation::generate_player_from_def(pdef, "", opening_year, &names_def, rng);
+        players.push(as_free_agent(agent));
+    }
     // Unattached authored staff (no club) go directly into the staff list.
     for sdef in package.staff.iter().filter(|s| s.club.is_empty()) {
         staff.push(generation::generate_staff_from_authored_def(
@@ -1322,7 +1337,7 @@ pub fn build_world_data_from_package(
             None,
             opening_year,
             &names_def,
-            &mut rng,
+            &mut *rng,
         ));
     }
 
@@ -1336,9 +1351,9 @@ pub fn build_world_data_from_package(
     if package.competitions.is_empty() && teams.len() == 1 {
         build_notices.push("be.error.notice.fallbackTeamsFilled".to_string());
         let country = teams[0].country.clone();
-        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, sources, &mut rng) {
+        for def in &filler_club_defs(&country, THIN_PACKAGE_MIN_TEAMS - 1, sources, &mut *rng) {
             let (team, team_players, team_staff) =
-                build_club(def, &country_codes, opening_year, &names_def, &mut rng);
+                build_club(def, &country_codes, opening_year, &names_def, &mut *rng);
             teams.push(team);
             players.extend(team_players);
             staff.extend(team_staff);
@@ -2656,6 +2671,69 @@ mod tests {
 
         assert_eq!(player.nationality, "ENG");
         assert_eq!(player.football_nation, "ENG");
+    }
+
+    /// Given a youngster a youth scout finds, or a club takes in at its intake (#225)
+    /// When he is generated, in every outfield position group
+    /// Then he carries a specific natural position (LB, CM, ...) from the start, not the generic
+    ///      group that only a save and a reload used to refine.
+    #[test]
+    fn a_youth_recruit_has_a_specific_natural_position_when_he_arrives() {
+        let team = domain::team::Team::new(
+            "team-1".to_string(),
+            "London FC".to_string(),
+            "LON".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            20000,
+        );
+        // The goalkeeper is already as specific as that position gets.
+        for group in [
+            domain::player::Position::Defender,
+            domain::player::Position::Midfielder,
+            domain::player::Position::Forward,
+        ] {
+            for _ in 0..20 {
+                let scouted = generate_youth_academy_recruit(
+                    &team,
+                    Some(&group),
+                    TEST_OPENING_YEAR,
+                    &mut rand::rng(),
+                );
+                let intake = generate_youth_intake_recruit(
+                    &team,
+                    &group,
+                    16,
+                    TEST_OPENING_YEAR,
+                    &mut rand::rng(),
+                );
+                for player in [scouted, intake] {
+                    assert!(
+                        !player.natural_position.is_legacy_bucket(),
+                        "a {group:?} recruit arrived as the generic {:?}",
+                        player.natural_position
+                    );
+                }
+            }
+        }
+    }
+
+    /// Given national-team players generated mid-game (#225)
+    /// When they are made for an outfield slot
+    /// Then they carry a specific natural position, not the generic group.
+    #[test]
+    fn a_national_team_player_has_a_specific_natural_position() {
+        // Outfield slots of the standard layout: DEF 2-8, MID 9-15, FWD 16-21.
+        for slot in 2..SQUAD_SLOTS {
+            let player =
+                generate_national_team_player("ENG", slot, TEST_OPENING_YEAR, &mut rand::rng());
+            assert!(
+                !player.natural_position.is_legacy_bucket(),
+                "slot {slot} arrived as the generic {:?}",
+                player.natural_position
+            );
+        }
     }
 
     #[test]

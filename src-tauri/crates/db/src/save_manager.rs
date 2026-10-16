@@ -568,19 +568,13 @@ impl SaveManager {
         }
 
         // Backfill OVR/potential for players from older saves that don't have them yet.
-        // We use the game clock year so age is accurate.
-        let current_year = game
-            .clock
-            .current_date
-            .format("%Y")
-            .to_string()
-            .parse::<u32>()
-            .unwrap_or(2026);
+        // Ages are reckoned on the game clock's date.
+        let today = game.clock.current_date.date_naive();
         let backfill_count = game.players.iter().filter(|p| p.ovr == 0).count();
         if backfill_count > 0 {
             for player in game.players.iter_mut() {
                 if player.ovr == 0 {
-                    refresh_player_derived(player, current_year);
+                    refresh_player_derived(player, today);
                 }
             }
             info!(
@@ -620,6 +614,18 @@ impl SaveManager {
             info!(
                 "[save_manager] repaired {} fixture(s) left scheduled in the past for save {}",
                 repaired_fixtures, save_id
+            );
+            needs_resave = true;
+        }
+
+        // After the stranded fixtures are resolved, so that what remains unplayed is the calendar
+        // from here on. Matches inside the rest window, or on an international window, move to the
+        // earliest legal day; each is recorded as postponed and the user is told once. Idempotent.
+        let repaired_calendar = ofm_core::calendar_repair::repair_loaded_calendar(&mut game);
+        if repaired_calendar > 0 {
+            info!(
+                "[save_manager] moved {} clashing fixture(s) for save {}",
+                repaired_calendar, save_id
             );
             needs_resave = true;
         }
@@ -680,6 +686,9 @@ impl SaveManager {
     /// Create a new game by loading an existing save, stripping session data,
     /// and resetting the clock. Returns the loaded Game with clean session state.
     /// This does NOT create a new save — the caller should use `create_save` afterwards.
+    ///
+    /// The custom tactics library is kept (maintainer ruling on #883): it is the manager's own
+    /// toolkit, not something the old career was told.
     pub fn new_game_from_save(&mut self, source_save_id: &str) -> Result<Game, String> {
         let mut game = self.load_game(source_save_id)?;
 
@@ -1298,6 +1307,108 @@ mod tests {
     /// the next load. The free-agent market is where that showed: it is cleared
     /// and redrawn every 30 days, but the clear never reached disk, so a loaded
     /// save listed every candidate ever generated and the list only ever grew.
+    /// Given a career saved after each of three days, each day adding a match and an article
+    /// (and reading the previous one)
+    /// When a second manager, with no memory of those saves, loads the file
+    /// Then it holds exactly the matches and articles in memory, none twice and none missing.
+    #[test]
+    fn stats_and_news_saved_day_by_day_reload_exactly_as_they_were() {
+        use domain::news::{NewsArticle, NewsCategory};
+
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game();
+        let mut stats = StatsState::default();
+        let save_id = sm.create_save_with_stats(&game, &stats, "Career").unwrap();
+
+        let day_one = sample_stats_state();
+        for day in 0..3 {
+            let mut player = day_one.player_matches[0].clone();
+            player.fixture_id = format!("fix-{day}");
+            let mut team = day_one.team_matches[0].clone();
+            team.fixture_id = format!("fix-{day}");
+            stats.player_matches.push(player);
+            stats.team_matches.push(team);
+
+            if let Some(previous) = game.news.last_mut() {
+                previous.read = true;
+            }
+            game.news.push(NewsArticle::new(
+                format!("news-{day}"),
+                format!("Headline {day}"),
+                String::new(),
+                String::new(),
+                "2027-08-15".to_string(),
+                NewsCategory::MatchReport,
+            ));
+            sm.save_game_with_stats(&game, &stats, &save_id).unwrap();
+        }
+
+        let mut fresh = SaveManager::init(&saves_dir).unwrap();
+        let loaded_stats = fresh.load_stats_state(&save_id).unwrap();
+        let loaded = fresh.load_game(&save_id).unwrap();
+
+        let mut fixtures: Vec<_> = loaded_stats
+            .player_matches
+            .iter()
+            .map(|r| r.fixture_id.clone())
+            .collect();
+        fixtures.sort();
+        assert_eq!(fixtures, ["fix-0", "fix-1", "fix-2"]);
+        assert_eq!(loaded_stats.team_matches.len(), 3);
+
+        let mut articles: Vec<_> = loaded.news.iter().map(|a| (a.id.clone(), a.read)).collect();
+        articles.sort();
+        assert_eq!(
+            articles,
+            [
+                ("news-0".to_string(), true),
+                ("news-1".to_string(), true),
+                ("news-2".to_string(), false),
+            ]
+        );
+    }
+
+    /// Given a career whose stats alone are saved after each of two matches (the live-match path),
+    /// When a second manager, with no memory of those saves, loads the stats,
+    /// Then both matches are there, once each.
+    #[test]
+    fn stats_saved_on_their_own_reload_exactly_as_they_were() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let save_id = sm
+            .create_save_with_stats(&sample_game(), &StatsState::default(), "Career")
+            .unwrap();
+
+        let mut stats = StatsState::default();
+        for fixture in ["fix-0", "fix-1"] {
+            let mut player = sample_stats_state().player_matches[0].clone();
+            player.fixture_id = fixture.to_string();
+            let mut team = sample_stats_state().team_matches[0].clone();
+            team.fixture_id = fixture.to_string();
+            stats.player_matches.push(player);
+            stats.team_matches.push(team);
+            sm.save_stats_state(&stats, &save_id).unwrap();
+        }
+
+        let loaded = SaveManager::init(&saves_dir)
+            .unwrap()
+            .load_stats_state(&save_id)
+            .unwrap();
+
+        let mut fixtures: Vec<_> = loaded
+            .player_matches
+            .iter()
+            .map(|r| r.fixture_id.clone())
+            .collect();
+        fixtures.sort();
+        assert_eq!(fixtures, ["fix-0", "fix-1"]);
+        assert_eq!(loaded.team_matches.len(), 2);
+    }
+
     #[test]
     fn a_staff_member_removed_from_the_game_stays_removed_after_a_reload() {
         use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -1512,6 +1623,75 @@ mod tests {
             persisted.result.is_some(),
             "and the scoreline it chose is the one on disk"
         );
+    }
+
+    /// Given a save whose unplayed matches clash (one club, two matches on consecutive days),
+    /// When it is loaded, Then the clash is repaired, the move is recorded as a postponement, and
+    /// the repair is on disk: it is not recomputed, or lost, on the next load.
+    #[test]
+    fn loading_a_save_repairs_clashing_matches_and_persists_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let day = |offset: i64| {
+            (game.clock.current_date + chrono::Duration::days(offset))
+                .format("%Y-%m-%d")
+                .to_string()
+        };
+        let (first_day, second_day) = (day(30), day(31));
+        let competition = game.competitions.first_mut().expect("a league");
+        for (id, date) in [("clash-1", first_day), ("clash-2", second_day)] {
+            competition.fixtures.push(Fixture {
+                postponement: None,
+                id: id.to_string(),
+                competition_id: competition.id.clone(),
+                matchday: 99,
+                date,
+                home_team_id: "team-001".to_string(),
+                away_team_id: "team-002".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            });
+        }
+        let save_id = sm.create_save(&game, "Clashing Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        let dates = |game: &Game| -> Vec<(String, String, bool)> {
+            game.competitions
+                .iter()
+                .flat_map(|competition| competition.fixtures.iter())
+                .filter(|fixture| fixture.id.starts_with("clash-"))
+                .map(|fixture| {
+                    (
+                        fixture.id.clone(),
+                        fixture.date.clone(),
+                        fixture.postponement.is_some(),
+                    )
+                })
+                .collect()
+        };
+        let in_memory = dates(&loaded);
+        let gap = |rows: &[(String, String, bool)]| {
+            let parse = |date: &str| chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap();
+            (parse(&rows[1].1) - parse(&rows[0].1)).num_days().abs()
+        };
+        assert!(gap(&in_memory) >= 3, "{in_memory:?}");
+        assert_eq!(
+            in_memory.iter().filter(|row| row.2).count(),
+            1,
+            "exactly one of the two moved, and is marked: {in_memory:?}"
+        );
+
+        // From the file itself, not a second load (which would repair again and prove nothing).
+        let db = GameDatabase::open_save(&saves_dir.join(format!("{save_id}.db"))).unwrap();
+        let from_disk = GamePersistenceReader::read_game(&db).unwrap();
+        assert_eq!(dates(&from_disk), in_memory);
     }
 
     /// Every attribute at `value`. `ofm_core` has the same helper for its own unit tests, but a
@@ -1766,6 +1946,65 @@ mod tests {
         assert!(
             persisted.result.is_some(),
             "and the scoreline reached the file with it"
+        );
+    }
+
+    #[test]
+    fn only_the_calendar_repairs_own_resave_flag_writes_a_late_clash_back() {
+        // As above, for the calendar: let the save settle, inject a clash straight into the
+        // database, and let the repair's own flag be the only thing that can persist the move.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let save_id = sm.create_save(&game, "Settled Clash Career").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        sm.load_game(&save_id).unwrap();
+
+        let day = |offset: i64| {
+            (game.clock.current_date + chrono::Duration::days(offset))
+                .format("%Y-%m-%d")
+                .to_string()
+        };
+        {
+            let db = GameDatabase::open_save(&db_path).unwrap();
+            let mut competitions = competition_repo::load_competitions(db.conn()).unwrap();
+            let competition = competitions.first_mut().expect("a settled competition");
+            for (id, date) in [("late-clash-1", day(40)), ("late-clash-2", day(41))] {
+                competition.fixtures.push(Fixture {
+                    postponement: None,
+                    id: id.to_string(),
+                    competition_id: competition.id.clone(),
+                    matchday: 98,
+                    date,
+                    home_team_id: "team-001".to_string(),
+                    away_team_id: "team-002".to_string(),
+                    competition: FixtureCompetition::League,
+                    status: FixtureStatus::Scheduled,
+                    result: None,
+                });
+            }
+            competition_repo::replace_competitions(db.conn(), &competitions).unwrap();
+        }
+
+        sm.load_game(&save_id).unwrap();
+
+        let db = GameDatabase::open_save(&db_path).unwrap();
+        let from_disk = competition_repo::load_competitions(db.conn()).unwrap();
+        let persisted: Vec<_> = from_disk
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter(|fixture| fixture.id.starts_with("late-clash-"))
+            .collect();
+        assert_eq!(persisted.len(), 2);
+        assert!(
+            persisted
+                .iter()
+                .any(|fixture| fixture.postponement.is_some()),
+            "the repair's own resave flag is what writes the move back"
         );
     }
 
@@ -2255,7 +2494,9 @@ mod tests {
     /// order the .db hands them back in (priority, season descending, then name).
     fn game_with_dormant_leagues_today() -> Game {
         let mut game = sample_game();
-        game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 9, 0, 0, 0).unwrap();
+        // Not an international-window date (9 September is one): a loaded save moves a match off
+        // a window, and this test is about the reload not changing what is played.
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 16, 0, 0, 0).unwrap();
         // No players: a free agent in the save would be signed by a short squad on load, and the
         // reloaded game's clubs would no longer be the ones it is compared with.
         game.players.clear();
@@ -2288,7 +2529,7 @@ mod tests {
                 id: format!("df-{n}"),
                 competition_id: format!("dormant-{n}"),
                 matchday: 1,
-                date: "2026-09-09".to_string(),
+                date: "2026-09-16".to_string(),
                 home_team_id: home,
                 away_team_id: away,
                 competition: domain::league::FixtureCompetition::League,
@@ -3456,6 +3697,445 @@ mod tests {
             serde_json::to_value(&game.edition_archive).unwrap()
         );
         assert_eq!(loaded.edition_archive.len(), 1);
+    }
+
+    fn archived_veteran(id: &str, full_name: &str) -> domain::retired_player::RetiredPlayer {
+        let mut player = sample_game().players[0].clone();
+        player.id = id.to_string();
+        player.full_name = full_name.to_string();
+        player.retired = true;
+        player.team_id = None;
+        domain::retired_player::RetiredPlayer::from_player(&player, "2035-06-30", 2035)
+    }
+
+    fn rows(connection: &rusqlite::Connection, sql: &str, id: &str) -> i64 {
+        connection
+            .query_row(sql, [id], |row| row.get(0))
+            .expect("the query runs")
+    }
+
+    /// Given an archived retiree who is still a row in `players`, when the career is saved,
+    /// then a second connection finds one `retired_players` row and no active `players` row.
+    #[test]
+    fn saving_moves_an_archived_player_out_of_the_active_table() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let mut retiree = game.players[0].clone();
+        retiree.id = "p-retired".into();
+        retiree.retired = true;
+        retiree.team_id = None;
+        game.retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &retiree,
+                "2035-06-30",
+                2035,
+            ));
+        game.players.push(retiree);
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        let reader = rusqlite::Connection::open(manager.save_db_path(&id).unwrap()).unwrap();
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM retired_players WHERE player_id = ?1",
+                "p-retired"
+            ),
+            1
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM players WHERE id = ?1",
+                "p-retired"
+            ),
+            0
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM players WHERE id = ?1",
+                &game.players[0].id
+            ),
+            1,
+            "an active player is not touched"
+        );
+    }
+
+    /// Given a saved archive, when the career is loaded, then every field of every record survives.
+    #[test]
+    fn the_retired_archive_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.retired_players = vec![
+            archived_veteran("p-old-1", "Ada Old"),
+            archived_veteran("p-old-2", "Bo Older"),
+        ];
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(loaded.retired_players, game.retired_players);
+    }
+
+    /// Given an archived record, when a later save carries a different payload for the same id,
+    /// then the save succeeds and the first record stays (immutability is by id, not payload).
+    #[test]
+    fn an_archived_record_is_never_rewritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.retired_players = vec![archived_veteran("p-old", "Ada Old")];
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        game.retired_players = vec![archived_veteran("p-old", "Ada Renamed")];
+        manager.save_game(&game, &id).unwrap();
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(loaded.retired_players.len(), 1);
+        assert_eq!(loaded.retired_players[0].full_name, "Ada Old");
+    }
+
+    fn retired_veteran_manager(id: &str, first_name: &str) -> domain::manager::Manager {
+        let mut manager = domain::manager::Manager::new(
+            id.to_string(),
+            first_name.to_string(),
+            "Veteran".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.reputation = 640;
+        manager.career_stats.trophies = 4;
+        manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                "club-1".to_string(),
+                "Club One".to_string(),
+                "2010-07-01".to_string(),
+            ));
+        manager
+    }
+
+    /// Opens the save's file through a connection of its own, as a later session would.
+    fn fresh_reader(manager: &SaveManager, id: &str) -> rusqlite::Connection {
+        rusqlite::Connection::open(manager.save_db_path(id).unwrap()).unwrap()
+    }
+
+    /// Given a club's stand-in, marked interim, and a permanent manager
+    /// When the career is saved to its file and loaded by a new save manager
+    /// Then the file holds the stand-in as interim and the other as not, and so does the load
+    #[test]
+    fn an_interim_manager_is_still_interim_after_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        let mut stand_in = domain::manager::Manager::new(
+            "mgr-stand-in".to_string(),
+            "Stand".to_string(),
+            "In".to_string(),
+            "1975-01-01".to_string(),
+            "England".to_string(),
+        );
+        stand_in.interim = true;
+        let mut permanent = stand_in.clone();
+        permanent.id = "mgr-permanent".to_string();
+        permanent.interim = false;
+        game.managers.push(stand_in);
+        game.managers.push(permanent);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Interim")
+            .unwrap();
+
+        let mut later = SaveManager::init(&saves).unwrap();
+        let reader = fresh_reader(&later, &id);
+        let stored = |manager_id: &str| -> bool {
+            reader
+                .query_row(
+                    "SELECT interim FROM managers WHERE id = ?1",
+                    params![manager_id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+        assert!(stored("mgr-stand-in"));
+        assert!(!stored("mgr-permanent"));
+        let loaded = later.load_game(&id).unwrap();
+        let interim = |manager_id: &str| {
+            loaded
+                .managers
+                .iter()
+                .find(|manager| manager.id == manager_id)
+                .unwrap()
+                .interim
+        };
+        assert!(interim("mgr-stand-in"));
+        assert!(!interim("mgr-permanent"));
+    }
+
+    /// Given a staff member known by a short name
+    /// When the career is saved to its file and loaded by a new save manager
+    /// Then the file holds the short name, and the loaded staff member is displayed by it
+    #[test]
+    fn a_staff_members_short_name_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        let mut coach = domain::staff::Staff::new(
+            "staff-pep".to_string(),
+            "Josep".to_string(),
+            "Guardiola i Sala".to_string(),
+            "1971-01-18".to_string(),
+            StaffRole::Coach,
+            StaffAttributes {
+                coaching: 80,
+                judging_ability: 70,
+                judging_potential: 70,
+                physiotherapy: 20,
+            },
+        );
+        coach.set_known_as(Some("Pep Guardiola".to_string()));
+        game.staff.push(coach);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Known as")
+            .unwrap();
+
+        let mut later = SaveManager::init(&saves).unwrap();
+        let stored: Option<String> = fresh_reader(&later, &id)
+            .query_row(
+                "SELECT known_as FROM staff WHERE id = ?1",
+                params!["staff-pep"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored.as_deref(), Some("Pep Guardiola"));
+        let loaded = later.load_game(&id).unwrap();
+        let coach = loaded.staff.iter().find(|s| s.id == "staff-pep").unwrap();
+        assert_eq!(coach.display_name, "Pep Guardiola");
+    }
+
+    /// Given a player with 12 appearances of which 9 were rated
+    /// When the career is saved to its file and loaded by a new save manager
+    /// Then the file's stats hold 9 rated appearances, and so does the loaded player
+    #[test]
+    fn a_players_rated_appearances_survive_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        let player = game.players.first_mut().expect("the sample has a player");
+        player.stats.appearances = 12;
+        player.stats.rated_appearances = 9;
+        let player_id = player.id.clone();
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Rated")
+            .unwrap();
+
+        let mut later = SaveManager::init(&saves).unwrap();
+        let stats_json: String = fresh_reader(&later, &id)
+            .query_row(
+                "SELECT stats FROM players WHERE id = ?1",
+                params![player_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let stored: serde_json::Value = serde_json::from_str(&stats_json).unwrap();
+        assert_eq!(stored["rated_appearances"], 9);
+        let loaded = later.load_game(&id).unwrap();
+        let player = loaded.players.iter().find(|p| p.id == player_id).unwrap();
+        assert_eq!(player.stats.rated_appearances, 9);
+        assert_eq!(player.stats.appearances, 12);
+    }
+
+    /// Given an archived manager who is still a row in `managers`, when the career is saved,
+    /// then a second connection finds one `retired_managers` row and no active `managers` row.
+    #[test]
+    fn saving_moves_an_archived_manager_out_of_the_active_table() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let veteran = retired_veteran_manager("mgr-veteran", "Ada");
+        let id = manager.create_save(&game, "Archive").unwrap();
+        game.managers.push(veteran.clone());
+        manager.save_game(&game, &id).unwrap();
+        game.managers.retain(|m| m.id != veteran.id);
+        game.retired_managers.push(veteran);
+        manager.save_game(&game, &id).unwrap();
+
+        let reader = rusqlite::Connection::open(manager.save_db_path(&id).unwrap()).unwrap();
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM retired_managers WHERE manager_id = ?1",
+                "mgr-veteran"
+            ),
+            1
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM managers WHERE id = ?1",
+                "mgr-veteran"
+            ),
+            0
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM managers WHERE id = ?1",
+                &game.manager.id
+            ),
+            1,
+            "the user's manager is not touched"
+        );
+    }
+
+    /// Given an archive of managers, when the career is loaded, then every record survives whole
+    /// and none of them is back in the active pool.
+    #[test]
+    fn the_retired_manager_archive_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.retired_managers = vec![
+            retired_veteran_manager("veteran-a", "Ada"),
+            retired_veteran_manager("veteran-b", "Bo"),
+        ];
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(
+            serde_json::to_value(&loaded.retired_managers).unwrap(),
+            serde_json::to_value(&game.retired_managers).unwrap()
+        );
+        assert!(
+            loaded
+                .managers
+                .iter()
+                .all(|m| !m.id.starts_with("veteran-"))
+        );
+    }
+
+    /// Given an archived manager, when a later save carries a different payload for the same id,
+    /// then the save succeeds and the first record stays.
+    #[test]
+    fn an_archived_manager_is_never_rewritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.retired_managers = vec![retired_veteran_manager("mgr-old", "Ada")];
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        game.retired_managers = vec![retired_veteran_manager("mgr-old", "Renamed")];
+        manager.save_game(&game, &id).unwrap();
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(loaded.retired_managers.len(), 1);
+        assert_eq!(loaded.retired_managers[0].first_name, "Ada");
+    }
+
+    /// Given a career with saved tactics in a chosen order, one of them since deleted (#390)
+    /// When it is saved and loaded
+    /// Then the tactics come back in order, with the deleted one gone.
+    #[test]
+    fn custom_tactics_survive_save_and_load_in_order() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let tactic = |id: &str, name: &str| domain::custom_tactic::CustomTactic {
+            id: id.to_string(),
+            name: name.to_string(),
+            description: "d".to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: "Counter".to_string(),
+            source_preset_name: Some("Counter".to_string()),
+        };
+        game.custom_tactics = vec![
+            tactic("a", "First"),
+            tactic("b", "Second"),
+            tactic("c", "Third"),
+        ];
+        let id = manager.create_save(&game, "Tactics").unwrap();
+
+        game.custom_tactics.remove(1);
+        manager.save_game(&game, &id).unwrap();
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert_eq!(loaded.custom_tactics, game.custom_tactics);
+        let names: Vec<&str> = loaded
+            .custom_tactics
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
+        assert_eq!(names, ["First", "Third"]);
+    }
+
+    /// Given a save whose career has saved tactics
+    /// When a new career is started from it
+    /// Then it has the same tactics library: the tactics are the manager's, not the session's.
+    #[test]
+    fn a_career_started_from_a_save_keeps_the_custom_tactics_library() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.custom_tactics = vec![domain::custom_tactic::CustomTactic {
+            id: "a".to_string(),
+            name: "Mine".to_string(),
+            description: String::new(),
+            formation: "3-5-2".to_string(),
+            play_style: "Counter".to_string(),
+            source_preset_name: None,
+        }];
+        let id = manager.create_save(&game, "Source").unwrap();
+
+        let fresh = manager.new_game_from_save(&id).unwrap();
+
+        assert_eq!(fresh.custom_tactics, game.custom_tactics);
+    }
+
+    /// Given a retiree archived in a transaction that is then abandoned, when the database is
+    /// read, then the person is still active and no archive row exists: neither half committed.
+    #[test]
+    fn an_archive_write_that_is_abandoned_commits_neither_half() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let id = manager.create_save(&game, "Archive").unwrap();
+        let active_id = game.players[0].id.clone();
+        game.retired_players = vec![archived_veteran(&active_id, "Ada Old")];
+
+        let database =
+            crate::game_database::GameDatabase::open(&manager.save_db_path(&id).unwrap()).unwrap();
+        {
+            let transaction = database.conn().unchecked_transaction().unwrap();
+            crate::repositories::retired_player_repo::archive_retired_players(
+                &transaction,
+                &game.retired_players,
+            )
+            .unwrap();
+            // Dropped without commit: the transaction rolls back.
+        }
+
+        let reader = rusqlite::Connection::open(manager.save_db_path(&id).unwrap()).unwrap();
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM retired_players WHERE player_id = ?1",
+                &active_id
+            ),
+            0
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM players WHERE id = ?1",
+                &active_id
+            ),
+            1
+        );
     }
 
     fn world_cup_game() -> Game {

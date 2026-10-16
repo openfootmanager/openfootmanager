@@ -214,6 +214,10 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `set_formation` | formation | `Game` | Change team formation |
 | `set_play_style` | play_style | `Game` | Change play style |
 | `apply_tactic_preset` | formation, play_style | `Game` | Pick a tactic preset: formation + play style, and reset the phase blueprint to that style's default |
+| `list_custom_tactics` | - | `CustomTactic[]` | The tactics the player saved (career-scoped, in the save) |
+| `save_custom_tactic` | tactic | `CustomTactic[]` | Add a saved tactic, or replace the one with the same id; returns the library |
+| `delete_custom_tactic` | id | `CustomTactic[]` | Remove a saved tactic; returns what is left |
+| `get_tactics_blueprint_status` | — | `{ modified }` | Whether the user's phase dials differ from the blueprint their play style implies (`blueprint_for`); feeds the Tactics unsaved-changes badge |
 | `set_training` | focus, intensity | `Game` | Set training focus and intensity |
 | `set_training_schedule` | schedule | `Game` | Set weekly training schedule |
 | `get_training_focus_attributes` | - | `TrainingFocusAttributes[]` | Which attributes each training focus trains, for outfield players and for goalkeepers; the same table the daily gains use |

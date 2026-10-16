@@ -3,8 +3,9 @@ use colored::Colorize;
 use comfy_table::{presets::UTF8_FULL, Table};
 use ofm_core::generator::{
     entity_template, export_directory_to_ofm, is_valid_package_id, load_world_package,
-    load_world_package_from_ofm, new_package_meta, read_package_manifest_from_ofm,
-    scaffold_package, slugify, validate_package, EntityKind as CoreEntityKind,
+    load_world_package_from_ofm, new_package_meta, package_warnings,
+    read_package_manifest_from_ofm, scaffold_package, slugify, validate_package,
+    EntityKind as CoreEntityKind,
 };
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -241,6 +242,8 @@ const SCHEMA_STAFF: &str = r##"// Staff entity — place inside staff/*.json in 
                               //            | Attacking | GoalKeeping | Youth
   "dateOfBirth": "1975-01-01",// optional: ISO date (YYYY-MM-DD)
   "age": null,                // optional: integer (used if dateOfBirth absent)
+  "knownAs": null,            // optional: what they are called when it differs from their name
+                              //            ("Cafu" for Marcos Evangelista); first/last stay real
   "attributes": null          // optional: { "coaching": 60, "judgingAbility": 60,
                               //             "judgingPotential": 60, "physiotherapy": 60 }
 }"##;
@@ -307,8 +310,10 @@ const SCHEMA_COMPETITION: &str = r##"// Competition entity — place inside comp
     "windowEnd": null    // optional: { "month": 6, "day": 30 }; required for opening/closing
   },
   // Berths - qualification spots this competition awards into others:
+  // rule.kind: "positionRange" (+ from, to) | "cupWinner" | "playoffWinner" (+ from, to);
+  // optional "fallbackTo": a competition id for a place a club cannot take.
   "berths": [
-    // { "rule": "TopN", "count": 4, "targetCompetition": "ucl", "fromTop": true }
+    // { "target": "ucl", "rule": { "kind": "positionRange", "from": 1, "to": 4 } }
   ],
   "nameKey": null,        // optional: i18n key; translated via t(nameKey, { year }) instead of "name"
   "logo": null            // optional: relative path to a badge image asset
@@ -605,7 +610,8 @@ fn cmd_validate(path: &Path) -> i32 {
         errors.extend(validate_package(&pkg));
     }
 
-    if errors.is_empty() {
+    let warnings = package_warnings(&pkg);
+    let code = if errors.is_empty() {
         println!(
             "{} Valid — {} teams, {} players, {} competitions, {} countries, {} confederations",
             "✓".green().bold(),
@@ -619,19 +625,30 @@ fn cmd_validate(path: &Path) -> i32 {
     } else {
         println!("{} {} error(s):", "✗".red().bold(), errors.len());
         for err in &errors {
-            let params: Vec<String> = err
-                .params
-                .iter()
-                .map(|(k, v)| format!("{}={}", k, v))
-                .collect();
-            let param_str = if params.is_empty() {
-                String::new()
-            } else {
-                format!(" ({})", params.join(", "))
-            };
-            println!("  {} {}{}", err.file.yellow(), err.code.red(), param_str);
+            println!("  {} {}", err.file.yellow(), issue_text(err).red());
         }
         1
+    };
+    if !warnings.is_empty() {
+        println!("{} {} warning(s):", "!".yellow().bold(), warnings.len());
+        for warning in &warnings {
+            println!("  {} {}", warning.file.yellow(), issue_text(warning));
+        }
+    }
+    code
+}
+
+/// A package issue as the CLI prints it: its translation key and, in parentheses, its parameters.
+fn issue_text(issue: &ofm_core::generator::PackageError) -> String {
+    let params: Vec<String> = issue
+        .params
+        .iter()
+        .map(|(k, v)| format!("{}={}", k, v))
+        .collect();
+    if params.is_empty() {
+        issue.code.clone()
+    } else {
+        format!("{} ({})", issue.code, params.join(", "))
     }
 }
 
@@ -1237,6 +1254,53 @@ mod tests {
     }
 
     #[test]
+    fn the_staff_docs_name_every_field_a_staff_member_can_author() {
+        // The scaffold template omits optional fields that are `None`, so the parity tests above
+        // cannot see them: `knownAs` was a real, loadable `StaffDef` field (#557) that neither
+        // `ofm-cli schema staff` nor SCHEMA_REFERENCE.md mentioned. A staff member with every
+        // optional field filled in serializes every key a modder can write.
+        let everything: ofm_core::generator::StaffDef = serde_json::from_value(json!({
+            "id": "sample", "firstName": "Sample", "lastName": "Staffer", "club": "club-id",
+            "nationality": "ENG", "role": "Coach",
+            "attributes": {
+                "coaching": 10, "judgingAbility": 10, "judgingPotential": 10, "physiotherapy": 10
+            },
+            "specialization": "Fitness", "dateOfBirth": "1975-01-01", "age": 50,
+            "knownAs": "Sam Staffer"
+        }))
+        .expect("a fully populated staff member");
+        let keys: Vec<String> = serde_json::to_value(&everything)
+            .expect("serializes")
+            .as_object()
+            .expect("an object")
+            .keys()
+            .cloned()
+            .collect();
+
+        let schema = entity_schema_text(&EntityKind::Staff);
+        let reference = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../../docs/modding/SCHEMA_REFERENCE.md"),
+        )
+        .expect("the schema reference");
+
+        let missing: Vec<String> = keys
+            .iter()
+            .flat_map(|key| {
+                let mut gaps = Vec::new();
+                if !schema.contains(&format!("\"{key}\"")) {
+                    gaps.push(format!("schema: {key}"));
+                }
+                if !reference.contains(&format!("`{key}`")) {
+                    gaps.push(format!("reference: {key}"));
+                }
+                gaps
+            })
+            .collect();
+        assert!(missing.is_empty(), "staff fields undocumented: {missing:?}");
+    }
+
+    #[test]
     fn every_cli_entity_maps_to_a_distinct_core_kind() {
         // The clap enum exists only to parse an argument; everything downstream
         // asks `ofm_core`. If this mapping ever collided, `ofm-cli add country`
@@ -1254,5 +1318,240 @@ mod tests {
                 kind.schema_name()
             );
         }
+    }
+
+    /// Given a package whose own country is outside the catalog and in no confederation (#830)
+    /// When `validate` runs
+    /// Then it exits successfully, and the warning it prints names the file, the country and the code.
+    #[test]
+    fn validate_warns_about_a_country_with_no_region_and_still_succeeds() {
+        let dir = scratch_dir("validate-warns");
+        assert_eq!(
+            cmd_new("demo", Some(&dir), "Author", "1.0.0", "database"),
+            0
+        );
+        std::fs::create_dir_all(dir.join("countries")).unwrap();
+        std::fs::write(
+            dir.join("countries/qq.json"),
+            r#"{"schema":"country","id":"QQ","name":"Qland"}"#,
+        )
+        .unwrap();
+
+        let exit = cmd_validate(&dir);
+        let (package, _errors) = load_world_package(&dir);
+        let warnings = package_warnings(&package);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(exit, 0, "a warning does not fail validation");
+        assert_eq!(warnings.len(), 1);
+        let text = issue_text(&warnings[0]);
+        assert!(text.contains("countryWithoutRegion"), "{text}");
+        assert!(
+            text.contains("name=Qland") && text.contains("code=QQ"),
+            "{text}"
+        );
+        assert_eq!(warnings[0].file, "countries/qq.json");
+    }
+
+    /// Given a package whose countries are all in the catalog
+    /// When `validate` runs
+    /// Then there is no warning.
+    #[test]
+    fn validate_is_silent_for_a_package_with_known_countries() {
+        let dir = scratch_dir("validate-silent");
+        assert_eq!(
+            cmd_new("demo", Some(&dir), "Author", "1.0.0", "database"),
+            0
+        );
+        std::fs::create_dir_all(dir.join("countries")).unwrap();
+        std::fs::write(
+            dir.join("countries/eng.json"),
+            r#"{"schema":"country","id":"ENG","name":"England"}"#,
+        )
+        .unwrap();
+
+        let exit = cmd_validate(&dir);
+        let (package, _errors) = load_world_package(&dir);
+        let warnings = package_warnings(&package);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(exit, 0);
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    /// The text of a schema template with its `//` comments removed (outside strings), as JSON.
+    fn template_without_comments(template: &str) -> String {
+        template
+            .lines()
+            .map(|line| {
+                let mut in_string = false;
+                let mut previous = ' ';
+                let mut end = line.len();
+                for (index, c) in line.char_indices() {
+                    if c == '"' && previous != '\\' {
+                        in_string = !in_string;
+                    }
+                    if !in_string && c == '/' && previous == '/' {
+                        end = index - 1;
+                        break;
+                    }
+                    previous = c;
+                }
+                &line[..end]
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Given each `ofm-cli schema <entity>` reference (#552)
+    /// When its comments are removed
+    /// Then what is left is the entity's own struct, so the printed shape is the one that loads.
+    #[test]
+    fn every_schema_template_parses_into_its_own_definition() {
+        use clap::ValueEnum;
+        use ofm_core::generator::{
+            CompetitionDefinition, ConfederationDef, CountryDef, NamesDefinition, PlayerDef,
+            StaffDef, TeamDef, WorldMetaDef,
+        };
+        // An exhaustive `match`: a new `EntityKind` does not compile until it says how its
+        // reference is checked, and `value_variants` visits every one.
+        fn parses(entity: &EntityKind) -> Result<(), String> {
+            let json = template_without_comments(entity_schema_text(entity));
+            match entity {
+                EntityKind::World => serde_json::from_str::<WorldMetaDef>(&json).map(|_| ()),
+                EntityKind::Team => serde_json::from_str::<TeamDef>(&json).map(|_| ()),
+                EntityKind::Player => serde_json::from_str::<PlayerDef>(&json).map(|_| ()),
+                EntityKind::Staff => serde_json::from_str::<StaffDef>(&json).map(|_| ()),
+                EntityKind::Confederation => {
+                    serde_json::from_str::<ConfederationDef>(&json).map(|_| ())
+                }
+                EntityKind::Country => serde_json::from_str::<CountryDef>(&json).map(|_| ()),
+                EntityKind::Competition => {
+                    serde_json::from_str::<CompetitionDefinition>(&json).map(|_| ())
+                }
+                EntityKind::Names => serde_json::from_str::<NamesDefinition>(&json).map(|_| ()),
+            }
+            .map_err(|e| e.to_string())
+        }
+        let broken: Vec<String> = EntityKind::value_variants()
+            .iter()
+            .filter_map(|entity| parses(entity).err().map(|e| format!("{entity:?}: {e}")))
+            .collect();
+        assert!(broken.is_empty(), "{broken:#?}");
+    }
+
+    /// Given the `fallbackLeague` example in `ofm-cli schema world`, which is commented out
+    /// When its comment markers are removed and it is put in the manifest
+    /// Then the manifest deserializes.
+    #[test]
+    fn the_fallback_league_example_in_the_world_reference_loads() {
+        use ofm_core::generator::WorldMetaDef;
+        let lines: Vec<&str> = SCHEMA_WORLD
+            .lines()
+            .skip_while(|line| !line.contains("\"fallbackLeague\""))
+            .collect();
+        let comment: String = lines
+            .iter()
+            .map(|line| {
+                line.split_once("//")
+                    .map_or("", |(_, comment)| comment.trim())
+            })
+            .take_while(|text| !text.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let open = comment.find('{').expect("the reference shows an example");
+        let close = comment.rfind('}').expect("the example closes");
+        let example: serde_json::Value =
+            serde_json::from_str(&comment[open..=close]).expect("the example is JSON");
+
+        let mut manifest: serde_json::Value = serde_json::from_str(&template_without_comments(
+            entity_schema_text(&EntityKind::World),
+        ))
+        .unwrap();
+        manifest["fallbackLeague"] = example;
+        let loaded = serde_json::from_value::<WorldMetaDef>(manifest);
+        assert!(
+            loaded.is_ok(),
+            "the example does not load: {:?}",
+            loaded.err()
+        );
+    }
+
+    /// Given the berth example in `ofm-cli schema competition`, which is commented out
+    /// When its comment marker is removed and it is put in the competition
+    /// Then the competition deserializes: the example an author copies is one that loads.
+    #[test]
+    fn the_berth_example_in_the_competition_reference_loads() {
+        use ofm_core::generator::CompetitionDefinition;
+        let example: Vec<serde_json::Value> = SCHEMA_COMPETITION
+            .lines()
+            .skip_while(|line| !line.contains("\"berths\": ["))
+            .skip(1)
+            .take_while(|line| !line.trim_start().starts_with(']'))
+            .filter_map(|line| line.trim_start().strip_prefix("//"))
+            .map(|line| {
+                let text = line.trim().trim_end_matches(',');
+                serde_json::from_str(text)
+                    .unwrap_or_else(|e| panic!("the berth example is not JSON: {e}: {text}"))
+            })
+            .collect();
+        assert!(!example.is_empty(), "the reference shows a berth example");
+
+        let mut competition: serde_json::Value = serde_json::from_str(&template_without_comments(
+            entity_schema_text(&EntityKind::Competition),
+        ))
+        .unwrap();
+        competition["berths"] = serde_json::Value::Array(example);
+        let loaded = serde_json::from_value::<CompetitionDefinition>(competition);
+        assert!(
+            loaded.is_ok(),
+            "the berth example does not load: {:?}",
+            loaded.err()
+        );
+    }
+
+    /// Given every berth and competition example in `docs/modding/SCHEMA_REFERENCE.md`
+    /// When it is parsed
+    /// Then it loads, so the reference teaches only shapes that deserialize (#552).
+    #[test]
+    fn the_competition_examples_in_the_reference_load() {
+        // Counted by hand when written; changing the reference means changing this on purpose.
+        const EXAMPLES_IN_THE_REFERENCE: usize = 4;
+        use ofm_core::generator::CompetitionDefinition;
+        let reference = include_str!("../../../../docs/modding/SCHEMA_REFERENCE.md");
+        let template: serde_json::Value = serde_json::from_str(&template_without_comments(
+            entity_schema_text(&EntityKind::Competition),
+        ))
+        .unwrap();
+
+        let mut checked = 0;
+        for block in reference.split("```json").skip(1) {
+            let body = block.split("```").next().unwrap_or("").trim();
+            if body.starts_with("\"berths\"") {
+                let wrapped: serde_json::Value = serde_json::from_str(&format!("{{{body}}}"))
+                    .unwrap_or_else(|e| panic!("berth example is not JSON: {e}\n{body}"));
+                let mut competition = template.clone();
+                competition["berths"] = wrapped["berths"].clone();
+                let loaded = serde_json::from_value::<CompetitionDefinition>(competition);
+                assert!(
+                    loaded.is_ok(),
+                    "berth example does not load: {:?}\n{body}",
+                    loaded.err()
+                );
+                checked += 1;
+            } else if body.contains("\"schema\": \"competition\"") {
+                let loaded = serde_json::from_str::<CompetitionDefinition>(body);
+                assert!(
+                    loaded.is_ok(),
+                    "competition example does not load: {:?}\n{body}",
+                    loaded.err()
+                );
+                checked += 1;
+            }
+        }
+        assert_eq!(
+            checked, EXAMPLES_IN_THE_REFERENCE,
+            "an example appeared or vanished"
+        );
     }
 }

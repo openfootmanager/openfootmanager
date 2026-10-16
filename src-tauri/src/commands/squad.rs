@@ -1,4 +1,3 @@
-use chrono::Datelike;
 use log::info;
 use std::sync::Arc;
 use tauri::State;
@@ -16,19 +15,11 @@ fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     }
 }
 
-fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option<i32> {
-    let dob = chrono::NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d").ok()?;
-    let mut age = current_date.year() - dob.year();
-
-    if (current_date.month(), current_date.day()) < (dob.month(), dob.day()) {
-        age -= 1;
-    }
-
-    Some(age)
-}
-
 /// Sets the user's formation and drops roles the new shape no longer admits.
 fn apply_formation(game: &mut Game, formation: &str) -> Result<(), String> {
+    if ofm_core::player_rating::parse_formation(formation).is_none() {
+        return Err(ofm_core::custom_tactics::INVALID_FORMATION_ERROR.to_string());
+    }
     let team_id = user_team_id(game)?;
 
     // Note: `player.position` is intentionally NOT mutated here. A player's
@@ -91,6 +82,42 @@ pub fn apply_tactic_preset(
 ) -> Result<Game, String> {
     info!("[cmd] apply_tactic_preset: {} / {}", formation, play_style);
     apply_tactic_preset_internal(&state, &formation, &play_style)
+}
+
+/// Whether the manager's phase dials differ from the blueprint their play style implies.
+///
+/// The Tactics screen's unsaved-changes badge compares formation and style on its own; this is the
+/// part only the backend can answer, because `blueprint_for` is the rule that defines a style's
+/// dials and the frontend holds no copy of it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct TacticsBlueprintStatus {
+    pub modified: bool,
+}
+
+pub fn get_tactics_blueprint_status_internal(
+    state: &StateManager,
+) -> Result<TacticsBlueprintStatus, String> {
+    state
+        .get_game(|game| {
+            let team_id = user_team_id(game)?;
+            let team = game
+                .teams
+                .iter()
+                .find(|team| team.id == team_id)
+                .ok_or_else(|| "be.error.managedTeamNotFound".to_string())?;
+            Ok(TacticsBlueprintStatus {
+                modified: team.tactics_phase
+                    != ofm_core::ai_tactics::blueprint_for(&team.play_style),
+            })
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
+}
+
+#[tauri::command]
+pub fn get_tactics_blueprint_status(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<TacticsBlueprintStatus, String> {
+    get_tactics_blueprint_status_internal(&state)
 }
 
 pub fn set_starting_xi_internal(
@@ -344,7 +371,7 @@ pub fn set_player_squad_role_internal(
         }
 
         if matches!(target_role, domain::player::SquadRole::Youth) {
-            let age = player_age_on(current_date, &game.players[player_index].date_of_birth)
+            let age = domain::age::age_on(current_date, &game.players[player_index].date_of_birth)
                 .ok_or("be.error.invalidDateOfBirth".to_string())?;
             if age > ofm_core::roster::YOUTH_ACADEMY_MAX_AGE {
                 return Err("be.error.youthAcademyOverage".to_string());
@@ -682,10 +709,11 @@ pub fn set_tactics_phase(
 
 #[cfg(test)]
 mod tests {
+    use super::TacticsBlueprintStatus;
     use super::{
-        apply_tactic_preset_internal, set_formation_internal, set_play_style_internal,
-        set_player_role_internal, set_player_squad_role_internal,
-        set_player_training_focus_internal,
+        apply_tactic_preset_internal, get_tactics_blueprint_status_internal,
+        set_formation_internal, set_play_style_internal, set_player_role_internal,
+        set_player_squad_role_internal, set_player_training_focus_internal,
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
@@ -835,6 +863,59 @@ mod tests {
         assert_eq!(team.tactics_phase, blueprint_for(&PlayStyle::Defensive));
     }
 
+    /// Given a manager whose phase dials were tuned away from their style's blueprint
+    /// When the blueprint status is read
+    /// Then it reports the blueprint as modified
+    #[test]
+    fn tuned_dials_report_the_blueprint_as_modified() {
+        let state = state_with_custom_dials();
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state),
+            Ok(TacticsBlueprintStatus { modified: true })
+        );
+    }
+
+    /// Given a manager whose dials are exactly their style's blueprint
+    /// When the blueprint status is read
+    /// Then it reports the blueprint as unmodified
+    #[test]
+    fn a_style_blueprint_left_alone_is_not_modified() {
+        let state = state_with_custom_dials();
+        apply_tactic_preset_internal(&state, "4-4-2", "Defensive").expect("preset applies");
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state),
+            Ok(TacticsBlueprintStatus { modified: false })
+        );
+    }
+
+    /// Given dials that equal the blueprint of the previous style
+    /// When only the play style changes
+    /// Then the blueprint reads as modified, because it no longer matches the new style
+    #[test]
+    fn changing_the_style_alone_leaves_the_old_blueprint_modified() {
+        let state = state_with_custom_dials();
+        apply_tactic_preset_internal(&state, "4-4-2", "Balanced").expect("preset applies");
+        set_play_style_internal(&state, "Attacking").expect("style applies");
+
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&state),
+            Ok(TacticsBlueprintStatus { modified: true })
+        );
+    }
+
+    /// Given no active game session
+    /// When the blueprint status is read
+    /// Then it fails with the no-session key
+    #[test]
+    fn the_blueprint_status_needs_a_session() {
+        assert_eq!(
+            get_tactics_blueprint_status_internal(&StateManager::new()),
+            Err("be.error.noActiveGameSession".to_string())
+        );
+    }
+
     /// Given a manager with custom dials
     /// When they change the play style alone
     /// Then the custom dials are kept
@@ -895,6 +976,23 @@ mod tests {
             apply_tactic_preset_internal(&state, "3-4-3", "Attacking").err(),
             Some("be.error.noTeamAssigned".into())
         );
+    }
+
+    /// Given a managed club
+    /// When a formation the game cannot lay out is set
+    /// Then it is refused and the club keeps the one it had.
+    #[test]
+    fn set_formation_internal_refuses_a_formation_that_does_not_parse() {
+        let state = state_with_custom_dials();
+        let before = stored_team(&state).formation;
+
+        let result = set_formation_internal(&state, "10-0-0");
+
+        assert_eq!(
+            result.err(),
+            Some("be.error.customTactic.invalidFormation".to_string())
+        );
+        assert_eq!(stored_team(&state).formation, before);
     }
 
     #[test]

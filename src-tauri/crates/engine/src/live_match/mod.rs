@@ -383,12 +383,16 @@ impl LiveMatchState {
                 player_id,
                 role,
             } => {
-                let team = self.team_mut(side);
-                if let Some(p) = team.players.iter_mut().find(|p| p.id == player_id)
-                    && is_role_valid_for_position(role, p.position)
-                {
-                    p.role = role;
+                let player = self
+                    .team_mut(side)
+                    .players
+                    .iter_mut()
+                    .find(|p| p.id == player_id)
+                    .ok_or("be.error.liveMatch.playerNotOnPitch")?;
+                if !is_role_valid_for_position(role, player.position) {
+                    return Err("be.error.roleNotValidForPosition".into());
                 }
+                player.role = role;
                 Ok(())
             }
         }

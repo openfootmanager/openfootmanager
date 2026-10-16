@@ -401,7 +401,7 @@ export default function YouthAcademyTab({
               </span>
               {youthCoach.map((s) => (
                 <Badge key={s.id} variant="primary" size="sm">
-                  {s.first_name} {s.last_name} ({s.attributes.coaching})
+                  {s.display_name} ({s.attributes.coaching})
                 </Badge>
               ))}
             </div>

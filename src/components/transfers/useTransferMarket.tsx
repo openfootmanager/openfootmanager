@@ -1,100 +1,83 @@
-import { getTransferNavigation } from "./TransfersTab.navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { GameStateData } from "../../store/gameStore";
-import { getPlayerOvr } from "../../lib/helpers";
+import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { PlayersPageQuery } from "../../services/playersService";
+import { usePlayersPage } from "../../hooks/usePlayersPage";
 import {
   deriveTransferCollections,
-  filterTransferPlayers,
-  getCurrentTransferList,
   getMyListedPlayers,
-  SPECIFIC_POSITIONS_BY_GROUP,
-  type TransferAvailabilityFilter,
   type TransferTabView,
 } from "./TransfersTab.model";
-import type { TeamData } from "../../store/gameStore";
+import { getTransferNavigation } from "./TransfersTab.navigation";
 import type { TFunction } from "i18next";
+
 const TRANSFER_MARKET_PAGE_SIZE = 30;
+
+// The market is what the user's club could still approach: listed for transfer or loan, or without
+// a club. The backend applies the rules; this is only the question asked of it.
+const MARKET_QUERY: PlayersPageQuery = {
+  search: null,
+  position: null,
+  positions: [],
+  age_min: null,
+  age_max: null,
+  ovr_min: null,
+  ovr_max: null,
+  value_min: null,
+  value_max: null,
+  in_budget: false,
+  scope: "market",
+  team_id: null,
+  status: "available",
+  sort_key: "ovr",
+  sort_asc: false,
+  page: 1,
+  page_size: TRANSFER_MARKET_PAGE_SIZE,
+};
+
+// Each view of the centre is its own list with its own filters, asked of the same backend query.
+const VIEW_LISTS: Record<TransferTabView, Pick<PlayersPageQuery, "scope" | "status">> = {
+  players: { scope: "market", status: "available" },
+  my_list: { scope: "user_listed", status: "all" },
+  offers: { scope: "with_offers", status: "all" },
+};
+
 interface Input {
   gameState: GameStateData;
   userTeamId: string | null;
   t: TFunction<"translation", undefined>;
   myTeam: TeamData | null;
 }
+
 export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
   const [view, setView] = useState<TransferTabView>("players");
-  const [availabilityFilter, setAvailabilityFilter] = useState<TransferAvailabilityFilter>("all");
-  const [search, setSearch] = useState("");
-  const [specificPositions, setSpecificPositions] = useState<string[]>([]);
-  const [openPositionPopover, setOpenPositionPopover] = useState<string | null>(null);
-  const positionFilterRef = useRef<HTMLDivElement | null>(null);
-  const [affordableOnly, setAffordableOnly] = useState(false);
-  // Click the OVR header to cycle: none → desc → asc → none. Applied over the
-  // filter output before pagination so sorted rows stay stable across pages.
-  const [ovrSortDir, setOvrSortDir] = useState<"none" | "desc" | "asc">("none");
-  const [marketPage, setMarketPage] = useState(1);
-  const cycleOvrSort = () => {
-    setOvrSortDir((current) => (current === "none" ? "desc" : current === "desc" ? "asc" : "none"));
-    setMarketPage(1);
+  const {
+    query: marketQuery,
+    patchQuery: patchMarketQuery,
+    slice: answeredSlice,
+    answeredQuery,
+    error: marketError,
+    refetch: refetchMarket,
+  } = usePlayersPage(MARKET_QUERY, t);
+  const marketSlice = answeredQuery?.scope === marketQuery.scope ? answeredSlice : null;
+
+  // Coming back to a view finds its filters as they were left.
+  const leftQueries = useRef<Partial<Record<TransferTabView, PlayersPageQuery>>>({});
+  const changeView = (next: TransferTabView) => {
+    if (next === view) return;
+    leftQueries.current[view] = marketQuery;
+    setView(next);
+    patchMarketQuery(leftQueries.current[next] ?? { ...MARKET_QUERY, ...VIEW_LISTS[next] });
   };
+
+  // A deal, a listing or a day passing changes who is on the market: ask again whenever the game
+  // the screen is showing is a new one (not on first render, which has just asked).
+  const shownGame = useRef(gameState);
   useEffect(() => {
-    if (!openPositionPopover) return;
+    if (shownGame.current === gameState) return;
+    shownGame.current = gameState;
+    refetchMarket();
+  }, [gameState, refetchMarket]);
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!positionFilterRef.current) return;
-      if (positionFilterRef.current.contains(event.target as Node)) return;
-      setOpenPositionPopover(null);
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [openPositionPopover]);
-  const handleSelectPositionGroup = (group: string | null) => {
-    setMarketPage(1);
-
-    if (group === null) {
-      setSpecificPositions([]);
-      setOpenPositionPopover(null);
-      return;
-    }
-
-    const groupSpecifics = SPECIFIC_POSITIONS_BY_GROUP[group] ?? [];
-
-    // No popover for single-position groups (just GK). Treat as a toggle on
-    // its lone specific so the chip can also be used to deactivate.
-    if (groupSpecifics.length <= 1) {
-      const only = groupSpecifics[0];
-      if (only) {
-        setSpecificPositions((prev) =>
-          prev.includes(only) ? prev.filter((entry) => entry !== only) : [...prev, only],
-        );
-      }
-      setOpenPositionPopover(null);
-      return;
-    }
-
-    // Re-clicking the chip whose popover is open just closes the popover —
-    // the user is done refining.
-    if (openPositionPopover === group) {
-      setOpenPositionPopover(null);
-      return;
-    }
-
-    // Otherwise: union this group's specifics into the existing selection and
-    // open the refinement popover. This makes the category a "select all"
-    // shortcut without resetting earlier picks from other groups.
-    setSpecificPositions((prev) => {
-      const set = new Set(prev);
-      for (const position of groupSpecifics) set.add(position);
-      return Array.from(set);
-    });
-    setOpenPositionPopover(group);
-  };
-  const handleToggleSpecificPosition = (position: string) => {
-    setMarketPage(1);
-    setSpecificPositions((prev) =>
-      prev.includes(position) ? prev.filter((entry) => entry !== position) : [...prev, position],
-    );
-  };
   const transferCollections = useMemo(
     () => deriveTransferCollections(gameState, userTeamId),
     [gameState, userTeamId],
@@ -105,90 +88,77 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
   );
   const isPlayersView = view === "players";
   const isScoutingView = isPlayersView;
-  const { positions, tabs, availabilityFilters } = getTransferNavigation({
+  const { tabs } = getTransferNavigation({
     collections: transferCollections,
     myListedPlayers,
     t,
   });
 
-  const currentList = useMemo(
-    () => getCurrentTransferList(view, transferCollections),
-    [transferCollections, view],
+  // Rows show offers, contracts and listings, which live on the full player; the page only says
+  // who is on it and in what order.
+  const playersById = useMemo(
+    () => new Map(gameState.players.map((player) => [player.id, player])),
+    [gameState.players],
   );
-  const filteredList = useMemo(() => {
-    const filtered = filterTransferPlayers(
-      currentList,
-      search,
-      null,
-      isPlayersView ? availabilityFilter : "all",
-      isPlayersView && affordableOnly && myTeam
-        ? {
-            transferBudget: myTeam.transfer_budget,
-            finance: myTeam.finance,
-          }
-        : null,
-      specificPositions,
+  const listedPlayers = useMemo(
+    () =>
+      (marketSlice?.items ?? [])
+        .map((summary) => playersById.get(summary.id))
+        .filter((player): player is PlayerData => player !== undefined),
+    [marketSlice, playersById],
+  );
+  const filteredList = listedPlayers;
+
+  const marketTotal = marketSlice?.total ?? 0;
+  const marketTotalPages = Math.max(1, Math.ceil(marketTotal / TRANSFER_MARKET_PAGE_SIZE));
+  const safeMarketPage = Math.min(marketQuery.page, marketTotalPages);
+  const marketPageStart = (safeMarketPage - 1) * TRANSFER_MARKET_PAGE_SIZE;
+  const showMarketPagination = marketTotal > TRANSFER_MARKET_PAGE_SIZE;
+  const marketRangeFrom = marketTotal === 0 ? 0 : marketPageStart + 1;
+  const marketRangeTo = Math.min(marketPageStart + TRANSFER_MARKET_PAGE_SIZE, marketTotal);
+  const setMarketPage = (page: number) => patchMarketQuery({ page });
+
+  // Pressing the OVR header turns the order round; the market starts best first.
+  const ovrSortDir: "desc" | "asc" | "none" =
+    marketQuery.sort_key !== "ovr" ? "none" : marketQuery.sort_asc ? "asc" : "desc";
+  const cycleOvrSort = () => patchMarketQuery({ sort_key: "ovr", sort_asc: ovrSortDir === "desc" });
+
+  // Whether the user has narrowed the list, so an empty one can say "nothing matches" rather than
+  // "there is nothing".
+  const marketFiltered =
+    marketQuery.search !== null ||
+    marketQuery.positions.length > 0 ||
+    marketQuery.in_budget ||
+    marketQuery.status !== VIEW_LISTS[view].status ||
+    [marketQuery.age_min, marketQuery.age_max, marketQuery.ovr_min, marketQuery.ovr_max].some(
+      (bound) => bound !== null,
     );
 
-    if (ovrSortDir === "none") {
-      return filtered;
-    }
-
-    // Direction encoded in the comparator (rather than sort().reverse()) so
-    // tied players keep the same relative order in both asc and desc.
-    const factor = ovrSortDir === "desc" ? -1 : 1;
-    return [...filtered].sort((left, right) => factor * (getPlayerOvr(left) - getPlayerOvr(right)));
-  }, [
-    affordableOnly,
-    availabilityFilter,
-    currentList,
-    isPlayersView,
-    myTeam,
-    ovrSortDir,
-    search,
-    specificPositions,
-  ]);
-  const marketTotalPages = Math.max(1, Math.ceil(filteredList.length / TRANSFER_MARKET_PAGE_SIZE));
-  const safeMarketPage = Math.min(marketPage, marketTotalPages);
-  const marketPageStart = (safeMarketPage - 1) * TRANSFER_MARKET_PAGE_SIZE;
-  const visibleList = isPlayersView
-    ? filteredList.slice(marketPageStart, marketPageStart + TRANSFER_MARKET_PAGE_SIZE)
-    : filteredList;
-  const showMarketPagination = isPlayersView && filteredList.length > TRANSFER_MARKET_PAGE_SIZE;
-  const marketRangeFrom = filteredList.length === 0 ? 0 : marketPageStart + 1;
-  const marketRangeTo = Math.min(marketPageStart + TRANSFER_MARKET_PAGE_SIZE, filteredList.length);
-
-  const annualWageBudget = myTeam?.wage_budget ?? 0;
+  const weeklyWageBudget = myTeam?.wage_budget ?? 0;
   return {
     view,
-    setView,
-    availabilityFilter,
-    setAvailabilityFilter,
-    search,
-    setSearch,
-    specificPositions,
-    openPositionPopover,
-    positionFilterRef,
-    affordableOnly,
-    setAffordableOnly,
+    setView: changeView,
+    marketQuery,
+    patchMarketQuery,
+    marketError,
+    marketTotal,
+    marketFiltered,
+    marketLoaded: marketSlice !== null,
+    marketStatusCounts: marketSlice?.status_counts,
     ovrSortDir,
     setMarketPage,
     cycleOvrSort,
-    handleSelectPositionGroup,
-    handleToggleSpecificPosition,
     myListedPlayers,
     isPlayersView,
     isScoutingView,
-    positions,
     tabs,
     filteredList,
     marketTotalPages,
     safeMarketPage,
-    visibleList,
+    visibleList: filteredList,
     showMarketPagination,
     marketRangeFrom,
     marketRangeTo,
-    availabilityFilters,
-    annualWageBudget,
+    weeklyWageBudget,
   };
 }

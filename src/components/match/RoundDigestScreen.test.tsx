@@ -18,7 +18,10 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
-vi.mock("../ui", () => ({
+// Only the two visual components are stubbed; Dialog is the real shell, since its keyboard
+// behaviour is what the details-modal tests below assert.
+vi.mock("../ui", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../ui")>()),
   Badge: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
   TeamLogo: ({ team }: { team: { name?: string; short_name?: string } }) => (
     <span>{team?.short_name ?? team?.name}</span>
@@ -394,8 +397,8 @@ describe("RoundDigestScreen", () => {
     expect(onFinish).toHaveBeenCalledOnce();
   });
 
-  it("opens and closes the other-match details modal", () => {
-    const gameStateWithReport = {
+  const gameStateWithReport = (): GameStateData => {
+    return {
       ...makeGameState(),
       league: {
         ...makeGameState().league!,
@@ -438,8 +441,12 @@ describe("RoundDigestScreen", () => {
         ],
       },
     } as unknown as GameStateData;
+  };
 
-    render(<RoundDigestScreen {...defaultProps} gameState={gameStateWithReport} />);
+  it("opens and closes the other-match details modal", () => {
+    const gameState = gameStateWithReport();
+
+    render(<RoundDigestScreen {...defaultProps} gameState={gameState} />);
 
     fireEvent.click(screen.getByText("match.viewDetails"));
 
@@ -449,5 +456,23 @@ describe("RoundDigestScreen", () => {
     fireEvent.click(screen.getByText("common.close"));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the other-match details dialog is open
+   * When the player presses Escape
+   * Then it closes and focus returns to the button that opened it.
+   */
+  it("closes the other-match details on Escape and gives focus back", () => {
+    render(<RoundDigestScreen {...defaultProps} gameState={gameStateWithReport()} />);
+    const opener = screen.getByText("match.viewDetails");
+    opener.focus();
+    fireEvent.click(opener);
+    expect(screen.getByRole("dialog", { name: "match.matchDetails" })).toHaveFocus();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
   });
 });

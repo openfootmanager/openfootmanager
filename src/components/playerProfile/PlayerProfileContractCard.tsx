@@ -15,7 +15,7 @@ import {
   getContractRiskBadgeVariant,
   getContractYearsRemaining,
 } from "../../lib/helpers";
-import { formatPlayerAnnualWage, formatPlayerMarketValue } from "./PlayerProfile.helpers";
+import { formatPlayerWage, formatPlayerMarketValue } from "./PlayerProfile.helpers";
 import { Badge, Button, Card, CardBody, CardHeader } from "../ui";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
@@ -28,7 +28,6 @@ interface PlayerProfileContractCardProps {
   morale: number;
   marketValue: number;
   wage: number;
-  wageSuffix: string;
   language: string;
   contractRiskLevel: "critical" | "warning" | "stable";
   contractRiskLabel: string;
@@ -52,7 +51,6 @@ export default function PlayerProfileContractCard({
   morale,
   marketValue,
   wage,
-  wageSuffix,
   language,
   contractRiskLevel,
   contractRiskLabel,
@@ -108,7 +106,7 @@ export default function PlayerProfileContractCard({
           <InfoRow
             icon={<TrendingUp className="w-4 h-4" />}
             label={t("playerProfile.weeklyWage")}
-            value={formatPlayerAnnualWage(wage, wageSuffix)}
+            value={formatPlayerWage(wage)}
           />
           <InfoRow
             icon={<Heart className="w-4 h-4" />}
