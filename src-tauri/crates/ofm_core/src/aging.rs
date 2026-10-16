@@ -183,7 +183,7 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
 mod tests {
     use super::{
         apply_attribute_curve, apply_seasonal_aging, retirement_chance, should_retire,
-        technical_growth, veteran_pace_loss,
+        technical_growth, veteran_endurance_loss, veteran_pace_loss, veteran_strength_loss,
     };
     use crate::clock::GameClock;
     use crate::game::Game;
@@ -265,6 +265,34 @@ mod tests {
             retirement_chance(&star, 36, current_date),
             retirement_chance(&journeyman, 36, current_date)
         );
+    }
+
+    /// Given players of every age around the ages the physical decline starts,
+    /// When the stamina and agility loss is rolled,
+    /// Then there is none at 30 and a point or two from 31 on.
+    #[test]
+    fn endurance_loss_starts_at_thirty_one() {
+        assert_eq!(veteran_endurance_loss("player", 30, 3), 0);
+        for age in [31, 35, 40] {
+            assert!(
+                (1..=2).contains(&veteran_endurance_loss("player", age, 3)),
+                "age {age}"
+            );
+        }
+    }
+
+    /// Given players of every age around the age strength starts to go,
+    /// When the strength loss is rolled,
+    /// Then there is none at 32 and a point or two from 33 on.
+    #[test]
+    fn strength_loss_starts_at_thirty_three() {
+        assert_eq!(veteran_strength_loss("player", 32, 3), 0);
+        for age in [33, 36, 40] {
+            assert!(
+                (1..=2).contains(&veteran_strength_loss("player", age, 3)),
+                "age {age}"
+            );
+        }
     }
 
     /// Given a 34-year-old who has played every season of the run,
