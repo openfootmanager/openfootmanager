@@ -36,6 +36,7 @@ import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
+import { isMatchDayEligible } from "../../lib/playerSquad";
 
 interface UseTacticsLineupArgs {
   gameState: GameStateData | null;
@@ -43,7 +44,7 @@ interface UseTacticsLineupArgs {
 }
 
 function isPlayerEligibleForLineup(player: PlayerData | null | undefined): boolean {
-  return Boolean(player && !player.injury);
+  return Boolean(player && isMatchDayEligible(player));
 }
 
 export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupArgs) {
@@ -77,7 +78,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   const activePlayStyle = team?.play_style || "Balanced";
   const savedStartingXiKey = (team?.starting_xi_ids || []).join(",");
   const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
-  const available = roster.filter((player) => !player.injury);
+  const available = roster.filter(isMatchDayEligible);
   const pitchRows = useMemo(() => buildPitchRows(formation), [formation]);
 
   const startingXiIds = useMemo(

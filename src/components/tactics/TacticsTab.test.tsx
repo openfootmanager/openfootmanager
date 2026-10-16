@@ -66,6 +66,9 @@ const makePlayer = (
   condition: 100,
   morale: 80,
   injury: null,
+  // The backend's verdict for the match day (a healthy senior is eligible); a test that needs a
+  // different verdict says so.
+  match_day_eligible: true,
   team_id: "team1",
   retired: false,
   contract_end: "2027-06-30",
@@ -711,6 +714,7 @@ describe("TacticsTab", () => {
         ? {
             ...player,
             injury: { name: "Hamstring strain", days_remaining: 7 },
+            match_day_eligible: false,
           }
         : player,
     );
@@ -725,6 +729,37 @@ describe("TacticsTab", () => {
     expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
   });
 
+  /**
+   * Given an injury crisis in which the backend fields an injured player anyway
+   * When the manager opens his bench context menu
+   * Then he can be promoted: the lineup follows the backend's match-day verdict, not its own
+   *      injury test.
+   */
+  it("promotes an injured bench player the backend has made eligible", async () => {
+    const gameState = makeGameState();
+    gameState.players = gameState.players.map((player) =>
+      player.id === "d5"
+        ? {
+            ...player,
+            injury: { name: "Hamstring strain", days_remaining: 7 },
+            match_day_eligible: true,
+          }
+        : player,
+    );
+    mockedInvoke.mockImplementation(async (command: string) =>
+      command === "get_squad" ? gameState.players.filter((p) => p.team_id === "team1") : {},
+    );
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    fireEvent.contextMenu(await screen.findByTestId("bench-player-d5"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "tactics.promoteToLineup" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    });
+  });
+
   it("does not allow swapping an injured bench player into the starting XI", () => {
     const gameState = makeGameState();
     gameState.players = gameState.players.map((player) =>
@@ -732,6 +767,7 @@ describe("TacticsTab", () => {
         ? {
             ...player,
             injury: { name: "Hamstring strain", days_remaining: 7 },
+            match_day_eligible: false,
           }
         : player,
     );
