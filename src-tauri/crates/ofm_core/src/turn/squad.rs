@@ -1083,8 +1083,6 @@ pub(crate) mod match_day_pool_tests {
         {
             let mut agent = mk_pos(&format!("agent-{index}"), position, 60, 100);
             agent.team_id = None;
-            agent.stage_contract_end(None);
-            agent.stage_wage(0);
             game.players.push(agent);
         }
         game.league = Some(domain::league::League {
