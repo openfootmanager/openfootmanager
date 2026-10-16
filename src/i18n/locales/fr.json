@@ -3687,7 +3687,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "Ce paquet définit le pays « {{name}} » ({{code}}) en dehors de la liste des pays du jeu et ne le place dans aucune confédération ; ses clubs sont donc classés en Europe. Donnez-lui une confédération."
+        "countryWithoutRegion": "Ce paquet définit le pays « {{name}} » ({{code}}) en dehors de la liste des pays du jeu et ne le place dans aucune confédération ; ses clubs sont donc classés en Europe. Donnez-lui une confédération.",
+        "freeAgentFieldIgnored": "Le joueur « {{id}} » n’a pas de club : il est donc libre, sans contrat, et « {{field}} » est ignoré. Donnez-lui un club pour l’utiliser, ou retirez ce champ."
       }
     }
   },

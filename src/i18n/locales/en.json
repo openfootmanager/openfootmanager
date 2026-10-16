@@ -3687,7 +3687,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it."
+        "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it.",
+        "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field."
       }
     }
   },

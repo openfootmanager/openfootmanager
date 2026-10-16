@@ -3687,7 +3687,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "Dieses Paket definiert das Land „{{name}}“ ({{code}}) außerhalb der Länderliste des Spiels und ordnet es keinem Verband zu, daher werden seine Vereine unter Europa geführt. Weise ihm einen Verband zu."
+        "countryWithoutRegion": "Dieses Paket definiert das Land „{{name}}“ ({{code}}) außerhalb der Länderliste des Spiels und ordnet es keinem Verband zu, daher werden seine Vereine unter Europa geführt. Weise ihm einen Verband zu.",
+        "freeAgentFieldIgnored": "Der Spieler „{{id}}“ hat keinen Verein und ist daher ein Free Agent ohne Vertrag: „{{field}}“ wird ignoriert. Gib ihm einen Verein, um das Feld zu nutzen, oder entferne es."
       }
     }
   },

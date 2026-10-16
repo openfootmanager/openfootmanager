@@ -3687,7 +3687,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, pelo que os seus clubes ficam na Europa. Atribua-lhe uma confederação."
+        "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, pelo que os seus clubes ficam na Europa. Atribua-lhe uma confederação.",
+        "freeAgentFieldIgnored": "O jogador «{{id}}» não tem clube, pelo que é um jogador livre sem contrato: «{{field}}» é ignorado. Atribua-lhe um clube para o usar, ou remova o campo."
       }
     }
   },
