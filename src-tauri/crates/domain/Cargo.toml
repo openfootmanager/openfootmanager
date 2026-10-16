@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }
+chrono = { version = "0.4.44", default-features = false }
 
 [dev-dependencies]
 serde_json = "1"

@@ -1970,6 +1970,17 @@
     "benchPlayers": "Bankspieler",
     "selectBenchToCompare": "Wähle einen Bankspieler zum Vergleichen",
     "confirmSubstitution": "Wechsel bestätigen",
+    "queueSubstitution": "Zur Warteschlange hinzufügen",
+    "queuedSubstitutions": "Vorgemerkte Wechsel",
+    "confirmAllSubstitutions": "Alle bestätigen ({{count}})",
+    "confirmSubstitutions": "{{count}} Wechsel bestätigen",
+    "removeQueuedSubstitution": "{{off}} → {{on}} aus der Warteschlange entfernen",
+    "alreadyQueued": "Bereits für einen Wechsel vorgemerkt",
+    "substitutionsPartlyMade": "{{applied}} von {{total}} Wechseln durchgeführt",
+    "substitutionRefused": "Wechsel abgelehnt: {{off}} für {{on}}. {{reason}}",
+    "playerRoles": "Spielerrollen",
+    "roleFor": "Rolle von {{player}}",
+    "roleChangeRefused": "Die Rolle von {{player}} konnte nicht geändert werden. {{reason}}",
     "noBenchAvailable": "Keine Bankspieler verfügbar",
     "history": "Verlauf",
     "player": "Spieler",
@@ -2878,6 +2889,12 @@
       "notice": {
         "fallbackLeagueGenerated": "Es wurden keine Wettbewerbe definiert. Eine standardmäßige eingleisige Liga wurde automatisch für alle Teams generiert.",
         "fallbackTeamsFilled": "Es wurde nur ein Team definiert. Prozedurale Gegner wurden automatisch generiert, um das Spiel spielbar zu machen."
+      },
+      "customTactic": {
+        "nameRequired": "Gib der Taktik einen Namen mit höchstens 60 Zeichen.",
+        "invalidFormation": "Diese Formation kennt das Spiel nicht.",
+        "invalidPlayStyle": "Diesen Spielstil kennt das Spiel nicht.",
+        "notFound": "Diese Taktik gibt es nicht mehr."
       }
     },
     "sender": {
@@ -3467,6 +3484,10 @@
         "LoanConflict": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler verliehen ist oder eine vereinbarte Leihe auf die Registrierung wartet. Es wurde keine Ablöse gezahlt.",
         "PlayerUnavailable": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil der Spieler bei keinem verkaufenden Verein mehr verfügbar ist. Es wurde keine Ablöse gezahlt.",
         "RegistrationBlocked": "Der vereinbarte Transfer von {{player}} zu {{buyer}} für {{fee}} konnte am {{start}} nicht registriert werden, weil eine Registrierungsvoraussetzung nicht mehr erfüllt ist. Es wurde keine Ablöse gezahlt."
+      },
+      "matchesMoved": {
+        "subject": "Spiele verlegt",
+        "body": "Einige Ihrer Spiele wurden verlegt, damit Ihre Spieler ihre Ruhezeit behalten und die Länderspielpausen eingehalten werden:\n{{matches}}"
       }
     },
     "news": {
@@ -3638,6 +3659,11 @@
     },
     "save": {
       "defaultName": "Karriere von {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Dieses Paket definiert das Land „{{name}}“ ({{code}}) außerhalb der Länderliste des Spiels und ordnet es keinem Verband zu, daher werden seine Vereine unter Europa geführt. Weise ihm einen Verband zu."
+      }
     }
   },
   "traits": {
@@ -3885,6 +3911,7 @@
     "saveSuccess": "Gespeichert",
     "saveTeam": "Verein speichern",
     "issues": "{{count}} Problem(e)",
+    "warnings": "{{count}} Warnung(en)",
     "packageId": "Paket-ID",
     "packageName": "Paketname",
     "description": "Beschreibung",
@@ -4043,6 +4070,7 @@
     "openPackageFileInvalid": "Bitte eine gültige .ofm-Paketdatei auswählen",
     "noItemSelected": "Wähle ein Element aus der Liste oder klicke auf Hinzufügen",
     "issuesBadge": "{{count}} Problem(e)",
+    "warningsBadge": "{{count}} Warnungen",
     "issuesTitle": "Validierungsprobleme",
     "noIssues": "Keine Probleme – Welt ist gültig",
     "saving": "Speichern…",
@@ -4117,6 +4145,8 @@
     "staffId": "ID",
     "staffFirstName": "Vorname",
     "staffLastName": "Nachname",
+    "staffKnownAs": "Bekannt als (optional)",
+    "staffKnownAsPlaceholder": "z. B. Cafu",
     "staffClub": "Verein",
     "staffNationality": "Nationalität",
     "staffDateOfBirth": "Geburtsdatum",

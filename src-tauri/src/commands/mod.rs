@@ -1,5 +1,6 @@
 pub mod club;
 pub mod contracts;
+pub mod custom_tactics;
 pub mod finances;
 pub mod game;
 pub mod jobs;
@@ -10,6 +11,7 @@ pub mod package_editor;
 pub mod portraits;
 pub mod profiles;
 pub mod report;
+pub mod retirees;
 pub mod round_summary;
 pub mod season;
 pub mod settings;
@@ -25,6 +27,7 @@ pub mod world;
 
 pub use club::*;
 pub use contracts::*;
+pub use custom_tactics::*;
 pub use finances::*;
 pub use game::*;
 pub use jobs::*;
@@ -37,6 +40,7 @@ pub use package_editor::{
 };
 pub use portraits::*;
 pub use profiles::*;
+pub use retirees::*;
 pub use season::*;
 pub use settings::*;
 pub use sim_lab::*;

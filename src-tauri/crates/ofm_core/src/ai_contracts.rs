@@ -21,8 +21,7 @@ use domain::team::Team;
 use crate::contract_wage_policy::wage_policy_verdict;
 use crate::contracts::{
     RenewalDecision, RenewalOffer, apply_agreed_renewal, evaluate_renewal_offer,
-    expected_contract_years, expected_wage, next_renewal_round, player_age_on,
-    remaining_contract_days,
+    expected_contract_years, expected_wage, next_renewal_round, remaining_contract_days,
 };
 use crate::game::Game;
 use crate::squad_floor::{
@@ -94,7 +93,7 @@ fn graduate_overage_academy_players(game: &mut Game, team_id: &str, current_date
     for player in game.players.iter_mut() {
         if player.team_id.as_deref() == Some(team_id)
             && player.squad_role == domain::player::SquadRole::Youth
-            && player_age_on(current_date, &player.date_of_birth)
+            && domain::age::age_on_or_unknown(current_date, &player.date_of_birth)
                 > crate::roster::YOUTH_ACADEMY_MAX_AGE
         {
             player.squad_role = domain::player::SquadRole::Senior;
@@ -178,7 +177,7 @@ fn needed_for_depth(game: &Game, team_id: &str, player: &Player) -> bool {
 
 /// Good enough and young enough to want.
 fn worth_keeping(game: &Game, team: &Team, player: &Player, current_date: NaiveDate) -> bool {
-    let age = player_age_on(current_date, &player.date_of_birth);
+    let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
     age <= PROSPECT_AGE_LIMIT
         || (age <= PEAK_AGE_LIMIT && player.ovr >= squad_median_ovr(game, &team.id))
 }

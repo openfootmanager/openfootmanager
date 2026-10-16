@@ -129,11 +129,10 @@ describe("localizedRoundName", () => {
 });
 
 describe("summarizeCompetitionProgress", () => {
-  it("reports an empty competition as not complete", () => {
+  it("reports an empty competition as having no matchdays", () => {
     const progress = summarizeCompetitionProgress([]);
 
     expect(progress.totalMatchdays).toBe(0);
-    expect(progress.seasonComplete).toBe(false);
     expect(progress.totalGoals).toBe(0);
     expect(progress.completedMatches).toBe(0);
   });
@@ -160,16 +159,14 @@ describe("summarizeCompetitionProgress", () => {
 
     expect(progress.completedMatchdays).toBe(1);
     expect(progress.totalMatchdays).toBe(2);
-    expect(progress.seasonComplete).toBe(false);
   });
 
-  it("marks the season complete once every matchday has played out", () => {
+  it("counts matches and goals once every matchday has played out", () => {
     const progress = summarizeCompetitionProgress([
       played(1, ["p1"], ["p2"]),
       played(2, [], ["p2"]),
     ]);
 
-    expect(progress.seasonComplete).toBe(true);
     expect(progress.completedMatches).toBe(2);
     expect(progress.totalGoals).toBe(3);
   });

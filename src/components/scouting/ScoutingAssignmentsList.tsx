@@ -82,7 +82,7 @@ export default function ScoutingAssignmentsList({
                 <div className="text-right">
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {t("scouting.scoutLabel", {
-                      name: `${scout.first_name} ${scout.last_name}`,
+                      name: scout.display_name,
                     })}
                   </p>
                   <div className="flex items-center gap-1.5 justify-end mt-0.5">

@@ -138,6 +138,7 @@ describe("SubPanel bench order", () => {
         onSubstitute={vi.fn()}
         onFormationChange={vi.fn()}
         onPlayStyleChange={vi.fn()}
+        onChangeRole={vi.fn().mockResolvedValue({ applied: true })}
         onClose={vi.fn()}
       />,
     );

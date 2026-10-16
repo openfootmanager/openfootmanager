@@ -1970,6 +1970,17 @@
     "benchPlayers": "Jogadores do banco",
     "selectBenchToCompare": "Seleciona um jogador do banco para comparar",
     "confirmSubstitution": "Confirmar substituição",
+    "queueSubstitution": "Adicionar à fila",
+    "queuedSubstitutions": "Substituições em fila",
+    "confirmAllSubstitutions": "Confirmar todas ({{count}})",
+    "confirmSubstitutions": "Confirmar {{count}} substituições",
+    "removeQueuedSubstitution": "Remover {{off}} → {{on}} da fila",
+    "alreadyQueued": "Já está na fila para uma substituição",
+    "substitutionsPartlyMade": "{{applied}} de {{total}} substituições feitas",
+    "substitutionRefused": "Substituição recusada: {{off}} por {{on}}. {{reason}}",
+    "playerRoles": "Funções dos jogadores",
+    "roleFor": "Função de {{player}}",
+    "roleChangeRefused": "Não foi possível mudar a função de {{player}}. {{reason}}",
     "noBenchAvailable": "Sem jogadores no banco",
     "history": "Histórico",
     "player": "Jogador",
@@ -2878,6 +2889,12 @@
       "notice": {
         "fallbackLeagueGenerated": "Não foram definidas competições. Foi gerada automaticamente uma liga de divisão única predefinida para todas as equipas.",
         "fallbackTeamsFilled": "Apenas uma equipa foi definida. Foram gerados adversários procedurais automaticamente para tornar o jogo jogável."
+      },
+      "customTactic": {
+        "nameRequired": "Dê à tática um nome com até 60 caracteres.",
+        "invalidFormation": "O jogo não conhece essa formação.",
+        "invalidPlayStyle": "O jogo não conhece esse estilo de jogo.",
+        "notFound": "Essa tática já não existe."
       }
     },
     "sender": {
@@ -3467,6 +3484,10 @@
         "LoanConflict": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque o jogador está emprestado ou tem um empréstimo acordado a aguardar registo. Não foi paga qualquer verba pela transferência.",
         "PlayerUnavailable": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque o jogador já não está disponível num clube vendedor. Não foi paga qualquer verba pela transferência.",
         "RegistrationBlocked": "A transferência acordada de {{player}} para {{buyer}} por {{fee}} não pôde ser registada em {{start}} porque deixou de ser cumprido um requisito de registo. Não foi paga qualquer verba pela transferência."
+      },
+      "matchesMoved": {
+        "subject": "Jogos reagendados",
+        "body": "Alguns dos seus jogos foram alterados para que os seus jogadores mantenham o descanso e as pausas internacionais sejam respeitadas:\n{{matches}}"
       }
     },
     "news": {
@@ -3638,6 +3659,11 @@
     },
     "save": {
       "defaultName": "Carreira de {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, pelo que os seus clubes ficam na Europa. Atribua-lhe uma confederação."
+      }
     }
   },
   "traits": {
@@ -3885,6 +3911,7 @@
     "saveSuccess": "Guardado",
     "saveTeam": "Guardar equipa",
     "issues": "{{count}} problema(s)",
+    "warnings": "{{count}} aviso(s)",
     "packageId": "ID do Pacote",
     "packageName": "Nome do Pacote",
     "description": "Descrição",
@@ -4043,6 +4070,7 @@
     "openPackageFileInvalid": "Selecione um ficheiro de pacote .ofm válido",
     "noItemSelected": "Selecione um item da lista ou clique em Adicionar",
     "issuesBadge": "{{count}} problema(s)",
+    "warningsBadge": "{{count}} avisos",
     "issuesTitle": "Problemas de validação",
     "noIssues": "Sem problemas — o mundo é válido",
     "saving": "A guardar…",
@@ -4117,6 +4145,8 @@
     "staffId": "ID",
     "staffFirstName": "Nome",
     "staffLastName": "Apelido",
+    "staffKnownAs": "Conhecido como (opcional)",
+    "staffKnownAsPlaceholder": "p. ex. Cafu",
     "staffClub": "Clube",
     "staffNationality": "Nacionalidade",
     "staffDateOfBirth": "Data de nascimento",
