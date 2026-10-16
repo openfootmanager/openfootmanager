@@ -310,4 +310,23 @@ mod tests {
             "the premise: the repair moved a match of the mirrored league"
         );
     }
+
+    /// Given a save loaded in July whose next season's calendar is already generated, with a match
+    /// on the first international window of the season after this one (9 September a year on),
+    /// When it is repaired, Then the match moves off the window: the windows of every season the
+    /// fixtures cover are kept clear, not only the current season's.
+    #[test]
+    fn a_match_on_next_seasons_window_is_repaired_too() {
+        let mut game = game_on(2026, 7, 1, "a");
+        game.competitions = vec![competition(
+            "league",
+            1,
+            vec![fixture("league", "l1", "2027-09-09", "a", "z")],
+        )];
+
+        let changed = repair_loaded_calendar(&mut game);
+
+        assert_eq!(changed, 1);
+        assert_ne!(game.competitions[0].fixtures[0].date, "2027-09-09");
+    }
 }

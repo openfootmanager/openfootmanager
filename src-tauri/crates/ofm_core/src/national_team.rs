@@ -91,9 +91,10 @@ pub fn international_blackout_dates(
         .collect()
 }
 
-/// Dates club football keeps clear of around `today`: the windows of the season that started the
-/// year before and of the one starting this year, since a date belongs to either. National-team
-/// qualifying widens each window to its whole block.
+/// Dates club football keeps clear of from the season before `today` to the season of the last
+/// fixture any competition holds: a calendar already generated for next season, or the one after,
+/// has its windows kept clear as much as this season's. National-team qualifying widens each
+/// window to its whole block.
 pub fn international_blackout_around(
     competitions: &[domain::league::League],
     today: chrono::NaiveDate,
@@ -101,8 +102,14 @@ pub fn international_blackout_around(
     let qualifying = competitions
         .iter()
         .any(crate::world_cup::is_world_cup_qualifying);
-    [today.year() - 1, today.year()]
-        .into_iter()
+    let last_fixture_year = competitions
+        .iter()
+        .flat_map(|competition| &competition.fixtures)
+        .filter_map(|fixture| fixture.date.get(..4)?.parse::<i32>().ok())
+        .max()
+        .unwrap_or(today.year())
+        .max(today.year());
+    (today.year() - 1..=last_fixture_year)
         .filter_map(|year| chrono::NaiveDate::from_ymd_opt(year, 7, 1))
         .filter_map(|start| start.and_hms_opt(0, 0, 0))
         .flat_map(|start| {
