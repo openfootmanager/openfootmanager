@@ -7,15 +7,81 @@
 use domain::player::{Injury, Player};
 use rand::{Rng, RngExt};
 
-/// i18n keys for minor match injuries. These mirror the training-ground injury
-/// pool so the UI renders them with existing translations.
-pub const MATCH_INJURY_NAMES: [&str; 5] = [
-    "common.injuries.minorMuscleStrain",
-    "common.injuries.twistedAnkle",
-    "common.injuries.kneeBruise",
-    "common.injuries.hamstringTightness",
-    "common.injuries.calfStrain",
+/// One severity band of match injuries: how often it occurs, how long it keeps a player out, and
+/// the (translated) injuries that fall in it.
+struct SeverityBand {
+    weight: u32,
+    days_out: std::ops::RangeInclusive<u32>,
+    injuries: &'static [&'static str],
+}
+
+/// The severity mix of time-loss injuries in professional football.
+///
+/// The weights are the UEFA Elite Club Injury Study's injuries per team per season by days of
+/// absence: 19 slight (under 3 days), 15 minor (3-7), 14 moderate (8-28) and 7 major (over 28) out
+/// of 55 (UEFA's Elite Club Injury Study newsletter, 2000s seasons; the same study reports match
+/// injury risk of about 29 per 1000 hours). Days are uniform within a band, the major band running
+/// to 90 days to stand for the long tail.
+const SEVERITY_BANDS: [SeverityBand; 4] = [
+    SeverityBand {
+        weight: 19,
+        days_out: 1..=2,
+        injuries: &[
+            "common.injuries.kneeBruise",
+            "common.injuries.minorMuscleStrain",
+        ],
+    },
+    SeverityBand {
+        weight: 15,
+        days_out: 3..=7,
+        injuries: &[
+            "common.injuries.twistedAnkle",
+            "common.injuries.hamstringTightness",
+            "common.injuries.calfStrain",
+        ],
+    },
+    SeverityBand {
+        weight: 14,
+        days_out: 8..=28,
+        injuries: &[
+            "common.injuries.ankleLigamentSprain",
+            "common.injuries.hamstringTear",
+        ],
+    },
+    SeverityBand {
+        weight: 7,
+        days_out: 29..=90,
+        injuries: &[
+            "common.injuries.kneeLigamentTear",
+            "common.injuries.metatarsalFracture",
+        ],
+    },
 ];
+
+/// Rolls one injury: a severity band by its weight, then a name and a duration within it.
+///
+/// Shared by club matches and national-team friendlies so an injury means the same thing
+/// wherever it was picked up.
+pub fn roll_injury(rng: &mut impl Rng) -> Injury {
+    let total_weight: u32 = SEVERITY_BANDS.iter().map(|band| band.weight).sum();
+    let mut pick = rng.random_range(0..total_weight);
+    let band = SEVERITY_BANDS
+        .iter()
+        .find(|band| {
+            if pick < band.weight {
+                true
+            } else {
+                pick -= band.weight;
+                false
+            }
+        })
+        .unwrap_or(&SEVERITY_BANDS[0]);
+
+    Injury {
+        name: band.injuries[rng.random_range(0..band.injuries.len())].to_string(),
+        days_remaining: rng.random_range(band.days_out.clone()),
+    }
+}
 
 /// Deplete a player's short-term condition based on minutes played and stamina,
 /// and gradually sharpen match fitness for players with significant minutes.
@@ -69,12 +135,7 @@ pub fn roll_match_injury(player: &mut Player, rng: &mut impl Rng) -> bool {
         return false;
     }
 
-    let days = rng.random_range(5..=21);
-    let name = MATCH_INJURY_NAMES[rng.random_range(0..MATCH_INJURY_NAMES.len())];
-    player.injury = Some(Injury {
-        name: name.to_string(),
-        days_remaining: days,
-    });
+    player.injury = Some(roll_injury(rng));
     true
 }
 
@@ -156,6 +217,47 @@ mod tests {
         assert!(player.fitness >= 80);
     }
 
+    /// Given many rolled injuries
+    /// When they are grouped by severity band (days out)
+    /// Then the shares follow the UEFA Elite Club Injury Study's 19/15/14/7 per 55 injuries:
+    ///      slight (under 3 days) 34.5%, minor (3-7) 27.3%, moderate (8-28) 25.5%, major (over 28) 12.7%.
+    #[test]
+    fn rolled_injuries_follow_the_uefa_severity_bands() {
+        let mut rng = StdRng::seed_from_u64(11);
+        let mut counts = [0u32; 4];
+        let rolls = 20_000;
+        for _ in 0..rolls {
+            let days = roll_injury(&mut rng).days_remaining;
+            let band = match days {
+                0..=2 => 0,
+                3..=7 => 1,
+                8..=28 => 2,
+                _ => 3,
+            };
+            counts[band] += 1;
+        }
+        for (count, expected) in counts.iter().zip([34.5, 27.3, 25.5, 12.7]) {
+            let share = f64::from(*count) / f64::from(rolls) * 100.0;
+            assert!(
+                (share - expected).abs() < 1.5,
+                "band share {share:.1}% should be near {expected}%"
+            );
+        }
+    }
+
+    /// Given any rolled injury
+    /// When its name and duration are read
+    /// Then the name is a translated injury key and the duration is at least a day.
+    #[test]
+    fn a_rolled_injury_has_a_translated_name_and_at_least_a_day() {
+        let mut rng = StdRng::seed_from_u64(12);
+        for _ in 0..500 {
+            let injury = roll_injury(&mut rng);
+            assert!(injury.name.starts_with("common.injuries."));
+            assert!(injury.days_remaining >= 1);
+        }
+    }
+
     #[test]
     fn roll_match_injury_skips_already_injured_player() {
         let mut player = make_player(40);
@@ -179,8 +281,8 @@ mod tests {
             if roll_match_injury(&mut player, &mut rng) {
                 assert!(player.injury.is_some());
                 let injury = player.injury.unwrap();
-                assert!(MATCH_INJURY_NAMES.contains(&injury.name.as_str()));
-                assert!((5..=21).contains(&injury.days_remaining));
+                assert!(injury.name.starts_with("common.injuries."));
+                assert!(injury.days_remaining >= 1);
                 injured = true;
                 break;
             }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { InvokeArgs } from "@tauri-apps/api/core";
@@ -37,15 +37,31 @@ import {
   createPlayer,
   createScout,
   createGameState,
+  marketPageOf,
+  routedResponses,
   transferTestTranslation,
 } from "./TransfersTab.testFixtures";
+import type { PlayersPage, PlayersPageQuery } from "../../services/playersService";
+import type { PlayerData } from "../../store/gameStore";
 
 describe("TransfersTab", (): void => {
+  // What the backend answers `get_players_page` with; each test that shows market rows says which.
+  let marketAnswer: (query: PlayersPageQuery) => PlayersPage;
+  let routes: ReturnType<typeof routedResponses>;
+  // The backend answers each list of the centre separately; a test says who is on the one it shows.
+  const answerList =
+    (scope: PlayersPageQuery["scope"], players: PlayerData[]) =>
+    (query: PlayersPageQuery): PlayersPage =>
+      marketPageOf(query.scope === scope ? players : []);
   beforeEach(function resetMocks(): void {
     mockedInvoke.mockReset();
     mockedIsTauri.mockReturnValue(false);
+    marketAnswer = () => marketPageOf([]);
     mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
       const args = payload as MockInvokePayload | undefined;
+      if (command === "get_players_page") {
+        return marketAnswer((payload as { query: PlayersPageQuery }).query);
+      }
       if (command === "generate_player_portrait") {
         const playerId = String(args?.request?.playerId ?? "player");
         return {
@@ -102,18 +118,19 @@ describe("TransfersTab", (): void => {
 
       return {};
     });
+    routes = routedResponses(mockedInvoke);
   });
-  it("renders a dual transfer and loan listed player once with both status badges", (): void => {
+  it("renders a dual transfer and loan listed player once with both status badges", async (): Promise<void> => {
+    const dualListed = createPlayer({
+      id: "dual-listed",
+      full_name: "Dual Listed",
+      transfer_listed: true,
+      loan_listed: true,
+    });
+    marketAnswer = answerList("user_listed", [dualListed]);
     render(
       <TransfersTab
-        gameState={createGameState([
-          createPlayer({
-            id: "dual-listed",
-            full_name: "Dual Listed",
-            transfer_listed: true,
-            loan_listed: true,
-          }),
-        ])}
+        gameState={createGameState([dualListed])}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
         onGameUpdate={vi.fn()}
@@ -122,13 +139,15 @@ describe("TransfersTab", (): void => {
 
     fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
 
-    expect(screen.getAllByText("Dual Listed")).toHaveLength(1);
-    expect(screen.getByText("TRANSFER")).toBeInTheDocument();
-    expect(screen.getByText("LOAN")).toBeInTheDocument();
+    // The filter chips carry the same words as the badges, so read the table.
+    const table = within(await screen.findByRole("table"));
+    expect(table.getAllByText("Dual Listed")).toHaveLength(1);
+    expect(table.getByText("TRANSFER")).toBeInTheDocument();
+    expect(table.getByText("LOAN")).toBeInTheDocument();
     expect(screen.getByText(/My Transfer List \(1\)/)).toBeInTheDocument();
   });
-  it("paginates the transfer players list instead of mounting every market row", (): void => {
-    const marketPlayers = Array.from({ length: 65 }, (_, index) =>
+  it("paginates the transfer players list instead of mounting every market row", async (): Promise<void> => {
+    const rows = Array.from({ length: 65 }, (_, index) =>
       createPlayer({
         id: `market-player-${index + 1}`,
         full_name: `Market Player ${index + 1}`,
@@ -139,29 +158,80 @@ describe("TransfersTab", (): void => {
       }),
     );
 
+    marketAnswer = (query) =>
+      marketPageOf(rows.slice((query.page - 1) * 30, query.page * 30), {
+        total: 65,
+        page: query.page,
+      });
+
     render(
       <TransfersTab
-        gameState={createGameState(marketPlayers)}
+        gameState={createGameState(rows)}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
 
-    expect(screen.getAllByText(/^Market Player \d+$/)).toHaveLength(30);
+    expect(await screen.findAllByText(/^Market Player \d+$/)).toHaveLength(30);
     expect(screen.getByText("Market Player 30")).toBeInTheDocument();
     expect(screen.queryByText("Market Player 31")).not.toBeInTheDocument();
     expect(screen.getByText("Showing 1-30 of 65")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
 
+    expect(await screen.findByText("Market Player 31")).toBeInTheDocument();
     expect(screen.queryByText("Market Player 1")).not.toBeInTheDocument();
-    expect(screen.getByText("Market Player 31")).toBeInTheDocument();
     expect(screen.getByText("Showing 31-60 of 65")).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith(
+      "get_players_page",
+      expect.objectContaining({ query: expect.objectContaining({ page: 2, scope: "market" }) }),
+    );
+  });
+  /**
+   * Given the transfer market is open
+   * When the free-agent chip and then "affordable only" are pressed
+   * Then the backend is asked for the market scope, narrowed to free agents and to what the club
+   *      can pay for, back on the first page: the screen holds no filtering rule of its own.
+   */
+  it("asks the backend for the market scope with the chosen status and budget", async (): Promise<void> => {
+    render(
+      <TransfersTab
+        gameState={createGameState([createPlayer({ team_id: "team-2", transfer_listed: true })])}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+    await waitFor((): void => {
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        "get_players_page",
+        expect.objectContaining({
+          query: expect.objectContaining({ scope: "market", status: "available" }),
+        }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^Free Agent/ }));
+    fireEvent.click(screen.getByRole("button", { name: "transfers.affordableOnly" }));
+
+    await waitFor((): void => {
+      expect(mockedInvoke).toHaveBeenLastCalledWith(
+        "get_players_page",
+        expect.objectContaining({
+          query: expect.objectContaining({
+            scope: "market",
+            status: "free_agent",
+            in_budget: true,
+            page: 1,
+          }),
+        }),
+      );
+    });
   });
   it("starts runtime portrait loading for the visible transfer market page", async (): Promise<void> => {
     mockedIsTauri.mockReturnValue(true);
-    const marketPlayers = Array.from({ length: 35 }, (_, index) =>
+    const rows = Array.from({ length: 35 }, (_, index) =>
       createPlayer({
         id: `portrait-player-${index + 1}`,
         full_name: `Portrait Player ${index + 1}`,
@@ -172,9 +242,11 @@ describe("TransfersTab", (): void => {
       }),
     );
 
+    marketAnswer = () => marketPageOf(rows.slice(0, 30), { total: 35 });
+
     render(
       <TransfersTab
-        gameState={createGameState(marketPlayers)}
+        gameState={createGameState(rows)}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
         onGameUpdate={vi.fn()}
@@ -218,7 +290,8 @@ describe("TransfersTab", (): void => {
     ]);
     const onGameUpdate = vi.fn();
 
-    mockedInvoke.mockResolvedValue({
+    marketAnswer = answerList("with_offers", initialState.players);
+    routes.resolveOnce("counter_offer", {
       decision: "counter_offer",
       suggested_fee: 1150000,
       is_terminal: false,
@@ -244,7 +317,7 @@ describe("TransfersTab", (): void => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    fireEvent.click(screen.getByRole("button", { name: /counter offer/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /counter offer/i }));
     fireEvent.change(screen.getByLabelText(/counter amount/i), {
       target: { value: "1200000" },
     });
@@ -289,6 +362,8 @@ describe("TransfersTab", (): void => {
       }),
     ]);
 
+    marketAnswer = () => marketPageOf(state.players);
+
     render(
       <TransfersTab
         gameState={state}
@@ -298,7 +373,7 @@ describe("TransfersTab", (): void => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^bid$/i }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("preview_transfer_bid_financial_impact", {
@@ -329,9 +404,11 @@ describe("TransfersTab", (): void => {
       ]);
       state.staff = [createScout()];
 
-      mockedInvoke.mockRejectedValueOnce(
+      routes.rejectOnce(
+        "send_scout",
         new Error("Scout is already assigned to another scouting task."),
       );
+      marketAnswer = () => marketPageOf(state.players);
 
       render(
         <TransfersTab
@@ -342,7 +419,7 @@ describe("TransfersTab", (): void => {
         />,
       );
 
-      const playerRow = screen.getByText("John Smith").closest("tr");
+      const playerRow = (await screen.findByText("John Smith")).closest("tr");
       expect(playerRow).not.toBeNull();
 
       fireEvent.contextMenu(playerRow as HTMLTableRowElement);
@@ -357,7 +434,7 @@ describe("TransfersTab", (): void => {
       consoleErrorSpy.mockRestore();
     }
   });
-  it("resumes an incoming transfer negotiation when reopening the counter-offer modal", (): void => {
+  it("resumes an incoming transfer negotiation when reopening the counter-offer modal", async (): Promise<void> => {
     const state = createGameState([
       createPlayer({
         transfer_offers: [
@@ -375,6 +452,7 @@ describe("TransfersTab", (): void => {
         ],
       }),
     ]);
+    marketAnswer = answerList("with_offers", state.players);
 
     render(
       <TransfersTab
@@ -386,7 +464,7 @@ describe("TransfersTab", (): void => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    fireEvent.click(screen.getByRole("button", { name: /counter offer/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /counter offer/i }));
 
     expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
     expect(screen.getByText("The other club are waiting for your next move.")).toBeInTheDocument();
@@ -398,11 +476,13 @@ describe("TransfersTab", (): void => {
     expect(screen.getByDisplayValue("1150000")).toBeInTheDocument();
   });
   it("shows a localized message when a counter-offer expires before submission", async (): Promise<void> => {
-    mockedInvoke.mockRejectedValue("Offer not found or not pending");
+    const state = createGameState();
+    marketAnswer = answerList("with_offers", state.players);
+    routes.rejectOnce("counter_offer", "Offer not found or not pending");
 
     render(
       <TransfersTab
-        gameState={createGameState()}
+        gameState={state}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
         onGameUpdate={vi.fn()}
@@ -410,7 +490,7 @@ describe("TransfersTab", (): void => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    fireEvent.click(screen.getByRole("button", { name: /counter offer/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /counter offer/i }));
     fireEvent.click(screen.getByRole("button", { name: /submit counter/i }));
 
     await waitFor((): void => {

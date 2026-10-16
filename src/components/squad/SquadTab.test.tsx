@@ -121,6 +121,7 @@ const makeGameState = (): GameStateData => {
       start_date: "2026-08-01",
     },
     manager: {
+      display_name: "Test Manager",
       id: "mgr1",
       first_name: "Test",
       last_name: "Manager",

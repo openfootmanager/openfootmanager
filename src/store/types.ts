@@ -558,6 +558,10 @@ export interface ManagerData {
   id: string;
   first_name: string;
   last_name: string;
+  /** What they are called when it differs from their name; shown via `display_name`. */
+  known_as?: string | null;
+  /** The name to show: decided in Rust (known-as, else first and last name). Render as is. */
+  display_name: string;
   date_of_birth: string;
   nationality: string;
   football_nation?: string;

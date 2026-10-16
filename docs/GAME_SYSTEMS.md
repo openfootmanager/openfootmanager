@@ -333,7 +333,7 @@ The inbox system provides contextual communication from in-game characters. Mess
 | JobOffer | Board of Directors | Vacancy-driven approaches and application replies for unemployed managers |
 | Finance | (Future) | Budget updates |
 | Transfer | (Future) | Transfer offers |
-| Injury | (Future) | Injury reports |
+| Injury | After a club match that injures one of your players | The head physio's report: the injury and the expected time out (`be.msg.matchInjury.*`) |
 | Contract | (Future) | Contract negotiations |
 | ScoutReport | (Future) | Player scouting |
 | Media | (Future) | Press stories |
@@ -427,6 +427,10 @@ Match reports use randomized commentary templates (3 variations per article). Th
 League roundup articles summarize all matchday results with scores, standings update articles report the current top positions, managerial-change articles cover firings and appointments, and season preview articles frame the new campaign before kickoff.
 
 **Transfer rumours** are generated every Monday (alongside the weekly digest). Up to 2 notable AI-team players — those with a market value ≥ €800K, an expiring contract (≤ 12 months), or low morale — are picked and receive a speculative gossip article attributed to tabloid-leaning sources (Transfer Intelligence, Sports Gazette, or The Football Herald). These rumours do not correspond to actual pending transfer offers; they are flavour-driven speculation.
+
+### Match injuries
+
+The match engine records an injury event when a player is hurt on the pitch. `turn/match_injuries.rs` turns each one into a real injury on that player when the result is applied: one injury per player, never on someone already injured, and never one the engine did not produce. The injury comes from `player_wear::roll_injury`, shared with national-team friendlies: a severity band by weight, then a name and a number of days within it. The weights are the UEFA Elite Club Injury Study's injuries per team per season by days of absence (19 slight under 3 days, 15 minor 3-7, 14 moderate 8-28, 7 major over 28, out of 55). The roll is seeded from the day, the fixture and the player. An injury to a player of the user's club sends one physio message through the sent-ledger, keyed by fixture and player, so a deleted message is never resent.
 
 **Injury news** articles are generated whenever a notable player suffers a training-ground injury. Notability is defined as a market value ≥ €500K or membership of the user club's starting XI. The article reports the injury duration and is attributed to a factual source (League Wire, The Football Herald, or Match Day Press).
 

@@ -36,6 +36,7 @@ export {
 export {
   calcAge,
   formatExactMoney,
+  formatPreciseCompact,
   formatVal,
   formatWeeklyAmount,
   formatWeeklyWage,

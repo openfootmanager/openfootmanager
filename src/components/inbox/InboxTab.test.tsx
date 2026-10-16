@@ -30,6 +30,7 @@ const mockTranslationState = vi.hoisted(() => ({
       "scouting.youthAnyPosition": "Any position",
       "scouting.regionDomestic": "Domestic",
       "scouting.objectiveBalanced": "Balanced",
+      "common.positions.LeftBack": "Left Back",
       "common.positions.Defender": "Defender",
       "common.positions.Forward": "Forward",
       "common.positions.Midfielder": "Midfielder",
@@ -199,6 +200,7 @@ function createGameState(messages: MessageData[]): GameStateData {
       start_date: "2025-01-01",
     },
     manager: {
+      display_name: "John Doe",
       id: "manager-1",
       first_name: "John",
       last_name: "Doe",
@@ -888,11 +890,11 @@ describe("InboxTab", (): void => {
 
     expect(screen.getByTestId("delegated-renewal-report")).toBeInTheDocument();
     expect(
-      screen.getByText("Completed: Alex Done agreed to 3 year(s) on £24,000/wk."),
+      screen.getByText("Completed: Alex Done agreed to 3 year(s) on £24K/wk."),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Still difficult: Ben Pending — Their camp want around £26,000/wk for 4 years, which is beyond the delegation limits.",
+        "Still difficult: Ben Pending — Their camp want around £26K/wk for 4 years, which is beyond the delegation limits.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -1302,6 +1304,45 @@ describe("InboxTab", (): void => {
 
     expect(screen.getByText("Youth target")).toBeInTheDocument();
     expect(screen.getByText("Defender")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a youth prospect whose position is the coarse Defender group but who is a left back
+   * When the youth recruitment report is read
+   * Then the card names the left back beside the badge, not the group.
+   */
+  it("shows a youth prospect's natural position, not the coarse group", async (): Promise<void> => {
+    await renderInboxTab({
+      gameState: createGameState([
+        createMessage({
+          id: "youth-natural",
+          category: "ScoutReport",
+          read: true,
+          subject: "Youth prospect found",
+          body: "Scout report body",
+          context: {
+            team_id: "t1",
+            player_id: null,
+            fixture_id: null,
+            youth_target_position: "Defender",
+            youth_prospects: [
+              createProspect({
+                id: "prospect-lb",
+                full_name: "Lucas Flank",
+                team_id: null,
+                position: "Defender",
+                natural_position: "LeftBack",
+              }),
+            ],
+            match_result: null,
+          },
+        }),
+      ]),
+      initialMessageId: "youth-natural",
+    });
+
+    expect(screen.getByText("Lucas Flank")).toBeInTheDocument();
+    expect(screen.getByText("Left Back")).toBeInTheDocument();
   });
 
   it("renders without crashing when gameState is null", async (): Promise<void> => {

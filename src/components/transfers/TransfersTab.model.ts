@@ -4,28 +4,8 @@ import type {
   TransferOfferData,
   LoanOfferData,
 } from "../../store/gameStore";
-import { canonicalPosition, normalisePosition } from "../squad/SquadTab.helpers";
-import { naturalPositionOf } from "../../lib/positions";
-
-// Specific positions grouped by the broad category they refine. Used both by
-// the position-refinement popover in TransfersTab.tsx and as default selections
-// when a group is activated.
-export const SPECIFIC_POSITIONS_BY_GROUP: Record<string, string[]> = {
-  Goalkeeper: ["Goalkeeper"],
-  Defender: ["CenterBack", "LeftBack", "RightBack", "LeftWingBack", "RightWingBack"],
-  Midfielder: [
-    "DefensiveMidfielder",
-    "CentralMidfielder",
-    "AttackingMidfielder",
-    "LeftMidfielder",
-    "RightMidfielder",
-  ],
-  Forward: ["LeftWinger", "RightWinger", "Striker"],
-};
 
 export type TransferTabView = "my_list" | "players" | "offers";
-
-export type TransferAvailabilityFilter = "all" | "transfer" | "loan" | "free_agent";
 
 export interface TransferCollections {
   myTransferList: PlayerData[];
@@ -117,91 +97,6 @@ export function deriveTransferCollections(
         getRelevantLoanOffers(player, userTeamId).length > 0,
     ),
   };
-}
-
-export function getCurrentTransferList(
-  view: TransferTabView,
-  collections: TransferCollections,
-): PlayerData[] {
-  switch (view) {
-    case "my_list":
-      return getMyListedPlayers(collections);
-    case "players":
-      return collections.availablePlayers;
-    default:
-      return collections.playersWithOffers;
-  }
-}
-
-export interface TransferAffordability {
-  transferBudget: number;
-  finance: number;
-}
-
-// Mirrors ofm_core/src/transfers.rs: a bid `fee` exceeds the buyer's budget
-// when it overruns either the transfer budget or the club's cash balance.
-export function bidExceedsAffordability(
-  fee: number,
-  affordability: TransferAffordability,
-): boolean {
-  return fee > affordability.transferBudget || fee > affordability.finance;
-}
-
-export function filterTransferPlayers(
-  players: PlayerData[],
-  search: string,
-  posFilter: string | null,
-  availabilityFilter: TransferAvailabilityFilter = "all",
-  affordability: TransferAffordability | null = null,
-  specificPositions: readonly string[] = [],
-): PlayerData[] {
-  const specificSet = specificPositions.length > 0 ? new Set(specificPositions) : null;
-
-  return players.filter((player) => {
-    if (availabilityFilter === "transfer" && !player.transfer_listed) {
-      return false;
-    }
-
-    if (availabilityFilter === "loan" && !player.loan_listed) {
-      return false;
-    }
-
-    if (availabilityFilter === "free_agent" && player.team_id !== null) {
-      return false;
-    }
-
-    if (
-      affordability &&
-      player.team_id !== null &&
-      player.transfer_listed &&
-      bidExceedsAffordability(player.market_value, affordability)
-    ) {
-      return false;
-    }
-
-    const rawPosition = naturalPositionOf(player);
-
-    if (posFilter && normalisePosition(rawPosition) !== posFilter) {
-      return false;
-    }
-
-    if (specificSet && !specificSet.has(canonicalPosition(rawPosition))) {
-      return false;
-    }
-
-    if (search.length >= 2) {
-      const query = search.toLowerCase();
-
-      if (
-        !player.full_name.toLowerCase().includes(query) &&
-        !player.nationality.toLowerCase().includes(query)
-      ) {
-        return false;
-      }
-    }
-
-    return true;
-  });
 }
 
 /** Saved offer records involving the current club; historical parent IDs keep loans reachable after registration. */

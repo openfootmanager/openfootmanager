@@ -5,7 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TacticsTab from "./TacticsTab";
-import { saveCustomTactics } from "./TacticsCustomTactics.helpers";
+import type { CustomTactic } from "../../services/customTacticsService";
 
 /**
  * #365 — picking a tactic preset asks the backend for the whole preset
@@ -105,6 +105,7 @@ const makeTeam = (): TeamData => ({
 const makeGame = (): GameStateData => ({
   clock: { current_date: "2026-08-01", start_date: "2026-08-01" },
   manager: {
+    display_name: "Test Manager",
     id: "mgr1",
     first_name: "Test",
     last_name: "Manager",
@@ -143,11 +144,34 @@ const makeGame = (): GameStateData => ({
 let backend: GameStateData;
 /** The backend's verdict on whether the phase dials still equal the style's blueprint. */
 let blueprintModified = false;
+/** The tactics the faked save holds, in the order made. */
+let savedTactics: CustomTactic[] = [];
+
+/** Puts tactics in the faked save, as if the player had made them earlier. */
+function seedSavedTactics(
+  entries: Array<{
+    id: string;
+    name: string;
+    description: string;
+    formation: string;
+    playStyle: string;
+  }>,
+) {
+  savedTactics = entries.map((entry) => ({ ...entry, sourcePresetName: null }));
+}
 
 function fakeBackend(failPreset = false) {
   mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
     const params = (args ?? {}) as Record<string, string>;
     if (command === "get_squad") return backend.players;
+    if (command === "list_custom_tactics") return structuredClone(savedTactics);
+    if (command === "save_custom_tactic") {
+      const tactic = (args as { tactic: CustomTactic }).tactic;
+      const at = savedTactics.findIndex((saved) => saved.id === tactic.id);
+      if (at === -1) savedTactics.push(tactic);
+      else savedTactics[at] = tactic;
+      return structuredClone(savedTactics);
+    }
     const team = backend.teams[0];
     if (command === "get_tactics_blueprint_status") return { modified: blueprintModified };
     if (command === "set_tactics_phase") {
@@ -199,6 +223,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     localStorage.clear();
     mockedInvoke.mockReset();
     blueprintModified = false;
+    savedTactics = [];
     backend = makeGame();
   });
 
@@ -249,10 +274,9 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
   it.each(["custom:saved", "preset:imported-custom"])(
     "keeps the blueprint when selecting saved custom tactic %s",
     async (id) => {
-      saveCustomTactics(backend, [
+      seedSavedTactics([
         {
           id,
-          type: "custom",
           name: "Saved custom",
           description: "Custom setup",
           formation: "3-4-3",
@@ -262,7 +286,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       fakeBackend();
       render(<ControlledTacticsTab />);
       fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
-      fireEvent.click(screen.getByRole("option", { name: /Saved custom/ }));
+      fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
       await waitFor(() =>
         expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", { playStyle: "HighPress" }),
       );
@@ -402,10 +426,9 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
    * Then the formation goes back to the saved one, and no preset is applied.
    */
   it("resets a customised custom tactic to its saved setup without applying a preset", async () => {
-    saveCustomTactics(backend, [
+    seedSavedTactics([
       {
         id: "custom:saved",
-        type: "custom",
         name: "Saved custom",
         description: "Custom setup",
         formation: "4-4-2",
@@ -415,7 +438,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fakeBackend();
     render(<ControlledTacticsTab />);
     fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
-    fireEvent.click(screen.getByRole("option", { name: /Saved custom/ }));
+    fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
         "Saved custom",
