@@ -245,4 +245,16 @@ mod tests {
         assert_eq!(renew_finished_cups(&mut game, "2034-08-10"), 0);
         assert!(game.edition_archive.is_empty());
     }
+
+    /// Given a finished domestic knockout that is not a cup (a friendly tournament), When the day
+    /// ends, Then it is not renewed: only cups are.
+    #[test]
+    fn a_friendly_tournament_is_not_a_cup_and_is_not_renewed() {
+        let mut tournament = september_cup();
+        tournament.kind = CompetitionType::FriendlyCup;
+        tournament.scope = CompetitionScope::Domestic;
+        let mut game = game_with(vec![tournament]);
+
+        assert_eq!(renew_finished_cups(&mut game, "2034-08-10"), 0);
+    }
 }
