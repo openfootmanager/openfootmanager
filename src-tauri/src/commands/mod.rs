@@ -1,5 +1,6 @@
 pub mod club;
 pub mod contracts;
+pub mod custom_tactics;
 pub mod finances;
 pub mod game;
 pub mod jobs;
@@ -26,6 +27,7 @@ pub mod world;
 
 pub use club::*;
 pub use contracts::*;
+pub use custom_tactics::*;
 pub use finances::*;
 pub use game::*;
 pub use jobs::*;
