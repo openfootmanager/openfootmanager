@@ -776,35 +776,67 @@ describe("TacticsTab", () => {
   });
 
   it("assigns captaincy from the tactics table context menu", async () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    // The backend's picks are on screen, so a save built from what is displayed would carry them.
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+    await waitFor(() => expect(screen.getAllByText("match.notAssigned")).toHaveLength(1));
 
     fireEvent.contextMenu(screen.getByTestId("xi-player-d1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.makeCaptain" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
-        matchRoles: expect.objectContaining({
+        matchRoles: {
           captain: "d1",
-        }),
+          vice_captain: null,
+          penalty_taker: null,
+          free_kick_taker: null,
+          corner_taker: null,
+        },
       });
     });
   });
 
   it("assigns captaincy from the pitch context menu", async () => {
-    render(
-      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    // The backend's picks are on screen, so a save built from what is displayed would carry them.
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+    await waitFor(() => expect(screen.getAllByText("match.notAssigned")).toHaveLength(1));
 
     fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.makeCaptain" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
-        matchRoles: expect.objectContaining({
+        matchRoles: {
           captain: "d1",
-        }),
+          vice_captain: null,
+          penalty_taker: null,
+          free_kick_taker: null,
+          corner_taker: null,
+        },
       });
     });
   });
