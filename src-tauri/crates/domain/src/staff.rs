@@ -112,12 +112,15 @@ impl Staff {
 
     /// Sets what they are called; blank means nothing in particular.
     pub fn set_known_as(&mut self, known_as: Option<String>) {
-        self.known_as = crate::identity::tidy_known_as(known_as);
+        self.known_as = known_as;
         self.refresh_display_name();
     }
 
-    /// Recomputes `display_name` from the names it depends on.
+    /// Tidies `known_as` and recomputes `display_name` from the names it depends on. Every way a
+    /// record enters the game (a setter, a world file, a save) ends here, so a blank known-as
+    /// can never survive as a blank display name.
     pub fn refresh_display_name(&mut self) {
+        self.known_as = crate::identity::tidy_known_as(self.known_as.take());
         self.display_name = crate::identity::display_name(
             self.known_as.as_deref(),
             &self.first_name,

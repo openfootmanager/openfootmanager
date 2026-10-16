@@ -567,6 +567,30 @@ mod tests {
         assert_eq!(name("m2"), "Alice Boss");
     }
 
+    /// Given a world file whose manager and staff member carry a blank known-as name
+    /// When it is loaded
+    /// Then they are called by their full name and keep no known-as, the same as when it is set by hand (#557).
+    #[test]
+    fn a_blank_known_as_in_a_world_file_is_treated_as_none() {
+        let json = r#"{"managers":[
+            {"id":"m1","first_name":"Alice","last_name":"Boss","date_of_birth":"1970-05-10",
+             "nationality":"GB","reputation":500,"satisfaction":50,"team_id":null,"known_as":"   ",
+             "career_stats":{"matches_managed":0,"wins":0,"draws":0,"losses":0,"trophies":0,"best_finish":null},
+             "career_history":[]}],
+            "staff":[
+            {"id":"s1","first_name":"Alice","last_name":"Coach","date_of_birth":"1980-05-10",
+             "nationality":"GB","role":"Physio","known_as":"  ",
+             "attributes":{"coaching":80,"judgingAbility":50,"judgingPotential":50,"physiotherapy":10},
+             "team_id":null}]}"#;
+
+        let world = load_world_from_json(json).expect("the world loads");
+
+        assert_eq!(world.managers[0].display_name, "Alice Boss");
+        assert_eq!(world.managers[0].known_as, None);
+        assert_eq!(world.staff[0].display_name, "Alice Coach");
+        assert_eq!(world.staff[0].known_as, None);
+    }
+
     /// Given a world file whose staff predate the display name (no `display_name` in their JSON)
     /// When it is loaded
     /// Then each is displayed by their known-as name or their full name, not left blank (#557).
