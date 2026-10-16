@@ -310,7 +310,7 @@ export default function MainMenu() {
   useEffect(() => {
     invoke<GameStateData>("get_active_game")
       .then((state) => {
-        const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        const mgrName = state.manager.display_name;
         applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
@@ -326,7 +326,7 @@ export default function MainMenu() {
     const unlisten = listen("game-state-changed", async () => {
       try {
         const state = await invoke<GameStateData>("get_active_game");
-        const mgrName = `${state.manager.first_name} ${state.manager.last_name}`;
+        const mgrName = state.manager.display_name;
         applyExtraTranslations(state.extra_translations);
         setGameState(state);
         setGameActive(true, mgrName);
