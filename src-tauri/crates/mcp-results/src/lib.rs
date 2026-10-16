@@ -158,6 +158,8 @@ mod tests {
         let text = page.to_string();
 
         assert!(text.contains("before_date=2030-01-01 before_id=m1"));
+        // The text is what an agent reads when it ignores structuredContent: the body is in it.
+        assert!(text.contains("Body"), "{text}");
         round_trips(page);
     }
 
