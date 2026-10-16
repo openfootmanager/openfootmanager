@@ -1018,7 +1018,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
 
     // 5b. Convert retired players to unemployed manager/scout candidates, then
     //     ensure the unemployed pools meet the season-end floor.
-    convert_retired_players_to_candidates(game);
+    convert_retired_players_to_candidates(game, season);
     crate::manager_retirement::retire_unemployed_managers(game);
     crate::generator::replenish_manager_and_scout_market(game);
 
@@ -1250,12 +1250,12 @@ pub fn advance_to_next_season(game: &mut Game) -> Result<EndOfSeasonSummary, Str
 // Retiree conversion
 // ---------------------------------------------------------------------------
 
-/// For every retired, unattached player with at least one career entry:
+/// For every player archived this season with at least one career entry:
 /// * Creates an unemployed manager candidate with deterministic ID `mgr_retired_{player_id}`.
 /// * Creates an unattached scout with deterministic ID `staff_retired_scout_{player_id}`.
 ///
 /// Both checks are idempotent — if the ID already exists the entry is not duplicated.
-fn convert_retired_players_to_candidates(game: &mut Game) {
+fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
     // Snapshot eligible players (avoid holding borrows across mutations).
     struct RetiredSnapshot {
         player_id: String,
@@ -1273,9 +1273,9 @@ fn convert_retired_players_to_candidates(game: &mut Game) {
     }
 
     let retirees: Vec<RetiredSnapshot> = game
-        .players
+        .retired_players
         .iter()
-        .filter(|p| p.retired && p.team_id.is_none() && !p.career.is_empty())
+        .filter(|p| p.retired_season == season && !p.career.is_empty())
         .map(|p| {
             let mut name_parts = p.full_name.splitn(2, ' ');
             let first_name = name_parts.next().unwrap_or(&p.full_name).to_string();

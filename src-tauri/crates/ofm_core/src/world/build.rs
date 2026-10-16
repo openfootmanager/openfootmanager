@@ -120,6 +120,11 @@ pub fn build_game_from_world_data(
     // in bootstrap, from this same field.
     game.retired_managers = retired_managers;
     game.retired_players = retired_players;
+    // A world exported before retirees had an archive still carries them among its players. Every
+    // route from a world to a game goes through here, so this is where they leave the roster:
+    // after the world's own archive is in (one it already holds is not archived twice), and before
+    // the squad floor, the national squads or the awards can take them for live players.
+    crate::retirees::archive_legacy_retirees(&mut game);
     if game
         .staff
         .iter()
@@ -255,6 +260,72 @@ mod tests {
         assert_eq!(game.retired_managers[0].id, "retired-boss");
         assert_eq!(game.retired_players.len(), 1);
         assert_eq!(game.retired_players[0].id, "retired-veteran");
+    }
+
+    /// Given a world exported before retirees had an archive, with a player flagged as retired
+    ///       still in its players,
+    /// When a game is built from it,
+    /// Then the retiree is in the archive and on no roster: no squad, free-agent pool or
+    ///      national selection sees him as live.
+    #[test]
+    fn a_retiree_in_an_older_exported_world_is_archived_as_the_game_is_built() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        let retiree_id = world.players[0].id.clone();
+        world.players[0].retired = true;
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 2,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        assert!(game.players.iter().all(|player| !player.retired));
+        assert!(game.players.iter().all(|player| player.id != retiree_id));
+        assert!(
+            game.retired_players
+                .iter()
+                .any(|record| record.id == retiree_id),
+            "the retiree is in no archive"
+        );
+    }
+
+    /// Given a world whose archive already holds a player who is also still flagged retired among
+    ///       its players,
+    /// When a game is built from it,
+    /// Then he is on no roster and in the archive exactly once, with the record the world brought.
+    #[test]
+    fn a_retiree_the_world_already_archived_is_not_archived_twice() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        let retiree_id = world.players[0].id.clone();
+        world.players[0].retired = true;
+        world
+            .retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &world.players[0],
+                "2030-06-30",
+                2030,
+            ));
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 0,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        assert!(game.players.iter().all(|player| player.id != retiree_id));
+        let records: Vec<_> = game
+            .retired_players
+            .iter()
+            .filter(|record| record.id == retiree_id)
+            .collect();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].retired_on, "2030-06-30");
     }
 
     /// Given an imported world whose author gave no staff and whose clubs have no cash,

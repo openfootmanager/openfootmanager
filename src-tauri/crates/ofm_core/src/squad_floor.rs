@@ -701,7 +701,7 @@ fn free_agents_best_first(game: &Game, group: &Position) -> Vec<usize> {
         .players
         .iter()
         .enumerate()
-        .filter(|(_, player)| player.team_id.is_none() && !player.retired)
+        .filter(|(_, player)| player.team_id.is_none())
         .filter(|(_, player)| player.position.to_group_position() == *group)
         .map(|(index, _)| index)
         .collect();
@@ -1047,17 +1047,22 @@ mod tests {
     }
 
     #[test]
-    fn a_retired_player_is_never_signed() {
+    fn an_archived_retiree_is_never_signed() {
         let mut game = club_with([1, 5, 5, 4]);
         let mut retired = free_agent("retired_keeper", Position::Goalkeeper, 90);
         retired.retired = true;
-        game.players.push(retired);
+        game.retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &retired,
+                "2040-06-30",
+                2040,
+            ));
 
         let top_up = restore_minimum_squad(&mut game, "club");
 
         assert!(top_up.brought_in().is_empty());
         assert_eq!(top_up.unfilled, vec![(GK, 1)]);
-        assert_eq!(team_of(&game, "retired_keeper"), None);
+        assert!(game.players.iter().all(|p| p.id != "retired_keeper"));
     }
 
     /// Given a club of nobody, no academy and no free agents, nobody is

@@ -153,7 +153,7 @@ fn contracts_running_down(game: &Game, team_id: &str, current_date: NaiveDate) -
     game.players
         .iter()
         .enumerate()
-        .filter(|(_, player)| !player.retired && player.contract_end().is_some())
+        .filter(|(_, player)| player.contract_end().is_some())
         .filter(|(_, player)| player.contract_club_id() == Some(team_id))
         .filter(|(_, player)| remaining_contract_days(player, current_date) <= RENEWAL_HORIZON_DAYS)
         .map(|(index, _)| index)

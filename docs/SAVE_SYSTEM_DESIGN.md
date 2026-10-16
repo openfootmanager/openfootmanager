@@ -234,6 +234,28 @@ No migration was needed: every new field is optional. A save from before the led
 legacy_migrated`, the end and wage from the old columns, and the start the old columns knew (NULL
 when they did not: it is never invented). A player with no contract gets none.
 
+### Retired players
+
+A player who retires leaves `game.players` and the `players` table and is kept as a frozen
+`RetiredPlayer` record (`domain::retired_player`): who he was, his final ability, his career and
+movements, when he retired and from which club. Records live in `retired_players` (migration
+v052: `player_id` primary key, `record_json`) and are loaded into `Game::retired_players`, which
+is skipped on the IPC payload because it only grows.
+
+- **Written once.** `INSERT OR IGNORE` by id: an archived record is never rewritten, so a field
+  added to the record later cannot make an old row "differ". Archiving a player and deleting his
+  `players` row happen in the same transaction as the save, so a failure leaves him in exactly
+  one place.
+- **Save format 9.** A save written before the archive carries its retirees as `retired = 1`
+  rows. On load, a save below format 9 has them moved into the archive once, each dated by his
+  own `retired` movement and filed under the season of his last career entry; the resave deletes
+  the old rows. The check is not tied to the format: whatever a save's version, a retiree found on
+  a loaded roster is archived on that load and the load writes the move back, so the roster only
+  ever holds people who play. An older build refuses a format 9 save rather than open it with its
+  retirees missing.
+- **Readers.** The Hall of Fame, a retiree's profile, his stats overview and the names on old
+  results read the archive (`ofm_core::retirees`, `ofm_core::hall_of_fame`).
+
 ### Football Identity Notes
 
 - Legacy saves may still store `nationality` / `country` values such as `"GB"`, `"British"`, or demonyms like `"English"`.
