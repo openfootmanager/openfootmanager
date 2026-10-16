@@ -59,6 +59,21 @@ fn add_years(
         .ok_or(ContractError::InvalidDate(field))
 }
 
+/// Whether `value` is a date of birth exactly as the package format writes it, `YYYY-MM-DD`.
+/// A year alone or anything looser used to load and then age the person from a guess.
+pub(super) fn is_valid_date_of_birth(value: &str) -> bool {
+    parse_authored_date("dateOfBirth", value).is_ok()
+}
+
+/// The error for an unreadable `dateOfBirth` on the entity `entity` (a player or staff id),
+/// found in `source`.
+pub(super) fn invalid_date_of_birth_error(entity: &str, source: &str, value: &str) -> PackageError {
+    PackageError::new(INVALID_DATE, source)
+        .with("entity", entity)
+        .with("field", "dateOfBirth")
+        .with("value", value)
+}
+
 /// Every problem with the contract fields that does not depend on another problem
 /// being fixed first: each unreadable date, both an end and a length, a length out
 /// of range. An interval that only goes wrong once the pieces are combined (an end
@@ -185,6 +200,12 @@ pub(super) fn authored_player_errors(
             .with("min", min.to_string())
             .with("max", max.to_string())
     };
+
+    if let Some(value) = &player.date_of_birth
+        && !is_valid_date_of_birth(value)
+    {
+        errors.push(invalid_date_of_birth_error(&player.id, source, value));
+    }
 
     // Whether an interval is valid depends on where an end would land, never on which
     // year a career opens in or what length generation rolls, so representative
@@ -521,6 +542,35 @@ mod tests {
             let errors = validate(serde_json::json!({ field: "2026-13-45" }));
             assert_eq!(codes(&errors), ["be.error.package.invalidDate"], "{field}");
             assert_eq!(param(&errors[0], "field"), Some(field));
+        }
+    }
+
+    /// Given players whose `dateOfBirth` is a real date, a year only, garbage, empty, or absent (#594)
+    /// When they are validated
+    /// Then only the real date and the absent one pass; the rest are `invalidDate` naming the field and the value.
+    #[test]
+    fn a_date_of_birth_must_be_a_real_iso_date() {
+        for ok in [
+            serde_json::json!({ "dateOfBirth": "1990-05-17" }),
+            serde_json::json!({}),
+        ] {
+            assert!(validate(ok.clone()).is_empty(), "{ok}");
+        }
+        for (written, value) in [
+            ("1990", "1990"),
+            ("garbage", "garbage"),
+            ("", ""),
+            ("1990-13-45", "1990-13-45"),
+            ("1990-5-7", "1990-5-7"),
+        ] {
+            let errors = validate(serde_json::json!({ "dateOfBirth": written }));
+            assert_eq!(
+                codes(&errors),
+                ["be.error.package.invalidDate"],
+                "{written:?}"
+            );
+            assert_eq!(param(&errors[0], "field"), Some("dateOfBirth"));
+            assert_eq!(param(&errors[0], "value"), Some(value));
         }
     }
 
