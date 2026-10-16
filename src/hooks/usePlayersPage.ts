@@ -17,7 +17,7 @@ type Translate = Parameters<typeof resolveTranslatedErrorMessage>[1];
  */
 export function usePlayersPage(initialQuery: PlayersPageQuery, translate: Translate) {
   const [query, setQuery] = useState<PlayersPageQuery>(initialQuery);
-  const [slice, setSlice] = useState<PlayersPage | null>(null);
+  const [answer, setAnswer] = useState<{ query: PlayersPageQuery; page: PlayersPage } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refetchKey, setRefetchKey] = useState(0);
 
@@ -32,7 +32,7 @@ export function usePlayersPage(initialQuery: PlayersPageQuery, translate: Transl
     fetchPlayersPage(query)
       .then((result) => {
         if (cancelled) return;
-        setSlice(result);
+        setAnswer({ query, page: result });
         setError(null);
       })
       .catch((failure) => {
@@ -44,5 +44,14 @@ export function usePlayersPage(initialQuery: PlayersPageQuery, translate: Transl
     };
   }, [query, refetchKey, translate]);
 
-  return { query, patchQuery, slice, error, refetch };
+  // `answeredQuery` is the query the slice answers: a screen that swaps the kind of list can tell
+  // the old list from the new one while the new one is still on its way.
+  return {
+    query,
+    patchQuery,
+    slice: answer?.page ?? null,
+    answeredQuery: answer?.query ?? null,
+    error,
+    refetch,
+  };
 }
