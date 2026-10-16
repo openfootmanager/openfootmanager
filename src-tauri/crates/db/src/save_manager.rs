@@ -11,7 +11,8 @@ use ofm_core::game::Game;
 use ofm_core::generator;
 use ofm_core::player_identity;
 use ofm_core::player_rating::{
-    effective_rating_for_assignment, formation_slots, refresh_player_derived,
+    effective_rating_for_assignment, formation_slots, reconcile_wonderkid_trait,
+    refresh_player_derived,
 };
 
 use crate::game_database::GameDatabase;
@@ -580,6 +581,22 @@ impl SaveManager {
             info!(
                 "[save_manager] backfilled OVR/potential for {} players in save {}",
                 backfill_count, save_id
+            );
+            needs_resave = true;
+        }
+
+        // The wonderkid tag is a rule, not a stored fact: apply the current rule to every player,
+        // so a save written under an older one is judged by this one.
+        let retagged = game
+            .players
+            .iter_mut()
+            .map(|player| reconcile_wonderkid_trait(player, today))
+            .filter(|changed| *changed)
+            .count();
+        if retagged > 0 {
+            info!(
+                "[save_manager] re-judged the wonderkid tag for {} players in save {}",
+                retagged, save_id
             );
             needs_resave = true;
         }
@@ -1295,6 +1312,59 @@ mod tests {
     /// the next load. The free-agent market is where that showed: it is cleared
     /// and redrawn every 30 days, but the clear never reached disk, so a loaded
     /// save listed every candidate ever generated and the list only ever grew.
+    /// Given a saved career whose young prospect has an S-tier ceiling but no wonderkid tag, and
+    /// whose other young player carries the tag with a ceiling below the S tier,
+    /// When the save is loaded,
+    /// Then the rule is applied on load: the first gets the tag and the second loses it.
+    #[test]
+    fn loading_a_save_applies_the_wonderkid_rule() {
+        use chrono::Datelike;
+        use domain::player::PlayerTrait;
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let mut second = game.players[0].clone();
+        second.id = "p-002".to_string();
+        game.players.push(second);
+        let today = game.clock.current_date.date_naive();
+        let born = format!("{}-01-01", today.year() - 19);
+        let ids: Vec<String> = game.players.iter().take(2).map(|p| p.id.clone()).collect();
+        for (n, player) in game.players.iter_mut().take(2).enumerate() {
+            player.date_of_birth = born.clone();
+            player.traits.retain(|t| *t != PlayerTrait::Wonderkid);
+            if n == 0 {
+                player.ovr = 65;
+                player.potential = 85;
+            } else {
+                player.ovr = 60;
+                player.potential = 75;
+                player.traits.push(PlayerTrait::Wonderkid);
+            }
+        }
+        let save_id = sm.create_save(&game, "Career").unwrap();
+
+        let loaded = SaveManager::init(&dir.path().join("saves"))
+            .unwrap()
+            .load_game(&save_id)
+            .unwrap();
+
+        let has_tag = |id: &str| {
+            loaded
+                .players
+                .iter()
+                .find(|p| p.id == id)
+                .unwrap()
+                .traits
+                .contains(&PlayerTrait::Wonderkid)
+        };
+        assert!(
+            has_tag(&ids[0]),
+            "the S-tier prospect was not tagged on load"
+        );
+        assert!(!has_tag(&ids[1]), "the stale tag was kept on load");
+    }
+
     #[test]
     fn a_staff_member_removed_from_the_game_stays_removed_after_a_reload() {
         use domain::staff::{Staff, StaffAttributes, StaffRole};

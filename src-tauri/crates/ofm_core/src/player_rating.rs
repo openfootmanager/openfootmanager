@@ -32,8 +32,8 @@ pub fn deployed_position(team: &domain::team::Team, player_id: &str) -> Option<P
 /// - `ovr` is recomputed from the player's natural position using position-weighted attributes.
 /// - `potential` is set only if it is currently 0 (unset), using a random bonus based on age.
 ///   Once set it is preserved so training gains can grow OVR toward the ceiling naturally.
-/// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied only
-///   after the v0.2.1 rebalance for age <= 20, potential >= 90, and growth room >= 14.
+/// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied by
+///   `qualifies_for_wonderkid`: age 20 or under, an S-tier ceiling, and 14 or more to grow.
 ///
 /// Ages are reckoned on `on`: the game's date, or `domain::age::season_midpoint` when only a
 /// year is known.
@@ -64,6 +64,21 @@ pub fn refresh_player_derived(player: &mut Player, on: chrono::NaiveDate) {
     player.ovr = ovr;
     player.potential = potential;
     player.traits = traits;
+}
+
+/// Apply the wonderkid rule to a player's stored traits without touching anything else: add the tag
+/// when he qualifies and lacks it, take it off when he has it and no longer qualifies. `true` when a
+/// trait changed. Used on load, so a save written under an older rule is judged by the current one.
+pub fn reconcile_wonderkid_trait(player: &mut Player, on: chrono::NaiveDate) -> bool {
+    let age = domain::age::playing_age(on, &player.date_of_birth);
+    let qualifies = qualifies_for_wonderkid(age, player.potential, player.ovr);
+    let tagged = player.traits.contains(&PlayerTrait::Wonderkid);
+    match (qualifies, tagged) {
+        (true, false) => player.traits.push(PlayerTrait::Wonderkid),
+        (false, true) => player.traits.retain(|t| *t != PlayerTrait::Wonderkid),
+        _ => return false,
+    }
+    true
 }
 
 /// Returns `true` when a player qualifies as a wonderkid: they are at or below
