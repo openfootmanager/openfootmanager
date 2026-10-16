@@ -526,6 +526,16 @@ fn a_cup_with_no_archived_edition_and_no_winner_sends_nobody() {
     // es-f finished last in a six-club league and is the weakest club, so only the cup could
     // have qualified it.
     assert!(!field.contains(&"es-f".to_string()), "{field:?}");
+    // The data-defined path agrees: with no live winner and no archived edition, a CupWinner
+    // berth awards nobody either.
+    let mut with_berth = europe_game_with_a_renewed_cup(true);
+    with_berth.edition_archive.clear();
+    let europe = with_berth
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+    assert!(!berth_qualified_entrants(&with_berth, europe).contains(&"es-f".to_string()));
 }
 
 /// Multi-tier qualification: a club lands in only its most prestigious target,
