@@ -44,14 +44,18 @@ fn validated(tactic: &CustomTactic) -> Result<CustomTactic, String> {
 /// Adds the tactic, or replaces the one with the same id where it stands in the list.
 pub fn save_custom_tactic(game: &mut Game, tactic: &CustomTactic) -> Result<(), String> {
     let tactic = validated(tactic)?;
-    match game
-        .custom_tactics
-        .iter_mut()
-        .find(|t| t.id.trim() == tactic.id)
-    {
-        Some(existing) => *existing = tactic,
-        None => game.custom_tactics.push(tactic),
-    }
+    let id = tactic.id.clone();
+    let Some(first) = game.custom_tactics.iter().position(|t| t.id.trim() == id) else {
+        game.custom_tactics.push(tactic);
+        return Ok(());
+    };
+    game.custom_tactics[first] = tactic;
+    // An old save may hold the same id twice, once padded; keep one.
+    let mut at = 0;
+    game.custom_tactics.retain(|t| {
+        at += 1;
+        at - 1 <= first || t.id.trim() != id
+    });
     Ok(())
 }
 
@@ -251,6 +255,28 @@ mod tests {
         game.custom_tactics[0].id = "a ".to_string();
         delete_custom_tactic(&mut game, "a").unwrap();
         assert!(game.custom_tactics.is_empty());
+    }
+
+    /// Given a legacy save holding both "a" and "a " as separate tactics, and another tactic
+    /// When "a" is saved
+    /// Then the first replaces in place, the padded twin is dropped, and the other tactic stays.
+    #[test]
+    fn saving_collapses_legacy_twins_that_trim_to_the_same_id() {
+        let mut game = game();
+        game.custom_tactics = vec![
+            tactic("a", "First"),
+            tactic("b", "Other"),
+            tactic("a ", "Twin"),
+        ];
+
+        save_custom_tactic(&mut game, &tactic("a", "Current")).unwrap();
+
+        let names: Vec<&str> = game
+            .custom_tactics
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
+        assert_eq!(names, ["Current", "Other"]);
     }
 
     /// Given names of exactly the longest allowed length, and one character more
