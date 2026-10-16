@@ -295,6 +295,9 @@ pub fn generate_national_team_player(
 /// on any list.
 fn as_free_agent(mut player: Player) -> Player {
     player.team_id = None;
+    // The academy squad belongs to a club; a player generated for one (an authored `youth` flag)
+    // is a senior free agent once he has none.
+    player.squad_role = domain::player::SquadRole::Senior;
     // Both dates, not just the end: this player is generated from a club
     // template and then unattached, so leaving a start behind would describe an
     // agreement with no employer and no expiry.
