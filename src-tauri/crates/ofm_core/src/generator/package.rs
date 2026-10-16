@@ -3861,17 +3861,16 @@ colors:
             first_names: vec![first.to_string()],
             last_names: vec!["X".to_string()],
         };
-        let named = |version: u32, description: &str, pools: Vec<(&str, &str)>| {
-            let mut package = WorldPackage::default();
-            package.names = Some(NamesDefinition {
+        let named = |version: u32, description: &str, pools: Vec<(&str, &str)>| WorldPackage {
+            names: Some(NamesDefinition {
                 version,
                 description: description.to_string(),
                 pools: pools
                     .into_iter()
                     .map(|(country, first)| (country.to_string(), pool(first)))
                     .collect(),
-            });
-            package
+            }),
+            ..WorldPackage::default()
         };
         let earlier = named(3, "first", vec![("ENG", "Early"), ("BRA", "Joao")]);
         let later = named(2, "", vec![("ENG", "Late")]);
