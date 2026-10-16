@@ -48,12 +48,7 @@ import {
 } from "../components/dashboard/dashboardHelpers";
 import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
-import {
-  formatDateFull,
-  getFixtureCompetitionName,
-  getUserCompetition,
-  isSeasonComplete as isLeagueSeasonComplete,
-} from "../lib/helpers";
+import { formatDateFull, getFixtureCompetitionName } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { useClubLeagueStanding } from "../components/teamProfile/useClubLeagueStanding";
 import { useSettingsStore } from "../store/settingsStore";
@@ -62,6 +57,7 @@ import {
   queueBackgroundPortraitPrewarm,
 } from "../services/portraitService";
 import { getFinanceSnapshot, type TeamFinanceSnapshotData } from "../services/financeService";
+import { isSeasonComplete } from "../lib/seasonContext";
 
 const CLUB_TABS = new Set([
   "Squad",
@@ -312,11 +308,7 @@ export default function Dashboard(): JSX.Element {
   // first — a foreign league on another calendar — so an English career whose
   // season ended in April waited on an Argentine Apertura running to October,
   // the end-of-season screen never appeared, and the player could not continue.
-  // The local rule is kept only for saves written before the backend sent the
-  // flag, where it is still better than nothing.
-  const seasonComplete =
-    gameState?.season_context?.season_complete ??
-    isLeagueSeasonComplete(gameState ? getUserCompetition(gameState) : null);
+  const seasonComplete = gameState ? isSeasonComplete(gameState) : false;
 
   // Advance-time hook
   const {

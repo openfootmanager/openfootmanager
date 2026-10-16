@@ -132,6 +132,8 @@ fn advance_day_in_mode(
     String,
 > {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    // Before anything is played, so a round drawn by today's results is known to be new.
+    ofm_core::turn::begin_day(game);
     let round_context = ofm_core::matchday::user_league_round_context(game);
     let user_fixture = scheduled_user_fixture_index(game, &today);
     info!(

@@ -7,6 +7,7 @@ import { canonicalPosition, naturalPositionOf, normalisePosition } from "../../l
 
 import type { PlayerData } from "../../store/gameStore";
 import { getPlayerOvr } from "../../lib/helpers";
+import { isMatchDayEligible } from "../../lib/playerSquad";
 
 export type SquadSection = "xi" | "bench";
 export type DragState = {
@@ -607,7 +608,7 @@ export function buildPromoteToStartingXi(
     return null;
   }
 
-  if (promotedPlayer.injury) {
+  if (!isMatchDayEligible(promotedPlayer)) {
     return null;
   }
 

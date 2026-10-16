@@ -8,8 +8,8 @@ import {
   getUserCompetition,
   getUserNextFixture,
   formatMatchDate,
-  isSeasonComplete,
 } from "../lib/helpers";
+import { isSeasonComplete } from "../lib/seasonContext";
 
 export default function NextMatchDisplay({ gameState }: { gameState: GameStateData }) {
   const { t } = useTranslation();
@@ -28,7 +28,7 @@ export default function NextMatchDisplay({ gameState }: { gameState: GameStateDa
   if (!nextFixture) {
     return (
       <p className="text-gray-500 dark:text-gray-400 text-sm text-center py-4">
-        {t(isSeasonComplete(league) ? "home.seasonComplete" : "home.noUpcomingOpponent")}
+        {t(isSeasonComplete(gameState) ? "home.seasonComplete" : "home.noUpcomingOpponent")}
       </p>
     );
   }
