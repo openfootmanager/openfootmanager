@@ -18,7 +18,7 @@ use domain::player::{PlayerAttributes, Position};
 use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 
 use super::authored_player::authored_player_errors;
-use super::{CompetitionDefinition, NamePool, NamesDefinition, TeamDef};
+use super::{CompetitionDefinition, NamesDefinition, TeamDef};
 
 // ---------------------------------------------------------------------------
 // Authoring structs for the entity types a package can contain
@@ -299,6 +299,10 @@ pub struct WorldPackage {
     pub staff: Vec<StaffDef>,
     pub competitions: Vec<CompetitionDefinition>,
     pub names: Option<NamesDefinition>,
+    /// The file each country's name pool came from, to notice a country given twice.
+    name_pool_files: std::collections::HashMap<String, String>,
+    /// `(country, earlier file, later file)` for each pool a later file of this package replaced.
+    pub(super) repeated_name_pools: Vec<(String, String, String)>,
     /// Per-locale translation bundles supplied by the package, keyed by locale
     /// code (e.g. `"de"`, `"fr"`). Loaded from `translations.{locale}.json`
     /// files found anywhere in the package directory tree.
@@ -539,16 +543,30 @@ fn parse_entity<T: serde::de::DeserializeOwned>(
 /// being last-wins; a second file used to replace the first and drop its pools silently.
 /// "Last" means last in the sorted relative-path order of the data files. Within one file, the
 /// top-level `pools` win over `items` for the same key.
-fn add_name_pools(package: &mut WorldPackage, def: NamesDefinition) {
-    let Some(existing) = package.names.as_mut() else {
-        package.names = Some(def);
-        return;
-    };
-    existing.version = existing.version.max(def.version);
-    if !def.description.is_empty() {
-        existing.description = def.description;
+fn add_name_pools(package: &mut WorldPackage, def: NamesDefinition, file: &str) {
+    // A country whose pool an earlier file of this package already gave is reported (as a warning,
+    // `package_warnings`): the later file replaces it, which an author who split their pools over
+    // files rarely meant. Within one file, `pools` over `items` is the documented order.
+    let mut keys: Vec<&String> = def.pools.keys().collect();
+    keys.sort();
+    for key in keys {
+        if let Some(first) = package
+            .name_pool_files
+            .get(key)
+            .filter(|first| *first != file)
+        {
+            package
+                .repeated_name_pools
+                .push((key.clone(), first.clone(), file.to_string()));
+        }
+        package
+            .name_pool_files
+            .insert(key.clone(), file.to_string());
     }
-    existing.pools.extend(def.pools);
+    match package.names.as_mut() {
+        Some(existing) => existing.absorb(def),
+        None => package.names = Some(def),
+    }
 }
 
 fn classify_entity(
@@ -597,7 +615,7 @@ fn classify_entity(
         }
         "names" => {
             if let Some(def) = parse_entity::<NamesDefinition>(value, file, schema, errors) {
-                add_name_pools(package, def);
+                add_name_pools(package, def, file);
             }
         }
         "world" => {
@@ -1643,11 +1661,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     // Name pools are unioned per-key across packages (like every other entity
     // collection) rather than wholesale-replaced, so stacking packages that each
     // supply distinct pools keeps them all.
-    let mut merged_pools: std::collections::HashMap<String, NamePool> =
-        std::collections::HashMap::new();
-    let mut names_version = 0u32;
-    let mut names_description = String::new();
-    let mut saw_names = false;
+    let mut merged_names: Option<NamesDefinition> = None;
 
     for package in databases.into_iter().chain(patches) {
         if let Some(meta) = package.meta {
@@ -1733,15 +1747,9 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
             competitions.insert(c.id.clone(), (c, file_of("competition", i)));
         }
         if let Some(names) = package.names {
-            saw_names = true;
-            if names.version > names_version {
-                names_version = names.version;
-            }
-            if !names.description.is_empty() {
-                names_description = names.description;
-            }
-            for (key, pool) in names.pools {
-                merged_pools.insert(key, pool);
+            match merged_names.as_mut() {
+                Some(merged_names) => merged_names.absorb(names),
+                None => merged_names = Some(names),
             }
         }
         for (locale, bundle) in package.extra_translations {
@@ -1759,13 +1767,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
         merged.manifest_file = merged_manifest_file;
     }
 
-    if saw_names {
-        merged.names = Some(NamesDefinition {
-            version: names_version,
-            description: names_description,
-            pools: merged_pools,
-        });
-    }
+    merged.names = merged_names;
 
     let (confederations, confederations_files): (Vec<_>, Vec<_>) = confeds.into_values().unzip();
     merged.confederations = confederations;
