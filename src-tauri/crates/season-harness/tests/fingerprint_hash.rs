@@ -38,8 +38,9 @@ fn the_fingerprint_hash_of_fixed_runs() {
             play(&WorldSpec::gate(seed), 2)
         );
     }
+    let shipped_seed = 1;
     eprintln!(
-        "FINGERPRINT shipped seed 1 one season {:016x}",
-        play(&WorldSpec::shipped(1), 1)
+        "FINGERPRINT shipped seed {shipped_seed} one season {:016x}",
+        play(&WorldSpec::shipped(shipped_seed), 1)
     );
 }
