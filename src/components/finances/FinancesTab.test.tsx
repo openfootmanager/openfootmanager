@@ -3,6 +3,7 @@ import { Profiler, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
+import { resolveBackendError } from "../../utils/backendI18n";
 import FinancesTab from "./FinancesTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -767,40 +768,48 @@ describe("FinancesTab facilities", () => {
     expect(screen.getByText("Marketing campaign available again in 9 days")).toBeInTheDocument();
   });
 
-  it("blocks facility upgrades when the backend reports warning-level financial distress", async () => {
-    const gameState = createGameState({ finance: 1000000 });
+  /**
+   * Given the backend blocks every facility upgrade because the club is in financial distress,
+   * and, as the control, the same club state with nothing blocked,
+   * when the Finances tab shows the facilities,
+   * then the blocked upgrades are disabled and say why, and the unblocked ones are enabled.
+   * The rule (which statuses block) is Rust's and is tested in finances_tests.rs; this tab only
+   * presents the verdict the previews carry.
+   */
+  it.each([
+    { blockReason: "be.error.finance.facilityUpgradeCritical", blocked: true },
+    { blockReason: null, blocked: false },
+  ])(
+    "presents the backend's facility-upgrade block (blocked: $blocked)",
+    async ({ blockReason, blocked }) => {
+      const gameState = createGameState({ finance: 1000000 });
+      mockedInvoke.mockImplementation((command) => {
+        if (command === "get_finance_snapshot") {
+          return Promise.resolve(
+            wireSnapshot(
+              { runway_status: "warning", overall_status: "warning" },
+              { facility_upgrades: wireFacilityUpgrades({ block_reason: blockReason }) },
+            ),
+          );
+        }
 
-    mockedInvoke.mockImplementation((command) => {
-      if (command === "get_finance_snapshot") {
-        return Promise.resolve({
-          snapshot: {
-            annual_wage_bill: 88400,
-            weekly_wage_spend: 1700,
-            weekly_wage_budget: 38461,
-            weekly_recurring_income: 0,
-            weekly_sponsor_income: 0,
-            projected_weekly_net: -1700,
-            cash_runway_weeks: 8,
-            wage_budget_usage_percent: 4,
-            currently_in_debt: false,
-            currently_over_budget: false,
-            wage_budget_status: "stable",
-            runway_status: "warning",
-            overall_status: "warning",
-            marketing_campaign_cooldown_days_remaining: 0,
-          },
-        });
-      }
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      });
 
-      return Promise.reject(new Error(`Unexpected command: ${command}`));
-    });
+      await renderFinances(<FinancesTab gameState={gameState} />);
 
-    await renderFinances(<FinancesTab gameState={gameState} />);
-
-    await waitFor(() => {
-      expect(screen.getAllByRole("button", { name: "Upgrade" })[0]).toBeDisabled();
-    });
-  });
+      const upgradeButtons = await screen.findAllByRole("button", { name: "Upgrade" });
+      expect(upgradeButtons).toHaveLength(3);
+      await waitFor(() => {
+        for (const button of upgradeButtons) {
+          if (blocked) expect(button).toBeDisabled();
+          else expect(button).toBeEnabled();
+        }
+      });
+      const reason = resolveBackendError("be.error.finance.facilityUpgradeCritical");
+      expect(screen.queryAllByText(reason)).toHaveLength(blocked ? 3 : 0);
+    },
+  );
 
   it("renders a cash-flow projection panel using wages, sponsorship income, and runway", async () => {
     const gameState = createGameState(
