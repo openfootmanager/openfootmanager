@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { calcAge, formatDateFull, formatVal, formatWeeklyWage } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/playerRating";
+import { naturalPositionOf } from "../../lib/positions";
 import type { MessageData } from "../../store/gameStore";
 import ScoutPlayerCard from "../ScoutPlayerCard";
 import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
@@ -232,6 +233,7 @@ export default function InboxMessageDetailPane({
                     const options = chooseOptionActionType
                       ? chooseOptionActionType.ChooseOption.options
                       : [];
+                    const prospectPosition = naturalPositionOf(prospect);
                     const signedToAcademy = prospect.team_id === currentTeamId;
                     const potential = prospect.potential ?? 0;
                     const potentialLabel = getProspectPotentialLabel(potential, t);
@@ -246,8 +248,8 @@ export default function InboxMessageDetailPane({
                                 <p className="font-heading font-bold text-base text-gray-900 dark:text-gray-100">
                                   {prospect.full_name}
                                 </p>
-                                <Badge variant={positionBadgeVariant(prospect.position)} size="sm">
-                                  {translatePositionAbbreviation(t, prospect.position)}
+                                <Badge variant={positionBadgeVariant(prospectPosition)} size="sm">
+                                  {translatePositionAbbreviation(t, prospectPosition)}
                                 </Badge>
                                 {signedToAcademy ? (
                                   <Badge variant="success" size="sm">
@@ -256,7 +258,7 @@ export default function InboxMessageDetailPane({
                                 ) : null}
                               </div>
                               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
-                                <span>{t(`common.positions.${prospect.position}`)}</span>
+                                <span>{t(`common.positions.${prospectPosition}`)}</span>
                                 <span>
                                   {t("common.age")} {calcAge(prospect.date_of_birth)}
                                 </span>
