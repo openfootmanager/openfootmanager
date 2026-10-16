@@ -100,10 +100,8 @@ fn closed_within_cooldown(
     offer: &domain::player::TransferOffer,
     today: NaiveDate,
 ) -> bool {
-    let stamp = offer.closed_on.as_deref().unwrap_or(&offer.date);
-    NaiveDate::parse_from_str(stamp, "%Y-%m-%d")
-        .is_ok_and(|closed| (today - closed).num_days() < REBID_COOLDOWN_DAYS)
-        && heard_by_current_owner(player, stamp)
+    within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, today)
+        && heard_by_current_owner(player, offer.closed_on.as_deref().unwrap_or(&offer.date))
 }
 
 /// Whether the owner has walked away from this buyer and the cooldown still holds.
