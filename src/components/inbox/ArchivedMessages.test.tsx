@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+import i18n, { i18nReady } from "../../i18n";
 
 import type { MessageData } from "../../store/gameStore";
 import type { ArchivedMessagesPage } from "../../services/inboxService";
@@ -41,6 +43,21 @@ function page(
 }
 
 describe("ArchivedMessages", () => {
+  beforeAll(async () => {
+    await i18nReady;
+    await i18n.changeLanguage("en");
+    i18n.addResourceBundle(
+      "en",
+      "translation",
+      {
+        "test.archived.subject": "Offer from {{team}}",
+        "test.archived.body": "{{team}} wants to sign you.",
+      },
+      true,
+      true,
+    );
+  });
+
   beforeEach(() => {
     fetchArchivedMessages.mockReset();
   });
@@ -160,5 +177,34 @@ describe("ArchivedMessages", () => {
 
     expect(screen.getByText("Body of Old offer")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /delete|inbox\.deleteMessage/i })).toBeNull();
+  });
+
+  /**
+   * Given archived mail the way the backend writes most of it: blank subject and body, with
+   *       translation keys and parameters beside them
+   * When it is loaded
+   * Then the row shows the translated text, not a blank or a raw key.
+   */
+  it("shows key-based mail in the player's language", async () => {
+    fetchArchivedMessages.mockResolvedValueOnce(
+      page(
+        [
+          {
+            ...message("k", "", "2030-01-01"),
+            body: "",
+            subject_key: "test.archived.subject",
+            body_key: "test.archived.body",
+            i18n_params: { team: "Alpha FC" },
+          },
+        ],
+        null,
+      ),
+    );
+    render(<ArchivedMessages />);
+
+    fireEvent.click(screen.getByRole("button", { name: "inbox.archive.load" }));
+
+    expect(await screen.findByText("Offer from Alpha FC")).toBeInTheDocument();
+    expect(screen.getByText("Alpha FC wants to sign you.")).toBeInTheDocument();
   });
 });
