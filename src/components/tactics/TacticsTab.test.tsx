@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { CustomTactic } from "../../services/customTacticsService";
 import TacticsTab from "./TacticsTab";
 
 vi.mock("react-i18next", () => ({
@@ -462,61 +463,125 @@ describe("TacticsTab", () => {
     expect(screen.getByRole("option", { name: /tactics.copyOfTactic/i })).toBeInTheDocument();
   });
 
-  it("persists custom tactics across remounts", () => {
+  /** Makes the faked backend keep saved tactics, as the save does, on top of its other answers. */
+  function keepSavedTactics() {
+    const saved: CustomTactic[] = [];
+    const others = mockedInvoke.getMockImplementation();
+    mockedInvoke.mockImplementation(async (command: string, args?: InvokeArgs) => {
+      if (command === "list_custom_tactics") return structuredClone(saved);
+      if (command === "save_custom_tactic") {
+        const tactic = (args as { tactic: CustomTactic }).tactic;
+        const at = saved.findIndex((existing) => existing.id === tactic.id);
+        if (at === -1) saved.push(tactic);
+        else saved[at] = tactic;
+        return structuredClone(saved);
+      }
+      return others ? others(command, args) : undefined;
+    });
+    return saved;
+  }
+
+  /**
+   * Given a custom tactic made and saved
+   * When the screen is closed and opened again
+   * Then the tactic is still in the library: it comes from the save, not from the screen.
+   */
+  it("keeps custom tactics across a save and reload", async () => {
+    keepSavedTactics();
     const gameState = makeGameState();
     const { unmount } = render(
       <TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "tactics.duplicateTactic" }));
-
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        "save_custom_tactic",
+        expect.objectContaining({ tactic: expect.objectContaining({ formation: "4-4-2" }) }),
+      ),
+    );
     unmount();
 
     render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
-
     fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
 
-    expect(screen.getByRole("option", { name: /tactics.copyOfTactic/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: /tactics.copyOfTactic/i }),
+    ).toBeInTheDocument();
   });
 
-  it("does not leak custom tactics across manager or team storage scopes", () => {
+  /**
+   * Given a custom tactic made while managing one club
+   * When the same manager takes charge of another club
+   * Then the tactic is still in the library: the library belongs to the career, not the club.
+   */
+  it("keeps custom tactics when the manager changes club", async () => {
+    keepSavedTactics();
     const originalState = makeGameState();
-    const otherState = makeGameState();
-    otherState.clock.start_date = "2026-09-01";
-    otherState.manager.id = "mgr2";
-    otherState.manager.team_id = "team2";
-    otherState.teams = [makeTeam({ id: "team2", manager_id: "mgr2" })];
-    otherState.players = otherState.players.map((player) => ({
-      ...player,
-      team_id: "team2",
-    }));
+    const otherClub = makeGameState();
+    otherClub.manager.team_id = "team2";
+    otherClub.teams = [makeTeam({ id: "team2", manager_id: otherClub.manager.id })];
+    otherClub.players = otherClub.players.map((player) => ({ ...player, team_id: "team2" }));
 
     const { unmount } = render(
       <TacticsTab gameState={originalState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
-
     fireEvent.click(screen.getByRole("button", { name: "tactics.duplicateTactic" }));
-
+    await waitFor(() =>
+      expect(mockedInvoke).toHaveBeenCalledWith("save_custom_tactic", expect.anything()),
+    );
     unmount();
 
-    const secondRender = render(
-      <TacticsTab gameState={otherState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-
+    render(<TacticsTab gameState={otherClub} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
 
-    expect(screen.queryByRole("option", { name: /tactics.copyOfTactic/i })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: /tactics.copyOfTactic/i }),
+    ).toBeInTheDocument();
+  }, 15000);
 
+  /**
+   * Given a library an older version kept in the browser
+   * When the screen opens, and opens again
+   * Then its tactics are saved once, the old key is gone, and the second opening adds nothing.
+   */
+  it("copies an old browser library into the save once", async () => {
+    const saved = keepSavedTactics();
+    const gameState = makeGameState();
+    localStorage.setItem(
+      `ofm:tactics:custom:${gameState.manager.id}:${gameState.clock.start_date}:team1`,
+      JSON.stringify([
+        {
+          id: "custom:old",
+          type: "custom",
+          name: "Old favourite",
+          description: "",
+          formation: "4-4-2",
+          playStyle: "Balanced",
+          sourcePresetName: null,
+        },
+      ]),
+    );
+
+    const first = render(
+      <TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
+    expect(await screen.findByRole("option", { name: /Old favourite/ })).toBeInTheDocument();
+    first.unmount();
+    const secondRender = render(
+      <TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
+    expect(await screen.findByRole("option", { name: /Old favourite/ })).toBeInTheDocument();
     secondRender.unmount();
 
-    render(
-      <TacticsTab gameState={originalState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "tactics.chooseTactic" }));
-
-    expect(screen.getByRole("option", { name: /tactics.copyOfTactic/i })).toBeInTheDocument();
-  }, 15000);
+    expect(saved.map((tactic) => tactic.id)).toEqual(["custom:old"]);
+    // Copied, never moved: the old key is shared by careers begun the same year.
+    expect(localStorage.length).toBe(1);
+    const saves = mockedInvoke.mock.calls.filter(([command]) => command === "save_custom_tactic");
+    expect(saves).toHaveLength(1);
+  });
 
   it("does not mark a preset as active when applying it fails", async () => {
     const gameState = makeGameState();
