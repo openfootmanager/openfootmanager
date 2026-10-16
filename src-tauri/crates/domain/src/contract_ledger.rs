@@ -262,6 +262,26 @@ impl Player {
             .or(self.team_id.as_deref())
     }
 
+    /// The day he last arrived at the club he is with now, by transfer, free signing or the opening
+    /// contract. A renewal, a loan and a loan's return are not arrivals: the club did not change.
+    /// Anything recorded about him before this day (a refused bid, say) was said to a previous owner.
+    pub fn joined_current_club_on(&self) -> Option<&str> {
+        let club = self.contract_club_id()?;
+        self.movement_history
+            .iter()
+            .rev()
+            .find(|entry| {
+                matches!(
+                    entry.kind,
+                    PlayerMovementKind::PermanentTransfer
+                        | PlayerMovementKind::FreeAgentSigning
+                        | PlayerMovementKind::LoanToBuy
+                        | PlayerMovementKind::InitialContract
+                ) && entry.to_team_id.as_deref() == Some(club)
+            })
+            .map(|entry| entry.date.as_str())
+    }
+
     pub fn contract_start(&self) -> Option<&str> {
         self.movement_history.start()
     }
@@ -431,6 +451,66 @@ mod tests {
             contract: record,
             ..PlayerMovementEntry::new(date, kind)
         }
+    }
+
+    fn move_to(p: &mut Player, date: &str, kind: PlayerMovementKind, from: &str, to: &str) {
+        p.record_movement(PlayerMovementEntry {
+            from_team_id: Some(from.to_string()),
+            to_team_id: Some(to.to_string()),
+            ..PlayerMovementEntry::new(date, kind)
+        })
+        .unwrap();
+    }
+
+    /// Given a player who moved to club B, then renewed there, and was loaned out and came back
+    /// When the day he joined his current club is asked
+    /// Then it is the transfer's day: a renewal, a loan and its return are not arrivals.
+    #[test]
+    fn he_joined_his_current_club_on_the_transfer_not_on_a_renewal_or_loan() {
+        let mut p = player();
+        p.team_id = Some("B".to_string());
+        move_to(
+            &mut p,
+            "2026-08-10",
+            PlayerMovementKind::PermanentTransfer,
+            "A",
+            "B",
+        );
+        move_to(&mut p, "2026-08-20", PlayerMovementKind::Renewal, "B", "B");
+        move_to(
+            &mut p,
+            "2026-09-01",
+            PlayerMovementKind::LoanStart,
+            "B",
+            "C",
+        );
+        move_to(
+            &mut p,
+            "2026-10-01",
+            PlayerMovementKind::LoanReturn,
+            "C",
+            "B",
+        );
+
+        assert_eq!(p.joined_current_club_on(), Some("2026-08-10"));
+    }
+
+    /// Given a player with no movement into his current club
+    /// When the day he joined is asked
+    /// Then there is none, so nothing said about him is treated as stale.
+    #[test]
+    fn a_player_with_no_arrival_on_record_has_no_joining_day() {
+        let mut p = player();
+        p.team_id = Some("B".to_string());
+        move_to(
+            &mut p,
+            "2026-08-10",
+            PlayerMovementKind::PermanentTransfer,
+            "A",
+            "C",
+        );
+
+        assert_eq!(p.joined_current_club_on(), None);
     }
 
     #[test]
