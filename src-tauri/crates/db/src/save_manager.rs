@@ -3940,17 +3940,23 @@ mod tests {
         assert_eq!(loaded.retired_players[0].id, retiree_id);
     }
 
-    /// Given a save written before the archive whose roster holds a retiree,
-    /// When it is only loaded (nothing saves it afterwards),
-    /// Then a second connection already finds him archived and off the active roster: the load
-    ///      writes the move back itself.
+    /// Given a career that has been loaded once (so every other backfill has already been written
+    ///       back) and then saved with a retiree on its roster,
+    /// When it is only loaded again (nothing saves it afterwards),
+    /// Then a second connection already finds him archived and off the active roster: the archive
+    ///      move is what makes the load write itself back.
     #[test]
-    fn loading_a_save_with_a_legacy_retiree_writes_the_move_back() {
+    fn loading_a_save_with_a_retiree_on_its_roster_writes_the_move_back() {
         let dir = tempfile::tempdir().unwrap();
         let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
-        let (game, retiree_id) = game_with_a_retiree_on_the_roster();
-        let id = manager.create_save(&game, "Old career").unwrap();
-        stamp_format(&manager, &id, 8);
+        let id = manager.create_save(&sample_game(), "Career").unwrap();
+        let mut settled = manager.load_game(&id).unwrap();
+        let mut retiree = settled.players[0].clone();
+        retiree.id = "p-late-retiree".into();
+        retiree.retired = true;
+        retiree.team_id = None;
+        settled.players.push(retiree);
+        manager.save_game(&settled, &id).unwrap();
 
         manager.load_game(&id).unwrap();
 
@@ -3959,7 +3965,7 @@ mod tests {
             rows(
                 &reader,
                 "SELECT COUNT(*) FROM retired_players WHERE player_id = ?1",
-                &retiree_id
+                "p-late-retiree"
             ),
             1
         );
@@ -3967,7 +3973,7 @@ mod tests {
             rows(
                 &reader,
                 "SELECT COUNT(*) FROM players WHERE id = ?1",
-                &retiree_id
+                "p-late-retiree"
             ),
             0
         );
