@@ -44,6 +44,17 @@ export function usePlayersPage(initialQuery: PlayersPageQuery, translate: Transl
     };
   }, [query, refetchKey, translate]);
 
+  // A game update can leave fewer players than the page the user is on (a day passes, a scout is
+  // sent): the backend then answers that page empty, and pagination hides once one page is left.
+  // Move the query back to the last page that has rows.
+  useEffect(() => {
+    if (answer === null || answer.query !== query) return;
+    const lastPage = Math.max(1, Math.ceil(answer.page.total / query.page_size));
+    if (query.page > lastPage) {
+      setQuery((current) => (current.page > lastPage ? { ...current, page: lastPage } : current));
+    }
+  }, [answer, query]);
+
   // `answeredQuery` is the query the slice answers: a screen that swaps the kind of list can tell
   // the old list from the new one while the new one is still on its way.
   return {
