@@ -3,7 +3,7 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::PlayStyle;
 use rand::{Rng, RngExt};
 
-use super::authored_player::resolve_authored_contract;
+use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
 use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
 use crate::player_rating::{generate_potential, refresh_player_derived};
@@ -781,19 +781,21 @@ pub(super) fn generate_staff_from_authored_def(
     };
 
     let current_year: u32 = opening_year;
-    let birth_year = if let Some(dob) = &def.date_of_birth {
-        dob.split('-')
-            .next()
-            .and_then(|y| y.parse::<u32>().ok())
-            .unwrap_or(current_year.saturating_sub(40))
+    // Validation refuses an unreadable date of birth; one that reaches here anyway counts as
+    // not written, never as a guessed year.
+    let authored_dob = def
+        .date_of_birth
+        .as_deref()
+        .filter(|dob| is_valid_date_of_birth(dob));
+    let birth_year = if let Some(year) = authored_dob.and_then(birth_year_of) {
+        year
     } else if let Some(age) = def.age {
         current_year.saturating_sub(age)
     } else {
         current_year.saturating_sub(rng.random_range(30..55))
     };
-    let dob = def
-        .date_of_birth
-        .clone()
+    let dob = authored_dob
+        .map(str::to_string)
         .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
 
     let attributes = def.attributes.clone().unwrap_or_else(|| {
@@ -917,20 +919,31 @@ fn resolve_def_name(
     }
 }
 
-fn resolve_birth_year(
+/// The year of a `YYYY-MM-DD` date of birth.
+fn birth_year_of(dob: &str) -> Option<u32> {
+    dob.get(0..4)?.parse().ok()
+}
+
+/// The year an authored player was born and the date of birth to store: the authored date when
+/// it is a real one, else the authored age, else a rolled one. An unreadable date is refused by
+/// package validation; one that reaches here anyway counts as not written, never as a guess.
+fn resolve_birth(
     def: &super::package::PlayerDef,
     opening_year: u32,
     rng: &mut impl Rng,
-) -> u32 {
-    if let Some(dob) = &def.date_of_birth {
-        dob.get(0..4)
-            .and_then(|year| year.parse::<u32>().ok())
-            .unwrap_or(opening_year.saturating_sub(24))
-    } else if let Some(age) = def.age {
-        opening_year.saturating_sub(age)
-    } else {
-        opening_year.saturating_sub(rng.random_range(18..34))
+) -> (u32, String) {
+    let authored = def
+        .date_of_birth
+        .as_deref()
+        .filter(|dob| is_valid_date_of_birth(dob));
+    if let Some((dob, year)) = authored.and_then(|dob| Some((dob, birth_year_of(dob)?))) {
+        return (year, dob.to_string());
     }
+    let year = match def.age {
+        Some(age) => opening_year.saturating_sub(age),
+        None => opening_year.saturating_sub(rng.random_range(18..34)),
+    };
+    (year, format!("{year:04}-01-01"))
 }
 
 /// Convert a hand-authored [`PlayerDef`](super::package::PlayerDef) into a full
@@ -1043,11 +1056,7 @@ pub(super) fn generate_player_from_def(
     let match_name = authored_match_name(&def.name, &first_name, &last_name, &full_name);
 
     let current_year: u32 = opening_year;
-    let birth_year = resolve_birth_year(def, opening_year, rng);
-    let dob = def
-        .date_of_birth
-        .clone()
-        .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
+    let (birth_year, dob) = resolve_birth(def, opening_year, rng);
     let age = current_year.saturating_sub(birth_year);
 
     let mut attributes = def.attributes.clone().unwrap_or_else(|| {
@@ -1351,6 +1360,54 @@ mod tests {
                 "{authored}"
             );
         }
+    }
+
+    /// Given a date of birth that validation would have refused, reaching generation anyway (#594).
+    ///       "1990" is chosen because its first four characters read as a year: only the date check
+    ///       keeps it from being stored as the date
+    /// When the player is generated
+    /// Then it is treated as if none were written (here, the authored age decides), not read as
+    ///      a year or as "24 years before the opening", the invented value it used to become.
+    #[test]
+    fn an_unreadable_date_of_birth_is_not_replaced_by_an_invented_age() {
+        let player = generate_from_json(
+            serde_json::json!({
+                "id": "p", "firstName": "A", "lastName": "B", "club": "club-id",
+                "nationality": "ENG", "position": "Striker",
+                "dateOfBirth": "1990", "age": 31, "overall": 60,
+            }),
+            2026,
+        );
+
+        assert_eq!(
+            player.date_of_birth, "1995-01-01",
+            "{:?}",
+            player.date_of_birth
+        );
+    }
+
+    /// Given staff authored with a date of birth validation would have refused ("1990" reads as a
+    ///       year but is not a date), and an age
+    /// When they are generated
+    /// Then the age decides and the stored date is a real one, as for a player.
+    #[test]
+    fn an_unreadable_staff_date_of_birth_is_not_replaced_by_an_invented_age() {
+        let names_def = super::super::definitions::default_names_definition();
+        let def: super::super::package::StaffDef = serde_json::from_value(serde_json::json!({
+            "id": "coach-1", "firstName": "A", "lastName": "B", "role": "Coach",
+            "dateOfBirth": "1990", "age": 31,
+        }))
+        .unwrap();
+
+        let staff = generate_staff_from_authored_def(
+            &def,
+            Some("club-id"),
+            2026,
+            &names_def,
+            &mut rand::rng(),
+        );
+
+        assert_eq!(staff.date_of_birth, "1995-01-01");
     }
 
     /// An authored ceiling is the author's to set.

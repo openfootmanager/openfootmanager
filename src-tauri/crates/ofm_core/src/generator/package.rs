@@ -17,7 +17,9 @@ use domain::league::CompetitionScope;
 use domain::player::{PlayerAttributes, Position};
 use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 
-use super::authored_player::authored_player_errors;
+use super::authored_player::{
+    authored_player_errors, invalid_date_of_birth_error, is_valid_date_of_birth,
+};
 use super::{CompetitionDefinition, NamePool, NamesDefinition, TeamDef};
 
 // ---------------------------------------------------------------------------
@@ -1221,6 +1223,15 @@ pub fn validate_references(package: &WorldPackage) -> Vec<PackageError> {
                     .with("entity", &staff.id)
                     .with("country", &staff.nationality),
             );
+        }
+        if let Some(value) = &staff.date_of_birth
+            && !is_valid_date_of_birth(value)
+        {
+            errors.push(invalid_date_of_birth_error(
+                &staff.id,
+                &package.source_at("staff", index),
+                value,
+            ));
         }
     }
 
@@ -3698,6 +3709,65 @@ colors:
         assert_eq!(package.source_at("country", spain), "countries/two.json");
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given a package whose players and staff carry a good date of birth, a year only, garbage and an empty one (#594)
+    /// When it is validated
+    /// Then the three bad ones are `invalidDate` errors naming the file, the person and the value,
+    ///      for players and for staff alike, and the good ones are not.
+    #[test]
+    fn an_unreadable_date_of_birth_is_refused_for_players_and_staff() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "players/players.json",
+            r#"{"schema":"player","items":[
+                {"id":"ok","name":"Ok","dateOfBirth":"1990-05-17"},
+                {"id":"year","name":"Year","dateOfBirth":"1990"},
+                {"id":"junk","name":"Junk","dateOfBirth":"garbage"},
+                {"id":"blank","name":"Blank","dateOfBirth":""}]}"#,
+        );
+        write(
+            &dir,
+            "staff/staff.json",
+            r#"{"schema":"staff","items":[
+                {"id":"coach-ok","firstName":"A","lastName":"B","dateOfBirth":"1975-01-01"},
+                {"id":"coach-year","firstName":"C","lastName":"D","dateOfBirth":"1975"}]}"#,
+        );
+
+        let (package, load_errors) = load_world_package(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+        let mut errors = load_errors;
+        errors.extend(validate_package(&package));
+
+        let flagged = |entity: &str| {
+            errors.iter().any(|e| {
+                e.code == "be.error.package.invalidDate"
+                    && e.params
+                        .contains(&("entity".to_string(), entity.to_string()))
+                    && e.params
+                        .contains(&("field".to_string(), "dateOfBirth".to_string()))
+            })
+        };
+        for bad in ["year", "junk", "blank", "coach-year"] {
+            assert!(flagged(bad), "{bad} should be refused: {errors:?}");
+        }
+        for good in ["ok", "coach-ok"] {
+            assert!(!flagged(good), "{good} should pass: {errors:?}");
+        }
+        let year = errors
+            .iter()
+            .find(|e| {
+                e.params
+                    .contains(&("entity".to_string(), "year".to_string()))
+                    && e.code == "be.error.package.invalidDate"
+            })
+            .unwrap();
+        assert_eq!(year.file, "players/players.json");
+        assert!(
+            year.params
+                .contains(&("value".to_string(), "1990".to_string()))
+        );
     }
 
     #[test]
