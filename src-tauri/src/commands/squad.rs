@@ -17,6 +17,9 @@ fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
 
 /// Sets the user's formation and drops roles the new shape no longer admits.
 fn apply_formation(game: &mut Game, formation: &str) -> Result<(), String> {
+    if ofm_core::player_rating::parse_formation(formation).is_none() {
+        return Err(ofm_core::custom_tactics::INVALID_FORMATION_ERROR.to_string());
+    }
     let team_id = user_team_id(game)?;
 
     // Note: `player.position` is intentionally NOT mutated here. A player's
@@ -973,6 +976,23 @@ mod tests {
             apply_tactic_preset_internal(&state, "3-4-3", "Attacking").err(),
             Some("be.error.noTeamAssigned".into())
         );
+    }
+
+    /// Given a managed club
+    /// When a formation the game cannot lay out is set
+    /// Then it is refused and the club keeps the one it had.
+    #[test]
+    fn set_formation_internal_refuses_a_formation_that_does_not_parse() {
+        let state = state_with_custom_dials();
+        let before = stored_team(&state).formation;
+
+        let result = set_formation_internal(&state, "10-0-0");
+
+        assert_eq!(
+            result.err(),
+            Some("be.error.customTactic.invalidFormation".to_string())
+        );
+        assert_eq!(stored_team(&state).formation, before);
     }
 
     #[test]
