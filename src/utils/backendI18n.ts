@@ -133,6 +133,7 @@ function boardObjectiveFallback(objective: BoardObjective): string {
 const MONEY_PARAM_KEYS = new Set([
   "amount",
   "budget",
+  "buyOption",
   "campaignCost",
   "cost",
   "fee",

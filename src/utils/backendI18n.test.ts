@@ -1359,3 +1359,23 @@ describe("money in inbox and news lines is compact and precise", () => {
     expect(text).toBe("Offer: $1.08M");
   });
 });
+
+describe("the loan offer's purchase option", () => {
+  const key = "be.msg.loanOffer.body";
+  const terms = { team: "Alpha FC", player: "Golden Boot", endDate: "2026-12-31", wageContribution: "70" };
+
+  it("reads the whole-number option as money, compact and precise", () => {
+    expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "1200000" })).toContain(
+      "Purchase option: €1.2M.",
+    );
+    expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "1250000" })).toContain(
+      "Purchase option: €1.25M.",
+    );
+  });
+
+  it("keeps the dash for a loan with no purchase option", () => {
+    expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "—" })).toContain(
+      "Purchase option: —.",
+    );
+  });
+});
