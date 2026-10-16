@@ -34,6 +34,9 @@ pub struct DistributionReport {
     pub wonderkid_share: f64,
 }
 
+/// The report for `game` on its own date (`game.clock.current_date`). Seniors are the players aged
+/// `SENIOR_MIN_AGE` or more on that day: the mean rating and the S and A shares are taken over
+/// them, while `youth_share` and `wonderkid_share` are shares of every player in the world.
 pub fn distribution_report(game: &Game) -> DistributionReport {
     distribution_of(&game.players, game.clock.current_date.date_naive())
 }

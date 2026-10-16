@@ -18,6 +18,9 @@ pub enum PlayerTier {
     Rest,
 }
 
+/// The tier a 1-99 rating falls in: `S` from `S_TIER_MIN_RATING` (81) up, `A` from
+/// `A_TIER_MIN_RATING` (77) to one below that, and `Rest` for everything lower. Works on `ovr` and
+/// on `potential` alike.
 pub fn player_tier(rating: u8) -> PlayerTier {
     if rating >= S_TIER_MIN_RATING {
         PlayerTier::S
