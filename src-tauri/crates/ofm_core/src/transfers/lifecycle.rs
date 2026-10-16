@@ -46,24 +46,18 @@ pub(crate) fn heard_by_current_owner(player: &domain::player::Player, stamp: &st
     }
 }
 
-/// Whether a loan approach was made to the club that owns the player now. A loan offer names the
-/// parent club it was made to, so no date is needed.
+/// Whether a loan approach was made to the club that owns the player now, in his current spell
+/// there. The offer names the parent club it was made to, so a different club is told apart by
+/// that; a refusal from an earlier spell at the same club (he left and came back) is told apart by
+/// date, the same rule as [`heard_by_current_owner`], because the club id alone would match.
 pub(crate) fn loan_made_to_current_owner(
     player: &domain::player::Player,
     offer: &domain::player::LoanOffer,
 ) -> bool {
     player.contract_club_id() == Some(offer.parent_team_id.as_str())
+        && heard_by_current_owner(player, offer.closed_on.as_deref().unwrap_or(&offer.date))
 }
 
-/// Clubs that were turned away recently enough that they should not be asking again.
-///
-/// Being told no is information a club acts on. Without this, the day after a rejection the club
-/// is eligible again — it re-enters the shortlist, opens a fresh approach, and the manager rejects
-/// the same suitor every day for the length of the window. Expiry counts too: talks that went cold
-/// on their own are no more of an invitation to start over than a refusal is.
-///
-/// Read from the offers already on the player, so this costs no new saved state. `closed_on` is
-/// when talks ended; offers written before that field existed fall back to their arrival date.
 pub(crate) fn clubs_in_rebid_cooldown(
     player: &domain::player::Player,
     current_date: NaiveDate,
@@ -372,5 +366,28 @@ mod tests {
         let cooling = clubs_in_rebid_cooldown(&player, day("2026-08-12"));
 
         assert_eq!(cooling, HashSet::from(["club-x".to_string()]));
+    }
+
+    /// Given a loan approach refused at the club the player is at now, in a spell that ended: he
+    /// left the club and came back within the cooldown
+    /// When the clubs still in a rebid cooldown are listed
+    /// Then that club is not among them: the refusal belongs to the earlier spell.
+    #[test]
+    fn a_loan_refusal_from_an_earlier_spell_does_not_hold_a_club_in_cooldown() {
+        let mut player = player_refused_a_loan_approach("new-club");
+        for (on, from, to) in [
+            ("2026-08-12", "new-club", "other-club"),
+            ("2026-08-14", "other-club", "new-club"),
+        ] {
+            player
+                .record_movement(PlayerMovementEntry {
+                    from_team_id: Some(from.into()),
+                    to_team_id: Some(to.into()),
+                    ..PlayerMovementEntry::new(on, PlayerMovementKind::PermanentTransfer)
+                })
+                .unwrap();
+        }
+
+        assert!(clubs_in_rebid_cooldown(&player, day("2026-08-15")).is_empty());
     }
 }

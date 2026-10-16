@@ -177,13 +177,60 @@ fn a_loan_refusal_by_the_previous_owner_is_not_remembered_by_the_new_one() {
     make_loan_offer(&mut game, "player-loan-sold-on", "2027-01-01", 0, None)
         .expect("an approach to the new owner");
 
-    let rounds: Vec<u8> = own_loan_offers(&game, "player-loan-sold-on")
+    let offers = own_loan_offers(&game, "player-loan-sold-on");
+    let rounds: Vec<u8> = offers.iter().map(|offer| offer.negotiation_round).collect();
+    assert!(
+        rounds.iter().all(|round| *round == 1),
+        "the new owner starts afresh: {rounds:?}"
+    );
+    // A new offer row, addressed to the new owner, beside the refused one.
+    assert_eq!(offers.len(), 2, "{offers:?}");
+    assert_ne!(offers[0].id, offers[1].id);
+    assert!(
+        offers.iter().any(|offer| offer.parent_team_id == "team-3"),
+        "{offers:?}"
+    );
+}
+
+/// Given a loan approach the owner turned down, and the player then leaves the club and comes back
+/// When the same club asks again
+/// Then it is a new negotiation at round one: the refusal was said in an earlier spell there.
+#[test]
+fn a_loan_refusal_from_an_earlier_spell_at_the_same_club_is_not_remembered() {
+    let mut game = loan_negotiation_game("player-loan-returned");
+    let first = make_loan_offer(&mut game, "player-loan-returned", "2027-01-01", 0, None)
+        .expect("first approach");
+    assert_eq!(first.decision, LoanOfferDecision::Rejected);
+
+    for (days, from, to) in [(1, "team-2", "team-3"), (1, "team-3", "team-2")] {
+        game.clock.advance_days(days);
+        let on = game.clock.current_date.format("%Y-%m-%d").to_string();
+        game.players
+            .iter_mut()
+            .find(|player| player.id == "player-loan-returned")
+            .expect("player present")
+            .record_movement(domain::player::PlayerMovementEntry {
+                from_team_id: Some(from.to_string()),
+                to_team_id: Some(to.to_string()),
+                ..domain::player::PlayerMovementEntry::new(
+                    on,
+                    domain::player::PlayerMovementKind::PermanentTransfer,
+                )
+            })
+            .expect("the move is recorded");
+    }
+
+    game.clock.advance_days(1);
+    make_loan_offer(&mut game, "player-loan-returned", "2027-01-01", 0, None)
+        .expect("an approach after the return");
+
+    let rounds: Vec<u8> = own_loan_offers(&game, "player-loan-returned")
         .iter()
         .map(|offer| offer.negotiation_round)
         .collect();
     assert!(
         rounds.iter().all(|round| *round == 1),
-        "the new owner starts afresh: {rounds:?}"
+        "a second spell starts afresh: {rounds:?}"
     );
 }
 
