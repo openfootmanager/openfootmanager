@@ -1042,12 +1042,11 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
 
     // Play the first season's share of the campaign only up to the club
     // season's end in May: the rollover outruns the June 2025 window.
-    let mut rng = <rand::rngs::StdRng as rand::SeedableRng>::seed_from_u64(3);
     for date in first_season_days
         .iter()
         .filter(|date| date.as_str() < "2025-06-01")
     {
-        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date, &mut rng);
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date);
     }
     let played_midway = game
         .competitions
@@ -1105,7 +1104,7 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
         .iter()
         .filter(|date| date.as_str() < "2026-06-01")
     {
-        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date, &mut rng);
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date);
     }
     assert!(
         game.competitions
