@@ -155,6 +155,7 @@ impl fmt::Display for ActionResolved {
 
 tool_results!(
     InboxMessages,
+    ArchivedMessages,
     MessageMarkedRead,
     AllMessagesMarkedRead,
     MessageDeleted,
