@@ -941,6 +941,25 @@ fn the_over_budget_message_carries_the_weekly_wage_bill_and_budget_as_numbers() 
     );
 }
 
+/// Given a club with cash to spare whose 1,700 weekly wage bill is exactly its 1,700 budget,
+/// When the weekly finances run,
+/// Then it is not over budget, and the finance director says nothing.
+#[test]
+fn a_wage_bill_equal_to_the_budget_is_not_over_it() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 1_000_000;
+    game.teams[0].wage_budget = 1_700;
+
+    finances::process_weekly_finances(&mut game);
+
+    assert!(
+        !game
+            .messages
+            .iter()
+            .any(|m| m.id.starts_with("wage_over_budget_"))
+    );
+}
+
 #[test]
 fn warning_when_low_runway() {
     let mut game = make_monday_game();
