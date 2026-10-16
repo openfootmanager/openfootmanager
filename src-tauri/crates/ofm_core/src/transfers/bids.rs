@@ -85,7 +85,7 @@ pub(crate) fn latest_negotiation_with_club<'a>(
         .filter(|offer| {
             offer.from_team_id == club_id
                 && offer.status == TransferOfferStatus::Rejected
-                && closed_within_cooldown(offer, today)
+                && closed_within_cooldown(player, offer, today)
         })
         .max_by_key(|offer| {
             offer
@@ -95,8 +95,13 @@ pub(crate) fn latest_negotiation_with_club<'a>(
         })
 }
 
-fn closed_within_cooldown(offer: &domain::player::TransferOffer, today: NaiveDate) -> bool {
+fn closed_within_cooldown(
+    player: &domain::player::Player,
+    offer: &domain::player::TransferOffer,
+    today: NaiveDate,
+) -> bool {
     within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, today)
+        && heard_by_current_owner(player, offer.closed_on.as_deref().unwrap_or(&offer.date))
 }
 
 /// Whether the owner has walked away from this buyer and the cooldown still holds.

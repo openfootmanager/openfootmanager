@@ -26,6 +26,35 @@ pub(crate) fn pending_approach_clubs(player: &domain::player::Player) -> HashSet
         )
         .collect()
 }
+/// Whether an offer closed (or, for one written before `closed_on` existed, arrived) within
+/// [`REBID_COOLDOWN_DAYS`] of `today`. The one statement of that window: the incoming sweep, an
+/// outgoing permanent bid and an outgoing loan bid all ask it.
+pub(crate) fn within_rebid_cooldown(closed_on: Option<&str>, date: &str, today: NaiveDate) -> bool {
+    NaiveDate::parse_from_str(closed_on.unwrap_or(date), "%Y-%m-%d")
+        .is_ok_and(|day| (today - day).num_days() < REBID_COOLDOWN_DAYS)
+}
+
+/// Whether talks that ended on `stamp` were with the club that owns the player now.
+///
+/// An offer has no owner field, so a refusal is placed by date: one from before the player's last
+/// arrival at his club was said by a previous owner, and the new one has not refused anybody.
+pub(crate) fn heard_by_current_owner(player: &domain::player::Player, stamp: &str) -> bool {
+    let day = |text: &str| NaiveDate::parse_from_str(text, "%Y-%m-%d").ok();
+    match player.joined_current_club_on().and_then(day) {
+        Some(joined) => day(stamp).is_none_or(|ended| ended >= joined),
+        None => true,
+    }
+}
+
+/// Whether a loan approach was made to the club that owns the player now. A loan offer names the
+/// parent club it was made to, so no date is needed.
+pub(crate) fn loan_made_to_current_owner(
+    player: &domain::player::Player,
+    offer: &domain::player::LoanOffer,
+) -> bool {
+    player.contract_club_id() == Some(offer.parent_team_id.as_str())
+}
+
 /// Clubs that were turned away recently enough that they should not be asking again.
 ///
 /// Being told no is information a club acts on. Without this, the day after a rejection the club
@@ -35,21 +64,10 @@ pub(crate) fn pending_approach_clubs(player: &domain::player::Player) -> HashSet
 ///
 /// Read from the offers already on the player, so this costs no new saved state. `closed_on` is
 /// when talks ended; offers written before that field existed fall back to their arrival date.
-/// Whether an offer closed (or, for one written before `closed_on` existed, arrived) within
-/// [`REBID_COOLDOWN_DAYS`] of `today`. The one statement of that window: the incoming sweep, an
-/// outgoing permanent bid and an outgoing loan bid all ask it.
-pub(crate) fn within_rebid_cooldown(closed_on: Option<&str>, date: &str, today: NaiveDate) -> bool {
-    NaiveDate::parse_from_str(closed_on.unwrap_or(date), "%Y-%m-%d")
-        .is_ok_and(|day| (today - day).num_days() < REBID_COOLDOWN_DAYS)
-}
-
 pub(crate) fn clubs_in_rebid_cooldown(
     player: &domain::player::Player,
     current_date: NaiveDate,
 ) -> HashSet<String> {
-    let cooling =
-        |closed_on: Option<&str>, date: &str| within_rebid_cooldown(closed_on, date, current_date);
-
     player
         .transfer_offers
         .iter()
@@ -57,7 +75,8 @@ pub(crate) fn clubs_in_rebid_cooldown(
             matches!(
                 offer.status,
                 TransferOfferStatus::Rejected | TransferOfferStatus::Withdrawn
-            ) && cooling(offer.closed_on.as_deref(), &offer.date)
+            ) && within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, current_date)
+                && heard_by_current_owner(player, offer.closed_on.as_deref().unwrap_or(&offer.date))
         })
         .map(|offer| offer.from_team_id.clone())
         .chain(
@@ -68,7 +87,11 @@ pub(crate) fn clubs_in_rebid_cooldown(
                     matches!(
                         offer.status,
                         LoanOfferStatus::Rejected | LoanOfferStatus::Withdrawn
-                    ) && cooling(offer.closed_on.as_deref(), &offer.date)
+                    ) && within_rebid_cooldown(
+                        offer.closed_on.as_deref(),
+                        &offer.date,
+                        current_date,
+                    ) && loan_made_to_current_owner(player, offer)
                 })
                 .map(|offer| offer.from_team_id.clone()),
         )

@@ -867,6 +867,49 @@ fn the_cooldown_ends_on_its_last_day() {
     }
 }
 
+/// Given a bid the owner (team-2) refused
+/// When the player is sold to another club (team-3) and the user bids to them
+/// Then it is a new negotiation at round one: team-3 has refused nobody.
+#[test]
+fn a_refusal_by_the_previous_owner_is_not_remembered_by_the_new_one() {
+    let mut game = negotiation_game("player-sold-on");
+    make_transfer_bid(&mut game, "player-sold-on", 100_000).expect("first bid");
+
+    game.clock.advance_days(1);
+    let mut third = make_seller_team(vec![]);
+    third.id = "team-3".to_string();
+    third.name = "Third Town".to_string();
+    third.reputation = 350;
+    game.teams.push(third);
+    give_every_club_squad_depth(&mut game);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-sold-on")
+        .expect("player present");
+    player.team_id = Some("team-3".to_string());
+    player
+        .record_movement(domain::player::PlayerMovementEntry {
+            from_team_id: Some("team-2".to_string()),
+            to_team_id: Some("team-3".to_string()),
+            ..domain::player::PlayerMovementEntry::new(
+                today,
+                domain::player::PlayerMovementKind::PermanentTransfer,
+            )
+        })
+        .expect("the move is recorded");
+
+    game.clock.advance_days(1);
+    let to_new_owner =
+        make_transfer_bid(&mut game, "player-sold-on", 100_000).expect("a bid to the new owner");
+
+    assert_eq!(
+        to_new_owner.feedback.round, 1,
+        "the new owner starts afresh"
+    );
+}
+
 #[test]
 fn stale_outgoing_transfer_negotiation_is_withdrawn_before_new_bid() {
     let mut player = make_player("player-stale-bid");

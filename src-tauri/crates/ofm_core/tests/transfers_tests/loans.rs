@@ -139,6 +139,54 @@ fn a_loan_bid_after_a_rejection_continues_the_negotiation() {
     assert_eq!(offers[0].negotiation_round, 2);
 }
 
+/// Given a loan approach the owner (team-2) turned down
+/// When the player is sold to another club (team-3) and the user asks them for a loan
+/// Then it is a new negotiation at round one: team-3 has refused nobody.
+#[test]
+fn a_loan_refusal_by_the_previous_owner_is_not_remembered_by_the_new_one() {
+    let mut game = loan_negotiation_game("player-loan-sold-on");
+    let first = make_loan_offer(&mut game, "player-loan-sold-on", "2027-01-01", 0, None)
+        .expect("first approach");
+    assert_eq!(first.decision, LoanOfferDecision::Rejected);
+
+    game.clock.advance_days(1);
+    let mut third = make_seller_team(vec![]);
+    third.id = "team-3".to_string();
+    third.name = "Third Town".to_string();
+    game.teams.push(third);
+    give_every_club_squad_depth(&mut game);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-loan-sold-on")
+        .expect("player present");
+    player.team_id = Some("team-3".to_string());
+    player
+        .record_movement(domain::player::PlayerMovementEntry {
+            from_team_id: Some("team-2".to_string()),
+            to_team_id: Some("team-3".to_string()),
+            ..domain::player::PlayerMovementEntry::new(
+                today,
+                domain::player::PlayerMovementKind::PermanentTransfer,
+            )
+        })
+        .expect("the move is recorded");
+
+    game.clock.advance_days(1);
+    make_loan_offer(&mut game, "player-loan-sold-on", "2027-01-01", 0, None)
+        .expect("an approach to the new owner");
+
+    let rounds: Vec<u8> = own_loan_offers(&game, "player-loan-sold-on")
+        .iter()
+        .map(|offer| offer.negotiation_round)
+        .collect();
+    assert!(
+        rounds.iter().all(|round| *round == 1),
+        "the new owner starts afresh: {rounds:?}"
+    );
+}
+
 /// Given a club that keeps lowballing the same loan
 /// When it reaches the fourth refusal
 /// Then the owner ends the talks until the shared cooldown has passed, after which it starts at

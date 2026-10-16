@@ -202,6 +202,7 @@ pub(crate) fn latest_loan_negotiation_with_club<'a>(
                     offer.from_team_id == club_id
                         && offer.status == LoanOfferStatus::Rejected
                         && within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, today)
+                        && loan_made_to_current_owner(player, offer)
                 })
                 .max_by_key(|offer| {
                     offer
