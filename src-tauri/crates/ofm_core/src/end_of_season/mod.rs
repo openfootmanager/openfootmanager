@@ -1768,6 +1768,26 @@ mod tests {
         assert!(is_season_complete(&game), "every fixture is played");
     }
 
+    /// Given a cup with no fixtures yet, entrants listed (a cup seeded for the coming season),
+    /// When the rollover regenerates the competitions,
+    /// Then it is drawn: an empty cup counts as finished, so it receives its edition.
+    #[test]
+    fn an_empty_cup_is_drawn_at_the_rollover() {
+        let mut game = calendar_game(at(2033, 7, 1));
+        let mut cup = crate::competition_test_support::cup(8);
+        cup.fixtures.clear();
+        cup.knockout_rounds.clear();
+        cup.standings.clear();
+        let season = cup.season;
+        game.competitions.push(cup);
+
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2033, 7, 1));
+
+        let drawn = &game.competitions[0];
+        assert!(!drawn.fixtures.is_empty(), "the empty cup was drawn");
+        assert!(drawn.season > season);
+    }
+
     #[test]
     fn preseason_rollover_retains_midseason_apertura() {
         retained_division_receives_no_friendlies("ar-d1-apertura", at(2035, 4, 18), at(2035, 2, 1));
