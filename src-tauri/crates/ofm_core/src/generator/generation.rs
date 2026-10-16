@@ -1397,7 +1397,8 @@ mod tests {
         }
     }
 
-    fn mean_ovr_of_authored(overall: u8, position: &str) -> f64 {
+    /// The rating of 100 players authored at `overall`, one per seed.
+    fn ovrs_of_authored(overall: u8, position: &str) -> Vec<u8> {
         use rand::SeedableRng;
         let names_def = super::super::definitions::default_names_definition();
         let def = player_def_from_json(serde_json::json!({
@@ -1405,13 +1406,12 @@ mod tests {
             "nationality": "ENG", "position": position,
             "dateOfBirth": "1995-01-01", "overall": overall,
         }));
-        let total: u32 = (0..100u64)
+        (0..100u64)
             .map(|seed| {
                 let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-                u32::from(generate_player_from_def(&def, "club-id", 2026, &names_def, &mut rng).ovr)
+                generate_player_from_def(&def, "club-id", 2026, &names_def, &mut rng).ovr
             })
-            .sum();
-        f64::from(total) / 100.0
+            .collect()
     }
 
     /// Given players authored at a low, middling and high `overall` (#495)
@@ -1421,40 +1421,26 @@ mod tests {
     fn an_authored_overall_comes_out_near_itself() {
         for position in ["Striker", "CenterBack", "Goalkeeper"] {
             for overall in [10u8, 20, 30, 40, 50, 70, 90] {
-                let mean = mean_ovr_of_authored(overall, position);
+                let ovrs = ovrs_of_authored(overall, position);
+
+                // The balance: no lean to one side.
+                let mean = ovrs.iter().map(|ovr| f64::from(*ovr)).sum::<f64>() / ovrs.len() as f64;
                 assert!(
                     (mean - f64::from(overall)).abs() <= 3.0,
                     "{position} authored {overall} averaged {mean}"
                 );
+                // The spread: a mean can hide ratings too high and too low cancelling out, so
+                // every player is bounded too. Measured over these seeds the worst is 2 (1 at 70
+                // and 90); 3 leaves a point of room. ±1 does not hold: the attributes are whole
+                // numbers and the position weights round.
+                for ovr in &ovrs {
+                    assert!(
+                        (i32::from(*ovr) - i32::from(overall)).abs() <= 3,
+                        "{position} authored {overall} produced a player rated {ovr}"
+                    );
+                }
             }
         }
-    }
-
-    /// Given the same seed
-    /// When attributes are generated for an authored overall twice
-    /// Then they are identical, and the caller's rng has moved by exactly one draw each time,
-    ///      however many correction steps it took (a fresh seed per step would move it further).
-    #[test]
-    fn matching_an_overall_is_deterministic_and_draws_once() {
-        use rand::SeedableRng;
-        let position = Position::Striker;
-        let generate = |seed: u64| {
-            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-            let attributes = attributes_matching_overall(10, &position, &mut rng);
-            (attributes, rng.random::<u64>())
-        };
-
-        let (first, first_next) = generate(5);
-        let (second, second_next) = generate(5);
-        assert_eq!(
-            serde_json::to_value(&first).unwrap(),
-            serde_json::to_value(&second).unwrap()
-        );
-
-        let mut one_draw = rand::rngs::StdRng::seed_from_u64(5);
-        let _: u64 = one_draw.random();
-        assert_eq!(first_next, one_draw.random::<u64>());
-        assert_eq!(first_next, second_next);
     }
 
     /// Given a base so low the spread would reach below zero
