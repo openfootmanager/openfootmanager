@@ -257,4 +257,29 @@ mod tests {
 
         assert_eq!(renew_finished_cups(&mut game, "2034-08-10"), 0);
     }
+
+    /// Given a finished cup whose next edition starts on 1 September, When the day ends on 4 August
+    /// (28 days before) and on 3 August (29 days before), Then it renews on the first and not the
+    /// second: the four-week lead time is exact.
+    #[test]
+    fn a_cup_renews_on_the_exact_day_its_four_week_lead_begins() {
+        let mut too_early = game_with(vec![september_cup()]);
+        assert_eq!(renew_finished_cups(&mut too_early, "2034-08-03"), 0);
+
+        let mut on_time = game_with(vec![september_cup()]);
+        assert_eq!(renew_finished_cups(&mut on_time, "2034-08-04"), 1);
+    }
+
+    /// Given a finished cup whose next edition is near, When the world's day is processed,
+    /// Then the cup has started its next edition: the hook is wired into the day.
+    #[test]
+    fn processing_a_day_renews_a_finished_cup_whose_next_edition_is_near() {
+        let mut game = game_with(vec![september_cup()]);
+        game.clock = GameClock::new(Utc.with_ymd_and_hms(2034, 8, 10, 12, 0, 0).unwrap());
+
+        crate::turn::process_day(&mut game);
+
+        assert!(game.competitions[0].season > 2033, "the cup was renewed");
+        assert_eq!(game.edition_archive.len(), 1);
+    }
 }
