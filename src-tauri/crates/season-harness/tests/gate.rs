@@ -40,24 +40,38 @@ fn a_generated_world_holds_every_invariant_across_consecutive_seasons() {
 ///      (`ofm_core::matchday`) instead of the batch,
 /// Then every invariant still holds — a fixture stranded `Scheduled` by the
 ///      live day (#608) would end the season never completing or fail
-///      `no-stranded-fixture` — and the run says the live path was really taken.
+///      `no-stranded-fixture` — the run says the live path was really taken, and the stats
+///      store was handed every engine match, the player's own included: a live path that
+///      dropped its capture would hand over one match fewer on each of those days.
 #[test]
 fn a_season_played_through_the_live_path_holds_every_invariant() {
     let mut game = WorldSpec::gate(1).build().expect("the world builds");
     let mut invariants = Invariants::new(&game);
+    let mut stats = StatsLog::default();
+    let mut played = PlayedMatches::default();
     let options = RunOptions {
         day_path: DayPath::UserMatchLive,
         ..RunOptions::seasons(1)
     };
 
-    let summary = run_seasons(&mut game, options, &mut invariants)
-        .unwrap_or_else(|error| panic!("the live path: {error}"));
+    let summary = run_seasons(
+        &mut game,
+        options,
+        &mut ((&mut invariants, &mut stats), &mut played),
+    )
+    .unwrap_or_else(|error| panic!("the live path: {error}"));
 
     assert!(
         summary.live_days > 20,
         "the player's club plays dozens of matches a season, so the live path \
          must have been taken on dozens of days; it was taken on {}",
         summary.live_days
+    );
+    assert!(
+        stats.captures() >= played.0,
+        "{} captures for {} engine matches: the live path is not handing over the player's own",
+        stats.captures(),
+        played.0
     );
     assert!(
         invariants.is_clean(),

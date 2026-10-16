@@ -581,6 +581,69 @@ mod tests {
         );
     }
 
+    fn team_record(team_id: &str, goals_for: u8) -> domain::stats::TeamMatchStatsRecord {
+        domain::stats::TeamMatchStatsRecord {
+            fixture_id: "fixture".to_string(),
+            season: 2033,
+            matchday: 1,
+            date: "2033-08-01".to_string(),
+            competition: domain::league::FixtureCompetition::League,
+            team_id: team_id.to_string(),
+            opponent_team_id: "away".to_string(),
+            home_team_id: "home".to_string(),
+            away_team_id: "away".to_string(),
+            goals_for,
+            goals_against: 0,
+            possession_pct: 50,
+            shots: 0,
+            shots_on_target: 0,
+            passes_completed: 0,
+            passes_attempted: 0,
+            tackles_won: 0,
+            interceptions: 0,
+            fouls_committed: 0,
+            yellow_cards: 0,
+            red_cards: 0,
+        }
+    }
+
+    fn logged_teams(teams: Vec<domain::stats::TeamMatchStatsRecord>) -> String {
+        let mut log = super::StatsLog::default();
+        log.on_stats_captured(&StatsState {
+            player_matches: vec![],
+            team_matches: teams,
+        });
+        log.fingerprint()
+    }
+
+    /// The team records are part of what the stats store is handed, as the players' are.
+    #[test]
+    fn the_stats_log_sees_a_team_record_and_the_order_of_them() {
+        assert_ne!(
+            logged_teams(vec![team_record("home", 1)]),
+            logged_teams(vec![team_record("home", 2)])
+        );
+        assert_ne!(
+            logged_teams(vec![team_record("home", 1), team_record("away", 0)]),
+            logged_teams(vec![team_record("away", 0), team_record("home", 1)])
+        );
+        assert_ne!(
+            logged_teams(vec![]),
+            logged_teams(vec![team_record("home", 1)])
+        );
+    }
+
+    /// Where one match's records end and the next's begin is part of the log: two matches that
+    /// handed over one record each are not one match that handed over two.
+    #[test]
+    fn the_stats_log_keeps_the_boundary_between_two_captures() {
+        let (a, b) = (player_record("a", 1), player_record("b", 0));
+        assert_ne!(
+            logged(&[vec![a.clone()], vec![b.clone()]]),
+            logged(&[vec![a, b]])
+        );
+    }
+
     fn a_message(subject: &str, body: &str, sender: &str) -> domain::message::InboxMessage {
         domain::message::InboxMessage::new(
             "any-id".to_string(),
