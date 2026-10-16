@@ -1483,6 +1483,10 @@
   "players": {
     "searchPlaceholder": "Rechercher par nom ou nationalité...",
     "allPos": "Toutes Pos",
+    "filterAgeMin": "Âge min.",
+    "filterAgeMax": "Âge max.",
+    "filterOvrMin": "Note min.",
+    "filterOvrMax": "Note max.",
     "allTeams": "Toutes les Équipes",
     "nPlayersFound": "{{count}} joueur(s) trouvé(s)",
     "noMatch": "Aucun joueur ne correspond à vos filtres.",

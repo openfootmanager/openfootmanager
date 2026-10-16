@@ -4,9 +4,26 @@ export type PlayerSortKey = "name" | "position" | "age" | "ovr" | "value" | "tea
 
 export type PlayerStatusFilter = "all" | "transfer" | "loan";
 
+/** One position test: an exact position, or every position in a group. */
+export type PositionFilter = { group: string } | { exact: string };
+
+/** Which players a list is about, before any other filter narrows it. */
+export type PlayerScope = "all" | "market" | "scoutable";
+
 export interface PlayersPageQuery {
   search: string | null;
   position: string | null;
+  /** Exact positions and group shorthands; a player matching any one passes. */
+  positions: PositionFilter[];
+  age_min: number | null;
+  age_max: number | null;
+  ovr_min: number | null;
+  ovr_max: number | null;
+  value_min: number | null;
+  value_max: number | null;
+  /** Only players the user's club can pay for out of cash and transfer budget. */
+  in_budget: boolean;
+  scope: PlayerScope;
   team_id: string | null;
   status: PlayerStatusFilter;
   sort_key: PlayerSortKey;
@@ -24,6 +41,10 @@ export interface PlayerSummary {
   full_name: string;
   match_name: string;
   date_of_birth: string;
+  /** Whole years on the game's current date. */
+  age: number;
+  /** Weekly wage. */
+  wage: number;
   nationality: string;
   position: string;
   natural_position: string;

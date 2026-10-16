@@ -1483,6 +1483,10 @@
   "players": {
     "searchPlaceholder": "Поиск по имени или гражданству...",
     "allPos": "Все поз.",
+    "filterAgeMin": "Мин. возраст",
+    "filterAgeMax": "Макс. возраст",
+    "filterOvrMin": "Мин. рейтинг",
+    "filterOvrMax": "Макс. рейтинг",
     "allTeams": "Все команды",
     "nPlayersFound": "{{count}} игроков найдено",
     "noMatch": "Нет игроков, подходящих под фильтры.",
