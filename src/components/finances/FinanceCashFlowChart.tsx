@@ -11,20 +11,13 @@ import {
 } from "recharts";
 import { useChartTheme } from "../ui/charts/chartTheme";
 import { ChartContainer } from "../ui/charts/ChartContainer";
+import { formatVal } from "../../lib/helpers";
 import type { FinancialTransactionData } from "../../store/types";
 
 interface FinanceCashFlowChartProps {
   ledger: FinancialTransactionData[];
   incomeLabel: string;
   expensesLabel: string;
-}
-
-function formatShortAmount(value: number): string {
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(0)}K`;
-  return `${sign}${abs}`;
 }
 
 interface WeeklyBucket {
@@ -101,11 +94,11 @@ export function FinanceCashFlowChart({
             tickLine={false}
           />
           <YAxis
-            tickFormatter={formatShortAmount}
+            tickFormatter={formatVal}
             tick={{ fill: theme.axisColor, fontSize: 9 }}
             axisLine={false}
             tickLine={false}
-            width={36}
+            width={52}
           />
           <Tooltip
             contentStyle={{
@@ -116,7 +109,7 @@ export function FinanceCashFlowChart({
               color: theme.tooltipText,
             }}
             formatter={(value, name) => [
-              typeof value === "number" ? formatShortAmount(value) : String(value ?? ""),
+              typeof value === "number" ? formatVal(value) : String(value ?? ""),
               String(name ?? ""),
             ]}
           />
