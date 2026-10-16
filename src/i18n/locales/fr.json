@@ -1157,6 +1157,15 @@
   },
   "inbox": {
     "title": "Boîte de Réception",
+    "archive": {
+      "heading": "Anciens messages",
+      "load": "Charger les anciens messages",
+      "loadMore": "Charger plus d'anciens messages",
+      "loading": "Chargement des anciens messages…",
+      "empty": "Aucun ancien message.",
+      "end": "Il n'y a plus d'anciens messages.",
+      "error": "Impossible de charger les anciens messages."
+    },
     "nMessages": "{{count}} message(s)",
     "noMessages": "Aucun message",
     "noMessagesInCategory": "Aucun message dans cette catégorie",

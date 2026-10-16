@@ -1157,6 +1157,15 @@
   },
   "inbox": {
     "title": "Gelen Kutusu",
+    "archive": {
+      "heading": "Eski mesajlar",
+      "load": "Eski mesajları yükle",
+      "loadMore": "Daha fazla eski mesaj yükle",
+      "loading": "Eski mesajlar yükleniyor…",
+      "empty": "Eski mesaj yok.",
+      "end": "Başka eski mesaj yok.",
+      "error": "Eski mesajlar yüklenemedi."
+    },
     "nMessages": "{{count}} mesaj",
     "noMessages": "Mesaj yok",
     "noMessagesInCategory": "Bu kategoride mesaj yok",

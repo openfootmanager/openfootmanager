@@ -1157,6 +1157,15 @@
   },
   "inbox": {
     "title": "Bandeja de Entrada",
+    "archive": {
+      "heading": "Mensajes antiguos",
+      "load": "Cargar mensajes antiguos",
+      "loadMore": "Cargar más mensajes antiguos",
+      "loading": "Cargando mensajes antiguos…",
+      "empty": "No hay mensajes antiguos.",
+      "end": "No hay más mensajes antiguos.",
+      "error": "No se pudieron cargar los mensajes antiguos."
+    },
     "nMessages": "{{count}} mensaje(s)",
     "noMessages": "Sin mensajes",
     "noMessagesInCategory": "Sin mensajes en esta categoría",

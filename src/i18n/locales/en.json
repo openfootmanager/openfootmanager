@@ -1157,6 +1157,15 @@
   },
   "inbox": {
     "title": "Inbox",
+    "archive": {
+      "heading": "Older messages",
+      "load": "Load older messages",
+      "loadMore": "Load more older messages",
+      "loading": "Loading older messages…",
+      "empty": "No older messages.",
+      "end": "That is all the older messages.",
+      "error": "Could not load older messages."
+    },
     "nMessages": "{{count}} message(s)",
     "noMessages": "No messages",
     "noMessagesInCategory": "No messages in this category",

@@ -1157,6 +1157,15 @@
   },
   "inbox": {
     "title": "Posteingang",
+    "archive": {
+      "heading": "Ältere Nachrichten",
+      "load": "Ältere Nachrichten laden",
+      "loadMore": "Weitere ältere Nachrichten laden",
+      "loading": "Ältere Nachrichten werden geladen…",
+      "empty": "Keine älteren Nachrichten.",
+      "end": "Keine weiteren älteren Nachrichten.",
+      "error": "Ältere Nachrichten konnten nicht geladen werden."
+    },
     "nMessages": "{{count}} Nachricht(en)",
     "noMessages": "Keine Nachrichten",
     "noMessagesInCategory": "Keine Nachrichten in dieser Kategorie",

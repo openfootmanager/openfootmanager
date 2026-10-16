@@ -5,6 +5,7 @@ import {
   clearOldMessages,
   deleteMessage,
   deleteMessages,
+  fetchArchivedMessages,
   markAllMessagesRead,
   markMessageRead,
   resolveMessageAction,
@@ -76,6 +77,28 @@ describe("inboxService", () => {
     await expect(deleteMessages(["m1", "m2"])).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
       messageIds: ["m1", "m2"],
+    });
+  });
+
+  it("asks for the first page of archived mail with no cursor", async () => {
+    const response = { items: [], next_before: null };
+    mockedInvoke.mockResolvedValueOnce(response);
+
+    await expect(fetchArchivedMessages(null)).resolves.toBe(response);
+    expect(mockedInvoke).toHaveBeenCalledWith("get_archived_messages", {
+      before: null,
+      limit: 50,
+    });
+  });
+
+  it("continues archived mail from the cursor the last page returned", async () => {
+    mockedInvoke.mockResolvedValueOnce({ items: [], next_before: null });
+
+    await fetchArchivedMessages({ date: "2030-01-01", id: "m1" }, 10);
+
+    expect(mockedInvoke).toHaveBeenCalledWith("get_archived_messages", {
+      before: { date: "2030-01-01", id: "m1" },
+      limit: 10,
     });
   });
 });
