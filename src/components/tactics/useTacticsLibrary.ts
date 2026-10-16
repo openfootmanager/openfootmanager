@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { GameStateData } from "../../store/gameStore";
@@ -79,13 +79,26 @@ export function useTacticsLibrary({
     };
   }, [blueprintKey, hasClub]);
 
+  // Everything that talks to the save about the library runs one step at a time, in the order it
+  // was asked: the first load, the import of an old browser library, and every save. Replies from
+  // overlapping calls are not promised to arrive in order, and a load that began before a save must
+  // not put its older list over the save's newer one. Each step's reply is the whole list, so the
+  // last step to finish is the library as the save has it.
+  const savesInOrder = useRef<Promise<void>>(Promise.resolve());
+
   useEffect(() => {
     if (!managerId || !careerStartDate) return;
 
     let cancelled = false;
-    listCustomTactics()
-      .then((saved) => importLegacyTactics(managerId, careerStartDate, saved, saveCustomTactic))
-      .then((tactics) => {
+    savesInOrder.current = savesInOrder.current
+      .then(async () => {
+        const saved = await listCustomTactics();
+        const tactics = await importLegacyTactics(
+          managerId,
+          careerStartDate,
+          saved,
+          saveCustomTactic,
+        );
         if (!cancelled) setCustomTactics(toLibraryEntries(tactics));
       })
       .catch(() => {});
@@ -97,13 +110,10 @@ export function useTacticsLibrary({
   // The screen answers at once; the save's own list then replaces it, or, if the save refused the
   // tactic (a shape the game cannot lay out), puts the library back as the save has it.
   function persistTactic(tactic: TacticsLibraryEntry): void {
-    saveCustomTactic(toCustomTactic(tactic))
+    savesInOrder.current = savesInOrder.current
+      .then(() => saveCustomTactic(toCustomTactic(tactic)).catch(() => listCustomTactics()))
       .then((saved) => setCustomTactics(toLibraryEntries(saved)))
-      .catch(() =>
-        listCustomTactics()
-          .then((saved) => setCustomTactics(toLibraryEntries(saved)))
-          .catch(() => {}),
-      );
+      .catch(() => {});
   }
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);

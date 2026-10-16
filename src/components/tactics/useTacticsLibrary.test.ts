@@ -1,4 +1,4 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -64,5 +64,84 @@ describe("useTacticsLibrary blueprint status", () => {
     renderLibrary(clubless);
 
     expect(mockedInvoke).not.toHaveBeenCalledWith("get_tactics_blueprint_status");
+  });
+});
+
+/** A promise settled by hand, so a test decides which reply arrives first. */
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+const careerGame = {
+  clock: { current_date: "2026-08-01", start_date: "2026-08-01" },
+  teams: [],
+  players: [],
+  competitions: [],
+  manager: { id: "mgr1", team_id: null },
+} as unknown as GameStateData;
+
+const customIds = (result: { current: ReturnType<typeof useTacticsLibrary> }) =>
+  result.current.tacticLibrary.filter((entry) => entry.type === "custom").map((entry) => entry.id);
+
+describe("useTacticsLibrary custom tactics and the save", () => {
+  /**
+   * Given the library is still loading from the save (its list has not come back)
+   * When the player makes a tactic, and then the stale list arrives
+   * Then the new tactic is still in the library: nothing made meanwhile is overwritten.
+   */
+  it("keeps a tactic made while the library is still loading", async () => {
+    const list = deferred<unknown[]>();
+    const saved: Array<{ id: string }> = [];
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "list_custom_tactics") return list.promise;
+      if (command === "save_custom_tactic") {
+        saved.push((args as { tactic: { id: string } }).tactic);
+        return structuredClone(saved);
+      }
+      return { modified: false };
+    });
+    const { result } = renderLibrary(careerGame);
+
+    act(() => result.current.handleCreateCustomTactic());
+    await act(async () => list.resolve([]));
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    await waitFor(() => expect(customIds(result)).toEqual([saved[0].id]));
+  });
+
+  /**
+   * Given two tactics saved one right after the other, the first save's reply arriving late
+   * When both have settled
+   * Then both are in the library: an older reply never replaces a newer one.
+   */
+  it("applies the replies of overlapping saves in the order they were made", async () => {
+    const firstReply = deferred<unknown[]>();
+    const saved: Array<{ id: string }> = [];
+    let saves = 0;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
+      if (command === "list_custom_tactics") return [];
+      if (command === "save_custom_tactic") {
+        saved.push((args as { tactic: { id: string } }).tactic);
+        saves += 1;
+        const snapshot = structuredClone(saved);
+        return saves === 1 ? firstReply.promise.then(() => snapshot) : snapshot;
+      }
+      return { modified: false };
+    });
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledWith("list_custom_tactics"));
+
+    act(() => result.current.handleCreateCustomTactic());
+    act(() => result.current.handleCreateCustomTactic());
+    await act(async () => firstReply.resolve([]));
+
+    await waitFor(() => expect(saved).toHaveLength(2));
+    await waitFor(() => expect(customIds(result).sort()).toEqual(saved.map((t) => t.id).sort()));
   });
 });
