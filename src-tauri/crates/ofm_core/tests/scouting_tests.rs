@@ -336,6 +336,28 @@ fn report_has_scout_report_data() {
     assert_eq!(report.team_name.as_deref(), Some("Rival FC"));
 }
 
+/// Given a scouted player whose position is the coarse Defender group but who is a left back
+/// When the scout's report is built
+/// Then it names the left back: the card shows the natural position, not the group.
+#[test]
+fn the_report_carries_the_natural_position_not_the_coarse_group() {
+    let mut game = make_game();
+    let target = game.players.iter_mut().find(|p| p.id == "p2").unwrap();
+    target.position = Position::Defender;
+    target.natural_position = Position::LeftBack;
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+
+    let report = game
+        .messages
+        .iter()
+        .find(|m| m.category == MessageCategory::ScoutReport)
+        .and_then(|m| m.context.scout_report.as_ref())
+        .expect("a scout report");
+
+    assert_eq!(report.position, "LeftBack");
+}
+
 #[test]
 fn process_scouting_completes_youth_recruitment_report() {
     let mut game = make_game();
