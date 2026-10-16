@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { useChartTheme } from "../ui/charts/chartTheme";
 import { ChartContainer } from "../ui/charts/ChartContainer";
-import { formatVal } from "../../lib/helpers";
+import { formatPreciseCompact, formatVal } from "../../lib/helpers";
 import type { FinancialTransactionData } from "../../store/types";
 
 interface FinanceCashFlowChartProps {
@@ -98,7 +98,7 @@ export function FinanceCashFlowChart({
             tick={{ fill: theme.axisColor, fontSize: 9 }}
             axisLine={false}
             tickLine={false}
-            width={52}
+            width="auto"
           />
           <Tooltip
             contentStyle={{
@@ -109,7 +109,7 @@ export function FinanceCashFlowChart({
               color: theme.tooltipText,
             }}
             formatter={(value, name) => [
-              typeof value === "number" ? formatVal(value) : String(value ?? ""),
+              typeof value === "number" ? formatPreciseCompact(value) : String(value ?? ""),
               String(name ?? ""),
             ]}
           />
