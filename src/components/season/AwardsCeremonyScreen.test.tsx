@@ -122,6 +122,7 @@ function createManager(overrides: Partial<ManagerData> = {}): ManagerData {
     id: "manager-1",
     first_name: "Jane",
     last_name: "Doe",
+    display_name: "Jane Doe",
     date_of_birth: "1980-01-01",
     nationality: "ENG",
     football_nation: "ENG",

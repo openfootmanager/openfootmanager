@@ -180,7 +180,11 @@ export function PitchToken({
   useEffect(() => {
     if (!showTooltip) return;
     function dismiss(event: KeyboardEvent) {
-      if (event.key === "Escape") setDismissed(true);
+      if (event.key !== "Escape") return;
+      // Claimed, so a dialog around the pitch does not also close on the Escape that only meant to
+      // dismiss this summary.
+      event.preventDefault();
+      setDismissed(true);
     }
     // Capture phase: role controls inside the token stop keydown from bubbling.
     window.addEventListener("keydown", dismiss, true);

@@ -4,8 +4,8 @@
 #
 # Usage: mutation-outcome.sh <cargo-mutants exit status> <path to outcomes.json>
 #
-# Exits 0 when the run did its job and left a report. Otherwise exits with cargo-mutants' own
-# status, or 1 when the status was fine but the report is missing.
+# Exits 0 when the run did its job and left a report of at least one mutant. Otherwise exits with
+# cargo-mutants' own status, or 1 when the status was fine but the report is missing or empty.
 #
 # Surviving mutants are the *output* of the weekly job, not a failure — a red tick on a job
 # nobody can act on today is how a scheduled job becomes invisible. So exactly the statuses that
@@ -48,5 +48,17 @@ esac
 # A run that produced no report produced nothing, whatever it exited with.
 if [ ! -s "$report" ]; then
     echo "cargo-mutants exited $status but wrote no report at '$report'." >&2
+    exit 1
+fi
+
+# A report of nothing is not a pass. An `--in-diff` whose paths match nothing, or a filter that
+# excludes everything, tests zero mutants and exits 0; read alone, that is a green run.
+total="$(grep -oE '"total_mutants": *[0-9]+' "$report" | grep -oE '[0-9]+$')"
+if [ -z "$total" ]; then
+    echo "The report at '$report' does not say how many mutants were tested." >&2
+    exit 1
+fi
+if [ "$total" -eq 0 ]; then
+    echo "cargo-mutants tested no mutants: its filter or --in-diff matched nothing." >&2
     exit 1
 fi

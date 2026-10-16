@@ -303,6 +303,73 @@ fn facility_upgrade_previews_carry_the_block_reason_and_affordability() {
     }));
 }
 
+fn snapshot_at(overall_status: finances::FinanceHealthLevel) -> finances::TeamFinanceSnapshot {
+    finances::TeamFinanceSnapshot {
+        annual_wage_bill: 520_000,
+        weekly_wage_spend: 10_000,
+        weekly_wage_budget: 20_000,
+        weekly_recurring_income: 15_000,
+        weekly_sponsor_income: 5_000,
+        projected_weekly_net: 5_000,
+        cash_runway_weeks: None,
+        wage_budget_usage_percent: 50,
+        currently_in_debt: false,
+        currently_over_budget: false,
+        wage_budget_status: finances::FinanceHealthLevel::Stable,
+        runway_status: overall_status,
+        overall_status,
+        marketing_campaign_cooldown_days_remaining: 0,
+    }
+}
+
+/// Given a club whose overall finances are at warning or critical level, within its wage budget
+/// When its facility upgrades are judged
+/// Then they are blocked for financial distress
+#[test]
+fn a_club_in_warning_or_critical_distress_cannot_upgrade_facilities() {
+    for status in [
+        finances::FinanceHealthLevel::Warning,
+        finances::FinanceHealthLevel::Critical,
+    ] {
+        assert_eq!(
+            finances::facility_upgrade_block_reason(&snapshot_at(status)),
+            Some("be.error.finance.facilityUpgradeCritical"),
+            "{status:?}"
+        );
+    }
+}
+
+/// Given a club whose overall finances are stable or only on watch, within its wage budget
+/// When its facility upgrades are judged
+/// Then nothing blocks them
+#[test]
+fn a_stable_or_watched_club_may_upgrade_facilities() {
+    for status in [
+        finances::FinanceHealthLevel::Stable,
+        finances::FinanceHealthLevel::Watch,
+    ] {
+        assert_eq!(
+            finances::facility_upgrade_block_reason(&snapshot_at(status)),
+            None,
+            "{status:?}"
+        );
+    }
+}
+
+/// Given a club that is over its wage budget and also in critical distress
+/// When its facility upgrades are judged
+/// Then the reason given is the wage budget
+#[test]
+fn being_over_the_wage_budget_outranks_distress_as_the_reason() {
+    let mut snapshot = snapshot_at(finances::FinanceHealthLevel::Critical);
+    snapshot.currently_over_budget = true;
+
+    assert_eq!(
+        finances::facility_upgrade_block_reason(&snapshot),
+        Some("be.error.finance.facilityUpgradeOverBudget")
+    );
+}
+
 #[test]
 fn request_board_support_can_recover_runway_without_random_events() {
     let mut game = make_monday_game();

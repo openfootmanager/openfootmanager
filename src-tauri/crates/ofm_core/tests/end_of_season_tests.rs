@@ -829,10 +829,14 @@ fn relegated_user_receives_a_relegation_message() {
 
     process_end_of_season(&mut game);
 
+    // Named by the edition the user's new division was renewed to, not by last season plus one.
+    let renewed_season = ofm_core::end_of_season::user_division(&game, "team2")
+        .expect("the user still has a division")
+        .season;
     let msg = game
         .messages
         .iter()
-        .find(|m| m.id == "relegation_2")
+        .find(|m| m.id == format!("relegation_{renewed_season}"))
         .expect("relegated user must be told");
     assert_eq!(
         msg.subject_key.as_deref(),
@@ -844,7 +848,7 @@ fn relegated_user_receives_a_relegation_message() {
         Some(&"ENG Second Division".to_string())
     );
     assert!(
-        !game.messages.iter().any(|m| m.id == "promotion_2"),
+        !game.messages.iter().any(|m| m.id.starts_with("promotion_")),
         "a relegated user must not also be congratulated"
     );
 }
@@ -855,10 +859,13 @@ fn promoted_user_receives_a_promotion_message() {
 
     process_end_of_season(&mut game);
 
+    let renewed_season = ofm_core::end_of_season::user_division(&game, "team3")
+        .expect("the user still has a division")
+        .season;
     let msg = game
         .messages
         .iter()
-        .find(|m| m.id == "promotion_2")
+        .find(|m| m.id == format!("promotion_{renewed_season}"))
         .expect("promoted user must be told");
     assert_eq!(msg.subject_key.as_deref(), Some("be.msg.promotion.subject"));
     assert_eq!(
@@ -3539,6 +3546,60 @@ fn retiree_conversion_is_idempotent() {
         scout_count, 1,
         "duplicate scout must not be created on second call"
     );
+}
+
+/// Given a retired player whose manager conversion has since retired into the archive
+/// When the season ends again
+/// Then the conversion does not create the manager a second time.
+#[test]
+fn an_archived_retiree_manager_is_not_converted_again() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("archived1"));
+    let mut archived = domain::manager::Manager::new(
+        "mgr_retired_archived1".to_string(),
+        "Old".to_string(),
+        "Boss".to_string(),
+        "1950-01-01".to_string(),
+        "England".to_string(),
+    );
+    archived.reputation = 500;
+    game.retired_managers.push(archived);
+
+    process_end_of_season(&mut game);
+
+    let records = game
+        .retired_managers
+        .iter()
+        .filter(|m| m.id == "mgr_retired_archived1")
+        .count();
+    assert_eq!(records, 1, "the retiree was converted a second time");
+    assert!(
+        game.managers
+            .iter()
+            .all(|m| m.id != "mgr_retired_archived1")
+    );
+}
+
+/// Given an unemployed manager past retirement age
+/// When the season ends
+/// Then he leaves the active pool for the archive, and the market is topped back up.
+#[test]
+fn an_unemployed_manager_past_retirement_age_leaves_the_pool_at_season_end() {
+    let mut game = make_completed_season_game();
+    let mut veteran = domain::manager::Manager::new(
+        "veteran".to_string(),
+        "Old".to_string(),
+        "Boss".to_string(),
+        "1900-01-01".to_string(),
+        "England".to_string(),
+    );
+    veteran.reputation = 900;
+    game.managers.push(veteran);
+
+    process_end_of_season(&mut game);
+
+    assert!(game.managers.iter().all(|m| m.id != "veteran"));
+    assert!(game.retired_managers.iter().any(|m| m.id == "veteran"));
 }
 
 #[test]

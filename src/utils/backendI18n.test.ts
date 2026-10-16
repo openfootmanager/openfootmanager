@@ -313,7 +313,7 @@ describe("resolveAction", () => {
         }),
       );
 
-      expect(result.actions[0].label).toBe("Akzeptiere €1,8M");
+      expect(result.actions[0].label).toBe("Akzeptiere 1,8\u00a0Mio.\u00a0€");
     } finally {
       useSettingsStore.setState({ settings: previousSettings });
       await i18n.changeLanguage(previousLanguage);
@@ -442,7 +442,7 @@ describe("resolveMessage", () => {
         }),
       );
       expect(result.body).toContain("2. Juli 2026");
-      expect(result.body).toContain("€800.001");
+      expect(result.body).toContain("800.001\u00a0€");
       expect(result.body).not.toContain("2026-07-02");
     } finally {
       await i18n.changeLanguage(previousLanguage);

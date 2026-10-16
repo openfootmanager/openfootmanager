@@ -18,7 +18,6 @@ interface PlayerDealWorkspaceProps {
   player: PlayerData;
   teams: TeamData[];
   myTeam: TeamData | null;
-  weeklySuffix: string;
   transferWindowBlocksRegistration: boolean;
   transferWindowSummary: string;
   loanNoticeDetail: string | null;
@@ -38,7 +37,6 @@ export default function PlayerDealWorkspace({
   player,
   teams,
   myTeam,
-  weeklySuffix,
   transferWindowBlocksRegistration,
   transferWindowSummary,
   loanNoticeDetail,
@@ -146,12 +144,7 @@ export default function PlayerDealWorkspace({
               renderDealPanel(selectedKind)
             )}
           </section>
-          <DealWorkspaceFacts
-            player={player}
-            myTeam={myTeam}
-            offeredWage={offeredWage}
-            weeklySuffix={weeklySuffix}
-          />
+          <DealWorkspaceFacts player={player} myTeam={myTeam} offeredWage={offeredWage} />
         </div>
       </div>
     </div>

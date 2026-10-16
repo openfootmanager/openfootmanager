@@ -37,6 +37,7 @@ function createGameState(): GameStateData {
       start_date: "2026-07-01T12:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",
@@ -277,13 +278,16 @@ vi.mock("../components/dashboard/DashboardSidebar", () => ({
     onNavClick,
     activeTab,
     onExitClick,
+    competitionName,
   }: {
     onExitClick: () => void;
     onNavClick: (tab: string) => void;
     activeTab: string;
+    competitionName?: string | null;
   }) => (
     <div>
       <span>Sidebar {activeTab}</span>
+      {competitionName ? <span>{competitionName}</span> : null}
       <button type="button" onClick={onExitClick}>
         exit-menu
       </button>
@@ -544,6 +548,45 @@ describe("Dashboard", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("disk unavailable");
     expect(destroyMock).not.toHaveBeenCalled();
     expect(markCleanMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given the backend names the user's league
+   * When the dashboard loads
+   * Then the competition name is in the sidebar, whatever tab is open.
+   */
+  it("shows the club's competition in the sidebar", async () => {
+    const original = invokeMock.getMockImplementation();
+    invokeMock.mockImplementation((command: string, ...args: unknown[]) => {
+      if (command === "get_club_league_standing") {
+        return Promise.resolve({
+          competition_id: "league-1",
+          competition_name: "Backend Name",
+          league_pos: 1,
+          standing: {
+            played: 0,
+            won: 0,
+            drawn: 0,
+            lost: 0,
+            goals_for: 0,
+            goals_against: 0,
+            points: 0,
+          },
+        });
+      }
+      return original?.(command, ...args);
+    });
+
+    gameState.competitions = [
+      { id: "cup-1", name: "Other Cup", season: 2025, fixtures: [], standings: [] },
+      { id: "league-1", name: "Premier Test League", season: 2025, fixtures: [], standings: [] },
+    ] as unknown as typeof gameState.competitions;
+
+    render(<Dashboard />);
+
+    expect(await screen.findByText("Premier Test League")).toBeInTheDocument();
+    expect(screen.queryByText("Other Cup")).not.toBeInTheDocument();
+    expect(invokeMock).toHaveBeenCalledWith("get_club_league_standing", { teamId: "team-1" });
   });
 
   it("uses the backend cash verdict instead of a false local crisis", async () => {

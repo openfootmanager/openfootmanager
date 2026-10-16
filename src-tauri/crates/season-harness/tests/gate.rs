@@ -8,41 +8,15 @@
 
 use season_harness::driver::{DayPath, HarnessError, RunOptions, run_seasons};
 use season_harness::fingerprint::{fingerprint, first_difference};
-use season_harness::invariants::{
-    CLUB_RESTS_BETWEEN_MATCHES, Invariants, MIN_DAYS_BETWEEN_MATCHES,
-};
-use season_harness::known_bug::expect_bug;
+use season_harness::invariants::Invariants;
 use season_harness::worlds::WorldSpec;
 
 const SEASONS: u32 = 2;
 const SEEDS: &[u64] = &[1];
 
-/// The GitHub issue for clubs booked less than the minimum rest apart.
-const CLASHING_CALENDAR_ISSUE: u32 = 553;
-
-/// Every rule but one must hold. The one is carried as the known bug it is: the gate passes while
-/// clubs are still booked inside the minimum rest, fails with "remove the guard" the day they
-/// are not, and fails on any other broken rule. Calendar slice S4a removes the guard.
-///
-/// The guard is per rule, not per bug: a new club-rest clash of another shape would also pass as
-/// #553 until S4a removes the guard.
-fn assert_holds_every_invariant_but_the_known_calendar_bug(invariants: &Invariants, run: &str) {
-    let others = invariants.report_except(CLUB_RESTS_BETWEEN_MATCHES);
-    assert!(others.is_empty(), "{run} broke an invariant:\n{others}");
-
-    let clashes = invariants.report_of(CLUB_RESTS_BETWEEN_MATCHES);
-    expect_bug(CLASHING_CALENDAR_ISSUE, "days apart", || {
-        assert!(
-            clashes.is_empty(),
-            "{run}: clubs play inside the {MIN_DAYS_BETWEEN_MATCHES}-day rest:\n{clashes}"
-        );
-    });
-}
-
 /// Given a generated world with the player in charge of a club,
 /// When it is played through consecutive seasons the way the game plays a day,
-/// Then every invariant holds at every day and at every rollover, bar the club-rest rule
-///      that #553 breaks (see `assert_holds_every_invariant_but_the_known_calendar_bug`).
+/// Then every invariant holds at every day and at every rollover, the club-rest rule included.
 #[test]
 fn a_generated_world_holds_every_invariant_across_consecutive_seasons() {
     for &seed in SEEDS {
@@ -52,9 +26,10 @@ fn a_generated_world_holds_every_invariant_across_consecutive_seasons() {
         run_seasons(&mut game, RunOptions::seasons(SEASONS), &mut invariants)
             .unwrap_or_else(|error| panic!("seed {seed}: {error}"));
 
-        assert_holds_every_invariant_but_the_known_calendar_bug(
-            &invariants,
-            &format!("seed {seed}"),
+        assert!(
+            invariants.is_clean(),
+            "seed {seed} broke an invariant:\n{}",
+            invariants.report()
         );
     }
 }
@@ -83,7 +58,11 @@ fn a_season_played_through_the_live_path_holds_every_invariant() {
          must have been taken on dozens of days; it was taken on {}",
         summary.live_days
     );
-    assert_holds_every_invariant_but_the_known_calendar_bug(&invariants, "the live path");
+    assert!(
+        invariants.is_clean(),
+        "the live path broke an invariant:\n{}",
+        invariants.report()
+    );
 }
 
 /// Given a generated world built for a clock in 2033,

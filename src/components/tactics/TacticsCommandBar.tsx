@@ -5,6 +5,7 @@ import {
   Flag,
   Plus,
   RefreshCw,
+  RotateCcw,
   Save,
   Search,
   Shield,
@@ -33,6 +34,9 @@ interface TacticsCommandBarProps {
   activePlayStyle: string;
   formation: string;
   isDirty: boolean;
+  /** Whether pressing Reset would change anything; the library decides, the bar renders. */
+  canReset: boolean;
+  onReset: () => void;
   onCreateNew: () => void;
   onDuplicate: () => void;
   onFormationChange: (formation: string) => void;
@@ -62,6 +66,8 @@ export default function TacticsCommandBar({
   activePlayStyle,
   formation,
   isDirty,
+  canReset,
+  onReset,
   onCreateNew,
   onDuplicate,
   onFormationChange,
@@ -171,6 +177,16 @@ export default function TacticsCommandBar({
               </Button>
               <Button type="button" variant="ghost" size="sm" icon={<Copy />} onClick={onDuplicate}>
                 {t("tactics.duplicateTactic")}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                icon={<RotateCcw />}
+                onClick={onReset}
+                disabled={!canReset}
+              >
+                {t("tactics.resetTactic")}
               </Button>
               <Button
                 type="button"

@@ -100,7 +100,7 @@ export default function ScoutingYouthRecruitmentCard({
               <option value="">{t("scouting.selectScout")}</option>
               {availableScouts.map((scout) => (
                 <option key={scout.id} value={scout.id}>
-                  {scout.first_name} {scout.last_name}
+                  {scout.display_name}
                 </option>
               ))}
             </Select>
@@ -198,7 +198,7 @@ export default function ScoutingYouthRecruitmentCard({
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                         {t("scouting.scoutLabel", {
-                          name: `${scout.first_name} ${scout.last_name}`,
+                          name: scout.display_name,
                         })}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -254,7 +254,7 @@ export default function ScoutingYouthRecruitmentCard({
                         ) : (
                           reassignChoices.map((candidate) => (
                             <option key={candidate.id} value={candidate.id}>
-                              {candidate.first_name} {candidate.last_name}
+                              {candidate.display_name}
                             </option>
                           ))
                         )}

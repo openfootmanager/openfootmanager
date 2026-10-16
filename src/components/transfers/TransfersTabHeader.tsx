@@ -1,6 +1,6 @@
 import { Card, Badge } from "../ui";
 import { TrendingUp } from "lucide-react";
-import { formatVal, formatWeeklyAmount } from "../../lib/helpers";
+import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import type { TransfersTabController } from "./useTransfersTabController";
 type TransfersBudgetHeaderProps = {
   state: Pick<
@@ -10,8 +10,7 @@ type TransfersBudgetHeaderProps = {
     | "transferWindowVariant"
     | "transferWindow"
     | "transferWindowSummary"
-    | "annualWageBudget"
-    | "weeklySuffix"
+    | "weeklyWageBudget"
     | "myListedPlayers"
   >;
 };
@@ -29,8 +28,7 @@ export function TransfersBudgetHeader({ state }: TransfersBudgetHeaderProps) {
     transferWindowVariant,
     transferWindow,
     transferWindowSummary,
-    annualWageBudget,
-    weeklySuffix,
+    weeklyWageBudget,
     myListedPlayers,
   } = state;
   return (
@@ -69,7 +67,7 @@ export function TransfersBudgetHeader({ state }: TransfersBudgetHeaderProps) {
                 {t("finances.wageBudget")}
               </p>
               <p className="font-heading font-bold text-lg text-white">
-                {formatWeeklyAmount(formatVal(annualWageBudget), weeklySuffix)}
+                {formatWeeklyWage(weeklyWageBudget, "compact")}
               </p>
             </div>
             <div className="bg-white/5 rounded-xl px-4 py-2 text-center">

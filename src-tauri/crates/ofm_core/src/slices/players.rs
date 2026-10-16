@@ -1,8 +1,14 @@
 use crate::game::Game;
+use crate::transfers::{
+    can_afford_fee, has_pending_transfer_registration, player_has_active_or_pending_loan,
+};
+use chrono::NaiveDate;
+use domain::age::age_on_or_unknown;
 use domain::player::{Player, Position};
+use domain::team::Team;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -23,10 +29,54 @@ pub enum PlayerStatusFilter {
     Loan,
 }
 
+/// Which players a list is about, before any other filter narrows it.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PlayerScope {
+    /// Everyone in the world.
+    #[default]
+    All,
+    /// Players the user's club could still approach: not on loan, not already agreed to move, and
+    /// not in the user's own club.
+    Market,
+    /// Players a scout can still be sent to watch: not in the user's own club and not already
+    /// being scouted.
+    Scoutable,
+}
+
+/// One position test: an exact position, or every position in a group (a defender of any kind).
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum PositionFilter {
+    Group(Position),
+    Exact(Position),
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct PlayersPageQuery {
     pub search: Option<String>,
     pub position: Option<Position>,
+    /// Exact positions and group shorthands; a player matching any of them passes. Empty means no
+    /// position filter beyond `position`.
+    #[serde(default)]
+    pub positions: Vec<PositionFilter>,
+    #[serde(default)]
+    pub age_min: Option<i32>,
+    #[serde(default)]
+    pub age_max: Option<i32>,
+    #[serde(default)]
+    pub ovr_min: Option<u8>,
+    #[serde(default)]
+    pub ovr_max: Option<u8>,
+    #[serde(default)]
+    pub value_min: Option<u64>,
+    #[serde(default)]
+    pub value_max: Option<u64>,
+    /// Only players the user's club can pay for out of cash and transfer budget.
+    #[serde(default)]
+    pub in_budget: bool,
+    #[serde(default)]
+    pub scope: PlayerScope,
     pub team_id: Option<String>,
     pub status: PlayerStatusFilter,
     pub sort_key: PlayerSortKey,
@@ -41,6 +91,10 @@ pub struct PlayerSummary {
     pub full_name: String,
     pub match_name: String,
     pub date_of_birth: String,
+    /// Whole years on the game's current date.
+    pub age: i32,
+    /// Weekly wage.
+    pub wage: u32,
     pub nationality: String,
     pub position: Position,
     pub natural_position: Position,
@@ -90,13 +144,14 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
         .filter(|s| !s.is_empty())
         .map(str::to_ascii_lowercase);
 
+    let context = ListContext::new(game);
     let mut matches: Vec<&Player> = game
         .players
         .iter()
-        .filter(|player| matches_filters(player, query, needle.as_deref()))
+        .filter(|player| matches_filters(player, query, needle.as_deref(), &context))
         .collect();
 
-    sort_matches(&mut matches, query, &teams);
+    sort_matches(&mut matches, query, &teams, context.today);
 
     let total = matches.len();
     let page = query.page.max(1);
@@ -106,7 +161,7 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
         .get(start..end)
         .unwrap_or(&[])
         .iter()
-        .map(|player| project_summary(player, &teams))
+        .map(|player| project_summary(player, &teams, context.today))
         .collect();
 
     PlayersPage {
@@ -117,10 +172,100 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
     }
 }
 
-fn matches_filters(player: &Player, query: &PlayersPageQuery, needle: Option<&str>) -> bool {
+/// What a filter needs to know about the game besides the player in front of it.
+struct ListContext<'a> {
+    today: NaiveDate,
+    user_team: Option<&'a Team>,
+    scouted: HashSet<&'a str>,
+}
+
+impl<'a> ListContext<'a> {
+    fn new(game: &'a Game) -> Self {
+        let user_team = game
+            .manager
+            .team_id
+            .as_deref()
+            .and_then(|id| game.teams.iter().find(|team| team.id == id));
+        Self {
+            today: game.clock.current_date.date_naive(),
+            user_team,
+            scouted: game
+                .scouting_assignments
+                .iter()
+                .map(|assignment| assignment.player_id.as_str())
+                .collect(),
+        }
+    }
+
+    fn is_users_own(&self, player: &Player) -> bool {
+        self.user_team
+            .is_some_and(|team| player.team_id.as_deref() == Some(team.id.as_str()))
+    }
+}
+
+fn matches_scope(player: &Player, scope: PlayerScope, context: &ListContext) -> bool {
+    match scope {
+        PlayerScope::All => true,
+        PlayerScope::Market => {
+            !context.is_users_own(player)
+                && !player_has_active_or_pending_loan(player)
+                && !has_pending_transfer_registration(player)
+        }
+        PlayerScope::Scoutable => {
+            !context.is_users_own(player) && !context.scouted.contains(player.id.as_str())
+        }
+    }
+}
+
+fn matches_position(player: &Player, filters: &[PositionFilter]) -> bool {
+    filters.is_empty()
+        || filters.iter().any(|filter| match filter {
+            PositionFilter::Exact(position) => player.natural_position == *position,
+            PositionFilter::Group(group) => {
+                player.natural_position.to_group_position() == group.to_group_position()
+            }
+        })
+}
+
+/// A free agent costs no fee and a loan-only player is not bought, so neither is held to the
+/// user's club's means. Without a user club there is nothing to afford against.
+fn within_budget(player: &Player, context: &ListContext) -> bool {
+    let Some(team) = context.user_team else {
+        return true;
+    };
+    let loan_only = player.loan_listed && !player.transfer_listed;
+    player.team_id.is_none() || loan_only || can_afford_fee(team, player.market_value)
+}
+
+fn matches_filters(
+    player: &Player,
+    query: &PlayersPageQuery,
+    needle: Option<&str>,
+    context: &ListContext,
+) -> bool {
     if let Some(needle) = needle
         && !matches_search(player, needle)
     {
+        return false;
+    }
+
+    if !matches_scope(player, query.scope, context) || !matches_position(player, &query.positions) {
+        return false;
+    }
+
+    let age = age_on_or_unknown(context.today, &player.date_of_birth);
+    if query.age_min.is_some_and(|min| age < min) || query.age_max.is_some_and(|max| age > max) {
+        return false;
+    }
+    if query.ovr_min.is_some_and(|min| player.ovr < min)
+        || query.ovr_max.is_some_and(|max| player.ovr > max)
+        || query.value_min.is_some_and(|min| player.market_value < min)
+        || query.value_max.is_some_and(|max| player.market_value > max)
+    {
+        return false;
+    }
+
+    if query.in_budget && !within_budget(player, context) {
         return false;
     }
 
@@ -149,34 +294,50 @@ fn matches_search(player: &Player, needle: &str) -> bool {
         .any(|haystack| haystack.to_ascii_lowercase().contains(needle))
 }
 
-fn sort_matches(matches: &mut [&Player], query: &PlayersPageQuery, teams: &TeamLookup) {
+fn sort_matches(
+    matches: &mut [&Player],
+    query: &PlayersPageQuery,
+    teams: &TeamLookup,
+    today: NaiveDate,
+) {
     matches.sort_by(|a, b| {
-        let primary = compare_by_key(a, b, query.sort_key, teams);
-        if query.sort_asc {
+        let primary = compare_by_key(a, b, query.sort_key, teams, today);
+        let primary = if query.sort_asc {
             primary
         } else {
             primary.reverse()
-        }
+        };
+        // Ties keep one order whichever way the list runs, so a page boundary never reshuffles.
+        primary
+            .then_with(|| a.full_name.cmp(&b.full_name))
+            .then_with(|| a.id.cmp(&b.id))
     });
 }
 
-fn compare_by_key(a: &Player, b: &Player, sort_key: PlayerSortKey, teams: &TeamLookup) -> Ordering {
+fn compare_by_key(
+    a: &Player,
+    b: &Player,
+    sort_key: PlayerSortKey,
+    teams: &TeamLookup,
+    today: NaiveDate,
+) -> Ordering {
     match sort_key {
         PlayerSortKey::Name => a.full_name.cmp(&b.full_name),
         PlayerSortKey::Position => {
             position_rank(&a.natural_position).cmp(&position_rank(&b.natural_position))
         }
-        // Ascending age = youngest first, equivalent to ascending by NEGATED birth year.
-        PlayerSortKey::Age => {
-            parse_birth_year(&b.date_of_birth).cmp(&parse_birth_year(&a.date_of_birth))
-        }
+        // Ascending age = youngest first. Within one age the later birth date is the younger, so
+        // the whole date breaks the tie rather than the year alone.
+        PlayerSortKey::Age => age_on_or_unknown(today, &a.date_of_birth)
+            .cmp(&age_on_or_unknown(today, &b.date_of_birth))
+            .then_with(|| b.date_of_birth.cmp(&a.date_of_birth)),
         PlayerSortKey::Ovr => a.ovr.cmp(&b.ovr),
         PlayerSortKey::Value => a.market_value.cmp(&b.market_value),
         PlayerSortKey::Team => team_name_for(a, teams).cmp(team_name_for(b, teams)),
     }
 }
 
-fn project_summary(player: &Player, teams: &TeamLookup) -> PlayerSummary {
+fn project_summary(player: &Player, teams: &TeamLookup, today: NaiveDate) -> PlayerSummary {
     let team_name = player
         .team_id
         .as_deref()
@@ -187,6 +348,8 @@ fn project_summary(player: &Player, teams: &TeamLookup) -> PlayerSummary {
         full_name: player.full_name.clone(),
         match_name: player.match_name.clone(),
         date_of_birth: player.date_of_birth.clone(),
+        age: age_on_or_unknown(today, &player.date_of_birth),
+        wage: player.wage(),
         nationality: player.nationality.clone(),
         position: player.position.clone(),
         natural_position: player.natural_position.clone(),
@@ -210,13 +373,6 @@ fn team_name_for<'a>(player: &'a Player, teams: &'a TeamLookup) -> &'a str {
         .as_deref()
         .and_then(|id| teams.get(id).copied())
         .unwrap_or("")
-}
-
-fn parse_birth_year(dob: &str) -> i32 {
-    dob.split('-')
-        .next()
-        .and_then(|segment| segment.parse().ok())
-        .unwrap_or(2000)
 }
 
 fn position_rank(pos: &Position) -> u8 {

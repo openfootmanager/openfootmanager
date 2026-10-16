@@ -8,9 +8,11 @@ import type {
   MatchSnapshot,
   MatchEvent,
   MatchDayStage,
+  CupRoundSummary,
   RoundSummary,
 } from "../components/match/types";
 import { resolveMatchFixture } from "../components/match/helpers";
+import { resetMatchCommands } from "../components/match/matchCommands";
 import PreMatchSetup from "../components/match/PreMatchSetup";
 import MatchLive from "../components/match/MatchLive";
 import HalfTimeBreak from "../components/match/HalfTimeBreak";
@@ -34,6 +36,7 @@ interface MatchRouteState {
 interface FinishLiveMatchResponse {
   game: GameStateData;
   round_summary?: RoundSummary | null;
+  cup_round_summaries?: CupRoundSummary[];
 }
 
 export default function MatchSimulation() {
@@ -50,9 +53,15 @@ export default function MatchSimulation() {
   const [userSide, setUserSide] = useState<"Home" | "Away" | null>(null);
   const [isSpectator, setIsSpectator] = useState(matchMode === "spectator");
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null);
+  const [cupRoundSummaries, setCupRoundSummaries] = useState<CupRoundSummary[]>([]);
   const [hasFinalizedMatch, setHasFinalizedMatch] = useState(false);
   const [preferredSpeed, setPreferredSpeed] = useState<"slow" | "normal" | "fast">("normal");
   const [hasUserOverriddenSpeed, setHasUserOverriddenSpeed] = useState(false);
+
+  // Each match screen is a new live session; commands from an earlier one must not hold it up.
+  useEffect(() => {
+    resetMatchCommands();
+  }, []);
 
   useEffect(() => {
     console.info("[MatchSimulation] mount", {
@@ -232,6 +241,7 @@ export default function MatchSimulation() {
       });
       setGameState(response.game);
       setRoundSummary(response.round_summary ?? null);
+      setCupRoundSummaries(response.cup_round_summaries ?? []);
       setHasFinalizedMatch(true);
       return true;
     } catch (err) {
@@ -401,6 +411,7 @@ export default function MatchSimulation() {
           userSide={userSide}
           isLeagueFixture={isLeagueFixture}
           roundSummary={roundSummary}
+          cupRoundSummaries={cupRoundSummaries}
           onPressConference={handlePressConference}
           onFinish={handleFinishMatch}
         />

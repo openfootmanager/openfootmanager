@@ -17,6 +17,7 @@ import type { ContextMenuItem } from "../ContextMenu";
 import { buildDividerMenuItem } from "../playerActions/playerContextMenuItems";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import type { SquadSection } from "../squad/SquadTab.helpers";
+import { isMatchDayEligible } from "../../lib/playerSquad";
 
 interface TacticsContextMenuCallbacks {
   onAssignBestFit?: (playerId: string) => void;
@@ -53,8 +54,8 @@ export function buildTacticsPlayerContextMenuItems({
   t,
 }: BuildTacticsPlayerContextMenuItemsOptions): ContextMenuItem[] {
   const items: ContextMenuItem[] = [];
-  const isUnavailableBenchPlayer = section === "bench" && Boolean(player.injury);
-  const canPromoteBenchPlayer = section === "bench" && !player.injury;
+  const isUnavailableBenchPlayer = section === "bench" && !isMatchDayEligible(player);
+  const canPromoteBenchPlayer = section === "bench" && isMatchDayEligible(player);
 
   if (isSelected && onClearSelection) {
     items.push({

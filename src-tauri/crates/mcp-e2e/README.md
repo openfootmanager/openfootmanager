@@ -47,8 +47,8 @@ naming the rebuild command: `cargo build --features mcp --bin openfootmanager` f
   `Err(CallError::Refused(..))` with the `be.error.*` key. Assert on keys and fields, never on text.
 - `assert_refusal_changes_nothing(&app, key, || ...)` proves a refused call left the game and every
   file under the saves directory as it was.
-- `expect_bug!(#123, { ... })` wraps a scenario that fails while the bug reproduces, and fails with
-  "remove the guard for #123" once it is fixed.
+- A known bug is carried as one plain assert that it still happens, naming its issue and failing with
+  "#123 is fixed: delete this exemption". There is no helper for it.
 - The client never retries. A call that timed out may have run: read the state back instead.
 
 ## Keeping the typed client honest
