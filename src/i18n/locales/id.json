@@ -3689,7 +3689,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya.",
-        "freeAgentFieldIgnored": "Pemain \"{{id}}\" tidak punya klub, sehingga menjadi pemain bebas tanpa kontrak: \"{{field}}\" diabaikan. Berikan klub untuknya agar dipakai, atau hapus kolom itu."
+        "freeAgentFieldIgnored": "Pemain \"{{id}}\" tidak punya klub, sehingga menjadi pemain bebas tanpa kontrak: \"{{field}}\" diabaikan. Berikan klub untuknya agar dipakai, atau hapus kolom itu.",
+        "repeatedNamePool": "Kumpulan nama untuk {{country}} sudah diberikan di {{first}}; kumpulan di berkas ini menggantikannya. Simpan salah satu saja, atau berikan ke negara yang berbeda."
       }
     }
   },

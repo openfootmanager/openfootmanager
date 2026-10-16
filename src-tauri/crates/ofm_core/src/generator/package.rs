@@ -3826,6 +3826,65 @@ colors:
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// Given one names file whose top-level `pools` and `items` both give England, with different names
+    /// When it is loaded
+    /// Then the top-level `pools` win: they are folded in after the `items`.
+    #[test]
+    fn in_one_names_file_the_top_level_pools_win_over_items() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/names.json",
+            r#"{ "schema": "names",
+                "pools": { "ENG": { "first_names": ["Top"], "last_names": ["Level"] } },
+                "items": [ { "pools": { "ENG": { "first_names": ["Item"], "last_names": ["Entry"] } } } ] }"#,
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "{errors:?}");
+        let eng = &package.names.as_ref().unwrap().pools["ENG"];
+        assert_eq!(eng.first_names, ["Top"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given two packages that each supply name pools, the later with a newer version, a
+    ///       description and an overlapping country
+    /// When they are merged as a stack
+    /// Then the version is the highest, the description the last non-empty one, the overlapping
+    ///      country is the later package's, and the other countries are kept: the same rule as
+    ///      the files of one package.
+    #[test]
+    fn stacked_packages_fold_name_pools_by_the_same_rule() {
+        use super::super::definitions::NamePool;
+        let pool = |first: &str| NamePool {
+            first_names: vec![first.to_string()],
+            last_names: vec!["X".to_string()],
+        };
+        let named = |version: u32, description: &str, pools: Vec<(&str, &str)>| {
+            let mut package = WorldPackage::default();
+            package.names = Some(NamesDefinition {
+                version,
+                description: description.to_string(),
+                pools: pools
+                    .into_iter()
+                    .map(|(country, first)| (country.to_string(), pool(first)))
+                    .collect(),
+            });
+            package
+        };
+        let earlier = named(3, "first", vec![("ENG", "Early"), ("BRA", "Joao")]);
+        let later = named(2, "", vec![("ENG", "Late")]);
+
+        let (merged, _) = merge_world_packages(vec![earlier, later]);
+
+        let names = merged.names.expect("names survive the merge");
+        assert_eq!(names.version, 3);
+        assert_eq!(names.description, "first");
+        assert_eq!(names.pools["ENG"].first_names, ["Late"]);
+        assert_eq!(names.pools["BRA"].first_names, ["Joao"]);
+    }
+
     /// Given a package with two files whose schema is `world`
     /// When it is loaded
     /// Then the second is reported as a duplicate manifest naming the first, and the first stays

@@ -1,7 +1,7 @@
 //! Things a package author should hear about that do not stop the package loading.
 //!
 //! Errors (`validate_package`) say the package cannot be used. A warning says it can, but the
-//! game will not do what the author probably meant. Today there is one: a country the package
+//! game will not do what the author probably meant. For example: a country the package
 //! defines itself, outside the nation catalog, with no `confederation`. Nothing places it, so
 //! `nations::region_for_code` quietly files it, and its clubs, under Europe.
 //!
@@ -13,13 +13,30 @@ use crate::nations::nation_by_code;
 
 pub(super) const COUNTRY_WITHOUT_REGION: &str = "be.warning.package.countryWithoutRegion";
 pub(super) const FREE_AGENT_FIELD_IGNORED: &str = "be.warning.package.freeAgentFieldIgnored";
+pub(super) const REPEATED_NAME_POOL: &str = "be.warning.package.repeatedNamePool";
 
 /// Problems that leave the package usable. Empty for a package whose own countries are all in
 /// the catalog or placed in a confederation, and whose club-less players carry no contract.
 pub fn package_warnings(package: &WorldPackage) -> Vec<PackageError> {
     let mut warnings = country_warnings(package);
     warnings.extend(free_agent_warnings(package));
+    warnings.extend(repeated_name_pool_warnings(package));
     warnings
+}
+
+/// A country given a name pool by two files of one package: the later file replaces the earlier
+/// pool. (Stacked packages overriding each other is the point of stacking and is not reported.)
+fn repeated_name_pool_warnings(package: &WorldPackage) -> Vec<PackageError> {
+    let mut repeats: Vec<&(String, String, String)> = package.repeated_name_pools.iter().collect();
+    repeats.sort_by(|a, b| (&a.2, &a.0).cmp(&(&b.2, &b.0)));
+    repeats
+        .into_iter()
+        .map(|(country, first, later)| {
+            PackageError::new(REPEATED_NAME_POOL, later)
+                .with("country", country.clone())
+                .with("first", first.clone())
+        })
+        .collect()
 }
 
 fn country_warnings(package: &WorldPackage) -> Vec<PackageError> {
@@ -244,5 +261,56 @@ mod tests {
     #[test]
     fn a_package_without_countries_is_silent() {
         assert!(warnings_for("none", &[]).is_empty());
+    }
+
+    const ENG_POOL: &str = r#""ENG": { "first_names": ["Tom"], "last_names": ["Smith"] }"#;
+    const BRA_POOL: &str = r#""BRA": { "first_names": ["Joao"], "last_names": ["Silva"] }"#;
+
+    fn names_file(pools: &str) -> String {
+        format!(r#"{{ "schema": "names", "pools": {{ {pools} }} }}"#)
+    }
+
+    /// Given two files of one package that each give the pool for England
+    /// When the warnings are listed
+    /// Then one names the country, the later file and the earlier one: the later replaces it.
+    #[test]
+    fn a_country_given_a_name_pool_twice_is_warned_about() {
+        let (a, b) = (names_file(ENG_POOL), names_file(ENG_POOL));
+
+        let warnings = warnings_for("pool-twice", &[("names/a.json", &a), ("names/b.json", &b)]);
+
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert_eq!(warnings[0].code, REPEATED_NAME_POOL);
+        assert_eq!(warnings[0].file, "names/b.json");
+        assert!(
+            warnings[0]
+                .params
+                .contains(&("country".into(), "ENG".into()))
+        );
+        assert!(
+            warnings[0]
+                .params
+                .contains(&("first".into(), "names/a.json".into()))
+        );
+    }
+
+    /// Given files that give different countries, and one file whose `pools` and `items` both name
+    ///       England (the documented order inside a file)
+    /// When the warnings are listed
+    /// Then there is none: only a country given by two files is reported.
+    #[test]
+    fn different_countries_and_a_pools_items_overlap_in_one_file_are_silent() {
+        let (a, b) = (names_file(ENG_POOL), names_file(BRA_POOL));
+        let overlap = format!(
+            r#"{{ "schema": "names", "pools": {{ {ENG_POOL} }}, "items": [ {{ "pools": {{ {ENG_POOL} }} }} ] }}"#
+        );
+
+        let apart = warnings_for("pool-apart", &[("names/a.json", &a), ("names/b.json", &b)]);
+        let within = warnings_for("pool-within", &[("names/c.json", &overlap)]);
+
+        assert!(
+            apart.is_empty() && within.is_empty(),
+            "{apart:?} {within:?}"
+        );
     }
 }
