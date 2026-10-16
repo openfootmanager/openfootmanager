@@ -4,7 +4,9 @@
 //! user's league: its last tie can be played long before the rollover, or, when the calendar
 //! postpones a tie past the league's last round, after it. Waiting for the rollover left the first
 //! idle for months and the second a whole rollover late. So a finished cup is archived and
-//! renewed on the day it finishes, by the same rule the rollover uses.
+//! renewed by the same rule the rollover uses, but on its own day: the day its next edition is
+//! four weeks from starting. Until then the finished bracket stays where the player can see who
+//! won; renewing on the day of the final would replace it with the next edition at once.
 //!
 //! Only domestic and regional cups: their entrants never change at the rollover. A continental
 //! competition's field is worked out from the whole season's domestic results, and a league
@@ -34,7 +36,18 @@ fn is_renewable_cup(competition: &League) -> bool {
         && !competition.fixtures.is_empty()
 }
 
-/// Archives and renews every cup whose edition finished, and returns how many it renewed. A cup
+/// Whether the cup's next edition is due to start within the shared break. A cup with no configured
+/// start (month 0) is left to the rollover.
+fn next_edition_is_near(
+    cup: &League,
+    clock: &crate::clock::GameClock,
+    today_start: DateTime<Utc>,
+    earliest_start: DateTime<Utc>,
+) -> bool {
+    cup.season_start_month != 0 && next_edition(cup, clock, today_start).start <= earliest_start
+}
+
+/// Archives and renews every cup whose edition finished and whose next edition is near, and returns how many it renewed. A cup
 /// whose edition cannot be archived is left as it is: renewing it would lose the edition.
 pub(crate) fn renew_finished_cups(game: &mut Game, today: &str) -> usize {
     let Some(earliest_start) = NaiveDate::parse_from_str(today, "%Y-%m-%d")
@@ -46,10 +59,14 @@ pub(crate) fn renew_finished_cups(game: &mut Game, today: &str) -> usize {
         return 0;
     };
 
+    let today_start = earliest_start - Days::new(BREAK_BETWEEN_EDITIONS_DAYS);
     let mut renewed = 0;
     for index in 0..game.competitions.len() {
         let cup = &game.competitions[index];
-        if !is_renewable_cup(cup) || !is_cup_edition_finished(cup) {
+        if !is_renewable_cup(cup)
+            || !is_cup_edition_finished(cup)
+            || !next_edition_is_near(cup, &game.clock, today_start, earliest_start)
+        {
             continue;
         }
         if let Err(failure) = archive_completed_edition(&mut game.edition_archive, cup) {
@@ -102,20 +119,27 @@ mod tests {
         game
     }
 
-    /// Given a domestic cup whose last tie has been played,
+    /// A finished cup whose next edition starts on 1 September 2034.
+    fn september_cup() -> League {
+        let mut finished = cup(8);
+        finished.season = 2033;
+        finished.season_start_month = 9;
+        finished.season_start_day = 1;
+        finished
+    }
+
+    /// Given a finished domestic cup whose next edition is four weeks from starting,
     /// When the day ends,
     /// Then its edition is archived with its champion and the cup starts its next edition.
     #[test]
-    fn a_cup_renews_the_day_its_last_tie_is_played() {
-        let finished = cup(8);
-        let season = finished.season;
-        let mut game = game_with(vec![finished]);
+    fn a_finished_cup_renews_when_its_next_edition_is_near() {
+        let mut game = game_with(vec![september_cup()]);
 
-        let renewed = renew_finished_cups(&mut game, "2033-05-20");
+        let renewed = renew_finished_cups(&mut game, "2034-08-10");
 
         assert_eq!(renewed, 1);
         let next = &game.competitions[0];
-        assert!(next.season > season, "a new edition");
+        assert!(next.season > 2033, "a new edition");
         assert!(!next.fixtures.is_empty());
         assert!(
             next.fixtures
@@ -127,19 +151,47 @@ mod tests {
         };
         assert_eq!(
             (edition.competition_id.as_str(), edition.season),
-            (next.id.as_str(), season)
+            (next.id.as_str(), 2033)
         );
+    }
+
+    /// Given a finished cup whose next edition is months away, When the day ends, Then the
+    /// finished bracket stays: the player can still see who won it.
+    #[test]
+    fn a_finished_cup_keeps_its_bracket_until_the_next_edition_is_near() {
+        let mut game = game_with(vec![september_cup()]);
+
+        assert_eq!(renew_finished_cups(&mut game, "2034-05-20"), 0);
+
+        assert_eq!(game.competitions[0].season, 2033);
+        assert!(
+            game.competitions[0]
+                .fixtures
+                .iter()
+                .all(|f| f.status == FixtureStatus::Completed)
+        );
+        assert!(game.edition_archive.is_empty());
+    }
+
+    /// Given a cup with no configured start, When the day ends, Then it is left to the rollover.
+    #[test]
+    fn a_cup_with_no_configured_start_waits_for_the_rollover() {
+        let mut unscheduled = cup(8);
+        unscheduled.season_start_month = 0;
+        let mut game = game_with(vec![unscheduled]);
+
+        assert_eq!(renew_finished_cups(&mut game, "2034-08-10"), 0);
     }
 
     /// Given a cup that has just been renewed, When the next day ends, Then it is not renewed (or
     /// archived) again.
     #[test]
     fn a_renewed_cup_is_not_renewed_twice() {
-        let mut game = game_with(vec![cup(8)]);
-        renew_finished_cups(&mut game, "2033-05-20");
+        let mut game = game_with(vec![september_cup()]);
+        renew_finished_cups(&mut game, "2034-08-10");
         let once = serde_json::to_string(&game.competitions).unwrap();
 
-        let again = renew_finished_cups(&mut game, "2033-05-21");
+        let again = renew_finished_cups(&mut game, "2034-08-11");
 
         assert_eq!(again, 0);
         assert_eq!(serde_json::to_string(&game.competitions).unwrap(), once);
@@ -149,21 +201,26 @@ mod tests {
     /// Given a cup with a tie still to play, When the day ends, Then it is left alone.
     #[test]
     fn a_cup_with_a_tie_to_play_is_not_renewed() {
-        let mut unfinished = cup(8);
+        let mut unfinished = september_cup();
         unfinished.fixtures[0].status = FixtureStatus::Scheduled;
         unfinished.fixtures[0].result = None;
         let mut game = game_with(vec![unfinished]);
 
-        assert_eq!(renew_finished_cups(&mut game, "2033-05-20"), 0);
+        assert_eq!(renew_finished_cups(&mut game, "2034-08-10"), 0);
         assert!(game.edition_archive.is_empty());
     }
 
-    /// Given a finished group-and-knockout cup, When the day ends, Then it renews with fresh groups.
+    /// Given a finished group-and-knockout cup whose next edition is near, When the day ends,
+    /// Then it renews with fresh groups.
     #[test]
     fn a_finished_group_cup_renews_with_fresh_groups() {
-        let mut game = game_with(vec![group_cup()]);
+        let mut group = group_cup();
+        group.season = 2033;
+        group.season_start_month = 9;
+        group.season_start_day = 1;
+        let mut game = game_with(vec![group]);
 
-        assert_eq!(renew_finished_cups(&mut game, "2033-05-20"), 1);
+        assert_eq!(renew_finished_cups(&mut game, "2034-08-10"), 1);
         assert!(
             game.competitions[0]
                 .groups
@@ -177,15 +234,15 @@ mod tests {
     /// Then neither is renewed: their fields come from the rollover.
     #[test]
     fn continental_and_international_competitions_are_left_to_the_rollover() {
-        let mut continental = cup(8);
+        let mut continental = september_cup();
         continental.kind = CompetitionType::ContinentalClub;
         continental.scope = CompetitionScope::Continental;
-        let mut world_cup = cup(8);
+        let mut world_cup = september_cup();
         world_cup.kind = CompetitionType::InternationalNation;
         world_cup.scope = CompetitionScope::International;
         let mut game = game_with(vec![continental, world_cup]);
 
-        assert_eq!(renew_finished_cups(&mut game, "2033-05-20"), 0);
+        assert_eq!(renew_finished_cups(&mut game, "2034-08-10"), 0);
         assert!(game.edition_archive.is_empty());
     }
 }
