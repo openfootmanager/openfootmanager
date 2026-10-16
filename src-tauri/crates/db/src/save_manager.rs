@@ -682,6 +682,8 @@ impl SaveManager {
 
         // Strip session-specific data
         game.messages.clear();
+        // The archive is inbox history too: a new career must not show the old career's mail.
+        game.archived_messages.clear();
         // The sent-ledger records what *this career* has been told, so it is
         // session state like the inbox it guards. Carried over, the new career
         // would silently never receive anything the old one already saw — its
@@ -3907,6 +3909,39 @@ mod tests {
             )
             .unwrap();
         assert_eq!((archived_rows, live_copy), (1, 0));
+    }
+
+    /// Given a save whose career has archived mail
+    /// When a new career is started from it, and saved
+    /// Then the new career has no archived mail, in memory and in its own database, and the source
+    ///      save still has its own.
+    #[test]
+    fn a_career_started_from_a_save_starts_with_an_empty_archive() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.archived_messages
+            .push(domain::message::InboxMessage::new(
+                "old-1".to_string(),
+                "S".to_string(),
+                "B".to_string(),
+                "Board".to_string(),
+                "1990-01-01".to_string(),
+            ));
+        let source = manager.create_save(&game, "Source").unwrap();
+
+        let fresh = manager.new_game_from_save(&source).unwrap();
+        let new_save = manager.create_save(&fresh, "New").unwrap();
+
+        assert!(fresh.archived_messages.is_empty());
+        let archived_in = |id: &str| -> i64 {
+            rusqlite::Connection::open(dir.path().join("saves").join(format!("{id}.db")))
+                .unwrap()
+                .query_row("SELECT COUNT(*) FROM archived_messages", [], |r| r.get(0))
+                .unwrap()
+        };
+        assert_eq!(archived_in(&new_save), 0);
+        assert_eq!(archived_in(&source), 1);
     }
 
     /// Given a retiree archived in a transaction that is then abandoned, when the database is

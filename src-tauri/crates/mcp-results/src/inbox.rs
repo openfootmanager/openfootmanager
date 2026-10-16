@@ -87,6 +87,13 @@ impl fmt::Display for ArchivedMessages {
                 message.id, message.subject, message.category, message.date
             )?;
         }
+        for message in &self.messages {
+            write!(
+                f,
+                "\n### {} ({})\n\n{}\n",
+                message.subject, message.id, message.body
+            )?;
+        }
         if let (Some(date), Some(id)) = (&self.next_before_date, &self.next_before_id) {
             write!(
                 f,

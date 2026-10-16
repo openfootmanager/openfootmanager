@@ -25,6 +25,8 @@ pub fn get_archived_messages_internal(
         .ok_or("be.error.noActiveGameSession".to_string())
 }
 
+/// A page of archived mail, newest first. `before` is the previous page's `next_before` (leave it
+/// out for the newest page); `limit` is how many to return, kept between 1 and 200.
 #[tauri::command]
 pub fn get_archived_messages(
     state: State<'_, Arc<StateManager>>,

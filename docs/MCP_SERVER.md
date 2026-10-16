@@ -181,7 +181,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `contract_preview_termination` | Preview cost of terminating a contract |
 | `contract_terminate` | Terminate a contract immediately (costs compensation) |
 
-### Inbox (6 tools)
+### Inbox (7 tools)
 
 | Tool | Description |
 |------|-------------|

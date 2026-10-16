@@ -566,6 +566,8 @@ impl Client {
         )
     }
 
+    /// One page of archived mail. `before` is the `(date, id)` the previous page ended at, `None`
+    /// for the newest page; `limit` is how many to return, `None` for the tool's default.
     pub fn inbox_get_archived(
         &self,
         before: Option<(&str, &str)>,
