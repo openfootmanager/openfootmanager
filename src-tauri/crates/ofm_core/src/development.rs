@@ -137,6 +137,31 @@ pub fn growth_points(curve_age: f64, gap: u8) -> f64 {
     base_growth(curve_age) * headroom_brake(gap)
 }
 
+/// How much of a day's training a player at `curve_age` still takes, with `gap` points left to his
+/// ceiling: the most when young, tapering smoothly to nothing by the mid-thirties, and slowed by
+/// the same brake as growth. Replaces both the step by age and the gate at the ceiling.
+pub fn training_factor(curve_age: f64, gap: u8) -> f64 {
+    const POINTS: [(f64, f64); 5] = [
+        (21.0, 1.5),
+        (26.0, 1.0),
+        (30.0, 0.3),
+        (34.0, 0.0),
+        (99.0, 0.0),
+    ];
+    let age_factor = if curve_age <= POINTS[0].0 {
+        POINTS[0].1
+    } else {
+        POINTS
+            .windows(2)
+            .find(|pair| curve_age <= pair[1].0)
+            .map_or(0.0, |pair| {
+                let share = (curve_age - pair[0].0) / (pair[1].0 - pair[0].0);
+                pair[0].1 + (pair[1].1 - pair[0].1) * share
+            })
+    };
+    age_factor * headroom_brake(gap)
+}
+
 /// The expected change in points of one attribute in a season, for a player the decline table
 /// governs (curve age 27 or more), at resilience 1.
 pub fn decline_per_season(curve_age: f64, aspect: Aspect) -> f64 {
@@ -555,5 +580,35 @@ mod tests {
         }
         assert!(total_change / 400.0 < 0.0);
         assert!(total_change / 400.0 > -1.5);
+    }
+
+    /// Given players from nineteen to forty with the same room to grow,
+    /// When their training factor is read,
+    /// Then it never rises with age, is nothing from the mid-thirties and is never negative.
+    #[test]
+    fn training_takes_less_with_age_and_fades_out_without_a_step() {
+        let mut previous = f64::MAX;
+        for tenths in 190..=400 {
+            let factor = training_factor(f64::from(tenths) / 10.0, 20);
+            assert!(
+                factor >= 0.0 && factor <= previous + 1e-12,
+                "age {}",
+                f64::from(tenths) / 10.0
+            );
+            previous = factor;
+        }
+        assert_eq!(training_factor(34.0, 20), 0.0);
+        assert!(training_factor(30.0, 20) > 0.0);
+        assert!(training_factor(22.0, 20) > training_factor(28.0, 20));
+    }
+
+    /// Given a player at his ceiling and one a point under it,
+    /// When their training factor is read,
+    /// Then the first takes none and the second a little: the brake, not a gate.
+    #[test]
+    fn training_slows_toward_the_ceiling_without_a_gate() {
+        assert_eq!(training_factor(20.0, 0), 0.0);
+        assert!(training_factor(20.0, 1) > 0.0);
+        assert!(training_factor(20.0, 1) < training_factor(20.0, 10));
     }
 }
