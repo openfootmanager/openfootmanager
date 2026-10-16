@@ -17,7 +17,6 @@ use {
         game_clock_for_world, load_world_data_from_path, map_save_manager_lock_error,
         normalize_startup_options, RawStartupOptions, StartupOptions,
     },
-    chrono::Datelike,
     domain::manager::Manager,
     log::info,
     ofm_core::state::StateManager,
