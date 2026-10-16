@@ -16,6 +16,7 @@ function createGameState(): GameStateData {
       start_date: "2026-07-01T12:00:00Z",
     },
     manager: {
+      display_name: "Hansi Flick",
       id: "manager-1",
       first_name: "Hansi",
       last_name: "Flick",

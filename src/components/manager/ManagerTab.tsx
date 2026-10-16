@@ -29,7 +29,7 @@ export default function ManagerTab({ gameState, onSelectTeam }: ManagerTabProps)
           </div>
           <div>
             <h2 className="text-2xl font-heading font-bold text-white uppercase tracking-wide">
-              {mgr.first_name} {mgr.last_name}
+              {mgr.display_name}
             </h2>
             <p className="text-gray-400 text-sm mt-1">
               <CountryFlag

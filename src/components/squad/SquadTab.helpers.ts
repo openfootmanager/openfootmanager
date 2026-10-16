@@ -1,8 +1,4 @@
-export {
-  CORE_POSITIONS,
-  canonicalPosition,
-  normalisePosition,
-} from "../../lib/positions";
+export { CORE_POSITIONS, normalisePosition } from "../../lib/positions";
 import { canonicalPosition, naturalPositionOf, normalisePosition } from "../../lib/positions";
 
 import type { PlayerData } from "../../store/gameStore";

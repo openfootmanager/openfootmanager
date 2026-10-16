@@ -582,7 +582,11 @@
       "twistedAnkle": "Tornozelo torcido",
       "kneeBruise": "Contusão no joelho",
       "hamstringTightness": "Tensão nos isquiotibiais",
-      "calfStrain": "Distensão na barriga da perna"
+      "calfStrain": "Distensão na barriga da perna",
+      "ankleLigamentSprain": "Entorse de ligamento do tornozelo",
+      "hamstringTear": "Rotura dos isquiotibiais",
+      "kneeLigamentTear": "Rotura de ligamento do joelho",
+      "metatarsalFracture": "Fratura do metatarso"
     },
     "scoutRatings": {
       "excellent": "Excelente",
@@ -1424,6 +1428,8 @@
     "transferFeedbackCounterDetail": "A proposta ficou suficientemente perto para continuarem a falar, mas do lado deles apontam para um valor mais próximo de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Fecharam esta ronda.",
     "transferFeedbackRejectedDetail": "A proposta não os mexeu o suficiente. Precisarias de um valor mais forte, mais perto de {{fee}}, para reabrir conversas sérias.",
+    "transferFeedbackBrokeOffHeadline": "Abandonaram as conversações.",
+    "transferFeedbackBrokeOffDetail": "Depois de várias ofertas insuficientes, o clube terminou as negociações. Seria preciso um valor próximo de {{fee}}. Dê-lhes tempo antes de tentar de novo.",
     "registrationFailureInsufficientFunds": "Registo falhado: fundos insuficientes do comprador",
     "registrationFailureLoanConflict": "Registo falhado: conflito com um empréstimo",
     "registrationFailurePlayerUnavailable": "Registo falhado: jogador indisponível",
@@ -1483,6 +1489,10 @@
   "players": {
     "searchPlaceholder": "Procurar por nome ou nacionalidade...",
     "allPos": "Todas Pos",
+    "filterAgeMin": "Idade mín.",
+    "filterAgeMax": "Idade máx.",
+    "filterOvrMin": "Média mín.",
+    "filterOvrMax": "Média máx.",
     "allTeams": "Todas as Equipas",
     "nPlayersFound": "{{count}} jogador(es) encontrado(s)",
     "noMatch": "Nenhum jogador corresponde aos filtros.",
@@ -2845,6 +2855,7 @@
         "transferBudgetTooLow": "O orçamento de transferências é demasiado baixo",
         "playerNotOwnedByUser": "Jogador não encontrado ou não te pertence",
         "offerNotPending": "Oferta não encontrada ou já não está pendente",
+        "talksBrokenOff": "Este clube terminou as conversações por este jogador. Tente de novo mais tarde.",
         "loanBorrowerCannotAffordWages": "O clube de destino não consegue pagar esta parte do salário. O orçamento salarial semanal é {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "A contraproposta tem de superar a oferta atual",
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo tem de melhorar a oferta atual",
@@ -2993,12 +3004,21 @@
       },
       "wageOverBudget": {
         "subject": "Folha salarial acima do orçamento",
-        "body": "A nossa folha salarial semanal ({{annualWages}}) excede atualmente o orçamento salarial atribuído ({{wageBudget}}).\n\nEmbora seja sustentável a curto prazo, a direção preferia ver a folha salarial novamente sob controlo."
+        "body": "A nossa folha salarial semanal ({{weeklyWageBill}}) excede atualmente o orçamento salarial atribuído ({{wageBudget}}).\n\nEmbora seja sustentável a curto prazo, a direção preferia ver a folha salarial novamente sob controlo."
       },
       "financeBoardPressure": {
         "subject": "Direção — Pressão financeira",
         "bodyWarning": "A direção continua preocupada com a situação financeira do clube. A confiança na sua gestão caiu {{penalty}} pontos esta semana.\n\nPrecisa de melhorar a posição salarial e a tesouraria de curto prazo antes que a paciência diminua ainda mais.",
         "bodyCritical": "A direção reviu o agravamento da situação financeira do clube e a confiança na sua gestão caiu {{penalty}} pontos esta semana.\n\nA tesouraria e os compromissos salariais estão agora num estado crítico. Esperam-se medidas imediatas."
+      },
+      "financeLevers": {
+        "subject": "Há opções de recuperação disponíveis para o clube",
+        "body": "O dinheiro escasseia, o que abre opções de recuperação. As que estão disponíveis para o clube neste momento surgem abaixo; cada uma leva-te ao separador Finanças.",
+        "action": {
+          "boardSupport": "Pedir apoio à direção",
+          "sponsorPitch": "Procurar um novo patrocinador",
+          "marketingCampaign": "Lançar uma campanha de marketing"
+        }
       },
       "marketingCampaign": {
         "subject": "Relatório da campanha de marketing",
@@ -3187,6 +3207,11 @@
         "subject": "Lesão — {{player}} ({{injury}})",
         "body0": "Más notícias do centro de treino. {{player}} sofreu uma {{injury}} durante a sessão de hoje.\n\nA equipa médica estima {{days}} dias de paragem. Monitoraremos a recuperação de perto.",
         "body1": "Infelizmente, {{player}} sofreu uma {{injury}} no treino de hoje.\n\nAvaliação inicial: de fora por aproximadamente {{days}} dias. Mantê-lo-emos informado sobre o progresso."
+      },
+      "matchInjury": {
+        "subject": "Lesão no jogo — {{player}} ({{injury}})",
+        "body0": "Más notícias do jogo: {{player}} lesionou-se em campo.\n\nDiagnóstico: {{injury}}. A equipa médica estima {{days}} dias de paragem e vamos acompanhar a recuperação de perto.",
+        "body1": "{{player}} não saiu ileso do jogo de hoje.\n\nDiagnóstico: {{injury}}. Avaliação inicial: fora cerca de {{days}} dias. Manter-te-emos a par da evolução."
       },
       "mediaPositive": {
         "subject": "Imprensa positiva — {{player}}",
@@ -3662,7 +3687,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, pelo que os seus clubes ficam na Europa. Atribua-lhe uma confederação."
+        "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, pelo que os seus clubes ficam na Europa. Atribua-lhe uma confederação.",
+        "freeAgentFieldIgnored": "O jogador «{{id}}» não tem clube, pelo que é um jogador livre sem contrato: «{{field}}» é ignorado. Atribua-lhe um clube para o usar, ou remova o campo."
       }
     }
   },
