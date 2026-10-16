@@ -322,7 +322,7 @@ pub fn process_scouting(game: &mut Game) {
                 &player.match_name,
                 &player.nationality,
                 &player.date_of_birth,
-                &format!("{:?}", player.position),
+                &format!("{:?}", player.natural_position),
                 &player.attributes,
                 player.morale,
                 player.condition,
