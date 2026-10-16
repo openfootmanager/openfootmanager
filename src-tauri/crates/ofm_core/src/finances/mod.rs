@@ -245,7 +245,9 @@ pub fn wage_bills_by_club(game: &Game) -> HashMap<String, i64> {
         }
     }
     for staff_member in &game.staff {
-        if let Some(team_id) = staff_member.team_id.as_deref() {
+        if let Some(team_id) = staff_member.team_id.as_deref()
+            && staff_member.wage != 0
+        {
             *bills.entry(team_id.to_string()).or_default() += i64::from(staff_member.wage);
         }
     }
@@ -1539,11 +1541,15 @@ mod tests {
         );
         coach.team_id = Some("team2".to_string());
         coach.wage = 500;
-        game.staff = vec![coach];
+        let mut volunteer = coach.clone();
+        volunteer.id = "volunteer".to_string();
+        volunteer.team_id = Some("volunteer-club".to_string());
+        volunteer.wage = 0;
+        game.staff = vec![coach, volunteer];
 
         let bills = super::wage_bills_by_club(&game);
 
-        for club in ["team1", "team2", "nobody"] {
+        for club in ["team1", "team2", "nobody", "volunteer-club"] {
             assert_eq!(
                 bills.get(club).copied().unwrap_or(0),
                 super::calc_wages(&game, club),
@@ -1551,5 +1557,9 @@ mod tests {
             );
         }
         assert!(!bills.contains_key("nobody"));
+        assert!(
+            !bills.contains_key("volunteer-club"),
+            "a club paying nobody is absent, as documented"
+        );
     }
 }
