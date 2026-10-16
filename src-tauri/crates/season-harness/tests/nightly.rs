@@ -14,7 +14,7 @@ use ofm_core::squad_floor::{can_put_a_side_out, squad_shortfall};
 use ofm_core::world_cup::{is_world_cup_competition, world_cup_champion};
 use season_harness::calendar::{reloaded, unplayed_clashes};
 use season_harness::driver::{RunOptions, SeasonObserver, run_seasons};
-use season_harness::invariants::{CLUB_RESTS_BETWEEN_MATCHES, Invariants};
+use season_harness::invariants::Invariants;
 use season_harness::worlds::WorldSpec;
 
 const SEEDS: &[u64] = &[1, 2, 3];
@@ -276,8 +276,7 @@ fn a_club_with_no_players_is_a_floor_breach() {
 /// When each is played through five seasons,
 /// Then no AI club is below the squad floor at the end of any season, the player's club was warned
 ///      whenever it was below the floor and could always field a side at kick-off, and every other
-///      rule holds
-///      (bar the #553 clash that the gate carries).
+///      rule holds.
 #[test]
 #[ignore = "nightly tier"]
 fn five_seasons_leave_no_club_below_the_squad_floor() {
@@ -308,14 +307,10 @@ fn five_seasons_leave_no_club_below_the_squad_floor() {
             !player_club.unwarned.is_empty(),
             "#787 is fixed: delete this exemption (seed {seed}: every change of shortfall was warned about)"
         );
-        let others = invariants.report_except(CLUB_RESTS_BETWEEN_MATCHES);
         assert!(
-            others.is_empty(),
-            "seed {seed} broke an invariant:\n{others}"
-        );
-        assert!(
-            !invariants.report_of(CLUB_RESTS_BETWEEN_MATCHES).is_empty(),
-            "#553 is fixed: delete this exemption (seed {seed}: no club played inside the rest)"
+            invariants.is_clean(),
+            "seed {seed} broke an invariant:\n{}",
+            invariants.report()
         );
     }
 }
