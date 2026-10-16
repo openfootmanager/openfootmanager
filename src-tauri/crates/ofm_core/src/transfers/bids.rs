@@ -68,6 +68,52 @@ pub(crate) fn find_open_offer_from_club<'a>(
         .iter()
         .find(|offer| offer.from_team_id == club_id && offer.status == TransferOfferStatus::Pending)
 }
+/// The negotiation `club_id` is in over this player: its live offer, or the one the owner refused
+/// within [`REBID_COOLDOWN_DAYS`], which the next bid continues rather than starts over. The
+/// incoming side's cooldown reads the same closed offers, so there is one rule.
+pub(crate) fn latest_negotiation_with_club<'a>(
+    player: &'a domain::player::Player,
+    club_id: &str,
+    today: NaiveDate,
+) -> Option<&'a domain::player::TransferOffer> {
+    if let Some(open) = find_open_offer_from_club(player, club_id) {
+        return Some(open);
+    }
+    player
+        .transfer_offers
+        .iter()
+        .filter(|offer| {
+            offer.from_team_id == club_id
+                && offer.status == TransferOfferStatus::Rejected
+                && closed_within_cooldown(player, offer, today)
+        })
+        .max_by_key(|offer| {
+            offer
+                .closed_on
+                .clone()
+                .unwrap_or_else(|| offer.date.clone())
+        })
+}
+
+fn closed_within_cooldown(
+    player: &domain::player::Player,
+    offer: &domain::player::TransferOffer,
+    today: NaiveDate,
+) -> bool {
+    let stamp = offer.closed_on.as_deref().unwrap_or(&offer.date);
+    NaiveDate::parse_from_str(stamp, "%Y-%m-%d")
+        .is_ok_and(|closed| (today - closed).num_days() < REBID_COOLDOWN_DAYS)
+        && heard_by_current_owner(player, stamp)
+}
+
+/// Whether the owner has walked away from this buyer and the cooldown still holds.
+fn talks_are_broken_off(offer: Option<&domain::player::TransferOffer>) -> bool {
+    offer.is_some_and(|offer| {
+        offer.status == TransferOfferStatus::Rejected
+            && offer.negotiation_round >= NEGOTIATION_BREAK_OFF_ROUND
+    })
+}
+
 pub(crate) fn negotiation_round_from_offer(offer: Option<&domain::player::TransferOffer>) -> u8 {
     offer
         .map(|offer| offer.negotiation_round.max(1).saturating_add(1))
@@ -112,9 +158,14 @@ pub(crate) fn upsert_transfer_offer(
         TransferOfferStatus::Rejected | TransferOfferStatus::Withdrawn
     );
 
-    if let Some(offer) = player.transfer_offers.iter_mut().find(|offer| {
-        offer.from_team_id == from_team_id && offer.status == TransferOfferStatus::Pending
-    }) {
+    let today = NaiveDate::parse_from_str(date, "%Y-%m-%d").ok();
+    let reusable = latest_negotiation_with_club(player, from_team_id, today.unwrap_or_default())
+        .map(|offer| offer.id.clone());
+    if let Some(offer) = player
+        .transfer_offers
+        .iter_mut()
+        .find(|offer| reusable.as_deref() == Some(offer.id.as_str()))
+    {
         offer.fee = fee;
         offer.status = status;
         if closing {
@@ -377,7 +428,10 @@ pub fn make_transfer_bid(
 
     let threshold = minimum_acceptable_fee(current_date, player, owner_team, buyer_team);
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
-    let existing_offer = find_open_offer_from_club(player, &user_team_id);
+    let existing_offer = latest_negotiation_with_club(player, &user_team_id, current_date);
+    if talks_are_broken_off(existing_offer) {
+        return Err(ERR_TALKS_BROKEN_OFF.into());
+    }
     let previous_fee = existing_offer.map(|offer| offer.fee);
     let previous_counter_fee = existing_offer.and_then(|offer| offer.suggested_counter_fee);
     let round = negotiation_round_from_offer(existing_offer);
@@ -469,7 +523,9 @@ pub fn make_transfer_bid(
         ));
     }
 
-    if fee >= counter_floor {
+    // Past the break-off round a bid that still falls short ends the talks, counter or not.
+    let broke_off = round >= NEGOTIATION_BREAK_OFF_ROUND;
+    if fee >= counter_floor && !broke_off {
         let suggested_fee = round_transfer_fee(adjusted_threshold);
         if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
             upsert_transfer_offer(
@@ -534,8 +590,16 @@ pub fn make_transfer_bid(
         true,
         None,
         build_transfer_feedback(
-            "transfers.transferFeedbackRejectedHeadline",
-            "transfers.transferFeedbackRejectedDetail",
+            if broke_off {
+                "transfers.transferFeedbackBrokeOffHeadline"
+            } else {
+                "transfers.transferFeedbackRejectedHeadline"
+            },
+            if broke_off {
+                "transfers.transferFeedbackBrokeOffDetail"
+            } else {
+                "transfers.transferFeedbackRejectedDetail"
+            },
             NegotiationMood::Guarded,
             tension.saturating_add(10).min(92),
             patience.saturating_sub(14),

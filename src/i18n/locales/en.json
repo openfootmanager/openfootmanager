@@ -1429,6 +1429,8 @@
     "transferFeedbackCounterDetail": "The bid was close enough to keep talking, but their side are signalling a price nearer {{fee}}.",
     "transferFeedbackRejectedHeadline": "They shut this round down.",
     "transferFeedbackRejectedDetail": "The proposal did not move them enough. You would need a stronger fee, closer to {{fee}}, to reopen serious talks.",
+    "transferFeedbackBrokeOffHeadline": "They have walked away.",
+    "transferFeedbackBrokeOffDetail": "After several offers that fell short, the club has ended the talks. A fee near {{fee}} would have been needed. Give them time before trying again.",
     "registrationFailureInsufficientFunds": "Registration failed: insufficient buyer funds",
     "registrationFailureLoanConflict": "Registration failed: loan conflict",
     "registrationFailurePlayerUnavailable": "Registration failed: player unavailable",
@@ -2862,6 +2864,7 @@
         "transferBudgetTooLow": "Transfer budget too low",
         "playerNotOwnedByUser": "Player not found or not yours",
         "offerNotPending": "Offer not found or not pending",
+        "talksBrokenOff": "This club has ended talks over this player. Try again later.",
         "loanBorrowerCannotAffordWages": "The borrowing club cannot afford this wage share. Its weekly wage budget is {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Counter offer must exceed current offer",
         "loanCounterMustImproveTerms": "Loan counter must improve the current offer",
@@ -3685,7 +3688,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it."
+        "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it.",
+        "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field."
       }
     }
   },

@@ -47,3 +47,25 @@ pub(super) fn build_game_from_world_data_ranked(
         reputation_basis,
     )
 }
+
+/// [`build_game_from_world_data_ranked`] for a world that came from a package or a world file:
+/// made ready for a career first, by `ofm_core`'s one preparation of an imported world.
+pub(super) fn build_game_from_imported_world_ranked(
+    clock: GameClock,
+    manager: Manager,
+    startup_options: &StartupOptions,
+    world: ofm_core::generator::WorldData,
+    reputation_basis: ofm_core::generator::ReputationBasis<'_>,
+) -> (Game, StatsState) {
+    let history = PastHistory {
+        start_year: startup_options.start_year,
+        depth_years: startup_options.history_depth_years,
+    };
+    ofm_core::world::build::build_game_from_imported_world(
+        clock,
+        manager,
+        history,
+        world,
+        reputation_basis,
+    )
+}

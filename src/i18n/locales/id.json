@@ -1429,6 +1429,8 @@
     "transferFeedbackCounterDetail": "Tawaran cukup dekat untuk terus bernegosiasi, tetapi pihak mereka mengisyaratkan harga yang mendekati {{fee}}.",
     "transferFeedbackRejectedHeadline": "Mereka menghentikan putaran ini.",
     "transferFeedbackRejectedDetail": "Proposal tidak cukup menggugah mereka. Kamu membutuhkan nominal yang lebih kuat, mendekati {{fee}}, untuk membuka negosiasi serius lagi.",
+    "transferFeedbackBrokeOffHeadline": "Mereka telah menghentikan pembicaraan.",
+    "transferFeedbackBrokeOffDetail": "Setelah beberapa tawaran yang kurang, klub mengakhiri negosiasi. Dibutuhkan biaya sekitar {{fee}}. Beri mereka waktu sebelum mencoba lagi.",
     "registrationFailureInsufficientFunds": "Registrasi gagal: dana pembeli tidak cukup",
     "registrationFailureLoanConflict": "Registrasi gagal: benturan pinjaman",
     "registrationFailurePlayerUnavailable": "Registrasi gagal: pemain tidak tersedia",
@@ -2862,6 +2864,7 @@
         "transferBudgetTooLow": "Anggaran transfer terlalu rendah",
         "playerNotOwnedByUser": "Pemain tidak ditemukan atau bukan milik kamu",
         "offerNotPending": "Tawaran tidak ditemukan atau tidak tertunda",
+        "talksBrokenOff": "Klub ini telah mengakhiri pembicaraan soal pemain ini. Coba lagi nanti.",
         "loanBorrowerCannotAffordWages": "Klub peminjam tidak sanggup membayar porsi gaji ini. Anggaran gaji mingguannya adalah {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Tawaran balasan harus melebihi tawaran saat ini",
         "loanCounterMustImproveTerms": "Tawaran balasan pinjaman harus memperbaiki tawaran saat ini",
@@ -3685,7 +3688,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya."
+        "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya.",
+        "freeAgentFieldIgnored": "Pemain \"{{id}}\" tidak punya klub, sehingga menjadi pemain bebas tanpa kontrak: \"{{field}}\" diabaikan. Berikan klub untuknya agar dipakai, atau hapus kolom itu."
       }
     }
   },
