@@ -1487,6 +1487,10 @@
   "players": {
     "searchPlaceholder": "Nach Name oder Nationalität suchen...",
     "allPos": "Alle Pos",
+    "filterAgeMin": "Mindestalter",
+    "filterAgeMax": "Höchstalter",
+    "filterOvrMin": "Min. Stärke",
+    "filterOvrMax": "Max. Stärke",
     "allTeams": "Alle Teams",
     "nPlayersFound": "{{count}} Spieler gefunden",
     "noMatch": "Keine Spieler entsprechen deinen Filtern.",

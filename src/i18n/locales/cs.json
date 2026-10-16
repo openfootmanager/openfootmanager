@@ -1487,6 +1487,10 @@
   "players": {
     "searchPlaceholder": "Hledat podle jména nebo národnosti...",
     "allPos": "Všechny pozice",
+    "filterAgeMin": "Min. věk",
+    "filterAgeMax": "Max. věk",
+    "filterOvrMin": "Min. hodnocení",
+    "filterOvrMax": "Max. hodnocení",
     "allTeams": "Všechny týmy",
     "nPlayersFound": "Nalezení hráči: {{count}}",
     "noMatch": "Vašim filtrům neodpovídají žádní hráči.",

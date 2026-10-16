@@ -87,7 +87,7 @@ pub fn continental_qualified_entrants(game: &Game, competition: &League) -> Vec<
         {
             continue;
         }
-        if let Some(winner) = crate::world_cup::world_cup_champion(competition)
+        if let Some(winner) = cup_champion(game, competition)
             && seen.insert(winner.clone())
         {
             qualified.push(winner);
@@ -106,9 +106,47 @@ pub fn competition_has_incoming_berths(game: &Game, target_id: &str) -> bool {
         .any(|berth| berth.target == target_id || berth.fallback_to.as_deref() == Some(target_id))
 }
 
+/// Who won `cup`: its own bracket if it has been decided, otherwise, only if the cup has been
+/// renewed for its next edition, the champion of the edition it last finished.
+///
+/// A cup is renewed before the rollover reads its winner, so by then its live bracket is the next,
+/// unplayed one and the finished edition is only in the archive. An undecided bracket is not by
+/// itself a renewed cup: a cup kept at the rollover because its final was postponed also has no
+/// winner yet, and its archived edition is last season's, already credited. So the archive is read
+/// only when the cup's season is past the season of its country's top division, which is the
+/// edition the rollover is settling.
+pub(crate) fn cup_champion(game: &Game, cup: &League) -> Option<String> {
+    crate::world_cup::world_cup_champion(cup).or_else(|| {
+        let settling = top_division_season(game, cup)?;
+        if cup.season <= settling {
+            return None;
+        }
+        crate::edition_archive::champion_of_latest_edition_before(
+            &game.edition_archive,
+            &cup.id,
+            cup.season,
+        )
+        .map(str::to_string)
+    })
+}
+
+/// The season of the first division of the cup's country: the edition being settled.
+fn top_division_season(game: &Game, cup: &League) -> Option<u32> {
+    let country = cup.country_id.as_deref()?;
+    game.competitions
+        .iter()
+        .filter(|competition| {
+            competition.kind == CompetitionType::League
+                && competition.scope == CompetitionScope::Domestic
+                && competition.country_id.as_deref() == Some(country)
+        })
+        .min_by_key(|competition| competition.priority)
+        .map(|competition| competition.season)
+}
+
 /// Teams a single berth rule selects from a competition's finished results.
 /// `PlayoffWinner` is scheduled and resolved separately (Phase C.3b).
-pub(super) fn evaluate_berth_rule(source: &League, rule: &BerthRule) -> Vec<String> {
+pub(super) fn evaluate_berth_rule(game: &Game, source: &League, rule: &BerthRule) -> Vec<String> {
     match rule {
         BerthRule::PositionRange { from, to } => {
             let start = (*from as usize).saturating_sub(1);
@@ -121,20 +159,18 @@ pub(super) fn evaluate_berth_rule(source: &League, rule: &BerthRule) -> Vec<Stri
                 .map(|entry| entry.team_id)
                 .collect()
         }
-        BerthRule::CupWinner => crate::world_cup::world_cup_champion(source)
-            .into_iter()
-            .collect(),
+        BerthRule::CupWinner => cup_champion(game, source).into_iter().collect(),
         BerthRule::PlayoffWinner { .. } => Vec::new(),
     }
 }
 
 /// Teams a single competition's results award to `target` via its berths.
-fn berth_winners(source: &League, target_id: &str) -> Vec<String> {
+fn berth_winners(game: &Game, source: &League, target_id: &str) -> Vec<String> {
     source
         .berths
         .iter()
         .filter(|berth| berth.target == target_id)
-        .flat_map(|berth| evaluate_berth_rule(source, &berth.rule))
+        .flat_map(|berth| evaluate_berth_rule(game, source, &berth.rule))
         .collect()
 }
 
@@ -147,7 +183,7 @@ pub fn berth_qualified_entrants(game: &Game, target: &League) -> Vec<String> {
     let mut qualified: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     for source in &game.competitions {
-        for team_id in berth_winners(source, &target.id) {
+        for team_id in berth_winners(game, source, &target.id) {
             if seen.insert(team_id.clone()) {
                 qualified.push(team_id);
             }
@@ -221,7 +257,7 @@ where
             if !(options.berth_eligible)(source, berth) {
                 continue;
             }
-            for winner in evaluate_berth_rule(source, &berth.rule) {
+            for winner in evaluate_berth_rule(game, source, &berth.rule) {
                 consider(&winner, &berth.target);
                 if options.follow_fallback
                     && let Some(fallback) = &berth.fallback_to
@@ -244,7 +280,7 @@ where
             if !(options.berth_eligible)(source, berth) {
                 continue;
             }
-            for winner in evaluate_berth_rule(source, &berth.rule) {
+            for winner in evaluate_berth_rule(game, source, &berth.rule) {
                 if !emitted.insert(winner.clone()) {
                     continue;
                 }

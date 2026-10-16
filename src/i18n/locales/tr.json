@@ -1487,6 +1487,10 @@
   "players": {
     "searchPlaceholder": "Ad veya uyruğa göre ara...",
     "allPos": "Tüm Poz",
+    "filterAgeMin": "En az yaş",
+    "filterAgeMax": "En çok yaş",
+    "filterOvrMin": "En düşük GEN",
+    "filterOvrMax": "En yüksek GEN",
     "allTeams": "Tüm Takımlar",
     "nPlayersFound": "{{count}} oyuncu bulundu",
     "noMatch": "Filtrelerinize uyan oyuncu yok.",

@@ -1487,6 +1487,10 @@
   "players": {
     "searchPlaceholder": "Cari berdasarkan nama atau kewarganegaraan...",
     "allPos": "Semua Posisi",
+    "filterAgeMin": "Usia min.",
+    "filterAgeMax": "Usia maks.",
+    "filterOvrMin": "OVR min.",
+    "filterOvrMax": "OVR maks.",
     "allTeams": "Semua Tim",
     "nPlayersFound": "{{count}} pemain ditemukan",
     "noMatch": "Tidak ada pemain yang cocok dengan filter.",
