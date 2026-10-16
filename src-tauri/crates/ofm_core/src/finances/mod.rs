@@ -1208,7 +1208,6 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
     };
 
     let weekly_wages = calc_wages(game, &user_team_id);
-    let annual_wages = weekly_wages;
     let weeks_left = snapshot.cash_runway_weeks.unwrap_or(999);
 
     // Critical: finances negative
@@ -1231,7 +1230,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     "be.msg.financeCritical.body",
                     {
                         let mut p = std::collections::HashMap::new();
-                        p.insert("amount".to_string(), format_money((-team.finance) as u64));
+                        p.insert("amount".to_string(), (-team.finance).to_string());
                         p
                     },
                 )
@@ -1267,7 +1266,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     "be.msg.financeWarning.body",
                     {
                         let mut p = std::collections::HashMap::new();
-                        p.insert("weeklyWages".to_string(), format_money(weekly_wages as u64));
+                        p.insert("weeklyWages".to_string(), weekly_wages.to_string());
                         p.insert("weeksLeft".to_string(), weeks_left.to_string());
                         p
                     },
@@ -1285,7 +1284,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         }
     }
     // Over budget warning: wages exceed budget
-    else if annual_wages > team.wage_budget {
+    else if weekly_wages > team.wage_budget {
         let msg_id = format!("wage_over_budget_{}", today);
         if !existing_ids.contains(&msg_id) {
             new_messages.push(
@@ -1304,11 +1303,8 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     "be.msg.wageOverBudget.body",
                     {
                         let mut p = std::collections::HashMap::new();
-                        p.insert("annualWages".to_string(), format_money(annual_wages as u64));
-                        p.insert(
-                            "wageBudget".to_string(),
-                            format_money(team.wage_budget as u64),
-                        );
+                        p.insert("weeklyWageBill".to_string(), weekly_wages.to_string());
+                        p.insert("wageBudget".to_string(), team.wage_budget.to_string());
                         p
                     },
                 )
@@ -1338,11 +1334,6 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
     }
 
     crate::inbox::emit_all(game, new_messages);
-}
-
-fn format_money(amount: u64) -> String {
-    crate::currency::format_compact_number(amount, crate::currency::DEFAULT_CURRENCY_CODE)
-        .unwrap_or_else(|| amount.to_string())
 }
 
 #[cfg(test)]

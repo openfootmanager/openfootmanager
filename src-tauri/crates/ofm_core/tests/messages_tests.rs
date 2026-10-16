@@ -366,7 +366,7 @@ fn incoming_transfer_offer_message_uses_i18n_keys_and_params() {
     );
     assert_eq!(
         msg.i18n_params.get("fee").map(String::as_str),
-        Some("€1.2M")
+        Some("1250000")
     );
     assert_eq!(
         msg.sender_key.as_deref(),
@@ -419,7 +419,7 @@ fn transfer_interest_digest_message_uses_i18n_keys_and_stable_id() {
     );
     assert_eq!(
         msg.i18n_params.get("fee").map(String::as_str),
-        Some("€1.2M")
+        Some("1250000")
     );
     assert!(msg.actions.iter().any(|action| {
         action.id == "view_transfers"
@@ -463,7 +463,7 @@ fn incoming_loan_offer_message_uses_i18n_keys_and_params() {
     );
     assert_eq!(
         msg.i18n_params.get("buyOption").map(String::as_str),
-        Some("€1.2M")
+        Some("1200000")
     );
     assert!(msg.actions.iter().any(|action| {
         action.id == "view_transfers"
@@ -524,6 +524,6 @@ fn loan_buy_option_exercised_message_uses_i18n_keys_and_params() {
     assert_eq!(msg.context.player_id.as_deref(), Some("player-1"));
     assert_eq!(
         msg.i18n_params.get("fee").map(String::as_str),
-        Some("€1.2M")
+        Some("1200000")
     );
 }
