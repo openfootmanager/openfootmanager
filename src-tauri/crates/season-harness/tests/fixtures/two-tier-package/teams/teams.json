@@ -1,0 +1,605 @@
+{
+  "schema": "team",
+  "items": [
+    {
+      "id": "ashford-fc",
+      "name": "Ashford FC",
+      "shortName": "ASH",
+      "city": "Ashford",
+      "country": "ENG",
+      "colors": {
+        "primary": "#1e3c78",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Ashford Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "brackley-fc",
+      "name": "Brackley FC",
+      "shortName": "BRA",
+      "city": "Brackley",
+      "country": "ENG",
+      "colors": {
+        "primary": "#23407b",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Brackley Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "carlow-fc",
+      "name": "Carlow FC",
+      "shortName": "CAR",
+      "city": "Carlow",
+      "country": "ENG",
+      "colors": {
+        "primary": "#28447e",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Carlow Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "dunmore-fc",
+      "name": "Dunmore FC",
+      "shortName": "DUN",
+      "city": "Dunmore",
+      "country": "ENG",
+      "colors": {
+        "primary": "#2d4881",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Dunmore Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "eastleigh-fc",
+      "name": "Eastleigh FC",
+      "shortName": "EAS",
+      "city": "Eastleigh",
+      "country": "ENG",
+      "colors": {
+        "primary": "#324c84",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Eastleigh Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "fenwick-fc",
+      "name": "Fenwick FC",
+      "shortName": "FEN",
+      "city": "Fenwick",
+      "country": "ENG",
+      "colors": {
+        "primary": "#375087",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Fenwick Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "garston-fc",
+      "name": "Garston FC",
+      "shortName": "GAR",
+      "city": "Garston",
+      "country": "ENG",
+      "colors": {
+        "primary": "#3c548a",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Garston Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "hartley-fc",
+      "name": "Hartley FC",
+      "shortName": "HAR",
+      "city": "Hartley",
+      "country": "ENG",
+      "colors": {
+        "primary": "#41588d",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Hartley Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "ivybridge-fc",
+      "name": "Ivybridge FC",
+      "shortName": "IVY",
+      "city": "Ivybridge",
+      "country": "ENG",
+      "colors": {
+        "primary": "#465c90",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Ivybridge Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "jarrow-fc",
+      "name": "Jarrow FC",
+      "shortName": "JAR",
+      "city": "Jarrow",
+      "country": "ENG",
+      "colors": {
+        "primary": "#4b6093",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Jarrow Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "kenton-fc",
+      "name": "Kenton FC",
+      "shortName": "KEN",
+      "city": "Kenton",
+      "country": "ENG",
+      "colors": {
+        "primary": "#506496",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Kenton Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "lydford-fc",
+      "name": "Lydford FC",
+      "shortName": "LYD",
+      "city": "Lydford",
+      "country": "ENG",
+      "colors": {
+        "primary": "#556899",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Lydford Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "marlow-fc",
+      "name": "Marlow FC",
+      "shortName": "MAR",
+      "city": "Marlow",
+      "country": "ENG",
+      "colors": {
+        "primary": "#5a6c9c",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Marlow Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "netley-fc",
+      "name": "Netley FC",
+      "shortName": "NET",
+      "city": "Netley",
+      "country": "ENG",
+      "colors": {
+        "primary": "#5f709f",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Netley Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "oakham-fc",
+      "name": "Oakham FC",
+      "shortName": "OAK",
+      "city": "Oakham",
+      "country": "ENG",
+      "colors": {
+        "primary": "#6474a2",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Oakham Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "penrith-fc",
+      "name": "Penrith FC",
+      "shortName": "PEN",
+      "city": "Penrith",
+      "country": "ENG",
+      "colors": {
+        "primary": "#6978a5",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Penrith Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "queensbury-fc",
+      "name": "Queensbury FC",
+      "shortName": "QUE",
+      "city": "Queensbury",
+      "country": "ENG",
+      "colors": {
+        "primary": "#6e7ca8",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Queensbury Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "redcar-fc",
+      "name": "Redcar FC",
+      "shortName": "RED",
+      "city": "Redcar",
+      "country": "ENG",
+      "colors": {
+        "primary": "#7380ab",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Redcar Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "sandford-fc",
+      "name": "Sandford FC",
+      "shortName": "SAN",
+      "city": "Sandford",
+      "country": "ENG",
+      "colors": {
+        "primary": "#7884ae",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Sandford Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "thornbury-fc",
+      "name": "Thornbury FC",
+      "shortName": "THO",
+      "city": "Thornbury",
+      "country": "ENG",
+      "colors": {
+        "primary": "#7d88b1",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Thornbury Park",
+      "reputationRange": [600, 900],
+      "financeRange": [2000000, 6000000]
+    },
+    {
+      "id": "upton-fc",
+      "name": "Upton FC",
+      "shortName": "UPT",
+      "city": "Upton",
+      "country": "ENG",
+      "colors": {
+        "primary": "#828cb4",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Upton Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "vernham-fc",
+      "name": "Vernham FC",
+      "shortName": "VER",
+      "city": "Vernham",
+      "country": "ENG",
+      "colors": {
+        "primary": "#8790b7",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Vernham Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "walcott-fc",
+      "name": "Walcott FC",
+      "shortName": "WAL",
+      "city": "Walcott",
+      "country": "ENG",
+      "colors": {
+        "primary": "#8c94ba",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Walcott Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "yarnton-fc",
+      "name": "Yarnton FC",
+      "shortName": "YAR",
+      "city": "Yarnton",
+      "country": "ENG",
+      "colors": {
+        "primary": "#9198bd",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Yarnton Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "zennor-fc",
+      "name": "Zennor FC",
+      "shortName": "ZEN",
+      "city": "Zennor",
+      "country": "ENG",
+      "colors": {
+        "primary": "#969cc0",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Zennor Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "appleby-fc",
+      "name": "Appleby FC",
+      "shortName": "APP",
+      "city": "Appleby",
+      "country": "ENG",
+      "colors": {
+        "primary": "#9ba0c3",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Appleby Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "bampton-fc",
+      "name": "Bampton FC",
+      "shortName": "BAM",
+      "city": "Bampton",
+      "country": "ENG",
+      "colors": {
+        "primary": "#a0a4c6",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Bampton Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "cranleigh-fc",
+      "name": "Cranleigh FC",
+      "shortName": "CRA",
+      "city": "Cranleigh",
+      "country": "ENG",
+      "colors": {
+        "primary": "#a5a8c9",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Cranleigh Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "dartford-fc",
+      "name": "Dartford FC",
+      "shortName": "DAR",
+      "city": "Dartford",
+      "country": "ENG",
+      "colors": {
+        "primary": "#aaaccc",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Dartford Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "elmsworth-fc",
+      "name": "Elmsworth FC",
+      "shortName": "ELM",
+      "city": "Elmsworth",
+      "country": "ENG",
+      "colors": {
+        "primary": "#afb0cf",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Elmsworth Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "frodsham-fc",
+      "name": "Frodsham FC",
+      "shortName": "FRO",
+      "city": "Frodsham",
+      "country": "ENG",
+      "colors": {
+        "primary": "#b4b4d2",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Frodsham Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "glossop-fc",
+      "name": "Glossop FC",
+      "shortName": "GLO",
+      "city": "Glossop",
+      "country": "ENG",
+      "colors": {
+        "primary": "#b9b8d5",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Glossop Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "hexham-fc",
+      "name": "Hexham FC",
+      "shortName": "HEX",
+      "city": "Hexham",
+      "country": "ENG",
+      "colors": {
+        "primary": "#bebcd8",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Hexham Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "ilkley-fc",
+      "name": "Ilkley FC",
+      "shortName": "ILK",
+      "city": "Ilkley",
+      "country": "ENG",
+      "colors": {
+        "primary": "#c3c0db",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Ilkley Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "kendal-fc",
+      "name": "Kendal FC",
+      "shortName": "KAL",
+      "city": "Kendal",
+      "country": "ENG",
+      "colors": {
+        "primary": "#c8c4de",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Kendal Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "ludlow-fc",
+      "name": "Ludlow FC",
+      "shortName": "LUD",
+      "city": "Ludlow",
+      "country": "ENG",
+      "colors": {
+        "primary": "#cdc8e1",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Ludlow Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "matlock-fc",
+      "name": "Matlock FC",
+      "shortName": "MAT",
+      "city": "Matlock",
+      "country": "ENG",
+      "colors": {
+        "primary": "#d2cce4",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Matlock Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "nantwich-fc",
+      "name": "Nantwich FC",
+      "shortName": "NAN",
+      "city": "Nantwich",
+      "country": "ENG",
+      "colors": {
+        "primary": "#d7d0e7",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Nantwich Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "ormskirk-fc",
+      "name": "Ormskirk FC",
+      "shortName": "ORM",
+      "city": "Ormskirk",
+      "country": "ENG",
+      "colors": {
+        "primary": "#dcd4ea",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Ormskirk Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    },
+    {
+      "id": "pewsey-fc",
+      "name": "Pewsey FC",
+      "shortName": "PEW",
+      "city": "Pewsey",
+      "country": "ENG",
+      "colors": {
+        "primary": "#e1d8ed",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Pewsey Park",
+      "reputationRange": [300, 600],
+      "financeRange": [800000, 2500000]
+    }
+  ]
+}
