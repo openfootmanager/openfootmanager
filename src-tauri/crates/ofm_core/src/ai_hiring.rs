@@ -487,6 +487,94 @@ mod tests {
         )
     }
 
+    fn on_record(game: &mut Game, id: &str) {
+        game.retired_managers.push(Manager::new(
+            id.to_string(),
+            "Former".to_string(),
+            "Manager".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        ));
+    }
+
+    fn manager_id_of(game: &Game, team_id: &str) -> Option<String> {
+        game.teams
+            .iter()
+            .find(|team| team.id == team_id)
+            .and_then(|team| team.manager_id.clone())
+    }
+
+    fn vacant_long_enough(game: &mut Game, team_id: &str) {
+        game.vacant_team_days.insert(
+            team_id.to_string(),
+            super::AI_MANAGER_REPLACEMENT_DELAY_DAYS - 1,
+        );
+    }
+
+    /// Given an AI club with no manager at world start
+    /// When managers are seeded
+    /// Then the invented manager's id is the club's own readable one, `mgr_<club>`
+    #[test]
+    fn a_clubs_first_invented_manager_is_named_after_the_club() {
+        let mut game = make_game();
+
+        seed_ai_managers(&mut game);
+
+        assert_eq!(manager_id_of(&game, "team2").as_deref(), Some("mgr_team2"));
+    }
+
+    /// Given a vacant AI club with no assistant, whose readable id `mgr_<club>` is already on record
+    /// When the vacancy is filled
+    /// Then the invented manager takes the next free id, not the one on record
+    #[test]
+    fn an_invented_manager_whose_id_is_on_record_takes_the_next_free_one() {
+        let mut game = make_game();
+        game.staff
+            .retain(|member| member.team_id.as_deref() != Some("team2"));
+        on_record(&mut game, "mgr_team2");
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_2")
+        );
+    }
+
+    /// Given a vacant AI club with an assistant manager
+    /// When the vacancy is filled
+    /// Then the stand-in's id is the readable `mgr_<club>_<assistant>`
+    #[test]
+    fn a_clubs_first_stand_in_is_named_after_the_club_and_the_assistant() {
+        let mut game = make_game();
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_staff2")
+        );
+    }
+
+    /// Given a vacant AI club with an assistant, whose readable stand-in id is already on record
+    /// When the vacancy is filled
+    /// Then the stand-in takes the next free id, not the one on record
+    #[test]
+    fn a_stand_in_whose_id_is_on_record_takes_the_next_free_one() {
+        let mut game = make_game();
+        on_record(&mut game, "mgr_team2_staff2");
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_staff2_2")
+        );
+    }
+
     #[test]
     fn seed_ai_managers_assigns_missing_manager_to_ai_club() {
         let mut game = make_game();
