@@ -1,24 +1,12 @@
 use crate::contracts::{iso, record_movement};
 use crate::game::Game;
-use chrono::{Datelike, NaiveDate};
+use chrono::NaiveDate;
 use domain::player::{Player, PlayerMovementEntry, PlayerMovementKind};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 const MIN_ATTRIBUTE: u8 = 1;
 const MAX_ATTRIBUTE: u8 = 99;
-
-fn player_age_on(current_date: NaiveDate, date_of_birth: &str) -> i32 {
-    let Ok(dob) = NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d") else {
-        return 30;
-    };
-
-    let mut age = current_date.year() - dob.year();
-    if current_date.ordinal() < dob.ordinal() {
-        age -= 1;
-    }
-    age
-}
 
 fn seeded_value(player_id: &str, season: u32, salt: &str) -> u32 {
     let mut hasher = DefaultHasher::new();
@@ -141,7 +129,7 @@ fn retire_player(player: &mut Player, current_date: NaiveDate) {
 
 pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u32) {
     for player in game.players.iter_mut() {
-        let age = player_age_on(current_date, &player.date_of_birth);
+        let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
         apply_attribute_curve(player, age, season);
 
         if should_retire(player, age, current_date, season) {
@@ -159,8 +147,7 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_seasonal_aging, player_age_on, retirement_chance, should_retire, technical_growth,
-        veteran_pace_loss,
+        apply_seasonal_aging, retirement_chance, should_retire, technical_growth, veteran_pace_loss,
     };
     use crate::clock::GameClock;
     use crate::game::Game;
@@ -234,10 +221,31 @@ mod tests {
         assert_eq!(veteran_pace_loss("prospect", 24, 5), 0);
     }
 
+    /// Given players aged 33 to 40, when ten seasons of technical growth are drawn,
+    /// then none of them grows.
     #[test]
     fn technical_growth_stops_after_age_32() {
-        assert!(technical_growth("player", 31, 3) <= 1);
-        assert_eq!(technical_growth("player", 33, 3), 0);
+        for age in 33..=40 {
+            for season in 1..=10 {
+                assert_eq!(technical_growth("player", age, season), 0, "age {age}");
+            }
+        }
+    }
+
+    /// Given players aged 18 to 32, when ten seasons of technical growth are drawn,
+    /// then each age grows by one point in some seasons and never by more.
+    #[test]
+    fn technical_growth_continues_up_to_age_32() {
+        for age in 18..=32 {
+            let growth: Vec<u8> = (1..=10)
+                .map(|season| technical_growth("player", age, season))
+                .collect();
+            assert!(
+                growth.iter().all(|&points| points <= 1),
+                "age {age}: {growth:?}"
+            );
+            assert!(growth.contains(&1), "age {age} never grew: {growth:?}");
+        }
     }
 
     #[test]
@@ -251,7 +259,7 @@ mod tests {
             ..PlayerSeasonStats::default()
         };
 
-        let age = player_age_on(current_date, &player.date_of_birth);
+        let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
         assert!(should_retire(&player, age, current_date, 1));
     }
 
@@ -345,6 +353,38 @@ mod tests {
         assert_eq!(retirement_chance(&player, 34, date), 24);
         player.stats.avg_rating = 6.8;
         assert_eq!(retirement_chance(&player, 34, date), 24);
+    }
+
+    /// Given a contracted veteran at a club, with enough appearances, an unrated season and an
+    /// ordinary overall,
+    /// when his retirement chance is read at each age from 32 to 40,
+    /// then it is 0 before 33, then 12, 24, 42, 60 and 78, and certain from 38.
+    #[test]
+    fn the_retirement_chance_rises_with_each_year_from_33() {
+        let date = NaiveDate::from_ymd_opt(2026, 5, 20).unwrap();
+        let mut player = make_player("ageing-pro", "1990-01-01");
+        player.stage_contract_end(Some("2027-06-30".to_string()));
+        player.stats.appearances = 20;
+        assert!(player.ovr < 80, "an 80+ overall lowers the chance");
+
+        let by_age: Vec<(i32, u32)> = (32..=40)
+            .map(|age| (age, retirement_chance(&player, age, date)))
+            .collect();
+
+        assert_eq!(
+            by_age,
+            vec![
+                (32, 0),
+                (33, 12),
+                (34, 24),
+                (35, 42),
+                (36, 60),
+                (37, 78),
+                (38, 100),
+                (39, 100),
+                (40, 100),
+            ]
+        );
     }
 
     /// Given an old save storing the numeric zero sentinel, when the player is loaded,

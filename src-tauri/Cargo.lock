@@ -1300,6 +1300,7 @@ dependencies = [
 name = "domain"
 version = "0.3.0"
 dependencies = [
+ "chrono",
  "serde",
  "serde_json",
 ]
@@ -4016,6 +4017,7 @@ dependencies = [
  "chrono",
  "domain",
  "ofm_core",
+ "serde_json",
 ]
 
 [[package]]

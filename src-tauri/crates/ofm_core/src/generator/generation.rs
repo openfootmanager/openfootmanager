@@ -630,7 +630,10 @@ pub(super) fn generate_random_player_from_def(
         natural_ovr(&player).round() as u8
     };
     player.potential = generate_potential(temp_ovr, player_age, rng);
-    refresh_player_derived(&mut player, current_year);
+    refresh_player_derived(
+        &mut player,
+        domain::age::season_midpoint(current_year as i32),
+    );
 
     player.jersey_number = jersey_number_for_slot(index);
 
@@ -1171,7 +1174,10 @@ pub(super) fn generate_player_from_def(
     player.potential = def
         .potential
         .unwrap_or_else(|| generate_potential(temp_ovr, age, rng));
-    refresh_player_derived(&mut player, current_year);
+    refresh_player_derived(
+        &mut player,
+        domain::age::season_midpoint(current_year as i32),
+    );
     player
 }
 

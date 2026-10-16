@@ -179,6 +179,7 @@ function createGameState(players: PlayerData[]): GameStateData {
       start_date: "2026-07-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",
@@ -214,6 +215,7 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
     id: "staff-1",
     first_name: "Sam",
     last_name: "Scout",
+    display_name: "Sam Scout",
     date_of_birth: "1985-01-01",
     nationality: "GB",
     role: "Scout",
@@ -513,5 +515,38 @@ describe("YouthAcademyTab", () => {
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
+  });
+
+  /**
+   * Given a youth coach known as "Cafu" (Marcos Evangelista)
+   * When the youth academy is drawn
+   * Then the coach badge shows the backend's display name.
+   */
+  it("names the youth coach by their display name", async () => {
+    const coach = createScout({
+      id: "staff-coach",
+      first_name: "Marcos",
+      last_name: "Evangelista",
+      display_name: "Cafu",
+      role: "Coach",
+      specialization: "Youth",
+    });
+    const state = { ...createGameState([createPlayer({ squad_role: "Youth" })]), staff: [coach] };
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff")
+        return {
+          team_staff: [coach],
+          available_staff: [],
+          scouting_assignments: [],
+          youth_scouting_assignments: [],
+        };
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} onSelectPlayer={vi.fn()} />);
+
+    expect(await screen.findByText(/Cafu \(/)).toBeInTheDocument();
+    expect(screen.queryByText(/Marcos Evangelista/)).not.toBeInTheDocument();
   });
 });

@@ -30,6 +30,7 @@ function createManager(overrides: Partial<ManagerData> = {}): ManagerData {
     id: "manager-1",
     first_name: "Jane",
     last_name: "Doe",
+    display_name: "Jane Doe",
     date_of_birth: "1980-01-01",
     nationality: "ENG",
     football_nation: "ENG",
@@ -93,6 +94,7 @@ function createGameState(): GameStateData {
         id: "manager-2",
         first_name: "Marco",
         last_name: "Rossi",
+        display_name: "Marco Rossi",
         team_id: null,
         reputation: 58,
         career_stats: {
@@ -156,6 +158,27 @@ describe("ManagersWorldTab", () => {
     expect(screen.getByText("Alpha FC")).toBeInTheDocument();
     expect(screen.getAllByText("Vacancy")).toHaveLength(2);
     expect(screen.getByText("Open role at Beta United")).toBeInTheDocument();
+  });
+
+  // Given a manager known by a short name (#557)
+  // When the directory renders them
+  // Then it shows the display name the backend decided, not first and last name composed here.
+  it("shows the display name the backend decided", () => {
+    const state = createGameState();
+    state.managers = [
+      createManager({
+        id: "pep",
+        first_name: "Josep",
+        last_name: "Guardiola i Sala",
+        known_as: "Pep Guardiola",
+        display_name: "Pep Guardiola",
+      }),
+    ];
+
+    render(<ManagersWorldTab gameState={state} />);
+
+    expect(screen.getByText("Pep Guardiola")).toBeInTheDocument();
+    expect(screen.queryByText("Josep Guardiola i Sala")).toBeNull();
   });
 
   it("routes team selection from manager clubs and vacancy cards", () => {

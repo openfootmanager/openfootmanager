@@ -90,6 +90,10 @@ pub fn build_game_from_world_data(
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
+    // A world exported before retirees had an archive still carries them among its players. Every
+    // route from a world to a game goes through here, so this is where they leave the roster:
+    // before the squad floor, the national squads or the awards can take them for live players.
+    crate::retirees::archive_legacy_retirees(&mut game);
     // Stored on the game, which is the one place the day's dice come from.
     game.seed = seed;
     if game
@@ -193,5 +197,35 @@ mod tests {
         assert!(game.players.len() >= players);
         assert!(!game.competitions.is_empty());
         assert!(game.teams.iter().all(|team| team.history.len() == 2));
+    }
+
+    /// Given a world exported before retirees had an archive, with a player flagged as retired
+    ///       still in its players,
+    /// When a game is built from it,
+    /// Then the retiree is in the archive and on no roster: no squad, free-agent pool or
+    ///      national selection sees him as live.
+    #[test]
+    fn a_retiree_in_an_older_exported_world_is_archived_as_the_game_is_built() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        let retiree_id = world.players[0].id.clone();
+        world.players[0].retired = true;
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 2,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        assert!(game.players.iter().all(|player| !player.retired));
+        assert!(game.players.iter().all(|player| player.id != retiree_id));
+        assert!(
+            game.retired_players
+                .iter()
+                .any(|record| record.id == retiree_id),
+            "the retiree is in no archive"
+        );
     }
 }

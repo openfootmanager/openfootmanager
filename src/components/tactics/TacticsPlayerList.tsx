@@ -9,6 +9,7 @@ import ContextMenu from "../ContextMenu";
 import { buildTacticsPlayerContextMenuItems } from "./TacticsContextMenu.helpers";
 import TacticsFilters from "./TacticsFilters";
 import { naturalPositionOf } from "../../lib/positions";
+import { isMatchDayEligible } from "../../lib/playerSquad";
 
 interface TacticsPlayerListProps {
   bench: PlayerData[];
@@ -145,10 +146,10 @@ function PlayerRow({
         <button
           type="button"
           data-testid={`pitch-bench-player-${player.id}`}
-          draggable={!player.injury}
+          draggable={isMatchDayEligible(player)}
           onClick={() => onTacticalSelect(player.id, "bench")}
           onDragStart={(event) => {
-            if (!player.injury) {
+            if (isMatchDayEligible(player)) {
               onDragStart(event, player.id, "bench", null);
             }
           }}

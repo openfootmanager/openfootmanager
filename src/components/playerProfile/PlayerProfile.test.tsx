@@ -281,6 +281,7 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
     id: "staff-1",
     first_name: "Alex",
     last_name: "Assistant",
+    display_name: "Alex Assistant",
     date_of_birth: "1980-01-01",
     nationality: "GB",
     role: "AssistantManager" as const,
@@ -305,6 +306,7 @@ function createGameState(player: PlayerData, staff: StaffData[] = []): GameState
       start_date: "2026-07-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",

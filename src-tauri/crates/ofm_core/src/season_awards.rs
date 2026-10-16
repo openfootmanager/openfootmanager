@@ -1,5 +1,4 @@
 use crate::game::Game;
-use chrono::{Datelike, NaiveDate};
 use domain::league::League;
 use domain::manager::Manager;
 use domain::player::{Player, Position};
@@ -72,18 +71,6 @@ struct ManagerAwardContext<'a> {
 
 fn free_agent_team_name() -> String {
     ["Free", "Agent"].join(" ")
-}
-
-fn player_age_on(today: &NaiveDate, date_of_birth: &str) -> i32 {
-    if let Ok(dob) = NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d") {
-        let mut age = today.year() - dob.year();
-        if today.ordinal() < dob.ordinal() {
-            age -= 1;
-        }
-        age
-    } else {
-        30
-    }
 }
 
 fn resolve_team_info(game: &Game, player: &Player) -> (String, String) {
@@ -160,7 +147,7 @@ fn build_player_award_contexts<'a>(
                 player,
                 team_id,
                 team_name,
-                age: player_age_on(&today, &player.date_of_birth),
+                age: domain::age::age_on_or_unknown(today, &player.date_of_birth),
                 club_matches_played,
             }
         })
@@ -850,6 +837,28 @@ mod tests {
             .map(|e| e.player_id.as_str())
             .collect();
         assert_eq!(ids, vec!["regular"]);
+    }
+
+    /// Given a player born on a leap-year 15 June who turns 22 today in a common year, when awards
+    /// are computed, then he is no longer a young player (day-of-year would call him 21).
+    #[test]
+    fn a_player_turning_twenty_two_today_is_no_longer_young() {
+        let birthday_boy = rated_player("turns-22", "2004-06-15", 30, 7.9);
+        let still_21 = rated_player("still-21", "2004-06-16", 30, 7.0);
+        let mut game = make_game(
+            vec![birthday_boy, still_21],
+            vec![make_team("team1", "Test FC")],
+        );
+        game.clock = GameClock::new(Utc.with_ymd_and_hms(2026, 6, 15, 12, 0, 0).unwrap());
+
+        let awards = compute_season_awards(&game);
+
+        let ids: Vec<_> = awards
+            .young_player
+            .iter()
+            .map(|e| e.player_id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["still-21"]);
     }
 
     /// Given a stale legacy league mirror that disagrees with the competitions, when world awards

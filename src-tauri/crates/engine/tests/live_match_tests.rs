@@ -645,6 +645,96 @@ fn change_play_style_works() {
     assert_eq!(snap.away_team.play_style, PlayStyle::Attacking);
 }
 
+/// Given a forward on the pitch
+/// When a role that suits forwards is requested
+/// Then the player takes it.
+#[test]
+fn a_role_that_suits_the_position_is_applied() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+    let striker_id = state
+        .snapshot()
+        .home_team
+        .players
+        .iter()
+        .find(|p| p.position == Position::Forward)
+        .unwrap()
+        .id
+        .clone();
+
+    state
+        .apply_command(MatchCommand::ChangePlayerRole {
+            side: Side::Home,
+            player_id: striker_id.clone(),
+            role: PlayerRole::Poacher,
+        })
+        .unwrap();
+
+    let snap = state.snapshot();
+    let striker = snap
+        .home_team
+        .players
+        .iter()
+        .find(|p| p.id == striker_id)
+        .unwrap();
+    assert_eq!(striker.role, PlayerRole::Poacher);
+}
+
+/// Given a forward on the pitch
+/// When a goalkeeper's role is requested for them
+/// Then the command is refused with the position error and the role is untouched.
+#[test]
+fn a_role_that_does_not_suit_the_position_is_refused() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+    let before = state.snapshot();
+    let striker = before
+        .home_team
+        .players
+        .iter()
+        .find(|p| p.position == Position::Forward)
+        .unwrap();
+
+    let refusal = state.apply_command(MatchCommand::ChangePlayerRole {
+        side: Side::Home,
+        player_id: striker.id.clone(),
+        role: PlayerRole::SweeperKeeper,
+    });
+
+    assert_eq!(refusal, Err("be.error.roleNotValidForPosition".to_string()));
+    let after = state.snapshot();
+    let same = after
+        .home_team
+        .players
+        .iter()
+        .find(|p| p.id == striker.id)
+        .unwrap();
+    assert_eq!(same.role, striker.role);
+}
+
+/// Given a player id that is not on the pitch for that side
+/// When a role change is requested for them
+/// Then the command is refused as "player not on pitch".
+#[test]
+fn a_role_change_for_a_player_not_on_the_pitch_is_refused() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+
+    let refusal = state.apply_command(MatchCommand::ChangePlayerRole {
+        side: Side::Home,
+        player_id: "nobody".to_string(),
+        role: PlayerRole::Standard,
+    });
+
+    assert_eq!(
+        refusal,
+        Err("be.error.liveMatch.playerNotOnPitch".to_string())
+    );
+}
+
 #[test]
 fn set_piece_takers_stored() {
     let mut state = make_live_match(false);

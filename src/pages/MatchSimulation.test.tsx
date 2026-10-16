@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
+import { resetMatchCommands } from "../components/match/matchCommands";
 import MatchSimulation from "./MatchSimulation";
 
 const navigateMock = vi.fn();
@@ -11,6 +12,11 @@ let gameStoreState: {
   gameState: Record<string, unknown> | null;
   setGameState: typeof setGameStateMock;
 };
+
+vi.mock("../components/match/matchCommands", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../components/match/matchCommands")>();
+  return { ...actual, resetMatchCommands: vi.fn(actual.resetMatchCommands) };
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -353,6 +359,22 @@ describe("MatchSimulation", (): void => {
       gameState: makeGameState(),
       setGameState: setGameStateMock,
     };
+  });
+
+  /**
+   * Given a match screen opens
+   * When it mounts
+   * Then the in-play command chain is started afresh, so a hung command from an earlier match
+   *      cannot hold up this one.
+   */
+  it("starts a fresh command chain for each match screen", async (): Promise<void> => {
+    mockedInvoke.mockResolvedValueOnce(makeSnapshot());
+
+    render(<MatchSimulation />);
+
+    await waitFor((): void => {
+      expect(resetMatchCommands).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("renders the current live snapshot when get_match_snapshot succeeds", async (): Promise<void> => {

@@ -829,10 +829,14 @@ fn relegated_user_receives_a_relegation_message() {
 
     process_end_of_season(&mut game);
 
+    // Named by the edition the user's new division was renewed to, not by last season plus one.
+    let renewed_season = ofm_core::end_of_season::user_division(&game, "team2")
+        .expect("the user still has a division")
+        .season;
     let msg = game
         .messages
         .iter()
-        .find(|m| m.id == "relegation_2")
+        .find(|m| m.id == format!("relegation_{renewed_season}"))
         .expect("relegated user must be told");
     assert_eq!(
         msg.subject_key.as_deref(),
@@ -844,7 +848,7 @@ fn relegated_user_receives_a_relegation_message() {
         Some(&"ENG Second Division".to_string())
     );
     assert!(
-        !game.messages.iter().any(|m| m.id == "promotion_2"),
+        !game.messages.iter().any(|m| m.id.starts_with("promotion_")),
         "a relegated user must not also be congratulated"
     );
 }
@@ -855,10 +859,13 @@ fn promoted_user_receives_a_promotion_message() {
 
     process_end_of_season(&mut game);
 
+    let renewed_season = ofm_core::end_of_season::user_division(&game, "team3")
+        .expect("the user still has a division")
+        .season;
     let msg = game
         .messages
         .iter()
-        .find(|m| m.id == "promotion_2")
+        .find(|m| m.id == format!("promotion_{renewed_season}"))
         .expect("promoted user must be told");
     assert_eq!(msg.subject_key.as_deref(), Some("be.msg.promotion.subject"));
     assert_eq!(
@@ -3539,6 +3546,37 @@ fn retiree_conversion_is_idempotent() {
     assert_eq!(
         scout_count, 1,
         "duplicate scout must not be created on second call"
+    );
+}
+
+/// Given one player who retired this season and one archived seasons ago, both with careers,
+/// When the season ends
+/// Then only this season's retiree becomes a manager and a scout candidate.
+#[test]
+fn only_this_seasons_retirees_become_candidates() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("recent"));
+    let long_ago = make_retired_player("longago");
+    game.retired_players
+        .push(domain::retired_player::RetiredPlayer::from_player(
+            &long_ago,
+            "2001-06-30",
+            2001,
+        ));
+
+    process_end_of_season(&mut game);
+
+    assert!(game.managers.iter().any(|m| m.id == "mgr_retired_recent"));
+    assert!(
+        game.staff
+            .iter()
+            .any(|s| s.id == "staff_retired_scout_recent")
+    );
+    assert!(game.managers.iter().all(|m| m.id != "mgr_retired_longago"));
+    assert!(
+        game.staff
+            .iter()
+            .all(|s| s.id != "staff_retired_scout_longago")
     );
 }
 

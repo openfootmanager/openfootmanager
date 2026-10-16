@@ -8,7 +8,7 @@ use crate::contracts::{
 };
 use crate::finances::calc_wages;
 use crate::game::Game;
-use chrono::{Datelike, Duration, NaiveDate};
+use chrono::{Duration, NaiveDate};
 use domain::contract_ledger::ContractSource;
 use domain::league::CompletedTransfer;
 use domain::negotiation::{NegotiationFeedback, NegotiationMood};
@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use uuid::Uuid;
 
+mod affordability;
 mod bids;
 mod consts;
 mod execution;
@@ -31,6 +32,7 @@ mod market;
 mod notifications;
 mod registration;
 
+pub(crate) use affordability::{can_afford_fee, fee_block, transfer_fee_ceiling};
 pub use bids::*;
 use consts::*;
 pub use execution::*;
@@ -39,6 +41,9 @@ pub use loans::*;
 pub use market::*;
 use notifications::*;
 use registration::*;
+pub(crate) use registration::{
+    has_pending_transfer_registration, player_has_active_or_pending_loan,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

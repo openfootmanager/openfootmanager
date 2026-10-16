@@ -249,8 +249,10 @@ is skipped on the IPC payload because it only grows.
 - **Save format 9.** A save written before the archive carries its retirees as `retired = 1`
   rows. On load, a save below format 9 has them moved into the archive once, each dated by his
   own `retired` movement and filed under the season of his last career entry; the resave deletes
-  the old rows. A format 9 save is never partitioned again. An older build refuses a format 9
-  save rather than open it with its retirees missing.
+  the old rows. The check is not tied to the format: whatever a save's version, a retiree found on
+  a loaded roster is archived on that load and the load writes the move back, so the roster only
+  ever holds people who play. An older build refuses a format 9 save rather than open it with its
+  retirees missing.
 - **Readers.** The Hall of Fame, a retiree's profile, his stats overview and the names on old
   results read the archive (`ofm_core::retirees`, `ofm_core::hall_of_fame`).
 

@@ -295,4 +295,28 @@ mod tests {
 
         assert_eq!(game.retired_players[0].retired_on, "2031-05-20");
     }
+
+    /// Given a retiree from a save that predates the archive, with career entries in three seasons,
+    /// When archived at load,
+    /// Then he is filed under the latest of them.
+    #[test]
+    fn a_legacy_retiree_is_filed_under_his_last_career_season() {
+        use domain::player::CareerEntry;
+        let mut old = person("p-old", "Ada Old", true);
+        for season in [2030, 2034, 2032] {
+            old.career.push(CareerEntry {
+                season,
+                team_id: "t".into(),
+                team_name: "T".into(),
+                appearances: 10,
+                goals: 1,
+                assists: 1,
+            });
+        }
+        let mut game = game_with_teams(vec![old], vec![]);
+
+        archive_legacy_retirees(&mut game);
+
+        assert_eq!(game.retired_players[0].retired_season, 2034);
+    }
 }

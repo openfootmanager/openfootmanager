@@ -338,6 +338,7 @@ Defines a non-playing staff member (manager assistant, coach, scout, or physio).
 | `specialization` | string or null | no | `null` | Coaching focus (coaches only): `"Fitness"`, `"Technique"`, `"Tactics"`, `"Defending"`, `"Attacking"`, `"GoalKeeping"`, `"Youth"`. |
 | `dateOfBirth` | string or null | no | `null` | ISO 8601 date: `"YYYY-MM-DD"`. |
 | `age` | integer or null | no | `null` | Age at world generation start. Used if `dateOfBirth` is absent. |
+| `knownAs` | string or null | no | `null` | What they are called when it differs from their name, for example `"Cafu"` for Marcos Evangelista. `firstName` and `lastName` stay the real name; the game shows `knownAs` wherever a staff name is drawn. |
 | `attributes` | object or null | no | `null` | Explicit attribute overrides: `coaching`, `judgingAbility`, `judgingPotential`, `physiotherapy` (each 1–99). |
 
 **Example:**
@@ -476,6 +477,7 @@ Competitions are the most complex entity. A competition defines a league, cup, o
 | `calendar.division.phase` | enum | `"annual"` | `"annual"`, `"opening"` or `"closing"`. Opening/closing declarations require `windowEnd`. |
 | `calendar.windowEnd` | object | absent | Optional valid `{ "month": 6, "day": 30 }` end date. An end before the opener belongs to the following year. |
 | `nameKey` | string or null | `null` | i18n key for a translated competition name. |
+| `logo` | string or null | `null` | Relative path to the competition's badge image inside the package. |
 
 ### Competition Types
 
