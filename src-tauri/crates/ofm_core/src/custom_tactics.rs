@@ -44,7 +44,11 @@ fn validated(tactic: &CustomTactic) -> Result<CustomTactic, String> {
 /// Adds the tactic, or replaces the one with the same id where it stands in the list.
 pub fn save_custom_tactic(game: &mut Game, tactic: &CustomTactic) -> Result<(), String> {
     let tactic = validated(tactic)?;
-    match game.custom_tactics.iter_mut().find(|t| t.id == tactic.id) {
+    match game
+        .custom_tactics
+        .iter_mut()
+        .find(|t| t.id.trim() == tactic.id)
+    {
         Some(existing) => *existing = tactic,
         None => game.custom_tactics.push(tactic),
     }
@@ -55,7 +59,8 @@ pub fn save_custom_tactic(game: &mut Game, tactic: &CustomTactic) -> Result<(), 
 pub fn delete_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
     let id = id.trim();
     let before = game.custom_tactics.len();
-    game.custom_tactics.retain(|t| t.id != id);
+    // Ids kept before they were trimmed may still be padded in an old save.
+    game.custom_tactics.retain(|t| t.id.trim() != id);
     if game.custom_tactics.len() == before {
         return Err(NOT_FOUND_ERROR.to_string());
     }
@@ -227,6 +232,24 @@ mod tests {
         assert_eq!(game.custom_tactics[0].id, "a");
         assert_eq!(game.custom_tactics[0].name, "Second");
         delete_custom_tactic(&mut game, "a ").unwrap();
+        assert!(game.custom_tactics.is_empty());
+    }
+
+    /// Given a tactic already stored with a padded id "a " (kept before ids were trimmed)
+    /// When "a" is saved, and then "a" is deleted
+    /// Then the save replaces it (one tactic, id "a") and the delete finds it.
+    #[test]
+    fn a_legacy_padded_id_matches_its_trimmed_form() {
+        let mut game = game();
+        game.custom_tactics.push(tactic("a ", "Legacy"));
+
+        save_custom_tactic(&mut game, &tactic("a", "Current")).unwrap();
+        assert_eq!(game.custom_tactics.len(), 1);
+        assert_eq!(game.custom_tactics[0].id, "a");
+        assert_eq!(game.custom_tactics[0].name, "Current");
+
+        game.custom_tactics[0].id = "a ".to_string();
+        delete_custom_tactic(&mut game, "a").unwrap();
         assert!(game.custom_tactics.is_empty());
     }
 
