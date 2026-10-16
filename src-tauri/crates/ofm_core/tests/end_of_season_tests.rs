@@ -546,6 +546,9 @@ fn a_kept_cup_with_an_undecided_final_does_not_credit_last_seasons_champion_agai
 fn europe_game_in_season(league_season: u32, berth: bool) -> Game {
     let mut game = europe_game_with_a_renewed_cup(berth);
     game.competitions[0].season = league_season;
+    // The league ranks below the cup by priority, so a lookup that lets the cup (or any
+    // competition of another kind) stand in for the league finds the wrong season.
+    game.competitions[0].priority = 1;
     game.competitions[1].season = league_season + 1;
     game.edition_archive[0].season = league_season;
     let mut foreign = first_division("br-1", "BR", "south-america", &["br-a", "br-b"]);
