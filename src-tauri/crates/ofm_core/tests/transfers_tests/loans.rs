@@ -224,14 +224,15 @@ fn a_loan_refusal_from_an_earlier_spell_at_the_same_club_is_not_remembered() {
     make_loan_offer(&mut game, "player-loan-returned", "2027-01-01", 0, None)
         .expect("an approach after the return");
 
-    let rounds: Vec<u8> = own_loan_offers(&game, "player-loan-returned")
-        .iter()
-        .map(|offer| offer.negotiation_round)
-        .collect();
+    let offers = own_loan_offers(&game, "player-loan-returned");
+    let rounds: Vec<u8> = offers.iter().map(|offer| offer.negotiation_round).collect();
     assert!(
         rounds.iter().all(|round| *round == 1),
         "a second spell starts afresh: {rounds:?}"
     );
+    // The return starts a new offer row beside the refused one, rather than reusing it.
+    assert_eq!(offers.len(), 2, "{offers:?}");
+    assert_ne!(offers[0].id, offers[1].id);
 }
 
 /// Given a club that keeps lowballing the same loan
