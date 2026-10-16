@@ -1367,6 +1367,7 @@
     "bidImpactWagePressure": "Utilizzo previsto del budget stipendi {{percent}}%",
     "bidImpactOverTransferBudget": "Questa offerta supera il tuo budget trasferimenti",
     "bidImpactOverBalance": "Questa offerta manderebbe il club in rosso",
+    "bidImpactOverWagePolicy": "Il consiglio rifiuterebbe il suo stipendio: supera la politica salariale del club",
     "bidAccepted": "Offerta accettata! Giocatore ingaggiato.",
     "bidCountered": "Sono tornati con nuove condizioni.",
     "bidRejected": "Offerta respinta — cifra troppo bassa.",

@@ -1348,6 +1348,7 @@
     "bidImpactWagePressure": "Öngörülen maaş bütçesi kullanımı %{{percent}}",
     "bidImpactOverTransferBudget": "Bu teklif transfer bütçenizi aşıyor",
     "bidImpactOverBalance": "Bu teklif kulübü borca sokar",
+    "bidImpactOverWagePolicy": "Yönetim kurulu maaşını reddeder: kulübün maaş politikasını aşıyor",
     "bidAccepted": "Teklif kabul edildi! Oyuncu imzaladı.",
     "bidCountered": "Gözden geçirilmiş şartlarla geri döndüler.",
     "bidRejected": "Teklif reddedildi — teklif çok düşük.",

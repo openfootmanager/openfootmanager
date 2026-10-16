@@ -1348,6 +1348,7 @@
     "bidImpactWagePressure": "Předpokládané využití platového rozpočtu: {{percent}} %",
     "bidImpactOverTransferBudget": "Tato nabídka přesahuje váš přestupový rozpočet",
     "bidImpactOverBalance": "Tato nabídka by uvrhla klub do dluhů",
+    "bidImpactOverWagePolicy": "Vedení by jeho plat odmítlo: porušuje mzdovou politiku klubu",
     "bidAccepted": "Nabídka přijata! Hráč podepsal smlouvu.",
     "bidCountered": "Vrátili se s upravenými podmínkami.",
     "bidRejected": "Nabídka odmítnuta — částka je příliš nízká.",

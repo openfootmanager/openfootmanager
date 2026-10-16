@@ -1348,6 +1348,7 @@
     "bidImpactWagePressure": "Prognostizierte Nutzung des Lohnbudgets {{percent}}%",
     "bidImpactOverTransferBudget": "Dieses Angebot überschreitet dein Transferbudget",
     "bidImpactOverBalance": "Dieses Angebot würde den Verein in die Schulden bringen",
+    "bidImpactOverWagePolicy": "Der Vorstand würde sein Gehalt ablehnen: Es verstößt gegen die Gehaltspolitik des Vereins",
     "bidAccepted": "Angebot angenommen! Spieler verpflichtet.",
     "bidCountered": "Sie kommen mit geänderten Bedingungen zurück.",
     "bidRejected": "Angebot abgelehnt — Summe zu niedrig.",

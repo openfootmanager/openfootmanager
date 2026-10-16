@@ -1348,6 +1348,7 @@
     "bidImpactWagePressure": "Projected wage budget usage {{percent}}%",
     "bidImpactOverTransferBudget": "This bid exceeds your transfer budget",
     "bidImpactOverBalance": "This bid would push the club into debt",
+    "bidImpactOverWagePolicy": "The board would refuse his wage: it breaks the club's wage policy",
     "bidAccepted": "Bid accepted! Player signed.",
     "bidCountered": "They came back with revised terms.",
     "bidRejected": "Bid rejected — offer too low.",

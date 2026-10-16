@@ -1348,6 +1348,7 @@
     "bidImpactWagePressure": "Perkiraan penggunaan anggaran gaji {{percent}}%",
     "bidImpactOverTransferBudget": "Tawaran ini melebihi anggaran transfer.",
     "bidImpactOverBalance": "Tawaran ini akan membawa klub ke dalam utang",
+    "bidImpactOverWagePolicy": "Dewan akan menolak gajinya: melampaui kebijakan gaji klub",
     "bidAccepted": "Tawaran diterima! Pemain ditandatangani.",
     "bidCountered": "Mereka kembali dengan syarat yang direvisi.",
     "bidRejected": "Tawaran ditolak — nominal terlalu rendah.",
