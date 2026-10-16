@@ -1493,7 +1493,7 @@ mod tests {
             reflexes: 60,
             aerial: 60,
         };
-        let mut player = |id: &str, team: &str, wage: u32, loan: Option<(&str, &str, u8)>| {
+        let player = |id: &str, team: &str, wage: u32, loan: Option<(&str, &str, u8)>| {
             let mut p = Player::new(
                 id.to_string(),
                 id.to_string(),
