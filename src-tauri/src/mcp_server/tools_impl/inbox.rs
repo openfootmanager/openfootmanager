@@ -1,13 +1,17 @@
 //! MCP tool implementations: inbox
 
 use mcp_results::inbox::{
-    ActionResolved, AllMessagesMarkedRead, InboxMessage, InboxMessages, MessageDeleted,
-    MessageMarkedRead, OldMessagesCleared,
+    ActionResolved, AllMessagesMarkedRead, ArchivedMessage, ArchivedMessages, InboxMessage,
+    InboxMessages, MessageDeleted, MessageMarkedRead, OldMessagesCleared,
 };
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::require_game;
+use ofm_core::inbox_archive::ArchiveCursor;
 use std::sync::Arc;
+
+/// Archive messages per page when the agent does not say.
+const DEFAULT_ARCHIVE_PAGE: usize = 50;
 
 // ─── inbox_get_messages ─────────────────────────────────────────────────────
 
@@ -54,6 +58,43 @@ pub fn inbox_get_messages(
                 date: m.date.clone(),
             })
             .collect(),
+    })
+}
+
+// ─── inbox_get_archived ─────────────────────────────────────────────────────
+
+/// Read mail older than half a year, which `inbox_get_messages` no longer lists. Newest first.
+pub fn inbox_get_archived(
+    ctx: Arc<McpContext>,
+    before_date: Option<String>,
+    before_id: Option<String>,
+    limit: Option<u64>,
+) -> Result<ArchivedMessages, String> {
+    let before = match (before_date, before_id) {
+        (Some(date), Some(id)) => Some(ArchiveCursor { date, id }),
+        (None, None) => None,
+        _ => return Err("before_date and before_id must be given together".to_string()),
+    };
+    let limit = limit.map_or(DEFAULT_ARCHIVE_PAGE, |n| n as usize);
+    let page = crate::commands::messages::get_archived_messages_internal(
+        &ctx.state_manager,
+        before,
+        limit,
+    )?;
+    Ok(ArchivedMessages {
+        messages: page
+            .items
+            .into_iter()
+            .map(|m| ArchivedMessage {
+                id: m.id,
+                subject: m.subject,
+                body: m.body,
+                category: format!("{:?}", m.category),
+                date: m.date,
+            })
+            .collect(),
+        next_before_date: page.next_before.as_ref().map(|c| c.date.clone()),
+        next_before_id: page.next_before.map(|c| c.id),
     })
 }
 

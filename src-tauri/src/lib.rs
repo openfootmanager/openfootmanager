@@ -276,6 +276,7 @@ pub fn run() {
             hire_staff,
             release_staff,
             mark_message_read,
+            get_archived_messages,
             delete_message,
             delete_messages,
             mark_all_messages_read,

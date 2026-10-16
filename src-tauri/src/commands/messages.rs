@@ -5,12 +5,34 @@ use log::info;
 use tauri::State;
 
 use domain::message::InboxMessage;
+use ofm_core::inbox_archive::{ArchiveCursor, ArchivedMessagesPage};
 use ofm_core::state::StateManager;
 
 // These commands only ever touch the inbox, so they mutate the game in place
 // (no upfront whole-world clone) and return just the updated message list. The
 // frontend patches its message slice rather than replacing the entire game —
 // which is what made opening/deleting messages hitch.
+
+/// A page of the archive (read mail older than half a year), newest first. Pass the previous page's
+/// `next_before` as `before` to continue.
+pub fn get_archived_messages_internal(
+    state: &StateManager,
+    before: Option<ArchiveCursor>,
+    limit: usize,
+) -> Result<ArchivedMessagesPage, String> {
+    state
+        .get_game(|game| ofm_core::inbox_archive::page(game, before.as_ref(), limit))
+        .ok_or("be.error.noActiveGameSession".to_string())
+}
+
+#[tauri::command]
+pub fn get_archived_messages(
+    state: State<'_, Arc<StateManager>>,
+    before: Option<ArchiveCursor>,
+    limit: usize,
+) -> Result<ArchivedMessagesPage, String> {
+    get_archived_messages_internal(&state, before, limit)
+}
 
 #[tauri::command]
 pub fn mark_message_read(
@@ -251,8 +273,8 @@ pub fn resolve_message_action_internal(
 mod tests {
     use super::{
         clear_old_messages_internal, delete_message_internal, delete_messages_internal,
-        mark_all_messages_read_internal, mark_message_read_internal,
-        resolve_message_action_internal,
+        get_archived_messages_internal, mark_all_messages_read_internal,
+        mark_message_read_internal, resolve_message_action_internal,
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
@@ -628,5 +650,42 @@ mod tests {
             .messages
             .iter()
             .any(|message| message.id == "remove-stale"));
+    }
+
+    /// Given an active game with archived mail, and no game at all
+    /// When a page is asked for
+    /// Then the game gives its mail newest first and the missing game gives the session key.
+    #[test]
+    fn archived_messages_are_paged_from_the_active_game() {
+        let state = StateManager::new();
+        assert_eq!(
+            get_archived_messages_internal(&state, None, 10).err(),
+            Some("be.error.noActiveGameSession".to_string())
+        );
+
+        let mut game = make_game();
+        game.archived_messages = vec![
+            InboxMessage::new(
+                "a".into(),
+                "S".into(),
+                "B".into(),
+                "X".into(),
+                "2030-01-01".into(),
+            ),
+            InboxMessage::new(
+                "b".into(),
+                "S".into(),
+                "B".into(),
+                "X".into(),
+                "2030-02-01".into(),
+            ),
+        ];
+        state.set_game(game);
+
+        let page = get_archived_messages_internal(&state, None, 1).unwrap();
+        assert_eq!(page.items[0].id, "b");
+        let next = get_archived_messages_internal(&state, page.next_before, 1).unwrap();
+        assert_eq!(next.items[0].id, "a");
+        assert_eq!(next.next_before, None);
     }
 }

@@ -53,6 +53,51 @@ impl fmt::Display for InboxMessages {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchivedMessage {
+    pub id: String,
+    pub subject: String,
+    pub body: String,
+    pub category: String,
+    pub date: String,
+}
+
+/// A page of archived mail. When `next_before_date` is set, pass it with `next_before_id` as
+/// `before_date` and `before_id` to read the next page.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArchivedMessages {
+    pub messages: Vec<ArchivedMessage>,
+    pub next_before_date: Option<String>,
+    pub next_before_id: Option<String>,
+}
+
+impl fmt::Display for ArchivedMessages {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.messages.is_empty() {
+            return write!(f, "## Archived inbox\n\nNo archived messages.");
+        }
+        write!(
+            f,
+            "## Archived inbox ({} messages)\n\n| ID | Subject | Category | Date |\n|----|---------|----------|------|\n",
+            self.messages.len()
+        )?;
+        for message in &self.messages {
+            writeln!(
+                f,
+                "| {} | {} | {} | {} |",
+                message.id, message.subject, message.category, message.date
+            )?;
+        }
+        if let (Some(date), Some(id)) = (&self.next_before_date, &self.next_before_id) {
+            write!(
+                f,
+                "\nMore: call again with before_date={date} before_id={id}."
+            )?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageMarkedRead {
     pub message_id: String,
 }

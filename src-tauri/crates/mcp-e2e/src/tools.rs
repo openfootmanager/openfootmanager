@@ -118,6 +118,15 @@ pub const CATALOG: &[CatalogEntry] = &[
         &[("category", "string"), ("unread_only", "boolean")],
         &[],
     ),
+    (
+        "inbox_get_archived",
+        &[
+            ("before_date", "string"),
+            ("before_id", "string"),
+            ("limit", "integer"),
+        ],
+        &[],
+    ),
     ("inbox_mark_all_read", &[], &[]),
     (
         "inbox_mark_read",
@@ -553,6 +562,21 @@ impl Client {
             object([
                 ("category", category.map(|v| json!(v))),
                 ("unread_only", unread_only.map(|v| json!(v))),
+            ]),
+        )
+    }
+
+    pub fn inbox_get_archived(
+        &self,
+        before: Option<(&str, &str)>,
+        limit: Option<u64>,
+    ) -> Reply<inbox::ArchivedMessages> {
+        self.call(
+            "inbox_get_archived",
+            object([
+                ("before_date", before.map(|(date, _)| json!(date))),
+                ("before_id", before.map(|(_, id)| json!(id))),
+                ("limit", limit.map(|v| json!(v))),
             ]),
         )
     }
