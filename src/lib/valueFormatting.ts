@@ -129,14 +129,19 @@ export function formatVal(value: number): string {
  * Compact when compact says it all, exact when it would not: 1,250,000 is 1.25M and 1,700 is 1.7K
  * (three significant digits or fewer, nothing lost), while 800,001 stays 800,001 rather than
  * becoming 800K. For the lines of the inbox and the news, where a figure is read in passing but
- * must never be a rounded one (`formatVal` shows a 1.25M offer as 1.3M).
+ * must never be a rounded one (`formatVal` shows a 1.25M offer as 1.3M). `whenLossy: "round"` is for
+ * an amount that is itself already a rounded figure (a compact string saved in an old message),
+ * where an exact figure would claim precision the number never had.
  */
-export function formatPreciseCompact(value: number): string {
+export function formatPreciseCompact(
+  value: number,
+  whenLossy: "exact" | "round" = "exact",
+): string {
   const { currency } = getFormattingSettings();
   const converted = convertCurrencyValue(value, currency.exchange_rate);
   const compactSaysItAll = Number(converted.toPrecision(3)) === converted;
 
-  return compactSaysItAll
+  return compactSaysItAll || whenLossy === "round"
     ? presentMoney(value, { notation: "compact", maximumSignificantDigits: 3 })
     : formatExactMoney(value);
 }

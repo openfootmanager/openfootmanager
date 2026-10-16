@@ -718,7 +718,7 @@ describe("resolveNewsArticle", () => {
 
       const result = resolveNewsArticle(article);
 
-      expect(result.body).toContain("Adam Smith: Alpha FC -> Beta FC (£1.5M)");
+      expect(result.body).toContain("Adam Smith: Alpha FC -> Beta FC (£1.55M)");
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }
@@ -1336,7 +1336,7 @@ describe("the weekly wage bill in the over-budget message", () => {
       wageBudget: "€1.5K",
     });
 
-    expect(text).toContain("€2K");
+    expect(text).toContain("€1.7K");
     expect(text).not.toContain("{{");
   });
 });
@@ -1382,5 +1382,11 @@ describe("the loan offer's purchase option", () => {
     expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "—" })).toContain(
       "Purchase option: —.",
     );
+  });
+});
+
+describe("a compact string already in a saved message", () => {
+  it("keeps the figure it carries instead of rounding it to one decimal", () => {
+    expect(resolveBackendText("test.bidBody", "fallback", { fee: "€1.25M" })).toBe("Offer: €1.25M");
   });
 });

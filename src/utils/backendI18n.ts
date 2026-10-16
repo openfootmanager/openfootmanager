@@ -1,5 +1,5 @@
 import i18n from "../i18n";
-import { formatExactMoney, formatPreciseCompact, formatVal } from "../lib/helpers";
+import { formatExactMoney, formatPreciseCompact } from "../lib/helpers";
 import { formatDate } from "../lib/dateFormatting";
 import { countryName } from "../lib/countries";
 import { useSettingsStore } from "../store/settingsStore";
@@ -212,10 +212,11 @@ function resolveMoneyParamValue(key: string, value: string, style: MoneyStyle): 
     return value;
   }
 
-  // A string the backend shortened itself (an old saved message: "€1.2M") has lost its precision
-  // already and keeps the old compact form; a whole number carries all of it.
+  // A string the backend shortened itself (an old saved message: "€1.25M") is read back as the
+  // number it says and shown compact to three digits, so it keeps the digits it carries (and is
+  // not made to look exact, which it never was).
   if (parsed.compact) {
-    return formatVal(parsed.amount);
+    return formatPreciseCompact(parsed.amount, "round");
   }
   return style === "exact" ? formatExactMoney(parsed.amount) : formatPreciseCompact(parsed.amount);
 }

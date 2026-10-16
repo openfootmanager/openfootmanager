@@ -39,6 +39,16 @@ describe("compact but precise money", () => {
   });
 
   /**
+   * Given an amount that is itself a rounded figure
+   * When it is shown with rounding allowed
+   * Then it is shortened to three digits instead of claiming an exact one.
+   */
+  it("rounds to three digits when asked to, for an amount that was already rounded", () => {
+    expect(formatPreciseCompact(1_548_000, "round")).toBe("€1.55M");
+    expect(formatPreciseCompact(1_548_000)).toBe("€1,548,000");
+  });
+
+  /**
    * Given a negative amount
    * When it is shown
    * Then it is the positive one with the sign in front.
