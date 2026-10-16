@@ -1816,13 +1816,14 @@ mod tests {
 
         // The postponed final is played.
         let cup = &mut game.competitions[0];
-        cup.fixtures
+        if let Some(fixture) = cup
+            .fixtures
             .iter_mut()
             .find(|fixture| fixture.id == final_id)
-            .map(|fixture| {
-                fixture.status = FixtureStatus::Completed;
-                fixture.result = played;
-            });
+        {
+            fixture.status = FixtureStatus::Completed;
+            fixture.result = played;
+        }
         crate::schedule::advance_knockout_competition_round(cup);
         assert_eq!(
             crate::turn::cup_renewal::renew_finished_cups(&mut game, "2033-08-20"),
