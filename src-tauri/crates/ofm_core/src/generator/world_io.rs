@@ -806,6 +806,49 @@ mod tests {
         }
     }
 
+    /// Given a world exported before the archives existed (no archive keys, in either format)
+    /// When it is loaded
+    /// Then it loads, with both archives empty: old exports keep working.
+    #[test]
+    fn an_export_from_before_the_archives_loads_with_none() {
+        let world = world_with_archives();
+
+        let mut single = serde_json::to_value(&world).unwrap();
+        single.as_object_mut().unwrap().remove("retired_managers");
+        single.as_object_mut().unwrap().remove("retired_players");
+        let from_json =
+            load_world_from_json(&single.to_string()).expect("an old single JSON loads");
+
+        let dir = std::env::temp_dir().join(format!(
+            "ofm-old-export-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let manifest = dir.join("world.json");
+        export_world_package(&world, &manifest).unwrap();
+        let mut old: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&manifest).unwrap()).unwrap();
+        let shards = old["shards"].as_object_mut().unwrap();
+        shards.remove("retiredManagers");
+        shards.remove("retiredPlayers");
+        std::fs::write(&manifest, old.to_string()).unwrap();
+        let from_shards = load_world_from_path(&manifest);
+        std::fs::remove_dir_all(&dir).ok();
+        let from_shards = from_shards.expect("an old manifest loads");
+
+        for loaded in [from_json, from_shards] {
+            // The world itself came through: a file that failed to parse and fell back to an
+            // empty world would also have empty archives.
+            assert_eq!(loaded.players.len(), world.players.len());
+            assert_eq!(loaded.teams.len(), world.teams.len());
+            assert!(loaded.retired_managers.is_empty());
+            assert!(loaded.retired_players.is_empty());
+        }
+    }
+
     #[test]
     fn export_world_to_json_writes_canonical_football_identity_fields() {
         let mut world = generate_world_data(&crate::generator::DefinitionSources::embedded_only());

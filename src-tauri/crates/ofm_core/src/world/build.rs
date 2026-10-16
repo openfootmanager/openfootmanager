@@ -94,7 +94,9 @@ pub fn build_game_from_world_data(
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
     // Stored on the game, which is the one place the day's dice come from.
     game.seed = seed;
-    // Before any history is generated: seeding managers asks the archive whether a club has had one.
+    // In place before `generate_past_world_history` below, which seeds a roster-baseline world's
+    // managers by asking the archive whether a club has had one. An exported world is seeded later,
+    // in bootstrap, from this same field.
     game.retired_managers = retired_managers;
     game.retired_players = retired_players;
     if game
