@@ -31,7 +31,7 @@ managed through migrations.
 
 ### 2. Database Schema (per save `.db` file)
 
-Managed by `rusqlite_migration`. The initial schema starts at V1, and the current save schema also includes later additive migrations such as V14 for football identity fields.
+Managed by `rusqlite_migration`. The initial schema starts at V1, and the current save schema also includes later additive migrations such as V14 for football identity fields. V58 adds the `archived_messages` table (read mail older than 180 days, moved out of the live inbox); it does not bump the save format version, so an older build opens the save with that mail hidden but intact.
 
 ```sql
 -- Game clock / session metadata
