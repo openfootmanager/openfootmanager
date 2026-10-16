@@ -369,7 +369,20 @@ fn matches_search(player: &Player, needle: &str, teams: &TeamLookup) -> bool {
         club,
     ]
     .iter()
-    .any(|haystack| haystack.to_ascii_lowercase().contains(needle))
+    .any(|haystack| contains_ignoring_ascii_case(haystack, needle))
+}
+
+/// Whether `haystack` holds `needle` (already lowercase), ignoring ASCII case, without building a
+/// lowercased copy: this runs for every candidate on every keystroke.
+fn contains_ignoring_ascii_case(haystack: &str, needle: &str) -> bool {
+    // `windows` refuses a zero length; an empty needle is in everything, as `contains` says.
+    if needle.is_empty() {
+        return true;
+    }
+    haystack
+        .as_bytes()
+        .windows(needle.len())
+        .any(|window| window.eq_ignore_ascii_case(needle.as_bytes()))
 }
 
 fn sort_matches(
