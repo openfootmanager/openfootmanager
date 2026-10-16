@@ -509,6 +509,38 @@ fn a_renewed_cups_cup_winner_berth_reads_the_archived_champion() {
     );
 }
 
+/// Given a cup the rollover keeps because its final was postponed past the league's last round, so
+/// its edition is the one being settled, unfinished, and last season's champion is in the archive,
+/// When the continental field is worked out,
+/// Then last season's champion is not credited again: the cup contributes nobody this season.
+#[test]
+fn a_kept_cup_with_an_undecided_final_does_not_credit_last_seasons_champion_again() {
+    for berth in [false, true] {
+        let mut game = europe_game_with_a_renewed_cup(berth);
+        // The edition being settled: same season as the league, its final still to be played.
+        let league_season = game.competitions[0].season;
+        game.competitions[1].season = league_season;
+        game.edition_archive[0].season = league_season - 1;
+        let europe = game
+            .competitions
+            .iter()
+            .find(|c| c.id == "europe-cup")
+            .unwrap();
+
+        let field = if berth {
+            berth_qualified_entrants(&game, europe)
+        } else {
+            continental_qualified_entrants(&game, europe)
+        };
+
+        // es-f is the weakest club in the league, so only the cup could have qualified it.
+        assert!(
+            !field.contains(&"es-f".to_string()),
+            "last season's champion qualified again (berth: {berth}): {field:?}"
+        );
+    }
+}
+
 /// Given an unplayed cup that was never archived (a first edition), When the field is worked out,
 /// Then it has no winner to send: nothing is invented.
 #[test]
