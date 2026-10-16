@@ -52,6 +52,8 @@ pub fn export_world_database_internal(
         players: game.players.clone(),
         staff: game.staff.clone(),
         managers,
+        retired_managers: game.retired_managers.clone(),
+        retired_players: game.retired_players.clone(),
         competitions: game.competitions.clone(),
         competition_definitions: None,
         national_teams: game.national_teams.clone(),
@@ -731,6 +733,44 @@ mod tests {
         assert!(!manifest.world_id.is_empty());
         assert!(raw_json.get("shards").is_some());
         assert!(raw_json.get("compatibility").is_some());
+    }
+
+    /// Given a game whose managers and retired players have been archived
+    /// When the world is exported and loaded back
+    /// Then both archives are in the exported world, not silently dropped.
+    #[test]
+    fn export_world_database_internal_keeps_the_archives() {
+        let temp_dir = TempCommandDir::new();
+        let export_path = temp_dir.path().join("world-export.json");
+        let state = StateManager::new();
+        let mut game = make_game();
+        let mut retired_manager = domain::manager::Manager::new(
+            "retired-boss".to_string(),
+            "Old".to_string(),
+            "Boss".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        );
+        retired_manager.reputation = 640;
+        game.retired_managers.push(retired_manager);
+        let mut veteran = game.players[0].clone();
+        veteran.id = "retired-veteran".to_string();
+        game.retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &veteran,
+                "2030-06-30",
+                2030,
+            ));
+        state.set_game(game);
+        state.set_stats_state(StatsState::default());
+
+        let written_path = export_world_database_internal(&state, &export_path).unwrap();
+        let world = load_world_from_path(Path::new(&written_path)).unwrap();
+
+        assert_eq!(world.retired_managers.len(), 1);
+        assert_eq!(world.retired_managers[0].reputation, 640);
+        assert_eq!(world.retired_players.len(), 1);
+        assert_eq!(world.retired_players[0].id, "retired-veteran");
     }
 
     #[test]

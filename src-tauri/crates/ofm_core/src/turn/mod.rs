@@ -1,6 +1,8 @@
 mod calendar_sweep;
+pub(crate) mod cup_renewal;
 mod cup_round_summary;
 mod dormant;
+mod match_injuries;
 mod news;
 mod post_match;
 mod round_summary;
@@ -245,8 +247,11 @@ where
     // National-team football: window friendlies and any running World Cup.
     // Both self-filter by date, so they are no-ops on other days.
     crate::national_team::process_national_team_fixtures_due(game, today);
-    let mut world_cup_rng = game.rng_for("world-cup", today);
-    crate::world_cup::process_world_cup_fixtures_due(game, today, &mut world_cup_rng);
+    crate::world_cup::process_world_cup_fixtures_due(game, today);
+
+    // A cup whose last tie was played today starts its next edition, so the sweep below settles
+    // the new ties too.
+    cup_renewal::renew_finished_cups(game, today);
 
     // Last, so a round drawn or a postponement caused by today's results is settled before the
     // next day's fixtures are looked up.

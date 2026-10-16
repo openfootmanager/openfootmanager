@@ -4,6 +4,7 @@
 //! The Tauri layer and the season harness both build their games here, so a world a player starts
 //! and a world a test plays are assembled by the same code.
 
+use chrono::Datelike;
 use domain::league::League;
 use domain::manager::Manager;
 use domain::stats::StatsState;
@@ -17,6 +18,26 @@ use crate::generator::{ReputationBasis, WorldData, WorldDataKind};
 pub struct PastHistory {
     pub start_year: i32,
     pub depth_years: u32,
+}
+
+/// [`build_game_from_world_data`] for a world that came from somewhere (a package or a world
+/// file) rather than from the generator: first made ready for a career to open in it, as every
+/// imported world is. Staff the author left out are generated, the staff market is refilled and
+/// opening cash is floored, aged against the year the clock opens in.
+///
+/// The one place that preparation is called from, so a package the app starts a career in and a
+/// package a test plays are built alike. A generated world goes to [`build_game_from_world_data`].
+pub fn build_game_from_imported_world(
+    clock: GameClock,
+    manager: Manager,
+    history: PastHistory,
+    mut world: WorldData,
+    reputation_basis: ReputationBasis<'_>,
+) -> (Game, StatsState) {
+    let opening_year = u32::try_from(clock.start_date.year())
+        .unwrap_or_else(|_| crate::generator::default_opening_year());
+    crate::generator::normalize_imported_world_for_career_start(&mut world, opening_year);
+    build_game_from_world_data(clock, manager, history, world, reputation_basis)
 }
 
 /// Builds the game for `world`, resolving its competition definitions with clubs ranked by
@@ -76,6 +97,8 @@ pub fn build_game_from_world_data(
         players,
         staff,
         managers,
+        retired_managers,
+        retired_players,
         competitions,
         national_teams,
         default_active_regions,
@@ -92,6 +115,11 @@ pub fn build_game_from_world_data(
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
     // Stored on the game, which is the one place the day's dice come from.
     game.seed = seed;
+    // In place before `generate_past_world_history` below, which seeds a roster-baseline world's
+    // managers by asking the archive whether a club has had one. An exported world is seeded later,
+    // in bootstrap, from this same field.
+    game.retired_managers = retired_managers;
+    game.retired_players = retired_players;
     if game
         .staff
         .iter()
@@ -193,5 +221,91 @@ mod tests {
         assert!(game.players.len() >= players);
         assert!(!game.competitions.is_empty());
         assert!(game.teams.iter().all(|team| team.history.len() == 2));
+    }
+
+    /// Given a world that carries archived managers and retired players
+    /// When a game is built from it
+    /// Then the game holds both archives, so an imported career remembers a club's past managers.
+    #[test]
+    fn a_world_s_archives_become_the_games_archives() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        let mut retired_manager = manager();
+        retired_manager.id = "retired-boss".to_string();
+        world.retired_managers.push(retired_manager);
+        let mut veteran = world.players[0].clone();
+        veteran.id = "retired-veteran".to_string();
+        world
+            .retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &veteran,
+                "2030-06-30",
+                2030,
+            ));
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 0,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        assert_eq!(game.retired_managers.len(), 1);
+        assert_eq!(game.retired_managers[0].id, "retired-boss");
+        assert_eq!(game.retired_players.len(), 1);
+        assert_eq!(game.retired_players[0].id, "retired-veteran");
+    }
+
+    /// Given an imported world whose author gave no staff and whose clubs have no cash,
+    /// When a game is built from it as an imported world and, separately, as a generated one,
+    /// Then the imported game has a backroom for every club and cash for its wage bill; the
+    ///      generated build is left as the world was.
+    #[test]
+    fn an_imported_world_is_prepared_for_a_career_and_a_generated_one_is_not() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        world.staff.clear();
+        for team in &mut world.teams {
+            team.finance = 0;
+        }
+        let build = |imported: bool| {
+            let clock = GameClock::new(start_date_for_year(2033).unwrap());
+            let history = PastHistory {
+                start_year: 2033,
+                depth_years: 0,
+            };
+            if imported {
+                build_game_from_imported_world(
+                    clock,
+                    manager(),
+                    history,
+                    world.clone(),
+                    ReputationBasis::Stored,
+                )
+                .0
+            } else {
+                build_game_from_world_data(
+                    clock,
+                    manager(),
+                    history,
+                    world.clone(),
+                    ReputationBasis::Stored,
+                )
+                .0
+            }
+        };
+
+        let imported = build(true);
+        let generated = build(false);
+
+        let employed = |game: &Game| game.staff.iter().filter(|s| s.team_id.is_some()).count();
+        assert!(
+            employed(&imported) >= imported.teams.len() * 4,
+            "every club has a backroom"
+        );
+        assert_eq!(employed(&generated), 0);
+        let cash = |game: &Game| game.teams.iter().map(|team| team.finance).sum::<i64>();
+        assert!(cash(&imported) > cash(&generated));
     }
 }
