@@ -623,20 +623,21 @@ mod tests {
         }
     }
 
-    /// One sixth succeeds at the primary 0.225 rate and fails at the secondary 0.1125 rate.
+    /// One thirty-second succeeds at the primary rate (about 0.05 for a young player far from his
+    /// ceiling, after training's share of development) and fails at the secondary (about 0.025).
     struct BetweenGainRates;
 
     impl rand::TryRng for BetweenGainRates {
         type Error = std::convert::Infallible;
         fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            Ok(u32::MAX / 6)
+            Ok(u32::MAX / 32)
         }
         fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(u64::MAX / 6)
+            Ok(u64::MAX / 32)
         }
         fn try_fill_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Self::Error> {
             for chunk in bytes.chunks_mut(8) {
-                chunk.copy_from_slice(&(u64::MAX / 6).to_le_bytes()[..chunk.len()]);
+                chunk.copy_from_slice(&(u64::MAX / 32).to_le_bytes()[..chunk.len()]);
             }
             Ok(())
         }

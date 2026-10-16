@@ -75,7 +75,11 @@ fn measure(name: &str, spec: WorldSpec, seasons: u32) {
 #[ignore = "measurement, run by hand in release mode"]
 fn the_development_curve_in_the_gate_worlds() {
     for seed in 1..=3 {
-        measure(&format!("gate world, seed {seed}"), WorldSpec::gate(seed), 10);
+        measure(
+            &format!("gate world, seed {seed}"),
+            WorldSpec::gate(seed),
+            10,
+        );
     }
     measure("gate world, seed 1", WorldSpec::gate(1), 30);
 }

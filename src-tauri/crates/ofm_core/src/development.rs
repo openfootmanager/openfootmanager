@@ -41,6 +41,11 @@ const RESILIENCE_RANGE: (f64, f64) = (0.5, 2.2);
 /// plus a small pull down so the world does not fill with ever-higher ceilings.
 const CEILING_PULL: f64 = -0.3;
 
+/// Training is a modifier on the season's development, not a second source of it: the season's
+/// growth already stands for a typical year in the training ground, and a day's training adds to
+/// it by this share of the weight it once carried alone.
+const TRAINING_SHARE: f64 = 0.25;
+
 /// The five groups the decline table is written in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Aspect {
@@ -159,7 +164,7 @@ pub fn training_factor(curve_age: f64, gap: u8) -> f64 {
                 pair[0].1 + (pair[1].1 - pair[0].1) * share
             })
     };
-    age_factor * headroom_brake(gap)
+    TRAINING_SHARE * age_factor * headroom_brake(gap)
 }
 
 /// The expected change in points of one attribute in a season, for a player the decline table
@@ -238,7 +243,10 @@ fn is_physical(aspect: Aspect) -> bool {
 /// shares and each one's own luck, then the whole brought to the rating the points call for, so
 /// the rounding of many small changes cannot drift the total.
 fn grow(player: &mut Player, points: f64, curve_age: f64, rng: &mut impl Rng) {
-    let target = i32::from(player.ovr) + stochastic_round(points, rng);
+    // A season's growth closes the gap to the ceiling at most; it does not cross it, because a
+    // rating above the ceiling would lift the ceiling with it.
+    let room = i32::from(player.potential) - i32::from(player.ovr);
+    let target = i32::from(player.ovr) + stochastic_round(points, rng).min(room.max(0));
     let (physical, technical, mental) = growth_shares(curve_age);
     let total_attribute_points = points * 19.0;
     let counts = (4.0, 8.0, 7.0);
@@ -610,5 +618,22 @@ mod tests {
         assert_eq!(training_factor(20.0, 0), 0.0);
         assert!(training_factor(20.0, 1) > 0.0);
         assert!(training_factor(20.0, 1) < training_factor(20.0, 10));
+    }
+
+    /// Given a 17-year-old two points under his ceiling and a large growth to give him,
+    /// When the growth is applied,
+    /// Then he reaches the ceiling and does not pass it, however the rounding falls.
+    #[test]
+    fn a_seasons_growth_closes_the_gap_to_the_ceiling_and_stops_there() {
+        for seed in 0..100 {
+            let mut young = player("capped", Position::CentralMidfielder, 60, 62);
+            let ceiling = young.potential;
+            grow(&mut young, 6.0, 17.0, &mut rng(seed));
+            assert!(
+                natural_ovr(&young).round() as u8 <= ceiling,
+                "seed {seed}: {}",
+                natural_ovr(&young)
+            );
+        }
     }
 }

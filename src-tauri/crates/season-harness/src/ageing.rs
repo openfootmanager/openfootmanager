@@ -62,6 +62,7 @@ pub fn snapshot_of(game: &Game) -> Snapshot {
     let on = game.clock.current_date.date_naive();
     game.players
         .iter()
+        .filter(|player| !player.retired)
         .map(|player| {
             (
                 player.id.clone(),
@@ -76,6 +77,7 @@ pub fn snapshot_of(game: &Game) -> Snapshot {
 pub fn ageing_report(previous: &Snapshot, players: &[Player], on: NaiveDate) -> AgeingReport {
     let aged: Vec<(&Player, i32)> = players
         .iter()
+        .filter(|player| !player.retired)
         .map(|player| (player, age_on_or_unknown(on, &player.date_of_birth)))
         .collect();
     AgeingReport {
@@ -98,6 +100,7 @@ fn band_changes(previous: &Snapshot, players: &[Player]) -> Vec<BandChange> {
         .map(|&(label, from, to)| {
             let changes: Vec<f64> = players
                 .iter()
+                .filter(|player| !player.retired)
                 .filter_map(|player| {
                     let (earlier_ovr, earlier_age) = previous.get(&player.id)?;
                     (from..=to)
@@ -395,5 +398,24 @@ mod tests {
         assert_eq!(log.after_each_season.len(), 2);
         assert_eq!(changed(&log.after_each_season[0]), 4.0);
         assert_eq!(changed(&log.after_each_season[1]), 2.0);
+    }
+
+    /// Given a player who has retired and is still on the roster (as in a save from before the
+    ///       archive) and one who plays,
+    /// When the season is reported,
+    /// Then the retiree counts for nothing: no band, no age profile.
+    #[test]
+    fn a_retiree_still_on_the_roster_is_not_measured() {
+        let mut retired = aged("retired", 38, 90, Position::Forward);
+        retired.retired = true;
+        let playing = aged("playing", 30, 70, Position::Forward);
+        let before = previous(&[("retired", 90, 37), ("playing", 70, 29)]);
+
+        let report = ageing_report(&before, &[retired, playing], on());
+
+        assert_eq!(band(&report, "36+").players, 0);
+        assert_eq!(band(&report, "26-29").players, 1);
+        assert_eq!(report.top100_median_age, 30.0);
+        assert_eq!(report.top50_mean_ovr, 70.0);
     }
 }

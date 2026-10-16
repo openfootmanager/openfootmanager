@@ -42,6 +42,12 @@ pub fn distribution_report(game: &Game) -> DistributionReport {
 }
 
 fn distribution_of(players: &[Player], on: NaiveDate) -> DistributionReport {
+    let players: Vec<Player> = players
+        .iter()
+        .filter(|player| !player.retired)
+        .cloned()
+        .collect();
+    let players = players.as_slice();
     let mut seniors = 0usize;
     let mut ovr_sum = 0u64;
     let (mut ovr_s, mut ovr_a, mut ceiling_s, mut ceiling_a) = (0usize, 0usize, 0usize, 0usize);
@@ -256,5 +262,21 @@ mod tests {
         assert_eq!(report.seniors, 0);
         assert_eq!(report.mean_senior_ovr, 0.0);
         assert_eq!(report.youth_share, 0.0);
+    }
+
+    /// Given a retiree still on the roster rated S and a player rated 60,
+    /// When the world is reported,
+    /// Then only the player counts: the retiree is in no share and no mean.
+    #[test]
+    fn a_retiree_still_on_the_roster_is_not_reported() {
+        let mut retired = player("1990-01-01", 90, 90);
+        retired.retired = true;
+        let players = [retired, player("1990-01-01", 60, 60)];
+
+        let report = distribution_of(&players, on());
+
+        assert_eq!(report.players, 1);
+        assert_eq!(report.mean_senior_ovr, 60.0);
+        assert_eq!(report.senior_ovr_s_share, 0.0);
     }
 }
