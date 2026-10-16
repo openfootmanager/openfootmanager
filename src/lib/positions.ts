@@ -113,6 +113,19 @@ export function naturalPositionOf(player: { position: string; natural_position?:
   return player.natural_position || player.position;
 }
 
+/**
+ * The detailed positions inside a broad group, in pitch order: what a refinement control offers
+ * once a group is chosen. The broad value itself is not among them, except that the keeper group
+ * is just the keeper.
+ */
+export function positionsInGroup(group: string): string[] {
+  const members = Object.entries(POSITION_GROUPS)
+    .filter(([position, owner]) => owner === group && position !== group)
+    .map(([position]) => position)
+    .sort((a, b) => (POSITION_SORT_ORDER[a] ?? 999) - (POSITION_SORT_ORDER[b] ?? 999));
+  return members.length > 0 ? members : [group];
+}
+
 export function canonicalPosition(position: string): string {
   const trimmed = position.trim();
   if (!trimmed) return trimmed;

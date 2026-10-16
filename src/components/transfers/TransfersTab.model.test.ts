@@ -1,12 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
-import {
-  deriveTransferCollections,
-  filterTransferPlayers,
-  getCurrentTransferList,
-  type TransferTabView,
-} from "./TransfersTab.model";
+import { deriveTransferCollections } from "./TransfersTab.model";
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -248,29 +243,6 @@ describe("TransfersTab.model", () => {
     ]);
   });
 
-  it("returns the current list for the selected view", () => {
-    const collections = {
-      myTransferList: [createPlayer({ id: "transfer" })],
-      myLoanList: [createPlayer({ id: "loan" })],
-      marketPlayers: [createPlayer({ id: "market" })],
-      freeAgentPlayers: [createPlayer({ id: "free-agent", team_id: null })],
-      loanPlayers: [createPlayer({ id: "loan-market" })],
-      availablePlayers: [
-        createPlayer({ id: "market" }),
-        createPlayer({ id: "loan-market" }),
-        createPlayer({ id: "free-agent", team_id: null }),
-      ],
-      playersWithOffers: [createPlayer({ id: "offers" })],
-    };
-
-    const getIds = (view: TransferTabView) =>
-      getCurrentTransferList(view, collections).map((player) => player.id);
-
-    expect(getIds("my_list")).toEqual(["transfer", "loan"]);
-    expect(getIds("players")).toEqual(["market", "loan-market", "free-agent"]);
-    expect(getIds("offers")).toEqual(["offers"]);
-  });
-
   it("returns one my-list row for a player listed for transfer and loan", () => {
     const dualListedPlayer = createPlayer({
       id: "dual-listed",
@@ -282,9 +254,6 @@ describe("TransfersTab.model", () => {
 
     expect(collections.myTransferList.map((player) => player.id)).toEqual(["dual-listed"]);
     expect(collections.myLoanList.map((player) => player.id)).toEqual(["dual-listed"]);
-    expect(getCurrentTransferList("my_list", collections).map((player) => player.id)).toEqual([
-      "dual-listed",
-    ]);
   });
 
   it("hides transfer-listed players with a pending registration from the market", () => {
@@ -355,173 +324,6 @@ describe("TransfersTab.model", () => {
     expect(collections.loanPlayers.map((player) => player.id)).toEqual(["loan-available"]);
     // It still surfaces under "offers" so the manager can track the agreed loan.
     expect(collections.playersWithOffers.map((player) => player.id)).toContain("loan-bought");
-  });
-
-  it("filters by position and search text", () => {
-    const players = [
-      createPlayer({
-        id: "goalkeeper",
-        full_name: "Alan Keeper",
-        nationality: "Spain",
-        natural_position: "Goalkeeper",
-        position: "Goalkeeper",
-      }),
-      createPlayer({
-        id: "forward",
-        full_name: "Carlos Striker",
-        nationality: "Brazil",
-        natural_position: "Forward",
-        position: "Forward",
-      }),
-    ];
-
-    expect(filterTransferPlayers(players, "", "Goalkeeper")).toHaveLength(1);
-    expect(filterTransferPlayers(players, "bra", null).map((player) => player.id)).toEqual([
-      "forward",
-    ]);
-    expect(filterTransferPlayers(players, "ca", "Forward").map((player) => player.id)).toEqual([
-      "forward",
-    ]);
-  });
-
-  it("filters transfer-listed players whose market value exceeds the budget", () => {
-    const cheapTransfer = createPlayer({
-      id: "cheap-transfer",
-      team_id: "team-2",
-      transfer_listed: true,
-      market_value: 500_000,
-    });
-    const expensiveTransfer = createPlayer({
-      id: "expensive-transfer",
-      team_id: "team-2",
-      transfer_listed: true,
-      market_value: 50_000_000,
-    });
-    const loanOnly = createPlayer({
-      id: "loan-only",
-      team_id: "team-2",
-      loan_listed: true,
-      transfer_listed: false,
-      market_value: 50_000_000,
-    });
-    const freeAgent = createPlayer({
-      id: "free-agent",
-      team_id: null,
-      market_value: 50_000_000,
-    });
-
-    const players = [cheapTransfer, expensiveTransfer, loanOnly, freeAgent];
-
-    expect(
-      filterTransferPlayers(players, "", null, "all", {
-        transferBudget: 1_000_000,
-        finance: 10_000_000,
-      }).map((player) => player.id),
-    ).toEqual(["cheap-transfer", "loan-only", "free-agent"]);
-
-    expect(filterTransferPlayers(players, "", null, "all").map((player) => player.id)).toEqual([
-      "cheap-transfer",
-      "expensive-transfer",
-      "loan-only",
-      "free-agent",
-    ]);
-  });
-
-  it("hides transfer-listed players whose fee would push the club into debt", () => {
-    const player = createPlayer({
-      id: "draining",
-      team_id: "team-2",
-      transfer_listed: true,
-      market_value: 5_000_000,
-    });
-
-    expect(
-      filterTransferPlayers([player], "", null, "all", {
-        transferBudget: 10_000_000,
-        finance: 1_000_000,
-      }),
-    ).toHaveLength(0);
-
-    expect(
-      filterTransferPlayers([player], "", null, "all", {
-        transferBudget: 10_000_000,
-        finance: 10_000_000,
-      }),
-    ).toHaveLength(1);
-  });
-
-  it("narrows by specific positions and respects an active broad filter", () => {
-    const cb = createPlayer({
-      id: "cb",
-      natural_position: "CenterBack",
-      position: "CenterBack",
-    });
-    const lb = createPlayer({
-      id: "lb",
-      natural_position: "LeftBack",
-      position: "LeftBack",
-    });
-    const st = createPlayer({
-      id: "st",
-      natural_position: "Striker",
-      position: "Striker",
-    });
-
-    const players = [cb, lb, st];
-
-    // Specific narrowing: only CB and LB.
-    expect(
-      filterTransferPlayers(players, "", null, "all", null, ["CenterBack", "LeftBack"]).map(
-        (player) => player.id,
-      ),
-    ).toEqual(["cb", "lb"]);
-
-    // Broad + specific narrower than broad: CB only.
-    expect(
-      filterTransferPlayers(players, "", "Defender", "all", null, ["CenterBack"]).map(
-        (player) => player.id,
-      ),
-    ).toEqual(["cb"]);
-
-    // Specific incompatible with broad → empty.
-    expect(filterTransferPlayers(players, "", "Forward", "all", null, ["CenterBack"])).toHaveLength(
-      0,
-    );
-
-    // Empty specifics behaves like no specific constraint.
-    expect(
-      filterTransferPlayers(players, "", null, "all", null, []).map((player) => player.id),
-    ).toEqual(["cb", "lb", "st"]);
-  });
-
-  it("filters a unified player market by availability", () => {
-    const players = [
-      createPlayer({
-        id: "transfer",
-        team_id: "team-2",
-        transfer_listed: true,
-      }),
-      createPlayer({
-        id: "loan",
-        team_id: "team-2",
-        loan_listed: true,
-      }),
-      createPlayer({
-        id: "free-agent",
-        team_id: null,
-        contract_end: null,
-      }),
-    ];
-
-    expect(filterTransferPlayers(players, "", null, "transfer").map((player) => player.id)).toEqual(
-      ["transfer"],
-    );
-    expect(filterTransferPlayers(players, "", null, "loan").map((player) => player.id)).toEqual([
-      "loan",
-    ]);
-    expect(
-      filterTransferPlayers(players, "", null, "free_agent").map((player) => player.id),
-    ).toEqual(["free-agent"]);
   });
 });
 

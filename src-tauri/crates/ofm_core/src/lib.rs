@@ -12,6 +12,7 @@ pub mod calendar_booking;
 pub mod calendar_identity;
 pub(crate) mod calendar_notice;
 pub mod calendar_reconcile;
+pub mod calendar_repair;
 pub mod career;
 pub mod career_stage;
 pub mod catchup;

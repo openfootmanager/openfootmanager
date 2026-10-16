@@ -586,7 +586,11 @@
       "twistedAnkle": "Twisted ankle",
       "kneeBruise": "Knee bruise",
       "hamstringTightness": "Hamstring tightness",
-      "calfStrain": "Calf strain"
+      "calfStrain": "Calf strain",
+      "ankleLigamentSprain": "Ankle ligament sprain",
+      "hamstringTear": "Hamstring tear",
+      "kneeLigamentTear": "Knee ligament tear",
+      "metatarsalFracture": "Metatarsal fracture"
     },
     "scoutRatings": {
       "excellent": "Excellent",
@@ -1433,6 +1437,8 @@
     "transferFeedbackCounterDetail": "The bid was close enough to keep talking, but their side are signalling a price nearer {{fee}}.",
     "transferFeedbackRejectedHeadline": "They shut this round down.",
     "transferFeedbackRejectedDetail": "The proposal did not move them enough. You would need a stronger fee, closer to {{fee}}, to reopen serious talks.",
+    "transferFeedbackBrokeOffHeadline": "They have walked away.",
+    "transferFeedbackBrokeOffDetail": "After several offers that fell short, the club has ended the talks. A fee near {{fee}} would have been needed. Give them time before trying again.",
     "registrationFailureInsufficientFunds": "Registration failed: insufficient buyer funds",
     "registrationFailureLoanConflict": "Registration failed: loan conflict",
     "registrationFailurePlayerUnavailable": "Registration failed: player unavailable",
@@ -1492,6 +1498,10 @@
   "players": {
     "searchPlaceholder": "Search by name or nationality...",
     "allPos": "All Pos",
+    "filterAgeMin": "Min age",
+    "filterAgeMax": "Max age",
+    "filterOvrMin": "Min OVR",
+    "filterOvrMax": "Max OVR",
     "allTeams": "All Teams",
     "nPlayersFound": "{{count}} player(s) found",
     "noMatch": "No players match your filters.",
@@ -2862,6 +2872,7 @@
         "transferBudgetTooLow": "Transfer budget too low",
         "playerNotOwnedByUser": "Player not found or not yours",
         "offerNotPending": "Offer not found or not pending",
+        "talksBrokenOff": "This club has ended talks over this player. Try again later.",
         "loanBorrowerCannotAffordWages": "The borrowing club cannot afford this wage share. Its weekly wage budget is {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Counter offer must exceed current offer",
         "loanCounterMustImproveTerms": "Loan counter must improve the current offer",
@@ -3002,12 +3013,21 @@
       },
       "wageOverBudget": {
         "subject": "Wage Bill Exceeds Budget",
-        "body": "Our weekly wage bill ({{annualWages}}) currently exceeds the allocated wage budget ({{wageBudget}}).\n\nWhile we can sustain this in the short term, the board would prefer to see the wage bill brought under control."
+        "body": "Our weekly wage bill ({{weeklyWageBill}}) currently exceeds the allocated wage budget ({{wageBudget}}).\n\nWhile we can sustain this in the short term, the board would prefer to see the wage bill brought under control."
       },
       "financeBoardPressure": {
         "subject": "Board Review — Financial Pressure",
         "bodyWarning": "The board remains concerned about the club's finances. Confidence in your management has fallen by {{penalty}} points this week.\n\nYou need to improve the wage position and short-term cash outlook before patience wears thinner.",
         "bodyCritical": "The board has reviewed the club's worsening financial position and confidence in your management has fallen by {{penalty}} points this week.\n\nCash reserves and wage commitments are now in a critical state. Immediate corrective action is expected."
+      },
+      "financeLevers": {
+        "subject": "Recovery options are open to the club",
+        "body": "Money is tight, which opens recovery options. The ones open to the club right now are listed below; each takes you to the Finances tab.",
+        "action": {
+          "boardSupport": "Ask the board for support",
+          "sponsorPitch": "Pitch to a new sponsor",
+          "marketingCampaign": "Run a marketing campaign"
+        }
       },
       "marketingCampaign": {
         "subject": "Marketing Campaign Report",
@@ -3196,6 +3216,11 @@
         "subject": "Injury — {{player}} ({{injury}})",
         "body0": "Bad news from the training ground. {{player}} has picked up a {{injury}} during today's session.\n\nThe medical team estimates {{days}} days on the sidelines. We'll monitor the recovery closely.",
         "body1": "Unfortunately, {{player}} went down in training today with a {{injury}}.\n\nInitial assessment: out for approximately {{days}} days. We'll keep you updated on their progress."
+      },
+      "matchInjury": {
+        "subject": "Match injury — {{player}} ({{injury}})",
+        "body0": "Bad news from the match: {{player}} was injured on the pitch.\n\nDiagnosis: {{injury}}. The medical team estimates {{days}} days on the sidelines, and we'll monitor the recovery closely.",
+        "body1": "{{player}} did not come through today's match unharmed.\n\nDiagnosis: {{injury}}. Initial assessment: out for approximately {{days}} days. We'll keep you updated on the progress."
       },
       "mediaPositive": {
         "subject": "Positive Press — {{player}}",
@@ -3671,7 +3696,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it."
+        "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it.",
+        "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field."
       }
     }
   },

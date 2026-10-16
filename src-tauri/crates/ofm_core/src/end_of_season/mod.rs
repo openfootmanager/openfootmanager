@@ -1,6 +1,5 @@
 use crate::game::Game;
 use crate::season_awards::compute_division_season_awards;
-use crate::seed::WorldCupStream;
 use chrono::{DateTime, Datelike, Duration, Utc};
 use domain::league::{
     CompetitionFormat, CompetitionScope, CompetitionType, FixtureStatus, League, StandingEntry,
@@ -12,7 +11,7 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransaction, FinancialTransactionKind, TeamSeasonRecord};
 
 mod berths;
-mod season_calendar;
+pub(crate) mod season_calendar;
 use berths::{
     apply_domestic_berth_promotion_relegation, apply_pyramid_promotion_relegation,
     resolve_domestic_berth_fields,
@@ -101,7 +100,7 @@ pub fn is_regenerated_at_rollover(competition: &League) -> bool {
 /// A cup with nothing in it is a fresh one; otherwise it is finished once every tie is played.
 /// The round bookkeeping is not asked: a round closes, and the next one is drawn, in the same step
 /// that records its last result.
-fn is_cup_edition_finished(cup: &League) -> bool {
+pub(crate) fn is_cup_edition_finished(cup: &League) -> bool {
     cup.fixtures
         .iter()
         .all(|fixture| fixture.status == FixtureStatus::Completed)
@@ -411,8 +410,7 @@ fn regenerate_competitions_for_new_season(
         // out; settle whatever remains (the last matchday, the playoff) so the
         // field is derived from a finished campaign, not a truncated one.
         // Seeded per year so a reloaded save settles to the same field.
-        let mut settle_rng = game.world_cup_rng(WorldCupStream::Settle, kickoff.year());
-        crate::world_cup::settle_outstanding_qualifying(game, &mut settle_rng);
+        crate::world_cup::settle_outstanding_qualifying(game);
         let host = crate::world_cup::host_for_year(game, kickoff.year());
         crate::world_cup::qualified_field_from_game(
             game,
@@ -652,8 +650,7 @@ fn manage_international_calendar(
         // windows; a world without one (a save that started late) squeezes a
         // compressed campaign into the single remaining season.
         if qualifying_in_progress {
-            let mut rng = game.world_cup_rng(WorldCupStream::Settle, next_start.year());
-            crate::world_cup::continue_world_cup_qualifying(game, &window_dates, &mut rng);
+            crate::world_cup::continue_world_cup_qualifying(game, &window_dates);
         } else {
             crate::world_cup::schedule_world_cup_qualifying(
                 game,
@@ -683,8 +680,7 @@ fn manage_international_calendar(
         // Unreachable under the four-year cadence, but if a campaign ever
         // survives into a neutral season, keep it anchored to this season's
         // windows rather than stacking friendlies on top of stale fixtures.
-        let mut rng = game.world_cup_rng(WorldCupStream::Settle, next_start.year());
-        crate::world_cup::continue_world_cup_qualifying(game, &window_dates, &mut rng);
+        crate::world_cup::continue_world_cup_qualifying(game, &window_dates);
         return;
     }
 
@@ -1767,6 +1763,123 @@ mod tests {
             Some(domain::league::MatchResult::default());
         game.sync_legacy_league();
         assert!(is_season_complete(&game), "every fixture is played");
+    }
+
+    /// Given a cup the completion hook has already renewed, When the rollover regenerates the
+    /// competitions, Then the cup is not renewed a second time and its finished edition is archived
+    /// once: renewal changes the state both the hook and the rollover test.
+    #[test]
+    fn a_cup_renewed_by_the_hook_is_not_renewed_again_at_the_rollover() {
+        let mut game = calendar_game(at(2034, 7, 1));
+        let mut finished = crate::competition_test_support::cup(8);
+        finished.season = 2033;
+        finished.season_start_month = 7;
+        finished.season_start_day = 20;
+        let season = finished.season;
+        game.competitions.push(finished);
+
+        assert_eq!(
+            crate::turn::cup_renewal::renew_finished_cups(&mut game, "2034-07-01"),
+            1
+        );
+        let renewed = serde_json::to_string(&game.competitions[0]).unwrap();
+
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2034, 7, 1));
+
+        assert_eq!(
+            serde_json::to_string(&game.competitions[0]).unwrap(),
+            renewed
+        );
+        assert_eq!(game.edition_archive.len(), 1);
+    }
+
+    /// Given a cup kept at the rollover because its final was postponed past it, When the final is
+    /// played, Then the day's hook renews the cup without waiting for the next rollover.
+    #[test]
+    fn a_cup_that_finishes_after_the_rollover_is_renewed_without_waiting() {
+        let mut game = calendar_game(at(2034, 7, 1));
+        let mut cup = crate::competition_test_support::cup(8);
+        cup.season = 2033;
+        cup.season_start_month = 7;
+        cup.season_start_day = 20;
+        let season = cup.season;
+        let final_round = cup.knockout_rounds.last_mut().expect("a final");
+        final_round.completed = false;
+        let final_id = final_round.fixture_ids[0].clone();
+        let final_tie = cup
+            .fixtures
+            .iter_mut()
+            .find(|fixture| fixture.id == final_id)
+            .unwrap();
+        let played = final_tie.result.take();
+        final_tie.status = FixtureStatus::Scheduled;
+        game.competitions.push(cup);
+        regenerate_competitions_for_new_season(&mut game, season + 1, at(2034, 7, 1));
+        assert_eq!(game.competitions[0].season, season, "kept at the rollover");
+
+        // The postponed final is played.
+        let cup = &mut game.competitions[0];
+        if let Some(fixture) = cup
+            .fixtures
+            .iter_mut()
+            .find(|fixture| fixture.id == final_id)
+        {
+            fixture.status = FixtureStatus::Completed;
+            fixture.result = played;
+        }
+        crate::schedule::advance_knockout_competition_round(cup);
+        assert_eq!(
+            crate::turn::cup_renewal::renew_finished_cups(&mut game, "2034-07-02"),
+            1
+        );
+
+        assert!(game.competitions[0].season > season, "renewed at once");
+        assert_eq!(game.edition_archive.len(), 1);
+    }
+
+    /// Given a domestic cup the hook has renewed before the rollover, in a country whose league is
+    /// still on the finished season,
+    /// When the continental field is worked out at the rollover,
+    /// Then the cup's winner qualifies: the archived edition holds it.
+    #[test]
+    fn a_cup_renewed_by_the_hook_still_qualifies_its_winner_at_the_rollover() {
+        let mut game = calendar_game(at(2034, 7, 1));
+        let mut cup = crate::competition_test_support::cup(8);
+        cup.season = 2033;
+        cup.season_start_month = 7;
+        cup.season_start_day = 20;
+        cup.kind = CompetitionType::Cup;
+        cup.scope = CompetitionScope::Domestic;
+        cup.country_id = Some("ES".to_string());
+        cup.region_id = Some("europe".to_string());
+        let winner = crate::world_cup::world_cup_champion(&cup).expect("a finished cup");
+        let mut league = crate::competition_test_support::table(4, 2);
+        league.season = 2033;
+        league.kind = CompetitionType::League;
+        league.scope = CompetitionScope::Domestic;
+        league.country_id = Some("ES".to_string());
+        league.region_id = Some("europe".to_string());
+        let mut continental = League::new("europe-cup".into(), "Europe".into(), 2033, &[]);
+        continental.kind = CompetitionType::ContinentalClub;
+        continental.scope = CompetitionScope::Continental;
+        continental.required_region_ids = vec!["europe".to_string()];
+        game.competitions = vec![league, cup, continental];
+
+        assert_eq!(
+            crate::turn::cup_renewal::renew_finished_cups(&mut game, "2034-07-01"),
+            1
+        );
+        let europe = game
+            .competitions
+            .iter()
+            .find(|c| c.id == "europe-cup")
+            .unwrap();
+        let field = continental_qualified_entrants(&game, europe);
+
+        assert!(
+            field.contains(&winner),
+            "{winner} is missing from {field:?}"
+        );
     }
 
     /// Given a cup with no fixtures yet, entrants listed (a cup seeded for the coming season),

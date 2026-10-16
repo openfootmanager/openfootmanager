@@ -36,15 +36,35 @@ const mockedIsTauri = vi.mocked(isTauri);
 import {
   createPlayer,
   createGameState,
+  marketPageOf,
+  playersOfScope,
+  routedResponses,
   transferTestTranslation,
 } from "./TransfersTab.testFixtures";
+import type { PlayerData } from "../../store/gameStore";
 
 describe("TransfersTab", (): void => {
+  let marketPlayers: PlayerData[] = [];
+  let listedPlayers: PlayerData[] = [];
+  let offeredPlayers: PlayerData[] = [];
+  let routes: ReturnType<typeof routedResponses>;
   beforeEach(function resetMocks(): void {
     mockedInvoke.mockReset();
     mockedIsTauri.mockReturnValue(false);
+    marketPlayers = [];
+    listedPlayers = [];
+    offeredPlayers = [];
     mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
       const args = payload as MockInvokePayload | undefined;
+      if (command === "get_players_page") {
+        return marketPageOf(
+          playersOfScope(payload, {
+            market: marketPlayers,
+            user_listed: listedPlayers,
+            with_offers: offeredPlayers,
+          }),
+        );
+      }
       if (command === "generate_player_portrait") {
         const playerId = String(args?.request?.playerId ?? "player");
         return {
@@ -101,9 +121,10 @@ describe("TransfersTab", (): void => {
 
       return {};
     });
+    routes = routedResponses(mockedInvoke);
   });
   // Given a voided pending registration, when viewing offers, then its funds failure replaces the cooled-off label.
-  it("renders the persisted registration failure reason in the offers list", (): void => {
+  it("renders the persisted registration failure reason in the offers list", async (): Promise<void> => {
     const state = createGameState([
       createPlayer({
         transfer_offers: [
@@ -124,13 +145,16 @@ describe("TransfersTab", (): void => {
         ],
       }),
     ]);
+    offeredPlayers = state.players;
     render(<TransfersTab gameState={state} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
-    expect(screen.getByText(/Registration failed: insufficient buyer funds/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Registration failed: insufficient buyer funds/),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/Talks cooled off/i)).not.toBeInTheDocument();
   });
 
-  it("renders withdrawn transfer offers with a localized cooled-off status", (): void => {
+  it("renders withdrawn transfer offers with a localized cooled-off status", async (): Promise<void> => {
     const state = createGameState([
       createPlayer({
         transfer_offers: [
@@ -149,6 +173,7 @@ describe("TransfersTab", (): void => {
       }),
     ]);
 
+    offeredPlayers = state.players;
     render(
       <TransfersTab
         gameState={state}
@@ -160,7 +185,7 @@ describe("TransfersTab", (): void => {
 
     fireEvent.click(screen.getByRole("button", { name: /offers/i }));
 
-    expect(screen.getByText(/Talks cooled off/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Talks cooled off/i)).toBeInTheDocument();
   });
   it("shows bid impact preview and blocks impossible bids", async (): Promise<void> => {
     const state = createGameState([
@@ -173,9 +198,10 @@ describe("TransfersTab", (): void => {
       }),
     ]);
 
+    marketPlayers = state.players;
     render(<TransfersTab gameState={state} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^bid$/i }));
     fireEvent.change(screen.getByLabelText(/bid amount/i), {
       target: { value: "9.0" },
     });
@@ -208,6 +234,15 @@ describe("TransfersTab", (): void => {
 
     mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
       const args = payload as MockInvokePayload | undefined;
+      if (command === "get_players_page") {
+        return marketPageOf(
+          playersOfScope(payload, {
+            market: marketPlayers,
+            user_listed: listedPlayers,
+            with_offers: offeredPlayers,
+          }),
+        );
+      }
       if (command === "preview_transfer_bid_financial_impact") {
         const fee = Number(args?.fee ?? 0);
         return {
@@ -247,6 +282,7 @@ describe("TransfersTab", (): void => {
       return {};
     });
 
+    marketPlayers = state.players;
     render(
       <TransfersTab
         gameState={state}
@@ -256,7 +292,7 @@ describe("TransfersTab", (): void => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /^bid$/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /^bid$/i }));
     expect(screen.getByRole("dialog", { name: /john smith/i })).toBeInTheDocument();
 
     await waitFor((): void => {
@@ -295,6 +331,7 @@ describe("TransfersTab", (): void => {
       }),
     ]);
 
+    marketPlayers = state.players;
     render(
       <TransfersTab
         gameState={state}
@@ -304,9 +341,9 @@ describe("TransfersTab", (): void => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /free agent \(1\)/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Free Agent/ }));
 
-    expect(screen.getByText("John Smith")).toBeInTheDocument();
+    expect(await screen.findByText("John Smith")).toBeInTheDocument();
     expect(screen.getAllByText("Free Agent").length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole("button", { name: /offer contract/i }));
@@ -342,12 +379,13 @@ describe("TransfersTab", (): void => {
     ]);
     const onGameUpdate = vi.fn();
 
-    mockedInvoke.mockResolvedValueOnce({
+    routes.resolveOnce("make_loan_offer", {
       decision: "accepted",
       offer_id: "loan-offer-1",
       game: updatedState,
     });
 
+    marketPlayers = initialState.players;
     render(
       <TransfersTab
         gameState={initialState}
@@ -357,8 +395,8 @@ describe("TransfersTab", (): void => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /loan \(1\)/i }));
-    fireEvent.click(screen.getByRole("button", { name: /loan offer/i }));
+    fireEvent.click(screen.getByRole("button", { name: "LOAN" }));
+    fireEvent.click(await screen.findByRole("button", { name: /loan offer/i }));
     expect(screen.getByLabelText(/loan length/i)).toHaveValue("january_window");
     fireEvent.change(screen.getByLabelText(/wage contribution/i), {
       target: { value: "75" },
@@ -407,7 +445,7 @@ describe("TransfersTab", (): void => {
         date: "2026-12-20",
       },
     ];
-    mockedInvoke.mockResolvedValueOnce({
+    routes.resolveOnce("make_loan_offer", {
       decision: "accepted",
       offer_id: "scheduled-loan",
       suggested_wage_contribution_pct: null,
@@ -417,6 +455,7 @@ describe("TransfersTab", (): void => {
       game: updatedState,
     });
 
+    marketPlayers = state.players;
     render(
       <TransfersTab
         gameState={state}
@@ -426,7 +465,7 @@ describe("TransfersTab", (): void => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /make offer/i }));
     expect(screen.getByRole("button", { name: /make transfer bid/i })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: /make loan offer/i }));
 
@@ -484,6 +523,15 @@ describe("TransfersTab", (): void => {
 
     mockedInvoke.mockImplementation(async (command: string, payload?: InvokeArgs) => {
       const args = payload as MockInvokePayload | undefined;
+      if (command === "get_players_page") {
+        return marketPageOf(
+          playersOfScope(payload, {
+            market: marketPlayers,
+            user_listed: listedPlayers,
+            with_offers: offeredPlayers,
+          }),
+        );
+      }
       if (command === "preview_transfer_bid_financial_impact") {
         const fee = Number(args?.fee ?? 0);
         return {
@@ -524,6 +572,7 @@ describe("TransfersTab", (): void => {
       return {};
     });
 
+    marketPlayers = state.players;
     render(
       <TransfersTab
         gameState={state}
@@ -533,7 +582,7 @@ describe("TransfersTab", (): void => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /make offer/i }));
     fireEvent.click(screen.getByRole("button", { name: /make transfer bid/i }));
 
     await waitFor(() => {
@@ -548,7 +597,7 @@ describe("TransfersTab", (): void => {
       });
     });
   });
-  it("locks transfer and loan routes when the opening date is stale", (): void => {
+  it("locks transfer and loan routes when the opening date is stale", async (): Promise<void> => {
     const state = createGameState([
       createPlayer({
         id: "loan-target",
@@ -567,6 +616,7 @@ describe("TransfersTab", (): void => {
       days_remaining: null,
     };
 
+    marketPlayers = state.players;
     render(
       <TransfersTab
         gameState={state}
@@ -576,7 +626,7 @@ describe("TransfersTab", (): void => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /make offer/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /make offer/i }));
 
     expect(screen.getByRole("button", { name: /make transfer bid/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /make loan offer/i })).toBeDisabled();

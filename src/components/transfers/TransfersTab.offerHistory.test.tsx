@@ -1,5 +1,5 @@
 import type { GameStateData } from "../../store/gameStore";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createInstance } from "i18next";
 import en from "../../i18n/locales/en.json";
@@ -23,16 +23,41 @@ vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(() => false),
 }));
 
-import { createPlayer, createGameState } from "./TransfersTab.testFixtures";
+import {
+  createPlayer,
+  createGameState,
+  marketPageOf,
+  playersOfScope,
+} from "./TransfersTab.testFixtures";
+import type { PlayerData } from "../../store/gameStore";
+
+// The players the backend would put on the market for the test in hand.
+let marketPlayers: PlayerData[] = [];
+let listedPlayers: PlayerData[] = [];
+let offeredPlayers: PlayerData[] = [];
 
 beforeEach(() => {
-  vi.mocked(invoke).mockClear();
+  marketPlayers = [];
+  listedPlayers = [];
+  offeredPlayers = [];
+  vi.mocked(invoke).mockReset();
+  vi.mocked(invoke).mockImplementation(async (command: string, payload?: unknown) =>
+    command === "get_players_page"
+      ? marketPageOf(
+          playersOfScope(payload, {
+            market: marketPlayers,
+            user_listed: listedPlayers,
+            with_offers: offeredPlayers,
+          }),
+        )
+      : {},
+  );
 });
 
 /** Given a workspace already open, when the parent receives accepted saved data, then history and action state use the current player rather than the opening snapshot. */
 it.each(["transfer", "loan"] as const)(
   "refreshes an open workspace after a %s acceptance",
-  (kind) => {
+  async (kind) => {
     const player = createPlayer({
       team_id: "team-2",
       transfer_listed: true,
@@ -40,9 +65,10 @@ it.each(["transfer", "loan"] as const)(
       transfer_offers: [],
     });
     const state = createGameState([player]);
+    marketPlayers = [player];
     const props = { onSelectPlayer: vi.fn(), onSelectTeam: vi.fn(), onGameUpdate: vi.fn() };
     const { rerender } = render(<TransfersTab gameState={state} {...props} />);
-    const trigger = screen.getByRole("button", { name: "Make Offer" });
+    const trigger = await screen.findByRole("button", { name: "Make Offer" });
     trigger.focus();
     fireEvent.click(trigger);
     const updated = {
@@ -80,7 +106,10 @@ it.each(["transfer", "loan"] as const)(
             ]
           : [],
     };
+    // The deal is agreed, so the backend no longer puts him on the market.
+    marketPlayers = [];
     rerender(<TransfersTab gameState={createGameState([updated])} {...props} />);
+    await waitFor(() => expect(trigger.isConnected).toBe(false));
     const dialog = screen.getByRole("dialog", { name: player.full_name });
     expect(within(dialog).getByRole("region", { name: "Offer history" })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Make Transfer Bid" })).toBeDisabled();
@@ -93,7 +122,7 @@ it.each(["transfer", "loan"] as const)(
 /** Given a reloaded deferred agreement, when Offers opens its history, then persisted details are reachable by keyboard without starting a bid. */
 it.each(["transfer", "loan"] as const)(
   "opens saved %s agreement history from the offers view",
-  (kind) => {
+  async (kind) => {
     const player = createPlayer({
       team_id: "team-2",
       transfer_listed: true,
@@ -131,9 +160,10 @@ it.each(["transfer", "loan"] as const)(
           : [],
     });
     const restored: GameStateData = JSON.parse(JSON.stringify(createGameState([player])));
+    offeredPlayers = [player];
     render(<TransfersTab gameState={restored} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Offers (1)" }));
-    fireEvent.click(screen.getByRole("button", { name: "View offer history" }));
+    fireEvent.click(await screen.findByRole("button", { name: "View offer history" }));
     const dialog = screen.getByRole("dialog", { name: player.full_name });
     const history = within(dialog).getByRole("region", { name: "Offer history" });
     expect(within(history).getByText("Pending registration")).toBeInTheDocument();
@@ -183,6 +213,7 @@ it.each(["transfer", "loan"] as const)(
             ]
           : [],
     });
+    offeredPlayers = [player];
     render(
       <TransfersTab
         gameState={createGameState([player])}
@@ -191,7 +222,7 @@ it.each(["transfer", "loan"] as const)(
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /Angebote \(1\)/ }));
-    expect(screen.getByText("Unbekannt")).toBeInTheDocument();
+    expect(await screen.findByText("Unbekannt")).toBeInTheDocument();
     expect(screen.queryByText("Unknown")).not.toBeInTheDocument();
   },
 );

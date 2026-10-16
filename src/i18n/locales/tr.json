@@ -586,7 +586,11 @@
       "twistedAnkle": "Ayak bileği burkulması",
       "kneeBruise": "Diz ezilmesi",
       "hamstringTightness": "Arka adale gerginliği",
-      "calfStrain": "Baldır zorlanması"
+      "calfStrain": "Baldır zorlanması",
+      "ankleLigamentSprain": "Ayak bileği bağ burkulması",
+      "hamstringTear": "Hamstring yırtığı",
+      "kneeLigamentTear": "Diz bağı kopması",
+      "metatarsalFracture": "Metatars kırığı"
     },
     "scoutRatings": {
       "excellent": "Mükemmel",
@@ -1433,6 +1437,8 @@
     "transferFeedbackCounterDetail": "Teklif görüşmeyi sürdürecek kadar yakındı, ancak karşı taraf {{fee}} civarında bir fiyata işaret ediyor.",
     "transferFeedbackRejectedHeadline": "Bu turu kapattılar.",
     "transferFeedbackRejectedDetail": "Öneri onları yeterince etkilemedi. Ciddi görüşmeleri yeniden başlatmak için {{fee}} civarında daha güçlü bir bonservis gerekir.",
+    "transferFeedbackBrokeOffHeadline": "Görüşmeleri bıraktılar.",
+    "transferFeedbackBrokeOffDetail": "Yetersiz kalan birkaç tekliften sonra kulüp görüşmeleri sonlandırdı. {{fee}} civarında bir bedel gerekirdi. Tekrar denemeden önce onlara zaman tanıyın.",
     "registrationFailureInsufficientFunds": "Tescil başarısız: alıcının fonları yetersiz",
     "registrationFailureLoanConflict": "Tescil başarısız: kiralama çakışması",
     "registrationFailurePlayerUnavailable": "Tescil başarısız: oyuncu uygun değil",
@@ -1492,6 +1498,10 @@
   "players": {
     "searchPlaceholder": "Ad veya uyruğa göre ara...",
     "allPos": "Tüm Poz",
+    "filterAgeMin": "En az yaş",
+    "filterAgeMax": "En çok yaş",
+    "filterOvrMin": "En düşük GEN",
+    "filterOvrMax": "En yüksek GEN",
     "allTeams": "Tüm Takımlar",
     "nPlayersFound": "{{count}} oyuncu bulundu",
     "noMatch": "Filtrelerinize uyan oyuncu yok.",
@@ -2862,6 +2872,7 @@
         "transferBudgetTooLow": "Transfer bütçesi çok düşük",
         "playerNotOwnedByUser": "Oyuncu bulunamadı veya size ait değil",
         "offerNotPending": "Teklif bulunamadı veya beklemede değil",
+        "talksBrokenOff": "Bu kulüp bu oyuncuyla ilgili görüşmeleri sonlandırdı. Daha sonra tekrar deneyin.",
         "loanBorrowerCannotAffordWages": "Kiralayan kulüp bu maaş payını karşılayamıyor. Haftalık maaş bütçesi {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Karşı teklif mevcut teklifi aşmalıdır",
         "loanCounterMustImproveTerms": "Karşı kiralama teklifi mevcut teklifi iyileştirmelidir",
@@ -3002,12 +3013,21 @@
       },
       "wageOverBudget": {
         "subject": "Maaş Yükü Bütçeyi Aşıyor",
-        "body": "Haftalık maaş yükümüz ({{annualWages}}) şu anda ayrılan maaş bütçesini ({{wageBudget}}) aşıyor.\n\nBunu kısa vadede sürdürebilsek de yönetim, maaş yükünün kontrol altına alındığını görmek istiyor."
+        "body": "Haftalık maaş yükümüz ({{weeklyWageBill}}) şu anda ayrılan maaş bütçesini ({{wageBudget}}) aşıyor.\n\nBunu kısa vadede sürdürebilsek de yönetim, maaş yükünün kontrol altına alındığını görmek istiyor."
       },
       "financeBoardPressure": {
         "subject": "Yönetim Değerlendirmesi — Finansal Baskı",
         "bodyWarning": "Yönetim, kulübün mali durumundan endişe duymaya devam ediyor. Yönetiminize olan güven bu hafta {{penalty}} puan düştü.\n\nSabır iyice tükenmeden maaş dengesini ve kısa vadeli nakit görünümünü iyileştirmeniz gerekiyor.",
         "bodyCritical": "Yönetim, kulübün kötüleşen mali durumunu değerlendirdi ve yönetiminize olan güven bu hafta {{penalty}} puan düştü.\n\nNakit rezervleri ve maaş taahhütleri artık kritik durumda. Derhal düzeltici adımlar bekleniyor."
+      },
+      "financeLevers": {
+        "subject": "Kulüp için toparlanma seçenekleri açıldı",
+        "body": "Para sıkışık ve bu, toparlanma seçeneklerini açıyor. Kulübün şu anda kullanabildikleri aşağıda; her biri sizi Finans sekmesine götürür.",
+        "action": {
+          "boardSupport": "Yönetimden destek iste",
+          "sponsorPitch": "Yeni bir sponsora teklif götür",
+          "marketingCampaign": "Pazarlama kampanyası başlat"
+        }
       },
       "marketingCampaign": {
         "subject": "Pazarlama Kampanyası Raporu",
@@ -3196,6 +3216,11 @@
         "subject": "Sakatlık — {{player}} ({{injury}})",
         "body0": "Antrenman sahasından kötü haber. {{player}} bugünkü antrenmanda {{injury}} yaşadı.\n\nSağlık ekibi {{days}} gün sahalardan uzak kalacağını öngörüyor. İyileşme sürecini yakından takip edeceğiz.",
         "body1": "Ne yazık ki {{player}} bugün antrenmanda {{injury}} sorunu yaşadı.\n\nİlk değerlendirme: yaklaşık {{days}} gün yok. Gelişmeler hakkında sizi bilgilendireceğiz."
+      },
+      "matchInjury": {
+        "subject": "Maç sakatlığı — {{player}} ({{injury}})",
+        "body0": "Maçtan kötü haber: {{player}} sahada sakatlandı.\n\nTeşhis: {{injury}}. Sağlık ekibi {{days}} günlük bir ara öngörüyor ve iyileşmeyi yakından izleyeceğiz.",
+        "body1": "{{player}} bugünkü maçtan sağlam çıkamadı.\n\nTeşhis: {{injury}}. İlk değerlendirme: yaklaşık {{days}} gün yok. Gelişmeleri size bildireceğiz."
       },
       "mediaPositive": {
         "subject": "Olumlu Basın — {{player}}",
@@ -3671,7 +3696,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin."
+        "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin.",
+        "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın."
       }
     }
   },

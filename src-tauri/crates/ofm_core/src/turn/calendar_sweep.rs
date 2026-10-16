@@ -7,7 +7,7 @@ use std::collections::{BTreeSet, HashSet};
 use crate::calendar_notice;
 use crate::calendar_reconcile;
 use crate::game::Game;
-use chrono::{Datelike, NaiveDate};
+use chrono::NaiveDate;
 
 /// Fixtures of competitions with a knockout bracket, as the day found them: a round drawn during
 /// the day is new, so its dates were never shown and moving one is not a postponement.
@@ -56,26 +56,6 @@ pub(super) fn shown_bracket_fixtures(game: &Game) -> ShownFixtures {
         .collect()
 }
 
-/// Dates club football keeps clear of around `today`: the windows of the season that started the
-/// year before and of the one starting this year, since a date belongs to either.
-fn blackout_dates(game: &Game, today: NaiveDate) -> BTreeSet<NaiveDate> {
-    let qualifying = game
-        .competitions
-        .iter()
-        .any(crate::world_cup::is_world_cup_qualifying);
-    [today.year() - 1, today.year()]
-        .into_iter()
-        .filter_map(|year| NaiveDate::from_ymd_opt(year, 7, 1))
-        .filter_map(|start| start.and_hms_opt(0, 0, 0))
-        .flat_map(|start| {
-            crate::national_team::international_blackout_dates(
-                chrono::DateTime::from_naive_utc_and_offset(start, chrono::Utc),
-                qualifying,
-            )
-        })
-        .collect()
-}
-
 /// The id and date of every fixture, played or not, and the dates the calendar must keep clear
 /// of: a result changes neither, and neither does anything else a day does to a fixture. Only a
 /// fixture added or moved, or a window that has come into force, can create a clash, so a day that
@@ -102,7 +82,7 @@ pub(super) fn reconcile_calendar(game: &mut Game, today: &str, shown: &ShownFixt
     let Ok(day) = NaiveDate::parse_from_str(today, "%Y-%m-%d") else {
         return false;
     };
-    let blackout = blackout_dates(game, day);
+    let blackout = crate::national_team::international_blackout_around(&game.competitions, day);
     let before = calendar_fingerprint(game, &blackout);
     if game.calendar_fingerprint == Some(before) {
         return false;

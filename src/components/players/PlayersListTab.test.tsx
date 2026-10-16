@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
+import { calcAge } from "../../lib/helpers";
 import type { PlayerSummary, PlayersPage, PlayersPageQuery } from "../../services/playersService";
 import { resetPackageAssetRoot } from "../../hooks/usePackageAssetSrc";
 import PlayersListTab from "./PlayersListTab";
@@ -29,6 +30,7 @@ vi.mock("react-i18next", () => ({
     t: (key: string, params?: Record<string, string | number>) => {
       if (key === "players.searchPlaceholder") return "Search players";
       if (key === "players.allPos") return "All positions";
+      if (key.startsWith("common.positionGroups.")) return key.split(".").pop() as string;
       if (key === "players.allTeams") return "All teams";
       if (key === "players.nPlayersFound") return `${params?.count} players`;
       if (key === "players.noMatch") return "No matches";
@@ -276,6 +278,8 @@ function summaryFrom(player: PlayerData, teams: TeamData[]): PlayerSummary {
     full_name: player.full_name,
     match_name: player.match_name,
     date_of_birth: player.date_of_birth,
+    age: calcAge(player.date_of_birth),
+    wage: player.wage,
     nationality: player.nationality,
     position: player.position,
     natural_position: player.natural_position ?? player.position,
@@ -305,6 +309,15 @@ function applyQuery(items: PlayerSummary[], query: PlayersPageQuery): PlayersPag
   if (query.position) {
     filtered = filtered.filter((s) => groupPosition(s.natural_position) === query.position);
   }
+  if (query.positions.length > 0) {
+    filtered = filtered.filter((s) =>
+      query.positions.some((test) =>
+        "exact" in test
+          ? s.natural_position === test.exact
+          : groupPosition(s.natural_position) === test.group,
+      ),
+    );
+  }
   if (query.team_id) {
     filtered = filtered.filter((s) => s.team_id === query.team_id);
   }
@@ -315,6 +328,7 @@ function applyQuery(items: PlayerSummary[], query: PlayersPageQuery): PlayersPag
   }
   return {
     items: filtered,
+    status_counts: { all: 0, transfer: 0, loan: 0, free_agent: 0, available: 0 },
     total: filtered.length,
     page: query.page,
     page_size: query.page_size,
@@ -376,6 +390,29 @@ describe("PlayersListTab", () => {
     fireEvent.click(await screen.findByText("A. Keeper"));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-2");
+  });
+
+  /**
+   * Given the directory is open
+   * When a minimum age is typed in the filters
+   * Then the backend is asked for that range, on the first page.
+   */
+  it("asks the backend for the age range typed in the filters", async () => {
+    const gameState = createGameState();
+    setupSliceMock(gameState);
+    render(
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
+    );
+    await screen.findByText("A. Keeper");
+
+    fireEvent.change(screen.getByLabelText("players.filterAgeMin"), { target: { value: "21" } });
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith(
+        "get_players_page",
+        expect.objectContaining({ query: expect.objectContaining({ age_min: 21, page: 1 }) }),
+      );
+    });
   });
 
   it("keeps team navigation separate from player row selection", async () => {
