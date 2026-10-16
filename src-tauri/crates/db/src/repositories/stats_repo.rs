@@ -133,6 +133,13 @@ pub fn persist_stats_state(conn: &Connection, stats: &StatsState) -> Result<(), 
 }
 
 /// How many of `records` the table already holds, or `None` when the table is not a prefix of them.
+///
+/// The prefix is judged by its newest row alone: the table's `MAX(rowid)` is taken as the number of
+/// rows it holds (a rewrite empties the table first, so the ids are contiguous from 1) and that row
+/// must be the record at the same place in memory. That is enough because
+/// saves are the only writer and only ever append, and the load reads the table in `rowid` order, so
+/// memory keeps the order the file has. A file altered in the middle by something else would not be
+/// noticed here.
 fn held_prefix<T>(
     conn: &Connection,
     table: &str,
@@ -176,7 +183,7 @@ pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
                     passes_attempted, tackles_won, interceptions, fouls_committed,
                     yellow_cards, red_cards, rating
              FROM player_match_stats
-             ORDER BY date, matchday, fixture_id, player_id",
+             ORDER BY rowid",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
     let player_rows = player_stmt
@@ -223,7 +230,7 @@ pub fn load_stats_state(conn: &Connection) -> Result<StatsState, String> {
                     shots, shots_on_target, passes_completed, passes_attempted, tackles_won,
                     interceptions, fouls_committed, yellow_cards, red_cards
              FROM team_match_stats
-             ORDER BY date, matchday, fixture_id, team_id",
+             ORDER BY rowid",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
     let team_rows = team_stmt
@@ -499,6 +506,51 @@ mod tests {
                 .iter()
                 .all(|r| r.fixture_id.starts_with("other-"))
         );
+    }
+
+    /// A match played on `date`, with the fixture named so that it sorts by name the same way.
+    fn a_match_on(fixture: &str, date: &str) -> StatsState {
+        let mut played = a_match(fixture);
+        for record in &mut played.player_matches {
+            record.date = date.to_string();
+        }
+        for record in &mut played.team_matches {
+            record.date = date.to_string();
+        }
+        played
+    }
+
+    /// Given ten matches saved in the order they were played, the last one a postponed fixture
+    /// dated before the others,
+    /// When the file is loaded and the loaded state is saved again,
+    /// Then nothing is written, and one more match writes only its own 24 rows.
+    #[test]
+    fn the_first_save_after_a_load_writes_nothing() {
+        let db = test_db();
+        let mut stats = StatsState::default();
+        for day in 10..19 {
+            stats.append(a_match_on(
+                &format!("fixture-{day}"),
+                &format!("2025-08-{day}"),
+            ));
+        }
+        stats.append(a_match_on("fixture-postponed", "2025-08-01"));
+        persist_stats_state(db.conn(), &stats).unwrap();
+
+        let mut loaded = load_stats_state(db.conn()).unwrap();
+        let after_load = rows_written_by(db.conn(), || {
+            persist_stats_state(db.conn(), &loaded).unwrap();
+        });
+        loaded.append(a_match_on("fixture-next", "2025-08-20"));
+        let after_one_more = rows_written_by(db.conn(), || {
+            persist_stats_state(db.conn(), &loaded).unwrap();
+        });
+
+        assert_eq!(
+            after_load, 0,
+            "the first save after a load rewrote the history"
+        );
+        assert_eq!(after_one_more, 24);
     }
 
     /// Given a file holding more than memory, when memory is saved, then the extra is removed.
