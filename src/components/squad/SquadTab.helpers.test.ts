@@ -62,6 +62,7 @@ const makePlayer = (
   condition: 100,
   morale: 80,
   injury: null,
+  match_day_eligible: true,
   team_id: "team1",
   retired: false,
   contract_end: "2027-06-30",
@@ -414,6 +415,47 @@ describe("SquadTab helpers", () => {
         "CenterBack",
       ),
     ).toBe("out");
+  });
+
+  /**
+   * Given a bench player the backend has not made eligible (an injury, say)
+   * When he is promoted
+   * Then nothing changes; and an injured player the backend fields in a crisis is promoted.
+   */
+  it("promotes only a bench player the backend has made eligible", () => {
+    const xi = ["gk", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"];
+    const base = [
+      makePlayer("gk", "Goalkeeper"),
+      makePlayer("d1", "Defender"),
+      makePlayer("d2", "Defender"),
+      makePlayer("d3", "Defender"),
+      makePlayer("d4", "Defender"),
+      makePlayer("m1", "Midfielder"),
+      makePlayer("m2", "Midfielder"),
+      makePlayer("m3", "Midfielder"),
+      makePlayer("m4", "Midfielder"),
+      makePlayer("f1", "Forward"),
+      makePlayer("f2", "Forward"),
+    ];
+    const injured = { name: "Hamstring strain", days_remaining: 7 };
+    const withBench = (bench: PlayerData) => new Map([...base, bench].map((p) => [p.id, p]));
+
+    const refused = buildPromoteToStartingXi(
+      xi,
+      withBench(makePlayer("d5", "Defender", { injury: injured, match_day_eligible: false })),
+      "4-4-2",
+      "d5",
+    );
+    const fielded = buildPromoteToStartingXi(
+      xi,
+      withBench(makePlayer("d5", "Defender", { injury: injured, match_day_eligible: true })),
+      "4-4-2",
+      "d5",
+    );
+
+    expect(refused).toBeNull();
+    expect(fielded).not.toBeNull();
+    expect(fielded).toContain("d5");
   });
 
   it("promotes a bench player into the slot that fits them best", () => {

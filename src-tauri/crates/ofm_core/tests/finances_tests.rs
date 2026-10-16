@@ -303,6 +303,73 @@ fn facility_upgrade_previews_carry_the_block_reason_and_affordability() {
     }));
 }
 
+fn snapshot_at(overall_status: finances::FinanceHealthLevel) -> finances::TeamFinanceSnapshot {
+    finances::TeamFinanceSnapshot {
+        annual_wage_bill: 520_000,
+        weekly_wage_spend: 10_000,
+        weekly_wage_budget: 20_000,
+        weekly_recurring_income: 15_000,
+        weekly_sponsor_income: 5_000,
+        projected_weekly_net: 5_000,
+        cash_runway_weeks: None,
+        wage_budget_usage_percent: 50,
+        currently_in_debt: false,
+        currently_over_budget: false,
+        wage_budget_status: finances::FinanceHealthLevel::Stable,
+        runway_status: overall_status,
+        overall_status,
+        marketing_campaign_cooldown_days_remaining: 0,
+    }
+}
+
+/// Given a club whose overall finances are at warning or critical level, within its wage budget
+/// When its facility upgrades are judged
+/// Then they are blocked for financial distress
+#[test]
+fn a_club_in_warning_or_critical_distress_cannot_upgrade_facilities() {
+    for status in [
+        finances::FinanceHealthLevel::Warning,
+        finances::FinanceHealthLevel::Critical,
+    ] {
+        assert_eq!(
+            finances::facility_upgrade_block_reason(&snapshot_at(status)),
+            Some("be.error.finance.facilityUpgradeCritical"),
+            "{status:?}"
+        );
+    }
+}
+
+/// Given a club whose overall finances are stable or only on watch, within its wage budget
+/// When its facility upgrades are judged
+/// Then nothing blocks them
+#[test]
+fn a_stable_or_watched_club_may_upgrade_facilities() {
+    for status in [
+        finances::FinanceHealthLevel::Stable,
+        finances::FinanceHealthLevel::Watch,
+    ] {
+        assert_eq!(
+            finances::facility_upgrade_block_reason(&snapshot_at(status)),
+            None,
+            "{status:?}"
+        );
+    }
+}
+
+/// Given a club that is over its wage budget and also in critical distress
+/// When its facility upgrades are judged
+/// Then the reason given is the wage budget
+#[test]
+fn being_over_the_wage_budget_outranks_distress_as_the_reason() {
+    let mut snapshot = snapshot_at(finances::FinanceHealthLevel::Critical);
+    snapshot.currently_over_budget = true;
+
+    assert_eq!(
+        finances::facility_upgrade_block_reason(&snapshot),
+        Some("be.error.finance.facilityUpgradeOverBudget")
+    );
+}
+
 #[test]
 fn request_board_support_can_recover_runway_without_random_events() {
     let mut game = make_monday_game();
@@ -879,6 +946,85 @@ fn critical_warning_when_in_debt() {
     assert!(critical_msgs[0].subject.is_empty());
     assert!(critical_msgs[0].body.is_empty());
     assert!(critical_msgs[0].sender.is_empty());
+}
+
+/// Given a club 100,000 in debt, with 1,700 of wages to pay that week,
+/// When the weekly finances run,
+/// Then the board's warning carries the debt after the wages (101,700) as a whole number, not as a formatted string.
+#[test]
+fn the_debt_warning_carries_the_amount_as_a_number() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+
+    finances::process_weekly_finances(&mut game);
+
+    let message = game
+        .messages
+        .iter()
+        .find(|m| m.id.starts_with("finance_critical_"))
+        .expect("the board warns of the debt");
+    assert_eq!(message.i18n_params["amount"], "101700");
+}
+
+/// Given a club with two weeks of cash and a 1,700 weekly wage bill,
+/// When the weekly finances run,
+/// Then the runway warning carries the weekly wages as a whole number.
+#[test]
+fn the_runway_warning_carries_the_weekly_wages_as_a_number() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 3400;
+
+    finances::process_weekly_finances(&mut game);
+
+    let message = game
+        .messages
+        .iter()
+        .find(|m| m.id.starts_with("finance_warning_"))
+        .expect("the finance director warns of the runway");
+    assert_eq!(message.i18n_params["weeklyWages"], "1700");
+}
+
+/// Given a club with cash to spare whose 1,700 weekly wage bill is over its 1,545 budget,
+/// When the weekly finances run,
+/// Then the message names the figure for what it is, the weekly wage bill, as whole numbers.
+#[test]
+fn the_over_budget_message_carries_the_weekly_wage_bill_and_budget_as_numbers() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 1_000_000;
+    game.teams[0].wage_budget = 1_545;
+
+    finances::process_weekly_finances(&mut game);
+
+    let message = game
+        .messages
+        .iter()
+        .find(|m| m.id.starts_with("wage_over_budget_"))
+        .expect("the finance director warns of the wage bill");
+    assert_eq!(message.i18n_params["weeklyWageBill"], "1700");
+    assert_eq!(message.i18n_params["wageBudget"], "1545");
+    assert!(
+        !message.i18n_params.contains_key("annualWages"),
+        "the weekly bill is no longer called annual"
+    );
+}
+
+/// Given a club with cash to spare whose 1,700 weekly wage bill is exactly its 1,700 budget,
+/// When the weekly finances run,
+/// Then it is not over budget, and the finance director says nothing.
+#[test]
+fn a_wage_bill_equal_to_the_budget_is_not_over_it() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 1_000_000;
+    game.teams[0].wage_budget = 1_700;
+
+    finances::process_weekly_finances(&mut game);
+
+    assert!(
+        !game
+            .messages
+            .iter()
+            .any(|m| m.id.starts_with("wage_over_budget_"))
+    );
 }
 
 #[test]

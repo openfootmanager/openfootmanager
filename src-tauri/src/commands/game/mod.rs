@@ -144,7 +144,7 @@ pub async fn start_new_game(
         ofm_core::generator::normalize_imported_world_for_career_start(&mut world, opening_year);
     }
     let reference_date = clock.current_date.date_naive();
-    let age = age_on_date(birth_date, reference_date);
+    let age = domain::age::age_between(birth_date, reference_date);
     if age < 30 {
         return Err("be.error.createManager.minAge".to_string());
     }

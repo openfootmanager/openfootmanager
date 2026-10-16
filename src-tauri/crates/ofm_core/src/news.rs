@@ -375,7 +375,7 @@ pub fn transfer_roundup_article(
                     "player": player,
                     "fromTeam": from_team,
                     "toTeam": to_team,
-                    "fee": format_transfer_fee(*fee),
+                    "fee": fee.to_string(),
                 })
             })
             .collect::<Vec<_>>(),
@@ -525,7 +525,7 @@ pub fn major_transfer_article(
     fee: u64,
     date: &str,
 ) -> NewsArticle {
-    let fee_display = format_transfer_fee(fee);
+    let fee_display = fee.to_string();
 
     NewsArticle::new(
         id.to_string(),

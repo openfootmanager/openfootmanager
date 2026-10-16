@@ -37,6 +37,7 @@ export default function TacticsTab({
     pitchSlots,
     outOfPositionCount,
     effectiveMatchRoles,
+    autoSetPieces,
     selectedPlayer,
     comparePlayer,
     selectedPlayerId,
@@ -77,6 +78,8 @@ export default function TacticsTab({
     activeTactic,
     tacticLibrary,
     isCommandBarDirty,
+    canResetTactic,
+    handleResetTactic,
     applyTacticSelection,
     handleCreateCustomTactic,
     handleDuplicateTactic,
@@ -107,6 +110,10 @@ export default function TacticsTab({
         activePlayStyle={activePlayStyle}
         formation={formation}
         isDirty={isCommandBarDirty}
+        canReset={canResetTactic}
+        onReset={() => {
+          void handleResetTactic();
+        }}
         onCreateNew={handleCreateCustomTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {
@@ -210,6 +217,7 @@ export default function TacticsTab({
         {/* Right: roles + phase blueprint */}
         <TacticsRightPanel
           allSquad={roster}
+          autoSetPieces={autoSetPieces}
           matchRoles={team.match_roles}
           onGameUpdate={onGameUpdate}
           onTacticsPhaseChange={(patch) => {

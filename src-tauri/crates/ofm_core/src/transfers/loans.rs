@@ -807,7 +807,8 @@ pub(crate) fn ai_should_exercise_loan_buy_option(
     loan_minutes: u32,
     loan_appearances: u32,
 ) -> bool {
-    if fee == 0 || loan_team.finance < fee as i64 || loan_team.transfer_budget < fee as i64 {
+    // A zero buy option is no option at all, so it is refused before the club's means are asked.
+    if fee == 0 || !can_afford_fee(loan_team, fee) {
         return false;
     }
 
@@ -924,7 +925,7 @@ pub(crate) fn improve_loan_player_attributes(player: &mut domain::player::Player
 pub(crate) fn apply_loan_development(
     player: &mut domain::player::Player,
     loan_team_reputation: u32,
-    current_year: u32,
+    on: chrono::NaiveDate,
     loan_minutes: u32,
     loan_appearances: u32,
 ) -> (u8, u8, u8) {
@@ -957,7 +958,7 @@ pub(crate) fn apply_loan_development(
     }
 
     if attribute_gains > 0 {
-        crate::player_rating::refresh_player_derived(player, current_year);
+        crate::player_rating::refresh_player_derived(player, on);
     }
 
     (ovr_before, player.ovr, attribute_gains)
@@ -996,7 +997,6 @@ pub(crate) fn record_loan_development_report(game: &mut Game, player_id: &str, f
         .map(|team| team.name.clone())
         .unwrap_or_else(|| loan.loan_team_id.clone());
     let loan_team_reputation = loan_team.map(|team| team.reputation).unwrap_or(0);
-    let current_year = current_date.year() as u32;
 
     let (player_name, ovr_before, ovr_after, attribute_gains) = {
         let player = &mut game.players[player_index];
@@ -1010,7 +1010,7 @@ pub(crate) fn record_loan_development_report(game: &mut Game, player_id: &str, f
         let (ovr_before, ovr_after, attribute_gains) = apply_loan_development(
             player,
             loan_team_reputation,
-            current_year,
+            current_date,
             loan_minutes,
             loan_appearances,
         );
@@ -1156,6 +1156,100 @@ mod tests {
     use super::*;
     use crate::transfers::tests::{make_game, sample_attributes};
     use chrono::{TimeZone, Utc};
+
+    fn buy_option_candidate(market_value: u64) -> (Player, Team) {
+        let mut player = Player::new(
+            "p".to_string(),
+            "P".to_string(),
+            "P".to_string(),
+            "2000-01-01".to_string(),
+            "GB".to_string(),
+            Position::Midfielder,
+            sample_attributes(),
+        );
+        player.market_value = market_value;
+        let mut club = Team::new(
+            "club".to_string(),
+            "Club".to_string(),
+            "CLB".to_string(),
+            "England".to_string(),
+            "Town".to_string(),
+            "Ground".to_string(),
+            10_000,
+        );
+        club.finance = 10_000_000;
+        club.transfer_budget = 10_000_000;
+        (player, club)
+    }
+
+    /// Given a club that could pay anything, when the buy option's fee is zero, then the AI still
+    /// declines: a zero buy option is no option at all.
+    #[test]
+    fn a_zero_buy_option_is_never_exercised() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 0, 2_000, 30
+        ));
+    }
+
+    /// Given a fee within the fair ceiling, when the club has too little cash or too little
+    /// transfer budget for it, then the AI declines.
+    #[test]
+    fn a_buy_option_the_club_cannot_pay_is_not_exercised() {
+        let (player, mut club) = buy_option_candidate(1_000_000);
+        club.finance = 100_000;
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 900_000, 2_000, 30
+        ));
+
+        let (player, mut club) = buy_option_candidate(1_000_000);
+        club.transfer_budget = 100_000;
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 900_000, 2_000, 30
+        ));
+    }
+
+    /// Given a fair fee the club can pay, when the AI weighs the buy option, then it exercises it.
+    #[test]
+    fn a_fair_buy_option_the_club_can_pay_is_exercised() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(ai_should_exercise_loan_buy_option(
+            &player, &club, 900_000, 2_000, 30
+        ));
+    }
+
+    /// Given a 19-year-old midfielder with room to grow who plays a season on loan,
+    /// When the loan's development is applied on a date,
+    /// Then his attributes rise and his rating is recomputed from them, as of that date.
+    #[test]
+    fn loan_development_refreshes_the_rating_it_raised() {
+        let mut player = Player::new(
+            "loanee".to_string(),
+            "Loanee".to_string(),
+            "Loanee".to_string(),
+            "2007-01-01".to_string(),
+            "England".to_string(),
+            Position::Midfielder,
+            sample_attributes(),
+        );
+        player.potential = 99;
+        let on = chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+        crate::player_rating::refresh_player_derived(&mut player, on);
+        player.potential = 99;
+
+        let (ovr_before, ovr_after, gains) = apply_loan_development(&mut player, 500, on, 900, 10);
+
+        assert_eq!(gains, 6, "two cycles of three attributes");
+        assert!(ovr_after > ovr_before, "{ovr_before} -> {ovr_after}");
+        assert_eq!(ovr_after, player.ovr);
+        assert_eq!(
+            player.ovr,
+            crate::player_rating::natural_ovr(&player).round() as u8,
+            "the stored rating is not the one the raised attributes give"
+        );
+    }
 
     fn contract_end_loan_game(user_is_parent: bool) -> Game {
         let mut game = make_game();

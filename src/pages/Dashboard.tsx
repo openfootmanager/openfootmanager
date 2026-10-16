@@ -41,25 +41,23 @@ import {
 import {
   getDashboardAlerts,
   getDashboardSearchResults,
+  clubCompetitionLabel,
   getManagerTeamName,
   getTodayMatchFixture,
   getUnreadMessagesCount,
 } from "../components/dashboard/dashboardHelpers";
 import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
-import {
-  formatDateFull,
-  getFixtureCompetitionName,
-  getUserCompetition,
-  isSeasonComplete as isLeagueSeasonComplete,
-} from "../lib/helpers";
+import { formatDateFull, getFixtureCompetitionName } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
+import { useClubLeagueStanding } from "../components/teamProfile/useClubLeagueStanding";
 import { useSettingsStore } from "../store/settingsStore";
 import {
   getBackgroundPortraitPrewarmKey,
   queueBackgroundPortraitPrewarm,
 } from "../services/portraitService";
 import { getFinanceSnapshot, type TeamFinanceSnapshotData } from "../services/financeService";
+import { isSeasonComplete } from "../lib/seasonContext";
 
 const CLUB_TABS = new Set([
   "Squad",
@@ -310,11 +308,7 @@ export default function Dashboard(): JSX.Element {
   // first — a foreign league on another calendar — so an English career whose
   // season ended in April waited on an Argentine Apertura running to October,
   // the end-of-season screen never appeared, and the player could not continue.
-  // The local rule is kept only for saves written before the backend sent the
-  // flag, where it is still better than nothing.
-  const seasonComplete =
-    gameState?.season_context?.season_complete ??
-    isLeagueSeasonComplete(gameState ? getUserCompetition(gameState) : null);
+  const seasonComplete = gameState ? isSeasonComplete(gameState) : false;
 
   // Advance-time hook
   const {
@@ -499,6 +493,11 @@ export default function Dashboard(): JSX.Element {
     navigate("/settings", { state: { from: "/dashboard" } });
   }
 
+  const clubStanding = useClubLeagueStanding(
+    gameState?.manager.team_id ?? "",
+    gameState?.clock.current_date ?? "",
+  );
+
   if (!gameState) {
     return (
       <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex items-center justify-center transition-colors">
@@ -516,6 +515,7 @@ export default function Dashboard(): JSX.Element {
   const unreadMessagesCount =
     sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
+  const myCompetitionName = clubCompetitionLabel(gameState, clubStanding.standing, t);
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const currentFinanceVerdict =
     financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
@@ -553,6 +553,7 @@ export default function Dashboard(): JSX.Element {
         todayHasMatch={hasMatchToday}
         managerName={managerName}
         teamName={myTeamName}
+        competitionName={myCompetitionName}
         onNavigateSettings={handleNavigateSettings}
         isUnemployed={isUnemployed ?? false}
         onExitClick={() => {

@@ -772,6 +772,7 @@
     "myTactics": "我的战术",
     "newTactic": "新建战术",
     "duplicateTactic": "复制",
+    "resetTactic": "恢复默认",
     "saveAsTactic": "保存为战术",
     "updateTactic": "更新战术",
     "tacticSaved": "已保存",
@@ -1969,6 +1970,17 @@
     "benchPlayers": "替补球员",
     "selectBenchToCompare": "选择替补球员进行比较",
     "confirmSubstitution": "确认换人",
+    "queueSubstitution": "加入队列",
+    "queuedSubstitutions": "排队中的换人",
+    "confirmAllSubstitutions": "全部确认（{{count}}）",
+    "confirmSubstitutions": "确认 {{count}} 次换人",
+    "removeQueuedSubstitution": "将 {{off}} → {{on}} 从队列中移除",
+    "alreadyQueued": "已排队等待换人",
+    "substitutionsPartlyMade": "已完成 {{applied}}/{{total}} 次换人",
+    "substitutionRefused": "换人被拒绝：{{off}} 换 {{on}}。{{reason}}",
+    "playerRoles": "球员角色",
+    "roleFor": "{{player}}的角色",
+    "roleChangeRefused": "无法更改{{player}}的角色。{{reason}}",
     "noBenchAvailable": "没有可用的替补球员",
     "history": "历史",
     "player": "球员",
@@ -2557,7 +2569,10 @@
     "yourResult": "你的成绩",
     "continue": "继续",
     "notableUpset": "重大爆冷",
-    "pts": "分"
+    "pts": "分",
+    "cupPenalties": "（点球 {{home}}–{{away}}）",
+    "cupAdvances": "{{team}} 晋级",
+    "cupTiesPending": "部分对阵尚未进行"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",
@@ -2874,6 +2889,12 @@
       "notice": {
         "fallbackLeagueGenerated": "未定义任何赛事。已自动为所有球队生成默认的单级别联赛。",
         "fallbackTeamsFilled": "仅定义了一支球队。已自动生成程序化对手以使游戏可玩。"
+      },
+      "customTactic": {
+        "nameRequired": "请为战术起一个不超过 60 个字符的名称。",
+        "invalidFormation": "游戏不认识该阵型。",
+        "invalidPlayStyle": "游戏不认识该打法。",
+        "notFound": "该战术已不存在。"
       }
     },
     "sender": {
@@ -2972,7 +2993,7 @@
       },
       "wageOverBudget": {
         "subject": "薪资支出超出预算",
-        "body": "我们的每周薪资支出({{annualWages}})目前已超过分配的薪资预算({{wageBudget}})。\n\n短期内尚可维持,但董事会希望看到薪资支出得到控制。"
+        "body": "我们的每周薪资支出({{weeklyWageBill}})目前已超过分配的薪资预算({{wageBudget}})。\n\n短期内尚可维持,但董事会希望看到薪资支出得到控制。"
       },
       "financeBoardPressure": {
         "subject": "董事会审查——财务压力",
@@ -3463,6 +3484,10 @@
         "LoanConflict": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员仍在租借中，或已有一份等待注册的租借协议。此次转会未支付任何转会费。",
         "PlayerUnavailable": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为球员已无法从出售方俱乐部转会。此次转会未支付任何转会费。",
         "RegistrationBlocked": "{{player}} 以 {{fee}} 转会至 {{buyer}} 的协议未能在 {{start}} 完成注册，因为某项注册条件已不再满足。此次转会未支付任何转会费。"
+      },
+      "matchesMoved": {
+        "subject": "比赛已改期",
+        "body": "您的部分比赛已改期，以保证球员的休息时间并避开国际比赛日：\n{{matches}}"
       }
     },
     "news": {
@@ -3634,6 +3659,11 @@
     },
     "save": {
       "defaultName": "{{manager}} 的生涯"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "该包定义了不在游戏国家列表中的国家“{{name}}”（{{code}}），且未将其归入任何联合会，因此其俱乐部会被归入欧洲。请为其指定一个联合会。"
+      }
     }
   },
   "traits": {
@@ -3881,6 +3911,7 @@
     "saveSuccess": "已保存",
     "saveTeam": "保存球队",
     "issues": "{{count}} 个问题",
+    "warnings": "{{count}} 条警告",
     "packageId": "包 ID",
     "packageName": "包名称",
     "description": "描述",
@@ -4039,6 +4070,7 @@
     "openPackageFileInvalid": "请选择有效的 .ofm 包文件",
     "noItemSelected": "从列表中选择一项，或点击添加以创建",
     "issuesBadge": "{{count}} 个问题",
+    "warningsBadge": "{{count}} 条警告",
     "issuesTitle": "验证问题",
     "noIssues": "没有问题 — 世界有效",
     "saving": "保存中…",
@@ -4113,6 +4145,8 @@
     "staffId": "ID",
     "staffFirstName": "名",
     "staffLastName": "姓",
+    "staffKnownAs": "通称（可选）",
+    "staffKnownAsPlaceholder": "例如：卡福",
     "staffClub": "俱乐部",
     "staffNationality": "国籍",
     "staffDateOfBirth": "出生日期",

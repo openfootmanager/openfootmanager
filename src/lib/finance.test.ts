@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlayerData } from "../store/gameStore";
-import { weeklyWageAmount, getPlayerAnnualWageCommitment } from "./finance";
+import { weeklyWageAmount, getPlayerWeeklyWageCommitment } from "./finance";
 
 function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   return {
@@ -82,8 +82,8 @@ describe("finance helpers", () => {
       },
     });
 
-    expect(getPlayerAnnualWageCommitment(loanedPlayer, "parent")).toBe(208000);
-    expect(getPlayerAnnualWageCommitment(loanedPlayer, "loan")).toBe(312000);
+    expect(getPlayerWeeklyWageCommitment(loanedPlayer, "parent")).toBe(208000);
+    expect(getPlayerWeeklyWageCommitment(loanedPlayer, "loan")).toBe(312000);
   });
 
   it("assigns the loan wage remainder to the parent club like the backend", () => {
@@ -100,7 +100,7 @@ describe("finance helpers", () => {
       },
     });
 
-    expect(getPlayerAnnualWageCommitment(loanedPlayer, "loan")).toBe(50);
-    expect(getPlayerAnnualWageCommitment(loanedPlayer, "parent")).toBe(51);
+    expect(getPlayerWeeklyWageCommitment(loanedPlayer, "loan")).toBe(50);
+    expect(getPlayerWeeklyWageCommitment(loanedPlayer, "parent")).toBe(51);
   });
 });

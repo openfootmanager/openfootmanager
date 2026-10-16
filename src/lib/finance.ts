@@ -13,27 +13,27 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-export function getPlayerAnnualWageCommitment(player: PlayerData, teamId?: string | null): number {
-  const annualWage = Math.max(0, player.wage);
+export function getPlayerWeeklyWageCommitment(player: PlayerData, teamId?: string | null): number {
+  const weeklyWage = Math.max(0, player.wage);
 
   if (!teamId) {
-    return annualWage;
+    return weeklyWage;
   }
 
   const activeLoan = player.active_loan ?? null;
   if (!activeLoan) {
-    return player.team_id === teamId ? annualWage : 0;
+    return player.team_id === teamId ? weeklyWage : 0;
   }
 
   const loanTeamContributionPct = clampPercent(activeLoan.wage_contribution_pct);
-  const loanTeamShare = Math.floor((annualWage * loanTeamContributionPct) / 100);
+  const loanTeamShare = Math.floor((weeklyWage * loanTeamContributionPct) / 100);
 
   if (activeLoan.loan_team_id === teamId) {
     return loanTeamShare;
   }
 
   if (activeLoan.parent_team_id === teamId) {
-    return annualWage - loanTeamShare;
+    return weeklyWage - loanTeamShare;
   }
 
   return 0;

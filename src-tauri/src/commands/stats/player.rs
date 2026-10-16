@@ -33,6 +33,16 @@ fn position_key(player: &Player) -> &Position {
     &player.natural_position
 }
 
+/// A player on the roster, or a retiree kept in the archive: both have a history page. A
+/// retiree has no club, so he has totals and rates but no peer group and no percentiles.
+fn find_player_or_retiree(game: &Game, player_id: &str) -> Option<Player> {
+    game.players
+        .iter()
+        .find(|candidate| candidate.id == player_id)
+        .cloned()
+        .or_else(|| ofm_core::retirees::find_retiree(game, player_id))
+}
+
 /// The players a percentile compares with: those at clubs in the same league table who share the
 /// player's natural position. A player with no club or no league table has no group, and so no
 /// percentiles, rather than being ranked against strangers.
@@ -217,14 +227,10 @@ fn build_history_overview(
     let game = state
         .get_game(|game| game.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
-    let Some(player) = game
-        .players
-        .iter()
-        .find(|candidate| candidate.id == player_id)
-    else {
+    let Some(player) = find_player_or_retiree(&game, player_id) else {
         return Err("be.error.playerNotFound".to_string());
     };
-    let (peer_group, peer_ids) = league_peers(&game, player);
+    let (peer_group, peer_ids) = league_peers(&game, &player);
 
     let Some(history_aggregates) = state.get_stats_state(|stats| {
         let mut records_by_player: HashMap<String, Vec<PlayerMatchStatsRecord>> = HashMap::new();
@@ -272,14 +278,10 @@ fn build_legacy_overview(
     let game = state
         .get_game(|game| game.clone())
         .ok_or("be.error.noActiveGameSession".to_string())?;
-    let Some(player) = game
-        .players
-        .iter()
-        .find(|candidate| candidate.id == player_id)
-    else {
+    let Some(player) = find_player_or_retiree(&game, player_id) else {
         return Err("be.error.playerNotFound".to_string());
     };
-    let (peer_group, peer_ids) = league_peers(&game, player);
+    let (peer_group, peer_ids) = league_peers(&game, &player);
     let peers = game
         .players
         .iter()

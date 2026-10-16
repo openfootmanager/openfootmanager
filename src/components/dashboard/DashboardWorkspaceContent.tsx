@@ -1,4 +1,5 @@
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
+import { useRetiredPlayer } from "../playerProfile/useRetiredPlayer";
 import PlayerProfile from "../playerProfile/PlayerProfile";
 import TeamProfile from "../teamProfile";
 import DashboardAlerts from "./DashboardAlerts";
@@ -35,9 +36,13 @@ export default function DashboardWorkspaceContent({
   isUnemployed,
 }: DashboardWorkspaceContentProps) {
   const { t } = useTranslation();
-  const selectedPlayer = profileNavigation.selectedPlayerId
+  const rosterPlayer = profileNavigation.selectedPlayerId
     ? (gameState.players.find((player) => player.id === profileNavigation.selectedPlayerId) ?? null)
     : null;
+  const retiredPlayer = useRetiredPlayer(
+    rosterPlayer === null ? profileNavigation.selectedPlayerId : null,
+  );
+  const selectedPlayer = rosterPlayer ?? retiredPlayer;
   const selectedTeam = profileNavigation.selectedTeamId
     ? (gameState.teams.find((team) => team.id === profileNavigation.selectedTeamId) ?? null)
     : null;

@@ -408,7 +408,7 @@ export function useTeamSelection({
       }
       setGameState(updatedGame);
       const mgr = updatedGame.manager;
-      setGameActive(true, `${mgr.first_name} ${mgr.last_name}`);
+      setGameActive(true, mgr.display_name);
       navigate("/dashboard");
     } catch (error) {
       console.error("Failed to select team:", error);
