@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { formatDateShort } from "../../lib/helpers";
 import { type ArchiveCursor, fetchArchivedMessages } from "../../services/inboxService";
-import type { MessageData } from "../../store/gameStore";
+import { type MessageData, useGameStore } from "../../store/gameStore";
 import { resolveMessage } from "../../utils/backendI18n";
 import { Button } from "../ui";
 import { renderMessageBodyLine } from "./inboxHelpers";
@@ -16,6 +16,14 @@ type LoadState = "idle" | "loading" | "failed";
  * only read mail with nothing left to answer here, so there is nothing to act on, mark or delete.
  */
 export default function ArchivedMessages(): JSX.Element {
+  const careerEpoch = useGameStore((state) => state.careerEpoch);
+  // Another career opened while this screen stayed mounted: start again, from nothing. A page
+  // still on its way for the old career then lands in the instance that was replaced, which is
+  // gone, so it cannot be added to the new career's mail.
+  return <ArchivedMessagesOfCareer key={careerEpoch} />;
+}
+
+function ArchivedMessagesOfCareer(): JSX.Element {
   const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [next, setNext] = useState<ArchiveCursor | null>(null);
@@ -55,7 +63,7 @@ export default function ArchivedMessages(): JSX.Element {
           {messages.map((message) => (
             <li key={message.id}>
               <details className="group px-4 py-3">
-                <summary className="cursor-pointer text-sm text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:text-gray-100">
+                <summary className="cursor-pointer text-sm text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:text-gray-100 dark:focus-visible:ring-offset-navy-800">
                   <span className="mr-2 text-xs text-gray-500 dark:text-gray-400">
                     {formatDateShort(message.date, i18n.language)}
                   </span>

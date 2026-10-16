@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import i18n, { i18nReady } from "../../i18n";
 
-import type { MessageData } from "../../store/gameStore";
+import { type MessageData, useGameStore } from "../../store/gameStore";
 import type { ArchivedMessagesPage } from "../../services/inboxService";
 import ArchivedMessages from "./ArchivedMessages";
 
@@ -206,5 +206,52 @@ describe("ArchivedMessages", () => {
 
     expect(await screen.findByText("Offer from Alpha FC")).toBeInTheDocument();
     expect(screen.getByText("Alpha FC wants to sign you.")).toBeInTheDocument();
+  });
+
+  /**
+   * Given older mail loaded for one career
+   * When another career is started or loaded while the screen stays open
+   * Then the mail of the first career is gone, and a page still on its way for it is not added.
+   */
+  it("drops the loaded pages and a late reply when the career changes", async () => {
+    let resolve: (value: ArchivedMessagesPage) => void = () => {};
+    fetchArchivedMessages
+      .mockResolvedValueOnce(
+        page([message("a", "First career mail", "2030-01-01")], { date: "2030-01-01", id: "a" }),
+      )
+      .mockReturnValueOnce(
+        new Promise<ArchivedMessagesPage>((r) => {
+          resolve = r;
+        }),
+      );
+    render(<ArchivedMessages />);
+    fireEvent.click(screen.getByRole("button", { name: "inbox.archive.load" }));
+    await screen.findByText("First career mail");
+    fireEvent.click(screen.getByRole("button", { name: "inbox.archive.loadMore" }));
+
+    act(() => useGameStore.getState().setGameActive(true, "Another Manager"));
+    await act(async () =>
+      resolve(page([message("b", "Late first-career page", "2029-01-01")], null)),
+    );
+
+    expect(screen.queryByText("First career mail")).toBeNull();
+    expect(screen.queryByText("Late first-career page")).toBeNull();
+    expect(screen.getByRole("button", { name: "inbox.archive.load" })).toBeEnabled();
+  });
+
+  /**
+   * Given a message row
+   * When its summary takes keyboard focus
+   * Then it shows a ring with an offset in both themes, like every other focusable control.
+   */
+  it("gives the row summary a focus ring offset in both themes", async () => {
+    fetchArchivedMessages.mockResolvedValueOnce(page([message("a", "Row", "2030-01-01")], null));
+    render(<ArchivedMessages />);
+    fireEvent.click(screen.getByRole("button", { name: "inbox.archive.load" }));
+
+    const summary = (await screen.findByText("Row")).closest("summary");
+
+    expect(summary?.className).toContain("focus-visible:ring-offset-2");
+    expect(summary?.className).toContain("dark:focus-visible:ring-offset-navy-800");
   });
 });

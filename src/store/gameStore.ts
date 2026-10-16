@@ -172,6 +172,12 @@ export type {
 
 interface GameStore {
   hasActiveGame: boolean;
+  /**
+   * Counts the careers this window has opened (a game started or a save loaded) and closed. Calls
+   * that act on "the active game" carry no career with them, so anything slow that was asked in
+   * one career compares this before it shows its answer in the next.
+   */
+  careerEpoch: number;
   managerName: string | null;
   gameState: GameStateData | null;
   sessionState: SessionState | null;
@@ -188,16 +194,18 @@ interface GameStore {
 
 export const useGameStore = create<GameStore>((set, get) => ({
   hasActiveGame: false,
+  careerEpoch: 0,
   managerName: null,
   gameState: null,
   sessionState: null,
   isDirty: false,
   showFiredModal: false,
   setGameActive: (active, managerName) =>
-    set({
+    set((state) => ({
       hasActiveGame: active,
       managerName: managerName || null,
-    }),
+      careerEpoch: active ? state.careerEpoch + 1 : state.careerEpoch,
+    })),
   setGameState: (state) => {
     const normalized = normalizeGameStateNationalities(state);
     set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
@@ -216,12 +224,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   markClean: () => set({ isDirty: false }),
   setShowFiredModal: (show) => set({ showFiredModal: show }),
   clearGame: () =>
-    set({
+    set((state) => ({
+      careerEpoch: state.careerEpoch + 1,
       hasActiveGame: false,
       managerName: null,
       gameState: null,
       sessionState: null,
       isDirty: false,
       showFiredModal: false,
-    }),
+    })),
 }));
