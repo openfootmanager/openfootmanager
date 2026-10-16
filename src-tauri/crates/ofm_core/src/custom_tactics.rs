@@ -34,6 +34,7 @@ fn validated(tactic: &CustomTactic) -> Result<CustomTactic, String> {
         return Err(INVALID_PLAY_STYLE_ERROR.to_string());
     }
     Ok(CustomTactic {
+        id: tactic.id.trim().to_string(),
         name: name.to_string(),
         description: tactic.description.trim().to_string(),
         ..tactic.clone()
@@ -52,6 +53,7 @@ pub fn save_custom_tactic(game: &mut Game, tactic: &CustomTactic) -> Result<(), 
 
 /// Removes the tactic with `id`.
 pub fn delete_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
+    let id = id.trim();
     let before = game.custom_tactics.len();
     game.custom_tactics.retain(|t| t.id != id);
     if game.custom_tactics.len() == before {
@@ -209,6 +211,23 @@ mod tests {
             save_custom_tactic(&mut game, &case).unwrap();
         }
         assert_eq!(game.custom_tactics.len(), 6);
+    }
+
+    /// Given a saved tactic "a"
+    /// When one with the id "a " (a trailing space) is saved, and then "a" is deleted
+    /// Then the second replaces the first (one tactic, stored under the trimmed id) and the delete finds it.
+    #[test]
+    fn an_id_is_kept_trimmed_so_padding_cannot_make_a_second_tactic() {
+        let mut game = game();
+        save_custom_tactic(&mut game, &tactic("a", "First")).unwrap();
+
+        save_custom_tactic(&mut game, &tactic("a ", "Second")).unwrap();
+
+        assert_eq!(game.custom_tactics.len(), 1);
+        assert_eq!(game.custom_tactics[0].id, "a");
+        assert_eq!(game.custom_tactics[0].name, "Second");
+        delete_custom_tactic(&mut game, "a ").unwrap();
+        assert!(game.custom_tactics.is_empty());
     }
 
     /// Given names of exactly the longest allowed length, and one character more
