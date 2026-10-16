@@ -3004,6 +3004,15 @@
         "bodyWarning": "La directiva sigue preocupada por las finanzas del club. La confianza en tu gestión ha caído {{penalty}} puntos esta semana.\n\nNecesitas mejorar la situación salarial y la caja a corto plazo antes de que la paciencia se agote aún más.",
         "bodyCritical": "La directiva ha revisado el deterioro financiero del club y la confianza en tu gestión ha caído {{penalty}} puntos esta semana.\n\nLa caja y los compromisos salariales están ya en una situación crítica. Se esperan medidas inmediatas."
       },
+      "financeLevers": {
+        "subject": "Se han abierto opciones de recuperación para el club",
+        "body": "El dinero escasea, lo que abre opciones de recuperación. Las disponibles ahora para el club aparecen abajo; cada una te lleva a la pestaña de Finanzas.",
+        "action": {
+          "boardSupport": "Pedir apoyo a la directiva",
+          "sponsorPitch": "Buscar un nuevo patrocinador",
+          "marketingCampaign": "Lanzar una campaña de marketing"
+        }
+      },
       "marketingCampaign": {
         "subject": "Informe de campaña de marketing",
         "body": "La acción comercial ha terminado con unas ventas brutas de {{grossRevenue}}. Tras {{campaignCost}} en costes de campaña, el club ingresa {{netIncome}} de caja nueva.\n\nEl equipo comercial necesitará {{days}} días antes de lanzar otra campaña."

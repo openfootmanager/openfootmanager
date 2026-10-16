@@ -3004,6 +3004,15 @@
         "bodyWarning": "Manajemen tetap khawatir dengan keuangan klub. Kepercayaan terhadap kepemimpinan kamu turun {{penalty}} poin pekan ini.\n\nKamu perlu memperbaiki posisi gaji dan prospek kas jangka pendek sebelum kesabaran mereka menipis.",
         "bodyCritical": "Manajemen telah meninjau kondisi keuangan klub yang memburuk dan kepercayaan terhadap kepemimpinan kamu turun {{penalty}} poin pekan ini.\n\nCadangan kas dan komitmen gaji kini berada dalam kondisi kritis. Tindakan korektif segera sangat diharapkan."
       },
+      "financeLevers": {
+        "subject": "Opsi pemulihan terbuka untuk klub",
+        "body": "Uang sedang seret, dan itu membuka opsi pemulihan. Opsi yang terbuka untuk klub saat ini tercantum di bawah; masing-masing membawa Anda ke tab Keuangan.",
+        "action": {
+          "boardSupport": "Minta dukungan dewan",
+          "sponsorPitch": "Tawarkan diri ke sponsor baru",
+          "marketingCampaign": "Jalankan kampanye pemasaran"
+        }
+      },
       "marketingCampaign": {
         "subject": "Laporan Kampanye Pemasaran",
         "body": "Kampanye komersial telah selesai dengan penjualan bruto {{grossRevenue}}. Setelah biaya kampanye sebesar {{campaignCost}}, klub memperoleh {{netIncome}} pendapatan baru.\n\nTim komersial membutuhkan {{days}} hari sebelum meluncurkan kampanye berikutnya."

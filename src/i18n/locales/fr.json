@@ -3004,6 +3004,15 @@
         "bodyWarning": "Le conseil reste préoccupé par la situation financière du club. La confiance dans votre gestion a chuté de {{penalty}} points cette semaine.\n\nVous devez améliorer la masse salariale et la trésorerie à court terme avant que la patience ne s'épuise davantage.",
         "bodyCritical": "Le conseil a réévalué la détérioration de la situation financière du club, et sa confiance dans votre gestion a chuté de {{penalty}} points cette semaine.\n\nLa trésorerie et les engagements salariaux sont désormais dans un état critique. Des mesures immédiates sont attendues."
       },
+      "financeLevers": {
+        "subject": "Des options de redressement s'ouvrent au club",
+        "body": "L'argent manque, ce qui ouvre des options de redressement. Celles qui s'offrent au club en ce moment sont listées ci-dessous ; chacune vous mène à l'onglet Finances.",
+        "action": {
+          "boardSupport": "Demander l'aide du conseil",
+          "sponsorPitch": "Démarcher un nouveau sponsor",
+          "marketingCampaign": "Lancer une campagne marketing"
+        }
+      },
       "marketingCampaign": {
         "subject": "Rapport de campagne marketing",
         "body": "L'opération commerciale est terminée avec {{grossRevenue}} de ventes brutes. Après {{campaignCost}} de coûts de campagne, le club encaisse {{netIncome}} de revenus supplémentaires.\n\nL'équipe commerciale devra attendre {{days}} jours avant de lancer une nouvelle campagne."

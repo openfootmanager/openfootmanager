@@ -3004,6 +3004,15 @@
         "bodyWarning": "Der Vorstand bleibt wegen der finanziellen Lage des Clubs besorgt. Das Vertrauen in Ihre Arbeit ist diese Woche um {{penalty}} Punkte gesunken.\n\nSie müssen die Gehaltslage und den kurzfristigen Kassenbestand verbessern, bevor die Geduld weiter schwindet.",
         "bodyCritical": "Der Vorstand hat die sich verschlechternde Finanzlage des Clubs geprüft, und das Vertrauen in Ihre Arbeit ist diese Woche um {{penalty}} Punkte gesunken.\n\nLiquidität und Gehaltsverpflichtungen befinden sich nun in einem kritischen Zustand. Sofortiges Gegensteuern wird erwartet."
       },
+      "financeLevers": {
+        "subject": "Dem Verein stehen Sanierungsoptionen offen",
+        "body": "Das Geld ist knapp, wodurch Sanierungsoptionen frei werden. Die derzeit offenen stehen unten; jede führt Sie zum Reiter Finanzen.",
+        "action": {
+          "boardSupport": "Vorstand um Unterstützung bitten",
+          "sponsorPitch": "Neuen Sponsor ansprechen",
+          "marketingCampaign": "Marketingkampagne starten"
+        }
+      },
       "marketingCampaign": {
         "subject": "Bericht zur Marketingkampagne",
         "body": "Die kommerzielle Aktion ist abgeschlossen und hat Bruttoverkäufe von {{grossRevenue}} erzielt. Nach Kampagnenkosten von {{campaignCost}} bleiben dem Club {{netIncome}} an frischem Einkommen.\n\nDas Kommerz-Team benötigt {{days}} Tage, bevor eine weitere Kampagne gestartet werden kann."

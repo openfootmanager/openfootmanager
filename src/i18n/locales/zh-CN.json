@@ -3004,6 +3004,15 @@
         "bodyWarning": "董事会仍然担忧俱乐部的财务状况。本周其对你执教的信心下降了 {{penalty}} 点。\n\n你需要改善薪资结构和短期现金状况，否则他们的耐心会继续下降。",
         "bodyCritical": "董事会已经审查了俱乐部持续恶化的财务状况，本周其对你执教的信心下降了 {{penalty}} 点。\n\n现金储备和薪资承诺都已处于危险状态，董事会希望你立即采取纠正措施。"
       },
+      "financeLevers": {
+        "subject": "俱乐部现已开放财务恢复选项",
+        "body": "资金紧张，这将开放恢复选项。俱乐部目前可用的选项列在下方，每一项都会带你前往“财务”标签页。",
+        "action": {
+          "boardSupport": "向董事会申请支持",
+          "sponsorPitch": "洽谈新赞助商",
+          "marketingCampaign": "开展营销活动"
+        }
+      },
       "marketingCampaign": {
         "subject": "营销活动报告",
         "body": "本次商业推广已完成，毛销售额为 {{grossRevenue}}。扣除 {{campaignCost}} 的活动成本后，俱乐部新增 {{netIncome}} 收入。\n\n商务团队还需要等待 {{days}} 天才能再次发起活动。"

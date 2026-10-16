@@ -3004,6 +3004,15 @@
         "bodyWarning": "Yönetim, kulübün mali durumundan endişe duymaya devam ediyor. Yönetiminize olan güven bu hafta {{penalty}} puan düştü.\n\nSabır iyice tükenmeden maaş dengesini ve kısa vadeli nakit görünümünü iyileştirmeniz gerekiyor.",
         "bodyCritical": "Yönetim, kulübün kötüleşen mali durumunu değerlendirdi ve yönetiminize olan güven bu hafta {{penalty}} puan düştü.\n\nNakit rezervleri ve maaş taahhütleri artık kritik durumda. Derhal düzeltici adımlar bekleniyor."
       },
+      "financeLevers": {
+        "subject": "Kulüp için toparlanma seçenekleri açıldı",
+        "body": "Para sıkışık ve bu, toparlanma seçeneklerini açıyor. Kulübün şu anda kullanabildikleri aşağıda; her biri sizi Finans sekmesine götürür.",
+        "action": {
+          "boardSupport": "Yönetimden destek iste",
+          "sponsorPitch": "Yeni bir sponsora teklif götür",
+          "marketingCampaign": "Pazarlama kampanyası başlat"
+        }
+      },
       "marketingCampaign": {
         "subject": "Pazarlama Kampanyası Raporu",
         "body": "Ticari kampanya {{grossRevenue}} brüt satışla tamamlandı. {{campaignCost}} kampanya maliyetinin ardından kulüp kasasına {{netIncome}} taze gelir girdi.\n\nTicari ekibin yeni bir kampanya başlatmadan önce {{days}} güne ihtiyacı olacak."
