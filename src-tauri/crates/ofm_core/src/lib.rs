@@ -24,6 +24,7 @@ pub(crate) mod competition_test_support;
 pub mod contract_wage_policy;
 pub mod contracts;
 pub mod currency;
+pub mod custom_tactics;
 pub mod delegated_renewals;
 pub mod edition_archive;
 pub mod end_of_season;

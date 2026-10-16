@@ -2889,7 +2889,13 @@
         "youthAssignmentNotFound": "Úkol pro nábor mládeže nebyl nalezen",
         "scoutAlreadyAssignedToSearch": "Skaut je již k tomuto vyhledávání přiřazen"
       },
-      "invalidPath": "Neplatná cesta."
+      "invalidPath": "Neplatná cesta.",
+      "customTactic": {
+        "nameRequired": "Dejte taktice název dlouhý nejvýše 60 znaků.",
+        "invalidFormation": "Tuto formaci hra nezná.",
+        "invalidPlayStyle": "Tento herní styl hra nezná.",
+        "notFound": "Tato taktika už neexistuje."
+      }
     },
     "sender": {
       "boardOfDirectors": "Představenstvo",
