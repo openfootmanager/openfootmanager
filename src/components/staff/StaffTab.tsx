@@ -13,7 +13,7 @@ import {
   GraduationCap,
   Star,
 } from "lucide-react";
-import { getTeamName, calcAge, formatVal, formatWeeklyAmount } from "../../lib/helpers";
+import { getTeamName, calcAge, formatWeeklyWage } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { useTranslation } from "react-i18next";
 import { hireStaff, releaseStaff } from "../../services/staffService";
@@ -112,7 +112,6 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
       .catch(() => {});
   }, [teamId]);
 
-  const weeklySuffix = t("finances.perWeekSuffix", "/wk");
   const openScoutingWorkflowLabel = t("staff.openScoutingWorkflow");
 
   const myStaff =
@@ -161,8 +160,12 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
     if (roleFilter && s.role !== roleFilter) return false;
     if (search.length >= 2) {
       const q = search.toLowerCase();
-      const fullName = `${s.first_name} ${s.last_name}`.toLowerCase();
-      if (!fullName.includes(q)) return false;
+      // The name shown and the full name both find the person; which one is shown is the
+      // backend's call (`display_name`).
+      const names = [s.display_name, `${s.first_name} ${s.last_name}`].map((name) =>
+        name.toLowerCase(),
+      );
+      if (!names.some((name) => name.includes(q))) return false;
     }
     return true;
   });
@@ -309,7 +312,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100 uppercase tracking-wide truncate">
-                            {staff.first_name} {staff.last_name}
+                            {staff.display_name}
                           </h3>
                           <Badge
                             variant={ovr >= 65 ? "success" : ovr >= 45 ? "primary" : "neutral"}
@@ -345,7 +348,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                           )}
                           {staff.wage > 0 && (
                             <span className="text-[10px] bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded font-heading uppercase tracking-wider">
-                              {formatWeeklyAmount(formatVal(staff.wage), weeklySuffix)}
+                              {formatWeeklyWage(staff.wage, "compact")}
                             </span>
                           )}
                           {staff.role === "Scout" ? (

@@ -1,7 +1,7 @@
 import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
 import { Badge } from "../ui";
 import { ShoppingCart, Gavel, Check, X } from "lucide-react";
-import { getTeamName, formatVal } from "../../lib/helpers";
+import { getTeamName, formatExactMoney } from "../../lib/helpers";
 import { getTransferOfferBadgeVariant, getTransferOfferStatusLabel } from "./TransfersTab.helpers";
 import type { TransfersTabController } from "./useTransfersTabController";
 type TransferOfferRecordProps = {
@@ -52,7 +52,7 @@ export function TransferOfferRecord({ state, offer, player }: TransferOfferRecor
         {getTeamName(gameState.teams, offer.from_team_id, t("common.unknown"))}
       </span>
       <Badge variant={getTransferOfferBadgeVariant(offer.status)} size="sm">
-        {formatVal(offer.fee)} —{" "}
+        {formatExactMoney(offer.fee)} —{" "}
         {getTransferOfferStatusLabel(t, offer.status, offer.registration_failure_reason)}
       </Badge>
       {offer.status === "Pending" && player.team_id === userTeamId && (
@@ -130,7 +130,7 @@ export function LoanOfferRecord({ state, offer, player }: LoanOfferRecordProps) 
             {" "}
             •{" "}
             {t("transfers.buyOptionFeeShort", {
-              fee: formatVal(offerBuyOptionFee),
+              fee: formatExactMoney(offerBuyOptionFee),
             })}
           </>
         ) : null}{" "}

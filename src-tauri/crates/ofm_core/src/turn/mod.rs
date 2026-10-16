@@ -1,3 +1,5 @@
+mod calendar_sweep;
+mod cup_round_summary;
 mod dormant;
 mod match_injuries;
 mod news;
@@ -19,6 +21,7 @@ use domain::stats::StatsState;
 use log::{debug, info};
 
 // Re-export public items
+pub use cup_round_summary::{CupRoundSummary, CupTieResult, build_cup_round_summaries};
 pub use news::generate_matchday_news;
 pub use post_match::{apply_match_report, apply_match_report_with_capture};
 pub use round_summary::{
@@ -200,7 +203,16 @@ fn process_day_common(game: &mut Game, today: &str) {
 
     crate::firing::check_manager_firing(game);
     crate::ai_hiring::process_vacant_ai_clubs(game);
+    crate::ai_manager_appointments::appoint_permanent_managers(game);
     crate::job_offers::check_job_offers(game);
+}
+
+/// Marks the start of a day, before any match of it is played: notes which knockout fixtures the
+/// player has been shown, so a round drawn later in the day, by the player's own result or any
+/// other, is known to be new. Safe to call again the same day. Every way of playing a day that
+/// applies results before it finishes the day calls this first.
+pub fn begin_day(game: &mut Game) {
+    calendar_sweep::begin_day(game);
 }
 
 /// The football that happens today outside the fixture the player was watching.
@@ -212,6 +224,7 @@ fn simulate_the_rest_of_the_world<F>(game: &mut Game, today: &str, on_capture: &
 where
     F: FnMut(StatsState),
 {
+    let shown_fixtures = calendar_sweep::take_shown_at_day_start(game, today);
     let due = competition_indices_due_today(game, today);
     if !due.is_empty() {
         info!("[turn] {}: matchday in {} competition(s)", today, due.len());
@@ -234,6 +247,10 @@ where
     crate::national_team::process_national_team_fixtures_due(game, today);
     let mut world_cup_rng = game.rng_for("world-cup", today);
     crate::world_cup::process_world_cup_fixtures_due(game, today, &mut world_cup_rng);
+
+    // Last, so a round drawn or a postponement caused by today's results is settled before the
+    // next day's fixtures are looked up.
+    calendar_sweep::reconcile_calendar(game, today, &shown_fixtures);
 }
 
 /// Process a single day advance.

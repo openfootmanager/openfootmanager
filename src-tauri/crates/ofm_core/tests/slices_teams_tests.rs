@@ -352,6 +352,13 @@ fn with_points(mut league: League, points: &[(&str, u32)]) -> League {
     league
 }
 
+/// The two orders a pair of competitions can be stored in. A tie resolved by storage order
+/// passes in one of them and fails in the other, so a test that tries both cannot be rescued
+/// by where its expected answer happens to sit.
+fn in_both_orders(first: League, second: League) -> [Vec<League>; 2] {
+    [vec![first.clone(), second.clone()], vec![second, first]]
+}
+
 fn completed_on(date: &str) -> Fixture {
     Fixture {
         date: date.to_string(),
@@ -415,7 +422,7 @@ fn in_a_split_season_the_half_in_play_counts() {
     assert_eq!(standing.league_pos, 1);
 }
 
-/// Given a split season whose two halves last played on the same day
+/// Given a split season whose two halves last played on the same day, stored in either order
 /// When a club's league standing is asked for
 /// Then the half that ranks higher (the lower priority number) counts
 #[test]
@@ -436,11 +443,14 @@ fn halves_that_last_played_together_resolve_to_the_higher_ranked() {
     );
     clausura.priority = 2;
     clausura.fixtures = vec![completed_on("2027-03-15")];
-    let game = make_game(teams, vec![], vec![clausura, apertura]);
 
-    let standing = query_club_league_standing(&game, "a").expect("a is in a league");
+    for competitions in in_both_orders(apertura, clausura) {
+        let game = make_game(teams.clone(), vec![], competitions);
 
-    assert_eq!(standing.competition_id, "apertura");
+        let standing = query_club_league_standing(&game, "a").expect("a is in a league");
+
+        assert_eq!(standing.competition_id, "apertura");
+    }
 }
 
 /// Given a club that is only in a knockout cup
@@ -482,7 +492,7 @@ fn a_club_in_no_competition_has_no_league_standing() {
     assert!(query_club_league_standing(&game, "t404").is_none());
 }
 
-/// Given a club in both a cup and a league
+/// Given a club in both a cup and a league, stored in either order
 /// When its league standing is asked for
 /// Then the league table is used
 #[test]
@@ -492,9 +502,12 @@ fn a_club_in_a_cup_and_a_league_gets_the_league() {
     cup.kind = CompetitionType::Cup;
     cup.rules.format = CompetitionFormat::Knockout;
     let league = make_domestic_league("div1", "Division 1", "ENG", None, &["t1"]);
-    let game = make_game(teams, vec![], vec![cup, league]);
 
-    let standing = query_club_league_standing(&game, "t1").expect("in a league");
+    for competitions in in_both_orders(cup, league) {
+        let game = make_game(teams.clone(), vec![], competitions);
 
-    assert_eq!(standing.competition_id, "div1");
+        let standing = query_club_league_standing(&game, "t1").expect("in a league");
+
+        assert_eq!(standing.competition_id, "div1");
+    }
 }

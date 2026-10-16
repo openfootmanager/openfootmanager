@@ -76,7 +76,7 @@ fn make_player(position: Position, attrs: PlayerAttributes, dob: &str) -> Player
 #[test]
 fn refresh_sets_nonzero_ovr_for_goalkeeper() {
     let mut player = make_player(Position::Goalkeeper, gk_attrs(), "2000-01-01");
-    refresh_player_derived(&mut player, 2026);
+    refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
     assert!(
         player.ovr > 0,
@@ -89,7 +89,7 @@ fn refresh_sets_nonzero_ovr_for_goalkeeper() {
 #[test]
 fn refresh_sets_nonzero_ovr_for_striker() {
     let mut player = make_player(Position::Forward, striker_attrs(), "1998-05-15");
-    refresh_player_derived(&mut player, 2026);
+    refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
     assert!(player.ovr > 0);
     assert!(player.ovr <= 99);
@@ -98,7 +98,7 @@ fn refresh_sets_nonzero_ovr_for_striker() {
 #[test]
 fn refresh_sets_potential_ge_ovr() {
     let mut player = make_player(Position::Forward, striker_attrs(), "2005-03-20");
-    refresh_player_derived(&mut player, 2026);
+    refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
     assert!(
         player.potential >= player.ovr,
@@ -113,7 +113,7 @@ fn refresh_preserves_existing_potential() {
     let mut player = make_player(Position::Forward, striker_attrs(), "1995-06-10");
     // Pre-set a high potential
     player.potential = 95;
-    refresh_player_derived(&mut player, 2026);
+    refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
     assert_eq!(
         player.potential, 95,
@@ -126,7 +126,7 @@ fn refresh_does_not_lower_preserved_potential_below_ovr() {
     let mut player = make_player(Position::Forward, striker_attrs(), "1995-06-10");
     // Set a potential that is lower than what OVR would be (should be clamped)
     player.potential = 1;
-    refresh_player_derived(&mut player, 2026);
+    refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
     assert!(
         player.potential >= player.ovr,
@@ -141,7 +141,7 @@ fn refresh_awards_wonderkid_trait_for_young_high_potential_player() {
     let mut player = make_player(Position::Forward, striker_attrs(), "2007-01-01");
     player.ovr = 70;
     player.potential = 95;
-    refresh_player_derived(&mut player, 2026);
+    refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
     assert!(
         player.potential >= 90 && player.potential.saturating_sub(player.ovr) >= 14,
@@ -162,7 +162,7 @@ fn refresh_awards_wonderkid_trait_for_young_high_potential_player() {
 fn refresh_does_not_award_wonderkid_for_old_player() {
     let mut player = make_player(Position::Forward, striker_attrs(), "1990-01-01");
     player.potential = 0;
-    refresh_player_derived(&mut player, 2026);
+    refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
     assert!(
         !player.traits.contains(&PlayerTrait::Wonderkid),

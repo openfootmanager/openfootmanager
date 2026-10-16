@@ -10,7 +10,7 @@ mod shadows;
 #[cfg(test)]
 mod tests;
 
-use crate::calendar_booking::{Booking, Layer, Occupancy};
+use crate::calendar_booking::{Booking, Layer, MIN_GAP_DAYS, Occupancy};
 use crate::knockout_dates::SEARCH_CAP_DAYS;
 use chrono::{Days, NaiveDate};
 use domain::league::{Fixture, FixtureStatus, League, Postponement, RescheduleReason};
@@ -53,6 +53,8 @@ struct Item<'a> {
     date: NaiveDate,
     layer: Layer,
     movable: bool,
+    /// Index of the fixture's knockout round in its competition, 0 outside a bracket.
+    round: usize,
     /// Where the fixture sorts among its competition's: a knockout match is never earlier than the
     /// latest match of any round before it, so a feeding round authored after its successor
     /// still settles first.
@@ -67,9 +69,16 @@ impl<'a> Item<'a> {
 
 fn collect_items<'a>(
     competitions: &'a [League],
+    rounds: &HashMap<(&str, &str), usize>,
     today: NaiveDate,
 ) -> Result<Vec<Item<'a>>, ReconcileError> {
     let mut items = Vec::new();
+    // History further back than the rest window cannot touch anything that may still move, which
+    // is all dated after `today`; only a bracket's fixtures are kept, because a later round waits
+    // for the last match of the round that feeds it.
+    let horizon = today
+        .checked_sub_days(Days::new(MIN_GAP_DAYS as u64))
+        .unwrap_or(today);
     for competition in competitions {
         for fixture in &competition.fixtures {
             let layer = Layer::of(&fixture.competition);
@@ -83,18 +92,27 @@ fn collect_items<'a>(
                 }
             })?;
             let movable = fixture.status == FixtureStatus::Scheduled && date > today;
+            if !movable
+                && date < horizon
+                && !rounds.contains_key(&(competition.id.as_str(), fixture.id.as_str()))
+            {
+                continue;
+            }
             items.push(Item {
                 competition,
                 fixture,
                 date,
                 layer,
                 movable,
+                round: rounds
+                    .get(&(competition.id.as_str(), fixture.id.as_str()))
+                    .copied()
+                    .unwrap_or(0),
                 settle_on: date,
             });
         }
     }
-    let rounds = round_index(competitions);
-    let latest_per_round = latest_date_per_round(&items, &rounds);
+    let latest_per_round = latest_date_per_round(&items, rounds);
     for item in &mut items {
         if let Some(&round) = rounds.get(&item.key()) {
             let earlier_rounds = latest_per_round
@@ -107,14 +125,13 @@ fn collect_items<'a>(
                 .fold(item.date, NaiveDate::max);
         }
     }
-    let round_of = |item: &Item<'_>| rounds.get(&item.key()).copied().unwrap_or(0);
     items.sort_by(|a, b| {
         (
             a.movable,
             std::cmp::Reverse(a.layer),
             a.competition.priority,
             a.settle_on,
-            round_of(a),
+            a.round,
             a.date,
             a.key(),
         )
@@ -123,7 +140,7 @@ fn collect_items<'a>(
                 std::cmp::Reverse(b.layer),
                 b.competition.priority,
                 b.settle_on,
-                round_of(b),
+                b.round,
                 b.date,
                 b.key(),
             ))
@@ -281,11 +298,12 @@ pub fn plan(
     blackout: &BTreeSet<NaiveDate>,
     today: NaiveDate,
 ) -> Result<Plan, ReconcileError> {
-    let items = collect_items(competitions, today)?;
+    let rounds = round_index(competitions);
+    let items = collect_items(competitions, &rounds, today)?;
     let mut settling = Settling {
         occupancy: Occupancy::default(),
         settled: HashMap::new(),
-        rounds: round_index(competitions),
+        rounds,
         blackout,
         today,
     };
@@ -305,7 +323,7 @@ pub fn plan(
             settling.book(item, item.date);
             continue;
         }
-        // A one-off friendly yields by being dropped. A tie of a friendly cup or a preseason
+        // A friendly outside a knockout bracket yields by being dropped. A tie of a friendly cup or a preseason
         // tournament is part of a bracket whose next round names its winner, so it moves like
         // any cup tie.
         if item.layer == Layer::Friendly && !settling.rounds.contains_key(&item.key()) {
@@ -375,14 +393,24 @@ fn book_all_shadows<'a>(
 /// each moved fixture (kept from the first move); generation passes false because those dates
 /// were never shown to the player. Returns how many fixtures changed.
 pub fn apply(plan: &Plan, competitions: &mut [League], mark_postponed: bool) -> usize {
+    apply_marking(plan, competitions, |_| mark_postponed)
+}
+
+/// As [`apply`], deciding per move whether the date it leaves had been shown to the player.
+pub fn apply_marking(
+    plan: &Plan,
+    competitions: &mut [League],
+    mut mark_postponed: impl FnMut(&Move) -> bool,
+) -> usize {
     let mut changed = 0;
     for planned in &plan.moves {
+        let marks = mark_postponed(planned);
         let Some(fixture) =
             find_fixture(competitions, &planned.competition_id, &planned.fixture_id)
         else {
             continue;
         };
-        if mark_postponed && fixture.postponement.is_none() {
+        if marks && fixture.postponement.is_none() {
             fixture.postponement = Some(Postponement {
                 original_date: planned.from.format("%Y-%m-%d").to_string(),
                 reason: planned.reason,
@@ -423,4 +451,46 @@ pub fn reconcile(
     let plan = plan(competitions, blackout, today)?;
     apply(&plan, competitions, mark_postponed);
     Ok(plan)
+}
+
+/// Settles the calendar of a world that was just generated: every clash is resolved by the same
+/// rules as the daily sweep, but nothing is recorded as postponed because none of these dates was
+/// ever published to the player. `current_date` is the first day still to be played, so a match
+/// dated that day may move.
+///
+/// A calendar that cannot be settled is a defect, never a rejection: it is logged loudly and the
+/// competitions are left as generated.
+pub fn settle_generated_calendar(
+    competitions: &mut [League],
+    blackout: &BTreeSet<NaiveDate>,
+    current_date: NaiveDate,
+) {
+    settle_calendar(competitions, blackout, current_date, |_| false);
+}
+
+/// As [`settle_generated_calendar`], for a calendar part of which the player has already seen:
+/// `was_shown` says which moves leave a date they were shown, and those are recorded as
+/// postponed. Returns exactly those moves, for the caller to announce.
+pub fn settle_calendar(
+    competitions: &mut [League],
+    blackout: &BTreeSet<NaiveDate>,
+    current_date: NaiveDate,
+    mut was_shown: impl FnMut(&Move) -> bool,
+) -> Vec<Move> {
+    let yesterday = current_date.pred_opt().unwrap_or(current_date);
+    let plan = match plan(competitions, blackout, yesterday) {
+        Ok(plan) => plan,
+        Err(failure) => {
+            log::error!("generated calendar could not be settled: {failure:?}");
+            return Vec::new();
+        }
+    };
+    let shown: Vec<Move> = plan
+        .moves
+        .iter()
+        .filter(|planned| was_shown(planned))
+        .cloned()
+        .collect();
+    apply_marking(&plan, competitions, |planned| shown.contains(planned));
+    shown
 }

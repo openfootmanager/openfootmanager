@@ -1,4 +1,3 @@
-use chrono::Datelike;
 use log::info;
 use std::sync::Arc;
 use tauri::State;
@@ -16,19 +15,11 @@ fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     }
 }
 
-fn player_age_on(current_date: chrono::NaiveDate, date_of_birth: &str) -> Option<i32> {
-    let dob = chrono::NaiveDate::parse_from_str(date_of_birth, "%Y-%m-%d").ok()?;
-    let mut age = current_date.year() - dob.year();
-
-    if (current_date.month(), current_date.day()) < (dob.month(), dob.day()) {
-        age -= 1;
-    }
-
-    Some(age)
-}
-
 /// Sets the user's formation and drops roles the new shape no longer admits.
 fn apply_formation(game: &mut Game, formation: &str) -> Result<(), String> {
+    if ofm_core::player_rating::parse_formation(formation).is_none() {
+        return Err(ofm_core::custom_tactics::INVALID_FORMATION_ERROR.to_string());
+    }
     let team_id = user_team_id(game)?;
 
     // Note: `player.position` is intentionally NOT mutated here. A player's
@@ -380,7 +371,7 @@ pub fn set_player_squad_role_internal(
         }
 
         if matches!(target_role, domain::player::SquadRole::Youth) {
-            let age = player_age_on(current_date, &game.players[player_index].date_of_birth)
+            let age = domain::age::age_on(current_date, &game.players[player_index].date_of_birth)
                 .ok_or("be.error.invalidDateOfBirth".to_string())?;
             if age > ofm_core::roster::YOUTH_ACADEMY_MAX_AGE {
                 return Err("be.error.youthAcademyOverage".to_string());
@@ -985,6 +976,23 @@ mod tests {
             apply_tactic_preset_internal(&state, "3-4-3", "Attacking").err(),
             Some("be.error.noTeamAssigned".into())
         );
+    }
+
+    /// Given a managed club
+    /// When a formation the game cannot lay out is set
+    /// Then it is refused and the club keeps the one it had.
+    #[test]
+    fn set_formation_internal_refuses_a_formation_that_does_not_parse() {
+        let state = state_with_custom_dials();
+        let before = stored_team(&state).formation;
+
+        let result = set_formation_internal(&state, "10-0-0");
+
+        assert_eq!(
+            result.err(),
+            Some("be.error.customTactic.invalidFormation".to_string())
+        );
+        assert_eq!(stored_team(&state).formation, before);
     }
 
     #[test]

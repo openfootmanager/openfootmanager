@@ -10,7 +10,7 @@ import type {
 import NegotiationFeedbackPanel, {
   type NegotiationFeedbackPanelData,
 } from "../NegotiationFeedbackPanel";
-import { Badge } from "../ui";
+import { Badge, Dialog } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import TransferNegotiationHistory from "./TransferNegotiationHistory";
@@ -246,20 +246,13 @@ export default function TransferBidModal(props: TransferBidModalProps) {
   const titleId = `transfer-bid-modal-title-${props.bidTarget.id}`;
 
   return (
-    <div
-      role="presentation"
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-      onClick={props.onClose}
+    <Dialog
+      labelledBy={titleId}
+      onClose={props.onClose}
+      dismissOnBackdrop
+      className="w-full max-w-sm rounded-xl p-6"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="bg-white dark:bg-navy-800 rounded-xl shadow-2xl border border-gray-200 dark:border-navy-600 p-6 w-full max-w-sm"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <TransferBidForm {...props} />
-      </div>
-    </div>
+      <TransferBidForm {...props} />
+    </Dialog>
   );
 }

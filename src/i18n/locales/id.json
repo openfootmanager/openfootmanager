@@ -1978,6 +1978,17 @@
     "quickTacticalTweaks": "Penyesuaian taktik cepat",
     "selectBenchToCompare": "Pilih pemain cadangan untuk dibandingkan",
     "confirmSubstitution": "Konfirmasi pergantian",
+    "queueSubstitution": "Tambahkan ke antrean",
+    "queuedSubstitutions": "Pergantian dalam antrean",
+    "confirmAllSubstitutions": "Konfirmasi semua ({{count}})",
+    "confirmSubstitutions": "Konfirmasi {{count}} pergantian",
+    "removeQueuedSubstitution": "Hapus {{off}} → {{on}} dari antrean",
+    "alreadyQueued": "Sudah masuk antrean pergantian",
+    "substitutionsPartlyMade": "{{applied}} dari {{total}} pergantian dilakukan",
+    "substitutionRefused": "Pergantian ditolak: {{off}} diganti {{on}}. {{reason}}",
+    "playerRoles": "Peran pemain",
+    "roleFor": "Peran {{player}}",
+    "roleChangeRefused": "Peran {{player}} tidak dapat diubah. {{reason}}",
     "noBenchAvailable": "Tidak ada pemain cadangan tersedia",
     "history": "Riwayat",
     "player": "Pemain",
@@ -2562,7 +2573,10 @@
     "yourResult": "Hasil Kamu",
     "continue": "Lanjut",
     "notableUpset": "Kejutan Menonjol",
-    "pts": "poin"
+    "pts": "poin",
+    "cupPenalties": "({{home}}–{{away}} lewat adu penalti)",
+    "cupAdvances": "{{team}} lolos ke babak berikutnya",
+    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan"
   },
   "endOfSeason": {
     "seasonComplete": "Musim Selesai",
@@ -2879,7 +2893,13 @@
         "youthAssignmentNotFound": "Penugasan rekrutmen pemuda tidak ditemukan",
         "scoutAlreadyAssignedToSearch": "Scout sudah ditugaskan ke pencarian ini"
       },
-      "invalidPath": "Jalur tidak valid."
+      "invalidPath": "Jalur tidak valid.",
+      "customTactic": {
+        "nameRequired": "Beri taktik nama maksimal 60 karakter.",
+        "invalidFormation": "Formasi itu tidak dikenal permainan.",
+        "invalidPlayStyle": "Gaya bermain itu tidak dikenal permainan.",
+        "notFound": "Taktik itu sudah tidak ada."
+      }
     },
     "sender": {
       "boardOfDirectors": "Dewan Direksi",
@@ -3473,6 +3493,10 @@
         "LoanConflict": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena pemain sedang dipinjamkan atau memiliki kesepakatan pinjaman yang menunggu registrasi. Tidak ada biaya transfer yang dibayarkan.",
         "PlayerUnavailable": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena pemain tidak lagi tersedia di klub penjual. Tidak ada biaya transfer yang dibayarkan.",
         "RegistrationBlocked": "Transfer {{player}} ke {{buyer}} yang disepakati senilai {{fee}} tidak dapat didaftarkan pada {{start}} karena salah satu persyaratan registrasi tidak lagi terpenuhi. Tidak ada biaya transfer yang dibayarkan."
+      },
+      "matchesMoved": {
+        "subject": "Jadwal pertandingan diubah",
+        "body": "Beberapa pertandingan kamu dipindahkan agar para pemain kamu tetap mendapat waktu istirahat dan jeda internasional dihormati:\n{{matches}}"
       }
     },
     "news": {
@@ -3644,6 +3668,11 @@
     },
     "save": {
       "defaultName": "Karier {{manager}}"
+    },
+    "warning": {
+      "package": {
+        "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya."
+      }
     }
   },
   "traits": {
@@ -3891,6 +3920,7 @@
     "saveSuccess": "Tersimpan",
     "saveTeam": "Simpan Tim",
     "issues": "{{count}} masalah",
+    "warnings": "{{count}} peringatan",
     "packageId": "ID Paket",
     "packageName": "Nama Paket",
     "description": "Deskripsi",
@@ -4049,6 +4079,7 @@
     "openPackageFileInvalid": "Pilih berkas paket .ofm yang valid",
     "noItemSelected": "Pilih item dari daftar, atau klik Tambah untuk membuatnya",
     "issuesBadge": "{{count}} masalah",
+    "warningsBadge": "{{count}} peringatan",
     "issuesTitle": "Masalah Validasi",
     "noIssues": "Tidak ada masalah — dunia valid",
     "saving": "Menyimpan…",
@@ -4124,6 +4155,8 @@
     "staffId": "ID",
     "staffFirstName": "Nama Depan",
     "staffLastName": "Nama Belakang",
+    "staffKnownAs": "Dikenal sebagai (opsional)",
+    "staffKnownAsPlaceholder": "mis. Cafu",
     "staffClub": "Klub",
     "staffNationality": "Kewarganegaraan",
     "staffDateOfBirth": "Tanggal Lahir",

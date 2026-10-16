@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ReactElement } from "react";
+import { Profiler, type ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
+import { resolveBackendError } from "../../utils/backendI18n";
 import FinancesTab from "./FinancesTab";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -766,40 +767,48 @@ describe("FinancesTab facilities", () => {
     expect(screen.getByText("Marketing campaign available again in 9 days")).toBeInTheDocument();
   });
 
-  it("blocks facility upgrades when the backend reports warning-level financial distress", async () => {
-    const gameState = createGameState({ finance: 1000000 });
+  /**
+   * Given the backend blocks every facility upgrade because the club is in financial distress,
+   * and, as the control, the same club state with nothing blocked,
+   * when the Finances tab shows the facilities,
+   * then the blocked upgrades are disabled and say why, and the unblocked ones are enabled.
+   * The rule (which statuses block) is Rust's and is tested in finances_tests.rs; this tab only
+   * presents the verdict the previews carry.
+   */
+  it.each([
+    { blockReason: "be.error.finance.facilityUpgradeCritical", blocked: true },
+    { blockReason: null, blocked: false },
+  ])(
+    "presents the backend's facility-upgrade block (blocked: $blocked)",
+    async ({ blockReason, blocked }) => {
+      const gameState = createGameState({ finance: 1000000 });
+      mockedInvoke.mockImplementation((command) => {
+        if (command === "get_finance_snapshot") {
+          return Promise.resolve(
+            wireSnapshot(
+              { runway_status: "warning", overall_status: "warning" },
+              { facility_upgrades: wireFacilityUpgrades({ block_reason: blockReason }) },
+            ),
+          );
+        }
 
-    mockedInvoke.mockImplementation((command) => {
-      if (command === "get_finance_snapshot") {
-        return Promise.resolve({
-          snapshot: {
-            annual_wage_bill: 88400,
-            weekly_wage_spend: 1700,
-            weekly_wage_budget: 38461,
-            weekly_recurring_income: 0,
-            weekly_sponsor_income: 0,
-            projected_weekly_net: -1700,
-            cash_runway_weeks: 8,
-            wage_budget_usage_percent: 4,
-            currently_in_debt: false,
-            currently_over_budget: false,
-            wage_budget_status: "stable",
-            runway_status: "warning",
-            overall_status: "warning",
-            marketing_campaign_cooldown_days_remaining: 0,
-          },
-        });
-      }
+        return Promise.reject(new Error(`Unexpected command: ${command}`));
+      });
 
-      return Promise.reject(new Error(`Unexpected command: ${command}`));
-    });
+      await renderFinances(<FinancesTab gameState={gameState} />);
 
-    await renderFinances(<FinancesTab gameState={gameState} />);
-
-    await waitFor(() => {
-      expect(screen.getAllByRole("button", { name: "Upgrade" })[0]).toBeDisabled();
-    });
-  });
+      const upgradeButtons = await screen.findAllByRole("button", { name: "Upgrade" });
+      expect(upgradeButtons).toHaveLength(3);
+      await waitFor(() => {
+        for (const button of upgradeButtons) {
+          if (blocked) expect(button).toBeDisabled();
+          else expect(button).toBeEnabled();
+        }
+      });
+      const reason = resolveBackendError("be.error.finance.facilityUpgradeCritical");
+      expect(screen.queryAllByText(reason)).toHaveLength(blocked ? 3 : 0);
+    },
+  );
 
   it("renders a cash-flow projection panel using wages, sponsorship income, and runway", async () => {
     const gameState = createGameState(
@@ -888,6 +897,121 @@ describe("FinancesTab facilities", () => {
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-critical", {
       openRenewal: true,
+    });
+  });
+
+  /**
+   * Given a squad with two players whose contracts are at risk
+   * When the finance panel first appears on screen
+   * Then both are already selected, so a click that lands before any effect has run cannot flip
+   * the default (the delegate test below clicks the moment "Facilities" shows).
+   */
+  it("shows every at-risk player selected from the first frame they are on screen", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.reject(new Error(`Unexpected command: ${command}`)),
+    );
+    // A Profiler's onRender runs while a commit is being made, after the DOM has changed and before
+    // that commit's passive effects, whatever the scheduler does. Reading the checkbox there sees
+    // the first frame by construction rather than by how React happens to order its tasks.
+    let checkedOnFirstAppearance: boolean | null = null;
+    const readFirstFrame = () => {
+      const box = document.querySelector<HTMLInputElement>(
+        'input[aria-label="Select Ben Warning"]',
+      );
+      if (box && checkedOnFirstAppearance === null) checkedOnFirstAppearance = box.checked;
+    };
+
+    await renderFinances(
+      <Profiler id="finances" onRender={readFirstFrame}>
+        <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />
+      </Profiler>,
+    );
+
+    expect(checkedOnFirstAppearance).toBe(true);
+  });
+
+  /**
+   * Given two at-risk players, both selected
+   * When "Select all" is pressed twice
+   * Then the first press clears the selection and the second selects everyone again.
+   */
+  it("toggles every at-risk player off and back on with Select all", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) =>
+      command === "get_finance_snapshot"
+        ? Promise.resolve(wireSnapshot())
+        : Promise.reject(new Error(`Unexpected command: ${command}`)),
+    );
+    await renderFinances(
+      <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />,
+    );
+    const critical = screen.getByLabelText("Select Alex Critical");
+    const warning = screen.getByLabelText("Select Ben Warning");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(critical).not.toBeChecked();
+    expect(warning).not.toBeChecked();
+
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(critical).toBeChecked();
+    expect(warning).toBeChecked();
+  });
+
+  /**
+   * Given two at-risk players, both selected
+   * When Ben is switched off and then on again
+   * Then the delegate call carries both players.
+   */
+  it("delegates a player who was switched off and then on again", async () => {
+    const riskyPlayers = [
+      createPlayer({
+        id: "player-critical",
+        full_name: "Alex Critical",
+        contract_end: "2025-04-30",
+      }),
+      createPlayer({ id: "player-warning", full_name: "Ben Warning", contract_end: "2025-10-15" }),
+    ];
+    mockedInvoke.mockImplementation((command) => {
+      if (command === "get_finance_snapshot") return Promise.resolve(wireSnapshot());
+      if (command === "delegate_renewals") {
+        return Promise.resolve({
+          game: createGameState({ wage_budget: 50000 }, [], riskyPlayers),
+          report: { success_count: 2, failure_count: 0, stalled_count: 0, cases: [] },
+        });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${command}`));
+    });
+    await renderFinances(
+      <FinancesTab gameState={createGameState({ wage_budget: 50000 }, [], riskyPlayers)} />,
+    );
+
+    fireEvent.click(screen.getByLabelText("Select Ben Warning"));
+    fireEvent.click(screen.getByLabelText("Select Ben Warning"));
+    fireEvent.click(screen.getByRole("button", { name: "Delegate Selected Renewals" }));
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {
+        playerIds: ["player-critical", "player-warning"],
+        maxWageIncreasePct: 35,
+        maxContractYears: 3,
+      });
     });
   });
 

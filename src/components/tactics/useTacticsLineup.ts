@@ -9,6 +9,7 @@ import {
   setTacticsPhase as setTacticsPhaseService,
 } from "../../services/squadService";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
+import { useAutoSetPieces } from "../../hooks/useAutoSetPieces";
 import type { TacticsPhaseSettings } from "../../store/types";
 
 import {
@@ -36,6 +37,7 @@ import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
+import { isMatchDayEligible } from "../../lib/playerSquad";
 
 interface UseTacticsLineupArgs {
   gameState: GameStateData | null;
@@ -43,7 +45,7 @@ interface UseTacticsLineupArgs {
 }
 
 function isPlayerEligibleForLineup(player: PlayerData | null | undefined): boolean {
-  return Boolean(player && !player.injury);
+  return Boolean(player && isMatchDayEligible(player));
 }
 
 export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupArgs) {
@@ -77,7 +79,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   const activePlayStyle = team?.play_style || "Balanced";
   const savedStartingXiKey = (team?.starting_xi_ids || []).join(",");
   const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
-  const available = roster.filter((player) => !player.injury);
+  const available = roster.filter(isMatchDayEligible);
   const pitchRows = useMemo(() => buildPitchRows(formation), [formation]);
 
   const startingXiIds = useMemo(
@@ -160,9 +162,10 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   ]);
 
   const outOfPositionCount = countOutOfPositionPlayers(startingXI, xiActivePosition);
+  const autoSetPieces = useAutoSetPieces(startingXiIds, sessionState ?? gameState);
   const effectiveMatchRoles = useMemo(
-    () => resolveEffectiveMatchRoles(startingXI, team?.match_roles),
-    [team?.match_roles, startingXI],
+    () => resolveEffectiveMatchRoles(startingXI, team?.match_roles, autoSetPieces),
+    [team?.match_roles, startingXI, autoSetPieces],
   );
 
   async function persistStartingXI(playerIds: string[]): Promise<void> {
@@ -427,7 +430,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     playerId: string,
   ): Promise<void> {
     await persistMatchRoles(
-      buildUpdatedMatchRolesForAssignment(effectiveMatchRoles, startingXI, role, playerId),
+      buildUpdatedMatchRolesForAssignment(startingXI, team?.match_roles, role, playerId),
     );
   }
 
@@ -452,6 +455,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     pitchSlots,
     outOfPositionCount,
     effectiveMatchRoles,
+    autoSetPieces,
     selectedPlayer,
     comparePlayer,
     selectedPlayerId,
