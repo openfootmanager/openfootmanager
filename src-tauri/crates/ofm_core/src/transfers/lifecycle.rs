@@ -247,7 +247,7 @@ mod tests {
     use super::*;
     use crate::transfers::tests::sample_attributes;
     use domain::player::{
-        Player, PlayerMovementEntry, PlayerMovementKind, Position, TransferOffer,
+        LoanOffer, Player, PlayerMovementEntry, PlayerMovementKind, Position, TransferOffer,
     };
 
     fn day(text: &str) -> NaiveDate {
@@ -319,6 +319,55 @@ mod tests {
     #[test]
     fn a_refusal_on_the_day_of_arrival_counts_as_the_new_owners() {
         let player = player_refused_then_moved("2026-08-10", "2026-08-10");
+
+        let cooling = clubs_in_rebid_cooldown(&player, day("2026-08-12"));
+
+        assert_eq!(cooling, HashSet::from(["club-x".to_string()]));
+    }
+
+    /// A player at "new-club" whom "club-x" asked to borrow from `parent`, and was turned away.
+    fn player_refused_a_loan_approach(parent: &str) -> Player {
+        let mut player = player_refused_then_moved("2026-08-05", "2026-08-10");
+        player.transfer_offers.clear();
+        player.loan_offers.push(LoanOffer {
+            id: "loan-1".into(),
+            from_team_id: "club-x".into(),
+            parent_team_id: parent.into(),
+            start_date: "2026-09-01".into(),
+            end_date: "2027-06-30".into(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 4,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: LoanOfferStatus::Rejected,
+            date: "2026-08-11".into(),
+            closed_on: Some("2026-08-11".into()),
+        });
+        player
+    }
+
+    /// Given a loan approach the previous owner ("old-club") turned down, and the player since sold
+    /// to "new-club"
+    /// When the clubs still in a rebid cooldown are listed
+    /// Then the club is not among them: the approach was made to someone else.
+    #[test]
+    fn a_loan_refusal_by_the_previous_owner_does_not_hold_a_club_in_cooldown() {
+        let player = player_refused_a_loan_approach("old-club");
+
+        assert!(clubs_in_rebid_cooldown(&player, day("2026-08-12")).is_empty());
+    }
+
+    /// Given the same refusal, made to the club that owns the player now
+    /// When the clubs still in a rebid cooldown are listed
+    /// Then the club is held.
+    #[test]
+    fn a_loan_refusal_by_the_current_owner_holds_a_club_in_cooldown() {
+        let player = player_refused_a_loan_approach("new-club");
 
         let cooling = clubs_in_rebid_cooldown(&player, day("2026-08-12"));
 
