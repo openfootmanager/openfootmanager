@@ -35,13 +35,27 @@ pub(crate) fn pending_approach_clubs(player: &domain::player::Player) -> HashSet
 ///
 /// Read from the offers already on the player, so this costs no new saved state. `closed_on` is
 /// when talks ended; offers written before that field existed fall back to their arrival date.
+/// Whether talks that ended on `stamp` were with the club that owns the player now.
+///
+/// An offer has no owner field, so a refusal is placed by date: one from before the player's last
+/// arrival at his club was said by a previous owner, and the new one has not refused anybody.
+pub(crate) fn heard_by_current_owner(player: &domain::player::Player, stamp: &str) -> bool {
+    let day = |text: &str| NaiveDate::parse_from_str(text, "%Y-%m-%d").ok();
+    match player.joined_current_club_on().and_then(day) {
+        Some(joined) => day(stamp).is_none_or(|ended| ended >= joined),
+        None => true,
+    }
+}
+
 pub(crate) fn clubs_in_rebid_cooldown(
     player: &domain::player::Player,
     current_date: NaiveDate,
 ) -> HashSet<String> {
     let cooling = |closed_on: Option<&str>, date: &str| {
-        NaiveDate::parse_from_str(closed_on.unwrap_or(date), "%Y-%m-%d")
+        let stamp = closed_on.unwrap_or(date);
+        NaiveDate::parse_from_str(stamp, "%Y-%m-%d")
             .is_ok_and(|day| (current_date - day).num_days() < REBID_COOLDOWN_DAYS)
+            && heard_by_current_owner(player, stamp)
     };
 
     player
