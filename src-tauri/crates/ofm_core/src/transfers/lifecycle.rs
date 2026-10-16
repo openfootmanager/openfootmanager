@@ -241,3 +241,87 @@ pub(crate) fn prune_closed_offers(game: &mut Game) {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transfers::tests::sample_attributes;
+    use domain::player::{
+        Player, PlayerMovementEntry, PlayerMovementKind, Position, TransferOffer,
+    };
+
+    fn day(text: &str) -> NaiveDate {
+        NaiveDate::parse_from_str(text, "%Y-%m-%d").unwrap()
+    }
+
+    /// A player at "new-club" whom "club-x" was turned away from on `refused_on`, and who arrived
+    /// at "new-club" on `arrived_on`.
+    fn player_refused_then_moved(refused_on: &str, arrived_on: &str) -> Player {
+        let mut player = Player::new(
+            "p1".into(),
+            "P One".into(),
+            "Player One".into(),
+            "1995-01-01".into(),
+            "England".into(),
+            Position::Forward,
+            sample_attributes(),
+        );
+        player.team_id = Some("new-club".into());
+        player.transfer_offers.push(TransferOffer {
+            id: "offer-1".into(),
+            from_team_id: "club-x".into(),
+            fee: 1_000_000,
+            wage_offered: 0,
+            last_manager_fee: None,
+            negotiation_round: 4,
+            suggested_counter_fee: None,
+            status: TransferOfferStatus::Rejected,
+            date: refused_on.into(),
+            registration_date: None,
+            registration_failure_reason: None,
+            closed_on: Some(refused_on.into()),
+        });
+        player
+            .record_movement(PlayerMovementEntry {
+                from_team_id: Some("old-club".into()),
+                to_team_id: Some("new-club".into()),
+                ..PlayerMovementEntry::new(arrived_on, PlayerMovementKind::PermanentTransfer)
+            })
+            .unwrap();
+        player
+    }
+
+    /// Given a club the previous owner turned away, and the player since sold to another club
+    /// When the clubs still in a rebid cooldown are listed
+    /// Then that club is not among them: the new owner has refused nobody.
+    #[test]
+    fn a_refusal_by_the_previous_owner_does_not_hold_a_club_in_cooldown() {
+        let player = player_refused_then_moved("2026-08-05", "2026-08-10");
+
+        assert!(clubs_in_rebid_cooldown(&player, day("2026-08-12")).is_empty());
+    }
+
+    /// Given the same refusal, but made after the player arrived at his club
+    /// When the clubs still in a rebid cooldown are listed
+    /// Then the club is held: the current owner said no.
+    #[test]
+    fn a_refusal_by_the_current_owner_holds_a_club_in_cooldown() {
+        let player = player_refused_then_moved("2026-08-11", "2026-08-10");
+
+        let cooling = clubs_in_rebid_cooldown(&player, day("2026-08-12"));
+
+        assert_eq!(cooling, HashSet::from(["club-x".to_string()]));
+    }
+
+    /// Given a refusal stamped on the very day the player arrived
+    /// When the clubs still in a rebid cooldown are listed
+    /// Then it counts as the new owner's: the day of the sale is the new owner's day.
+    #[test]
+    fn a_refusal_on_the_day_of_arrival_counts_as_the_new_owners() {
+        let player = player_refused_then_moved("2026-08-10", "2026-08-10");
+
+        let cooling = clubs_in_rebid_cooldown(&player, day("2026-08-12"));
+
+        assert_eq!(cooling, HashSet::from(["club-x".to_string()]));
+    }
+}
