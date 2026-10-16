@@ -842,4 +842,53 @@ describe("TacticsTab", () => {
       });
     });
   });
+
+  /** Given the backend's picks changed after the panel last asked (the squad moved on),
+   * when the manager auto-selects, then what is saved is the answer asked for at the click,
+   * and a failed ask saves nothing so that clicking again is the retry. */
+  it("saves the picks the backend gives at the click, and nothing when the ask fails", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    let answer: "stale" | "fresh" | "fails" = "stale";
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        if (answer === "fails") throw new Error("backend busy");
+        return answer === "stale"
+          ? { captain: "m1", penalty_taker: "f1", free_kick_taker: "m1", corner_taker: "d1" }
+          : { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+    const rolesSaved = () =>
+      mockedInvoke.mock.calls.filter(([command]) => command === "set_team_match_roles");
+
+    answer = "fails";
+    fireEvent.click(screen.getByRole("button", { name: "tactics.autoSelectAssignments" }));
+    await waitFor(() => {
+      expect(mockedInvoke.mock.calls.filter(([c]) => c === "auto_select_set_pieces").length).toBe(
+        2,
+      );
+    });
+    expect(rolesSaved()).toHaveLength(0);
+
+    answer = "fresh";
+    fireEvent.click(screen.getByRole("button", { name: "tactics.autoSelectAssignments" }));
+    await waitFor(() => {
+      expect(rolesSaved()).toHaveLength(1);
+    });
+    expect(rolesSaved()[0][1]).toEqual({
+      matchRoles: {
+        captain: "m2",
+        vice_captain: null,
+        penalty_taker: "f2",
+        free_kick_taker: "m3",
+        corner_taker: "d4",
+      },
+    });
+  });
 });

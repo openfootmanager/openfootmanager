@@ -81,6 +81,27 @@ describe("resolveEffectiveMatchRoles", () => {
   });
 });
 
+describe("an assignment followed by the next resolution", () => {
+  /**
+   * Given the backend's captain is "a" and the manager makes "a" vice-captain
+   * When the saved roles are resolved again
+   * Then "a" is not handed the captaincy back by the fallback: no one holds both armbands.
+   */
+  it("does not restore the displaced captain from the backend's pick", () => {
+    const saved = buildUpdatedMatchRolesForAssignment(
+      resolveEffectiveMatchRoles(xi, undefined, backend),
+      "vice_captain",
+      "a",
+      backend,
+    );
+
+    const next = resolveEffectiveMatchRoles(xi, saved, backend);
+
+    expect(next.vice_captain).toBe("a");
+    expect(next.captain).not.toBe("a");
+  });
+});
+
 describe("buildUpdatedMatchRolesForAssignment", () => {
   const effective: TeamMatchRolesData = {
     captain: "a",

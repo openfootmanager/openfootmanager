@@ -34,10 +34,13 @@ export function resolveEffectiveMatchRoles(
 ): TeamMatchRolesData {
   const availableIds = new Set(startingPlayers.map((player) => player.id));
   const storedRoles = matchRoles ?? EMPTY_MATCH_ROLES;
+  const viceCaptain = resolveAssignedRole(storedRoles.vice_captain, availableIds, null);
+  // The backend's captain is not handed back to a player the manager made vice-captain.
+  const backendCaptain = backendPicks?.captain === viceCaptain ? null : backendPicks?.captain;
 
   return {
-    captain: resolveAssignedRole(storedRoles.captain, availableIds, backendPicks?.captain),
-    vice_captain: resolveAssignedRole(storedRoles.vice_captain, availableIds, null),
+    captain: resolveAssignedRole(storedRoles.captain, availableIds, backendCaptain),
+    vice_captain: viceCaptain,
     penalty_taker: resolveAssignedRole(
       storedRoles.penalty_taker,
       availableIds,

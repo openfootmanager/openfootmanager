@@ -11,10 +11,12 @@ import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
-import { useAutoSetPieces } from "../../hooks/useAutoSetPieces";
+import { type AutoSetPieces, autoSelectSetPieces } from "../../services/squadService";
 
 interface TacticsRightPanelProps {
   allSquad: PlayerData[];
+  /** The backend's takers for this eleven, `null` until it has answered. */
+  autoSetPieces: AutoSetPieces | null;
   matchRoles?: TeamMatchRolesData;
   onGameUpdate: (g: GameStateData) => void;
   onTacticsPhaseChange: (patch: Partial<TacticsPhaseSettings>) => void;
@@ -24,6 +26,7 @@ interface TacticsRightPanelProps {
 
 export default function TacticsRightPanel({
   allSquad,
+  autoSetPieces,
   matchRoles,
   onGameUpdate,
   onTacticsPhaseChange,
@@ -42,7 +45,6 @@ export default function TacticsRightPanel({
     [startingPlayers],
   );
 
-  const autoSetPieces = useAutoSetPieces(startingPlayers.map((player) => player.id));
   const effectiveRoles = useMemo(
     () => resolveEffectiveMatchRoles(startingPlayers, matchRoles, autoSetPieces),
     [matchRoles, startingPlayers, autoSetPieces],
@@ -65,8 +67,16 @@ export default function TacticsRightPanel({
     );
   }
 
+  // Asks the backend now rather than saving what the display last showed: an answer still on its
+  // way, or one a day old, would save empty or stale takers. A failed ask saves nothing, and
+  // pressing the button again is the retry.
   async function handleAutoSelectAssignments(): Promise<void> {
-    await persistMatchRoles(effectiveRoles);
+    try {
+      const picks = await autoSelectSetPieces(startingPlayers.map((player) => player.id));
+      await persistMatchRoles(resolveEffectiveMatchRoles(startingPlayers, matchRoles, picks));
+    } catch (error) {
+      console.error("Failed to read the automatic set-piece takers:", error);
+    }
   }
 
   const [rolesOpen, setRolesOpen] = useState(true);

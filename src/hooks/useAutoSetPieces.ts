@@ -4,9 +4,11 @@ import { type AutoSetPieces, autoSelectSetPieces } from "../services/squadServic
 
 /**
  * The takers the backend would use for this starting eleven when none are assigned. It asks again
- * when the eleven changes, and drops a late answer for an older one. `null` until the first answer.
+ * when the eleven changes or the squad `revision` does (the backend ranks on attributes, which move
+ * with the days while the eleven stays put), and drops a late answer for an older one. `null` until
+ * the first answer.
  */
-export function useAutoSetPieces(playerIds: string[]): AutoSetPieces | null {
+export function useAutoSetPieces(playerIds: string[], revision?: unknown): AutoSetPieces | null {
   const [answer, setAnswer] = useState<{ key: string; picks: AutoSetPieces } | null>(null);
   const key = playerIds.join(",");
 
@@ -23,7 +25,7 @@ export function useAutoSetPieces(playerIds: string[]): AutoSetPieces | null {
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, revision]);
 
   return answer?.key === key ? answer.picks : null;
 }

@@ -161,7 +161,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   ]);
 
   const outOfPositionCount = countOutOfPositionPlayers(startingXI, xiActivePosition);
-  const autoSetPieces = useAutoSetPieces(startingXiIds);
+  const autoSetPieces = useAutoSetPieces(startingXiIds, sessionState ?? gameState);
   const effectiveMatchRoles = useMemo(
     () => resolveEffectiveMatchRoles(startingXI, team?.match_roles, autoSetPieces),
     [team?.match_roles, startingXI, autoSetPieces],
@@ -454,6 +454,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     pitchSlots,
     outOfPositionCount,
     effectiveMatchRoles,
+    autoSetPieces,
     selectedPlayer,
     comparePlayer,
     selectedPlayerId,

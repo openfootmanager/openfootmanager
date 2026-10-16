@@ -66,6 +66,25 @@ describe("useAutoSetPieces", () => {
   });
 
   /**
+   * Given the same eleven but a newer squad revision (a day passed, attributes moved)
+   * When the hook renders with the new revision
+   * Then the backend is asked again, since it ranks on attributes, not on who is in the eleven.
+   */
+  it("asks again when the squad revision changes with the same eleven", async () => {
+    mockedAuto.mockResolvedValue(picks("c1"));
+    const { rerender } = renderHook(({ revision }) => useAutoSetPieces(["a", "b"], revision), {
+      initialProps: { revision: 1 },
+    });
+    await waitFor(() => expect(mockedAuto).toHaveBeenCalledTimes(1));
+
+    rerender({ revision: 1 });
+    expect(mockedAuto).toHaveBeenCalledTimes(1);
+
+    rerender({ revision: 2 });
+    await waitFor(() => expect(mockedAuto).toHaveBeenCalledTimes(2));
+  });
+
+  /**
    * Given two requests in flight, the first answered last
    * When both have answered
    * Then the takers shown are the newer eleven's.
