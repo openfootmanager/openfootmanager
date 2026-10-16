@@ -85,34 +85,52 @@ export function useTacticsLibrary({
   // not put its older list over the save's newer one. Each step's reply is the whole list, so the
   // last step to finish is the library as the save has it.
   const savesInOrder = useRef<Promise<void>>(Promise.resolve());
+  // The commands act on whichever game is active, and carry no career with them. A step still
+  // waiting in the queue when the career changes (another game loaded, the screen left) would
+  // write one career's tactic into the next, so each step remembers the career it was asked in and
+  // does nothing once that is no longer the current one.
+  const career = useRef(0);
 
   useEffect(() => {
     if (!managerId || !careerStartDate) return;
 
-    let cancelled = false;
+    career.current += 1;
+    const askedIn = career.current;
+    const stale = () => askedIn !== career.current;
     savesInOrder.current = savesInOrder.current
       .then(async () => {
+        if (stale()) return;
         const saved = await listCustomTactics();
         const tactics = await importLegacyTactics(
           managerId,
           careerStartDate,
           saved,
-          saveCustomTactic,
+          async (tactic) => {
+            if (stale()) throw new Error("the career changed");
+            return saveCustomTactic(tactic);
+          },
         );
-        if (!cancelled) setCustomTactics(toLibraryEntries(tactics));
+        if (!stale()) setCustomTactics(toLibraryEntries(tactics));
       })
       .catch(() => {});
     return () => {
-      cancelled = true;
+      career.current += 1;
     };
   }, [managerId, careerStartDate]);
 
   // The screen answers at once; the save's own list then replaces it, or, if the save refused the
   // tactic (a shape the game cannot lay out), puts the library back as the save has it.
   function persistTactic(tactic: TacticsLibraryEntry): void {
+    const askedIn = career.current;
     savesInOrder.current = savesInOrder.current
-      .then(() => saveCustomTactic(toCustomTactic(tactic)).catch(() => listCustomTactics()))
-      .then((saved) => setCustomTactics(toLibraryEntries(saved)))
+      .then(() =>
+        askedIn !== career.current
+          ? null
+          : saveCustomTactic(toCustomTactic(tactic)).catch(() => listCustomTactics()),
+      )
+      .then((saved) => {
+        if (saved && askedIn === career.current) setCustomTactics(toLibraryEntries(saved));
+      })
       .catch(() => {});
   }
 

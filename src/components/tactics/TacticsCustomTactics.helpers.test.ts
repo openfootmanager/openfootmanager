@@ -19,9 +19,6 @@ function fakeStorage(initial: Record<string, string> = {}) {
     },
     key: (index: number) => [...data.keys()][index] ?? null,
     getItem: (key: string) => data.get(key) ?? null,
-    removeItem: (key: string) => {
-      data.delete(key);
-    },
   };
 }
 
@@ -60,10 +57,10 @@ describe("importLegacyTactics", () => {
   /**
    * Given a browser library of three tactics, newest first
    * When it is imported, and then imported again
-   * Then the save holds the three in the order they were made, the old key is gone, and the
-   *      second import saves nothing.
+   * Then the save holds the three in the order they were made, the old key is left where it is,
+   *      and the second import saves nothing.
    */
-  it("imports an old library once, oldest first, and clears the key", async () => {
+  it("imports an old library once, oldest first, and leaves the key alone", async () => {
     const storage = fakeStorage({
       [keyFor("team1")]: JSON.stringify([legacy("c"), legacy("b"), legacy("a")]),
     });
@@ -75,7 +72,7 @@ describe("importLegacyTactics", () => {
     expect(backend.calls).toEqual(["a", "b", "c"]);
     expect(first.map((tactic) => tactic.id)).toEqual(["a", "b", "c"]);
     expect(second).toEqual(first);
-    expect(storage.data.size).toBe(0);
+    expect(storage.data.size).toBe(1);
   });
 
   /**
@@ -87,15 +84,34 @@ describe("importLegacyTactics", () => {
     const storage = fakeStorage({
       [keyFor("team1")]: JSON.stringify([legacy("a")]),
       [keyFor("team2")]: JSON.stringify([legacy("b")]),
-      [`ofm:tactics:custom:other-manager:${START}:team1`]: JSON.stringify([legacy("z")]),
     });
     const backend = fakeSave();
 
     await importLegacyTactics(MANAGER, START, [], backend.save, storage);
 
     expect(backend.list.map((tactic) => tactic.id).sort()).toEqual(["a", "b"]);
-    // Another career's library is not this career's to import, nor to clear.
-    expect([...storage.data.keys()]).toEqual([`ofm:tactics:custom:other-manager:${START}:team1`]);
+  });
+
+  /**
+   * Given two careers begun the same year, which share a manager id and a start date and so one
+   *       old key per club, each with its own save
+   * When each is opened in turn
+   * Then each save holds the tactics, and no key was removed: the second career's library is not
+   *      taken away by the first career's import.
+   */
+  it("copies for every career that shares the old key and removes nothing", async () => {
+    const storage = fakeStorage({
+      [keyFor("team1")]: JSON.stringify([legacy("a"), legacy("b")]),
+    });
+    const careerOne = fakeSave();
+    const careerTwo = fakeSave();
+
+    await importLegacyTactics(MANAGER, START, [], careerOne.save, storage);
+    await importLegacyTactics(MANAGER, START, [], careerTwo.save, storage);
+
+    expect(careerOne.list.map((tactic) => tactic.id)).toEqual(["b", "a"]);
+    expect(careerTwo.list.map((tactic) => tactic.id)).toEqual(["b", "a"]);
+    expect(storage.data.size).toBe(1);
   });
 
   /**
@@ -121,7 +137,7 @@ describe("importLegacyTactics", () => {
    * When the old library is imported, and later imported again once the save works
    * Then the key survives the failure, and the retry saves only what was not yet saved.
    */
-  it("keeps the old key when the save fails, and a retry does not import twice", async () => {
+  it("stops at a failed save, and a retry saves only what was not yet saved", async () => {
     const storage = fakeStorage({
       [keyFor("team1")]: JSON.stringify([legacy("c"), legacy("b"), legacy("a")]),
     });
@@ -134,21 +150,20 @@ describe("importLegacyTactics", () => {
 
     const afterFailure = await importLegacyTactics(MANAGER, START, [], flaky, storage);
     expect(afterFailure.map((tactic) => tactic.id)).toEqual(["a"]);
-    expect(storage.data.size).toBe(1);
 
     const retry = await importLegacyTactics(MANAGER, START, afterFailure, backend.save, storage);
 
     expect(retry.map((tactic) => tactic.id)).toEqual(["a", "b", "c"]);
     expect(backend.calls).toEqual(["a", "b", "c"]);
-    expect(storage.data.size).toBe(0);
   });
 
   /**
-   * Given an old tactic the game refuses (a formation it cannot lay out)
+   * Given an old tactic the game refuses (a formation it cannot lay out), and a good one
    * When the library is imported
-   * Then the rest are still saved and the key is cleared: a refusal never turns into acceptance.
+   * Then the good one is saved, the refused one is left out, and it stays in the browser's
+   *      storage: a refusal never loses a tactic.
    */
-  it("does not let a refused tactic keep the old key alive", async () => {
+  it("skips a tactic the game refuses and leaves it in storage", async () => {
     const storage = fakeStorage({
       [keyFor("team1")]: JSON.stringify([legacy("good"), legacy("bad")]),
     });
@@ -161,7 +176,24 @@ describe("importLegacyTactics", () => {
     const result = await importLegacyTactics(MANAGER, START, [], picky, storage);
 
     expect(result.map((tactic) => tactic.id)).toEqual(["good"]);
-    expect(storage.data.size).toBe(0);
+    expect(JSON.parse(storage.data.get(keyFor("team1")) ?? "[]")).toHaveLength(2);
+  });
+
+  /**
+   * Given an old tactic with a 61-character name, which the old screen allowed
+   * When the library is imported
+   * Then it is saved with the name shortened to the 60 the save keeps, not refused.
+   */
+  it("shortens a name longer than the save keeps instead of losing the tactic", async () => {
+    const storage = fakeStorage({
+      [keyFor("team1")]: JSON.stringify([legacy("long", "x".repeat(61))]),
+    });
+    const backend = fakeSave();
+
+    await importLegacyTactics(MANAGER, START, [], backend.save, storage);
+
+    expect(backend.list).toHaveLength(1);
+    expect(backend.list[0].name).toBe("x".repeat(60));
   });
 
   /**

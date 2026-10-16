@@ -4,14 +4,20 @@ import type { TacticsLibraryEntry } from "./TacticsCommandBar";
 /**
  * Custom tactics used to live in the browser's storage, one list per manager, start date AND
  * club, so a change of club lost them and clearing the webview data lost them for good. They are
- * in the save now. What is left here reads an old browser library once, into the save.
+ * in the save now. What is left here copies an old browser library into the save.
  */
 const LEGACY_KEY_PREFIX = "ofm:tactics:custom";
 
 /** The error key the backend refuses a tactic with (`be.error.customTactic.*`). */
 const REFUSED_PREFIX = "be.error.customTactic.";
 
-type StorageLike = Pick<Storage, "getItem" | "removeItem" | "key" | "length">;
+/**
+ * The longest name the save keeps (`MAX_NAME_CHARS` in `ofm_core::custom_tactics`). The old screen
+ * had no limit, so a name this long is plausible; it is shortened rather than lost.
+ */
+const MAX_NAME_CHARS = 60;
+
+type StorageLike = Pick<Storage, "getItem" | "key" | "length">;
 
 function getDefaultStorage(): StorageLike | null {
   if (typeof window === "undefined") {
@@ -92,13 +98,16 @@ function readStoredList(storage: StorageLike, key: string): TacticsLibraryEntry[
 }
 
 /**
- * Moves an old browser library into the save, once.
+ * Copies an old browser library into the save.
  *
- * Each old tactic the save does not already hold (by trimmed id) is saved, oldest first, so the
- * order they were made in is kept. The old keys are cleared only when nothing was lost: a tactic
- * the game refuses (a shape it cannot lay out) will never be accepted, so it does not keep the
- * key alive; any other failure leaves the keys for the next try. A tactic already saved is
- * skipped, so a retry, a reload or a second window cannot import it twice.
+ * It copies and never moves, because the old key is not one career's: every career's manager has
+ * the same id and a career starts on the same day of its start year, so careers begun in the same
+ * year all read and write the one key. Removing it would take the library from the others.
+ * Instead each old tactic the save does not already hold (by trimmed id) is saved, oldest first so
+ * the order they were made in is kept; one the save holds is skipped, so a reload, a retry or a
+ * second career cannot import it twice. A name longer than the save keeps is shortened. A tactic
+ * the game still refuses (a shape it cannot lay out) is left out of the save and stays where it
+ * is, in the browser's storage; a failed save stops the import for another try.
  *
  * Returns the library as the save now holds it.
  */
@@ -109,22 +118,19 @@ export async function importLegacyTactics(
   save: (tactic: CustomTactic) => Promise<CustomTactic[]>,
   storage: StorageLike | null = getDefaultStorage(),
 ): Promise<CustomTactic[]> {
-  if (!storage) {
-    return [...saved];
-  }
-
-  const keys = legacyKeys(managerId, startDate, storage);
-  if (keys.length === 0) {
-    return [...saved];
-  }
-
   let current = [...saved];
+  if (!storage) {
+    return current;
+  }
+
   const known = new Set(current.map((tactic) => tactic.id.trim()));
   // A stored list is newest first; the save keeps the order made.
-  const oldestFirst = keys.flatMap((key) => readStoredList(storage, key).reverse());
+  const oldestFirst = legacyKeys(managerId, startDate, storage).flatMap((key) =>
+    readStoredList(storage, key).reverse(),
+  );
 
   for (const entry of oldestFirst) {
-    const tactic = toCustomTactic(entry);
+    const tactic = toCustomTactic({ ...entry, name: fitName(entry.name) });
     if (known.has(tactic.id)) {
       continue;
     }
@@ -140,13 +146,9 @@ export async function importLegacyTactics(
     }
   }
 
-  for (const key of keys) {
-    try {
-      storage.removeItem(key);
-    } catch {
-      // Storage access denied: the keys stay, and the saved ids keep a retry from importing twice.
-    }
-  }
-
   return current;
+}
+
+function fitName(name: string): string {
+  return Array.from(name.trim()).slice(0, MAX_NAME_CHARS).join("");
 }

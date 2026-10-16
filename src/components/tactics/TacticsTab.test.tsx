@@ -545,7 +545,7 @@ describe("TacticsTab", () => {
    * When the screen opens, and opens again
    * Then its tactics are saved once, the old key is gone, and the second opening adds nothing.
    */
-  it("moves an old browser library into the save once", async () => {
+  it("copies an old browser library into the save once", async () => {
     const saved = keepSavedTactics();
     const gameState = makeGameState();
     localStorage.setItem(
@@ -577,7 +577,8 @@ describe("TacticsTab", () => {
     secondRender.unmount();
 
     expect(saved.map((tactic) => tactic.id)).toEqual(["custom:old"]);
-    expect(localStorage.length).toBe(0);
+    // Copied, never moved: the old key is shared by careers begun the same year.
+    expect(localStorage.length).toBe(1);
     const saves = mockedInvoke.mock.calls.filter(([command]) => command === "save_custom_tactic");
     expect(saves).toHaveLength(1);
   });

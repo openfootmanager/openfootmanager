@@ -138,10 +138,116 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     await waitFor(() => expect(mockedInvoke).toHaveBeenCalledWith("list_custom_tactics"));
 
     act(() => result.current.handleCreateCustomTactic());
+    await waitFor(() => expect(saved).toHaveLength(1));
     act(() => result.current.handleCreateCustomTactic());
+    // The second save waits for the first: only one has started while the first reply is out.
+    expect(saved).toHaveLength(1);
     await act(async () => firstReply.resolve([]));
 
     await waitFor(() => expect(saved).toHaveLength(2));
     await waitFor(() => expect(customIds(result).sort()).toEqual(saved.map((t) => t.id).sort()));
+  });
+
+  const saveCalls = () =>
+    mockedInvoke.mock.calls.filter(([command]) => command === "save_custom_tactic");
+
+  /**
+   * Given a tactic waiting behind the first load, and the player leaves the screen (another game
+   *       is about to be loaded)
+   * When the load finishes
+   * Then the waiting tactic is not saved: it was asked in a career that is no longer the one open.
+   */
+  it("does not save a queued tactic once the screen has been left", async () => {
+    const list = deferred<unknown[]>();
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") return list.promise;
+      return { modified: false };
+    });
+    const { result, unmount } = renderLibrary(careerGame);
+
+    act(() => result.current.handleCreateCustomTactic());
+    unmount();
+    await act(async () => list.resolve([]));
+
+    expect(saveCalls()).toHaveLength(0);
+  });
+
+  /**
+   * Given a tactic waiting behind the first load, and the career then changes while the screen
+   *       stays open
+   * When the first load finishes
+   * Then the waiting tactic is not saved into the new career, which is loaded on its own.
+   */
+  it("does not save a queued tactic into the career that replaced its own", async () => {
+    const firstList = deferred<unknown[]>();
+    let lists = 0;
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") {
+        lists += 1;
+        return lists === 1 ? firstList.promise : [];
+      }
+      return { modified: false };
+    });
+    const otherCareer = {
+      ...careerGame,
+      manager: { id: "mgr2", team_id: null },
+    } as unknown as GameStateData;
+    const { result, rerender } = renderHook(
+      ({ game }: { game: GameStateData }) =>
+        useTacticsLibrary({
+          gameState: game,
+          formation: "4-4-2",
+          activePlayStyle: "Balanced",
+          initialPreset: null,
+          onFormationChange: vi.fn(),
+          onPlayStyleChange: vi.fn(),
+          onApplyPreset: vi.fn(),
+        }),
+      { initialProps: { game: careerGame } },
+    );
+
+    await waitFor(() => expect(lists).toBe(1));
+    act(() => result.current.handleCreateCustomTactic());
+    rerender({ game: otherCareer });
+    await act(async () => firstList.resolve([]));
+
+    await waitFor(() => expect(lists).toBe(2));
+    expect(saveCalls()).toHaveLength(0);
+  });
+
+  /**
+   * Given an old browser library for the career, and the screen is left while the save is listed
+   * When the list comes back
+   * Then none of the old tactics is saved into whatever game is open by then.
+   */
+  it("does not import an old library once the screen has been left", async () => {
+    const list = deferred<unknown[]>();
+    localStorage.setItem(
+      "ofm:tactics:custom:mgr1:2026-08-01:team1",
+      JSON.stringify([
+        {
+          id: "custom:old",
+          type: "custom",
+          name: "Old",
+          description: "",
+          formation: "4-4-2",
+          playStyle: "Balanced",
+        },
+      ]),
+    );
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") return list.promise;
+      return { modified: false };
+    });
+    const { unmount } = renderLibrary(careerGame);
+
+    unmount();
+    await act(async () => list.resolve([]));
+
+    expect(saveCalls()).toHaveLength(0);
+    localStorage.clear();
   });
 });
