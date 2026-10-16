@@ -1428,6 +1428,8 @@
     "transferFeedbackCounterDetail": "A proposta ficou perto o bastante para manter a conversa, mas o lado deles aponta para um valor mais próximo de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Eles encerraram esta rodada.",
     "transferFeedbackRejectedDetail": "A proposta não os moveu o suficiente. Você precisaria de um valor mais forte, mais perto de {{fee}}, para reabrir conversas sérias.",
+    "transferFeedbackBrokeOffHeadline": "Eles encerraram as conversas.",
+    "transferFeedbackBrokeOffDetail": "Depois de várias ofertas insuficientes, o clube encerrou a negociação. Seria preciso um valor perto de {{fee}}. Dê um tempo a eles antes de tentar de novo.",
     "registrationFailureInsufficientFunds": "Registro falhou: comprador sem recursos suficientes",
     "registrationFailureLoanConflict": "Registro falhou: conflito com empréstimo",
     "registrationFailurePlayerUnavailable": "Registro falhou: jogador indisponível",
@@ -2853,6 +2855,7 @@
         "transferBudgetTooLow": "O orçamento de transferências é baixo demais",
         "playerNotOwnedByUser": "Jogador não encontrado ou não pertence a você",
         "offerNotPending": "Oferta não encontrada ou não está mais pendente",
+        "talksBrokenOff": "Este clube encerrou as conversas por este jogador. Tente de novo mais tarde.",
         "loanBorrowerCannotAffordWages": "O clube que recebe o jogador não consegue pagar esta parte do salário. O orçamento salarial semanal é {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "A contraproposta deve superar a oferta atual",
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo precisa melhorar a oferta atual",
@@ -3684,7 +3687,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, então seus clubes ficam em Europa. Dê a ele uma confederação."
+        "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, então seus clubes ficam em Europa. Dê a ele uma confederação.",
+        "freeAgentFieldIgnored": "O jogador \"{{id}}\" não tem clube, então é um agente livre sem contrato: \"{{field}}\" é ignorado. Dê um clube a ele para usar o campo, ou remova-o."
       }
     }
   },

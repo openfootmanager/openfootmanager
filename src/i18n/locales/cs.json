@@ -1428,6 +1428,8 @@
     "transferFeedbackCounterDetail": "Nabídka byla dostatečně vysoká na to, aby se pokračovalo v jednání, ale druhá strana dává najevo, že si představuje cenu bližší k {{fee}}.",
     "transferFeedbackRejectedHeadline": "Tato fáze vyjednávání byla ukončena.",
     "transferFeedbackRejectedDetail": "Návrh je nepřesvědčil. Pro opětovné zahájení vážných rozhovorů budete muset nabídnout vyšší částku, bližší k {{fee}}.",
+    "transferFeedbackBrokeOffHeadline": "Odešli od jednání.",
+    "transferFeedbackBrokeOffDetail": "Po několika nabídkách, které nestačily, klub jednání ukončil. Bylo by potřeba odstupné kolem {{fee}}. Dejte jim čas, než to zkusíte znovu.",
     "registrationFailureInsufficientFunds": "Registrace selhala: kupující nemá dost peněz",
     "registrationFailureLoanConflict": "Registrace selhala: konflikt s hostováním",
     "registrationFailurePlayerUnavailable": "Registrace selhala: hráč není dostupný",
@@ -2861,6 +2863,7 @@
         "transferBudgetTooLow": "Přestupový rozpočet je příliš nízký",
         "playerNotOwnedByUser": "Hráč nebyl nalezen nebo není váš",
         "offerNotPending": "Nabídka nebyla nalezena nebo nečeká na vyřízení",
+        "talksBrokenOff": "Tento klub ukončil jednání o tomto hráči. Zkuste to později.",
         "loanBorrowerCannotAffordWages": "Hostující klub si tento podíl na mzdě nemůže dovolit. Jeho týdenní mzdový rozpočet je {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Protinabídka musí být vyšší než aktuální nabídka",
         "loanCounterMustImproveTerms": "Protinabídka hostování musí vylepšit stávající podmínky",
@@ -3684,7 +3687,8 @@
     },
     "warning": {
       "package": {
-        "countryWithoutRegion": "Tento balíček definuje zemi „{{name}}“ ({{code}}), která není v seznamu zemí hry, a nezařazuje ji do žádné konfederace, takže její kluby jsou vedeny v Evropě. Přiřaďte jí konfederaci."
+        "countryWithoutRegion": "Tento balíček definuje zemi „{{name}}“ ({{code}}), která není v seznamu zemí hry, a nezařazuje ji do žádné konfederace, takže její kluby jsou vedeny v Evropě. Přiřaďte jí konfederaci.",
+        "freeAgentFieldIgnored": "Hráč „{{id}}“ nemá klub, je tedy volný hráč bez smlouvy: pole „{{field}}“ se ignoruje. Přiřaďte mu klub, aby se použilo, nebo pole odstraňte."
       }
     }
   },

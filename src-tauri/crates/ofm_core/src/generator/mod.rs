@@ -295,6 +295,9 @@ pub fn generate_national_team_player(
 /// on any list.
 fn as_free_agent(mut player: Player) -> Player {
     player.team_id = None;
+    // The academy squad belongs to a club; a player generated for one (an authored `youth` flag)
+    // is a senior free agent once he has none.
+    player.squad_role = domain::player::SquadRole::Senior;
     // Both dates, not just the end: this player is generated from a club
     // template and then unattached, so leaving a start behind would describe an
     // agreement with no employer and no expiry.
@@ -1319,6 +1322,13 @@ pub fn build_world_data_from_package_with_rng(
         teams.push(team);
         players.extend(team_players);
         staff.extend(team_staff);
+    }
+    // An authored player with no club is a free agent: the package format says so ("empty /
+    // omitted = unattached"), and they used to be dropped without a word. Generated against a
+    // placeholder club and then unattached, like every other free agent.
+    for pdef in package.players.iter().filter(|p| p.club.is_empty()) {
+        let agent = generation::generate_player_from_def(pdef, "", opening_year, &names_def, rng);
+        players.push(as_free_agent(agent));
     }
     // Unattached authored staff (no club) go directly into the staff list.
     for sdef in package.staff.iter().filter(|s| s.club.is_empty()) {
