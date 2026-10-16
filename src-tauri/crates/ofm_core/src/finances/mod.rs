@@ -510,15 +510,12 @@ fn finance_levers_message(game: &Game, team_id: &str, today: &str) -> Option<Inb
     .into_iter()
     .filter_map(|(is_open, lever)| is_open.then_some(lever))
     .collect();
-    if open.is_empty() {
-        return None;
-    }
 
     // Only a lever not yet announced this season is news. A lever closing never triggers a
     // message and the same lever reopening does not either, so a club gets at most one message per
     // lever per season (three at most), and each still names everything open now.
     let season = board_support_season(game);
-    let announced = announced_levers(game, season);
+    let announced = announced_levers(game, season, team_id);
     if open
         .iter()
         .all(|(id, _)| announced.contains(id.trim_start_matches("lever_")))
@@ -532,7 +529,7 @@ fn finance_levers_message(game: &Game, team_id: &str, today: &str) -> Option<Inb
         .collect::<Vec<_>>()
         .join("+");
     let mut message = InboxMessage::new(
-        format!("finance_levers_{season}_{open_set}"),
+        format!("finance_levers_{season}_{team_id}_{open_set}"),
         String::new(),
         String::new(),
         String::new(),
@@ -560,10 +557,11 @@ fn finance_levers_message(game: &Game, team_id: &str, today: &str) -> Option<Inb
     Some(message)
 }
 
-/// The levers already announced in `season`, read back from the sent-ledger: each lever message's
-/// key (`finance_levers_{season}_{lever}+{lever}...`) names the levers it announced.
-fn announced_levers(game: &Game, season: u32) -> std::collections::HashSet<String> {
-    let prefix = format!("finance_levers_{season}_");
+/// The levers already announced to `team_id` in `season`, read back from the sent-ledger: each
+/// lever message's key (`finance_levers_{season}_{team_id}_{lever}+{lever}...`) names the levers it
+/// announced. Keyed by club so a manager who moves clubs mid-season still hears about the new one.
+fn announced_levers(game: &Game, season: u32, team_id: &str) -> std::collections::HashSet<String> {
+    let prefix = format!("finance_levers_{season}_{team_id}_");
     game.emitted_events
         .iter()
         .filter_map(|key| key.strip_prefix(&prefix))

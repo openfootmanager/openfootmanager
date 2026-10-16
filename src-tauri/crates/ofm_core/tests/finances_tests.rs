@@ -1231,6 +1231,52 @@ fn the_lever_message_is_sent_again_in_a_new_season() {
     assert_eq!(lever_messages(&game).len(), 2);
 }
 
+/// Given a club told about the levers, in a season where the league's own season number moves on
+///       while the calendar year does not
+/// When the weekly finances run again a week later
+/// Then it is told again: the key follows the league's season, not only the calendar year.
+#[test]
+fn the_lever_message_is_sent_again_when_the_league_season_rolls_over() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+    game.league = Some(League {
+        id: "l1".to_string(),
+        name: "Test League".to_string(),
+        season: 1,
+        ..Default::default()
+    });
+    finances::process_weekly_finances(&mut game);
+    assert_eq!(lever_messages(&game).len(), 1);
+
+    game.league.as_mut().expect("league").season = 2;
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+
+    assert_eq!(lever_messages(&game).len(), 2);
+}
+
+/// Given a manager told about the levers open to their first club, who then moves to a second club
+///       in the same season that is also in trouble
+/// When the weekly finances run for the new club
+/// Then they are told about the new club's levers: the announcement belongs to the club, not to the
+///      season alone.
+#[test]
+fn a_manager_who_changes_club_mid_season_hears_about_the_new_clubs_levers() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+    let mut other = make_team("team2", "Other FC");
+    other.finance = -100_000;
+    game.teams.push(other);
+    finances::process_weekly_finances(&mut game);
+    assert_eq!(lever_messages(&game).len(), 1);
+
+    game.manager.team_id = Some("team2".to_string());
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+
+    assert_eq!(lever_messages(&game).len(), 2);
+}
+
 #[test]
 fn financial_warnings_not_duplicated() {
     let mut game = make_monday_game();
