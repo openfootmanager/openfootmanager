@@ -17,6 +17,7 @@ use domain::team::{
 };
 use rand::RngExt;
 use serde::Serialize;
+use std::collections::HashMap;
 
 const BOARD_SUPPORT_MIN_AMOUNT: i64 = 150_000;
 const BOARD_SUPPORT_MAX_AMOUNT: i64 = 1_000_000;
@@ -219,6 +220,38 @@ pub fn calc_wages(game: &Game, team_id: &str) -> i64 {
         .sum();
 
     player_wages + staff_wages
+}
+
+/// [`calc_wages`] for every club at once, in one pass over the players and staff. A club paying
+/// nothing is absent. Anything that asks of many clubs in a row reads this; the per-club answer
+/// scans every player.
+pub fn wage_bills_by_club(game: &Game) -> HashMap<String, i64> {
+    let mut bills: HashMap<String, i64> = HashMap::new();
+    for player in &game.players {
+        let wage = i64::from(player.wage());
+        // Only these can be paying him: the borrower and the parent on a loan, else his club.
+        let paying: [Option<&str>; 2] = match &player.active_loan {
+            Some(loan) => [
+                Some(loan.loan_team_id.as_str()),
+                (loan.parent_team_id != loan.loan_team_id).then_some(loan.parent_team_id.as_str()),
+            ],
+            None => [player.team_id.as_deref(), None],
+        };
+        for team_id in paying.into_iter().flatten() {
+            let share = weekly_share(player, team_id, wage, false);
+            if share != 0 {
+                *bills.entry(team_id.to_string()).or_default() += share;
+            }
+        }
+    }
+    for staff_member in &game.staff {
+        if let Some(team_id) = staff_member.team_id.as_deref()
+            && staff_member.wage != 0
+        {
+            *bills.entry(team_id.to_string()).or_default() += i64::from(staff_member.wage);
+        }
+    }
+    bills
 }
 
 /// This club's share of `player.wage` this week (loan split, otherwise the
@@ -1515,6 +1548,106 @@ mod tests {
         assert!(
             leader_pitch.weekly_amount > trailing_pitch.weekly_amount,
             "A stronger league position should improve sponsor pitch value when other club factors are equal"
+        );
+    }
+
+    /// Given clubs with plain contracts, a loan split between parent and borrower, a loan whose
+    /// parent is also the borrower, and staff, When every club's bill is read at once, Then each
+    /// is the bill `calc_wages` gives it alone, and a club paying nothing has none.
+    #[test]
+    fn every_clubs_wage_bill_in_one_pass_is_the_bill_it_has_alone() {
+        use domain::player::{ActiveLoan, Player, PlayerAttributes, Position};
+        use domain::staff::{Staff, StaffAttributes, StaffRole};
+
+        let mut game = make_game();
+        let attrs = PlayerAttributes {
+            pace: 60,
+            stamina: 60,
+            strength: 60,
+            agility: 60,
+            passing: 60,
+            shooting: 60,
+            tackling: 60,
+            dribbling: 60,
+            defending: 60,
+            positioning: 60,
+            vision: 60,
+            decisions: 60,
+            composure: 60,
+            aggression: 60,
+            teamwork: 60,
+            leadership: 60,
+            handling: 60,
+            reflexes: 60,
+            aerial: 60,
+        };
+        let player = |id: &str, team: &str, wage: u32, loan: Option<(&str, &str, u8)>| {
+            let mut p = Player::new(
+                id.to_string(),
+                id.to_string(),
+                id.to_string(),
+                "1998-01-01".to_string(),
+                "England".to_string(),
+                Position::Midfielder,
+                attrs.clone(),
+            );
+            p.team_id = Some(team.to_string());
+            p.stage_wage(wage);
+            p.active_loan = loan.map(|(parent, borrower, pct)| ActiveLoan {
+                parent_team_id: parent.to_string(),
+                loan_team_id: borrower.to_string(),
+                start_date: "2026-01-01".to_string(),
+                end_date: "2026-12-31".to_string(),
+                wage_contribution_pct: pct,
+                buy_option_fee: None,
+                loan_start_minutes: 0,
+                loan_start_appearances: 0,
+                development_reported_minutes: 0,
+                development_reported_appearances: 0,
+            });
+            p
+        };
+        game.players = vec![
+            player("plain", "team1", 10_000, None),
+            player("split", "team2", 20_000, Some(("team1", "team2", 60))),
+            player("self-loan", "team2", 7_000, Some(("team2", "team2", 50))),
+            player("free", "team1", 0, None),
+        ];
+        game.players[3].team_id = None;
+        let mut coach = Staff::new(
+            "coach".to_string(),
+            "C".to_string(),
+            "C".to_string(),
+            "1970-01-01".to_string(),
+            StaffRole::AssistantManager,
+            StaffAttributes {
+                coaching: 50,
+                judging_ability: 50,
+                judging_potential: 50,
+                physiotherapy: 50,
+            },
+        );
+        coach.team_id = Some("team2".to_string());
+        coach.wage = 500;
+        let mut volunteer = coach.clone();
+        volunteer.id = "volunteer".to_string();
+        volunteer.team_id = Some("volunteer-club".to_string());
+        volunteer.wage = 0;
+        game.staff = vec![coach, volunteer];
+
+        let bills = super::wage_bills_by_club(&game);
+
+        for club in ["team1", "team2", "nobody", "volunteer-club"] {
+            assert_eq!(
+                bills.get(club).copied().unwrap_or(0),
+                super::calc_wages(&game, club),
+                "{club}"
+            );
+        }
+        assert!(!bills.contains_key("nobody"));
+        assert!(
+            !bills.contains_key("volunteer-club"),
+            "a club paying nobody is absent, as documented"
         );
     }
 }
