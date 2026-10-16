@@ -181,12 +181,13 @@ describe("useTacticsLibrary custom tactics and the save", () => {
    */
   it("does not save a queued tactic into the career that replaced its own", async () => {
     const firstList = deferred<unknown[]>();
+    const secondList = deferred<unknown[]>();
     let lists = 0;
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "list_custom_tactics") {
         lists += 1;
-        return lists === 1 ? firstList.promise : [];
+        return lists === 1 ? firstList.promise : secondList.promise;
       }
       return { modified: false };
     });
@@ -211,10 +212,25 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     await waitFor(() => expect(lists).toBe(1));
     act(() => result.current.handleCreateCustomTactic());
     rerender({ game: otherCareer });
-    await act(async () => firstList.resolve([]));
+    // The first career's list arrives late, with a tactic of its own.
+    await act(async () =>
+      firstList.resolve([
+        {
+          id: "from-first",
+          name: "First",
+          description: "",
+          formation: "4-4-2",
+          playStyle: "Balanced",
+        },
+      ]),
+    );
 
     await waitFor(() => expect(lists).toBe(2));
     expect(saveCalls()).toHaveLength(0);
+    // And it is not shown in the new career while that career's own list is still out.
+    expect(customIds(result)).not.toContain("from-first");
+    await act(async () => secondList.resolve([]));
+    expect(customIds(result)).toEqual([]);
   });
 
   /**
@@ -243,6 +259,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
       return { modified: false };
     });
     const { unmount } = renderLibrary(careerGame);
+    await waitFor(() => expect(mockedInvoke).toHaveBeenCalledWith("list_custom_tactics"));
 
     unmount();
     await act(async () => list.resolve([]));
