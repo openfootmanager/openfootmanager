@@ -475,6 +475,101 @@ fn marketing_campaign_message(
     ))
 }
 
+/// Tells the manager, once a season per distinct set, which recovery levers are open to the club
+/// right now and takes them to the Finances tab.
+///
+/// The levers come from `finance_action_previews`, the same verdicts the tab consumes, so the
+/// message names exactly what the tab would allow and never a lever it would refuse (board support
+/// already used this season, a sponsor already signed or a pitch pending, a campaign cooling
+/// down). Each open lever is an action; the body only introduces them. Nothing open, no message.
+fn finance_levers_message(game: &Game, team_id: &str, today: &str) -> Option<InboxMessage> {
+    let previews = finance_action_previews(game, team_id)?;
+    let open: Vec<(&str, &str)> = [
+        (
+            previews.board_support.is_some(),
+            (
+                "lever_board_support",
+                "be.msg.financeLevers.action.boardSupport",
+            ),
+        ),
+        (
+            previews.sponsor_pitch.is_some(),
+            (
+                "lever_sponsor_pitch",
+                "be.msg.financeLevers.action.sponsorPitch",
+            ),
+        ),
+        (
+            previews.marketing_campaign.is_some(),
+            (
+                "lever_marketing_campaign",
+                "be.msg.financeLevers.action.marketingCampaign",
+            ),
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(is_open, lever)| is_open.then_some(lever))
+    .collect();
+
+    // Only a lever not yet announced this season is news. A lever closing never triggers a
+    // message and the same lever reopening does not either, so a club gets at most one message per
+    // lever per season (three at most), and each still names everything open now.
+    let season = board_support_season(game);
+    let announced = announced_levers(game, season, team_id);
+    if open
+        .iter()
+        .all(|(id, _)| announced.contains(id.trim_start_matches("lever_")))
+    {
+        return None;
+    }
+
+    let open_set = open
+        .iter()
+        .map(|(id, _)| id.trim_start_matches("lever_"))
+        .collect::<Vec<_>>()
+        .join("+");
+    let mut message = InboxMessage::new(
+        format!("finance_levers_{season}_{team_id}_{open_set}"),
+        String::new(),
+        String::new(),
+        String::new(),
+        today.to_string(),
+    )
+    .with_category(MessageCategory::Finance)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("")
+    .with_i18n(
+        "be.msg.financeLevers.subject",
+        "be.msg.financeLevers.body",
+        std::collections::HashMap::new(),
+    )
+    .with_sender_i18n("be.sender.financialDirector", "be.role.financialDirector");
+    for (id, label_key) in open {
+        message = message.with_action(action(
+            id,
+            "",
+            label_key,
+            ActionType::NavigateTo {
+                route: "/dashboard?tab=Finances".to_string(),
+            },
+        ));
+    }
+    Some(message)
+}
+
+/// The levers already announced to `team_id` in `season`, read back from the sent-ledger: each
+/// lever message's key (`finance_levers_{season}_{team_id}_{lever}+{lever}...`) names the levers it
+/// announced. Keyed by club so a manager who moves clubs mid-season still hears about the new one.
+fn announced_levers(game: &Game, season: u32, team_id: &str) -> std::collections::HashSet<String> {
+    let prefix = format!("finance_levers_{season}_{team_id}_");
+    game.emitted_events
+        .iter()
+        .filter_map(|key| key.strip_prefix(&prefix))
+        .flat_map(|levers| levers.split('+'))
+        .map(str::to_string)
+        .collect()
+}
+
 fn board_support_season(game: &Game) -> u32 {
     game.league
         .as_ref()
@@ -1208,7 +1303,6 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
     };
 
     let weekly_wages = calc_wages(game, &user_team_id);
-    let annual_wages = weekly_wages;
     let weeks_left = snapshot.cash_runway_weeks.unwrap_or(999);
 
     // Critical: finances negative
@@ -1231,7 +1325,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     "be.msg.financeCritical.body",
                     {
                         let mut p = std::collections::HashMap::new();
-                        p.insert("amount".to_string(), format_money((-team.finance) as u64));
+                        p.insert("amount".to_string(), (-team.finance).to_string());
                         p
                     },
                 )
@@ -1267,7 +1361,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     "be.msg.financeWarning.body",
                     {
                         let mut p = std::collections::HashMap::new();
-                        p.insert("weeklyWages".to_string(), format_money(weekly_wages as u64));
+                        p.insert("weeklyWages".to_string(), weekly_wages.to_string());
                         p.insert("weeksLeft".to_string(), weeks_left.to_string());
                         p
                     },
@@ -1285,7 +1379,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         }
     }
     // Over budget warning: wages exceed budget
-    else if annual_wages > team.wage_budget {
+    else if weekly_wages > team.wage_budget {
         let msg_id = format!("wage_over_budget_{}", today);
         if !existing_ids.contains(&msg_id) {
             new_messages.push(
@@ -1304,11 +1398,8 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
                     "be.msg.wageOverBudget.body",
                     {
                         let mut p = std::collections::HashMap::new();
-                        p.insert("annualWages".to_string(), format_money(annual_wages as u64));
-                        p.insert(
-                            "wageBudget".to_string(),
-                            format_money(team.wage_budget as u64),
-                        );
+                        p.insert("weeklyWageBill".to_string(), weekly_wages.to_string());
+                        p.insert("wageBudget".to_string(), team.wage_budget.to_string());
                         p
                     },
                 )
@@ -1337,12 +1428,9 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         }
     }
 
-    crate::inbox::emit_all(game, new_messages);
-}
+    new_messages.extend(finance_levers_message(game, &user_team_id, today));
 
-fn format_money(amount: u64) -> String {
-    crate::currency::format_compact_number(amount, crate::currency::DEFAULT_CURRENCY_CODE)
-        .unwrap_or_else(|| amount.to_string())
+    crate::inbox::emit_all(game, new_messages);
 }
 
 #[cfg(test)]

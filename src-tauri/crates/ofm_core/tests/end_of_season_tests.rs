@@ -407,6 +407,240 @@ fn default_berths_reproduce_the_inferred_continental_field() {
     );
 }
 
+/// A cup that has already been renewed for its next edition: unplayed, one season on, with the
+/// edition it just finished frozen in the archive under `winner`.
+fn renewed_cup_with_archived_winner(game: &mut Game, cup: &mut League, winner: &str) {
+    game.edition_archive
+        .push(domain::edition_archive::CompletedEdition {
+            competition_id: cup.id.clone(),
+            season: cup.season,
+            completed_on: "2026-05-10".to_string(),
+            champion_id: winner.to_string(),
+            participant_ids: vec![],
+            standings: vec![],
+            groups: vec![],
+            knockout_rounds: vec![],
+            fixtures: vec![],
+        });
+    cup.season += 1;
+    for fixture in &mut cup.fixtures {
+        fixture.status = FixtureStatus::Scheduled;
+        fixture.result = None;
+    }
+    for round in &mut cup.knockout_rounds {
+        round.completed = false;
+    }
+}
+
+fn europe_game_with_a_renewed_cup(berth: bool) -> Game {
+    let teams = ["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"]
+        .iter()
+        .enumerate()
+        .map(|(rank, id)| make_club(id, "ES", 900 - rank as u32 * 50))
+        .collect();
+    let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 5, 20, 12, 0, 0).unwrap());
+    let mut manager = Manager::new(
+        "mgr".to_string(),
+        "Test".to_string(),
+        "Manager".to_string(),
+        "1980-01-01".to_string(),
+        "England".to_string(),
+    );
+    manager.hire("es-a".to_string());
+    let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+    let mut cup = domestic_cup("es-cup", "ES", "europe", "es-f", "es-e");
+    if berth {
+        cup.berths = vec![Berth {
+            target: "europe-cup".to_string(),
+            rule: BerthRule::CupWinner,
+            fallback_to: None,
+        }];
+    }
+    renewed_cup_with_archived_winner(&mut game, &mut cup, "es-f");
+    game.competitions = vec![
+        first_division(
+            "es-1",
+            "ES",
+            "europe",
+            &["es-a", "es-b", "es-c", "es-d", "es-e", "es-f"],
+        ),
+        cup,
+        continental_cup("europe-cup", "europe", 5),
+    ];
+    game
+}
+
+/// Given a domestic cup that was archived and renewed before the rollover, so its live bracket is
+/// the next edition and unplayed,
+/// When the continental field is worked out,
+/// Then the winner of the edition that finished still qualifies: the archive holds it.
+#[test]
+fn a_cup_renewed_before_the_rollover_still_sends_its_winner_to_continental_qualification() {
+    let game = europe_game_with_a_renewed_cup(false);
+    let europe = game
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+
+    let field = continental_qualified_entrants(&game, europe);
+
+    assert!(
+        field.contains(&"es-f".to_string()),
+        "the cup winner is missing: {field:?}"
+    );
+}
+
+/// As above, for a data-defined `CupWinner` berth.
+#[test]
+fn a_renewed_cups_cup_winner_berth_reads_the_archived_champion() {
+    let game = europe_game_with_a_renewed_cup(true);
+    let europe = game
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+
+    let field = berth_qualified_entrants(&game, europe);
+
+    assert!(
+        field.contains(&"es-f".to_string()),
+        "the cup winner is missing: {field:?}"
+    );
+}
+
+/// Given a cup the rollover keeps because its final was postponed past the league's last round, so
+/// its edition is the one being settled, unfinished, and last season's champion is in the archive,
+/// When the continental field is worked out,
+/// Then last season's champion is not credited again: the cup contributes nobody this season.
+#[test]
+fn a_kept_cup_with_an_undecided_final_does_not_credit_last_seasons_champion_again() {
+    for berth in [false, true] {
+        let mut game = europe_game_with_a_renewed_cup(berth);
+        // The edition being settled: same season as the league, its final still to be played.
+        let league_season = game.competitions[0].season;
+        game.competitions[1].season = league_season;
+        game.edition_archive[0].season = league_season - 1;
+        let europe = game
+            .competitions
+            .iter()
+            .find(|c| c.id == "europe-cup")
+            .unwrap();
+
+        let field = if berth {
+            berth_qualified_entrants(&game, europe)
+        } else {
+            continental_qualified_entrants(&game, europe)
+        };
+
+        // es-f is the weakest club in the league, so only the cup could have qualified it.
+        assert!(
+            !field.contains(&"es-f".to_string()),
+            "last season's champion qualified again (berth: {berth}): {field:?}"
+        );
+    }
+}
+
+/// A game like `europe_game_with_a_renewed_cup`, with the league and the cup's seasons moved to
+/// `league_season`, a foreign first division in front of the league by rank, and its own season.
+fn europe_game_in_season(league_season: u32, berth: bool) -> Game {
+    let mut game = europe_game_with_a_renewed_cup(berth);
+    game.competitions[0].season = league_season;
+    // The league ranks below the cup by priority, so a lookup that lets the cup (or any
+    // competition of another kind) stand in for the league finds the wrong season.
+    game.competitions[0].priority = 1;
+    game.competitions[1].season = league_season + 1;
+    game.edition_archive[0].season = league_season;
+    let mut foreign = first_division("br-1", "BR", "south-america", &["br-a", "br-b"]);
+    foreign.season = league_season + 5;
+    foreign.priority = 0; // outranks the Spanish league by priority
+    game.competitions.push(foreign);
+    game
+}
+
+/// Given a cup renewed past its league's season, in a world whose other country's first division
+/// is on a much later season,
+/// When the continental field is worked out,
+/// Then the cup is compared with its own country's league, not another's: its winner qualifies.
+#[test]
+fn a_renewed_cup_is_compared_with_its_own_countrys_league() {
+    for berth in [false, true] {
+        let game = europe_game_in_season(7, berth);
+        let europe = game
+            .competitions
+            .iter()
+            .find(|c| c.id == "europe-cup")
+            .unwrap();
+
+        let field = if berth {
+            berth_qualified_entrants(&game, europe)
+        } else {
+            continental_qualified_entrants(&game, europe)
+        };
+
+        assert!(
+            field.contains(&"es-f".to_string()),
+            "berth {berth}: {field:?}"
+        );
+    }
+}
+
+/// Given a cup kept at the rollover in a late season (not season 1), When the field is worked
+/// out, Then last season's champion is still not credited.
+#[test]
+fn a_kept_cup_in_a_late_season_does_not_credit_the_archive() {
+    for berth in [false, true] {
+        let mut game = europe_game_in_season(7, berth);
+        game.competitions[1].season = 7; // not renewed: the edition being settled
+        game.edition_archive[0].season = 6;
+        let europe = game
+            .competitions
+            .iter()
+            .find(|c| c.id == "europe-cup")
+            .unwrap();
+
+        let field = if berth {
+            berth_qualified_entrants(&game, europe)
+        } else {
+            continental_qualified_entrants(&game, europe)
+        };
+
+        assert!(
+            !field.contains(&"es-f".to_string()),
+            "berth {berth}: {field:?}"
+        );
+    }
+}
+
+/// Given an unplayed cup that was never archived (a first edition), When the field is worked out,
+/// Then it has no winner to send: nothing is invented.
+#[test]
+fn a_cup_with_no_archived_edition_and_no_winner_sends_nobody() {
+    let mut game = europe_game_with_a_renewed_cup(false);
+    game.edition_archive.clear();
+    let europe = game
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+
+    let field = continental_qualified_entrants(&game, europe);
+
+    // es-f finished last in a six-club league and is the weakest club, so only the cup could
+    // have qualified it.
+    assert!(!field.contains(&"es-f".to_string()), "{field:?}");
+    // The data-defined path agrees: with no live winner and no archived edition, a CupWinner
+    // berth awards nobody either.
+    let mut with_berth = europe_game_with_a_renewed_cup(true);
+    with_berth.edition_archive.clear();
+    let europe = with_berth
+        .competitions
+        .iter()
+        .find(|c| c.id == "europe-cup")
+        .unwrap();
+    assert!(!berth_qualified_entrants(&with_berth, europe).contains(&"es-f".to_string()));
+}
+
 /// Multi-tier qualification: a club lands in only its most prestigious target,
 /// so a cup winner who'd otherwise be a Europa club via league position is
 /// promoted to the Champions Cup and dropped from Europa.
@@ -1042,12 +1276,11 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
 
     // Play the first season's share of the campaign only up to the club
     // season's end in May: the rollover outruns the June 2025 window.
-    let mut rng = <rand::rngs::StdRng as rand::SeedableRng>::seed_from_u64(3);
     for date in first_season_days
         .iter()
         .filter(|date| date.as_str() < "2025-06-01")
     {
-        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date, &mut rng);
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date);
     }
     let played_midway = game
         .competitions
@@ -1105,7 +1338,7 @@ fn a_two_season_qualifying_campaign_survives_the_rollover_and_feeds_the_cup() {
         .iter()
         .filter(|date| date.as_str() < "2026-06-01")
     {
-        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date, &mut rng);
+        ofm_core::world_cup::process_world_cup_fixtures_due(&mut game, date);
     }
     assert!(
         game.competitions

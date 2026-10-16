@@ -76,6 +76,8 @@ pub fn build_game_from_world_data(
         players,
         staff,
         managers,
+        retired_managers,
+        retired_players,
         competitions,
         national_teams,
         default_active_regions,
@@ -90,12 +92,18 @@ pub fn build_game_from_world_data(
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
-    // A world exported before retirees had an archive still carries them among its players. Every
-    // route from a world to a game goes through here, so this is where they leave the roster:
-    // before the squad floor, the national squads or the awards can take them for live players.
-    crate::retirees::archive_legacy_retirees(&mut game);
     // Stored on the game, which is the one place the day's dice come from.
     game.seed = seed;
+    // In place before `generate_past_world_history` below, which seeds a roster-baseline world's
+    // managers by asking the archive whether a club has had one. An exported world is seeded later,
+    // in bootstrap, from this same field.
+    game.retired_managers = retired_managers;
+    game.retired_players = retired_players;
+    // A world exported before retirees had an archive still carries them among its players. Every
+    // route from a world to a game goes through here, so this is where they leave the roster:
+    // after the world's own archive is in (one it already holds is not archived twice), and before
+    // the squad floor, the national squads or the awards can take them for live players.
+    crate::retirees::archive_legacy_retirees(&mut game);
     if game
         .staff
         .iter()
@@ -199,6 +207,40 @@ mod tests {
         assert!(game.teams.iter().all(|team| team.history.len() == 2));
     }
 
+    /// Given a world that carries archived managers and retired players
+    /// When a game is built from it
+    /// Then the game holds both archives, so an imported career remembers a club's past managers.
+    #[test]
+    fn a_world_s_archives_become_the_games_archives() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        let mut retired_manager = manager();
+        retired_manager.id = "retired-boss".to_string();
+        world.retired_managers.push(retired_manager);
+        let mut veteran = world.players[0].clone();
+        veteran.id = "retired-veteran".to_string();
+        world
+            .retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &veteran,
+                "2030-06-30",
+                2030,
+            ));
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 0,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        assert_eq!(game.retired_managers.len(), 1);
+        assert_eq!(game.retired_managers[0].id, "retired-boss");
+        assert_eq!(game.retired_players.len(), 1);
+        assert_eq!(game.retired_players[0].id, "retired-veteran");
+    }
+
     /// Given a world exported before retirees had an archive, with a player flagged as retired
     ///       still in its players,
     /// When a game is built from it,
@@ -227,5 +269,41 @@ mod tests {
                 .any(|record| record.id == retiree_id),
             "the retiree is in no archive"
         );
+    }
+
+    /// Given a world whose archive already holds a player who is also still flagged retired among
+    ///       its players,
+    /// When a game is built from it,
+    /// Then he is on no roster and in the archive exactly once, with the record the world brought.
+    #[test]
+    fn a_retiree_the_world_already_archived_is_not_archived_twice() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        let retiree_id = world.players[0].id.clone();
+        world.players[0].retired = true;
+        world
+            .retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &world.players[0],
+                "2030-06-30",
+                2030,
+            ));
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 0,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        assert!(game.players.iter().all(|player| player.id != retiree_id));
+        let records: Vec<_> = game
+            .retired_players
+            .iter()
+            .filter(|record| record.id == retiree_id)
+            .collect();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].retired_on, "2030-06-30");
     }
 }

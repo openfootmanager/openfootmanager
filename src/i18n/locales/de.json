@@ -582,7 +582,11 @@
       "twistedAnkle": "Verstauchter Knöchel",
       "kneeBruise": "Knieprellung",
       "hamstringTightness": "Oberschenkelzerrung",
-      "calfStrain": "Wadenzerrung"
+      "calfStrain": "Wadenzerrung",
+      "ankleLigamentSprain": "Bänderverletzung am Sprunggelenk",
+      "hamstringTear": "Hamstring-Riss",
+      "kneeLigamentTear": "Bänderriss im Knie",
+      "metatarsalFracture": "Mittelfußbruch"
     },
     "scoutRatings": {
       "excellent": "Ausgezeichnet",
@@ -1483,6 +1487,10 @@
   "players": {
     "searchPlaceholder": "Nach Name oder Nationalität suchen...",
     "allPos": "Alle Pos",
+    "filterAgeMin": "Mindestalter",
+    "filterAgeMax": "Höchstalter",
+    "filterOvrMin": "Min. Stärke",
+    "filterOvrMax": "Max. Stärke",
     "allTeams": "Alle Teams",
     "nPlayersFound": "{{count}} Spieler gefunden",
     "noMatch": "Keine Spieler entsprechen deinen Filtern.",
@@ -2993,12 +3001,21 @@
       },
       "wageOverBudget": {
         "subject": "Gehaltsbudget überschritten",
-        "body": "Unsere wöchentlichen Gehaltskosten ({{annualWages}}) übersteigen derzeit das vorgesehene Gehaltsbudget ({{wageBudget}}).\n\nKurzfristig ist das noch tragbar, aber der Vorstand würde die Gehaltskosten lieber wieder unter Kontrolle sehen."
+        "body": "Unsere wöchentlichen Gehaltskosten ({{weeklyWageBill}}) übersteigen derzeit das vorgesehene Gehaltsbudget ({{wageBudget}}).\n\nKurzfristig ist das noch tragbar, aber der Vorstand würde die Gehaltskosten lieber wieder unter Kontrolle sehen."
       },
       "financeBoardPressure": {
         "subject": "Vorstandssitzung — Finanzdruck",
         "bodyWarning": "Der Vorstand bleibt wegen der finanziellen Lage des Clubs besorgt. Das Vertrauen in Ihre Arbeit ist diese Woche um {{penalty}} Punkte gesunken.\n\nSie müssen die Gehaltslage und den kurzfristigen Kassenbestand verbessern, bevor die Geduld weiter schwindet.",
         "bodyCritical": "Der Vorstand hat die sich verschlechternde Finanzlage des Clubs geprüft, und das Vertrauen in Ihre Arbeit ist diese Woche um {{penalty}} Punkte gesunken.\n\nLiquidität und Gehaltsverpflichtungen befinden sich nun in einem kritischen Zustand. Sofortiges Gegensteuern wird erwartet."
+      },
+      "financeLevers": {
+        "subject": "Dem Verein stehen Sanierungsoptionen offen",
+        "body": "Das Geld ist knapp, wodurch Sanierungsoptionen frei werden. Die derzeit offenen stehen unten; jede führt Sie zum Reiter Finanzen.",
+        "action": {
+          "boardSupport": "Vorstand um Unterstützung bitten",
+          "sponsorPitch": "Neuen Sponsor ansprechen",
+          "marketingCampaign": "Marketingkampagne starten"
+        }
       },
       "marketingCampaign": {
         "subject": "Bericht zur Marketingkampagne",
@@ -3187,6 +3204,11 @@
         "subject": "Verletzung — {{player}} ({{injury}})",
         "body0": "Schlechte Nachrichten vom Trainingsgelände. {{player}} hat sich bei der heutigen Einheit eine {{injury}} zugezogen.\n\nDas Ärzteteam schätzt {{days}} Tage Ausfallzeit. Wir werden die Genesung genau beobachten.",
         "body1": "Leider fiel {{player}} heute im Training mit einer {{injury}} aus.\n\nErste Einschätzung: etwa {{days}} Tage nicht einsatzfähig. Wir halten Sie über den Fortschritt auf dem Laufenden."
+      },
+      "matchInjury": {
+        "subject": "Verletzung im Spiel — {{player}} ({{injury}})",
+        "body0": "Schlechte Nachrichten vom Spiel: {{player}} hat sich auf dem Platz verletzt.\n\nDiagnose: {{injury}}. Das Ärzteteam rechnet mit {{days}} Tagen Pause und wird die Genesung genau beobachten.",
+        "body1": "{{player}} ist nicht unversehrt aus dem heutigen Spiel gekommen.\n\nDiagnose: {{injury}}. Erste Einschätzung: etwa {{days}} Tage Ausfall. Wir halten Sie über den Verlauf auf dem Laufenden."
       },
       "mediaPositive": {
         "subject": "Positive Presse — {{player}}",

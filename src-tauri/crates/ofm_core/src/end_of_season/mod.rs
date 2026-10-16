@@ -1,6 +1,5 @@
 use crate::game::Game;
 use crate::season_awards::compute_division_season_awards;
-use crate::seed::WorldCupStream;
 use chrono::{DateTime, Datelike, Duration, Utc};
 use domain::league::{
     CompetitionFormat, CompetitionScope, CompetitionType, FixtureStatus, League, StandingEntry,
@@ -411,8 +410,7 @@ fn regenerate_competitions_for_new_season(
         // out; settle whatever remains (the last matchday, the playoff) so the
         // field is derived from a finished campaign, not a truncated one.
         // Seeded per year so a reloaded save settles to the same field.
-        let mut settle_rng = game.world_cup_rng(WorldCupStream::Settle, kickoff.year());
-        crate::world_cup::settle_outstanding_qualifying(game, &mut settle_rng);
+        crate::world_cup::settle_outstanding_qualifying(game);
         let host = crate::world_cup::host_for_year(game, kickoff.year());
         crate::world_cup::qualified_field_from_game(
             game,
@@ -652,8 +650,7 @@ fn manage_international_calendar(
         // windows; a world without one (a save that started late) squeezes a
         // compressed campaign into the single remaining season.
         if qualifying_in_progress {
-            let mut rng = game.world_cup_rng(WorldCupStream::Settle, next_start.year());
-            crate::world_cup::continue_world_cup_qualifying(game, &window_dates, &mut rng);
+            crate::world_cup::continue_world_cup_qualifying(game, &window_dates);
         } else {
             crate::world_cup::schedule_world_cup_qualifying(
                 game,
@@ -683,8 +680,7 @@ fn manage_international_calendar(
         // Unreachable under the four-year cadence, but if a campaign ever
         // survives into a neutral season, keep it anchored to this season's
         // windows rather than stacking friendlies on top of stale fixtures.
-        let mut rng = game.world_cup_rng(WorldCupStream::Settle, next_start.year());
-        crate::world_cup::continue_world_cup_qualifying(game, &window_dates, &mut rng);
+        crate::world_cup::continue_world_cup_qualifying(game, &window_dates);
         return;
     }
 
