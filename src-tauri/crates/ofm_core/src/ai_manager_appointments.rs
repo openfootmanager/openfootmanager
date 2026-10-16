@@ -240,6 +240,25 @@ mod tests {
         );
     }
 
+    /// Given a club whose stand-in has covered for a month and a fitting unemployed manager
+    /// When the club appoints him
+    /// Then his new career entry and the appointment news name the club, not its id
+    #[test]
+    fn an_appointment_records_the_clubs_name() {
+        let mut game = game_on("2031-08-01");
+        add_club_covered_since(&mut game, "c1", 600, "2031-07-01");
+        add_unemployed(&mut game, "free1", 620);
+
+        appoint_permanent_managers(&mut game);
+
+        let hired = game.managers.iter().find(|m| m.id == "free1").unwrap();
+        assert_eq!(hired.career_history[0].team_name, "c1 FC");
+        assert_eq!(
+            game.news[0].i18n_params.get("team").map(String::as_str),
+            Some("c1 FC")
+        );
+    }
+
     /// Given a stand-in that has covered for under a month
     /// When appointments are processed
     /// Then the stand-in stays.

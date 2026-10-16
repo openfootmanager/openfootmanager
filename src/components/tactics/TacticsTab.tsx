@@ -37,6 +37,7 @@ export default function TacticsTab({
     pitchSlots,
     outOfPositionCount,
     effectiveMatchRoles,
+    autoSetPieces,
     selectedPlayer,
     comparePlayer,
     selectedPlayerId,
@@ -216,6 +217,7 @@ export default function TacticsTab({
         {/* Right: roles + phase blueprint */}
         <TacticsRightPanel
           allSquad={roster}
+          autoSetPieces={autoSetPieces}
           matchRoles={team.match_roles}
           onGameUpdate={onGameUpdate}
           onTacticsPhaseChange={(patch) => {

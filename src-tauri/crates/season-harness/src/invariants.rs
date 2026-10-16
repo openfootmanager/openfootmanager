@@ -954,9 +954,19 @@ mod tests {
         ));
     }
 
+    /// The built world, with the cup's edition played out: a cup counts as complete (and so
+    /// must advance at the rollover) only once every tie is played.
+    fn world_with_a_finished_cup() -> Game {
+        let mut game = world();
+        for fixture in &mut competition(&mut game, "eng-cup").fixtures {
+            fixture.status = FixtureStatus::Completed;
+        }
+        game
+    }
+
     #[test]
     fn a_completed_competition_must_advance_by_exactly_one_season() {
-        let game = world();
+        let game = world_with_a_finished_cup();
         let was = before(&game);
 
         // Left where it was, and jumped past a season: both wrong.
@@ -984,7 +994,7 @@ mod tests {
     fn a_league_still_mid_season_is_exempt_from_advancing() {
         // A league the rollover judged unfinished is left as it is, by design, so
         // it must not be held to advancing. Mark one as started and unfinished.
-        let mut game = world();
+        let mut game = world_with_a_finished_cup();
         let table = competition(&mut game, "eng-d1");
         table.fixtures[0].status = FixtureStatus::Completed;
         assert!(
