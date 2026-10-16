@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { GameStateData } from "../../store/gameStore";
+import { listCustomTactics, saveCustomTactic } from "../../services/customTacticsService";
 import { getTacticsBlueprintStatus } from "../../services/squadService";
 import {
   TACTICS_PRESETS,
@@ -9,9 +10,9 @@ import {
   type TacticsPresetDefinition,
 } from "./TacticsTab.helpers";
 import {
-  buildCustomTacticsStorageKey,
-  loadCustomTactics,
-  saveCustomTactics,
+  importLegacyTactics,
+  toCustomTactic,
+  toLibraryEntries,
 } from "./TacticsCustomTactics.helpers";
 import type { TacticsLibraryEntry } from "./TacticsCommandBar";
 
@@ -35,9 +36,9 @@ export function useTacticsLibrary({
   onApplyPreset,
 }: UseTacticsLibraryArgs) {
   const { t } = useTranslation();
-  const [customTactics, setCustomTactics] = useState<TacticsLibraryEntry[]>(() =>
-    gameState ? loadCustomTactics(gameState) : [],
-  );
+  // The library is the career's, kept in the save: it follows a change of club and a reload. It
+  // starts empty and is filled from the save (and from an old browser library, once) below.
+  const [customTactics, setCustomTactics] = useState<TacticsLibraryEntry[]>([]);
   const [activeTacticId, setActiveTacticId] = useState<string | null>(
     initialPreset ? `preset:${initialPreset.id}` : null,
   );
@@ -47,9 +48,8 @@ export function useTacticsLibrary({
       : t("tactics.customTactic"),
   );
   const [presetAnchorId, setPresetAnchorId] = useState<string | null>(initialPreset?.id ?? null);
-  const hydratedCustomTacticsScopeRef = useRef<string | null>(null);
-
-  const customTacticsStorageKey = gameState ? buildCustomTacticsStorageKey(gameState) : null;
+  const managerId = gameState?.manager.id ?? null;
+  const careerStartDate = gameState?.clock.start_date ?? null;
 
   // Whether the phase dials still equal the style's blueprint is the backend's rule (`blueprint_for`);
   // it is asked again whenever the dials or the style change.
@@ -80,20 +80,31 @@ export function useTacticsLibrary({
   }, [blueprintKey, hasClub]);
 
   useEffect(() => {
-    if (!gameState || !customTacticsStorageKey) return;
-    hydratedCustomTacticsScopeRef.current = null;
-    setCustomTactics(loadCustomTactics(gameState));
-  }, [customTacticsStorageKey, gameState]);
+    if (!managerId || !careerStartDate) return;
 
-  useEffect(() => {
-    if (!gameState || !customTacticsStorageKey) return;
-    if (hydratedCustomTacticsScopeRef.current !== customTacticsStorageKey) {
-      hydratedCustomTacticsScopeRef.current = customTacticsStorageKey;
-      return;
-    }
+    let cancelled = false;
+    listCustomTactics()
+      .then((saved) => importLegacyTactics(managerId, careerStartDate, saved, saveCustomTactic))
+      .then((tactics) => {
+        if (!cancelled) setCustomTactics(toLibraryEntries(tactics));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [managerId, careerStartDate]);
 
-    saveCustomTactics(gameState, customTactics);
-  }, [customTactics, customTacticsStorageKey, gameState]);
+  // The screen answers at once; the save's own list then replaces it, or, if the save refused the
+  // tactic (a shape the game cannot lay out), puts the library back as the save has it.
+  function persistTactic(tactic: TacticsLibraryEntry): void {
+    saveCustomTactic(toCustomTactic(tactic))
+      .then((saved) => setCustomTactics(toLibraryEntries(saved)))
+      .catch(() =>
+        listCustomTactics()
+          .then((saved) => setCustomTactics(toLibraryEntries(saved)))
+          .catch(() => {}),
+      );
+  }
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const anchoredPreset = presetAnchorId
@@ -233,6 +244,7 @@ export function useTacticsLibrary({
   function handleCreateCustomTactic(): void {
     const nextTactic = createCustomTacticEntry();
     setCustomTactics((current) => [nextTactic, ...current]);
+    persistTactic(nextTactic);
     setActiveTacticId(nextTactic.id);
     setDraftTacticName(nextTactic.name);
   }
@@ -249,6 +261,7 @@ export function useTacticsLibrary({
     });
 
     setCustomTactics((current) => [nextTactic, ...current]);
+    persistTactic(nextTactic);
     setActiveTacticId(nextTactic.id);
     setDraftTacticName(nextTactic.name);
   }
@@ -261,19 +274,17 @@ export function useTacticsLibrary({
       activeTactic &&
       customTactics.some((e) => e.id === activeTactic.id)
     ) {
+      const updated: TacticsLibraryEntry = {
+        ...activeTactic,
+        description: activeTactic.description,
+        formation,
+        name: nextName,
+        playStyle: activePlayStyle,
+      };
       setCustomTactics((current) =>
-        current.map((entry) =>
-          entry.id === activeTactic.id
-            ? {
-                ...entry,
-                description: activeTactic.description,
-                formation,
-                name: nextName,
-                playStyle: activePlayStyle,
-              }
-            : entry,
-        ),
+        current.map((entry) => (entry.id === activeTactic.id ? updated : entry)),
       );
+      persistTactic(updated);
       return;
     }
 
@@ -286,6 +297,7 @@ export function useTacticsLibrary({
     });
 
     setCustomTactics((current) => [nextTactic, ...current]);
+    persistTactic(nextTactic);
     setActiveTacticId(nextTactic.id);
     setDraftTacticName(nextTactic.name);
   }
