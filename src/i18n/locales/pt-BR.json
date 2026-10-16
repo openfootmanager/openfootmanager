@@ -582,7 +582,11 @@
       "twistedAnkle": "Tornozelo torcido",
       "kneeBruise": "Contusão no joelho",
       "hamstringTightness": "Tensão no posterior da coxa",
-      "calfStrain": "Distensão na panturrilha"
+      "calfStrain": "Distensão na panturrilha",
+      "ankleLigamentSprain": "Entorse de ligamento do tornozelo",
+      "hamstringTear": "Ruptura de isquiotibiais",
+      "kneeLigamentTear": "Ruptura de ligamento do joelho",
+      "metatarsalFracture": "Fratura de metatarso"
     },
     "scoutRatings": {
       "excellent": "Excelente",
@@ -1485,6 +1489,10 @@
   "players": {
     "searchPlaceholder": "Buscar por nome ou nacionalidade...",
     "allPos": "Todas Pos",
+    "filterAgeMin": "Idade mín.",
+    "filterAgeMax": "Idade máx.",
+    "filterOvrMin": "Overall mín.",
+    "filterOvrMax": "Overall máx.",
     "allTeams": "Todos os Times",
     "nPlayersFound": "{{count}} jogador(es) encontrado(s)",
     "noMatch": "Nenhum jogador corresponde aos seus filtros.",
@@ -2892,6 +2900,12 @@
       "notice": {
         "fallbackLeagueGenerated": "Nenhuma competição foi definida. Uma liga de divisão única padrão foi gerada automaticamente para todos os times.",
         "fallbackTeamsFilled": "Apenas um time foi definido. Adversários procedurais foram gerados automaticamente para tornar o jogo jogável."
+      },
+      "customTactic": {
+        "nameRequired": "Dê à tática um nome de até 60 caracteres.",
+        "invalidFormation": "O jogo não conhece essa formação.",
+        "invalidPlayStyle": "O jogo não conhece esse estilo de jogo.",
+        "notFound": "Essa tática não existe mais."
       }
     },
     "sender": {
@@ -2990,12 +3004,21 @@
       },
       "wageOverBudget": {
         "subject": "Folha Salarial Acima do Orçamento",
-        "body": "Nossa folha salarial semanal ({{annualWages}}) atualmente excede o orçamento salarial definido ({{wageBudget}}).\n\nEmbora possamos sustentar isso no curto prazo, a diretoria prefere ver a folha salarial sob controle."
+        "body": "Nossa folha salarial semanal ({{weeklyWageBill}}) atualmente excede o orçamento salarial definido ({{wageBudget}}).\n\nEmbora possamos sustentar isso no curto prazo, a diretoria prefere ver a folha salarial sob controle."
       },
       "financeBoardPressure": {
         "subject": "Diretoria — Pressão financeira",
         "bodyWarning": "A diretoria segue preocupada com a situação financeira do clube. A confiança no seu trabalho caiu {{penalty}} pontos nesta semana.\n\nVocê precisa melhorar a folha salarial e o caixa de curto prazo antes que a paciência diminua ainda mais.",
         "bodyCritical": "A diretoria revisou o agravamento da situação financeira do clube e a confiança no seu trabalho caiu {{penalty}} pontos nesta semana.\n\nCaixa e compromissos salariais estão agora em estado crítico. Medidas imediatas são esperadas."
+      },
+      "financeLevers": {
+        "subject": "Há opções de recuperação disponíveis para o clube",
+        "body": "O dinheiro está curto, o que abre opções de recuperação. As disponíveis para o clube agora aparecem abaixo; cada uma leva você à aba Finanças.",
+        "action": {
+          "boardSupport": "Pedir apoio à diretoria",
+          "sponsorPitch": "Buscar um novo patrocinador",
+          "marketingCampaign": "Lançar uma campanha de marketing"
+        }
       },
       "marketingCampaign": {
         "subject": "Relatório da campanha de marketing",
@@ -3184,6 +3207,11 @@
         "subject": "Lesão — {{player}} ({{injury}})",
         "body0": "Más notícias do treino. {{player}} sofreu uma {{injury}} durante a sessão de hoje.\n\nA equipe médica estima {{days}} dias afastado. Vamos acompanhar a recuperação de perto.",
         "body1": "Infelizmente, {{player}} caiu no treino hoje com uma {{injury}}.\n\nAvaliação inicial: fora por aproximadamente {{days}} dias. Manteremos você informado sobre o progresso."
+      },
+      "matchInjury": {
+        "subject": "Lesão no jogo — {{player}} ({{injury}})",
+        "body0": "Más notícias da partida: {{player}} se lesionou em campo.\n\nDiagnóstico: {{injury}}. O departamento médico estima {{days}} dias de afastamento e vamos acompanhar a recuperação de perto.",
+        "body1": "{{player}} não saiu ileso da partida de hoje.\n\nDiagnóstico: {{injury}}. Avaliação inicial: fora por cerca de {{days}} dias. Manteremos você informado sobre a evolução."
       },
       "mediaPositive": {
         "subject": "Imprensa Positiva — {{player}}",

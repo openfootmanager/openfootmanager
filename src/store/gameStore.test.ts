@@ -19,6 +19,7 @@ beforeEach(() => {
 const makeGameState = (overrides: Partial<GameStateData> = {}): GameStateData => ({
   clock: { current_date: "2026-08-01", start_date: "2026-08-01" },
   manager: {
+    display_name: "Test Manager",
     id: "mgr1",
     first_name: "Test",
     last_name: "Manager",

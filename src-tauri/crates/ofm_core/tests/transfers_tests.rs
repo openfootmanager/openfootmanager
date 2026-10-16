@@ -1,3 +1,5 @@
+#[path = "transfers_tests/bid_money.rs"]
+mod bid_money;
 #[path = "transfers_tests/loans.rs"]
 mod loans;
 

@@ -25,7 +25,11 @@ import {
   getContractYearsRemaining,
   positionBadgeVariant,
 } from "../../lib/helpers";
-import { canDelegateToYouthAcademy, isFirstTeamSquadPlayer } from "../../lib/playerSquad";
+import {
+  canDelegateToYouthAcademy,
+  isFirstTeamSquadPlayer,
+  isMatchDayEligible,
+} from "../../lib/playerSquad";
 import { getInjurySeverity, resolveInjuryName } from "../../lib/injury";
 import { useTranslation } from "react-i18next";
 import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
@@ -123,7 +127,7 @@ export default function SquadRosterView({
 
   const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
 
-  const available = roster.filter((player) => !player.injury);
+  const available = roster.filter(isMatchDayEligible);
   const formation = team.formation || "4-4-2";
   const activePlayStyle = team.play_style || "Balanced";
   const currentPreset = findTacticsPresetBySetup(formation, activePlayStyle);
@@ -694,7 +698,7 @@ export default function SquadRosterView({
                     : {
                         label: t("squad.makeStarter"),
                         icon: <Users className="w-4 h-4" />,
-                        disabled: Boolean(player.injury),
+                        disabled: !isMatchDayEligible(player),
                         onClick: () => {
                           void updateSquadPlanning(player.id, "promote");
                         },

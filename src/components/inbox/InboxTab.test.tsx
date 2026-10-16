@@ -199,6 +199,7 @@ function createGameState(messages: MessageData[]): GameStateData {
       start_date: "2025-01-01",
     },
     manager: {
+      display_name: "John Doe",
       id: "manager-1",
       first_name: "John",
       last_name: "Doe",
@@ -888,11 +889,11 @@ describe("InboxTab", (): void => {
 
     expect(screen.getByTestId("delegated-renewal-report")).toBeInTheDocument();
     expect(
-      screen.getByText("Completed: Alex Done agreed to 3 year(s) on £24,000/wk."),
+      screen.getByText("Completed: Alex Done agreed to 3 year(s) on £24K/wk."),
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Still difficult: Ben Pending — Their camp want around £26,000/wk for 4 years, which is beyond the delegation limits.",
+        "Still difficult: Ben Pending — Their camp want around £26K/wk for 4 years, which is beyond the delegation limits.",
       ),
     ).toBeInTheDocument();
     expect(
@@ -1230,11 +1231,12 @@ describe("InboxTab", (): void => {
       });
 
       expect(
-        screen.getByText("Completed: Alex Done agreed to 3 year(s) on €24.000/wk."),
+        // getByText collapses the no-break space the German format uses into a plain space.
+        screen.getByText("Completed: Alex Done agreed to 3 year(s) on 24.000 €/wk."),
       ).toBeInTheDocument();
       expect(
         screen.getByText(
-          "Failed: Chris Failed — Board wage policy blocks this renewal. Keep annual wages near €24.000 while we recover.",
+          "Failed: Chris Failed — Board wage policy blocks this renewal. Keep annual wages near 24.000 € while we recover.",
         ),
       ).toBeInTheDocument();
     } finally {

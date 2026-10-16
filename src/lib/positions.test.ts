@@ -6,6 +6,7 @@ import {
   normalisePosition,
   positionGroupRank,
   positionSortRank,
+  positionsInGroup,
 } from "./positions";
 
 // Every value `domain::player::Position` can serialise to, with the rank each ranker must give it.
@@ -112,5 +113,31 @@ describe("naturalPositionOf", () => {
    */
   it("falls back to position when the natural position is empty", () => {
     expect(naturalPositionOf({ position: "Midfielder", natural_position: "" })).toBe("Midfielder");
+  });
+});
+
+describe("positionsInGroup", () => {
+  /**
+   * Given each broad group
+   * When its detailed positions are listed
+   * Then they come in the pitch order the filter shows them, and a keeper group is just the keeper.
+   */
+  it("lists the detailed positions of a group in pitch order", () => {
+    expect(positionsInGroup("Goalkeeper")).toEqual(["Goalkeeper"]);
+    expect(positionsInGroup("Defender")).toEqual([
+      "CenterBack",
+      "LeftBack",
+      "RightBack",
+      "LeftWingBack",
+      "RightWingBack",
+    ]);
+    expect(positionsInGroup("Midfielder")).toEqual([
+      "DefensiveMidfielder",
+      "CentralMidfielder",
+      "AttackingMidfielder",
+      "LeftMidfielder",
+      "RightMidfielder",
+    ]);
+    expect(positionsInGroup("Forward")).toEqual(["LeftWinger", "RightWinger", "Striker"]);
   });
 });

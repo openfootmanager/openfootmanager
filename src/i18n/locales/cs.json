@@ -586,7 +586,11 @@
       "twistedAnkle": "Podvrtnutý kotník",
       "kneeBruise": "Pohmožděné koleno",
       "hamstringTightness": "Ztuhlý zadní stehenní sval",
-      "calfStrain": "Natažené lýtko"
+      "calfStrain": "Natažené lýtko",
+      "ankleLigamentSprain": "Podvrtnutí vazů kotníku",
+      "hamstringTear": "Natržení hamstringu",
+      "kneeLigamentTear": "Přetržení vazů v koleni",
+      "metatarsalFracture": "Zlomenina metatarzu"
     },
     "scoutRatings": {
       "excellent": "Vynikající",
@@ -1485,6 +1489,10 @@
   "players": {
     "searchPlaceholder": "Hledat podle jména nebo národnosti...",
     "allPos": "Všechny pozice",
+    "filterAgeMin": "Min. věk",
+    "filterAgeMax": "Max. věk",
+    "filterOvrMin": "Min. hodnocení",
+    "filterOvrMax": "Max. hodnocení",
     "allTeams": "Všechny týmy",
     "nPlayersFound": "Nalezení hráči: {{count}}",
     "noMatch": "Vašim filtrům neodpovídají žádní hráči.",
@@ -2892,7 +2900,13 @@
         "youthAssignmentNotFound": "Úkol pro nábor mládeže nebyl nalezen",
         "scoutAlreadyAssignedToSearch": "Skaut je již k tomuto vyhledávání přiřazen"
       },
-      "invalidPath": "Neplatná cesta."
+      "invalidPath": "Neplatná cesta.",
+      "customTactic": {
+        "nameRequired": "Dejte taktice název dlouhý nejvýše 60 znaků.",
+        "invalidFormation": "Tuto formaci hra nezná.",
+        "invalidPlayStyle": "Tento herní styl hra nezná.",
+        "notFound": "Tato taktika už neexistuje."
+      }
     },
     "sender": {
       "boardOfDirectors": "Představenstvo",
@@ -2990,12 +3004,21 @@
       },
       "wageOverBudget": {
         "subject": "Mzdové náklady překračují rozpočet",
-        "body": "Naše týdenní mzdové náklady ({{annualWages}}) momentálně překračují vyhrazený rozpočet na platy ({{wageBudget}}).\n\nAčkoliv to v krátkodobém horizontu dokážeme utáhnout, představenstvo by rádo vidělo mzdové náklady pod kontrolou."
+        "body": "Naše týdenní mzdové náklady ({{weeklyWageBill}}) momentálně překračují vyhrazený rozpočet na platy ({{wageBudget}}).\n\nAčkoliv to v krátkodobém horizontu dokážeme utáhnout, představenstvo by rádo vidělo mzdové náklady pod kontrolou."
       },
       "financeBoardPressure": {
         "subject": "Hodnocení představenstva — Finanční tlak",
         "bodyWarning": "Představenstvo má i nadále obavy o finance klubu. Důvěra ve vaše vedení tento týden klesla o {{penalty}} bodů.\n\nMusíte zlepšit situaci ohledně mezd a krátkodobého cash flow, než představenstvu dojde trpělivost.",
         "bodyCritical": "Představenstvo zhodnotilo zhoršující se finanční situaci klubu a důvěra ve vaše vedení tento týden klesla o {{penalty}} bodů.\n\nFinanční rezervy a mzdové závazky jsou nyní v kritickém stavu. Očekávají se okamžitá nápravná opatření."
+      },
+      "financeLevers": {
+        "subject": "Klubu se otevřely možnosti záchrany",
+        "body": "Peněz je málo, a tím se otevírají možnosti nápravy. Ty, které jsou klubu právě dostupné, jsou uvedeny níže; každá vás zavede na kartu Finance.",
+        "action": {
+          "boardSupport": "Požádat o podporu vedení",
+          "sponsorPitch": "Oslovit nového sponzora",
+          "marketingCampaign": "Spustit marketingovou kampaň"
+        }
       },
       "marketingCampaign": {
         "subject": "Zpráva o marketingové kampani",
@@ -3184,6 +3207,11 @@
         "subject": "Zranění — {{player}} ({{injury}})",
         "body0": "Špatné zprávy z tréninkového areálu. Hráč {{player}} utrpěl během dnešního tréninku zranění: {{injury}}.\n\nLékařský tým odhaduje dobu rekonvalescence na {{days}} dní. Jeho zotavení budeme pečlivě sledovat.",
         "body1": "Hráč {{player}} se bohužel na dnešním tréninku zranil a jeho diagnózou je {{injury}}.\n\nPrvní odhad: mimo hru přibližně na {{days}} dní. O jeho pokroku vás budeme průběžně informovat."
+      },
+      "matchInjury": {
+        "subject": "Zranění v zápase — {{player}} ({{injury}})",
+        "body0": "Špatné zprávy ze zápasu: {{player}} se na hřišti zranil.\n\nDiagnóza: {{injury}}. Lékařský tým odhaduje výpadek na {{days}} dní a bude průběh léčby pozorně sledovat.",
+        "body1": "{{player}} z dnešního zápasu neodešel bez úhony.\n\nDiagnóza: {{injury}}. První odhad: mimo hru přibližně {{days}} dní. Budeme vás informovat o postupu."
       },
       "mediaPositive": {
         "subject": "Pozitivní ohlas v tisku — {{player}}",

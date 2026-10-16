@@ -268,9 +268,7 @@ pub(crate) fn buyer_counter_offer_ceiling(
 ) -> u64 {
     let baseline_fee = suggested_incoming_fee(current_date, player).max(current_offer_fee);
     let ceiling = ((baseline_fee as f64) * 1.2).round() as u64;
-    ceiling
-        .min(buyer_team.transfer_budget.max(0) as u64)
-        .min(buyer_team.finance.max(0) as u64)
+    ceiling.min(transfer_fee_ceiling(buyer_team))
 }
 pub(crate) fn transfer_outcome(
     decision: TransferNegotiationDecision,
@@ -410,15 +408,7 @@ pub fn make_transfer_bid(
         .find(|t| t.id == user_team_id)
         .ok_or("be.error.managedTeamNotFound")?;
 
-    let fee_i64 = i64::try_from(fee).map_err(|_| ERR_INSUFFICIENT_FUNDS.to_string())?;
-
-    if my_team.finance < fee_i64 {
-        return Err(ERR_INSUFFICIENT_FUNDS.into());
-    }
-
-    if my_team.transfer_budget < fee_i64 {
-        return Err(ERR_TRANSFER_BUDGET_TOO_LOW.into());
-    }
+    fee_block(my_team, fee).map_err(|block| block.error_key().to_string())?;
 
     let owner_team = game
         .teams
@@ -776,8 +766,7 @@ pub fn counter_offer(
     let stalled = requested_fee > offer.fee.saturating_add(175_000);
     let (tension, patience) = transfer_negotiation_metrics(round, stalled, respected_signal);
     let counter_ceiling = buyer_counter_offer_ceiling(current_date, player, offer.fee, buyer_team);
-    let budget_cap =
-        (buyer_team.transfer_budget.max(0) as u64).min(buyer_team.finance.max(0) as u64);
+    let budget_cap = transfer_fee_ceiling(buyer_team);
     let goodwill_margin = if respected_signal { 50_000 } else { 0 };
     let accepted = requested_fee
         <= counter_ceiling

@@ -582,7 +582,11 @@
       "twistedAnkle": "Entorse de la cheville",
       "kneeBruise": "Contusion au genou",
       "hamstringTightness": "Raideur aux ischio-jambiers",
-      "calfStrain": "Élongation du mollet"
+      "calfStrain": "Élongation du mollet",
+      "ankleLigamentSprain": "Entorse des ligaments de la cheville",
+      "hamstringTear": "Déchirure des ischio-jambiers",
+      "kneeLigamentTear": "Rupture des ligaments du genou",
+      "metatarsalFracture": "Fracture d'un métatarsien"
     },
     "scoutRatings": {
       "excellent": "Excellent",
@@ -1485,6 +1489,10 @@
   "players": {
     "searchPlaceholder": "Rechercher par nom ou nationalité...",
     "allPos": "Toutes Pos",
+    "filterAgeMin": "Âge min.",
+    "filterAgeMax": "Âge max.",
+    "filterOvrMin": "Note min.",
+    "filterOvrMax": "Note max.",
     "allTeams": "Toutes les Équipes",
     "nPlayersFound": "{{count}} joueur(s) trouvé(s)",
     "noMatch": "Aucun joueur ne correspond à vos filtres.",
@@ -2892,6 +2900,12 @@
       "notice": {
         "fallbackLeagueGenerated": "Aucune compétition n'a été définie. Une ligue à division unique par défaut a été générée automatiquement pour toutes les équipes.",
         "fallbackTeamsFilled": "Une seule équipe a été définie. Des adversaires procéduraux ont été générés automatiquement pour rendre le jeu jouable."
+      },
+      "customTactic": {
+        "nameRequired": "Donnez à la tactique un nom de 60 caractères au plus.",
+        "invalidFormation": "Le jeu ne connaît pas cette formation.",
+        "invalidPlayStyle": "Le jeu ne connaît pas ce style de jeu.",
+        "notFound": "Cette tactique n'existe plus."
       }
     },
     "sender": {
@@ -2990,12 +3004,21 @@
       },
       "wageOverBudget": {
         "subject": "La masse salariale dépasse le budget",
-        "body": "Notre masse salariale hebdomadaire ({{annualWages}}) dépasse actuellement le budget salarial alloué ({{wageBudget}}).\n\nMême si cela reste soutenable à court terme, le conseil préférerait voir la masse salariale revenir sous contrôle."
+        "body": "Notre masse salariale hebdomadaire ({{weeklyWageBill}}) dépasse actuellement le budget salarial alloué ({{wageBudget}}).\n\nMême si cela reste soutenable à court terme, le conseil préférerait voir la masse salariale revenir sous contrôle."
       },
       "financeBoardPressure": {
         "subject": "Conseil — Pression financière",
         "bodyWarning": "Le conseil reste préoccupé par la situation financière du club. La confiance dans votre gestion a chuté de {{penalty}} points cette semaine.\n\nVous devez améliorer la masse salariale et la trésorerie à court terme avant que la patience ne s'épuise davantage.",
         "bodyCritical": "Le conseil a réévalué la détérioration de la situation financière du club, et sa confiance dans votre gestion a chuté de {{penalty}} points cette semaine.\n\nLa trésorerie et les engagements salariaux sont désormais dans un état critique. Des mesures immédiates sont attendues."
+      },
+      "financeLevers": {
+        "subject": "Des options de redressement s'ouvrent au club",
+        "body": "L'argent manque, ce qui ouvre des options de redressement. Celles qui s'offrent au club en ce moment sont listées ci-dessous ; chacune vous mène à l'onglet Finances.",
+        "action": {
+          "boardSupport": "Demander l'aide du conseil",
+          "sponsorPitch": "Démarcher un nouveau sponsor",
+          "marketingCampaign": "Lancer une campagne marketing"
+        }
       },
       "marketingCampaign": {
         "subject": "Rapport de campagne marketing",
@@ -3184,6 +3207,11 @@
         "subject": "Blessure — {{player}} ({{injury}})",
         "body0": "Mauvaise nouvelle depuis le centre d'entraînement. {{player}} s'est blessé ({{injury}}) lors de la séance d'aujourd'hui.\n\nL'équipe médicale estime {{days}} jours d'absence. Nous suivrons la récupération de près.",
         "body1": "Malheureusement, {{player}} s'est blessé ({{injury}}) à l'entraînement aujourd'hui.\n\nBilan initial : environ {{days}} jours d'absence. Nous vous tiendrons informé de l'évolution."
+      },
+      "matchInjury": {
+        "subject": "Blessure en match — {{player}} ({{injury}})",
+        "body0": "Mauvaises nouvelles du match : {{player}} s'est blessé sur le terrain.\n\nDiagnostic : {{injury}}. Le staff médical estime l'indisponibilité à {{days}} jours et nous suivrons la guérison de près.",
+        "body1": "{{player}} n'est pas sorti indemne du match d'aujourd'hui.\n\nDiagnostic : {{injury}}. Première évaluation : absent environ {{days}} jours. Nous vous tiendrons informé de son évolution."
       },
       "mediaPositive": {
         "subject": "Presse positive — {{player}}",

@@ -24,6 +24,10 @@ mod determinism;
 mod fixtures;
 #[path = "turn_tests/live_match_day.rs"]
 mod live_match_day;
+#[path = "turn_tests/match_injuries.rs"]
+mod match_injuries;
+#[path = "turn_tests/post_match_reactions.rs"]
+mod post_match_reactions;
 #[path = "turn_tests/squad_floor.rs"]
 mod squad_floor;
 #[path = "turn_tests/training_ground.rs"]

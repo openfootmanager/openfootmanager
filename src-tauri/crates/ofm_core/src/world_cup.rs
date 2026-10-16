@@ -1026,7 +1026,7 @@ pub fn schedule_world_cup_qualifying(game: &mut Game, wc_year: i32, window_dates
 /// (the second half of the campaign's slot layout), and refresh national
 /// squads after a summer of transfers and retirements. Fixtures already
 /// played keep their dates and results untouched.
-pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String], rng: &mut impl Rng) {
+pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String]) {
     if window_dates.is_empty() {
         return;
     }
@@ -1059,7 +1059,7 @@ pub fn continue_world_cup_qualifying(game: &mut Game, window_dates: &[String], r
     stranded.sort();
     stranded.dedup();
     for date in stranded {
-        process_world_cup_fixtures_due(game, &date, rng);
+        process_world_cup_fixtures_due(game, &date);
     }
 
     // Squads next: the campaign's second half should field current players.
@@ -1461,7 +1461,7 @@ fn stage_world_cup_playoff_if_ready(game: &mut Game, today: &str) {
 /// Runs to a fixpoint because settling can itself add fixtures: completing the
 /// groups stages the playoff, and completing its preliminaries seeds the
 /// finals.
-pub fn settle_outstanding_qualifying(game: &mut Game, rng: &mut impl Rng) {
+pub fn settle_outstanding_qualifying(game: &mut Game) {
     // Each pass drains one generation of fixtures — the groups, then the
     // playoff preliminaries its completion stages, then the finals — so four
     // passes always reach quiescence; the bound is just a hard stop.
@@ -1482,7 +1482,7 @@ pub fn settle_outstanding_qualifying(game: &mut Game, rng: &mut impl Rng) {
         dates.sort();
         dates.dedup();
         for date in dates {
-            process_world_cup_fixtures_due(game, &date, rng);
+            process_world_cup_fixtures_due(game, &date);
         }
     }
 }
@@ -1654,7 +1654,7 @@ pub fn qualified_field_from_game(
 /// engine (carry-back included), progressing groups and knockout rounds, and
 /// announcing the champion when the final is decided. Returns the number of
 /// fixtures simulated.
-pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut impl Rng) -> usize {
+pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str) -> usize {
     let competition_indices: Vec<usize> = game
         .competitions
         .iter()
@@ -1690,6 +1690,9 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
                     fixture.id.clone(),
                 )
             };
+            // The tie's own stream, named by its two sides like every other match stage, so
+            // what a tie does never depends on which other ties were played before it that day.
+            let mut rng = game.rng_for(&format!("world-cup/{home_id}/{away_id}"), today);
             // Knockout ties must produce a winner: extra time, then penalties.
             let is_knockout = game.competitions[competition_index]
                 .knockout_rounds
@@ -1703,10 +1706,12 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
                 home_penalties,
                 away_penalties,
             ) = if is_knockout {
-                crate::national_team::play_national_knockout_match(game, &home_id, &away_id, rng)
+                crate::national_team::play_national_knockout_match(
+                    game, &home_id, &away_id, &mut rng,
+                )
             } else {
                 let (home_goals, away_goals, home_scorers, away_scorers) =
-                    crate::national_team::play_national_match(game, &home_id, &away_id, rng);
+                    crate::national_team::play_national_match(game, &home_id, &away_id, &mut rng);
                 (
                     home_goals,
                     away_goals,
@@ -1751,7 +1756,12 @@ pub fn process_world_cup_fixtures_due(game: &mut Game, today: &str, rng: &mut im
             continue;
         }
 
-        announce_champion_if_decided(game, competition_index, today, rng);
+        // The next host is drawn once per tournament, from a stream of its own.
+        let mut host_rng = game.rng_for(
+            &format!("world-cup/host/{}", game.competitions[competition_index].id),
+            today,
+        );
+        announce_champion_if_decided(game, competition_index, today, &mut host_rng);
         // The playoff's completion is news the moment its finals are played.
         let competition = &game.competitions[competition_index];
         if is_world_cup_playoff(competition)
@@ -2041,15 +2051,77 @@ mod tests {
             .collect();
         campaign_days.sort();
         campaign_days.dedup();
-        let mut rng = StdRng::seed_from_u64(7);
         for date in &campaign_days {
-            process_world_cup_fixtures_due(&mut game, date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, date);
         }
         assert!(
             game.competitions.iter().any(is_world_cup_playoff),
             "the playoff route was not exercised"
         );
         assert_calendars_match_the_backfill(&game);
+    }
+
+    /// The results of every fixture in the world-cup competitions, by fixture id.
+    fn results_by_fixture(game: &Game) -> std::collections::BTreeMap<String, String> {
+        game.competitions
+            .iter()
+            .filter(|competition| is_world_cup_competition(competition))
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter_map(|fixture| {
+                fixture.result.as_ref().map(|result| {
+                    (
+                        fixture.id.clone(),
+                        serde_json::to_string(result).expect("a result serializes"),
+                    )
+                })
+            })
+            .collect()
+    }
+
+    /// Given a day with several World Cup qualifiers due,
+    /// When the day's fixtures are processed in two different orders,
+    /// Then every fixture has the same result either way: a match draws from its own stream.
+    #[test]
+    fn a_world_cup_days_results_do_not_depend_on_the_order_it_is_processed_in() {
+        let mut game = empty_game();
+        schedule_world_cup_qualifying(&mut game, 2026, &season_windows(2024));
+        let busiest_day = {
+            let mut per_day = std::collections::BTreeMap::<String, usize>::new();
+            for competition in game
+                .competitions
+                .iter()
+                .filter(|c| is_world_cup_competition(c))
+            {
+                for fixture in &competition.fixtures {
+                    *per_day.entry(fixture.date.clone()).or_default() += 1;
+                }
+            }
+            per_day
+                .into_iter()
+                .max_by_key(|(_, count)| *count)
+                .map(|(date, _)| date)
+                .expect("the campaign has fixtures")
+        };
+
+        let mut forward = game.clone();
+        process_world_cup_fixtures_due(&mut forward, &busiest_day);
+        let mut reversed = game.clone();
+        for competition in reversed
+            .competitions
+            .iter_mut()
+            .filter(|competition| is_world_cup_competition(competition))
+        {
+            competition.fixtures.reverse();
+        }
+        process_world_cup_fixtures_due(&mut reversed, &busiest_day);
+
+        let forward_results = results_by_fixture(&forward);
+        assert!(
+            forward_results.len() >= 4,
+            "the day needs several fixtures to tell the orders apart, got {}",
+            forward_results.len()
+        );
+        assert_eq!(forward_results, results_by_fixture(&reversed));
     }
 
     #[test]
@@ -2104,9 +2176,8 @@ mod tests {
         );
 
         // Play every qualifying matchday across the spread window blocks.
-        let mut rng = StdRng::seed_from_u64(11);
         for date in &window_block {
-            process_world_cup_fixtures_due(&mut game, date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, date);
         }
         // Group tables recorded results.
         let played = game
@@ -2245,9 +2316,8 @@ mod tests {
         schedule_world_cup_qualifying(&mut game, 2026, &windows);
 
         let window_block = crate::national_team::international_window_span_dates(&windows);
-        let mut rng = StdRng::seed_from_u64(7);
         for date in &window_block {
-            process_world_cup_fixtures_due(&mut game, date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, date);
         }
 
         let host = "US";
@@ -2323,7 +2393,6 @@ mod tests {
         // FORMAT_48 finals: groups + knockouts must never overload a calendar day.
         let mut game = empty_game();
         schedule_world_cup(&mut game, kickoff(2026), &FORMAT_48);
-        let mut rng = StdRng::seed_from_u64(99);
         for _ in 0..400 {
             let next = game
                 .competitions
@@ -2334,7 +2403,7 @@ mod tests {
                 .map(|f| f.date.clone())
                 .min();
             let Some(date) = next else { break };
-            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &date);
         }
         let finals = game
             .competitions
@@ -2500,7 +2569,6 @@ mod tests {
         // 2038 is a cup year; its successor 2042 has no real-world host, so the
         // game awards one when the 2038 final is decided.
         schedule_world_cup(&mut game, kickoff(2038), &FORMAT_16);
-        let mut rng = StdRng::seed_from_u64(3);
         for _ in 0..200 {
             let next = game
                 .competitions
@@ -2511,7 +2579,7 @@ mod tests {
                 .map(|f| f.date.clone())
                 .min();
             let Some(date) = next else { break };
-            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &date);
         }
         assert!(
             game.world_history.world_cup_host(2042).is_some(),
@@ -2750,7 +2818,6 @@ mod tests {
     fn the_tournament_plays_to_a_champion_with_carry_back() {
         let mut game = empty_game();
         schedule_world_cup(&mut game, kickoff(2026), &FORMAT_16);
-        let mut rng = StdRng::seed_from_u64(7);
 
         // Play every date in order until no fixtures remain scheduled.
         for _ in 0..200 {
@@ -2765,7 +2832,7 @@ mod tests {
             let Some(date) = next_date else {
                 break;
             };
-            assert!(process_world_cup_fixtures_due(&mut game, &date, &mut rng) > 0);
+            assert!(process_world_cup_fixtures_due(&mut game, &date) > 0);
         }
 
         let cup = game
@@ -2813,7 +2880,7 @@ mod tests {
 
     /// Play `game`'s World Cup through to its champion. Returns the date of the
     /// final, so a caller can carry on simulating the days after it.
-    fn play_to_the_final(game: &mut Game, rng: &mut impl Rng) -> String {
+    fn play_to_the_final(game: &mut Game) -> String {
         let mut last = String::new();
         for _ in 0..200 {
             let next_date = game
@@ -2827,7 +2894,7 @@ mod tests {
             let Some(date) = next_date else {
                 break;
             };
-            process_world_cup_fixtures_due(game, &date, rng);
+            process_world_cup_fixtures_due(game, &date);
             last = date;
         }
         last
@@ -2844,8 +2911,7 @@ mod tests {
     fn the_champion_is_announced_exactly_once() {
         let mut game = empty_game();
         schedule_world_cup(&mut game, kickoff(2026), &FORMAT_16);
-        let mut rng = StdRng::seed_from_u64(7);
-        let final_day = play_to_the_final(&mut game, &mut rng);
+        let final_day = play_to_the_final(&mut game);
 
         // Counted, not found: `.find()` passes just as happily on a duplicate.
         assert_eq!(
@@ -2861,7 +2927,7 @@ mod tests {
         // days after the final keep re-entering the announcement path.
         let mut day = day_after(&final_day);
         for _ in 0..30 {
-            process_world_cup_fixtures_due(&mut game, &day, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &day);
             day = day_after(&day);
         }
         assert_eq!(
@@ -2879,8 +2945,7 @@ mod tests {
         // the inbox", so deleting it invited the announcement straight back.
         let mut game = empty_game();
         schedule_world_cup(&mut game, kickoff(2026), &FORMAT_16);
-        let mut rng = StdRng::seed_from_u64(7);
-        let final_day = play_to_the_final(&mut game, &mut rng);
+        let final_day = play_to_the_final(&mut game);
         assert!(
             game.messages
                 .iter()
@@ -2891,7 +2956,7 @@ mod tests {
 
         let mut day = day_after(&final_day);
         for _ in 0..30 {
-            process_world_cup_fixtures_due(&mut game, &day, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &day);
             day = day_after(&day);
         }
         assert!(
@@ -2994,12 +3059,11 @@ mod tests {
 
         // Play the first season only up to the club season's end in May: the
         // rollover outruns the June window, leaving its fixtures scheduled.
-        let mut rng = StdRng::seed_from_u64(7);
         for date in crate::national_team::international_window_span_dates(&season_windows(2024))
             .into_iter()
             .filter(|date| date.as_str() < "2025-06-01")
         {
-            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &date);
         }
         let (played_before, scheduled_before): (Vec<(String, String)>, usize) = {
             let qualifying = game
@@ -3040,7 +3104,7 @@ mod tests {
         );
 
         let season_two = season_windows(2025);
-        continue_world_cup_qualifying(&mut game, &season_two, &mut rng);
+        continue_world_cup_qualifying(&mut game, &season_two);
 
         let qualifying = game
             .competitions
@@ -3089,14 +3153,13 @@ mod tests {
 
         // Play the whole campaign: both seasons' windows up to March.
         let season_two = season_windows(2025);
-        let mut rng = StdRng::seed_from_u64(13);
         for date in crate::national_team::international_window_span_dates(&season_windows(2024)) {
-            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &date);
         }
         for date in crate::national_team::international_window_span_dates(
             &season_two[..season_two.len() - 1],
         ) {
-            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &date);
         }
 
         // Groups done by March: the June playoff is staged and in the news.
@@ -3136,7 +3199,7 @@ mod tests {
         for date in crate::national_team::international_window_span_dates(
             &season_two[season_two.len() - 1..],
         ) {
-            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &date);
         }
         let winners = {
             let playoff = game
@@ -3181,14 +3244,13 @@ mod tests {
         // Play the campaign through the March window only — the club season
         // ends in mid-May, before the playoff's June dates.
         let season_two = season_windows(2025);
-        let mut rng = StdRng::seed_from_u64(29);
         for date in crate::national_team::international_window_span_dates(&season_windows(2024)) {
-            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &date);
         }
         for date in crate::national_team::international_window_span_dates(
             &season_two[..season_two.len() - 1],
         ) {
-            process_world_cup_fixtures_due(&mut game, &date, &mut rng);
+            process_world_cup_fixtures_due(&mut game, &date);
         }
         {
             let playoff = game
@@ -3206,7 +3268,7 @@ mod tests {
         }
 
         // The rollover arrives in May: the outstanding bracket is played out.
-        settle_outstanding_qualifying(&mut game, &mut rng);
+        settle_outstanding_qualifying(&mut game);
         let winners = {
             let playoff = game
                 .competitions

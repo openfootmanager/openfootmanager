@@ -586,7 +586,11 @@
       "twistedAnkle": "Pergelangan kaki terkilir",
       "kneeBruise": "Memar lutut",
       "hamstringTightness": "Otot hamstring menegang",
-      "calfStrain": "Cedera betis"
+      "calfStrain": "Cedera betis",
+      "ankleLigamentSprain": "Keseleo ligamen pergelangan kaki",
+      "hamstringTear": "Robekan hamstring",
+      "kneeLigamentTear": "Robekan ligamen lutut",
+      "metatarsalFracture": "Patah tulang metatarsal"
     },
     "scoutRatings": {
       "excellent": "Sangat Baik",
@@ -1485,6 +1489,10 @@
   "players": {
     "searchPlaceholder": "Cari berdasarkan nama atau kewarganegaraan...",
     "allPos": "Semua Posisi",
+    "filterAgeMin": "Usia min.",
+    "filterAgeMax": "Usia maks.",
+    "filterOvrMin": "OVR min.",
+    "filterOvrMax": "OVR maks.",
     "allTeams": "Semua Tim",
     "nPlayersFound": "{{count}} pemain ditemukan",
     "noMatch": "Tidak ada pemain yang cocok dengan filter.",
@@ -2892,7 +2900,13 @@
         "youthAssignmentNotFound": "Penugasan rekrutmen pemuda tidak ditemukan",
         "scoutAlreadyAssignedToSearch": "Scout sudah ditugaskan ke pencarian ini"
       },
-      "invalidPath": "Jalur tidak valid."
+      "invalidPath": "Jalur tidak valid.",
+      "customTactic": {
+        "nameRequired": "Beri taktik nama maksimal 60 karakter.",
+        "invalidFormation": "Formasi itu tidak dikenal permainan.",
+        "invalidPlayStyle": "Gaya bermain itu tidak dikenal permainan.",
+        "notFound": "Taktik itu sudah tidak ada."
+      }
     },
     "sender": {
       "boardOfDirectors": "Dewan Direksi",
@@ -2990,12 +3004,21 @@
       },
       "wageOverBudget": {
         "subject": "Tagihan Gaji Melampaui Anggaran",
-        "body": "Tagihan gaji mingguan kami ({{annualWages}}) saat ini melampaui anggaran gaji yang dialokasikan ({{wageBudget}}).\n\nMeskipun kami dapat menahannya dalam jangka pendek, manajemen lebih suka melihat tagihan gaji terkendali."
+        "body": "Tagihan gaji mingguan kami ({{weeklyWageBill}}) saat ini melampaui anggaran gaji yang dialokasikan ({{wageBudget}}).\n\nMeskipun kami dapat menahannya dalam jangka pendek, manajemen lebih suka melihat tagihan gaji terkendali."
       },
       "financeBoardPressure": {
         "subject": "Tinjauan Manajemen — Tekanan Keuangan",
         "bodyWarning": "Manajemen tetap khawatir dengan keuangan klub. Kepercayaan terhadap kepemimpinan kamu turun {{penalty}} poin pekan ini.\n\nKamu perlu memperbaiki posisi gaji dan prospek kas jangka pendek sebelum kesabaran mereka menipis.",
         "bodyCritical": "Manajemen telah meninjau kondisi keuangan klub yang memburuk dan kepercayaan terhadap kepemimpinan kamu turun {{penalty}} poin pekan ini.\n\nCadangan kas dan komitmen gaji kini berada dalam kondisi kritis. Tindakan korektif segera sangat diharapkan."
+      },
+      "financeLevers": {
+        "subject": "Opsi pemulihan terbuka untuk klub",
+        "body": "Uang sedang seret, dan itu membuka opsi pemulihan. Opsi yang terbuka untuk klub saat ini tercantum di bawah; masing-masing membawa Anda ke tab Keuangan.",
+        "action": {
+          "boardSupport": "Minta dukungan dewan",
+          "sponsorPitch": "Tawarkan diri ke sponsor baru",
+          "marketingCampaign": "Jalankan kampanye pemasaran"
+        }
       },
       "marketingCampaign": {
         "subject": "Laporan Kampanye Pemasaran",
@@ -3184,6 +3207,11 @@
         "subject": "Cedera — {{player}} ({{injury}})",
         "body0": "Kabar buruk dari lapangan latihan. {{player}} mengalami {{injury}} selama sesi hari ini.\n\nTim medis memperkirakan {{days}} hari di luar lapangan. Kami akan memantau pemulihan dengan saksama.",
         "body1": "Sayangnya, {{player}} mengalami {{injury}} dalam latihan hari ini.\n\nPenilaian awal: absen sekitar {{days}} hari. Kami akan terus memberi kabar perkembangan mereka."
+      },
+      "matchInjury": {
+        "subject": "Cedera di pertandingan — {{player}} ({{injury}})",
+        "body0": "Kabar buruk dari pertandingan: {{player}} cedera di lapangan.\n\nDiagnosis: {{injury}}. Tim medis memperkirakan absen {{days}} hari, dan kami akan memantau pemulihannya dengan cermat.",
+        "body1": "{{player}} tidak keluar dari pertandingan hari ini dengan selamat.\n\nDiagnosis: {{injury}}. Penilaian awal: absen sekitar {{days}} hari. Kami akan terus mengabari perkembangannya."
       },
       "mediaPositive": {
         "subject": "Kabar Positif — {{player}}",
