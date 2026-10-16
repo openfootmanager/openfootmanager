@@ -601,7 +601,11 @@
       "twistedAnkle": "Distorsione alla caviglia",
       "kneeBruise": "Contusione al ginocchio",
       "hamstringTightness": "Tensione al bicipite femorale",
-      "calfStrain": "Stiramento al polpaccio"
+      "calfStrain": "Stiramento al polpaccio",
+      "ankleLigamentSprain": "Distorsione dei legamenti della caviglia",
+      "hamstringTear": "Strappo ai flessori",
+      "kneeLigamentTear": "Rottura dei legamenti del ginocchio",
+      "metatarsalFracture": "Frattura del metatarso"
     },
     "scoutRatings": {
       "excellent": "Eccellente",
@@ -2980,6 +2984,11 @@
         "subject": "Infortunio — {{player}} ({{injury}})",
         "body0": "Brutte notizie dal campo di allenamento. {{player}} ha riportato un {{injury}} durante la sessione di oggi.\n\nLo staff medico stima {{days}} giorni di stop. Monitoreremo attentamente il recupero.",
         "body1": "Purtroppo {{player}} si è fermato in allenamento oggi a causa di un {{injury}}.\n\nPrima valutazione: circa {{days}} giorni ai box. Ti terremo aggiornato sui progressi."
+      },
+      "matchInjury": {
+        "subject": "Infortunio in partita — {{player}} ({{injury}})",
+        "body0": "Brutte notizie dalla partita: {{player}} si è infortunato in campo.\n\nDiagnosi: {{injury}}. Lo staff medico stima {{days}} giorni di stop e seguiremo il recupero da vicino.",
+        "body1": "{{player}} non è uscito indenne dalla partita di oggi.\n\nDiagnosi: {{injury}}. Prima valutazione: fuori per circa {{days}} giorni. Ti terremo aggiornato sui progressi."
       },
       "mediaPositive": {
         "subject": "Stampa positiva — {{player}}",

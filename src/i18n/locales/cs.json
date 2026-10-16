@@ -586,7 +586,11 @@
       "twistedAnkle": "Podvrtnutý kotník",
       "kneeBruise": "Pohmožděné koleno",
       "hamstringTightness": "Ztuhlý zadní stehenní sval",
-      "calfStrain": "Natažené lýtko"
+      "calfStrain": "Natažené lýtko",
+      "ankleLigamentSprain": "Podvrtnutí vazů kotníku",
+      "hamstringTear": "Natržení hamstringu",
+      "kneeLigamentTear": "Přetržení vazů v koleni",
+      "metatarsalFracture": "Zlomenina metatarzu"
     },
     "scoutRatings": {
       "excellent": "Vynikající",
@@ -3200,6 +3204,11 @@
         "subject": "Zranění — {{player}} ({{injury}})",
         "body0": "Špatné zprávy z tréninkového areálu. Hráč {{player}} utrpěl během dnešního tréninku zranění: {{injury}}.\n\nLékařský tým odhaduje dobu rekonvalescence na {{days}} dní. Jeho zotavení budeme pečlivě sledovat.",
         "body1": "Hráč {{player}} se bohužel na dnešním tréninku zranil a jeho diagnózou je {{injury}}.\n\nPrvní odhad: mimo hru přibližně na {{days}} dní. O jeho pokroku vás budeme průběžně informovat."
+      },
+      "matchInjury": {
+        "subject": "Zranění v zápase — {{player}} ({{injury}})",
+        "body0": "Špatné zprávy ze zápasu: {{player}} se na hřišti zranil.\n\nDiagnóza: {{injury}}. Lékařský tým odhaduje výpadek na {{days}} dní a bude průběh léčby pozorně sledovat.",
+        "body1": "{{player}} z dnešního zápasu neodešel bez úhony.\n\nDiagnóza: {{injury}}. První odhad: mimo hru přibližně {{days}} dní. Budeme vás informovat o postupu."
       },
       "mediaPositive": {
         "subject": "Pozitivní ohlas v tisku — {{player}}",
