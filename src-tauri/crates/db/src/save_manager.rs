@@ -1295,6 +1295,108 @@ mod tests {
     /// the next load. The free-agent market is where that showed: it is cleared
     /// and redrawn every 30 days, but the clear never reached disk, so a loaded
     /// save listed every candidate ever generated and the list only ever grew.
+    /// Given a career saved after each of three days, each day adding a match and an article
+    /// (and reading the previous one)
+    /// When a second manager, with no memory of those saves, loads the file
+    /// Then it holds exactly the matches and articles in memory, none twice and none missing.
+    #[test]
+    fn stats_and_news_saved_day_by_day_reload_exactly_as_they_were() {
+        use domain::news::{NewsArticle, NewsCategory};
+
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game();
+        let mut stats = StatsState::default();
+        let save_id = sm.create_save_with_stats(&game, &stats, "Career").unwrap();
+
+        let day_one = sample_stats_state();
+        for day in 0..3 {
+            let mut player = day_one.player_matches[0].clone();
+            player.fixture_id = format!("fix-{day}");
+            let mut team = day_one.team_matches[0].clone();
+            team.fixture_id = format!("fix-{day}");
+            stats.player_matches.push(player);
+            stats.team_matches.push(team);
+
+            if let Some(previous) = game.news.last_mut() {
+                previous.read = true;
+            }
+            game.news.push(NewsArticle::new(
+                format!("news-{day}"),
+                format!("Headline {day}"),
+                String::new(),
+                String::new(),
+                "2027-08-15".to_string(),
+                NewsCategory::MatchReport,
+            ));
+            sm.save_game_with_stats(&game, &stats, &save_id).unwrap();
+        }
+
+        let mut fresh = SaveManager::init(&saves_dir).unwrap();
+        let loaded_stats = fresh.load_stats_state(&save_id).unwrap();
+        let loaded = fresh.load_game(&save_id).unwrap();
+
+        let mut fixtures: Vec<_> = loaded_stats
+            .player_matches
+            .iter()
+            .map(|r| r.fixture_id.clone())
+            .collect();
+        fixtures.sort();
+        assert_eq!(fixtures, ["fix-0", "fix-1", "fix-2"]);
+        assert_eq!(loaded_stats.team_matches.len(), 3);
+
+        let mut articles: Vec<_> = loaded.news.iter().map(|a| (a.id.clone(), a.read)).collect();
+        articles.sort();
+        assert_eq!(
+            articles,
+            [
+                ("news-0".to_string(), true),
+                ("news-1".to_string(), true),
+                ("news-2".to_string(), false),
+            ]
+        );
+    }
+
+    /// Given a career whose stats alone are saved after each of two matches (the live-match path),
+    /// When a second manager, with no memory of those saves, loads the stats,
+    /// Then both matches are there, once each.
+    #[test]
+    fn stats_saved_on_their_own_reload_exactly_as_they_were() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let save_id = sm
+            .create_save_with_stats(&sample_game(), &StatsState::default(), "Career")
+            .unwrap();
+
+        let mut stats = StatsState::default();
+        for fixture in ["fix-0", "fix-1"] {
+            let mut player = sample_stats_state().player_matches[0].clone();
+            player.fixture_id = fixture.to_string();
+            let mut team = sample_stats_state().team_matches[0].clone();
+            team.fixture_id = fixture.to_string();
+            stats.player_matches.push(player);
+            stats.team_matches.push(team);
+            sm.save_stats_state(&stats, &save_id).unwrap();
+        }
+
+        let loaded = SaveManager::init(&saves_dir)
+            .unwrap()
+            .load_stats_state(&save_id)
+            .unwrap();
+
+        let mut fixtures: Vec<_> = loaded
+            .player_matches
+            .iter()
+            .map(|r| r.fixture_id.clone())
+            .collect();
+        fixtures.sort();
+        assert_eq!(fixtures, ["fix-0", "fix-1"]);
+        assert_eq!(loaded.team_matches.len(), 2);
+    }
+
     #[test]
     fn a_staff_member_removed_from_the_game_stays_removed_after_a_reload() {
         use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -3571,6 +3673,138 @@ mod tests {
                 "2010-07-01".to_string(),
             ));
         manager
+    }
+
+    /// Opens the save's file through a connection of its own, as a later session would.
+    fn fresh_reader(manager: &SaveManager, id: &str) -> rusqlite::Connection {
+        rusqlite::Connection::open(manager.save_db_path(id).unwrap()).unwrap()
+    }
+
+    /// Given a club's stand-in, marked interim, and a permanent manager
+    /// When the career is saved to its file and loaded by a new save manager
+    /// Then the file holds the stand-in as interim and the other as not, and so does the load
+    #[test]
+    fn an_interim_manager_is_still_interim_after_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        let mut stand_in = domain::manager::Manager::new(
+            "mgr-stand-in".to_string(),
+            "Stand".to_string(),
+            "In".to_string(),
+            "1975-01-01".to_string(),
+            "England".to_string(),
+        );
+        stand_in.interim = true;
+        let mut permanent = stand_in.clone();
+        permanent.id = "mgr-permanent".to_string();
+        permanent.interim = false;
+        game.managers.push(stand_in);
+        game.managers.push(permanent);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Interim")
+            .unwrap();
+
+        let mut later = SaveManager::init(&saves).unwrap();
+        let reader = fresh_reader(&later, &id);
+        let stored = |manager_id: &str| -> bool {
+            reader
+                .query_row(
+                    "SELECT interim FROM managers WHERE id = ?1",
+                    params![manager_id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+        assert!(stored("mgr-stand-in"));
+        assert!(!stored("mgr-permanent"));
+        let loaded = later.load_game(&id).unwrap();
+        let interim = |manager_id: &str| {
+            loaded
+                .managers
+                .iter()
+                .find(|manager| manager.id == manager_id)
+                .unwrap()
+                .interim
+        };
+        assert!(interim("mgr-stand-in"));
+        assert!(!interim("mgr-permanent"));
+    }
+
+    /// Given a staff member known by a short name
+    /// When the career is saved to its file and loaded by a new save manager
+    /// Then the file holds the short name, and the loaded staff member is displayed by it
+    #[test]
+    fn a_staff_members_short_name_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        let mut coach = domain::staff::Staff::new(
+            "staff-pep".to_string(),
+            "Josep".to_string(),
+            "Guardiola i Sala".to_string(),
+            "1971-01-18".to_string(),
+            StaffRole::Coach,
+            StaffAttributes {
+                coaching: 80,
+                judging_ability: 70,
+                judging_potential: 70,
+                physiotherapy: 20,
+            },
+        );
+        coach.set_known_as(Some("Pep Guardiola".to_string()));
+        game.staff.push(coach);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Known as")
+            .unwrap();
+
+        let mut later = SaveManager::init(&saves).unwrap();
+        let stored: Option<String> = fresh_reader(&later, &id)
+            .query_row(
+                "SELECT known_as FROM staff WHERE id = ?1",
+                params!["staff-pep"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored.as_deref(), Some("Pep Guardiola"));
+        let loaded = later.load_game(&id).unwrap();
+        let coach = loaded.staff.iter().find(|s| s.id == "staff-pep").unwrap();
+        assert_eq!(coach.display_name, "Pep Guardiola");
+    }
+
+    /// Given a player with 12 appearances of which 9 were rated
+    /// When the career is saved to its file and loaded by a new save manager
+    /// Then the file's stats hold 9 rated appearances, and so does the loaded player
+    #[test]
+    fn a_players_rated_appearances_survive_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        let player = game.players.first_mut().expect("the sample has a player");
+        player.stats.appearances = 12;
+        player.stats.rated_appearances = 9;
+        let player_id = player.id.clone();
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Rated")
+            .unwrap();
+
+        let mut later = SaveManager::init(&saves).unwrap();
+        let stats_json: String = fresh_reader(&later, &id)
+            .query_row(
+                "SELECT stats FROM players WHERE id = ?1",
+                params![player_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let stored: serde_json::Value = serde_json::from_str(&stats_json).unwrap();
+        assert_eq!(stored["rated_appearances"], 9);
+        let loaded = later.load_game(&id).unwrap();
+        let player = loaded.players.iter().find(|p| p.id == player_id).unwrap();
+        assert_eq!(player.stats.rated_appearances, 9);
+        assert_eq!(player.stats.appearances, 12);
     }
 
     /// Given an archived manager who is still a row in `managers`, when the career is saved,

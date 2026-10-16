@@ -47,6 +47,7 @@ beforeAll(async () => {
     {
       "test.subject": "Resolved Subject",
       "test.body": "Hello {{name}}, welcome!",
+      "test.bidBody": "Offer: {{fee}}",
       "test.sender": "The Board",
       "test.senderRole": "Board of Directors",
       "test.actionLabel": "Accept Offer",
@@ -212,7 +213,7 @@ describe("resolveAction", () => {
 
     expect(actionType.ChooseOption.options[0].label).toBe("Accept the deal");
     expect(actionType.ChooseOption.options[0].description).toBe(
-      "Receive €250,000 in sponsorship income.",
+      "Receive €250K in sponsorship income.",
     );
   });
 
@@ -276,7 +277,7 @@ describe("resolveAction", () => {
     }
 
     expect(actionType.ChooseOption.options[0].description).toBe(
-      "Receive £215,000 in sponsorship income.",
+      "Receive £215K in sponsorship income.",
     );
   });
 
@@ -505,9 +506,9 @@ describe("resolveMessage", () => {
       expect(result.body).toContain(
         "Chefe, revisei nossa lista de renovações no Lisbon Sporting. 4 concluídas, 2 ainda pendentes e 1 falhas.",
       );
-      expect(result.body).toContain("Concluída: Claes aceitou 1 ano(s) por €5,000/semana.");
+      expect(result.body).toContain("Concluída: Claes aceitou 1 ano(s) por €5K/semana.");
       expect(result.body).toContain(
-        "Continua difícil: Vieira — O estafe deles quer cerca de €25,000/semana por 3 anos, acima dos limites da delegação.",
+        "Continua difícil: Vieira — O estafe deles quer cerca de €25K/semana por 3 anos, acima dos limites da delegação.",
       );
       expect(result.body).toContain(
         "Falhou: Fernandes — Você me disse para ainda não reabrir as conversas contratuais.",
@@ -717,7 +718,7 @@ describe("resolveNewsArticle", () => {
 
       const result = resolveNewsArticle(article);
 
-      expect(result.body).toContain("Adam Smith: Alpha FC -> Beta FC (£1.5M)");
+      expect(result.body).toContain("Adam Smith: Alpha FC -> Beta FC (£1.55M)");
     } finally {
       await i18n.changeLanguage(previousLanguage);
     }
@@ -1312,5 +1313,80 @@ describe("accepted deal messages", () => {
     } finally {
       await i18n.changeLanguage(previous);
     }
+  });
+});
+
+describe("the weekly wage bill in the over-budget message", () => {
+  const key = "be.msg.wageOverBudget.body";
+
+  it("shows the bill and the budget the backend sends as whole numbers, compact and precise", () => {
+    const text = resolveBackendText(key, "fallback", {
+      weeklyWageBill: "1700",
+      wageBudget: "1500",
+    });
+
+    expect(text).toContain("€1.7K");
+    expect(text).toContain("€1.5K");
+    expect(text).not.toContain("{{");
+  });
+
+  it("still reads a message saved with the old annualWages name and a formatted amount", () => {
+    const text = resolveBackendText(key, "fallback", {
+      annualWages: "€1.7K",
+      wageBudget: "€1.5K",
+    });
+
+    expect(text).toContain("€1.7K");
+    expect(text).not.toContain("{{");
+  });
+});
+
+describe("money in inbox and news lines is compact and precise", () => {
+  it("shows a whole-number fee with up to three significant digits", () => {
+    const text = resolveBackendText("test.bidBody", "fallback", { fee: "1250000" });
+
+    expect(text).toBe("Offer: €1.25M");
+  });
+
+  it("converts the whole number to the selected currency before it is shortened", () => {
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "USD" },
+      currency: { code: "USD", symbol: "$", exchange_rate: 1.08 },
+    });
+
+    const text = resolveBackendText("test.bidBody", "fallback", { fee: "1000000" });
+
+    expect(text).toBe("Offer: $1.08M");
+  });
+});
+
+describe("the loan offer's purchase option", () => {
+  const key = "be.msg.loanOffer.body";
+  const terms = {
+    team: "Alpha FC",
+    player: "Golden Boot",
+    endDate: "2026-12-31",
+    wageContribution: "70",
+  };
+
+  it("reads the whole-number option as money, compact and precise", () => {
+    expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "1200000" })).toContain(
+      "Purchase option: €1.2M.",
+    );
+    expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "1250000" })).toContain(
+      "Purchase option: €1.25M.",
+    );
+  });
+
+  it("keeps the dash for a loan with no purchase option", () => {
+    expect(resolveBackendText(key, "fallback", { ...terms, buyOption: "—" })).toContain(
+      "Purchase option: —.",
+    );
+  });
+});
+
+describe("a compact string already in a saved message", () => {
+  it("keeps the figure it carries instead of rounding it to one decimal", () => {
+    expect(resolveBackendText("test.bidBody", "fallback", { fee: "€1.25M" })).toBe("Offer: €1.25M");
   });
 });

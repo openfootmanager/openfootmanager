@@ -83,6 +83,10 @@ fn normalize_world(mut world: WorldData) -> WorldData {
         .staff
         .iter_mut()
         .for_each(domain::staff::Staff::refresh_display_name);
+    world
+        .managers
+        .iter_mut()
+        .for_each(domain::manager::Manager::refresh_display_name);
     if world.competitions.is_empty()
         && let Some(league) = world.league.clone()
     {
@@ -171,6 +175,8 @@ fn world_data_from_parts(
         players,
         staff,
         managers: vec![],
+        retired_managers: vec![],
+        retired_players: vec![],
         competitions: vec![],
         competition_definitions: None,
         national_teams: vec![],
@@ -278,6 +284,19 @@ fn load_world_from_manifest_path(
     let players = read_json_file(&manifest_shard_path(path, &manifest.shards.players))?;
     let staff = read_json_file(&manifest_shard_path(path, &manifest.shards.staff))?;
     let managers = read_json_file(&manifest_shard_path(path, &manifest.shards.managers))?;
+    // Absent from a manifest written before the archives existed: nothing to read.
+    fn read_optional<T: serde::de::DeserializeOwned>(
+        manifest_path: &Path,
+        shard: &str,
+    ) -> Result<Vec<T>, String> {
+        if shard.is_empty() {
+            Ok(Vec::new())
+        } else {
+            read_json_file(&manifest_shard_path(manifest_path, shard))
+        }
+    }
+    let retired_managers = read_optional(path, &manifest.shards.retired_managers)?;
+    let retired_players = read_optional(path, &manifest.shards.retired_players)?;
     let competitions = read_json_file(&manifest_shard_path(path, &manifest.shards.competitions))?;
     let national_teams =
         read_json_file(&manifest_shard_path(path, &manifest.shards.national_teams))?;
@@ -292,6 +311,8 @@ fn load_world_from_manifest_path(
         players,
         staff,
         managers,
+        retired_managers,
+        retired_players,
         competitions,
         competition_definitions: None,
         national_teams,
@@ -349,6 +370,14 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
     write_json(&shard_dir.join("staff.json"), &normalized.staff)?;
     write_json(&shard_dir.join("managers.json"), &normalized.managers)?;
     write_json(
+        &shard_dir.join("retired_managers.json"),
+        &normalized.retired_managers,
+    )?;
+    write_json(
+        &shard_dir.join("retired_players.json"),
+        &normalized.retired_players,
+    )?;
+    write_json(
         &shard_dir.join("competitions.json"),
         &normalized.competitions,
     )?;
@@ -376,6 +405,8 @@ pub fn export_world_package(world: &WorldData, manifest_path: &Path) -> Result<S
             players: format!("{stem}.shards/players.json"),
             staff: format!("{stem}.shards/staff.json"),
             managers: format!("{stem}.shards/managers.json"),
+            retired_managers: format!("{stem}.shards/retired_managers.json"),
+            retired_players: format!("{stem}.shards/retired_players.json"),
             competitions: format!("{stem}.shards/competitions.json"),
             national_teams: format!("{stem}.shards/national_teams.json"),
             news: format!("{stem}.shards/news.json"),
@@ -531,6 +562,60 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.path);
         }
+    }
+
+    /// Given a world file whose managers predate the display name (no `display_name` in their JSON)
+    /// When it is loaded
+    /// Then each is displayed by their known-as name or their full name, not left blank (#557).
+    #[test]
+    fn a_world_file_without_manager_display_names_gets_them_on_load() {
+        let json = r#"{"managers":[
+            {"id":"m1","first_name":"Josep","last_name":"Guardiola i Sala","date_of_birth":"1971-01-18",
+             "nationality":"ES","reputation":900,"satisfaction":80,"team_id":null,"known_as":"Pep Guardiola",
+             "career_stats":{"matches_managed":0,"wins":0,"draws":0,"losses":0,"trophies":0,"best_finish":null},
+             "career_history":[]},
+            {"id":"m2","first_name":"Alice","last_name":"Boss","date_of_birth":"1970-05-10",
+             "nationality":"GB","reputation":500,"satisfaction":50,"team_id":null,
+             "career_stats":{"matches_managed":0,"wins":0,"draws":0,"losses":0,"trophies":0,"best_finish":null},
+             "career_history":[]}]}"#;
+
+        let world = load_world_from_json(json).expect("the world loads");
+
+        let name = |id: &str| {
+            world
+                .managers
+                .iter()
+                .find(|m| m.id == id)
+                .unwrap()
+                .display_name
+                .clone()
+        };
+        assert_eq!(name("m1"), "Pep Guardiola");
+        assert_eq!(name("m2"), "Alice Boss");
+    }
+
+    /// Given a world file whose manager and staff member carry a blank known-as name
+    /// When it is loaded
+    /// Then they are called by their full name and keep no known-as, the same as when it is set by hand (#557).
+    #[test]
+    fn a_blank_known_as_in_a_world_file_is_treated_as_none() {
+        let json = r#"{"managers":[
+            {"id":"m1","first_name":"Alice","last_name":"Boss","date_of_birth":"1970-05-10",
+             "nationality":"GB","reputation":500,"satisfaction":50,"team_id":null,"known_as":"   ",
+             "career_stats":{"matches_managed":0,"wins":0,"draws":0,"losses":0,"trophies":0,"best_finish":null},
+             "career_history":[]}],
+            "staff":[
+            {"id":"s1","first_name":"Alice","last_name":"Coach","date_of_birth":"1980-05-10",
+             "nationality":"GB","role":"Physio","known_as":"  ",
+             "attributes":{"coaching":80,"judgingAbility":50,"judgingPotential":50,"physiotherapy":10},
+             "team_id":null}]}"#;
+
+        let world = load_world_from_json(json).expect("the world loads");
+
+        assert_eq!(world.managers[0].display_name, "Alice Boss");
+        assert_eq!(world.managers[0].known_as, None);
+        assert_eq!(world.staff[0].display_name, "Alice Coach");
+        assert_eq!(world.staff[0].known_as, None);
     }
 
     /// Given a world file whose staff predate the display name (no `display_name` in their JSON)
@@ -751,6 +836,110 @@ mod tests {
             everything(&one) == everything(&again),
             "the same seed gave different worlds"
         );
+    }
+
+    fn world_with_archives() -> WorldData {
+        let mut world = generate_world_data(&crate::generator::DefinitionSources::embedded_only());
+        let mut manager = domain::manager::Manager::new(
+            "retired-boss".to_string(),
+            "Old".to_string(),
+            "Boss".to_string(),
+            "1950-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager
+            .career_history
+            .push(domain::manager::ManagerCareerEntry::open(
+                world.teams[0].id.clone(),
+                world.teams[0].name.clone(),
+                "2010-07-01".to_string(),
+            ));
+        world.retired_managers.push(manager);
+        let mut veteran = world.players[0].clone();
+        veteran.id = "retired-veteran".to_string();
+        veteran.retired = true;
+        veteran.team_id = None;
+        world
+            .retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &veteran,
+                "2030-06-30",
+                2030,
+            ));
+        world
+    }
+
+    /// Given a world carrying archived managers and retired players (#814, #799)
+    /// When it is exported as a sharded package, and as one JSON, and loaded back
+    /// Then both archives come back intact, so a re-import does not forget a club's past managers.
+    #[test]
+    fn the_archives_survive_a_world_export_round_trip() {
+        let world = world_with_archives();
+        let dir = std::env::temp_dir().join(format!(
+            "ofm-export-archives-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let manifest = dir.join("world.json");
+
+        export_world_package(&world, &manifest).unwrap();
+        let from_shards = load_world_from_path(&manifest).unwrap();
+        let from_json = load_world_from_json(&export_world_to_json(&world).unwrap()).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+
+        for loaded in [from_shards, from_json] {
+            assert_eq!(loaded.retired_players, world.retired_players);
+            assert_eq!(
+                serde_json::to_value(&loaded.retired_managers).unwrap(),
+                serde_json::to_value(&world.retired_managers).unwrap()
+            );
+        }
+    }
+
+    /// Given a world exported before the archives existed (no archive keys, in either format)
+    /// When it is loaded
+    /// Then it loads, with both archives empty: old exports keep working.
+    #[test]
+    fn an_export_from_before_the_archives_loads_with_none() {
+        let world = world_with_archives();
+
+        let mut single = serde_json::to_value(&world).unwrap();
+        single.as_object_mut().unwrap().remove("retired_managers");
+        single.as_object_mut().unwrap().remove("retired_players");
+        let from_json =
+            load_world_from_json(&single.to_string()).expect("an old single JSON loads");
+
+        let dir = std::env::temp_dir().join(format!(
+            "ofm-old-export-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let manifest = dir.join("world.json");
+        export_world_package(&world, &manifest).unwrap();
+        let mut old: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&manifest).unwrap()).unwrap();
+        let shards = old["shards"].as_object_mut().unwrap();
+        shards.remove("retiredManagers");
+        shards.remove("retiredPlayers");
+        std::fs::write(&manifest, old.to_string()).unwrap();
+        let from_shards = load_world_from_path(&manifest);
+        std::fs::remove_dir_all(&dir).ok();
+        let from_shards = from_shards.expect("an old manifest loads");
+
+        for loaded in [from_json, from_shards] {
+            // The world itself came through: a file that failed to parse and fell back to an
+            // empty world would also have empty archives.
+            assert_eq!(loaded.players.len(), world.players.len());
+            assert_eq!(loaded.teams.len(), world.teams.len());
+            assert!(loaded.retired_managers.is_empty());
+            assert!(loaded.retired_players.is_empty());
+        }
     }
 
     #[test]
