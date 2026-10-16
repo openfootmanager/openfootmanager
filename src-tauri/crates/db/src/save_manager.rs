@@ -11,7 +11,8 @@ use ofm_core::game::Game;
 use ofm_core::generator;
 use ofm_core::player_identity;
 use ofm_core::player_rating::{
-    effective_rating_for_assignment, formation_slots, refresh_player_derived,
+    effective_rating_for_assignment, formation_slots, reconcile_wonderkid_trait,
+    refresh_player_derived,
 };
 
 use crate::game_database::GameDatabase;
@@ -580,6 +581,22 @@ impl SaveManager {
             info!(
                 "[save_manager] backfilled OVR/potential for {} players in save {}",
                 backfill_count, save_id
+            );
+            needs_resave = true;
+        }
+
+        // The wonderkid tag is a rule, not a stored fact: apply the current rule to every player,
+        // so a save written under an older one is judged by this one.
+        let retagged = game
+            .players
+            .iter_mut()
+            .map(|player| reconcile_wonderkid_trait(player, today))
+            .filter(|changed| *changed)
+            .count();
+        if retagged > 0 {
+            info!(
+                "[save_manager] re-judged the wonderkid tag for {} players in save {}",
+                retagged, save_id
             );
             needs_resave = true;
         }
@@ -1295,6 +1312,59 @@ mod tests {
     /// the next load. The free-agent market is where that showed: it is cleared
     /// and redrawn every 30 days, but the clear never reached disk, so a loaded
     /// save listed every candidate ever generated and the list only ever grew.
+    /// Given a saved career whose young prospect has an S-tier ceiling but no wonderkid tag, and
+    /// whose other young player carries the tag with a ceiling below the S tier,
+    /// When the save is loaded,
+    /// Then the rule is applied on load: the first gets the tag and the second loses it.
+    #[test]
+    fn loading_a_save_applies_the_wonderkid_rule() {
+        use chrono::Datelike;
+        use domain::player::PlayerTrait;
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let mut second = game.players[0].clone();
+        second.id = "p-002".to_string();
+        game.players.push(second);
+        let today = game.clock.current_date.date_naive();
+        let born = format!("{}-01-01", today.year() - 19);
+        let ids: Vec<String> = game.players.iter().take(2).map(|p| p.id.clone()).collect();
+        for (n, player) in game.players.iter_mut().take(2).enumerate() {
+            player.date_of_birth = born.clone();
+            player.traits.retain(|t| *t != PlayerTrait::Wonderkid);
+            if n == 0 {
+                player.ovr = 65;
+                player.potential = 85;
+            } else {
+                player.ovr = 60;
+                player.potential = 75;
+                player.traits.push(PlayerTrait::Wonderkid);
+            }
+        }
+        let save_id = sm.create_save(&game, "Career").unwrap();
+
+        let loaded = SaveManager::init(&dir.path().join("saves"))
+            .unwrap()
+            .load_game(&save_id)
+            .unwrap();
+
+        let has_tag = |id: &str| {
+            loaded
+                .players
+                .iter()
+                .find(|p| p.id == id)
+                .unwrap()
+                .traits
+                .contains(&PlayerTrait::Wonderkid)
+        };
+        assert!(
+            has_tag(&ids[0]),
+            "the S-tier prospect was not tagged on load"
+        );
+        assert!(!has_tag(&ids[1]), "the stale tag was kept on load");
+    }
+
     #[test]
     fn a_staff_member_removed_from_the_game_stays_removed_after_a_reload() {
         use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -3571,6 +3641,138 @@ mod tests {
                 "2010-07-01".to_string(),
             ));
         manager
+    }
+
+    /// Opens the save's file through a connection of its own, as a later session would.
+    fn fresh_reader(manager: &SaveManager, id: &str) -> rusqlite::Connection {
+        rusqlite::Connection::open(manager.save_db_path(id).unwrap()).unwrap()
+    }
+
+    /// Given a club's stand-in, marked interim, and a permanent manager
+    /// When the career is saved to its file and loaded by a new save manager
+    /// Then the file holds the stand-in as interim and the other as not, and so does the load
+    #[test]
+    fn an_interim_manager_is_still_interim_after_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        let mut stand_in = domain::manager::Manager::new(
+            "mgr-stand-in".to_string(),
+            "Stand".to_string(),
+            "In".to_string(),
+            "1975-01-01".to_string(),
+            "England".to_string(),
+        );
+        stand_in.interim = true;
+        let mut permanent = stand_in.clone();
+        permanent.id = "mgr-permanent".to_string();
+        permanent.interim = false;
+        game.managers.push(stand_in);
+        game.managers.push(permanent);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Interim")
+            .unwrap();
+
+        let mut later = SaveManager::init(&saves).unwrap();
+        let reader = fresh_reader(&later, &id);
+        let stored = |manager_id: &str| -> bool {
+            reader
+                .query_row(
+                    "SELECT interim FROM managers WHERE id = ?1",
+                    params![manager_id],
+                    |row| row.get(0),
+                )
+                .unwrap()
+        };
+        assert!(stored("mgr-stand-in"));
+        assert!(!stored("mgr-permanent"));
+        let loaded = later.load_game(&id).unwrap();
+        let interim = |manager_id: &str| {
+            loaded
+                .managers
+                .iter()
+                .find(|manager| manager.id == manager_id)
+                .unwrap()
+                .interim
+        };
+        assert!(interim("mgr-stand-in"));
+        assert!(!interim("mgr-permanent"));
+    }
+
+    /// Given a staff member known by a short name
+    /// When the career is saved to its file and loaded by a new save manager
+    /// Then the file holds the short name, and the loaded staff member is displayed by it
+    #[test]
+    fn a_staff_members_short_name_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        let mut coach = domain::staff::Staff::new(
+            "staff-pep".to_string(),
+            "Josep".to_string(),
+            "Guardiola i Sala".to_string(),
+            "1971-01-18".to_string(),
+            StaffRole::Coach,
+            StaffAttributes {
+                coaching: 80,
+                judging_ability: 70,
+                judging_potential: 70,
+                physiotherapy: 20,
+            },
+        );
+        coach.set_known_as(Some("Pep Guardiola".to_string()));
+        game.staff.push(coach);
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Known as")
+            .unwrap();
+
+        let mut later = SaveManager::init(&saves).unwrap();
+        let stored: Option<String> = fresh_reader(&later, &id)
+            .query_row(
+                "SELECT known_as FROM staff WHERE id = ?1",
+                params!["staff-pep"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored.as_deref(), Some("Pep Guardiola"));
+        let loaded = later.load_game(&id).unwrap();
+        let coach = loaded.staff.iter().find(|s| s.id == "staff-pep").unwrap();
+        assert_eq!(coach.display_name, "Pep Guardiola");
+    }
+
+    /// Given a player with 12 appearances of which 9 were rated
+    /// When the career is saved to its file and loaded by a new save manager
+    /// Then the file's stats hold 9 rated appearances, and so does the loaded player
+    #[test]
+    fn a_players_rated_appearances_survive_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves = dir.path().join("saves");
+        let mut game = sample_game();
+        let player = game.players.first_mut().expect("the sample has a player");
+        player.stats.appearances = 12;
+        player.stats.rated_appearances = 9;
+        let player_id = player.id.clone();
+        let id = SaveManager::init(&saves)
+            .unwrap()
+            .create_save(&game, "Rated")
+            .unwrap();
+
+        let mut later = SaveManager::init(&saves).unwrap();
+        let stats_json: String = fresh_reader(&later, &id)
+            .query_row(
+                "SELECT stats FROM players WHERE id = ?1",
+                params![player_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let stored: serde_json::Value = serde_json::from_str(&stats_json).unwrap();
+        assert_eq!(stored["rated_appearances"], 9);
+        let loaded = later.load_game(&id).unwrap();
+        let player = loaded.players.iter().find(|p| p.id == player_id).unwrap();
+        assert_eq!(player.stats.rated_appearances, 9);
+        assert_eq!(player.stats.appearances, 12);
     }
 
     /// Given an archived manager who is still a row in `managers`, when the career is saved,

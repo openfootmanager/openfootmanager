@@ -1,7 +1,8 @@
 use domain::player::{Player, PlayerAttributes, PlayerTrait, Position};
 use ofm_core::player_rating::{
     generate_potential, growth_headroom_range, move_attributes_to, ovr_from_attributes,
-    qualifies_for_wonderkid, refresh_player_derived, roll_growth_headroom,
+    qualifies_for_wonderkid, reconcile_wonderkid_trait, refresh_player_derived,
+    roll_growth_headroom,
 };
 
 // ---------------------------------------------------------------------------
@@ -413,4 +414,63 @@ fn shift_all(attributes: &mut PlayerAttributes, shift: i16) {
     apply(&mut attributes.handling);
     apply(&mut attributes.reflexes);
     apply(&mut attributes.aerial);
+}
+
+/// Given a 19-year-old with an S-tier ceiling and 20 to grow whose stored traits lack the tag,
+/// When his wonderkid tag is reconciled,
+/// Then he gets it, and the call says it changed something.
+#[test]
+fn reconciling_tags_a_young_player_the_rule_now_covers() {
+    let mut player = make_player(Position::Forward, striker_attrs(), "2007-01-01");
+    player.ovr = 65;
+    player.potential = 85;
+    player.traits.retain(|t| *t != PlayerTrait::Wonderkid);
+
+    let changed = reconcile_wonderkid_trait(&mut player, domain::age::season_midpoint(2026));
+
+    assert!(changed);
+    assert!(player.traits.contains(&PlayerTrait::Wonderkid));
+}
+
+/// Given a player tagged a wonderkid whose ceiling is below the S tier,
+/// When his tag is reconciled,
+/// Then it is taken off.
+#[test]
+fn reconciling_takes_the_tag_off_a_player_the_rule_no_longer_covers() {
+    let mut player = make_player(Position::Forward, striker_attrs(), "2007-01-01");
+    player.ovr = 60;
+    player.potential = 75;
+    player.traits.push(PlayerTrait::Wonderkid);
+
+    let changed = reconcile_wonderkid_trait(&mut player, domain::age::season_midpoint(2026));
+
+    assert!(changed);
+    assert!(!player.traits.contains(&PlayerTrait::Wonderkid));
+}
+
+/// Given players whose tag already agrees with the rule, tagged and untagged,
+/// When their tag is reconciled,
+/// Then nothing changes and the call says so.
+#[test]
+fn reconciling_a_correct_tag_changes_nothing() {
+    let on = domain::age::season_midpoint(2026);
+    let mut tagged = make_player(Position::Forward, striker_attrs(), "2007-01-01");
+    tagged.ovr = 65;
+    tagged.potential = 85;
+    tagged.traits.push(PlayerTrait::Wonderkid);
+    let mut untagged = make_player(Position::Forward, striker_attrs(), "1990-01-01");
+    untagged.ovr = 65;
+    untagged.potential = 85;
+    untagged.traits.retain(|t| *t != PlayerTrait::Wonderkid);
+
+    assert!(!reconcile_wonderkid_trait(&mut tagged, on));
+    assert!(!reconcile_wonderkid_trait(&mut untagged, on));
+    assert_eq!(
+        tagged
+            .traits
+            .iter()
+            .filter(|t| **t == PlayerTrait::Wonderkid)
+            .count(),
+        1
+    );
 }
