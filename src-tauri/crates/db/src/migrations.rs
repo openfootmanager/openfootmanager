@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 57;
+const EXPECTED_MIGRATION_COUNT: usize = 58;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -161,6 +161,8 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("v056_custom_tactics.sql", include_str!("sql/v056_custom_tactics.sql")),
     // V57: What a manager is called
     ("v057_manager_known_as.sql", include_str!("sql/v057_manager_known_as.sql")),
+    // V58: Archived (old, read) inbox mail
+    ("v058_archived_messages.sql", include_str!("sql/v058_archived_messages.sql")),
 ];
 
 /// All migrations for a per-save game database.
@@ -927,6 +929,7 @@ mod tests {
     ("v055_staff_known_as.sql", 0x19c8bd47a3686f10),
     ("v056_custom_tactics.sql", 0x59e3007d9e1c4a9b),
     ("v057_manager_known_as.sql", 0x1a62f523b6d15799),
+    ("v058_archived_messages.sql", 0x853776cba0dffed1),
     ];
 
     /// Given the migrations already shipped

@@ -138,6 +138,31 @@ mod tests {
         round_trips(day);
     }
 
+    /// Given a page of archived mail with more behind it
+    /// When it is rendered and sent
+    /// Then the text names the cursor to continue from, and the structure round-trips.
+    #[test]
+    fn an_archive_page_names_where_to_continue() {
+        let page = inbox::ArchivedMessages {
+            messages: vec![inbox::ArchivedMessage {
+                id: "m1".to_string(),
+                subject: "Old news".to_string(),
+                body: "Body".to_string(),
+                category: "Welcome".to_string(),
+                date: "2030-01-01".to_string(),
+            }],
+            next_before_date: Some("2030-01-01".to_string()),
+            next_before_id: Some("m1".to_string()),
+        };
+
+        let text = page.to_string();
+
+        assert!(text.contains("before_date=2030-01-01 before_id=m1"));
+        // The text is what an agent reads when it ignores structuredContent: the body is in it.
+        assert!(text.contains("Body"), "{text}");
+        round_trips(page);
+    }
+
     /// Given an inbox of 25 messages
     /// When it is rendered
     /// Then the text lists 20 and counts the rest, while the structure keeps all 25.
