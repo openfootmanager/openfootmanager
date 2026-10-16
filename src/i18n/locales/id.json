@@ -1153,6 +1153,15 @@
   },
   "inbox": {
     "title": "Kotak Masuk",
+    "archive": {
+      "heading": "Pesan lama",
+      "load": "Muat pesan lama",
+      "loadMore": "Muat lebih banyak pesan lama",
+      "loading": "Memuat pesan lama…",
+      "empty": "Tidak ada pesan lama.",
+      "end": "Tidak ada pesan lama lagi.",
+      "error": "Pesan lama tidak dapat dimuat."
+    },
     "nMessages": "{{count}} pesan",
     "noMessages": "Tidak ada pesan",
     "noMessagesInCategory": "Tidak ada pesan dalam kategori ini",

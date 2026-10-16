@@ -1153,6 +1153,15 @@
   },
   "inbox": {
     "title": "Doručená pošta",
+    "archive": {
+      "heading": "Starší zprávy",
+      "load": "Načíst starší zprávy",
+      "loadMore": "Načíst další starší zprávy",
+      "loading": "Načítání starších zpráv…",
+      "empty": "Žádné starší zprávy.",
+      "end": "Další starší zprávy nejsou.",
+      "error": "Starší zprávy se nepodařilo načíst."
+    },
     "nMessages": "Počet zpráv: {{count}}",
     "noMessages": "Žádné zprávy",
     "noMessagesInCategory": "V této kategorii nejsou žádné zprávy",

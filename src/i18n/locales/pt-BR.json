@@ -1153,6 +1153,15 @@
   },
   "inbox": {
     "title": "Caixa de Entrada",
+    "archive": {
+      "heading": "Mensagens antigas",
+      "load": "Carregar mensagens antigas",
+      "loadMore": "Carregar mais mensagens antigas",
+      "loading": "Carregando mensagens antigas…",
+      "empty": "Nenhuma mensagem antiga.",
+      "end": "Não há mais mensagens antigas.",
+      "error": "Não foi possível carregar as mensagens antigas."
+    },
     "nMessages": "{{count}} mensagem(ns)",
     "noMessages": "Nenhuma mensagem",
     "noMessagesInCategory": "Nenhuma mensagem nesta categoria",

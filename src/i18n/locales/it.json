@@ -1172,6 +1172,15 @@
   },
   "inbox": {
     "title": "Posta",
+    "archive": {
+      "heading": "Messaggi precedenti",
+      "load": "Carica i messaggi precedenti",
+      "loadMore": "Carica altri messaggi precedenti",
+      "loading": "Caricamento dei messaggi precedenti…",
+      "empty": "Nessun messaggio precedente.",
+      "end": "Non ci sono altri messaggi precedenti.",
+      "error": "Impossibile caricare i messaggi precedenti."
+    },
     "nMessages": "{{count}} messaggio/i",
     "noMessages": "Nessun messaggio",
     "noMessagesInCategory": "Nessun messaggio in questa categoria",
