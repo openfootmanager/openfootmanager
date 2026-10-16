@@ -52,7 +52,7 @@ export default function TeamProfileHeroCard({
             {viewModel.manager && (
               <p className="text-white/70 text-sm mt-1 flex items-center gap-1.5">
                 <Users className="w-4 h-4" /> {t("teamProfile.managerLabel")}{" "}
-                {viewModel.manager.first_name} {viewModel.manager.last_name}
+                {viewModel.manager.display_name}
               </p>
             )}
           </div>

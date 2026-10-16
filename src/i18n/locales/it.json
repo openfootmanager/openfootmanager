@@ -2893,6 +2893,12 @@
       "notice": {
         "fallbackLeagueGenerated": "Nessuna competizione è stata definita. È stato generato automaticamente un campionato a girone unico predefinito per tutte le squadre.",
         "fallbackTeamsFilled": "È stata definita una sola squadra. Sono stati generati automaticamente avversari procedurali per rendere il gioco giocabile."
+      },
+      "customTactic": {
+        "nameRequired": "Dai alla tattica un nome di al massimo 60 caratteri.",
+        "invalidFormation": "Il gioco non conosce questo modulo.",
+        "invalidPlayStyle": "Il gioco non conosce questo stile di gioco.",
+        "notFound": "Questa tattica non esiste più."
       }
     },
     "sender": {

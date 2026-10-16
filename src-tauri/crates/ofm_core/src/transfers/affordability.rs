@@ -41,6 +41,7 @@ pub(crate) fn fee_block(team: &Team, fee: u64) -> Result<(), FeeBlock> {
     Ok(())
 }
 
+/// Whether `team` can pay `fee` out of cash and transfer budget: [`fee_block`] finds nothing in the way.
 pub(crate) fn can_afford_fee(team: &Team, fee: u64) -> bool {
     fee_block(team, fee).is_ok()
 }

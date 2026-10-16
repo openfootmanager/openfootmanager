@@ -120,6 +120,7 @@ where
     F: FnMut(StatsState),
 {
     let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    crate::turn::begin_day(game);
 
     // The mirror is swapped in before the session is built, because the kick-off gate and
     // `create_live_match` both read the fixture out of it. So a failure to kick off has to put it

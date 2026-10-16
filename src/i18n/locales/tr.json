@@ -2893,7 +2893,13 @@
         "youthAssignmentNotFound": "Genç oyuncu kazanım görevi bulunamadı",
         "scoutAlreadyAssignedToSearch": "Gözlemci bu aramaya zaten atanmış"
       },
-      "invalidPath": "Geçersiz yol."
+      "invalidPath": "Geçersiz yol.",
+      "customTactic": {
+        "nameRequired": "Taktiğe en fazla 60 karakterlik bir ad verin.",
+        "invalidFormation": "Oyun bu diziliş şemasını tanımıyor.",
+        "invalidPlayStyle": "Oyun bu oyun tarzını tanımıyor.",
+        "notFound": "Bu taktik artık yok."
+      }
     },
     "sender": {
       "boardOfDirectors": "Yönetim Kurulu",
