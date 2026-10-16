@@ -366,7 +366,7 @@ fn incoming_transfer_offer_message_uses_i18n_keys_and_params() {
     );
     assert_eq!(
         msg.i18n_params.get("fee").map(String::as_str),
-        Some("1200000")
+        Some("1250000")
     );
     assert_eq!(
         msg.sender_key.as_deref(),
@@ -419,7 +419,7 @@ fn transfer_interest_digest_message_uses_i18n_keys_and_stable_id() {
     );
     assert_eq!(
         msg.i18n_params.get("fee").map(String::as_str),
-        Some("1200000")
+        Some("1250000")
     );
     assert!(msg.actions.iter().any(|action| {
         action.id == "view_transfers"
