@@ -262,6 +262,7 @@ mod tests {
     use super::{RenewalPreview, SquadSafetyIssue, SquadSafetyReport, TerminationPreview};
     use serde_json::json;
 
+    /// Given renewal data, when serialized, then structured and text results expose every field.
     #[test]
     fn renewal_preview_exposes_projection_in_structured_and_text_results() {
         let result = RenewalPreview {
@@ -299,6 +300,7 @@ mod tests {
         assert!(text.contains("Policy Allows Offer**: true"));
     }
 
+    /// Given a termination preview, when serialized, then cost and squad safety appear in both results.
     #[test]
     fn termination_preview_exposes_cost_and_squad_safety_in_structured_and_text_results() {
         let result = TerminationPreview {
@@ -329,6 +331,7 @@ mod tests {
         assert!(text.contains("incomplete formation"));
     }
 
+    /// Given an older payload, when it is deserialized, then newly added fields use defaults.
     #[test]
     fn older_preview_payloads_default_new_fields() {
         let renewal: RenewalPreview = serde_json::from_value(json!({"weekly_wage": 1500})).unwrap();
