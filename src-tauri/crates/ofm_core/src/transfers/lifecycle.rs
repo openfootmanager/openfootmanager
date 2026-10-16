@@ -58,6 +58,15 @@ pub(crate) fn loan_made_to_current_owner(
         && heard_by_current_owner(player, offer.closed_on.as_deref().unwrap_or(&offer.date))
 }
 
+/// Clubs that were turned away recently enough that they should not be asking again.
+///
+/// Being told no is information a club acts on. Without this, the day after a rejection the club
+/// is eligible again — it re-enters the shortlist, opens a fresh approach, and the manager rejects
+/// the same suitor every day for the length of the window. Expiry counts too: talks that went cold
+/// on their own are no more of an invitation to start over than a refusal is.
+///
+/// Read from the offers already on the player, so this costs no new saved state. `closed_on` is
+/// when talks ended; offers written before that field existed fall back to their arrival date.
 pub(crate) fn clubs_in_rebid_cooldown(
     player: &domain::player::Player,
     current_date: NaiveDate,
