@@ -52,7 +52,7 @@ pub(super) fn apply_match_injuries(
 
     for (player_id, player_name, injury) in physio_reports {
         let message_id = format!("match_injury_{fixture_id}_{player_id}");
-        crate::inbox::emit_once(game, &message_id.clone(), || {
+        crate::inbox::emit_once(game, &message_id, || {
             messages::match_injury_message(
                 &message_id,
                 &player_id,
@@ -119,16 +119,16 @@ mod tests {
         game
     }
 
-    fn report_with_injuries(player_ids: &[&str]) -> MatchReport {
+    fn report_with_events(events: &[(EventType, &str)]) -> MatchReport {
         MatchReport {
             home_goals: 0,
             away_goals: 0,
             home_stats: TeamStats::default(),
             away_stats: TeamStats::default(),
-            events: player_ids
+            events: events
                 .iter()
-                .map(|id| {
-                    MatchEvent::new(30, EventType::Injury, Side::Home, Zone::Midfield)
+                .map(|(event_type, id)| {
+                    MatchEvent::new(30, event_type.clone(), Side::Home, Zone::Midfield)
                         .with_player(id)
                 })
                 .collect(),
@@ -139,6 +139,14 @@ mod tests {
             home_penalties: None,
             away_penalties: None,
         }
+    }
+
+    fn report_with_injuries(player_ids: &[&str]) -> MatchReport {
+        let events: Vec<_> = player_ids
+            .iter()
+            .map(|id| (EventType::Injury, *id))
+            .collect();
+        report_with_events(&events)
     }
 
     fn injury_of<'a>(game: &'a Game, id: &str) -> Option<&'a Injury> {
@@ -169,16 +177,26 @@ mod tests {
         assert!(injury.days_remaining >= 1);
     }
 
-    /// Given a club match with no injury event
+    /// Given a club match in which players score, foul, are booked and tackle, but the engine
+    ///       records no injury
     /// When the result is applied
-    /// Then no player is injured by the match.
+    /// Then no player is injured and the physio says nothing: only an injury event injures.
     #[test]
     fn nothing_is_invented_when_the_engine_recorded_no_injury() {
         let mut game = game();
+        let report = report_with_events(&[
+            (EventType::Goal, "home-1"),
+            (EventType::Foul, "home-1"),
+            (EventType::YellowCard, "home-1"),
+            (EventType::Tackle, "home-1"),
+            (EventType::Foul, "away-1"),
+            (EventType::RedCard, "away-1"),
+        ]);
 
-        apply_match_injuries(&mut game, "fixture-1", &report_with_injuries(&[]));
+        apply_match_injuries(&mut game, "fixture-1", &report);
 
         assert!(game.players.iter().all(|player| player.injury.is_none()));
+        assert!(physio_messages(&game).is_empty());
     }
 
     /// Given a player who is already injured
