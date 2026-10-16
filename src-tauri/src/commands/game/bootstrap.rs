@@ -13,9 +13,9 @@ use ofm_core::game::Game;
 #[cfg(feature = "mcp")]
 use {
     super::{
-        build_game_from_world_data, default_save_name, game_clock_for_world,
-        load_world_data_from_path, map_save_manager_lock_error, normalize_startup_options,
-        RawStartupOptions, StartupOptions,
+        build_game_from_imported_world_ranked, build_game_from_world_data, default_save_name,
+        game_clock_for_world, load_world_data_from_path, map_save_manager_lock_error,
+        normalize_startup_options, RawStartupOptions, StartupOptions,
     },
     chrono::Datelike,
     domain::manager::Manager,
@@ -118,20 +118,21 @@ pub fn start_career_for_mcp(
     )))?;
     let mut world = load_world_for_mcp(request.world_source, request.options.seed)?;
 
-    let opening_year = u32::try_from(
-        game_clock_for_world(&startup_options, &world.metadata)?
-            .start_date
-            .year(),
-    )
-    .unwrap_or_else(|_| ofm_core::generator::default_opening_year());
-    if is_world_file(request.world_source) {
-        ofm_core::generator::normalize_imported_world_for_career_start(&mut world, opening_year);
-    }
-
     let manager = take_or_create_manager(&mut world, request, &startup_options)?;
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
-    let (mut game, current_stats_state) =
-        build_game_from_world_data(clock, manager, &startup_options, world);
+    // A world file is made ready for a career as it is built, by the one preparation `ofm_core`
+    // owns; a generated world is built as it is.
+    let (mut game, current_stats_state) = if is_world_file(request.world_source) {
+        build_game_from_imported_world_ranked(
+            clock,
+            manager,
+            &startup_options,
+            world,
+            ofm_core::generator::ReputationBasis::Stored,
+        )
+    } else {
+        build_game_from_world_data(clock, manager, &startup_options, world)
+    };
 
     info!(
         "[mcp-bootstrap] Built game: {} teams, {} players, manager.team_id={:?}",

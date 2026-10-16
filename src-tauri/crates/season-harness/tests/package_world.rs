@@ -5,7 +5,7 @@
 
 use season_harness::driver::{RunOptions, run_seasons};
 use season_harness::fingerprint::{fingerprint, first_difference};
-use season_harness::invariants::{CLUB_RESTS_BETWEEN_MATCHES, Invariants};
+use season_harness::invariants::Invariants;
 use season_harness::worlds::WorldSpec;
 
 /// Given the two-division-and-a-cup package,
@@ -37,8 +37,7 @@ fn a_package_becomes_a_game_with_its_clubs_and_competitions() {
 
 /// Given a world built from the package,
 /// When it is played through two consecutive seasons,
-/// Then every invariant holds at every day and at every rollover, except the club-rest rule that
-///      #553 breaks: the package's cup opens on 1 September and clashes with its leagues.
+/// Then every invariant holds at every day and at every rollover.
 #[test]
 fn a_package_world_holds_every_invariant_across_two_seasons() {
     let mut game = WorldSpec::two_tier_package(11)
@@ -49,14 +48,10 @@ fn a_package_world_holds_every_invariant_across_two_seasons() {
     run_seasons(&mut game, RunOptions::seasons(2), &mut invariants)
         .unwrap_or_else(|error| panic!("the package world: {error}"));
 
-    let others = invariants.report_except(CLUB_RESTS_BETWEEN_MATCHES);
     assert!(
-        others.is_empty(),
-        "the package world broke a rule:\n{others}"
-    );
-    assert!(
-        !invariants.report_of(CLUB_RESTS_BETWEEN_MATCHES).is_empty(),
-        "#553 is fixed: delete this exemption (no club of the package played inside the rest)"
+        invariants.is_clean(),
+        "the package world broke a rule:\n{}",
+        invariants.report()
     );
 }
 
@@ -78,4 +73,45 @@ fn a_package_world_replays_from_its_seed() {
 
     assert!(first == second, "{}", first_difference(&first, &second));
     assert_ne!(first, play(6), "another seed must be another world");
+}
+
+/// Given the package, which declares no staff,
+/// When a world is built from it,
+/// Then every club has the backroom the app gives an imported world (one assistant manager,
+///      coach, scout and physio), the staff market is stocked, and no club opens with less cash
+///      than sixteen weeks of its wage bill: the harness builds a package as the app does.
+#[test]
+fn a_package_world_is_prepared_for_a_career_as_the_app_prepares_one() {
+    use domain::staff::StaffRole;
+    let game = WorldSpec::two_tier_package(11)
+        .build()
+        .expect("the package builds");
+
+    for team in &game.teams {
+        for role in [
+            StaffRole::AssistantManager,
+            StaffRole::Coach,
+            StaffRole::Scout,
+            StaffRole::Physio,
+        ] {
+            let employed = game
+                .staff
+                .iter()
+                .filter(|member| member.team_id.as_deref() == Some(team.id.as_str()))
+                .filter(|member| member.role == role)
+                .count();
+            assert_eq!(employed, 1, "{} has {employed} of {role:?}", team.id);
+        }
+        let weekly_bill = ofm_core::finances::calc_wages(&game, &team.id);
+        assert!(
+            team.finance >= weekly_bill * ofm_core::finances::MIN_OPENING_RUNWAY_WEEKS,
+            "{} opens with {} against a weekly bill of {weekly_bill}",
+            team.id,
+            team.finance
+        );
+    }
+    assert!(
+        game.staff.iter().any(|member| member.team_id.is_none()),
+        "the staff market is stocked"
+    );
 }

@@ -15,7 +15,7 @@ use ofm_core::generator::{
     build_world_from_package_seeded, export_directory_to_ofm, generate_world_data_seeded_with,
     load_world_package_from_ofm, merge_world_packages, repair_opening_youth_academies,
 };
-use ofm_core::world::build::{PastHistory, build_game_from_world_data};
+use ofm_core::world::build::{PastHistory, build_game_from_imported_world};
 use ofm_core::world::start_date_for_year;
 
 /// The package the harness builds a world from: forty English clubs in two divisions of twenty,
@@ -122,7 +122,8 @@ impl WorldSpec {
             start_year: self.start_year,
             depth_years: 0,
         };
-        let (mut game, stats) = build_game_from_world_data(
+        // A package is an imported world: prepared for a career as the app prepares it.
+        let (mut game, stats) = build_game_from_imported_world(
             clock,
             harness_manager(),
             history,
