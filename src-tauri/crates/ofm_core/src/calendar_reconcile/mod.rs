@@ -10,7 +10,7 @@ mod shadows;
 #[cfg(test)]
 mod tests;
 
-use crate::calendar_booking::{Booking, Layer, Occupancy};
+use crate::calendar_booking::{Booking, Layer, MIN_GAP_DAYS, Occupancy};
 use crate::knockout_dates::SEARCH_CAP_DAYS;
 use chrono::{Days, NaiveDate};
 use domain::league::{Fixture, FixtureStatus, League, Postponement, RescheduleReason};
@@ -53,6 +53,8 @@ struct Item<'a> {
     date: NaiveDate,
     layer: Layer,
     movable: bool,
+    /// Index of the fixture's knockout round in its competition, 0 outside a bracket.
+    round: usize,
     /// Where the fixture sorts among its competition's: a knockout match is never earlier than the
     /// latest match of any round before it, so a feeding round authored after its successor
     /// still settles first.
@@ -67,9 +69,16 @@ impl<'a> Item<'a> {
 
 fn collect_items<'a>(
     competitions: &'a [League],
+    rounds: &HashMap<(&str, &str), usize>,
     today: NaiveDate,
 ) -> Result<Vec<Item<'a>>, ReconcileError> {
     let mut items = Vec::new();
+    // History further back than the rest window cannot touch anything that may still move, which
+    // is all dated after `today`; only a bracket's fixtures are kept, because a later round waits
+    // for the last match of the round that feeds it.
+    let horizon = today
+        .checked_sub_days(Days::new(MIN_GAP_DAYS as u64))
+        .unwrap_or(today);
     for competition in competitions {
         for fixture in &competition.fixtures {
             let layer = Layer::of(&fixture.competition);
@@ -83,18 +92,27 @@ fn collect_items<'a>(
                 }
             })?;
             let movable = fixture.status == FixtureStatus::Scheduled && date > today;
+            if !movable
+                && date < horizon
+                && !rounds.contains_key(&(competition.id.as_str(), fixture.id.as_str()))
+            {
+                continue;
+            }
             items.push(Item {
                 competition,
                 fixture,
                 date,
                 layer,
                 movable,
+                round: rounds
+                    .get(&(competition.id.as_str(), fixture.id.as_str()))
+                    .copied()
+                    .unwrap_or(0),
                 settle_on: date,
             });
         }
     }
-    let rounds = round_index(competitions);
-    let latest_per_round = latest_date_per_round(&items, &rounds);
+    let latest_per_round = latest_date_per_round(&items, rounds);
     for item in &mut items {
         if let Some(&round) = rounds.get(&item.key()) {
             let earlier_rounds = latest_per_round
@@ -107,14 +125,13 @@ fn collect_items<'a>(
                 .fold(item.date, NaiveDate::max);
         }
     }
-    let round_of = |item: &Item<'_>| rounds.get(&item.key()).copied().unwrap_or(0);
     items.sort_by(|a, b| {
         (
             a.movable,
             std::cmp::Reverse(a.layer),
             a.competition.priority,
             a.settle_on,
-            round_of(a),
+            a.round,
             a.date,
             a.key(),
         )
@@ -123,7 +140,7 @@ fn collect_items<'a>(
                 std::cmp::Reverse(b.layer),
                 b.competition.priority,
                 b.settle_on,
-                round_of(b),
+                b.round,
                 b.date,
                 b.key(),
             ))
@@ -281,11 +298,12 @@ pub fn plan(
     blackout: &BTreeSet<NaiveDate>,
     today: NaiveDate,
 ) -> Result<Plan, ReconcileError> {
-    let items = collect_items(competitions, today)?;
+    let rounds = round_index(competitions);
+    let items = collect_items(competitions, &rounds, today)?;
     let mut settling = Settling {
         occupancy: Occupancy::default(),
         settled: HashMap::new(),
-        rounds: round_index(competitions),
+        rounds,
         blackout,
         today,
     };

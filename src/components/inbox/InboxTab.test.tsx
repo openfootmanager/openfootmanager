@@ -1230,11 +1230,12 @@ describe("InboxTab", (): void => {
       });
 
       expect(
-        screen.getByText("Completed: Alex Done agreed to 3 year(s) on €24.000/wk."),
+        // getByText collapses the no-break space the German format uses into a plain space.
+        screen.getByText("Completed: Alex Done agreed to 3 year(s) on 24.000 €/wk."),
       ).toBeInTheDocument();
       expect(
         screen.getByText(
-          "Failed: Chris Failed — Board wage policy blocks this renewal. Keep annual wages near €24.000 while we recover.",
+          "Failed: Chris Failed — Board wage policy blocks this renewal. Keep annual wages near 24.000 € while we recover.",
         ),
       ).toBeInTheDocument();
     } finally {

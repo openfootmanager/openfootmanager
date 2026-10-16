@@ -8,7 +8,7 @@ use crate::contracts::{
 };
 use crate::finances::calc_wages;
 use crate::game::Game;
-use chrono::{Datelike, Duration, NaiveDate};
+use chrono::{Duration, NaiveDate};
 use domain::contract_ledger::ContractSource;
 use domain::league::CompletedTransfer;
 use domain::negotiation::{NegotiationFeedback, NegotiationMood};

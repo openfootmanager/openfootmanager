@@ -242,13 +242,19 @@ const WOULD_LEAVE_SENIORS_SHORT_ERROR: &str = "be.error.squadFloor.wouldLeaveSen
 /// players on a manager's behalf is his decision until a match cannot go ahead
 /// without them ([`ready_for_kick_off`]).
 pub(crate) fn keep_squads_at_the_floor(game: &mut Game) {
+    let users_club = game.manager.team_id.clone();
+    let mut users_shortfall = Vec::new();
     for (team_id, shortfall) in clubs_below_the_floor(game) {
-        if Some(&team_id) == game.manager.team_id.as_ref() {
-            warn_user_club_is_short(game, &team_id, &shortfall);
+        if Some(&team_id) == users_club.as_ref() {
+            users_shortfall = shortfall;
         } else {
             let top_up = restore_minimum_squad(game, &team_id);
             report_unfilled_ai_club(&team_id, &top_up);
         }
+    }
+    // Every day, short or not: a club that has recovered has to clear what it was warned about.
+    if let Some(team_id) = users_club {
+        warn_user_club_is_short(game, &team_id, &users_shortfall);
     }
 }
 
@@ -268,17 +274,22 @@ pub fn repair_squads_on_load(game: &mut Game) -> bool {
         });
     // Only what changed the game counts: a save whose one short club is the
     // player's, already warned, must not be rewritten on every load.
+    let users_club = game.manager.team_id.clone();
+    let mut users_shortfall = Vec::new();
     let mut changed = false;
     for (team_id, shortfall) in clubs_below_the_floor(game) {
-        if Some(&team_id) == game.manager.team_id.as_ref() {
-            if !user_club_plays_today {
-                changed |= warn_user_club_is_short(game, &team_id, &shortfall);
-            }
+        if Some(&team_id) == users_club.as_ref() {
+            users_shortfall = shortfall;
         } else {
             let top_up = restore_minimum_squad(game, &team_id);
             changed |= !top_up.brought_in().is_empty();
             report_unfilled_ai_club(&team_id, &top_up);
         }
+    }
+    if let Some(team_id) = users_club
+        && !user_club_plays_today
+    {
+        changed |= warn_user_club_is_short(game, &team_id, &users_shortfall);
     }
     changed
 }
@@ -417,27 +428,63 @@ fn have_for(game: &Game, team_id: &str, shortage: &Shortage) -> usize {
     }
 }
 
-/// One message per shortage. Keyed on the season, the shortage and how many are
-/// left, so the player hears once when the club goes short and again if it gets
-/// worse — not every day it stays that way. Returns whether any was new.
+/// Tells the player about each shortage the club has just entered, and keeps note of which
+/// are being warned about now.
+///
+/// The rule (the maintainer's, 12 Oct 2026): warn when the club enters a shortfall, warn again
+/// when it changes, never repeat one that has not. So the ledger holds one marker per shortage
+/// currently being warned about, `(season, shortage, how many seniors)`: a shortage without a
+/// marker is news, a marker whose shortage has gone is cleared. That is what lets a shape
+/// warned about before warn again once the club has recovered and fallen back into it, which
+/// a permanent per-shape message id could not. A deleted message leaves its marker, so it is
+/// not resent. Returns whether the ledger or the inbox changed.
 fn warn_user_club_is_short(
     game: &mut Game,
     team_id: &str,
     shortfall: &[(Shortage, usize)],
 ) -> bool {
-    let mut sent = false;
     let season = crate::inbox::recurrence_season(game);
     let date = game.clock.current_date.format("%Y-%m-%d").to_string();
     let team_name = game.team_name_or_id(team_id);
-    for (shortage, _) in shortfall {
-        let have = have_for(game, team_id, shortage);
+    let prefix = format!("squad_floor_state:{team_id}:");
+
+    let now: Vec<(String, &Shortage, usize)> = shortfall
+        .iter()
+        .map(|(shortage, _)| {
+            let have = have_for(game, team_id, shortage);
+            (
+                format!("{prefix}{season}:{shortage:?}:{have}"),
+                shortage,
+                have,
+            )
+        })
+        .collect();
+    let previous: Vec<String> = game
+        .emitted_events
+        .range(prefix.clone()..)
+        .take_while(|marker| marker.starts_with(&prefix))
+        .cloned()
+        .collect();
+
+    let mut changed = false;
+    for marker in &previous {
+        if !now.iter().any(|(current, _, _)| current == marker) {
+            game.emitted_events.remove(marker);
+            changed = true;
+        }
+    }
+    for (marker, shortage, have) in now {
+        if previous.contains(&marker) {
+            continue;
+        }
+        game.emitted_events.insert(marker);
+        changed = true;
         let (subject, body, params) =
             shortage_message_parts("be.msg.squadBelowFloor", &team_name, shortage, have);
-        let id = format!("squad_below_floor_{team_id}_{season}_{shortage:?}_{have}");
-        let message = shortage_message(id, &date, &subject, &body, params);
-        sent |= crate::inbox::emit(game, message);
+        let id = format!("squad_below_floor_{team_id}_{date}_{shortage:?}_{have}");
+        crate::inbox::emit(game, shortage_message(id, &date, &subject, &body, params));
     }
-    sent
+    changed
 }
 
 /// One message per shortage nobody could fill, for the player's club. Keyed on
@@ -1156,6 +1203,116 @@ mod tests {
                 .any(|m| m.i18n_params.get("have").map(String::as_str) == Some("0")),
             "a worse shortfall went unreported"
         );
+    }
+
+    // --- The warning follows the shortfall (#787) ----------------------------------
+
+    fn bodies_of_warnings(game: &Game) -> usize {
+        game.messages
+            .iter()
+            .filter(|m| m.id.starts_with("squad_below_floor_"))
+            .count()
+    }
+
+    /// Given the player's club meets the floor, then loses its keeper
+    /// When the day runs
+    /// Then one warning names the shortfall; before the loss there was none.
+    #[test]
+    fn entering_the_below_floor_state_warns() {
+        let mut game = users_club_with(SOUND);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 0);
+
+        game.players
+            .retain(|p| p.id != "Goalkeeper0" && p.id != "Goalkeeper1");
+        keep_squads_at_the_floor(&mut game);
+
+        assert_eq!(bodies_of_warnings(&game), 1);
+    }
+
+    /// Given a club short of a keeper and warned
+    /// When its defence also falls short
+    /// Then only the new shortage is announced, not the keeper again.
+    #[test]
+    fn a_changed_shortfall_warns_about_what_changed() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        keep_squads_at_the_floor(&mut game);
+        game.messages.clear();
+
+        game.players
+            .retain(|p| p.id != "Defender0" && p.id != "Defender1");
+        keep_squads_at_the_floor(&mut game);
+
+        assert_eq!(game.messages.len(), 1, "{:?}", body_keys(&game));
+        assert_eq!(
+            game.messages[0]
+                .i18n_params
+                .get("group")
+                .map(String::as_str),
+            Some("common.positionGroups.Defender")
+        );
+    }
+
+    /// Given a club short in a shape it was already warned about, which then recovers
+    /// When it falls short in that same shape again within the same season
+    /// Then it is warned again: the earlier warning belonged to an earlier shortfall.
+    #[test]
+    fn returning_to_an_earlier_shape_warns_again() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 1);
+
+        game.players
+            .push(player("keeper_back", Some("club"), Position::Goalkeeper));
+        game.clock.advance_days(1);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 1, "recovering is not a warning");
+
+        game.players.retain(|p| p.id != "keeper_back");
+        game.clock.advance_days(1);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 2);
+    }
+
+    /// Given a club short and warned
+    /// When days pass with the same shortfall
+    /// Then nothing more is sent.
+    #[test]
+    fn an_unchanged_shortfall_is_not_repeated() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        for _ in 0..5 {
+            keep_squads_at_the_floor(&mut game);
+            game.clock.advance_days(1);
+        }
+        assert_eq!(bodies_of_warnings(&game), 1);
+    }
+
+    /// Given a warning the player deleted
+    /// When the same shortfall persists
+    /// Then it is not sent again.
+    #[test]
+    fn a_deleted_warning_is_not_resent_for_the_same_shortfall() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        keep_squads_at_the_floor(&mut game);
+        game.messages.clear();
+
+        game.clock.advance_days(1);
+        keep_squads_at_the_floor(&mut game);
+
+        assert!(game.messages.is_empty());
+    }
+
+    /// Given a club still short in the same shape when a new season begins
+    /// When the day runs
+    /// Then the player is reminded once for the new season.
+    #[test]
+    fn a_new_season_reminds_once() {
+        let mut game = users_club_with([1, 5, 5, 4]);
+        keep_squads_at_the_floor(&mut game);
+        game.clock.advance_days(365);
+        keep_squads_at_the_floor(&mut game);
+        keep_squads_at_the_floor(&mut game);
+        assert_eq!(bodies_of_warnings(&game), 2);
     }
 
     // --- Kick-off -----------------------------------------------------------------
