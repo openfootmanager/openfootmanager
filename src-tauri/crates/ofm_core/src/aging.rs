@@ -272,11 +272,20 @@ mod tests {
     /// Then there is none at 30 and a point or two from 31 on.
     #[test]
     fn endurance_loss_starts_at_thirty_one() {
-        assert_eq!(veteran_endurance_loss("player", 30, 3), 0);
+        for season in 1..=20 {
+            assert_eq!(veteran_endurance_loss("player", 30, season), 0);
+        }
         for age in [31, 35, 40] {
+            let losses: Vec<u8> = (1..=20)
+                .map(|season| veteran_endurance_loss("player", age, season))
+                .collect();
             assert!(
-                (1..=2).contains(&veteran_endurance_loss("player", age, 3)),
-                "age {age}"
+                losses.iter().all(|loss| (1..=2).contains(loss)),
+                "age {age}: {losses:?}"
+            );
+            assert!(
+                losses.contains(&1) && losses.contains(&2),
+                "age {age}: {losses:?}"
             );
         }
     }
@@ -286,11 +295,20 @@ mod tests {
     /// Then there is none at 32 and a point or two from 33 on.
     #[test]
     fn strength_loss_starts_at_thirty_three() {
-        assert_eq!(veteran_strength_loss("player", 32, 3), 0);
+        for season in 1..=20 {
+            assert_eq!(veteran_strength_loss("player", 32, season), 0);
+        }
         for age in [33, 36, 40] {
+            let losses: Vec<u8> = (1..=20)
+                .map(|season| veteran_strength_loss("player", age, season))
+                .collect();
             assert!(
-                (1..=2).contains(&veteran_strength_loss("player", age, 3)),
-                "age {age}"
+                losses.iter().all(|loss| (1..=2).contains(loss)),
+                "age {age}: {losses:?}"
+            );
+            assert!(
+                losses.contains(&1) && losses.contains(&2),
+                "age {age}: {losses:?}"
             );
         }
     }
