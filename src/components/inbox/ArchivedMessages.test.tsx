@@ -29,11 +29,14 @@ function message(id: string, subject: string, date: string): MessageData {
     category: "System",
     priority: "Normal",
     actions: [],
-    context: {},
-  } as MessageData;
+    context: { team_id: null, player_id: null, fixture_id: null, match_result: null },
+  };
 }
 
-function page(items: MessageData[], next: { date: string; id: string } | null): ArchivedMessagesPage {
+function page(
+  items: MessageData[],
+  next: { date: string; id: string } | null,
+): ArchivedMessagesPage {
   return { items, next_before: next };
 }
 
