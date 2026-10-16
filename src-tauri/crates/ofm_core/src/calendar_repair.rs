@@ -279,4 +279,35 @@ mod tests {
         assert_eq!(changed, 1);
         assert!(game.competitions[0].fixtures.iter().all(|f| f.id != "f1"));
     }
+
+    /// Given a loaded save whose legacy `game.league` mirror holds the clashing calendar,
+    /// When it is repaired, Then the mirror shows the repaired dates too: the dashboard reads it.
+    #[test]
+    fn the_legacy_mirror_shows_the_repaired_dates() {
+        let mut game = clashing_save();
+        game.league = Some(game.competitions[0].clone());
+        let before = game.league.as_ref().unwrap().fixtures.clone();
+
+        repair_loaded_calendar(&mut game);
+
+        let mirrored: Vec<&str> = game
+            .league
+            .as_ref()
+            .unwrap()
+            .fixtures
+            .iter()
+            .map(|f| f.date.as_str())
+            .collect();
+        let repaired: Vec<&str> = game.competitions[0]
+            .fixtures
+            .iter()
+            .map(|f| f.date.as_str())
+            .collect();
+        assert_eq!(mirrored, repaired);
+        assert_ne!(
+            mirrored,
+            before.iter().map(|f| f.date.as_str()).collect::<Vec<_>>(),
+            "the premise: the repair moved a match of the mirrored league"
+        );
+    }
 }
