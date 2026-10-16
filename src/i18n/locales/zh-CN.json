@@ -2889,6 +2889,12 @@
       "notice": {
         "fallbackLeagueGenerated": "未定义任何赛事。已自动为所有球队生成默认的单级别联赛。",
         "fallbackTeamsFilled": "仅定义了一支球队。已自动生成程序化对手以使游戏可玩。"
+      },
+      "customTactic": {
+        "nameRequired": "请为战术起一个不超过 60 个字符的名称。",
+        "invalidFormation": "游戏不认识该阵型。",
+        "invalidPlayStyle": "游戏不认识该打法。",
+        "notFound": "该战术已不存在。"
       }
     },
     "sender": {

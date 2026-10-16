@@ -157,6 +157,10 @@ pub struct Game {
     /// IPC serde like the other archives. Persistence is the `retired_managers` table.
     #[serde(skip)]
     pub retired_managers: Vec<Manager>,
+    /// Tactics the player saved, in the order they made them. Career-scoped, not club-scoped.
+    /// Persistence is the `custom_tactics` table.
+    #[serde(default)]
+    pub custom_tactics: Vec<domain::custom_tactic::CustomTactic>,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -245,6 +249,7 @@ impl Game {
             calendar_fingerprint: None,
             day_start: None,
             retired_managers: Vec::new(),
+            custom_tactics: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],

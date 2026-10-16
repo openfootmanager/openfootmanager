@@ -2889,7 +2889,13 @@
         "youthAssignmentNotFound": "Penugasan rekrutmen pemuda tidak ditemukan",
         "scoutAlreadyAssignedToSearch": "Scout sudah ditugaskan ke pencarian ini"
       },
-      "invalidPath": "Jalur tidak valid."
+      "invalidPath": "Jalur tidak valid.",
+      "customTactic": {
+        "nameRequired": "Beri taktik nama maksimal 60 karakter.",
+        "invalidFormation": "Formasi itu tidak dikenal permainan.",
+        "invalidPlayStyle": "Gaya bermain itu tidak dikenal permainan.",
+        "notFound": "Taktik itu sudah tidak ada."
+      }
     },
     "sender": {
       "boardOfDirectors": "Dewan Direksi",

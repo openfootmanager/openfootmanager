@@ -2889,7 +2889,13 @@
         "youthAssignmentNotFound": "Youth recruitment assignment not found",
         "scoutAlreadyAssignedToSearch": "Scout is already assigned to this search"
       },
-      "invalidPath": "Invalid path."
+      "invalidPath": "Invalid path.",
+      "customTactic": {
+        "nameRequired": "Give the tactic a name of up to 60 characters.",
+        "invalidFormation": "That formation isn't one the game knows.",
+        "invalidPlayStyle": "That play style isn't one the game knows.",
+        "notFound": "That tactic no longer exists."
+      }
     },
     "sender": {
       "boardOfDirectors": "Board of Directors",
