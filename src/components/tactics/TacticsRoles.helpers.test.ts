@@ -88,12 +88,7 @@ describe("an assignment followed by the next resolution", () => {
    * Then "a" is not handed the captaincy back by the fallback: no one holds both armbands.
    */
   it("does not restore the displaced captain from the backend's pick", () => {
-    const saved = buildUpdatedMatchRolesForAssignment(
-      resolveEffectiveMatchRoles(xi, undefined, backend),
-      "vice_captain",
-      "a",
-      backend,
-    );
+    const saved = buildUpdatedMatchRolesForAssignment(xi, undefined, "vice_captain", "a");
 
     const next = resolveEffectiveMatchRoles(xi, saved, backend);
 
@@ -103,12 +98,12 @@ describe("an assignment followed by the next resolution", () => {
 });
 
 describe("buildUpdatedMatchRolesForAssignment", () => {
-  const effective: TeamMatchRolesData = {
+  const stored: TeamMatchRolesData = {
     captain: "a",
     vice_captain: "b",
-    penalty_taker: "b",
-    free_kick_taker: "c",
-    corner_taker: "a",
+    penalty_taker: null,
+    free_kick_taker: null,
+    corner_taker: null,
   };
 
   /**
@@ -117,7 +112,7 @@ describe("buildUpdatedMatchRolesForAssignment", () => {
    * Then the vice slot is cleared: nobody holds both.
    */
   it("clears the vice-captain when he becomes captain", () => {
-    const next = buildUpdatedMatchRolesForAssignment(effective, "captain", "b", backend);
+    const next = buildUpdatedMatchRolesForAssignment(xi, stored, "captain", "b");
 
     expect(next.captain).toBe("b");
     expect(next.vice_captain).toBeNull();
@@ -126,36 +121,47 @@ describe("buildUpdatedMatchRolesForAssignment", () => {
   /**
    * Given the captain
    * When he is made vice-captain
-   * Then the captain slot falls back to the backend's pick, unless that is the same player.
+   * Then the captain slot is left empty, not filled from the backend's pick: the backend keeps
+   *      choosing the captain at match time.
    */
-  it("gives the captaincy back to the backend's pick when the captain becomes vice", () => {
+  it("leaves the captaincy empty when the captain becomes vice", () => {
     const next = buildUpdatedMatchRolesForAssignment(
-      { ...effective, vice_captain: null },
+      xi,
+      { ...stored, vice_captain: null },
       "vice_captain",
       "a",
-      { ...backend, captain: "c" },
     );
-    expect(next.vice_captain).toBe("a");
-    expect(next.captain).toBe("c");
 
-    const same = buildUpdatedMatchRolesForAssignment(
-      { ...effective, vice_captain: null },
-      "vice_captain",
-      "a",
-      backend,
-    );
-    expect(same.captain).toBeNull();
+    expect(next.vice_captain).toBe("a");
+    expect(next.captain).toBeNull();
   });
 
   /**
-   * Given any other role
-   * When a player is assigned
-   * Then only that role changes.
+   * Given only some roles the manager has assigned
+   * When another is assigned
+   * Then the payload holds the manager's roles plus that one, and every unassigned role stays null
+   *      for the backend to choose; nothing the screen shows as a fallback is saved.
    */
-  it("changes only the assigned role otherwise", () => {
-    expect(buildUpdatedMatchRolesForAssignment(effective, "corner_taker", "c", backend)).toEqual({
-      ...effective,
+  it("saves only the manager's roles plus the assignment", () => {
+    expect(buildUpdatedMatchRolesForAssignment(xi, stored, "corner_taker", "c")).toEqual({
+      ...stored,
       corner_taker: "c",
     });
+  });
+
+  /**
+   * Given a stored role whose player has left the eleven
+   * When another role is assigned
+   * Then the departed player's role is saved as unassigned.
+   */
+  it("drops a stored role whose player is no longer in the eleven", () => {
+    const next = buildUpdatedMatchRolesForAssignment(
+      xi,
+      { ...stored, penalty_taker: "gone" },
+      "corner_taker",
+      "c",
+    );
+
+    expect(next.penalty_taker).toBeNull();
   });
 });

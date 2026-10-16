@@ -6,15 +6,12 @@ import { type AutoSetPieces, autoSelectSetPieces } from "../services/squadServic
  * The takers the backend would use for this starting eleven when none are assigned. It asks again
  * when the eleven changes or the squad `revision` does (the backend ranks on attributes, which move
  * with the days while the eleven stays put), and drops a late answer for an older one. `null` until
- * the first answer for the current eleven and revision: an older revision's picks are never returned,
- * since a manual assignment would save them.
+ * the first answer for this eleven. An older revision's picks stay shown until the new answer lands
+ * (as `useFetchedSquad` keeps the previous squad) so the roles do not blink; they are display only,
+ * never saved.
  */
 export function useAutoSetPieces(playerIds: string[], revision?: unknown): AutoSetPieces | null {
-  const [answer, setAnswer] = useState<{
-    key: string;
-    revision: unknown;
-    picks: AutoSetPieces;
-  } | null>(null);
+  const [answer, setAnswer] = useState<{ key: string; picks: AutoSetPieces } | null>(null);
   const key = playerIds.join(",");
 
   useEffect(() => {
@@ -22,7 +19,7 @@ export function useAutoSetPieces(playerIds: string[], revision?: unknown): AutoS
     let cancelled = false;
     autoSelectSetPieces(key.split(","))
       .then((picks) => {
-        if (!cancelled) setAnswer({ key, revision, picks });
+        if (!cancelled) setAnswer({ key, picks });
       })
       .catch((error: unknown) => {
         console.error("Failed to read the automatic set-piece takers:", error);
@@ -32,5 +29,5 @@ export function useAutoSetPieces(playerIds: string[], revision?: unknown): AutoS
     };
   }, [key, revision]);
 
-  return answer?.key === key && answer.revision === revision ? answer.picks : null;
+  return answer?.key === key ? answer.picks : null;
 }

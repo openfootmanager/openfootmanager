@@ -429,7 +429,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     playerId: string,
   ): Promise<void> {
     await persistMatchRoles(
-      buildUpdatedMatchRolesForAssignment(effectiveMatchRoles, role, playerId, autoSetPieces),
+      buildUpdatedMatchRolesForAssignment(startingXI, team?.match_roles, role, playerId),
     );
   }
 

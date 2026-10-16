@@ -943,4 +943,67 @@ describe("TacticsTab", () => {
 
     expect(mockedInvoke.mock.calls.filter(([c]) => c === "set_team_match_roles")).toHaveLength(0);
   });
+
+  /** Given the backend would pick takers for the unassigned roles, when the manager assigns
+   * one role, then only that role is saved: the others stay null for the backend to choose. */
+  it("saves only the manager's own roles on a manual assignment", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("auto_select_set_pieces", expect.anything());
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /preMatch\.cornerTaker/ }));
+    // The right panel comes last in the page, so its list is the last match.
+    const options = await screen.findAllByRole("button", { name: /D3/ });
+    fireEvent.click(options[options.length - 1]);
+
+    await waitFor(() => {
+      expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", expect.anything());
+    });
+    const saved = mockedInvoke.mock.calls.find(([c]) => c === "set_team_match_roles")?.[1] as {
+      matchRoles: Record<string, string | null>;
+    };
+    expect(saved.matchRoles.captain).toBeNull();
+    expect(saved.matchRoles.penalty_taker).toBeNull();
+    expect(saved.matchRoles.free_kick_taker).toBeNull();
+    expect(saved.matchRoles.vice_captain).toBeNull();
+  });
+
+  /** Given the fallback takers are shown, when the game updates with the same eleven, then
+   * they stay shown while the new picks are on their way (only the vice-captain is blank). */
+  it("keeps the fallback takers shown across a game update with the same eleven", async () => {
+    const gameState = makeGameState();
+    const roster = gameState.players.filter((p) => p.team_id === "team1");
+    let slow = false;
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return roster;
+      if (command === "auto_select_set_pieces") {
+        if (slow) return new Promise(() => {});
+        return { captain: "m2", penalty_taker: "f2", free_kick_taker: "m3", corner_taker: "d4" };
+      }
+      return gameState;
+    });
+    const props = { onSelectPlayer: vi.fn(), onGameUpdate: vi.fn() };
+    const { rerender } = render(<TacticsTab gameState={gameState} {...props} />);
+    await waitFor(() => expect(screen.getAllByText("match.notAssigned")).toHaveLength(1));
+    slow = true;
+
+    rerender(<TacticsTab gameState={{ ...gameState }} {...props} />);
+    await waitFor(() => {
+      expect(mockedInvoke.mock.calls.filter(([c]) => c === "auto_select_set_pieces")).toHaveLength(
+        2,
+      );
+    });
+
+    expect(screen.getAllByText("match.notAssigned")).toHaveLength(1);
+  });
 });

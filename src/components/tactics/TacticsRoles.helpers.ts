@@ -59,23 +59,27 @@ export function resolveEffectiveMatchRoles(
   };
 }
 
+/**
+ * The roles to save when the manager assigns one: the roles they have stored (those whose player is
+ * still in the eleven) plus this assignment. Roles they have not assigned stay null, so the backend
+ * keeps choosing them at match time; what the screen shows as a fallback is never saved.
+ */
 export function buildUpdatedMatchRolesForAssignment(
-  effectiveRoles: TeamMatchRolesData,
+  startingPlayers: PlayerData[],
+  storedRoles: TeamMatchRolesData | undefined,
   role: keyof TeamMatchRolesData,
   playerId: string,
-  backendPicks: AutoSetPieces | null,
 ): TeamMatchRolesData {
-  const nextRoles: TeamMatchRolesData = { ...effectiveRoles, [role]: playerId };
+  const assigned = resolveEffectiveMatchRoles(startingPlayers, storedRoles, null);
+  const nextRoles: TeamMatchRolesData = { ...assigned, [role]: playerId };
 
-  // Nobody holds both armbands: the one displaced gives way. A vice-captain made captain is
-  // cleared; a captain made vice falls back to the backend's captain unless that is him again.
+  // Nobody holds both armbands: the one displaced gives way, and is left for the backend to choose.
   if (role === "captain" && nextRoles.vice_captain === playerId) {
     return { ...nextRoles, vice_captain: null };
   }
 
   if (role === "vice_captain" && nextRoles.captain === playerId) {
-    const fallback = backendPicks?.captain;
-    return { ...nextRoles, captain: fallback && fallback !== playerId ? fallback : null };
+    return { ...nextRoles, captain: null };
   }
 
   return nextRoles;

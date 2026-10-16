@@ -85,13 +85,12 @@ describe("useAutoSetPieces", () => {
   });
 
   /**
-   * Given picks for one squad revision and a newer revision whose request fails
+   * Given picks for one squad revision and a newer revision whose request has not answered
    * When the hook renders with the newer revision
-   * Then the old revision's picks are not returned: a manual assignment would save them.
+   * Then the older picks stay shown, and the backend is asked again.
    */
-  it("does not return an older revision's picks once the revision has moved on", async () => {
-    mockedAuto.mockResolvedValueOnce(picks("old")).mockRejectedValueOnce(new Error("busy"));
-    vi.spyOn(console, "error").mockImplementation(() => {});
+  it("keeps showing an older revision's picks while a newer revision asks again", async () => {
+    mockedAuto.mockResolvedValueOnce(picks("old")).mockReturnValueOnce(new Promise(() => {}));
     const { result, rerender } = renderHook(
       ({ revision }) => useAutoSetPieces(["a", "b"], revision),
       {
@@ -101,9 +100,9 @@ describe("useAutoSetPieces", () => {
     await waitFor(() => expect(result.current?.captain).toBe("old"));
 
     rerender({ revision: 2 });
-    await waitFor(() => expect(mockedAuto).toHaveBeenCalledTimes(2));
 
-    expect(result.current).toBeNull();
+    await waitFor(() => expect(mockedAuto).toHaveBeenCalledTimes(2));
+    expect(result.current?.captain).toBe("old");
   });
 
   /**

@@ -63,7 +63,7 @@ export default function TacticsRightPanel({
 
   async function handleRoleChange(role: keyof TeamMatchRolesData, playerId: string): Promise<void> {
     await persistMatchRoles(
-      buildUpdatedMatchRolesForAssignment(effectiveRoles, role, playerId, autoSetPieces),
+      buildUpdatedMatchRolesForAssignment(startingPlayers, matchRoles, role, playerId),
     );
   }
 
