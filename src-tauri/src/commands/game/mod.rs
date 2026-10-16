@@ -2,7 +2,6 @@ use log::info;
 use std::sync::Arc;
 use tauri::{Manager as TauriManager, State};
 
-use chrono::Datelike;
 
 use db::save_index::SaveEntry;
 use domain::manager::Manager;
