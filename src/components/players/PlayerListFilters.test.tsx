@@ -184,6 +184,28 @@ describe("PlayerListFilters", () => {
     expect(typed).toHaveBeenCalledWith({ age_min: 21 });
   });
 
+  /**
+   * Given the range inputs
+   * When a decimal age, an out-of-range rating and a negative number are typed
+   * Then the request carries whole numbers inside the valid range: the backend reads ages as
+   *      integers and ratings as 0-255, and a stray value would fail the whole page request.
+   */
+  it("sends whole numbers inside the valid range, whatever is typed", () => {
+    const onChange = renderFilters();
+
+    fireEvent.change(screen.getByLabelText("players.filterAgeMin"), { target: { value: "21.5" } });
+    expect(onChange).toHaveBeenLastCalledWith({ age_min: 21 });
+
+    fireEvent.change(screen.getByLabelText("players.filterOvrMin"), { target: { value: "300" } });
+    expect(onChange).toHaveBeenLastCalledWith({ ovr_min: 100 });
+
+    fireEvent.change(screen.getByLabelText("players.filterAgeMax"), { target: { value: "-4" } });
+    expect(onChange).toHaveBeenLastCalledWith({ age_max: 0 });
+
+    fireEvent.change(screen.getByLabelText("players.filterOvrMax"), { target: { value: "1e3" } });
+    expect(onChange).toHaveBeenLastCalledWith({ ovr_max: 100 });
+  });
+
   it("reports an emptied range bound as null", () => {
     const cleared = renderFilters({ age_min: 21 });
     fireEvent.change(screen.getByLabelText("players.filterAgeMin"), { target: { value: "" } });

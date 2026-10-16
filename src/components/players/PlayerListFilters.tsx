@@ -120,10 +120,22 @@ function PositionGroupChip({ group, chosen, open, onPress, onToggle }: PositionG
   );
 }
 
+// The backend reads ages as integers and ratings as 0-255; nothing real goes past 100, so a bound
+// typed beyond it is held there instead of failing the whole page request.
+const MAX_RANGE_BOUND = 100;
+
 interface RangeInputProps {
   label: string;
   value: number | null;
   onChange: (value: number | null) => void;
+}
+
+/** A typed bound as a whole number in range, or null when it is empty or not a number. */
+function toRangeBound(raw: string): number | null {
+  if (raw === "") return null;
+  const typed = Number(raw);
+  if (!Number.isFinite(typed)) return null;
+  return Math.min(MAX_RANGE_BOUND, Math.max(0, Math.trunc(typed)));
 }
 
 function RangeInput({ label, value, onChange }: RangeInputProps) {
@@ -132,14 +144,15 @@ function RangeInput({ label, value, onChange }: RangeInputProps) {
       type="number"
       inputMode="numeric"
       min={0}
+      max={MAX_RANGE_BOUND}
+      step={1}
       aria-label={label}
       placeholder={label}
       value={value ?? ""}
       onChange={(event) => {
-        const raw = event.target.value;
-        onChange(raw === "" ? null : Number(raw));
+        onChange(toRangeBound(event.target.value));
       }}
-      className="w-24 px-2 py-1.5 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+      className="w-24 px-2 py-1.5 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
     />
   );
 }
@@ -239,7 +252,7 @@ export default function PlayerListFilters({
           placeholder={searchPlaceholder ?? t("players.searchPlaceholder")}
           value={query.search ?? ""}
           onChange={(event) => onChange({ search: event.target.value || null })}
-          className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+          className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
         />
       </div>
 

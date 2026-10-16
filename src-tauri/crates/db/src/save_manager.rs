@@ -618,6 +618,18 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        // After the stranded fixtures are resolved, so that what remains unplayed is the calendar
+        // from here on. Matches inside the rest window, or on an international window, move to the
+        // earliest legal day; each is recorded as postponed and the user is told once. Idempotent.
+        let repaired_calendar = ofm_core::calendar_repair::repair_loaded_calendar(&mut game);
+        if repaired_calendar > 0 {
+            info!(
+                "[save_manager] moved {} clashing fixture(s) for save {}",
+                repaired_calendar, save_id
+            );
+            needs_resave = true;
+        }
+
         if league_repo::needs_cleanup(
             db.conn(),
             game.league.as_ref().map(|league| league.id.as_str()),
@@ -1295,6 +1307,108 @@ mod tests {
     /// the next load. The free-agent market is where that showed: it is cleared
     /// and redrawn every 30 days, but the clear never reached disk, so a loaded
     /// save listed every candidate ever generated and the list only ever grew.
+    /// Given a career saved after each of three days, each day adding a match and an article
+    /// (and reading the previous one)
+    /// When a second manager, with no memory of those saves, loads the file
+    /// Then it holds exactly the matches and articles in memory, none twice and none missing.
+    #[test]
+    fn stats_and_news_saved_day_by_day_reload_exactly_as_they_were() {
+        use domain::news::{NewsArticle, NewsCategory};
+
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+
+        let mut game = sample_game();
+        let mut stats = StatsState::default();
+        let save_id = sm.create_save_with_stats(&game, &stats, "Career").unwrap();
+
+        let day_one = sample_stats_state();
+        for day in 0..3 {
+            let mut player = day_one.player_matches[0].clone();
+            player.fixture_id = format!("fix-{day}");
+            let mut team = day_one.team_matches[0].clone();
+            team.fixture_id = format!("fix-{day}");
+            stats.player_matches.push(player);
+            stats.team_matches.push(team);
+
+            if let Some(previous) = game.news.last_mut() {
+                previous.read = true;
+            }
+            game.news.push(NewsArticle::new(
+                format!("news-{day}"),
+                format!("Headline {day}"),
+                String::new(),
+                String::new(),
+                "2027-08-15".to_string(),
+                NewsCategory::MatchReport,
+            ));
+            sm.save_game_with_stats(&game, &stats, &save_id).unwrap();
+        }
+
+        let mut fresh = SaveManager::init(&saves_dir).unwrap();
+        let loaded_stats = fresh.load_stats_state(&save_id).unwrap();
+        let loaded = fresh.load_game(&save_id).unwrap();
+
+        let mut fixtures: Vec<_> = loaded_stats
+            .player_matches
+            .iter()
+            .map(|r| r.fixture_id.clone())
+            .collect();
+        fixtures.sort();
+        assert_eq!(fixtures, ["fix-0", "fix-1", "fix-2"]);
+        assert_eq!(loaded_stats.team_matches.len(), 3);
+
+        let mut articles: Vec<_> = loaded.news.iter().map(|a| (a.id.clone(), a.read)).collect();
+        articles.sort();
+        assert_eq!(
+            articles,
+            [
+                ("news-0".to_string(), true),
+                ("news-1".to_string(), true),
+                ("news-2".to_string(), false),
+            ]
+        );
+    }
+
+    /// Given a career whose stats alone are saved after each of two matches (the live-match path),
+    /// When a second manager, with no memory of those saves, loads the stats,
+    /// Then both matches are there, once each.
+    #[test]
+    fn stats_saved_on_their_own_reload_exactly_as_they_were() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let save_id = sm
+            .create_save_with_stats(&sample_game(), &StatsState::default(), "Career")
+            .unwrap();
+
+        let mut stats = StatsState::default();
+        for fixture in ["fix-0", "fix-1"] {
+            let mut player = sample_stats_state().player_matches[0].clone();
+            player.fixture_id = fixture.to_string();
+            let mut team = sample_stats_state().team_matches[0].clone();
+            team.fixture_id = fixture.to_string();
+            stats.player_matches.push(player);
+            stats.team_matches.push(team);
+            sm.save_stats_state(&stats, &save_id).unwrap();
+        }
+
+        let loaded = SaveManager::init(&saves_dir)
+            .unwrap()
+            .load_stats_state(&save_id)
+            .unwrap();
+
+        let mut fixtures: Vec<_> = loaded
+            .player_matches
+            .iter()
+            .map(|r| r.fixture_id.clone())
+            .collect();
+        fixtures.sort();
+        assert_eq!(fixtures, ["fix-0", "fix-1"]);
+        assert_eq!(loaded.team_matches.len(), 2);
+    }
+
     #[test]
     fn a_staff_member_removed_from_the_game_stays_removed_after_a_reload() {
         use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -1509,6 +1623,75 @@ mod tests {
             persisted.result.is_some(),
             "and the scoreline it chose is the one on disk"
         );
+    }
+
+    /// Given a save whose unplayed matches clash (one club, two matches on consecutive days),
+    /// When it is loaded, Then the clash is repaired, the move is recorded as a postponement, and
+    /// the repair is on disk: it is not recomputed, or lost, on the next load.
+    #[test]
+    fn loading_a_save_repairs_clashing_matches_and_persists_them() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let day = |offset: i64| {
+            (game.clock.current_date + chrono::Duration::days(offset))
+                .format("%Y-%m-%d")
+                .to_string()
+        };
+        let (first_day, second_day) = (day(30), day(31));
+        let competition = game.competitions.first_mut().expect("a league");
+        for (id, date) in [("clash-1", first_day), ("clash-2", second_day)] {
+            competition.fixtures.push(Fixture {
+                postponement: None,
+                id: id.to_string(),
+                competition_id: competition.id.clone(),
+                matchday: 99,
+                date,
+                home_team_id: "team-001".to_string(),
+                away_team_id: "team-002".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Scheduled,
+                result: None,
+            });
+        }
+        let save_id = sm.create_save(&game, "Clashing Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        let dates = |game: &Game| -> Vec<(String, String, bool)> {
+            game.competitions
+                .iter()
+                .flat_map(|competition| competition.fixtures.iter())
+                .filter(|fixture| fixture.id.starts_with("clash-"))
+                .map(|fixture| {
+                    (
+                        fixture.id.clone(),
+                        fixture.date.clone(),
+                        fixture.postponement.is_some(),
+                    )
+                })
+                .collect()
+        };
+        let in_memory = dates(&loaded);
+        let gap = |rows: &[(String, String, bool)]| {
+            let parse = |date: &str| chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap();
+            (parse(&rows[1].1) - parse(&rows[0].1)).num_days().abs()
+        };
+        assert!(gap(&in_memory) >= 3, "{in_memory:?}");
+        assert_eq!(
+            in_memory.iter().filter(|row| row.2).count(),
+            1,
+            "exactly one of the two moved, and is marked: {in_memory:?}"
+        );
+
+        // From the file itself, not a second load (which would repair again and prove nothing).
+        let db = GameDatabase::open_save(&saves_dir.join(format!("{save_id}.db"))).unwrap();
+        let from_disk = GamePersistenceReader::read_game(&db).unwrap();
+        assert_eq!(dates(&from_disk), in_memory);
     }
 
     /// Every attribute at `value`. `ofm_core` has the same helper for its own unit tests, but a
@@ -1763,6 +1946,65 @@ mod tests {
         assert!(
             persisted.result.is_some(),
             "and the scoreline reached the file with it"
+        );
+    }
+
+    #[test]
+    fn only_the_calendar_repairs_own_resave_flag_writes_a_late_clash_back() {
+        // As above, for the calendar: let the save settle, inject a clash straight into the
+        // database, and let the repair's own flag be the only thing that can persist the move.
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game_with_league();
+        if game.competitions.is_empty() {
+            game.competitions = game.league.clone().into_iter().collect();
+        }
+        let save_id = sm.create_save(&game, "Settled Clash Career").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        sm.load_game(&save_id).unwrap();
+
+        let day = |offset: i64| {
+            (game.clock.current_date + chrono::Duration::days(offset))
+                .format("%Y-%m-%d")
+                .to_string()
+        };
+        {
+            let db = GameDatabase::open_save(&db_path).unwrap();
+            let mut competitions = competition_repo::load_competitions(db.conn()).unwrap();
+            let competition = competitions.first_mut().expect("a settled competition");
+            for (id, date) in [("late-clash-1", day(40)), ("late-clash-2", day(41))] {
+                competition.fixtures.push(Fixture {
+                    postponement: None,
+                    id: id.to_string(),
+                    competition_id: competition.id.clone(),
+                    matchday: 98,
+                    date,
+                    home_team_id: "team-001".to_string(),
+                    away_team_id: "team-002".to_string(),
+                    competition: FixtureCompetition::League,
+                    status: FixtureStatus::Scheduled,
+                    result: None,
+                });
+            }
+            competition_repo::replace_competitions(db.conn(), &competitions).unwrap();
+        }
+
+        sm.load_game(&save_id).unwrap();
+
+        let db = GameDatabase::open_save(&db_path).unwrap();
+        let from_disk = competition_repo::load_competitions(db.conn()).unwrap();
+        let persisted: Vec<_> = from_disk
+            .iter()
+            .flat_map(|competition| competition.fixtures.iter())
+            .filter(|fixture| fixture.id.starts_with("late-clash-"))
+            .collect();
+        assert_eq!(persisted.len(), 2);
+        assert!(
+            persisted
+                .iter()
+                .any(|fixture| fixture.postponement.is_some()),
+            "the repair's own resave flag is what writes the move back"
         );
     }
 
@@ -2252,7 +2494,9 @@ mod tests {
     /// order the .db hands them back in (priority, season descending, then name).
     fn game_with_dormant_leagues_today() -> Game {
         let mut game = sample_game();
-        game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 9, 0, 0, 0).unwrap();
+        // Not an international-window date (9 September is one): a loaded save moves a match off
+        // a window, and this test is about the reload not changing what is played.
+        game.clock.current_date = Utc.with_ymd_and_hms(2026, 9, 16, 0, 0, 0).unwrap();
         // No players: a free agent in the save would be signed by a short squad on load, and the
         // reloaded game's clubs would no longer be the ones it is compared with.
         game.players.clear();
@@ -2285,7 +2529,7 @@ mod tests {
                 id: format!("df-{n}"),
                 competition_id: format!("dormant-{n}"),
                 matchday: 1,
-                date: "2026-09-09".to_string(),
+                date: "2026-09-16".to_string(),
                 home_team_id: home,
                 away_team_id: away,
                 competition: domain::league::FixtureCompetition::League,
