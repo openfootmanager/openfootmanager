@@ -881,6 +881,66 @@ fn critical_warning_when_in_debt() {
     assert!(critical_msgs[0].sender.is_empty());
 }
 
+/// Given a club 100,000 in debt, with 1,700 of wages to pay that week,
+/// When the weekly finances run,
+/// Then the board's warning carries the debt after the wages (101,700) as a whole number, not as a formatted string.
+#[test]
+fn the_debt_warning_carries_the_amount_as_a_number() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+
+    finances::process_weekly_finances(&mut game);
+
+    let message = game
+        .messages
+        .iter()
+        .find(|m| m.id.starts_with("finance_critical_"))
+        .expect("the board warns of the debt");
+    assert_eq!(message.i18n_params["amount"], "101700");
+}
+
+/// Given a club with two weeks of cash and a 1,700 weekly wage bill,
+/// When the weekly finances run,
+/// Then the runway warning carries the weekly wages as a whole number.
+#[test]
+fn the_runway_warning_carries_the_weekly_wages_as_a_number() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 3400;
+
+    finances::process_weekly_finances(&mut game);
+
+    let message = game
+        .messages
+        .iter()
+        .find(|m| m.id.starts_with("finance_warning_"))
+        .expect("the finance director warns of the runway");
+    assert_eq!(message.i18n_params["weeklyWages"], "1700");
+}
+
+/// Given a club with cash to spare whose 1,700 weekly wage bill is over its 1,545 budget,
+/// When the weekly finances run,
+/// Then the message names the figure for what it is, the weekly wage bill, as whole numbers.
+#[test]
+fn the_over_budget_message_carries_the_weekly_wage_bill_and_budget_as_numbers() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 1_000_000;
+    game.teams[0].wage_budget = 1_545;
+
+    finances::process_weekly_finances(&mut game);
+
+    let message = game
+        .messages
+        .iter()
+        .find(|m| m.id.starts_with("wage_over_budget_"))
+        .expect("the finance director warns of the wage bill");
+    assert_eq!(message.i18n_params["weeklyWageBill"], "1700");
+    assert_eq!(message.i18n_params["wageBudget"], "1545");
+    assert!(
+        !message.i18n_params.contains_key("annualWages"),
+        "the weekly bill is no longer called annual"
+    );
+}
+
 #[test]
 fn warning_when_low_runway() {
     let mut game = make_monday_game();

@@ -1314,3 +1314,28 @@ describe("accepted deal messages", () => {
     }
   });
 });
+
+describe("the weekly wage bill in the over-budget message", () => {
+  const key = "be.msg.wageOverBudget.body";
+
+  it("formats the bill and the budget the backend sends as whole numbers", () => {
+    const text = resolveBackendText(key, "fallback", {
+      weeklyWageBill: "1700",
+      wageBudget: "1545",
+    });
+
+    expect(text).toContain("€1,700");
+    expect(text).toContain("€1,545");
+    expect(text).not.toContain("{{");
+  });
+
+  it("still reads a message saved with the old annualWages name and a formatted amount", () => {
+    const text = resolveBackendText(key, "fallback", {
+      annualWages: "€1.7K",
+      wageBudget: "€1.5K",
+    });
+
+    expect(text).toContain("€2K");
+    expect(text).not.toContain("{{");
+  });
+});

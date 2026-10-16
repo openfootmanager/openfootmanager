@@ -132,7 +132,6 @@ function boardObjectiveFallback(objective: BoardObjective): string {
  */
 const MONEY_PARAM_KEYS = new Set([
   "amount",
-  "annualWages",
   "budget",
   "campaignCost",
   "cost",
@@ -142,6 +141,7 @@ const MONEY_PARAM_KEYS = new Set([
   "transferBudgetReduction",
   "wage",
   "wageBudget",
+  "weeklyWageBill",
   "weeklyWages",
 ]);
 
@@ -229,9 +229,21 @@ function resolveDateParamValue(key: string, value: string): string {
   return formatDate(value, i18n.resolvedLanguage || i18n.language || "en");
 }
 
+/**
+ * Param names the backend used to send under another name. Messages already saved carry the old
+ * name, and the translated text now names the new one, so a saved message is read under both.
+ * `annualWages` held the WEEKLY wage bill all along.
+ */
+const LEGACY_PARAM_NAMES: Record<string, string> = { annualWages: "weeklyWageBill" };
+
 function resolveParamValues(params?: Record<string, string>): Record<string, string> | undefined {
   if (!params) return params;
   const resolved = { ...params };
+  for (const [legacy, current] of Object.entries(LEGACY_PARAM_NAMES)) {
+    if (legacy in resolved && !(current in resolved)) {
+      resolved[current] = resolved[legacy];
+    }
+  }
   for (const [key, value] of Object.entries(resolved)) {
     if (value.includes(".")) {
       const attempted = i18n.t(value);
