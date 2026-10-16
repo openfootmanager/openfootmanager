@@ -28,6 +28,18 @@ pub struct ArchiveCursor {
     pub id: String,
 }
 
+impl ArchiveCursor {
+    /// The cursor a caller names with two separate values: both or neither. One alone is a mistake
+    /// that would silently restart from the newest mail.
+    pub fn from_parts(date: Option<String>, id: Option<String>) -> Result<Option<Self>, String> {
+        match (date, id) {
+            (Some(date), Some(id)) => Ok(Some(Self { date, id })),
+            (None, None) => Ok(None),
+            _ => Err("before_date and before_id must be given together".to_string()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct ArchivedMessagesPage {
     pub items: Vec<InboxMessage>,
@@ -37,12 +49,18 @@ pub struct ArchivedMessagesPage {
 
 /// Moves read mail older than [`ARCHIVE_AFTER_DAYS`] to the archive; returns how many moved.
 ///
-/// A message whose date cannot be read stays where it is: guessing its age risks hiding mail.
+/// A message whose date cannot be read stays where it is: guessing its age risks hiding mail. So
+/// does one with an action still to answer, however old: the player has not finished with it.
 pub fn archive_old_mail(game: &mut Game) -> usize {
     let cutoff = game.clock.current_date.date_naive() - Duration::days(ARCHIVE_AFTER_DAYS);
-    let (old, live): (Vec<_>, Vec<_>) = std::mem::take(&mut game.messages)
-        .into_iter()
-        .partition(|message| message.read && is_before(&message.date, cutoff));
+    let (old, live): (Vec<_>, Vec<_>) =
+        std::mem::take(&mut game.messages)
+            .into_iter()
+            .partition(|message| {
+                message.read
+                    && message.actions.iter().all(|action| action.resolved)
+                    && is_before(&message.date, cutoff)
+            });
     game.messages = live;
     let moved = old.len();
     game.archived_messages.extend(old);
@@ -221,6 +239,62 @@ mod tests {
         let third = page(&game, second.next_before.as_ref(), 2);
         assert_eq!(ids(&third.items), ["e"]);
         assert_eq!(third.next_before, None);
+    }
+
+    /// Given an archive of exactly one page
+    /// When that page is read
+    /// Then there is no next cursor: nothing is left to ask for.
+    #[test]
+    fn a_page_that_holds_the_rest_has_no_next_cursor() {
+        let mut game = game_on(2031, 7, 1);
+        game.archived_messages = vec![mail("a", "2030-01-01", true), mail("b", "2030-02-01", true)];
+
+        let page = page(&game, None, 2);
+
+        assert_eq!(ids(&page.items), ["b", "a"]);
+        assert_eq!(page.next_before, None);
+    }
+
+    /// Given a read message, old, with an action the player has not answered
+    /// When old mail is archived
+    /// Then it stays in the inbox; once the action is resolved it moves.
+    #[test]
+    fn mail_with_an_unanswered_action_stays_live() {
+        use domain::message::{ActionType, MessageAction};
+        let mut game = game_on(2031, 7, 1);
+        let mut offer = mail("offer", "2030-01-01", true);
+        offer.actions = vec![MessageAction {
+            id: "accept".into(),
+            label: "Accept".into(),
+            action_type: ActionType::Acknowledge,
+            resolved: false,
+            label_key: None,
+        }];
+        game.messages = vec![offer];
+
+        assert_eq!(archive_old_mail(&mut game), 0);
+        assert_eq!(ids(&game.messages), ["offer"]);
+
+        game.messages[0].actions[0].resolved = true;
+        assert_eq!(archive_old_mail(&mut game), 1);
+    }
+
+    /// Given a cursor named by two values
+    /// When they are combined
+    /// Then both make a cursor, neither makes none, and one alone is refused.
+    #[test]
+    fn a_cursor_is_both_parts_or_neither() {
+        let both = ArchiveCursor::from_parts(Some("2030-01-01".into()), Some("a".into()));
+        assert_eq!(
+            both,
+            Ok(Some(ArchiveCursor {
+                date: "2030-01-01".into(),
+                id: "a".into()
+            }))
+        );
+        assert_eq!(ArchiveCursor::from_parts(None, None), Ok(None));
+        assert!(ArchiveCursor::from_parts(Some("2030-01-01".into()), None).is_err());
+        assert!(ArchiveCursor::from_parts(None, Some("a".into())).is_err());
     }
 
     /// Given an archive and absurd limits
