@@ -27,6 +27,10 @@ pub enum PlayerStatusFilter {
     All,
     Transfer,
     Loan,
+    /// Not under contract to any club.
+    FreeAgent,
+    /// Anyone a club can approach: listed for transfer or for loan, or without a club.
+    Available,
 }
 
 /// Which players a list is about, before any other filter narrows it.
@@ -36,12 +40,17 @@ pub enum PlayerScope {
     /// Everyone in the world.
     #[default]
     All,
-    /// Players the user's club could still approach: not on loan, not already agreed to move, and
-    /// not in the user's own club.
+    /// Players the user's club could still approach: not retired, not on loan, not already agreed
+    /// to move, and not in the user's own club.
     Market,
     /// Players a scout can still be sent to watch: not in the user's own club and not already
     /// being scouted.
     Scoutable,
+    /// The user's own players put up for transfer or loan and still free to move.
+    UserListed,
+    /// Players the user's club has dealings over: offers on its own players, and offers its club
+    /// has made for others'.
+    WithOffers,
 }
 
 /// One position test: an exact position, or every position in a group (a defender of any kind).
@@ -120,9 +129,38 @@ pub struct PlayerSummaryMedia {
     pub face: Option<String>,
 }
 
+/// How many players each status chip would show, with every filter but status as the query has it.
+#[derive(Debug, Default, Serialize, PartialEq, Eq)]
+pub struct StatusCounts {
+    pub all: usize,
+    pub transfer: usize,
+    pub loan: usize,
+    pub free_agent: usize,
+    pub available: usize,
+}
+
+impl StatusCounts {
+    fn of(players: &[&Player]) -> Self {
+        let count_of = |status| {
+            players
+                .iter()
+                .filter(|player| matches_status(player, status))
+                .count()
+        };
+        Self {
+            all: count_of(PlayerStatusFilter::All),
+            transfer: count_of(PlayerStatusFilter::Transfer),
+            loan: count_of(PlayerStatusFilter::Loan),
+            free_agent: count_of(PlayerStatusFilter::FreeAgent),
+            available: count_of(PlayerStatusFilter::Available),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct PlayersPage {
     pub items: Vec<PlayerSummary>,
+    pub status_counts: StatusCounts,
     pub total: usize,
     pub page: usize,
     pub page_size: usize,
@@ -145,10 +183,15 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
         .map(str::to_ascii_lowercase);
 
     let context = ListContext::new(game);
-    let mut matches: Vec<&Player> = game
+    let candidates: Vec<&Player> = game
         .players
         .iter()
-        .filter(|player| matches_filters(player, query, needle.as_deref(), &context))
+        .filter(|player| matches_all_but_status(player, query, needle.as_deref(), &context))
+        .collect();
+    let status_counts = StatusCounts::of(&candidates);
+    let mut matches: Vec<&Player> = candidates
+        .into_iter()
+        .filter(|player| matches_status(player, query.status))
         .collect();
 
     sort_matches(&mut matches, query, &teams, context.today);
@@ -166,6 +209,7 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
 
     PlayersPage {
         items,
+        status_counts,
         total,
         page,
         page_size: query.page_size,
@@ -207,14 +251,38 @@ fn matches_scope(player: &Player, scope: PlayerScope, context: &ListContext) -> 
     match scope {
         PlayerScope::All => true,
         PlayerScope::Market => {
-            !context.is_users_own(player)
+            !player.retired
+                && !context.is_users_own(player)
                 && !player_has_active_or_pending_loan(player)
                 && !has_pending_transfer_registration(player)
         }
         PlayerScope::Scoutable => {
             !context.is_users_own(player) && !context.scouted.contains(player.id.as_str())
         }
+        PlayerScope::UserListed => {
+            context.is_users_own(player)
+                && (player.transfer_listed || player.loan_listed)
+                && !player_has_active_or_pending_loan(player)
+                && !has_pending_transfer_registration(player)
+        }
+        PlayerScope::WithOffers => context
+            .user_team
+            .is_some_and(|team| has_offer_involving(player, &team.id)),
     }
+}
+
+/// An offer concerns a club when it made it, when it owns the player the transfer offer is for, or
+/// when it is the parent club of a loan offer.
+fn has_offer_involving(player: &Player, club_id: &str) -> bool {
+    let owns_player = player.team_id.as_deref() == Some(club_id);
+    player
+        .transfer_offers
+        .iter()
+        .any(|offer| owns_player || offer.from_team_id == club_id)
+        || player
+            .loan_offers
+            .iter()
+            .any(|offer| offer.parent_team_id == club_id || offer.from_team_id == club_id)
 }
 
 fn matches_position(player: &Player, filters: &[PositionFilter]) -> bool {
@@ -237,7 +305,8 @@ fn within_budget(player: &Player, context: &ListContext) -> bool {
     player.team_id.is_none() || loan_only || can_afford_fee(team, player.market_value)
 }
 
-fn matches_filters(
+/// Every filter of the query except status, which is counted separately for the status chips.
+fn matches_all_but_status(
     player: &Player,
     query: &PlayersPageQuery,
     needle: Option<&str>,
@@ -281,10 +350,18 @@ fn matches_filters(
         return false;
     }
 
-    match query.status {
+    true
+}
+
+fn matches_status(player: &Player, status: PlayerStatusFilter) -> bool {
+    match status {
         PlayerStatusFilter::All => true,
         PlayerStatusFilter::Transfer => player.transfer_listed,
         PlayerStatusFilter::Loan => player.loan_listed,
+        PlayerStatusFilter::FreeAgent => player.team_id.is_none(),
+        PlayerStatusFilter::Available => {
+            player.team_id.is_none() || player.transfer_listed || player.loan_listed
+        }
     }
 }
 

@@ -475,6 +475,101 @@ fn marketing_campaign_message(
     ))
 }
 
+/// Tells the manager, once a season per distinct set, which recovery levers are open to the club
+/// right now and takes them to the Finances tab.
+///
+/// The levers come from `finance_action_previews`, the same verdicts the tab consumes, so the
+/// message names exactly what the tab would allow and never a lever it would refuse (board support
+/// already used this season, a sponsor already signed or a pitch pending, a campaign cooling
+/// down). Each open lever is an action; the body only introduces them. Nothing open, no message.
+fn finance_levers_message(game: &Game, team_id: &str, today: &str) -> Option<InboxMessage> {
+    let previews = finance_action_previews(game, team_id)?;
+    let open: Vec<(&str, &str)> = [
+        (
+            previews.board_support.is_some(),
+            (
+                "lever_board_support",
+                "be.msg.financeLevers.action.boardSupport",
+            ),
+        ),
+        (
+            previews.sponsor_pitch.is_some(),
+            (
+                "lever_sponsor_pitch",
+                "be.msg.financeLevers.action.sponsorPitch",
+            ),
+        ),
+        (
+            previews.marketing_campaign.is_some(),
+            (
+                "lever_marketing_campaign",
+                "be.msg.financeLevers.action.marketingCampaign",
+            ),
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(is_open, lever)| is_open.then_some(lever))
+    .collect();
+
+    // Only a lever not yet announced this season is news. A lever closing never triggers a
+    // message and the same lever reopening does not either, so a club gets at most one message per
+    // lever per season (three at most), and each still names everything open now.
+    let season = board_support_season(game);
+    let announced = announced_levers(game, season, team_id);
+    if open
+        .iter()
+        .all(|(id, _)| announced.contains(id.trim_start_matches("lever_")))
+    {
+        return None;
+    }
+
+    let open_set = open
+        .iter()
+        .map(|(id, _)| id.trim_start_matches("lever_"))
+        .collect::<Vec<_>>()
+        .join("+");
+    let mut message = InboxMessage::new(
+        format!("finance_levers_{season}_{team_id}_{open_set}"),
+        String::new(),
+        String::new(),
+        String::new(),
+        today.to_string(),
+    )
+    .with_category(MessageCategory::Finance)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("")
+    .with_i18n(
+        "be.msg.financeLevers.subject",
+        "be.msg.financeLevers.body",
+        std::collections::HashMap::new(),
+    )
+    .with_sender_i18n("be.sender.financialDirector", "be.role.financialDirector");
+    for (id, label_key) in open {
+        message = message.with_action(action(
+            id,
+            "",
+            label_key,
+            ActionType::NavigateTo {
+                route: "/dashboard?tab=Finances".to_string(),
+            },
+        ));
+    }
+    Some(message)
+}
+
+/// The levers already announced to `team_id` in `season`, read back from the sent-ledger: each
+/// lever message's key (`finance_levers_{season}_{team_id}_{lever}+{lever}...`) names the levers it
+/// announced. Keyed by club so a manager who moves clubs mid-season still hears about the new one.
+fn announced_levers(game: &Game, season: u32, team_id: &str) -> std::collections::HashSet<String> {
+    let prefix = format!("finance_levers_{season}_{team_id}_");
+    game.emitted_events
+        .iter()
+        .filter_map(|key| key.strip_prefix(&prefix))
+        .flat_map(|levers| levers.split('+'))
+        .map(str::to_string)
+        .collect()
+}
+
 fn board_support_season(game: &Game) -> u32 {
     game.league
         .as_ref()
@@ -1332,6 +1427,8 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
             ));
         }
     }
+
+    new_messages.extend(finance_levers_message(game, &user_team_id, today));
 
     crate::inbox::emit_all(game, new_messages);
 }

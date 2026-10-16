@@ -3,14 +3,14 @@ use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use domain::league::League;
 
 /// The edition a completed competition renews into.
-pub(super) struct NextEdition {
+pub(crate) struct NextEdition {
     pub season: u32,
     pub start: DateTime<Utc>,
 }
 
 /// A completed calendar edition advances once, regardless of how late the
 /// user's rollover runs. Delayed fixtures must not redefine its season label.
-pub(super) fn next_edition(
+pub(crate) fn next_edition(
     competition: &League,
     clock: &GameClock,
     earliest_start: DateTime<Utc>,

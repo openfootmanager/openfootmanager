@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Card, CardBody, Badge, Select, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
+import PlayerListFilters from "./PlayerListFilters";
 import {
-  Search,
   Filter,
   ArrowUpDown,
   ChevronLeft,
@@ -12,7 +12,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
-import { calcAge, formatVal } from "../../lib/helpers";
+import { formatVal } from "../../lib/helpers";
 import { positionBadgeVariant } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
@@ -20,12 +20,8 @@ import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { sendScout } from "../../services/scoutingService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
-import {
-  fetchPlayersPage,
-  type PlayerSortKey,
-  type PlayersPage,
-  type PlayersPageQuery,
-} from "../../services/playersService";
+import type { PlayerSortKey, PlayersPageQuery } from "../../services/playersService";
+import { usePlayersPage } from "../../hooks/usePlayersPage";
 import {
   buildDividerMenuItem,
   buildOfferFreeAgentContractMenuItem,
@@ -54,6 +50,15 @@ const PAGE_SIZE = 30;
 const DEFAULT_QUERY: PlayersPageQuery = {
   search: null,
   position: null,
+  positions: [],
+  age_min: null,
+  age_max: null,
+  ovr_min: null,
+  ovr_max: null,
+  value_min: null,
+  value_max: null,
+  in_budget: false,
+  scope: "all",
   team_id: null,
   status: "all",
   sort_key: "ovr",
@@ -69,22 +74,16 @@ export default function PlayersListTab({
   onSelectTeam,
 }: PlayersListTabProps) {
   const { t } = useTranslation();
-  const [query, setQuery] = useState<PlayersPageQuery>(DEFAULT_QUERY);
-  const [slice, setSlice] = useState<PlayersPage | null>(null);
-  const [refetchKey, setRefetchKey] = useState(0);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const {
+    query,
+    patchQuery,
+    slice,
+    error: fetchError,
+    refetch: refetchSlice,
+  } = usePlayersPage(DEFAULT_QUERY, t);
   const [sendingPlayerId, setSendingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
   const managerTeamId = gameState.manager.team_id ?? "";
-
-  const patchQuery = useCallback((patch: Partial<PlayersPageQuery>) => {
-    setQuery((q) => {
-      const resetPage = !("page" in patch);
-      return { ...q, ...patch, ...(resetPage ? { page: 1 } : {}) };
-    });
-  }, []);
-
-  const refetchSlice = useCallback(() => setRefetchKey((k) => k + 1), []);
 
   const handleGameUpdate = useCallback(
     (game: GameStateData) => {
@@ -93,23 +92,6 @@ export default function PlayersListTab({
     },
     [onGameUpdate, refetchSlice],
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchPlayersPage(query)
-      .then((result) => {
-        if (cancelled) return;
-        setSlice(result);
-        setFetchError(null);
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setFetchError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [query, refetchKey, t]);
 
   const findFullPlayer = useCallback(
     (id: string) => gameState.players.find((p) => p.id === id),
@@ -200,89 +182,29 @@ export default function PlayersListTab({
   const page = query.page;
   const pageSize = slice?.page_size ?? query.page_size;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
   return (
     <div>
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4 items-center">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-          <input
-            type="text"
-            placeholder={t("players.searchPlaceholder")}
-            value={query.search ?? ""}
-            onChange={(e) => patchQuery({ search: e.target.value || null })}
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
-          />
-        </div>
-
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => patchQuery({ position: null })}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-              !query.position
-                ? "bg-primary-500 text-white shadow-sm"
-                : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-            }`}
+      <PlayerListFilters
+        query={query}
+        onChange={patchQuery}
+        statusOptions={["all", "transfer", "loan"]}
+        trailing={
+          <Select
+            value={query.team_id ?? ""}
+            onChange={(e) => patchQuery({ team_id: e.target.value || null })}
+            selectSize="sm"
+            className="min-w-44 font-heading font-bold uppercase tracking-wider"
           >
-            {t("players.allPos")}
-          </button>
-          {positions.map((pos) => (
-            <button
-              type="button"
-              key={pos}
-              onClick={() => patchQuery({ position: query.position === pos ? null : pos })}
-              className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-                query.position === pos
-                  ? "bg-primary-500 text-white shadow-sm"
-                  : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"
-              }`}
-            >
-              {t(`common.posAbbr.${pos}`)}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            onClick={() => patchQuery({ status: "all" })}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${query.status === "all" ? "bg-primary-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
-          >
-            {t("common.all")}
-          </button>
-          <button
-            type="button"
-            onClick={() => patchQuery({ status: "transfer" })}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${query.status === "transfer" ? "bg-accent-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
-          >
-            {t("transfers.transfer")}
-          </button>
-          <button
-            type="button"
-            onClick={() => patchQuery({ status: "loan" })}
-            className={`px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${query.status === "loan" ? "bg-blue-500 text-white shadow-sm" : "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600"}`}
-          >
-            {t("transfers.loan")}
-          </button>
-        </div>
-
-        <Select
-          value={query.team_id ?? ""}
-          onChange={(e) => patchQuery({ team_id: e.target.value || null })}
-          selectSize="sm"
-          className="min-w-44 font-heading font-bold uppercase tracking-wider"
-        >
-          <option value="">{t("players.allTeams")}</option>
-          {gameState.teams.map((tm) => (
-            <option key={tm.id} value={tm.id}>
-              {tm.name}
-            </option>
-          ))}
-        </Select>
-      </div>
+            <option value="">{t("players.allTeams")}</option>
+            {gameState.teams.map((tm) => (
+              <option key={tm.id} value={tm.id}>
+                {tm.name}
+              </option>
+            ))}
+          </Select>
+        }
+      />
 
       <p className="text-xs text-gray-400 dark:text-gray-500 mb-3 font-heading uppercase tracking-wider">
         <Filter className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
@@ -366,7 +288,6 @@ export default function PlayersListTab({
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
                 {items.map((summary) => {
-                  const age = calcAge(summary.date_of_birth);
                   const scoutState = alreadyScoutingIds.has(summary.id)
                     ? "already-assigned"
                     : sendingPlayerId === summary.id
@@ -457,7 +378,7 @@ export default function PlayersListTab({
                         </div>
                       </td>
                       <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                        {age}
+                        {summary.age}
                       </td>
                       <td
                         className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400"

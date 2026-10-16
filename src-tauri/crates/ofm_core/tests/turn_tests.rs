@@ -24,6 +24,8 @@ mod determinism;
 mod fixtures;
 #[path = "turn_tests/live_match_day.rs"]
 mod live_match_day;
+#[path = "turn_tests/match_injuries.rs"]
+mod match_injuries;
 #[path = "turn_tests/post_match_reactions.rs"]
 mod post_match_reactions;
 #[path = "turn_tests/squad_floor.rs"]
@@ -1532,4 +1534,46 @@ fn no_generator_dates_a_message_ahead_of_the_clock() {
              when it is sent, not at the event it is about."
         );
     }
+}
+
+fn read_mail_from(id: &str, date: &str) -> domain::message::InboxMessage {
+    let mut message = domain::message::InboxMessage::new(
+        id.into(),
+        "Subject".into(),
+        "Body".into(),
+        "Board".into(),
+        date.into(),
+    );
+    message.read = true;
+    message
+}
+
+/// Given read mail from long ago
+/// When the day processed is the 1st of the month
+/// Then it leaves the live inbox for the archive.
+#[test]
+fn the_first_of_the_month_archives_old_read_mail() {
+    let mut game = make_game_without_match_today();
+    game.clock.current_date = Utc.with_ymd_and_hms(2025, 7, 1, 12, 0, 0).unwrap();
+    game.messages.push(read_mail_from("ancient", "2024-01-01"));
+
+    turn::process_day(&mut game);
+
+    assert!(game.messages.iter().all(|m| m.id != "ancient"));
+    assert!(game.archived_messages.iter().any(|m| m.id == "ancient"));
+}
+
+/// Given the same old read mail
+/// When the day processed is not the 1st
+/// Then the live inbox is left alone.
+#[test]
+fn another_day_of_the_month_leaves_old_mail_in_the_inbox() {
+    let mut game = make_game_without_match_today();
+    game.clock.current_date = Utc.with_ymd_and_hms(2025, 7, 2, 12, 0, 0).unwrap();
+    game.messages.push(read_mail_from("ancient", "2024-01-01"));
+
+    turn::process_day(&mut game);
+
+    assert!(game.messages.iter().any(|m| m.id == "ancient"));
+    assert!(game.archived_messages.is_empty());
 }

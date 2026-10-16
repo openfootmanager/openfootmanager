@@ -165,6 +165,15 @@ pub fn apply_match_report_with_capture<F>(
     deplete_match_stamina(game, home_team_id, report);
     deplete_match_stamina(game, away_team_id, report);
 
+    // The engine's injury events become real injuries, and the user's physio reports theirs.
+    let fixture_id = game
+        .league
+        .as_ref()
+        .and_then(|league| league.fixtures.get(fixture_index))
+        .map(|fixture| fixture.id.clone())
+        .unwrap_or_default();
+    super::match_injuries::apply_match_injuries(game, &fixture_id, report);
+
     // Update morale based on result and individual performance
     update_post_match_morale(game, report, home_team_id, away_team_id);
 

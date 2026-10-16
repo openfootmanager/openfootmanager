@@ -90,7 +90,7 @@ setup tools above; `--mcp-disable-tools` can still disable individual tools expl
 
 ## Tool Reference
 
-89 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
+90 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
 > **Adding a new tool?** Follow the checklist in `src-tauri/src/mcp_server/tools.rs` at `tool_catalog()` — register the route, add to the catalog, add the implementation, emit `game-state-changed` if it mutates state, update competition-mode disabled list if needed, and update this document.
 
@@ -181,11 +181,12 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `contract_preview_termination` | Preview cost of terminating a contract |
 | `contract_terminate` | Terminate a contract immediately (costs compensation) |
 
-### Inbox (6 tools)
+### Inbox (7 tools)
 
 | Tool | Description |
 |------|-------------|
 | `inbox_get_messages` | List messages with optional category and read-status filters |
+| `inbox_get_archived` | Read mail older than 180 days, newest first, a page at a time (`before_date`/`before_id` continue) |
 | `inbox_mark_read` | Mark a message as read |
 | `inbox_mark_all_read` | Mark all messages as read |
 | `inbox_delete` | Delete a message |

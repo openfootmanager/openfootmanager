@@ -157,6 +157,11 @@ pub struct Game {
     /// IPC serde like the other archives. Persistence is the `retired_managers` table.
     #[serde(skip)]
     pub retired_managers: Vec<Manager>,
+    /// Read mail older than half a year, moved out of `messages` so the daily response stays small
+    /// (`inbox_archive`). Skipped on IPC serde like the other archives; the UI pages it through
+    /// `get_archived_messages`. Persistence is the `archived_messages` table.
+    #[serde(skip)]
+    pub archived_messages: Vec<InboxMessage>,
     /// Tactics the player saved, in the order they made them. Career-scoped, not club-scoped.
     /// Persistence is the `custom_tactics` table.
     #[serde(default)]
@@ -250,6 +255,7 @@ impl Game {
             day_start: None,
             retired_managers: Vec::new(),
             custom_tactics: Vec::new(),
+            archived_messages: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],

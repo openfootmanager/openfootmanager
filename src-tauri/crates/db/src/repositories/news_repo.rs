@@ -55,20 +55,52 @@ pub fn upsert_news_list(conn: &Connection, articles: &[NewsArticle]) -> Result<(
     Ok(())
 }
 
-/// Replace the stored feed with `articles`, dropping anything not in it.
+/// Brings the stored feed in line with `articles`, writing only the difference.
 ///
-/// The same reason `replace_messages` exists: a save re-writes an existing database, so upserting
-/// alone cannot express a removal. The season rollover clears `game.news` to retire last season's
-/// coverage — with upsert-only writes those rows survived in the file and the whole previous
-/// season came back on the next load, which also let a stale `roundup_md1` suppress the new
-/// season's first roundup.
+/// A save re-writes an existing database, so upserting alone cannot express a removal: the
+/// season rollover clears `game.news`, and with upsert-only writes last season's coverage came
+/// back on the next load (and let a stale `roundup_md1` suppress the new season's first roundup).
 ///
-/// Both statements run on the caller's connection, which `save_game` wraps in a transaction, so an
-/// interrupted save cannot leave the feed empty.
-pub fn replace_news_list(conn: &Connection, articles: &[NewsArticle]) -> Result<(), String> {
-    conn.execute("DELETE FROM news", [])
-        .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
-    upsert_news_list(conn, articles)
+/// An article is written once and then only ever marked read, and the season rollover retires
+/// the whole feed, so the difference is small: new ids are inserted, a changed read flag is
+/// updated, and ids the feed no longer holds are deleted. The stored feed ends up exactly
+/// `articles`, each id once. Runs on the caller's connection, which `save_game` wraps in a transaction,
+/// so an interrupted save cannot leave the feed half-written.
+pub fn sync_news_list(conn: &Connection, articles: &[NewsArticle]) -> Result<(), String> {
+    let mut stored = stored_read_flags(conn)?;
+    let wanted: std::collections::HashSet<&str> =
+        articles.iter().map(|article| article.id.as_str()).collect();
+    for retired in stored.keys().filter(|id| !wanted.contains(id.as_str())) {
+        conn.execute("DELETE FROM news WHERE id = ?1", params![retired])
+            .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+    }
+    for article in articles {
+        match stored.get(&article.id) {
+            Some(read) if *read == article.read => {}
+            Some(_) => {
+                conn.execute(
+                    "UPDATE news SET read = ?2 WHERE id = ?1",
+                    params![article.id, article.read as i32],
+                )
+                .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
+            }
+            None => upsert_news(conn, article)?,
+        }
+        stored.insert(article.id.clone(), article.read);
+    }
+    Ok(())
+}
+
+fn stored_read_flags(conn: &Connection) -> Result<std::collections::HashMap<String, bool>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id, read FROM news")
+        .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
+    stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i32>(1)? != 0))
+    })
+    .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?
+    .map(|row| row.map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string()))
+    .collect()
 }
 
 fn parse_news_category(s: &str) -> NewsCategory {
@@ -266,5 +298,95 @@ mod tests {
         let result = load_all_news(&conn);
 
         assert_eq!(result.unwrap_err(), GAME_PERSISTENCE_LOAD_ERROR);
+    }
+
+    fn rows_written_by(conn: &Connection, save: impl FnOnce()) -> u64 {
+        let before = conn.total_changes();
+        save();
+        conn.total_changes() - before
+    }
+
+    fn feed_of(count: usize) -> Vec<NewsArticle> {
+        (0..count)
+            .map(|n| sample_article(&format!("news-{n:04}")))
+            .collect()
+    }
+
+    /// Given a feed already saved, when the same feed is saved again, then nothing is written.
+    #[test]
+    fn saving_an_unchanged_feed_writes_nothing() {
+        let db = test_db();
+        let feed = feed_of(50);
+        sync_news_list(db.conn(), &feed).unwrap();
+
+        let written = rows_written_by(db.conn(), || sync_news_list(db.conn(), &feed).unwrap());
+
+        assert_eq!(written, 0);
+    }
+
+    /// Given a saved feed and one new article, when it is saved, then one row is written.
+    #[test]
+    fn a_new_article_writes_one_row() {
+        let db = test_db();
+        let mut feed = feed_of(50);
+        sync_news_list(db.conn(), &feed).unwrap();
+        feed.push(sample_article("news-fresh"));
+
+        let written = rows_written_by(db.conn(), || sync_news_list(db.conn(), &feed).unwrap());
+
+        assert_eq!(written, 1);
+        assert_eq!(load_all_news(db.conn()).unwrap().len(), 51);
+    }
+
+    /// Given a saved feed and one article read since, when it is saved, then that article's
+    /// read flag is updated and nothing else is written.
+    #[test]
+    fn reading_an_article_writes_only_that_flag() {
+        let db = test_db();
+        let mut feed = feed_of(20);
+        sync_news_list(db.conn(), &feed).unwrap();
+        feed[7].read = true;
+
+        let written = rows_written_by(db.conn(), || sync_news_list(db.conn(), &feed).unwrap());
+
+        assert_eq!(written, 1);
+        let stored = load_all_news(db.conn()).unwrap();
+        assert_eq!(stored.iter().filter(|a| a.read).count(), 1);
+        assert!(stored.iter().find(|a| a.id == "news-0007").unwrap().read);
+    }
+
+    /// Given a saved feed that the season rollover then clears, when it is saved, then the
+    /// stored feed is empty: last season's coverage does not come back on the next load.
+    #[test]
+    fn a_cleared_feed_empties_the_stored_one() {
+        let db = test_db();
+        sync_news_list(db.conn(), &feed_of(30)).unwrap();
+
+        sync_news_list(db.conn(), &[]).unwrap();
+
+        assert!(load_all_news(db.conn()).unwrap().is_empty());
+    }
+
+    /// Given a saved feed of which some articles are retired and a few added, when it is saved,
+    /// then the file holds exactly the new feed, each article once.
+    #[test]
+    fn retired_articles_leave_and_new_ones_arrive() {
+        let db = test_db();
+        sync_news_list(db.conn(), &feed_of(10)).unwrap();
+        let mut next = feed_of(10).split_off(6);
+        next.push(sample_article("news-new-a"));
+        next.push(sample_article("news-new-b"));
+
+        sync_news_list(db.conn(), &next).unwrap();
+
+        let mut ids: Vec<_> = load_all_news(db.conn())
+            .unwrap()
+            .into_iter()
+            .map(|a| a.id)
+            .collect();
+        ids.sort();
+        let mut expected: Vec<_> = next.iter().map(|a| a.id.clone()).collect();
+        expected.sort();
+        assert_eq!(ids, expected);
     }
 }

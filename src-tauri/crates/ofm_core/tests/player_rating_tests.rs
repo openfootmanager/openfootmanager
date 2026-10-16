@@ -1,6 +1,8 @@
 use domain::player::{Player, PlayerAttributes, PlayerTrait, Position};
 use ofm_core::player_rating::{
-    generate_potential, qualifies_for_wonderkid, refresh_player_derived,
+    generate_potential, growth_headroom_range, move_attributes_to, ovr_from_attributes,
+    qualifies_for_wonderkid, reconcile_wonderkid_trait, refresh_player_derived,
+    roll_growth_headroom,
 };
 
 // ---------------------------------------------------------------------------
@@ -144,7 +146,7 @@ fn refresh_awards_wonderkid_trait_for_young_high_potential_player() {
     refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
     assert!(
-        player.potential >= 90 && player.potential.saturating_sub(player.ovr) >= 14,
+        player.potential >= 81 && player.potential.saturating_sub(player.ovr) >= 14,
         "Expected deterministic Wonderkid setup to qualify with potential={} ovr={}",
         player.potential,
         player.ovr
@@ -172,22 +174,22 @@ fn refresh_does_not_award_wonderkid_for_old_player() {
 
 #[test]
 fn wonderkid_qualification_accepts_exact_boundary() {
-    assert!(qualifies_for_wonderkid(20, 90, 76));
+    assert!(qualifies_for_wonderkid(20, 81, 67));
 }
 
 #[test]
 fn wonderkid_qualification_rejects_age_above_boundary() {
-    assert!(!qualifies_for_wonderkid(21, 90, 76));
+    assert!(!qualifies_for_wonderkid(21, 81, 67));
 }
 
 #[test]
 fn wonderkid_qualification_rejects_potential_below_boundary() {
-    assert!(!qualifies_for_wonderkid(20, 89, 75));
+    assert!(!qualifies_for_wonderkid(20, 80, 66));
 }
 
 #[test]
 fn wonderkid_qualification_rejects_growth_room_below_boundary() {
-    assert!(!qualifies_for_wonderkid(20, 90, 77));
+    assert!(!qualifies_for_wonderkid(20, 81, 68));
 }
 
 // ---------------------------------------------------------------------------
@@ -248,5 +250,227 @@ fn generate_potential_young_player_has_higher_ceiling() {
     assert!(
         any_higher,
         "At least some calls for a 17-year-old should produce potential > ovr"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// growth headroom and lowering a player to a younger self
+// ---------------------------------------------------------------------------
+
+/// Given players of every age,
+/// When the headroom each can still grow is asked for,
+/// Then it only ever narrows with age, and a veteran has none.
+#[test]
+fn headroom_narrows_with_age_and_a_veteran_has_none() {
+    let ages = [16u32, 18, 19, 20, 21, 22, 23, 25, 26, 33];
+    for pair in ages.windows(2) {
+        let (younger, older) = (
+            growth_headroom_range(pair[0]),
+            growth_headroom_range(pair[1]),
+        );
+        assert!(
+            older.end() <= younger.end() && older.start() <= younger.start(),
+            "age {} has {younger:?} but age {} has {older:?}",
+            pair[0],
+            pair[1]
+        );
+    }
+    assert_eq!(growth_headroom_range(26), 0..=0);
+    assert_eq!(growth_headroom_range(17), 15..=30);
+}
+
+/// Given a headroom drawn many times for a 17-year-old,
+/// When the draws are collected,
+/// Then every one is inside the 17-year-old's range and not all are equal.
+#[test]
+fn a_rolled_headroom_stays_inside_the_range_for_the_age() {
+    let mut stream = rng();
+    let draws: Vec<u8> = (0..200)
+        .map(|_| roll_growth_headroom(17, &mut stream))
+        .collect();
+    assert!(draws.iter().all(|d| growth_headroom_range(17).contains(d)));
+    assert!(draws.iter().any(|d| *d != draws[0]));
+}
+
+/// Given an outfielder and a keeper,
+/// When their attributes are moved to a rating 20 below and 10 above their own,
+/// Then each lands within a point of it.
+#[test]
+fn moving_attributes_lands_within_a_point_of_the_target() {
+    for (attributes, position) in [
+        (gk_attrs(), Position::Goalkeeper),
+        (striker_attrs(), Position::Forward),
+    ] {
+        let own = ovr_from_attributes(&attributes, &position).round() as u8;
+        for target in [own - 20, own + 10] {
+            let mut moved = attributes.clone();
+
+            move_attributes_to(&mut moved, &position, target);
+
+            let landed = ovr_from_attributes(&moved, &position);
+            assert!(
+                (landed - f64::from(target)).abs() <= 1.0,
+                "{landed} is not within a point of {target}"
+            );
+        }
+    }
+}
+
+/// Given attributes already at the target,
+/// When they are moved to it,
+/// Then nothing changes.
+#[test]
+fn moving_to_the_rating_they_have_changes_nothing() {
+    let mut attributes = striker_attrs();
+    let before = attributes.clone();
+    let own = ovr_from_attributes(&attributes, &Position::Forward).round() as u8;
+
+    move_attributes_to(&mut attributes, &Position::Forward, own);
+
+    assert_eq!(attributes, before);
+}
+
+/// Given a target no attribute block can reach in either direction,
+/// When attributes are moved toward it,
+/// Then the move ends, with every attribute clamped inside 1..=99.
+#[test]
+fn moving_toward_an_unreachable_target_still_ends() {
+    for target in [1u8, 99] {
+        let mut attributes = striker_attrs();
+
+        move_attributes_to(&mut attributes, &Position::Forward, target);
+
+        let landed = ovr_from_attributes(&attributes, &Position::Forward);
+        assert!((1.0..=99.0).contains(&landed), "{landed}");
+    }
+}
+
+/// Given the age bands the headroom is set by,
+/// When the range for the first and last age of each band is asked for,
+/// Then each band has its own range.
+#[test]
+fn every_age_band_has_its_own_headroom() {
+    for (ages, range) in [
+        ([16u32, 18], 15..=30),
+        ([19, 20], 8..=22),
+        ([21, 22], 4..=14),
+        ([23, 25], 0..=7),
+        ([26, 40], 0..=0),
+    ] {
+        for age in ages {
+            assert_eq!(growth_headroom_range(age), range, "age {age}");
+        }
+    }
+}
+
+/// Given attribute blocks and targets between the lowest and highest rating a shift can give,
+/// When they are moved to the target,
+/// Then the result is the closest rating any equal shift of the block could reach.
+#[test]
+fn moving_attributes_lands_on_the_closest_reachable_rating() {
+    for (attributes, position) in [
+        (gk_attrs(), Position::Goalkeeper),
+        (striker_attrs(), Position::Forward),
+    ] {
+        for target in (30u8..=90).step_by(3) {
+            let mut moved = attributes.clone();
+
+            move_attributes_to(&mut moved, &position, target);
+
+            let landed = (ovr_from_attributes(&moved, &position) - f64::from(target)).abs();
+            let best_reachable = (-60i16..=60)
+                .map(|shift| {
+                    let mut shifted = attributes.clone();
+                    shift_all(&mut shifted, shift);
+                    (ovr_from_attributes(&shifted, &position) - f64::from(target)).abs()
+                })
+                .fold(f64::MAX, f64::min);
+            assert!(
+                landed <= best_reachable + 1e-9,
+                "target {target}: landed {landed:.2} away, best possible {best_reachable:.2}"
+            );
+        }
+    }
+}
+
+fn shift_all(attributes: &mut PlayerAttributes, shift: i16) {
+    let apply = |value: &mut u8| *value = (i16::from(*value) + shift).clamp(1, 99) as u8;
+    apply(&mut attributes.pace);
+    apply(&mut attributes.stamina);
+    apply(&mut attributes.strength);
+    apply(&mut attributes.agility);
+    apply(&mut attributes.passing);
+    apply(&mut attributes.shooting);
+    apply(&mut attributes.tackling);
+    apply(&mut attributes.dribbling);
+    apply(&mut attributes.defending);
+    apply(&mut attributes.positioning);
+    apply(&mut attributes.vision);
+    apply(&mut attributes.decisions);
+    apply(&mut attributes.composure);
+    apply(&mut attributes.aggression);
+    apply(&mut attributes.teamwork);
+    apply(&mut attributes.leadership);
+    apply(&mut attributes.handling);
+    apply(&mut attributes.reflexes);
+    apply(&mut attributes.aerial);
+}
+
+/// Given a 19-year-old with an S-tier ceiling and 20 to grow whose stored traits lack the tag,
+/// When his wonderkid tag is reconciled,
+/// Then he gets it, and the call says it changed something.
+#[test]
+fn reconciling_tags_a_young_player_the_rule_now_covers() {
+    let mut player = make_player(Position::Forward, striker_attrs(), "2007-01-01");
+    player.ovr = 65;
+    player.potential = 85;
+    player.traits.retain(|t| *t != PlayerTrait::Wonderkid);
+
+    let changed = reconcile_wonderkid_trait(&mut player, domain::age::season_midpoint(2026));
+
+    assert!(changed);
+    assert!(player.traits.contains(&PlayerTrait::Wonderkid));
+}
+
+/// Given a player tagged a wonderkid whose ceiling is below the S tier,
+/// When his tag is reconciled,
+/// Then it is taken off.
+#[test]
+fn reconciling_takes_the_tag_off_a_player_the_rule_no_longer_covers() {
+    let mut player = make_player(Position::Forward, striker_attrs(), "2007-01-01");
+    player.ovr = 60;
+    player.potential = 75;
+    player.traits.push(PlayerTrait::Wonderkid);
+
+    let changed = reconcile_wonderkid_trait(&mut player, domain::age::season_midpoint(2026));
+
+    assert!(changed);
+    assert!(!player.traits.contains(&PlayerTrait::Wonderkid));
+}
+
+/// Given players whose tag already agrees with the rule, tagged and untagged,
+/// When their tag is reconciled,
+/// Then nothing changes and the call says so.
+#[test]
+fn reconciling_a_correct_tag_changes_nothing() {
+    let on = domain::age::season_midpoint(2026);
+    let mut tagged = make_player(Position::Forward, striker_attrs(), "2007-01-01");
+    tagged.ovr = 65;
+    tagged.potential = 85;
+    tagged.traits.push(PlayerTrait::Wonderkid);
+    let mut untagged = make_player(Position::Forward, striker_attrs(), "1990-01-01");
+    untagged.ovr = 65;
+    untagged.potential = 85;
+    untagged.traits.retain(|t| *t != PlayerTrait::Wonderkid);
+
+    assert!(!reconcile_wonderkid_trait(&mut tagged, on));
+    assert!(!reconcile_wonderkid_trait(&mut untagged, on));
+    assert_eq!(
+        tagged
+            .traits
+            .iter()
+            .filter(|t| **t == PlayerTrait::Wonderkid)
+            .count(),
+        1
     );
 }

@@ -1089,6 +1089,273 @@ fn wage_over_budget_warning() {
     );
 }
 
+fn lever_messages(game: &Game) -> Vec<&domain::message::InboxMessage> {
+    game.messages
+        .iter()
+        .filter(|m| m.id.starts_with("finance_levers_"))
+        .collect()
+}
+
+/// The levers a message offers, by the id of the action that takes the manager to each.
+fn offered_levers(message: &domain::message::InboxMessage) -> Vec<&str> {
+    message
+        .actions
+        .iter()
+        .map(|action| action.id.as_str())
+        .collect()
+}
+
+/// Given a club whose wage bill is over its budget but which is not in debt
+/// When the weekly finances run
+/// Then the financial director offers the two commercial levers the Finances tab would allow, each
+///      taking the manager to that tab, and not board support, which the tab would refuse.
+#[test]
+fn an_over_budget_club_is_offered_exactly_the_commercial_levers() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 5_000_000;
+    game.teams[0].wage_budget = 1_000;
+
+    finances::process_weekly_finances(&mut game);
+
+    let messages = lever_messages(&game);
+    assert_eq!(messages.len(), 1);
+    assert_eq!(
+        messages[0].body_key.as_deref(),
+        Some("be.msg.financeLevers.body")
+    );
+    assert_eq!(
+        messages[0].sender_key.as_deref(),
+        Some("be.sender.financialDirector")
+    );
+    assert_eq!(
+        offered_levers(messages[0]),
+        ["lever_sponsor_pitch", "lever_marketing_campaign"]
+    );
+    assert!(messages[0].actions.iter().all(|action| matches!(
+        &action.action_type,
+        domain::message::ActionType::NavigateTo { route } if route == "/dashboard?tab=Finances"
+    )));
+}
+
+/// Given a club in debt
+/// When the weekly finances run
+/// Then every lever is offered, board support first.
+#[test]
+fn a_club_in_debt_is_offered_every_lever() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+
+    finances::process_weekly_finances(&mut game);
+
+    let messages = lever_messages(&game);
+    assert_eq!(messages.len(), 1);
+    assert_eq!(
+        offered_levers(messages[0]),
+        [
+            "lever_board_support",
+            "lever_sponsor_pitch",
+            "lever_marketing_campaign"
+        ]
+    );
+}
+
+/// Given a club in debt with a sponsor already signed and a marketing campaign still cooling down
+/// When the weekly finances run
+/// Then only board support is offered: the sponsor pitch and the campaign are refused by the tab.
+#[test]
+fn a_lever_the_tab_would_refuse_is_not_offered() {
+    let mut game = make_monday_game();
+    // Deep enough that the campaign's income does not lift the club out of debt.
+    game.teams[0].finance = -5_000_000;
+    game.teams[0].wage_budget = 1_000;
+    game.teams[0].sponsorship = Some(Sponsorship {
+        sponsor_name: "Acme Corp".to_string(),
+        base_value: 2_000,
+        remaining_weeks: 8,
+        bonus_criteria: vec![],
+    });
+    finances::request_marketing_campaign(&mut game, "team1").expect("campaign");
+
+    finances::process_weekly_finances(&mut game);
+
+    let messages = lever_messages(&game);
+    assert_eq!(messages.len(), 1);
+    assert_eq!(offered_levers(messages[0]), ["lever_board_support"]);
+}
+
+/// Given an over-budget club with a sponsor signed and a campaign cooling down
+/// When the weekly finances run
+/// Then no lever message is sent, because nothing is open to it.
+#[test]
+fn no_message_is_sent_when_no_lever_is_open() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 5_000_000;
+    game.teams[0].wage_budget = 1_000;
+    game.teams[0].sponsorship = Some(Sponsorship {
+        sponsor_name: "Acme Corp".to_string(),
+        base_value: 2_000,
+        remaining_weeks: 8,
+        bonus_criteria: vec![],
+    });
+    finances::request_marketing_campaign(&mut game, "team1").expect("campaign");
+
+    finances::process_weekly_finances(&mut game);
+
+    assert!(lever_messages(&game).is_empty());
+}
+
+/// Given a club in good financial health
+/// When the weekly finances run
+/// Then no lever message is sent.
+#[test]
+fn a_healthy_club_hears_nothing_about_levers() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 5_000_000;
+
+    finances::process_weekly_finances(&mut game);
+
+    assert!(lever_messages(&game).is_empty());
+}
+
+/// Given a club that stays in trouble for several weeks and whose manager deletes the message
+/// When the weekly finances keep running in the same season with the same levers open
+/// Then the message is not sent again: the ledger remembers it, not the mailbox.
+#[test]
+fn the_lever_message_is_sent_once_per_season_per_open_set_even_after_deletion() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+
+    finances::process_weekly_finances(&mut game);
+    game.messages
+        .retain(|m| !m.id.starts_with("finance_levers_"));
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+
+    assert!(lever_messages(&game).is_empty());
+}
+
+/// Given a club in debt told about every lever, whose sponsor lever then closes (a sponsor signs)
+///       and later reopens (the sponsor leaves), all in one season
+/// When the weekly finances run each week
+/// Then it is not told again: a lever closing never triggers a message, and a lever that reopens
+///      has already been announced this season.
+#[test]
+fn levers_that_close_and_reopen_in_a_season_are_not_announced_again() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+    finances::process_weekly_finances(&mut game);
+    assert_eq!(lever_messages(&game).len(), 1);
+
+    game.teams[0].sponsorship = Some(Sponsorship {
+        sponsor_name: "Acme Corp".to_string(),
+        base_value: 2_000,
+        remaining_weeks: 8,
+        bonus_criteria: vec![],
+    });
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+    game.teams[0].sponsorship = None;
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+
+    assert_eq!(lever_messages(&game).len(), 1);
+}
+
+/// Given a club told only about the levers open to it (a sponsor is signed, so no pitch)
+/// When the sponsor leaves and the pitch becomes a lever it has not been told about
+/// Then it is told again, and the message names every lever open now.
+#[test]
+fn a_lever_that_opens_for_the_first_time_in_a_season_is_announced() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 5_000_000;
+    game.teams[0].wage_budget = 1_000;
+    game.teams[0].sponsorship = Some(Sponsorship {
+        sponsor_name: "Acme Corp".to_string(),
+        base_value: 2_000,
+        remaining_weeks: 8,
+        bonus_criteria: vec![],
+    });
+    finances::process_weekly_finances(&mut game);
+    assert_eq!(lever_messages(&game).len(), 1);
+    assert_eq!(
+        offered_levers(lever_messages(&game)[0]),
+        ["lever_marketing_campaign"]
+    );
+
+    game.teams[0].sponsorship = None;
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+
+    let messages = lever_messages(&game);
+    assert_eq!(messages.len(), 2);
+    assert_eq!(
+        offered_levers(messages[1]),
+        ["lever_sponsor_pitch", "lever_marketing_campaign"]
+    );
+}
+
+/// Given a club told about the levers that is still in trouble a season later
+/// When the weekly finances run in the new season
+/// Then it is told again, because the key is scoped to the season.
+#[test]
+fn the_lever_message_is_sent_again_in_a_new_season() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+    finances::process_weekly_finances(&mut game);
+    // 52 weeks later is a Monday again, in the next calendar season.
+    game.clock.current_date += chrono::Duration::days(364);
+
+    finances::process_weekly_finances(&mut game);
+
+    assert_eq!(lever_messages(&game).len(), 2);
+}
+
+/// Given a club told about the levers, in a season where the league's own season number moves on
+///       while the calendar year does not
+/// When the weekly finances run again a week later
+/// Then it is told again: the key follows the league's season, not only the calendar year.
+#[test]
+fn the_lever_message_is_sent_again_when_the_league_season_rolls_over() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+    game.league = Some(League {
+        id: "l1".to_string(),
+        name: "Test League".to_string(),
+        season: 1,
+        ..Default::default()
+    });
+    finances::process_weekly_finances(&mut game);
+    assert_eq!(lever_messages(&game).len(), 1);
+
+    game.league.as_mut().expect("league").season = 2;
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+
+    assert_eq!(lever_messages(&game).len(), 2);
+}
+
+/// Given a manager told about the levers open to their first club, who then moves to a second club
+///       in the same season that is also in trouble
+/// When the weekly finances run for the new club
+/// Then they are told about the new club's levers: the announcement belongs to the club, not to the
+///      season alone.
+#[test]
+fn a_manager_who_changes_club_mid_season_hears_about_the_new_clubs_levers() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = -100_000;
+    let mut other = make_team("team2", "Other FC");
+    other.finance = -100_000;
+    game.teams.push(other);
+    finances::process_weekly_finances(&mut game);
+    assert_eq!(lever_messages(&game).len(), 1);
+
+    game.manager.team_id = Some("team2".to_string());
+    game.clock.current_date += chrono::Duration::days(7);
+    finances::process_weekly_finances(&mut game);
+
+    assert_eq!(lever_messages(&game).len(), 2);
+}
+
 #[test]
 fn financial_warnings_not_duplicated() {
     let mut game = make_monday_game();

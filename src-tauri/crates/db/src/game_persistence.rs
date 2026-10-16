@@ -11,10 +11,10 @@ use ofm_core::game::{
 
 use crate::game_database::GameDatabase;
 use crate::repositories::{
-    competition_repo, custom_tactic_repo, edition_archive_repo, journal_repo, league_repo,
-    manager_repo, message_repo, meta_repo, national_team_repo, news_repo, objective_repo,
-    player_repo, retired_manager_repo, retired_player_repo, scouting_repo, staff_repo, stats_repo,
-    team_repo,
+    archived_message_repo, competition_repo, custom_tactic_repo, edition_archive_repo,
+    journal_repo, league_repo, manager_repo, message_repo, meta_repo, national_team_repo,
+    news_repo, objective_repo, player_repo, retired_manager_repo, retired_player_repo,
+    scouting_repo, staff_repo, stats_repo, team_repo,
 };
 
 pub struct GamePersistenceWriter;
@@ -53,7 +53,7 @@ impl GamePersistenceWriter {
             .unchecked_transaction()
             .map_err(|_| game_persistence_write_error())?;
         write_game_to_connection(&transaction, game, save_id, save_name)?;
-        stats_repo::replace_stats_state(&transaction, stats)?;
+        stats_repo::persist_stats_state(&transaction, stats)?;
         transaction
             .commit()
             .map_err(|_| game_persistence_write_error())?;
@@ -65,7 +65,7 @@ impl GamePersistenceWriter {
             .conn()
             .unchecked_transaction()
             .map_err(|_| game_persistence_write_error())?;
-        stats_repo::replace_stats_state(&transaction, stats)?;
+        stats_repo::persist_stats_state(&transaction, stats)?;
         transaction
             .commit()
             .map_err(|_| game_persistence_write_error())?;
@@ -149,7 +149,8 @@ fn write_game_to_connection(
     player_repo::upsert_players(conn, &game.players)?;
     staff_repo::replace_staff_list(conn, &game.staff)?;
     message_repo::replace_messages(conn, &game.messages)?;
-    news_repo::replace_news_list(conn, &game.news)?;
+    archived_message_repo::archive_messages(conn, &game.archived_messages)?;
+    news_repo::sync_news_list(conn, &game.news)?;
 
     if let Some(ref league) = game.league {
         league_repo::upsert_league(conn, league)?;
@@ -282,6 +283,7 @@ impl GamePersistenceReader {
         let players = player_repo::load_all_players(conn)?;
         let staff = staff_repo::load_all_staff(conn)?;
         let messages = message_repo::load_all_messages(conn)?;
+        let archived_messages = archived_message_repo::load_archived_messages(conn)?;
         let news = news_repo::load_all_news(conn)?;
         let league = league_repo::load_league(conn)?;
         let mut competitions = competition_repo::load_competitions(conn)?;
@@ -383,6 +385,7 @@ impl GamePersistenceReader {
             calendar_fingerprint: None,
             day_start: None,
             retired_managers,
+            archived_messages,
             world_history: serde_json::from_str(&meta.world_history_json)
                 .unwrap_or_else(|_| WorldHistoryArchive::default()),
             // A malformed ledger degrades to the legacy-save path rather than
