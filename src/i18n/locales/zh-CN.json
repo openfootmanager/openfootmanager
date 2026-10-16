@@ -582,7 +582,11 @@
       "twistedAnkle": "脚踝扭伤",
       "kneeBruise": "膝盖挫伤",
       "hamstringTightness": "腿筋紧张",
-      "calfStrain": "小腿拉伤"
+      "calfStrain": "小腿拉伤",
+      "ankleLigamentSprain": "踝关节韧带扭伤",
+      "hamstringTear": "腘绳肌撕裂",
+      "kneeLigamentTear": "膝关节韧带撕裂",
+      "metatarsalFracture": "跖骨骨折"
     },
     "scoutRatings": {
       "excellent": "极佳",
@@ -1424,6 +1428,8 @@
     "transferFeedbackCounterDetail": "出价已足够接近,谈判仍在继续,但对方暗示的价位更接近 {{fee}}。",
     "transferFeedbackRejectedHeadline": "他们这一轮直接关闭了谈判。",
     "transferFeedbackRejectedDetail": "该报价未能打动他们。你需要更有力的报价,接近 {{fee}},才能重启正式谈判。",
+    "transferFeedbackBrokeOffHeadline": "对方已终止谈判。",
+    "transferFeedbackBrokeOffDetail": "在数次报价都不够之后，俱乐部结束了谈判。本需要接近 {{fee}} 的转会费。请先等一等再重试。",
     "registrationFailureInsufficientFunds": "注册失败：买方资金不足",
     "registrationFailureLoanConflict": "注册失败：租借冲突",
     "registrationFailurePlayerUnavailable": "注册失败：球员不可转会",
@@ -2849,6 +2855,7 @@
         "transferBudgetTooLow": "转会预算过低",
         "playerNotOwnedByUser": "未找到该球员，或该球员不属于你",
         "offerNotPending": "未找到报价，或该报价已不再处于待处理状态",
+        "talksBrokenOff": "该俱乐部已终止这名球员的谈判。请稍后再试。",
         "loanBorrowerCannotAffordWages": "租借俱乐部负担不起这部分薪资。其每周薪资预算为 {{budget}}。",
         "counterOfferMustExceedCurrentOffer": "还价必须高于当前报价",
         "loanCounterMustImproveTerms": "租借还价必须优于当前报价",
@@ -3003,6 +3010,15 @@
         "subject": "董事会审查——财务压力",
         "bodyWarning": "董事会仍然担忧俱乐部的财务状况。本周其对你执教的信心下降了 {{penalty}} 点。\n\n你需要改善薪资结构和短期现金状况，否则他们的耐心会继续下降。",
         "bodyCritical": "董事会已经审查了俱乐部持续恶化的财务状况，本周其对你执教的信心下降了 {{penalty}} 点。\n\n现金储备和薪资承诺都已处于危险状态，董事会希望你立即采取纠正措施。"
+      },
+      "financeLevers": {
+        "subject": "俱乐部现已开放财务恢复选项",
+        "body": "资金紧张，这将开放恢复选项。俱乐部目前可用的选项列在下方，每一项都会带你前往“财务”标签页。",
+        "action": {
+          "boardSupport": "向董事会申请支持",
+          "sponsorPitch": "洽谈新赞助商",
+          "marketingCampaign": "开展营销活动"
+        }
       },
       "marketingCampaign": {
         "subject": "营销活动报告",
@@ -3191,6 +3207,11 @@
         "subject": "伤病——{{player}}({{injury}})",
         "body0": "训练场传来坏消息。{{player}}在今天的训练中遭遇了{{injury}}。\n\n医疗团队估计需要缺阵{{days}}天。我们会密切关注恢复情况。",
         "body1": "不幸的是,{{player}}今天在训练中因{{injury}}倒下。\n\n初步评估:缺阵约{{days}}天。我们会随时向您通报进展。"
+      },
+      "matchInjury": {
+        "subject": "比赛伤病 — {{player}}（{{injury}}）",
+        "body0": "比赛传来坏消息：{{player}} 在场上受伤了。\n\n诊断：{{injury}}。医疗团队预计需要休养 {{days}} 天，我们会密切关注恢复情况。",
+        "body1": "{{player}} 在今天的比赛中受了伤。\n\n诊断：{{injury}}。初步评估：缺阵约 {{days}} 天。我们会随时向你通报进展。"
       },
       "mediaPositive": {
         "subject": "正面媒体报道——{{player}}",

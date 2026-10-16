@@ -2,13 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type PlayerSortKey = "name" | "position" | "age" | "ovr" | "value" | "team";
 
-export type PlayerStatusFilter = "all" | "transfer" | "loan";
+export type PlayerStatusFilter = "all" | "transfer" | "loan" | "free_agent" | "available";
 
 /** One position test: an exact position, or every position in a group. */
 export type PositionFilter = { group: string } | { exact: string };
 
 /** Which players a list is about, before any other filter narrows it. */
-export type PlayerScope = "all" | "market" | "scoutable";
+export type PlayerScope = "all" | "market" | "scoutable" | "user_listed" | "with_offers";
 
 export interface PlayersPageQuery {
   search: string | null;
@@ -59,8 +59,12 @@ export interface PlayerSummary {
   media: PlayerSummaryMedia;
 }
 
+/** How many players each status chip would show, with every other filter as the query has it. */
+export type StatusCounts = Record<PlayerStatusFilter, number>;
+
 export interface PlayersPage {
   items: PlayerSummary[];
+  status_counts: StatusCounts;
   total: number;
   page: number;
   page_size: number;

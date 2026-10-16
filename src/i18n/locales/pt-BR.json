@@ -582,7 +582,11 @@
       "twistedAnkle": "Tornozelo torcido",
       "kneeBruise": "Contusão no joelho",
       "hamstringTightness": "Tensão no posterior da coxa",
-      "calfStrain": "Distensão na panturrilha"
+      "calfStrain": "Distensão na panturrilha",
+      "ankleLigamentSprain": "Entorse de ligamento do tornozelo",
+      "hamstringTear": "Ruptura de isquiotibiais",
+      "kneeLigamentTear": "Ruptura de ligamento do joelho",
+      "metatarsalFracture": "Fratura de metatarso"
     },
     "scoutRatings": {
       "excellent": "Excelente",
@@ -1424,6 +1428,8 @@
     "transferFeedbackCounterDetail": "A proposta ficou perto o bastante para manter a conversa, mas o lado deles aponta para um valor mais próximo de {{fee}}.",
     "transferFeedbackRejectedHeadline": "Eles encerraram esta rodada.",
     "transferFeedbackRejectedDetail": "A proposta não os moveu o suficiente. Você precisaria de um valor mais forte, mais perto de {{fee}}, para reabrir conversas sérias.",
+    "transferFeedbackBrokeOffHeadline": "Eles encerraram as conversas.",
+    "transferFeedbackBrokeOffDetail": "Depois de várias ofertas insuficientes, o clube encerrou a negociação. Seria preciso um valor perto de {{fee}}. Dê um tempo a eles antes de tentar de novo.",
     "registrationFailureInsufficientFunds": "Registro falhou: comprador sem recursos suficientes",
     "registrationFailureLoanConflict": "Registro falhou: conflito com empréstimo",
     "registrationFailurePlayerUnavailable": "Registro falhou: jogador indisponível",
@@ -2849,6 +2855,7 @@
         "transferBudgetTooLow": "O orçamento de transferências é baixo demais",
         "playerNotOwnedByUser": "Jogador não encontrado ou não pertence a você",
         "offerNotPending": "Oferta não encontrada ou não está mais pendente",
+        "talksBrokenOff": "Este clube encerrou as conversas por este jogador. Tente de novo mais tarde.",
         "loanBorrowerCannotAffordWages": "O clube que recebe o jogador não consegue pagar esta parte do salário. O orçamento salarial semanal é {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "A contraproposta deve superar a oferta atual",
         "loanCounterMustImproveTerms": "A contraproposta de empréstimo precisa melhorar a oferta atual",
@@ -3003,6 +3010,15 @@
         "subject": "Diretoria — Pressão financeira",
         "bodyWarning": "A diretoria segue preocupada com a situação financeira do clube. A confiança no seu trabalho caiu {{penalty}} pontos nesta semana.\n\nVocê precisa melhorar a folha salarial e o caixa de curto prazo antes que a paciência diminua ainda mais.",
         "bodyCritical": "A diretoria revisou o agravamento da situação financeira do clube e a confiança no seu trabalho caiu {{penalty}} pontos nesta semana.\n\nCaixa e compromissos salariais estão agora em estado crítico. Medidas imediatas são esperadas."
+      },
+      "financeLevers": {
+        "subject": "Há opções de recuperação disponíveis para o clube",
+        "body": "O dinheiro está curto, o que abre opções de recuperação. As disponíveis para o clube agora aparecem abaixo; cada uma leva você à aba Finanças.",
+        "action": {
+          "boardSupport": "Pedir apoio à diretoria",
+          "sponsorPitch": "Buscar um novo patrocinador",
+          "marketingCampaign": "Lançar uma campanha de marketing"
+        }
       },
       "marketingCampaign": {
         "subject": "Relatório da campanha de marketing",
@@ -3191,6 +3207,11 @@
         "subject": "Lesão — {{player}} ({{injury}})",
         "body0": "Más notícias do treino. {{player}} sofreu uma {{injury}} durante a sessão de hoje.\n\nA equipe médica estima {{days}} dias afastado. Vamos acompanhar a recuperação de perto.",
         "body1": "Infelizmente, {{player}} caiu no treino hoje com uma {{injury}}.\n\nAvaliação inicial: fora por aproximadamente {{days}} dias. Manteremos você informado sobre o progresso."
+      },
+      "matchInjury": {
+        "subject": "Lesão no jogo — {{player}} ({{injury}})",
+        "body0": "Más notícias da partida: {{player}} se lesionou em campo.\n\nDiagnóstico: {{injury}}. O departamento médico estima {{days}} dias de afastamento e vamos acompanhar a recuperação de perto.",
+        "body1": "{{player}} não saiu ileso da partida de hoje.\n\nDiagnóstico: {{injury}}. Avaliação inicial: fora por cerca de {{days}} dias. Manteremos você informado sobre a evolução."
       },
       "mediaPositive": {
         "subject": "Imprensa Positiva — {{player}}",

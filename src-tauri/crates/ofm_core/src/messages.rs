@@ -12,6 +12,50 @@ fn params(pairs: &[(&str, &str)]) -> HashMap<String, String> {
         .collect()
 }
 
+/// The head physio's report of an injury picked up in a match, naming the injury and the expected
+/// time out. `injury_name` is a `common.injuries.*` key the UI translates.
+pub fn match_injury_message(
+    msg_id: &str,
+    player_id: &str,
+    player_name: &str,
+    injury_name: &str,
+    days: u32,
+    date: &str,
+) -> InboxMessage {
+    let variant = crate::seed::variant_for(msg_id, 2);
+
+    InboxMessage::new(
+        msg_id.to_string(),
+        String::new(),
+        String::new(),
+        String::new(),
+        date.to_string(),
+    )
+    .with_category(MessageCategory::Injury)
+    .with_priority(MessagePriority::High)
+    .with_sender_role("")
+    .with_action(action(
+        "ack",
+        "",
+        "be.msg.event.ack",
+        ActionType::Acknowledge,
+    ))
+    .with_context(MessageContext {
+        player_id: Some(player_id.to_string()),
+        ..Default::default()
+    })
+    .with_i18n(
+        "be.msg.matchInjury.subject",
+        &format!("be.msg.matchInjury.body{variant}"),
+        params(&[
+            ("player", player_name),
+            ("injury", injury_name),
+            ("days", &days.to_string()),
+        ]),
+    )
+    .with_sender_i18n("be.sender.headPhysio", "be.role.headPhysio")
+}
+
 /// Helper to create a MessageAction with an i18n label key.
 fn action(id: &str, label: &str, label_key: &str, action_type: ActionType) -> MessageAction {
     MessageAction {

@@ -9,7 +9,7 @@ import type {
   TeamData,
   YouthScoutingAssignment,
 } from "../../store/gameStore";
-import { marketPageOf } from "../players/PlayersPage.testFixtures";
+import { marketPageOf } from "../transfers/TransfersTab.testFixtures";
 import ScoutingTab from "./ScoutingTab";
 
 const invokeMock = vi.fn();

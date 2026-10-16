@@ -586,7 +586,11 @@
       "twistedAnkle": "Podvrtnutý kotník",
       "kneeBruise": "Pohmožděné koleno",
       "hamstringTightness": "Ztuhlý zadní stehenní sval",
-      "calfStrain": "Natažené lýtko"
+      "calfStrain": "Natažené lýtko",
+      "ankleLigamentSprain": "Podvrtnutí vazů kotníku",
+      "hamstringTear": "Natržení hamstringu",
+      "kneeLigamentTear": "Přetržení vazů v koleni",
+      "metatarsalFracture": "Zlomenina metatarzu"
     },
     "scoutRatings": {
       "excellent": "Vynikající",
@@ -1424,6 +1428,8 @@
     "transferFeedbackCounterDetail": "Nabídka byla dostatečně vysoká na to, aby se pokračovalo v jednání, ale druhá strana dává najevo, že si představuje cenu bližší k {{fee}}.",
     "transferFeedbackRejectedHeadline": "Tato fáze vyjednávání byla ukončena.",
     "transferFeedbackRejectedDetail": "Návrh je nepřesvědčil. Pro opětovné zahájení vážných rozhovorů budete muset nabídnout vyšší částku, bližší k {{fee}}.",
+    "transferFeedbackBrokeOffHeadline": "Odešli od jednání.",
+    "transferFeedbackBrokeOffDetail": "Po několika nabídkách, které nestačily, klub jednání ukončil. Bylo by potřeba odstupné kolem {{fee}}. Dejte jim čas, než to zkusíte znovu.",
     "registrationFailureInsufficientFunds": "Registrace selhala: kupující nemá dost peněz",
     "registrationFailureLoanConflict": "Registrace selhala: konflikt s hostováním",
     "registrationFailurePlayerUnavailable": "Registrace selhala: hráč není dostupný",
@@ -2857,6 +2863,7 @@
         "transferBudgetTooLow": "Přestupový rozpočet je příliš nízký",
         "playerNotOwnedByUser": "Hráč nebyl nalezen nebo není váš",
         "offerNotPending": "Nabídka nebyla nalezena nebo nečeká na vyřízení",
+        "talksBrokenOff": "Tento klub ukončil jednání o tomto hráči. Zkuste to později.",
         "loanBorrowerCannotAffordWages": "Hostující klub si tento podíl na mzdě nemůže dovolit. Jeho týdenní mzdový rozpočet je {{budget}}.",
         "counterOfferMustExceedCurrentOffer": "Protinabídka musí být vyšší než aktuální nabídka",
         "loanCounterMustImproveTerms": "Protinabídka hostování musí vylepšit stávající podmínky",
@@ -3003,6 +3010,15 @@
         "subject": "Hodnocení představenstva — Finanční tlak",
         "bodyWarning": "Představenstvo má i nadále obavy o finance klubu. Důvěra ve vaše vedení tento týden klesla o {{penalty}} bodů.\n\nMusíte zlepšit situaci ohledně mezd a krátkodobého cash flow, než představenstvu dojde trpělivost.",
         "bodyCritical": "Představenstvo zhodnotilo zhoršující se finanční situaci klubu a důvěra ve vaše vedení tento týden klesla o {{penalty}} bodů.\n\nFinanční rezervy a mzdové závazky jsou nyní v kritickém stavu. Očekávají se okamžitá nápravná opatření."
+      },
+      "financeLevers": {
+        "subject": "Klubu se otevřely možnosti záchrany",
+        "body": "Peněz je málo, a tím se otevírají možnosti nápravy. Ty, které jsou klubu právě dostupné, jsou uvedeny níže; každá vás zavede na kartu Finance.",
+        "action": {
+          "boardSupport": "Požádat o podporu vedení",
+          "sponsorPitch": "Oslovit nového sponzora",
+          "marketingCampaign": "Spustit marketingovou kampaň"
+        }
       },
       "marketingCampaign": {
         "subject": "Zpráva o marketingové kampani",
@@ -3191,6 +3207,11 @@
         "subject": "Zranění — {{player}} ({{injury}})",
         "body0": "Špatné zprávy z tréninkového areálu. Hráč {{player}} utrpěl během dnešního tréninku zranění: {{injury}}.\n\nLékařský tým odhaduje dobu rekonvalescence na {{days}} dní. Jeho zotavení budeme pečlivě sledovat.",
         "body1": "Hráč {{player}} se bohužel na dnešním tréninku zranil a jeho diagnózou je {{injury}}.\n\nPrvní odhad: mimo hru přibližně na {{days}} dní. O jeho pokroku vás budeme průběžně informovat."
+      },
+      "matchInjury": {
+        "subject": "Zranění v zápase — {{player}} ({{injury}})",
+        "body0": "Špatné zprávy ze zápasu: {{player}} se na hřišti zranil.\n\nDiagnóza: {{injury}}. Lékařský tým odhaduje výpadek na {{days}} dní a bude průběh léčby pozorně sledovat.",
+        "body1": "{{player}} z dnešního zápasu neodešel bez úhony.\n\nDiagnóza: {{injury}}. První odhad: mimo hru přibližně {{days}} dní. Budeme vás informovat o postupu."
       },
       "mediaPositive": {
         "subject": "Pozitivní ohlas v tisku — {{player}}",

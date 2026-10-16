@@ -328,6 +328,7 @@ function applyQuery(items: PlayerSummary[], query: PlayersPageQuery): PlayersPag
   }
   return {
     items: filtered,
+    status_counts: { all: 0, transfer: 0, loan: 0, free_agent: 0, available: 0 },
     total: filtered.length,
     page: query.page,
     page_size: query.page_size,

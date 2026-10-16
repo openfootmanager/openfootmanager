@@ -1,6 +1,7 @@
 mod calendar_sweep;
 mod cup_round_summary;
 mod dormant;
+mod match_injuries;
 mod news;
 mod post_match;
 mod round_summary;

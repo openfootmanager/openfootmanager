@@ -1,9 +1,23 @@
-import type { GameStateData } from "../../store/gameStore";
+import type { CustomTactic } from "../../services/customTacticsService";
 import type { TacticsLibraryEntry } from "./TacticsCommandBar";
 
-const TACTICS_STORAGE_KEY_PREFIX = "ofm:tactics:custom";
+/**
+ * Custom tactics used to live in the browser's storage, one list per manager, start date AND
+ * club, so a change of club lost them and clearing the webview data lost them for good. They are
+ * in the save now. What is left here copies an old browser library into the save.
+ */
+const LEGACY_KEY_PREFIX = "ofm:tactics:custom";
 
-type StorageLike = Pick<Storage, "getItem" | "setItem">;
+/** The error key the backend refuses a tactic with (`be.error.customTactic.*`). */
+const REFUSED_PREFIX = "be.error.customTactic.";
+
+/**
+ * The longest name the save keeps (`MAX_NAME_CHARS` in `ofm_core::custom_tactics`). The old screen
+ * had no limit, so a name this long is plausible; it is shortened rather than lost.
+ */
+const MAX_NAME_CHARS = 60;
+
+type StorageLike = Pick<Storage, "getItem" | "key" | "length">;
 
 function getDefaultStorage(): StorageLike | null {
   if (typeof window === "undefined") {
@@ -17,16 +31,32 @@ function getDefaultStorage(): StorageLike | null {
   }
 }
 
-export function buildCustomTacticsStorageKey(gameState: GameStateData): string {
-  return [
-    TACTICS_STORAGE_KEY_PREFIX,
-    gameState.manager.id,
-    gameState.clock.start_date,
-    gameState.manager.team_id ?? "no-team",
-  ].join(":");
+/** The save lists tactics in the order they were made; the library shows the newest first. */
+export function toLibraryEntries(tactics: readonly CustomTactic[]): TacticsLibraryEntry[] {
+  return [...tactics].reverse().map((tactic) => ({
+    description: tactic.description,
+    formation: tactic.formation,
+    id: tactic.id,
+    name: tactic.name,
+    playStyle: tactic.playStyle,
+    sourcePresetName: tactic.sourcePresetName ?? null,
+    type: "custom",
+  }));
 }
 
-function isCustomTacticEntry(value: unknown): value is TacticsLibraryEntry {
+/** An id is kept trimmed, as the save keeps it, so padding can never make a second tactic. */
+export function toCustomTactic(entry: TacticsLibraryEntry): CustomTactic {
+  return {
+    description: entry.description,
+    formation: entry.formation,
+    id: entry.id.trim(),
+    name: entry.name,
+    playStyle: entry.playStyle,
+    sourcePresetName: entry.sourcePresetName ?? null,
+  };
+}
+
+function isStoredTactic(value: unknown): value is TacticsLibraryEntry {
   if (!value || typeof value !== "object") {
     return false;
   }
@@ -43,49 +73,82 @@ function isCustomTacticEntry(value: unknown): value is TacticsLibraryEntry {
   );
 }
 
-export function loadCustomTactics(
-  gameState: GameStateData,
-  storage: StorageLike | null = getDefaultStorage(),
-): TacticsLibraryEntry[] {
-  if (!storage) {
-    return [];
+/** Every key an old library of this career could be under, whichever club it was saved at. */
+function legacyKeys(managerId: string, startDate: string, storage: StorageLike): string[] {
+  const careerPrefix = `${LEGACY_KEY_PREFIX}:${managerId}:${startDate}:`;
+  const keys: string[] = [];
+
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key?.startsWith(careerPrefix)) {
+      keys.push(key);
+    }
   }
 
+  return keys;
+}
+
+function readStoredList(storage: StorageLike, key: string): TacticsLibraryEntry[] {
   try {
-    const storedValue = storage.getItem(buildCustomTacticsStorageKey(gameState));
-
-    if (!storedValue) {
-      return [];
-    }
-
-    const parsedValue: unknown = JSON.parse(storedValue);
-
-    if (!Array.isArray(parsedValue)) {
-      return [];
-    }
-
-    return parsedValue.filter(isCustomTacticEntry);
+    const parsed: unknown = JSON.parse(storage.getItem(key) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter(isStoredTactic) : [];
   } catch {
     return [];
   }
 }
 
-export function saveCustomTactics(
-  gameState: GameStateData,
-  customTactics: readonly TacticsLibraryEntry[],
+/**
+ * Copies an old browser library into the save.
+ *
+ * It copies and never moves, because the old key is not one career's: every career's manager has
+ * the same id and a career starts on the same day of its start year, so careers begun in the same
+ * year all read and write the one key. Removing it would take the library from the others.
+ * Instead each old tactic the save does not already hold (by trimmed id) is saved, oldest first so
+ * the order they were made in is kept; one the save holds is skipped, so a reload, a retry or a
+ * second career cannot import it twice. A name longer than the save keeps is shortened. A tactic
+ * the game still refuses (a shape it cannot lay out) is left out of the save and stays where it
+ * is, in the browser's storage; a failed save stops the import for another try.
+ *
+ * Returns the library as the save now holds it.
+ */
+export async function importLegacyTactics(
+  managerId: string,
+  startDate: string,
+  saved: readonly CustomTactic[],
+  save: (tactic: CustomTactic) => Promise<CustomTactic[]>,
   storage: StorageLike | null = getDefaultStorage(),
-): void {
+): Promise<CustomTactic[]> {
+  let current = [...saved];
   if (!storage) {
-    return;
+    return current;
   }
 
-  const persistedTactics = customTactics.filter(
-    (entry): entry is TacticsLibraryEntry => entry.type === "custom",
+  const known = new Set(current.map((tactic) => tactic.id.trim()));
+  // A stored list is newest first; the save keeps the order made.
+  const oldestFirst = legacyKeys(managerId, startDate, storage).flatMap((key) =>
+    readStoredList(storage, key).reverse(),
   );
 
-  try {
-    storage.setItem(buildCustomTacticsStorageKey(gameState), JSON.stringify(persistedTactics));
-  } catch {
-    // Storage quota exceeded or access denied — skip persist
+  for (const entry of oldestFirst) {
+    const tactic = toCustomTactic({ ...entry, name: fitName(entry.name) });
+    if (known.has(tactic.id)) {
+      continue;
+    }
+
+    try {
+      current = await save(tactic);
+      known.add(tactic.id);
+    } catch (error) {
+      if (typeof error === "string" && error.startsWith(REFUSED_PREFIX)) {
+        continue;
+      }
+      return current;
+    }
   }
+
+  return current;
+}
+
+function fitName(name: string): string {
+  return Array.from(name.trim()).slice(0, MAX_NAME_CHARS).join("");
 }
