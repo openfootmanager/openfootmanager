@@ -7,6 +7,18 @@ export async function getSquad(teamId: string): Promise<PlayerData[]> {
   return invoke<PlayerData[]>("get_squad", { teamId });
 }
 
+/** The takers the match would use for these players when none are assigned, as the backend picks them. */
+export interface AutoSetPieces {
+  captain: string | null;
+  penalty_taker: string | null;
+  free_kick_taker: string | null;
+  corner_taker: string | null;
+}
+
+export async function autoSelectSetPieces(playerIds: string[]): Promise<AutoSetPieces> {
+  return invoke<AutoSetPieces>("auto_select_set_pieces", { playerIds });
+}
+
 export async function setPlayerSquadRole(
   playerId: string,
   squadRole: PlayerSquadRole,

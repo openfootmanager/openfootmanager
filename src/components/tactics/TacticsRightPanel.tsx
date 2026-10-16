@@ -1,5 +1,5 @@
 import type { JSX } from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Award, ChevronDown, CircleDot, CornerDownRight, Crown, Footprints } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -11,9 +11,12 @@ import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
+import { type AutoSetPieces, autoSelectSetPieces } from "../../services/squadService";
 
 interface TacticsRightPanelProps {
   allSquad: PlayerData[];
+  /** The backend's takers for this eleven, `null` until it has answered. */
+  autoSetPieces: AutoSetPieces | null;
   matchRoles?: TeamMatchRolesData;
   onGameUpdate: (g: GameStateData) => void;
   onTacticsPhaseChange: (patch: Partial<TacticsPhaseSettings>) => void;
@@ -23,6 +26,7 @@ interface TacticsRightPanelProps {
 
 export default function TacticsRightPanel({
   allSquad,
+  autoSetPieces,
   matchRoles,
   onGameUpdate,
   onTacticsPhaseChange,
@@ -42,8 +46,8 @@ export default function TacticsRightPanel({
   );
 
   const effectiveRoles = useMemo(
-    () => resolveEffectiveMatchRoles(startingPlayers, matchRoles),
-    [matchRoles, startingPlayers],
+    () => resolveEffectiveMatchRoles(startingPlayers, matchRoles, autoSetPieces),
+    [matchRoles, startingPlayers, autoSetPieces],
   );
 
   async function persistMatchRoles(nextRoles: TeamMatchRolesData): Promise<void> {
@@ -59,12 +63,28 @@ export default function TacticsRightPanel({
 
   async function handleRoleChange(role: keyof TeamMatchRolesData, playerId: string): Promise<void> {
     await persistMatchRoles(
-      buildUpdatedMatchRolesForAssignment(effectiveRoles, startingPlayers, role, playerId),
+      buildUpdatedMatchRolesForAssignment(startingPlayers, matchRoles, role, playerId),
     );
   }
 
+  // What the eleven and the saved roles are right now, read when an answer lands: an ask can
+  // outlive the screen it was made from, and its answer must not overwrite what the manager did
+  // meanwhile (the same guard `useEntityEditor.commitField` keeps for an asset pick).
+  const rolesShown = JSON.stringify([startingPlayers.map((player) => player.id), matchRoles]);
+  const latestRolesShown = useRef(rolesShown);
+  latestRolesShown.current = rolesShown;
+
+  // Asks the backend now rather than saving what the display last showed: an answer still on its
+  // way, or one a day old, would save empty or stale takers. A failed ask saves nothing, and
+  // pressing the button again is the retry.
   async function handleAutoSelectAssignments(): Promise<void> {
-    await persistMatchRoles(effectiveRoles);
+    try {
+      const picks = await autoSelectSetPieces(startingPlayers.map((player) => player.id));
+      if (latestRolesShown.current !== rolesShown) return;
+      await persistMatchRoles(resolveEffectiveMatchRoles(startingPlayers, matchRoles, picks));
+    } catch (error) {
+      console.error("Failed to read the automatic set-piece takers:", error);
+    }
   }
 
   const [rolesOpen, setRolesOpen] = useState(true);
