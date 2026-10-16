@@ -343,3 +343,74 @@ fn moving_toward_an_unreachable_target_still_ends() {
         assert!((1.0..=99.0).contains(&landed), "{landed}");
     }
 }
+
+/// Given the age bands the headroom is set by,
+/// When the range for the first and last age of each band is asked for,
+/// Then each band has its own range.
+#[test]
+fn every_age_band_has_its_own_headroom() {
+    for (ages, range) in [
+        ([16u32, 18], 15..=30),
+        ([19, 20], 8..=22),
+        ([21, 22], 4..=14),
+        ([23, 25], 0..=7),
+        ([26, 40], 0..=0),
+    ] {
+        for age in ages {
+            assert_eq!(growth_headroom_range(age), range, "age {age}");
+        }
+    }
+}
+
+/// Given attribute blocks and targets between the lowest and highest rating a shift can give,
+/// When they are moved to the target,
+/// Then the result is the closest rating any equal shift of the block could reach.
+#[test]
+fn moving_attributes_lands_on_the_closest_reachable_rating() {
+    for (attributes, position) in [
+        (gk_attrs(), Position::Goalkeeper),
+        (striker_attrs(), Position::Forward),
+    ] {
+        for target in (30u8..=90).step_by(3) {
+            let mut moved = attributes.clone();
+
+            move_attributes_to(&mut moved, &position, target);
+
+            let landed = (ovr_from_attributes(&moved, &position) - f64::from(target)).abs();
+            let best_reachable = (-60i16..=60)
+                .map(|shift| {
+                    let mut shifted = attributes.clone();
+                    shift_all(&mut shifted, shift);
+                    (ovr_from_attributes(&shifted, &position) - f64::from(target)).abs()
+                })
+                .fold(f64::MAX, f64::min);
+            assert!(
+                landed <= best_reachable + 1e-9,
+                "target {target}: landed {landed:.2} away, best possible {best_reachable:.2}"
+            );
+        }
+    }
+}
+
+fn shift_all(attributes: &mut PlayerAttributes, shift: i16) {
+    let apply = |value: &mut u8| *value = (i16::from(*value) + shift).clamp(1, 99) as u8;
+    apply(&mut attributes.pace);
+    apply(&mut attributes.stamina);
+    apply(&mut attributes.strength);
+    apply(&mut attributes.agility);
+    apply(&mut attributes.passing);
+    apply(&mut attributes.shooting);
+    apply(&mut attributes.tackling);
+    apply(&mut attributes.dribbling);
+    apply(&mut attributes.defending);
+    apply(&mut attributes.positioning);
+    apply(&mut attributes.vision);
+    apply(&mut attributes.decisions);
+    apply(&mut attributes.composure);
+    apply(&mut attributes.aggression);
+    apply(&mut attributes.teamwork);
+    apply(&mut attributes.leadership);
+    apply(&mut attributes.handling);
+    apply(&mut attributes.reflexes);
+    apply(&mut attributes.aerial);
+}
