@@ -255,4 +255,45 @@ mod tests {
         assert_eq!(archive.len(), 1);
         assert!(archive[0].is_edition_of(&finished.id, finished.season));
     }
+
+    fn edition(competition_id: &str, season: u32, champion: &str) -> CompletedEdition {
+        CompletedEdition {
+            competition_id: competition_id.to_string(),
+            season,
+            completed_on: "2033-05-10".to_string(),
+            champion_id: champion.to_string(),
+            participant_ids: vec![],
+            standings: vec![],
+            groups: vec![],
+            knockout_rounds: vec![],
+            fixtures: vec![],
+        }
+    }
+
+    /// Given archived editions of two cups, including one of the cup's own current season,
+    /// When the champion of its latest earlier edition is asked for,
+    /// Then it is the last edition before that season, of that cup only.
+    #[test]
+    fn the_latest_earlier_edition_of_that_cup_is_the_one_read() {
+        let archive = vec![
+            edition("cup", 2032, "old"),
+            edition("cup", 2033, "last-year"),
+            edition("cup", 2034, "this-season"),
+            edition("other-cup", 2033, "someone-else"),
+        ];
+
+        assert_eq!(
+            champion_of_latest_edition_before(&archive, "cup", 2034),
+            Some("last-year")
+        );
+        assert_eq!(
+            champion_of_latest_edition_before(&archive, "cup", 2032),
+            None,
+            "nothing earlier than the first edition"
+        );
+        assert_eq!(
+            champion_of_latest_edition_before(&archive, "no-such-cup", 2034),
+            None
+        );
+    }
 }
