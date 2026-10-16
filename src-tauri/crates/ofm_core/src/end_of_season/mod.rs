@@ -1840,6 +1840,51 @@ mod tests {
         assert_eq!(game.edition_archive.len(), 1);
     }
 
+    /// Given a domestic cup the hook has renewed before the rollover, in a country whose league is
+    /// still on the finished season,
+    /// When the continental field is worked out at the rollover,
+    /// Then the cup's winner qualifies: the archived edition holds it.
+    #[test]
+    fn a_cup_renewed_by_the_hook_still_qualifies_its_winner_at_the_rollover() {
+        let mut game = calendar_game(at(2034, 7, 1));
+        let mut cup = crate::competition_test_support::cup(8);
+        cup.season = 2033;
+        cup.season_start_month = 7;
+        cup.season_start_day = 20;
+        cup.kind = CompetitionType::Cup;
+        cup.scope = CompetitionScope::Domestic;
+        cup.country_id = Some("ES".to_string());
+        cup.region_id = Some("europe".to_string());
+        let winner = crate::world_cup::world_cup_champion(&cup).expect("a finished cup");
+        let mut league = crate::competition_test_support::table(4, 2);
+        league.season = 2033;
+        league.kind = CompetitionType::League;
+        league.scope = CompetitionScope::Domestic;
+        league.country_id = Some("ES".to_string());
+        league.region_id = Some("europe".to_string());
+        let mut continental = League::new("europe-cup".into(), "Europe".into(), 2033, &[]);
+        continental.kind = CompetitionType::ContinentalClub;
+        continental.scope = CompetitionScope::Continental;
+        continental.required_region_ids = vec!["europe".to_string()];
+        game.competitions = vec![league, cup, continental];
+
+        assert_eq!(
+            crate::turn::cup_renewal::renew_finished_cups(&mut game, "2034-07-01"),
+            1
+        );
+        let europe = game
+            .competitions
+            .iter()
+            .find(|c| c.id == "europe-cup")
+            .unwrap();
+        let field = continental_qualified_entrants(&game, europe);
+
+        assert!(
+            field.contains(&winner),
+            "{winner} is missing from {field:?}"
+        );
+    }
+
     #[test]
     fn preseason_rollover_retains_midseason_apertura() {
         retained_division_receives_no_friendlies("ar-d1-apertura", at(2035, 4, 18), at(2035, 2, 1));
