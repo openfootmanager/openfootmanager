@@ -1285,6 +1285,22 @@ mod tests {
             .collect()
     }
 
+    /// Given rolled ratings at, above and below the rolled mean,
+    /// When they are shaped onto the ceiling bell,
+    /// Then the mean maps to the bell's centre and a distance from it is kept at the spread.
+    #[test]
+    fn a_rolled_rating_is_shaped_onto_the_ceiling_bell() {
+        assert_eq!(
+            shaped_ceiling(ROLLED_RATING_MEAN),
+            CEILING_MEAN.round() as u8
+        );
+        let above = shaped_ceiling(ROLLED_RATING_MEAN + 10.0);
+        let below = shaped_ceiling(ROLLED_RATING_MEAN - 10.0);
+        let centre = CEILING_MEAN.round() as u8;
+        assert_eq!(above - centre, (10.0 * CEILING_SPREAD).round() as u8);
+        assert_eq!(centre - below, (10.0 * CEILING_SPREAD).round() as u8);
+    }
+
     /// Given generated teenagers (18 or younger),
     /// When their rating is compared with their ceiling,
     /// Then the ceiling is the headroom for their age above the rating: they are an earlier self.
