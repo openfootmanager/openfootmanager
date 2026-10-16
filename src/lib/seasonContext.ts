@@ -35,6 +35,11 @@ export function resolveSeasonContext(gameState: GameStateData): SeasonContextDat
   return deriveSeasonContext(gameState);
 }
 
+/** Whether the season is over, as the backend decides it (the answer `advance_to_next_season` enforces). */
+export function isSeasonComplete(gameState: GameStateData): boolean {
+  return resolveSeasonContext(gameState).season_complete === true;
+}
+
 export function hasCompetitiveStandings(gameState: GameStateData): boolean {
   return resolveSeasonContext(gameState).phase !== "Preseason";
 }

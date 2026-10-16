@@ -5,7 +5,6 @@ export {
   getTeamShort,
 } from "./team";
 export {
-  expectedFixtureCount,
   findNextFixture,
   getActiveCompetitions,
   getCompetitiveFixtures,
@@ -14,8 +13,6 @@ export {
   getUserCompetition,
   getUserCompetitions,
   getUserNextFixture,
-  hasFullLeagueSchedule,
-  isSeasonComplete,
 } from "./fixtures";
 export {
   getNationalTeamFixtures,

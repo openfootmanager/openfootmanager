@@ -568,19 +568,13 @@ impl SaveManager {
         }
 
         // Backfill OVR/potential for players from older saves that don't have them yet.
-        // We use the game clock year so age is accurate.
-        let current_year = game
-            .clock
-            .current_date
-            .format("%Y")
-            .to_string()
-            .parse::<u32>()
-            .unwrap_or(2026);
+        // Ages are reckoned on the game clock's date.
+        let today = game.clock.current_date.date_naive();
         let backfill_count = game.players.iter().filter(|p| p.ovr == 0).count();
         if backfill_count > 0 {
             for player in game.players.iter_mut() {
                 if player.ovr == 0 {
-                    refresh_player_derived(player, current_year);
+                    refresh_player_derived(player, today);
                 }
             }
             info!(
