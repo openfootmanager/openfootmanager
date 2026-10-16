@@ -50,8 +50,8 @@ impl Game {
 pub enum WorldCupStream {
     /// The draw of the finals field into groups.
     Draw,
-    /// Everything settled around the qualifying campaign: the inter-confederation playoff
-    /// and the rollover's settling of outstanding ties.
+    /// The inter-confederation playoff that settles the last places of the finals field. (The
+    /// matches themselves are not on this stream: each tie plays on its own, named by its two sides.)
     Settle,
 }
 
@@ -59,9 +59,11 @@ impl Game {
     /// The generator for a World Cup year's draw or settling.
     ///
     /// A game from before these were seeded from the game ([`Game::legacy_world_cup_draw`])
-    /// gets exactly the stream it always had, keyed by the year alone; every other game gets
-    /// its own, from its seed. The legacy streams are `StdRng`, deliberately: they are the
-    /// stream an old career was already promised, and the one place that name stays.
+    /// gets exactly the stream it always had for the draw and the playoff, keyed by the year alone;
+    /// every other game gets its own, from its seed. The legacy streams are `StdRng`,
+    /// deliberately: they are the stream an old career was already promised, and the one place
+    /// that name stays. The matches themselves are not on either stream: every game plays a tie on that
+    /// tie's own, named by its two sides.
     pub fn world_cup_rng(&self, stream: WorldCupStream, year: i32) -> Box<dyn rand::Rng> {
         if self.legacy_world_cup_draw {
             let seed = match stream {
