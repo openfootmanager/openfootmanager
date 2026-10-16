@@ -90,6 +90,9 @@ pub fn finish_live_match(state: &StateManager) -> Result<FinishLiveMatchResponse
                 game.league = Some(game.competitions[idx].clone());
             }
 
+            // A no-op when the day was begun at kick-off; otherwise it notes what was shown before
+            // the player's result is applied, which may draw the next round.
+            ofm_core::turn::begin_day(game);
             ofm_core::turn::apply_match_report_with_capture(
                 game,
                 fixture_index,

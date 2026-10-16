@@ -925,7 +925,7 @@ pub(crate) fn improve_loan_player_attributes(player: &mut domain::player::Player
 pub(crate) fn apply_loan_development(
     player: &mut domain::player::Player,
     loan_team_reputation: u32,
-    current_year: u32,
+    on: chrono::NaiveDate,
     loan_minutes: u32,
     loan_appearances: u32,
 ) -> (u8, u8, u8) {
@@ -958,7 +958,7 @@ pub(crate) fn apply_loan_development(
     }
 
     if attribute_gains > 0 {
-        crate::player_rating::refresh_player_derived(player, current_year);
+        crate::player_rating::refresh_player_derived(player, on);
     }
 
     (ovr_before, player.ovr, attribute_gains)
@@ -997,7 +997,6 @@ pub(crate) fn record_loan_development_report(game: &mut Game, player_id: &str, f
         .map(|team| team.name.clone())
         .unwrap_or_else(|| loan.loan_team_id.clone());
     let loan_team_reputation = loan_team.map(|team| team.reputation).unwrap_or(0);
-    let current_year = current_date.year() as u32;
 
     let (player_name, ovr_before, ovr_after, attribute_gains) = {
         let player = &mut game.players[player_index];
@@ -1011,7 +1010,7 @@ pub(crate) fn record_loan_development_report(game: &mut Game, player_id: &str, f
         let (ovr_before, ovr_after, attribute_gains) = apply_loan_development(
             player,
             loan_team_reputation,
-            current_year,
+            current_date,
             loan_minutes,
             loan_appearances,
         );
@@ -1219,6 +1218,37 @@ mod tests {
         assert!(ai_should_exercise_loan_buy_option(
             &player, &club, 900_000, 2_000, 30
         ));
+    }
+
+    /// Given a 19-year-old midfielder with room to grow who plays a season on loan,
+    /// When the loan's development is applied on a date,
+    /// Then his attributes rise and his rating is recomputed from them, as of that date.
+    #[test]
+    fn loan_development_refreshes_the_rating_it_raised() {
+        let mut player = Player::new(
+            "loanee".to_string(),
+            "Loanee".to_string(),
+            "Loanee".to_string(),
+            "2007-01-01".to_string(),
+            "England".to_string(),
+            Position::Midfielder,
+            sample_attributes(),
+        );
+        player.potential = 99;
+        let on = chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+        crate::player_rating::refresh_player_derived(&mut player, on);
+        player.potential = 99;
+
+        let (ovr_before, ovr_after, gains) = apply_loan_development(&mut player, 500, on, 900, 10);
+
+        assert_eq!(gains, 6, "two cycles of three attributes");
+        assert!(ovr_after > ovr_before, "{ovr_before} -> {ovr_after}");
+        assert_eq!(ovr_after, player.ovr);
+        assert_eq!(
+            player.ovr,
+            crate::player_rating::natural_ovr(&player).round() as u8,
+            "the stored rating is not the one the raised attributes give"
+        );
     }
 
     fn contract_end_loan_game(user_is_parent: bool) -> Game {
