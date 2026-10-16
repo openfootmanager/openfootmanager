@@ -47,6 +47,7 @@ beforeAll(async () => {
     {
       "test.subject": "Resolved Subject",
       "test.body": "Hello {{name}}, welcome!",
+      "test.bidBody": "Offer: {{fee}}",
       "test.sender": "The Board",
       "test.senderRole": "Board of Directors",
       "test.actionLabel": "Accept Offer",
@@ -212,7 +213,7 @@ describe("resolveAction", () => {
 
     expect(actionType.ChooseOption.options[0].label).toBe("Accept the deal");
     expect(actionType.ChooseOption.options[0].description).toBe(
-      "Receive €250,000 in sponsorship income.",
+      "Receive €250K in sponsorship income.",
     );
   });
 
@@ -276,7 +277,7 @@ describe("resolveAction", () => {
     }
 
     expect(actionType.ChooseOption.options[0].description).toBe(
-      "Receive £215,000 in sponsorship income.",
+      "Receive £215K in sponsorship income.",
     );
   });
 
@@ -505,9 +506,9 @@ describe("resolveMessage", () => {
       expect(result.body).toContain(
         "Chefe, revisei nossa lista de renovações no Lisbon Sporting. 4 concluídas, 2 ainda pendentes e 1 falhas.",
       );
-      expect(result.body).toContain("Concluída: Claes aceitou 1 ano(s) por €5,000/semana.");
+      expect(result.body).toContain("Concluída: Claes aceitou 1 ano(s) por €5K/semana.");
       expect(result.body).toContain(
-        "Continua difícil: Vieira — O estafe deles quer cerca de €25,000/semana por 3 anos, acima dos limites da delegação.",
+        "Continua difícil: Vieira — O estafe deles quer cerca de €25K/semana por 3 anos, acima dos limites da delegação.",
       );
       expect(result.body).toContain(
         "Falhou: Fernandes — Você me disse para ainda não reabrir as conversas contratuais.",
@@ -1318,14 +1319,14 @@ describe("accepted deal messages", () => {
 describe("the weekly wage bill in the over-budget message", () => {
   const key = "be.msg.wageOverBudget.body";
 
-  it("formats the bill and the budget the backend sends as whole numbers", () => {
+  it("shows the bill and the budget the backend sends as whole numbers, compact and precise", () => {
     const text = resolveBackendText(key, "fallback", {
       weeklyWageBill: "1700",
-      wageBudget: "1545",
+      wageBudget: "1500",
     });
 
-    expect(text).toContain("€1,700");
-    expect(text).toContain("€1,545");
+    expect(text).toContain("€1.7K");
+    expect(text).toContain("€1.5K");
     expect(text).not.toContain("{{");
   });
 
@@ -1337,5 +1338,24 @@ describe("the weekly wage bill in the over-budget message", () => {
 
     expect(text).toContain("€2K");
     expect(text).not.toContain("{{");
+  });
+});
+
+describe("money in inbox and news lines is compact and precise", () => {
+  it("shows a whole-number fee with up to three significant digits", () => {
+    const text = resolveBackendText("test.bidBody", "fallback", { fee: "1250000" });
+
+    expect(text).toBe("Offer: €1.25M");
+  });
+
+  it("converts the whole number to the selected currency before it is shortened", () => {
+    useSettingsStore.setState({
+      settings: { ...useSettingsStore.getState().settings, currency: "USD" },
+      currency: { code: "USD", symbol: "$", exchange_rate: 1.08 },
+    });
+
+    const text = resolveBackendText("test.bidBody", "fallback", { fee: "1000000" });
+
+    expect(text).toBe("Offer: $1.08M");
   });
 });

@@ -1,5 +1,5 @@
 import i18n from "../i18n";
-import { formatExactMoney, formatVal } from "../lib/helpers";
+import { formatExactMoney, formatPreciseCompact, formatVal } from "../lib/helpers";
 import { formatDate } from "../lib/dateFormatting";
 import { countryName } from "../lib/countries";
 import { useSettingsStore } from "../store/settingsStore";
@@ -108,7 +108,7 @@ export function resolveBackendError(error: unknown): string {
   const message = extractErrorMessage(error).trim();
   if (!message) return "";
   const parsed = parseBackendMessage(message);
-  return resolve(parsed.key, parsed.fallback, resolveParamValues(parsed.params));
+  return resolve(parsed.key, parsed.fallback, resolveParamValues(parsed.params, "exact"));
 }
 
 function boardObjectiveFallback(objective: BoardObjective): string {
@@ -195,7 +195,13 @@ function parseMoneyValue(value: string): { amount: number; compact: boolean } | 
   };
 }
 
-function resolveMoneyParamValue(key: string, value: string): string {
+/**
+ * How a whole-number money param is shown. The lines of the inbox and the news read it in passing,
+ * so they get it compact but precise; an error has to say exactly what is short, so it is exact.
+ */
+type MoneyStyle = "compact" | "exact";
+
+function resolveMoneyParamValue(key: string, value: string, style: MoneyStyle): string {
   if (!MONEY_PARAM_KEYS.has(key)) {
     return value;
   }
@@ -205,7 +211,12 @@ function resolveMoneyParamValue(key: string, value: string): string {
     return value;
   }
 
-  return parsed.compact ? formatVal(parsed.amount) : formatExactMoney(parsed.amount);
+  // A string the backend shortened itself (an old saved message: "€1.2M") has lost its precision
+  // already and keeps the old compact form; a whole number carries all of it.
+  if (parsed.compact) {
+    return formatVal(parsed.amount);
+  }
+  return style === "exact" ? formatExactMoney(parsed.amount) : formatPreciseCompact(parsed.amount);
 }
 
 function resolveCountryParamValue(key: string, value: string): string {
@@ -236,7 +247,10 @@ function resolveDateParamValue(key: string, value: string): string {
  */
 const LEGACY_PARAM_NAMES: Record<string, string> = { annualWages: "weeklyWageBill" };
 
-function resolveParamValues(params?: Record<string, string>): Record<string, string> | undefined {
+function resolveParamValues(
+  params?: Record<string, string>,
+  moneyStyle: MoneyStyle = "compact",
+): Record<string, string> | undefined {
   if (!params) return params;
   const resolved = { ...params };
   for (const [legacy, current] of Object.entries(LEGACY_PARAM_NAMES)) {
@@ -255,7 +269,7 @@ function resolveParamValues(params?: Record<string, string>): Record<string, str
 
     resolved[key] = resolveDateParamValue(
       key,
-      resolveCountryParamValue(key, resolveMoneyParamValue(key, resolved[key])),
+      resolveCountryParamValue(key, resolveMoneyParamValue(key, resolved[key], moneyStyle)),
     );
   }
   return resolved;
@@ -561,7 +575,7 @@ function normalizeTransferRoundupParams(
         .map((deal) => {
           const resolvedDeal = {
             ...deal,
-            fee: resolveMoneyParamValue("fee", deal.fee),
+            fee: resolveMoneyParamValue("fee", deal.fee, "compact"),
           };
 
           return resolve(
