@@ -633,8 +633,10 @@ fn in_budget_means_the_fee_fits_both_cash_and_transfer_budget() {
     assert_eq!(ids(&game, &q), vec!["cheap"]);
 }
 
-/// Given a free agent and a loan-only player worth more than the club can pay, when "in budget" is
-/// on, then both still pass: neither is bought for a fee.
+/// Given a free agent and a loan-only player worth more than the club can pay, and a player listed
+/// for both loan and transfer at the same price, when "in budget" is on, then the first two still
+/// pass (neither is bought for a fee) and the third does not: he can be bought, so he is held to
+/// the club's means.
 #[test]
 fn free_agents_and_loan_only_players_skip_the_affordability_check() {
     let mut free_agent = PlayerSpec::new("free", "Free", None);
@@ -645,10 +647,19 @@ fn free_agents_and_loan_only_players_skip_the_affordability_check() {
     let mut dear = PlayerSpec::new("dear", "Dear", Some("other"));
     dear.market_value = 9_000_000;
     dear.transfer_listed = true;
+    let mut both = PlayerSpec::new("both", "Both", Some("other"));
+    both.market_value = 9_000_000;
+    both.transfer_listed = true;
+    both.loan_listed = true;
     let game = game_managing_mine(
         1_000_000,
         1_000_000,
-        vec![free_agent.build(), loan_only.build(), dear.build()],
+        vec![
+            free_agent.build(),
+            loan_only.build(),
+            dear.build(),
+            both.build(),
+        ],
     );
     let mut q = baseline_query();
     q.in_budget = true;

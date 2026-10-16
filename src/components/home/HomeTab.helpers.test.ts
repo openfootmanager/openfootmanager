@@ -174,6 +174,7 @@ function createGameState(overrides: Partial<GameStateData> = {}): GameStateData 
       start_date: "2025-01-01T00:00:00Z",
     },
     manager: {
+      display_name: "Jane Doe",
       id: "manager-1",
       first_name: "Jane",
       last_name: "Doe",

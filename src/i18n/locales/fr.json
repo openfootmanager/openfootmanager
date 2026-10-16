@@ -2893,6 +2893,12 @@
       "notice": {
         "fallbackLeagueGenerated": "Aucune compétition n'a été définie. Une ligue à division unique par défaut a été générée automatiquement pour toutes les équipes.",
         "fallbackTeamsFilled": "Une seule équipe a été définie. Des adversaires procéduraux ont été générés automatiquement pour rendre le jeu jouable."
+      },
+      "customTactic": {
+        "nameRequired": "Donnez à la tactique un nom de 60 caractères au plus.",
+        "invalidFormation": "Le jeu ne connaît pas cette formation.",
+        "invalidPlayStyle": "Le jeu ne connaît pas ce style de jeu.",
+        "notFound": "Cette tactique n'existe plus."
       }
     },
     "sender": {
