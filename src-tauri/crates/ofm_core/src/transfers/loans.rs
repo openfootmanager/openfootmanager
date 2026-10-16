@@ -807,7 +807,8 @@ pub(crate) fn ai_should_exercise_loan_buy_option(
     loan_minutes: u32,
     loan_appearances: u32,
 ) -> bool {
-    if fee == 0 || loan_team.finance < fee as i64 || loan_team.transfer_budget < fee as i64 {
+    // A zero buy option is no option at all, so it is refused before the club's means are asked.
+    if fee == 0 || !can_afford_fee(loan_team, fee) {
         return false;
     }
 
@@ -1155,6 +1156,69 @@ mod tests {
     use super::*;
     use crate::transfers::tests::{make_game, sample_attributes};
     use chrono::{TimeZone, Utc};
+
+    fn buy_option_candidate(market_value: u64) -> (Player, Team) {
+        let mut player = Player::new(
+            "p".to_string(),
+            "P".to_string(),
+            "P".to_string(),
+            "2000-01-01".to_string(),
+            "GB".to_string(),
+            Position::Midfielder,
+            sample_attributes(),
+        );
+        player.market_value = market_value;
+        let mut club = Team::new(
+            "club".to_string(),
+            "Club".to_string(),
+            "CLB".to_string(),
+            "England".to_string(),
+            "Town".to_string(),
+            "Ground".to_string(),
+            10_000,
+        );
+        club.finance = 10_000_000;
+        club.transfer_budget = 10_000_000;
+        (player, club)
+    }
+
+    /// Given a club that could pay anything, when the buy option's fee is zero, then the AI still
+    /// declines: a zero buy option is no option at all.
+    #[test]
+    fn a_zero_buy_option_is_never_exercised() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 0, 2_000, 30
+        ));
+    }
+
+    /// Given a fee within the fair ceiling, when the club has too little cash or too little
+    /// transfer budget for it, then the AI declines.
+    #[test]
+    fn a_buy_option_the_club_cannot_pay_is_not_exercised() {
+        let (player, mut club) = buy_option_candidate(1_000_000);
+        club.finance = 100_000;
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 900_000, 2_000, 30
+        ));
+
+        let (player, mut club) = buy_option_candidate(1_000_000);
+        club.transfer_budget = 100_000;
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 900_000, 2_000, 30
+        ));
+    }
+
+    /// Given a fair fee the club can pay, when the AI weighs the buy option, then it exercises it.
+    #[test]
+    fn a_fair_buy_option_the_club_can_pay_is_exercised() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(ai_should_exercise_loan_buy_option(
+            &player, &club, 900_000, 2_000, 30
+        ));
+    }
 
     /// Given a 19-year-old midfielder with room to grow who plays a season on loan,
     /// When the loan's development is applied on a date,
