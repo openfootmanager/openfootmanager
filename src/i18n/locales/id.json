@@ -1430,7 +1430,7 @@
     "resumeNegotiationHint": "Negosiasi masih berlangsung dengan klub ini.",
     "resumeNegotiationHeadline": "Klub lain menunggu langkah kamu berikutnya.",
     "resumeNegotiationDetail": "Sinyal terakhir mereka mengarah ke {{fee}}.",
-    "resumeRefusedHeadline": "Mereka menolak tawaran terakhir Anda.",
+    "resumeRefusedHeadline": "Mereka menolak tawaran terakhir kamu.",
     "resumeRefusedDetail": "Tawaran baru melanjutkan negosiasi dari sini. Sinyal terakhir mereka mengarah ke {{fee}}.",
     "talksResumeOn": "Negosiasi dapat dilanjutkan pada {{date}}.",
     "transferFeedbackAcceptedHeadline": "Klub lain siap untuk berbisnis.",

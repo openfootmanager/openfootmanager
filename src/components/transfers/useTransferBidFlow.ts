@@ -75,6 +75,8 @@ export function useTransferBidFlow({
   // What the backend says the next bid continues (or that talks are broken off until a day): the
   // cooldown is its rule, so the panel asks rather than computing it from the offers.
   const [negotiation, setNegotiation] = useState<BidNegotiationStatusData | null>(null);
+  // Opening clears what the panel knew, so every opening, even of the player already open, asks again.
+  const [openings, setOpenings] = useState(0);
   useEffect(() => {
     if (bidTargetId === null) {
       setNegotiation(null);
@@ -91,7 +93,7 @@ export function useTransferBidFlow({
     return () => {
       cancelled = true;
     };
-  }, [bidTargetId, gameState]);
+  }, [bidTargetId, gameState, openings]);
 
   const activeBidOffer =
     bidTarget && negotiation?.offer_id
@@ -103,13 +105,15 @@ export function useTransferBidFlow({
   // backend's answer first names one; a later answer (after a bid) must not overwrite them.
   const resumedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!bidTarget || !activeBidOffer || resumedFor.current === bidTarget.id) return;
+    // Broken-off talks resume nothing: the panel shows the day they can instead of the form.
+    if (!bidTarget || !activeBidOffer || talksResumeOn !== null) return;
+    if (resumedFor.current === bidTarget.id) return;
     resumedFor.current = bidTarget.id;
     setBidAmount(
       ((activeBidOffer.suggested_counter_fee ?? activeBidOffer.fee) / 1_000_000).toFixed(2),
     );
     setBidFeedback(buildResumedBidFeedback(activeBidOffer));
-  }, [bidTarget, activeBidOffer]);
+  }, [bidTarget, activeBidOffer, talksResumeOn]);
   const bidAmountMillions = Number.parseFloat(bidAmount);
   const bidFee = Number.isFinite(bidAmountMillions)
     ? Math.round(bidAmountMillions * 1_000_000)
@@ -146,6 +150,7 @@ export function useTransferBidFlow({
 
   const openBidNegotiation = (player: PlayerData): void => {
     resumedFor.current = null;
+    setOpenings((count) => count + 1);
     setBidTargetId(player.id);
     setBidAmount((player.market_value / 1_000_000).toFixed(1));
     setBidResult(null);

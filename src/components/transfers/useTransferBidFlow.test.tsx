@@ -200,6 +200,7 @@ function HookHarness({
     activeBidOffer,
     hasExistingOffer,
     talksResumeOn,
+    bidFeedback,
   } = useTransferBidFlow({ gameState });
 
   return (
@@ -217,6 +218,7 @@ function HookHarness({
         Submit
       </button>
       <output aria-label="live-round">{activeBidOffer?.negotiation_round ?? "none"}</output>
+      <output aria-label="feedback">{bidFeedback?.headline_key ?? "none"}</output>
       <output aria-label="has-existing">{String(hasExistingOffer)}</output>
       <output aria-label="resume-on">{talksResumeOn ?? "none"}</output>
       <output aria-label="submit-disabled">{String(bidSubmitDisabled)}</output>
@@ -406,6 +408,63 @@ describe("useTransferBidFlow", (): void => {
 
     await waitFor(() => expect(screen.getByLabelText("resume-on")).toHaveTextContent("2026-08-28"));
     expect(screen.getByLabelText("submit-disabled")).toHaveTextContent("true");
+  });
+
+  /**
+   * Given broken-off talks, where the backend still names the broken round-4 offer and a day
+   *       talks can resume
+   * When the panel opens
+   * Then it pre-fills nothing and shows no resumed feedback: "a new bid carries the talks on"
+   *      would sit beside "talks can resume on …".
+   */
+  it("pre-fills nothing for broken-off talks", async (): Promise<void> => {
+    mockedNegotiationStatus.mockResolvedValue({
+      offer_id: "broken",
+      continues_talks: false,
+      talks_resume_on: "2026-08-28",
+    });
+    const target = createPlayer({
+      market_value: 2000000,
+      transfer_offers: [
+        {
+          id: "broken",
+          from_team_id: "team-1",
+          fee: 900000,
+          wage_offered: 0,
+          last_manager_fee: 900000,
+          negotiation_round: 4,
+          suggested_counter_fee: 1150000,
+          status: "Rejected",
+          date: "2026-07-20",
+          closed_on: "2026-07-29",
+        },
+      ],
+    });
+    render(<HookHarness gameState={createGameState([target])} target={target} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(screen.getByLabelText("resume-on")).toHaveTextContent("2026-08-28"));
+    await act(async () => {});
+
+    expect(screen.getByLabelText("feedback")).toHaveTextContent("none");
+    expect(screen.getByLabelText("live-round")).toHaveTextContent("4");
+    expect((screen.getByLabelText("Bid amount") as HTMLInputElement).value).toBe("2.0");
+  });
+
+  /**
+   * Given the panel is open on a player and the user opens the same player again
+   * When the panel opens a second time
+   * Then the backend is asked again: opening clears what the panel knew, so it must refill it.
+   */
+  it("asks the backend again every time the panel is opened", async (): Promise<void> => {
+    const target = createPlayer();
+    render(<HookHarness gameState={createGameState([target])} target={target} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(mockedNegotiationStatus).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+
+    await waitFor(() => expect(mockedNegotiationStatus).toHaveBeenCalledTimes(2));
   });
 
   it("does not submit a bid when the computed fee is invalid", async (): Promise<void> => {
