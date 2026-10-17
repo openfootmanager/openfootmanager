@@ -41,6 +41,21 @@ fn validated(tactic: &CustomTactic) -> Result<CustomTactic, String> {
     })
 }
 
+/// The list with one tactic per trimmed id: the last copy, at the place it last stood, under its
+/// trimmed id. The one rule for ids kept before they were trimmed, which the save and the load of
+/// the table share so a padded twin can neither be written nor read back as a second tactic.
+pub fn one_tactic_per_id(tactics: Vec<CustomTactic>) -> Vec<CustomTactic> {
+    let mut kept: Vec<CustomTactic> = Vec::with_capacity(tactics.len());
+    for mut tactic in tactics.into_iter().rev() {
+        tactic.id = tactic.id.trim().to_string();
+        if !kept.iter().any(|later| later.id == tactic.id) {
+            kept.push(tactic);
+        }
+    }
+    kept.reverse();
+    kept
+}
+
 /// Adds the tactic, or replaces the one with the same id where it stands in the list.
 pub fn save_custom_tactic(game: &mut Game, tactic: &CustomTactic) -> Result<(), String> {
     let tactic = validated(tactic)?;
