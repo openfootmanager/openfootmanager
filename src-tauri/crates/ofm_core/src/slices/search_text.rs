@@ -6,7 +6,7 @@
 /// The letters of `text` as a search reads them: lowercased, with the combining dot above (what
 /// `İ` leaves behind once lowercased) dropped, and the folds above applied. The same iterator reads
 /// the needle and every candidate, so the two sides always agree.
-fn folded(text: &str) -> impl Iterator<Item = char> + '_ {
+fn folded(text: &str) -> impl Iterator<Item = char> + Clone + '_ {
     text.chars()
         .flat_map(char::to_lowercase)
         .filter(|letter| *letter != '\u{307}')
@@ -26,17 +26,21 @@ pub(crate) fn fold_needle(typed: &str) -> String {
     folded(typed.trim()).collect()
 }
 
-/// Whether `haystack` holds `needle` (already folded by [`fold_needle`]). It reads the haystack
-/// through the folding iterator rather than building a folded copy: a search runs this for every
-/// candidate on every keystroke.
+/// Whether `haystack` holds `needle` (already folded by [`fold_needle`]). It walks the folded
+/// letters of the haystack and tries the needle at each of them, so a match may start inside what
+/// one letter folds to ("sa" is in "ßa", which folds to "ssa"). Nothing is built per candidate: a
+/// search runs this for every candidate on every keystroke.
 pub(crate) fn contains_folded(haystack: &str, needle: &str) -> bool {
-    if needle.is_empty() {
-        return true;
+    let mut from_here = folded(haystack);
+    loop {
+        let mut letters = from_here.clone();
+        if needle.chars().all(|wanted| letters.next() == Some(wanted)) {
+            return true;
+        }
+        if from_here.next().is_none() {
+            return false;
+        }
     }
-    haystack.char_indices().any(|(start, _)| {
-        let mut letters = folded(&haystack[start..]);
-        needle.chars().all(|wanted| letters.next() == Some(wanted))
-    })
 }
 
 #[cfg(test)]
@@ -81,6 +85,17 @@ mod tests {
     fn german_sharp_s_matches_ss() {
         assert!(contains_folded("Strauß", &fold_needle("strauss")));
         assert!(contains_folded("Strauss", &fold_needle("STRAUß")));
+    }
+
+    /// Given a letter that folds to two (ß to ss)
+    /// When the search starts in the middle of what it folds to
+    /// Then it is still found: "sa" is in "ssa", so it is in "ßa".
+    #[test]
+    fn a_match_can_start_inside_what_a_letter_folds_to() {
+        assert!(contains_folded("ßa", &fold_needle("sa")));
+        assert!(contains_folded("Strauß", &fold_needle("ss")));
+        assert!(contains_folded("Strauß", &fold_needle("s")));
+        assert!(!contains_folded("ßa", &fold_needle("sb")));
     }
 
     /// Given an empty needle
