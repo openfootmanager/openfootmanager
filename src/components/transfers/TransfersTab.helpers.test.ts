@@ -9,7 +9,7 @@ import {
   formatTransferFeeInput,
   getDefaultLoanPeriodId,
   getLoanPeriodIdForEndDate,
-  getOutgoingNegotiationOffer,
+  getCurrentNegotiationOffer,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
   mapTransferNegotiationError,
@@ -156,8 +156,66 @@ describe("TransfersTab.helpers", () => {
       ],
     });
 
-    expect(getOutgoingNegotiationOffer(player, "team-1")?.id).toBe("offer-2");
-    expect(getOutgoingNegotiationOffer(player, null)).toBeNull();
+    expect(getCurrentNegotiationOffer(player, "team-1")?.id).toBe("offer-2");
+    expect(getCurrentNegotiationOffer(player, null)).toBeNull();
+  });
+
+  /**
+   * Given talks the club has broken off (a rejected offer at round 4, in its cooldown)
+   * When the user's current negotiation with the player is asked for
+   * Then it is that rejected offer, not nothing: the round and the history stay on screen.
+   */
+  it("keeps a rejected negotiation as the current one, whatever its status", () => {
+    const player = createPlayer({
+      transfer_offers: [
+        createOffer({
+          id: "broken-off",
+          from_team_id: "team-1",
+          status: "Rejected",
+          negotiation_round: 4,
+          date: "2026-08-10",
+        }),
+      ],
+    });
+
+    expect(getCurrentNegotiationOffer(player, "team-1")?.id).toBe("broken-off");
+  });
+
+  /**
+   * Given an old closed offer and a newer one, and separately a live one beside a closed one
+   * When the current negotiation is asked for
+   * Then a pending offer wins, and otherwise the most recent one does.
+   */
+  it("prefers a pending offer, then the most recent closed one", () => {
+    const closedOld = createOffer({
+      id: "closed-old",
+      from_team_id: "team-1",
+      status: "Rejected",
+      date: "2026-05-01",
+    });
+    const closedNew = createOffer({
+      id: "closed-new",
+      from_team_id: "team-1",
+      status: "Withdrawn",
+      date: "2026-08-01",
+    });
+    const live = createOffer({
+      id: "live",
+      from_team_id: "team-1",
+      status: "Pending",
+      date: "2026-06-01",
+    });
+
+    expect(
+      getCurrentNegotiationOffer(
+        createPlayer({ transfer_offers: [closedOld, closedNew] }),
+        "team-1",
+      )?.id,
+    ).toBe("closed-new");
+    expect(
+      getCurrentNegotiationOffer(createPlayer({ transfer_offers: [closedNew, live] }), "team-1")
+        ?.id,
+    ).toBe("live");
   });
 
   it("builds resumed bid feedback from the latest club signal", () => {

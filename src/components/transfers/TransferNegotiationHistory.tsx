@@ -14,7 +14,7 @@ export default function TransferNegotiationHistory({
 }: TransferNegotiationHistoryProps) {
   const { t } = useTranslation();
 
-  if (!offer || offer.negotiation_round < 2) {
+  if (!offer) {
     return null;
   }
 

@@ -12,7 +12,7 @@ import {
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   buildResumedBidFeedback,
-  getOutgoingNegotiationOffer,
+  getCurrentNegotiationOffer,
   normalizeTransferNegotiationFeedback,
 } from "./TransfersTab.helpers";
 
@@ -48,7 +48,13 @@ export function useTransferBidFlow({
   const { t } = useTranslation();
   const userTeamId = gameState.manager.team_id;
   const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id) ?? null;
-  const [bidTarget, setBidTarget] = useState<PlayerData | null>(null);
+  // The id, not the player: the player is read from the game state on every render, so the panel
+  // sees the round and the offers a bid has just advanced instead of the ones it opened with.
+  const [bidTargetId, setBidTargetId] = useState<string | null>(null);
+  const bidTarget =
+    bidTargetId === null
+      ? null
+      : (gameState.players.find((player) => player.id === bidTargetId) ?? null);
   const [bidAmount, setBidAmount] = useState("");
   const [bidResult, setBidResult] = useState<
     TransferNegotiationResponseData["decision"] | "error" | null
@@ -64,7 +70,7 @@ export function useTransferBidFlow({
     TransferBidProjectionData["projection"] | null
   >(null);
 
-  const activeBidOffer = bidTarget ? getOutgoingNegotiationOffer(bidTarget, userTeamId) : null;
+  const activeBidOffer = bidTarget ? getCurrentNegotiationOffer(bidTarget, userTeamId) : null;
   const bidAmountMillions = Number.parseFloat(bidAmount);
   const bidFee = Number.isFinite(bidAmountMillions)
     ? Math.round(bidAmountMillions * 1_000_000)
@@ -100,9 +106,9 @@ export function useTransferBidFlow({
   }, [bidFee, bidTarget]);
 
   const openBidNegotiation = (player: PlayerData): void => {
-    const existingOffer = getOutgoingNegotiationOffer(player, userTeamId);
+    const existingOffer = getCurrentNegotiationOffer(player, userTeamId);
 
-    setBidTarget(player);
+    setBidTargetId(player.id);
     setBidAmount(
       (
         (existingOffer?.suggested_counter_fee ?? existingOffer?.fee ?? player.market_value) /
@@ -116,7 +122,7 @@ export function useTransferBidFlow({
   };
 
   const closeBidNegotiation = (): void => {
-    setBidTarget(null);
+    setBidTargetId(null);
     setBidAmount("");
     setBidResult(null);
     setBidError(null);
@@ -168,7 +174,7 @@ export function useTransferBidFlow({
     bidFee,
     activeBidOffer,
     myTeam,
-    hasExistingOffer: activeBidOffer !== null,
+    hasExistingOffer: activeBidOffer?.status === "Pending",
     bidSubmitDisabled:
       bidLoading ||
       bidResult === "accepted" ||

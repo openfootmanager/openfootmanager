@@ -187,6 +187,7 @@ function HookHarness({
     setBidAmount,
     openBidNegotiation,
     handleMakeBid,
+    activeBidOffer,
   } = useTransferBidFlow({ gameState });
 
   return (
@@ -203,6 +204,7 @@ function HookHarness({
       <button type="button" onClick={() => void handleMakeBid()}>
         Submit
       </button>
+      <output aria-label="live-round">{activeBidOffer?.negotiation_round ?? "none"}</output>
       <output aria-label="submit-disabled">{String(bidSubmitDisabled)}</output>
       <output aria-label="bid-result">{bidResult ?? "idle"}</output>
     </div>
@@ -267,6 +269,36 @@ describe("useTransferBidFlow", (): void => {
 
     await open(true);
     expect(screen.getByLabelText("submit-disabled")).toHaveTextContent("true");
+  });
+
+  /**
+   * Given the bid panel is open on a player and a bid then advances the negotiation
+   * When the game state the screen shows is a newer one with a later round on that player
+   * Then the panel reads the live player: it shows the later round, not the one it opened with.
+   */
+  it("reads the live player, not the one it was opened with", async (): Promise<void> => {
+    const offer = (round: number) => ({
+      id: "offer-1",
+      from_team_id: "team-1",
+      fee: 1200000,
+      wage_offered: 0,
+      last_manager_fee: null,
+      negotiation_round: round,
+      suggested_counter_fee: null,
+      status: "Pending" as const,
+      date: "2026-08-01",
+    });
+    const opened = createPlayer({ transfer_offers: [offer(1)] });
+    const { rerender } = render(
+      <HookHarness gameState={createGameState([opened])} target={opened} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    expect(screen.getByLabelText("live-round")).toHaveTextContent("1");
+
+    const later = createPlayer({ transfer_offers: [offer(3)] });
+    rerender(<HookHarness gameState={createGameState([later])} target={opened} />);
+
+    expect(screen.getByLabelText("live-round")).toHaveTextContent("3");
   });
 
   it("does not submit a bid when the computed fee is invalid", async (): Promise<void> => {

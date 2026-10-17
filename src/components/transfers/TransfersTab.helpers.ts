@@ -233,7 +233,12 @@ export function normalizeTransferNegotiationFeedback(
   };
 }
 
-export function getOutgoingNegotiationOffer(
+/**
+ * The user's current negotiation with a player, whatever its status: the live offer if there is
+ * one, otherwise the most recent one, so a negotiation the club has rejected or broken off keeps its
+ * round and its history on screen instead of vanishing.
+ */
+export function getCurrentNegotiationOffer(
   player: PlayerData,
   userTeamId: string | null,
 ): TransferOfferData | null {
@@ -241,9 +246,19 @@ export function getOutgoingNegotiationOffer(
     return null;
   }
 
+  const own = player.transfer_offers.filter((offer) => offer.from_team_id === userTeamId);
+  const live = own.find((offer) => offer.status === "Pending");
+  if (live) {
+    return live;
+  }
+
   return (
-    player.transfer_offers.find(
-      (offer) => offer.from_team_id === userTeamId && offer.status === "Pending",
+    own.reduce<TransferOfferData | null>(
+      (latest, offer) =>
+        latest === null || (offer.closed_on ?? offer.date) >= (latest.closed_on ?? latest.date)
+          ? offer
+          : latest,
+      null,
     ) ?? null
   );
 }
