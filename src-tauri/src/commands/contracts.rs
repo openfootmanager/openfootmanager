@@ -396,10 +396,10 @@ pub fn terminate_contract_now_internal(
 mod tests {
     use super::{
         clear_contract_exit_intent_internal, delegate_renewals_internal,
-        offer_free_agent_contract_internal, preview_contract_termination_internal,
-        preview_free_agent_contract_impact_internal, preview_renewal_financial_impact_internal,
-        propose_renewal_internal, set_contract_exit_intent_internal,
-        terminate_contract_now_internal,
+        get_contract_warning_stages_internal, offer_free_agent_contract_internal,
+        preview_contract_termination_internal, preview_free_agent_contract_impact_internal,
+        preview_renewal_financial_impact_internal, propose_renewal_internal,
+        set_contract_exit_intent_internal, terminate_contract_now_internal,
     };
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
@@ -775,6 +775,34 @@ mod tests {
         assert_eq!(response.projection.current_annual_wage_bill, 12_000);
         assert_eq!(response.projection.projected_annual_wage_bill, 15_000);
         assert!(response.projection.policy_allows);
+    }
+
+    /// Given an active game in which the player's contract ends in 30 days
+    /// When the warning stages are asked for that player and for an id the game does not have
+    /// Then the player has the final-weeks stage and the unknown id is left out; with no active
+    ///      game the command says so.
+    #[test]
+    fn get_contract_warning_stages_internal_answers_from_the_active_game() {
+        let state = StateManager::new();
+        let ids = ["player-1".to_string(), "nobody".to_string()];
+        assert_eq!(
+            get_contract_warning_stages_internal(&state, &ids)
+                .err()
+                .as_deref(),
+            Some("be.error.noActiveGameSession")
+        );
+
+        let mut game = make_game();
+        game.players[0].stage_contract_end(Some("2026-08-31".to_string()));
+        state.set_game(game);
+
+        let stages = get_contract_warning_stages_internal(&state, &ids).expect("stages");
+
+        assert_eq!(
+            stages.get("player-1"),
+            Some(&Some(ofm_core::contracts::ContractWarningStage::FinalWeeks))
+        );
+        assert_eq!(stages.len(), 1);
     }
 
     #[test]
