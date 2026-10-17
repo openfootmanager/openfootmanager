@@ -4300,6 +4300,7 @@
     "saveAndOpenInstead": "Save the file and use GitHub instead",
     "nothingSentYetUpload": "Nothing leaves this machine until you press Send. Prefer GitHub? Save the file and attach it to the form yourself — that needs a GitHub account.",
     "uploadFailedFallback": "You can still send it through GitHub: save the file and attach it to the form.",
+    "technicalDetails": "Technical details",
     "tooLargeUntickSave": "Unticking your save file will make the report much smaller.",
     "sentTitle": "Report sent",
     "sentIntro": "Thank you. Your report has reached the OpenFoot Manager team and is kept until it has been handled.",

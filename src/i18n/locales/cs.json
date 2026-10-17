@@ -4300,6 +4300,7 @@
     "saveAndOpenInstead": "Místo toho uložit soubor a použít GitHub",
     "nothingSentYetUpload": "Nic neopustí tento počítač, dokud nestisknete Odeslat. Dáváte přednost GitHubu? Uložte soubor a přiložte ho k formuláři sami — k tomu potřebujete účet na GitHubu.",
     "uploadFailedFallback": "Stále ho můžete poslat přes GitHub: uložte soubor a přiložte ho k formuláři.",
+    "technicalDetails": "Technické podrobnosti",
     "tooLargeUntickSave": "Když odškrtnete uloženou hru, hlášení bude mnohem menší.",
     "sentTitle": "Hlášení odesláno",
     "sentIntro": "Děkujeme. Vaše hlášení dorazilo týmu OpenFoot Manager a uchovává se, dokud nebude vyřízeno.",

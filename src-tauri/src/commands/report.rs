@@ -807,8 +807,19 @@ mod tests {
             "build-1",
         );
 
+        assert!(
+            receipt.as_ref().is_err_and(|failure| failure
+                .detail
+                .as_deref()
+                .is_some_and(|d| d.starts_with("HTTP 429"))),
+            "the server's answer reaches the command's rejection: {receipt:?}"
+        );
+        let told = receipt.map_err(|failure| UploadFailure {
+            detail: None,
+            ..failure
+        });
         assert_eq!(
-            receipt,
+            told,
             Err(UploadFailure {
                 retry_after_seconds: Some(90),
                 ..key(hub::UPLOAD_RATE_LIMITED)

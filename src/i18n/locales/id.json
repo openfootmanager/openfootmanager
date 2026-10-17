@@ -4300,6 +4300,7 @@
     "saveAndOpenInstead": "Simpan berkas dan pakai GitHub saja",
     "nothingSentYetUpload": "Tidak ada yang keluar dari komputer ini sampai kamu menekan Kirim. Lebih suka GitHub? Simpan berkasnya dan lampirkan sendiri ke formulir — itu butuh akun GitHub.",
     "uploadFailedFallback": "Kamu masih bisa mengirimnya lewat GitHub: simpan berkasnya dan lampirkan ke formulir.",
+    "technicalDetails": "Detail teknis",
     "tooLargeUntickSave": "Membatalkan centang berkas simpananmu akan membuat laporan jauh lebih kecil.",
     "sentTitle": "Laporan terkirim",
     "sentIntro": "Terima kasih. Laporanmu sudah sampai ke tim OpenFoot Manager dan disimpan sampai selesai ditangani.",

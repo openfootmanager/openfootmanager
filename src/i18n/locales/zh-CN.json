@@ -4300,6 +4300,7 @@
     "saveAndOpenInstead": "改为保存文件并使用 GitHub",
     "nothingSentYetUpload": "在你点击“发送”之前，任何内容都不会离开这台电脑。更想用 GitHub？保存文件并自行附加到表单中 —— 这需要 GitHub 账号。",
     "uploadFailedFallback": "你仍然可以通过 GitHub 发送：保存文件并将其附加到表单中。",
+    "technicalDetails": "技术详情",
     "tooLargeUntickSave": "取消勾选存档会让报告小得多。",
     "sentTitle": "报告已发送",
     "sentIntro": "谢谢。你的报告已送达 OpenFoot Manager 团队，并会保留到处理完毕为止。",

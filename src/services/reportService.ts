@@ -107,6 +107,8 @@ export interface UploadFailure {
   kind: UploadFailureKind;
   key: string;
   retry_after_seconds: number | null;
+  /** What the server said, on one line (`HTTP 422 · invalid · bundle: ...`). English; shown verbatim. */
+  detail: string | null;
 }
 
 export interface SubmittedReport {

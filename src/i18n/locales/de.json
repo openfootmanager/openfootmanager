@@ -4300,6 +4300,7 @@
     "saveAndOpenInstead": "Stattdessen Datei speichern und GitHub nutzen",
     "nothingSentYetUpload": "Nichts verlässt diesen Rechner, bevor du auf Senden drückst. Lieber GitHub? Speichere die Datei und hänge sie selbst an das Formular an — dafür brauchst du ein GitHub-Konto.",
     "uploadFailedFallback": "Du kannst ihn trotzdem über GitHub senden: Speichere die Datei und hänge sie an das Formular an.",
+    "technicalDetails": "Technische Details",
     "tooLargeUntickSave": "Wenn du den Haken beim Spielstand entfernst, wird der Bericht viel kleiner.",
     "sentTitle": "Bericht gesendet",
     "sentIntro": "Danke. Dein Bericht ist beim OpenFoot-Manager-Team angekommen und wird aufbewahrt, bis er bearbeitet wurde.",

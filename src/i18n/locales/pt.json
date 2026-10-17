@@ -4300,6 +4300,7 @@
     "saveAndOpenInstead": "Guardar o ficheiro e usar o GitHub",
     "nothingSentYetUpload": "Nada sai deste computador até carregares em Enviar. Preferes o GitHub? Guarda o ficheiro e anexa-o tu ao formulário — isso exige uma conta no GitHub.",
     "uploadFailedFallback": "Ainda o podes enviar pelo GitHub: guarda o ficheiro e anexa-o ao formulário.",
+    "technicalDetails": "Detalhes técnicos",
     "tooLargeUntickSave": "Se desmarcares o teu jogo guardado, o relatório fica muito mais pequeno.",
     "sentTitle": "Relatório enviado",
     "sentIntro": "Obrigado. O teu relatório chegou à equipa do OpenFoot Manager e é guardado até ser tratado.",

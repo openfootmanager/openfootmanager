@@ -4300,6 +4300,7 @@
     "saveAndOpenInstead": "Bunun yerine dosyayı kaydet ve GitHub'ı kullan",
     "nothingSentYetUpload": "Gönder'e basana kadar hiçbir şey bu bilgisayardan çıkmaz. GitHub'ı mı tercih edersin? Dosyayı kaydet ve forma kendin ekle — bunun için bir GitHub hesabı gerekir.",
     "uploadFailedFallback": "Yine de GitHub üzerinden gönderebilirsin: dosyayı kaydet ve forma ekle.",
+    "technicalDetails": "Teknik ayrıntılar",
     "tooLargeUntickSave": "Kayıt dosyanın işaretini kaldırmak raporu çok küçültür.",
     "sentTitle": "Rapor gönderildi",
     "sentIntro": "Teşekkürler. Raporun OpenFoot Manager ekibine ulaştı ve ilgilenilene kadar saklanır.",
