@@ -279,9 +279,9 @@ mod tests {
     use ofm_core::contracts::{ContractTerminationPreview, RenewalFinancialProjection};
     use ofm_core::squad_safety::{SquadSafetyIssue, SquadSafetyReport};
 
-    /// Given allowed and refused offers, when mapped, then every projection field is preserved.
+    /// Given an allowed offer, when mapped, then every projection field is preserved.
     #[test]
-    fn renewal_projection_is_preserved_for_allowed_and_refused_offers() {
+    fn renewal_projection_is_preserved_for_allowed_offers() {
         let allowed = renewal_preview(
             1500,
             RenewalFinancialProjectionCommandResponse {
@@ -315,7 +315,11 @@ mod tests {
                 policy_allows: true,
             }
         );
+    }
 
+    /// Given a refused offer, when mapped, then every projection field is preserved.
+    #[test]
+    fn renewal_projection_is_preserved_for_refused_offers() {
         let refused = renewal_preview(
             5000,
             RenewalFinancialProjectionCommandResponse {

@@ -211,8 +211,7 @@ impl fmt::Display for TerminationPreview {
             self.squad_safety.effective_xi_size,
             self.squad_safety.projected_roster_size,
             self.squad_safety.can_field_matchday_squad,
-        )
-        ?;
+        )?;
         if !self.squad_safety.missing_reasons.is_empty() {
             write!(f, "\n**Squad Safety Issues**: ")?;
             for (index, issue) in self.squad_safety.missing_reasons.iter().enumerate() {
