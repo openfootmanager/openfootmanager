@@ -922,7 +922,7 @@ mod tests {
     ///      moves at 25.
     #[test]
     fn a_ceilings_step_has_the_spread_of_its_age() {
-        for (age, spread) in [(16.0, 1.0), (20.0, 0.7), (23.0, 0.35), (25.0, 0.0)] {
+        for (age, spread) in [(16.0, 1.0_f64), (20.0, 0.7), (23.0, 0.35), (25.0, 0.0)] {
             let steps: Vec<f64> = (0..3000)
                 .map(|seed| {
                     let mut p = player("drift", Position::CentralMidfielder, 40, 70);
@@ -934,7 +934,7 @@ mod tests {
             let expected = if spread == 0.0 {
                 0.0
             } else {
-                (f64::from(spread * spread) + 1.0 / 12.0).sqrt()
+                (spread * spread + 1.0 / 12.0).sqrt()
             };
             assert!(
                 (read - expected).abs() < 0.12,
