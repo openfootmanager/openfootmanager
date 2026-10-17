@@ -1725,4 +1725,82 @@ mod tests {
         assert_eq!(everything(&one), everything(&again));
         assert_ne!(everything(&one), everything(&other));
     }
+
+    fn club_from(country: &str) -> domain::team::Team {
+        domain::team::Team::new(
+            country.to_string(),
+            country.to_string(),
+            country.to_string(),
+            country.to_string(),
+            "City".to_string(),
+            "Stadium".to_string(),
+            10_000,
+        )
+    }
+
+    fn region_filing<'a>(country: &str, regions: &'a [WorldRegionDefinition]) -> Option<&'a str> {
+        regions
+            .iter()
+            .find(|region| region.country_codes.iter().any(|code| code == country))
+            .map(|region| region.id.as_str())
+    }
+
+    /// Given clubs from nations the old hand-written fallback did not know, and
+    /// a world that declares no regions, when regions are inferred, then each
+    /// club is filed under its catalog region. England stays in Europe, so the
+    /// assertion is not "everything leaves Europe".
+    #[test]
+    fn a_regionless_world_files_catalog_nations_in_their_own_region() {
+        let expected = [
+            ("NG", "africa"),
+            ("EG", "africa"),
+            ("JP", "asia"),
+            ("JM", "central-america"),
+            ("ENG", "europe"),
+        ];
+        let teams: Vec<_> = expected
+            .iter()
+            .map(|(country, _)| club_from(country))
+            .collect();
+
+        let regions = infer_world_regions(&teams);
+
+        for (country, region) in expected {
+            assert_eq!(
+                region_filing(country, &regions),
+                Some(region),
+                "{country} was filed under {regions:?}"
+            );
+        }
+    }
+
+    /// Given a club from every catalogued African nation and no authored regions,
+    /// when regions are inferred, then all of them are filed under Africa.
+    #[test]
+    fn a_regionless_world_files_every_catalogued_african_nation_under_africa() {
+        let codes: Vec<&str> = crate::nations::all_nations()
+            .filter(|nation| nation.region_id == "africa")
+            .map(|nation| nation.code)
+            .collect();
+        assert!(
+            codes.len() >= 54,
+            "the catalog should know the African nations the old fallback missed, got {}",
+            codes.len()
+        );
+        let teams: Vec<_> = codes.iter().copied().map(club_from).collect();
+
+        let regions = infer_world_regions(&teams);
+
+        assert_eq!(regions.len(), 1, "inferred regions: {regions:?}");
+        assert_eq!(regions[0].id, "africa");
+        for code in &codes {
+            assert!(
+                regions[0]
+                    .country_codes
+                    .iter()
+                    .any(|country| country == code),
+                "{code} was not filed under Africa"
+            );
+        }
+    }
 }
