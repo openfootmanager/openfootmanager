@@ -16,6 +16,7 @@
 use std::fmt;
 
 use domain::league::FixtureStatus;
+use domain::stats::StatsState;
 use ofm_core::end_of_season::{self, EndOfSeasonSummary};
 use ofm_core::game::Game;
 use ofm_core::matchday;
@@ -44,6 +45,10 @@ pub trait SeasonObserver {
 
     /// After the rollover, with the summary of the season that just ended.
     fn on_season_end(&mut self, _game: &Game, _summary: &EndOfSeasonSummary, _season: u32) {}
+
+    /// For each match the day applied, in the order they were applied: what the game hands the
+    /// stats store. Told before `on_day_end`.
+    fn on_stats_captured(&mut self, _stats: &StatsState) {}
 }
 
 impl<T: SeasonObserver + ?Sized> SeasonObserver for &mut T {
@@ -57,6 +62,10 @@ impl<T: SeasonObserver + ?Sized> SeasonObserver for &mut T {
 
     fn on_season_end(&mut self, game: &Game, summary: &EndOfSeasonSummary, season: u32) {
         (**self).on_season_end(game, summary, season);
+    }
+
+    fn on_stats_captured(&mut self, stats: &StatsState) {
+        (**self).on_stats_captured(stats);
     }
 }
 
@@ -75,6 +84,11 @@ impl<A: SeasonObserver, B: SeasonObserver> SeasonObserver for (A, B) {
     fn on_season_end(&mut self, game: &Game, summary: &EndOfSeasonSummary, season: u32) {
         self.0.on_season_end(game, summary, season);
         self.1.on_season_end(game, summary, season);
+    }
+
+    fn on_stats_captured(&mut self, stats: &StatsState) {
+        self.0.on_stats_captured(stats);
+        self.1.on_stats_captured(stats);
     }
 }
 
@@ -207,8 +221,12 @@ pub fn run_seasons(
                 keep_employed(game);
             }
             summary.days += 1;
-            if advance_one_day(game, options.day_path, season, day)? {
+            let mut captured = Vec::new();
+            if advance_one_day(game, options.day_path, season, day, &mut captured)? {
                 summary.live_days += 1;
+            }
+            for stats in &captured {
+                observer.on_stats_captured(stats);
             }
             require_employed(game, season, Some(day))?;
             observer.on_day_end(game, season, day);
@@ -231,6 +249,7 @@ fn advance_one_day(
     path: DayPath,
     season: u32,
     day: u32,
+    captured: &mut Vec<StatsState>,
 ) -> Result<bool, HarnessError> {
     let fixture = match path {
         DayPath::Batch => None,
@@ -242,7 +261,7 @@ fn advance_one_day(
                 game,
                 Some(competition_index),
                 fixture_index,
-                &mut |_| {},
+                &mut |stats| captured.push(stats),
             )
             .map_err(|reason| HarnessError::LiveDay {
                 season,
@@ -252,7 +271,7 @@ fn advance_one_day(
             Ok(true)
         }
         None => {
-            turn::process_day(game);
+            turn::process_day_with_capture(game, &mut |stats| captured.push(stats));
             Ok(false)
         }
     }
