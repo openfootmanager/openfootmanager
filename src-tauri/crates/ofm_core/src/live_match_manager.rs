@@ -281,8 +281,24 @@ pub fn kick_off_live_match(
     mode: MatchMode,
     allows_extra_time: bool,
 ) -> Result<LiveMatchSession, String> {
+    kick_off_live_match_with(game, fixture_index, mode, allows_extra_time, None)
+}
+
+fn kick_off_live_match_with(
+    game: &mut Game,
+    fixture_index: usize,
+    mode: MatchMode,
+    allows_extra_time: bool,
+    clubs_with_a_match_soon: Option<&HashSet<String>>,
+) -> Result<LiveMatchSession, String> {
     prepare_kick_off(game, fixture_index);
-    create_live_match(game, fixture_index, mode, allows_extra_time)
+    create_live_match_with(
+        game,
+        fixture_index,
+        mode,
+        allows_extra_time,
+        clubs_with_a_match_soon,
+    )
 }
 
 fn starter_ids(team: &TeamData) -> Vec<String> {
@@ -307,6 +323,18 @@ pub fn create_live_match(
     mode: MatchMode,
     allows_extra_time: bool,
 ) -> Result<LiveMatchSession, String> {
+    create_live_match_with(game, fixture_index, mode, allows_extra_time, None)
+}
+
+/// [`create_live_match`] for a matchday that has already found the clubs with a match soon
+/// ([`crate::turn::squad::clubs_with_a_match_soon`]), which every AI side's fixture load reads.
+fn create_live_match_with(
+    game: &Game,
+    fixture_index: usize,
+    mode: MatchMode,
+    allows_extra_time: bool,
+    clubs_with_a_match_soon: Option<&HashSet<String>>,
+) -> Result<LiveMatchSession, String> {
     let league = game.league.as_ref().ok_or(LIVE_MATCH_NO_LEAGUE_ERROR)?;
     let fixture = league
         .fixtures
@@ -322,8 +350,10 @@ pub fn create_live_match(
     // Each club's players are found once and serve its team, its bench and its set-piece takers.
     let home_club = crate::match_day_eligibility::club_players(&game.players, &home_team_id);
     let away_club = crate::match_day_eligibility::club_players(&game.players, &away_team_id);
-    let (home_xi, home_bench) = build_team_with_bench_from(game, &home_team_id, &home_club);
-    let (away_xi, away_bench) = build_team_with_bench_from(game, &away_team_id, &away_club);
+    let (home_xi, home_bench) =
+        build_team_with_bench_from(game, &home_team_id, &home_club, clubs_with_a_match_soon);
+    let (away_xi, away_bench) =
+        build_team_with_bench_from(game, &away_team_id, &away_club, clubs_with_a_match_soon);
     let home_starter_ids = starter_ids(&home_xi);
     let away_starter_ids = starter_ids(&away_xi);
     let home_match_roles = game
@@ -457,9 +487,23 @@ pub fn play_unwatched_fixture(
     game: &mut Game,
     fixture_index: usize,
 ) -> Result<UnwatchedFixture, String> {
+    play_unwatched_fixture_with(game, fixture_index, None)
+}
+
+/// [`play_unwatched_fixture`] for a matchday that has already found the clubs with a match soon.
+pub(crate) fn play_unwatched_fixture_with(
+    game: &mut Game,
+    fixture_index: usize,
+    clubs_with_a_match_soon: Option<&HashSet<String>>,
+) -> Result<UnwatchedFixture, String> {
     let allows_extra_time = crate::matchday::fixture_allows_extra_time(game, fixture_index);
-    let mut session =
-        kick_off_live_match(game, fixture_index, MatchMode::Instant, allows_extra_time)?;
+    let mut session = kick_off_live_match_with(
+        game,
+        fixture_index,
+        MatchMode::Instant,
+        allows_extra_time,
+        clubs_with_a_match_soon,
+    )?;
     session.user_side = None;
     let league_round_context = session.league_round_context.clone();
     session.run_to_completion();

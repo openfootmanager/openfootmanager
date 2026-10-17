@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 
 pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
     let club = crate::match_day_eligibility::club_players(&game.players, team_id);
-    build_team_with_bench_from(game, team_id, &club)
+    build_team_with_bench_from(game, team_id, &club, None)
 }
 
 /// [`build_team_with_bench`] for a caller that already holds the club's players (`club`), so a
@@ -26,6 +26,7 @@ pub(crate) fn build_team_with_bench_from(
     game: &Game,
     team_id: &str,
     club: &[&domain::player::Player],
+    clubs_with_a_match_soon: Option<&HashSet<String>>,
 ) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let (name, formation, play_style, tactics, saved_xi_ids) = match team {
@@ -94,7 +95,7 @@ pub(crate) fn build_team_with_bench_from(
             team_id,
             &game.clock.current_date.format("%Y-%m-%d").to_string(),
         );
-        let load = fixture_load(game, team_id);
+        let load = fixture_load_among(game, team_id, clubs_with_a_match_soon);
         ai_select_starting_xi(&available_players, &formation, quality, seed, load)
     };
     // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
@@ -453,6 +454,46 @@ const CONGESTED_WITHIN_DAYS: i64 = 4;
 /// every match in the world, and a populated world holds tens of thousands of
 /// fixtures.
 pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
+    load_of(
+        fixtures_due_soon(game)
+            .any(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id),
+    )
+}
+
+/// [`fixture_load`] for a caller that has already found every club with a match soon
+/// ([`clubs_with_a_match_soon`]); `None` asks the fixtures themselves.
+pub(crate) fn fixture_load_among(
+    game: &Game,
+    team_id: &str,
+    clubs_with_a_match_soon: Option<&HashSet<String>>,
+) -> FixtureLoad {
+    match clubs_with_a_match_soon {
+        Some(clubs) => load_of(clubs.contains(team_id)),
+        None => fixture_load(game, team_id),
+    }
+}
+
+fn load_of(plays_again_soon: bool) -> FixtureLoad {
+    if plays_again_soon {
+        FixtureLoad::Congested
+    } else {
+        FixtureLoad::Normal
+    }
+}
+
+/// Every club that plays again within [`CONGESTED_WITHIN_DAYS`], found in one pass over the
+/// world's fixtures. A matchday asks the question of two clubs per match, and a populated world
+/// holds tens of thousands of fixtures, so it asks once and reads the answer; it asks again when
+/// a match it applied added fixtures (a knockout round's successor).
+pub(crate) fn clubs_with_a_match_soon(game: &Game) -> HashSet<String> {
+    fixtures_due_soon(game)
+        .flat_map(|fixture| [&fixture.home_team_id, &fixture.away_team_id])
+        .cloned()
+        .collect()
+}
+
+/// The scheduled fixtures in the next [`CONGESTED_WITHIN_DAYS`] days, in the competitions being played.
+fn fixtures_due_soon(game: &Game) -> impl Iterator<Item = &domain::league::Fixture> {
     use domain::league::FixtureStatus;
 
     let today = game.clock.current_date;
@@ -463,6 +504,7 @@ pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
                 .to_string()
         })
         .collect();
+    let (first_day, last_day) = (soon[0].clone(), soon[soon.len() - 1].clone());
     // Both collections, not the usual "competitions, else the legacy slot". A
     // side is picked *during* simulation, and `simulate_competition_day_with_capture`
     // moves the competition being played out of `game.competitions` into
@@ -475,21 +517,15 @@ pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
     // Only competitions in the active scope count: a dormant one is resolved by a
     // scoreline-only model that charges nobody any condition, so its next round
     // is no reason to rest a player for this one.
-    let plays_again_soon = game
-        .competitions
+    game.competitions
         .iter()
         .chain(game.league.iter())
         .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
+        // The window test comes first and costs two string comparisons.
+        .filter(move |fixture| fixture.date >= first_day && fixture.date <= last_day)
+        .filter(move |fixture| soon.contains(&fixture.date))
         .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
-        .filter(|fixture| soon.contains(&fixture.date))
-        .any(|fixture| fixture.home_team_id == team_id || fixture.away_team_id == team_id);
-
-    if plays_again_soon {
-        FixtureLoad::Congested
-    } else {
-        FixtureLoad::Normal
-    }
 }
 
 /// One club's judgement for one matchday. Derived rather than rolled, so asking

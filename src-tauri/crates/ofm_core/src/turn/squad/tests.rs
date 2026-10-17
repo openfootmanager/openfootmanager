@@ -519,6 +519,45 @@ fn a_match_a_week_after_this_one_is_a_normal_week() {
     assert_eq!(fixture_load(&game, "club"), FixtureLoad::Normal);
 }
 
+/// The edges of the window: tomorrow and four days on count; today's own match, yesterday's
+/// and five days on do not. A fixture already played does not count wherever it falls.
+#[test]
+fn only_the_next_four_days_make_a_congested_run() {
+    for (days, congested) in [(-1, false), (0, false), (1, true), (4, true), (5, false)] {
+        let game = game_with_fixtures_on(&[days]);
+        let expected = if congested {
+            FixtureLoad::Congested
+        } else {
+            FixtureLoad::Normal
+        };
+        assert_eq!(
+            fixture_load(&game, "club"),
+            expected,
+            "a match {days} days on"
+        );
+    }
+    let mut played = game_with_fixtures_on(&[3]);
+    played.league.as_mut().unwrap().fixtures[0].status = domain::league::FixtureStatus::Completed;
+    assert_eq!(fixture_load(&played, "club"), FixtureLoad::Normal);
+}
+
+/// Given a world where two clubs play again in three days and a third does not, When every club's
+/// load is read off the set found in one pass, Then each answer is the one the fixtures give.
+#[test]
+fn the_clubs_found_in_one_pass_are_the_clubs_the_fixtures_make_congested() {
+    let game = game_with_fixtures_on(&[0, 3]);
+    let found = clubs_with_a_match_soon(&game);
+
+    for club in ["club", "rival", "bystander"] {
+        assert_eq!(
+            fixture_load_among(&game, club, Some(&found)),
+            fixture_load(&game, club),
+            "{club}"
+        );
+    }
+    assert_eq!(found.len(), 2);
+}
+
 /// The state a squad is actually picked in on a normal day advance: the
 /// competition being played has been moved into the legacy `game.league` slot
 /// for simulation, and its place in `game.competitions` holds an empty default.
@@ -775,7 +814,10 @@ fn a_team_built_from_the_clubs_players_is_the_team_built_by_scanning() {
         let game = club_whose_only_keeper_is_injured(is_user);
         let club = crate::match_day_eligibility::club_players(&game.players, "club");
 
-        let from_club = build_team_with_bench_from(&game, "club", &club);
+        let from_club = build_team_with_bench_from(&game, "club", &club, None);
+        let with_the_set =
+            build_team_with_bench_from(&game, "club", &club, Some(&clubs_with_a_match_soon(&game)));
+        assert_eq!(format!("{from_club:?}"), format!("{with_the_set:?}"));
         let by_scanning = build_team_with_bench(&game, "club");
 
         assert_eq!(format!("{from_club:?}"), format!("{by_scanning:?}"));
