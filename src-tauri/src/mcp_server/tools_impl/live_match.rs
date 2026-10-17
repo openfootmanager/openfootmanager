@@ -40,6 +40,7 @@ pub fn match_start(
 
     let snapshot = crate::commands::live_match::start_live_match_internal(
         &ctx.state_manager,
+        ofm_core::state::Career::Active,
         fixture_idx,
         &mode,
         allows_et,
@@ -68,7 +69,11 @@ pub fn match_start(
 
 /// Step the live match forward by N minutes.
 pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<MatchAdvanced, String> {
-    let results = crate::application::live_match::step_live_match(&ctx.state_manager, minutes)?;
+    let results = crate::application::live_match::step_live_match(
+        &ctx.state_manager,
+        ofm_core::state::Career::Active,
+        minutes,
+    )?;
 
     let events: Vec<MatchEventLine> = results
         .iter()
@@ -105,8 +110,11 @@ pub fn match_command(ctx: Arc<McpContext>, command_json: String) -> Result<Comma
     let command: engine::MatchCommand = serde_json::from_str(&command_json)
         .map_err(|e| format!("Invalid match command JSON: {}", e))?;
 
-    let snapshot =
-        crate::application::live_match::apply_match_command(&ctx.state_manager, command)?;
+    let snapshot = crate::application::live_match::apply_match_command(
+        &ctx.state_manager,
+        ofm_core::state::Career::Active,
+        command,
+    )?;
 
     {
         use tauri::Emitter;
@@ -136,7 +144,10 @@ pub fn match_snapshot(ctx: Arc<McpContext>) -> Result<MatchSnapshot, String> {
 
 /// Finish the live match: generate report, update game state, clean up.
 pub fn match_finish(ctx: Arc<McpContext>) -> Result<MatchFinished, String> {
-    let response = crate::application::live_match::finish_live_match(&ctx.state_manager)?;
+    let response = crate::application::live_match::finish_live_match(
+        &ctx.state_manager,
+        ofm_core::state::Career::Active,
+    )?;
 
     {
         use tauri::Emitter;

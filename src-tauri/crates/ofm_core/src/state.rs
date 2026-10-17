@@ -57,17 +57,22 @@ pub enum Career {
 }
 
 impl Career {
-    /// Whether this write is for `game`'s career.
-    pub fn owns(self, game: &Game) -> bool {
+    /// Whether this write is for the career named by `token` (a game's or a live match's).
+    pub fn permits(self, token: u64) -> bool {
         match self {
             Career::Active => true,
-            Career::Token(token) => game.career_token == token,
+            Career::Token(wanted) => wanted == token,
         }
     }
 
     /// `Ok` when the write is for `game`'s career, the career-changed key otherwise.
     pub fn check(self, game: &Game) -> Result<(), String> {
-        if self.owns(game) {
+        self.check_token(game.career_token)
+    }
+
+    /// [`Career::check`] against a career token held by something other than the game.
+    pub fn check_token(self, token: u64) -> Result<(), String> {
+        if self.permits(token) {
             Ok(())
         } else {
             Err(CAREER_CHANGED_ERROR.to_string())
