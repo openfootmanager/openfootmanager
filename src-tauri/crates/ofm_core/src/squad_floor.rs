@@ -109,6 +109,19 @@ pub(crate) fn senior_counts_of_two(
     (first, second)
 }
 
+/// [`senior_counts`] for a club whose players are already found: `club` is where they stand in
+/// `game.players`.
+pub(crate) fn senior_counts_among(game: &Game, team_id: &str, club: &[usize]) -> [usize; 4] {
+    let mut seniors = [0; 4];
+    for &position in club {
+        let player = &game.players[position];
+        if holds_up_the_floor(player, team_id) {
+            seniors[group_index(&player.position)] += 1;
+        }
+    }
+    seniors
+}
+
 /// Every way this club is short of the floor, and by how many players. Group
 /// shortages come first; [`Shortage::Seniors`] counts only the players still
 /// needed once every group is at its minimum. Empty when the club is sound.
@@ -327,14 +340,15 @@ pub fn repair_squads_on_load(game: &mut Game) -> bool {
 ///
 /// The caller counts the club's `seniors` ([`senior_counts_of_two`] for a fixture's two clubs):
 /// a sound club, nearly every club on every matchday, is then left alone without another pass
-/// over the players.
-pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str, seniors: [usize; 4]) {
+/// over the players. Returns whether anyone was brought in, so a caller that keeps track of where
+/// the clubs' players are knows to look again.
+pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str, seniors: [usize; 4]) -> bool {
     let is_users_club = Some(team_id) == game.manager.team_id.as_deref();
     if is_users_club && can_field_a_side(seniors) {
-        return;
+        return false;
     }
     if shortfall_of(seniors).is_empty() {
-        return;
+        return false;
     }
     let top_up = restore_minimum_squad(game, team_id);
     if is_users_club {
@@ -352,6 +366,7 @@ pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str, seniors: [usize
         }
         report_unfilled_ai_club(team_id, &top_up);
     }
+    !top_up.brought_in().is_empty()
 }
 
 /// An AI club nobody could fill is a world running out of players, and worth
@@ -1374,7 +1389,7 @@ mod tests {
 
     fn kick_off(game: &mut Game, team_id: &str) {
         let seniors = senior_counts(game, team_id);
-        ready_for_kick_off(game, team_id, seniors);
+        let _ = ready_for_kick_off(game, team_id, seniors);
     }
 
     // --- Kick-off -----------------------------------------------------------------

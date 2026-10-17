@@ -26,7 +26,7 @@ pub(crate) fn build_team_with_bench_from(
     game: &Game,
     team_id: &str,
     club: &[&domain::player::Player],
-    clubs_with_a_match_soon: Option<&HashSet<String>>,
+    lookups: Option<&super::matchday_lookups::MatchdayLookups>,
 ) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let (name, formation, play_style, tactics, saved_xi_ids) = match team {
@@ -95,7 +95,7 @@ pub(crate) fn build_team_with_bench_from(
             team_id,
             &game.clock.current_date.format("%Y-%m-%d").to_string(),
         );
-        let load = fixture_load_among(game, team_id, clubs_with_a_match_soon);
+        let load = fixture_load_among(game, team_id, lookups);
         ai_select_starting_xi(&available_players, &formation, quality, seed, load)
     };
     // Both select_starting_xi and ai_select_starting_xi return a slot-aligned XI
@@ -460,15 +460,15 @@ pub(crate) fn fixture_load(game: &Game, team_id: &str) -> FixtureLoad {
     )
 }
 
-/// [`fixture_load`] for a caller that has already found every club with a match soon
-/// ([`clubs_with_a_match_soon`]); `None` asks the fixtures themselves.
+/// [`fixture_load`] for a matchday that has already found the clubs with a match soon
+/// (`lookups`); `None` asks the fixtures themselves.
 pub(crate) fn fixture_load_among(
     game: &Game,
     team_id: &str,
-    clubs_with_a_match_soon: Option<&HashSet<String>>,
+    lookups: Option<&super::matchday_lookups::MatchdayLookups>,
 ) -> FixtureLoad {
-    match clubs_with_a_match_soon {
-        Some(clubs) => load_of(clubs.contains(team_id)),
+    match lookups {
+        Some(lookups) => load_of(lookups.is_congested(team_id)),
         None => fixture_load(game, team_id),
     }
 }
@@ -1036,7 +1036,7 @@ pub(crate) mod match_day_pool_tests {
             ..Default::default()
         });
         // The public kickoff preparation must reconcile what the next save stores.
-        crate::live_match_manager::prepare_kick_off(&mut game, 0);
+        crate::live_match_manager::prepare_kick_off(&mut game, 0, None);
         let (team, bench) = build_team_with_bench(&game, "club");
         let starters: Vec<String> = team.players.iter().map(|p| p.id.clone()).collect();
         assert_eq!(starters.len(), 11);
@@ -1059,6 +1059,63 @@ pub(crate) mod match_day_pool_tests {
         );
         let loaded: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
         assert_eq!(loaded.teams[0].starting_xi_ids, starters);
+    }
+
+    /// Given an AI club that signs free agents at kick-off, When the kick-off is prepared with
+    /// the matchday's lookups, Then the same players are signed as without them and the lookups
+    /// find the club's new players afterwards.
+    #[test]
+    fn a_kick_off_prepared_with_lookups_signs_as_without_and_the_lookups_follow() {
+        use crate::turn::matchday_lookups::MatchdayLookups;
+        let mut game = match_day_game(false, 18, 0);
+        // One keeper short, and no midfielders or forwards at all.
+        for (index, position) in [
+            DomainPos::Goalkeeper,
+            DomainPos::CentralMidfielder,
+            DomainPos::CentralMidfielder,
+            DomainPos::CentralMidfielder,
+            DomainPos::CentralMidfielder,
+            DomainPos::Striker,
+            DomainPos::Striker,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let mut agent = mk_pos(&format!("agent-{index}"), position, 60, 100);
+            agent.team_id = None;
+            game.players.push(agent);
+        }
+        game.league = Some(domain::league::League {
+            fixtures: vec![domain::league::Fixture {
+                home_team_id: "club".into(),
+                away_team_id: "ghost".into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        });
+        let mut without = game.clone();
+        let mut with = game;
+        let mut lookups = MatchdayLookups::of(&with);
+
+        crate::live_match_manager::prepare_kick_off(&mut without, 0, None);
+        crate::live_match_manager::prepare_kick_off(&mut with, 0, Some(&mut lookups));
+
+        let teams = |game: &Game| -> Vec<Option<String>> {
+            game.players.iter().map(|p| p.team_id.clone()).collect()
+        };
+        assert_eq!(teams(&with), teams(&without));
+        assert!(
+            teams(&with)
+                .iter()
+                .filter(|t| t.as_deref() == Some("club"))
+                .count()
+                > 18,
+            "the club signed nobody, so this proves nothing"
+        );
+        assert_eq!(
+            lookups.club("club"),
+            crate::match_day_eligibility::club_positions(&with.players, "club")
+        );
     }
 
     /// Given a saved XI whose senior starter is injured on match day
@@ -1086,7 +1143,7 @@ pub(crate) mod match_day_pool_tests {
             ..Default::default()
         });
 
-        crate::live_match_manager::prepare_kick_off(&mut game, 0);
+        crate::live_match_manager::prepare_kick_off(&mut game, 0, None);
 
         assert_eq!(game.teams[0].starting_xi_ids, saved);
     }

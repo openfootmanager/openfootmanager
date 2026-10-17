@@ -3,6 +3,7 @@
 // of `domain`, and `ofm_core/turn/` is the single bridge between the two. The
 // live path and the instant path both build their sides from there, so there is
 // one answer to "who is playing" rather than one per code path.
+use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::{build_team_with_bench_from, set_piece_takers_among};
 
@@ -250,7 +251,11 @@ impl LiveMatchSession {
 /// fixture goes through this before building the teams — the unwatched path
 /// directly, the player's own matches through [`kick_off_live_match`] — so no
 /// match starts with a side that cannot be fielded.
-pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
+pub(crate) fn prepare_kick_off(
+    game: &mut Game,
+    fixture_index: usize,
+    lookups: Option<&mut MatchdayLookups>,
+) {
     let Some((home_team_id, away_team_id)) = game.league.as_ref().and_then(|league| {
         league
             .fixtures
@@ -261,10 +266,27 @@ pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
     };
     // Counted together before either club is topped up: a top-up draws on the free agents and on
     // that club's own academy, so it cannot change the other club's seniors.
-    let (home_seniors, away_seniors) =
-        crate::squad_floor::senior_counts_of_two(game, &home_team_id, &away_team_id);
-    crate::squad_floor::ready_for_kick_off(game, &home_team_id, home_seniors);
-    crate::squad_floor::ready_for_kick_off(game, &away_team_id, away_seniors);
+    let (home_seniors, away_seniors) = match lookups.as_deref() {
+        Some(lookups) => (
+            crate::squad_floor::senior_counts_among(
+                game,
+                &home_team_id,
+                lookups.club(&home_team_id),
+            ),
+            crate::squad_floor::senior_counts_among(
+                game,
+                &away_team_id,
+                lookups.club(&away_team_id),
+            ),
+        ),
+        None => crate::squad_floor::senior_counts_of_two(game, &home_team_id, &away_team_id),
+    };
+    let brought_in = crate::squad_floor::ready_for_kick_off(game, &home_team_id, home_seniors);
+    let brought_in =
+        crate::squad_floor::ready_for_kick_off(game, &away_team_id, away_seniors) || brought_in;
+    if brought_in && let Some(lookups) = lookups {
+        lookups.players_moved(game);
+    }
     crate::turn::squad::reconcile_user_starting_xi(game, &home_team_id);
     crate::turn::squad::reconcile_user_starting_xi(game, &away_team_id);
 }
@@ -289,15 +311,15 @@ fn kick_off_live_match_with(
     fixture_index: usize,
     mode: MatchMode,
     allows_extra_time: bool,
-    clubs_with_a_match_soon: Option<&HashSet<String>>,
+    mut lookups: Option<&mut MatchdayLookups>,
 ) -> Result<LiveMatchSession, String> {
-    prepare_kick_off(game, fixture_index);
+    prepare_kick_off(game, fixture_index, lookups.as_deref_mut());
     create_live_match_with(
         game,
         fixture_index,
         mode,
         allows_extra_time,
-        clubs_with_a_match_soon,
+        lookups.as_deref(),
     )
 }
 
@@ -327,13 +349,13 @@ pub fn create_live_match(
 }
 
 /// [`create_live_match`] for a matchday that has already found the clubs with a match soon
-/// ([`crate::turn::squad::clubs_with_a_match_soon`]), which every AI side's fixture load reads.
+/// (`lookups`: where each club's players stand, and who plays again soon).
 fn create_live_match_with(
     game: &Game,
     fixture_index: usize,
     mode: MatchMode,
     allows_extra_time: bool,
-    clubs_with_a_match_soon: Option<&HashSet<String>>,
+    lookups: Option<&MatchdayLookups>,
 ) -> Result<LiveMatchSession, String> {
     let league = game.league.as_ref().ok_or(LIVE_MATCH_NO_LEAGUE_ERROR)?;
     let fixture = league
@@ -348,12 +370,21 @@ fn create_live_match_with(
     let away_team_id = fixture.away_team_id.clone();
 
     // Each club's players are found once and serve its team, its bench and its set-piece takers.
-    let home_club = crate::match_day_eligibility::club_players(&game.players, &home_team_id);
-    let away_club = crate::match_day_eligibility::club_players(&game.players, &away_team_id);
+    let club_of = |team_id: &str| -> Vec<&Player> {
+        match lookups {
+            Some(lookups) => lookups
+                .club(team_id)
+                .iter()
+                .map(|&position| &game.players[position])
+                .collect(),
+            None => crate::match_day_eligibility::club_players(&game.players, team_id),
+        }
+    };
+    let (home_club, away_club) = (club_of(&home_team_id), club_of(&away_team_id));
     let (home_xi, home_bench) =
-        build_team_with_bench_from(game, &home_team_id, &home_club, clubs_with_a_match_soon);
+        build_team_with_bench_from(game, &home_team_id, &home_club, lookups);
     let (away_xi, away_bench) =
-        build_team_with_bench_from(game, &away_team_id, &away_club, clubs_with_a_match_soon);
+        build_team_with_bench_from(game, &away_team_id, &away_club, lookups);
     let home_starter_ids = starter_ids(&home_xi);
     let away_starter_ids = starter_ids(&away_xi);
     let home_match_roles = game
@@ -494,7 +525,7 @@ pub fn play_unwatched_fixture(
 pub(crate) fn play_unwatched_fixture_with(
     game: &mut Game,
     fixture_index: usize,
-    clubs_with_a_match_soon: Option<&HashSet<String>>,
+    lookups: Option<&mut MatchdayLookups>,
 ) -> Result<UnwatchedFixture, String> {
     let allows_extra_time = crate::matchday::fixture_allows_extra_time(game, fixture_index);
     let mut session = kick_off_live_match_with(
@@ -502,7 +533,7 @@ pub(crate) fn play_unwatched_fixture_with(
         fixture_index,
         MatchMode::Instant,
         allows_extra_time,
-        clubs_with_a_match_soon,
+        lookups,
     )?;
     session.user_side = None;
     let league_round_context = session.league_round_context.clone();
