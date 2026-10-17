@@ -28,6 +28,7 @@ export default function TacticsDeleteDialog({
       labelledBy="delete-tactic-title"
       describedBy="delete-tactic-body"
       onClose={onCancel}
+      dismissOnBackdrop
       className="w-full max-w-md rounded-xl p-6"
     >
       <h2

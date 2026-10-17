@@ -186,6 +186,36 @@ describe("TacticsCommandBar", () => {
     });
 
     /**
+     * Given the confirmation has just opened
+     * Then focus is on Cancel, the safe answer, so a stray Enter cannot delete.
+     */
+    it("starts with focus on Cancel", () => {
+      renderCommandBar();
+
+      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+
+      expect(screen.getByRole("button", { name: "common.cancel" })).toHaveFocus();
+    });
+
+    /**
+     * Given the confirmation is open
+     * When the backdrop is clicked
+     * Then it cancels without deleting: Cancel is the safe answer, and what players expect.
+     */
+    it("a click on the backdrop cancels without deleting", () => {
+      const onDelete = vi.fn();
+      renderCommandBar({ onDelete });
+      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+
+      const backdrop = screen.getByTestId("dialog-backdrop");
+      fireEvent.mouseDown(backdrop);
+      fireEvent.click(backdrop);
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+
+    /**
      * Given the confirmation is open
      * When Delete is confirmed
      * Then the tactic is deleted once and the dialog closes.

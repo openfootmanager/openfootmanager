@@ -255,7 +255,19 @@ describe("tactic mapping", () => {
   });
 
   /**
-   * Given nothing to import (no storage, or no old key), and a tactic the game refuses
+   * Given the browser's storage cannot be read at all
+   * When the import runs
+   * Then it is not complete: the library may well be there, so the career must not be marked done
+   *      and must be tried again when storage works.
+   */
+  it("reports incomplete when the storage cannot be read", async () => {
+    const result = await importLegacyTactics(MANAGER, START, [], fakeSave().save, null);
+
+    expect(result.complete).toBe(false);
+  });
+
+  /**
+   * Given nothing to import (storage read fine but empty), and a tactic the game refuses
    * When they are imported
    * Then each is complete: there is nothing left that a retry could save.
    */
@@ -265,9 +277,6 @@ describe("tactic mapping", () => {
     };
     const storage = fakeStorage({ [keyFor("team1")]: JSON.stringify([legacy("a")]) });
 
-    expect((await importLegacyTactics(MANAGER, START, [], fakeSave().save, null)).complete).toBe(
-      true,
-    );
     expect(
       (await importLegacyTactics(MANAGER, START, [], fakeSave().save, fakeStorage())).complete,
     ).toBe(true);

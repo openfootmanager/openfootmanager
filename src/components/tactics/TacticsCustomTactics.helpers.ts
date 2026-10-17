@@ -128,8 +128,10 @@ export async function importLegacyTactics(
   storage: StorageLike | null = getDefaultStorage(),
 ): Promise<LegacyImport> {
   let current = [...saved];
+  // No storage to read is not "nothing to import": the library may be there, so the career is not
+  // marked done and the import is tried again. A library read and found empty is complete.
   if (!storage) {
-    return { tactics: current, complete: true };
+    return { tactics: current, complete: false };
   }
 
   const known = new Set(current.map((tactic) => tactic.id.trim()));
