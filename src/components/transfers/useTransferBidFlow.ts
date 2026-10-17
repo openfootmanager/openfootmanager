@@ -182,6 +182,9 @@ export function useTransferBidFlow({
 
     try {
       const response = await makeTransferBid(bidTarget.id, bidFee);
+      // The player is handled now: an offer the game update brings is this bid's own, and its
+      // feedback is the response's, not a "resumed negotiation" one.
+      resumedFor.current = bidTarget.id;
       setBidResult(response.decision);
       setBidError(null);
       setBidFeedback(normalizeTransferNegotiationFeedback(response.feedback));

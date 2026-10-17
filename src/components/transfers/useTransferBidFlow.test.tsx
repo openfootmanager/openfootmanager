@@ -489,6 +489,70 @@ describe("useTransferBidFlow", (): void => {
     });
   });
 
+  /**
+   * Given the panel opened on a player with no negotiation, and a bid that the club counters
+   * When the game update that carries the new offer arrives and the backend names it
+   * Then the bid's own feedback stays: the generic "resumed negotiation" feedback is for an offer
+   *      found on opening, not one the user has just made.
+   */
+  it("keeps a bid's own feedback when the game update brings its offer", async (): Promise<void> => {
+    const target = createPlayer();
+    const before = createGameState([target]);
+    mockedMakeTransferBid.mockResolvedValue({
+      decision: "counter_offer",
+      suggested_fee: 1150000,
+      is_terminal: false,
+      feedback: {
+        mood: "firm",
+        headline_key: "transfers.transferFeedbackCounterHeadline",
+        detail_key: "transfers.transferFeedbackCounterDetail",
+        tension: 60,
+        patience: 50,
+        round: 2,
+        params: { fee: "1150000" },
+      },
+      game: before,
+    });
+    const { rerender } = render(<HookHarness gameState={before} target={target} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(mockedNegotiationStatus).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    await waitFor(() =>
+      expect(screen.getByLabelText("feedback")).toHaveTextContent(
+        "transfers.transferFeedbackCounterHeadline",
+      ),
+    );
+
+    // The game update arrives carrying the offer the bid just made, and the backend names it.
+    mockedNegotiationStatus.mockResolvedValue({
+      offer_id: "offer-new",
+      continues_talks: true,
+      talks_resume_on: null,
+    });
+    const updated = createPlayer({
+      transfer_offers: [
+        {
+          id: "offer-new",
+          from_team_id: "team-1",
+          fee: 1000000,
+          wage_offered: 0,
+          last_manager_fee: 1000000,
+          negotiation_round: 2,
+          suggested_counter_fee: 1150000,
+          status: "Pending",
+          date: "2026-08-01",
+        },
+      ],
+    });
+    rerender(<HookHarness gameState={createGameState([updated])} target={target} />);
+    await waitFor(() => expect(screen.getByLabelText("live-round")).toHaveTextContent("2"));
+    await act(async () => {});
+
+    expect(screen.getByLabelText("feedback")).toHaveTextContent(
+      "transfers.transferFeedbackCounterHeadline",
+    );
+  });
+
   it("keeps the acceptance state visible so the modal does not auto-close", async (): Promise<void> => {
     const target = createPlayer();
     const gameState = createGameState([target]);
