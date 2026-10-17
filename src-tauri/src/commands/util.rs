@@ -1,8 +1,7 @@
 use domain::team::Team;
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
-const NO_ACTIVE_GAME: &str = "be.error.noActiveGameSession";
 const NO_TEAM_ASSIGNED: &str = "be.error.noTeamAssigned";
 const TEAM_NOT_FOUND: &str = "be.error.teamNotFound";
 
@@ -39,16 +38,27 @@ pub fn user_team_mut(game: &mut Game) -> Result<&mut Team, String> {
 /// The closure performs validation **before** mutation: because it mutates the
 /// live game rather than a throwaway clone, any change made before it returns
 /// `Err` would persist. Existing callers already validate up front.
+pub fn mutate_active_game_for<F>(
+    state: &StateManager,
+    career: Career,
+    mutate: F,
+) -> Result<Game, String>
+where
+    F: FnOnce(&mut Game) -> Result<(), String>,
+{
+    state.update_game_for(career, |game| {
+        mutate(game)?;
+        Ok(game.clone())
+    })?
+}
+
+/// [`mutate_active_game_for`] on whichever career is active. Callers are moving to the checked
+/// form one area at a time; this goes when the last one has.
 pub fn mutate_active_game<F>(state: &StateManager, mutate: F) -> Result<Game, String>
 where
     F: FnOnce(&mut Game) -> Result<(), String>,
 {
-    state
-        .update_game(|game| {
-            mutate(game)?;
-            Ok(game.clone())
-        })
-        .unwrap_or_else(|| Err(NO_ACTIVE_GAME.to_string()))
+    mutate_active_game_for(state, Career::Active, mutate)
 }
 
 pub use crate::application::saving::persist_active_game;

@@ -98,6 +98,7 @@ describe("useAdvanceTime", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("advance_time_with_mode", {
+        careerToken: 0,
         mode: "live",
       });
     });
@@ -156,6 +157,7 @@ describe("useAdvanceTime", (): void => {
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenNthCalledWith(1, "check_blocking_actions");
       expect(mockedInvoke).toHaveBeenNthCalledWith(2, "advance_time_with_mode", {
+        careerToken: 0,
         mode: "live",
       });
     });

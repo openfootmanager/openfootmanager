@@ -233,6 +233,7 @@ describe("TrainingTab", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("set_training_schedule", {
+        careerToken: 0,
         schedule: "Intense",
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);

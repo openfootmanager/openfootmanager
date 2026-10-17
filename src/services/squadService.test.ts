@@ -20,6 +20,7 @@ describe("squadService", () => {
 
     await expect(setPlayerSquadRole("player-1", "Youth")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+      careerToken: 0,
       playerId: "player-1",
       squadRole: "Youth",
     });

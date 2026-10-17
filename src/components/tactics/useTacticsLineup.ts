@@ -1,12 +1,15 @@
 import type { DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import {
   applyTacticPreset,
+  setFormation,
+  setPlayStyle,
+  setStartingXi,
   setTacticsPhase as setTacticsPhaseService,
+  setTeamMatchRoles,
 } from "../../services/squadService";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { useAutoSetPieces } from "../../hooks/useAutoSetPieces";
@@ -171,9 +174,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   async function persistStartingXI(playerIds: string[]): Promise<void> {
     setPendingStartingXiIds(playerIds);
     try {
-      const updated = await invoke<GameStateData>("set_starting_xi", {
-        playerIds,
-      });
+      const updated = await setStartingXi(playerIds);
       onGameUpdate(updated);
     } catch (error) {
       setPendingStartingXiIds(null);
@@ -183,9 +184,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
 
   async function handleFormationChange(nextFormation: string): Promise<boolean> {
     try {
-      const updated = await invoke<GameStateData>("set_formation", {
-        formation: nextFormation,
-      });
+      const updated = await setFormation(nextFormation);
       onGameUpdate(updated);
       return true;
     } catch (error) {
@@ -196,9 +195,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
 
   async function handlePlayStyleChange(playStyle: string): Promise<boolean> {
     try {
-      const updated = await invoke<GameStateData>("set_play_style", {
-        playStyle,
-      });
+      const updated = await setPlayStyle(playStyle);
       onGameUpdate(updated);
       return true;
     } catch (error) {
@@ -416,9 +413,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
 
   async function persistMatchRoles(nextRoles: TeamMatchRolesData): Promise<void> {
     try {
-      const updated = await invoke<GameStateData>("set_team_match_roles", {
-        matchRoles: nextRoles,
-      });
+      const updated = await setTeamMatchRoles(nextRoles);
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set team match roles:", error);

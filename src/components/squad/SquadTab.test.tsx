@@ -434,6 +434,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        careerToken: 0,
         playerId: "gk1",
         squadRole: "Youth",
       });
@@ -461,6 +462,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);

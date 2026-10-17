@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { GameStateData, PlayerData } from "../store/gameStore";
+import type { GameStateData, PlayerData, TeamMatchRolesData } from "../store/gameStore";
 import type { PlayerRole, PlayerSquadRole, TacticsPhaseSettings } from "../store/types";
+import { invokeForCareer } from "./careerInvoke";
 
 export async function getSquad(teamId: string): Promise<PlayerData[]> {
   return invoke<PlayerData[]>("get_squad", { teamId });
@@ -23,21 +24,33 @@ export async function setPlayerSquadRole(
   playerId: string,
   squadRole: PlayerSquadRole,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("set_player_squad_role", {
+  return invokeForCareer<GameStateData>("set_player_squad_role", {
     playerId,
     squadRole,
   });
 }
 
 export async function setStartingXi(playerIds: string[]): Promise<GameStateData> {
-  return invoke<GameStateData>("set_starting_xi", { playerIds });
+  return invokeForCareer<GameStateData>("set_starting_xi", { playerIds });
+}
+
+export async function setFormation(formation: string): Promise<GameStateData> {
+  return invokeForCareer<GameStateData>("set_formation", { formation });
+}
+
+export async function setPlayStyle(playStyle: string): Promise<GameStateData> {
+  return invokeForCareer<GameStateData>("set_play_style", { playStyle });
+}
+
+export async function setTeamMatchRoles(matchRoles: TeamMatchRolesData): Promise<GameStateData> {
+  return invokeForCareer<GameStateData>("set_team_match_roles", { matchRoles });
 }
 
 export async function setPlayerRole(
   playerId: string,
   role: PlayerRole | null,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("set_player_role", {
+  return invokeForCareer<GameStateData>("set_player_role", {
     playerId,
     role: role ?? undefined,
   });
@@ -51,7 +64,7 @@ export async function applyTacticPreset(
   formation: string,
   playStyle: string,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("apply_tactic_preset", { formation, playStyle });
+  return invokeForCareer<GameStateData>("apply_tactic_preset", { formation, playStyle });
 }
 
 /** Whether the user's phase dials differ from the blueprint their play style implies. */
@@ -62,7 +75,7 @@ export async function getTacticsBlueprintStatus(): Promise<{ modified: boolean }
 export async function setTacticsPhase(
   patch: Partial<TacticsPhaseSettings>,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("set_tactics_phase", {
+  return invokeForCareer<GameStateData>("set_tactics_phase", {
     buildUpStyle: patch.build_up_style,
     width: patch.width,
     tempo: patch.tempo,

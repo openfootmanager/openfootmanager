@@ -18,6 +18,20 @@ export const SCREEN_WRITE_COMMANDS = [
   "save_custom_tactic",
   "delete_custom_tactic",
   "mark_legacy_tactics_imported",
+  "set_formation",
+  "apply_tactic_preset",
+  "set_starting_xi",
+  "set_play_style",
+  "set_team_match_roles",
+  "set_training",
+  "set_training_schedule",
+  "set_training_groups",
+  "set_player_training_focus",
+  "set_player_squad_role",
+  "assign_jersey_number",
+  "set_team_kit_pattern",
+  "set_player_role",
+  "set_tactics_phase",
 ] as const;
 
 export type ScreenWriteCommand = (typeof SCREEN_WRITE_COMMANDS)[number];
