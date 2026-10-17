@@ -22,6 +22,7 @@ interface ReportPreviewStepProps {
   onConsentChange: (checked: boolean) => void;
   failure: string | null;
   failureKind: UploadFailureKind | null;
+  failureDetail: string | null;
 }
 
 export function ReportPreviewStep({
@@ -38,6 +39,7 @@ export function ReportPreviewStep({
   onConsentChange,
   failure,
   failureKind,
+  failureDetail,
 }: ReportPreviewStepProps) {
   const { t, i18n } = useTranslation();
   const saveSize =
@@ -120,6 +122,14 @@ export function ReportPreviewStep({
             <p>{t("reportBug.tooLargeUntickSave")}</p>
           )}
           {failureKind !== null && <p>{t("reportBug.uploadFailedFallback")}</p>}
+          {failureDetail !== null && (
+            <details className="text-[11px] text-gray-600 dark:text-gray-400">
+              <summary className="cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400">
+                {t("reportBug.technicalDetails")}
+              </summary>
+              <p className="mt-1 font-mono break-words select-text">{failureDetail}</p>
+            </details>
+          )}
         </div>
       )}
     </div>

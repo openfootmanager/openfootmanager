@@ -153,14 +153,15 @@ export function describeBundle(summary: BundleSummary, locale: string): string {
 /** What a rejected upload carries, whether the backend sent a failure object or just a key. */
 export function toUploadFailure(error: unknown): UploadFailure {
   if (typeof error === "object" && error !== null && "key" in error) {
-    const { kind, key, retry_after_seconds: wait } = error as Partial<UploadFailure>;
+    const { kind, key, retry_after_seconds: wait, detail } = error as Partial<UploadFailure>;
     return {
       kind: kind ?? "other",
       key: String(key),
       retry_after_seconds: typeof wait === "number" ? wait : null,
+      detail: typeof detail === "string" && detail.trim() !== "" ? detail : null,
     };
   }
-  return { kind: "other", key: String(error), retry_after_seconds: null };
+  return { kind: "other", key: String(error), retry_after_seconds: null, detail: null };
 }
 
 /** Whole minutes to wait, never fewer than one: "try again in 0 minutes" invites an instant retry. */

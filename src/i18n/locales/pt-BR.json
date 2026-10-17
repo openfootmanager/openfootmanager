@@ -4298,6 +4298,7 @@
     "saveAndOpenInstead": "Salvar o arquivo e usar o GitHub",
     "nothingSentYetUpload": "Nada sai deste computador até você clicar em Enviar. Prefere o GitHub? Salve o arquivo e anexe você mesmo ao formulário — isso exige uma conta no GitHub.",
     "uploadFailedFallback": "Você ainda pode enviá-lo pelo GitHub: salve o arquivo e anexe ao formulário.",
+    "technicalDetails": "Detalhes técnicos",
     "tooLargeUntickSave": "Desmarcar o seu save deixa o relatório bem menor.",
     "sentTitle": "Relatório enviado",
     "sentIntro": "Obrigado. Seu relatório chegou à equipe do OpenFoot Manager e é guardado até ser tratado.",

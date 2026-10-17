@@ -790,6 +790,30 @@ describe("ReportBugModal with a server to send to", () => {
   });
 
   /**
+   * Given a server that refuses the bundle and says why,
+   * when the player presses Send,
+   * then the translated message is shown with the server's reason under "Technical details".
+   */
+  it("shows the server's reason for a refusal under technical details", async () => {
+    const detail = 'HTTP 422 · invalid · bundle: Entry "report.md" has a disallowed file type';
+    uploadReportBundle.mockRejectedValue({
+      kind: "rejected",
+      key: "be.error.report.upload.rejected",
+      retry_after_seconds: null,
+      detail,
+    });
+    await reachPreview();
+
+    fireEvent.click(consentBox());
+    fireEvent.click(sendButton());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("be.error.report.upload.rejected");
+    expect(alert).toHaveTextContent("reportBug.technicalDetails");
+    expect(alert).toHaveTextContent(detail);
+  });
+
+  /**
    * Given a failure that is not a rate limit but carries a wait
    * When the player presses Send
    * Then they are not told they sent too many reports

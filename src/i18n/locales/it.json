@@ -4298,6 +4298,7 @@
     "saveAndOpenInstead": "Salva il file e usa GitHub",
     "nothingSentYetUpload": "Nulla lascia questo computer finché non premi Invia. Preferisci GitHub? Salva il file e allegalo tu al modulo: serve un account GitHub.",
     "uploadFailedFallback": "Puoi comunque inviarla tramite GitHub: salva il file e allegalo al modulo.",
+    "technicalDetails": "Dettagli tecnici",
     "tooLargeUntickSave": "Togliendo la spunta al salvataggio la segnalazione diventerà molto più piccola.",
     "sentTitle": "Segnalazione inviata",
     "sentIntro": "Grazie. Il tuo rapporto è arrivato al team di OpenFoot Manager e viene conservato finché non è stato gestito.",

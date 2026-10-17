@@ -81,6 +81,7 @@ export function useReportSubmission(inputs: SubmissionInputs, outcome: Submissio
   const [working, setWorking] = useState<Working>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [failureKind, setFailureKind] = useState<UploadFailureKind | null>(null);
+  const [failureDetail, setFailureDetail] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<UploadReceipt | null>(null);
   const [summary, setSummary] = useState<BundleSummary | null>(null);
   const [browserFailed, setBrowserFailed] = useState(false);
@@ -91,6 +92,7 @@ export function useReportSubmission(inputs: SubmissionInputs, outcome: Submissio
   const clearFailure = () => {
     setFailure(null);
     setFailureKind(null);
+    setFailureDetail(null);
   };
 
   const upload = async () => {
@@ -118,6 +120,7 @@ export function useReportSubmission(inputs: SubmissionInputs, outcome: Submissio
       const rejected = toUploadFailure(error);
       logError(`[report] upload failed: ${rejected.key}`);
       setFailureKind(rejected.kind);
+      setFailureDetail(rejected.detail);
       setFailure(
         rejected.kind === "rateLimited" && rejected.retry_after_seconds !== null
           ? t("be.error.report.upload.rateLimitedWait", {
@@ -168,6 +171,7 @@ export function useReportSubmission(inputs: SubmissionInputs, outcome: Submissio
     working,
     failure,
     failureKind,
+    failureDetail,
     receipt,
     summary,
     browserFailed,

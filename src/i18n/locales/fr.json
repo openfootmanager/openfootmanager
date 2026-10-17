@@ -4298,6 +4298,7 @@
     "saveAndOpenInstead": "Enregistrer le fichier et passer par GitHub",
     "nothingSentYetUpload": "Rien ne quitte cet ordinateur avant que vous n'appuyiez sur Envoyer. Vous préférez GitHub ? Enregistrez le fichier et joignez-le vous-même au formulaire — il faut alors un compte GitHub.",
     "uploadFailedFallback": "Vous pouvez toujours l'envoyer via GitHub : enregistrez le fichier et joignez-le au formulaire.",
+    "technicalDetails": "Détails techniques",
     "tooLargeUntickSave": "Décocher votre sauvegarde rendra le rapport beaucoup plus petit.",
     "sentTitle": "Rapport envoyé",
     "sentIntro": "Merci. Votre rapport est arrivé à l'équipe d'OpenFoot Manager et il est conservé jusqu'à son traitement.",
