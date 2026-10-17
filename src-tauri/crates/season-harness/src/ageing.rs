@@ -123,7 +123,7 @@ fn top_players_profile(aged: &[(&Player, i32)]) -> AgeingReport {
             .into_iter()
             .map(|(player, age)| (player.ovr, *age))
             .collect();
-        ranked.sort_by(|a, b| b.0.cmp(&a.0));
+        ranked.sort_by_key(|entry| std::cmp::Reverse(entry.0));
         ranked.truncate(count);
         ranked
     };
