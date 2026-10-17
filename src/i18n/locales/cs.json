@@ -2643,6 +2643,7 @@
         "wouldLeaveSeniorsShort": "Tento hráč nemůže odejít: klubu by v A-týmu zůstalo méně než {{floor}} hráčů, což je minimum, které musí klub udržet."
       },
       "noActiveGameSession": "Žádná aktivní herní relace",
+      "careerChanged": "Kariéra se změnila dříve, než to bylo možné uložit.",
       "noActiveSaveSession": "Žádná aktivní relace ukládání",
       "saveNotFound": "Uložená pozice '{{saveId}}' nebyla nalezena.",
       "saveManagerUnavailable": "Uložená data jsou dočasně nedostupná.",

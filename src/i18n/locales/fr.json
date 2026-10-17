@@ -2643,6 +2643,7 @@
         "wouldLeaveSeniorsShort": "Ce joueur ne peut pas partir : le club aurait moins de {{floor}} joueurs dans son effectif professionnel, le minimum qu'un club doit conserver."
       },
       "noActiveGameSession": "Aucune partie active",
+      "careerChanged": "La carrière a changé avant que cela puisse être enregistré.",
       "noActiveSaveSession": "Aucune session de sauvegarde active",
       "saveNotFound": "Sauvegarde '{{saveId}}' introuvable.",
       "teamNotFound": "Équipe introuvable",

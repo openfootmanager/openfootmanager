@@ -2643,6 +2643,7 @@
         "wouldLeaveSeniorsShort": "该球员无法离队：俱乐部一线队将少于 {{floor}} 名球员，低于俱乐部必须保留的最低人数。"
       },
       "noActiveGameSession": "当前没有活动中的游戏会话",
+      "careerChanged": "在保存之前，生涯已经切换。",
       "noActiveSaveSession": "当前没有活动中的存档会话",
       "saveNotFound": "未找到存档“{{saveId}}”。",
       "teamNotFound": "未找到球队",

@@ -2643,6 +2643,7 @@
         "wouldLeaveSeniorsShort": "Este jogador não pode sair: o clube ficaria com menos de {{floor}} jogadores no plantel principal, o mínimo que um clube tem de manter."
       },
       "noActiveGameSession": "Sem sessão de jogo ativa",
+      "careerChanged": "A carreira mudou antes de isto poder ser guardado.",
       "noActiveSaveSession": "Sem sessão de gravação ativa",
       "saveNotFound": "Gravação '{{saveId}}' não encontrada.",
       "teamNotFound": "Equipa não encontrada",

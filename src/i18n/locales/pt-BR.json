@@ -2643,6 +2643,7 @@
         "wouldLeaveSeniorsShort": "Este jogador não pode sair: o clube ficaria com menos de {{floor}} jogadores no elenco profissional, o mínimo que um clube precisa manter."
       },
       "noActiveGameSession": "Nenhuma sessão de jogo ativa",
+      "careerChanged": "A carreira mudou antes de isto poder ser salvo.",
       "noActiveSaveSession": "Nenhuma sessão de salvamento ativa",
       "saveNotFound": "Save '{{saveId}}' não encontrado.",
       "teamNotFound": "Time não encontrado",

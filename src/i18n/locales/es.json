@@ -2643,6 +2643,7 @@
         "wouldLeaveSeniorsShort": "Este jugador no puede salir: el club se quedaría con menos de {{floor}} jugadores en la primera plantilla, el mínimo que un club debe mantener."
       },
       "noActiveGameSession": "No hay una sesión de juego activa",
+      "careerChanged": "La carrera cambió antes de poder guardar esto.",
       "noActiveSaveSession": "No hay una sesión de guardado activa",
       "saveNotFound": "No se encontró la partida guardada '{{saveId}}'.",
       "teamNotFound": "Equipo no encontrado",

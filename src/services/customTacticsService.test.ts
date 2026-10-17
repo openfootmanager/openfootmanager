@@ -43,15 +43,15 @@ describe("customTacticsService", () => {
   it("saves a tactic and returns the whole list", async () => {
     mockedInvoke.mockResolvedValueOnce([tactic]);
 
-    await expect(saveCustomTactic(tactic)).resolves.toEqual([tactic]);
-    expect(mockedInvoke).toHaveBeenCalledWith("save_custom_tactic", { tactic });
+    await expect(saveCustomTactic(tactic, 7)).resolves.toEqual([tactic]);
+    expect(mockedInvoke).toHaveBeenCalledWith("save_custom_tactic", { tactic, careerToken: 7 });
   });
 
   it("deletes a tactic by id", async () => {
     mockedInvoke.mockResolvedValueOnce([]);
 
-    await expect(deleteCustomTactic("a")).resolves.toEqual([]);
-    expect(mockedInvoke).toHaveBeenCalledWith("delete_custom_tactic", { id: "a" });
+    await expect(deleteCustomTactic("a", 7)).resolves.toEqual([]);
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_custom_tactic", { id: "a", careerToken: 7 });
   });
 
   it("asks whether the old browser library still has to be copied in", async () => {
@@ -64,8 +64,10 @@ describe("customTacticsService", () => {
   it("marks the old browser library as copied in", async () => {
     mockedInvoke.mockResolvedValueOnce(undefined);
 
-    await markLegacyTacticsImported();
+    await markLegacyTacticsImported(7);
 
-    expect(mockedInvoke).toHaveBeenCalledWith("mark_legacy_tactics_imported");
+    expect(mockedInvoke).toHaveBeenCalledWith("mark_legacy_tactics_imported", {
+      careerToken: 7,
+    });
   });
 });

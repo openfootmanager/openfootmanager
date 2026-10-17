@@ -851,6 +851,8 @@ export interface YouthScoutingAssignment {
 }
 
 export interface GameStateData {
+  /** Names the career this game was installed as; commands that write on the screen's behalf hand it back. */
+  career_token?: number;
   clock: {
     current_date: string;
     start_date: string;

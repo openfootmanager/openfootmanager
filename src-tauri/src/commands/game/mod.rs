@@ -178,7 +178,8 @@ pub async fn start_new_game(
         new_game.players.len(),
         new_game.staff.len()
     );
-    crate::application::career::install_career(&state, new_game.clone(), stats_state, None);
+    new_game.career_token =
+        crate::application::career::install_career(&state, new_game.clone(), stats_state, None);
     Ok(new_game)
 }
 
@@ -206,7 +207,12 @@ pub async fn select_team(
 
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
     let save_id = persist_chosen_club(loaded_save_id.as_deref(), &mut sm, &game, &stats_state)?;
-    crate::application::career::install_career(&state, game.clone(), stats_state, Some(save_id));
+    game.career_token = crate::application::career::install_career(
+        &state,
+        game.clone(),
+        stats_state,
+        Some(save_id),
+    );
     Ok(game)
 }
 

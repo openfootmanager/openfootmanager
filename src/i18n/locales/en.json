@@ -2643,6 +2643,7 @@
         "wouldLeaveSeniorsShort": "This player cannot leave: the club would be left with fewer than {{floor}} senior players, the minimum a club must keep."
       },
       "noActiveGameSession": "No active game session",
+      "careerChanged": "The career changed before this could be saved.",
       "noActiveSaveSession": "No active save session",
       "saveNotFound": "Save '{{saveId}}' not found.",
       "saveManagerUnavailable": "Save data is temporarily unavailable.",

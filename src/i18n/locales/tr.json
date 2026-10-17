@@ -2643,6 +2643,7 @@
         "wouldLeaveSeniorsShort": "Bu oyuncu ayrılamaz: kulübün A takımında {{floor}} oyuncudan az kalır, bu da bir kulübün koruması gereken asgari sayıdır."
       },
       "noActiveGameSession": "Aktif oyun oturumu yok",
+      "careerChanged": "Bu kaydedilemeden önce kariyer değişti.",
       "noActiveSaveSession": "Aktif kayıt oturumu yok",
       "saveNotFound": "'{{saveId}}' kaydı bulunamadı.",
       "saveManagerUnavailable": "Kayıt verileri geçici olarak kullanılamıyor.",
