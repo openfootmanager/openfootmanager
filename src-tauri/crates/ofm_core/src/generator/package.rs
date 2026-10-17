@@ -1777,6 +1777,11 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
                 None => merged_names = Some(names),
             }
         }
+        // A repeat inside one package is that package's own mistake and travels with it; a later
+        // package replacing an earlier one's pool is stacking, and is not recorded.
+        merged
+            .repeated_name_pools
+            .extend(package.repeated_name_pools);
         for (locale, bundle) in package.extra_translations {
             merged.extra_translations.insert(locale, bundle);
         }
@@ -5286,6 +5291,38 @@ colors:
         let keys: Vec<_> = names.pools.keys().cloned().collect();
         assert!(names.pools.contains_key("ENG"), "ENG pool kept: {keys:?}");
         assert!(names.pools.contains_key("BRA"), "BRA pool kept: {keys:?}");
+
+        std::fs::remove_dir_all(&dir_a).ok();
+        std::fs::remove_dir_all(&dir_b).ok();
+    }
+
+    /// Given one package whose own two files both give England a name pool, and a second package
+    ///       that gives England a pool again
+    /// When the two are stacked and the merged package is checked
+    /// Then the repeat inside the first package is still warned about, and the second package
+    ///      overriding England is not (overriding is what stacking is for).
+    #[test]
+    fn stacking_keeps_a_repeat_inside_one_package_and_stays_silent_across_packages() {
+        use super::super::package_warnings::{REPEATED_NAME_POOL, package_warnings};
+        let pool = "schema: names\nversion: 1\npools:\n  ENG:\n    first_names:\n      - John\n    last_names:\n      - Smith\n";
+        let dir_a = temp_package();
+        write(&dir_a, "world.yaml", "schema: world\nid: a\nname: A\n");
+        write(&dir_a, "names/a.yaml", pool);
+        write(&dir_a, "names/b.yaml", pool);
+        let (pkg_a, _) = load_world_package(&dir_a);
+        let dir_b = temp_package();
+        write(&dir_b, "world.yaml", "schema: world\nid: b\nname: B\n");
+        write(&dir_b, "names.yaml", pool);
+        let (pkg_b, _) = load_world_package(&dir_b);
+
+        let (merged, _) = merge_world_packages(vec![pkg_a, pkg_b]);
+
+        let repeats: Vec<_> = package_warnings(&merged)
+            .into_iter()
+            .filter(|w| w.code == REPEATED_NAME_POOL)
+            .collect();
+        assert_eq!(repeats.len(), 1, "{repeats:?}");
+        assert_eq!(repeats[0].file, "names/b.yaml");
 
         std::fs::remove_dir_all(&dir_a).ok();
         std::fs::remove_dir_all(&dir_b).ok();
