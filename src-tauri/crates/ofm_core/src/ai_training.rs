@@ -22,7 +22,8 @@
 //! 9. V1 safety rule: Physical + High → downgrade intensity to Medium.
 
 use crate::game::Game;
-use domain::team::{PlayStyle, TrainingFocus, TrainingIntensity};
+use domain::player::Player;
+use domain::team::{PlayStyle, Team, TrainingFocus, TrainingIntensity};
 
 // ---------------------------------------------------------------------------
 // Thresholds
@@ -142,17 +143,11 @@ fn style_weekly_cycle(play_style: &PlayStyle) -> [TrainingFocus; 5] {
 /// the spare one — who never plays, so is always fresh — would otherwise count
 /// as a starter. A club with nothing to read is reported fully fit rather than
 /// in crisis: there is nobody for a lighter session to protect.
-fn likely_starters_condition(game: &Game, team_id: &str) -> f64 {
-    let available: Vec<_> =
-        crate::match_day_eligibility::match_day_eligible_players(&game.players, team_id)
-            .into_iter()
-            .filter(|p| p.injury.is_none())
-            .collect();
-    let formation = game
-        .teams
-        .iter()
-        .find(|t| t.id == team_id)
-        .map_or("4-4-2", |t| t.formation.as_str());
+fn likely_starters_condition(formation: &str, club: &[&Player]) -> f64 {
+    let available: Vec<_> = crate::match_day_eligibility::eligible_among(club)
+        .into_iter()
+        .filter(|p| p.injury.is_none())
+        .collect();
 
     let eleven = crate::turn::squad::first_choice_eleven(&available, formation);
     if eleven.is_empty() {
@@ -173,8 +168,13 @@ struct TeamSnapshot {
     is_training_day: bool,
 }
 
-fn snapshot_team(game: &Game, team_id: &str, weekday_num: u32) -> TeamSnapshot {
-    let team = game.teams.iter().find(|t| t.id == team_id);
+fn snapshot_team(
+    teams: &[Team],
+    club: &[&Player],
+    team_id: &str,
+    weekday_num: u32,
+) -> TeamSnapshot {
+    let team = teams.iter().find(|t| t.id == team_id);
     let (play_style, schedule) = team
         .map(|t| (t.play_style.clone(), t.training_schedule.clone()))
         .unwrap_or((
@@ -185,7 +185,10 @@ fn snapshot_team(game: &Game, team_id: &str, weekday_num: u32) -> TeamSnapshot {
     let is_training_day = schedule.is_training_day(weekday_num);
 
     TeamSnapshot {
-        starters_condition: likely_starters_condition(game, team_id),
+        starters_condition: likely_starters_condition(
+            team.map_or("4-4-2", |t| t.formation.as_str()),
+            club,
+        ),
         play_style,
         is_training_day,
     }
@@ -218,9 +221,14 @@ pub fn apply_ai_training_policies(game: &mut Game, weekday_num: u32) {
         .map(|t| t.id.clone())
         .collect();
 
+    // Every club's players in one pass; reading them borrows `game.players` alone, so the clubs'
+    // own settings below are still written through `game.teams`.
+    let by_club = crate::match_day_eligibility::players_by_club(&game.players);
+
     for team_id in team_ids {
         // Snapshot reads immutably and returns owned data — no borrow retained.
-        let snap = snapshot_team(game, &team_id, weekday_num);
+        let club = by_club.get(team_id.as_str()).map_or(&[][..], Vec::as_slice);
+        let snap = snapshot_team(&game.teams, club, &team_id, weekday_num);
 
         // Rest day: no-op.
         if !snap.is_training_day {
@@ -294,6 +302,19 @@ mod tests {
     use domain::manager::Manager;
     use domain::player::{Player, PlayerAttributes, Position};
     use domain::team::{Team, TrainingFocus, TrainingIntensity, TrainingSchedule};
+
+    /// The signal for one club, found the way the day finds it: its players grouped out of the
+    /// whole list, and its own formation.
+    fn condition_of(game: &Game, team_id: &str) -> f64 {
+        let by_club = crate::match_day_eligibility::players_by_club(&game.players);
+        let club = by_club.get(team_id).map_or(&[][..], Vec::as_slice);
+        let formation = game
+            .teams
+            .iter()
+            .find(|t| t.id == team_id)
+            .map_or("4-4-2", |t| t.formation.as_str());
+        likely_starters_condition(formation, club)
+    }
 
     fn default_attrs() -> PlayerAttributes {
         PlayerAttributes {
@@ -793,9 +814,9 @@ mod tests {
         // tiebreak decides which eleven the signal reads. It must decide the
         // same way whichever end of the squad list it starts from.
         let mut game = make_game_with_a_split_squad(60, 100, 60, 20);
-        let first = likely_starters_condition(&game, "ai");
+        let first = condition_of(&game, "ai");
         game.players.reverse();
-        let second = likely_starters_condition(&game, "ai");
+        let second = condition_of(&game, "ai");
 
         assert!(
             (first - second).abs() < f64::EPSILON,
@@ -883,6 +904,6 @@ mod tests {
         }
         apply_ai_training_policies(&mut game, 1);
         assert_eq!(game.teams[1].training_intensity, TrainingIntensity::Medium);
-        assert_eq!(likely_starters_condition(&game, "ai"), 80.0);
+        assert_eq!(condition_of(&game, "ai"), 80.0);
     }
 }

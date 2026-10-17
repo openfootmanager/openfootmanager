@@ -165,6 +165,7 @@ pub fn transfer_preview_bid(
         projected_wage_budget_usage_pct: p.projected_wage_budget_usage_pct,
         exceeds_transfer_budget: p.exceeds_transfer_budget,
         exceeds_finance: p.exceeds_finance,
+        blocked_by_wage_policy: p.blocked_by_wage_policy,
     })
 }
 

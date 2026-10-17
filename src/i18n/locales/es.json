@@ -1157,6 +1157,15 @@
   },
   "inbox": {
     "title": "Bandeja de Entrada",
+    "archive": {
+      "heading": "Mensajes antiguos",
+      "load": "Cargar mensajes antiguos",
+      "loadMore": "Cargar más mensajes antiguos",
+      "loading": "Cargando mensajes antiguos…",
+      "empty": "No hay mensajes antiguos.",
+      "end": "No hay más mensajes antiguos.",
+      "error": "No se pudieron cargar los mensajes antiguos."
+    },
     "nMessages": "{{count}} mensaje(s)",
     "noMessages": "Sin mensajes",
     "noMessagesInCategory": "Sin mensajes en esta categoría",
@@ -1348,6 +1357,7 @@
     "bidImpactWagePressure": "Uso previsto del presupuesto salarial {{percent}}%",
     "bidImpactOverTransferBudget": "Esta oferta supera tu presupuesto de fichajes",
     "bidImpactOverBalance": "Esta oferta dejaría al club en deuda",
+    "bidImpactOverWagePolicy": "La directiva rechazaría su salario: supera la política salarial del club",
     "bidAccepted": "¡Oferta aceptada! Jugador fichado.",
     "bidCountered": "Han respondido con nuevas condiciones.",
     "bidRejected": "Oferta rechazada — cantidad demasiado baja.",

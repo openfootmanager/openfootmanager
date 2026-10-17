@@ -8,7 +8,7 @@
 //! (A club or player naming a country that neither the catalog nor the package defines is
 //! already an error, `unknownCountry`.)
 
-use super::package::{PackageError, WorldPackage};
+use super::package::{PackageError, RepeatedNamePool, WorldPackage};
 use crate::nations::nation_by_code;
 
 pub(super) const COUNTRY_WITHOUT_REGION: &str = "be.warning.package.countryWithoutRegion";
@@ -27,14 +27,14 @@ pub fn package_warnings(package: &WorldPackage) -> Vec<PackageError> {
 /// A country given a name pool by two files of one package: the later file replaces the earlier
 /// pool. (Stacked packages overriding each other is the point of stacking and is not reported.)
 fn repeated_name_pool_warnings(package: &WorldPackage) -> Vec<PackageError> {
-    let mut repeats: Vec<&(String, String, String)> = package.repeated_name_pools.iter().collect();
-    repeats.sort_by(|a, b| (&a.2, &a.0).cmp(&(&b.2, &b.0)));
+    let mut repeats: Vec<&RepeatedNamePool> = package.repeated_name_pools.iter().collect();
+    repeats.sort_by(|a, b| (&a.later_file, &a.country).cmp(&(&b.later_file, &b.country)));
     repeats
         .into_iter()
-        .map(|(country, first, later)| {
-            PackageError::new(REPEATED_NAME_POOL, later)
-                .with("country", country.clone())
-                .with("first", first.clone())
+        .map(|repeat| {
+            PackageError::new(REPEATED_NAME_POOL, &repeat.later_file)
+                .with("country", repeat.country.clone())
+                .with("first", repeat.first_file.clone())
         })
         .collect()
 }

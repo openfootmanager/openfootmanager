@@ -1270,6 +1270,43 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         }
     );
 
+    // inbox_get_archived
+    custom_tool!(
+        "inbox_get_archived",
+        "Get archived messages (read mail older than 180 days), newest first, one page at a time",
+        build_schema(
+            &[
+                (
+                    "before_date",
+                    "string",
+                    "Continue after this date (from the previous page)"
+                ),
+                (
+                    "before_id",
+                    "string",
+                    "Continue after this message id (from the previous page)"
+                ),
+                (
+                    "limit",
+                    "integer",
+                    "Messages per page (default 50, at most 200)"
+                )
+            ],
+            &[]
+        ),
+        ctx,
+        args,
+        {
+            let before_date = extract_string_param(args, "before_date");
+            let before_id = extract_string_param(args, "before_id");
+            let limit = extract_u64_param(args, "limit");
+            match tools_impl::inbox::inbox_get_archived(ctx, before_date, before_id, limit) {
+                Ok(value) => Ok(success(value)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        }
+    );
+
     // inbox_resolve_action
     custom_tool!(
         "inbox_resolve_action",
@@ -2070,6 +2107,11 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ),
         // Inbox
         ("inbox_get_messages", "Get inbox messages", "Inbox"),
+        (
+            "inbox_get_archived",
+            "Get archived (older, read) inbox messages",
+            "Inbox",
+        ),
         ("inbox_mark_read", "Mark message as read", "Inbox"),
         ("inbox_mark_all_read", "Mark all messages as read", "Inbox"),
         ("inbox_delete", "Delete a message", "Inbox"),

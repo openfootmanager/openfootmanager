@@ -6,6 +6,28 @@ export async function fetchMessages(): Promise<MessageData[]> {
   return invoke<MessageData[]>("get_messages_page", { query: {} });
 }
 
+/** Where the previous page of archived mail ended; pass it back to read the next one. */
+export interface ArchiveCursor {
+  date: string;
+  id: string;
+}
+
+export interface ArchivedMessagesPage {
+  items: MessageData[];
+  next_before: ArchiveCursor | null;
+}
+
+/**
+ * Read mail older than half a year, newest first, one page at a time. The inbox itself holds only
+ * recent mail; the rest is kept in the save and fetched here on demand.
+ */
+export async function fetchArchivedMessages(
+  before: ArchiveCursor | null,
+  limit = 50,
+): Promise<ArchivedMessagesPage> {
+  return invoke<ArchivedMessagesPage>("get_archived_messages", { before, limit });
+}
+
 export interface ResolveMessageActionResult {
   game: GameStateData;
   effect: string | null;

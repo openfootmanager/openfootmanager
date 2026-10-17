@@ -76,7 +76,6 @@ pub fn seed_opening_ai_loan_market(game: &mut Game) -> usize {
             .enumerate()
             .filter(|(_, player)| {
                 player.team_id.as_deref() == Some(team_id.as_str())
-                    && !player.retired
                     && !player.transfer_listed
                     && !player.loan_listed
                     && !player_has_pending_registration(player)
@@ -182,6 +181,37 @@ pub(crate) fn default_loan_end_date(
 
     Some(end_date.format("%Y-%m-%d").to_string())
 }
+/// The loan negotiation `club_id` is in over this player: its live offer, or the one the owner
+/// refused within [`REBID_COOLDOWN_DAYS`], which the next approach continues. The same rule as
+/// `latest_negotiation_with_club` for permanent bids, and the same cooldown.
+pub(crate) fn latest_loan_negotiation_with_club<'a>(
+    player: &'a domain::player::Player,
+    club_id: &str,
+    today: NaiveDate,
+) -> Option<&'a domain::player::LoanOffer> {
+    player
+        .loan_offers
+        .iter()
+        .find(|offer| offer.from_team_id == club_id && offer.status == LoanOfferStatus::Pending)
+        .or_else(|| {
+            player
+                .loan_offers
+                .iter()
+                .filter(|offer| {
+                    offer.from_team_id == club_id
+                        && offer.status == LoanOfferStatus::Rejected
+                        && within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, today)
+                        && loan_made_to_current_owner(player, offer)
+                })
+                .max_by_key(|offer| {
+                    offer
+                        .closed_on
+                        .clone()
+                        .unwrap_or_else(|| offer.date.clone())
+                })
+        })
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn upsert_loan_offer(
     player: &mut domain::player::Player,
@@ -201,9 +231,17 @@ pub(crate) fn upsert_loan_offer(
         LoanOfferStatus::Rejected | LoanOfferStatus::Withdrawn
     );
 
-    if let Some(offer) = player.loan_offers.iter_mut().find(|offer| {
-        offer.from_team_id == from_team_id && offer.status == LoanOfferStatus::Pending
-    }) {
+    let reusable = latest_loan_negotiation_with_club(
+        player,
+        from_team_id,
+        NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap_or_default(),
+    )
+    .map(|offer| offer.id.clone());
+    if let Some(offer) = player
+        .loan_offers
+        .iter_mut()
+        .find(|offer| reusable.as_deref() == Some(offer.id.as_str()))
+    {
         offer.parent_team_id = parent_team_id.to_string();
         offer.start_date = start_date.to_string();
         offer.end_date = end_date.to_string();
@@ -503,6 +541,18 @@ pub fn make_loan_offer(
 
     validate_loan_end_before_contract(player, end_date)?;
 
+    // An owner who has refused this club four times has stopped taking its calls.
+    let earlier = latest_loan_negotiation_with_club(player, &user_team_id, current_date);
+    if earlier.is_some_and(|offer| {
+        offer.status == LoanOfferStatus::Rejected
+            && offer.negotiation_round >= NEGOTIATION_BREAK_OFF_ROUND
+    }) {
+        return Err(ERR_TALKS_BROKEN_OFF.into());
+    }
+    let round = earlier
+        .map(|offer| offer.negotiation_round.max(1).saturating_add(1))
+        .unwrap_or(1);
+
     let owner_team_id = player.team_id.clone().ok_or(ERR_PLAYER_HAS_NO_TEAM)?;
     let owner_team = game
         .teams
@@ -552,6 +602,20 @@ pub fn make_loan_offer(
             &today,
         )
     };
+    // The round the owner has reached with this club: upserting resets a reused row to one.
+    if let Some(offer) = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == player_id)
+        .and_then(|player| {
+            player
+                .loan_offers
+                .iter_mut()
+                .find(|offer| offer.id == offer_id)
+        })
+    {
+        offer.negotiation_round = round;
+    }
 
     if accepted {
         if register_immediately {

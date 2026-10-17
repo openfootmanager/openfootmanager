@@ -79,3 +79,39 @@ fn a_bid_preview_flags_a_fee_only_when_it_is_more_than_the_club_has() {
         ]
     );
 }
+
+/// Given a club whose wage budget leaves no room for the player's standard wage, and the same
+///       club with a budget to spare, both able to pay a fee the seller would take
+/// When a bid for him is previewed in each case
+/// Then the preview flags the wage only where the board refuses it when the deal is agreed, by the
+///      same rule that refusal uses
+#[test]
+fn a_bid_preview_flags_a_wage_the_board_would_refuse() {
+    const FEE: u64 = 50_000_000;
+    let player = make_player("player-wage-flag");
+    let mut game = make_game_with_player(player, vec![], 100_000_000, 100_000_000);
+    let preview = |game: &Game| {
+        ofm_core::transfers::project_transfer_bid_financial_impact(game, "player-wage-flag", FEE)
+            .expect("the preview is informational")
+    };
+
+    game.teams[0].wage_budget = 1_000_000_000;
+    let roomy = preview(&game);
+    let bill = roomy.current_weekly_wage_spend;
+    game.teams[0].wage_budget = bill;
+    let tight = preview(&game);
+
+    assert!(!roomy.blocked_by_wage_policy);
+    assert!(
+        tight.blocked_by_wage_policy,
+        "bill {bill}, incoming {}",
+        tight.incoming_player_weekly_wage
+    );
+    let refusal = make_transfer_bid(&mut game, "player-wage-flag", FEE).err();
+    assert!(
+        refusal
+            .as_deref()
+            .is_some_and(|error| error.starts_with("be.error.contracts.boardWagePolicy")),
+        "the flagged deal is the one the board refuses once it is agreed: {refusal:?}"
+    );
+}

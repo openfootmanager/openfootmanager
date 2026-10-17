@@ -336,6 +336,28 @@ fn report_has_scout_report_data() {
     assert_eq!(report.team_name.as_deref(), Some("Rival FC"));
 }
 
+/// Given a scouted player whose position is the coarse Defender group but who is a left back
+/// When the scout's report is built
+/// Then it names the left back: the card shows the natural position, not the group.
+#[test]
+fn the_report_carries_the_natural_position_not_the_coarse_group() {
+    let mut game = make_game();
+    let target = game.players.iter_mut().find(|p| p.id == "p2").unwrap();
+    target.position = Position::Defender;
+    target.natural_position = Position::LeftBack;
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+
+    let report = game
+        .messages
+        .iter()
+        .find(|m| m.category == MessageCategory::ScoutReport)
+        .and_then(|m| m.context.scout_report.as_ref())
+        .expect("a scout report");
+
+    assert_eq!(report.position, "LeftBack");
+}
+
 #[test]
 fn process_scouting_completes_youth_recruitment_report() {
     let mut game = make_game();
@@ -462,6 +484,78 @@ fn youth_recruitment_response_signs_selected_prospect() {
         .find(|player| player.id == prospect_id)
         .expect("expected signed prospect to remain visible");
     assert_eq!(signed_prospect.team_id.as_deref(), Some("team1"));
+}
+
+fn youth_report_with_a_prospect() -> (Game, String, String, String) {
+    let mut game = make_game();
+    start_youth_scouting(
+        &mut game,
+        "scout1",
+        YouthScoutingRegion::Domestic,
+        YouthScoutingObjective::Balanced,
+        Some(Position::Defender),
+    )
+    .unwrap();
+    complete_scouting(&mut game);
+    let message = game
+        .messages
+        .iter()
+        .find(|candidate| {
+            candidate.subject_key.as_deref() == Some("be.msg.youthRecruitmentReport.subject")
+        })
+        .expect("expected youth recruitment report")
+        .clone();
+    let action_id = message.actions[0].id.clone();
+    let prospect_id = action_id.trim_start_matches("prospect:").to_string();
+    (game, message.id, action_id, prospect_id)
+}
+
+/// Given a youth report whose prospect was signed and has since retired into the archive,
+/// when the report's sign action is replayed, then the archived person is not admitted again.
+#[test]
+fn replaying_a_sign_action_cannot_bring_back_an_archived_player() {
+    let (mut game, message_id, action_id, prospect_id) = youth_report_with_a_prospect();
+    apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign")
+        .expect("the first signing works");
+    let index = game
+        .players
+        .iter()
+        .position(|player| player.id == prospect_id)
+        .expect("he was signed");
+    let mut retired = game.players.remove(index);
+    retired.retired = true;
+    game.retired_players
+        .push(domain::retired_player::RetiredPlayer::from_player(
+            &retired,
+            "2040-06-30",
+            2040,
+        ));
+    game.messages
+        .iter_mut()
+        .find(|message| message.id == message_id)
+        .unwrap()
+        .actions[0]
+        .resolved = false;
+
+    let replay = apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign");
+
+    assert!(replay.is_none());
+    assert!(game.players.iter().all(|player| player.id != prospect_id));
+}
+
+/// Given a sign action that is already resolved, when it is replayed, then nobody is signed twice
+/// and the roster is unchanged.
+#[test]
+fn replaying_a_resolved_sign_action_signs_nobody() {
+    let (mut game, message_id, action_id, prospect_id) = youth_report_with_a_prospect();
+    apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign")
+        .expect("the first signing works");
+    game.players.retain(|player| player.id != prospect_id);
+
+    let replay = apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign");
+
+    assert!(replay.is_none());
+    assert!(game.players.iter().all(|player| player.id != prospect_id));
 }
 
 #[test]

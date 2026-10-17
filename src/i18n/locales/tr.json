@@ -1157,6 +1157,15 @@
   },
   "inbox": {
     "title": "Gelen Kutusu",
+    "archive": {
+      "heading": "Eski mesajlar",
+      "load": "Eski mesajları yükle",
+      "loadMore": "Daha fazla eski mesaj yükle",
+      "loading": "Eski mesajlar yükleniyor…",
+      "empty": "Eski mesaj yok.",
+      "end": "Başka eski mesaj yok.",
+      "error": "Eski mesajlar yüklenemedi."
+    },
     "nMessages": "{{count}} mesaj",
     "noMessages": "Mesaj yok",
     "noMessagesInCategory": "Bu kategoride mesaj yok",
@@ -1348,6 +1357,7 @@
     "bidImpactWagePressure": "Öngörülen maaş bütçesi kullanımı %{{percent}}",
     "bidImpactOverTransferBudget": "Bu teklif transfer bütçenizi aşıyor",
     "bidImpactOverBalance": "Bu teklif kulübü borca sokar",
+    "bidImpactOverWagePolicy": "Yönetim kurulu maaşını reddeder: kulübün maaş politikasını aşıyor",
     "bidAccepted": "Teklif kabul edildi! Oyuncu imzaladı.",
     "bidCountered": "Gözden geçirilmiş şartlarla geri döndüler.",
     "bidRejected": "Teklif reddedildi — teklif çok düşük.",

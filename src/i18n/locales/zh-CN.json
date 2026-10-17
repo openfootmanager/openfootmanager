@@ -1157,6 +1157,15 @@
   },
   "inbox": {
     "title": "收件箱",
+    "archive": {
+      "heading": "较早的消息",
+      "load": "加载较早的消息",
+      "loadMore": "加载更多较早的消息",
+      "loading": "正在加载较早的消息…",
+      "empty": "没有较早的消息。",
+      "end": "没有更多较早的消息了。",
+      "error": "无法加载较早的消息。"
+    },
     "nMessages": "{{count}} 条消息",
     "noMessages": "暂无消息",
     "noMessagesInCategory": "此分类下暂无消息",
@@ -1348,6 +1357,7 @@
     "bidImpactWagePressure": "预计工资预算占用 {{percent}}%",
     "bidImpactOverTransferBudget": "这笔报价超出了你的转会预算",
     "bidImpactOverBalance": "这笔报价会让俱乐部陷入负债",
+    "bidImpactOverWagePolicy": "董事会会拒绝他的薪资：它超出了俱乐部的薪资政策",
     "bidAccepted": "出价被接受!球员已签下。",
     "bidCountered": "对方提出了修改后的条款。",
     "bidRejected": "出价被拒绝 — 报价过低。",

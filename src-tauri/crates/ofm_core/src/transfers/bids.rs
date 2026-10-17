@@ -100,10 +100,8 @@ fn closed_within_cooldown(
     offer: &domain::player::TransferOffer,
     today: NaiveDate,
 ) -> bool {
-    let stamp = offer.closed_on.as_deref().unwrap_or(&offer.date);
-    NaiveDate::parse_from_str(stamp, "%Y-%m-%d")
-        .is_ok_and(|closed| (today - closed).num_days() < REBID_COOLDOWN_DAYS)
-        && heard_by_current_owner(player, stamp)
+    within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, today)
+        && heard_by_current_owner(player, offer.closed_on.as_deref().unwrap_or(&offer.date))
 }
 
 /// Whether the owner has walked away from this buyer and the cooldown still holds.
@@ -321,8 +319,13 @@ pub fn project_transfer_bid_financial_impact(
     // What he would be paid at this club: the contract the transfer would give him, not
     // the one he is on. Falls back to his current wage only if the terms cannot be worked
     // out, since the preview is informational.
-    let incoming_wage = buyers_standard_terms(game, player, &team.id)
-        .map_or_else(|_| i64::from(player.wage()), |(_, wage, _)| i64::from(wage));
+    let standard_terms = buyers_standard_terms(game, player, &team.id).ok();
+    let incoming_wage = standard_terms
+        .as_ref()
+        .map_or_else(|| i64::from(player.wage()), |(_, wage, _)| i64::from(*wage));
+    let blocked_by_wage_policy = standard_terms.as_ref().is_some_and(|(buyer, wage, _)| {
+        !purchase_wage_policy_verdict(game, buyer, player, *wage).permits()
+    });
     let annual_wage_bill_before = calc_wages(game, &team.id);
     let annual_wage_bill_after = annual_wage_bill_before + incoming_wage;
     let projected_wage_budget_usage_pct = if team.wage_budget > 0 {
@@ -361,6 +364,7 @@ pub fn project_transfer_bid_financial_impact(
         projected_wage_budget_usage_pct,
         exceeds_transfer_budget: transfer_budget_after < 0,
         exceeds_finance: finance_after < 0,
+        blocked_by_wage_policy,
         pending_registration_date,
     })
 }

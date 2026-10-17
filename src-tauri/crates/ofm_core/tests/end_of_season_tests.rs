@@ -2180,15 +2180,16 @@ fn season_end_ages_players_and_retires_out_of_contract_veterans() {
 
     process_end_of_season(&mut game);
 
-    let veteran = game
-        .players
-        .iter()
-        .find(|player| player.id == "p1")
-        .unwrap();
     assert!(
-        veteran.retired,
-        "older out-of-contract veterans should retire"
+        game.players.iter().all(|player| player.id != "p1"),
+        "a retired veteran leaves the roster"
     );
+    let veteran = game
+        .retired_players
+        .iter()
+        .find(|record| record.id == "p1")
+        .expect("older out-of-contract veterans should retire into the archive")
+        .to_player();
     assert_eq!(
         veteran.team_id, None,
         "retired players should leave their club"
@@ -3781,6 +3782,37 @@ fn retiree_conversion_is_idempotent() {
     );
 }
 
+/// Given one player who retired this season and one archived seasons ago, both with careers,
+/// When the season ends
+/// Then only this season's retiree becomes a manager and a scout candidate.
+#[test]
+fn only_this_seasons_retirees_become_candidates() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("recent"));
+    let long_ago = make_retired_player("longago");
+    game.retired_players
+        .push(domain::retired_player::RetiredPlayer::from_player(
+            &long_ago,
+            "2001-06-30",
+            2001,
+        ));
+
+    process_end_of_season(&mut game);
+
+    assert!(game.managers.iter().any(|m| m.id == "mgr_retired_recent"));
+    assert!(
+        game.staff
+            .iter()
+            .any(|s| s.id == "staff_retired_scout_recent")
+    );
+    assert!(game.managers.iter().all(|m| m.id != "mgr_retired_longago"));
+    assert!(
+        game.staff
+            .iter()
+            .all(|s| s.id != "staff_retired_scout_longago")
+    );
+}
+
 /// Given a retired player whose manager conversion has since retired into the archive
 /// When the season ends again
 /// Then the conversion does not create the manager a second time.
@@ -4017,6 +4049,46 @@ fn advancing_a_complete_season_rolls_it_over_and_returns_the_summary() {
         game.manager.team_id.is_some(),
         "a manager with a healthy board keeps the job"
     );
+}
+
+/// Given a finished season (on the 20th, not the 1st, so the monthly sweep cannot be the cause)
+///       with read mail from over a year ago, read mail from last week, and unread old mail
+/// When the season is rolled over
+/// Then the rollover itself archives the old read mail, and leaves the rest in the inbox.
+#[test]
+fn rolling_a_season_over_archives_old_read_mail() {
+    let mut game = make_completed_season_game();
+    let mail = |id: &str, date: &str, read: bool| {
+        let mut message = domain::message::InboxMessage::new(
+            id.to_string(),
+            "Subject".to_string(),
+            "Body".to_string(),
+            "Board".to_string(),
+            date.to_string(),
+        );
+        message.read = read;
+        message
+    };
+    game.messages = vec![
+        mail("old-read", "2025-01-01", true),
+        mail("old-unread", "2025-01-01", false),
+        mail("recent-read", "2026-05-13", true),
+    ];
+
+    advance_to_next_season(&mut game).expect("a finished season advances");
+
+    let archived: Vec<&str> = game
+        .archived_messages
+        .iter()
+        .map(|message| message.id.as_str())
+        .collect();
+    assert_eq!(archived, ["old-read"]);
+    for kept in ["old-unread", "recent-read"] {
+        assert!(
+            game.messages.iter().any(|message| message.id == kept),
+            "{kept}"
+        );
+    }
 }
 
 /// Given a finished season rolled over once, when advancing is asked for again,

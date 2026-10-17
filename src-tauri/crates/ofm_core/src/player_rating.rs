@@ -1,13 +1,11 @@
+use crate::player_tier::{PlayerTier, player_tier};
 use domain::player::{
     Footedness, Player, PlayerAttributes, PlayerTrait, Position, WEAK_FOOT_MAX, WEAK_FOOT_MIN,
 };
 use rand::RngExt;
 
 const WONDERKID_MAX_AGE: u32 = 20;
-const WONDERKID_MIN_POTENTIAL: u8 = 90;
 const WONDERKID_MIN_GROWTH_ROOM: u8 = 14;
-// Wonderkid rebalance for v0.2.1: tightened from age <= 21, potential >= 85,
-// and growth room >= 10 to reduce how often the tag appears in playtesting.
 
 pub fn formation_slots(formation: &str) -> Vec<Position> {
     formation_slot_rows(formation)
@@ -34,8 +32,8 @@ pub fn deployed_position(team: &domain::team::Team, player_id: &str) -> Option<P
 /// - `ovr` is recomputed from the player's natural position using position-weighted attributes.
 /// - `potential` is set only if it is currently 0 (unset), using a random bonus based on age.
 ///   Once set it is preserved so training gains can grow OVR toward the ceiling naturally.
-/// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied only
-///   after the v0.2.1 rebalance for age <= 20, potential >= 90, and growth room >= 14.
+/// - `traits` are recomputed from current attributes, and the `Wonderkid` trait is applied by
+///   `qualifies_for_wonderkid`: age 20 or under, an S-tier ceiling, and 14 or more to grow.
 ///
 /// Ages are reckoned on `on`: the game's date, or `domain::age::season_midpoint` when only a
 /// year is known.
@@ -68,28 +66,128 @@ pub fn refresh_player_derived(player: &mut Player, on: chrono::NaiveDate) {
     player.traits = traits;
 }
 
+/// Apply the wonderkid rule to a player's stored traits without touching anything else: add the tag
+/// when he qualifies and lacks it, take it off when he has it and no longer qualifies. `true` when a
+/// trait changed. Used on load, so a save written under an older rule is judged by the current one.
+pub fn reconcile_wonderkid_trait(player: &mut Player, on: chrono::NaiveDate) -> bool {
+    let age = domain::age::playing_age(on, &player.date_of_birth);
+    let qualifies = qualifies_for_wonderkid(age, player.potential, player.ovr);
+    let tagged = player.traits.contains(&PlayerTrait::Wonderkid);
+    match (qualifies, tagged) {
+        (true, false) => player.traits.push(PlayerTrait::Wonderkid),
+        (false, true) => player.traits.retain(|t| *t != PlayerTrait::Wonderkid),
+        _ => return false,
+    }
+    true
+}
+
 /// Returns `true` when a player qualifies as a wonderkid: they are at or below
-/// `WONDERKID_MAX_AGE`, have at least `WONDERKID_MIN_POTENTIAL`, and their
-/// remaining growth (`potential - ovr`) meets `WONDERKID_MIN_GROWTH_ROOM`,
-/// reducing the number of qualifying players after playtesting.
+/// `WONDERKID_MAX_AGE`, have an S-tier ceiling (the game's one definition of elite, see
+/// `player_tier`), and their remaining growth (`potential - ovr`) meets
+/// `WONDERKID_MIN_GROWTH_ROOM`. The gate is read from the tier so it moves with the scale, and is
+/// applied alike to a player generated now and to one loaded from an older save.
 pub fn qualifies_for_wonderkid(age: u32, potential: u8, ovr: u8) -> bool {
     age <= WONDERKID_MAX_AGE
-        && potential >= WONDERKID_MIN_POTENTIAL
+        && player_tier(potential) == PlayerTier::S
         && potential.saturating_sub(ovr) >= WONDERKID_MIN_GROWTH_ROOM
 }
 
-/// Generate a potential rating for a newly-created player based on current OVR and age.
-/// Returns a value in [1, 99] that is always >= `ovr`.
+/// How far above his current rating a player of `age` can still grow: the one rule for the gap
+/// between current ability and ceiling. Read forwards (ceiling minus this) when a player is
+/// generated ceiling-first, and backwards (rating plus this) when an author gave a rating and no
+/// ceiling, so the two can never disagree about what a 17-year-old's headroom is.
+pub fn growth_headroom_range(age: u32) -> std::ops::RangeInclusive<u8> {
+    match age {
+        ..=18 => 15..=30,
+        19..=20 => 8..=22,
+        21..=22 => 4..=14,
+        23..=25 => 0..=7,
+        _ => 0..=0,
+    }
+}
+
+/// A headroom drawn from `growth_headroom_range(age)`. A range of one value is returned without
+/// drawing, so a veteran costs the stream nothing.
+pub fn roll_growth_headroom(age: u32, rng: &mut impl rand::Rng) -> u8 {
+    let range = growth_headroom_range(age);
+    if range.start() == range.end() {
+        *range.start()
+    } else {
+        rng.random_range(range)
+    }
+}
+
+/// Generate a potential rating for a player whose current rating is already known: `ovr` plus a
+/// headroom for `age`. Returns a value in [1, 99] that is always >= `ovr`.
 /// The lower bound of 1 (via `ovr.max(1)`) ensures potential is never 0 even when `ovr` is 0.
 pub fn generate_potential(ovr: u8, age: u32, rng: &mut impl rand::Rng) -> u8 {
-    let bonus: u8 = match age {
-        ..=18 => rng.random_range(15u8..=30),
-        19..=20 => rng.random_range(8u8..=22),
-        21..=22 => rng.random_range(4u8..=14),
-        23..=25 => rng.random_range(0u8..=7),
-        _ => 0,
-    };
+    let bonus = roll_growth_headroom(age, rng);
     (ovr.saturating_add(bonus)).min(99).max(ovr.max(1))
+}
+
+/// Move every attribute by the same amount, one point at a time in one direction, until the
+/// position-weighted rating reaches `target_ovr` or passes it, then keep whichever of the last two
+/// steps is closer (or stop at an attribute running into 1 or 99). Keeps the shape of the player (a
+/// keeper stays a keeper) and moves only his level: down, a ceiling becomes a younger, less
+/// developed self; up, a rolled rating is lifted onto a ceiling. A rating already within half a
+/// point of the target is left alone. Moving in one direction only is what guarantees it ends.
+pub fn move_attributes_to(attributes: &mut PlayerAttributes, position: &Position, target_ovr: u8) {
+    let target = f64::from(target_ovr);
+    let mut current = ovr_from_attributes(attributes, position);
+    if (current - target).abs() <= 0.5 {
+        return;
+    }
+    let step: i8 = if current > target { -1 } else { 1 };
+    loop {
+        let before = attributes.clone();
+        if !shift_each_attribute(attributes, step) {
+            return;
+        }
+        let next = ovr_from_attributes(attributes, position);
+        let passed = (step < 0 && next <= target) || (step > 0 && next >= target);
+        if passed {
+            if (current - target).abs() < (next - target).abs() {
+                *attributes = before;
+            }
+            return;
+        }
+        current = next;
+    }
+}
+
+fn every_attribute_mut(a: &mut PlayerAttributes) -> [&mut u8; 19] {
+    [
+        &mut a.pace,
+        &mut a.stamina,
+        &mut a.strength,
+        &mut a.agility,
+        &mut a.passing,
+        &mut a.shooting,
+        &mut a.tackling,
+        &mut a.dribbling,
+        &mut a.defending,
+        &mut a.positioning,
+        &mut a.vision,
+        &mut a.decisions,
+        &mut a.composure,
+        &mut a.aggression,
+        &mut a.teamwork,
+        &mut a.leadership,
+        &mut a.handling,
+        &mut a.reflexes,
+        &mut a.aerial,
+    ]
+}
+
+/// Moves every attribute by `step` (+1 or -1) inside 1..=99. `false` when none could move.
+fn shift_each_attribute(attributes: &mut PlayerAttributes, step: i8) -> bool {
+    let mut moved = false;
+    for value in every_attribute_mut(attributes) {
+        let shifted = (i16::from(*value) + i16::from(step)).clamp(1, 99) as u8;
+        moved |= shifted != *value;
+        *value = shifted;
+    }
+    moved
 }
 
 /// The lines of a formation read strictly: `"4-4-2"` is `[4, 4, 2]` and `"4-1-4-1"` is
@@ -774,19 +872,19 @@ mod tests {
         let mut player = make_player(Position::Striker);
         player.date_of_birth = "2007-01-01".to_string();
         player.natural_position = Position::Striker;
-        player.attributes.shooting = 70;
-        player.attributes.positioning = 70;
-        player.attributes.decisions = 70;
-        player.attributes.pace = 70;
-        player.attributes.dribbling = 70;
-        player.attributes.strength = 70;
-        player.attributes.composure = 70;
-        player.attributes.aerial = 70;
-        player.potential = 84;
+        player.attributes.shooting = 55;
+        player.attributes.positioning = 55;
+        player.attributes.decisions = 55;
+        player.attributes.pace = 55;
+        player.attributes.dribbling = 55;
+        player.attributes.strength = 55;
+        player.attributes.composure = 55;
+        player.attributes.aerial = 55;
+        player.potential = 80;
 
         refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
 
-        assert!(player.potential >= player.ovr.saturating_add(10));
+        assert!(player.potential >= player.ovr.saturating_add(14));
         assert!(!player.traits.contains(&PlayerTrait::Wonderkid));
     }
 }

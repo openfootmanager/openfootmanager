@@ -37,6 +37,7 @@ pub mod group_stage;
 pub mod hall_of_fame;
 pub mod history_generation;
 pub mod inbox;
+pub mod inbox_archive;
 pub mod job_offers;
 pub mod knockout_dates;
 pub mod live_match_manager;
