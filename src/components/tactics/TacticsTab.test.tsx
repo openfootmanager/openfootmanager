@@ -4,6 +4,7 @@ import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import type { CustomTactic } from "../../services/customTacticsService";
 import TacticsTab from "./TacticsTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -182,6 +183,7 @@ const makeGameState = (): GameStateData => {
   ];
 
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01",
       start_date: "2026-08-01",

@@ -2,7 +2,6 @@ import type { GameStateData } from "../../store/gameStore";
 import type { ComponentProps } from "react";
 import type { Badge } from "../ui";
 import { useTranslation } from "react-i18next";
-import { resolveSeasonContext } from "../../lib/seasonContext";
 import { formatDate } from "../../lib/dateFormatting";
 function parseDateOnlyMs(value: string | null | undefined): number | null {
   if (!value) {
@@ -35,7 +34,7 @@ interface Input {
 export function useTransferWindow({ gameState }: Input) {
   const { t, i18n } = useTranslation();
   const userTeamId = gameState.manager.team_id;
-  const seasonContext = resolveSeasonContext(gameState);
+  const seasonContext = gameState.season_context;
   const transferWindow = seasonContext.transfer_window;
   const closedWindowRegistrationDate =
     transferWindow.status === "Closed"

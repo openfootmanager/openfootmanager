@@ -11,6 +11,7 @@ import type {
 } from "../../store/gameStore";
 import { marketPageOf } from "../transfers/TransfersTab.testFixtures";
 import ScoutingTab from "./ScoutingTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 const invokeMock = vi.fn();
 
@@ -227,6 +228,7 @@ function createGameState(options?: {
   players?: PlayerData[];
 }): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

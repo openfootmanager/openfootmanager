@@ -6,6 +6,7 @@ import i18n from "../../i18n";
 import type { GameStateData, MessageAction, MessageData } from "../../store/gameStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import InboxTab from "./InboxTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 const mockTranslationState = vi.hoisted(() => ({
   language: "en",
@@ -195,6 +196,7 @@ function createMessage(overrides: Partial<MessageData> = {}): MessageData {
 
 function createGameState(messages: MessageData[]): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2025-01-01",
       start_date: "2025-01-01",

@@ -155,7 +155,6 @@ export type {
   LeagueData,
   NationalTeamData,
   WorldRegionData,
-  TransferWindowContextData,
   SeasonContextData,
   SeasonAwardEntryData,
   SeasonManagerAwardEntryData,

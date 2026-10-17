@@ -9,6 +9,7 @@ import type {
   PlayerData,
   TeamData,
 } from "../../store/gameStore";
+import { createSeasonContext } from "../../test-utils/factories";
 
 const squadMocks = vi.hoisted(() => ({ getSquad: vi.fn().mockResolvedValue([]) }));
 vi.mock("../../services/squadService", () => ({ getSquad: squadMocks.getSquad }));
@@ -205,6 +206,7 @@ function createNewsArticle(overrides: Partial<NewsArticle> = {}): NewsArticle {
 
 function createGameState(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2025-01-20T00:00:00Z",
       start_date: "2025-01-01T00:00:00Z",

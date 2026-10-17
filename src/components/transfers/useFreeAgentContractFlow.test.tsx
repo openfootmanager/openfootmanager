@@ -9,6 +9,7 @@ import {
 } from "../../services/freeAgentService";
 import { resolveBackendError } from "../../utils/backendI18n";
 import { useFreeAgentContractFlow } from "./useFreeAgentContractFlow";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("../../services/freeAgentService", () => ({
   offerFreeAgentContract: vi.fn(),
@@ -124,6 +125,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createGameState(players: PlayerData[] = [createPlayer()]): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01T12:00:00Z",
       start_date: "2026-07-01T12:00:00Z",

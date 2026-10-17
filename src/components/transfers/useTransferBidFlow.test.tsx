@@ -10,6 +10,7 @@ import {
   previewTransferBidFinancialImpact,
 } from "../../services/transfersService";
 import { useTransferBidFlow } from "./useTransferBidFlow";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("../../services/transfersService", () => ({
   getBidNegotiationStatus: vi.fn(),
@@ -133,6 +134,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createGameState(players: PlayerData[] = [createPlayer()]): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01T12:00:00Z",
       start_date: "2026-07-01T12:00:00Z",

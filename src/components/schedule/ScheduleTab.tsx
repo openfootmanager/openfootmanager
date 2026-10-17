@@ -13,7 +13,6 @@ import {
   getUserCalledUpPlayers,
   nationalTeamDisplayName,
 } from "../../lib/helpers";
-import { resolveSeasonContext } from "../../lib/seasonContext";
 import { competitionDisplayName } from "../../lib/competitionName";
 import type { GameStateData, LeagueData } from "../../store/gameStore";
 import {
@@ -63,7 +62,7 @@ export default function ScheduleTab({ gameState, onSelectTeam }: ScheduleTabProp
   const nationalFixtures = getNationalTeamFixtures(gameState);
   const hasInternational = nationalFixtures.length > 0;
   const calledUpPlayers = getUserCalledUpPlayers(gameState);
-  const seasonContext = resolveSeasonContext(gameState);
+  const seasonContext = gameState.season_context;
   const isPreseason = seasonContext.phase === "Preseason";
 
   // Resolve which competition to show.
@@ -681,7 +680,7 @@ function StandingsView({
   competition: LeagueData | null;
   userTeamId: string | null;
   isPreseason: boolean;
-  seasonContext: ReturnType<typeof resolveSeasonContext>;
+  seasonContext: GameStateData["season_context"];
   onSelectTeam: (id: string) => void;
   buildTeamMenuItem: (label: string, teamId: string) => ContextMenuItem;
   gameState: GameStateData;

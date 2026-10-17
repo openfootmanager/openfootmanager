@@ -7,6 +7,7 @@ import { calcAge } from "../../lib/helpers";
 import type { PlayerSummary, PlayersPage, PlayersPageQuery } from "../../services/playersService";
 import { resetPackageAssetRoot } from "../../hooks/usePackageAssetSrc";
 import PlayersListTab from "./PlayersListTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((path: string) => `asset://localhost/${path}`),
@@ -205,6 +206,7 @@ function createScout(overrides: Partial<StaffData> = {}): StaffData {
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
