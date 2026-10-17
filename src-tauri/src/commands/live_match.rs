@@ -1815,10 +1815,9 @@ mod live_session_tests {
     refused_advance!(event_advancing_during_a_live_match_is_refused, |s| {
         time::advance_to_next_event_internal(s, ofm_core::state::Career::Active)
     });
-    refused_advance!(
-        season_advancing_during_a_live_match_is_refused,
-        season::advance_to_next_season_internal
-    );
+    refused_advance!(season_advancing_during_a_live_match_is_refused, |s| {
+        season::advance_to_next_season_internal(s, ofm_core::state::Career::Active)
+    });
 
     /// Given a live session, when another match is started, then the first session is unchanged.
     #[test]

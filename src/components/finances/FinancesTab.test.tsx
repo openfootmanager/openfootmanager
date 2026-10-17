@@ -576,7 +576,7 @@ describe("FinancesTab facilities", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pitch Sponsor" }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("request_sponsor_pitch");
+      expect(mockedInvoke).toHaveBeenCalledWith("request_sponsor_pitch", { careerToken: 0 });
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
@@ -648,7 +648,7 @@ describe("FinancesTab facilities", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch Campaign" }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("request_marketing_campaign");
+      expect(mockedInvoke).toHaveBeenCalledWith("request_marketing_campaign", { careerToken: 0 });
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);

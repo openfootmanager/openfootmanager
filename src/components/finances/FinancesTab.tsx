@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
 import type { GameStateData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
@@ -313,7 +312,7 @@ function FinancesTabLoaded({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<BoardSupportResponseData>("request_board_support");
+      const response = await invokeForCareer<BoardSupportResponseData>("request_board_support");
       onGameUpdate?.(response.game);
       setBoardSupportFeedback({
         tone: "success",
@@ -340,7 +339,7 @@ function FinancesTabLoaded({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<SponsorPitchResponseData>("request_sponsor_pitch");
+      const response = await invokeForCareer<SponsorPitchResponseData>("request_sponsor_pitch");
       onGameUpdate?.(response.game);
       setSponsorPitchFeedback({
         tone: "success",
@@ -367,7 +366,9 @@ function FinancesTabLoaded({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<MarketingCampaignResponseData>("request_marketing_campaign");
+      const response = await invokeForCareer<MarketingCampaignResponseData>(
+        "request_marketing_campaign",
+      );
       onGameUpdate?.(response.game);
       setMarketingCampaignFeedback({
         tone: "success",

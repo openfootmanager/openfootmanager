@@ -60,6 +60,11 @@ export const SCREEN_WRITE_COMMANDS = [
   "delete_messages",
   "clear_old_messages",
   "resolve_message_action",
+  "request_board_support",
+  "request_sponsor_pitch",
+  "request_marketing_campaign",
+  "apply_for_job",
+  "advance_to_next_season",
 ] as const;
 
 export type ScreenWriteCommand = (typeof SCREEN_WRITE_COMMANDS)[number];

@@ -2,7 +2,7 @@ use log::info;
 use std::sync::Arc;
 use tauri::State;
 
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
 #[tauri::command]
 pub fn check_season_complete(state: State<'_, Arc<StateManager>>) -> Result<bool, String> {
@@ -15,15 +15,19 @@ pub fn check_season_complete(state: State<'_, Arc<StateManager>>) -> Result<bool
 #[tauri::command]
 pub fn advance_to_next_season(
     state: State<'_, Arc<StateManager>>,
+    career_token: u64,
 ) -> Result<serde_json::Value, String> {
-    advance_to_next_season_internal(&state)
+    advance_to_next_season_internal(&state, Career::Token(career_token))
 }
 
-pub fn advance_to_next_season_internal(state: &StateManager) -> Result<serde_json::Value, String> {
+pub fn advance_to_next_season_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<serde_json::Value, String> {
     let _operation = crate::application::live_session::idle_operation(state)?;
     info!("[cmd] advance_to_next_season");
     state
-        .update_game(|game| {
+        .update_game_for(career, |game| {
             let summary = ofm_core::end_of_season::advance_to_next_season(game)?;
 
             if game.manager.team_id.is_none() {
@@ -39,7 +43,7 @@ pub fn advance_to_next_season_internal(state: &StateManager) -> Result<serde_jso
                 }))
             }
         })
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+        .and_then(|response| response)
 }
 
 #[tauri::command]
@@ -73,6 +77,7 @@ pub(crate) mod tests {
     use domain::team::Team;
     use ofm_core::clock::GameClock;
     use ofm_core::game::{BoardObjective, Game, ObjectiveType};
+    use ofm_core::state::Career;
     use ofm_core::state::StateManager;
 
     pub(crate) fn completed_checkpoint() -> Game {
@@ -194,11 +199,29 @@ pub(crate) mod tests {
 
     /// Given all required fixtures completed, when the shared command rolls over,
     /// then the season increments, the table and player stats reset, and fixtures regenerate.
+    /// Given a finished season in career B (token 2) and a screen holding career A's token (1)
+    /// When the screen asks to roll the season over
+    /// Then it is refused with the career-changed key and B's season is not rolled over.
+    #[test]
+    fn rolling_the_season_over_for_a_replaced_career_is_refused() {
+        let state = StateManager::new();
+        let mut game = completed_checkpoint();
+        game.career_token = 2;
+        state.set_game(game);
+        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+
+        let result = advance_to_next_season_internal(&state, Career::Token(1));
+
+        assert_eq!(result.err(), Some("be.error.careerChanged".to_string()));
+        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        assert_eq!(after, before);
+    }
+
     #[test]
     fn season_advance_rolls_the_season_over() {
         let state = StateManager::new();
         state.set_game(completed_checkpoint());
-        let response = advance_to_next_season_internal(&state).unwrap();
+        let response = advance_to_next_season_internal(&state, Career::Active).unwrap();
         assert_eq!(response["summary"]["season"], 2025);
         let after = state.get_game(Clone::clone).unwrap();
         let league = &after.competitions[0];
@@ -236,7 +259,7 @@ pub(crate) mod tests {
         let before = serde_json::to_value(&game).unwrap();
         state.set_game(game);
         assert_eq!(
-            advance_to_next_season_internal(&state).unwrap_err(),
+            advance_to_next_season_internal(&state, Career::Active).unwrap_err(),
             "be.error.seasonNotComplete"
         );
         assert_eq!(
@@ -253,12 +276,12 @@ pub(crate) mod tests {
     fn rolling_over_twice_is_refused() {
         let state = StateManager::new();
         state.set_game(completed_checkpoint());
-        advance_to_next_season_internal(&state).unwrap();
+        advance_to_next_season_internal(&state, Career::Active).unwrap();
         let before = state
             .get_game(|game| serde_json::to_value(game).unwrap())
             .unwrap();
         assert_eq!(
-            advance_to_next_season_internal(&state).unwrap_err(),
+            advance_to_next_season_internal(&state, Career::Active).unwrap_err(),
             "be.error.seasonNotComplete"
         );
         assert_eq!(
@@ -285,7 +308,7 @@ pub(crate) mod tests {
             met: false,
         });
         state.set_game(game);
-        let response = advance_to_next_season_internal(&state).unwrap();
+        let response = advance_to_next_season_internal(&state, Career::Active).unwrap();
         assert_eq!(response["action"], "fired");
         assert_eq!(response["summary"]["season"], 2025);
         assert_eq!(response["game"]["competitions"][0]["season"], 2026);
@@ -311,8 +334,8 @@ pub(crate) mod tests {
         let tool = StateManager::new();
         command.set_game(first);
         tool.set_game(second);
-        let command_result = advance_to_next_season_internal(&command).unwrap();
-        let tool_result = advance_to_next_season_internal(&tool).unwrap();
+        let command_result = advance_to_next_season_internal(&command, Career::Active).unwrap();
+        let tool_result = advance_to_next_season_internal(&tool, Career::Active).unwrap();
         let ids = |result: &serde_json::Value| {
             result["game"]["competitions"][0]["fixtures"]
                 .as_array()

@@ -90,7 +90,10 @@ pub fn staff_release(ctx: Arc<McpContext>, staff_id: String) -> Result<StaffRele
 // ─── club_request_board_support ─────────────────────────────────────────────
 
 pub fn club_request_board_support(ctx: Arc<McpContext>) -> Result<BoardSupport, String> {
-    let response = crate::commands::finances::request_board_support_internal(&ctx.state_manager)?;
+    let response = crate::commands::finances::request_board_support_internal(
+        &ctx.state_manager,
+        Career::Active,
+    )?;
 
     {
         use tauri::Emitter;
@@ -109,8 +112,10 @@ pub fn club_request_board_support(ctx: Arc<McpContext>) -> Result<BoardSupport, 
 // ─── club_request_marketing ─────────────────────────────────────────────────
 
 pub fn club_request_marketing(ctx: Arc<McpContext>) -> Result<MarketingCampaign, String> {
-    let response =
-        crate::commands::finances::request_marketing_campaign_internal(&ctx.state_manager)?;
+    let response = crate::commands::finances::request_marketing_campaign_internal(
+        &ctx.state_manager,
+        Career::Active,
+    )?;
 
     {
         use tauri::Emitter;
@@ -127,7 +132,10 @@ pub fn club_request_marketing(ctx: Arc<McpContext>) -> Result<MarketingCampaign,
 // ─── club_request_sponsor_pitch ─────────────────────────────────────────────
 
 pub fn club_request_sponsor_pitch(ctx: Arc<McpContext>) -> Result<SponsorPitch, String> {
-    let response = crate::commands::finances::request_sponsor_pitch_internal(&ctx.state_manager)?;
+    let response = crate::commands::finances::request_sponsor_pitch_internal(
+        &ctx.state_manager,
+        Career::Active,
+    )?;
 
     {
         use tauri::Emitter;
