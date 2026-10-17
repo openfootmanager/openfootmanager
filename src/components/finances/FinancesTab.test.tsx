@@ -504,6 +504,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "sponsor_2025-06-15",
         actionId: "respond",
         optionId: "accept",

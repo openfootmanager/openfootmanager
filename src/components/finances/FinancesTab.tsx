@@ -427,7 +427,7 @@ function FinancesTabLoaded({
     const loadingKey = `sponsor:${messageId}:${optionId}`;
     setActionLoading(loadingKey);
     try {
-      const result = await invoke<ResolveMessageActionResult>("resolve_message_action", {
+      const result = await invokeForCareer<ResolveMessageActionResult>("resolve_message_action", {
         messageId,
         actionId,
         optionId,

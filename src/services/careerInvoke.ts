@@ -54,6 +54,12 @@ export const SCREEN_WRITE_COMMANDS = [
   "hire_staff",
   "release_staff",
   "upgrade_facility",
+  "mark_message_read",
+  "mark_all_messages_read",
+  "delete_message",
+  "delete_messages",
+  "clear_old_messages",
+  "resolve_message_action",
 ] as const;
 
 export type ScreenWriteCommand = (typeof SCREEN_WRITE_COMMANDS)[number];
