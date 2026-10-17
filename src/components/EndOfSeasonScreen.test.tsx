@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, SeasonAwardsData } from "../store/gameStore";
 import EndOfSeasonScreen from "./EndOfSeasonScreen";
+import { createSeasonContext } from "../test-utils/factories";
 
 const setShowFiredModal = vi.fn();
 
@@ -93,6 +94,7 @@ function createAwards(): SeasonAwardsData {
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-05-20T00:00:00Z",
       start_date: "2025-07-01T00:00:00Z",

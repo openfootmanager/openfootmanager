@@ -3,7 +3,6 @@ import { Card, CardHeader, CardBody, Badge } from "../ui";
 import { formatDateShort, getUserCompetition } from "../../lib/helpers";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
-import { resolveSeasonContext } from "../../lib/seasonContext";
 import NextMatchDisplay from "../NextMatchDisplay";
 import { resolveBoardObjective, resolveMessage, resolveNewsArticle } from "../../utils/backendI18n";
 import {
@@ -90,7 +89,7 @@ export default function HomeTab({
 
   // Current date / season context
   const lang = i18n.language;
-  const seasonContext = resolveSeasonContext(gameState);
+  const seasonContext = gameState.season_context;
   const isPreseason = seasonContext.phase === "Preseason";
   const seasonStartLabel = seasonContext.season_start
     ? formatDateShort(seasonContext.season_start, lang)

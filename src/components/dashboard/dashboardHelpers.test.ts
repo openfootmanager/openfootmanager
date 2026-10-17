@@ -10,6 +10,7 @@ import {
   getTodayMatchFixture,
   getUnreadMessagesCount,
 } from "./dashboardHelpers";
+import { createSeasonContext } from "../../test-utils/factories";
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -127,6 +128,7 @@ function createMessage(overrides: Partial<MessageData> = {}): MessageData {
 
 function createGameState(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2025-01-10T00:00:00Z",
       start_date: "2025-01-01T00:00:00Z",

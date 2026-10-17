@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData } from "../../store/gameStore";
 import type { TeamCard, TeamsDirectory, TeamsDirectoryQuery } from "../../services/teamsService";
 import TeamsListTab from "./TeamsListTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -52,6 +53,7 @@ const mockedInvoke = vi.mocked(invoke);
 
 function gameStateWithManagerTeam(teamId: string | null): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

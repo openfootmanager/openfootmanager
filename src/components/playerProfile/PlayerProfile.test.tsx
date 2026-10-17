@@ -6,6 +6,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 import PlayerProfile from "./PlayerProfile";
+import { createSeasonContext } from "../../test-utils/factories";
 
 /**
  * The fields these mocks read out of an invoke payload. Tauri's IPC boundary is untyped by
@@ -301,6 +302,7 @@ function createStaff(overrides: Partial<StaffData> = {}): StaffData {
 
 function createGameState(player: PlayerData, staff: StaffData[] = []): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

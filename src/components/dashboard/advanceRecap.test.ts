@@ -1,3 +1,4 @@
+import { createSeasonContext } from "../../test-utils/factories";
 import { describe, expect, it } from "vitest";
 
 import type { GameStateData } from "../../store/gameStore";
@@ -26,6 +27,7 @@ function createGame(overrides: Partial<GameStateData> = {}): GameStateData {
     news: [],
     messages: [],
     league: null,
+    season_context: createSeasonContext(),
     // The helper only reads the fields above; cast the partial fixture.
     ...overrides,
   } as unknown as GameStateData;

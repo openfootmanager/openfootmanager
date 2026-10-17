@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { GameStateData, ManagerData, PlayerData, TeamData } from "../../store/gameStore";
 import type { SeasonAwardsData } from "../../store/types";
 import AwardsCeremonyScreen from "./AwardsCeremonyScreen";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -145,6 +146,7 @@ function createManager(overrides: Partial<ManagerData> = {}): ManagerData {
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

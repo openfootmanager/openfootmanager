@@ -879,7 +879,7 @@ export interface GameStateData {
   scouting_assignments: ScoutingAssignment[];
   youth_scouting_assignments?: YouthScoutingAssignment[];
   board_objectives: BoardObjective[];
-  season_context?: SeasonContextData;
+  season_context: SeasonContextData;
   available_staff_market_last_activity_date?: string | null;
   extra_translations?: Record<string, Record<string, unknown>>;
   package_lockfile?: Array<{ id: string; version: string; hash: string }>;
