@@ -890,6 +890,18 @@ mod tests {
         assert_eq!(written_files, 0);
     }
 
+    /// Given pasted JSON that parses but is not a world (an unrelated object)
+    /// When it is imported
+    /// Then the import is refused with the parse key and nothing is written.
+    #[test]
+    fn write_database_json_to_dir_rejects_json_that_is_not_a_world() {
+        let temp_dir = TempCommandDir::new();
+        let result = write_database_json_to_dir(temp_dir.path(), r#"{"foo": 1}"#);
+
+        assert_eq!(result.unwrap_err(), "be.error.worldParseFailed");
+        assert_eq!(fs::read_dir(temp_dir.path()).unwrap().count(), 0);
+    }
+
     #[test]
     fn write_database_json_to_dir_returns_write_database_key_when_dir_cannot_be_created() {
         let temp_dir = TempCommandDir::new();

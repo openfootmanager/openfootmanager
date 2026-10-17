@@ -1,3 +1,4 @@
+use super::search_text::{contains_folded, fold_needle};
 use crate::game::Game;
 use crate::transfers::{
     can_afford_fee, has_pending_transfer_registration, player_has_active_or_pending_loan,
@@ -180,7 +181,7 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .map(str::to_ascii_lowercase);
+        .map(fold_needle);
 
     let context = ListContext::new(game);
     let candidates: Vec<&Player> = game
@@ -369,20 +370,7 @@ fn matches_search(player: &Player, needle: &str, teams: &TeamLookup) -> bool {
         club,
     ]
     .iter()
-    .any(|haystack| contains_ignoring_ascii_case(haystack, needle))
-}
-
-/// Whether `haystack` holds `needle` (already lowercase), ignoring ASCII case, without building a
-/// lowercased copy: this runs for every candidate on every keystroke.
-fn contains_ignoring_ascii_case(haystack: &str, needle: &str) -> bool {
-    // `windows` refuses a zero length; an empty needle is in everything, as `contains` says.
-    if needle.is_empty() {
-        return true;
-    }
-    haystack
-        .as_bytes()
-        .windows(needle.len())
-        .any(|window| window.eq_ignore_ascii_case(needle.as_bytes()))
+    .any(|haystack| contains_folded(haystack, needle))
 }
 
 fn sort_matches(

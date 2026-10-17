@@ -1,6 +1,7 @@
 mod indices;
 mod projection;
 
+use super::search_text::{contains_folded, fold_needle};
 use crate::game::Game;
 use crate::nations::region_for_code;
 use indices::{domestic_leagues, index_league_membership, index_players_by_team};
@@ -120,14 +121,14 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .map(str::to_ascii_lowercase);
+        .map(fold_needle);
 
     let mut regions: BTreeMap<String, BTreeMap<LeagueKey, Vec<TeamCard>>> = BTreeMap::new();
 
     for team in &game.teams {
         if let Some(needle) = &needle
-            && !team.name.to_ascii_lowercase().contains(needle)
-            && !team.city.to_ascii_lowercase().contains(needle)
+            && !contains_folded(&team.name, needle)
+            && !contains_folded(&team.city, needle)
         {
             continue;
         }
