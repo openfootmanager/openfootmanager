@@ -1797,28 +1797,24 @@ mod live_session_tests {
             }
         };
     }
-    refused_advance!(
-        plain_advancing_during_a_live_match_is_refused,
-        time::advance_time_internal
-    );
+    refused_advance!(plain_advancing_during_a_live_match_is_refused, |s| {
+        time::advance_time_internal(s, ofm_core::state::Career::Active)
+    });
     refused_advance!(mode_advancing_during_a_live_match_is_refused, |s| {
-        time_advancement::advance_time_with_mode(s, "delegate")
+        time_advancement::advance_time_with_mode(s, ofm_core::state::Career::Active, "delegate")
     });
     refused_advance!(live_mode_advancing_during_a_live_match_is_refused, |s| {
-        time_advancement::advance_time_with_mode(s, "live")
+        time_advancement::advance_time_with_mode(s, ofm_core::state::Career::Active, "live")
     });
-    refused_advance!(
-        skipping_during_a_live_match_is_refused,
-        time::skip_to_match_day_internal
-    );
-    refused_advance!(
-        one_day_advancing_during_a_live_match_is_refused,
-        time::advance_one_day_internal
-    );
-    refused_advance!(
-        event_advancing_during_a_live_match_is_refused,
-        time::advance_to_next_event_internal
-    );
+    refused_advance!(skipping_during_a_live_match_is_refused, |s| {
+        time::skip_to_match_day_internal(s, ofm_core::state::Career::Active)
+    });
+    refused_advance!(one_day_advancing_during_a_live_match_is_refused, |s| {
+        time::advance_one_day_internal(s, ofm_core::state::Career::Active)
+    });
+    refused_advance!(event_advancing_during_a_live_match_is_refused, |s| {
+        time::advance_to_next_event_internal(s, ofm_core::state::Career::Active)
+    });
     refused_advance!(
         season_advancing_during_a_live_match_is_refused,
         season::advance_to_next_season_internal
@@ -2238,7 +2234,9 @@ mod live_session_tests {
             .unwrap();
         let before = checkpoint(&state);
         assert_eq!(
-            time::advance_time_internal(&state).err().as_deref(),
+            time::advance_time_internal(&state, ofm_core::state::Career::Active)
+                .err()
+                .as_deref(),
             Some(KEY)
         );
         assert_eq!(checkpoint(&state), before);

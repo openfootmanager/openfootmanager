@@ -23,6 +23,7 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
     // Use the delegate mode to force auto-simulation of matches
     let response = crate::application::time_advancement::advance_time_with_mode(
         &ctx.state_manager,
+        ofm_core::state::Career::Active,
         "delegate",
     )?;
 
@@ -193,6 +194,7 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
 
         crate::application::time_advancement::advance_time_with_mode(
             &ctx.state_manager,
+            ofm_core::state::Career::Active,
             "delegate",
         )?;
 

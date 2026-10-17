@@ -40,6 +40,41 @@ fn cloned_option<T: Clone>(mutex: &Mutex<Option<T>>) -> Option<T> {
     lock.clone()
 }
 
+/// Key returned when a write was meant for another career than the one that is active.
+pub const CAREER_CHANGED_ERROR: &str = "be.error.careerChanged";
+const NO_ACTIVE_GAME_ERROR: &str = "be.error.noActiveGameSession";
+
+/// Which career a write is for.
+///
+/// A screen writes on behalf of the career it was shown (`Token`, handed out with the game by
+/// `StateManager::next_career_token`), and a request sent for career A can arrive after career B
+/// is active; checked inside the write, it is refused instead of landing in B. An agent or any
+/// in-process caller acts on whichever career is active by definition (`Active`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Career {
+    Active,
+    Token(u64),
+}
+
+impl Career {
+    /// Whether this write is for `game`'s career.
+    pub fn owns(self, game: &Game) -> bool {
+        match self {
+            Career::Active => true,
+            Career::Token(token) => game.career_token == token,
+        }
+    }
+
+    /// `Ok` when the write is for `game`'s career, the career-changed key otherwise.
+    pub fn check(self, game: &Game) -> Result<(), String> {
+        if self.owns(game) {
+            Ok(())
+        } else {
+            Err(CAREER_CHANGED_ERROR.to_string())
+        }
+    }
+}
+
 /// The active session, behind mutexes.
 ///
 /// The fields are private on purpose: the whole point of `get_game` /
@@ -92,6 +127,18 @@ impl StateManager {
     {
         let mut guard = self.active_game.lock().unwrap();
         guard.as_mut().map(f)
+    }
+
+    /// The one way to write the active game on a caller's behalf: [`StateManager::update_game`]
+    /// after the career check, under the same lock, so a request for another career changes
+    /// nothing. The closure is not run for a refused write. `Err` is the career-changed key, or the
+    /// no-active-game key when there is no game.
+    pub fn update_game_for<F, R>(&self, career: Career, f: F) -> Result<R, String>
+    where
+        F: FnOnce(&mut Game) -> R,
+    {
+        self.update_game(|game| career.check(game).map(|()| f(game)))
+            .unwrap_or_else(|| Err(NO_ACTIVE_GAME_ERROR.to_string()))
     }
 
     pub fn clear_game(&self) {
@@ -168,7 +215,7 @@ impl StateManager {
 
 #[cfg(test)]
 mod tests {
-    use super::StateManager;
+    use super::{CAREER_CHANGED_ERROR, Career, StateManager};
     use crate::clock::GameClock;
     use crate::game::Game;
     use crate::live_match_manager::{self, MatchMode};
@@ -351,6 +398,49 @@ mod tests {
     /// Given a state that has issued career tokens
     /// When more are asked for
     /// Then each is new and none is 0, the value an uninstalled game carries.
+    /// Given career B is active (token 7) and a write meant for career A (token 3) arrives
+    /// When it is applied through update_game_for
+    /// Then it is refused with the career-changed key and its closure never runs; the right token
+    ///      and Active both write.
+    #[test]
+    fn a_write_for_another_career_is_refused_and_changes_nothing() {
+        let state = StateManager::new();
+        let mut game = make_game_with_fixture();
+        game.career_token = 7;
+        state.set_game(game);
+
+        let stale = state.update_game_for(Career::Token(3), |game| {
+            game.manager.first_name = "Overwritten".to_string();
+        });
+        let before = state
+            .get_game(|game| game.manager.first_name.clone())
+            .unwrap();
+        let right = state.update_game_for(Career::Token(7), |game| game.manager.first_name.clone());
+        let active = state.update_game_for(Career::Active, |game| game.career_token);
+
+        assert_eq!(stale, Err(CAREER_CHANGED_ERROR.to_string()));
+        assert_eq!(right, Ok(before.clone()));
+        assert_eq!(active, Ok(7));
+        assert_ne!(before, "Overwritten");
+    }
+
+    /// Given no game at all
+    /// When a write is applied for any career
+    /// Then it is the no-active-game key.
+    #[test]
+    fn a_write_with_no_game_says_so() {
+        let state = StateManager::new();
+
+        assert_eq!(
+            state.update_game_for(Career::Active, |_| ()),
+            Err("be.error.noActiveGameSession".to_string())
+        );
+        assert_eq!(
+            state.update_game_for(Career::Token(1), |_| ()),
+            Err("be.error.noActiveGameSession".to_string())
+        );
+    }
+
     #[test]
     fn career_tokens_are_never_repeated_and_never_zero() {
         let state = StateManager::new();
