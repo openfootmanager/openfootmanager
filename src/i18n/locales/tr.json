@@ -2729,7 +2729,8 @@
         "worldExportNotPackage": "Bu klasör dışa aktarılmış bir dünya kaydı, paket projesi değil. Dışa aktarılan dünyalar farklı bir biçim kullanır ve burada düzenlenemez.",
         "notAProjectDirectory": "Bu bir paket proje klasörü değil. Paketin package.json dosyasını içeren klasörü seçin; kurulu bir .ofm paketi için \".ofm dosyası aç\" seçeneğini kullanın.",
         "unknownSchema": "Bilinmeyen şema \"{{schema}}\".",
-        "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz.",
+        "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz: {{detail}}",
+        "duplicateWorld": "Paketin zaten \"{{first}}\" içinde bir manifestosu var; bir paketin yalnızca bir \"world\" dosyası olabilir.",
         "missingId": "Bir {{kind}} kaydında id eksik.",
         "missingMetadata": "Paket bildiriminde zorunlu \"{{field}}\" alanı eksik.",
         "duplicateId": "Yinelenen {{kind}} id'si \"{{id}}\".",
@@ -3698,7 +3699,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin.",
-        "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın."
+        "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın.",
+        "repeatedNamePool": "{{country}} için isim havuzu daha önce {{first}} dosyasında verilmişti; bu dosyadaki havuz onun yerine geçer. Yalnızca birini bırakın ya da farklı ülkelere atayın."
       }
     }
   },
