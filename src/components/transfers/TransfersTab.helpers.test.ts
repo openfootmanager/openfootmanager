@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import en from "../../i18n/locales/en.json";
-import type { PlayerData, TransferOfferData } from "../../store/gameStore";
+import type { TransferOfferData } from "../../store/gameStore";
 import {
   buildLoanPeriodOptions,
   buildResumedBidFeedback,
@@ -9,7 +9,6 @@ import {
   formatTransferFeeInput,
   getDefaultLoanPeriodId,
   getLoanPeriodIdForEndDate,
-  getCurrentNegotiationOffer,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
   mapTransferNegotiationError,
@@ -28,65 +27,6 @@ function createOffer(overrides: Partial<TransferOfferData> = {}): TransferOfferD
     suggested_counter_fee: null,
     status: "Pending",
     date: "2026-08-01",
-    ...overrides,
-  };
-}
-
-function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
-  return {
-    id: "player-1",
-    match_name: "J. Smith",
-    full_name: "John Smith",
-    date_of_birth: "2000-01-01",
-    nationality: "England",
-    position: "Forward",
-    natural_position: "Forward",
-    alternate_positions: [],
-    training_focus: null,
-    attributes: {
-      pace: 60,
-      stamina: 60,
-      strength: 60,
-      agility: 60,
-      passing: 60,
-      shooting: 60,
-      tackling: 60,
-      dribbling: 60,
-      defending: 60,
-      positioning: 60,
-      vision: 60,
-      decisions: 60,
-      composure: 60,
-      aggression: 60,
-      teamwork: 60,
-      leadership: 60,
-      handling: 30,
-      reflexes: 30,
-      aerial: 60,
-    },
-    condition: 90,
-    morale: 70,
-    injury: null,
-    team_id: "team-1",
-    retired: false,
-    contract_end: "2028-06-30",
-    wage: 1000,
-    market_value: 1000000,
-    stats: {
-      appearances: 0,
-      goals: 0,
-      assists: 0,
-      clean_sheets: 0,
-      yellow_cards: 0,
-      red_cards: 0,
-      avg_rating: 0,
-      minutes_played: 0,
-    },
-    career: [],
-    transfer_listed: false,
-    loan_listed: false,
-    transfer_offers: [createOffer()],
-    traits: [],
     ...overrides,
   };
 }
@@ -148,74 +88,21 @@ describe("TransfersTab.helpers", () => {
     ).toBe("Registration blocked");
   });
 
-  it("returns the pending outgoing offer for the user team", () => {
-    const player = createPlayer({
-      transfer_offers: [
-        createOffer({ id: "offer-1", from_team_id: "team-3", status: "Rejected" }),
-        createOffer({ id: "offer-2", from_team_id: "team-1", status: "Pending" }),
-      ],
-    });
-
-    expect(getCurrentNegotiationOffer(player, "team-1")?.id).toBe("offer-2");
-    expect(getCurrentNegotiationOffer(player, null)).toBeNull();
-  });
-
   /**
-   * Given talks the club has broken off (a rejected offer at round 4, in its cooldown)
-   * When the user's current negotiation with the player is asked for
-   * Then it is that rejected offer, not nothing: the round and the history stay on screen.
+   * Given a negotiation the club refused (a rejected offer, round 2)
+   * When the panel resumes it
+   * Then the feedback says the club turned the bid down rather than that it is waiting for the next
+   *      move; a live offer keeps the waiting copy.
    */
-  it("keeps a rejected negotiation as the current one, whatever its status", () => {
-    const player = createPlayer({
-      transfer_offers: [
-        createOffer({
-          id: "broken-off",
-          from_team_id: "team-1",
-          status: "Rejected",
-          negotiation_round: 4,
-          date: "2026-08-10",
-        }),
-      ],
-    });
+  it("words a refused negotiation as refused, not as waiting", () => {
+    const refused = buildResumedBidFeedback(
+      createOffer({ status: "Rejected", negotiation_round: 2 }),
+    );
+    const live = buildResumedBidFeedback(createOffer({ status: "Pending", negotiation_round: 2 }));
 
-    expect(getCurrentNegotiationOffer(player, "team-1")?.id).toBe("broken-off");
-  });
-
-  /**
-   * Given an old closed offer and a newer one, and separately a live one beside a closed one
-   * When the current negotiation is asked for
-   * Then a pending offer wins, and otherwise the most recent one does.
-   */
-  it("prefers a pending offer, then the most recent closed one", () => {
-    const closedOld = createOffer({
-      id: "closed-old",
-      from_team_id: "team-1",
-      status: "Rejected",
-      date: "2026-05-01",
-    });
-    const closedNew = createOffer({
-      id: "closed-new",
-      from_team_id: "team-1",
-      status: "Withdrawn",
-      date: "2026-08-01",
-    });
-    const live = createOffer({
-      id: "live",
-      from_team_id: "team-1",
-      status: "Pending",
-      date: "2026-06-01",
-    });
-
-    expect(
-      getCurrentNegotiationOffer(
-        createPlayer({ transfer_offers: [closedOld, closedNew] }),
-        "team-1",
-      )?.id,
-    ).toBe("closed-new");
-    expect(
-      getCurrentNegotiationOffer(createPlayer({ transfer_offers: [closedNew, live] }), "team-1")
-        ?.id,
-    ).toBe("live");
+    expect(refused?.headline_key).toBe("transfers.resumeRefusedHeadline");
+    expect(refused?.detail_key).toBe("transfers.resumeRefusedDetail");
+    expect(live?.headline_key).toBe("transfers.resumeNegotiationHeadline");
   });
 
   it("builds resumed bid feedback from the latest club signal", () => {

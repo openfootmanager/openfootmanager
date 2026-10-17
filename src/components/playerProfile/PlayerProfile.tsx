@@ -131,6 +131,7 @@ export default function PlayerProfile({
     activeBidOffer,
     myTeam,
     hasExistingOffer,
+    talksResumeOn,
     bidSubmitDisabled,
     openBidNegotiation,
     closeBidNegotiation,
@@ -390,6 +391,7 @@ export default function PlayerProfile({
           bidFeedback={bidFeedback}
           activeBidOffer={activeBidOffer}
           hasExistingOffer={hasExistingOffer}
+          talksResumeOn={talksResumeOn}
           bidResult={bidResult}
           bidLoading={bidLoading}
           bidSubmitDisabled={bidSubmitDisabled}

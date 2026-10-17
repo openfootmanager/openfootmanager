@@ -4,17 +4,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import {
+  type BidNegotiationStatusData,
+  getBidNegotiationStatus,
   makeTransferBid,
   previewTransferBidFinancialImpact,
 } from "../../services/transfersService";
 import { useTransferBidFlow } from "./useTransferBidFlow";
 
 vi.mock("../../services/transfersService", () => ({
+  getBidNegotiationStatus: vi.fn(),
   makeTransferBid: vi.fn(),
   previewTransferBidFinancialImpact: vi.fn(),
 }));
 
 const mockedMakeTransferBid = vi.mocked(makeTransferBid);
+const mockedNegotiationStatus = vi.mocked(getBidNegotiationStatus);
+
+const noNegotiation: BidNegotiationStatusData = {
+  offer_id: null,
+  continues_talks: false,
+  talks_resume_on: null,
+};
 const mockedPreviewTransferBidFinancialImpact = vi.mocked(previewTransferBidFinancialImpact);
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -188,6 +198,8 @@ function HookHarness({
     openBidNegotiation,
     handleMakeBid,
     activeBidOffer,
+    hasExistingOffer,
+    talksResumeOn,
   } = useTransferBidFlow({ gameState });
 
   return (
@@ -205,6 +217,8 @@ function HookHarness({
         Submit
       </button>
       <output aria-label="live-round">{activeBidOffer?.negotiation_round ?? "none"}</output>
+      <output aria-label="has-existing">{String(hasExistingOffer)}</output>
+      <output aria-label="resume-on">{talksResumeOn ?? "none"}</output>
       <output aria-label="submit-disabled">{String(bidSubmitDisabled)}</output>
       <output aria-label="bid-result">{bidResult ?? "idle"}</output>
     </div>
@@ -239,6 +253,8 @@ describe("useTransferBidFlow", (): void => {
     mockedMakeTransferBid.mockReset();
     mockedPreviewTransferBidFinancialImpact.mockReset();
     mockedPreviewTransferBidFinancialImpact.mockResolvedValue(previewAnswer());
+    mockedNegotiationStatus.mockReset();
+    mockedNegotiationStatus.mockResolvedValue(noNegotiation);
   });
 
   /**
@@ -288,17 +304,108 @@ describe("useTransferBidFlow", (): void => {
       status: "Pending" as const,
       date: "2026-08-01",
     });
+    mockedNegotiationStatus.mockResolvedValue({
+      offer_id: "offer-1",
+      continues_talks: true,
+      talks_resume_on: null,
+    });
     const opened = createPlayer({ transfer_offers: [offer(1)] });
     const { rerender } = render(
       <HookHarness gameState={createGameState([opened])} target={opened} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
-    expect(screen.getByLabelText("live-round")).toHaveTextContent("1");
+    await waitFor(() => expect(screen.getByLabelText("live-round")).toHaveTextContent("1"));
 
     const later = createPlayer({ transfer_offers: [offer(3)] });
     rerender(<HookHarness gameState={createGameState([later])} target={opened} />);
 
-    expect(screen.getByLabelText("live-round")).toHaveTextContent("3");
+    await waitFor(() => expect(screen.getByLabelText("live-round")).toHaveTextContent("3"));
+  });
+
+  /**
+   * Given the player has an old rejected offer from the user's club that the backend does not
+   *       continue (it names no negotiation)
+   * When the panel opens
+   * Then it shows no negotiation: the next bid starts over, as the engine will have it.
+   */
+  it("shows no negotiation when the backend names none, whatever offers the player holds", async (): Promise<void> => {
+    const oldRefusal = createPlayer({
+      transfer_offers: [
+        {
+          id: "old",
+          from_team_id: "team-1",
+          fee: 1000000,
+          wage_offered: 0,
+          last_manager_fee: null,
+          negotiation_round: 4,
+          suggested_counter_fee: null,
+          status: "Rejected",
+          date: "2026-05-01",
+        },
+      ],
+    });
+    render(<HookHarness gameState={createGameState([oldRefusal])} target={oldRefusal} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(mockedNegotiationStatus).toHaveBeenCalled());
+    await act(async () => {});
+
+    expect(screen.getByLabelText("live-round")).toHaveTextContent("none");
+  });
+
+  /**
+   * Given the backend names a live offer, and separately a refused one it still continues
+   * When the panel opens
+   * Then "resume the negotiation" is offered only for the live offer.
+   */
+  it("offers to resume only a live negotiation", async (): Promise<void> => {
+    const offerWith = (status: "Pending" | "Rejected") => ({
+      id: "offer-1",
+      from_team_id: "team-1",
+      fee: 1000000,
+      wage_offered: 0,
+      last_manager_fee: null,
+      negotiation_round: 2,
+      suggested_counter_fee: null,
+      status,
+      date: "2026-08-01",
+    });
+    const check = async (status: "Pending" | "Rejected", expected: string) => {
+      mockedNegotiationStatus.mockResolvedValue({
+        offer_id: "offer-1",
+        continues_talks: true,
+        talks_resume_on: null,
+      });
+      const target = createPlayer({ transfer_offers: [offerWith(status)] });
+      render(<HookHarness gameState={createGameState([target])} target={target} />);
+      fireEvent.click(screen.getByRole("button", { name: "Open" }));
+      await waitFor(() => expect(screen.getByLabelText("live-round")).toHaveTextContent("2"));
+      expect(screen.getByLabelText("has-existing")).toHaveTextContent(expected);
+      cleanup();
+    };
+
+    await check("Pending", "true");
+    await check("Rejected", "false");
+  });
+
+  /**
+   * Given the backend says talks are broken off until a day
+   * When the panel opens
+   * Then the day is exposed and submitting is disabled.
+   */
+  it("exposes the day broken-off talks resume and blocks submitting", async (): Promise<void> => {
+    mockedNegotiationStatus.mockResolvedValue({
+      offer_id: null,
+      continues_talks: false,
+      talks_resume_on: "2026-08-28",
+    });
+    const target = createPlayer();
+    render(<HookHarness gameState={createGameState([target])} target={target} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+
+    await waitFor(() => expect(screen.getByLabelText("resume-on")).toHaveTextContent("2026-08-28"));
+    expect(screen.getByLabelText("submit-disabled")).toHaveTextContent("true");
   });
 
   it("does not submit a bid when the computed fee is invalid", async (): Promise<void> => {

@@ -95,6 +95,7 @@ export default function ScoutingTab({
     activeBidOffer,
     myTeam,
     hasExistingOffer,
+    talksResumeOn,
     bidSubmitDisabled,
     openBidNegotiation,
     closeBidNegotiation,
@@ -337,6 +338,7 @@ export default function ScoutingTab({
           bidFeedback={bidFeedback}
           activeBidOffer={activeBidOffer}
           hasExistingOffer={hasExistingOffer}
+          talksResumeOn={talksResumeOn}
           bidResult={bidResult}
           bidLoading={bidLoading}
           bidSubmitDisabled={bidSubmitDisabled}

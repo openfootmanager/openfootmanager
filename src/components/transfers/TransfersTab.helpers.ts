@@ -1,4 +1,4 @@
-import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
+import type { LoanOfferData, TransferOfferData } from "../../store/gameStore";
 import type { TransferNegotiationFeedbackData } from "../../services/transfersService";
 import { formatExactMoney } from "../../lib/helpers";
 
@@ -233,36 +233,6 @@ export function normalizeTransferNegotiationFeedback(
   };
 }
 
-/**
- * The user's current negotiation with a player, whatever its status: the live offer if there is
- * one, otherwise the most recent one, so a negotiation the club has rejected or broken off keeps its
- * round and its history on screen instead of vanishing.
- */
-export function getCurrentNegotiationOffer(
-  player: PlayerData,
-  userTeamId: string | null,
-): TransferOfferData | null {
-  if (!userTeamId) {
-    return null;
-  }
-
-  const own = player.transfer_offers.filter((offer) => offer.from_team_id === userTeamId);
-  const live = own.find((offer) => offer.status === "Pending");
-  if (live) {
-    return live;
-  }
-
-  return (
-    own.reduce<TransferOfferData | null>(
-      (latest, offer) =>
-        latest === null || (offer.closed_on ?? offer.date) >= (latest.closed_on ?? latest.date)
-          ? offer
-          : latest,
-      null,
-    ) ?? null
-  );
-}
-
 export function getOfferNegotiationRound(round: number | null | undefined): number {
   return Math.max(round || 1, 1);
 }
@@ -278,10 +248,15 @@ export function buildResumedBidFeedback(
   const tension = Math.min(36 + (round - 1) * 16, 84);
   const patience = Math.max(82 - (round - 1) * 16, 30);
 
+  // A refused negotiation is not one "waiting for your next move": the club said no, and a new bid
+  // continues from there.
+  const refused = offer.status === "Rejected";
   return normalizeTransferNegotiationFeedback({
     mood: round >= 3 ? "tense" : "firm",
-    headline_key: "transfers.resumeNegotiationHeadline",
-    detail_key: "transfers.resumeNegotiationDetail",
+    headline_key: refused
+      ? "transfers.resumeRefusedHeadline"
+      : "transfers.resumeNegotiationHeadline",
+    detail_key: refused ? "transfers.resumeRefusedDetail" : "transfers.resumeNegotiationDetail",
     tension,
     patience,
     round,

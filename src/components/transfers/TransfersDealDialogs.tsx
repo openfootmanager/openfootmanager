@@ -26,6 +26,7 @@ type ActiveDealWorkspaceProps = {
     | "bidFeedback"
     | "activeBidOffer"
     | "hasExistingOffer"
+    | "talksResumeOn"
     | "bidResult"
     | "bidError"
     | "bidLoading"
@@ -82,6 +83,7 @@ type TransferBidDialogProps = {
     | "bidFeedback"
     | "activeBidOffer"
     | "hasExistingOffer"
+    | "talksResumeOn"
     | "bidResult"
     | "bidError"
     | "bidLoading"
@@ -218,6 +220,7 @@ export function ActiveDealWorkspace({ state }: ActiveDealWorkspaceProps) {
     bidFeedback,
     activeBidOffer,
     hasExistingOffer,
+    talksResumeOn,
     bidResult,
     bidError,
     bidLoading,
@@ -286,6 +289,7 @@ export function ActiveDealWorkspace({ state }: ActiveDealWorkspaceProps) {
                 bidFeedback={bidFeedback}
                 activeBidOffer={activeBidOffer}
                 hasExistingOffer={hasExistingOffer}
+                talksResumeOn={talksResumeOn}
                 bidResult={bidResult}
                 bidError={bidError}
                 bidLoading={bidLoading}
@@ -381,6 +385,7 @@ export function TransferBidDialog({ state }: TransferBidDialogProps) {
     bidFeedback,
     activeBidOffer,
     hasExistingOffer,
+    talksResumeOn,
     bidResult,
     bidError,
     bidLoading,
@@ -405,6 +410,7 @@ export function TransferBidDialog({ state }: TransferBidDialogProps) {
         bidFeedback={bidFeedback}
         activeBidOffer={activeBidOffer}
         hasExistingOffer={hasExistingOffer}
+        talksResumeOn={talksResumeOn}
         bidResult={bidResult}
         bidError={bidError}
         bidLoading={bidLoading}

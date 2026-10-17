@@ -35,6 +35,9 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.bidImpactOverTransferBudget") {
         return "This bid exceeds your transfer budget";
       }
+      if (key === "transfers.talksResumeOn") {
+        return `Talks can resume on ${params?.date}`;
+      }
       if (key === "transfers.bidImpactOverWagePolicy") {
         return "The board would refuse his wage";
       }
@@ -314,6 +317,38 @@ describe("TransferBidModal", () => {
     );
 
     expect(screen.getByText("The board would refuse his wage")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend says talks are broken off until 28 August
+   * When the bid panel shows
+   * Then it says when talks can resume and offers no amount to bid and no submit.
+   */
+  it("replaces the form with the day talks can resume when they are broken off", () => {
+    render(
+      <TransferBidModal
+        bidTarget={createPlayer()}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Seller FC" })]}
+        bidAmount="1.5"
+        onBidAmountChange={vi.fn()}
+        myTeam={createTeam()}
+        bidFee={1500000}
+        bidProjection={createProjection()}
+        bidFeedback={null}
+        activeBidOffer={null}
+        hasExistingOffer={false}
+        talksResumeOn="2026-08-28"
+        bidResult={null}
+        bidLoading={false}
+        bidSubmitDisabled={true}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(/Talks can resume on .*2026|28/);
+    expect(screen.queryByLabelText(/bid amount/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /submit/i })).not.toBeInTheDocument();
   });
 
   it("wires input, submit, and close interactions through props", () => {
