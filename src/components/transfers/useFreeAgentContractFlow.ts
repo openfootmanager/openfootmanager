@@ -71,7 +71,12 @@ export function useFreeAgentContractFlow({
   onGameUpdate,
 }: UseFreeAgentContractFlowArgs): UseFreeAgentContractFlowResult {
   const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id) ?? null;
-  const [freeAgentTarget, setFreeAgentTarget] = useState<PlayerData | null>(null);
+  // The id, not the player: read from the game state each render (see `useTransferBidFlow`).
+  const [freeAgentTargetId, setFreeAgentTargetId] = useState<string | null>(null);
+  const freeAgentTarget =
+    freeAgentTargetId === null
+      ? null
+      : (gameState.players.find((player) => player.id === freeAgentTargetId) ?? null);
   const [contractWage, setContractWage] = useState("");
   const [contractLength, setContractLength] = useState("");
   const [contractStatus, setContractStatus] = useState<RenewalStatus>("idle");
@@ -126,7 +131,7 @@ export function useFreeAgentContractFlow({
   }, [freeAgentTarget, isContractWageValid, offeredWage]);
 
   const openFreeAgentContract = (player: PlayerData): void => {
-    setFreeAgentTarget(player);
+    setFreeAgentTargetId(player.id);
     setContractWage(defaultContractWage(player));
     setContractLength(defaultContractYears(player.date_of_birth, gameState.clock.current_date));
     setContractStatus("idle");
@@ -144,7 +149,7 @@ export function useFreeAgentContractFlow({
       return;
     }
 
-    setFreeAgentTarget(null);
+    setFreeAgentTargetId(null);
     setContractWage("");
     setContractLength("");
     setContractStatus("idle");

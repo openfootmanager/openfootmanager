@@ -363,6 +363,12 @@ describe("TransfersTab", (): void => {
     ]);
 
     marketAnswer = () => marketPageOf(state.players);
+    // The backend names the negotiation the next bid continues.
+    routes.resolveOnce("get_bid_negotiation_status", {
+      offer_id: "offer-user-1",
+      continues_talks: true,
+      talks_resume_on: null,
+    });
 
     render(
       <TransfersTab
@@ -382,7 +388,7 @@ describe("TransfersTab", (): void => {
       });
     });
 
-    expect(screen.getByText("Talks are still live with this club.")).toBeInTheDocument();
+    expect(await screen.findByText("Talks are still live with this club.")).toBeInTheDocument();
     expect(screen.getByText("The other club are waiting for your next move.")).toBeInTheDocument();
     expect(screen.getByText("Their last signal pointed toward €1,150,000.")).toBeInTheDocument();
     expect(screen.getByText("Recent exchange")).toBeInTheDocument();

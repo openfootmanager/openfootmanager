@@ -109,6 +109,7 @@ export default function PlayersListTab({
     activeBidOffer,
     myTeam,
     hasExistingOffer,
+    talksResumeOn,
     bidSubmitDisabled,
     openBidNegotiation,
     closeBidNegotiation,
@@ -516,6 +517,7 @@ export default function PlayersListTab({
           bidFeedback={bidFeedback}
           activeBidOffer={activeBidOffer}
           hasExistingOffer={hasExistingOffer}
+          talksResumeOn={talksResumeOn}
           bidResult={bidResult}
           bidLoading={bidLoading}
           bidSubmitDisabled={bidSubmitDisabled}

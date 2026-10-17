@@ -136,6 +136,19 @@ export async function counterOffer(
   });
 }
 
+/** The user's negotiation over a player as the backend's own rule reads it. */
+export interface BidNegotiationStatusData {
+  /** The offer the next bid continues, or the broken-off talks; null when the next bid starts over. */
+  offer_id: string | null;
+  continues_talks: boolean;
+  /** For broken-off talks: the day the owner will talk again (YYYY-MM-DD). */
+  talks_resume_on?: string | null;
+}
+
+export async function getBidNegotiationStatus(playerId: string): Promise<BidNegotiationStatusData> {
+  return invoke<BidNegotiationStatusData>("get_bid_negotiation_status", { playerId });
+}
+
 export async function previewTransferBidFinancialImpact(
   playerId: string,
   fee: number,

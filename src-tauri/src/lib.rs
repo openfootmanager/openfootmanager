@@ -291,6 +291,7 @@ pub fn run() {
             make_loan_offer,
             exercise_loan_buy_option,
             preview_transfer_bid_financial_impact,
+            get_bid_negotiation_status,
             respond_to_offer,
             respond_to_loan_offer,
             counter_loan_offer,

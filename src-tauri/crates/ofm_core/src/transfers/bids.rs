@@ -95,6 +95,58 @@ pub(crate) fn latest_negotiation_with_club<'a>(
         })
 }
 
+/// What the bid panel shows of the user's negotiation over a player, from the same rule the next
+/// bid is judged by ([`latest_negotiation_with_club`], [`talks_are_broken_off`]): the screen presents
+/// this and holds no copy of the cooldown.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BidNegotiationStatus {
+    /// The offer the next bid continues, or the broken-off talks; none when the next bid starts
+    /// over at round one.
+    pub offer_id: Option<String>,
+    /// Whether the next bid continues that negotiation. False for broken-off talks (the owner
+    /// refuses to talk) and when there is no negotiation.
+    pub continues_talks: bool,
+    /// For broken-off talks: the day the owner will talk again.
+    #[serde(default)]
+    pub talks_resume_on: Option<String>,
+}
+
+pub fn bid_negotiation_status(
+    game: &Game,
+    player_id: &str,
+) -> Result<BidNegotiationStatus, String> {
+    let user_team_id = game
+        .manager
+        .team_id
+        .as_deref()
+        .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == player_id)
+        .ok_or_else(|| "be.error.playerNotFound".to_string())?;
+    let today = game.clock.current_date.date_naive();
+
+    let offer = latest_negotiation_with_club(player, user_team_id, today);
+    let broken_off = talks_are_broken_off(offer);
+    let talks_resume_on = offer.filter(|_| broken_off).and_then(|offer| {
+        let closed = offer.closed_on.as_deref().unwrap_or(&offer.date);
+        NaiveDate::parse_from_str(closed, "%Y-%m-%d")
+            .ok()
+            .map(|day| {
+                (day + Duration::days(REBID_COOLDOWN_DAYS))
+                    .format("%Y-%m-%d")
+                    .to_string()
+            })
+    });
+
+    Ok(BidNegotiationStatus {
+        offer_id: offer.map(|offer| offer.id.clone()),
+        continues_talks: offer.is_some() && !broken_off,
+        talks_resume_on,
+    })
+}
+
 fn closed_within_cooldown(
     player: &domain::player::Player,
     offer: &domain::player::TransferOffer,

@@ -2,7 +2,13 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
 import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
-import { formatExactMoney, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import {
+  formatDateFull,
+  formatExactMoney,
+  formatVal,
+  getTeamName,
+  positionBadgeVariant,
+} from "../../lib/helpers";
 import type {
   TransferBidProjectionData,
   TransferNegotiationResponseData,
@@ -27,6 +33,8 @@ export interface TransferBidFormProps {
   bidFeedback: NegotiationFeedbackPanelData | null;
   activeBidOffer: TransferOfferData | null;
   hasExistingOffer: boolean;
+  /** The day broken-off talks can resume: when set it replaces the bid form. */
+  talksResumeOn?: string | null;
   bidResult: TransferNegotiationResponseData["decision"] | "error" | null;
   /** The translated reason a bid failed. Rendered in place of the bare word "error". */
   bidError?: string | null;
@@ -52,6 +60,7 @@ export function TransferBidForm({
   bidFeedback,
   activeBidOffer,
   hasExistingOffer,
+  talksResumeOn = null,
   bidResult,
   bidError,
   bidLoading,
@@ -62,7 +71,7 @@ export function TransferBidForm({
   onSubmit,
   onClose,
 }: TransferBidFormProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const titleId = `transfer-bid-modal-title-${bidTarget.id}`;
   // A player with an agreed deal awaiting registration is off the market — the
   // engine refuses a new bid. Surface it here so reaching this form from a
@@ -122,88 +131,96 @@ export function TransferBidForm({
           {t("transfers.resumeNegotiationHint")}
         </p>
       ) : null}
-      <label
-        htmlFor="bid-amount"
-        className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1 block"
-      >
-        {t("transfers.bidAmount")}
-      </label>
-      <input
-        id="bid-amount"
-        type="number"
-        step="0.1"
-        min="0"
-        value={bidAmount}
-        onChange={(event) => onBidAmountChange(event.target.value)}
-        className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 mb-3 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
-      />
-      {myTeam && bidFee !== null && bidProjection ? (
-        <div className="rounded-lg border border-gray-200 dark:border-navy-700 bg-white/70 dark:bg-navy-900/40 p-3 mb-3 space-y-2">
-          <p className="text-[11px] font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            {t("transfers.bidImpactTitle")}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-300">
-            {t(
-              bidProjection.pending_registration_date
-                ? "transfers.bidImpactTransferBudgetDeferred"
-                : "transfers.bidImpactTransferBudget",
-              {
-                before: formatExactMoney(bidProjection.transfer_budget_before),
-                after: formatExactMoney(bidProjection.transfer_budget_after),
-                date: bidProjection.pending_registration_date ?? "",
-              },
-            )}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-300">
-            {t(
-              bidProjection.pending_registration_date
-                ? "transfers.bidImpactBalanceDeferred"
-                : "transfers.bidImpactBalance",
-              {
-                before: formatExactMoney(bidProjection.finance_before),
-                after: formatExactMoney(bidProjection.finance_after),
-                date: bidProjection.pending_registration_date ?? "",
-              },
-            )}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-300">
-            {t("transfers.bidImpactWageBill", {
-              before: formatExactMoney(bidProjection.current_weekly_wage_spend),
-              after: formatExactMoney(bidProjection.projected_weekly_wage_spend),
-            })}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-300">
-            {t("transfers.bidImpactWeeklyWageBudget", {
-              budget: formatExactMoney(bidProjection.weekly_wage_budget),
-            })}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-300">
-            {t("transfers.bidImpactIncomingWage", {
-              wage: formatExactMoney(bidProjection.incoming_player_weekly_wage),
-            })}
-          </p>
-          <p className="text-xs text-gray-600 dark:text-gray-300">
-            {t("transfers.bidImpactWagePressure", {
-              percent: bidProjection.projected_wage_budget_usage_pct,
-            })}
-          </p>
-          {bidProjection.exceeds_transfer_budget ? (
-            <p className="text-xs text-red-600 dark:text-red-300">
-              {t("transfers.bidImpactOverTransferBudget")}
-            </p>
+      {talksResumeOn ? (
+        <p role="status" className="text-xs text-amber-700 dark:text-amber-200 mb-3">
+          {t("transfers.talksResumeOn", { date: formatDateFull(talksResumeOn, i18n.language) })}
+        </p>
+      ) : (
+        <>
+          <label
+            htmlFor="bid-amount"
+            className="text-xs font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1 block"
+          >
+            {t("transfers.bidAmount")}
+          </label>
+          <input
+            id="bid-amount"
+            type="number"
+            step="0.1"
+            min="0"
+            value={bidAmount}
+            onChange={(event) => onBidAmountChange(event.target.value)}
+            className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 mb-3 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
+          />
+          {myTeam && bidFee !== null && bidProjection ? (
+            <div className="rounded-lg border border-gray-200 dark:border-navy-700 bg-white/70 dark:bg-navy-900/40 p-3 mb-3 space-y-2">
+              <p className="text-[11px] font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                {t("transfers.bidImpactTitle")}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                {t(
+                  bidProjection.pending_registration_date
+                    ? "transfers.bidImpactTransferBudgetDeferred"
+                    : "transfers.bidImpactTransferBudget",
+                  {
+                    before: formatExactMoney(bidProjection.transfer_budget_before),
+                    after: formatExactMoney(bidProjection.transfer_budget_after),
+                    date: bidProjection.pending_registration_date ?? "",
+                  },
+                )}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                {t(
+                  bidProjection.pending_registration_date
+                    ? "transfers.bidImpactBalanceDeferred"
+                    : "transfers.bidImpactBalance",
+                  {
+                    before: formatExactMoney(bidProjection.finance_before),
+                    after: formatExactMoney(bidProjection.finance_after),
+                    date: bidProjection.pending_registration_date ?? "",
+                  },
+                )}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                {t("transfers.bidImpactWageBill", {
+                  before: formatExactMoney(bidProjection.current_weekly_wage_spend),
+                  after: formatExactMoney(bidProjection.projected_weekly_wage_spend),
+                })}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                {t("transfers.bidImpactWeeklyWageBudget", {
+                  budget: formatExactMoney(bidProjection.weekly_wage_budget),
+                })}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                {t("transfers.bidImpactIncomingWage", {
+                  wage: formatExactMoney(bidProjection.incoming_player_weekly_wage),
+                })}
+              </p>
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                {t("transfers.bidImpactWagePressure", {
+                  percent: bidProjection.projected_wage_budget_usage_pct,
+                })}
+              </p>
+              {bidProjection.exceeds_transfer_budget ? (
+                <p className="text-xs text-red-600 dark:text-red-300">
+                  {t("transfers.bidImpactOverTransferBudget")}
+                </p>
+              ) : null}
+              {bidProjection.blocked_by_wage_policy ? (
+                <p className="text-xs text-red-600 dark:text-red-300">
+                  {t("transfers.bidImpactOverWagePolicy")}
+                </p>
+              ) : null}
+              {bidProjection.exceeds_finance ? (
+                <p className="text-xs text-red-600 dark:text-red-300">
+                  {t("transfers.bidImpactOverBalance")}
+                </p>
+              ) : null}
+            </div>
           ) : null}
-          {bidProjection.blocked_by_wage_policy ? (
-            <p className="text-xs text-red-600 dark:text-red-300">
-              {t("transfers.bidImpactOverWagePolicy")}
-            </p>
-          ) : null}
-          {bidProjection.exceeds_finance ? (
-            <p className="text-xs text-red-600 dark:text-red-300">
-              {t("transfers.bidImpactOverBalance")}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+        </>
+      )}
       <NegotiationFeedbackPanel
         feedback={bidFeedback}
         titleKey="transfers.negotiationPulse"
@@ -227,14 +244,16 @@ export function TransferBidForm({
         </div>
       ) : null}
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={bidSubmitDisabled || pendingRegistration}
-          className="flex-1 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
-        >
-          {bidLoading ? t("transfers.submitting") : t("transfers.submitBid")}
-        </button>
+        {talksResumeOn ? null : (
+          <button
+            type="button"
+            onClick={onSubmit}
+            disabled={bidSubmitDisabled || pendingRegistration}
+            className="flex-1 py-2 bg-primary-700 hover:bg-primary-800 text-white rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
+          >
+            {bidLoading ? t("transfers.submitting") : t("transfers.submitBid")}
+          </button>
+        )}
         <button
           type="button"
           onClick={onClose}
