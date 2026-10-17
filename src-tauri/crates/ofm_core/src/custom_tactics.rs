@@ -44,14 +44,17 @@ fn validated(tactic: &CustomTactic) -> Result<CustomTactic, String> {
 /// The list with one tactic per trimmed id: the last copy, at the place it last stood, under its
 /// trimmed id. The one rule for ids kept before they were trimmed, which the save and the load of
 /// the table share so a padded twin can neither be written nor read back as a second tactic.
-pub fn one_tactic_per_id(tactics: Vec<CustomTactic>) -> Vec<CustomTactic> {
-    let mut kept: Vec<CustomTactic> = Vec::with_capacity(tactics.len());
-    for mut tactic in tactics.into_iter().rev() {
-        tactic.id = tactic.id.trim().to_string();
-        if !kept.iter().any(|later| later.id == tactic.id) {
-            kept.push(tactic);
-        }
-    }
+pub fn one_tactic_per_id(tactics: &[CustomTactic]) -> Vec<CustomTactic> {
+    let mut seen = std::collections::HashSet::new();
+    let mut kept: Vec<CustomTactic> = tactics
+        .iter()
+        .rev()
+        .filter(|tactic| seen.insert(tactic.id.trim()))
+        .map(|tactic| CustomTactic {
+            id: tactic.id.trim().to_string(),
+            ..tactic.clone()
+        })
+        .collect();
     kept.reverse();
     kept
 }
@@ -59,18 +62,22 @@ pub fn one_tactic_per_id(tactics: Vec<CustomTactic>) -> Vec<CustomTactic> {
 /// Adds the tactic, or replaces the one with the same id where it stands in the list.
 pub fn save_custom_tactic(game: &mut Game, tactic: &CustomTactic) -> Result<(), String> {
     let tactic = validated(tactic)?;
-    let id = tactic.id.clone();
-    let Some(first) = game.custom_tactics.iter().position(|t| t.id.trim() == id) else {
-        game.custom_tactics.push(tactic);
-        return Ok(());
-    };
-    game.custom_tactics[first] = tactic;
-    // An old save may hold the same id twice, once padded; keep one.
-    let mut at = 0;
-    game.custom_tactics.retain(|t| {
-        at += 1;
-        at - 1 <= first || t.id.trim() != id
-    });
+    // The first tactic with this id is replaced where it stands; an old save may hold the same id
+    // again, once padded, and those twins go.
+    let mut replaced = false;
+    let mut kept = Vec::with_capacity(game.custom_tactics.len() + 1);
+    for existing in std::mem::take(&mut game.custom_tactics) {
+        if existing.id.trim() != tactic.id {
+            kept.push(existing);
+        } else if !replaced {
+            replaced = true;
+            kept.push(tactic.clone());
+        }
+    }
+    if !replaced {
+        kept.push(tactic);
+    }
+    game.custom_tactics = kept;
     Ok(())
 }
 

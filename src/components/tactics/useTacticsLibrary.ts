@@ -2,7 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { type GameStateData, useGameStore } from "../../store/gameStore";
-import { listCustomTactics, saveCustomTactic } from "../../services/customTacticsService";
+import {
+  type CustomTactic,
+  deleteCustomTactic,
+  legacyTacticsImportPending,
+  listCustomTactics,
+  markLegacyTacticsImported,
+  saveCustomTactic,
+} from "../../services/customTacticsService";
 import { getTacticsBlueprintStatus } from "../../services/squadService";
 import {
   TACTICS_PRESETS,
@@ -100,34 +107,43 @@ export function useTacticsLibrary({
     savesInOrder.current = savesInOrder.current
       .then(async () => {
         if (stale()) return;
-        const saved = await listCustomTactics();
-        const tactics = await importLegacyTactics(
-          managerId,
-          careerStartDate,
-          saved,
-          async (tactic) => {
-            if (stale()) throw new Error("the career changed");
-            return saveCustomTactic(tactic);
-          },
-        );
+        let tactics = await listCustomTactics();
+        // Once per career: the save records that the old browser library was copied in, so a
+        // tactic the player has since deleted is not copied back from the browser's key.
+        if (await legacyTacticsImportPending()) {
+          const imported = await importLegacyTactics(
+            managerId,
+            careerStartDate,
+            tactics,
+            async (tactic) => {
+              if (stale()) throw new Error("the career changed");
+              return saveCustomTactic(tactic);
+            },
+          );
+          tactics = imported.tactics;
+          if (imported.complete && !stale()) await markLegacyTacticsImported();
+        }
         if (!stale()) setCustomTactics(toLibraryEntries(tactics));
       })
       .catch(() => {});
   }, [managerId, careerStartDate, careerEpoch]);
 
   // The screen answers at once; the save's own list then replaces it, or, if the save refused the
-  // tactic (a shape the game cannot lay out), puts the library back as the save has it.
-  function persistTactic(tactic: TacticsLibraryEntry): void {
+  // change (a shape the game cannot lay out, an id that is already gone), puts the library back as
+  // the save has it.
+  function changeSave(change: () => Promise<CustomTactic[]>): void {
     const askedIn = useGameStore.getState().careerEpoch;
     const stale = () => useGameStore.getState().careerEpoch !== askedIn;
     savesInOrder.current = savesInOrder.current
-      .then(() =>
-        stale() ? null : saveCustomTactic(toCustomTactic(tactic)).catch(() => listCustomTactics()),
-      )
+      .then(() => (stale() ? null : change().catch(() => listCustomTactics())))
       .then((saved) => {
         if (saved && !stale()) setCustomTactics(toLibraryEntries(saved));
       })
       .catch(() => {});
+  }
+
+  function persistTactic(tactic: TacticsLibraryEntry): void {
+    changeSave(() => saveCustomTactic(toCustomTactic(tactic)));
   }
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
@@ -290,6 +306,21 @@ export function useTacticsLibrary({
     setDraftTacticName(nextTactic.name);
   }
 
+  // Only a tactic the save holds can be deleted: not a preset, and not the unsaved setup that
+  // stands in when nothing else matches.
+  const canDeleteTactic =
+    isActiveCustomTactic && customTactics.some((entry) => entry.id === activeTactic.id);
+
+  // The team keeps the formation and play style it has. With the tactic gone from the library the
+  // setup shown falls back to the preset it matches, or to the current setup, applying nothing.
+  function handleDeleteTactic(): void {
+    if (!canDeleteTactic) return;
+
+    const { id } = activeTactic;
+    setCustomTactics((current) => current.filter((entry) => entry.id !== id));
+    changeSave(() => deleteCustomTactic(id.trim()));
+  }
+
   function handleSaveTactic(): void {
     const nextName = draftTacticName.trim() || t("tactics.customTactic");
 
@@ -359,5 +390,7 @@ export function useTacticsLibrary({
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,
+    canDeleteTactic,
+    handleDeleteTactic,
   };
 }

@@ -166,6 +166,12 @@ pub struct Game {
     /// Persistence is the `custom_tactics` table.
     #[serde(default)]
     pub custom_tactics: Vec<domain::custom_tactic::CustomTactic>,
+    /// True once the player's old browser library of custom tactics has been copied into this
+    /// career. The copy runs once: without the mark, a tactic the player deleted would be copied
+    /// back from the browser key on the next load. A save from before this existed reads false and
+    /// is copied in once more, then marked. Persistence is `game_meta.legacy_tactics_imported`.
+    #[serde(default)]
+    pub legacy_tactics_imported: bool,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -255,6 +261,7 @@ impl Game {
             day_start: None,
             retired_managers: Vec::new(),
             custom_tactics: Vec::new(),
+            legacy_tactics_imported: false,
             archived_messages: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),

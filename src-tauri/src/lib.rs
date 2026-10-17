@@ -258,6 +258,8 @@ pub fn run() {
             list_custom_tactics,
             save_custom_tactic,
             delete_custom_tactic,
+            legacy_tactics_import_pending,
+            mark_legacy_tactics_imported,
             set_starting_xi,
             set_play_style,
             apply_tactic_preset,

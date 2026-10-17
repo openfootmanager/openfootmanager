@@ -281,6 +281,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "list_custom_tactics") return list.promise;
+      if (command === "legacy_tactics_import_pending") return true;
       return { modified: false };
     });
     const { unmount } = renderLibrary(careerGame);
@@ -292,5 +293,168 @@ describe("useTacticsLibrary custom tactics and the save", () => {
 
     expect(saveCalls()).toHaveLength(0);
     localStorage.clear();
+  });
+});
+
+const OLD_KEY = "ofm:tactics:custom:mgr1:2026-08-01:team1";
+const oldTactic = {
+  id: "custom:old",
+  type: "custom",
+  name: "Old",
+  description: "",
+  formation: "4-4-2",
+  playStyle: "Balanced",
+};
+const savedTactic = {
+  id: "custom:mine",
+  name: "Mine",
+  description: "",
+  formation: "4-4-2",
+  playStyle: "Balanced",
+};
+
+/** A backend holding `list`, with the legacy import pending or not, recording what is called. */
+function backendWith(list: unknown[], pending: boolean, failSaves = false) {
+  const current = [...list];
+  mockedInvoke.mockReset();
+  mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
+    switch (command) {
+      case "list_custom_tactics":
+        return [...current];
+      case "legacy_tactics_import_pending":
+        return pending;
+      case "mark_legacy_tactics_imported":
+        return undefined;
+      case "save_custom_tactic": {
+        if (failSaves) throw new Error("disk full");
+        current.push((args as { tactic: unknown }).tactic);
+        return [...current];
+      }
+      case "delete_custom_tactic": {
+        const id = (args as { id: string }).id;
+        const at = current.findIndex((tactic) => (tactic as { id: string }).id === id);
+        current.splice(at, 1);
+        return [...current];
+      }
+      default:
+        return { modified: false };
+    }
+  });
+}
+
+const callsTo = (command: string) =>
+  mockedInvoke.mock.calls.filter(([called]) => called === command);
+
+describe("useTacticsLibrary deleting and the old browser library", () => {
+  /**
+   * Given a career whose old browser library was already copied in, with a tactic still in the
+   *       browser's key that the player has since deleted
+   * When the library is loaded again
+   * Then the old tactic is not copied back: the import happens once per career.
+   */
+  it("does not copy a deleted tactic back from the browser once the import is done", async () => {
+    localStorage.setItem(OLD_KEY, JSON.stringify([oldTactic]));
+    backendWith([], false);
+
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(callsTo("list_custom_tactics")).toHaveLength(1));
+    await act(async () => {});
+
+    expect(callsTo("save_custom_tactic")).toHaveLength(0);
+    expect(customIds(result)).toEqual([]);
+    localStorage.clear();
+  });
+
+  /**
+   * Given a career whose old library has not been copied in
+   * When the library is loaded
+   * Then the old tactic is saved and the career is marked, once.
+   */
+  it("copies the old library in and then marks the import done", async () => {
+    localStorage.setItem(OLD_KEY, JSON.stringify([oldTactic]));
+    backendWith([], true);
+
+    const { result } = renderLibrary(careerGame);
+    await waitFor(() => expect(customIds(result)).toEqual(["custom:old"]));
+
+    expect(callsTo("save_custom_tactic")).toHaveLength(1);
+    expect(callsTo("mark_legacy_tactics_imported")).toHaveLength(1);
+    localStorage.clear();
+  });
+
+  /**
+   * Given an old library and a save that fails
+   * When the library is loaded
+   * Then the career is not marked: the tactic it could not save is tried again next time.
+   */
+  it("does not mark the import done when a save failed", async () => {
+    localStorage.setItem(OLD_KEY, JSON.stringify([oldTactic]));
+    backendWith([], true, true);
+
+    renderLibrary(careerGame);
+    await waitFor(() => expect(callsTo("save_custom_tactic")).toHaveLength(1));
+    await act(async () => {});
+
+    expect(callsTo("mark_legacy_tactics_imported")).toHaveLength(0);
+    localStorage.clear();
+  });
+
+  /**
+   * Given the player's setup is a saved custom tactic, and that tactic is the one applied
+   * When it is deleted
+   * Then the save loses it, the library no longer shows it, and the team keeps its formation and
+   *      play style: nothing is applied or changed, and the setup shown falls back to what the
+   *      team is actually playing.
+   */
+  it("deleting the applied tactic leaves the team's setup as it is", async () => {
+    backendWith([savedTactic], false);
+    const onFormationChange = vi.fn();
+    const onPlayStyleChange = vi.fn();
+    const onApplyPreset = vi.fn();
+    const { result } = renderHook(() =>
+      useTacticsLibrary({
+        gameState: careerGame,
+        formation: "4-4-2",
+        activePlayStyle: "Balanced",
+        initialPreset: null,
+        onFormationChange,
+        onPlayStyleChange,
+        onApplyPreset,
+      }),
+    );
+    await waitFor(() => expect(customIds(result)).toEqual(["custom:mine"]));
+    await act(async () => {
+      await result.current.applyTacticSelection(result.current.tacticLibrary[0]);
+    });
+    expect(result.current.activeTactic.id).toBe("custom:mine");
+    expect(result.current.canDeleteTactic).toBe(true);
+
+    act(() => result.current.handleDeleteTactic());
+
+    await waitFor(() => expect(callsTo("delete_custom_tactic")).toHaveLength(1));
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_custom_tactic", { id: "custom:mine" });
+    expect(customIds(result)).toEqual([]);
+    expect(result.current.activeTactic.id).not.toBe("custom:mine");
+    expect(result.current.activeTactic.formation).toBe("4-4-2");
+    expect(result.current.activeTactic.playStyle).toBe("Balanced");
+    expect(onFormationChange).not.toHaveBeenCalled();
+    expect(onPlayStyleChange).not.toHaveBeenCalled();
+    expect(onApplyPreset).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a preset is applied
+   * When delete is asked for
+   * Then it is not offered and nothing is sent: only a saved custom tactic can be deleted.
+   */
+  it("offers no delete for a preset or a setup that was never saved", async () => {
+    backendWith([], false);
+    const { result } = renderLibrary(careerGame);
+    await act(async () => {});
+
+    expect(result.current.canDeleteTactic).toBe(false);
+    act(() => result.current.handleDeleteTactic());
+
+    expect(callsTo("delete_custom_tactic")).toHaveLength(0);
   });
 });

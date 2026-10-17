@@ -495,6 +495,7 @@ mod tests {
                 emitted_events_json: "[]".to_string(),
                 seed: 0,
                 legacy_world_cup_draw: false,
+                legacy_tactics_imported: false,
             },
         )
         .unwrap();
@@ -621,6 +622,7 @@ mod tests {
                 emitted_events_json: "[]".to_string(),
                 seed: 0,
                 legacy_world_cup_draw: false,
+                legacy_tactics_imported: false,
             },
         )
         .unwrap();

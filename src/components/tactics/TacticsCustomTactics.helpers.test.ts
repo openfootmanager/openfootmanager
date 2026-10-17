@@ -53,6 +53,10 @@ function fakeSave(initial: CustomTactic[] = []) {
   };
 }
 
+/** The tactics an import leaves in the save; most scenarios care about nothing else. */
+const imported = async (...args: Parameters<typeof importLegacyTactics>) =>
+  (await importLegacyTactics(...args)).tactics;
+
 describe("importLegacyTactics", () => {
   /**
    * Given a browser library of three tactics, newest first
@@ -66,8 +70,8 @@ describe("importLegacyTactics", () => {
     });
     const backend = fakeSave();
 
-    const first = await importLegacyTactics(MANAGER, START, [], backend.save, storage);
-    const second = await importLegacyTactics(MANAGER, START, first, backend.save, storage);
+    const first = await imported(MANAGER, START, [], backend.save, storage);
+    const second = await imported(MANAGER, START, first, backend.save, storage);
 
     expect(backend.calls).toEqual(["a", "b", "c"]);
     expect(first.map((tactic) => tactic.id)).toEqual(["a", "b", "c"]);
@@ -87,7 +91,7 @@ describe("importLegacyTactics", () => {
     });
     const backend = fakeSave();
 
-    await importLegacyTactics(MANAGER, START, [], backend.save, storage);
+    await imported(MANAGER, START, [], backend.save, storage);
 
     expect(backend.list.map((tactic) => tactic.id).sort()).toEqual(["a", "b"]);
   });
@@ -106,8 +110,8 @@ describe("importLegacyTactics", () => {
     const careerOne = fakeSave();
     const careerTwo = fakeSave();
 
-    await importLegacyTactics(MANAGER, START, [], careerOne.save, storage);
-    await importLegacyTactics(MANAGER, START, [], careerTwo.save, storage);
+    await imported(MANAGER, START, [], careerOne.save, storage);
+    await imported(MANAGER, START, [], careerTwo.save, storage);
 
     expect(careerOne.list.map((tactic) => tactic.id)).toEqual(["b", "a"]);
     expect(careerTwo.list.map((tactic) => tactic.id)).toEqual(["b", "a"]);
@@ -126,7 +130,7 @@ describe("importLegacyTactics", () => {
     ];
     const backend = fakeSave(held);
 
-    await importLegacyTactics(MANAGER, START, held, backend.save, storage);
+    await imported(MANAGER, START, held, backend.save, storage);
 
     expect(backend.calls).toEqual(["b"]);
     expect(backend.list.find((tactic) => tactic.id === "a")?.name).toBe("kept");
@@ -148,10 +152,10 @@ describe("importLegacyTactics", () => {
       return backend.save(tactic);
     };
 
-    const afterFailure = await importLegacyTactics(MANAGER, START, [], flaky, storage);
+    const afterFailure = await imported(MANAGER, START, [], flaky, storage);
     expect(afterFailure.map((tactic) => tactic.id)).toEqual(["a"]);
 
-    const retry = await importLegacyTactics(MANAGER, START, afterFailure, backend.save, storage);
+    const retry = await imported(MANAGER, START, afterFailure, backend.save, storage);
 
     expect(retry.map((tactic) => tactic.id)).toEqual(["a", "b", "c"]);
     expect(backend.calls).toEqual(["a", "b", "c"]);
@@ -173,7 +177,7 @@ describe("importLegacyTactics", () => {
       return backend.save(tactic);
     };
 
-    const result = await importLegacyTactics(MANAGER, START, [], picky, storage);
+    const result = await imported(MANAGER, START, [], picky, storage);
 
     expect(result.map((tactic) => tactic.id)).toEqual(["good"]);
     expect(JSON.parse(storage.data.get(keyFor("team1")) ?? "[]")).toHaveLength(2);
@@ -190,7 +194,7 @@ describe("importLegacyTactics", () => {
     });
     const backend = fakeSave();
 
-    await importLegacyTactics(MANAGER, START, [], backend.save, storage);
+    await imported(MANAGER, START, [], backend.save, storage);
 
     expect(backend.list).toHaveLength(1);
     expect(backend.list[0].name).toBe("x".repeat(60));
@@ -204,8 +208,8 @@ describe("importLegacyTactics", () => {
   it("does nothing without storage or without an old library", async () => {
     const backend = fakeSave();
 
-    await importLegacyTactics(MANAGER, START, [], backend.save, null);
-    await importLegacyTactics(MANAGER, START, [], backend.save, fakeStorage());
+    await imported(MANAGER, START, [], backend.save, null);
+    await imported(MANAGER, START, [], backend.save, fakeStorage());
 
     expect(backend.calls).toEqual([]);
   });
@@ -227,5 +231,46 @@ describe("tactic mapping", () => {
 
     expect(shown.map((entry) => entry.id)).toEqual(["b", "a"]);
     expect(toCustomTactic({ ...shown[0], id: "  b  " }).id).toBe("b");
+  });
+
+  /**
+   * Given an old library, a save that works, and one that fails part way
+   * When each is imported
+   * Then only the first reports itself complete: a failed import must not be marked done, or the
+   *      tactics it never saved would never be tried again.
+   */
+  it("reports complete only when no save failed", async () => {
+    const storage = fakeStorage({ [keyFor("team1")]: JSON.stringify([legacy("b"), legacy("a")]) });
+    const backend = fakeSave();
+    const flaky = async (tactic: CustomTactic) => {
+      if (tactic.id === "b") throw new Error("disk full");
+      return backend.save(tactic);
+    };
+
+    const good = await importLegacyTactics(MANAGER, START, [], fakeSave().save, storage);
+    const failed = await importLegacyTactics(MANAGER, START, [], flaky, storage);
+
+    expect(good.complete).toBe(true);
+    expect(failed.complete).toBe(false);
+  });
+
+  /**
+   * Given nothing to import (no storage, or no old key), and a tactic the game refuses
+   * When they are imported
+   * Then each is complete: there is nothing left that a retry could save.
+   */
+  it("reports complete when there is nothing to retry", async () => {
+    const refusing = async () => {
+      throw "be.error.customTactic.invalidFormation";
+    };
+    const storage = fakeStorage({ [keyFor("team1")]: JSON.stringify([legacy("a")]) });
+
+    expect((await importLegacyTactics(MANAGER, START, [], fakeSave().save, null)).complete).toBe(
+      true,
+    );
+    expect(
+      (await importLegacyTactics(MANAGER, START, [], fakeSave().save, fakeStorage())).complete,
+    ).toBe(true);
+    expect((await importLegacyTactics(MANAGER, START, [], refusing, storage)).complete).toBe(true);
   });
 });

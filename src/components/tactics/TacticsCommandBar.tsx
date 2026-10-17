@@ -1,6 +1,7 @@
 import {
   Check,
   Copy,
+  Trash2,
   Crosshair,
   Flag,
   Plus,
@@ -17,6 +18,7 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { Badge, Button, Card, Select } from "../ui";
+import TacticsDeleteDialog from "./TacticsDeleteDialog";
 import { FORMATIONS } from "./TacticsTab.helpers";
 
 export interface TacticsLibraryEntry {
@@ -37,7 +39,10 @@ interface TacticsCommandBarProps {
   /** Whether pressing Reset would change anything; the library decides, the bar renders. */
   canReset: boolean;
   onReset: () => void;
+  /** Whether the active tactic is a saved custom one, the only kind that can be deleted. */
+  canDelete: boolean;
   onCreateNew: () => void;
+  onDelete: () => void;
   onDuplicate: () => void;
   onFormationChange: (formation: string) => void;
   onPlayStyleChange: (playStyle: string) => void;
@@ -68,7 +73,9 @@ export default function TacticsCommandBar({
   isDirty,
   canReset,
   onReset,
+  canDelete,
   onCreateNew,
+  onDelete,
   onDuplicate,
   onFormationChange,
   onPlayStyleChange,
@@ -80,6 +87,7 @@ export default function TacticsCommandBar({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [showSavedCue, setShowSavedCue] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const savedCueTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -178,6 +186,17 @@ export default function TacticsCommandBar({
               <Button type="button" variant="ghost" size="sm" icon={<Copy />} onClick={onDuplicate}>
                 {t("tactics.duplicateTactic")}
               </Button>
+              {canDelete ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  icon={<Trash2 />}
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  {t("tactics.deleteTactic")}
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="ghost"
@@ -379,6 +398,16 @@ export default function TacticsCommandBar({
           </div>
         </div>
       </div>
+      {confirmingDelete ? (
+        <TacticsDeleteDialog
+          name={activeTactic.name}
+          onCancel={() => setConfirmingDelete(false)}
+          onConfirm={() => {
+            setConfirmingDelete(false);
+            onDelete();
+          }}
+        />
+      ) : null}
     </Card>
   );
 }
