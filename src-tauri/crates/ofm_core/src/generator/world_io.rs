@@ -4,6 +4,7 @@ use super::definitions::{
 use std::path::{Path, PathBuf};
 
 const WORLD_PARSE_FAILED_ERROR: &str = "be.error.worldParseFailed";
+const WORLD_READ_FILE_FAILED_ERROR: &str = "be.error.worldReadFileFailed";
 const WORLD_SERIALIZE_FAILED_ERROR: &str = "be.error.worldSerializeFailed";
 const RANDOM_WORLD_NAME_KEY: &str = "be.msg.world.randomName";
 const RANDOM_WORLD_DESCRIPTION_KEY: &str = "be.msg.world.randomDescription";
@@ -374,7 +375,8 @@ fn load_world_from_manifest_path(
 }
 
 pub fn load_world_from_path(path: &Path) -> Result<WorldData, String> {
-    let json = std::fs::read_to_string(path).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+    let json =
+        std::fs::read_to_string(path).map_err(|_| WORLD_READ_FILE_FAILED_ERROR.to_string())?;
     let value: serde_json::Value =
         serde_json::from_str(&json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let manifest_shaped = value.as_object().is_some_and(|object| {
@@ -1008,6 +1010,34 @@ mod tests {
         fs::write(dir.path().join("notes.json"), r#"{"todo":["buy boots"]}"#).unwrap();
 
         assert!(scan_world_databases(dir.path()).is_empty());
+    }
+
+    /// Given a fully populated world (every collection non-empty, including the ones skipped when
+    ///       empty)
+    /// When it is serialized
+    /// Then every key the shape check accepts is a key a world file really has: a typo in the list
+    ///      (`nationalTeams` for `national_teams`) would otherwise refuse real worlds silently.
+    #[test]
+    fn every_content_key_is_a_key_a_world_file_has() {
+        let mut world = world_with_archives();
+        world.competition_definitions = Some(Default::default());
+        let written = serde_json::to_value(&world).unwrap();
+
+        for key in WORLD_CONTENT_KEYS {
+            assert!(written.get(key).is_some(), "{key} is not a WorldData field");
+        }
+    }
+
+    /// Given a path with no file behind it
+    /// When it is loaded
+    /// Then the error says the file could not be read, not that it could not be parsed.
+    #[test]
+    fn a_missing_world_file_is_a_read_error_not_a_parse_error() {
+        let dir = TempWorldDir::new();
+
+        let result = load_world_from_path(&dir.path().join("nothing-here.json"));
+
+        assert_eq!(result.unwrap_err(), WORLD_READ_FILE_FAILED_ERROR);
     }
 
     fn world_with_archives() -> WorldData {
