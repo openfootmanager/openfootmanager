@@ -2021,7 +2021,7 @@ mod live_session_tests {
         state.update_game(|game| game.teams[0].finance += 1234);
         let before = checkpoint(&state);
         let files = file_bytes(path);
-        let result = util::persist_active_game(&state, &mut saves);
+        let result = util::persist_active_game(&state, &mut saves, ofm_core::state::Career::Active);
         assert_eq!(result.err().as_deref(), Some(KEY));
         assert_eq!(file_bytes(path), files);
         assert_eq!(checkpoint(&state), before);
@@ -2046,7 +2046,7 @@ mod live_session_tests {
                 serde_json::to_value(&game.league.as_ref().unwrap().fixtures[0]).unwrap()
             })
             .unwrap();
-        util::persist_active_game(&state, &mut saves).unwrap();
+        util::persist_active_game(&state, &mut saves, ofm_core::state::Career::Active).unwrap();
         let game = saves.load_game(&id).unwrap();
         let fixture = &game.league.unwrap().fixtures[0];
         assert_eq!(fixture.status, FixtureStatus::Completed);
@@ -2118,7 +2118,7 @@ mod live_session_tests {
             Some(id.clone()),
         );
         state.update_game(|game| game.teams[0].finance += 1234);
-        util::persist_active_game(&state, &mut saves).unwrap();
+        util::persist_active_game(&state, &mut saves, ofm_core::state::Career::Active).unwrap();
         let expected = state
             .get_game(|game| serde_json::to_value(game).unwrap())
             .unwrap();

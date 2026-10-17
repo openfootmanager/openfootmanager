@@ -5,7 +5,7 @@ use tauri::{Manager as TauriManager, State};
 use db::save_index::SaveEntry;
 use domain::manager::Manager;
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
 use crate::commands::util::persist_active_game;
 use crate::SaveManagerState;
@@ -314,10 +314,11 @@ pub async fn get_active_save_id(
 pub async fn save_game(
     state: State<'_, Arc<StateManager>>,
     sm_state: State<'_, Arc<SaveManagerState>>,
+    career_token: u64,
 ) -> Result<(), String> {
     info!("[cmd] save_game");
     let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    persist_active_game(&state, &mut sm)
+    persist_active_game(&state, &mut sm, Career::Token(career_token))
 }
 
 /// Save the current game and clear the active session so the player returns to the main menu.

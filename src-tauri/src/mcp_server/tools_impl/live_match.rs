@@ -187,14 +187,14 @@ pub fn match_team_talk(
     // Resolves the manager's team before the loop that adjusts morale, so an
     // error path never leaves a half-applied team talk behind.
     let phase = crate::commands::live_match::live_phase_tag(&ctx.state_manager);
-    let results = ctx
-        .state_manager
-        .update_game(|game| {
-            let seed =
-                crate::commands::live_match::team_talk_seed_in_phase(game, &tone, &context, &phase);
-            crate::commands::live_match::apply_team_talk_internal(game, &tone, &context, seed)
-        })
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
+    let results =
+        ctx.state_manager
+            .update_game_for(ofm_core::state::Career::Active, |game| {
+                let seed = crate::commands::live_match::team_talk_seed_in_phase(
+                    game, &tone, &context, &phase,
+                );
+                crate::commands::live_match::apply_team_talk_internal(game, &tone, &context, seed)
+            })??;
 
     {
         use tauri::Emitter;
@@ -454,9 +454,9 @@ fn press_conference_on(
     state: &ofm_core::state::StateManager,
     answers: &[PressAnswer],
 ) -> Result<PressConferenceComplete, String> {
-    state
-        .update_game(|game| apply_press_conference(game, answers))
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
+    state.update_game_for(ofm_core::state::Career::Active, |game| {
+        apply_press_conference(game, answers)
+    })?
 }
 
 /// Submit press conference answers after a match.

@@ -71,6 +71,7 @@ export const SCREEN_WRITE_COMMANDS = [
   "finish_live_match",
   "apply_team_talk",
   "submit_press_conference",
+  "save_game",
 ] as const;
 
 export type ScreenWriteCommand = (typeof SCREEN_WRITE_COMMANDS)[number];

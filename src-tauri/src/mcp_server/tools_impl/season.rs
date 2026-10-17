@@ -121,8 +121,9 @@ pub fn jobs_apply(ctx: Arc<McpContext>, team_id: String) -> Result<JobApplicatio
     // nothing except closing the window between the read and the write.
     let result = ctx
         .state_manager
-        .update_game(|game| ofm_core::job_offers::apply_for_job(game, &team_id))
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?;
+        .update_game_for(ofm_core::state::Career::Active, |game| {
+            ofm_core::job_offers::apply_for_job(game, &team_id)
+        })?;
 
     {
         use tauri::Emitter;
