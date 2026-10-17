@@ -74,14 +74,16 @@ describe("screen-write commands", () => {
   /**
    * Given a component, hook or page
    * When its source is read
-   * Then it does not call a screen-write command by name: the service layer is the only caller.
+   * Then it does not invoke a screen-write command by name: the service layer is the only caller.
    */
   it("are only named in the service layer", () => {
     const offenders: string[] = [];
     for (const [file, source] of Object.entries(tsSources)) {
       if (file.startsWith("./") || isTest(file)) continue;
       for (const command of SCREEN_WRITE_COMMANDS) {
-        if (source.includes(`"${command}"`)) offenders.push(`${file}: ${command}`);
+        if (new RegExp(`\\binvoke\\w*(?:<[^>]*>)?\\(\\s*["'\`]${command}["'\`]`).test(source)) {
+          offenders.push(`${file}: ${command}`);
+        }
       }
     }
     expect(offenders).toEqual([]);

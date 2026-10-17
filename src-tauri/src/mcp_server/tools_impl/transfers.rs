@@ -9,6 +9,7 @@ use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{
     age_from_dob, format_position, require_game, serde_label,
 };
+use ofm_core::state::Career;
 use std::sync::Arc;
 
 // ─── transfer_toggle_listed ────────────────────────────────────────────────
@@ -25,7 +26,11 @@ pub fn transfer_toggle_listed(
         .map(|p| p.match_name.clone())
         .unwrap_or_default();
 
-    crate::commands::transfers::toggle_transfer_list_internal(&ctx.state_manager, &player_id)?;
+    crate::commands::transfers::toggle_transfer_list_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &player_id,
+    )?;
 
     let game = require_game(&ctx.state_manager)?;
     let is_listed = game
@@ -63,7 +68,11 @@ pub fn transfer_toggle_loan(
         .map(|p| p.match_name.clone())
         .unwrap_or_default();
 
-    crate::commands::transfers::toggle_loan_list_internal(&ctx.state_manager, &player_id)?;
+    crate::commands::transfers::toggle_loan_list_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &player_id,
+    )?;
 
     let game = require_game(&ctx.state_manager)?;
     let is_loaned = game
@@ -104,6 +113,7 @@ pub fn transfer_make_bid(
 
     let response = crate::commands::transfers::make_transfer_bid_internal(
         &ctx.state_manager,
+        Career::Active,
         &player_id,
         fee,
     )?;
@@ -181,6 +191,7 @@ pub fn transfer_respond_to_offer(
 ) -> Result<OfferAnswered, String> {
     crate::commands::transfers::respond_to_offer_internal(
         &ctx.state_manager,
+        Career::Active,
         &player_id,
         &offer_id,
         accept,
@@ -210,6 +221,7 @@ pub fn transfer_counter_offer(
 ) -> Result<CounterOffered, String> {
     let response = crate::commands::transfers::counter_offer_internal(
         &ctx.state_manager,
+        Career::Active,
         &player_id,
         &offer_id,
         requested_fee,

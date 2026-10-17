@@ -34,6 +34,7 @@ describe("scoutingService", () => {
 
     await expect(sendScout("staff-1", "player-1")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("send_scout", {
+      careerToken: 0,
       scoutId: "staff-1",
       playerId: "player-1",
     });
@@ -52,6 +53,7 @@ describe("scoutingService", () => {
       }),
     ).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("start_youth_scouting", {
+      careerToken: 0,
       scoutId: "staff-1",
       region: "Domestic",
       objective: "Balanced",
@@ -65,6 +67,7 @@ describe("scoutingService", () => {
 
     await expect(cancelYouthScouting("ysa-1")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("cancel_youth_scouting", {
+      careerToken: 0,
       assignmentId: "ysa-1",
     });
   });
@@ -75,6 +78,7 @@ describe("scoutingService", () => {
 
     await expect(reassignYouthScouting("ysa-1", "staff-2")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("reassign_youth_scouting", {
+      careerToken: 0,
       assignmentId: "ysa-1",
       scoutId: "staff-2",
     });

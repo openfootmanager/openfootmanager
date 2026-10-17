@@ -1689,6 +1689,7 @@ describe("PlayerProfile switching between players", () => {
     fireEvent.click(screen.getByRole("button", { name: "Scout" }));
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("send_scout", {
+        careerToken: 0,
         scoutId: "scout-1",
         playerId: "player-1",
       });

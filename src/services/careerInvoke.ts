@@ -32,6 +32,19 @@ export const SCREEN_WRITE_COMMANDS = [
   "set_team_kit_pattern",
   "set_player_role",
   "set_tactics_phase",
+  "toggle_transfer_list",
+  "toggle_loan_list",
+  "make_transfer_bid",
+  "make_loan_offer",
+  "exercise_loan_buy_option",
+  "respond_to_offer",
+  "respond_to_loan_offer",
+  "counter_loan_offer",
+  "counter_offer",
+  "send_scout",
+  "start_youth_scouting",
+  "cancel_youth_scouting",
+  "reassign_youth_scouting",
 ] as const;
 
 export type ScreenWriteCommand = (typeof SCREEN_WRITE_COMMANDS)[number];

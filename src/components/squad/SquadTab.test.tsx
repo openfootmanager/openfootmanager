@@ -370,6 +370,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("toggle_loan_list", {
+        careerToken: 0,
         playerId: "gk1",
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
