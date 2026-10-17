@@ -1,4 +1,5 @@
-import { getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
+import { getPlayerOvr } from "../../lib/helpers";
+import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { PlayerData, GameStateData } from "../../store/gameStore";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -86,7 +87,10 @@ export default function PlayerProfile({
     freeAgent: t("common.freeAgent"),
     unknown: t("common.unknown"),
   });
-  const contractRiskLevel = getContractRiskLevel(player.contract_end, gameState.clock.current_date);
+  const contractRiskLevel = useContractRiskLevels(
+    [player.id],
+    gameState.clock.current_date,
+  )(player.id);
   const contractRiskLabel =
     contractRiskLevel === "critical"
       ? t("finances.contractRiskCritical")

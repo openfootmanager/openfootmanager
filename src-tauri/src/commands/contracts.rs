@@ -1,13 +1,15 @@
 use log::info;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::State;
 
 use domain::negotiation::NegotiationFeedback;
 use domain::player::RenewalSessionStatus;
 use ofm_core::contracts::{
-    ContractTerminationPreview, ContractTerminationResult, DelegatedRenewalOptions,
-    DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection, RenewalOffer,
+    ContractTerminationPreview, ContractTerminationResult, ContractWarningStage,
+    DelegatedRenewalOptions, DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection,
+    RenewalOffer,
 };
 use ofm_core::game::Game;
 use ofm_core::squad_safety::SquadSafetyReport;
@@ -333,6 +335,23 @@ pub fn clear_contract_exit_intent_internal(
         ofm_core::contracts::clear_contract_exit_intent(game, player_id)
     })
     .map(|game| ContractExitIntentCommandResponse { game })
+}
+
+#[tauri::command]
+pub fn get_contract_warning_stages(
+    state: State<'_, Arc<StateManager>>,
+    player_ids: Vec<String>,
+) -> Result<HashMap<String, Option<ContractWarningStage>>, String> {
+    get_contract_warning_stages_internal(&state, &player_ids)
+}
+
+pub fn get_contract_warning_stages_internal(
+    state: &StateManager,
+    player_ids: &[String],
+) -> Result<HashMap<String, Option<ContractWarningStage>>, String> {
+    state
+        .get_game(|game| ofm_core::contracts::contract_warning_stages(game, player_ids))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }
 
 pub fn preview_contract_termination_internal(

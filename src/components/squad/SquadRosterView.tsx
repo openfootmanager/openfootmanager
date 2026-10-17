@@ -1,3 +1,4 @@
+import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import { useId, useMemo, useRef, useState } from "react";
 import type {
   GameStateData,
@@ -21,7 +22,6 @@ import {
   calcAge,
   getPlayerOvr,
   getContractRiskBadgeVariant,
-  getContractRiskLevel,
   getContractYearsRemaining,
   positionBadgeVariant,
 } from "../../lib/helpers";
@@ -126,6 +126,10 @@ export default function SquadRosterView({
     );
 
   const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
+  const riskLevelOf = useContractRiskLevels(
+    roster.map((player) => player.id),
+    clockDate,
+  );
 
   const available = roster.filter(isMatchDayEligible);
   const formation = team.formation || "4-4-2";
@@ -638,7 +642,7 @@ export default function SquadRosterView({
                 const wrongPos = inXI && isOutOfPosition(player);
                 const tacticalFit = getTacticalFit(player);
                 const styleFit = getPlayStyleFit(player, activePlayStyle, currentPos);
-                const contractRiskLevel = getContractRiskLevel(player.contract_end, clockDate);
+                const contractRiskLevel = riskLevelOf(player.id);
                 const contractRiskLabel =
                   contractRiskLevel === "critical"
                     ? t("finances.contractRiskCritical")
