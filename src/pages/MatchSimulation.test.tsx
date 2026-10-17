@@ -323,7 +323,7 @@ function makeGameState(): Record<string, unknown> {
   };
 }
 
-function makeGameStateWithFriendly() {
+function makeGameStateWithFriendly(competition = "Friendly") {
   const base = makeGameState();
   return {
     ...base,
@@ -333,7 +333,7 @@ function makeGameStateWithFriendly() {
       fixtures: [
         {
           id: "fix1",
-          competition: "Friendly",
+          competition,
           home_team_id: "home1",
           away_team_id: "away1",
           date: "2026-08-01",
@@ -594,6 +594,44 @@ describe("MatchSimulation", (): void => {
       expect(screen.getByTestId("postmatch-continue")).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getByTestId("postmatch-continue"));
+
+    await waitFor((): void => {
+      expect(screen.getByTestId("digest-is-league")).toHaveTextContent("false");
+    });
+  });
+
+  /**
+   * Given the manager plays a domestic cup tie (a knockout with no league table)
+   * When the match reaches the digest
+   * Then it is not treated as a league fixture: only a match that counts for the league table is,
+   *      as the backend decides (`counts_for_league_standings`), so no league standings are shown
+   *      beside a cup result.
+   */
+  it("routes a manager's cup tie through digest with isLeagueFixture=false", async (): Promise<void> => {
+    locationState = { mode: "live", fixtureIndex: 0, snapshot: makeSnapshot() };
+    gameStoreState = {
+      gameState: makeGameStateWithFriendly("Cup"),
+      setGameState: setGameStateMock,
+    };
+    mockedInvoke.mockResolvedValueOnce(makeSnapshot()).mockResolvedValueOnce({
+      game: makeGameState(),
+      round_summary: null,
+    });
+
+    render(<MatchSimulation />);
+
+    await waitFor((): void => {
+      expect(screen.getByTestId("prematch-start")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("prematch-start"));
+    await waitFor((): void => {
+      expect(screen.getByTestId("match-live")).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId("match-live"));
+    await waitFor((): void => {
+      expect(screen.getByTestId("postmatch-continue")).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByTestId("postmatch-continue"));
 
     await waitFor((): void => {

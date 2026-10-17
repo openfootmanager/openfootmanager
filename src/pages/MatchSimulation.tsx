@@ -20,6 +20,7 @@ import PostMatchScreen from "../components/match/PostMatchScreen";
 import RoundDigestScreen from "../components/match/RoundDigestScreen";
 import PressConference from "../components/match/PressConference";
 import PenaltyShootoutScreen from "../components/match/PenaltyShootoutScreen";
+import { countsForLeagueStandings } from "../lib/fixtures";
 
 // ---------------------------------------------------------------------------
 // Multi-stage Match Day Orchestrator
@@ -400,8 +401,7 @@ export default function MatchSimulation() {
 
     case "digest": {
       const isLeagueFixture = currentFixture
-        ? currentFixture.competition !== "Friendly" &&
-          currentFixture.competition !== "PreseasonTournament"
+        ? countsForLeagueStandings(currentFixture)
         : roundSummary !== null;
       return (
         <RoundDigestScreen

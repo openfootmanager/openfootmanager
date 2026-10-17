@@ -48,6 +48,15 @@ export function getFixtureCompetitionName(
   return competition ? competitionDisplayName(competition, t) : undefined;
 }
 
+/**
+ * Whether a match is played for the league table, which is the backend's rule
+ * (`Fixture::counts_for_league_standings`): a league match, and nothing else; a cup tie, a
+ * continental or international match and a friendly have no place in the league's standings.
+ */
+export function countsForLeagueStandings(fixture: FixtureData): boolean {
+  return fixture.competition === "League";
+}
+
 export function isCompetitiveFixture(fixture: FixtureData): boolean {
   return !fixture.competition || !["Friendly", "PreseasonTournament"].includes(fixture.competition);
 }

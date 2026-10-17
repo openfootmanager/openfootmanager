@@ -2,7 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import i18n, { i18nReady } from "../i18n";
 import type { FixtureCompetition } from "../store/types";
-import { getFixtureCompetitionName, getFixtureDisplayLabel } from "./fixtures";
+import {
+  countsForLeagueStandings,
+  getFixtureCompetitionName,
+  getFixtureDisplayLabel,
+} from "./fixtures";
 
 let previousLanguage: string;
 
@@ -74,5 +78,32 @@ describe("getFixtureCompetitionName", () => {
         i18n.getFixedT("pt-BR"),
       ),
     ).toBe("Copa do Mundo 2026");
+  });
+});
+
+describe("countsForLeagueStandings", () => {
+  /**
+   * Given a fixture of each kind
+   * When it is asked whether it counts for the league table
+   * Then only a league match does, as the backend decides: a cup tie, a continental or
+   *      international match and a friendly have no place in the standings.
+   */
+  it("is true for a league match and for nothing else", () => {
+    const kinds: FixtureCompetition[] = [
+      "League",
+      "Cup",
+      "ContinentalClub",
+      "InternationalClub",
+      "InternationalNation",
+      "Friendly",
+      "FriendlyCup",
+      "PreseasonTournament",
+    ];
+
+    const counting = kinds.filter((competition) =>
+      countsForLeagueStandings({ competition } as Parameters<typeof countsForLeagueStandings>[0]),
+    );
+
+    expect(counting).toEqual(["League"]);
   });
 });
