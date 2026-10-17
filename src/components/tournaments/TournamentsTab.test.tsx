@@ -178,6 +178,20 @@ function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
 
 function createGameState(withLeague = true): GameStateData {
   return {
+    // The backend says the season is under way, so the standings are live.
+    season_context: {
+      phase: "InSeason",
+      season_start: "2026-08-01",
+      season_end: "2027-05-31",
+      days_until_season_start: null,
+      transfer_window: {
+        status: "Closed",
+        opens_on: null,
+        closes_on: null,
+        days_until_opens: null,
+        days_remaining: null,
+      },
+    },
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

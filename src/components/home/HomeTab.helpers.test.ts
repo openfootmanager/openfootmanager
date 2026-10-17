@@ -215,6 +215,19 @@ function createGameState(overrides: Partial<GameStateData> = {}): GameStateData 
 describe("HomeTab.helpers", (): void => {
   it("derives the next opponent widget data from the next scheduled fixture", (): void => {
     const gameState = createGameState({
+      season_context: {
+        phase: "InSeason",
+        season_start: "2025-01-01",
+        season_end: "2025-05-01",
+        days_until_season_start: null,
+        transfer_window: {
+          status: "Closed",
+          opens_on: null,
+          closes_on: null,
+          days_until_opens: null,
+          days_remaining: null,
+        },
+      },
       teams: [
         createTeam(),
         createTeam({
