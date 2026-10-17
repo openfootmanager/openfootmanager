@@ -2,6 +2,7 @@ use super::super::continental::resolve_continental_fields;
 use super::super::pyramid::apply_pyramid_promotion_relegation;
 use super::super::test_support::*;
 use super::*;
+use crate::game::Game;
 use domain::league::{
     Berth, BerthRule, CompetitionScope, CompetitionType, Fixture, FixtureCompetition,
     FixtureStatus, League,
@@ -678,4 +679,82 @@ fn apply_domestic_berth_ignores_unfinished_non_position_range_source() {
         vec!["p1".to_string(), "p2".to_string()],
         "PlayoffWinner source is not a feeder"
     );
+}
+
+fn continental_target(id: &str, priority: u32) -> League {
+    let mut target = League::new(id.to_string(), id.to_string(), 2026, &[]);
+    target.scope = CompetitionScope::Continental;
+    target.kind = CompetitionType::ContinentalClub;
+    target.priority = priority;
+    target
+}
+
+/// Which of `alpha` or `zeta` the club actually entered.
+fn continental_target_for(game: &Game, club: &str) -> String {
+    let fields = resolve_continental_fields(game);
+    let holders: Vec<&str> = ["alpha", "zeta"]
+        .into_iter()
+        .filter(|target| {
+            fields
+                .get(*target)
+                .is_some_and(|field| field.iter().any(|entrant| entrant == club))
+        })
+        .collect();
+    assert_eq!(
+        holders.len(),
+        1,
+        "{club} should qualify for exactly one of the two targets, got {fields:?}"
+    );
+    holders[0].to_string()
+}
+
+/// Given a club that finishes first in two leagues, each awarding a berth to a
+/// different continental competition of the same priority, when those
+/// competitions are listed zeta-first and then reversed, then the club enters
+/// `alpha` both times.
+#[test]
+fn equal_priority_berth_targets_ignore_the_order_competitions_are_listed_in() {
+    let club = "ace";
+    let mut league_zeta = division("league-zeta", 3, "BR", &[(club, 30), ("other-z", 10)]);
+    league_zeta.berths = vec![position_berth("zeta", 1, 1)];
+    let mut league_alpha = division("league-alpha", 3, "BR", &[(club, 30), ("other-a", 10)]);
+    league_alpha.berths = vec![position_berth("alpha", 1, 1)];
+
+    let mut game = empty_game();
+    // zeta's source is listed first, so a strict `<` on priority keeps zeta.
+    game.competitions = vec![
+        continental_target("zeta", 1),
+        continental_target("alpha", 1),
+        league_zeta,
+        league_alpha,
+    ];
+
+    let listed_zeta_first = continental_target_for(&game, club);
+    game.competitions.reverse();
+    let listed_alpha_first = continental_target_for(&game, club);
+
+    assert_eq!(listed_zeta_first, "alpha");
+    assert_eq!(listed_alpha_first, "alpha");
+}
+
+/// Given the same club earning `alpha` at priority 2 and `zeta` at priority 1,
+/// when the fields resolve, then the lower priority number wins even though
+/// `alpha` sorts first and is considered first.
+#[test]
+fn a_lower_priority_number_beats_an_earlier_target_id() {
+    let club = "ace";
+    let mut league_alpha = division("league-alpha", 3, "BR", &[(club, 30), ("other-a", 10)]);
+    league_alpha.berths = vec![position_berth("alpha", 1, 1)];
+    let mut league_zeta = division("league-zeta", 3, "BR", &[(club, 30), ("other-z", 10)]);
+    league_zeta.berths = vec![position_berth("zeta", 1, 1)];
+
+    let mut game = empty_game();
+    game.competitions = vec![
+        continental_target("alpha", 2),
+        continental_target("zeta", 1),
+        league_alpha,
+        league_zeta,
+    ];
+
+    assert_eq!(continental_target_for(&game, club), "zeta");
 }
