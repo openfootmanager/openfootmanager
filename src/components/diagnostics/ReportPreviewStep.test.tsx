@@ -36,6 +36,7 @@ function renderStep(overrides: Partial<React.ComponentProps<typeof ReportPreview
       onConsentChange={vi.fn()}
       failure={null}
       failureKind={null}
+      failureDetail={null}
       {...overrides}
     />,
   );
@@ -62,5 +63,34 @@ describe("ReportPreviewStep", () => {
     renderStep({ canAttachSave: false, logBytes: 2 * 1024 * 1024 });
 
     expect(screen.getByText("2,0 МБ")).toBeInTheDocument();
+  });
+
+  /**
+   * Given an upload refused with a reason from the server
+   * When the preview shows the failure
+   * Then the reason sits in a collapsed "Technical details" line, verbatim
+   */
+  it("shows the server's reason under a collapsible technical-details line", () => {
+    const detail = 'HTTP 422 · invalid · bundle: Entry "report.md" has a disallowed file type';
+    renderStep({
+      failure: "The report was refused.",
+      failureKind: "rejected",
+      failureDetail: detail,
+    });
+
+    const summary = screen.getByText("reportBug.technicalDetails");
+    expect(summary.closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText(detail)).toBeInTheDocument();
+  });
+
+  /**
+   * Given a failure the server said nothing about
+   * When the preview shows it
+   * Then there is no technical-details line
+   */
+  it("shows no technical details when there are none", () => {
+    renderStep({ failure: "No connection.", failureKind: "unreachable" });
+
+    expect(screen.queryByText("reportBug.technicalDetails")).not.toBeInTheDocument();
   });
 });

@@ -776,6 +776,10 @@
     "myTactics": "As minhas táticas",
     "newTactic": "Nova tática",
     "duplicateTactic": "Duplicar",
+    "deleteTactic": "Eliminar",
+    "deleteTacticTitle": "Eliminar esta tática?",
+    "deleteTacticBody": "«{{name}}» será removida da biblioteca. A equipa mantém a formação e o estilo de jogo atuais.",
+    "deleteTacticConfirm": "Eliminar",
     "resetTactic": "Repor predefinições",
     "saveAsTactic": "Guardar como tática",
     "updateTactic": "Atualizar tática",
@@ -1430,6 +1434,9 @@
     "resumeNegotiationHint": "As conversas continuam vivas com este clube.",
     "resumeNegotiationHeadline": "O outro clube está à espera do teu próximo passo.",
     "resumeNegotiationDetail": "O último sinal deles apontou para {{fee}}.",
+    "resumeRefusedHeadline": "Recusaram a tua última proposta.",
+    "resumeRefusedDetail": "Uma nova proposta retoma as negociações a partir daqui. O último sinal deles apontava para {{fee}}.",
+    "talksResumeOn": "As negociações podem ser retomadas em {{date}}.",
     "transferFeedbackAcceptedHeadline": "O outro clube está pronto para fechar negócio.",
     "transferFeedbackAcceptedDetail": "O teu valor entrou na zona de conforto deles, por isso a conversa avançou depressa.",
     "transferFeedbackScheduledHeadline": "Negócio acordado para a próxima janela de registo.",
@@ -2073,6 +2080,7 @@
     "roundSummaryUnavailable": "Resumo da jornada indisponível.",
     "otherMatches": "Outros Jogos",
     "otherMatchesToday": "Outros Jogos de Hoje",
+    "elsewhereInYourLeague": "No resto da tua liga",
     "otherMatchesUnavailable": "O contexto dos outros jogos ainda não está disponível para este encontro.",
     "viewDetails": "Ver detalhes",
     "matchDetails": "Detalhes do Jogo",
@@ -2639,6 +2647,7 @@
         "wouldLeaveSeniorsShort": "Este jogador não pode sair: o clube ficaria com menos de {{floor}} jogadores no plantel principal, o mínimo que um clube tem de manter."
       },
       "noActiveGameSession": "Sem sessão de jogo ativa",
+      "careerChanged": "A carreira mudou antes de isto poder ser guardado.",
       "noActiveSaveSession": "Sem sessão de gravação ativa",
       "saveNotFound": "Gravação '{{saveId}}' não encontrada.",
       "teamNotFound": "Equipa não encontrada",
@@ -2694,7 +2703,8 @@
         "worldExportNotPackage": "Esta pasta é um mundo exportado, não um projeto de pacote. Os mundos exportados usam um formato diferente e não podem ser editados aqui.",
         "notAProjectDirectory": "Esta não é uma pasta de projeto de pacote. Escolhe a pasta que contém o package.json do pacote — ou, para um pacote .ofm instalado, usa «Abrir ficheiro .ofm».",
         "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
-        "invalidEntity": "Uma entrada \"{{schema}}\" é inválida.",
+        "invalidEntity": "Uma entrada \"{{schema}}\" é inválida: {{detail}}",
+        "duplicateWorld": "O pacote já tem um manifesto em \"{{first}}\"; um pacote só pode ter um ficheiro \"world\".",
         "missingId": "Falta o id numa entrada {{kind}}.",
         "missingMetadata": "Falta o campo obrigatório \"{{field}}\" no manifesto do pacote.",
         "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",
@@ -3698,7 +3708,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, pelo que os seus clubes ficam na Europa. Atribua-lhe uma confederação.",
-        "freeAgentFieldIgnored": "O jogador «{{id}}» não tem clube, pelo que é um jogador livre sem contrato: «{{field}}» é ignorado. Atribua-lhe um clube para o usar, ou remova o campo."
+        "freeAgentFieldIgnored": "O jogador «{{id}}» não tem clube, pelo que é um jogador livre sem contrato: «{{field}}» é ignorado. Atribua-lhe um clube para o usar, ou remova o campo.",
+        "repeatedNamePool": "O conjunto de nomes de {{country}} já foi dado em {{first}}; o deste ficheiro substitui-o. Mantenha só um, ou atribua-os a países diferentes."
       }
     }
   },
@@ -4298,6 +4309,7 @@
     "saveAndOpenInstead": "Guardar o ficheiro e usar o GitHub",
     "nothingSentYetUpload": "Nada sai deste computador até carregares em Enviar. Preferes o GitHub? Guarda o ficheiro e anexa-o tu ao formulário — isso exige uma conta no GitHub.",
     "uploadFailedFallback": "Ainda o podes enviar pelo GitHub: guarda o ficheiro e anexa-o ao formulário.",
+    "technicalDetails": "Detalhes técnicos",
     "tooLargeUntickSave": "Se desmarcares o teu jogo guardado, o relatório fica muito mais pequeno.",
     "sentTitle": "Relatório enviado",
     "sentIntro": "Obrigado. O teu relatório chegou à equipa do OpenFoot Manager e é guardado até ser tratado.",

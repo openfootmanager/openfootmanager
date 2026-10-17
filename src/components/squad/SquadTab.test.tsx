@@ -9,6 +9,7 @@ import type {
 } from "../../store/gameStore";
 import { createPlayer } from "../../test-utils/factories";
 import SquadTab from "./SquadTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -116,6 +117,7 @@ const makeGameState = (): GameStateData => {
   ];
 
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01",
       start_date: "2026-08-01",

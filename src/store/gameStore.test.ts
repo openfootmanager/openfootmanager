@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { useGameStore } from "./gameStore";
 import type { GameStateData } from "./types";
+import { createSeasonContext } from "../test-utils/factories";
 
 // ---------------------------------------------------------------------------
 // Reset store between tests
@@ -17,6 +18,7 @@ beforeEach(() => {
 
 // Minimal GameStateData stub — only the fields the store cares about
 const makeGameState = (overrides: Partial<GameStateData> = {}): GameStateData => ({
+  season_context: createSeasonContext(),
   clock: { current_date: "2026-08-01", start_date: "2026-08-01" },
   manager: {
     display_name: "Test Manager",

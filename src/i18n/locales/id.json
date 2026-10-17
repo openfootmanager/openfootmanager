@@ -728,6 +728,10 @@
     "myTactics": "Taktik Saya",
     "newTactic": "Taktik Baru",
     "duplicateTactic": "Duplikat",
+    "deleteTactic": "Hapus",
+    "deleteTacticTitle": "Hapus taktik ini?",
+    "deleteTacticBody": "“{{name}}” akan dihapus dari pustaka. Tim tetap memakai formasi dan gaya bermain saat ini.",
+    "deleteTacticConfirm": "Hapus",
     "resetTactic": "Atur ulang ke default",
     "saveAsTactic": "Simpan sebagai taktik",
     "updateTactic": "Perbarui taktik",
@@ -1430,6 +1434,9 @@
     "resumeNegotiationHint": "Negosiasi masih berlangsung dengan klub ini.",
     "resumeNegotiationHeadline": "Klub lain menunggu langkah kamu berikutnya.",
     "resumeNegotiationDetail": "Sinyal terakhir mereka mengarah ke {{fee}}.",
+    "resumeRefusedHeadline": "Mereka menolak tawaran terakhir kamu.",
+    "resumeRefusedDetail": "Tawaran baru melanjutkan negosiasi dari sini. Sinyal terakhir mereka mengarah ke {{fee}}.",
+    "talksResumeOn": "Negosiasi dapat dilanjutkan pada {{date}}.",
     "transferFeedbackAcceptedHeadline": "Klub lain siap untuk berbisnis.",
     "transferFeedbackAcceptedDetail": "Nomor kamu masuk dalam zona nyaman mereka, sehingga percakapan berjalan cepat.",
     "transferFeedbackScheduledHeadline": "Kesepakatan tercapai untuk jendela registrasi berikutnya.",
@@ -2107,6 +2114,7 @@
     "roundSummaryUnavailable": "Ringkasan pekan tidak tersedia.",
     "otherMatches": "Pertandingan Lain",
     "otherMatchesToday": "Pertandingan Lain Hari Ini",
+    "elsewhereInYourLeague": "Di tempat lain di liga kamu",
     "otherMatchesUnavailable": "Konteks pertandingan lain belum tersedia untuk laga ini.",
     "viewDetails": "Lihat detail",
     "matchDetails": "Detail Pertandingan",
@@ -2639,6 +2647,7 @@
         "wouldLeaveSeniorsShort": "Pemain ini tidak bisa pergi: klub akan tinggal memiliki kurang dari {{floor}} pemain di tim utama, batas minimum yang harus dipertahankan klub."
       },
       "noActiveGameSession": "Tidak ada sesi permainan yang aktif",
+      "careerChanged": "Karier berubah sebelum ini sempat disimpan.",
       "noActiveSaveSession": "Tidak ada sesi penyimpanan yang aktif",
       "saveNotFound": "Penyimpanan '{{saveId}}' tidak ditemukan.",
       "saveManagerUnavailable": "Data penyimpanan untuk sementara tidak tersedia.",
@@ -2729,7 +2738,8 @@
         "worldExportNotPackage": "Folder ini adalah dunia yang diekspor, bukan proyek paket. Dunia yang diekspor menggunakan format berbeda dan tidak dapat diedit di sini.",
         "notAProjectDirectory": "Ini bukan folder proyek paket. Pilih folder yang berisi package.json paket tersebut — atau, untuk paket .ofm yang terpasang, gunakan \"Buka File .ofm\".",
         "unknownSchema": "Skema \"{{schema}}\" tidak dikenal.",
-        "invalidEntity": "Entri \"{{schema}}\" tidak valid.",
+        "invalidEntity": "Entri \"{{schema}}\" tidak valid: {{detail}}",
+        "duplicateWorld": "Paket sudah memiliki manifes di \"{{first}}\"; sebuah paket hanya boleh memiliki satu berkas \"world\".",
         "missingId": "Entri {{kind}} kekurangan id.",
         "missingMetadata": "Manifest paket kekurangan bidang wajib \"{{field}}\".",
         "duplicateId": "Id {{kind}} \"{{id}}\" duplikat.",
@@ -3698,7 +3708,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Paket ini mendefinisikan negara \"{{name}}\" ({{code}}) di luar daftar negara permainan dan tidak menempatkannya di konfederasi mana pun, sehingga klubnya dikelompokkan di Eropa. Berikan konfederasi untuknya.",
-        "freeAgentFieldIgnored": "Pemain \"{{id}}\" tidak punya klub, sehingga menjadi pemain bebas tanpa kontrak: \"{{field}}\" diabaikan. Berikan klub untuknya agar dipakai, atau hapus kolom itu."
+        "freeAgentFieldIgnored": "Pemain \"{{id}}\" tidak punya klub, sehingga menjadi pemain bebas tanpa kontrak: \"{{field}}\" diabaikan. Berikan klub untuknya agar dipakai, atau hapus kolom itu.",
+        "repeatedNamePool": "Kumpulan nama untuk {{country}} sudah diberikan di {{first}}; kumpulan di berkas ini menggantikannya. Simpan salah satu saja, atau berikan ke negara yang berbeda."
       }
     }
   },
@@ -4298,6 +4309,7 @@
     "saveAndOpenInstead": "Simpan berkas dan pakai GitHub saja",
     "nothingSentYetUpload": "Tidak ada yang keluar dari komputer ini sampai kamu menekan Kirim. Lebih suka GitHub? Simpan berkasnya dan lampirkan sendiri ke formulir — itu butuh akun GitHub.",
     "uploadFailedFallback": "Kamu masih bisa mengirimnya lewat GitHub: simpan berkasnya dan lampirkan ke formulir.",
+    "technicalDetails": "Detail teknis",
     "tooLargeUntickSave": "Membatalkan centang berkas simpananmu akan membuat laporan jauh lebih kecil.",
     "sentTitle": "Laporan terkirim",
     "sentIntro": "Terima kasih. Laporanmu sudah sampai ke tim OpenFoot Manager dan disimpan sampai selesai ditangani.",

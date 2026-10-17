@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, NewsArticle, TeamData } from "../../store/gameStore";
 import NewsTab from "./NewsTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("../season/AwardsCeremonyScreen", () => ({
   default: () => <div>Awards Ceremony Mock</div>,
@@ -79,6 +80,7 @@ function createNewsArticle(overrides: Partial<NewsArticle> = {}): NewsArticle {
 
 function createGameState(news: NewsArticle[]): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-01T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

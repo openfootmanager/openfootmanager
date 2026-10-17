@@ -761,7 +761,7 @@ export interface SeasonContextData {
   transfer_window: TransferWindowContextData;
   /** Whether the rollover to next season is available now. Decided by the
    *  backend, which is also what `advance_to_next_season` enforces. */
-  season_complete?: boolean;
+  season_complete: boolean;
 }
 
 export interface NewsMatchScore {
@@ -851,6 +851,8 @@ export interface YouthScoutingAssignment {
 }
 
 export interface GameStateData {
+  /** Names the career this game was installed as; commands that write on the screen's behalf hand it back. */
+  career_token?: number;
   clock: {
     current_date: string;
     start_date: string;
@@ -877,7 +879,7 @@ export interface GameStateData {
   scouting_assignments: ScoutingAssignment[];
   youth_scouting_assignments?: YouthScoutingAssignment[];
   board_objectives: BoardObjective[];
-  season_context?: SeasonContextData;
+  season_context: SeasonContextData;
   available_staff_market_last_activity_date?: string | null;
   extra_translations?: Record<string, Record<string, unknown>>;
   package_lockfile?: Array<{ id: string; version: string; hash: string }>;

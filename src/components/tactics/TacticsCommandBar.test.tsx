@@ -43,7 +43,9 @@ function buildProps(
     activePlayStyle: "Balanced",
     formation: "4-4-2",
     isDirty: false,
+    canDelete: true,
     onCreateNew: vi.fn(),
+    onDelete: vi.fn(),
     onDuplicate: vi.fn(),
     onFormationChange: vi.fn(),
     onPlayStyleChange: vi.fn(),
@@ -159,5 +161,101 @@ describe("TacticsCommandBar", () => {
     renderCommandBar({ activeTactic: customTactic, canReset: false });
 
     expect(screen.getByRole("button", { name: "tactics.resetTactic" })).toBeDisabled();
+  });
+
+  describe("deleting a custom tactic", () => {
+    /**
+     * Given a saved custom tactic is active
+     * When Delete is pressed
+     * Then a confirmation names the tactic, nothing is deleted yet, and Cancel leaves it alone.
+     */
+    it("asks first, and Cancel deletes nothing", () => {
+      const onDelete = vi.fn();
+      renderCommandBar({ onDelete });
+
+      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+
+      const dialog = screen.getByRole("dialog");
+      expect(dialog).toHaveTextContent("tactics.deleteTacticBody");
+      expect(onDelete).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Given the confirmation has just opened
+     * Then focus is on Cancel, the safe answer, so a stray Enter cannot delete.
+     */
+    it("starts with focus on Cancel", () => {
+      renderCommandBar();
+
+      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+
+      expect(screen.getByRole("button", { name: "common.cancel" })).toHaveFocus();
+    });
+
+    /**
+     * Given the confirmation is open
+     * When the backdrop is clicked
+     * Then it cancels without deleting: Cancel is the safe answer, and what players expect.
+     */
+    it("a click on the backdrop cancels without deleting", () => {
+      const onDelete = vi.fn();
+      renderCommandBar({ onDelete });
+      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+
+      const backdrop = screen.getByTestId("dialog-backdrop");
+      fireEvent.mouseDown(backdrop);
+      fireEvent.click(backdrop);
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Given the confirmation is open
+     * When Delete is confirmed
+     * Then the tactic is deleted once and the dialog closes.
+     */
+    it("deletes once when confirmed", () => {
+      const onDelete = vi.fn();
+      renderCommandBar({ onDelete });
+
+      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTacticConfirm" }));
+
+      expect(onDelete).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    /**
+     * Given the confirmation is open
+     * When Escape is pressed
+     * Then it closes without deleting: a keyboard player can back out.
+     */
+    it("Escape backs out without deleting", () => {
+      const onDelete = vi.fn();
+      renderCommandBar({ onDelete });
+      fireEvent.click(screen.getByRole("button", { name: "tactics.deleteTactic" }));
+
+      fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(onDelete).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Given a preset, or a setup that was never saved, is active
+     * When the bar is shown
+     * Then there is no Delete button.
+     */
+    it("offers no Delete when nothing saved is active", () => {
+      renderCommandBar({ activeTactic: presetTactic, canDelete: false });
+
+      expect(screen.queryByRole("button", { name: "tactics.deleteTactic" })).toBeNull();
+    });
   });
 });

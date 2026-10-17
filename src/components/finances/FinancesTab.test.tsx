@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
 import { resolveBackendError } from "../../utils/backendI18n";
 import FinancesTab from "./FinancesTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -323,6 +324,7 @@ function createGameState(
   players: PlayerData[] = [createPlayer()],
 ): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2025-01-20T00:00:00Z",
       start_date: "2025-01-01T00:00:00Z",

@@ -20,7 +20,7 @@ use domain::staff::{CoachingSpecialization, StaffAttributes, StaffRole};
 use super::authored_player::{
     authored_player_errors, invalid_date_of_birth_error, is_valid_date_of_birth,
 };
-use super::{CompetitionDefinition, NamePool, NamesDefinition, TeamDef};
+use super::{CompetitionDefinition, NamesDefinition, TeamDef};
 
 // ---------------------------------------------------------------------------
 // Authoring structs for the entity types a package can contain
@@ -294,6 +294,14 @@ pub struct PackageInfo {
     pub logo_data_url: Option<String>,
 }
 
+/// A country given a name pool by two files of one package; the later file replaced the earlier.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct RepeatedNamePool {
+    pub(super) country: String,
+    pub(super) first_file: String,
+    pub(super) later_file: String,
+}
+
 /// Everything a package declares, aggregated across all its files.
 #[derive(Debug, Default)]
 pub struct WorldPackage {
@@ -305,6 +313,10 @@ pub struct WorldPackage {
     pub staff: Vec<StaffDef>,
     pub competitions: Vec<CompetitionDefinition>,
     pub names: Option<NamesDefinition>,
+    /// The file each country's name pool came from, to notice a country given twice.
+    name_pool_files: std::collections::HashMap<String, String>,
+    /// Each pool a later file of this package replaced.
+    pub(super) repeated_name_pools: Vec<RepeatedNamePool>,
     /// Per-locale translation bundles supplied by the package, keyed by locale
     /// code (e.g. `"de"`, `"fr"`). Loaded from `translations.{locale}.json`
     /// files found anywhere in the package directory tree.
@@ -442,6 +454,7 @@ const MISSING_ID: &str = "be.error.package.missingId";
 /// fragment inside a translated sentence.
 const MISSING_METADATA: &str = "be.error.package.missingMetadata";
 const DUPLICATE_ID: &str = "be.error.package.duplicateId";
+const DUPLICATE_WORLD: &str = "be.error.package.duplicateWorld";
 const INVALID_PACKAGE_ID: &str = "be.error.package.invalidPackageId";
 const WORLD_EXPORT_NOT_PACKAGE: &str = "be.error.package.worldExportNotPackage";
 const UNKNOWN_CONFEDERATION: &str = "be.error.package.unknownConfederation";
@@ -527,10 +540,48 @@ fn parse_entity<T: serde::de::DeserializeOwned>(
 ) -> Option<T> {
     match serde_yaml::from_value::<T>(value) {
         Ok(parsed) => Some(parsed),
-        Err(_) => {
-            errors.push(PackageError::new(INVALID_ENTITY, file).with("schema", schema));
+        // `detail` is serde's own diagnostic (the field, the unexpected value, a location), shown
+        // verbatim after the translated message: it names what the author has to fix.
+        Err(error) => {
+            errors.push(
+                PackageError::new(INVALID_ENTITY, file)
+                    .with("schema", schema)
+                    .with("detail", error.to_string()),
+            );
             None
         }
+    }
+}
+
+/// Name pools accumulate within a package like every other schema does, a repeated country key
+/// being last-wins; a second file used to replace the first and drop its pools silently.
+/// "Last" means last in the sorted relative-path order of the data files. Within one file, the
+/// top-level `pools` win over `items` for the same key.
+fn add_name_pools(package: &mut WorldPackage, def: NamesDefinition, file: &str) {
+    // A country whose pool an earlier file of this package already gave is reported (as a warning,
+    // `package_warnings`): the later file replaces it, which an author who split their pools over
+    // files rarely meant. Within one file, `pools` over `items` is the documented order.
+    let mut keys: Vec<&String> = def.pools.keys().collect();
+    keys.sort();
+    for key in keys {
+        if let Some(first) = package
+            .name_pool_files
+            .get(key)
+            .filter(|first| *first != file)
+        {
+            package.repeated_name_pools.push(RepeatedNamePool {
+                country: key.clone(),
+                first_file: first.clone(),
+                later_file: file.to_string(),
+            });
+        }
+        package
+            .name_pool_files
+            .insert(key.clone(), file.to_string());
+    }
+    match package.names.as_mut() {
+        Some(existing) => existing.absorb(def),
+        None => package.names = Some(def),
     }
 }
 
@@ -580,14 +631,19 @@ fn classify_entity(
         }
         "names" => {
             if let Some(def) = parse_entity::<NamesDefinition>(value, file, schema, errors) {
-                package.names = Some(def);
+                add_name_pools(package, def, file);
             }
         }
         "world" => {
-            if let Some(def) = parse_entity::<WorldMetaDef>(value, file, schema, errors) {
+            // One manifest per package: a second used to replace the first, quietly changing the
+            // package's identity and default regions depending on which file was read last.
+            if package.meta.is_some() {
+                errors.push(
+                    PackageError::new(DUPLICATE_WORLD, file)
+                        .with("first", package.manifest_file.clone()),
+                );
+            } else if let Some(def) = parse_entity::<WorldMetaDef>(value, file, schema, errors) {
                 package.meta = Some(def);
-                // Overwritten alongside `meta`, so the recorded path always
-                // belongs to the manifest that actually survived.
                 package.manifest_file = file.to_string();
             }
         }
@@ -618,10 +674,17 @@ fn classify_file(
 
     // A file holds one entity (its fields at the top level) or a bulk `items`
     // list of entities of the same schema.
-    let entities: Vec<Value> = match map.get("items") {
+    let mut entities: Vec<Value> = match map.get("items") {
         Some(Value::Sequence(items)) => items.clone(),
         _ => vec![value.clone()],
     };
+    // `ofm-cli add names --append-to` adds an `items` list to a file that already declares
+    // `pools` at the top level; both halves are name pools, so neither may be dropped.
+    if schema == "names" && map.contains_key("items") && map.contains_key("pools") {
+        let mut own_pools = map.clone();
+        own_pools.remove("items");
+        entities.push(Value::Mapping(own_pools));
+    }
     for entity in entities {
         classify_entity(&schema, entity, file, package, errors);
     }
@@ -1623,11 +1686,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
     // Name pools are unioned per-key across packages (like every other entity
     // collection) rather than wholesale-replaced, so stacking packages that each
     // supply distinct pools keeps them all.
-    let mut merged_pools: std::collections::HashMap<String, NamePool> =
-        std::collections::HashMap::new();
-    let mut names_version = 0u32;
-    let mut names_description = String::new();
-    let mut saw_names = false;
+    let mut merged_names: Option<NamesDefinition> = None;
 
     for package in databases.into_iter().chain(patches) {
         if let Some(meta) = package.meta {
@@ -1713,17 +1772,16 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
             competitions.insert(c.id.clone(), (c, file_of("competition", i)));
         }
         if let Some(names) = package.names {
-            saw_names = true;
-            if names.version > names_version {
-                names_version = names.version;
-            }
-            if !names.description.is_empty() {
-                names_description = names.description;
-            }
-            for (key, pool) in names.pools {
-                merged_pools.insert(key, pool);
+            match merged_names.as_mut() {
+                Some(merged_names) => merged_names.absorb(names),
+                None => merged_names = Some(names),
             }
         }
+        // A repeat inside one package is that package's own mistake and travels with it; a later
+        // package replacing an earlier one's pool is stacking, and is not recorded.
+        merged
+            .repeated_name_pools
+            .extend(package.repeated_name_pools);
         for (locale, bundle) in package.extra_translations {
             merged.extra_translations.insert(locale, bundle);
         }
@@ -1739,13 +1797,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
         merged.manifest_file = merged_manifest_file;
     }
 
-    if saw_names {
-        merged.names = Some(NamesDefinition {
-            version: names_version,
-            description: names_description,
-            pools: merged_pools,
-        });
-    }
+    merged.names = merged_names;
 
     let (confederations, confederations_files): (Vec<_>, Vec<_>) = confeds.into_values().unzip();
     merged.confederations = confederations;
@@ -3711,6 +3763,186 @@ colors:
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// Given a package whose player has a position that is not one
+    /// When it is loaded
+    /// Then the invalid-entity error carries serde's own account of what is wrong, so the author
+    ///      is told which value, not only that one of the file's entries is bad (#550).
+    #[test]
+    fn an_invalid_entity_says_what_is_wrong_with_it() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "players/players.json",
+            r#"{ "schema": "player", "id": "p1", "name": "Pat", "position": "CM" }"#,
+        );
+
+        let (_package, errors) = load_world_package(&dir);
+
+        let error = errors
+            .iter()
+            .find(|e| e.code == INVALID_ENTITY)
+            .expect("the bad position is reported");
+        let detail = error
+            .params
+            .iter()
+            .find(|(key, _)| key == "detail")
+            .map(|(_, value)| value.as_str())
+            .unwrap_or_default();
+        assert!(detail.contains("CM"), "{error:?}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    const ENG_POOL: &str = r#""ENG": { "first_names": ["Tom"], "last_names": ["Smith"] }"#;
+    const BRA_POOL: &str = r#""BRA": { "first_names": ["Joao"], "last_names": ["Silva"] }"#;
+
+    fn pool_keys(package: &WorldPackage) -> Vec<String> {
+        let mut keys: Vec<String> = package
+            .names
+            .as_ref()
+            .map(|names| names.pools.keys().cloned().collect())
+            .unwrap_or_default();
+        keys.sort();
+        keys
+    }
+
+    /// Given a package with two name-pool files
+    /// When it is loaded
+    /// Then both files' pools are in the package, not only the last one's (#471).
+    #[test]
+    fn two_name_files_in_one_package_both_count() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/a.json",
+            &format!(r#"{{ "schema": "names", "pools": {{ {BRA_POOL} }} }}"#),
+        );
+        write(
+            &dir,
+            "names/b.json",
+            &format!(r#"{{ "schema": "names", "pools": {{ {ENG_POOL} }} }}"#),
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(pool_keys(&package), ["BRA", "ENG"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given one names file with top-level `pools` and an `items` list, the shape
+    /// `ofm-cli add names --append-to` produces
+    /// When it is loaded
+    /// Then the pools from both halves are read.
+    #[test]
+    fn a_names_file_with_pools_and_items_keeps_both() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/names.json",
+            &format!(
+                r#"{{ "schema": "names", "pools": {{ {BRA_POOL} }},
+                    "items": [ {{ "pools": {{ {ENG_POOL} }} }} ] }}"#
+            ),
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(pool_keys(&package), ["BRA", "ENG"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given one names file whose top-level `pools` and `items` both give England, with different names
+    /// When it is loaded
+    /// Then the top-level `pools` win: they are folded in after the `items`.
+    #[test]
+    fn in_one_names_file_the_top_level_pools_win_over_items() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "names/names.json",
+            r#"{ "schema": "names",
+                "pools": { "ENG": { "first_names": ["Top"], "last_names": ["Level"] } },
+                "items": [ { "pools": { "ENG": { "first_names": ["Item"], "last_names": ["Entry"] } } } ] }"#,
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        assert!(errors.is_empty(), "{errors:?}");
+        let eng = &package.names.as_ref().unwrap().pools["ENG"];
+        assert_eq!(eng.first_names, ["Top"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Given two packages that each supply name pools, the later with a newer version, a
+    ///       description and an overlapping country
+    /// When they are merged as a stack
+    /// Then the version is the highest, the description the last non-empty one, the overlapping
+    ///      country is the later package's, and the other countries are kept: the same rule as
+    ///      the files of one package.
+    #[test]
+    fn stacked_packages_fold_name_pools_by_the_same_rule() {
+        use super::super::definitions::NamePool;
+        let pool = |first: &str| NamePool {
+            first_names: vec![first.to_string()],
+            last_names: vec!["X".to_string()],
+        };
+        let named = |version: u32, description: &str, pools: Vec<(&str, &str)>| WorldPackage {
+            names: Some(NamesDefinition {
+                version,
+                description: description.to_string(),
+                pools: pools
+                    .into_iter()
+                    .map(|(country, first)| (country.to_string(), pool(first)))
+                    .collect(),
+            }),
+            ..WorldPackage::default()
+        };
+        let earlier = named(3, "first", vec![("ENG", "Early"), ("BRA", "Joao")]);
+        let later = named(2, "", vec![("ENG", "Late")]);
+
+        let (merged, _) = merge_world_packages(vec![earlier, later]);
+
+        let names = merged.names.expect("names survive the merge");
+        assert_eq!(names.version, 3);
+        assert_eq!(names.description, "first");
+        assert_eq!(names.pools["ENG"].first_names, ["Late"]);
+        assert_eq!(names.pools["BRA"].first_names, ["Joao"]);
+    }
+
+    /// Given a package with two files whose schema is `world`
+    /// When it is loaded
+    /// Then the second is reported as a duplicate manifest naming the first, and the first stays
+    ///      the package's identity (SCHEMA_REFERENCE promises one world per package; #595).
+    #[test]
+    fn a_second_world_manifest_is_an_error_not_a_silent_replacement() {
+        let dir = temp_package();
+        write(
+            &dir,
+            "a-package.json",
+            r#"{"schema":"world","id":"first","name":"First"}"#,
+        );
+        write(
+            &dir,
+            "b-other.json",
+            r#"{"schema":"world","id":"second","name":"Second"}"#,
+        );
+
+        let (package, errors) = load_world_package(&dir);
+
+        let duplicate = errors
+            .iter()
+            .find(|e| e.code == DUPLICATE_WORLD)
+            .unwrap_or_else(|| panic!("a second manifest is reported, got {errors:?}"));
+        assert_eq!(duplicate.file, "b-other.json");
+        assert_eq!(
+            duplicate.params,
+            vec![("first".to_string(), "a-package.json".to_string())]
+        );
+        assert_eq!(package.meta.as_ref().map(|m| m.id.as_str()), Some("first"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     /// Given a package whose players and staff carry a good date of birth, a year only, garbage and an empty one (#594)
     /// When it is validated
     /// Then the three bad ones are `invalidDate` errors naming the file, the person and the value,
@@ -5059,6 +5291,38 @@ colors:
         let keys: Vec<_> = names.pools.keys().cloned().collect();
         assert!(names.pools.contains_key("ENG"), "ENG pool kept: {keys:?}");
         assert!(names.pools.contains_key("BRA"), "BRA pool kept: {keys:?}");
+
+        std::fs::remove_dir_all(&dir_a).ok();
+        std::fs::remove_dir_all(&dir_b).ok();
+    }
+
+    /// Given one package whose own two files both give England a name pool, and a second package
+    ///       that gives England a pool again
+    /// When the two are stacked and the merged package is checked
+    /// Then the repeat inside the first package is still warned about, and the second package
+    ///      overriding England is not (overriding is what stacking is for).
+    #[test]
+    fn stacking_keeps_a_repeat_inside_one_package_and_stays_silent_across_packages() {
+        use super::super::package_warnings::{REPEATED_NAME_POOL, package_warnings};
+        let pool = "schema: names\nversion: 1\npools:\n  ENG:\n    first_names:\n      - John\n    last_names:\n      - Smith\n";
+        let dir_a = temp_package();
+        write(&dir_a, "world.yaml", "schema: world\nid: a\nname: A\n");
+        write(&dir_a, "names/a.yaml", pool);
+        write(&dir_a, "names/b.yaml", pool);
+        let (pkg_a, _) = load_world_package(&dir_a);
+        let dir_b = temp_package();
+        write(&dir_b, "world.yaml", "schema: world\nid: b\nname: B\n");
+        write(&dir_b, "names.yaml", pool);
+        let (pkg_b, _) = load_world_package(&dir_b);
+
+        let (merged, _) = merge_world_packages(vec![pkg_a, pkg_b]);
+
+        let repeats: Vec<_> = package_warnings(&merged)
+            .into_iter()
+            .filter(|w| w.code == REPEATED_NAME_POOL)
+            .collect();
+        assert_eq!(repeats.len(), 1, "{repeats:?}");
+        assert_eq!(repeats[0].file, "names/b.yaml");
 
         std::fs::remove_dir_all(&dir_a).ok();
         std::fs::remove_dir_all(&dir_b).ok();

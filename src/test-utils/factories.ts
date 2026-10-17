@@ -1,4 +1,4 @@
-import type { PlayerData, TeamData } from "../store/gameStore";
+import type { PlayerData, SeasonContextData, TeamData } from "../store/gameStore";
 
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -85,6 +85,29 @@ export function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
     loan_listed: false,
     transfer_offers: [],
     traits: [],
+    ...overrides,
+  };
+}
+
+/**
+ * The `season_context` a game state carries: the backend always sends one. The default is the
+ * quiet start of a career (preseason, window closed, no dates); a test that cares about the season
+ * says so with the fields it needs.
+ */
+export function createSeasonContext(overrides: Partial<SeasonContextData> = {}): SeasonContextData {
+  return {
+    phase: "Preseason",
+    season_complete: false,
+    season_start: null,
+    season_end: null,
+    days_until_season_start: null,
+    transfer_window: {
+      status: "Closed",
+      opens_on: null,
+      closes_on: null,
+      days_until_opens: null,
+      days_remaining: null,
+    },
     ...overrides,
   };
 }

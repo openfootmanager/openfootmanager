@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { GameStateData, PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
 import {
+  type BidNegotiationStatusData,
+  getBidNegotiationStatus,
   makeTransferBid,
   previewTransferBidFinancialImpact,
   type TransferBidProjectionData,
@@ -12,7 +14,6 @@ import {
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   buildResumedBidFeedback,
-  getOutgoingNegotiationOffer,
   normalizeTransferNegotiationFeedback,
 } from "./TransfersTab.helpers";
 
@@ -33,6 +34,8 @@ interface UseTransferBidFlowResult {
   bidProjection: TransferBidProjectionData["projection"] | null;
   bidFee: number | null;
   activeBidOffer: TransferOfferData | null;
+  /** The day broken-off talks can resume; set means the bid form is replaced by that date. */
+  talksResumeOn: string | null;
   myTeam: TeamData | null;
   hasExistingOffer: boolean;
   bidSubmitDisabled: boolean;
@@ -46,9 +49,14 @@ export function useTransferBidFlow({
   onGameUpdate,
 }: UseTransferBidFlowArgs): UseTransferBidFlowResult {
   const { t } = useTranslation();
-  const userTeamId = gameState.manager.team_id;
   const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id) ?? null;
-  const [bidTarget, setBidTarget] = useState<PlayerData | null>(null);
+  // The id, not the player: the player is read from the game state on every render, so the panel
+  // sees the round and the offers a bid has just advanced instead of the ones it opened with.
+  const [bidTargetId, setBidTargetId] = useState<string | null>(null);
+  const bidTarget =
+    bidTargetId === null
+      ? null
+      : (gameState.players.find((player) => player.id === bidTargetId) ?? null);
   const [bidAmount, setBidAmount] = useState("");
   const [bidResult, setBidResult] = useState<
     TransferNegotiationResponseData["decision"] | "error" | null
@@ -64,7 +72,48 @@ export function useTransferBidFlow({
     TransferBidProjectionData["projection"] | null
   >(null);
 
-  const activeBidOffer = bidTarget ? getOutgoingNegotiationOffer(bidTarget, userTeamId) : null;
+  // What the backend says the next bid continues (or that talks are broken off until a day): the
+  // cooldown is its rule, so the panel asks rather than computing it from the offers.
+  const [negotiation, setNegotiation] = useState<BidNegotiationStatusData | null>(null);
+  // Opening clears what the panel knew, so every opening, even of the player already open, asks again.
+  const [openings, setOpenings] = useState(0);
+  useEffect(() => {
+    if (bidTargetId === null) {
+      setNegotiation(null);
+      return;
+    }
+    let cancelled = false;
+    getBidNegotiationStatus(bidTargetId)
+      .then((status) => {
+        if (!cancelled) setNegotiation(status);
+      })
+      .catch(() => {
+        if (!cancelled) setNegotiation(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bidTargetId, gameState, openings]);
+
+  const activeBidOffer =
+    bidTarget && negotiation?.offer_id
+      ? (bidTarget.transfer_offers.find((offer) => offer.id === negotiation.offer_id) ?? null)
+      : null;
+  const talksResumeOn = negotiation?.talks_resume_on ?? null;
+
+  // Resuming a negotiation pre-fills the amount and the feedback once per opening, when the
+  // backend's answer first names one; a later answer (after a bid) must not overwrite them.
+  const resumedFor = useRef<string | null>(null);
+  useEffect(() => {
+    // Broken-off talks resume nothing: the panel shows the day they can instead of the form.
+    if (!bidTarget || !activeBidOffer || talksResumeOn !== null) return;
+    if (resumedFor.current === bidTarget.id) return;
+    resumedFor.current = bidTarget.id;
+    setBidAmount(
+      ((activeBidOffer.suggested_counter_fee ?? activeBidOffer.fee) / 1_000_000).toFixed(2),
+    );
+    setBidFeedback(buildResumedBidFeedback(activeBidOffer));
+  }, [bidTarget, activeBidOffer, talksResumeOn]);
   const bidAmountMillions = Number.parseFloat(bidAmount);
   const bidFee = Number.isFinite(bidAmountMillions)
     ? Math.round(bidAmountMillions * 1_000_000)
@@ -100,23 +149,20 @@ export function useTransferBidFlow({
   }, [bidFee, bidTarget]);
 
   const openBidNegotiation = (player: PlayerData): void => {
-    const existingOffer = getOutgoingNegotiationOffer(player, userTeamId);
-
-    setBidTarget(player);
-    setBidAmount(
-      (
-        (existingOffer?.suggested_counter_fee ?? existingOffer?.fee ?? player.market_value) /
-        1_000_000
-      ).toFixed(existingOffer ? 2 : 1),
-    );
+    resumedFor.current = null;
+    setOpenings((count) => count + 1);
+    setBidTargetId(player.id);
+    setBidAmount((player.market_value / 1_000_000).toFixed(1));
     setBidResult(null);
     setBidError(null);
-    setBidFeedback(buildResumedBidFeedback(existingOffer));
+    setBidFeedback(null);
     setBidProjection(null);
+    setNegotiation(null);
   };
 
   const closeBidNegotiation = (): void => {
-    setBidTarget(null);
+    resumedFor.current = null;
+    setBidTargetId(null);
     setBidAmount("");
     setBidResult(null);
     setBidError(null);
@@ -136,6 +182,9 @@ export function useTransferBidFlow({
 
     try {
       const response = await makeTransferBid(bidTarget.id, bidFee);
+      // The player is handled now: an offer the game update brings is this bid's own, and its
+      // feedback is the response's, not a "resumed negotiation" one.
+      resumedFor.current = bidTarget.id;
       setBidResult(response.decision);
       setBidError(null);
       setBidFeedback(normalizeTransferNegotiationFeedback(response.feedback));
@@ -167,13 +216,15 @@ export function useTransferBidFlow({
     bidProjection,
     bidFee,
     activeBidOffer,
+    talksResumeOn,
     myTeam,
-    hasExistingOffer: activeBidOffer !== null,
+    hasExistingOffer: activeBidOffer?.status === "Pending",
     bidSubmitDisabled:
       bidLoading ||
       bidResult === "accepted" ||
       bidFee === null ||
       bidFee <= 0 ||
+      talksResumeOn !== null ||
       bidProjection === null ||
       bidProjection.exceeds_transfer_budget ||
       bidProjection.exceeds_finance ||

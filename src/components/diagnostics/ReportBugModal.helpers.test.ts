@@ -248,13 +248,32 @@ describe("toUploadFailure", () => {
       kind: "capacity",
       key: "k",
       retry_after_seconds: 90,
+      detail: null,
     });
-    expect(toUploadFailure("k")).toEqual({ kind: "other", key: "k", retry_after_seconds: null });
+    expect(toUploadFailure("k")).toEqual({
+      kind: "other",
+      key: "k",
+      retry_after_seconds: null,
+      detail: null,
+    });
     expect(toUploadFailure({ key: "k", retry_after_seconds: "soon" })).toEqual({
       kind: "other",
       key: "k",
       retry_after_seconds: null,
+      detail: null,
     });
+  });
+
+  /**
+   * Given a backend failure that carries what the server said
+   * When it is normalised
+   * Then the detail survives verbatim, and a blank or non-string detail becomes none
+   */
+  it("keeps the server's detail verbatim", () => {
+    const detail = 'HTTP 422 · invalid · bundle: Entry "report.md" has a disallowed file type';
+    expect(toUploadFailure({ kind: "rejected", key: "k", detail }).detail).toBe(detail);
+    expect(toUploadFailure({ kind: "rejected", key: "k", detail: "  " }).detail).toBeNull();
+    expect(toUploadFailure({ kind: "rejected", key: "k", detail: 422 }).detail).toBeNull();
   });
 });
 

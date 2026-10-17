@@ -5,6 +5,7 @@ import { fetchHallOfFameLegends } from "../../services/retireesService";
 import type { GameStateData, TeamData } from "../../store/gameStore";
 import type { HallOfFameLegendData } from "../../store/types";
 import HallOfFameWorldTab from "./HallOfFameWorldTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("../../services/retireesService", () => ({
   fetchHallOfFameLegends: vi.fn(),
@@ -90,6 +91,7 @@ function createLegend(overrides: Partial<HallOfFameLegendData> = {}): HallOfFame
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

@@ -47,6 +47,9 @@ pub struct GameMeta {
     /// `Game::legacy_world_cup_draw`.
     #[serde(default)]
     pub legacy_world_cup_draw: bool,
+    /// `Game::legacy_tactics_imported`.
+    #[serde(default)]
+    pub legacy_tactics_imported: bool,
 }
 
 fn default_vacant_team_days_json() -> String {
@@ -104,8 +107,8 @@ fn default_package_lockfile_json() -> String {
 /// Insert or replace the singleton game_meta row.
 pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
     conn.execute(
-        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed, legacy_world_cup_draw)
-         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)",
+        "INSERT OR REPLACE INTO game_meta (id, save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed, legacy_world_cup_draw, legacy_tactics_imported)
+         VALUES ('singleton', ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23)",
         params![
             meta.save_id,
             meta.save_name,
@@ -129,6 +132,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
             meta.emitted_events_json,
             meta.seed,
             meta.legacy_world_cup_draw,
+            meta.legacy_tactics_imported,
         ],
     )
     .map_err(|_| GAME_PERSISTENCE_WRITE_ERROR.to_string())?;
@@ -139,7 +143,7 @@ pub fn upsert_meta(conn: &Connection, meta: &GameMeta) -> Result<(), String> {
 pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed, legacy_world_cup_draw
+            "SELECT save_id, save_name, manager_id, start_date, game_date, created_at, last_played_at, vacant_team_days_json, world_history_json, available_staff_market_last_activity_date, save_format_version, world_format_version, app_version, source_world_id, source_world_kind, active_region_ids_json, active_competition_ids_json, extra_translations_json, package_lockfile_json, emitted_events_json, seed, legacy_world_cup_draw, legacy_tactics_imported
              FROM game_meta WHERE id = 'singleton'",
         )
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -179,6 +183,7 @@ pub fn load_meta(conn: &Connection) -> Result<Option<GameMeta>, String> {
                 // old one: propagated, rather than read as "no seed" and silently reseeded.
                 seed: row.get(20)?,
                 legacy_world_cup_draw: row.get(21)?,
+                legacy_tactics_imported: row.get(22)?,
             })
         })
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
@@ -225,6 +230,7 @@ mod tests {
             emitted_events_json: "[]".to_string(),
             seed: 0,
             legacy_world_cup_draw: false,
+            legacy_tactics_imported: false,
         };
 
         upsert_meta(db.conn(), &meta).unwrap();
@@ -274,6 +280,7 @@ mod tests {
             emitted_events_json: "[]".to_string(),
             seed: 0,
             legacy_world_cup_draw: false,
+            legacy_tactics_imported: false,
         };
         upsert_meta(db.conn(), &meta1).unwrap();
 
@@ -300,6 +307,7 @@ mod tests {
             emitted_events_json: "[]".to_string(),
             seed: 0,
             legacy_world_cup_draw: false,
+            legacy_tactics_imported: false,
         };
         upsert_meta(db.conn(), &meta2).unwrap();
 
@@ -339,6 +347,7 @@ mod tests {
             emitted_events_json: "[]".to_string(),
             seed: 0,
             legacy_world_cup_draw: false,
+            legacy_tactics_imported: false,
         };
 
         let result = upsert_meta(&conn, &meta);

@@ -728,6 +728,10 @@
     "myTactics": "My tactics",
     "newTactic": "New tactic",
     "duplicateTactic": "Duplicate",
+    "deleteTactic": "Delete",
+    "deleteTacticTitle": "Delete this tactic?",
+    "deleteTacticBody": "“{{name}}” will be removed from the library. The team keeps its current formation and play style.",
+    "deleteTacticConfirm": "Delete",
     "resetTactic": "Reset to defaults",
     "saveAsTactic": "Save as tactic",
     "updateTactic": "Update tactic",
@@ -1430,6 +1434,9 @@
     "resumeNegotiationHint": "Talks are still live with this club.",
     "resumeNegotiationHeadline": "The other club are waiting for your next move.",
     "resumeNegotiationDetail": "Their last signal pointed toward {{fee}}.",
+    "resumeRefusedHeadline": "They turned your last bid down.",
+    "resumeRefusedDetail": "A new bid carries the talks on from here. Their last signal pointed toward {{fee}}.",
+    "talksResumeOn": "Talks can resume on {{date}}.",
     "transferFeedbackAcceptedHeadline": "The other club are ready to do business.",
     "transferFeedbackAcceptedDetail": "Your number landed inside their comfort zone, so the conversation moved quickly.",
     "transferFeedbackScheduledHeadline": "Deal agreed for the next registration window.",
@@ -2107,6 +2114,7 @@
     "roundSummaryUnavailable": "Round summary unavailable.",
     "otherMatches": "Other Matches",
     "otherMatchesToday": "Other Matches Today",
+    "elsewhereInYourLeague": "Elsewhere in your league",
     "otherMatchesUnavailable": "Other match context unavailable for this fixture yet.",
     "viewDetails": "View details",
     "matchDetails": "Match Details",
@@ -2639,6 +2647,7 @@
         "wouldLeaveSeniorsShort": "This player cannot leave: the club would be left with fewer than {{floor}} senior players, the minimum a club must keep."
       },
       "noActiveGameSession": "No active game session",
+      "careerChanged": "The career changed before this could be saved.",
       "noActiveSaveSession": "No active save session",
       "saveNotFound": "Save '{{saveId}}' not found.",
       "saveManagerUnavailable": "Save data is temporarily unavailable.",
@@ -2729,7 +2738,8 @@
         "worldExportNotPackage": "This folder is an exported world save, not a package project. Exported worlds use a different format and cannot be edited here.",
         "notAProjectDirectory": "This is not a package project folder. Pick the folder that contains the package's package.json — or, for an installed .ofm package, use \"Open .ofm File\".",
         "unknownSchema": "Unknown schema \"{{schema}}\".",
-        "invalidEntity": "A \"{{schema}}\" entry is invalid.",
+        "invalidEntity": "A \"{{schema}}\" entry is invalid: {{detail}}",
+        "duplicateWorld": "The package already has a manifest in \"{{first}}\"; a package can have only one \"world\" file.",
         "missingId": "A {{kind}} entry is missing its id.",
         "missingMetadata": "The package manifest is missing the required field \"{{field}}\".",
         "duplicateId": "Duplicate {{kind}} id \"{{id}}\".",
@@ -3698,7 +3708,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it.",
-        "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field."
+        "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field.",
+        "repeatedNamePool": "The name pool for {{country}} was already given in {{first}}; this file's pool replaces it. Keep one of them, or give them different countries."
       }
     }
   },
@@ -4298,6 +4309,7 @@
     "saveAndOpenInstead": "Save the file and use GitHub instead",
     "nothingSentYetUpload": "Nothing leaves this machine until you press Send. Prefer GitHub? Save the file and attach it to the form yourself — that needs a GitHub account.",
     "uploadFailedFallback": "You can still send it through GitHub: save the file and attach it to the form.",
+    "technicalDetails": "Technical details",
     "tooLargeUntickSave": "Unticking your save file will make the report much smaller.",
     "sentTitle": "Report sent",
     "sentIntro": "Thank you. Your report has reached the OpenFoot Manager team and is kept until it has been handled.",

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TrainingTab from "./TrainingTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 const invokeMock = vi.fn();
 
@@ -141,6 +142,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createGameState(withTeam: boolean): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-11T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

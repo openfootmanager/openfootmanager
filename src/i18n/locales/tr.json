@@ -728,6 +728,10 @@
     "myTactics": "Taktiklerim",
     "newTactic": "Yeni taktik",
     "duplicateTactic": "Çoğalt",
+    "deleteTactic": "Sil",
+    "deleteTacticTitle": "Bu taktik silinsin mi?",
+    "deleteTacticBody": "“{{name}}” kütüphaneden kaldırılacak. Takım mevcut diziliş ve oyun stilini korur.",
+    "deleteTacticConfirm": "Sil",
     "resetTactic": "Varsayılana sıfırla",
     "saveAsTactic": "Taktik olarak kaydet",
     "updateTactic": "Taktiği güncelle",
@@ -1430,6 +1434,9 @@
     "resumeNegotiationHint": "Bu kulüple görüşmeler hâlâ sürüyor.",
     "resumeNegotiationHeadline": "Karşı kulüp bir sonraki hamlenizi bekliyor.",
     "resumeNegotiationDetail": "Son sinyalleri {{fee}} civarını işaret ediyordu.",
+    "resumeRefusedHeadline": "Son teklifinizi reddettiler.",
+    "resumeRefusedDetail": "Yeni bir teklif görüşmeleri buradan sürdürür. Son işaretleri {{fee}} civarındaydı.",
+    "talksResumeOn": "Görüşmeler {{date}} tarihinde yeniden başlayabilir.",
     "transferFeedbackAcceptedHeadline": "Karşı kulüp anlaşmaya hazır.",
     "transferFeedbackAcceptedDetail": "Rakamınız onların kabul aralığına denk geldi, bu yüzden görüşme hızla ilerledi.",
     "transferFeedbackScheduledHeadline": "Bir sonraki tescil dönemi için anlaşma sağlandı.",
@@ -2107,6 +2114,7 @@
     "roundSummaryUnavailable": "Hafta özeti mevcut değil.",
     "otherMatches": "Diğer Maçlar",
     "otherMatchesToday": "Bugünkü Diğer Maçlar",
+    "elsewhereInYourLeague": "Ligin diğer maçları",
     "otherMatchesUnavailable": "Bu maç için diğer maç bilgileri henüz mevcut değil.",
     "viewDetails": "Ayrıntıları görüntüle",
     "matchDetails": "Maç Ayrıntıları",
@@ -2639,6 +2647,7 @@
         "wouldLeaveSeniorsShort": "Bu oyuncu ayrılamaz: kulübün A takımında {{floor}} oyuncudan az kalır, bu da bir kulübün koruması gereken asgari sayıdır."
       },
       "noActiveGameSession": "Aktif oyun oturumu yok",
+      "careerChanged": "Bu kaydedilemeden önce kariyer değişti.",
       "noActiveSaveSession": "Aktif kayıt oturumu yok",
       "saveNotFound": "'{{saveId}}' kaydı bulunamadı.",
       "saveManagerUnavailable": "Kayıt verileri geçici olarak kullanılamıyor.",
@@ -2729,7 +2738,8 @@
         "worldExportNotPackage": "Bu klasör dışa aktarılmış bir dünya kaydı, paket projesi değil. Dışa aktarılan dünyalar farklı bir biçim kullanır ve burada düzenlenemez.",
         "notAProjectDirectory": "Bu bir paket proje klasörü değil. Paketin package.json dosyasını içeren klasörü seçin; kurulu bir .ofm paketi için \".ofm dosyası aç\" seçeneğini kullanın.",
         "unknownSchema": "Bilinmeyen şema \"{{schema}}\".",
-        "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz.",
+        "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz: {{detail}}",
+        "duplicateWorld": "Paketin zaten \"{{first}}\" içinde bir manifestosu var; bir paketin yalnızca bir \"world\" dosyası olabilir.",
         "missingId": "Bir {{kind}} kaydında id eksik.",
         "missingMetadata": "Paket bildiriminde zorunlu \"{{field}}\" alanı eksik.",
         "duplicateId": "Yinelenen {{kind}} id'si \"{{id}}\".",
@@ -3698,7 +3708,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin.",
-        "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın."
+        "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın.",
+        "repeatedNamePool": "{{country}} için isim havuzu daha önce {{first}} dosyasında verilmişti; bu dosyadaki havuz onun yerine geçer. Yalnızca birini bırakın ya da farklı ülkelere atayın."
       }
     }
   },
@@ -4298,6 +4309,7 @@
     "saveAndOpenInstead": "Bunun yerine dosyayı kaydet ve GitHub'ı kullan",
     "nothingSentYetUpload": "Gönder'e basana kadar hiçbir şey bu bilgisayardan çıkmaz. GitHub'ı mı tercih edersin? Dosyayı kaydet ve forma kendin ekle — bunun için bir GitHub hesabı gerekir.",
     "uploadFailedFallback": "Yine de GitHub üzerinden gönderebilirsin: dosyayı kaydet ve forma ekle.",
+    "technicalDetails": "Teknik ayrıntılar",
     "tooLargeUntickSave": "Kayıt dosyanın işaretini kaldırmak raporu çok küçültür.",
     "sentTitle": "Rapor gönderildi",
     "sentIntro": "Teşekkürler. Raporun OpenFoot Manager ekibine ulaştı ve ilgilenilene kadar saklanır.",

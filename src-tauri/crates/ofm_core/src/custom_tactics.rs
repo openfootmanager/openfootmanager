@@ -34,26 +34,59 @@ fn validated(tactic: &CustomTactic) -> Result<CustomTactic, String> {
         return Err(INVALID_PLAY_STYLE_ERROR.to_string());
     }
     Ok(CustomTactic {
+        id: tactic.id.trim().to_string(),
         name: name.to_string(),
         description: tactic.description.trim().to_string(),
         ..tactic.clone()
     })
 }
 
+/// The list with one tactic per trimmed id: the last copy, at the place it last stood, under its
+/// trimmed id. The one rule for ids kept before they were trimmed, which the save and the load of
+/// the table share so a padded twin can neither be written nor read back as a second tactic.
+pub fn one_tactic_per_id(tactics: &[CustomTactic]) -> Vec<CustomTactic> {
+    let mut seen = std::collections::HashSet::new();
+    let mut kept: Vec<CustomTactic> = tactics
+        .iter()
+        .rev()
+        .filter(|tactic| seen.insert(tactic.id.trim()))
+        .map(|tactic| CustomTactic {
+            id: tactic.id.trim().to_string(),
+            ..tactic.clone()
+        })
+        .collect();
+    kept.reverse();
+    kept
+}
+
 /// Adds the tactic, or replaces the one with the same id where it stands in the list.
 pub fn save_custom_tactic(game: &mut Game, tactic: &CustomTactic) -> Result<(), String> {
     let tactic = validated(tactic)?;
-    match game.custom_tactics.iter_mut().find(|t| t.id == tactic.id) {
-        Some(existing) => *existing = tactic,
-        None => game.custom_tactics.push(tactic),
+    // The first tactic with this id is replaced where it stands; an old save may hold the same id
+    // again, once padded, and those twins go.
+    let mut replaced = false;
+    let mut kept = Vec::with_capacity(game.custom_tactics.len() + 1);
+    for existing in std::mem::take(&mut game.custom_tactics) {
+        if existing.id.trim() != tactic.id {
+            kept.push(existing);
+        } else if !replaced {
+            replaced = true;
+            kept.push(tactic.clone());
+        }
     }
+    if !replaced {
+        kept.push(tactic);
+    }
+    game.custom_tactics = kept;
     Ok(())
 }
 
 /// Removes the tactic with `id`.
 pub fn delete_custom_tactic(game: &mut Game, id: &str) -> Result<(), String> {
+    let id = id.trim();
     let before = game.custom_tactics.len();
-    game.custom_tactics.retain(|t| t.id != id);
+    // Ids kept before they were trimmed may still be padded in an old save.
+    game.custom_tactics.retain(|t| t.id.trim() != id);
     if game.custom_tactics.len() == before {
         return Err(NOT_FOUND_ERROR.to_string());
     }
@@ -209,6 +242,63 @@ mod tests {
             save_custom_tactic(&mut game, &case).unwrap();
         }
         assert_eq!(game.custom_tactics.len(), 6);
+    }
+
+    /// Given a saved tactic "a"
+    /// When one with the id "a " (a trailing space) is saved, and then "a" is deleted
+    /// Then the second replaces the first (one tactic, stored under the trimmed id) and the delete finds it.
+    #[test]
+    fn an_id_is_kept_trimmed_so_padding_cannot_make_a_second_tactic() {
+        let mut game = game();
+        save_custom_tactic(&mut game, &tactic("a", "First")).unwrap();
+
+        save_custom_tactic(&mut game, &tactic("a ", "Second")).unwrap();
+
+        assert_eq!(game.custom_tactics.len(), 1);
+        assert_eq!(game.custom_tactics[0].id, "a");
+        assert_eq!(game.custom_tactics[0].name, "Second");
+        delete_custom_tactic(&mut game, "a ").unwrap();
+        assert!(game.custom_tactics.is_empty());
+    }
+
+    /// Given a tactic already stored with a padded id "a " (kept before ids were trimmed)
+    /// When "a" is saved, and then "a" is deleted
+    /// Then the save replaces it (one tactic, id "a") and the delete finds it.
+    #[test]
+    fn a_legacy_padded_id_matches_its_trimmed_form() {
+        let mut game = game();
+        game.custom_tactics.push(tactic("a ", "Legacy"));
+
+        save_custom_tactic(&mut game, &tactic("a", "Current")).unwrap();
+        assert_eq!(game.custom_tactics.len(), 1);
+        assert_eq!(game.custom_tactics[0].id, "a");
+        assert_eq!(game.custom_tactics[0].name, "Current");
+
+        game.custom_tactics[0].id = "a ".to_string();
+        delete_custom_tactic(&mut game, "a").unwrap();
+        assert!(game.custom_tactics.is_empty());
+    }
+
+    /// Given a legacy save holding both "a" and "a " as separate tactics, and another tactic
+    /// When "a" is saved
+    /// Then the first replaces in place, the padded twin is dropped, and the other tactic stays.
+    #[test]
+    fn saving_collapses_legacy_twins_that_trim_to_the_same_id() {
+        let mut game = game();
+        game.custom_tactics = vec![
+            tactic("a", "First"),
+            tactic("b", "Other"),
+            tactic("a ", "Twin"),
+        ];
+
+        save_custom_tactic(&mut game, &tactic("a", "Current")).unwrap();
+
+        let names: Vec<&str> = game
+            .custom_tactics
+            .iter()
+            .map(|t| t.name.as_str())
+            .collect();
+        assert_eq!(names, ["Current", "Other"]);
     }
 
     /// Given names of exactly the longest allowed length, and one character more

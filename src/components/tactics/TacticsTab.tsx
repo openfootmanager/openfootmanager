@@ -84,6 +84,8 @@ export default function TacticsTab({
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,
+    canDeleteTactic,
+    handleDeleteTactic,
   } = useTacticsLibrary({
     gameState,
     formation,
@@ -114,7 +116,9 @@ export default function TacticsTab({
         onReset={() => {
           void handleResetTactic();
         }}
+        canDelete={canDeleteTactic}
         onCreateNew={handleCreateCustomTactic}
+        onDelete={handleDeleteTactic}
         onDuplicate={handleDuplicateTactic}
         onFormationChange={(nextFormation) => {
           void handleFormationChange(nextFormation);

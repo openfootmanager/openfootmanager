@@ -216,6 +216,7 @@ export function ReportBugModal({ onClose, onUploaded }: ReportBugModalProps) {
           onConsentChange={setConsent}
           failure={submission.failure}
           failureKind={submission.failureKind}
+          failureDetail={submission.failureDetail}
         />
       )}
       {step === "sent" && submission.receipt && <ReportSentStep receipt={submission.receipt} />}

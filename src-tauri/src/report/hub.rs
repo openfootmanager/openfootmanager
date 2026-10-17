@@ -21,6 +21,9 @@ const CONFIG_PATH: &str = "/bug-reports/config";
 
 pub const MAX_REPORT_JSON_BYTES: usize = 64 * 1024;
 
+/// The longest `UploadFailure::detail`, in characters. It is a line the player quotes, not a log.
+const DETAIL_MAX_CHARS: usize = 300;
+
 // What the player is told, by translation key. The endpoint's `message` is English written for a
 // log; the contract says to branch on `code`, and the player never sees the other.
 /// The bundle could not be built or read back for sending. Not the export's `bundleFailed`, whose
@@ -100,6 +103,9 @@ pub struct UploadFailure {
     pub kind: UploadFailureKind,
     pub key: String,
     pub retry_after_seconds: Option<u64>,
+    /// What the server said, flattened to one line for the player to quote in a bug report.
+    /// English by nature (the server's words), so it is shown verbatim and never translated.
+    pub detail: Option<String>,
 }
 
 impl UploadFailure {
@@ -112,6 +118,7 @@ impl UploadFailure {
             kind,
             key: key.to_owned(),
             retry_after_seconds: None,
+            detail: None,
         }
     }
 
@@ -436,6 +443,57 @@ fn error_code(body: &Option<serde_json::Value>) -> Option<&str> {
         .and_then(serde_json::Value::as_str)
 }
 
+/// One line, single-spaced: a server message may carry line breaks and tabs that would break a
+/// bug report pasted from it.
+fn single_line(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// The server's reasons from `errors` (`{"bundle": ["Entry ... disallowed"]}`), else its `message`.
+fn server_reasons(body: &serde_json::Value) -> Option<String> {
+    let field_errors: Vec<String> = body
+        .get("errors")
+        .and_then(serde_json::Value::as_object)
+        .into_iter()
+        .flatten()
+        .filter_map(|(field, reasons)| {
+            let reasons: Vec<&str> = match reasons {
+                serde_json::Value::String(reason) => vec![reason.as_str()],
+                serde_json::Value::Array(list) => {
+                    list.iter().filter_map(serde_json::Value::as_str).collect()
+                }
+                _ => Vec::new(),
+            };
+            (!reasons.is_empty()).then(|| format!("{field}: {}", reasons.join("; ")))
+        })
+        .collect();
+    if field_errors.is_empty() {
+        body.get("message")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned)
+    } else {
+        Some(field_errors.join(" · "))
+    }
+}
+
+/// What the server answered, for the player to quote and for the log:
+/// `HTTP 422 · invalid · bundle: Entry "report.md" has a disallowed file type`. A reply that is not
+/// the hub's JSON (the web server's own page) is just the status.
+fn describe_answer(status: u16, body: &Option<serde_json::Value>) -> String {
+    let Some(json) = body else {
+        return format!("HTTP {status} · non-JSON reply");
+    };
+    let mut parts = vec![format!("HTTP {status}")];
+    parts.extend(error_code(body).map(str::to_owned));
+    parts.extend(server_reasons(json));
+    let line = single_line(&parts.join(" · "));
+    if line.chars().count() <= DETAIL_MAX_CHARS {
+        return line;
+    }
+    let kept: String = line.chars().take(DETAIL_MAX_CHARS - 1).collect();
+    format!("{kept}…")
+}
+
 fn interpret(response: &HubResponse) -> Result<String, UploadFailure> {
     let body: Option<serde_json::Value> = serde_json::from_slice(&response.body).ok();
 
@@ -477,8 +535,17 @@ fn interpret(response: &HubResponse) -> Result<String, UploadFailure> {
         retry_after_seconds: (key == UPLOAD_RATE_LIMITED)
             .then_some(response.retry_after_seconds)
             .flatten(),
+        detail: Some(describe_answer(response.status, &body)),
         ..UploadFailure::key(key)
     })
+}
+
+/// The warning for a refused upload: the key the player was told, then what the server said.
+fn rejection_log_line(failure: &UploadFailure) -> String {
+    match &failure.detail {
+        Some(detail) => format!("the server refused the report ({}): {detail}", failure.key),
+        None => format!("the report failed ({})", failure.key),
+    }
 }
 
 /// The save is never dropped to make a bundle fit: the player chose it, and sending less than they
@@ -512,11 +579,7 @@ pub fn submit(
     let outcome = interpret(&response);
     match &outcome {
         Ok(reference) => log::info!("[report] the server accepted the report as {reference}"),
-        Err(failure) => log::warn!(
-            "[report] the server answered {}: {}",
-            response.status,
-            failure.key
-        ),
+        Err(failure) => log::warn!("[report] {}", rejection_log_line(failure)),
     }
     outcome
 }
@@ -625,6 +688,14 @@ mod tests {
 
     fn failure(key: &str) -> UploadFailure {
         UploadFailure::key(key)
+    }
+
+    /// The outcome with the server's wording dropped, for tests about which key was chosen.
+    fn without_detail(mut outcome: Result<String, UploadFailure>) -> Result<String, UploadFailure> {
+        if let Err(failure) = &mut outcome {
+            failure.detail = None;
+        }
+        outcome
     }
 
     /// Given an https base URL with a trailing slash,
@@ -823,11 +894,106 @@ mod tests {
             (500, "server_error", UPLOAD_SERVER_ERROR),
         ] {
             assert_eq!(
-                interpret(&response(status, &error_body(code))),
+                without_detail(interpret(&response(status, &error_body(code)))),
                 Err(failure(key)),
                 "{status} {code}"
             );
         }
+    }
+
+    /// Given the hub refusing the bundle's `report.md` with a 422 that names the entry,
+    /// when the response is interpreted,
+    /// then the player's message is still the translated one, and the detail carries the status,
+    /// the code and the server's own reason for them to quote.
+    #[test]
+    fn a_422_carries_the_servers_reason_as_detail() {
+        let body = r#"{"message":"Entry \"report.md\" has a disallowed file type.","errors":{"bundle":["Entry \"report.md\" has a disallowed file type."]},"code":"invalid"}"#;
+
+        let failure = interpret(&response(422, body)).unwrap_err();
+
+        assert_eq!(failure.key, UPLOAD_REJECTED);
+        assert_eq!(
+            failure.detail.as_deref(),
+            Some(r#"HTTP 422 · invalid · bundle: Entry "report.md" has a disallowed file type."#)
+        );
+    }
+
+    /// Given an error body with a message but no per-field errors,
+    /// when the response is interpreted,
+    /// then the message stands in for them.
+    #[test]
+    fn a_message_without_field_errors_is_the_detail() {
+        let failure = interpret(&response(500, &error_body("server_error"))).unwrap_err();
+
+        assert_eq!(
+            failure.detail.as_deref(),
+            Some("HTTP 500 · server_error · English for a log.")
+        );
+    }
+
+    /// Given the web server's own page in front of the app (Mod_Security's 406, say),
+    /// when the response is interpreted,
+    /// then the detail is the status and the fact that the reply was not the hub's.
+    #[test]
+    fn a_non_json_error_gives_a_status_only_detail() {
+        let failure = interpret(&response(406, "<html>Not Acceptable</html>")).unwrap_err();
+
+        assert_eq!(failure.key, UPLOAD_SERVER_ERROR);
+        assert_eq!(failure.detail.as_deref(), Some("HTTP 406 · non-JSON reply"));
+    }
+
+    /// Given a server message that is enormous and full of line breaks,
+    /// when the response is interpreted,
+    /// then the detail is one line of bounded length.
+    #[test]
+    fn a_long_multiline_message_is_flattened_and_capped() {
+        let message = format!("first\nsecond\t{}", "x".repeat(2000));
+        let body = serde_json::json!({"message": message, "code": "invalid"}).to_string();
+
+        let detail = interpret(&response(422, &body))
+            .unwrap_err()
+            .detail
+            .expect("a detail");
+
+        assert!(!detail.contains(['\n', '\t']), "{detail}");
+        assert!(detail.starts_with("HTTP 422 · invalid · first second xxx"));
+        assert!(
+            detail.chars().count() <= DETAIL_MAX_CHARS,
+            "{}",
+            detail.len()
+        );
+    }
+
+    /// Given a refused upload,
+    /// when the warning for the log is written,
+    /// then it carries the server's reason and the key the player was told.
+    #[test]
+    fn the_log_line_for_a_refusal_carries_the_servers_reason() {
+        let body =
+            r#"{"message":"Entry \"report.md\" has a disallowed file type.","code":"invalid"}"#;
+        let failure = interpret(&response(422, body)).unwrap_err();
+
+        let line = rejection_log_line(&failure);
+
+        assert!(line.contains(UPLOAD_REJECTED), "{line}");
+        assert!(
+            line.contains(r#"Entry "report.md" has a disallowed file type."#),
+            "{line}"
+        );
+        assert_eq!(
+            rejection_log_line(&UploadFailure::key(UPLOAD_UNREACHABLE)),
+            format!("the report failed ({UPLOAD_UNREACHABLE})")
+        );
+    }
+
+    /// Given failures that never reached the server's answer,
+    /// when they are built,
+    /// then they carry no detail: there is nothing the server said.
+    #[test]
+    fn a_failure_without_a_server_answer_has_no_detail() {
+        assert_eq!(UploadFailure::key(UPLOAD_UNREACHABLE).detail, None);
+        let unconfirmed = interpret(&response(200, "{}")).unwrap_err();
+        assert_eq!(unconfirmed.detail, None);
     }
 
     /// Given a status with a code this build does not know,
@@ -842,7 +1008,7 @@ mod tests {
             (503, UPLOAD_SERVER_ERROR),
         ] {
             assert_eq!(
-                interpret(&response(status, &error_body("something_new"))),
+                without_detail(interpret(&response(status, &error_body("something_new")))),
                 Err(failure(key)),
                 "{status}"
             );
@@ -856,7 +1022,10 @@ mod tests {
     fn a_non_json_error_is_a_server_error() {
         for status in [413, 429, 502, 503, 418] {
             assert_eq!(
-                interpret(&response(status, "<html>Request Entity Too Large</html>")),
+                without_detail(interpret(&response(
+                    status,
+                    "<html>Request Entity Too Large</html>"
+                ))),
                 Err(failure(UPLOAD_SERVER_ERROR)),
                 "{status}"
             );
@@ -878,10 +1047,13 @@ mod tests {
         };
 
         assert_eq!(
-            interpret(&limited),
+            without_detail(interpret(&limited)),
             Err(UploadFailure::rate_limited(Some(3600)))
         );
-        assert_eq!(interpret(&capacity), Err(failure(UPLOAD_CAPACITY)));
+        assert_eq!(
+            without_detail(interpret(&capacity)),
+            Err(failure(UPLOAD_CAPACITY))
+        );
     }
 
     /// Given a server with intake switched on,

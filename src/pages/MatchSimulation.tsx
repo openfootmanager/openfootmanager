@@ -317,7 +317,7 @@ export default function MatchSimulation() {
     );
   }
 
-  const currentFixture = resolveMatchFixture(gameState, snapshot, routeState?.fixtureIndex);
+  const currentFixture = resolveMatchFixture(gameState, snapshot, routeState ?? undefined);
 
   // Render the current stage
   switch (stage) {
@@ -399,17 +399,12 @@ export default function MatchSimulation() {
       );
 
     case "digest": {
-      const isLeagueFixture = currentFixture
-        ? currentFixture.competition !== "Friendly" &&
-          currentFixture.competition !== "PreseasonTournament"
-        : roundSummary !== null;
       return (
         <RoundDigestScreen
           snapshot={snapshot}
           gameState={gameState}
           currentFixture={currentFixture}
           userSide={userSide}
-          isLeagueFixture={isLeagueFixture}
           roundSummary={roundSummary}
           cupRoundSummaries={cupRoundSummaries}
           onPressConference={handlePressConference}

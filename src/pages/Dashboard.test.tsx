@@ -6,6 +6,7 @@ import { applyExtraTranslations } from "../lib/extraTranslations";
 import Dashboard from "./Dashboard";
 import i18n, { i18nReady, SUPPORTED_LANGUAGES } from "../i18n";
 import { useTranslation } from "react-i18next";
+import { createSeasonContext } from "../test-utils/factories";
 
 const { listenMock, registeredEventHandlers, matchConfirmState } = vi.hoisted(() => {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
@@ -32,6 +33,7 @@ let isDirty = false;
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-07-10T12:00:00Z",
       start_date: "2026-07-01T12:00:00Z",
@@ -421,7 +423,7 @@ describe("Dashboard", () => {
     vi.mocked(applyExtraTranslations).mockReset();
     window.localStorage.clear();
     gameState.competitions = undefined;
-    gameState.season_context = undefined;
+    gameState.season_context = createSeasonContext();
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_active_game") {
         return gameState;

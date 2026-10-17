@@ -118,6 +118,7 @@ fn write_game_to_connection(
             // Same bits, read back the same way in `read_game`.
             seed: game.seed as i64,
             legacy_world_cup_draw: game.legacy_world_cup_draw,
+            legacy_tactics_imported: game.legacy_tactics_imported,
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
@@ -354,6 +355,8 @@ impl GamePersistenceReader {
         let mut game = Game {
             seed: meta.seed as u64,
             legacy_world_cup_draw: meta.legacy_world_cup_draw,
+            legacy_tactics_imported: meta.legacy_tactics_imported,
+            career_token: 0,
             clock,
             manager_id: meta.manager_id.clone(),
             managers,
@@ -534,6 +537,7 @@ mod tests {
             emitted_events_json: "[]".to_string(),
             seed: 0,
             legacy_world_cup_draw: false,
+            legacy_tactics_imported: false,
         }
     }
 
@@ -627,6 +631,31 @@ mod tests {
             let loaded = GamePersistenceReader::read_game(&db).unwrap();
 
             assert_eq!(loaded.legacy_world_cup_draw, legacy);
+        }
+    }
+
+    /// Given a career whose old browser tactics have been copied in, and one whose have not
+    /// When each is saved
+    /// Then the .db itself holds the mark (read back with plain SQL, not through the loader), and
+    ///      each loads as it was saved.
+    #[test]
+    fn the_legacy_tactics_import_mark_is_written_to_the_save() {
+        for imported in [true, false] {
+            let db = GameDatabase::open_in_memory().unwrap();
+            let mut game = sample_game_with_clock(2026, 1);
+            game.legacy_tactics_imported = imported;
+            GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+            let stored: bool = db
+                .conn()
+                .query_row("SELECT legacy_tactics_imported FROM game_meta", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+            assert_eq!(stored, imported);
+            assert_eq!(loaded.legacy_tactics_imported, imported);
         }
     }
 

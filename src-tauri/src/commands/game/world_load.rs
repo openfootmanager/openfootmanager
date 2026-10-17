@@ -23,8 +23,9 @@ pub(super) fn load_world_data_from_path(
     world_source: &str,
 ) -> Result<ofm_core::generator::WorldData, String> {
     let path = world_source.strip_prefix("file:").unwrap_or(world_source);
+    // The loader's own key is the answer: a file that is there but not a world says so, instead
+    // of "failed to read".
     ofm_core::generator::load_world_from_path(std::path::Path::new(path))
-        .map_err(|_| "be.error.worldReadFileFailed".to_string())
 }
 
 /// A world with the reputations its competitions were validated against: a package
@@ -257,6 +258,28 @@ mod tests {
             load_world_data_from_path("file:Z:/definitely-missing/openfootmanager-world.json");
 
         assert_eq!(result.unwrap_err(), "be.error.worldReadFileFailed");
+    }
+
+    /// Given a file that exists but is not a world
+    /// When it is loaded for a new game
+    /// Then the error says it could not be parsed, not that it could not be read.
+    #[test]
+    fn load_world_data_from_path_says_parse_failed_for_a_file_that_is_not_a_world() {
+        let dir = std::env::temp_dir().join(format!(
+            "ofm-world-load-parse-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("settings.json");
+        std::fs::write(&file, r#"{"name":"settings"}"#).unwrap();
+
+        let result = load_world_data_from_path(file.to_str().unwrap());
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(result.unwrap_err(), "be.error.worldParseFailed");
     }
 
     #[test]
