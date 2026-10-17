@@ -211,10 +211,47 @@ fn validate_embedded_definitions(
     Ok(())
 }
 
+/// The `WorldData` fields that hold a roster or its history, under the names a world file uses.
+/// A file must carry at least one: `name`, `description`, `metadata` and `regions` are shared
+/// with settings files, package manifests and `package.json`, so they prove nothing.
+const WORLD_CONTENT_KEYS: &[&str] = &[
+    "teams",
+    "players",
+    "staff",
+    "managers",
+    "retired_managers",
+    "retired_players",
+    "competitions",
+    "competitionDefinitions",
+    "national_teams",
+    "league",
+    "news",
+    "stats",
+    "world_history",
+];
+
+/// Whether `value` is an object carrying at least one roster or history collection.
+///
+/// `WorldData` is `serde(default)` throughout, so without this check any JSON object (a settings
+/// file, a manifest whose shards failed to parse) loads as an empty world. Shape rather than
+/// emptiness is tested, so a blank world still loads.
+fn has_world_shape(value: &serde_json::Value) -> bool {
+    value.as_object().is_some_and(|object| {
+        WORLD_CONTENT_KEYS
+            .iter()
+            .any(|key| object.contains_key(*key))
+    })
+}
+
 /// Parse a JSON string into a `WorldData`.
 pub fn load_world_from_json(json: &str) -> Result<WorldData, String> {
-    let world: WorldData =
+    let value: serde_json::Value =
         serde_json::from_str(json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+    if !has_world_shape(&value) {
+        return Err(WORLD_PARSE_FAILED_ERROR.to_string());
+    }
+    let world: WorldData =
+        serde_json::from_value(value).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
     let world = normalize_world(world);
     validate_embedded_definitions(&world, super::ReputationBasis::Stored)?;
     Ok(world)
@@ -338,10 +375,18 @@ fn load_world_from_manifest_path(
 
 pub fn load_world_from_path(path: &Path) -> Result<WorldData, String> {
     let json = std::fs::read_to_string(path).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
-    if let Ok(manifest) = serde_json::from_str::<WorldManifestV2>(&json)
-        && manifest.format_version >= 2
-        && !manifest.shards.teams.is_empty()
-    {
+    let value: serde_json::Value =
+        serde_json::from_str(&json).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+    let manifest_shaped = value.as_object().is_some_and(|object| {
+        object.contains_key("shards") || object.contains_key("formatVersion")
+    });
+    if manifest_shaped {
+        let manifest: WorldManifestV2 =
+            serde_json::from_value(value).map_err(|_| WORLD_PARSE_FAILED_ERROR.to_string())?;
+        // No loader reads an older manifest; its `name` must not pass it off as a world file.
+        if manifest.format_version < 2 {
+            return Err(WORLD_PARSE_FAILED_ERROR.to_string());
+        }
         return load_world_from_manifest_path(path, manifest);
     }
     load_world_from_json(&json)
@@ -836,6 +881,133 @@ mod tests {
             everything(&one) == everything(&again),
             "the same seed gave different worlds"
         );
+    }
+
+    fn load_file(contents: &str) -> Result<WorldData, String> {
+        let dir = TempWorldDir::new();
+        let path = dir.path().join("world.json");
+        fs::write(&path, contents).unwrap();
+        load_world_from_path(&path)
+    }
+
+    /// Given a world manifest whose shard references do not parse (a number where a file name
+    ///       belongs, as a newer or damaged manifest might have)
+    /// When it is loaded
+    /// Then it is an error, not an empty world that every field of `WorldData` would default to.
+    #[test]
+    fn a_manifest_whose_shards_do_not_parse_is_an_error_not_an_empty_world() {
+        let result = load_file(
+            r#"{"formatVersion":2,"worldId":"w","name":"W","description":"","shards":{"teams":5}}"#,
+        );
+
+        assert_eq!(result.unwrap_err(), WORLD_PARSE_FAILED_ERROR);
+    }
+
+    /// Given a version-2 world manifest that names no teams shard
+    /// When it is loaded
+    /// Then it is an error: a manifest with nowhere to read its clubs from is not a world.
+    #[test]
+    fn a_manifest_without_a_teams_shard_is_an_error_not_an_empty_world() {
+        let result = load_file(
+            r#"{"formatVersion":2,"worldId":"w","name":"W","description":"",
+                "shards":{"teams":"","players":"p.json","staff":"s.json","managers":"m.json",
+                "competitions":"c.json","nationalTeams":"n.json","news":"nw.json",
+                "stats":"st.json","worldHistory":"h.json"}}"#,
+        );
+
+        assert_eq!(result.unwrap_err(), WORLD_PARSE_FAILED_ERROR);
+    }
+
+    /// Given JSON that is not a world at all: an object with none of a world's keys, an empty
+    ///       object, and a value that is not an object
+    /// When each is loaded, from a file and as text
+    /// Then each is an error, not an empty world.
+    #[test]
+    fn json_that_is_not_a_world_is_refused() {
+        for text in [r#"{"foo":1}"#, "{}", "[1,2]", "3"] {
+            assert_eq!(
+                load_file(text).unwrap_err(),
+                WORLD_PARSE_FAILED_ERROR,
+                "{text}"
+            );
+            assert_eq!(
+                load_world_from_json(text).unwrap_err(),
+                WORLD_PARSE_FAILED_ERROR,
+                "{text}"
+            );
+        }
+    }
+
+    /// Given JSON that carries only the generic fields a world shares with other files: a settings
+    ///       file with a name and a description, a package's own manifest, an npm package.json
+    /// When each is loaded, from a file and as text
+    /// Then each is an error: a name is not a roster, so none of them is an empty world.
+    #[test]
+    fn a_file_with_only_a_name_and_a_description_is_not_a_world() {
+        for text in [
+            r#"{"name":"My settings","description":"not a world"}"#,
+            r#"{"schema":"world","id":"pkg","name":"Some Package","version":"1.0.0"}"#,
+            r#"{"name":"app","version":"1.0.0","description":"x","metadata":{"a":1},"regions":[]}"#,
+        ] {
+            assert_eq!(
+                load_file(text).unwrap_err(),
+                WORLD_PARSE_FAILED_ERROR,
+                "{text}"
+            );
+            assert_eq!(
+                load_world_from_json(text).unwrap_err(),
+                WORLD_PARSE_FAILED_ERROR,
+                "{text}"
+            );
+        }
+    }
+
+    /// Given a manifest of format version 1 whose shard files are all there (a real export with
+    ///       its version lowered), which this build has no loader for
+    /// When it is loaded
+    /// Then it is an error, not read as a version-2 manifest and not an empty world via its `name`.
+    #[test]
+    fn a_manifest_of_an_older_format_is_an_error_not_an_empty_world() {
+        let dir = TempWorldDir::new();
+        let manifest = dir.path().join("world.json");
+        export_world_package(&WorldData::default(), &manifest).unwrap();
+        assert!(
+            load_world_from_path(&manifest).is_ok(),
+            "the export loads as it is"
+        );
+        let written = fs::read_to_string(&manifest).unwrap();
+        assert!(written.contains("\"formatVersion\": 2"), "{written}");
+        fs::write(
+            &manifest,
+            written.replace("\"formatVersion\": 2", "\"formatVersion\": 1"),
+        )
+        .unwrap();
+
+        let result = load_world_from_path(&manifest);
+
+        assert_eq!(result.unwrap_err(), WORLD_PARSE_FAILED_ERROR);
+    }
+
+    /// Given a blank world: every list present and empty, as one saved from nothing would be
+    /// When it is loaded
+    /// Then it loads: refusing a file that is not a world must not refuse an empty one.
+    #[test]
+    fn a_blank_world_still_loads() {
+        let blank = serde_json::to_string(&WorldData::default()).unwrap();
+
+        assert!(load_file(&blank).is_ok());
+        assert!(load_world_from_json(r#"{"teams":[],"players":[]}"#).is_ok());
+    }
+
+    /// Given a worlds folder that also holds an unrelated JSON file
+    /// When the folder is scanned
+    /// Then the unrelated file is not listed as a world.
+    #[test]
+    fn an_unrelated_json_file_is_not_listed_as_a_world_database() {
+        let dir = TempWorldDir::new();
+        fs::write(dir.path().join("notes.json"), r#"{"todo":["buy boots"]}"#).unwrap();
+
+        assert!(scan_world_databases(dir.path()).is_empty());
     }
 
     fn world_with_archives() -> WorldData {
