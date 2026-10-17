@@ -81,13 +81,20 @@ function createGameState(overrides: Partial<GameStateData> = {}): GameStateData 
 }
 
 describe("seasonContext", (): void => {
-  it("derives preseason state when backend season_context is missing", (): void => {
+  /**
+   * Given a game with fixtures and a date inside the transfer window but no season_context
+   * When the context is resolved
+   * Then it is the neutral default (preseason, window closed, no dates): the screen does not work
+   *      the season or the window out from fixtures, which is the backend's rule alone.
+   */
+  it("does not derive the season from fixtures when the backend sent no season_context", (): void => {
     const context = resolveSeasonContext(createGameState());
 
     expect(context.phase).toBe("Preseason");
-    expect(context.season_start).toBe("2026-08-01");
-    expect(context.days_until_season_start).toBe(22);
-    expect(context.transfer_window.status).toBe("Open");
+    expect(context.season_start).toBeNull();
+    expect(context.days_until_season_start).toBeNull();
+    expect(context.transfer_window.status).toBe("Closed");
+    expect(context.transfer_window.opens_on).toBeNull();
     expect(hasCompetitiveStandings(createGameState())).toBe(false);
   });
 
@@ -113,111 +120,6 @@ describe("seasonContext", (): void => {
     expect(context.phase).toBe("InSeason");
     expect(context.transfer_window.status).toBe("DeadlineDay");
     expect(hasCompetitiveStandings(gameState)).toBe(true);
-  });
-
-  it("ignores preseason friendlies when deriving the competitive season start", (): void => {
-    const gameState = createGameState({
-      league: {
-        id: "league-1",
-        name: "Premier Division",
-        season: 2026,
-        fixtures: [
-          {
-            id: "friendly-1",
-            matchday: 0,
-            date: "2026-07-15",
-            home_team_id: "team-1",
-            away_team_id: "team-3",
-            competition: "Friendly",
-            status: "Scheduled",
-            result: null,
-          },
-          {
-            id: "fixture-1",
-            matchday: 1,
-            date: "2026-08-01",
-            home_team_id: "team-1",
-            away_team_id: "team-2",
-            competition: "League",
-            status: "Scheduled",
-            result: null,
-          },
-        ],
-        standings: [
-          {
-            team_id: "team-1",
-            played: 0,
-            won: 0,
-            drawn: 0,
-            lost: 0,
-            goals_for: 0,
-            goals_against: 0,
-            points: 0,
-          },
-          {
-            team_id: "team-2",
-            played: 0,
-            won: 0,
-            drawn: 0,
-            lost: 0,
-            goals_for: 0,
-            goals_against: 0,
-            points: 0,
-          },
-        ],
-      },
-    });
-
-    const context = resolveSeasonContext(gameState);
-
-    expect(context.phase).toBe("Preseason");
-    expect(context.season_start).toBe("2026-08-01");
-  });
-
-  it("keeps the transfer window closed before the preseason opening threshold", (): void => {
-    const context = resolveSeasonContext(
-      createGameState({
-        clock: {
-          current_date: "2026-06-30T12:00:00Z",
-          start_date: "2026-06-01T12:00:00Z",
-        },
-      }),
-    );
-
-    expect(context.transfer_window.status).toBe("Closed");
-    expect(context.transfer_window.days_until_opens).toBe(2);
-    expect(context.transfer_window.opens_on).toBe("2026-07-02");
-    expect(context.transfer_window.closes_on).toBe("2026-08-31");
-  });
-
-  it("rolls the next transfer opening forward after the current window closes", (): void => {
-    const context = resolveSeasonContext(
-      createGameState({
-        clock: {
-          current_date: "2026-09-15T12:00:00Z",
-          start_date: "2026-07-01T12:00:00Z",
-        },
-      }),
-    );
-
-    expect(context.transfer_window.status).toBe("Closed");
-    expect(context.transfer_window.days_until_opens).toBe(290);
-    expect(context.transfer_window.opens_on).toBe("2027-07-02");
-    expect(context.transfer_window.closes_on).toBe("2027-08-31");
-  });
-
-  it("marks deadline day when the transfer window reaches its closing threshold", (): void => {
-    const context = resolveSeasonContext(
-      createGameState({
-        clock: {
-          current_date: "2026-08-31T12:00:00Z",
-          start_date: "2026-07-01T12:00:00Z",
-        },
-      }),
-    );
-
-    expect(context.transfer_window.status).toBe("DeadlineDay");
-    expect(context.transfer_window.days_remaining).toBe(0);
   });
 });
 
