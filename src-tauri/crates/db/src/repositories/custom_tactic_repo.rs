@@ -13,7 +13,7 @@ const GAME_PERSISTENCE_WRITE_ERROR: &str = "be.error.gamePersistence.writeFailed
 /// repeat (an edited or merged save, or ids kept before they were trimmed) is reduced by
 /// `one_tactic_per_id`, which keeps the last copy at the place it last stood.
 pub fn replace_custom_tactics(conn: &Connection, tactics: &[CustomTactic]) -> Result<(), String> {
-    let tactics = one_tactic_per_id(tactics.to_vec());
+    let tactics = one_tactic_per_id(tactics);
     let records = tactics
         .iter()
         .map(|tactic| {
@@ -44,7 +44,7 @@ pub fn load_custom_tactics(conn: &Connection) -> Result<Vec<CustomTactic>, Strin
             serde_json::from_str(&json).map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())
         })
         .collect::<Result<Vec<_>, _>>()
-        .map(one_tactic_per_id)
+        .map(|tactics| one_tactic_per_id(&tactics))
 }
 
 #[cfg(test)]

@@ -734,6 +734,9 @@ impl SaveManager {
         // A new career is a new game: its World Cups are drawn from its own seed, whatever the
         // save it began from did.
         game.legacy_world_cup_draw = false;
+        // It keeps the save's tactics library and owns no browser one, so the old browser library
+        // is never copied into it.
+        game.legacy_tactics_imported = true;
 
         // Reset clock to start date
         game.clock.current_date = game.clock.start_date;
@@ -2717,6 +2720,24 @@ mod tests {
         let fresh = sm.new_game_from_save(&save_id).unwrap();
 
         assert!(!fresh.legacy_world_cup_draw);
+    }
+
+    /// Given an old career that never had its browser tactics copied in (its save is unmarked)
+    /// When a new game is begun from that save
+    /// Then the new career is marked as already imported: it keeps the save's own tactics library
+    ///      (#883) and must not pull in a browser library that belongs to some other career.
+    #[test]
+    fn a_new_game_from_a_save_never_imports_the_browser_tactics() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut old = sample_game();
+        old.legacy_tactics_imported = false;
+        let save_id = sm.create_save(&old, "Old").unwrap();
+
+        let fresh = sm.new_game_from_save(&save_id).unwrap();
+
+        assert!(fresh.legacy_tactics_imported);
     }
 
     /// Given a save written after World Cups were seeded from the game,

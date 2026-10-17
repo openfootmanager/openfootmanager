@@ -41,6 +41,23 @@ pub fn delete_custom_tactic_internal(
     .map(|game| game.custom_tactics)
 }
 
+/// Whether the old browser library still has to be copied into this career. It is copied once: a
+/// tactic the player deletes afterwards must not be copied back on the next load.
+pub fn legacy_tactics_import_pending_internal(state: &StateManager) -> Result<bool, String> {
+    state
+        .get_game(|game| !game.legacy_tactics_imported)
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+/// Records that the old browser library has been copied in, so it never is again.
+pub fn mark_legacy_tactics_imported_internal(state: &StateManager) -> Result<(), String> {
+    mutate_active_game(state, |game| {
+        game.legacy_tactics_imported = true;
+        Ok(())
+    })
+    .map(|_| ())
+}
+
 /// The career's saved tactics.
 #[tauri::command]
 pub fn list_custom_tactics(
@@ -67,6 +84,19 @@ pub fn delete_custom_tactic(
 ) -> Result<Vec<CustomTactic>, String> {
     info!("[cmd] delete_custom_tactic: {id}");
     delete_custom_tactic_internal(&state, &id)
+}
+
+/// Whether the old browser library still has to be copied in.
+#[tauri::command]
+pub fn legacy_tactics_import_pending(state: State<'_, Arc<StateManager>>) -> Result<bool, String> {
+    legacy_tactics_import_pending_internal(&state)
+}
+
+/// Marks the old browser library as copied in.
+#[tauri::command]
+pub fn mark_legacy_tactics_imported(state: State<'_, Arc<StateManager>>) -> Result<(), String> {
+    info!("[cmd] mark_legacy_tactics_imported");
+    mark_legacy_tactics_imported_internal(&state)
 }
 
 #[cfg(test)]
@@ -120,6 +150,36 @@ mod tests {
             ["b"]
         );
         assert_eq!(list_custom_tactics_internal(&state).unwrap(), left);
+    }
+
+    /// Given a career whose old browser library has not been copied in
+    /// When the import is marked done
+    /// Then it is pending before, not pending after, and marking twice changes nothing.
+    #[test]
+    fn the_legacy_import_is_pending_until_it_is_marked_done() {
+        let state = state_with_game();
+        assert_eq!(legacy_tactics_import_pending_internal(&state), Ok(true));
+
+        mark_legacy_tactics_imported_internal(&state).unwrap();
+        mark_legacy_tactics_imported_internal(&state).unwrap();
+
+        assert_eq!(legacy_tactics_import_pending_internal(&state), Ok(false));
+    }
+
+    /// Given no game at all
+    /// When the import state is asked or marked
+    /// Then each is the no-active-game key.
+    #[test]
+    fn the_legacy_import_needs_a_game() {
+        let empty = StateManager::new();
+        assert_eq!(
+            legacy_tactics_import_pending_internal(&empty),
+            Err(NO_ACTIVE_GAME.to_string())
+        );
+        assert_eq!(
+            mark_legacy_tactics_imported_internal(&empty),
+            Err(NO_ACTIVE_GAME.to_string())
+        );
     }
 
     /// Given an invalid tactic, a missing id, and no game at all

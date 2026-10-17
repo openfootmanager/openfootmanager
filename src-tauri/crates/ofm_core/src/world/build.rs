@@ -113,6 +113,9 @@ pub fn build_game_from_world_data(
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
+    // A career begun by this build owns no browser library of tactics; unmarked, it would copy in
+    // the library of another career begun the same year (same manager id and start date).
+    game.legacy_tactics_imported = true;
     // Stored on the game, which is the one place the day's dice come from.
     game.seed = seed;
     // In place before `generate_past_world_history` below, which seeds a roster-baseline world's
@@ -226,6 +229,43 @@ mod tests {
         assert!(game.players.len() >= players);
         assert!(!game.competitions.is_empty());
         assert!(game.teams.iter().all(|team| team.history.len() == 2));
+    }
+
+    /// Given any world, generated or imported
+    /// When a career is built from it
+    /// Then the career is marked as having imported the browser tactics already: a career begun by
+    ///      this build cannot own a browser library, and an unmarked one would copy in the library
+    ///      of another career begun the same year (same manager id and start date).
+    #[test]
+    fn a_career_built_from_a_world_never_imports_browser_tactics() {
+        let sources = DefinitionSources::embedded_only();
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 0,
+        };
+        for imported in [false, true] {
+            let world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+            let (game, _) = if imported {
+                build_game_from_imported_world(
+                    clock.clone(),
+                    manager(),
+                    history,
+                    world,
+                    ReputationBasis::Stored,
+                )
+            } else {
+                build_game_from_world_data(
+                    clock.clone(),
+                    manager(),
+                    history,
+                    world,
+                    ReputationBasis::Stored,
+                )
+            };
+
+            assert!(game.legacy_tactics_imported, "imported world: {imported}");
+        }
     }
 
     /// Given a world that carries archived managers and retired players

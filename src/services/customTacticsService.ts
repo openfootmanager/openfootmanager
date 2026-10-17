@@ -25,3 +25,16 @@ export async function saveCustomTactic(tactic: CustomTactic): Promise<CustomTact
 export async function deleteCustomTactic(id: string): Promise<CustomTactic[]> {
   return invoke<CustomTactic[]>("delete_custom_tactic", { id });
 }
+
+/**
+ * Whether the old browser library still has to be copied into this career. It is copied once, so a
+ * tactic the player deletes afterwards is not copied back on the next load.
+ */
+export async function legacyTacticsImportPending(): Promise<boolean> {
+  return invoke<boolean>("legacy_tactics_import_pending");
+}
+
+/** Records that the old browser library has been copied in, for good. */
+export async function markLegacyTacticsImported(): Promise<void> {
+  await invoke("mark_legacy_tactics_imported");
+}
