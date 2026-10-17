@@ -314,9 +314,12 @@ pub(crate) fn ceiling_drift_still_to_come(age: u32) -> (f64, f64) {
 }
 
 /// Moves the ceiling for the season: a random step that is largest for a teenager and gone by 25,
-/// with a small pull down. Never below the rating he has.
-fn drift_ceiling(player: &mut Player, curve_age: f64, rng: &mut impl Rng) {
-    let spread = ceiling_step_spread(curve_age.max(0.0).floor() as u32);
+/// with a small pull down. Never below the rating he has. It runs on calendar age, not curve age,
+/// because the generator narrows a young player's ceiling by the drift still to come at his
+/// calendar age (`ceiling_drift_still_to_come`): a keeper's curve is 3.5 years later, and reading
+/// it here would give him seven seasons of the widest step where the generator allowed three.
+fn drift_ceiling(player: &mut Player, age: u32, rng: &mut impl Rng) {
+    let spread = ceiling_step_spread(age);
     if spread == 0.0 {
         return;
     }
@@ -341,7 +344,7 @@ pub fn develop_one_season(player: &mut Player, age: i32, world_seed: u64, rng: &
     } else {
         decline(player, curve, &traits, rng);
     }
-    drift_ceiling(player, curve, rng);
+    drift_ceiling(player, age.max(0) as u32, rng);
 }
 
 #[cfg(test)]
@@ -606,7 +609,7 @@ mod tests {
         for seed in 0..400 {
             let mut p = player("drift", Position::CentralMidfielder, 55, 70);
             let rating = natural_ovr(&p).round() as u8;
-            drift_ceiling(&mut p, 17.0, &mut rng(seed));
+            drift_ceiling(&mut p, 17, &mut rng(seed));
             assert!(p.potential >= rating);
             total_change += f64::from(p.potential) - 70.0;
         }
@@ -632,11 +635,7 @@ mod tests {
             .collect();
         for age in from_age..=LAST_DRIFT_AGE {
             for (n, p) in cohort.iter_mut().enumerate() {
-                drift_ceiling(
-                    p,
-                    f64::from(age),
-                    &mut rng(u64::from(age) * 10_000 + n as u64),
-                );
+                drift_ceiling(p, age, &mut rng(u64::from(age) * 10_000 + n as u64));
             }
         }
         cohort.iter().map(|p| f64::from(p.potential)).collect()
@@ -674,6 +673,37 @@ mod tests {
         let (mean, width) = mean_and_spread(&landed);
         assert!((mean - 69.6).abs() < 0.5, "mean {mean}");
         assert!((width - 5.0).abs() < 0.4, "spread {width}");
+    }
+
+    /// Given sixteen-year-old keepers and midfielders with the same ceiling and a rating far below it,
+    /// When a season of development is run for each of nine years,
+    /// Then their ceilings end at the same spread and the same level: a keeper's later curve does
+    ///      not give him more years of the widest drift than the generator allowed for.
+    #[test]
+    fn a_keepers_ceiling_drifts_as_much_as_an_outfield_players() {
+        let spread_at_25 = |position: Position| {
+            let mut cohort: Vec<Player> = (0..1500)
+                .map(|n| player(&format!("{position:?}{n}"), position.clone(), 30, 80))
+                .collect();
+            for (year, age) in (16..=24).enumerate() {
+                for (n, p) in cohort.iter_mut().enumerate() {
+                    let mut stream = rng((year * 10_000 + n) as u64);
+                    develop_one_season(p, age, 9, &mut stream);
+                }
+            }
+            let ceilings: Vec<f64> = cohort.iter().map(|p| f64::from(p.potential)).collect();
+            mean_and_spread(&ceilings)
+        };
+        let (keeper_mean, keeper_spread) = spread_at_25(Position::Goalkeeper);
+        let (field_mean, field_spread) = spread_at_25(Position::CentralMidfielder);
+        assert!(
+            (keeper_spread - field_spread).abs() < 0.2,
+            "keepers {keeper_spread:.2}, outfield {field_spread:.2}"
+        );
+        assert!(
+            (keeper_mean - field_mean).abs() < 0.4,
+            "keepers {keeper_mean:.2}, outfield {field_mean:.2}"
+        );
     }
 
     /// Given players of each age,
@@ -922,7 +952,7 @@ mod tests {
     ///      moves at 25.
     #[test]
     fn a_ceilings_step_has_the_spread_of_its_age() {
-        for (age, spread) in [(16.0, 1.0_f64), (20.0, 0.7), (23.0, 0.35), (25.0, 0.0)] {
+        for (age, spread) in [(16, 1.0_f64), (20, 0.7), (23, 0.35), (25, 0.0)] {
             let steps: Vec<f64> = (0..3000)
                 .map(|seed| {
                     let mut p = player("drift", Position::CentralMidfielder, 40, 70);

@@ -361,7 +361,8 @@ mod tests {
     }
 
     /// A cohort of `count` players of `age` rated like `make_player`, with the given ceiling, in a
-    /// game that has played `seasons` seasons of ageing; the mean change in rating of the cohort.
+    /// game that has played one season of ageing: the mean change in rating of the players still on
+    /// the roster afterwards (the retirees leave it, and are not part of the average).
     fn mean_change_after_a_season(age: i32, potential: u8, count: usize) -> f64 {
         let born = format!("{}-01-01", 2026 - age);
         let players: Vec<Player> = (0..count)
@@ -376,18 +377,22 @@ mod tests {
                 player
             })
             .collect();
-        let before: Vec<f64> = players.iter().map(|p| f64::from(p.ovr)).collect();
+        let before: std::collections::HashMap<String, f64> = players
+            .iter()
+            .map(|p| (p.id.clone(), f64::from(p.ovr)))
+            .collect();
         let mut game = make_game(players);
         let date = game.clock.current_date.date_naive();
 
         apply_seasonal_aging(&mut game, date, 1);
 
-        game.players
+        let changes: Vec<f64> = game
+            .players
             .iter()
-            .zip(&before)
-            .map(|(after, before)| f64::from(after.ovr) - before)
-            .sum::<f64>()
-            / count as f64
+            .map(|after| f64::from(after.ovr) - before[&after.id])
+            .collect();
+        assert!(!changes.is_empty(), "the whole cohort retired");
+        changes.iter().sum::<f64>() / changes.len() as f64
     }
 
     /// Given a cohort of 17-year-olds with room to grow and a cohort of 35-year-olds,
@@ -396,9 +401,8 @@ mod tests {
     #[test]
     fn a_season_develops_the_young_and_wears_the_old() {
         assert!(mean_change_after_a_season(17, 90, 80) > 2.0);
-        // -0.65 measured for this flat-70 fixture, whose mental attributes hold up; a real squad
-        // falls faster (-1.2 to -1.7 a season at 33-35 in the season harness).
-        assert!(mean_change_after_a_season(35, 70, 80) < -0.5);
+        // Flat-70 attributes, a ceiling at the rating: the mean change of the players who stay.
+        assert!(mean_change_after_a_season(35, 70, 200) < -1.0);
     }
 
     /// Given a cohort of 26-year-olds rated 70 with a ceiling of 85,

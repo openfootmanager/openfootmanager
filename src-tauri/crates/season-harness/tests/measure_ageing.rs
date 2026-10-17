@@ -92,6 +92,9 @@ fn measure(name: &str, spec: WorldSpec, seasons: u32) {
     print_age_profile("final", &game);
 }
 
+/// Read a long gate run against this: the 80-club gate world runs 0.1 to 0.6 points under the S and A
+/// bands (the shipped world is in band), with a thinner top, and its mean rating slides about 0.02
+/// a season. The maintainer accepted that rather than retune the small world.
 /// Given the gate world on seeds 1 to 3, ten seasons each, and one seed for thirty,
 /// When the seasons are played,
 /// Then the tier shares, wonderkid share, per-band change and the age profile of the best are printed.
