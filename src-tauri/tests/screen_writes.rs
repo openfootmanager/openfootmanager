@@ -115,11 +115,10 @@ fn blank_comments_and_literals(source: &str) -> String {
 
 /// `'x'` or `'\n'` is a char literal; `'a` (a lifetime) is not.
 fn is_char_literal(chars: &[char], at: usize) -> bool {
-    match (chars.get(at + 1), chars.get(at + 2)) {
-        (Some('\\'), _) => true,
-        (Some(_), Some('\'')) => true,
-        _ => false,
-    }
+    matches!(
+        (chars.get(at + 1), chars.get(at + 2)),
+        (Some('\\'), _) | (Some(_), Some('\''))
+    )
 }
 
 fn remove_test_modules(source: &str) -> String {
