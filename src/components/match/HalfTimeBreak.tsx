@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import type { GameStateData } from "../../store/gameStore";
 import {
@@ -20,6 +19,7 @@ import { sendMatchCommand } from "./matchCommands";
 import { applySubstitutions } from "./applySubstitutions";
 import { Badge, TeamLogo, ThemeToggle } from "../ui";
 import { Play, RefreshCw, Shield, Zap, Target, Crosshair, Flag, MessageCircle } from "lucide-react";
+import { invokeForCareer } from "../../services/careerInvoke";
 
 interface HalfTimeBreakProps {
   snapshot: MatchSnapshot;
@@ -121,7 +121,7 @@ export default function HalfTimeBreak({
     const oppScore = userSide === "Home" ? snapshot.away_score : snapshot.home_score;
     const context = userScore > oppScore ? "winning" : userScore < oppScore ? "losing" : "drawing";
     try {
-      const results = await invoke<
+      const results = await invokeForCareer<
         {
           player_id: string;
           player_name: string;

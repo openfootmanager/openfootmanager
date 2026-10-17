@@ -65,6 +65,12 @@ export const SCREEN_WRITE_COMMANDS = [
   "request_marketing_campaign",
   "apply_for_job",
   "advance_to_next_season",
+  "start_live_match",
+  "step_live_match",
+  "apply_match_command",
+  "finish_live_match",
+  "apply_team_talk",
+  "submit_press_conference",
 ] as const;
 
 export type ScreenWriteCommand = (typeof SCREEN_WRITE_COMMANDS)[number];
