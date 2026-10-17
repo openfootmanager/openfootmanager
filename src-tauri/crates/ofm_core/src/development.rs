@@ -40,6 +40,10 @@ const RESILIENCE_RANGE: (f64, f64) = (0.5, 2.2);
 /// What the ceiling does each season until the player's peak: a random step of this size by age,
 /// plus a small pull down so the world does not fill with ever-higher ceilings.
 const CEILING_PULL: f64 = -0.3;
+/// The centre the generator draws ceilings around (`CEILING_MEAN` there). A ceiling drifts back
+/// toward it so the random steps do not widen the bell the world was calibrated to: unchecked, the
+/// steps add about 6 points of spread by 25 and the S tier doubles within ten seasons.
+const CEILING_CENTRE: f64 = 69.6;
 
 /// Training is a modifier on the season's development, not a second source of it: the season's
 /// growth already stands for a typical year in the training ground, and a day's training adds to
@@ -173,10 +177,10 @@ pub fn decline_per_season(curve_age: f64, aspect: Aspect) -> f64 {
     let band = match curve_age.floor() as i32 {
         ..=26 => return 0.0,
         27..=29 => [-0.5, 0.0, 0.0, 0.0, 0.5],
-        30..=31 => [-2.0, -0.7, -0.3, -0.5, 0.3],
-        32..=33 => [-2.5, -1.2, -0.8, -1.0, 0.0],
-        34..=35 => [-3.0, -2.0, -1.2, -1.5, -0.5],
-        _ => [-4.0, -2.5, -1.5, -2.0, -1.0],
+        30..=31 => [-2.0, -0.7, -0.3, -0.8, 0.3],
+        32..=33 => [-2.5, -1.2, -0.8, -1.5, 0.0],
+        34..=35 => [-3.0, -2.0, -1.2, -2.2, -0.5],
+        _ => [-4.0, -2.5, -1.5, -3.0, -1.0],
     };
     match aspect {
         Aspect::Speed => band[0],
@@ -287,16 +291,16 @@ fn decline(player: &mut Player, curve_age: f64, traits: &DevelopmentTraits, rng:
 /// Moves the ceiling for the season: a random step that is large for a teenager and gone by 25,
 /// with a small pull down. Never below the rating he has.
 fn drift_ceiling(player: &mut Player, curve_age: f64, rng: &mut impl Rng) {
-    let spread = match curve_age.floor() as i32 {
-        ..=18 => 3.0,
-        19..=21 => 2.0,
-        22..=24 => 1.0,
-        _ => 0.0,
+    // (spread of the step, share of the distance to the centre given back). The share is what keeps
+    // the bell's width: sqrt(1 - spread^2 / 25) with 25 the variance of the generated ceilings.
+    let (spread, reversion) = match curve_age.floor() as i32 {
+        ..=18 => (3.0, 0.2),
+        19..=21 => (2.0, 0.08),
+        22..=24 => (1.0, 0.02),
+        _ => return,
     };
-    if spread == 0.0 {
-        return;
-    }
-    let step = standard_normal(rng) * spread + CEILING_PULL;
+    let toward_centre = reversion * (CEILING_CENTRE - f64::from(player.potential));
+    let step = standard_normal(rng) * spread + CEILING_PULL + toward_centre;
     let ceiling = (f64::from(player.potential) + step)
         .round()
         .clamp(1.0, 99.0) as u8;
@@ -390,7 +394,7 @@ mod tests {
         assert_eq!(decline_per_season(30.0, Aspect::Speed), -2.0);
         assert_eq!(decline_per_season(31.9, Aspect::Stamina), -0.7);
         assert_eq!(decline_per_season(32.0, Aspect::Strength), -0.8);
-        assert_eq!(decline_per_season(34.0, Aspect::Technical), -1.5);
+        assert_eq!(decline_per_season(34.0, Aspect::Technical), -2.2);
         assert_eq!(decline_per_season(34.0, Aspect::Mental), -0.5);
         assert_eq!(decline_per_season(36.0, Aspect::Speed), -4.0);
         assert_eq!(decline_per_season(40.0, Aspect::Mental), -1.0);
@@ -580,14 +584,47 @@ mod tests {
     fn the_ceiling_drifts_down_on_average_and_never_below_the_rating() {
         let mut total_change = 0.0;
         for seed in 0..400 {
-            let mut p = player("drift", Position::CentralMidfielder, 55, 75);
+            let mut p = player("drift", Position::CentralMidfielder, 55, 70);
             let rating = natural_ovr(&p).round() as u8;
             drift_ceiling(&mut p, 17.0, &mut rng(seed));
             assert!(p.potential >= rating);
-            total_change += f64::from(p.potential) - 75.0;
+            total_change += f64::from(p.potential) - 70.0;
         }
         assert!(total_change / 400.0 < 0.0);
         assert!(total_change / 400.0 > -1.5);
+    }
+
+    /// Given a world of ceilings with the spread the generator draws (a standard deviation of 5),
+    /// When every ceiling drifts from sixteen to twenty-four,
+    /// Then the spread is still about 5: the steps do not widen the bell the world was calibrated to.
+    #[test]
+    fn a_ceilings_drift_keeps_the_width_of_the_bell() {
+        let mut dealer = rng(7);
+        let mut ceilings: Vec<Player> = (0..2000)
+            .map(|n| {
+                let ceiling = (69.6 + 5.0 * standard_normal(&mut dealer)).round() as u8;
+                player(
+                    &format!("bell{n}"),
+                    Position::CentralMidfielder,
+                    40,
+                    ceiling,
+                )
+            })
+            .collect();
+        for age in 16..25 {
+            for (n, p) in ceilings.iter_mut().enumerate() {
+                drift_ceiling(
+                    p,
+                    f64::from(age),
+                    &mut rng(u64::from(age as u32) * 10_000 + n as u64),
+                );
+            }
+        }
+        let values: Vec<f64> = ceilings.iter().map(|p| f64::from(p.potential)).collect();
+        let mean = values.iter().sum::<f64>() / values.len() as f64;
+        let spread =
+            (values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64).sqrt();
+        assert!((4.2..5.8).contains(&spread), "spread {spread}");
     }
 
     /// Given players from nineteen to forty with the same room to grow,
