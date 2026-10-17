@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import { invokeForCareer } from "./careerInvoke";
+
 /** A tactic the player saved, as the save keeps it (camelCase on the wire). */
 export interface CustomTactic {
   id: string;
@@ -27,12 +29,12 @@ export async function saveCustomTactic(
   tactic: CustomTactic,
   careerToken: number,
 ): Promise<CustomTactic[]> {
-  return invoke<CustomTactic[]>("save_custom_tactic", { tactic, careerToken });
+  return invokeForCareer<CustomTactic[]>("save_custom_tactic", { tactic }, careerToken);
 }
 
 /** Removes the tactic with `id`; returns the list that is left. */
 export async function deleteCustomTactic(id: string, careerToken: number): Promise<CustomTactic[]> {
-  return invoke<CustomTactic[]>("delete_custom_tactic", { id, careerToken });
+  return invokeForCareer<CustomTactic[]>("delete_custom_tactic", { id }, careerToken);
 }
 
 /**
@@ -45,5 +47,5 @@ export async function legacyTacticsImportPending(): Promise<boolean> {
 
 /** Records that the old browser library has been copied in, for good. */
 export async function markLegacyTacticsImported(careerToken: number): Promise<void> {
-  await invoke("mark_legacy_tactics_imported", { careerToken });
+  await invokeForCareer("mark_legacy_tactics_imported", {}, careerToken);
 }

@@ -1,6 +1,6 @@
 use log::info;
 use ofm_core::job_offers::{self, JobOpportunity};
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 use std::sync::Arc;
 use tauri::State;
 
@@ -18,16 +18,15 @@ pub fn get_available_jobs(
 pub fn apply_for_job(
     state: State<'_, Arc<StateManager>>,
     team_id: String,
+    career_token: u64,
 ) -> Result<serde_json::Value, String> {
     info!("[cmd] apply_for_job: team_id={}", team_id);
     // apply_for_job has no error path; mutate in place and serialize the result.
-    state
-        .update_game(|game| {
-            let result = job_offers::apply_for_job(game, &team_id);
-            serde_json::json!({
-                "result": result,
-                "game": game,
-            })
+    state.update_game_for(Career::Token(career_token), |game| {
+        let result = job_offers::apply_for_job(game, &team_id);
+        serde_json::json!({
+            "result": result,
+            "game": game,
         })
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
+    })
 }

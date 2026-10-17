@@ -23,6 +23,7 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
     // Use the delegate mode to force auto-simulation of matches
     let response = crate::application::time_advancement::advance_time_with_mode(
         &ctx.state_manager,
+        ofm_core::state::Career::Active,
         "delegate",
     )?;
 
@@ -138,7 +139,12 @@ fn auto_save_if_due(ctx: &McpContext) -> bool {
     *days = 0;
     drop(counters); // release lock before save
     ctx.save_manager_state.0.lock().is_ok_and(|mut sm| {
-        crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm).is_ok()
+        crate::commands::util::persist_active_game(
+            &ctx.state_manager,
+            &mut sm,
+            ofm_core::state::Career::Active,
+        )
+        .is_ok()
     })
 }
 
@@ -193,6 +199,7 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
 
         crate::application::time_advancement::advance_time_with_mode(
             &ctx.state_manager,
+            ofm_core::state::Career::Active,
             "delegate",
         )?;
 

@@ -434,6 +434,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("upgrade_facility", {
+        careerToken: 0,
         facility: "Medical",
       });
     });
@@ -503,6 +504,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "sponsor_2025-06-15",
         actionId: "respond",
         optionId: "accept",
@@ -574,7 +576,7 @@ describe("FinancesTab facilities", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pitch Sponsor" }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("request_sponsor_pitch");
+      expect(mockedInvoke).toHaveBeenCalledWith("request_sponsor_pitch", { careerToken: 0 });
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
@@ -646,7 +648,7 @@ describe("FinancesTab facilities", () => {
     fireEvent.click(screen.getByRole("button", { name: "Launch Campaign" }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("request_marketing_campaign");
+      expect(mockedInvoke).toHaveBeenCalledWith("request_marketing_campaign", { careerToken: 0 });
     });
 
     expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
@@ -1011,6 +1013,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {
+        careerToken: 0,
         playerIds: ["player-critical", "player-warning"],
         maxWageIncreasePct: 35,
         maxContractYears: 3,
@@ -1082,6 +1085,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {
+        careerToken: 0,
         playerIds: ["player-critical"],
         maxWageIncreasePct: 35,
         maxContractYears: 3,

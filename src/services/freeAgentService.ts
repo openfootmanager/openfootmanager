@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { NegotiationFeedbackPanelData } from "../components/NegotiationFeedbackPanel";
 import type { GameStateData } from "../store/gameStore";
+import { invokeForCareer } from "./careerInvoke";
 
 export interface FreeAgentContractProjection {
   current_annual_wage_bill: number;
@@ -36,7 +37,7 @@ export async function offerFreeAgentContract(
   weeklyWage: number,
   contractYears: number,
 ): Promise<FreeAgentContractResponseData> {
-  return invoke<FreeAgentContractResponseData>("offer_free_agent_contract", {
+  return invokeForCareer<FreeAgentContractResponseData>("offer_free_agent_contract", {
     playerId,
     weeklyWage,
     contractYears,
