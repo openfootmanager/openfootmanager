@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { JSX } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -180,8 +180,14 @@ function HookHarness({
   gameState: GameStateData;
   target: PlayerData;
 }): JSX.Element {
-  const { bidAmount, bidResult, setBidAmount, openBidNegotiation, handleMakeBid } =
-    useTransferBidFlow({ gameState });
+  const {
+    bidAmount,
+    bidResult,
+    bidSubmitDisabled,
+    setBidAmount,
+    openBidNegotiation,
+    handleMakeBid,
+  } = useTransferBidFlow({ gameState });
 
   return (
     <div>
@@ -197,33 +203,70 @@ function HookHarness({
       <button type="button" onClick={() => void handleMakeBid()}>
         Submit
       </button>
+      <output aria-label="submit-disabled">{String(bidSubmitDisabled)}</output>
       <output aria-label="bid-result">{bidResult ?? "idle"}</output>
     </div>
   );
+}
+
+function previewAnswer(overrides: { blocked_by_wage_policy?: boolean } = {}) {
+  return {
+    projection: {
+      transfer_budget_before: 2000000,
+      transfer_budget_after: 500000,
+      finance_before: 5000000,
+      finance_after: 3500000,
+      annual_wage_bill_before: 1000,
+      annual_wage_bill_after: 2000,
+      annual_wage_budget: 50000,
+      current_weekly_wage_spend: 20,
+      projected_weekly_wage_spend: 40,
+      weekly_wage_budget: 960,
+      incoming_player_weekly_wage: 20,
+      projected_wage_budget_usage_pct: 4,
+      exceeds_transfer_budget: false,
+      exceeds_finance: false,
+      blocked_by_wage_policy: false,
+      ...overrides,
+    },
+  };
 }
 
 describe("useTransferBidFlow", (): void => {
   beforeEach(function resetMocks(): void {
     mockedMakeTransferBid.mockReset();
     mockedPreviewTransferBidFinancialImpact.mockReset();
-    mockedPreviewTransferBidFinancialImpact.mockResolvedValue({
-      projection: {
-        transfer_budget_before: 2000000,
-        transfer_budget_after: 500000,
-        finance_before: 5000000,
-        finance_after: 3500000,
-        annual_wage_bill_before: 1000,
-        annual_wage_bill_after: 2000,
-        annual_wage_budget: 50000,
-        current_weekly_wage_spend: 20,
-        projected_weekly_wage_spend: 40,
-        weekly_wage_budget: 960,
-        incoming_player_weekly_wage: 20,
-        projected_wage_budget_usage_pct: 4,
-        exceeds_transfer_budget: false,
-        exceeds_finance: false,
-      },
-    });
+    mockedPreviewTransferBidFinancialImpact.mockResolvedValue(previewAnswer());
+  });
+
+  /**
+   * Given the backend flags the bid's wage as one the board would refuse
+   * When the bid is previewed
+   * Then submitting is disabled, as it is for a fee over the budget, and a bid the board accepts
+   *      is not.
+   */
+  it("disables submitting a bid whose wage the board would refuse", async (): Promise<void> => {
+    const open = async (blocked: boolean) => {
+      const target = createPlayer();
+      mockedPreviewTransferBidFinancialImpact.mockResolvedValue(
+        previewAnswer({ blocked_by_wage_policy: blocked }),
+      );
+      render(<HookHarness gameState={createGameState([target])} target={target} />);
+      fireEvent.click(screen.getByRole("button", { name: "Open" }));
+      await waitFor((): void => {
+        expect(mockedPreviewTransferBidFinancialImpact).toHaveBeenCalled();
+      });
+      // Let the preview's answer land in the hook before reading what it decided.
+      await act(async () => {});
+    };
+
+    await open(false);
+    expect(screen.getByLabelText("submit-disabled")).toHaveTextContent("false");
+    cleanup();
+    mockedPreviewTransferBidFinancialImpact.mockClear();
+
+    await open(true);
+    expect(screen.getByLabelText("submit-disabled")).toHaveTextContent("true");
   });
 
   it("does not submit a bid when the computed fee is invalid", async (): Promise<void> => {

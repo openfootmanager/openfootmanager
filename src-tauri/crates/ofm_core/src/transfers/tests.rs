@@ -258,3 +258,90 @@ pub(super) fn assert_acceptance_notice<'a>(
     assert!(game.emitted_events.contains(&message.id));
     message
 }
+
+fn squad_player(id: &str, club: &str, position: Position, wage: u32) -> Player {
+    let mut player = Player::new(
+        id.to_string(),
+        id.to_string(),
+        id.to_string(),
+        "1998-04-01".to_string(),
+        "England".to_string(),
+        position,
+        sample_attributes(),
+    );
+    player.team_id = Some(club.to_string());
+    player.stage_wage(wage);
+    player.stage_contract_end(Some("2028-06-30".to_string()));
+    player.market_value = 100_000;
+    player
+}
+
+/// A senior squad that can spare one forward: two keepers, five defenders, five midfielders and
+/// three forwards, each on a token wage.
+fn full_squad(club: &str) -> Vec<Player> {
+    [
+        (Position::Goalkeeper, 2),
+        (Position::Defender, 5),
+        (Position::Midfielder, 5),
+        (Position::Forward, 3),
+    ]
+    .into_iter()
+    .flat_map(|(position, count)| (0..count).map(move |index| (position.clone(), index)))
+    .map(|(position, index)| {
+        squad_player(&format!("{club}-{position:?}{index}"), club, position, 100)
+    })
+    .collect()
+}
+
+/// A forward on the transfer list with a contract about to end: the AI clubs go for him.
+fn bargain(id: &str, club: &str, wage: u32) -> Player {
+    let mut player = squad_player(id, club, Position::Forward, wage);
+    player.transfer_listed = true;
+    player.stage_contract_end(Some("2026-02-20".to_string()));
+    player.market_value = 1_200_000;
+    player
+}
+
+/// Given buyer "b" signs club "a"'s expensive bargain first, and "a" is then over its wage budget
+/// only if its bill is still the one from before the sale, When the sweep reaches "a", Then "a"
+/// signs "c"'s bargain: the bill it is held to is the one after the sale. A bill left from before
+/// the sweep would refuse him.
+#[test]
+fn a_club_that_just_sold_is_held_to_the_wage_bill_it_has_after_the_sale() {
+    let mut game = make_game();
+    game.players.clear();
+    game.teams = vec![
+        make_team("team1", "Alpha FC", 700),
+        make_team("b", "Beta FC", 700),
+        make_team("a", "Atlas FC", 700),
+        make_team("c", "Cobra FC", 700),
+    ];
+    game.teams[2].wage_budget = 50_000;
+    for club in ["b", "c"] {
+        game.teams
+            .iter_mut()
+            .find(|t| t.id == club)
+            .unwrap()
+            .wage_budget = 50_000_000;
+    }
+    for club in ["b", "a", "c"] {
+        game.players.extend(full_squad(club));
+    }
+    game.players.push(bargain("sold-by-a", "a", 80_000));
+    game.players.push(bargain("sold-by-c", "c", 20_000));
+
+    evaluate_transfer_market(&mut game);
+
+    let club_of = |id: &str| {
+        game.players
+            .iter()
+            .find(|player| player.id == id)
+            .and_then(|player| player.team_id.clone())
+    };
+    assert_eq!(
+        club_of("sold-by-a").as_deref(),
+        Some("b"),
+        "the first sale did not happen"
+    );
+    assert_eq!(club_of("sold-by-c").as_deref(), Some("a"));
+}

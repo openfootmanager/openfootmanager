@@ -1176,6 +1176,15 @@
   },
   "inbox": {
     "title": "Posta",
+    "archive": {
+      "heading": "Messaggi precedenti",
+      "load": "Carica i messaggi precedenti",
+      "loadMore": "Carica altri messaggi precedenti",
+      "loading": "Caricamento dei messaggi precedenti…",
+      "empty": "Nessun messaggio precedente.",
+      "end": "Non ci sono altri messaggi precedenti.",
+      "error": "Impossibile caricare i messaggi precedenti."
+    },
     "nMessages": "{{count}} messaggio/i",
     "noMessages": "Nessun messaggio",
     "noMessagesInCategory": "Nessun messaggio in questa categoria",
@@ -1367,6 +1376,7 @@
     "bidImpactWagePressure": "Utilizzo previsto del budget stipendi {{percent}}%",
     "bidImpactOverTransferBudget": "Questa offerta supera il tuo budget trasferimenti",
     "bidImpactOverBalance": "Questa offerta manderebbe il club in rosso",
+    "bidImpactOverWagePolicy": "Il consiglio rifiuterebbe il suo stipendio: supera la politica salariale del club",
     "bidAccepted": "Offerta accettata! Giocatore ingaggiato.",
     "bidCountered": "Sono tornati con nuove condizioni.",
     "bidRejected": "Offerta respinta — cifra troppo bassa.",

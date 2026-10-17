@@ -124,4 +124,27 @@ describe("usePlayersPage", () => {
 
     expect(result.current.slice?.items[0].id).toBe("newer");
   });
+
+  /**
+   * Given the user is on page 3 and a game update leaves only 40 players (two pages)
+   * When the backend answers page 3 with no rows
+   * Then the hook moves the query to the last page, instead of leaving the user on an empty page
+   *      whose pagination has gone.
+   */
+  it("moves back to the last page when the total shrinks below the current page", async () => {
+    mockedFetch.mockImplementation(async (query) =>
+      query.page > 2
+        ? ({ items: [], total: 40, page: query.page, page_size: 30 } as unknown as PlayersPage)
+        : ({
+            items: [{ id: `page-${query.page}` }],
+            total: 40,
+            page: query.page,
+            page_size: 30,
+          } as unknown as PlayersPage),
+    );
+    const { result } = renderHook(() => usePlayersPage({ ...baseQuery, page: 3 }, translate));
+
+    await waitFor(() => expect(result.current.query.page).toBe(2));
+    await waitFor(() => expect(result.current.slice?.items[0].id).toBe("page-2"));
+  });
 });

@@ -523,6 +523,9 @@ pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
     // One pass over the world's fixtures for everybody, not one per club.
     let form = read_form(game);
 
+    // Every club's squad in one pass rather than one scan of the world per club reviewing.
+    let by_club = crate::match_day_eligibility::players_by_club(&game.players);
+
     for team_id in due {
         let Some(team_index) = game.teams.iter().position(|team| team.id == team_id) else {
             continue;
@@ -530,12 +533,8 @@ pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
 
         // Disjoint field borrows: the squad is read out of `game.players` while
         // the club is written through `game.teams`.
-        let squad: Vec<&Player> = game
-            .players
-            .iter()
-            .filter(|player| player.team_id.as_deref() == Some(team_id.as_str()))
-            .collect();
-        let reading = read_squad(&squad);
+        let squad = by_club.get(team_id.as_str()).map_or(&[][..], Vec::as_slice);
+        let reading = read_squad(squad);
 
         let team = &mut game.teams[team_index];
         team.tactics_phase = match_plan(&team.play_style, reading.as_ref(), form.get(&team_id));

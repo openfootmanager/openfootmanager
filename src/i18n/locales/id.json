@@ -1157,6 +1157,15 @@
   },
   "inbox": {
     "title": "Kotak Masuk",
+    "archive": {
+      "heading": "Pesan lama",
+      "load": "Muat pesan lama",
+      "loadMore": "Muat lebih banyak pesan lama",
+      "loading": "Memuat pesan lama…",
+      "empty": "Tidak ada pesan lama.",
+      "end": "Tidak ada pesan lama lagi.",
+      "error": "Pesan lama tidak dapat dimuat."
+    },
     "nMessages": "{{count}} pesan",
     "noMessages": "Tidak ada pesan",
     "noMessagesInCategory": "Tidak ada pesan dalam kategori ini",
@@ -1348,6 +1357,7 @@
     "bidImpactWagePressure": "Perkiraan penggunaan anggaran gaji {{percent}}%",
     "bidImpactOverTransferBudget": "Tawaran ini melebihi anggaran transfer.",
     "bidImpactOverBalance": "Tawaran ini akan membawa klub ke dalam utang",
+    "bidImpactOverWagePolicy": "Dewan akan menolak gajinya: melampaui kebijakan gaji klub",
     "bidAccepted": "Tawaran diterima! Pemain ditandatangani.",
     "bidCountered": "Mereka kembali dengan syarat yang direvisi.",
     "bidRejected": "Tawaran ditolak — nominal terlalu rendah.",

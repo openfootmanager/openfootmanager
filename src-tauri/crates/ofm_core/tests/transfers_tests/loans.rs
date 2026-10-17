@@ -100,6 +100,176 @@ fn opening_loan_market_is_idempotent_after_each_ai_club_reaches_target() {
     );
 }
 
+fn loan_negotiation_game(id: &str) -> Game {
+    let mut player = make_player(id);
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 2;
+    player.stats.minutes_played = 180;
+    player.stage_wage(520_000);
+    make_game_with_player(player, vec![id.to_string()], 5_000_000, 2_000_000)
+}
+
+fn own_loan_offers(game: &Game, id: &str) -> Vec<LoanOffer> {
+    find_player(game, id)
+        .loan_offers
+        .iter()
+        .filter(|offer| offer.from_team_id == "team-1")
+        .cloned()
+        .collect()
+}
+
+/// Given a loan approach the owner turns down (#302)
+/// When the same club asks again the next day
+/// Then it is the same negotiation one round on, not a fresh row.
+#[test]
+fn a_loan_bid_after_a_rejection_continues_the_negotiation() {
+    let mut game = loan_negotiation_game("player-loan-memory");
+    let first = make_loan_offer(&mut game, "player-loan-memory", "2027-01-01", 0, None)
+        .expect("first approach");
+    assert_eq!(first.decision, LoanOfferDecision::Rejected);
+
+    game.clock.advance_days(1);
+    make_loan_offer(&mut game, "player-loan-memory", "2027-01-01", 0, None)
+        .expect("second approach");
+
+    let offers = own_loan_offers(&game, "player-loan-memory");
+    assert_eq!(offers.len(), 1, "one negotiation, one row: {offers:?}");
+    assert_eq!(offers[0].negotiation_round, 2);
+}
+
+/// Given a loan approach the owner (team-2) turned down
+/// When the player is sold to another club (team-3) and the user asks them for a loan
+/// Then it is a new negotiation at round one: team-3 has refused nobody.
+#[test]
+fn a_loan_refusal_by_the_previous_owner_is_not_remembered_by_the_new_one() {
+    let mut game = loan_negotiation_game("player-loan-sold-on");
+    let first = make_loan_offer(&mut game, "player-loan-sold-on", "2027-01-01", 0, None)
+        .expect("first approach");
+    assert_eq!(first.decision, LoanOfferDecision::Rejected);
+
+    game.clock.advance_days(1);
+    let mut third = make_seller_team(vec![]);
+    third.id = "team-3".to_string();
+    third.name = "Third Town".to_string();
+    game.teams.push(third);
+    give_every_club_squad_depth(&mut game);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-loan-sold-on")
+        .expect("player present");
+    player.team_id = Some("team-3".to_string());
+    player
+        .record_movement(domain::player::PlayerMovementEntry {
+            from_team_id: Some("team-2".to_string()),
+            to_team_id: Some("team-3".to_string()),
+            ..domain::player::PlayerMovementEntry::new(
+                today,
+                domain::player::PlayerMovementKind::PermanentTransfer,
+            )
+        })
+        .expect("the move is recorded");
+
+    game.clock.advance_days(1);
+    make_loan_offer(&mut game, "player-loan-sold-on", "2027-01-01", 0, None)
+        .expect("an approach to the new owner");
+
+    let offers = own_loan_offers(&game, "player-loan-sold-on");
+    let rounds: Vec<u8> = offers.iter().map(|offer| offer.negotiation_round).collect();
+    assert!(
+        rounds.iter().all(|round| *round == 1),
+        "the new owner starts afresh: {rounds:?}"
+    );
+    // A new offer row, addressed to the new owner, beside the refused one.
+    assert_eq!(offers.len(), 2, "{offers:?}");
+    assert_ne!(offers[0].id, offers[1].id);
+    assert!(
+        offers.iter().any(|offer| offer.parent_team_id == "team-3"),
+        "{offers:?}"
+    );
+}
+
+/// Given a loan approach the owner turned down, and the player then leaves the club and comes back
+/// When the same club asks again
+/// Then it is a new negotiation at round one: the refusal was said in an earlier spell there.
+#[test]
+fn a_loan_refusal_from_an_earlier_spell_at_the_same_club_is_not_remembered() {
+    let mut game = loan_negotiation_game("player-loan-returned");
+    let first = make_loan_offer(&mut game, "player-loan-returned", "2027-01-01", 0, None)
+        .expect("first approach");
+    assert_eq!(first.decision, LoanOfferDecision::Rejected);
+
+    for (days, from, to) in [(1, "team-2", "team-3"), (1, "team-3", "team-2")] {
+        game.clock.advance_days(days);
+        let on = game.clock.current_date.format("%Y-%m-%d").to_string();
+        game.players
+            .iter_mut()
+            .find(|player| player.id == "player-loan-returned")
+            .expect("player present")
+            .record_movement(domain::player::PlayerMovementEntry {
+                from_team_id: Some(from.to_string()),
+                to_team_id: Some(to.to_string()),
+                ..domain::player::PlayerMovementEntry::new(
+                    on,
+                    domain::player::PlayerMovementKind::PermanentTransfer,
+                )
+            })
+            .expect("the move is recorded");
+    }
+
+    game.clock.advance_days(1);
+    make_loan_offer(&mut game, "player-loan-returned", "2027-01-01", 0, None)
+        .expect("an approach after the return");
+
+    let offers = own_loan_offers(&game, "player-loan-returned");
+    let rounds: Vec<u8> = offers.iter().map(|offer| offer.negotiation_round).collect();
+    assert!(
+        rounds.iter().all(|round| *round == 1),
+        "a second spell starts afresh: {rounds:?}"
+    );
+    // The return starts a new offer row beside the refused one, rather than reusing it.
+    assert_eq!(offers.len(), 2, "{offers:?}");
+    assert_ne!(offers[0].id, offers[1].id);
+}
+
+/// Given a club that keeps lowballing the same loan
+/// When it reaches the fourth refusal
+/// Then the owner ends the talks until the shared cooldown has passed, after which it starts at
+///      round one: the same rule as a permanent bid.
+#[test]
+fn the_owner_stops_taking_loan_approaches_after_four_refusals() {
+    let mut game = loan_negotiation_game("player-loan-walkaway");
+    for day in 0..4 {
+        if day > 0 {
+            game.clock.advance_days(1);
+        }
+        let outcome = make_loan_offer(&mut game, "player-loan-walkaway", "2027-01-01", 0, None)
+            .expect("an approach");
+        assert_eq!(outcome.decision, LoanOfferDecision::Rejected);
+    }
+
+    game.clock.advance_days(1);
+    assert_eq!(
+        make_loan_offer(&mut game, "player-loan-walkaway", "2027-01-01", 0, None).unwrap_err(),
+        "be.error.transfers.talksBrokenOff"
+    );
+
+    game.clock.advance_days(31);
+    make_loan_offer(&mut game, "player-loan-walkaway", "2027-01-01", 0, None)
+        .expect("talks reopen after the cooldown");
+    let rounds: Vec<u8> = own_loan_offers(&game, "player-loan-walkaway")
+        .iter()
+        .map(|offer| offer.negotiation_round)
+        .collect();
+    assert!(
+        rounds.contains(&1),
+        "a new negotiation starts at round one: {rounds:?}"
+    );
+}
+
 #[test]
 fn accepted_loan_offer_moves_player_until_return_date() {
     let mut player = make_player("player-loan-target");

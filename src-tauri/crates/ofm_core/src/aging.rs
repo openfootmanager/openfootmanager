@@ -21,7 +21,7 @@ fn has_expired_contract(player: &Player, current_date: NaiveDate) -> bool {
 }
 
 fn retirement_chance(player: &Player, age: i32, current_date: NaiveDate) -> u32 {
-    if player.retired || age < 33 {
+    if age < 33 {
         return 0;
     }
 
@@ -85,10 +85,6 @@ fn retire_player(player: &mut Player, current_date: NaiveDate) {
 pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u32) {
     let world_seed = game.seed;
     for player in game.players.iter_mut() {
-        if player.retired {
-            continue;
-        }
-
         let age = domain::age::age_on_or_unknown(current_date, &player.date_of_birth);
         let mut stream = crate::seed::rng_for_seed(
             world_seed,
@@ -107,6 +103,7 @@ pub fn apply_seasonal_aging(game: &mut Game, current_date: NaiveDate, season: u3
             retire_player(player, current_date);
         }
     }
+    crate::retirees::archive_retired_players(game, &iso(current_date), season);
 }
 
 #[cfg(test)]
@@ -234,7 +231,14 @@ mod tests {
 
         apply_seasonal_aging(&mut game, current_date, 1);
 
-        let veteran = &game.players[0];
+        assert!(
+            game.players.is_empty(),
+            "he leaves the roster for the archive"
+        );
+        assert_eq!(game.retired_players.len(), 1);
+        assert_eq!(game.retired_players[0].id, "older-pro");
+        assert_eq!(game.retired_players[0].retired_on, current_date.to_string());
+        let veteran = game.retired_players[0].to_player();
         assert!(veteran.retired);
         assert_eq!(veteran.team_id, None);
         assert_eq!(
@@ -244,6 +248,7 @@ mod tests {
         );
         assert_eq!(veteran.contract_end(), None);
         assert!(!veteran.transfer_listed);
+        assert!(veteran.attributes.pace < 20);
         assert!(game.teams[0].starting_xi_ids.is_empty());
         assert!(game.teams[0].training_groups[0].player_ids.is_empty());
         assert_eq!(game.teams[0].match_roles.captain, None);
@@ -268,7 +273,8 @@ mod tests {
 
         apply_seasonal_aging(&mut game, current_date, 1);
 
-        let veteran = &game.players[0];
+        assert!(game.players.is_empty());
+        let veteran = game.retired_players[0].to_player();
         assert!(veteran.retired);
         let entry = veteran
             .movement_history

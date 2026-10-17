@@ -192,6 +192,11 @@ export function TransferBidForm({
               {t("transfers.bidImpactOverTransferBudget")}
             </p>
           ) : null}
+          {bidProjection.blocked_by_wage_policy ? (
+            <p className="text-xs text-red-600 dark:text-red-300">
+              {t("transfers.bidImpactOverWagePolicy")}
+            </p>
+          ) : null}
           {bidProjection.exceeds_finance ? (
             <p className="text-xs text-red-600 dark:text-red-300">
               {t("transfers.bidImpactOverBalance")}

@@ -181,6 +181,10 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         .map(|team| (team.id.clone(), team.reputation))
         .collect();
     let position_depths = squad_position_depths(game);
+    // Every club's wage bill, read once: a buyer's check needs its own, and finding one scans
+    // every player. The sweep moves players, so the two clubs of a completed transfer are
+    // recounted below.
+    let mut wage_bills = crate::finances::wage_bills_by_club(game);
     // Where each target sits in `game.players`, so the buyer's wage check need not search.
     // The sweep moves players between clubs but never adds or removes one.
     let player_index: std::collections::HashMap<String, usize> = game
@@ -363,7 +367,10 @@ pub fn evaluate_transfer_market(game: &mut Game) {
                 && buyer_team.finance >= target.fee as i64
                 && player_index.get(&target.player_id).is_some_and(|&index| {
                     let facts = buyer_wage_facts.get_or_insert_with(|| {
-                        BuyerWageFacts::new(calc_wages(game, &buyer_id), buyer_depths)
+                        BuyerWageFacts::new(
+                            wage_bills.get(&buyer_id).copied().unwrap_or(0),
+                            buyer_depths,
+                        )
                     });
                     buyer_can_pay_standard_wage(
                         &game.players[index],
@@ -412,6 +419,9 @@ pub fn evaluate_transfer_market(game: &mut Game) {
         {
             moved_player_ids.insert(candidate.player_id);
             completed_ai_transfers += 1;
+            for club in [&candidate.owner_team_id, &buyer_id] {
+                wage_bills.insert(club.clone(), calc_wages(game, club));
+            }
         }
     }
 }

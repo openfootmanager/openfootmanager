@@ -8,7 +8,7 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use season_harness::driver::{RunOptions, run_seasons};
-use season_harness::fingerprint::fingerprint;
+use season_harness::fingerprint::{StatsLog, fingerprint};
 use season_harness::invariants::Invariants;
 use season_harness::worlds::WorldSpec;
 
@@ -21,9 +21,14 @@ fn hash_of(text: &str) -> u64 {
 fn play(spec: &WorldSpec, seasons: u32) -> u64 {
     let mut game = spec.build().expect("the world builds");
     let mut invariants = Invariants::new(&game);
-    run_seasons(&mut game, RunOptions::seasons(seasons), &mut invariants)
-        .expect("the seasons play");
-    hash_of(&fingerprint(&game))
+    let mut stats = StatsLog::default();
+    run_seasons(
+        &mut game,
+        RunOptions::seasons(seasons),
+        &mut (&mut invariants, &mut stats),
+    )
+    .expect("the seasons play");
+    hash_of(&format!("{}\n{}", fingerprint(&game), stats.fingerprint()))
 }
 
 /// Given fixed seeds,

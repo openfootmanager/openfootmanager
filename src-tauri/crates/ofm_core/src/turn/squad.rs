@@ -16,6 +16,17 @@ use std::collections::{HashMap, HashSet};
 // ---------------------------------------------------------------------------
 
 pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Vec<PlayerData>) {
+    let club = crate::match_day_eligibility::club_players(&game.players, team_id);
+    build_team_with_bench_from(game, team_id, &club)
+}
+
+/// [`build_team_with_bench`] for a caller that already holds the club's players (`club`), so a
+/// fixture's kick-off finds them once for the team, the bench and the set-piece takers.
+pub(crate) fn build_team_with_bench_from(
+    game: &Game,
+    team_id: &str,
+    club: &[&domain::player::Player],
+) -> (TeamData, Vec<PlayerData>) {
     let team = game.teams.iter().find(|t| t.id == team_id);
     let (name, formation, play_style, tactics, saved_xi_ids) = match team {
         Some(t) => (
@@ -41,7 +52,7 @@ pub(crate) fn build_team_with_bench(game: &Game, team_id: &str) -> (TeamData, Ve
         ),
     };
 
-    let eligible = crate::match_day_eligibility::match_day_eligible_players(&game.players, team_id);
+    let eligible = crate::match_day_eligibility::eligible_among(club);
     let available_players: Vec<_> = eligible
         .iter()
         .copied()
@@ -818,7 +829,18 @@ pub fn auto_select_set_pieces(
         .iter()
         .filter_map(|id| game.players.iter().find(|p| &p.id == id))
         .collect();
+    set_piece_takers_among(&players)
+}
 
+/// The set-piece takers among `players`, who are the eleven on the pitch.
+pub(crate) fn set_piece_takers_among(
+    players: &[&domain::player::Player],
+) -> (
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+) {
     if players.is_empty() {
         return (None, None, None, None);
     }

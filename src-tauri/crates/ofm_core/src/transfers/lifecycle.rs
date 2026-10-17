@@ -26,15 +26,14 @@ pub(crate) fn pending_approach_clubs(player: &domain::player::Player) -> HashSet
         )
         .collect()
 }
-/// Clubs that were turned away recently enough that they should not be asking again.
-///
-/// Being told no is information a club acts on. Without this, the day after a rejection the club
-/// is eligible again — it re-enters the shortlist, opens a fresh approach, and the manager rejects
-/// the same suitor every day for the length of the window. Expiry counts too: talks that went cold
-/// on their own are no more of an invitation to start over than a refusal is.
-///
-/// Read from the offers already on the player, so this costs no new saved state. `closed_on` is
-/// when talks ended; offers written before that field existed fall back to their arrival date.
+/// Whether an offer closed (or, for one written before `closed_on` existed, arrived) within
+/// [`REBID_COOLDOWN_DAYS`] of `today`. The one statement of that window: the incoming sweep, an
+/// outgoing permanent bid and an outgoing loan bid all ask it.
+pub(crate) fn within_rebid_cooldown(closed_on: Option<&str>, date: &str, today: NaiveDate) -> bool {
+    NaiveDate::parse_from_str(closed_on.unwrap_or(date), "%Y-%m-%d")
+        .is_ok_and(|day| (today - day).num_days() < REBID_COOLDOWN_DAYS)
+}
+
 /// Whether talks that ended on `stamp` were with the club that owns the player now.
 ///
 /// An offer has no owner field, so a refusal is placed by date: one from before the player's last
@@ -47,17 +46,31 @@ pub(crate) fn heard_by_current_owner(player: &domain::player::Player, stamp: &st
     }
 }
 
+/// Whether a loan approach was made to the club that owns the player now, in his current spell
+/// there. The offer names the parent club it was made to, so a different club is told apart by
+/// that; a refusal from an earlier spell at the same club (he left and came back) is told apart by
+/// date, the same rule as [`heard_by_current_owner`], because the club id alone would match.
+pub(crate) fn loan_made_to_current_owner(
+    player: &domain::player::Player,
+    offer: &domain::player::LoanOffer,
+) -> bool {
+    player.contract_club_id() == Some(offer.parent_team_id.as_str())
+        && heard_by_current_owner(player, offer.closed_on.as_deref().unwrap_or(&offer.date))
+}
+
+/// Clubs that were turned away recently enough that they should not be asking again.
+///
+/// Being told no is information a club acts on. Without this, the day after a rejection the club
+/// is eligible again — it re-enters the shortlist, opens a fresh approach, and the manager rejects
+/// the same suitor every day for the length of the window. Expiry counts too: talks that went cold
+/// on their own are no more of an invitation to start over than a refusal is.
+///
+/// Read from the offers already on the player, so this costs no new saved state. `closed_on` is
+/// when talks ended; offers written before that field existed fall back to their arrival date.
 pub(crate) fn clubs_in_rebid_cooldown(
     player: &domain::player::Player,
     current_date: NaiveDate,
 ) -> HashSet<String> {
-    let cooling = |closed_on: Option<&str>, date: &str| {
-        let stamp = closed_on.unwrap_or(date);
-        NaiveDate::parse_from_str(stamp, "%Y-%m-%d")
-            .is_ok_and(|day| (current_date - day).num_days() < REBID_COOLDOWN_DAYS)
-            && heard_by_current_owner(player, stamp)
-    };
-
     player
         .transfer_offers
         .iter()
@@ -65,7 +78,8 @@ pub(crate) fn clubs_in_rebid_cooldown(
             matches!(
                 offer.status,
                 TransferOfferStatus::Rejected | TransferOfferStatus::Withdrawn
-            ) && cooling(offer.closed_on.as_deref(), &offer.date)
+            ) && within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, current_date)
+                && heard_by_current_owner(player, offer.closed_on.as_deref().unwrap_or(&offer.date))
         })
         .map(|offer| offer.from_team_id.clone())
         .chain(
@@ -76,7 +90,11 @@ pub(crate) fn clubs_in_rebid_cooldown(
                     matches!(
                         offer.status,
                         LoanOfferStatus::Rejected | LoanOfferStatus::Withdrawn
-                    ) && cooling(offer.closed_on.as_deref(), &offer.date)
+                    ) && within_rebid_cooldown(
+                        offer.closed_on.as_deref(),
+                        &offer.date,
+                        current_date,
+                    ) && loan_made_to_current_owner(player, offer)
                 })
                 .map(|offer| offer.from_team_id.clone()),
         )
@@ -232,7 +250,7 @@ mod tests {
     use super::*;
     use crate::transfers::tests::sample_attributes;
     use domain::player::{
-        Player, PlayerMovementEntry, PlayerMovementKind, Position, TransferOffer,
+        LoanOffer, Player, PlayerMovementEntry, PlayerMovementKind, Position, TransferOffer,
     };
 
     fn day(text: &str) -> NaiveDate {
@@ -308,5 +326,77 @@ mod tests {
         let cooling = clubs_in_rebid_cooldown(&player, day("2026-08-12"));
 
         assert_eq!(cooling, HashSet::from(["club-x".to_string()]));
+    }
+
+    /// A player at "new-club" whom "club-x" asked to borrow from `parent`, and was turned away.
+    fn player_refused_a_loan_approach(parent: &str) -> Player {
+        let mut player = player_refused_then_moved("2026-08-05", "2026-08-10");
+        player.transfer_offers.clear();
+        player.loan_offers.push(LoanOffer {
+            id: "loan-1".into(),
+            from_team_id: "club-x".into(),
+            parent_team_id: parent.into(),
+            start_date: "2026-09-01".into(),
+            end_date: "2027-06-30".into(),
+            wage_contribution_pct: 50,
+            buy_option_fee: None,
+            last_manager_wage_contribution_pct: None,
+            last_manager_end_date: None,
+            last_manager_buy_option_fee: None,
+            negotiation_round: 4,
+            suggested_wage_contribution_pct: None,
+            suggested_end_date: None,
+            suggested_buy_option_fee: None,
+            status: LoanOfferStatus::Rejected,
+            date: "2026-08-11".into(),
+            closed_on: Some("2026-08-11".into()),
+        });
+        player
+    }
+
+    /// Given a loan approach the previous owner ("old-club") turned down, and the player since sold
+    /// to "new-club"
+    /// When the clubs still in a rebid cooldown are listed
+    /// Then the club is not among them: the approach was made to someone else.
+    #[test]
+    fn a_loan_refusal_by_the_previous_owner_does_not_hold_a_club_in_cooldown() {
+        let player = player_refused_a_loan_approach("old-club");
+
+        assert!(clubs_in_rebid_cooldown(&player, day("2026-08-12")).is_empty());
+    }
+
+    /// Given the same refusal, made to the club that owns the player now
+    /// When the clubs still in a rebid cooldown are listed
+    /// Then the club is held.
+    #[test]
+    fn a_loan_refusal_by_the_current_owner_holds_a_club_in_cooldown() {
+        let player = player_refused_a_loan_approach("new-club");
+
+        let cooling = clubs_in_rebid_cooldown(&player, day("2026-08-12"));
+
+        assert_eq!(cooling, HashSet::from(["club-x".to_string()]));
+    }
+
+    /// Given a loan approach refused at the club the player is at now, in a spell that ended: he
+    /// left the club and came back within the cooldown
+    /// When the clubs still in a rebid cooldown are listed
+    /// Then that club is not among them: the refusal belongs to the earlier spell.
+    #[test]
+    fn a_loan_refusal_from_an_earlier_spell_does_not_hold_a_club_in_cooldown() {
+        let mut player = player_refused_a_loan_approach("new-club");
+        for (on, from, to) in [
+            ("2026-08-12", "new-club", "other-club"),
+            ("2026-08-14", "other-club", "new-club"),
+        ] {
+            player
+                .record_movement(PlayerMovementEntry {
+                    from_team_id: Some(from.into()),
+                    to_team_id: Some(to.into()),
+                    ..PlayerMovementEntry::new(on, PlayerMovementKind::PermanentTransfer)
+                })
+                .unwrap();
+        }
+
+        assert!(clubs_in_rebid_cooldown(&player, day("2026-08-15")).is_empty());
     }
 }

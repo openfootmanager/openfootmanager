@@ -82,6 +82,10 @@ pub struct TransferBidFinancialProjection {
     pub projected_wage_budget_usage_pct: i64,
     pub exceeds_transfer_budget: bool,
     pub exceeds_finance: bool,
+    /// The board would refuse the player's standard wage at this club: the verdict the bid itself
+    /// is held to, so the preview and the refusal cannot disagree.
+    #[serde(default)]
+    pub blocked_by_wage_policy: bool,
     /// Set when the window is closed and this bid would land as
     /// PendingRegistration: the date the debit will actually fire. `None` when
     /// the window is open and the debit fires immediately on acceptance.

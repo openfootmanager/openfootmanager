@@ -1,10 +1,12 @@
-import { ChevronLeft, ChevronRight, ScanSearch, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ScanSearch } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { countryName } from "../../lib/countries";
 import { calcAge, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
+import type { PlayersPageQuery } from "../../services/playersService";
 import type { PlayerData, TeamData } from "../../store/gameStore";
+import PlayerListFilters from "../players/PlayerListFilters";
 import ContextMenu from "../ContextMenu";
 import {
   buildDividerMenuItem,
@@ -17,13 +19,10 @@ import {
 import { Badge, Card, CardBody, CardHeader, CountryFlag, PlayerAvatar } from "../ui";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 
-const POSITION_FILTERS = ["All", "Goalkeeper", "Defender", "Midfielder", "Forward"];
-
 interface ScoutingPlayerSearchCardProps {
   players: PlayerData[];
   teams: TeamData[];
-  posFilter: string;
-  searchQuery: string;
+  query: PlayersPageQuery;
   errorMessage?: string | null;
   alreadyScoutingIds: Set<string>;
   availableScoutCount: number;
@@ -32,8 +31,7 @@ interface ScoutingPlayerSearchCardProps {
   totalPages: number;
   totalPlayers: number;
   pageSize: number;
-  onPositionFilterChange: (position: string) => void;
-  onSearchQueryChange: (query: string) => void;
+  onFilterChange: (patch: Partial<PlayersPageQuery>) => void;
   onBidPlayer?: (player: PlayerData) => void;
   onOfferFreeAgent?: (player: PlayerData) => void;
   onSelectPlayer?: (id: string) => void;
@@ -46,8 +44,7 @@ interface ScoutingPlayerSearchCardProps {
 export default function ScoutingPlayerSearchCard({
   players,
   teams,
-  posFilter,
-  searchQuery,
+  query,
   errorMessage,
   alreadyScoutingIds,
   availableScoutCount,
@@ -56,8 +53,7 @@ export default function ScoutingPlayerSearchCard({
   totalPages,
   totalPlayers,
   pageSize,
-  onPositionFilterChange,
-  onSearchQueryChange,
+  onFilterChange,
   onBidPlayer,
   onOfferFreeAgent,
   onSelectPlayer,
@@ -73,35 +69,15 @@ export default function ScoutingPlayerSearchCard({
       <CardHeader>
         <div className="flex items-center gap-3 w-full">
           <span>{t("scouting.findPlayers")}</span>
-          <div className="ml-auto flex items-center gap-2">
-            {POSITION_FILTERS.map((position) => (
-              <button
-                type="button"
-                key={position}
-                onClick={() => onPositionFilterChange(position)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors ${
-                  posFilter === position
-                    ? "bg-primary-500 text-white"
-                    : "bg-gray-100 dark:bg-navy-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-navy-600"
-                }`}
-              >
-                {position === "All" ? t("common.all") : position.slice(0, 3)}
-              </button>
-            ))}
-          </div>
         </div>
       </CardHeader>
       <CardBody>
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder={t("scouting.searchPlaceholder")}
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-navy-700 border border-gray-200 dark:border-navy-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/50 text-gray-800 dark:text-gray-100 placeholder:text-gray-400"
-          />
-        </div>
+        <PlayerListFilters
+          query={query}
+          onChange={onFilterChange}
+          statusOptions={[]}
+          searchPlaceholder={t("scouting.searchPlaceholder")}
+        />
 
         {errorMessage ? (
           <p

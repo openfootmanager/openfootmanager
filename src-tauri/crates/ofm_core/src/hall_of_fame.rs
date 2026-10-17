@@ -1,9 +1,9 @@
-//! The retired legends of the world, read from the archive and, until retirees leave the
-//! roster, from players still flagged retired.
+//! The retired legends of the world, read from the archive of players who have stopped playing.
 
 use std::collections::{HashMap, HashSet};
 
-use domain::player::{CareerEntry, Position};
+use domain::player::Position;
+use domain::retired_player::RetiredPlayer;
 use serde::Serialize;
 
 use crate::game::Game;
@@ -25,45 +25,13 @@ pub struct HallOfFameLegend {
     pub final_season: Option<u32>,
 }
 
-/// Who a legend is, whichever record he is read from.
-struct Retiree<'a> {
-    id: &'a str,
-    full_name: &'a str,
-    nationality: &'a str,
-    football_nation: &'a str,
-    position: Position,
-    career: &'a [CareerEntry],
-}
-
 pub fn hall_of_fame_legends(game: &Game) -> Vec<HallOfFameLegend> {
     let championships = championship_seasons_by_club(game);
-    let archived: HashSet<&str> = game.retired_players.iter().map(|p| p.id.as_str()).collect();
-
-    let from_archive = game.retired_players.iter().map(|player| Retiree {
-        id: &player.id,
-        full_name: &player.full_name,
-        nationality: &player.nationality,
-        football_nation: &player.football_nation,
-        position: player.natural_position.clone(),
-        career: &player.career,
-    });
-    let from_roster = game
-        .players
+    let mut legends: Vec<HallOfFameLegend> = game
+        .retired_players
         .iter()
-        .filter(|player| player.retired && !archived.contains(player.id.as_str()))
-        .map(|player| Retiree {
-            id: &player.id,
-            full_name: &player.full_name,
-            nationality: &player.nationality,
-            football_nation: &player.football_nation,
-            position: player.natural_position.clone(),
-            career: &player.career,
-        });
-
-    let mut legends: Vec<HallOfFameLegend> = from_archive
-        .chain(from_roster)
         .filter(|retiree| !retiree.career.is_empty())
-        .map(|retiree| legend_of(&retiree, &championships))
+        .map(|retiree| legend_of(retiree, &championships))
         .collect();
     legends.sort_by(|left, right| {
         right
@@ -92,7 +60,7 @@ fn championship_seasons_by_club(game: &Game) -> HashMap<&str, HashSet<u32>> {
 }
 
 fn legend_of(
-    retiree: &Retiree<'_>,
+    retiree: &RetiredPlayer,
     championships: &HashMap<&str, HashSet<u32>>,
 ) -> HallOfFameLegend {
     let latest = retiree.career.iter().max_by_key(|entry| entry.season);
@@ -106,11 +74,11 @@ fn legend_of(
         })
         .count() as u32;
     HallOfFameLegend {
-        player_id: retiree.id.to_string(),
-        full_name: retiree.full_name.to_string(),
-        nationality: retiree.nationality.to_string(),
-        football_nation: retiree.football_nation.to_string(),
-        position: retiree.position.clone(),
+        player_id: retiree.id.clone(),
+        full_name: retiree.full_name.clone(),
+        nationality: retiree.nationality.clone(),
+        football_nation: retiree.football_nation.clone(),
+        position: retiree.natural_position.clone(),
         appearances: retiree.career.iter().map(|entry| entry.appearances).sum(),
         goals: retiree.career.iter().map(|entry| entry.goals).sum(),
         assists: retiree.career.iter().map(|entry| entry.assists).sum(),
@@ -125,7 +93,7 @@ mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
-    use domain::player::{Player, PlayerAttributes};
+    use domain::player::{CareerEntry, Player, PlayerAttributes};
     use domain::retired_player::RetiredPlayer;
     use domain::team::{Team, TeamSeasonRecord};
 
@@ -216,7 +184,11 @@ mod tests {
             "1980-01-01".into(),
             "England".into(),
         );
-        Game::new(clock, manager, teams, players, vec![], vec![])
+        let (retired, active): (Vec<Player>, Vec<Player>) =
+            players.into_iter().partition(|player| player.retired);
+        let mut game = Game::new(clock, manager, teams, active, vec![], vec![]);
+        game.retired_players = retired.iter().map(archive).collect();
+        game
     }
 
     fn archive(player: &Player) -> RetiredPlayer {
@@ -250,43 +222,6 @@ mod tests {
         );
         assert_eq!(legend.last_club_name.as_deref(), Some("Beta United"));
         assert_eq!(legend.final_season, Some(2));
-    }
-
-    /// Given a retiree still flagged retired in the roster (before the move), when legends are
-    /// listed, then he is one, so the list is the same before and after the move.
-    #[test]
-    fn a_retiree_still_on_the_roster_is_a_legend() {
-        let vale = veteran(
-            "p-vale",
-            "Victor Vale",
-            vec![career(1, "t-a", "Alpha FC", 10, 2)],
-        );
-        let game = game_with(vec![vale], vec![]);
-
-        let legends = hall_of_fame_legends(&game);
-
-        assert_eq!(legends.len(), 1);
-        assert_eq!(legends[0].player_id, "p-vale");
-    }
-
-    /// Given a person who is both archived and flagged retired in the roster, when legends are
-    /// listed, then he appears once, from the archive.
-    #[test]
-    fn a_person_in_both_places_is_listed_once_from_the_archive() {
-        let mut vale = veteran(
-            "p-vale",
-            "Victor Vale",
-            vec![career(1, "t-a", "Alpha FC", 10, 2)],
-        );
-        let mut game = game_with(vec![], vec![]);
-        game.retired_players.push(archive(&vale));
-        vale.full_name = "Roster Copy".into();
-        game.players.push(vale);
-
-        let legends = hall_of_fame_legends(&game);
-
-        assert_eq!(legends.len(), 1);
-        assert_eq!(legends[0].full_name, "Victor Vale");
     }
 
     /// Given active players and a retiree with no career, when legends are listed, then

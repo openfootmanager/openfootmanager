@@ -115,13 +115,14 @@ pub struct BidPreview {
     pub projected_wage_budget_usage_pct: i64,
     pub exceeds_transfer_budget: bool,
     pub exceeds_finance: bool,
+    pub blocked_by_wage_policy: bool,
 }
 
 impl fmt::Display for BidPreview {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "## Transfer Bid Preview: {} — {} 💰\n\n| Field | Value |\n|-------|-------|\n| Transfer Budget Before | {} |\n| Transfer Budget After | {} |\n| Finance Before | {} |\n| Finance After | {} |\n| Weekly Wage Bill Before | {} |\n| Weekly Wage Bill After | {} |\n| Weekly Wage Budget | {} |\n| Projected Wage Usage | {}% |\n| Exceeds Transfer Budget | {} |\n| Exceeds Finance | {} |\n\nThis is a preview — no bid was made.",
+            "## Transfer Bid Preview: {} — {} 💰\n\n| Field | Value |\n|-------|-------|\n| Transfer Budget Before | {} |\n| Transfer Budget After | {} |\n| Finance Before | {} |\n| Finance After | {} |\n| Weekly Wage Bill Before | {} |\n| Weekly Wage Bill After | {} |\n| Weekly Wage Budget | {} |\n| Projected Wage Usage | {}% |\n| Exceeds Transfer Budget | {} |\n| Exceeds Finance | {} |\n| Blocked By Wage Policy | {} |\n\nThis is a preview — no bid was made.",
             self.player_name,
             self.fee,
             self.transfer_budget_before,
@@ -134,6 +135,7 @@ impl fmt::Display for BidPreview {
             self.projected_wage_budget_usage_pct,
             yes_no(self.exceeds_transfer_budget),
             yes_no(self.exceeds_finance),
+            yes_no(self.blocked_by_wage_policy),
         )
     }
 }

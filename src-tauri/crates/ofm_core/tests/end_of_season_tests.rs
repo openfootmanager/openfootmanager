@@ -2180,15 +2180,16 @@ fn season_end_ages_players_and_retires_out_of_contract_veterans() {
 
     process_end_of_season(&mut game);
 
-    let veteran = game
-        .players
-        .iter()
-        .find(|player| player.id == "p1")
-        .unwrap();
     assert!(
-        veteran.retired,
-        "older out-of-contract veterans should retire"
+        game.players.iter().all(|player| player.id != "p1"),
+        "a retired veteran leaves the roster"
     );
+    let veteran = game
+        .retired_players
+        .iter()
+        .find(|record| record.id == "p1")
+        .expect("older out-of-contract veterans should retire into the archive")
+        .to_player();
     assert_eq!(
         veteran.team_id, None,
         "retired players should leave their club"
@@ -3778,6 +3779,37 @@ fn retiree_conversion_is_idempotent() {
     assert_eq!(
         scout_count, 1,
         "duplicate scout must not be created on second call"
+    );
+}
+
+/// Given one player who retired this season and one archived seasons ago, both with careers,
+/// When the season ends
+/// Then only this season's retiree becomes a manager and a scout candidate.
+#[test]
+fn only_this_seasons_retirees_become_candidates() {
+    let mut game = make_completed_season_game();
+    game.players.push(make_retired_player("recent"));
+    let long_ago = make_retired_player("longago");
+    game.retired_players
+        .push(domain::retired_player::RetiredPlayer::from_player(
+            &long_ago,
+            "2001-06-30",
+            2001,
+        ));
+
+    process_end_of_season(&mut game);
+
+    assert!(game.managers.iter().any(|m| m.id == "mgr_retired_recent"));
+    assert!(
+        game.staff
+            .iter()
+            .any(|s| s.id == "staff_retired_scout_recent")
+    );
+    assert!(game.managers.iter().all(|m| m.id != "mgr_retired_longago"));
+    assert!(
+        game.staff
+            .iter()
+            .all(|s| s.id != "staff_retired_scout_longago")
     );
 }
 

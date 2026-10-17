@@ -35,6 +35,9 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.bidImpactOverTransferBudget") {
         return "This bid exceeds your transfer budget";
       }
+      if (key === "transfers.bidImpactOverWagePolicy") {
+        return "The board would refuse his wage";
+      }
       if (key === "transfers.bidImpactOverBalance") {
         return "This bid would push the club into debt";
       }
@@ -196,6 +199,7 @@ function createProjection(
     projected_wage_budget_usage_pct: 4,
     exceeds_transfer_budget: false,
     exceeds_finance: false,
+    blocked_by_wage_policy: false,
     ...overrides,
   };
 }
@@ -275,6 +279,41 @@ describe("TransferBidModal", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(`Weekly wage budget ${formatExactMoney(5000)}`)).toBeInTheDocument();
     expect(screen.getByText(`Incoming wage ${formatExactMoney(1000)}`)).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend says the board would refuse the player's wage
+   * When the bid panel shows the projection
+   * Then the warning is there before anything is sent, and not when the wage is fine.
+   */
+  it("warns before sending when the board would refuse the wage", () => {
+    const props = {
+      bidTarget: createPlayer(),
+      teams: [createTeam(), createTeam({ id: "team-2", name: "Seller FC" })],
+      bidAmount: "1.5",
+      onBidAmountChange: vi.fn(),
+      myTeam: createTeam(),
+      bidFee: 1500000,
+      bidFeedback: null,
+      activeBidOffer: null,
+      hasExistingOffer: false,
+      bidResult: null,
+      bidLoading: false,
+      bidSubmitDisabled: false,
+      onSubmit: vi.fn(),
+      onClose: vi.fn(),
+    };
+    const { rerender } = render(<TransferBidModal {...props} bidProjection={createProjection()} />);
+    expect(screen.queryByText("The board would refuse his wage")).not.toBeInTheDocument();
+
+    rerender(
+      <TransferBidModal
+        {...props}
+        bidProjection={createProjection({ blocked_by_wage_policy: true })}
+      />,
+    );
+
+    expect(screen.getByText("The board would refuse his wage")).toBeInTheDocument();
   });
 
   it("wires input, submit, and close interactions through props", () => {

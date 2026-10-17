@@ -73,10 +73,10 @@ pub fn is_world_cup_competition(competition: &League) -> bool {
         && competition.scope == CompetitionScope::International
 }
 
-/// Player OVRs per nation, strongest first (non-retired players only).
+/// Player OVRs per nation, strongest first.
 fn national_pools(game: &Game) -> BTreeMap<String, Vec<u8>> {
     let mut pools: BTreeMap<String, Vec<u8>> = BTreeMap::new();
-    for player in game.players.iter().filter(|player| !player.retired) {
+    for player in &game.players {
         let nation = if player.football_nation.is_empty() {
             player.nationality.clone()
         } else {
@@ -401,7 +401,6 @@ fn prepare_national_squads(game: &mut Game, field: &[String]) {
         let mut squad: Vec<(String, u8)> = game
             .players
             .iter()
-            .filter(|player| !player.retired)
             .filter(|player| {
                 let nation = if player.football_nation.is_empty() {
                     &player.nationality
