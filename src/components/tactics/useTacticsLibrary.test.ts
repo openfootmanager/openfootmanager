@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { GameStateData } from "../../store/gameStore";
+import { type GameStateData, useGameStore } from "../../store/gameStore";
 import { useTacticsLibrary } from "./useTacticsLibrary";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -152,8 +152,8 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     mockedInvoke.mock.calls.filter(([command]) => command === "save_custom_tactic");
 
   /**
-   * Given a tactic waiting behind the first load, and the player leaves the screen (another game
-   *       is about to be loaded)
+   * Given a tactic waiting behind the first load, and the player leaves the screen while another
+   *       game replaces the career
    * When the load finishes
    * Then the waiting tactic is not saved: it was asked in a career that is no longer the one open.
    */
@@ -168,9 +168,33 @@ describe("useTacticsLibrary custom tactics and the save", () => {
 
     act(() => result.current.handleCreateCustomTactic());
     unmount();
+    act(() => useGameStore.getState().clearGame());
     await act(async () => list.resolve([]));
 
     expect(saveCalls()).toHaveLength(0);
+  });
+
+  /**
+   * Given a tactic waiting behind the first load, and the player leaves the screen while the same
+   *       career stays open
+   * When the load finishes
+   * Then the waiting tactic is saved: it is still that career's, and leaving a screen lost nothing.
+   */
+  it("saves a queued tactic when the screen is left but the career is the same", async () => {
+    const list = deferred<unknown[]>();
+    mockedInvoke.mockReset();
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "list_custom_tactics") return list.promise;
+      if (command === "save_custom_tactic") return [];
+      return { modified: false };
+    });
+    const { result, unmount } = renderLibrary(careerGame);
+
+    act(() => result.current.handleCreateCustomTactic());
+    unmount();
+    await act(async () => list.resolve([]));
+
+    expect(saveCalls()).toHaveLength(1);
   });
 
   /**
@@ -212,6 +236,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     await waitFor(() => expect(lists).toBe(1));
     act(() => result.current.handleCreateCustomTactic());
     rerender({ game: otherCareer });
+    act(() => useGameStore.getState().setGameActive(true));
     // The first career's list arrives late, with a tactic of its own.
     await act(async () =>
       firstList.resolve([
@@ -262,6 +287,7 @@ describe("useTacticsLibrary custom tactics and the save", () => {
     await waitFor(() => expect(mockedInvoke).toHaveBeenCalledWith("list_custom_tactics"));
 
     unmount();
+    act(() => useGameStore.getState().clearGame());
     await act(async () => list.resolve([]));
 
     expect(saveCalls()).toHaveLength(0);
