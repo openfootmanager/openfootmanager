@@ -247,7 +247,10 @@ where
             let slot = best
                 .entry(club.to_string())
                 .or_insert((u32::MAX, String::new()));
-            if prio < slot.0 {
+            // Equal priority is a real case (two competitions at one tier). A
+            // strict `<` kept whichever target the competition vector listed
+            // first, and a save reloads that vector in a different order.
+            if (prio, target) < (slot.0, slot.1.as_str()) {
                 *slot = (prio, target.to_string());
             }
         }
