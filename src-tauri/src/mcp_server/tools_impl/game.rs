@@ -16,7 +16,7 @@ pub fn game_list_saves(ctx: Arc<McpContext>) -> Result<SaveList, String> {
         .save_manager_state
         .0
         .lock()
-        .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+        .map_err(|_| crate::SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())?;
     let saves = sm.load_saves()?;
 
     Ok(SaveList {
@@ -46,7 +46,7 @@ pub fn game_save(ctx: Arc<McpContext>) -> Result<GameSaved, String> {
             .save_manager_state
             .0
             .lock()
-            .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+            .map_err(|_| crate::SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())?;
         crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm)?;
     }
     let date = ctx
@@ -129,7 +129,7 @@ pub fn game_select_team(ctx: Arc<McpContext>, team_id: String) -> Result<TeamSel
         .save_manager_state
         .0
         .lock()
-        .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+        .map_err(|_| crate::SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())?;
     let save_id = crate::commands::game::persist_chosen_club(
         loaded_save_id.as_deref(),
         &mut sm,
@@ -163,7 +163,7 @@ pub fn game_load_save(ctx: Arc<McpContext>, save_id: String) -> Result<SaveLoade
         .save_manager_state
         .0
         .lock()
-        .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+        .map_err(|_| crate::SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())?;
     let mut game = sm.load_game(&save_id)?;
     let stats_state = sm.load_stats_state(&save_id)?;
     ofm_core::ai_hiring::seed_ai_managers(&mut game);
@@ -201,7 +201,7 @@ pub fn game_exit(ctx: Arc<McpContext>) -> Result<ReturnedToMenu, String> {
         .save_manager_state
         .0
         .lock()
-        .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+        .map_err(|_| crate::SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())?;
     let saved = crate::application::saving::exit_to_menu(&ctx.state_manager, &mut sm)?;
     drop(sm);
 
@@ -253,7 +253,7 @@ pub fn game_delete_save(ctx: Arc<McpContext>, save_id: String) -> Result<SaveDel
         .save_manager_state
         .0
         .lock()
-        .map_err(|_| "be.error.saveManagerUnavailable".to_string())?;
+        .map_err(|_| crate::SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())?;
     sm.delete_save(&save_id)?;
 
     {

@@ -19,7 +19,7 @@ pub fn translate_error(key: &str) -> String {
             "Player not found. Check the player ID and try again.".to_string()
         }
         "be.error.playerNotInSquad" => "Player is not in your squad.".to_string(),
-        "be.error.saveManagerUnavailable" => {
+        crate::SAVE_MANAGER_UNAVAILABLE_ERROR => {
             "Save manager is unavailable. This is an internal error.".to_string()
         }
         "be.error.noActiveSaveSession" => {
