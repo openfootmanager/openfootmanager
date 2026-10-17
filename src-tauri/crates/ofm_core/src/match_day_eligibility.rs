@@ -52,6 +52,20 @@ pub(crate) fn club_positions(players: &[Player], team_id: &str) -> Vec<usize> {
         .collect()
 }
 
+/// In a debug build, panics unless `group` is where the club's players stand in `players` now.
+///
+/// A group found once and reused (a whole pass's worth of clubs, a matchday's) goes stale the
+/// moment a player changes club and nobody finds it again. Every place that reuses one asks this
+/// first, so a missed regroup fails the tests that exercise it instead of quietly planning a squad
+/// the club no longer has. A release build checks nothing.
+pub(crate) fn debug_assert_group_is_current(players: &[Player], team_id: &str, group: &[usize]) {
+    debug_assert_eq!(
+        group,
+        club_positions(players, team_id).as_slice(),
+        "the group kept for {team_id} is stale: a player changed club and it was not found again"
+    );
+}
+
 /// [`eligible_among`] for the club `team_id`, found by scanning `players`.
 pub(crate) fn match_day_eligible_players<'a>(
     players: &'a [Player],
@@ -167,5 +181,33 @@ mod tests {
                 .any(|player| player.injury.is_some()),
             "red is short of fit players, so the pool includes injured ones"
         );
+    }
+
+    /// Given a group found before a player left the club and a group found after,
+    /// When each is checked against the world,
+    /// Then the current group passes.
+    #[test]
+    fn a_current_group_is_accepted() {
+        let mut players = interleaved_world();
+        let before = club_positions(&players, "red");
+        debug_assert_group_is_current(&players, "red", &before);
+
+        players[before[0]].team_id = Some("blue".to_string());
+
+        debug_assert_group_is_current(&players, "red", &club_positions(&players, "red"));
+    }
+
+    /// Given a group found before a player left the club,
+    /// When it is reused without being found again,
+    /// Then a debug build refuses it.
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "the group kept for red is stale")]
+    fn a_stale_group_is_refused() {
+        let mut players = interleaved_world();
+        let before = club_positions(&players, "red");
+        players[before[0]].team_id = Some("blue".to_string());
+
+        debug_assert_group_is_current(&players, "red", &before);
     }
 }
