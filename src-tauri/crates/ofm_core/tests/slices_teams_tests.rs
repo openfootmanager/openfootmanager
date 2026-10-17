@@ -281,6 +281,32 @@ fn search_filters_team_name_case_insensitively() {
 }
 
 #[test]
+fn search_ignores_case_for_every_letter_in_a_club_or_city() {
+    let teams = vec![
+        make_team("t1", "Çaykur Rizespor", "TUR", "Rize"),
+        make_team("t2", "Aalesund FK", "NOR", "Ålesund"),
+    ];
+    let league = make_domestic_league("l", "League", "TUR", Some("UEFA"), &["t1", "t2"]);
+    let game = make_game(teams, vec![], vec![league]);
+    let found = |text: &str| {
+        let mut q = empty_query();
+        q.search = Some(text.to_string());
+        let dir = query_directory(&game, &q);
+        dir.regions
+            .iter()
+            .flat_map(|region| &region.leagues)
+            .flat_map(|league| &league.teams)
+            .map(|card| card.team.id.clone())
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(found("çaykur"), vec!["t1"]);
+    assert_eq!(found("ÇAYKUR"), vec!["t1"]);
+    assert_eq!(found("ålesund"), vec!["t2"]);
+    assert_eq!(found("ÅLESUND"), vec!["t2"]);
+}
+
+#[test]
 fn search_filters_team_city_case_insensitively() {
     let teams = vec![
         make_team("t1", "Alpha FC", "ENG", "London"),

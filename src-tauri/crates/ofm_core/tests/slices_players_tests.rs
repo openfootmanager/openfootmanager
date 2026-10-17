@@ -1189,6 +1189,36 @@ fn filters_combine_with_and() {
     assert_eq!(ids(&game, &q), vec!["fits"]);
 }
 
+/// Given players whose names carry accents, a slashed letter and Cyrillic, when the search is typed
+///       in the other case, then each is found: case is ignored for every letter, not just ASCII.
+#[test]
+fn search_ignores_case_for_every_letter_not_just_ascii() {
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            PlayerSpec::new("alvarez", "Julián Álvarez", Some("other")).build(),
+            PlayerSpec::new("odegaard", "Martin Ødegaard", Some("other")).build(),
+            PlayerSpec::new("ivan", "Иван Петров", Some("other")).build(),
+            PlayerSpec::new("plain", "John Smith", Some("other")).build(),
+        ],
+    );
+    let found = |text: &str| {
+        let mut q = baseline_query();
+        q.search = Some(text.to_string());
+        ids(&game, &q)
+    };
+
+    assert_eq!(found("álvarez"), vec!["alvarez"]);
+    assert_eq!(found("ÁLVAREZ"), vec!["alvarez"]);
+    assert_eq!(found("ØDEGAARD"), vec!["odegaard"]);
+    assert_eq!(found("ødegaard"), vec!["odegaard"]);
+    assert_eq!(found("иван"), vec!["ivan"]);
+    assert_eq!(found("ПЕТРОВ"), vec!["ivan"]);
+    assert_eq!(found("SMITH"), vec!["plain"]);
+    assert_eq!(found("jOhN"), vec!["plain"]);
+}
+
 /// Given players with and without a club, listed and not, when the free-agent status is asked for,
 /// then only the players without a club are returned.
 #[test]
