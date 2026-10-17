@@ -337,6 +337,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_contract_exit_intent", {
+        careerToken: 0,
         playerId: "gk1",
         reason: "manager_squad_action",
       });
@@ -406,6 +407,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("clear_contract_exit_intent", {
+        careerToken: 0,
         playerId: "gk1",
       });
     });

@@ -327,6 +327,7 @@ pub fn transfer_free_agent_offer(
 ) -> Result<FreeAgentOffered, String> {
     let response = crate::commands::contracts::offer_free_agent_contract_internal(
         &ctx.state_manager,
+        Career::Active,
         &player_id,
         weekly_wage,
         contract_years,

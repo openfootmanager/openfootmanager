@@ -45,6 +45,15 @@ export const SCREEN_WRITE_COMMANDS = [
   "start_youth_scouting",
   "cancel_youth_scouting",
   "reassign_youth_scouting",
+  "propose_renewal",
+  "delegate_renewals",
+  "offer_free_agent_contract",
+  "set_contract_exit_intent",
+  "clear_contract_exit_intent",
+  "terminate_contract_now",
+  "hire_staff",
+  "release_staff",
+  "upgrade_facility",
 ] as const;
 
 export type ScreenWriteCommand = (typeof SCREEN_WRITE_COMMANDS)[number];

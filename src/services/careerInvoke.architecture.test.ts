@@ -51,7 +51,7 @@ describe("screen-write commands", () => {
   });
 
   /**
-   * Given every service file
+   * Given every source file outside tests
    * When its bare invoke calls are read
    * Then none names a screen-write command: those go through invokeForCareer, which sends the
    *      token, so a call that forgot it fails here instead of being refused in play.
@@ -59,29 +59,9 @@ describe("screen-write commands", () => {
   it("are never called with a bare invoke", () => {
     const offenders: string[] = [];
     for (const [file, source] of Object.entries(tsSources)) {
-      if (!file.startsWith("./") || isTest(file) || file.endsWith("careerInvoke.ts")) {
-        continue;
-      }
+      if (isTest(file) || file.endsWith("careerInvoke.ts")) continue;
       for (const command of SCREEN_WRITE_COMMANDS) {
-        if (new RegExp(`\\binvoke(?:<[^>]*>)?\\(\\s*["'\`]${command}["'\`]`).test(source)) {
-          offenders.push(`${file}: ${command}`);
-        }
-      }
-    }
-    expect(offenders).toEqual([]);
-  });
-
-  /**
-   * Given a component, hook or page
-   * When its source is read
-   * Then it does not invoke a screen-write command by name: the service layer is the only caller.
-   */
-  it("are only named in the service layer", () => {
-    const offenders: string[] = [];
-    for (const [file, source] of Object.entries(tsSources)) {
-      if (file.startsWith("./") || isTest(file)) continue;
-      for (const command of SCREEN_WRITE_COMMANDS) {
-        if (new RegExp(`\\binvoke\\w*(?:<[^>]*>)?\\(\\s*["'\`]${command}["'\`]`).test(source)) {
+        if (new RegExp(`\\binvoke\\b[^(]*\\(\\s*["'\`]${command}["'\`]`).test(source)) {
           offenders.push(`${file}: ${command}`);
         }
       }

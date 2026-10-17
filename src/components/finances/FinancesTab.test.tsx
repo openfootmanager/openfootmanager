@@ -434,6 +434,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("upgrade_facility", {
+        careerToken: 0,
         facility: "Medical",
       });
     });
@@ -1011,6 +1012,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {
+        careerToken: 0,
         playerIds: ["player-critical", "player-warning"],
         maxWageIncreasePct: 35,
         maxContractYears: 3,
@@ -1082,6 +1084,7 @@ describe("FinancesTab facilities", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("delegate_renewals", {
+        careerToken: 0,
         playerIds: ["player-critical"],
         maxWageIncreasePct: 35,
         maxContractYears: 3,

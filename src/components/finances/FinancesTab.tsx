@@ -14,6 +14,7 @@ import {
 } from "../../lib/helpers";
 import { weeklyWageAmount } from "../../lib/finance";
 import { getFinanceSnapshot, type FinanceSnapshotData } from "../../services/financeService";
+import { invokeForCareer } from "../../services/careerInvoke";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError, resolveMessage } from "../../utils/backendI18n";
 import {
@@ -291,7 +292,7 @@ function FinancesTabLoaded({
     setFacilityUpgradeError(null);
     setActionLoading(facility);
     try {
-      const updated = await invoke<GameStateData>("upgrade_facility", {
+      const updated = await invokeForCareer<GameStateData>("upgrade_facility", {
         facility,
       });
       onGameUpdate?.(updated);
@@ -398,7 +399,7 @@ function FinancesTabLoaded({
     setDelegatedRenewalsSummary(null);
 
     try {
-      const result = await invoke<DelegatedRenewalResponseData>("delegate_renewals", {
+      const result = await invokeForCareer<DelegatedRenewalResponseData>("delegate_renewals", {
         playerIds: selectedRiskPlayers.map(({ player }) => player.id),
         maxWageIncreasePct: 35,
         maxContractYears: 3,
