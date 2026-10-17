@@ -161,6 +161,24 @@ mod tests {
                 "{club}"
             );
         }
+        // And the pool is the right one, not merely the same one twice. Red is short of fit
+        // seniors: its three come first, then its two youngsters cover the shortage, then the
+        // nine in the treatment room, in the order they are stored. Green is not short and
+        // fields its fit seniors, as they are stored.
+        let in_the_pool = |club: &str, rounds: Vec<usize>| -> Vec<String> {
+            rounds
+                .into_iter()
+                .map(|round| format!("{club}-{round}"))
+                .collect()
+        };
+        assert_eq!(
+            ids(&eligible_among(&by_club["red"])),
+            in_the_pool("red", vec![9, 11, 13, 10, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8])
+        );
+        assert_eq!(
+            ids(&eligible_among(&by_club["green"])),
+            in_the_pool("green", (0..14).collect())
+        );
         assert!(
             match_day_eligible_players(&players, "red")
                 .iter()

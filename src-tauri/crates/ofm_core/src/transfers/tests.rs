@@ -345,3 +345,37 @@ fn a_club_that_just_sold_is_held_to_the_wage_bill_it_has_after_the_sale() {
     );
     assert_eq!(club_of("sold-by-c").as_deref(), Some("a"));
 }
+
+/// Given club "a" already over its wage budget on the players it has and a bargain at club "c",
+/// When the sweep reaches "a",
+/// Then it does not buy him: it is held to the bill it has, not to an empty one.
+#[test]
+fn a_club_over_its_wage_budget_cannot_buy_another_player() {
+    let mut game = make_game();
+    game.players.clear();
+    game.teams = vec![
+        make_team("team1", "Alpha FC", 700),
+        make_team("a", "Atlas FC", 700),
+        make_team("c", "Cobra FC", 700),
+    ];
+    game.teams[1].wage_budget = 50_000;
+    game.teams[2].wage_budget = 50_000_000;
+    for club in ["a", "c"] {
+        game.players.extend(full_squad(club));
+    }
+    // "a" is over budget on this one contract alone, and he is not worth chasing for anyone else.
+    let mut expensive = squad_player("a-expensive", "a", Position::Forward, 80_000);
+    expensive.market_value = 100_000;
+    game.players.push(expensive);
+    game.players.push(bargain("sold-by-c", "c", 20_000));
+
+    evaluate_transfer_market(&mut game);
+
+    let club_of = |id: &str| {
+        game.players
+            .iter()
+            .find(|player| player.id == id)
+            .and_then(|player| player.team_id.clone())
+    };
+    assert_eq!(club_of("sold-by-c").as_deref(), Some("c"));
+}
