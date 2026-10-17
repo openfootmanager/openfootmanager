@@ -142,6 +142,10 @@ Every error has this body:
 { "message": "Human-readable English, for logs — do not show it untranslated", "code": "stable_machine_code" }
 ```
 
+`message` is English, written for logs. Never use it as the main error text: branch on `code` and show
+the player a translated message. The game does show it verbatim, behind a collapsed "Technical
+details" line, as a quotable reference for a bug report.
+
 A validation failure (422 `invalid`) also lists the reasons per field:
 
 ```json
