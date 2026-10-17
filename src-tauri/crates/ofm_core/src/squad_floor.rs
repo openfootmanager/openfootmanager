@@ -90,6 +90,25 @@ pub(crate) fn senior_counts(game: &Game, team_id: &str) -> [usize; 4] {
     seniors
 }
 
+/// [`senior_counts`] for the two clubs of a fixture, in one pass over the world's players.
+pub(crate) fn senior_counts_of_two(
+    game: &Game,
+    first_team_id: &str,
+    second_team_id: &str,
+) -> ([usize; 4], [usize; 4]) {
+    let mut first = [0; 4];
+    let mut second = [0; 4];
+    for player in &game.players {
+        if holds_up_the_floor(player, first_team_id) {
+            first[group_index(&player.position)] += 1;
+        }
+        if holds_up_the_floor(player, second_team_id) {
+            second[group_index(&player.position)] += 1;
+        }
+    }
+    (first, second)
+}
+
 /// Every way this club is short of the floor, and by how many players. Group
 /// shortages come first; [`Shortage::Seniors`] counts only the players still
 /// needed once every group is at its minimum. Empty when the club is sound.
@@ -305,9 +324,16 @@ pub fn repair_squads_on_load(game: &mut Game) -> bool {
 /// and told what nobody could fill. An AI club is topped up whenever it is
 /// short, and the top-up is logged as the bug it is: ordinary squad planning
 /// should have got there first.
-pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str) {
+///
+/// The caller counts the club's `seniors` ([`senior_counts_of_two`] for a fixture's two clubs):
+/// a sound club, nearly every club on every matchday, is then left alone without another pass
+/// over the players.
+pub(crate) fn ready_for_kick_off(game: &mut Game, team_id: &str, seniors: [usize; 4]) {
     let is_users_club = Some(team_id) == game.manager.team_id.as_deref();
-    if is_users_club && can_put_a_side_out(game, team_id) {
+    if is_users_club && can_field_a_side(seniors) {
+        return;
+    }
+    if shortfall_of(seniors).is_empty() {
         return;
     }
     let top_up = restore_minimum_squad(game, team_id);
@@ -346,7 +372,10 @@ const PLAYERS_ON_THE_PITCH: usize = 11;
 /// the floor counts. Injured players count: the match builder fields them when
 /// it must.
 pub fn can_put_a_side_out(game: &Game, team_id: &str) -> bool {
-    let seniors = senior_counts(game, team_id);
+    can_field_a_side(senior_counts(game, team_id))
+}
+
+fn can_field_a_side(seniors: [usize; 4]) -> bool {
     seniors.iter().sum::<usize>() >= PLAYERS_ON_THE_PITCH
         && seniors[group_index(&Position::Goalkeeper)] > 0
 }
@@ -1136,6 +1165,29 @@ mod tests {
         );
     }
 
+    /// Given two clubs with different squads and a free agent, When both are counted together,
+    /// Then each gets the count it would get alone and the free agent counts for neither.
+    #[test]
+    fn two_clubs_are_counted_in_one_pass_as_each_is_counted_alone() {
+        let mut game = club_with([1, 5, 5, 4]);
+        for (index, position) in [Position::Goalkeeper, Position::Forward, Position::Forward]
+            .into_iter()
+            .enumerate()
+        {
+            game.players
+                .push(player(&format!("rival_{index}"), Some("rival"), position));
+        }
+        game.players
+            .push(free_agent("loose", Position::Goalkeeper, 60));
+
+        let (club, rival) = senior_counts_of_two(&game, "club", "rival");
+
+        assert_eq!(club, senior_counts(&game, "club"));
+        assert_eq!(club, [1, 5, 5, 4]);
+        assert_eq!(rival, senior_counts(&game, "rival"));
+        assert_eq!(rival, [1, 0, 0, 2]);
+    }
+
     // --- The daily check -------------------------------------------------------
 
     #[test]
@@ -1320,6 +1372,11 @@ mod tests {
         assert_eq!(bodies_of_warnings(&game), 2);
     }
 
+    fn kick_off(game: &mut Game, team_id: &str) {
+        let seniors = senior_counts(game, team_id);
+        ready_for_kick_off(game, team_id, seniors);
+    }
+
     // --- Kick-off -----------------------------------------------------------------
 
     /// Given the player's club with no keeper, one academy keeper and one
@@ -1333,7 +1390,7 @@ mod tests {
         game.players
             .push(free_agent("free_keeper", Position::Goalkeeper, 70));
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert!(squad_shortfall(&game, "club").is_empty());
         assert_eq!(body_keys(&game), vec!["be.msg.squadToppedUp.body"]);
@@ -1354,7 +1411,7 @@ mod tests {
         game.players
             .push(free_agent("keeper", Position::Goalkeeper, 70));
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert!(game.messages.is_empty());
         assert_eq!(team_of(&game, "keeper"), None);
@@ -1366,7 +1423,7 @@ mod tests {
         let mut game = users_club_with([1, 4, 4, 1]);
         free_agent_pool(&mut game);
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert!(squad_shortfall(&game, "club").is_empty());
         assert_eq!(body_keys(&game), vec!["be.msg.squadToppedUp.body"]);
@@ -1378,7 +1435,7 @@ mod tests {
     fn the_players_club_is_told_when_it_cannot_be_filled() {
         let mut game = users_club_with([0, 5, 5, 5]);
 
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
 
         assert_eq!(body_keys(&game), vec!["be.msg.squadCannotBeFilled.body"]);
         assert_eq!(
@@ -1394,7 +1451,7 @@ mod tests {
     fn at_kick_off_an_ai_club_is_topped_up_without_a_message() {
         let mut game = club_with([0, 0, 0, 0]);
         free_agent_pool(&mut game);
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
         assert!(squad_shortfall(&game, "club").is_empty());
         assert!(game.messages.is_empty());
     }
@@ -1404,7 +1461,7 @@ mod tests {
         let mut game = users_club_with(SOUND);
         game.players
             .push(free_agent("keeper", Position::Goalkeeper, 70));
-        ready_for_kick_off(&mut game, "club");
+        kick_off(&mut game, "club");
         assert!(game.messages.is_empty());
         assert_eq!(team_of(&game, "keeper"), None);
     }

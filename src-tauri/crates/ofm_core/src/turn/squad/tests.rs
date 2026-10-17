@@ -766,3 +766,27 @@ fn the_engines_role_groups_match_the_domains() {
         );
     }
 }
+
+/// Given a club and the world's other players, When its team is built from the club's players
+/// found once, Then team, bench and set-piece takers are those built by scanning the world.
+#[test]
+fn a_team_built_from_the_clubs_players_is_the_team_built_by_scanning() {
+    for is_user in [true, false] {
+        let game = club_whose_only_keeper_is_injured(is_user);
+        let club = crate::match_day_eligibility::club_players(&game.players, "club");
+
+        let from_club = build_team_with_bench_from(&game, "club", &club);
+        let by_scanning = build_team_with_bench(&game, "club");
+
+        assert_eq!(format!("{from_club:?}"), format!("{by_scanning:?}"));
+        let starters: Vec<String> = by_scanning.0.players.iter().map(|p| p.id.clone()).collect();
+        let starting: Vec<&Player> = starters
+            .iter()
+            .filter_map(|id| club.iter().find(|p| &p.id == id).copied())
+            .collect();
+        assert_eq!(
+            set_piece_takers_among(&starting),
+            auto_select_set_pieces(&game, &starters)
+        );
+    }
+}
