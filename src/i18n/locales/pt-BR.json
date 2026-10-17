@@ -2694,7 +2694,8 @@
         "worldExportNotPackage": "Esta pasta é um mundo exportado, não um projeto de pacote. Mundos exportados usam um formato diferente e não podem ser editados aqui.",
         "notAProjectDirectory": "Esta não é uma pasta de projeto de pacote. Escolha a pasta que contém o package.json do pacote — ou, para um pacote .ofm instalado, use \"Abrir arquivo .ofm\".",
         "unknownSchema": "Esquema desconhecido \"{{schema}}\".",
-        "invalidEntity": "Uma entrada \"{{schema}}\" é inválida.",
+        "invalidEntity": "Uma entrada \"{{schema}}\" é inválida: {{detail}}",
+        "duplicateWorld": "O pacote já tem um manifesto em \"{{first}}\"; um pacote só pode ter um arquivo \"world\".",
         "missingId": "Falta o id em uma entrada {{kind}}.",
         "missingMetadata": "Falta o campo obrigatório \"{{field}}\" no manifesto do pacote.",
         "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",
@@ -3698,7 +3699,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Este pacote define o país \"{{name}}\" ({{code}}) fora da lista de países do jogo e não o coloca em nenhuma confederação, então seus clubes ficam em Europa. Dê a ele uma confederação.",
-        "freeAgentFieldIgnored": "O jogador \"{{id}}\" não tem clube, então é um agente livre sem contrato: \"{{field}}\" é ignorado. Dê um clube a ele para usar o campo, ou remova-o."
+        "freeAgentFieldIgnored": "O jogador \"{{id}}\" não tem clube, então é um agente livre sem contrato: \"{{field}}\" é ignorado. Dê um clube a ele para usar o campo, ou remova-o.",
+        "repeatedNamePool": "O conjunto de nomes de {{country}} já foi dado em {{first}}; o deste arquivo o substitui. Mantenha só um, ou atribua-os a países diferentes."
       }
     }
   },

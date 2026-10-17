@@ -4,7 +4,7 @@
 // live path and the instant path both build their sides from there, so there is
 // one answer to "who is playing" rather than one per code path.
 pub use crate::turn::squad::auto_select_set_pieces;
-use crate::turn::squad::build_team_with_bench;
+use crate::turn::squad::{build_team_with_bench_from, set_piece_takers_among};
 
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
@@ -14,11 +14,12 @@ use crate::game::Game;
 
 use domain::league::{FixtureStatus, StandingEntry};
 use domain::manager::Manager;
+use domain::player::Player;
 use domain::team::MatchRoles;
 use engine::ai::{self, AiPersonality, AiProfile};
 use engine::{
     LiveMatchState, MatchCommand, MatchConfig, MatchPhase, MatchReport, MatchSnapshot,
-    MinuteResult, Side,
+    MinuteResult, Side, TeamData,
 };
 
 const LIVE_MATCH_NO_LEAGUE_ERROR: &str = "be.error.liveMatch.noLeague";
@@ -258,8 +259,12 @@ pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
     }) else {
         return;
     };
-    crate::squad_floor::ready_for_kick_off(game, &home_team_id);
-    crate::squad_floor::ready_for_kick_off(game, &away_team_id);
+    // Counted together before either club is topped up: a top-up draws on the free agents and on
+    // that club's own academy, so it cannot change the other club's seniors.
+    let (home_seniors, away_seniors) =
+        crate::squad_floor::senior_counts_of_two(game, &home_team_id, &away_team_id);
+    crate::squad_floor::ready_for_kick_off(game, &home_team_id, home_seniors);
+    crate::squad_floor::ready_for_kick_off(game, &away_team_id, away_seniors);
     crate::turn::squad::reconcile_user_starting_xi(game, &home_team_id);
     crate::turn::squad::reconcile_user_starting_xi(game, &away_team_id);
 }
@@ -278,6 +283,21 @@ pub fn kick_off_live_match(
 ) -> Result<LiveMatchSession, String> {
     prepare_kick_off(game, fixture_index);
     create_live_match(game, fixture_index, mode, allows_extra_time)
+}
+
+fn starter_ids(team: &TeamData) -> Vec<String> {
+    team.players
+        .iter()
+        .map(|player| player.id.clone())
+        .collect()
+}
+
+/// The domain players of `team`'s starting eleven, in the team's order, found among the club's.
+fn starters_among<'a>(team: &TeamData, club: &[&'a Player]) -> Vec<&'a Player> {
+    team.players
+        .iter()
+        .filter_map(|starter| club.iter().find(|player| player.id == starter.id).copied())
+        .collect()
 }
 
 /// Create a live match session for a specific fixture.
@@ -299,19 +319,13 @@ pub fn create_live_match(
     let home_team_id = fixture.home_team_id.clone();
     let away_team_id = fixture.away_team_id.clone();
 
-    // Build engine TeamData (starting XI = first 11 players by position)
-    let (home_xi, home_bench) = build_team_with_bench(game, &home_team_id);
-    let (away_xi, away_bench) = build_team_with_bench(game, &away_team_id);
-    let home_starter_ids = home_xi
-        .players
-        .iter()
-        .map(|player| player.id.clone())
-        .collect::<Vec<_>>();
-    let away_starter_ids = away_xi
-        .players
-        .iter()
-        .map(|player| player.id.clone())
-        .collect::<Vec<_>>();
+    // Each club's players are found once and serve its team, its bench and its set-piece takers.
+    let home_club = crate::match_day_eligibility::club_players(&game.players, &home_team_id);
+    let away_club = crate::match_day_eligibility::club_players(&game.players, &away_team_id);
+    let (home_xi, home_bench) = build_team_with_bench_from(game, &home_team_id, &home_club);
+    let (away_xi, away_bench) = build_team_with_bench_from(game, &away_team_id, &away_club);
+    let home_starter_ids = starter_ids(&home_xi);
+    let away_starter_ids = starter_ids(&away_xi);
     let home_match_roles = game
         .teams
         .iter()
@@ -324,8 +338,8 @@ pub fn create_live_match(
         .find(|team| team.id == away_team_id)
         .map(|team| team.match_roles.clone())
         .unwrap_or_default();
-    let home_auto_selection = auto_select_set_pieces(game, &home_starter_ids);
-    let away_auto_selection = auto_select_set_pieces(game, &away_starter_ids);
+    let home_auto_selection = set_piece_takers_among(&starters_among(&home_xi, &home_club));
+    let away_auto_selection = set_piece_takers_among(&starters_among(&away_xi, &away_club));
 
     if home_xi.players.is_empty() || away_xi.players.is_empty() {
         return Err(LIVE_MATCH_EMPTY_SQUAD_ERROR.to_string());

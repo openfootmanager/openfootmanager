@@ -240,6 +240,20 @@ pub struct NamesDefinition {
     pub pools: HashMap<String, NamePool>,
 }
 
+impl NamesDefinition {
+    /// Folds `later` into `self`: the one rule for name pools wherever they accumulate (files of
+    /// one package, packages in a stack). The version is the highest seen, the description the
+    /// last non-empty one, and a pool for a country already present is replaced by the later one;
+    /// the other countries are kept.
+    pub fn absorb(&mut self, later: NamesDefinition) {
+        self.version = self.version.max(later.version);
+        if !later.description.is_empty() {
+            self.description = later.description;
+        }
+        self.pools.extend(later.pools);
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NamePool {
     pub first_names: Vec<String>,

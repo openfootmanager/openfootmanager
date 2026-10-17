@@ -823,6 +823,120 @@ fn byes_are_not_halved_with_the_players_when_predicting_rounds() {
     assert!(!occupancy.is_free_of_shadows("e", march(19)));
 }
 
+/// Given eight entrants whose quarterfinals (two ties, one match a day) take 13 and 14 March
+/// When shadows are booked
+/// Then the final is predicted for 17 March, the round gap after the quarterfinals' last day:
+///      19 March is within its rest window and 20 March is not
+#[test]
+fn a_predicted_round_follows_the_last_day_of_the_round_before_it() {
+    let ties = vec![
+        fx("cup", "c1", march(10), "a", "b", Kind::Cup),
+        fx("cup", "c2", march(10), "c", "d", Kind::Cup),
+        fx("cup", "c3", march(10), "e", "f", Kind::Cup),
+        fx("cup", "c4", march(10), "g", "h", Kind::Cup),
+    ];
+    let mut cup = knockout("cup", 1, vec![ties], &[]);
+    cup.rules.knockout_matches_per_day = 1;
+    let settled: HashMap<(&str, &str), NaiveDate> = cup
+        .fixtures
+        .iter()
+        .map(|f| (("cup", f.id.as_str()), march(10)))
+        .collect();
+    let mut occupancy = Occupancy::default();
+
+    shadows::book_cup_shadows(
+        &mut occupancy,
+        &cup,
+        &settled,
+        &none(),
+        &none(),
+        Layer::DomesticCup,
+    );
+
+    assert!(!occupancy.is_free_of_shadows("a", march(19)));
+    assert!(
+        occupancy.is_free_of_shadows("a", march(20)),
+        "the final was predicted after 17 March"
+    );
+}
+
+/// Given a friendly-cup tie that has to move off a domestic cup tie of the same club, and the
+/// domestic cup's next round predicted for the first day the tie could go to
+/// When the calendar is reconciled
+/// Then the friendly-cup tie, like a league match, stays clear of that predicted round
+#[test]
+fn a_moved_friendly_keeps_clear_of_a_cups_predicted_round() {
+    let cup = knockout(
+        "cup",
+        1,
+        vec![vec![
+            fx("cup", "c1", march(1), "a", "b", Kind::Cup),
+            fx("cup", "c2", march(1), "c", "d", Kind::Cup),
+        ]],
+        &[],
+    );
+    let friendly_cup = knockout(
+        "fc",
+        5,
+        vec![vec![fx("fc", "t1", march(2), "a", "x", Kind::FriendlyCup)]],
+        &[],
+    );
+    let mut world = vec![cup, friendly_cup];
+
+    run(&mut world);
+
+    // 4 March is the first day three clear of a's tie on the 1st, but the cup's next round may
+    // claim it, so the friendly goes three days clear of that shadow.
+    assert_eq!(date_of(&world, "fc", "t1"), march(7));
+}
+
+/// Given clubs of a cup who also play another cup, a league and the cup itself
+/// When the dates that may push the cup's predicted rounds are gathered
+/// Then only the other cup's tie counts: a league match and the cup's own ties do not
+#[test]
+fn only_another_cups_ties_push_a_cups_predicted_round() {
+    let cup = knockout(
+        "cup",
+        1,
+        vec![vec![fx("cup", "c1", march(1), "a", "b", Kind::Cup)]],
+        &[],
+    );
+    let other_cup = knockout(
+        "other",
+        2,
+        vec![vec![fx("other", "o1", march(5), "a", "y", Kind::Cup)]],
+        &[],
+    );
+    let league = competition(
+        "league",
+        3,
+        vec![fx("league", "l1", march(3), "b", "z", Kind::League)],
+    );
+    let world = [cup, other_cup, league];
+    let items: Vec<Item> = world
+        .iter()
+        .map(|competition| {
+            let fixture = &competition.fixtures[0];
+            let date = NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d").unwrap();
+            Item {
+                competition,
+                fixture,
+                date,
+                layer: Layer::of(&fixture.competition),
+                movable: true,
+                round: 0,
+                settle_on: date,
+            }
+        })
+        .collect();
+    let settled: HashMap<(&str, &str), NaiveDate> =
+        items.iter().map(|item| (item.key(), item.date)).collect();
+
+    let dates = cup_dates_outside(&settled, &items, "cup", &["a", "b"]);
+
+    assert_eq!(dates, BTreeSet::from([march(5)]));
+}
+
 /// Given a world with a clash and a long played history, when the plan is made, then it is exactly
 /// the plan of the world without the history: history beyond the rest window is not looked at,
 /// which is what keeps the daily sweep cheap.

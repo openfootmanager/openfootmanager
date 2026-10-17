@@ -2729,7 +2729,8 @@
         "worldExportNotPackage": "Tato složka je exportovaný svět, nikoli projekt balíčku. Exportované světy používají jiný formát a nelze je zde upravovat.",
         "notAProjectDirectory": "Toto není složka projektu balíčku. Vyberte složku, která obsahuje package.json balíčku — nebo pro nainstalovaný balíček .ofm použijte „Otevřít soubor .ofm“.",
         "unknownSchema": "Neznámé schéma „{{schema}}“.",
-        "invalidEntity": "Záznam „{{schema}}“ je neplatný.",
+        "invalidEntity": "Záznam „{{schema}}“ je neplatný: {{detail}}",
+        "duplicateWorld": "Balíček už má manifest v souboru „{{first}}“; balíček může mít jen jeden soubor „world“.",
         "missingId": "Záznamu typu {{kind}} chybí ID.",
         "missingMetadata": "V manifestu balíčku chybí povinné pole „{{field}}“.",
         "duplicateId": "Duplicitní ID typu {{kind}}: „{{id}}“.",
@@ -3698,7 +3699,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Tento balíček definuje zemi „{{name}}“ ({{code}}), která není v seznamu zemí hry, a nezařazuje ji do žádné konfederace, takže její kluby jsou vedeny v Evropě. Přiřaďte jí konfederaci.",
-        "freeAgentFieldIgnored": "Hráč „{{id}}“ nemá klub, je tedy volný hráč bez smlouvy: pole „{{field}}“ se ignoruje. Přiřaďte mu klub, aby se použilo, nebo pole odstraňte."
+        "freeAgentFieldIgnored": "Hráč „{{id}}“ nemá klub, je tedy volný hráč bez smlouvy: pole „{{field}}“ se ignoruje. Přiřaďte mu klub, aby se použilo, nebo pole odstraňte.",
+        "repeatedNamePool": "Sada jmen pro {{country}} už byla uvedena v {{first}}; sada v tomto souboru ji nahrazuje. Ponechte jen jednu, nebo je přiřaďte různým zemím."
       }
     }
   },
