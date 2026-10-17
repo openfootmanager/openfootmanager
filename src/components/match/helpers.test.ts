@@ -159,36 +159,55 @@ describe("makeTeamFallback", () => {
 });
 
 describe("resolveMatchFixture", () => {
-  const gameState = {
-    league: {
-      id: "league-1",
-      name: "League",
-      season: 1,
-      fixtures: [
-        {
-          id: "fixture-1",
-          matchday: 3,
-          date: "2026-08-01",
-          home_team_id: "home1",
-          away_team_id: "away1",
-          competition: "League",
-          status: "Scheduled",
-          result: null,
-        },
-      ],
-      standings: [],
-    },
-  } as unknown as GameStateData;
+  const fixture = (id: string, competition: string, home: string, away: string) => ({
+    id,
+    matchday: 3,
+    date: "2026-08-01",
+    home_team_id: home,
+    away_team_id: away,
+    competition,
+    status: "Scheduled",
+    result: null,
+  });
+  const league = {
+    id: "league-1",
+    name: "League",
+    season: 1,
+    fixtures: [fixture("other-league-match", "League", "x1", "y1")],
+    standings: [],
+  };
+  const cup = {
+    id: "cup-1",
+    name: "Cup",
+    season: 1,
+    fixtures: [fixture("cup-tie", "Cup", "home1", "away1")],
+    standings: [],
+  };
+  const gameState = { league, competitions: [league, cup] } as unknown as GameStateData;
 
-  it("resolves the fixture by index when available", () => {
-    expect(resolveMatchFixture(gameState, makeSnapshot(), 0)?.id).toBe("fixture-1");
+  /**
+   * Given a cup tie, which lives in the cup's own competition and never in the league mirror
+   * When the match is resolved from the route's competition and fixture ids
+   * Then it is the cup tie, found across every competition, not whatever the index lands on in
+   *      the league (the index counts the user's competition, not the mirror).
+   */
+  it("resolves the fixture by its competition and id, across every competition", () => {
+    const route = { competitionId: "cup-1", fixtureId: "cup-tie" };
+
+    expect(resolveMatchFixture(gameState, makeSnapshot(), route)?.id).toBe("cup-tie");
   });
 
-  it("falls back to matching the snapshot teams", () => {
-    expect(resolveMatchFixture(gameState, makeSnapshot())?.id).toBe("fixture-1");
+  it("falls back to matching the snapshot teams when the route carries no ids", () => {
+    expect(resolveMatchFixture(gameState, makeSnapshot())?.id).toBe("cup-tie");
   });
 
-  it("returns null when no league fixtures are available", () => {
+  it("returns null when the route names a fixture the game does not have", () => {
+    expect(
+      resolveMatchFixture(gameState, makeSnapshot(), { competitionId: "cup-1", fixtureId: "gone" }),
+    ).toBeNull();
+  });
+
+  it("returns null when there are no competitions at all", () => {
     expect(
       resolveMatchFixture({ league: null } as unknown as GameStateData, makeSnapshot()),
     ).toBeNull();
