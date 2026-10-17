@@ -73,16 +73,26 @@ pub fn settle_gate_income(game: &mut Game, today: NaiveDate) {
     let paid = paid_fixture_ids(game);
     let mut due = Vec::new();
     let mut seen = HashSet::new();
-    for competition in game.competitions_in_play() {
-        for fixture in &competition.fixtures {
-            let is_due = fixture.status == FixtureStatus::Completed
-                && fixture.result.is_some()
-                && fixture_date(fixture).is_some_and(|date| date >= settled_from && date <= today)
-                && !paid.contains(fixture.id.as_str())
-                && seen.insert(fixture.id.clone());
-            if is_due {
-                due.push(fixture.clone());
-            }
+    // A rollover clears the fixtures of the edition it archives, so a gate that failed before it
+    // is retried from the archive. An edition completed before the cutover has nothing to pay.
+    let settled_from_key = settled_from.format("%Y-%m-%d").to_string();
+    let archived = game
+        .edition_archive
+        .iter()
+        .filter(|edition| edition.completed_on >= settled_from_key)
+        .flat_map(|edition| edition.fixtures.iter());
+    let in_play = game
+        .competitions_in_play()
+        .iter()
+        .flat_map(|competition| competition.fixtures.iter());
+    for fixture in in_play.chain(archived) {
+        let is_due = fixture.status == FixtureStatus::Completed
+            && fixture.result.is_some()
+            && fixture_date(fixture).is_some_and(|date| date >= settled_from && date <= today)
+            && !paid.contains(fixture.id.as_str())
+            && seen.insert(fixture.id.clone());
+        if is_due {
+            due.push(fixture.clone());
         }
     }
 
@@ -341,6 +351,51 @@ mod tests {
             .map(|post| post.id.as_str())
             .collect();
         assert_eq!(ids, vec!["gate-last", "gate-first"]);
+    }
+
+    /// Given a gate that fails to post on the last day of a season,
+    /// When the rollover archives the edition and clears its fixtures, and the next payday runs,
+    /// Then the archived fixture is paid once, alongside the new season's.
+    #[test]
+    fn a_gate_that_failed_before_the_rollover_is_paid_from_the_archive() {
+        let mut game = game_on(2025, 6, 15);
+        let last = played("last", "2025-06-15", "hosts", "guests");
+        game.competitions = vec![competition("league", vec![last.clone()])];
+        let hosts = game
+            .teams
+            .iter()
+            .position(|team| team.id == "hosts")
+            .unwrap();
+        game.teams[hosts].finance = i64::MAX;
+        settle_today(&mut game);
+        assert!(gates_of(&game, "hosts").is_empty());
+
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: "league".to_string(),
+                season: 2025,
+                completed_on: "2025-06-15".to_string(),
+                champion_id: "hosts".to_string(),
+                participant_ids: vec!["hosts".to_string(), "guests".to_string()],
+                standings: vec![],
+                groups: vec![],
+                knockout_rounds: vec![],
+                fixtures: vec![last],
+            });
+        game.competitions = vec![competition(
+            "league",
+            vec![played("first", "2025-06-16", "hosts", "guests")],
+        )];
+        game.teams[hosts].finance = 1_000_000;
+        let monday = NaiveDate::from_ymd_opt(2025, 6, 16).unwrap();
+        settle_gate_income(&mut game, monday);
+        settle_gate_income(&mut game, monday);
+
+        let ids: Vec<&str> = gates_of(&game, "hosts")
+            .iter()
+            .map(|post| post.id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["gate-first", "gate-last"]);
     }
 
     /// Given an Apertura and a Clausura that both list the same club,
