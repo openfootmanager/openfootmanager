@@ -23,6 +23,7 @@ vi.mock("react-i18next", () => ({
 function createNextOpponent(): NextOpponentWidgetData {
   return {
     fixture: {
+      competitive: true,
       id: "fixture-1",
       matchday: 2,
       date: "2025-01-12",

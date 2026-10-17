@@ -6,6 +6,7 @@ import KnockoutBracket from "./KnockoutBracket";
 
 function penaltyFixture(): FixtureData {
   return {
+    competitive: true,
     id: "ko-1",
     matchday: 1,
     date: "2026-07-10",
