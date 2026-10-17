@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData } from "../../store/gameStore";
+import { type GameStateData, useGameStore } from "../../store/gameStore";
 import { listCustomTactics, saveCustomTactic } from "../../services/customTacticsService";
 import { getTacticsBlueprintStatus } from "../../services/squadService";
 import {
@@ -86,17 +86,17 @@ export function useTacticsLibrary({
   // last step to finish is the library as the save has it.
   const savesInOrder = useRef<Promise<void>>(Promise.resolve());
   // The commands act on whichever game is active, and carry no career with them. A step still
-  // waiting in the queue when the career changes (another game loaded, the screen left) would
-  // write one career's tactic into the next, so each step remembers the career it was asked in and
-  // does nothing once that is no longer the current one.
-  const career = useRef(0);
+  // waiting in the queue when the career changes (another game loaded or the game left) would
+  // write one career's tactic into the next, so each step remembers the store's career epoch it
+  // was asked in and does nothing once that is no longer the current one. Leaving this screen
+  // while the same career stays open changes nothing: the step is still that career's.
+  const careerEpoch = useGameStore((state) => state.careerEpoch);
 
   useEffect(() => {
     if (!managerId || !careerStartDate) return;
 
-    career.current += 1;
-    const askedIn = career.current;
-    const stale = () => askedIn !== career.current;
+    const askedIn = useGameStore.getState().careerEpoch;
+    const stale = () => useGameStore.getState().careerEpoch !== askedIn;
     savesInOrder.current = savesInOrder.current
       .then(async () => {
         if (stale()) return;
@@ -113,23 +113,19 @@ export function useTacticsLibrary({
         if (!stale()) setCustomTactics(toLibraryEntries(tactics));
       })
       .catch(() => {});
-    return () => {
-      career.current += 1;
-    };
-  }, [managerId, careerStartDate]);
+  }, [managerId, careerStartDate, careerEpoch]);
 
   // The screen answers at once; the save's own list then replaces it, or, if the save refused the
   // tactic (a shape the game cannot lay out), puts the library back as the save has it.
   function persistTactic(tactic: TacticsLibraryEntry): void {
-    const askedIn = career.current;
+    const askedIn = useGameStore.getState().careerEpoch;
+    const stale = () => useGameStore.getState().careerEpoch !== askedIn;
     savesInOrder.current = savesInOrder.current
       .then(() =>
-        askedIn !== career.current
-          ? null
-          : saveCustomTactic(toCustomTactic(tactic)).catch(() => listCustomTactics()),
+        stale() ? null : saveCustomTactic(toCustomTactic(tactic)).catch(() => listCustomTactics()),
       )
       .then((saved) => {
-        if (saved && askedIn === career.current) setCustomTactics(toLibraryEntries(saved));
+        if (saved && !stale()) setCustomTactics(toLibraryEntries(saved));
       })
       .catch(() => {});
   }
