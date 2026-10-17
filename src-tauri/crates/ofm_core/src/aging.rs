@@ -396,9 +396,9 @@ mod tests {
     #[test]
     fn a_season_develops_the_young_and_wears_the_old() {
         assert!(mean_change_after_a_season(17, 90, 80) > 2.0);
-        // A flat 70 in every attribute declines less than a real squad, whose pace and agility sit
-        // in the groups that fall fastest: measured -0.65 for this fixture.
-        assert!(mean_change_after_a_season(35, 70, 80) < -0.4);
+        // -0.65 measured for this flat-70 fixture, whose mental attributes hold up; a real squad
+        // falls faster (-1.2 to -1.7 a season at 33-35 in the season harness).
+        assert!(mean_change_after_a_season(35, 70, 80) < -0.5);
     }
 
     /// Given a cohort of 26-year-olds rated 70 with a ceiling of 85,

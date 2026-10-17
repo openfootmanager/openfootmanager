@@ -42,17 +42,12 @@ pub fn distribution_report(game: &Game) -> DistributionReport {
 }
 
 fn distribution_of(players: &[Player], on: NaiveDate) -> DistributionReport {
-    let players: Vec<Player> = players
-        .iter()
-        .filter(|player| !player.retired)
-        .cloned()
-        .collect();
-    let players = players.as_slice();
+    let players: Vec<&Player> = players.iter().filter(|player| !player.retired).collect();
     let mut seniors = 0usize;
     let mut ovr_sum = 0u64;
     let (mut ovr_s, mut ovr_a, mut ceiling_s, mut ceiling_a) = (0usize, 0usize, 0usize, 0usize);
     let mut wonderkids = 0usize;
-    for player in players {
+    for player in &players {
         let age = age_on_or_unknown(on, &player.date_of_birth);
         if qualifies_for_wonderkid(age.max(0) as u32, player.potential, player.ovr) {
             wonderkids += 1;

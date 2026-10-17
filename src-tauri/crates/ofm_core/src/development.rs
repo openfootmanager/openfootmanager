@@ -37,13 +37,15 @@ const PEAK_OFFSET_LIMIT: f64 = 3.0;
 const RESILIENCE_SIGMA: f64 = 0.35;
 const RESILIENCE_RANGE: (f64, f64) = (0.5, 2.2);
 
-/// What the ceiling does each season until the player's peak: a random step of this size by age,
-/// plus a small pull down so the world does not fill with ever-higher ceilings.
+/// What the ceiling does each season until the player's peak: a random step (see
+/// `ceiling_step_spread`) plus a small pull down so the world does not fill with ever-higher
+/// ceilings. There is no pull toward a common centre: a high ceiling stays a high ceiling, so a
+/// scout's report of a teenager's potential means something. The generator keeps the world's bell
+/// the width it was calibrated to by drawing a young player's ceiling from a narrower bell, through
+/// `ceiling_drift_still_to_come`.
 const CEILING_PULL: f64 = -0.3;
-/// The centre the generator draws ceilings around (`CEILING_MEAN` there). A ceiling drifts back
-/// toward it so the random steps do not widen the bell the world was calibrated to: unchecked, the
-/// steps add about 6 points of spread by 25 and the S tier doubles within ten seasons.
-const CEILING_CENTRE: f64 = 69.6;
+const FIRST_DRIFT_AGE: u32 = 16;
+const LAST_DRIFT_AGE: u32 = 24;
 
 /// Training is a modifier on the season's development, not a second source of it: the season's
 /// growth already stands for a typical year in the training ground, and a day's training adds to
@@ -52,7 +54,7 @@ const TRAINING_SHARE: f64 = 0.25;
 
 /// The five groups the decline table is written in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Aspect {
+enum Aspect {
     /// Pace and agility.
     Speed,
     Stamina,
@@ -104,7 +106,7 @@ fn position_offset(position: &Position) -> f64 {
         Position::Forward | Position::Striker | Position::RightWinger | Position::LeftWinger => {
             -1.0
         }
-        Position::CenterBack => 1.0,
+        Position::CenterBack | Position::Defender => 1.0,
         _ => 0.0,
     }
 }
@@ -142,7 +144,7 @@ fn headroom_brake(gap: u8) -> f64 {
 
 /// Expected rating points grown in a season by a player at `curve_age` with `gap` left to his
 /// ceiling.
-pub fn growth_points(curve_age: f64, gap: u8) -> f64 {
+fn growth_points(curve_age: f64, gap: u8) -> f64 {
     base_growth(curve_age) * headroom_brake(gap)
 }
 
@@ -173,7 +175,7 @@ pub fn training_factor(curve_age: f64, gap: u8) -> f64 {
 
 /// The expected change in points of one attribute in a season, for a player the decline table
 /// governs (curve age 27 or more), at resilience 1.
-pub fn decline_per_season(curve_age: f64, aspect: Aspect) -> f64 {
+fn decline_per_season(curve_age: f64, aspect: Aspect) -> f64 {
     let band = match curve_age.floor() as i32 {
         ..=26 => return 0.0,
         27..=29 => [-0.5, 0.0, 0.0, 0.0, 0.5],
@@ -288,19 +290,37 @@ fn decline(player: &mut Player, curve_age: f64, traits: &DevelopmentTraits, rng:
     }
 }
 
-/// Moves the ceiling for the season: a random step that is large for a teenager and gone by 25,
+/// The standard deviation of one season's step of the ceiling at this age: largest for a
+/// teenager and gone after 24 (about three points either way over the whole run, a year's step
+/// is a fraction of that).
+fn ceiling_step_spread(age: u32) -> f64 {
+    match age {
+        ..=18 => 1.0,
+        19..=21 => 0.7,
+        22..=24 => 0.35,
+        _ => 0.0,
+    }
+}
+
+/// The mean and the variance of the ceiling's drift from a player aged `age` until it stops, so
+/// the generator can draw a young player's ceiling from a bell narrower by that variance and
+/// everyone's ceiling at 25 follows the one bell. (A player's rating holds his ceiling up once
+/// he has grown into it, so the mean is only the drift before that; see `shaped_ceiling`.)
+pub(crate) fn ceiling_drift_still_to_come(age: u32) -> (f64, f64) {
+    let steps = FIRST_DRIFT_AGE.max(age)..=LAST_DRIFT_AGE;
+    let count = steps.clone().count() as f64;
+    let variance = steps.map(|a| ceiling_step_spread(a).powi(2)).sum();
+    (CEILING_PULL * count, variance)
+}
+
+/// Moves the ceiling for the season: a random step that is largest for a teenager and gone by 25,
 /// with a small pull down. Never below the rating he has.
 fn drift_ceiling(player: &mut Player, curve_age: f64, rng: &mut impl Rng) {
-    // (spread of the step, share of the distance to the centre given back). The share is what keeps
-    // the bell's width: sqrt(1 - spread^2 / 25) with 25 the variance of the generated ceilings.
-    let (spread, reversion) = match curve_age.floor() as i32 {
-        ..=18 => (3.0, 0.2),
-        19..=21 => (2.0, 0.08),
-        22..=24 => (1.0, 0.02),
-        _ => return,
-    };
-    let toward_centre = reversion * (CEILING_CENTRE - f64::from(player.potential));
-    let step = standard_normal(rng) * spread + CEILING_PULL + toward_centre;
+    let spread = ceiling_step_spread(curve_age.max(0.0).floor() as u32);
+    if spread == 0.0 {
+        return;
+    }
+    let step = standard_normal(rng) * spread + CEILING_PULL;
     let ceiling = (f64::from(player.potential) + step)
         .round()
         .clamp(1.0, 99.0) as u8;
@@ -594,15 +614,14 @@ mod tests {
         assert!(total_change / 400.0 > -1.5);
     }
 
-    /// Given a world of ceilings with the spread the generator draws (a standard deviation of 5),
-    /// When every ceiling drifts from sixteen to twenty-four,
-    /// Then the spread is still about 5: the steps do not widen the bell the world was calibrated to.
-    #[test]
-    fn a_ceilings_drift_keeps_the_width_of_the_bell() {
+    fn ceilings_after_the_drift(
+        start: impl Fn(&mut ChaCha12Rng) -> f64,
+        from_age: u32,
+    ) -> Vec<f64> {
         let mut dealer = rng(7);
-        let mut ceilings: Vec<Player> = (0..2000)
+        let mut cohort: Vec<Player> = (0..2000)
             .map(|n| {
-                let ceiling = (69.6 + 5.0 * standard_normal(&mut dealer)).round() as u8;
+                let ceiling = start(&mut dealer).round() as u8;
                 player(
                     &format!("bell{n}"),
                     Position::CentralMidfielder,
@@ -611,20 +630,342 @@ mod tests {
                 )
             })
             .collect();
-        for age in 16..25 {
-            for (n, p) in ceilings.iter_mut().enumerate() {
+        for age in from_age..=LAST_DRIFT_AGE {
+            for (n, p) in cohort.iter_mut().enumerate() {
                 drift_ceiling(
                     p,
                     f64::from(age),
-                    &mut rng(u64::from(age as u32) * 10_000 + n as u64),
+                    &mut rng(u64::from(age) * 10_000 + n as u64),
                 );
             }
         }
-        let values: Vec<f64> = ceilings.iter().map(|p| f64::from(p.potential)).collect();
+        cohort.iter().map(|p| f64::from(p.potential)).collect()
+    }
+
+    fn mean_and_spread(values: &[f64]) -> (f64, f64) {
         let mean = values.iter().sum::<f64>() / values.len() as f64;
-        let spread =
-            (values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64).sqrt();
-        assert!((4.2..5.8).contains(&spread), "spread {spread}");
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
+        (mean, variance.sqrt())
+    }
+
+    /// Given sixteen-year-olds whose ceiling is 90,
+    /// When their ceilings drift until the drift stops,
+    /// Then they keep most of it: a scout's report of a teenager's potential means something.
+    #[test]
+    fn a_high_ceiling_at_sixteen_is_still_high_at_twenty_five() {
+        let kept = ceilings_after_the_drift(|_| 90.0, 16);
+        let (mean, _) = mean_and_spread(&kept);
+        assert!(mean > 86.0, "mean ceiling at 25 was {mean}");
+        let still_s = kept.iter().filter(|c| **c >= 81.0).count() as f64 / kept.len() as f64;
+        assert!(still_s > 0.95, "{still_s} of them are still S");
+    }
+
+    /// Given the ceilings the generator draws for sixteen-year-olds (a bell narrower, and centred
+    /// higher, by what the drift will still add),
+    /// When they drift until it stops,
+    /// Then they land on the world's bell: the centre and a spread of 5.
+    #[test]
+    fn a_young_players_narrower_bell_drifts_onto_the_worlds_bell() {
+        let (drift_mean, drift_variance) = ceiling_drift_still_to_come(16);
+        let centre = 69.6 - drift_mean;
+        let spread = (25.0_f64 - drift_variance).sqrt();
+        let landed =
+            ceilings_after_the_drift(|dealer| centre + spread * standard_normal(dealer), 16);
+        let (mean, width) = mean_and_spread(&landed);
+        assert!((mean - 69.6).abs() < 0.5, "mean {mean}");
+        assert!((width - 5.0).abs() < 0.4, "spread {width}");
+    }
+
+    /// Given players of each age,
+    /// When the drift they still have to come is read,
+    /// Then it shrinks with age and is nothing once the drift has stopped.
+    #[test]
+    fn the_drift_still_to_come_shrinks_to_nothing() {
+        let mut previous = f64::MAX;
+        for age in 14..=30 {
+            let (_, variance) = ceiling_drift_still_to_come(age);
+            assert!(variance <= previous + 1e-12, "age {age}");
+            previous = variance;
+        }
+        assert_eq!(ceiling_drift_still_to_come(25), (0.0, 0.0));
+        assert_eq!(
+            ceiling_drift_still_to_come(10),
+            ceiling_drift_still_to_come(16)
+        );
+    }
+
+    /// Given the decline table,
+    /// When every group is read in every band,
+    /// Then each cell is the table's: nothing rises but the mind before 30, and from 30 every
+    ///      group falls, faster with age.
+    #[test]
+    fn every_cell_of_the_decline_table_is_what_the_research_says() {
+        use Aspect::{Mental, Speed, Stamina, Strength, Technical};
+        let cells = [
+            (28.0, [-0.5, 0.0, 0.0, 0.0, 0.5]),
+            (30.0, [-2.0, -0.7, -0.3, -0.8, 0.3]),
+            (31.9, [-2.0, -0.7, -0.3, -0.8, 0.3]),
+            (32.0, [-2.5, -1.2, -0.8, -1.5, 0.0]),
+            (33.9, [-2.5, -1.2, -0.8, -1.5, 0.0]),
+            (34.0, [-3.0, -2.0, -1.2, -2.2, -0.5]),
+            (35.9, [-3.0, -2.0, -1.2, -2.2, -0.5]),
+            (36.0, [-4.0, -2.5, -1.5, -3.0, -1.0]),
+            (41.0, [-4.0, -2.5, -1.5, -3.0, -1.0]),
+        ];
+        for (age, expected) in cells {
+            let read = [Speed, Stamina, Strength, Technical, Mental]
+                .map(|aspect| decline_per_season(age, aspect));
+            assert_eq!(read, expected, "at {age}");
+        }
+    }
+
+    /// Given the growth shares,
+    /// When they are read at each age band,
+    /// Then they are physical first, technical in the early twenties, mental last, and add to 1.
+    #[test]
+    fn growth_is_shared_between_the_groups_by_age() {
+        for (age, expected) in [
+            (14.0, (0.45, 0.35, 0.20)),
+            (17.9, (0.45, 0.35, 0.20)),
+            (18.0, (0.25, 0.45, 0.30)),
+            (21.9, (0.25, 0.45, 0.30)),
+            (22.0, (0.10, 0.40, 0.50)),
+            (25.9, (0.10, 0.40, 0.50)),
+            (26.0, (0.0, 0.30, 0.70)),
+        ] {
+            let shares = growth_shares(age);
+            assert_eq!(shares, expected, "at {age}");
+            assert!((shares.0 + shares.1 + shares.2 - 1.0).abs() < 1e-9);
+        }
+    }
+
+    /// Given the season's growth at a curve age and a gap to the ceiling,
+    /// When the points are read,
+    /// Then they are the table's value times the brake: a gap of six halves them.
+    #[test]
+    fn a_seasons_growth_is_the_table_times_the_brake() {
+        assert_eq!(growth_points(21.0, 6), 2.0);
+        assert!((growth_points(17.0, 30) - 6.0 * 30.0 / 36.0).abs() < 1e-9);
+    }
+
+    /// The average change of each group of attributes after one `grow`, over many seasons, for a
+    /// player with every attribute at 50 and the ceiling far above.
+    fn mean_group_changes(curve_age: f64, points: f64) -> (f64, f64, f64) {
+        let (mut physical, mut technical, mut mental) = (0.0, 0.0, 0.0);
+        let seasons = 400;
+        for seed in 0..seasons {
+            let mut p = player("grower", Position::CentralMidfielder, 50, 99);
+            grow(&mut p, points, curve_age, &mut rng(seed));
+            let a = &p.attributes;
+            physical += f64::from(a.pace)
+                + f64::from(a.agility)
+                + f64::from(a.stamina)
+                + f64::from(a.strength);
+            technical += [
+                a.passing,
+                a.shooting,
+                a.tackling,
+                a.dribbling,
+                a.defending,
+                a.handling,
+                a.reflexes,
+                a.aerial,
+            ]
+            .iter()
+            .map(|v| f64::from(*v))
+            .sum::<f64>();
+            mental += [
+                a.positioning,
+                a.vision,
+                a.decisions,
+                a.composure,
+                a.aggression,
+                a.teamwork,
+                a.leadership,
+            ]
+            .iter()
+            .map(|v| f64::from(*v))
+            .sum::<f64>();
+        }
+        let n = f64::from(seasons as u32);
+        (
+            physical / n / 4.0 - 50.0,
+            technical / n / 8.0 - 50.0,
+            mental / n / 7.0 - 50.0,
+        )
+    }
+
+    /// Given a teenager, a twenty-year-old, a player of 23 and one of 26 growing from a flat profile,
+    /// When many seasons of growth are averaged by group,
+    /// Then the groups differ by the shares per attribute (the rating is pinned afterwards, so only
+    ///      the differences between the groups are the shares'): the body first, the mind last.
+    #[test]
+    fn growth_goes_to_the_groups_the_age_gives_it_to() {
+        // points * 19 * (share / attributes in the group), for 4 points.
+        let per = |share: f64, count: f64| 4.0 * 19.0 * share / count;
+        for (age, shares) in [
+            (16.0, (0.45, 0.35, 0.20)),
+            (19.0, (0.25, 0.45, 0.30)),
+            (23.0, (0.10, 0.40, 0.50)),
+            (26.0, (0.0, 0.30, 0.70)),
+        ] {
+            let (physical, technical, mental) = mean_group_changes(age, 4.0);
+            let expected_physical_over_mental = per(shares.0, 4.0) - per(shares.2, 7.0);
+            let expected_technical_over_mental = per(shares.1, 8.0) - per(shares.2, 7.0);
+            assert!(
+                (physical - mental - expected_physical_over_mental).abs() < 0.6,
+                "at {age}: physical over mental {:.2}, expected {expected_physical_over_mental:.2}",
+                physical - mental
+            );
+            assert!(
+                (technical - mental - expected_technical_over_mental).abs() < 0.6,
+                "at {age}: technical over mental {:.2}, expected {expected_technical_over_mental:.2}",
+                technical - mental
+            );
+        }
+    }
+
+    /// Given a teenager growing from a flat profile,
+    /// When one attribute's change is compared across seasons,
+    /// Then each attribute has its own luck as a multiplier: the body's changes vary by a few points.
+    #[test]
+    fn each_attributes_growth_has_its_own_luck_as_a_multiplier() {
+        let mut changes = Vec::new();
+        for seed in 0..400 {
+            let mut p = player("grower", Position::CentralMidfielder, 50, 99);
+            grow(&mut p, 4.0, 16.0, &mut rng(seed));
+            changes.push(f64::from(p.attributes.pace));
+        }
+        let (_, spread) = mean_and_spread(&changes);
+        // 4 points * 19 * 0.45 / 4 = 8.6 on average, times a luck of 0.5 to 1.5 (sd 0.29).
+        assert!((1.8..3.2).contains(&spread), "spread {spread}");
+    }
+
+    /// Given a 33-year-old outfield player with neutral traits,
+    /// When many seasons of decline are averaged,
+    /// Then pace falls by the table's 2.5 a season: the luck is a multiplier with a mean of 1.
+    #[test]
+    fn the_average_decline_is_the_tables_not_a_steeper_one() {
+        let mut total = 0.0;
+        let seasons = 3000;
+        for seed in 0..seasons {
+            let mut p = player("old", Position::CentralMidfielder, 70, 70);
+            let before = f64::from(p.attributes.pace);
+            decline(&mut p, 33.0, &neutral(), &mut rng(seed));
+            total += before - f64::from(p.attributes.pace);
+        }
+        let mean = total / f64::from(seasons as u32);
+        assert!((mean - 2.5).abs() < 0.1, "mean decline {mean}");
+    }
+
+    /// Given a 34-year-old goalkeeper with neutral traits,
+    /// When many seasons of decline are averaged,
+    /// Then his body falls at half the rate (pace -1.5) and his keeping attributes at the full
+    ///      technical rate (handling -2.2).
+    #[test]
+    fn only_a_goalkeepers_body_declines_at_half_the_pace() {
+        let (mut pace, mut handling) = (0.0, 0.0);
+        let seasons = 3000;
+        for seed in 0..seasons {
+            let mut p = player("keeper", Position::Goalkeeper, 70, 70);
+            let (pace_before, handling_before) = (
+                f64::from(p.attributes.pace),
+                f64::from(p.attributes.handling),
+            );
+            decline(&mut p, 34.0, &neutral(), &mut rng(seed));
+            pace += pace_before - f64::from(p.attributes.pace);
+            handling += handling_before - f64::from(p.attributes.handling);
+        }
+        let n = f64::from(seasons as u32);
+        assert!((pace / n - 1.5).abs() < 0.1, "pace {}", pace / n);
+        assert!(
+            (handling / n - 2.2).abs() < 0.1,
+            "handling {}",
+            handling / n
+        );
+    }
+
+    /// Given a hundred thousand standard normal draws,
+    /// When their mean and spread are read,
+    /// Then they are 0 and 1: a lean either way would tilt every peak age and every ceiling step.
+    #[test]
+    fn the_normal_draw_is_centred_and_unit() {
+        let mut dealer = rng(11);
+        let draws: Vec<f64> = (0..200_000).map(|_| standard_normal(&mut dealer)).collect();
+        let (mean, spread) = mean_and_spread(&draws);
+        assert!(mean.abs() < 0.01, "mean {mean}");
+        assert!((spread - 1.0).abs() < 0.01, "spread {spread}");
+    }
+
+    /// Given the traits of five thousand players,
+    /// When the spread of the resilience is read,
+    /// Then its logarithm has the spread the model asks for (about 0.35, trimmed a little by the
+    ///      range), and few players sit at the range's ends.
+    #[test]
+    fn resilience_varies_by_about_a_third_in_logarithm() {
+        let resilience: Vec<f64> = (0..5000)
+            .map(|n| traits_of(42, &format!("p{n}")).resilience)
+            .collect();
+        let logs: Vec<f64> = resilience.iter().map(|r| r.ln()).collect();
+        let (_, spread) = mean_and_spread(&logs);
+        assert!((0.30..0.37).contains(&spread), "spread {spread}");
+        let at_an_end = resilience
+            .iter()
+            .filter(|r| **r <= RESILIENCE_RANGE.0 || **r >= RESILIENCE_RANGE.1)
+            .count();
+        assert!(at_an_end < 250, "{at_an_end} of 5000 sit at an end");
+    }
+
+    /// Given ceilings at 16, 20 and 23 and none from 25,
+    /// When one season's step is read over many players,
+    /// Then its spread is the band's (1.0, 0.7, 0.35, a little more for the rounding) and nothing
+    ///      moves at 25.
+    #[test]
+    fn a_ceilings_step_has_the_spread_of_its_age() {
+        for (age, spread) in [(16.0, 1.0), (20.0, 0.7), (23.0, 0.35), (25.0, 0.0)] {
+            let steps: Vec<f64> = (0..3000)
+                .map(|seed| {
+                    let mut p = player("drift", Position::CentralMidfielder, 40, 70);
+                    drift_ceiling(&mut p, age, &mut rng(seed));
+                    f64::from(p.potential) - 70.0
+                })
+                .collect();
+            let (_, read) = mean_and_spread(&steps);
+            let expected = if spread == 0.0 {
+                0.0
+            } else {
+                (f64::from(spread * spread) + 1.0 / 12.0).sqrt()
+            };
+            assert!(
+                (read - expected).abs() < 0.12,
+                "at {age}: {read} vs {expected}"
+            );
+        }
+    }
+
+    /// Given a player whose curve age reads exactly 27 (thirty, a late bloomer clamped to +3 years),
+    /// When he develops over many seasons,
+    /// Then he is on the decline table, not stuck on growth: his mind still gains a little and
+    ///      his pace falls.
+    #[test]
+    fn a_curve_age_of_exactly_twenty_seven_is_on_the_decline_table() {
+        let id = (0..2000)
+            .map(|n| format!("late{n}"))
+            .find(|id| traits_of(5, id).peak_offset == PEAK_OFFSET_LIMIT)
+            .expect("about one player in forty is clamped at the late end");
+        let (mut pace, mut vision) = (0.0, 0.0);
+        let seasons = 600;
+        for seed in 0..seasons {
+            let mut p = player(&id, Position::CentralMidfielder, 70, 70);
+            let (pace_before, vision_before) =
+                (f64::from(p.attributes.pace), f64::from(p.attributes.vision));
+            develop_one_season(&mut p, 30, 5, &mut rng(seed));
+            pace += pace_before - f64::from(p.attributes.pace);
+            vision += f64::from(p.attributes.vision) - vision_before;
+        }
+        let n = f64::from(seasons as u32);
+        assert!(pace / n > 0.15, "pace fell by {} a season", pace / n);
+        assert!(vision / n > 0.15, "vision rose by {} a season", vision / n);
     }
 
     /// Given players from nineteen to forty with the same room to grow,

@@ -482,9 +482,22 @@ const CEILING_MEAN: f64 = 69.6;
 /// past its 1 to 3% target, so the bell is narrowed as it is lifted.
 const CEILING_SPREAD: f64 = 0.80;
 
-/// The ceiling a rolled rating becomes: the same ranking, on the bell the world is meant to have.
-fn shaped_ceiling(rolled: f64) -> u8 {
-    (CEILING_MEAN + CEILING_SPREAD * (rolled - ROLLED_RATING_MEAN))
+/// The spread (standard deviation) of the ceilings a world holds at 25, once every ceiling has
+/// stopped drifting.
+const CEILING_SD: f64 = 5.0;
+
+/// The ceiling a rolled rating becomes for a player of `age`: the same ranking, on the bell the
+/// world is meant to have at 25. A young player's ceiling will still drift (`development`), so he
+/// is drawn from a bell narrower by the variance that drift will add; by 25 everyone's ceiling
+/// follows one bell, and a teenager's ceiling stays a good guide to where he ends up.
+///
+/// The centre is not raised for the drift's small pull down: a player closes the gap to his
+/// ceiling by 19 to 21, after which his rating holds the ceiling up, so the pull is mostly absorbed
+/// (measured on the shipped world: ceilings of 72.2 at 16 are 72.4 at 25).
+fn shaped_ceiling(rolled: f64, age: u32) -> u8 {
+    let (_, drift_variance) = crate::development::ceiling_drift_still_to_come(age);
+    let narrowing = (1.0 - drift_variance / CEILING_SD.powi(2)).max(0.0).sqrt();
+    (CEILING_MEAN + narrowing * CEILING_SPREAD * (rolled - ROLLED_RATING_MEAN))
         .round()
         .clamp(1.0, 99.0) as u8
 }
@@ -589,7 +602,7 @@ pub(super) fn generate_random_player_from_def(
     // who has years of growth left is lowered from it by the headroom for his age. Ceiling
     // first, rating second, so the whole world's ceilings follow one bell and a teenager is an
     // earlier version of a prime-age player rather than a better one.
-    let ceiling = shaped_ceiling(ovr_from_attributes(&attributes, &position));
+    let ceiling = shaped_ceiling(ovr_from_attributes(&attributes, &position), age);
     let headroom = roll_growth_headroom(age, rng);
     move_attributes_to(&mut attributes, &position, ceiling.saturating_sub(headroom));
     // Size market value and wage from the same position-weighted rating the
@@ -1344,14 +1357,29 @@ mod tests {
     #[test]
     fn a_rolled_rating_is_shaped_onto_the_ceiling_bell() {
         assert_eq!(
-            shaped_ceiling(ROLLED_RATING_MEAN),
+            shaped_ceiling(ROLLED_RATING_MEAN, 25),
             CEILING_MEAN.round() as u8
         );
-        let above = shaped_ceiling(ROLLED_RATING_MEAN + 10.0);
-        let below = shaped_ceiling(ROLLED_RATING_MEAN - 10.0);
+        let above = shaped_ceiling(ROLLED_RATING_MEAN + 10.0, 25);
+        let below = shaped_ceiling(ROLLED_RATING_MEAN - 10.0, 25);
         let centre = CEILING_MEAN.round() as u8;
         assert_eq!(above - centre, (10.0 * CEILING_SPREAD).round() as u8);
         assert_eq!(centre - below, (10.0 * CEILING_SPREAD).round() as u8);
+    }
+
+    /// Given the same rolled rating far above the mean for a teenager and for a prime-age player,
+    /// When it is shaped onto the ceiling bell,
+    /// Then the teenager's ceiling is closer to the centre (his bell is narrower) and the centre
+    /// itself is the same.
+    #[test]
+    fn a_teenagers_ceiling_bell_is_narrower_than_a_prime_players() {
+        let prime = shaped_ceiling(ROLLED_RATING_MEAN + 20.0, 25);
+        let teenager = shaped_ceiling(ROLLED_RATING_MEAN + 20.0, 16);
+        assert!(teenager < prime, "{teenager} vs {prime}");
+        assert_eq!(
+            shaped_ceiling(ROLLED_RATING_MEAN, 16),
+            shaped_ceiling(ROLLED_RATING_MEAN, 25)
+        );
     }
 
     /// Given generated teenagers (18 or younger),
@@ -1397,10 +1425,10 @@ mod tests {
 
     /// Given the same generated world,
     /// When the average ceiling of its teenagers is compared with the average rating of its veterans,
-    /// Then they match: a teenager's ceiling is drawn from the bell a veteran's rating is, not
-    /// from that bell plus his headroom.
+    /// Then they match: a teenager's ceiling is where a veteran's rating ends up, not that plus his
+    /// headroom.
     #[test]
-    fn a_teenagers_ceiling_is_drawn_from_the_same_bell_as_a_veterans_rating() {
+    fn a_teenagers_ceiling_is_where_a_veterans_rating_ends_up() {
         let world = generated_players(360);
         let mean = |values: Vec<u8>| {
             values.iter().map(|v| f64::from(*v)).sum::<f64>() / values.len() as f64

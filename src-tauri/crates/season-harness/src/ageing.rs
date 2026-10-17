@@ -117,6 +117,11 @@ fn band_changes(previous: &Snapshot, players: &[Player]) -> Vec<BandChange> {
         .collect()
 }
 
+/// A keeper by what he is, as development reads it, not by the coarse group he is listed under.
+fn is_keeper(player: &Player) -> bool {
+    player.natural_position.to_group_position() == Position::Goalkeeper
+}
+
 fn top_players_profile(aged: &[(&Player, i32)]) -> AgeingReport {
     let best = |of: Vec<&(&Player, i32)>, count: usize| -> Vec<(u8, i32)> {
         let mut ranked: Vec<(u8, i32)> = of
@@ -134,13 +139,13 @@ fn top_players_profile(aged: &[(&Player, i32)]) -> AgeingReport {
     };
     let top_goalkeepers = best(
         aged.iter()
-            .filter(|(player, _)| player.position == Position::Goalkeeper)
+            .filter(|(player, _)| is_keeper(player))
             .collect(),
         TOP_PLAYERS,
     );
     let top_outfield = best(
         aged.iter()
-            .filter(|(player, _)| player.position != Position::Goalkeeper)
+            .filter(|(player, _)| !is_keeper(player))
             .collect(),
         TOP_PLAYERS,
     );
@@ -310,14 +315,14 @@ mod tests {
         assert!(report.bands.iter().all(|b| b.players == 0));
     }
 
-    /// Given four players aged 33 or more, one rated A and one S, and two ordinary,
+    /// Given four players aged 33 or more, one rated S and three ordinary (and a star of 25),
     /// When the season is reported,
-    /// Then half of the 33+ are still A or S.
+    /// Then a quarter of the 33+ are still A or S: not the three quarters who are not.
     #[test]
     fn the_share_of_the_old_who_are_still_a_or_s_is_reported() {
         let players = [
             aged("s", 34, 82, Position::Forward),
-            aged("a", 36, 78, Position::Forward),
+            aged("a", 36, 74, Position::Forward),
             aged("x", 33, 65, Position::Forward),
             aged("y", 35, 60, Position::Forward),
             aged("young", 25, 90, Position::Forward),
@@ -326,7 +331,7 @@ mod tests {
         let report = ageing_report(&Snapshot::new(), &players, on());
 
         assert_eq!(report.aged_33_plus, 4);
-        assert_eq!(report.aged_33_plus_a_or_s_share, 0.5);
+        assert_eq!(report.aged_33_plus_a_or_s_share, 0.25);
     }
 
     /// Given players of different ratings and ages,
