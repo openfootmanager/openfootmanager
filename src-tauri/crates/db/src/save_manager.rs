@@ -28,7 +28,9 @@ pub struct SaveManager {
     save_index: SaveIndexManager,
 }
 
-const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
+/// The key the UI shows when the save-manager mutex is poisoned, or the saves
+/// directory cannot be created. One definition: the app crate re-exports it.
+pub const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
 const SAVE_DELETE_ERROR: &str = "be.error.saveDeleteFailed";
 
 fn backend_error_with_param(key: &str, param_name: &str, param_value: &str) -> String {
