@@ -2646,6 +2646,7 @@
         "wouldLeaveSeniorsShort": "Dieser Spieler kann nicht gehen: Der Verein hätte dann weniger als {{floor}} Spieler im Profikader, das Minimum, das ein Verein halten muss."
       },
       "noActiveGameSession": "Keine aktive Spielsitzung",
+      "careerChanged": "Die Karriere hat gewechselt, bevor dies gespeichert werden konnte.",
       "noActiveSaveSession": "Keine aktive Speicherstandsitzung",
       "saveNotFound": "Speicherstand '{{saveId}}' wurde nicht gefunden.",
       "teamNotFound": "Team nicht gefunden",

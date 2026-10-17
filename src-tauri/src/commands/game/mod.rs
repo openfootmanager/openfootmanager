@@ -167,19 +167,25 @@ pub async fn start_new_game(
     } else {
         build_game_from_world_data_ranked
     };
-    let (mut new_game, stats_state) =
-        build(clock, manager, &startup_options, world, reputation_basis);
+    let built = build(clock, manager, &startup_options, world, reputation_basis);
+    Ok(install_new_game(&state, built, package_lockfile))
+}
 
+/// Installs a freshly built game as the active career, and returns it as the screen must hold it
+/// (with the career's token).
+fn install_new_game(
+    state: &StateManager,
+    (mut new_game, stats_state): (Game, domain::stats::StatsState),
+    package_lockfile: Vec<ofm_core::generator::PackageLock>,
+) -> Game {
     new_game.package_lockfile = package_lockfile;
-
     info!(
         "[cmd] start_new_game: world generated with {} teams, {} players, {} staff",
         new_game.teams.len(),
         new_game.players.len(),
         new_game.staff.len()
     );
-    crate::application::career::install_career(&state, new_game.clone(), stats_state, None);
-    Ok(new_game)
+    crate::application::career::install_career_for_screen(state, new_game, stats_state, None)
 }
 
 /// Step 2: User picks a team. Assigns manager, generates welcome message, saves to DB.
@@ -192,7 +198,25 @@ pub async fn select_team(
     active_competition_ids: Option<Vec<String>>,
 ) -> Result<Game, String> {
     info!("[cmd] select_team: team_id={}", team_id);
-    let (mut game, loaded_save_id) = crate::application::career::snapshot_career(&state)
+    let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
+    select_team_internal(
+        &state,
+        &mut sm,
+        &team_id,
+        active_region_ids,
+        active_competition_ids,
+    )
+}
+
+/// Takes the club, saves the career and installs it; returns the game as the screen must hold it.
+fn select_team_internal(
+    state: &StateManager,
+    sm: &mut db::save_manager::SaveManager,
+    team_id: &str,
+    active_region_ids: Option<Vec<String>>,
+    active_competition_ids: Option<Vec<String>>,
+) -> Result<Game, String> {
+    let (mut game, loaded_save_id) = crate::application::career::snapshot_career(state)
         .ok_or("be.error.noActiveGameSession".to_string())?;
     let current_stats_state = state
         .get_stats_state(|stats| stats.clone())
@@ -202,12 +226,15 @@ pub async fn select_team(
         regions: active_region_ids,
         competitions: active_competition_ids,
     };
-    let stats_state = begin_career(&mut game, &team_id, scope, current_stats_state)?;
+    let stats_state = begin_career(&mut game, team_id, scope, current_stats_state)?;
 
-    let mut sm = map_save_manager_lock_error(sm_state.0.lock())?;
-    let save_id = persist_chosen_club(loaded_save_id.as_deref(), &mut sm, &game, &stats_state)?;
-    crate::application::career::install_career(&state, game.clone(), stats_state, Some(save_id));
-    Ok(game)
+    let save_id = persist_chosen_club(loaded_save_id.as_deref(), sm, &game, &stats_state)?;
+    Ok(crate::application::career::install_career_for_screen(
+        state,
+        game,
+        stats_state,
+        Some(save_id),
+    ))
 }
 
 #[tauri::command]

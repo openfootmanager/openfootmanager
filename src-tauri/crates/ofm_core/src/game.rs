@@ -172,6 +172,12 @@ pub struct Game {
     /// is copied in once more, then marked. Persistence is `game_meta.legacy_tactics_imported`.
     #[serde(default)]
     pub legacy_tactics_imported: bool,
+    /// Names the career this game was installed as (`StateManager::next_career_token`). It travels
+    /// to the screen with the game, and a command that writes on the screen's behalf hands it back
+    /// to be checked against the active game inside the write. Not saved: a loaded game is
+    /// installed again and gets a fresh one. 0 for a game that was never installed (tests).
+    #[serde(default)]
+    pub career_token: u64,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -262,6 +268,7 @@ impl Game {
             retired_managers: Vec::new(),
             custom_tactics: Vec::new(),
             legacy_tactics_imported: false,
+            career_token: 0,
             archived_messages: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),

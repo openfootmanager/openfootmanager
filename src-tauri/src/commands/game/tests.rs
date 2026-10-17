@@ -780,3 +780,49 @@ fn a_package_career_records_the_seed_its_world_was_built_from() {
     assert_eq!(game.seed, seed);
     assert_ne!(load().0.generation_seed, Some(seed));
 }
+
+/// Given a clubless career that has not been saved, installed as the active game
+/// When the player picks a club
+/// Then the game handed back to the screen carries the token of the career that was installed,
+///      not 0: the tactics writes that follow send that token and would all be refused otherwise.
+#[test]
+fn select_team_hands_the_screen_the_installed_careers_token() {
+    use crate::application::career::install_career;
+    let dir = tempfile::tempdir().unwrap();
+    let mut save_manager = db::save_manager::SaveManager::init(dir.path()).unwrap();
+    let state = ofm_core::state::StateManager::new();
+    let mut game = make_bootstrap_test_game();
+    game.manager.team_id = None;
+    install_career(&state, game, sample_stats_state(), None);
+
+    let shown =
+        super::select_team_internal(&state, &mut save_manager, "team1", None, None).unwrap();
+
+    let installed = state.get_game(|game| game.career_token).unwrap();
+    assert_ne!(installed, 0);
+    assert_eq!(shown.career_token, installed);
+}
+
+/// Given a freshly built game and the package lockfile it was built from
+/// When it is installed as the new career
+/// Then the game handed back to the screen carries the installed career's token and the lockfile.
+#[test]
+fn a_new_game_handed_to_the_screen_carries_the_installed_careers_token() {
+    let state = ofm_core::state::StateManager::new();
+    let lock = ofm_core::generator::PackageLock {
+        id: "pack".to_string(),
+        version: "1".to_string(),
+        hash: "h".to_string(),
+    };
+
+    let shown = super::install_new_game(
+        &state,
+        (make_bootstrap_test_game(), sample_stats_state()),
+        vec![lock.clone()],
+    );
+
+    let installed = state.get_game(|game| game.career_token).unwrap();
+    assert_ne!(installed, 0);
+    assert_eq!(shown.career_token, installed);
+    assert_eq!(shown.package_lockfile, vec![lock]);
+}

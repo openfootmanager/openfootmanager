@@ -56,6 +56,8 @@ export function useTacticsLibrary({
   );
   const [presetAnchorId, setPresetAnchorId] = useState<string | null>(initialPreset?.id ?? null);
   const managerId = gameState?.manager.id ?? null;
+  // Handed back with every write so the backend can refuse one meant for another career.
+  const careerToken = gameState?.career_token ?? 0;
   const careerStartDate = gameState?.clock.start_date ?? null;
 
   // Whether the phase dials still equal the style's blueprint is the backend's rule (`blueprint_for`);
@@ -117,16 +119,16 @@ export function useTacticsLibrary({
             tactics,
             async (tactic) => {
               if (stale()) throw new Error("the career changed");
-              return saveCustomTactic(tactic);
+              return saveCustomTactic(tactic, careerToken);
             },
           );
           tactics = imported.tactics;
-          if (imported.complete && !stale()) await markLegacyTacticsImported();
+          if (imported.complete && !stale()) await markLegacyTacticsImported(careerToken);
         }
         if (!stale()) setCustomTactics(toLibraryEntries(tactics));
       })
       .catch(() => {});
-  }, [managerId, careerStartDate, careerEpoch]);
+  }, [managerId, careerStartDate, careerEpoch, careerToken]);
 
   // The screen answers at once; the save's own list then replaces it, or, if the save refused the
   // change (a shape the game cannot lay out, an id that is already gone), puts the library back as
@@ -143,7 +145,7 @@ export function useTacticsLibrary({
   }
 
   function persistTactic(tactic: TacticsLibraryEntry): void {
-    changeSave(() => saveCustomTactic(toCustomTactic(tactic)));
+    changeSave(() => saveCustomTactic(toCustomTactic(tactic), careerToken));
   }
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
@@ -318,7 +320,7 @@ export function useTacticsLibrary({
 
     const { id } = activeTactic;
     setCustomTactics((current) => current.filter((entry) => entry.id !== id));
-    changeSave(() => deleteCustomTactic(id.trim()));
+    changeSave(() => deleteCustomTactic(id.trim(), careerToken));
   }
 
   function handleSaveTactic(): void {

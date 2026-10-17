@@ -215,10 +215,10 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `set_play_style` | play_style | `Game` | Change play style |
 | `apply_tactic_preset` | formation, play_style | `Game` | Pick a tactic preset: formation + play style, and reset the phase blueprint to that style's default |
 | `list_custom_tactics` | - | `CustomTactic[]` | The tactics the player saved (career-scoped, in the save) |
-| `save_custom_tactic` | tactic | `CustomTactic[]` | Add a saved tactic, or replace the one with the same id; returns the library |
-| `delete_custom_tactic` | id | `CustomTactic[]` | Remove a saved tactic; returns what is left |
+| `save_custom_tactic` | tactic, careerToken | `CustomTactic[]` | Add a saved tactic, or replace the one with the same id; returns the library |
+| `delete_custom_tactic` | id, careerToken | `CustomTactic[]` | Remove a saved tactic; returns what is left. All three writes are refused with `be.error.careerChanged` when `careerToken` (`Game.career_token`, stamped by `install_career`) is not the active career's |
 | `legacy_tactics_import_pending` | - | `bool` | Whether the old browser library still has to be copied into this career |
-| `mark_legacy_tactics_imported` | - | - | Record that it has been copied in; it never is again |
+| `mark_legacy_tactics_imported` | careerToken | - | Record that it has been copied in; it never is again |
 | `get_tactics_blueprint_status` | — | `{ modified }` | Whether the user's phase dials differ from the blueprint their play style implies (`blueprint_for`); feeds the Tactics unsaved-changes badge |
 | `set_training` | focus, intensity | `Game` | Set training focus and intensity |
 | `set_training_schedule` | schedule | `Game` | Set weekly training schedule |

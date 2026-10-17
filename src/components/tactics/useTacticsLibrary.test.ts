@@ -432,7 +432,10 @@ describe("useTacticsLibrary deleting and the old browser library", () => {
     act(() => result.current.handleDeleteTactic());
 
     await waitFor(() => expect(callsTo("delete_custom_tactic")).toHaveLength(1));
-    expect(mockedInvoke).toHaveBeenCalledWith("delete_custom_tactic", { id: "custom:mine" });
+    expect(mockedInvoke).toHaveBeenCalledWith("delete_custom_tactic", {
+      id: "custom:mine",
+      careerToken: 0,
+    });
     expect(customIds(result)).toEqual([]);
     expect(result.current.activeTactic.id).not.toBe("custom:mine");
     expect(result.current.activeTactic.formation).toBe("4-4-2");
@@ -456,5 +459,29 @@ describe("useTacticsLibrary deleting and the old browser library", () => {
     act(() => result.current.handleDeleteTactic());
 
     expect(callsTo("delete_custom_tactic")).toHaveLength(0);
+  });
+
+  /**
+   * Given a game installed as career 42
+   * When a tactic is made, and the old library is copied in and marked
+   * Then every write carries 42, so the backend can refuse it if another career is active.
+   */
+  it("hands the game's career token back with every write", async () => {
+    localStorage.setItem(OLD_KEY, JSON.stringify([oldTactic]));
+    backendWith([], true);
+    const game = { ...careerGame, career_token: 42 } as unknown as GameStateData;
+
+    const { result } = renderLibrary(game);
+    await waitFor(() => expect(callsTo("mark_legacy_tactics_imported")).toHaveLength(1));
+    act(() => result.current.handleCreateCustomTactic());
+    await waitFor(() => expect(callsTo("save_custom_tactic").length).toBeGreaterThan(1));
+
+    for (const [, args] of [
+      ...callsTo("save_custom_tactic"),
+      ...callsTo("mark_legacy_tactics_imported"),
+    ]) {
+      expect(args).toMatchObject({ careerToken: 42 });
+    }
+    localStorage.clear();
   });
 });

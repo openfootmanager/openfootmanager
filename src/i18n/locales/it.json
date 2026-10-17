@@ -2646,6 +2646,7 @@
         "wouldLeaveSeniorsShort": "Questo giocatore non può partire: il club resterebbe con meno di {{floor}} giocatori in prima squadra, il minimo che un club deve mantenere."
       },
       "noActiveGameSession": "Nessuna partita attiva",
+      "careerChanged": "La carriera è cambiata prima che fosse possibile salvare.",
       "noActiveSaveSession": "Nessuna sessione di salvataggio attiva",
       "saveNotFound": "Salvataggio '{{saveId}}' non trovato.",
       "teamNotFound": "Squadra non trovata",
