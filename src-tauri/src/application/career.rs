@@ -28,6 +28,21 @@ pub(crate) fn install_career(
     career_token
 }
 
+/// [`install_career`] for a game that goes to the screen straight away (a new game, a chosen
+/// club): returns the game as the screen must hold it, carrying the installed career's token.
+/// A screen holding the unstamped game would send token 0 with every tactics write and have each
+/// refused as another career's.
+pub(crate) fn install_career_for_screen(
+    state: &StateManager,
+    game: Game,
+    stats: StatsState,
+    save_id: Option<String>,
+) -> Game {
+    let mut shown = game.clone();
+    shown.career_token = install_career(state, game, stats, save_id);
+    shown
+}
+
 /// The active game together with the save it belongs to, read under the career lock
 /// `install_career` holds. Both come from one career: a load or a new game installed meanwhile
 /// cannot hand back one career's game with another's save id.
