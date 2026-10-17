@@ -881,17 +881,71 @@ mod tests {
             .is_none());
     }
 
+    /// Given an active squad, when its contract is previewed, then club and player data remain unchanged.
+    #[test]
+    fn termination_preview_does_not_mutate_club_or_player() {
+        let state = StateManager::new();
+        state.set_game(make_squad_game());
+
+        let snapshot = |state: &StateManager| {
+            state
+                .get_game(|game| {
+                    let team = game
+                        .teams
+                        .iter()
+                        .find(|team| team.id == "team-1")
+                        .expect("team should exist");
+                    let player = game
+                        .players
+                        .iter()
+                        .find(|player| player.id == "player-1")
+                        .expect("player should exist");
+                    (
+                        serde_json::to_value(team).expect("team snapshot should serialize"),
+                        serde_json::to_value(player).expect("player snapshot should serialize"),
+                    )
+                })
+                .expect("active game should exist")
+        };
+
+        let before = snapshot(&state);
+        preview_contract_termination_internal(&state, "player-1").expect("preview response");
+
+        assert_eq!(snapshot(&state), before);
+    }
+
+    /// Given a valid preview, when terminated, then club cash drops by the previewed severance.
     #[test]
     fn terminate_contract_now_internal_returns_updated_game() {
         let state = StateManager::new();
         state.set_game(make_squad_game());
 
+        let cash_before = state
+            .get_game(|game| {
+                game.teams
+                    .iter()
+                    .find(|team| team.id == "team-1")
+                    .expect("team should exist")
+                    .finance
+            })
+            .expect("active game should exist");
         let preview =
             preview_contract_termination_internal(&state, "player-1").expect("preview response");
         assert!(preview.preview.squad_safety.can_field_matchday_squad);
 
         let response =
             terminate_contract_now_internal(&state, "player-1").expect("termination response");
+        let cash_after = state
+            .get_game(|game| {
+                game.teams
+                    .iter()
+                    .find(|team| team.id == "team-1")
+                    .expect("team should exist")
+                    .finance
+            })
+            .expect("active game should exist");
+        assert_eq!(cash_before - cash_after, preview.preview.severance_cost);
+        assert_eq!(response.severance_cost, preview.preview.severance_cost);
         assert_eq!(response.severance_cost, 132_000);
         assert!(response.squad_safety.can_field_matchday_squad);
         let player = response
