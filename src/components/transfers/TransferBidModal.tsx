@@ -71,7 +71,7 @@ export function TransferBidForm({
   onSubmit,
   onClose,
 }: TransferBidFormProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const titleId = `transfer-bid-modal-title-${bidTarget.id}`;
   // A player with an agreed deal awaiting registration is off the market — the
   // engine refuses a new bid. Surface it here so reaching this form from a
@@ -133,7 +133,7 @@ export function TransferBidForm({
       ) : null}
       {talksResumeOn ? (
         <p role="status" className="text-xs text-amber-700 dark:text-amber-200 mb-3">
-          {t("transfers.talksResumeOn", { date: formatDateFull(talksResumeOn) })}
+          {t("transfers.talksResumeOn", { date: formatDateFull(talksResumeOn, i18n.language) })}
         </p>
       ) : (
         <>
