@@ -202,23 +202,47 @@ export function phaseLabel(phase: string, t?: TranslateFn): string {
   return t ? t(`match.phases.${phase}`, { defaultValue: fallbackLabel }) : fallbackLabel;
 }
 
+/** Which fixture a match screen was opened for, as its route names it. */
+export interface MatchRoute {
+  competitionId?: string;
+  fixtureId?: string;
+}
+
+/**
+ * The fixture the user played. The route's competition and fixture ids identify it, and it is
+ * looked up across every competition: a cup tie lives in its own competition and never in the
+ * league mirror, and the backend's fixture index counts the user's competition, so indexing the
+ * league would land on a match between other clubs. Without ids (a route that carries none) the
+ * fixture is the one between the snapshot's two clubs.
+ */
 export function resolveMatchFixture(
   gameState: GameStateData | null,
   snapshot: MatchSnapshot | null,
-  fixtureIndex?: number,
+  route?: MatchRoute,
 ): FixtureData | null {
-  const fixtures = gameState?.league?.fixtures;
-  if (!fixtures || !snapshot) return null;
+  if (!gameState || !snapshot) return null;
 
-  if (typeof fixtureIndex === "number" && fixtureIndex >= 0 && fixtureIndex < fixtures.length) {
-    return fixtures[fixtureIndex];
+  const competitions = [
+    ...(gameState.competitions ?? []),
+    ...(gameState.league ? [gameState.league] : []),
+  ];
+
+  if (route?.competitionId && route.fixtureId) {
+    return (
+      competitions
+        .filter((competition) => competition.id === route.competitionId)
+        .flatMap((competition) => competition.fixtures)
+        .find((fixture) => fixture.id === route.fixtureId) ?? null
+    );
   }
 
   return (
-    fixtures.find(
-      (fixture) =>
-        fixture.home_team_id === snapshot.home_team.id &&
-        fixture.away_team_id === snapshot.away_team.id,
-    ) || null
+    competitions
+      .flatMap((competition) => competition.fixtures)
+      .find(
+        (fixture) =>
+          fixture.home_team_id === snapshot.home_team.id &&
+          fixture.away_team_id === snapshot.away_team.id,
+      ) ?? null
   );
 }
