@@ -101,7 +101,9 @@ reasons listed under `errors.bundle`.
 
 - It must be a readable ZIP of **at most 100 entries**, expanding to **at most 150 MiB
   (157,286,400 bytes)** in total. The bytes actually read are what's measured, not the declared sizes.
-- File extensions must be one of `.log`, `.txt`, `.json`, `.db`. Directories are allowed.
+- File extensions must be one of `.log`, `.txt`, `.json`, `.md`, `.db`. Directories are allowed.
+  The game's bundle always contains `report.md` (the player's report, as Markdown), so the hub **must**
+  accept `.md`; a hub that does not answers every upload with 422 `invalid`.
 - No absolute paths, backslashes, NUL bytes or empty path segments. No segment may **start with a
   dot**, which rules out `..` as well as hidden files like `.DS_Store`. Windows-reserved names are
   refused too. No case-insensitive duplicates.
