@@ -270,23 +270,37 @@ pub struct Fixture {
     pub postponement: Option<Postponement>,
 }
 
-/// Written by hand, not derived, to add `competitive` to what the screens receive: the answer is
-/// computed from `competition`, never stored, and is ignored on the way back in (a saved fixture
-/// loads with or without it).
+/// Written by hand, not derived, to add `competitive` to what the screens receive. The answer is
+/// computed from `competition`, not a field; but every serializer of a fixture, including the
+/// save's JSON, writes it, and `Deserialize` ignores it on the way back in (a saved fixture loads
+/// with or without it). The destructuring below makes a new `Fixture` field a compile error here,
+/// so it cannot be dropped from every save unnoticed.
 impl Serialize for Fixture {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
+        let Fixture {
+            id,
+            competition_id,
+            matchday,
+            date,
+            home_team_id,
+            away_team_id,
+            competition,
+            status,
+            result,
+            postponement,
+        } = self;
         let mut fixture = serializer.serialize_struct("Fixture", 11)?;
-        fixture.serialize_field("id", &self.id)?;
-        fixture.serialize_field("competition_id", &self.competition_id)?;
-        fixture.serialize_field("matchday", &self.matchday)?;
-        fixture.serialize_field("date", &self.date)?;
-        fixture.serialize_field("home_team_id", &self.home_team_id)?;
-        fixture.serialize_field("away_team_id", &self.away_team_id)?;
-        fixture.serialize_field("competition", &self.competition)?;
-        fixture.serialize_field("status", &self.status)?;
-        fixture.serialize_field("result", &self.result)?;
-        fixture.serialize_field("postponement", &self.postponement)?;
+        fixture.serialize_field("id", id)?;
+        fixture.serialize_field("competition_id", competition_id)?;
+        fixture.serialize_field("matchday", matchday)?;
+        fixture.serialize_field("date", date)?;
+        fixture.serialize_field("home_team_id", home_team_id)?;
+        fixture.serialize_field("away_team_id", away_team_id)?;
+        fixture.serialize_field("competition", competition)?;
+        fixture.serialize_field("status", status)?;
+        fixture.serialize_field("result", result)?;
+        fixture.serialize_field("postponement", postponement)?;
         fixture.serialize_field("competitive", &self.is_competitive())?;
         fixture.end()
     }
