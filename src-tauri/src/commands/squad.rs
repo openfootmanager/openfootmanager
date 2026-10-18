@@ -1404,7 +1404,8 @@ mod tests {
 
     /// Given the command that names every rating's tier,
     /// When it is asked for,
-    /// Then it is the backend's table: a 76 is the rest, a 77 an A, a 81 an S, and it needs no game.
+    /// Then it is the backend's table: a 69 is the rest, a 70 and a 76 are B, a 77 an A, an 81 an S,
+    ///      and it needs no game.
     #[test]
     fn get_rating_tiers_is_the_backends_table() {
         use ofm_core::player_tier::PlayerTier;
@@ -1412,7 +1413,9 @@ mod tests {
         let tiers = get_rating_tiers();
 
         assert_eq!(tiers.len(), 100);
-        assert_eq!(tiers[76], PlayerTier::Rest);
+        assert_eq!(tiers[69], PlayerTier::Rest);
+        assert_eq!(tiers[70], PlayerTier::B);
+        assert_eq!(tiers[76], PlayerTier::B);
         assert_eq!(tiers[77], PlayerTier::A);
         assert_eq!(tiers[81], PlayerTier::S);
     }

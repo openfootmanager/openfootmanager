@@ -89,7 +89,9 @@ pub fn ageing_report(previous: &Snapshot, players: &[Player], on: NaiveDate) -> 
         aged_33_plus_a_or_s_share: share(
             aged.iter()
                 .filter(|(_, age)| *age >= 33)
-                .filter(|(player, _)| player_tier(player.ovr) != PlayerTier::Rest)
+                .filter(|(player, _)| {
+                    matches!(player_tier(player.ovr), PlayerTier::S | PlayerTier::A)
+                })
                 .count(),
             aged.iter().filter(|(_, age)| *age >= 33).count(),
         ),
@@ -318,9 +320,10 @@ mod tests {
         assert!(report.bands.iter().all(|b| b.players == 0));
     }
 
-    /// Given four players aged 33 or more, one rated S and three ordinary (and a star of 25),
+    /// Given four players aged 33 or more, one rated S, one a B-tier 74 and two ordinary (and a
+    ///       star of 25),
     /// When the season is reported,
-    /// Then a quarter of the 33+ are still A or S: not the three quarters who are not.
+    /// Then a quarter of the 33+ are still A or S: the B tier does not count.
     #[test]
     fn the_share_of_the_old_who_are_still_a_or_s_is_reported() {
         let players = [

@@ -9,23 +9,30 @@
 pub const S_TIER_MIN_RATING: u8 = 81;
 /// Lowest rating of an A-tier player.
 pub const A_TIER_MIN_RATING: u8 = 77;
+/// Lowest rating of a B-tier player: a solid first-team level, below the elite tiers. Unlike S and
+/// A, it is not cut from the measured distribution; it is the maintainer's line for what the
+/// screens call good.
+pub const B_TIER_MIN_RATING: u8 = 70;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum PlayerTier {
     S,
     A,
-    /// Everyone below A: the game names no lower tier.
+    B,
+    /// Everyone below B: the game names no lower tier.
     Rest,
 }
 
 /// The tier a 1-99 rating falls in: `S` from `S_TIER_MIN_RATING` (81) up, `A` from
-/// `A_TIER_MIN_RATING` (77) to one below that, and `Rest` for everything lower. Works on `ovr` and
-/// on `potential` alike.
+/// `A_TIER_MIN_RATING` (77) to one below that, `B` from `B_TIER_MIN_RATING` (70) to one below A,
+/// and `Rest` for everything lower. Works on `ovr` and on `potential` alike.
 pub fn player_tier(rating: u8) -> PlayerTier {
     if rating >= S_TIER_MIN_RATING {
         PlayerTier::S
     } else if rating >= A_TIER_MIN_RATING {
         PlayerTier::A
+    } else if rating >= B_TIER_MIN_RATING {
+        PlayerTier::B
     } else {
         PlayerTier::Rest
     }
@@ -48,11 +55,18 @@ mod tests {
         assert_eq!(player_tier(S_TIER_MIN_RATING - 1), PlayerTier::A);
     }
 
-    /// Given the lowest A rating, when it is tiered, then it is A; one less is the rest.
+    /// Given the lowest A rating, when it is tiered, then it is A; one less is B.
     #[test]
-    fn the_lowest_a_rating_is_a_and_one_less_is_the_rest() {
+    fn the_lowest_a_rating_is_a_and_one_less_is_b() {
         assert_eq!(player_tier(A_TIER_MIN_RATING), PlayerTier::A);
-        assert_eq!(player_tier(A_TIER_MIN_RATING - 1), PlayerTier::Rest);
+        assert_eq!(player_tier(A_TIER_MIN_RATING - 1), PlayerTier::B);
+    }
+
+    /// Given the lowest B rating, when it is tiered, then it is B; one less is the rest.
+    #[test]
+    fn the_lowest_b_rating_is_b_and_one_less_is_the_rest() {
+        assert_eq!(player_tier(B_TIER_MIN_RATING), PlayerTier::B);
+        assert_eq!(player_tier(B_TIER_MIN_RATING - 1), PlayerTier::Rest);
     }
 
     /// Given the table of every rating's tier,
@@ -63,7 +77,9 @@ mod tests {
         let table = rating_tiers();
 
         assert_eq!(table.len(), 100);
-        assert_eq!(table[76], PlayerTier::Rest);
+        assert_eq!(table[69], PlayerTier::Rest);
+        assert_eq!(table[70], PlayerTier::B);
+        assert_eq!(table[76], PlayerTier::B);
         assert_eq!(table[77], PlayerTier::A);
         assert_eq!(table[80], PlayerTier::A);
         assert_eq!(table[81], PlayerTier::S);
