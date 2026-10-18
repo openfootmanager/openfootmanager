@@ -29,8 +29,15 @@ impl MatchdayLookups {
     }
 
     /// Where the club's players stand in `game.players`, ascending; empty for a club with none.
-    pub(crate) fn club(&self, team_id: &str) -> &[usize] {
-        self.club_positions.get(team_id).map_or(&[], Vec::as_slice)
+    /// In a debug build, a group left stale by a player changing club without [`Self::players_moved`]
+    /// is refused here.
+    pub(crate) fn club(&self, game: &Game, team_id: &str) -> &[usize] {
+        let group = self
+            .club_positions
+            .get(team_id)
+            .map_or(&[][..], Vec::as_slice);
+        crate::match_day_eligibility::debug_assert_group_is_current(&game.players, team_id, group);
+        group
     }
 
     /// Call after a match is applied: an applied match can add fixtures (a knockout round's
@@ -57,4 +64,45 @@ fn fixtures_in_play(game: &Game) -> usize {
         .chain(game.league.iter())
         .map(|competition| competition.fixtures.len())
         .sum()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn world_of_two_clubs() -> Game {
+        let mut game = crate::turn::squad::match_day_pool_tests::match_day_game(false, 3, 0);
+        let mut visitor = game.players[0].clone();
+        visitor.id = "visitor".to_string();
+        visitor.team_id = Some("away".to_string());
+        game.players.push(visitor);
+        game
+    }
+
+    /// Given lookups found before a player changed club and told so afterwards,
+    /// When the clubs are read, Then each club's group is where its players stand now.
+    #[test]
+    fn lookups_told_a_player_moved_read_the_current_clubs() {
+        let mut game = world_of_two_clubs();
+        let mut lookups = MatchdayLookups::of(&game);
+        game.players[0].team_id = Some("away".to_string());
+
+        lookups.players_moved(&game);
+
+        assert_eq!(lookups.club(&game, "club"), [1, 2]);
+        assert_eq!(lookups.club(&game, "away"), [0, 3]);
+    }
+
+    /// Given lookups found before a player changed club and never told,
+    /// When a club is read, Then a debug build refuses the stale group.
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "stale")]
+    fn lookups_not_told_a_player_moved_are_refused() {
+        let mut game = world_of_two_clubs();
+        let lookups = MatchdayLookups::of(&game);
+        game.players[0].team_id = Some("away".to_string());
+
+        lookups.club(&game, "club");
+    }
 }
