@@ -1,3 +1,4 @@
+import { useSquadFitness } from "../hooks/useSquadFitness";
 import { routeForActiveCareer } from "../services/careerService";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyExtraTranslations } from "../lib/extraTranslations";
@@ -131,6 +132,7 @@ export default function Dashboard(): JSX.Element {
   const [squadListSortState, setSquadListSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
   );
+  const squadFitness = useSquadFitness(gameState);
   const [financeVerdict, setFinanceVerdict] = useState<{
     teamId: string;
     snapshot: TeamFinanceSnapshotData;
@@ -519,7 +521,13 @@ export default function Dashboard(): JSX.Element {
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const currentFinanceVerdict =
     financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
-  const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t, currentFinanceVerdict);
+  const dashboardAlerts = getDashboardAlerts(
+    gameState,
+    hasMatchToday,
+    t,
+    currentFinanceVerdict,
+    squadFitness,
+  );
   const hasProfileHistory = hasDashboardProfileHistory(profileNavigation);
   const activeTabLabel = TAB_TRANSLATION_KEYS[profileNavigation.activeTab]
     ? t(TAB_TRANSLATION_KEYS[profileNavigation.activeTab])

@@ -7,6 +7,21 @@ export async function getSquad(teamId: string): Promise<PlayerData[]> {
   return invoke<PlayerData[]>("get_squad", { teamId });
 }
 
+/** How fit the squad is, as the staff's warnings read it: healthy first-team players only. */
+export interface SquadFitness {
+  players: number;
+  average_condition: number;
+  /** Players below 40. */
+  exhausted_count: number;
+  /** Players below 25. */
+  critical_count: number;
+}
+
+/** The user's squad fitness; null when no first-team player is fit to be counted. */
+export async function getSquadFitness(): Promise<SquadFitness | null> {
+  return invoke<SquadFitness | null>("get_squad_fitness");
+}
+
 /** The takers the match would use for these players when none are assigned, as the backend picks them. */
 export interface AutoSetPieces {
   captain: string | null;

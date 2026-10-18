@@ -1,3 +1,4 @@
+import { useSquadFitness } from "../../hooks/useSquadFitness";
 import { useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -95,6 +96,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
     sessionState ?? gameState,
   );
   const focusAttributes = useTrainingFocusAttributes();
+  const fitness = useSquadFitness(sessionState ?? gameState);
 
   const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
 
@@ -109,16 +111,14 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
   const allSquadPlayers =
     fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
   const roster = allSquadPlayers.filter(isFirstTeamSquadPlayer);
-  const avgCondition =
-    roster.length > 0
-      ? Math.round(roster.reduce((sum, player) => sum + player.condition, 0) / roster.length)
-      : 0;
+  // Fitness is the backend's: injured players are not in the squad that can play.
+  const avgCondition = Math.round(fitness?.average_condition ?? 0);
   const avgMorale =
     roster.length > 0
       ? Math.round(roster.reduce((sum, player) => sum + player.morale, 0) / roster.length)
       : 0;
-  const exhaustedCount = roster.filter((player) => player.condition < 40).length;
-  const criticalCount = roster.filter((player) => player.condition < 25).length;
+  const exhaustedCount = fitness?.exhausted_count ?? 0;
+  const criticalCount = fitness?.critical_count ?? 0;
 
   const todayWeekday = getWeekdayFromDate(clockDate);
   const trainingDays = SCHEDULE_TRAINING_DAYS[currentSchedule] || SCHEDULE_TRAINING_DAYS.Balanced;
