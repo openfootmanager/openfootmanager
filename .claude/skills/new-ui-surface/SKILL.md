@@ -38,20 +38,25 @@ projected into the UI rather than recomputed here.
 
 ## 2. Design tokens
 
-Colours and fonts come from the `@theme` block in `src/App.css`. Nothing else defines them.
+Colours, type sizes and layout sizes come from the `@theme` block in `src/App.css`. Nothing else
+defines them. The full table and rules are in `src/CLAUDE.md` §2.
 
 | Use | Token |
 |---|---|
-| Primary action, positive state | `primary-500…900` (emerald) |
-| Highlight, award, emphasis | `accent-400` (`#ffd60a` gold), `accent-500…900` |
-| Success | `success-400/500/600` |
-| Dark surfaces | `navy-900` (deepest) → `navy-800` → `navy-700` → `navy-600` |
-| Headings | `font-heading` (Barlow Condensed), usually `uppercase tracking-wider` |
+| Surfaces | `bg-page` (workspace), `bg-panel` (cards, tables, dialogs), `bg-sunken` (insets), `bg-hover` |
+| Text and lines | `text-fg`, `text-fg-muted`, `text-fg-subtle`, `border-line`, `text-on-brand` on the brand fill, chrome or turf (never on a `-solid`) |
+| Status | `positive`, `warning`, `danger`, `info`, each with `-tint` and `-solid` |
+| Rated values | `tone-top/good/fair/low/bad`; the backend picks the tone |
+| Type | `text-caption` 12 · `text-body` 14 · `text-lead` 16 · `text-heading` 18 · `text-title` 24 · `text-display` 32 |
+| Rows and headers | `h-row`, `h-panel-header`, `h-toolbar` (they shrink under compact density) |
+| Brand moments | `primary-*` (emerald), `accent-*` (gold), `navy-*` |
+| Headings | `font-heading` (Barlow Condensed), `uppercase tracking-label`, `text-heading` or larger |
 | Body | `font-sans` (Inter) |
 
-- **Never** a hex literal or an arbitrary value (`bg-[#10b981]`) in a component.
-- **Every** colour class needs its `dark:` partner. Light and dark both ship.
-- Light surfaces are `white` / `gray-100`; their dark counterparts are `navy-800` / `navy-900`.
+- **Never** a hex literal or an arbitrary value (`bg-[#10b981]`, `text-[10px]`) in a component.
+- **Role tokens switch with the theme by themselves**, so they need no `dark:` partner. Don't use
+  the raw palette (`gray-500`, `red-400`, `white`) in new code.
+- Nothing under `text-caption` (12px). Uppercase only for headings, buttons, badges and tabs.
 
 `src/components/ui/Button.tsx` is the reference for how variants, sizes, and states are composed —
 read it before inventing a new pattern.
@@ -60,9 +65,8 @@ read it before inventing a new pattern.
 
 Not optional, and cheap if done while writing rather than after.
 
-- **Focus is visible.** Every interactive element: `focus:outline-none focus:ring-2
-  focus:ring-offset-2 focus:ring-<token>` plus `dark:focus:ring-offset-navy-800`. Removing an
-  outline without replacing it is a bug.
+- **Focus is visible.** Every interactive element: `focus:outline-none focus:ring-2 focus:ring-focus
+  focus:ring-offset-2 focus:ring-offset-page`. Removing an outline without replacing it is a bug.
 - **Semantic elements.** `<button>` for actions, `<a>` for navigation, `<table>` for tabular data,
   headings in order. A `div` with `onClick` is not keyboard reachable.
 - **Icon-only controls get an accessible name** — `aria-label={t("…")}`, a translated string.
@@ -127,8 +131,8 @@ npm exec --no -- tsc --noEmit
 ## Checklist
 
 - [ ] Searched `src/components/ui/index.ts`, `src/lib/`, `src/hooks/` before writing anything new
-- [ ] Token classes only — no hex literals, no arbitrary values
-- [ ] Every colour class has a `dark:` partner; checked in both themes
+- [ ] Role tokens only: no hex literals, no arbitrary values, no raw palette, nothing under 12px
+- [ ] Checked in both themes, at 960×640 and 1280×800
 - [ ] Visible focus ring on every interactive element
 - [ ] Semantic elements; icon-only controls have translated `aria-label`s
 - [ ] All strings routed through `/add-ui-string` (every locale)
