@@ -8,9 +8,10 @@ use std::collections::BTreeSet;
 
 use domain::league::FixtureStatus;
 use domain::message::InboxMessage;
+use domain::player::{Player, Position, SquadRole};
 use ofm_core::end_of_season::EndOfSeasonSummary;
 use ofm_core::game::Game;
-use ofm_core::squad_floor::{can_put_a_side_out, squad_shortfall};
+use ofm_core::squad_floor::{Shortage, can_put_a_side_out, squad_shortfall};
 use ofm_core::world_cup::{is_world_cup_competition, world_cup_champion};
 use season_harness::calendar::{reloaded, unplayed_clashes};
 use season_harness::driver::{RunOptions, SeasonObserver, run_seasons};
@@ -61,13 +62,18 @@ impl SeasonObserver for SquadFloorWatch {
     }
 }
 
-/// The rule for the player's own club, which the game never signs for: it is warned when it goes
-/// below the floor and again whenever its shortfall changes (never a repeat for an unchanged one,
-/// so the inbox is not flooded), and at kick-off it can still put a side out (the kick-off gate
-/// tops it up only when it cannot).
+/// The rule for the player's own club, which the game never signs for: it is warned when a
+/// shortage enters and again when one gets worse (never a repeat for a shortage that has not
+/// changed, so the inbox is not flooded, and no warning for one that merely leaves: the
+/// maintainer's rule of 12 Oct 2026), and at kick-off it can still put a side out (the kick-off
+/// gate tops it up only when it cannot).
 #[derive(Default)]
 struct PlayerClubWatch {
-    shortfall: String,
+    /// The shortages the club had at the last day end, each with how many seniors it has where it
+    /// is short: the same pair the game keeps a warning marker for.
+    known: BTreeSet<String>,
+    /// What entered or got worse on `changed_on`, still owed a warning.
+    owed: String,
     changed_on: String,
     reported: bool,
     /// A change in the shortfall that was never warned about (#787).
@@ -78,6 +84,19 @@ struct PlayerClubWatch {
 
 const SQUAD_WARNING_KEY: &str = "be.msg.squadBelowFloor";
 
+/// How many seniors the club has where it is short: in the group, or in all.
+fn seniors_in(game: &Game, club: &str, shortage: &Shortage) -> usize {
+    game.players
+        .iter()
+        .filter(|player| player.team_id.as_deref() == Some(club))
+        .filter(|player| player.squad_role == SquadRole::Senior)
+        .filter(|player| match shortage {
+            Shortage::Group(group) => player.position.to_group_position() == *group,
+            Shortage::Seniors => true,
+        })
+        .count()
+}
+
 fn is_squad_warning(message: &InboxMessage) -> bool {
     message
         .body_key
@@ -87,18 +106,26 @@ fn is_squad_warning(message: &InboxMessage) -> bool {
 
 impl PlayerClubWatch {
     fn check_warning(&mut self, game: &Game, club: &str, today: &str, season: u32, day: u32) {
-        let shortfall = squad_shortfall(game, club);
-        let described = if shortfall.is_empty() {
-            String::new()
-        } else {
-            format!("{shortfall:?}")
-        };
-        if described != self.shortfall {
-            self.shortfall = described;
+        let now: BTreeSet<String> = squad_shortfall(game, club)
+            .iter()
+            .map(|(shortage, _)| {
+                format!(
+                    "{shortage:?} with {} seniors",
+                    seniors_in(game, club, shortage)
+                )
+            })
+            .collect();
+        let entered: Vec<String> = now.difference(&self.known).cloned().collect();
+        if !entered.is_empty() {
+            self.owed = entered.join(", ");
             self.changed_on = today.to_string();
             self.reported = false;
         }
-        if shortfall.is_empty() || self.reported {
+        self.known = now;
+        if self.known.is_empty() {
+            self.owed.clear();
+        }
+        if self.owed.is_empty() || self.reported {
             return;
         }
         // The daily check that warns runs after the day that changed the squad, so a change gets
@@ -116,8 +143,8 @@ impl PlayerClubWatch {
                 .unwrap_or("never");
             self.reported = true;
             self.unwarned.push(format!(
-                "[season {season} day {day}] {club}'s shortfall changed on {} to {} and was not warned about (last warning: {last_warning})",
-                self.changed_on, self.shortfall
+                "[season {season} day {day}] {club}'s shortfall changed on {}: {} entered or got worse and was not warned about (last warning: {last_warning})",
+                self.changed_on, self.owed
             ));
         }
     }
@@ -209,6 +236,115 @@ fn the_player_club_below_the_floor_must_have_been_warned() {
     game.clock.advance_days(1);
     warned.on_day_end(&game, 1, 2);
     assert!(warned.unwarned.is_empty(), "{:?}", warned.unwarned);
+}
+
+/// Takes every senior of the club in `group` out of the world and returns them, so they can come
+/// back; `keep` of them stay.
+fn take_out(game: &mut Game, club: &str, group: Position, keep: usize) -> Vec<Player> {
+    let mut kept = 0;
+    let mut taken = Vec::new();
+    let mut staying = Vec::new();
+    for player in std::mem::take(&mut game.players) {
+        let in_group = player.team_id.as_deref() == Some(club)
+            && player.squad_role == SquadRole::Senior
+            && player.position.to_group_position() == group;
+        if in_group && kept < keep {
+            kept += 1;
+            staying.push(player);
+        } else if in_group {
+            taken.push(player);
+        } else {
+            staying.push(player);
+        }
+    }
+    game.players = staying;
+    taken
+}
+
+/// Runs the watch over `days` further days, ending each at the clock's next day as the driver does.
+fn watch_days(watch: &mut PlayerClubWatch, game: &mut Game, days: u32) {
+    for day in 0..days {
+        watch.on_day_end(game, 1, day + 1);
+        game.clock.advance_days(1);
+    }
+}
+
+fn warn_about_every_shortage(game: &mut Game) {
+    let warning = a_warning_for(game);
+    game.messages.push(warning);
+}
+
+/// Given the player's club short in defence and in attack, warned about both,
+/// When the defence is filled and the attack gap stays as it was,
+/// Then nothing is owed: the game warns when a shortage enters or gets worse, not when one leaves
+///      (the maintainer's rule of 12 Oct 2026). This is the 4 Jul 2037 case of the red nightly.
+#[test]
+#[ignore = "nightly tier"]
+fn a_shortage_that_leaves_while_another_stays_is_not_news() {
+    let mut game = WorldSpec::gate(1).build().expect("the world builds");
+    let club = players_club(&game);
+    take_out(&mut game, &club, Position::Forward, 1);
+    let defenders = take_out(&mut game, &club, Position::Defender, 0);
+    let mut watch = PlayerClubWatch::default();
+    game.clock.advance_days(1);
+    warn_about_every_shortage(&mut game);
+    watch_days(&mut watch, &mut game, 2);
+
+    game.players.extend(defenders);
+    assert!(
+        squad_shortfall(&game, &club)
+            .iter()
+            .all(|(shortage, _)| *shortage == Shortage::Group(Position::Forward)),
+        "the defence is filled and only the forwards are short: {:?}",
+        squad_shortfall(&game, &club)
+    );
+    watch_days(&mut watch, &mut game, 3);
+
+    assert!(watch.unwarned.is_empty(), "{:?}", watch.unwarned);
+}
+
+/// Given the player's club one forward short and warned about it,
+/// When it loses its last forward and nothing is sent,
+/// Then the watch reports it: a shortage that gets worse is news.
+#[test]
+#[ignore = "nightly tier"]
+fn a_shortage_that_gets_worse_is_news() {
+    let mut game = WorldSpec::gate(1).build().expect("the world builds");
+    let club = players_club(&game);
+    take_out(&mut game, &club, Position::Forward, 1);
+    let mut watch = PlayerClubWatch::default();
+    game.clock.advance_days(1);
+    warn_about_every_shortage(&mut game);
+    watch_days(&mut watch, &mut game, 2);
+    assert!(watch.unwarned.is_empty(), "{:?}", watch.unwarned);
+
+    take_out(&mut game, &club, Position::Forward, 0);
+    watch_days(&mut watch, &mut game, 3);
+
+    assert_eq!(watch.unwarned.len(), 1, "{:?}", watch.unwarned);
+}
+
+/// Given the player's club short in defence and one forward short, warned about both,
+/// When the defence is filled while the club loses its last forward, and nothing is sent,
+/// Then the watch still reports it: one shortage leaving does not hide another getting worse.
+#[test]
+#[ignore = "nightly tier"]
+fn a_shortage_getting_worse_is_news_even_while_another_leaves() {
+    let mut game = WorldSpec::gate(1).build().expect("the world builds");
+    let club = players_club(&game);
+    take_out(&mut game, &club, Position::Forward, 1);
+    let defenders = take_out(&mut game, &club, Position::Defender, 0);
+    let mut watch = PlayerClubWatch::default();
+    game.clock.advance_days(1);
+    warn_about_every_shortage(&mut game);
+    watch_days(&mut watch, &mut game, 2);
+    assert!(watch.unwarned.is_empty(), "{:?}", watch.unwarned);
+
+    game.players.extend(defenders);
+    take_out(&mut game, &club, Position::Forward, 0);
+    watch_days(&mut watch, &mut game, 3);
+
+    assert_eq!(watch.unwarned.len(), 1, "{:?}", watch.unwarned);
 }
 
 /// Given the player's club has only ten seniors and a fixture today that is completed,
