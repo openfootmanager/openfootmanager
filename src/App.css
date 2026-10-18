@@ -133,8 +133,9 @@
   --spacing-panel-header: 2.5rem;
   --spacing-toolbar: 3rem;
   --container-page: 80rem;
-  /* Two-panel breakpoint for container queries. Chosen at a 20px root: it fires in the 655px
-     workspace of a 960px window at normal scale and stacks at xlarge. */
+  /* Two-panel breakpoint for container queries. A container query's rem follows ui_scale, so in a
+     960px window: at normal scale (16px root) 36rem = 576px fits the 655px workspace and two
+     panels show; at xlarge (20px root) 36rem = 720px exceeds the 579px workspace and they stack. */
   --container-split: 36rem;
 }
 
