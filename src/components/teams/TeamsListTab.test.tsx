@@ -13,7 +13,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, fallback?: string | { defaultValue?: string }) => {
+    t: (key: string, options?: string | Record<string, string | number | undefined>) => {
       const labels: Record<string, string> = {
         "teams.yourTeam": "Your Team",
         "common.position": "Position",
@@ -30,10 +30,14 @@ vi.mock("react-i18next", () => ({
         "common.playStyles.Counter": "Contra-ataque",
       };
       if (labels[key]) return labels[key];
-      if (fallback && typeof fallback === "object") {
-        return fallback.defaultValue ?? key;
+      if (key === "nations.ar") return "Argentina";
+      if (key === "tournaments.competitions.tierDivision" && typeof options === "object") {
+        return `${options.country} Division ${options.tier}`;
       }
-      return fallback ?? key;
+      if (options && typeof options === "object") {
+        return String(options.defaultValue ?? key);
+      }
+      return options ?? key;
     },
     i18n: { language: "en" },
   }),
@@ -174,6 +178,13 @@ function setupDirectoryMock(cards: TeamCard[]) {
   });
 }
 
+function setupDirectoryResponse(directory: TeamsDirectory) {
+  mockedInvoke.mockImplementation(async (cmd: string) => {
+    if (cmd !== "get_teams_directory") return undefined;
+    return directory;
+  });
+}
+
 describe("TeamsListTab", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
@@ -258,5 +269,35 @@ describe("TeamsListTab", () => {
     expect(screen.getByText(/4-4-2 — Contra-ataque/)).toBeInTheDocument();
     expect(screen.queryByText(/4-4-2 — Balanced/)).not.toBeInTheDocument();
     expect(screen.queryByText(/4-4-2 — Counter/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend returns a generic tier translation key and country metadata
+   * When the player opens the team directory
+   * Then the league heading shows its localized country and division number
+   */
+  it("renders a localized generic division name in the directory", async () => {
+    setupDirectoryResponse({
+      regions: [
+        {
+          id: "europe",
+          team_count: 1,
+          leagues: [
+            {
+              id: "league-3",
+              name: "Legacy stored name",
+              name_key: "tournaments.competitions.tierDivision",
+              country_id: "AR",
+              division_tier: 3,
+              teams: [buildCard({ id: "team-1", name: "Alpha FC", league_pos: 1 })],
+            },
+          ],
+        },
+      ],
+    });
+
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("team-1")} onSelectTeam={vi.fn()} />);
+
+    expect(await screen.findByRole("button", { name: /Argentina Division 3/ })).toBeInTheDocument();
   });
 });

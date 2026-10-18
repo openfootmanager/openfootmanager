@@ -6,17 +6,27 @@ export interface NamedCompetition {
   name_key?: string | null;
   season?: number;
   country_id?: string | null;
+  division_tier?: number | null;
+  calendar?: {
+    season?: {
+      division?: { tier?: number | null } | null;
+    } | null;
+  } | null;
 }
 
 /**
  * Display name for a competition. When a `name_key` is present it is translated
- * with the competition's season and nation interpolated, so generic templates
- * like `"{{country}} First Division"` render as "Argentina First Division".
+ * with its season, nation, and division tier interpolated, so generic templates
+ * can name arbitrarily deep domestic pyramids.
  * Falls back to the raw `name` when there is no key.
  */
 export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): string {
   if (!comp.name_key) {
     return comp.name ?? "";
+  }
+  const tier = comp.division_tier ?? comp.calendar?.season?.division?.tier;
+  if (comp.name_key.includes(".tierDivision") && tier == null) {
+    return comp.name ?? comp.name_key;
   }
   const country = comp.country_id
     ? t(`nations.${comp.country_id.toLowerCase()}`, {
@@ -30,6 +40,7 @@ export function competitionDisplayName(comp: NamedCompetition, t: TranslateFn): 
   return t(comp.name_key, {
     year: comp.season,
     country,
+    tier,
     defaultValue: comp.name ?? comp.name_key,
   }).trim();
 }

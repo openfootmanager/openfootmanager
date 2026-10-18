@@ -81,6 +81,32 @@ describe("PlayerProfileAdvancedStatsCard percentiles", () => {
   });
 
   /**
+   * Given the peer group has a generic division key, country, and tier
+   * When the percentile card renders
+   * Then it translates the tier instead of showing the stored fallback name
+   */
+  it("translates generic peer-group names with their division tier", () => {
+    render(
+      <PlayerProfileAdvancedStatsCard
+        summary={{
+          ...SUMMARY,
+          peerGroup: {
+            competitionId: "div-3",
+            competitionName: "Stored legacy division title",
+            competitionNameKey: "tournaments.competitions.tierDivision",
+            countryId: "ENG",
+            competitionDivisionTier: 3,
+            position: "Striker",
+          },
+        }}
+        t={i18n.t}
+      />,
+    );
+
+    expect(screen.getByText("Compared with: Striker in England Division 3")).toBeInTheDocument();
+  });
+
+  /**
    * Given the backend gives no peer group (a player with no league)
    * When the card renders
    * Then no group line is shown

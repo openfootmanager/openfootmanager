@@ -13,6 +13,10 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.matchday") return `Matchday ${params?.number}`;
       if (key === "match.assist") return `assist: ${params?.name}`;
       if (key === "match.subFor") return `for ${params?.name}`;
+      if (key === "nations.ar") return "Argentina";
+      if (key === "tournaments.competitions.tierDivisionClosing") {
+        return `${params?.country} Division ${params?.tier} Clausura`;
+      }
       return key;
     },
   }),
@@ -325,6 +329,41 @@ describe("RoundDigestScreen", () => {
 
     expect(screen.getByText(/Matchday 1/)).toBeInTheDocument();
     expect(screen.getByText("match.roundSummary")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the user's teams appear in both split-season phases
+   * When the digest summarizes a fixture from the closing phase
+   * Then its heading uses the closing phase's competition name
+   */
+  it("uses the split-season phase that owns the summarized round", () => {
+    const gameState = {
+      ...makeGameState(),
+      competitions: [
+        {
+          id: "opening",
+          name: "Opening League",
+          name_key: "tournaments.competitions.tierDivisionOpening",
+          country_id: "AR",
+          division_tier: 3,
+          participant_ids: ["team1"],
+          fixtures: [{ id: "opening-other" }],
+        },
+        {
+          id: "closing",
+          name: "Closing League",
+          name_key: "tournaments.competitions.tierDivisionClosing",
+          country_id: "AR",
+          division_tier: 3,
+          participant_ids: ["team1"],
+          fixtures: [{ id: "fix1" }, { id: "fix2" }],
+        },
+      ],
+    } as unknown as GameStateData;
+
+    render(<RoundDigestScreen {...defaultProps} gameState={gameState} />);
+
+    expect(screen.getByText("Matchday 1 — Argentina Division 3 Clausura")).toBeInTheDocument();
   });
 
   it("renders the hero result card with score and win badge", () => {

@@ -128,6 +128,36 @@ fn directory_groups_teams_under_their_domestic_league_and_region() {
     assert_eq!(league.teams.len(), 2);
 }
 
+/// Given a generic tier-division name key, when the team directory is queried, then its league
+/// card includes the division tier needed to localize that name.
+#[test]
+fn directory_projects_the_tier_needed_by_generic_competition_names() {
+    let team = make_team("eng1", "Alpha FC", "ENG", "London");
+    let mut league = make_domestic_league(
+        "eng-d3",
+        "England Division 3",
+        "ENG",
+        Some("UEFA"),
+        &["eng1"],
+    );
+    league.name_key = Some("tournaments.competitions.tierDivision".to_string());
+    league.calendar = Some(domain::competition_calendar::CalendarMetadata {
+        season: domain::competition_calendar::SeasonCalendar {
+            division: Some(domain::competition_calendar::DivisionIdentity {
+                tier: 3,
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let game = make_game(vec![team], vec![], vec![league]);
+
+    let directory = query_directory(&game, &empty_query());
+
+    assert_eq!(directory.regions[0].leagues[0].division_tier, Some(3));
+}
+
 #[test]
 fn cards_include_roster_stats_and_league_position() {
     let team = make_team("t1", "Alpha FC", "ENG", "London");

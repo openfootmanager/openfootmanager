@@ -771,6 +771,7 @@ fn overview_of(game: Game, player_id: &str) -> super::dto::PlayerStatsOverviewDt
 /// Given a striker in the second division, with strikers in the first division who shoot far less
 /// When his shooting percentile is read
 /// Then it is measured against strikers of his own league only, and the answer names that league
+/// and supplies the tier for localized display
 #[test]
 fn the_peer_group_is_the_players_own_league() {
     let players = vec![
@@ -787,13 +788,26 @@ fn the_peer_group_is_the_players_own_league() {
         ),
     ];
     let mut game = make_game(players);
-    game.competitions
-        .push(league("league-2", &["team-3", "team-4"]));
+    let mut second_division = league("league-2", &["team-3", "team-4"]);
+    second_division.name_key = Some("tournaments.competitions.secondDivision".to_string());
+    second_division.country_id = Some("ENG".to_string());
+    second_division.calendar = Some(domain::competition_calendar::CalendarMetadata {
+        season: domain::competition_calendar::SeasonCalendar {
+            division: Some(domain::competition_calendar::DivisionIdentity {
+                tier: 2,
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    game.competitions.push(second_division);
 
     let overview = overview_of(game, "target");
 
     let group = overview.peer_group.expect("a peer group");
     assert_eq!(group.competition_id, "league-2");
+    assert_eq!(group.competition_division_tier, Some(2));
     assert_eq!(group.position, "Striker");
     // 2 of the 3 league-2 strikers shoot no more than he does. Against the whole world it
     // would be 5 of 6.

@@ -185,23 +185,57 @@ fn split_into_divisions(sorted_team_ids: &[String], division_size: usize) -> Vec
     divisions
 }
 
-pub fn division_tier_name(tier: usize, division_count: usize) -> &'static str {
+enum DivisionTierKind {
+    League,
+    First,
+    Second,
+    Other,
+}
+
+fn division_tier_kind(tier: usize, division_count: usize) -> DivisionTierKind {
     if division_count <= 1 {
-        "League"
+        DivisionTierKind::League
     } else if tier == 0 {
-        "First Division"
+        DivisionTierKind::First
+    } else if tier == 1 {
+        DivisionTierKind::Second
     } else {
-        "Second Division"
+        DivisionTierKind::Other
+    }
+}
+
+pub fn division_tier_name(tier: usize, division_count: usize) -> String {
+    match division_tier_kind(tier, division_count) {
+        DivisionTierKind::League => "League".to_string(),
+        DivisionTierKind::First => "First Division".to_string(),
+        DivisionTierKind::Second => "Second Division".to_string(),
+        DivisionTierKind::Other => format!("Division {}", tier + 1),
     }
 }
 
 pub fn division_tier_name_key(tier: usize, division_count: usize) -> &'static str {
-    if division_count <= 1 {
-        "tournaments.competitions.league"
-    } else if tier == 0 {
-        "tournaments.competitions.firstDivision"
-    } else {
-        "tournaments.competitions.secondDivision"
+    match division_tier_kind(tier, division_count) {
+        DivisionTierKind::League => "tournaments.competitions.league",
+        DivisionTierKind::First => "tournaments.competitions.firstDivision",
+        DivisionTierKind::Second => "tournaments.competitions.secondDivision",
+        DivisionTierKind::Other => "tournaments.competitions.tierDivision",
+    }
+}
+
+pub(crate) fn division_tier_phase_name_key(
+    tier: usize,
+    division_count: usize,
+    opening: bool,
+) -> &'static str {
+    match (division_tier_kind(tier, division_count), opening) {
+        (DivisionTierKind::League, true) => "tournaments.competitions.leagueOpening",
+        (DivisionTierKind::League, false) => "tournaments.competitions.leagueClosing",
+        (DivisionTierKind::First, true) => "tournaments.competitions.firstDivisionOpening",
+        (DivisionTierKind::First, false) => "tournaments.competitions.firstDivisionClosing",
+        (DivisionTierKind::Second, true) => "tournaments.competitions.secondDivisionOpening",
+        (DivisionTierKind::Second, false) => "tournaments.competitions.secondDivisionClosing",
+        (DivisionTierKind::Other, true) => "tournaments.competitions.tierDivisionOpening",
+        (DivisionTierKind::Other, false) => "tournaments.competitions.tierDivisionClosing",
     }
 }
 

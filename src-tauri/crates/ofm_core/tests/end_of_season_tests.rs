@@ -1467,6 +1467,8 @@ fn season_not_complete_while_another_division_is_unfinished() {
     assert!(is_season_complete(&game));
 }
 
+/// Given a user in the second division, when the season summary is produced, then it identifies
+/// that division and includes the localization metadata for its name.
 #[test]
 fn summary_reflects_the_users_division_when_not_in_the_primary_competition() {
     let mut game = make_completed_season_game();
@@ -1496,6 +1498,17 @@ fn summary_reflects_the_users_division_when_not_in_the_primary_competition() {
         id: "eng-2".to_string(),
         name: "ENG Second Division".to_string(),
         country_id: Some("ENG".to_string()),
+        name_key: Some("tournaments.competitions.secondDivision".to_string()),
+        calendar: Some(domain::competition_calendar::CalendarMetadata {
+            season: domain::competition_calendar::SeasonCalendar {
+                division: Some(domain::competition_calendar::DivisionIdentity {
+                    tier: 2,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        }),
         priority: 1,
         season: 1,
         participant_ids: vec!["team3".to_string(), "team4".to_string()],
@@ -1512,6 +1525,12 @@ fn summary_reflects_the_users_division_when_not_in_the_primary_competition() {
     let summary = process_end_of_season(&mut game);
 
     assert_eq!(summary.league_name, "ENG Second Division");
+    assert_eq!(
+        summary.league_name_key.as_deref(),
+        Some("tournaments.competitions.secondDivision")
+    );
+    assert_eq!(summary.country_id.as_deref(), Some("ENG"));
+    assert_eq!(summary.division_tier, Some(2));
     assert_eq!(summary.user_position, 1);
     assert_eq!(summary.champion_id, "team3");
     assert_eq!(summary.total_teams, 2);

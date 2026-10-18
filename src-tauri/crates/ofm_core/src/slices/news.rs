@@ -13,6 +13,9 @@ pub struct NewsFeed {
     pub team_names: BTreeMap<String, String>,
     /// Name of the manager's primary competition, used by AwardsCeremonyScreen.
     pub league_name: Option<String>,
+    pub league_name_key: Option<String>,
+    pub league_country_id: Option<String>,
+    pub league_division_tier: Option<u32>,
 }
 
 /// The `YYYY-MM-DD` day an article is dated on. Article dates come in two
@@ -60,27 +63,32 @@ pub fn query_news_feed(game: &Game, _query: &NewsFeedQuery) -> NewsFeed {
         .map(|t| (t.id.clone(), t.name.clone()))
         .collect();
 
-    let league_name = game
-        .manager
-        .team_id
-        .as_deref()
-        .and_then(|team_id| {
-            game.competitions
-                .iter()
-                .find(|c| c.participant_ids.iter().any(|id| id == team_id))
-        })
-        .map(|c| c.name.clone());
+    let league = game.user_league_for_date(&today);
+    let league_name = league.map(|competition| competition.name.clone());
+    let league_name_key = league.and_then(|competition| competition.name_key.clone());
+    let league_country_id = league.and_then(|competition| competition.country_id.clone());
+    let league_division_tier = league
+        .and_then(|competition| competition.calendar.as_ref())
+        .and_then(|calendar| calendar.season.division.as_ref())
+        .map(|division| division.tier);
 
     NewsFeed {
         articles,
         team_names,
         league_name,
+        league_name_key,
+        league_country_id,
+        league_division_tier,
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use domain::competition_calendar::{
+        CalendarMetadata, DivisionIdentity, SeasonCalendar, SeasonPhase,
+    };
+    use domain::league::{Fixture, FixtureStatus, League};
     use domain::manager::Manager;
     use domain::news::NewsCategory;
 
@@ -158,5 +166,59 @@ mod tests {
             !ids.contains(&"future"),
             "a future-dated RFC3339 article must still be hidden until its date"
         );
+    }
+
+    /// Given a split season with distinct opening and closing leagues, when the feed is read on a
+    /// closing-round date, then it projects the closing phase's name key, country, and tier.
+    #[test]
+    fn news_feed_uses_the_current_split_season_league_phase() {
+        let mut game = game_on("2026-08-15");
+        game.manager.hire("team1".to_string());
+
+        let mut opening = phase_league("opening", "2026-03-10", FixtureStatus::Completed);
+        opening.name_key = Some("tournaments.competitions.tierDivisionOpening".to_string());
+        let mut closing = phase_league("closing", "2026-08-15", FixtureStatus::Scheduled);
+        closing.name_key = Some("tournaments.competitions.tierDivisionClosing".to_string());
+        game.competitions = vec![opening, closing];
+
+        let feed = query_news_feed(&game, &NewsFeedQuery {});
+
+        assert_eq!(
+            feed.league_name_key.as_deref(),
+            Some("tournaments.competitions.tierDivisionClosing")
+        );
+        assert_eq!(feed.league_country_id.as_deref(), Some("AR"));
+        assert_eq!(feed.league_division_tier, Some(3));
+    }
+
+    fn phase_league(id: &str, date: &str, status: FixtureStatus) -> League {
+        let team_ids = ["team1".to_string(), "team2".to_string()];
+        let mut league = League::new(id.to_string(), id.to_string(), 2026, &team_ids);
+        league.country_id = Some("AR".to_string());
+        league.calendar = Some(CalendarMetadata {
+            season: SeasonCalendar {
+                division: Some(DivisionIdentity {
+                    family_id: "argentina-league".to_string(),
+                    tier: 3,
+                    phase: if id == "opening" {
+                        SeasonPhase::Opening
+                    } else {
+                        SeasonPhase::Closing
+                    },
+                }),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+        league.fixtures = vec![Fixture {
+            id: format!("{id}-fixture"),
+            competition_id: id.to_string(),
+            date: date.to_string(),
+            home_team_id: "team1".to_string(),
+            away_team_id: "team2".to_string(),
+            status,
+            ..Default::default()
+        }];
+        league
     }
 }

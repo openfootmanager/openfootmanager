@@ -1235,14 +1235,11 @@ mod tests {
         assert_eq!(tiers, 1);
     }
 
-    /// `division_tier_name` names a first and a second division and nothing
-    /// else, so a third tier would share both its display name and its
-    /// translation key with the second. The shipped world never reaches that —
-    /// the largest nation has 40 clubs and the default size is 20 — but a
-    /// caller-chosen size could, so the plan builder widens the divisions
-    /// rather than adding a tier nothing can name.
+    /// Given eighteen clubs and a requested division size of six, when the
+    /// foundations are built, then all three divisions retain distinct names
+    /// and localization keys.
     #[test]
-    fn a_division_size_that_would_need_a_third_tier_widens_the_two_instead() {
+    fn a_custom_division_size_keeps_three_distinct_tiers() {
         let teams: Vec<_> = (0..18)
             .map(|index| nation_team(&format!("eng-{index:02}"), "ENG", 1000 - index))
             .collect();
@@ -1261,13 +1258,13 @@ mod tests {
             .collect();
         assert_eq!(
             tiers.len(),
-            2,
-            "eighteen clubs at a size of six must not become three tiers"
+            3,
+            "a requested three-tier pyramid must be kept"
         );
         for tier in &tiers {
             assert_eq!(
                 tier.participant_ids.len(),
-                9,
+                6,
                 "{} is the wrong size",
                 tier.id
             );
@@ -1277,8 +1274,17 @@ mod tests {
             tiers.iter().map(|tier| tier.name.as_str()).collect();
         assert_eq!(
             names.len(),
-            2,
-            "two divisions must not share a name: {names:?}"
+            3,
+            "three divisions must not share a name: {names:?}"
+        );
+        let keys: std::collections::BTreeSet<_> = tiers
+            .iter()
+            .map(|tier| tier.name_key.as_deref().expect("generated league key"))
+            .collect();
+        assert_eq!(
+            keys.len(),
+            3,
+            "three divisions must not share a translation key: {keys:?}"
         );
     }
 }

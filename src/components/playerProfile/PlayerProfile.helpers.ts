@@ -26,6 +26,7 @@ export interface PercentilePeerGroup {
   competitionName: string;
   competitionNameKey: string | null;
   countryId: string | null;
+  competitionDivisionTier?: number | null;
   /** A `Position` name such as `Striker`. */
   position: string;
 }

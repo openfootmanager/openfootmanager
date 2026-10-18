@@ -865,6 +865,13 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     let summary = EndOfSeasonSummary {
         season,
         league_name: league_name.clone(),
+        league_name_key: league.name_key.clone(),
+        country_id: league.country_id.clone(),
+        division_tier: league
+            .calendar
+            .as_ref()
+            .and_then(|calendar| calendar.season.division.as_ref())
+            .map(|division| division.tier),
         champion_id: champion_id.clone(),
         champion_name,
         user_position,
@@ -1371,6 +1378,12 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
 pub struct EndOfSeasonSummary {
     pub season: u32,
     pub league_name: String,
+    #[serde(default)]
+    pub league_name_key: Option<String>,
+    #[serde(default)]
+    pub country_id: Option<String>,
+    #[serde(default)]
+    pub division_tier: Option<u32>,
     pub champion_id: String,
     pub champion_name: String,
     pub user_position: u32,

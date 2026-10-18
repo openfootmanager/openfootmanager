@@ -12,6 +12,7 @@ use domain::team::Team;
 use domain::world_history::WorldHistoryArchive;
 
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -400,6 +401,84 @@ impl Game {
         })
     }
 
+    /// The user's league phase in effect on or nearest to `date`.
+    ///
+    /// Split-season plans can place the same club in multiple domestic leagues (for example,
+    /// Opening and Closing editions). Prefer a league round on `date`, then the club's next
+    /// scheduled league fixture, then its most recent completed league fixture. This keeps names
+    /// and other league-specific views tied to the phase the player is currently in.
+    pub(crate) fn user_league_for_date(&self, date: &str) -> Option<&League> {
+        let team_id = self.manager.team_id.as_deref()?;
+
+        if self.competitions.is_empty() {
+            return self
+                .league
+                .as_ref()
+                .filter(|competition| competition.kind == CompetitionType::League)
+                .filter(|competition| self.user_club_takes_part_in(competition));
+        }
+
+        self.competitions
+            .iter()
+            .enumerate()
+            .filter(|(_, competition)| {
+                competition.kind == CompetitionType::League
+                    && self.user_club_takes_part_in(competition)
+            })
+            .min_by_key(|(index, competition)| {
+                let has_user_fixture_today = competition.fixtures.iter().any(|fixture| {
+                    fixture.date == date
+                        && fixture.counts_for_league_standings()
+                        && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
+                });
+                if has_user_fixture_today {
+                    return (0, String::new(), Reverse(String::new()), *index);
+                }
+
+                let has_round_today = competition
+                    .fixtures
+                    .iter()
+                    .any(|fixture| fixture.date == date && fixture.counts_for_league_standings());
+                if has_round_today {
+                    return (1, String::new(), Reverse(String::new()), *index);
+                }
+
+                let next_fixture_date = competition
+                    .fixtures
+                    .iter()
+                    .filter(|fixture| {
+                        fixture.date.as_str() > date
+                            && fixture.status == FixtureStatus::Scheduled
+                            && fixture.counts_for_league_standings()
+                            && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
+                    })
+                    .map(|fixture| fixture.date.clone())
+                    .min();
+                if let Some(next_fixture_date) = next_fixture_date {
+                    return (2, next_fixture_date, Reverse(String::new()), *index);
+                }
+
+                let previous_fixture_date = competition
+                    .fixtures
+                    .iter()
+                    .filter(|fixture| {
+                        fixture.date.as_str() <= date
+                            && fixture.status == FixtureStatus::Completed
+                            && fixture.counts_for_league_standings()
+                            && (fixture.home_team_id == team_id || fixture.away_team_id == team_id)
+                    })
+                    .map(|fixture| fixture.date.clone())
+                    .max();
+                if let Some(previous_fixture_date) = previous_fixture_date {
+                    return (3, String::new(), Reverse(previous_fixture_date), *index);
+                }
+
+                (4, String::new(), Reverse(String::new()), *index)
+            })
+            .map(|(_, competition)| competition)
+            .or_else(|| self.user_league())
+    }
+
     /// The competition the user's club plays in, preferring its domestic league.
     ///
     /// Distinct from [`Self::primary_competition`], which is just the first
@@ -505,6 +584,45 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
 
+    fn league_with_fixture(
+        id: &str,
+        date: &str,
+        status: FixtureStatus,
+        home_team_id: &str,
+        away_team_id: &str,
+    ) -> League {
+        let team_ids = [
+            "team1".to_string(),
+            "team2".to_string(),
+            "team3".to_string(),
+        ];
+        let mut league = League::new(id.to_string(), id.to_string(), 2026, &team_ids);
+        league.fixtures.push(domain::league::Fixture {
+            id: format!("{id}-fixture"),
+            competition_id: id.to_string(),
+            date: date.to_string(),
+            home_team_id: home_team_id.to_string(),
+            away_team_id: away_team_id.to_string(),
+            status,
+            ..Default::default()
+        });
+        league
+    }
+
+    fn cup_with_fixture(date: &str) -> League {
+        let mut cup = league_with_fixture("cup", date, FixtureStatus::Scheduled, "team1", "team2");
+        cup.kind = CompetitionType::Cup;
+        cup.fixtures[0].competition = domain::league::FixtureCompetition::Cup;
+        cup
+    }
+
+    fn game_with_user_team_and_competitions(competitions: Vec<League>) -> Game {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team1".to_string());
+        game.competitions = competitions;
+        game
+    }
+
     fn game_with_only_a_legacy_league() -> Game {
         let clock = GameClock::new(Utc.with_ymd_and_hms(2025, 6, 15, 12, 0, 0).unwrap());
         let manager = Manager::new(
@@ -563,5 +681,186 @@ mod tests {
             Some("league2"),
             "with a competition to mirror, the stale legacy copy is replaced"
         );
+    }
+
+    /// Given a cup first and a league round without the user's fixture, when the selector is
+    /// called for that date, then it chooses the league round rather than the cup.
+    #[test]
+    fn the_league_round_today_wins_when_the_user_has_no_fixture() {
+        let game = game_with_user_team_and_competitions(vec![
+            cup_with_fixture("2026-08-15"),
+            league_with_fixture(
+                "next-phase",
+                "2026-08-22",
+                FixtureStatus::Scheduled,
+                "team1",
+                "team2",
+            ),
+            league_with_fixture(
+                "league-round",
+                "2026-08-15",
+                FixtureStatus::Scheduled,
+                "team2",
+                "team3",
+            ),
+        ]);
+
+        let selected = game
+            .user_league_for_date("2026-08-15")
+            .expect("a league has a round today");
+
+        assert_eq!(selected.id, "league-round");
+    }
+
+    /// Given two future league rounds and a cup before them, when the selector runs between
+    /// phases, then it chooses the user's nearest scheduled league round.
+    #[test]
+    fn the_nearest_upcoming_league_round_wins_over_an_earlier_cup() {
+        let game = game_with_user_team_and_competitions(vec![
+            cup_with_fixture("2026-08-15"),
+            league_with_fixture(
+                "later-league",
+                "2026-08-29",
+                FixtureStatus::Scheduled,
+                "team1",
+                "team2",
+            ),
+            league_with_fixture(
+                "nearest-league",
+                "2026-08-22",
+                FixtureStatus::Scheduled,
+                "team1",
+                "team3",
+            ),
+        ]);
+
+        let selected = game
+            .user_league_for_date("2026-08-15")
+            .expect("a league has a scheduled round");
+
+        assert_eq!(selected.id, "nearest-league");
+    }
+
+    /// Given completed league rounds and a cup before them, when no future league fixture remains,
+    /// then the selector chooses the user's most recently completed league phase.
+    #[test]
+    fn the_most_recent_completed_league_round_wins_over_an_earlier_cup() {
+        let game = game_with_user_team_and_competitions(vec![
+            cup_with_fixture("2026-08-15"),
+            league_with_fixture(
+                "older-league",
+                "2026-08-08",
+                FixtureStatus::Completed,
+                "team1",
+                "team2",
+            ),
+            league_with_fixture(
+                "recent-league",
+                "2026-08-12",
+                FixtureStatus::Completed,
+                "team1",
+                "team3",
+            ),
+        ]);
+
+        let selected = game
+            .user_league_for_date("2026-08-15")
+            .expect("a league has a completed round");
+
+        assert_eq!(selected.id, "recent-league");
+    }
+
+    /// Given a legacy save with only its league field populated, when the selector runs, then it
+    /// keeps using that league for the user's club.
+    #[test]
+    fn the_legacy_league_is_selected_when_competitions_are_empty() {
+        let mut game = game_with_only_a_legacy_league();
+        game.manager.hire("team1".to_string());
+
+        let selected = game
+            .user_league_for_date("2026-08-15")
+            .expect("the legacy league contains the user's club");
+
+        assert_eq!(selected.id, "league1");
+    }
+
+    /// Given a cup as the only competition, when the selector runs, then it does not return the
+    /// cup as the user's league.
+    #[test]
+    fn a_cup_is_not_selected_as_the_users_league() {
+        let mut game = game_with_user_team_and_competitions(vec![cup_with_fixture("2026-08-15")]);
+        game.league = None;
+
+        assert!(game.user_league_for_date("2026-08-15").is_none());
+    }
+
+    /// Given two league rounds on the same date, when only the later one contains the user's club,
+    /// then that league wins over the opponent-only round.
+    #[test]
+    fn the_users_same_day_fixture_selects_its_league() {
+        let game = game_with_user_team_and_competitions(vec![
+            league_with_fixture(
+                "opponents-league",
+                "2026-08-15",
+                FixtureStatus::Scheduled,
+                "team2",
+                "team3",
+            ),
+            league_with_fixture(
+                "users-league",
+                "2026-08-15",
+                FixtureStatus::Scheduled,
+                "team1",
+                "team2",
+            ),
+        ]);
+
+        let selected = game
+            .user_league_for_date("2026-08-15")
+            .expect("one league has the user's fixture today");
+
+        assert_eq!(selected.id, "users-league");
+    }
+
+    /// Given opponent-only rounds and a future completed user round around the latest completed
+    /// user round, when selecting between phases, then only the latest completed user round wins.
+    #[test]
+    fn only_valid_user_fixtures_on_the_correct_side_of_the_date_are_considered() {
+        let game = game_with_user_team_and_competitions(vec![
+            league_with_fixture(
+                "past-opponents",
+                "2026-08-12",
+                FixtureStatus::Completed,
+                "team2",
+                "team3",
+            ),
+            league_with_fixture(
+                "future-opponents",
+                "2026-08-22",
+                FixtureStatus::Scheduled,
+                "team2",
+                "team3",
+            ),
+            league_with_fixture(
+                "future-completed-users",
+                "2026-08-20",
+                FixtureStatus::Completed,
+                "team1",
+                "team2",
+            ),
+            league_with_fixture(
+                "latest-past-users",
+                "2026-08-12",
+                FixtureStatus::Completed,
+                "team1",
+                "team3",
+            ),
+        ]);
+
+        let selected = game
+            .user_league_for_date("2026-08-15")
+            .expect("a completed league fixture is available before the date");
+
+        assert_eq!(selected.id, "latest-past-users");
     }
 }
