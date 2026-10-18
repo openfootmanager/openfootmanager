@@ -4,7 +4,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { GameStateData, NewsArticle, TeamData } from "../../store/gameStore";
 import NewsTab from "./NewsTab";
 import { createSeasonContext } from "../../test-utils/factories";
-import { fetchNewsFeed } from "../../services/newsService";
+import { fetchNewsFeed, type NewsFeed } from "../../services/newsService";
 
 vi.mock("../../services/newsService", () => ({ fetchNewsFeed: vi.fn() }));
 
@@ -131,11 +131,7 @@ function createGameState(news: NewsArticle[]): GameStateData {
 
 describe("NewsTab", () => {
   beforeEach(() => {
-    vi.mocked(fetchNewsFeed).mockResolvedValue({
-      articles: [],
-      team_names: {},
-      league_name: null,
-    });
+    vi.mocked(fetchNewsFeed).mockReturnValue(new Promise<NewsFeed>(() => {}));
   });
 
   it("renders the empty state when there is no news", () => {
