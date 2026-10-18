@@ -117,7 +117,7 @@ function getContinueButtonClassName(
 }
 
 function getContinueDropdownButtonClassName(modeMeta: DashboardMatchModeMeta): string {
-  return `bg-linear-to-r ${modeMeta.dropdownColorClass} rounded-r-lg border-l border-white/20 px-2 py-2.5 text-white transition-colors hover:brightness-110`;
+  return `bg-linear-to-r ${modeMeta.dropdownColorClass} rounded-r-lg border-l border-white/20 px-2 py-2.5 text-white transition-colors hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-white/70 focus:ring-inset`;
 }
 
 function getModeOptionClassName(isActive: boolean): string {
@@ -425,8 +425,11 @@ export default function DashboardHeader({
                 type="button"
                 onClick={handleContinueMenuToggleClick}
                 className={getContinueDropdownButtonClassName(currentModeMeta)}
+                aria-label={t("dashboard.matchModeMenu")}
+                aria-haspopup="menu"
+                aria-expanded={showContinueMenu}
               >
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
 
