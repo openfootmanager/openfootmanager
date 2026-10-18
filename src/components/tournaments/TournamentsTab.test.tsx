@@ -160,6 +160,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
   return {
+    competitive: true,
     id: "fixture-1",
     matchday: 1,
     date: "2026-08-01",
