@@ -330,21 +330,35 @@ fn drift_ceiling(player: &mut Player, age: u32, rng: &mut impl Rng) {
     player.potential = ceiling.max(natural_ovr(player).round() as u8);
 }
 
+/// Once a player's curve has stopped growing and started declining, his ceiling is his rating:
+/// it comes down with him and, being the rating, never sits above it. A veteran never shows room
+/// to grow; a young player's ceiling is not touched (this runs only on the decline branch). The
+/// switch is the one that ends growth (`DECLINE_STARTS_AT`), so a late bloomer keeps his ceiling
+/// while his own curve still grows and an early bloomer loses it when his own curve turns.
+fn bring_ceiling_down_to_rating(player: &mut Player) {
+    player.potential = (natural_ovr(player).round() as u8).max(1);
+}
+
 /// One season of development for a player aged `age`: growth while his curve says he grows, the
-/// decline table once it says he declines, and the drift of his ceiling on the way. Draws from
-/// `rng`, which the caller derives from the player and the date so a replay gives the same season.
+/// decline table once it says he declines (and his ceiling comes down to his rating), and the
+/// drift of a young player's ceiling on the way. Draws from `rng`, which the caller derives from
+/// the player and the date so a replay gives the same season.
 pub fn develop_one_season(player: &mut Player, age: i32, world_seed: u64, rng: &mut impl Rng) {
     let traits = traits_of(world_seed, &player.id);
     let curve = curve_age(player, age, &traits);
-    if curve < DECLINE_STARTS_AT {
+    let declining = curve >= DECLINE_STARTS_AT;
+    if declining {
+        decline(player, curve, &traits, rng);
+    } else {
         let gap = player
             .potential
             .saturating_sub(natural_ovr(player).round() as u8);
         grow(player, growth_points(curve, gap), curve, rng);
-    } else {
-        decline(player, curve, &traits, rng);
     }
     drift_ceiling(player, age.max(0) as u32, rng);
+    if declining {
+        bring_ceiling_down_to_rating(player);
+    }
 }
 
 #[cfg(test)]
@@ -682,9 +696,18 @@ mod tests {
     ///      not give him more years of the widest drift than the generator allowed for.
     #[test]
     fn a_keepers_ceiling_drifts_as_much_as_an_outfield_players() {
+        // Players whose own curve is not an early bloomer's, so none of them is declining by 24
+        // (the ceiling rule would then pull his ceiling down to his rating, which this is not
+        // about): the same ids for both positions.
+        let ids: Vec<String> = (0..4000)
+            .map(|n| format!("drifter{n}"))
+            .filter(|id| traits_of(9, id).peak_offset.abs() <= 1.5)
+            .take(1500)
+            .collect();
         let spread_at_25 = |position: Position| {
-            let mut cohort: Vec<Player> = (0..1500)
-                .map(|n| player(&format!("{position:?}{n}"), position.clone(), 30, 80))
+            let mut cohort: Vec<Player> = ids
+                .iter()
+                .map(|id| player(id, position.clone(), 30, 80))
                 .collect();
             for (year, age) in (16..=24).enumerate() {
                 for (n, p) in cohort.iter_mut().enumerate() {
