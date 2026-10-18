@@ -106,11 +106,7 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
 
   return (
     <div className="flex flex-col gap-1" ref={ref}>
-      <label
-        id={labelId}
-        htmlFor={buttonId}
-        className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400"
-      >
+      <label id={labelId} htmlFor={buttonId} className="text-caption font-medium text-fg-muted">
         {label}
       </label>
       <div className="relative">
@@ -137,23 +133,19 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
               else setIsOpen(true);
             }
           }}
-          className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-left transition focus:outline-none focus:ring-2 focus:ring-primary-400 min-h-[38px]"
+          className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-body text-left transition focus:outline-none focus:ring-2 focus:ring-primary-400 min-h-[38px]"
         >
-          <span
-            className={
-              selected ? "text-gray-900 dark:text-white" : "text-gray-400 dark:text-gray-500"
-            }
-          >
+          <span className={selected ? "text-fg" : "text-fg-subtle"}>
             {selected?.label ?? placeholder ?? "—"}
           </span>
           <ChevronDown
-            className={`absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            className={`absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle transition-transform ${isOpen ? "rotate-180" : ""}`}
           />
         </button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 shadow-xl">
-            <div className="border-b border-gray-100 dark:border-navy-600 p-2">
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-line bg-panel shadow-xl">
+            <div className="border-b border-line p-2">
               <input
                 type="text"
                 // biome-ignore lint/a11y/noAutofocus: the search field only exists while the combobox is open.
@@ -171,15 +163,13 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
                   setActiveIndex(0);
                 }}
                 onKeyDown={handleSearchKeyDown}
-                className="w-full rounded-md border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-primary-500"
+                className="w-full rounded-md border border-line bg-sunken px-3 py-1.5 text-body text-fg outline-none placeholder:text-fg-subtle focus:border-primary-500"
               />
             </div>
             <div className="max-h-48 overflow-y-auto overscroll-contain">
               <div role="listbox" id={listboxId} aria-label={label} ref={listRef}>
                 {filtered.length === 0 && (
-                  <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
-                    {t("teams.noResults")}
-                  </p>
+                  <p className="px-3 py-2 text-caption text-fg-subtle">{t("teams.noResults")}</p>
                 )}
                 {filtered.length > 0 && (
                   <button
@@ -196,7 +186,7 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
                     onClick={(event) => {
                       if (event.detail === 0) select("");
                     }}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${value === "" ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"} ${active === 0 ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500" : ""}`}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${value === "" ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-fg hover:bg-hover"} ${active === 0 ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500" : ""}`}
                   >
                     <span>{placeholder ?? "—"}</span>
                     {value === "" && <Check className="h-4 w-4 flex-shrink-0 text-primary-500" />}
@@ -218,7 +208,7 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
                     onClick={(event) => {
                       if (event.detail === 0) select(option.id);
                     }}
-                    className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${value === option.id ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"} ${index + 1 === active ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500" : ""}`}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${value === option.id ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400" : "text-fg hover:bg-hover"} ${index + 1 === active ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500" : ""}`}
                   >
                     <span className="flex items-center gap-2">
                       <span>{option.label}</span>

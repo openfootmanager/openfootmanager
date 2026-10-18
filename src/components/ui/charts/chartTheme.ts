@@ -1,6 +1,3 @@
-import { useContext } from "react";
-import { ThemeContext } from "../../../context/ThemeContext";
-
 export interface ChartTheme {
   primary: string;
   secondary: string;
@@ -12,36 +9,25 @@ export interface ChartTheme {
   tooltipBg: string;
   tooltipBorder: string;
   tooltipText: string;
+  tickFontSize: string;
 }
 
-const DARK_THEME: ChartTheme = {
-  primary: "#10b981",
-  secondary: "#6366f1",
-  danger: "#ef4444",
-  success: "#06d6a0",
-  gridColor: "#243054",
-  axisColor: "#6b7280",
-  textColor: "#d1d5db",
-  tooltipBg: "#1a2340",
-  tooltipBorder: "#243054",
-  tooltipText: "#f3f4f6",
-};
-
-const LIGHT_THEME: ChartTheme = {
-  primary: "#059669",
-  secondary: "#4f46e5",
-  danger: "#dc2626",
-  success: "#05a87d",
-  gridColor: "#e5e7eb",
-  axisColor: "#9ca3af",
-  textColor: "#374151",
-  tooltipBg: "#ffffff",
-  tooltipBorder: "#e5e7eb",
-  tooltipText: "#111827",
+// Every value is a role token. SVG attributes resolve var() in WebKitGTK and Chromium, so a chart
+// follows light, dark and high contrast through CSS alone, with no colour kept in TypeScript.
+const CHART_THEME: ChartTheme = {
+  primary: "var(--color-series-1)",
+  secondary: "var(--color-series-2)",
+  danger: "var(--color-danger-solid)",
+  success: "var(--color-positive-solid)",
+  gridColor: "var(--color-line)",
+  axisColor: "var(--color-fg-subtle)",
+  textColor: "var(--color-fg-muted)",
+  tooltipBg: "var(--color-panel)",
+  tooltipBorder: "var(--color-line)",
+  tooltipText: "var(--color-fg)",
+  tickFontSize: "var(--text-caption)",
 };
 
 export function useChartTheme(): ChartTheme {
-  const ctx = useContext(ThemeContext);
-  const isDark = ctx?.isDark ?? true;
-  return isDark ? DARK_THEME : LIGHT_THEME;
+  return CHART_THEME;
 }

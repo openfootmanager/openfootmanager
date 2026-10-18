@@ -59,17 +59,15 @@ export function Checkbox({
         className="peer sr-only"
       />
       <div
-        className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors peer-checked:bg-primary-500 peer-checked:border-primary-500 peer-focus:ring-2 peer-focus:ring-primary-500/30 peer-focus:outline-none ${
-          indeterminate
-            ? "bg-primary-500 border-primary-500"
-            : "border-gray-300 dark:border-navy-500 bg-white dark:bg-navy-700"
+        className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors peer-checked:bg-primary-600 peer-checked:border-primary-600 peer-focus:ring-2 peer-focus:ring-focus peer-focus:ring-offset-2 peer-focus:ring-offset-page peer-focus:outline-none ${
+          indeterminate ? "bg-primary-600 border-primary-600" : "border-line-strong bg-panel"
         }`}
         aria-hidden="true"
       >
         {indeterminate ? (
-          <Minus className="h-3 w-3 text-white" strokeWidth={3} />
+          <Minus className="h-3 w-3 text-on-brand" strokeWidth={3} />
         ) : checked ? (
-          <Check className="h-3 w-3 text-white" strokeWidth={3} />
+          <Check className="h-3 w-3 text-on-brand" strokeWidth={3} />
         ) : null}
       </div>
     </label>

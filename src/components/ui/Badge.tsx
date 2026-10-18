@@ -11,19 +11,19 @@ export function Badge({ children, variant = "neutral", size = "sm", className = 
   const variants = {
     primary: "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300",
     accent: "bg-accent-100 text-accent-700 dark:bg-accent-900/40 dark:text-accent-300",
-    success: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
-    danger: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
-    neutral: "bg-gray-100 text-gray-600 dark:bg-navy-600 dark:text-gray-400",
+    success: "bg-positive-tint text-positive",
+    danger: "bg-danger-tint text-danger",
+    neutral: "bg-sunken text-fg-muted",
   };
 
   const sizes = {
-    sm: "px-2 py-0.5 text-xs",
-    md: "px-3 py-1 text-sm",
+    sm: "px-2 py-0.5 text-caption",
+    md: "px-3 py-1 text-body",
   };
 
   return (
     <span
-      className={`inline-flex items-center font-bold font-heading uppercase tracking-wider rounded-md ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex items-center font-bold font-heading uppercase tracking-label rounded-md ${variants[variant]} ${sizes[size]} ${className}`}
     >
       {children}
     </span>

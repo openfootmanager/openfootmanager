@@ -43,7 +43,7 @@ describe("ProgressBar", () => {
   it("uses auto variant: danger for < 40", () => {
     const { container } = render(<ProgressBar value={20} />);
     const bar = container.querySelector("[style]") as HTMLElement;
-    expect(bar.className).toContain("bg-red-500");
+    expect(bar.className).toContain("bg-danger-solid");
   });
 
   it("uses explicit variant when specified", () => {
