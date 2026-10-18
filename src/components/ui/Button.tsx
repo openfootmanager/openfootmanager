@@ -27,7 +27,7 @@ export function Button({
     accent:
       "bg-accent-400 hover:bg-accent-500 active:bg-accent-600 text-navy-900 shadow-md hover:shadow-lg focus:ring-accent-400 dark:focus:ring-offset-navy-800",
     ghost:
-      "bg-transparent hover:bg-hover text-fg-muted hover:text-fg focus:ring-line-strong dark:focus:ring-offset-navy-800",
+      "bg-transparent hover:bg-hover text-fg-muted hover:text-fg focus:ring-focus focus:ring-offset-page",
     outline:
       "bg-transparent border-2 border-line-strong hover:border-primary-500 dark:hover:border-primary-400 text-fg-muted hover:text-positive focus:ring-primary-500 dark:focus:ring-offset-navy-800",
   };

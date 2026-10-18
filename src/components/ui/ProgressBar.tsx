@@ -29,7 +29,7 @@ export function ProgressBar({
     accent: "bg-accent-400",
     success: "bg-success-400",
     danger: "bg-danger-solid",
-    muted: "bg-line-strong",
+    muted: "bg-fg-subtle",
   };
 
   const heights = {

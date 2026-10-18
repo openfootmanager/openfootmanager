@@ -55,7 +55,8 @@ function typeViolations(source: string, isArtwork = false): string[] {
   ];
 }
 
-const COLOUR_LITERAL = /#[0-9a-fA-F]{6}\b|["'`]#[0-9a-fA-F]{3}["'`]|\b(?:rgba?|hsla?)\(/g;
+const COLOUR_LITERAL =
+  /#[0-9a-fA-F]{6}\b|["'`]#[0-9a-fA-F]{3}["'`]|\[#[0-9a-fA-F]{3,8}\]|\b(?:rgba?|hsla?)\(/g;
 
 /** Rule 2: no colour literal in code. Colours come from tokens, or from data in a listed file. */
 function colourLiterals(source: string): string[] {
@@ -200,6 +201,14 @@ describe("the rule checks themselves", () => {
     expect(
       colourLiterals('const a = "#10b981"; const b = "rgb(1 2 3)"; const c = "#fff";'),
     ).toEqual(["1: #10b981", "1: rgb(", '1: "#fff"']);
+  });
+
+  /** Given short and alpha hex values inside arbitrary classes, then each is reported. */
+  it("catches hex values in arbitrary classes", () => {
+    expect(colourLiterals('<p className="bg-[#fff] text-[#1234]" />')).toEqual([
+      "1: [#fff]",
+      "1: [#1234]",
+    ]);
   });
 
   /** Given issue references in comments and a CSS variable, then nothing is reported. */

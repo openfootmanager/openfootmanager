@@ -253,9 +253,7 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
           onChange={handleDayChange}
           onBlur={() => setDay(normaliseDayOnBlur(day))}
           className={`w-full bg-sunken border text-fg rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-fg-subtle text-center ${
-            error
-              ? "border-danger-solid focus:border-danger-solid focus:ring-danger-solid/20"
-              : "border-line-strong focus:border-primary-500 focus:ring-primary-500/20"
+            error ? "border-danger-solid focus:ring-focus" : "border-line-strong focus:ring-focus"
           }`}
         />
       </div>
@@ -265,12 +263,8 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
         <button
           type="button"
           onClick={() => setMonthOpen(!monthOpen)}
-          className={`w-full flex items-center justify-between bg-sunken border text-left rounded-lg p-3 outline-none transition-all ${
-            error
-              ? "border-danger-solid"
-              : monthOpen
-                ? "border-primary-500 ring-2 ring-primary-500/20"
-                : "border-line-strong"
+          className={`w-full flex items-center justify-between bg-sunken border text-left rounded-lg p-3 outline-none transition-all focus-visible:ring-2 focus-visible:ring-focus ${
+            error ? "border-danger-solid" : monthOpen ? "border-primary-500" : "border-line-strong"
           }`}
         >
           <span className={month ? "text-fg" : "text-fg-subtle"}>{selectedMonthLabel}</span>
@@ -355,9 +349,7 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
             }
           }}
           className={`w-full bg-sunken border text-fg rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-fg-subtle text-center ${
-            error
-              ? "border-danger-solid focus:border-danger-solid focus:ring-danger-solid/20"
-              : "border-line-strong focus:border-primary-500 focus:ring-primary-500/20"
+            error ? "border-danger-solid focus:ring-focus" : "border-line-strong focus:ring-focus"
           }`}
         />
       </div>

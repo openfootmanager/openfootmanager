@@ -423,6 +423,7 @@ export function Select({
     highlighted:
       "bg-primary-50 dark:bg-primary-500/10 border-primary-300 dark:border-primary-500/40 text-primary-700 dark:text-primary-300 font-bold",
     placeholder: "bg-sunken border-line text-fg-subtle",
+    // On chrome or the turf only: on-brand text is white, so on a light panel it can't be read.
     ghost: "bg-on-brand/10 border-on-brand/10 text-on-brand hover:bg-on-brand/20",
   };
 
