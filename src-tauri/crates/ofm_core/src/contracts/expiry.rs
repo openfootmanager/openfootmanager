@@ -34,6 +34,26 @@ pub fn contract_warning_stage(
     None
 }
 
+/// The warning stage of each requested player's contract on the game's date: the one the daily
+/// warnings, the morale pressure and the renewal urgency use, so a screen shows the same stage.
+/// A player with no stage (beyond a year, or already over) maps to `None`; an unknown id is left out.
+pub fn contract_warning_stages(
+    game: &Game,
+    player_ids: &[String],
+) -> std::collections::HashMap<String, Option<ContractWarningStage>> {
+    let today = game.clock.current_date.date_naive();
+    player_ids
+        .iter()
+        .filter_map(|id| {
+            let player = game.players.iter().find(|player| &player.id == id)?;
+            Some((
+                id.clone(),
+                contract_warning_stage(player.contract_end(), today),
+            ))
+        })
+        .collect()
+}
+
 pub fn process_contract_expiries(game: &mut Game) {
     let current_date = game.clock.current_date.date_naive();
 

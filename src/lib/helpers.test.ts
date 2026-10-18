@@ -3,7 +3,6 @@ import {
   getTeamName,
   getTeamShort,
   findNextFixture,
-  getContractRiskLevel,
   formatMatchDate,
   formatDate,
   formatDateFull,
@@ -260,20 +259,6 @@ describe("calcAge", () => {
       gameState: { clock: { current_date: "2027-06-02" } } as unknown as GameStateData,
     });
     expect(calcAge("2000-06-01")).toBe(27);
-  });
-});
-
-describe("getContractRiskLevel", () => {
-  it("marks contracts expiring within 180 days as critical", () => {
-    expect(getContractRiskLevel("2026-12-28", "2026-07-01")).toBe("critical");
-  });
-
-  it("marks contracts expiring within 365 days as warning", () => {
-    expect(getContractRiskLevel("2027-06-30", "2026-07-01")).toBe("warning");
-  });
-
-  it("marks longer contracts as stable", () => {
-    expect(getContractRiskLevel("2027-07-02", "2026-07-01")).toBe("stable");
   });
 });
 

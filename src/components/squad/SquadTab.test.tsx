@@ -11,6 +11,16 @@ import { createPlayer } from "../../test-utils/factories";
 import SquadTab from "./SquadTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
+// What the backend's contract warning stages read as on a badge, by player id; a test says which
+// players are at risk. The hook that asks for them has its own test.
+const riskLevels = vi.hoisted(() => ({
+  current: {} as Record<string, "critical" | "warning" | "stable">,
+}));
+
+vi.mock("../../hooks/useContractWarningStages", () => ({
+  useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
+}));
+
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
@@ -162,6 +172,7 @@ describe("SquadTab", () => {
   const mockedInvoke = vi.mocked(invoke);
 
   beforeEach(() => {
+    riskLevels.current = {};
     mockedInvoke.mockReset();
   });
 
@@ -302,6 +313,7 @@ describe("SquadTab", () => {
     const gameState = makeGameState();
     gameState.clock.current_date = "2026-08-01";
     gameState.players[0].contract_end = "2026-10-15";
+    riskLevels.current = { gk1: "critical" };
 
     renderSquadTab(gameState, { onSelectPlayer });
 
