@@ -76,6 +76,11 @@ export const SCREEN_WRITE_COMMANDS = [
 
 export type ScreenWriteCommand = (typeof SCREEN_WRITE_COMMANDS)[number];
 
+/** The token of the career the screen is showing now: the one the store's game was installed as. */
+export function currentCareerToken(): number {
+  return useGameStore.getState().gameState?.career_token ?? 0;
+}
+
 /**
  * Calls a screen-write command with the token of the career the screen is showing: the one the
  * game in the store was installed as. A caller that acts later than it was asked (a queued step)
@@ -85,7 +90,7 @@ export type ScreenWriteCommand = (typeof SCREEN_WRITE_COMMANDS)[number];
 export function invokeForCareer<T>(
   command: ScreenWriteCommand,
   args: Record<string, unknown> = {},
-  careerToken: number = useGameStore.getState().gameState?.career_token ?? 0,
+  careerToken: number = currentCareerToken(),
 ): Promise<T> {
   return invoke<T>(command, { ...args, careerToken });
 }
