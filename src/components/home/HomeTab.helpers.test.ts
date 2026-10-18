@@ -498,9 +498,7 @@ describe("HomeTab.helpers", (): void => {
 
     const result = getHomeRosterOverview(roster);
 
-    expect(result.avgCondition).toBe(61);
     expect(result.avgOvr).toBe(65);
-    expect(result.exhaustedCount).toBe(1);
     expect(result.unavailablePlayers.map((player) => player.id)).toEqual(["player-injured"]);
     expect(result.hotPlayers.map((player) => player.id)).toEqual(["player-hot"]);
     expect(result.coldPlayers.map((player) => player.id)).toEqual(["player-cold"]);

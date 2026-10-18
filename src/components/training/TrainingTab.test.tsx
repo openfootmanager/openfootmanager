@@ -250,6 +250,9 @@ describe("TrainingTab", () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad")
         return exhaustedState.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_squad_fitness") {
+        return { players: 4, average_condition: 29, exhausted_count: 3, critical_count: 3 };
+      }
       return exhaustedState;
     });
 
@@ -269,14 +272,18 @@ describe("TrainingTab", () => {
     ];
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_squad_fitness") {
+        return { players: 1, average_condition: 80, exhausted_count: 0, critical_count: 0 };
+      }
       return state;
     });
 
     render(<TrainingTab gameState={state} />);
 
     await waitFor(() => {
-      expect(screen.queryByText(/Critical advice/)).not.toBeInTheDocument();
+      expect(invokeMock).toHaveBeenCalledWith("get_squad_fitness");
     });
+    expect(screen.queryByText(/Critical advice/)).not.toBeInTheDocument();
   });
   // Given backend-selected youth, when Training opens, then the called-up row
   // and his fatigue contribute to first-team training; excluded youth stay hidden.
@@ -303,9 +310,12 @@ describe("TrainingTab", () => {
         match_day_eligible: false,
       }),
     ];
-    invokeMock.mockImplementation(async (command: string) =>
-      command === "get_squad" ? state.players : state,
-    );
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return { players: 2, average_condition: 45, exhausted_count: 1, critical_count: 1 };
+      }
+      return command === "get_squad" ? state.players : state;
+    });
     render(<TrainingTab gameState={state} />);
     expect(await screen.findByRole("row", { name: /Called Youth/ })).toBeInTheDocument();
     expect(screen.queryByRole("row", { name: /Excluded Youth/ })).not.toBeInTheDocument();

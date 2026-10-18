@@ -46,10 +46,8 @@ export interface NextOpponentWidgetData {
 }
 
 export interface HomeRosterOverview {
-  avgCondition: number;
   avgOvr: number;
   coldPlayers: PlayerData[];
-  exhaustedCount: number;
   hotPlayers: PlayerData[];
   unavailablePlayers: PlayerData[];
 }
@@ -141,17 +139,12 @@ export function getLeagueDigestArticles(gameState: GameStateData): NewsArticle[]
 }
 
 export function getHomeRosterOverview(roster: PlayerData[]): HomeRosterOverview {
-  const avgCondition =
-    roster.length > 0
-      ? Math.round(roster.reduce((total, player) => total + player.condition, 0) / roster.length)
-      : 0;
   const avgOvr =
     roster.length > 0
       ? Math.round(
           roster.reduce((total, player) => total + getPlayerOvr(player), 0) / roster.length,
         )
       : 0;
-  const exhaustedCount = roster.filter((player) => player.condition < 40).length;
   const unavailablePlayers = roster
     .filter((player) => player.injury != null)
     .sort((leftPlayer, rightPlayer) => {
@@ -170,10 +163,8 @@ export function getHomeRosterOverview(roster: PlayerData[]): HomeRosterOverview 
     .slice(0, 3);
 
   return {
-    avgCondition,
     avgOvr,
     coldPlayers,
-    exhaustedCount,
     hotPlayers,
     unavailablePlayers,
   };
