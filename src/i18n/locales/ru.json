@@ -3569,6 +3569,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: отчёт о предсезонном матче",
           "body": "В предсезонном матче {{home}} сыграл с {{away}} со счётом {{homeGoals}}-{{awayGoals}}. Обе команды использовали эту игру, чтобы набрать форму перед официальными матчами.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: отчёт о матче ({{competition}})",
+          "body": "{{competition}}: матч завершился со счётом {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {

@@ -763,6 +763,42 @@ describe("resolveNewsArticle", () => {
     }
   });
 
+  // Given a cup-tie report with one scorer, when it is resolved in German,
+  // then it names its competition and lists the scorer instead of ending at the score.
+  it("writes the scorers into a competition match report", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("de");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "",
+        headline_key: "be.news.matchReport.reportCompetition.title",
+        body: "",
+        body_key: "be.news.matchReport.reportCompetition.body",
+        source: "",
+        source_key: "be.source.sportsGazette",
+        i18n_params: {
+          home: "Alpha FC",
+          away: "Beta FC",
+          homeGoals: "2",
+          awayGoals: "1",
+          competition: "Landespokal",
+          scorers: "",
+          scorersSection: "",
+          scorersData: JSON.stringify([{ player: "Alice", minute: 10, team: "Alpha FC" }]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Alpha FC 2 - 1 Beta FC: Spielbericht (Landespokal)");
+      expect(result.body).toContain("Landespokal: Die Partie endete Alpha FC 2 - 1 Beta FC.");
+      expect(result.body).toContain("Tore: Alice (10. Min., Alpha FC)");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   it("localizes league match report scorers from structured scorer data", async () => {
     const previousLanguage = i18n.language;
     await i18n.changeLanguage("pt-BR");

@@ -3569,6 +3569,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Zpráva z předsezónního turnaje",
           "body": "V předsezónním turnaji {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Obě strany využily toto střetnutí k nabrání ostrosti před soutěžní kampaní.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: zpráva ze zápasu ({{competition}})",
+          "body": "{{competition}}: zápas skončil {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {

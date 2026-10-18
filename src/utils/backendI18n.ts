@@ -483,7 +483,8 @@ function normalizeMatchReportParams(
   if (
     !article.body_key?.startsWith("be.news.matchReport.body") &&
     article.body_key !== "be.news.matchReport.reportFriendly.body" &&
-    article.body_key !== "be.news.matchReport.reportPreseason.body"
+    article.body_key !== "be.news.matchReport.reportPreseason.body" &&
+    article.body_key !== "be.news.matchReport.reportCompetition.body"
   ) {
     return params;
   }

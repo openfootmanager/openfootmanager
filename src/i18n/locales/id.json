@@ -3569,6 +3569,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Laporan Turnamen Pramusim",
           "body": "Dalam laga turnamen pramusim, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Kedua tim menggunakan laga ini untuk mengasah ketajaman sebelum musim kompetitif dimulai.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: laporan pertandingan ({{competition}})",
+          "body": "{{competition}}: pertandingan berakhir {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
