@@ -479,47 +479,5 @@ impl LiveMatchState {
 }
 
 fn is_role_valid_for_position(role: PlayerRole, position: crate::types::Position) -> bool {
-    use crate::types::Position;
-    match position {
-        Position::Goalkeeper => matches!(
-            role,
-            PlayerRole::Standard | PlayerRole::BallPlayingKeeper | PlayerRole::SweeperKeeper
-        ),
-        Position::Defender => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::Stopper
-                | PlayerRole::CoverCB
-                | PlayerRole::BallPlayingCB
-                | PlayerRole::AttackingFB
-                | PlayerRole::DefensiveFB
-                | PlayerRole::InvertedFB
-                | PlayerRole::WingBack
-        ),
-        Position::Midfielder => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::AnchorMan
-                | PlayerRole::BallWinner
-                | PlayerRole::DeepLyingPlaymaker
-                | PlayerRole::BoxToBox
-                | PlayerRole::Carrilero
-                | PlayerRole::Mezzala
-                | PlayerRole::AdvancedPlaymaker
-                | PlayerRole::ShadowStriker
-                | PlayerRole::WideForward
-                | PlayerRole::InsideForward
-                | PlayerRole::InvertedWinger
-        ),
-        Position::Forward => matches!(
-            role,
-            PlayerRole::Standard
-                | PlayerRole::Poacher
-                | PlayerRole::TargetMan
-                | PlayerRole::DeepLyingForward
-                | PlayerRole::False9
-                | PlayerRole::PressingForward
-                | PlayerRole::CompleteForward
-        ),
-    }
+    role == PlayerRole::Standard || role.position_groups().contains(&position)
 }

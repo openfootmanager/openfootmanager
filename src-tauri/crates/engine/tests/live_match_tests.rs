@@ -682,6 +682,42 @@ fn a_role_that_suits_the_position_is_applied() {
 }
 
 /// Given a forward on the pitch
+/// When he is made an Inside Forward, a role the forward group admits
+/// Then he takes it, as he would have if the role had been set before the match.
+#[test]
+fn a_wide_forward_role_suits_a_forward() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+    let striker_id = state
+        .snapshot()
+        .home_team
+        .players
+        .iter()
+        .find(|p| p.position == Position::Forward)
+        .unwrap()
+        .id
+        .clone();
+
+    state
+        .apply_command(MatchCommand::ChangePlayerRole {
+            side: Side::Home,
+            player_id: striker_id.clone(),
+            role: PlayerRole::InsideForward,
+        })
+        .unwrap();
+
+    let snap = state.snapshot();
+    let striker = snap
+        .home_team
+        .players
+        .iter()
+        .find(|p| p.id == striker_id)
+        .unwrap();
+    assert_eq!(striker.role, PlayerRole::InsideForward);
+}
+
+/// Given a forward on the pitch
 /// When a goalkeeper's role is requested for them
 /// Then the command is refused with the position error and the role is untouched.
 #[test]
