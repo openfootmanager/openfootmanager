@@ -330,6 +330,9 @@ vi.mock("../components/dashboard/DashboardHeader", () => ({
         <button type="button" onClick={() => onSelectSearchPlayer("player-1")}>
           search-player
         </button>
+        <button type="button" onClick={() => onSelectSearchPlayer("retired-9")}>
+          search-retired-player
+        </button>
         <button type="button" onClick={() => onSelectSearchTeam("team-2")}>
           search-team
         </button>
@@ -866,8 +869,23 @@ describe("Dashboard", () => {
 
     fireEvent.click(screen.getByText("header-back"));
     fireEvent.click(screen.getByText("header-back"));
-    expect(screen.queryByText("Header J. Smith")).not.toBeInTheDocument();
-    expect(screen.queryByText("Header Beta FC")).not.toBeInTheDocument();
+    expect(screen.getByText("Header Home")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the dashboard on Home
+   * When the profile of a player who is not in the world (a retired player) opens
+   * Then the header says it is a player's profile, not the tab it was opened from
+   */
+  it("calls a retired player's profile a player's in the header", async () => {
+    render(<Dashboard />);
+    await waitFor(() => {
+      expect(screen.getByText("Tab Content Home")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("search-retired-player"));
+
+    expect(screen.getByText("Header Player")).toBeInTheDocument();
   });
 
   it("loads game state when the active save id fetch fails", async () => {

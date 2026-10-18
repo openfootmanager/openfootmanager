@@ -153,6 +153,53 @@ describe("DashboardHeader", () => {
     expect(onSelectSearchPlayer).not.toHaveBeenCalled();
   });
 
+  /**
+   * Given a profile open, so there is somewhere to go back to
+   * When the manager uses the header's Back, the only Back on screen
+   * Then it is found by its name and it goes back
+   */
+  it("offers a named Back that goes back when there is history", () => {
+    const onBack = vi.fn();
+    const teams = [createTeam()];
+
+    render(
+      <DashboardHeader
+        title="J. Smith"
+        currentDate="2026-08-10"
+        hasProfileHistory
+        hasMatchToday={false}
+        isAdvancing={false}
+        isUnemployed={false}
+        isSaving={false}
+        matchMode="live"
+        matchedPlayers={[]}
+        matchedTeams={[]}
+        modeMeta={createModeMeta()}
+        onBack={onBack}
+        onContinue={vi.fn()}
+        onSave={vi.fn()}
+        onSearchBlur={vi.fn()}
+        onSearchFocus={vi.fn()}
+        onSearchQueryChange={vi.fn()}
+        onSelectMatchMode={vi.fn()}
+        onSelectSearchPlayer={vi.fn()}
+        onSelectSearchTeam={vi.fn()}
+        onSkipToMatchDay={vi.fn()}
+        onToggleContinueMenu={vi.fn()}
+        saveFlash={false}
+        searchOpen={false}
+        searchQuery=""
+        seasonComplete={false}
+        showContinueMenu={false}
+        teams={teams}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   // `position` is held at a legacy bucket that matches none of these rows, so only a read of
   // `natural_position` can pass. Every position positionBadgeVariant names explicitly. The dashboard used to
   // keep its own four-bucket copy, so each granular position rendered red here
