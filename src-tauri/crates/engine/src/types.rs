@@ -343,6 +343,23 @@ pub enum TacticalDial {
     BreakSpeed(BreakSpeed),
 }
 
+impl TacticsConfig {
+    /// All nine dials of this plan, each set as the plan has it.
+    pub fn dials(&self) -> [TacticalDial; 9] {
+        [
+            TacticalDial::PressingIntensity(self.pressing_intensity),
+            TacticalDial::DefensiveLine(self.defensive_line),
+            TacticalDial::Width(self.width),
+            TacticalDial::BuildUpStyle(self.build_up_style),
+            TacticalDial::MarkingStyle(self.marking_style),
+            TacticalDial::Tempo(self.tempo),
+            TacticalDial::DefensiveShape(self.defensive_shape),
+            TacticalDial::CounterPressDuration(self.counter_press_duration),
+            TacticalDial::BreakSpeed(self.break_speed),
+        ]
+    }
+}
+
 impl TacticalDial {
     /// Turn this one dial, leaving the other eight where they are.
     pub fn set_on(self, tactics: &mut TacticsConfig) {

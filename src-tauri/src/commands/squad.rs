@@ -580,7 +580,7 @@ pub fn set_player_role_internal(
         "[cmd] set_player_role: player={} role={:?}",
         player_id, role
     );
-    mutate_active_game(state, |game| {
+    let game = mutate_active_game(state, |game| {
         let team_id = user_team_id(game)?;
 
         // Validate the role against where the player is actually deployed (the
@@ -614,7 +614,9 @@ pub fn set_player_role_internal(
         }
 
         Ok(())
-    })
+    })?;
+    crate::application::live_match::follow_saved_plan_before_kick_off(state, &game)?;
+    Ok(game)
 }
 
 /// One optional value per tactical dial, as the screen sends them; `None` leaves a dial alone.
@@ -670,7 +672,7 @@ pub fn set_tactics_phase_internal(
 ) -> Result<Game, String> {
     use domain::team::*;
     info!("[cmd] set_tactics_phase");
-    mutate_active_game(state, |game| {
+    let game = mutate_active_game(state, |game| {
         let p = &mut user_team_mut(game)?.tactics_phase;
         if let Some(v) = patch.build_up_style {
             p.build_up_style = match v.as_str() {
@@ -737,7 +739,9 @@ pub fn set_tactics_phase_internal(
         }
 
         Ok(())
-    })
+    })?;
+    crate::application::live_match::follow_saved_plan_before_kick_off(state, &game)?;
+    Ok(game)
 }
 
 #[cfg(test)]

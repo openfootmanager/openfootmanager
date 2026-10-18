@@ -451,6 +451,11 @@ impl LiveMatchState {
         self.current_minute
     }
 
+    /// The side as it will play: its eleven, formation, style and dials.
+    pub fn team(&self, side: Side) -> &TeamData {
+        self.team_ref(side)
+    }
+
     /// Get the bench for a side
     pub fn bench(&self, side: Side) -> &[PlayerData] {
         match side {

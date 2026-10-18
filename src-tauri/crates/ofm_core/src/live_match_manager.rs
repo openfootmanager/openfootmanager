@@ -5,7 +5,9 @@
 // one answer to "who is playing" rather than one per code path.
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
-use crate::turn::squad::{build_team_with_bench_from, set_piece_takers_among};
+use crate::turn::squad::{
+    build_team_with_bench_from, domain_to_engine_tactics, match_role, set_piece_takers_among,
+};
 
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
@@ -220,6 +222,59 @@ impl LiveMatchSession {
 
     pub fn is_finished(&self) -> bool {
         self.match_state.is_finished()
+    }
+
+    /// The session is built on match day, before the pre-match screen opens, so a dial or a
+    /// starter's role changed there is stored on the user's team and must also be handed to the
+    /// match. Once the match has kicked off, changes go through the live commands instead.
+    pub fn follow_saved_plan_before_kick_off(&mut self, game: &Game) -> Result<(), String> {
+        if self.match_state.phase() != MatchPhase::PreKickOff {
+            return Ok(());
+        }
+        let Some(side) = self.user_side else {
+            return Ok(());
+        };
+        let team_id = match side {
+            Side::Home => &self.home_team_id,
+            Side::Away => &self.away_team_id,
+        };
+        let Some(team) = game.teams.iter().find(|team| &team.id == team_id) else {
+            return Ok(());
+        };
+
+        for dial in domain_to_engine_tactics(&team.tactics_phase).dials() {
+            self.match_state
+                .apply_command(MatchCommand::ChangeTacticalDial { side, dial })?;
+        }
+        for (player_id, role) in self.starter_roles_to_change(side, team) {
+            self.match_state
+                .apply_command(MatchCommand::ChangePlayerRole {
+                    side,
+                    player_id,
+                    role,
+                })?;
+        }
+        Ok(())
+    }
+
+    /// Starters whose role in the session differs from the one their saved role gives them in
+    /// the slot they occupy.
+    fn starter_roles_to_change(
+        &self,
+        side: Side,
+        team: &domain::team::Team,
+    ) -> Vec<(String, engine::PlayerRole)> {
+        let side_data = self.match_state.team(side);
+        let slots = crate::player_rating::formation_slots(&side_data.formation);
+        side_data
+            .players
+            .iter()
+            .zip(slots.iter())
+            .filter_map(|(player, slot)| {
+                let role = match_role(Some(&team.player_roles), &player.id, slot);
+                (role != player.role).then(|| (player.id.clone(), role))
+            })
+            .collect()
     }
 
     fn apply_ai_decisions(&mut self) {

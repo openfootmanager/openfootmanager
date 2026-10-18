@@ -1436,4 +1436,148 @@ mod tests {
             "2025-06-16"
         );
     }
+
+    /// The user's side as the live session holds it — the engine's own copy of
+    /// the team, which is what the match is actually played with.
+    fn user_side_in_session(state: &StateManager) -> engine::TeamData {
+        let snapshot = state
+            .with_live_match(|session| session.snapshot())
+            .expect("a live match session exists after a live advance");
+        assert_eq!(snapshot.phase, engine::MatchPhase::PreKickOff);
+        [snapshot.home_team, snapshot.away_team]
+            .into_iter()
+            .find(|team| team.id == "team1")
+            .expect("the user's club is one of the two sides")
+    }
+
+    fn user_goalkeeper_role_in_session(state: &StateManager) -> engine::PlayerRole {
+        user_side_in_session(state)
+            .players
+            .into_iter()
+            .find(|player| player.id == "a-gk")
+            .expect("the user's goalkeeper starts")
+            .role
+    }
+
+    fn set_defensive_line_high(state: &StateManager) {
+        crate::commands::squad::set_tactics_phase_internal(
+            state,
+            crate::commands::squad::TacticsPhasePatch {
+                defensive_line: Some("High".to_string()),
+                ..Default::default()
+            },
+        )
+        .expect("the dial is stored on the user's team");
+    }
+
+    /// Given an active career whose user team has a live match session waiting
+    /// at pre-kick-off (built by the live advance, as on match day),
+    /// When the user raises the defensive line to High on the pre-match screen,
+    /// Then the match about to be played uses a high defensive line.
+    #[test]
+    fn a_dial_changed_before_kick_off_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, "live").expect("live advance response");
+        assert_ne!(
+            user_side_in_session(&state).tactics.defensive_line,
+            engine::DefensiveLine::High,
+            "the fixture must start from a different line, or the test proves nothing"
+        );
+
+        set_defensive_line_high(&state);
+
+        let stored_line = state
+            .get_game(|game| game.teams[0].tactics_phase.defensive_line.clone())
+            .expect("active game");
+        assert_eq!(stored_line, domain::team::DefensiveLine::High);
+        assert_eq!(
+            user_side_in_session(&state).tactics.defensive_line,
+            engine::DefensiveLine::High,
+            "the live session must play with the defensive line set before kick-off"
+        );
+    }
+
+    /// Given an active career whose user team has a live match session waiting
+    /// at pre-kick-off (built by the live advance, as on match day),
+    /// When the user makes the goalkeeper a Sweeper Keeper on the pre-match
+    /// screen, through the same function the `set_player_role` command calls,
+    /// Then the match about to be played has him as a Sweeper Keeper.
+    #[test]
+    fn a_role_changed_before_kick_off_reaches_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, "live").expect("live advance response");
+        assert_ne!(
+            user_goalkeeper_role_in_session(&state),
+            engine::PlayerRole::SweeperKeeper,
+            "the fixture must start from a different role, or the test proves nothing"
+        );
+
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            "a-gk".to_string(),
+            Some("SweeperKeeper".to_string()),
+        )
+        .expect("a goalkeeper may be a Sweeper Keeper");
+
+        let stored_role = state
+            .get_game(|game| game.teams[0].player_roles.get("a-gk").cloned())
+            .expect("active game");
+        assert_eq!(stored_role, Some(domain::team::PlayerRole::SweeperKeeper));
+        assert_eq!(
+            user_goalkeeper_role_in_session(&state),
+            engine::PlayerRole::SweeperKeeper,
+            "the live session must play with the role set before kick-off"
+        );
+    }
+
+    /// Given an active career whose user team already has a high defensive
+    /// line and a Sweeper Keeper on the eve of match day,
+    /// When the live advance builds the match session,
+    /// Then the session carries both — so a failure in the two tests above is
+    /// the missing hand-over to an existing session, not the domain-to-engine
+    /// mapping of these values.
+    #[test]
+    fn a_dial_and_role_set_before_the_session_is_built_reach_the_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        set_defensive_line_high(&state);
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            "a-gk".to_string(),
+            Some("SweeperKeeper".to_string()),
+        )
+        .expect("a goalkeeper may be a Sweeper Keeper");
+
+        advance_time_with_mode_internal(&state, "live").expect("live advance response");
+
+        assert_eq!(
+            user_side_in_session(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+        assert_eq!(
+            user_goalkeeper_role_in_session(&state),
+            engine::PlayerRole::SweeperKeeper
+        );
+    }
+
+    /// Given a user team whose live match has already kicked off,
+    /// When the user saves a high defensive line on the team,
+    /// Then the match in play keeps its line: once it has started, only the
+    /// live commands change it.
+    #[test]
+    fn a_dial_saved_after_kick_off_leaves_the_match_alone() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, "live").expect("live advance response");
+        crate::application::live_match::step_live_match(&state, 1).expect("the match kicks off");
+
+        set_defensive_line_high(&state);
+
+        let line_in_play = state
+            .with_live_match(|session| session.snapshot().home_team.tactics.defensive_line)
+            .expect("a live match session exists");
+        assert_eq!(line_in_play, engine::DefensiveLine::Medium);
+    }
 }
