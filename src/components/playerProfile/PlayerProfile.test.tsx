@@ -23,6 +23,16 @@ function hasWeeklyWage(text: string, amount: string): boolean {
   return text.replace(/\s+/g, "").includes(`€${amount}/wk`);
 }
 
+// What the backend's contract warning stages read as on a badge, by player id; a test says which
+// players are at risk. The hook that asks for them has its own test.
+const riskLevels = vi.hoisted(() => ({
+  current: {} as Record<string, "critical" | "warning" | "stable">,
+}));
+
+vi.mock("../../hooks/useContractWarningStages", () => ({
+  useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
+}));
+
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
@@ -398,6 +408,7 @@ function RenewalHarness({ initialPlayer }: { initialPlayer?: PlayerData }) {
 
 describe("PlayerProfile contract surfaces", () => {
   beforeEach(() => {
+    riskLevels.current = {};
     vi.mocked(invoke).mockReset();
     vi.mocked(invoke).mockImplementation(async (command: string) => defaultInvokeResponse(command));
   });
@@ -594,6 +605,7 @@ describe("PlayerProfile contract surfaces", () => {
 
   it("renders expiry date, years remaining, and contract risk for the selected player", () => {
     const player = createPlayer();
+    riskLevels.current = { [player.id]: "critical" };
     const gameState = createGameState(player);
 
     render(<PlayerProfile player={player} gameState={gameState} isOwnClub onClose={vi.fn()} />);

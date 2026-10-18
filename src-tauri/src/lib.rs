@@ -253,6 +253,7 @@ pub fn run() {
             set_contract_exit_intent,
             clear_contract_exit_intent,
             preview_contract_termination,
+            get_contract_warning_stages,
             terminate_contract_now,
             set_formation,
             list_custom_tactics,
