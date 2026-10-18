@@ -174,7 +174,7 @@ pub(super) fn apply_match_report_in<F>(
     // Where the two clubs' players stand, found once for every step below. None of them moves a
     // player between clubs, so the positions hold from here to the end of the report.
     let club_of = |team_id: &str| match lookups {
-        Some(lookups) => lookups.club(team_id).to_vec(),
+        Some(lookups) => lookups.club(game, team_id).to_vec(),
         None => crate::match_day_eligibility::club_positions(&game.players, team_id),
     };
     let (home_club, away_club) = (club_of(home_team_id), club_of(away_team_id));

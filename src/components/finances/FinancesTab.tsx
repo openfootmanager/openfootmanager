@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
+import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { GameStateData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
 import {
@@ -8,7 +9,6 @@ import {
   formatWeeklyAmount,
   formatWeeklyWage,
   getContractRiskBadgeVariant,
-  getContractRiskLevel,
   getContractYearsRemaining,
 } from "../../lib/helpers";
 import { weeklyWageAmount } from "../../lib/finance";
@@ -249,9 +249,10 @@ function FinancesTabLoaded({
         days: recoveryPreviews.marketingCampaign.cooldownDays,
       })
     : null;
+  const contractRiskLevel = useContractRiskLevels(roster, gameState.clock.current_date);
   const contractRiskPlayers = roster
     .map((player) => {
-      const riskLevel = getContractRiskLevel(player.contract_end, gameState.clock.current_date);
+      const riskLevel = contractRiskLevel(player.id);
 
       return {
         player,

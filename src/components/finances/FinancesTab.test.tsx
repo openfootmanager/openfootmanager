@@ -7,6 +7,16 @@ import { resolveBackendError } from "../../utils/backendI18n";
 import FinancesTab from "./FinancesTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
+// What the backend's contract warning stages read as on a badge, by player id; a test says which
+// players are at risk. The hook that asks for them has its own test.
+const riskLevels = vi.hoisted(() => ({
+  current: {} as Record<string, "critical" | "warning" | "stable">,
+}));
+
+vi.mock("../../hooks/useContractWarningStages", () => ({
+  useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
+}));
+
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
@@ -369,6 +379,7 @@ function createGameState(
 
 describe("FinancesTab facilities", () => {
   beforeEach(() => {
+    riskLevels.current = { "player-critical": "critical", "player-warning": "warning" };
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_finance_snapshot") {

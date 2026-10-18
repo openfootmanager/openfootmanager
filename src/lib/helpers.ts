@@ -30,7 +30,6 @@ export {
 } from "./dateFormatting";
 export {
   getContractRiskBadgeVariant,
-  getContractRiskLevel,
   getContractYearsRemaining,
 } from "./contractUtils";
 export {

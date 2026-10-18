@@ -87,6 +87,7 @@ fn plan_squads(game: &mut Game, clubs: &[String]) {
             continue;
         };
         let club = positions.entry(team_id.clone()).or_default();
+        crate::match_day_eligibility::debug_assert_group_is_current(&game.players, team_id, club);
         graduate_overage_academy_players(game, club, current_date);
         plan_squad_depth(game, &team, club);
     }

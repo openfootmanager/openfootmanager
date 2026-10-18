@@ -3,10 +3,11 @@ use ofm_core::currency::{self, CurrencyDefinition};
 use std::sync::Arc;
 use tauri::Manager as TauriManager;
 
+use crate::SAVE_MANAGER_UNAVAILABLE_ERROR;
+
 const SETTINGS_LOAD_FAILED_ERROR: &str = "be.error.settings.loadFailed";
 const SETTINGS_PARSE_FAILED_ERROR: &str = "be.error.settings.parseFailed";
 const SETTINGS_SAVE_FAILED_ERROR: &str = "be.error.settings.saveFailed";
-const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {

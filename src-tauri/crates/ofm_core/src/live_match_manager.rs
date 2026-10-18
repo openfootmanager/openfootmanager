@@ -274,12 +274,12 @@ pub(crate) fn prepare_kick_off(
             crate::squad_floor::senior_counts_among(
                 game,
                 &home_team_id,
-                lookups.club(&home_team_id),
+                lookups.club(game, &home_team_id),
             ),
             crate::squad_floor::senior_counts_among(
                 game,
                 &away_team_id,
-                lookups.club(&away_team_id),
+                lookups.club(game, &away_team_id),
             ),
         ),
         None => crate::squad_floor::senior_counts_of_two(game, &home_team_id, &away_team_id),
@@ -376,7 +376,7 @@ fn create_live_match_with(
     let club_of = |team_id: &str| -> Vec<&Player> {
         match lookups {
             Some(lookups) => lookups
-                .club(team_id)
+                .club(game, team_id)
                 .iter()
                 .map(|&position| &game.players[position])
                 .collect(),

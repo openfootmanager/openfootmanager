@@ -1,13 +1,15 @@
 use log::info;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::State;
 
 use domain::negotiation::NegotiationFeedback;
 use domain::player::RenewalSessionStatus;
 use ofm_core::contracts::{
-    ContractTerminationPreview, ContractTerminationResult, DelegatedRenewalOptions,
-    DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection, RenewalOffer,
+    ContractTerminationPreview, ContractTerminationResult, ContractWarningStage,
+    DelegatedRenewalOptions, DelegatedRenewalReport, RenewalDecision, RenewalFinancialProjection,
+    RenewalOffer,
 };
 use ofm_core::game::Game;
 use ofm_core::squad_safety::SquadSafetyReport;
@@ -359,6 +361,25 @@ pub fn clear_contract_exit_intent_internal(
     .map(|game| ContractExitIntentCommandResponse { game })
 }
 
+#[tauri::command]
+pub fn get_contract_warning_stages(
+    state: State<'_, Arc<StateManager>>,
+    player_ids: Vec<String>,
+) -> Result<HashMap<String, Option<ContractWarningStage>>, String> {
+    get_contract_warning_stages_internal(&state, &player_ids)
+}
+
+/// The stage each of `player_ids`' contracts is in for the daily warnings (`None` when none applies),
+/// so a badge and a warning can never disagree. An id no player has is left out of the answer.
+pub fn get_contract_warning_stages_internal(
+    state: &StateManager,
+    player_ids: &[String],
+) -> Result<HashMap<String, Option<ContractWarningStage>>, String> {
+    state
+        .get_game(|game| ofm_core::contracts::contract_warning_stages(game, player_ids))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
+}
+
 pub fn preview_contract_termination_internal(
     state: &StateManager,
     player_id: &str,
@@ -402,10 +423,10 @@ pub fn terminate_contract_now_internal(
 mod tests {
     use super::{
         clear_contract_exit_intent_internal, delegate_renewals_internal,
-        offer_free_agent_contract_internal, preview_contract_termination_internal,
-        preview_free_agent_contract_impact_internal, preview_renewal_financial_impact_internal,
-        propose_renewal_internal, set_contract_exit_intent_internal,
-        terminate_contract_now_internal,
+        get_contract_warning_stages_internal, offer_free_agent_contract_internal,
+        preview_contract_termination_internal, preview_free_agent_contract_impact_internal,
+        preview_renewal_financial_impact_internal, propose_renewal_internal,
+        set_contract_exit_intent_internal, terminate_contract_now_internal,
     };
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
@@ -827,6 +848,34 @@ mod tests {
         assert_eq!(response.projection.current_annual_wage_bill, 12_000);
         assert_eq!(response.projection.projected_annual_wage_bill, 15_000);
         assert!(response.projection.policy_allows);
+    }
+
+    /// Given an active game in which the player's contract ends in 30 days
+    /// When the warning stages are asked for that player and for an id the game does not have
+    /// Then the player has the final-weeks stage and the unknown id is left out; with no active
+    ///      game the command says so.
+    #[test]
+    fn get_contract_warning_stages_internal_answers_from_the_active_game() {
+        let state = StateManager::new();
+        let ids = ["player-1".to_string(), "nobody".to_string()];
+        assert_eq!(
+            get_contract_warning_stages_internal(&state, &ids)
+                .err()
+                .as_deref(),
+            Some("be.error.noActiveGameSession")
+        );
+
+        let mut game = make_game();
+        game.players[0].stage_contract_end(Some("2026-08-31".to_string()));
+        state.set_game(game);
+
+        let stages = get_contract_warning_stages_internal(&state, &ids).expect("stages");
+
+        assert_eq!(
+            stages.get("player-1"),
+            Some(&Some(ofm_core::contracts::ContractWarningStage::FinalWeeks))
+        );
+        assert_eq!(stages.len(), 1);
     }
 
     #[test]

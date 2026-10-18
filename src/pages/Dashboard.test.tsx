@@ -736,6 +736,7 @@ describe("Dashboard", () => {
           home_team_id: "ar-00",
           away_team_id: "ar-01",
           competition: "League",
+          competitive: true,
           status: "Completed",
           result: null,
         },
@@ -746,6 +747,7 @@ describe("Dashboard", () => {
           home_team_id: "ar-01",
           away_team_id: "ar-00",
           competition: "League",
+          competitive: true,
           status: "Scheduled",
           result: null,
         },
@@ -817,6 +819,7 @@ describe("Dashboard", () => {
         season: 2026,
         fixtures: [
           {
+            competitive: true,
             id: "cup-match",
             competition_id: "cup-1",
             competition: "Cup",

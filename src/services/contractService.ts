@@ -8,6 +8,18 @@ export type SquadSafetyIssue =
   | "no_healthy_goalkeeper"
   | "incomplete_formation";
 
+/** How near a contract's end is, as the daily warnings, morale pressure and renewals read it. */
+export type ContractWarningStage = "twelve_months" | "six_months" | "three_months" | "final_weeks";
+
+/** The warning stage of each player's contract; null beyond a year or once over. */
+export async function getContractWarningStages(
+  playerIds: string[],
+): Promise<Record<string, ContractWarningStage | null>> {
+  return invoke<Record<string, ContractWarningStage | null>>("get_contract_warning_stages", {
+    playerIds,
+  });
+}
+
 export interface SquadSafetyReportData {
   team_id: string;
   projected_roster_size: number;
