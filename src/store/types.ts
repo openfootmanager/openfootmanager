@@ -597,6 +597,10 @@ export interface FixtureData {
   /** Whether the match is played for something: not a friendly, friendly cup or preseason
    *  tournament. Computed by the backend (`Fixture::is_competitive`), never stored. */
   competitive: boolean;
+  /** The side a knockout tie sends on once there is a result (goals, then the shootout); null
+   *  before one. Computed by the backend (`Fixture::advancing_team_id`), never stored; read it for
+   *  knockout fixtures only. */
+  advancing_team_id?: string | null;
   status: "Scheduled" | "InProgress" | "Completed";
   /** Set when the match was moved off a date the player had already been shown. */
   postponement?: {
