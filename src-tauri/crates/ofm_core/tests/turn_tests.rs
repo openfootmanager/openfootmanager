@@ -396,7 +396,7 @@ fn process_day_releases_players_with_expired_contracts() {
     let message = game
         .messages
         .iter()
-        .find(|message| message.id == "contract_expired_t1_fwd0")
+        .find(|message| message.id == "contract_expired_t1_fwd0_2025-06-15")
         .expect("An inbox message should explain that the player left on a free");
     assert_eq!(
         message.subject_key.as_deref(),

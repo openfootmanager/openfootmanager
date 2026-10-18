@@ -103,6 +103,13 @@ pub(crate) fn release_player_contract(
     else {
         return;
     };
+    // Expiry releases every club's players, so whether the user hears about it is decided per
+    // player: the contract is theirs, or the player is in their squad on loan and leaves it.
+    let user_team_id = game.manager.team_id.as_deref();
+    let leaves_user_squad = user_team_id.is_some_and(|user_team_id| {
+        user_team_id == team_id
+            || game.players[player_index].team_id.as_deref() == Some(user_team_id)
+    });
 
     for team in &mut game.teams {
         remove_player_from_team_references(team, &player_id);
@@ -130,6 +137,9 @@ pub(crate) fn release_player_contract(
         },
     );
 
+    if !leaves_user_squad {
+        return;
+    }
     let message = match reason {
         ContractReleaseReason::Expired => {
             contract_expired_message(&player_id, &player_name, &team_name, &today)
@@ -145,7 +155,7 @@ pub(crate) fn release_player_contract(
         }
     };
 
-    game.messages.push(message);
+    crate::inbox::emit(game, message);
 }
 
 pub(crate) fn contract_expired_message(
@@ -159,7 +169,9 @@ pub(crate) fn contract_expired_message(
     i18n_params.insert("team".to_string(), team_name.to_string());
 
     InboxMessage::new(
-        format!("contract_expired_{}", player_id),
+        // Scoped to the day: a player can re-sign and run out again, and a key naming only the
+        // player would let the ledger silence the second expiry.
+        format!("contract_expired_{player_id}_{date}"),
         String::new(),
         String::new(),
         String::new(),

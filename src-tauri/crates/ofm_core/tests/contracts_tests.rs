@@ -382,7 +382,7 @@ fn terminate_contract_now_releases_player_and_charges_severance() {
     let message = game
         .messages
         .iter()
-        .find(|message| message.id == "contract_terminated_player-1")
+        .find(|message| message.id == "contract_terminated_player-1_2026-08-01")
         .expect("termination should create an inbox message");
     assert_eq!(
         message.subject_key.as_deref(),
@@ -1576,4 +1576,153 @@ fn the_warning_stages_are_the_ones_the_daily_warnings_use() {
     assert_eq!(stage("today"), Some(None));
     assert_eq!(stage("expired"), Some(None));
     assert_eq!(stage("nobody"), None);
+}
+
+// ---------------------------------------------------------------------------
+// Who hears about an expired contract.
+//
+// The release runs for every club's players, so the message has to be decided
+// per player: a manager is told about their own squad, never about the rest of
+// the world.
+// ---------------------------------------------------------------------------
+
+fn make_rival_team() -> Team {
+    let mut team = make_team();
+    team.id = "team-2".to_string();
+    team.name = "Beta United".to_string();
+    team.short_name = "BET".to_string();
+    team.manager_id = None;
+    team
+}
+
+fn expiry_messages(game: &Game) -> Vec<&domain::message::InboxMessage> {
+    game.messages
+        .iter()
+        .filter(|message| message.id.starts_with("contract_expired_"))
+        .collect()
+}
+
+/// Given an AI club whose player's contract has run out,
+/// when the day's expiries are processed,
+/// then the player is released and the user's inbox stays empty.
+#[test]
+fn an_ai_clubs_expired_contract_sends_the_user_nothing() {
+    let mut game = make_game();
+    game.teams.push(make_rival_team());
+    let mut rival_player = make_player_with("rival-1", 5_000, "2026-06-30");
+    rival_player.team_id = Some("team-2".to_string());
+    game.players = vec![rival_player];
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    assert_eq!(
+        game.players[0].team_id, None,
+        "the AI club still releases the player"
+    );
+    assert!(
+        expiry_messages(&game).is_empty(),
+        "another club's expiry is not the user's mail"
+    );
+}
+
+/// Given one of the user's players whose contract has run out,
+/// when the day's expiries are processed twice,
+/// then one message names the day it happened and the ledger records it.
+#[test]
+fn the_users_expired_contract_is_sent_once_through_the_ledger() {
+    let mut game = make_game();
+    game.players[0].stage_contract_end(Some("2026-06-30".to_string()));
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    let sent = expiry_messages(&game);
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].id, "contract_expired_player-1_2026-08-01");
+    assert_eq!(
+        sent[0].i18n_params.get("team").map(String::as_str),
+        Some("Alpha FC")
+    );
+    assert!(
+        game.emitted_events
+            .contains("contract_expired_player-1_2026-08-01"),
+        "the send is recorded in the ledger, not only in the mailbox"
+    );
+}
+
+/// Given a player on loan at the user's club from an AI club,
+/// when the parent contract runs out,
+/// then the user is told, because the player leaves the user's squad.
+#[test]
+fn a_loanee_whose_parent_contract_expires_is_reported_to_the_borrower() {
+    let mut game = make_game();
+    game.teams.push(make_rival_team());
+    let mut loanee = make_player_with("loanee-1", 5_000, "2026-06-30");
+    loanee.team_id = Some("team-1".to_string());
+    loanee.active_loan = Some(ActiveLoan {
+        parent_team_id: "team-2".to_string(),
+        loan_team_id: "team-1".to_string(),
+        start_date: "2026-01-01".to_string(),
+        end_date: "2026-12-31".to_string(),
+        wage_contribution_pct: 100,
+        buy_option_fee: None,
+        loan_start_minutes: 0,
+        loan_start_appearances: 0,
+        development_reported_minutes: 0,
+        development_reported_appearances: 0,
+    });
+    game.players = vec![loanee];
+
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    assert_eq!(game.players[0].team_id, None);
+    assert_eq!(expiry_messages(&game).len(), 1);
+}
+
+/// Given a player released at expiry who later re-signs and runs out again,
+/// when the second expiry is processed on a later day,
+/// then the user is told again: the ledger key is scoped to the day, not the player.
+#[test]
+fn a_player_who_expires_again_after_re_signing_is_reported_again() {
+    let mut game = make_game();
+    game.players[0].stage_contract_end(Some("2026-06-30".to_string()));
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    game.players[0].team_id = Some("team-1".to_string());
+    game.players[0].stage_contract_end(Some("2027-06-30".to_string()));
+    game.clock = GameClock::new(Utc.with_ymd_and_hms(2027, 7, 1, 12, 0, 0).unwrap());
+    ofm_core::contracts::process_contract_expiries(&mut game);
+
+    let ids: Vec<&str> = expiry_messages(&game)
+        .iter()
+        .map(|message| message.id.as_str())
+        .collect();
+    assert_eq!(
+        ids,
+        vec![
+            "contract_expired_player-1_2026-08-01",
+            "contract_expired_player-1_2027-07-01"
+        ]
+    );
+}
+
+/// Given the user terminates a contract,
+/// when the release is recorded,
+/// then the message goes through the ledger under a key scoped to the day.
+#[test]
+fn a_terminated_contract_is_sent_through_the_ledger() {
+    let mut game = make_squad_game();
+    give_squad_depth(&mut game);
+
+    terminate_contract_now(&mut game, "player-1").expect("termination succeeds");
+
+    assert!(
+        game.emitted_events
+            .contains("contract_terminated_player-1_2026-08-01")
+    );
+    assert!(
+        game.messages
+            .iter()
+            .any(|message| message.id == "contract_terminated_player-1_2026-08-01")
+    );
 }

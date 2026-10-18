@@ -172,7 +172,8 @@ pub(crate) fn contract_terminated_message(
     i18n_params.insert("severance".to_string(), severance_cost.to_string());
 
     InboxMessage::new(
-        format!("contract_terminated_{}", player_id),
+        // Scoped to the day, like the expiry key: a player can be signed and released again.
+        format!("contract_terminated_{player_id}_{date}"),
         String::new(),
         String::new(),
         String::new(),
