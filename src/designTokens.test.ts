@@ -5,10 +5,17 @@ import { describe, expect, it } from "vitest";
 // throws under jsdom.
 const appCss = readFileSync("src/App.css", "utf-8");
 
-/** The custom properties declared directly inside the first block that `selector` opens. */
+/**
+ * The custom properties declared in the one block whose line reads exactly `selector {`. A selector
+ * that opens no block, or more than one, fails loudly instead of reading the wrong block.
+ */
 function declarationsIn(selector: string): Map<string, string> {
-  const start = appCss.indexOf(`${selector} {`);
-  if (start === -1) return new Map();
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const openings = [...appCss.matchAll(new RegExp(`^[ \\t]*${escaped} \\{$`, "gm"))];
+  if (openings.length !== 1) {
+    throw new Error(`Expected one "${selector} {" block in App.css, found ${openings.length}`);
+  }
+  const start = openings[0].index ?? 0;
   const body = appCss.slice(appCss.indexOf("{", start) + 1, appCss.indexOf("}", start));
   const declarations = new Map<string, string>();
   for (const match of body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
@@ -19,6 +26,7 @@ function declarationsIn(selector: string): Map<string, string> {
 
 const theme = declarationsIn("@theme");
 const dark = declarationsIn(".dark");
+const highContrast = declarationsIn(".high-contrast");
 const highContrastDark = declarationsIn(".high-contrast.dark");
 const compact = declarationsIn(".density-compact");
 
@@ -54,11 +62,22 @@ function contrast(a: Rgba, b: Rgba): number {
   return (high + 0.05) / (low + 0.05);
 }
 
-type Mode = "light" | "dark" | "high-contrast dark";
+type Mode = "light" | "dark" | "high-contrast light" | "high-contrast dark";
+
+/**
+ * The blocks that set a token in each mode, winner first. App.tsx toggles .high-contrast in either
+ * theme. In dark it competes with .dark at the same specificity and comes later in the file, so it
+ * would win, but .high-contrast.dark is more specific and wins over both.
+ */
+const LAYERS: Record<Mode, Array<Map<string, string>>> = {
+  light: [theme],
+  dark: [dark, theme],
+  "high-contrast light": [highContrast, theme],
+  "high-contrast dark": [highContrastDark, highContrast, dark, theme],
+};
 
 function tokenIn(mode: Mode, name: string): string {
-  const layers =
-    mode === "light" ? [theme] : mode === "dark" ? [dark, theme] : [highContrastDark, dark, theme];
+  const layers = LAYERS[mode];
   for (const layer of layers) {
     const value = layer.get(name);
     if (value) return value;
@@ -90,7 +109,7 @@ const THEMED_COLOURS = [
 const READABLE_PAIRS: Array<[string, string[]]> = [
   ["fg", ["page", "panel", "sunken"]],
   ["fg-muted", ["page", "panel", "sunken"]],
-  ["fg-subtle", ["panel", "sunken"]],
+  ["fg-subtle", ["page", "panel", "sunken"]],
   ...["positive", "warning", "danger", "info"].map((status): [string, string[]] => [
     status,
     ["panel", `${status}-tint`],
@@ -101,7 +120,7 @@ const READABLE_PAIRS: Array<[string, string[]]> = [
   ]),
 ];
 
-const MODES: Mode[] = ["light", "dark", "high-contrast dark"];
+const MODES = Object.keys(LAYERS) as Mode[];
 
 describe("design tokens", () => {
   /**
@@ -136,17 +155,20 @@ describe("design tokens", () => {
   });
 
   /**
-   * Given the brand fill and its text token,
-   * when white text sits on primary-700 (every primary button),
-   * then it reaches 4.5:1.
+   * Given on-brand text and the fills it is allowed on,
+   * when white text sits on primary-700 (every primary button) or on chrome (the sidebar, match band),
+   * then it reaches 4.5:1. The -solid colours carry no text, so they are not on this list.
    */
-  it("keeps text on the brand fill readable", () => {
-    const ratio = contrast(
-      parseColour(tokenIn("light", "--color-on-brand")),
-      parseColour(tokenIn("light", "--color-primary-700")),
-    );
-    expect(ratio).toBeGreaterThanOrEqual(4.5);
-  });
+  it.each(["--color-primary-700", "--color-chrome"])(
+    "keeps on-brand text readable on %s",
+    (fill) => {
+      const ratio = contrast(
+        parseColour(tokenIn("light", "--color-on-brand")),
+        parseColour(tokenIn("light", fill)),
+      );
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    },
+  );
 
   /**
    * Given the six role-named type sizes,

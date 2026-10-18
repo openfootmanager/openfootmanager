@@ -82,13 +82,16 @@
   --color-overlay: rgb(10 17 40 / 0.6);
   --color-fg: #0a1128;
   --color-fg-muted: #4b5563;
-  --color-fg-subtle: #6b7280;
+  /* A shade darker than gray-500, so it reaches 4.5:1 on the page as well as on a panel. */
+  --color-fg-subtle: #646d7b;
   --color-line: #e5e7eb;
   --color-line-strong: #d1d5db;
   --color-focus: #10b981;
+  /* Text on the brand fill (primary-700) or on chrome. Never on a -solid colour: those are for
+     bars, dots and fills that carry no text, and white on them falls under 4.5:1. */
   --color-on-brand: #ffffff;
 
-  /* Status: text, tint (backgrounds) and solid (bars, dots). */
+  /* Status: text, tint (backgrounds) and solid (bars and dots only; they carry no text). */
   --color-positive: #047857;
   --color-positive-tint: #d1fae5;
   --color-positive-solid: #10b981;
@@ -167,6 +170,14 @@
     --color-tone-low-tint: rgb(120 53 15 / 0.45);
     --color-tone-bad: #f87171;
     --color-tone-bad-tint: rgb(127 29 29 / 0.45);
+  }
+
+  /* App.tsx toggles .high-contrast in either theme; .high-contrast.dark is more specific and wins
+     in dark. */
+  .high-contrast {
+    --color-fg-muted: #1f2937;
+    --color-fg-subtle: #374151;
+    --color-line: #9ca3af;
   }
 
   .high-contrast.dark {
