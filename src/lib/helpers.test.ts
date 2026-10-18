@@ -110,6 +110,7 @@ const makePlayer = (overrides: Partial<PlayerData> = {}): PlayerData => ({
 
 const makeFixture = (overrides: Partial<FixtureData> = {}): FixtureData => ({
   competitive: true,
+  advancing_team_id: null,
   id: "fix_1",
   matchday: 1,
   date: "2026-08-01",
