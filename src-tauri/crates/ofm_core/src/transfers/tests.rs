@@ -394,11 +394,13 @@ fn a_buyer_moves_on_from_a_target_its_board_would_refuse() {
     game.teams[1].transfer_budget = 50_000_000;
     game.teams[1].finance = 50_000_000;
     let squad_bill = crate::finances::calc_wages(&game, "a");
+    let anchor_wage = u32::try_from(bill - squad_bill)
+        .expect("the squad alone must not already cost more than the bill the test sets");
     game.players.push(squad_player(
         "anchor",
         "a",
         Position::Midfielder,
-        (bill - squad_bill) as u32,
+        anchor_wage,
     ));
     game.players.push(dear);
     game.players.push(modest);
