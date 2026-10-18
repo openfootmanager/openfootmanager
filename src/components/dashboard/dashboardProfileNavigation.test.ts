@@ -6,6 +6,7 @@ import {
   navigateDashboardProfiles,
   openDashboardSearchPlayer,
   openDashboardSearchTeam,
+  openProfileTitle,
   resetDashboardToTab,
   selectDashboardPlayer,
   selectDashboardTeam,
@@ -100,5 +101,59 @@ describe("dashboardProfileNavigation", () => {
 
     const teamFromSearch = openDashboardSearchTeam(withPlayerOpen, "team-9");
     expect(goBackDashboardProfile(teamFromSearch).selectedPlayerId).toBe("player-1");
+  });
+
+  const world = {
+    players: [{ id: "player-1", match_name: "J. Smith" }],
+    teams: [{ id: "team-2", name: "Beta FC" }],
+  };
+
+  /**
+   * Given a player's profile opened from the Squad tab
+   * When the header asks what is open
+   * Then it gets the player's name, not the tab's
+   */
+  it("names an open player profile by the player", () => {
+    const state = selectDashboardPlayer(createDashboardProfileNavigationState("Squad"), "player-1");
+
+    expect(openProfileTitle(state, world)).toBe("J. Smith");
+  });
+
+  /**
+   * Given a club's profile opened from a player's profile
+   * When the header asks what is open
+   * Then it gets the club, which is what the screen shows
+   */
+  it("names an open club profile by the club, even with a player behind it", () => {
+    const withPlayer = selectDashboardPlayer(
+      createDashboardProfileNavigationState("Squad"),
+      "player-1",
+    );
+    const state = { ...selectDashboardTeam(withPlayer, "team-2"), selectedPlayerId: "player-1" };
+
+    expect(openProfileTitle(state, world)).toBe("Beta FC");
+  });
+
+  /**
+   * Given a profile whose player is no longer in the world (a retired player)
+   * When the header asks what is open
+   * Then there is no name to give
+   */
+  it("has no name for a profile whose player is not in the world", () => {
+    const state = selectDashboardPlayer(
+      createDashboardProfileNavigationState("Squad"),
+      "retired-9",
+    );
+
+    expect(openProfileTitle(state, world)).toBeNull();
+  });
+
+  /**
+   * Given no profile is open
+   * When the header asks what is open
+   * Then nothing is, and the tab names the screen
+   */
+  it("has no name when no profile is open", () => {
+    expect(openProfileTitle(createDashboardProfileNavigationState("Squad"), world)).toBeNull();
   });
 });

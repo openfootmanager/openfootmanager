@@ -15,7 +15,6 @@ interface DashboardWorkspaceContentProps {
   gameState: GameStateData;
   profileNavigation: DashboardProfileNavigationState;
   dashboardTabContentModel: DashboardTabContentModel;
-  onBack: () => void;
   onNavigate: (tab: string) => void;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
   onSelectTeam: (id: string) => void;
@@ -28,7 +27,6 @@ export default function DashboardWorkspaceContent({
   gameState,
   profileNavigation,
   dashboardTabContentModel,
-  onBack,
   onNavigate,
   onSelectPlayer,
   onSelectTeam,
@@ -71,7 +69,6 @@ export default function DashboardWorkspaceContent({
           startWithTerminationModal={
             profileNavigation.selectedPlayerOptions?.openTermination === true
           }
-          onClose={onBack}
           onSelectTeam={onSelectTeam}
           onGameUpdate={onGameUpdate}
         />
@@ -82,7 +79,6 @@ export default function DashboardWorkspaceContent({
           team={selectedTeam}
           gameState={gameState}
           isOwnTeam={selectedTeam.id === gameState.manager.team_id}
-          onClose={onBack}
           onSelectPlayer={onSelectPlayer}
         />
       ) : null}
