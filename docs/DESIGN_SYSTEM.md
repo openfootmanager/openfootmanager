@@ -57,7 +57,7 @@ and a dark value in the `.dark` block below it, so **a component that uses a rol
 
 Brand palettes (`primary-*`, `accent-*`, `navy-*`) stay for brand moments: the Continue button,
 the selected navigation item, a logo strip. The raw Tailwind palette (`gray-500`, `red-400`,
-`white`, …) isn't used in new code.
+`white`, …) isn't used in a finished folder (§7).
 
 **Readability is tested, not hoped for.** `src/designTokens.test.ts` checks that every text role
 reaches 4.5:1 on every surface it sits on, and that the focus ring reaches 3:1, in light, dark,
@@ -161,7 +161,17 @@ never a grey number that could read as a low value.
    Tailwind only emits a theme variable whose name it finds, so a name assembled from pieces at
    runtime resolves to nothing.
 
-## 7. Screenshots for a PR
+## 7. Enforcement
+
+`src/designSystem.test.ts` checks five rules in every folder listed in its `FINISHED_FOLDERS`:
+role type sizes only, no colour literal (except SVG artwork whose colours are data), no raw palette
+class, a full-screen overlay only through `Dialog`, and no `on-brand` text on a `-solid` fill. Each
+rule has a fixture that breaks it. A folder joins the list in the PR that brings it up to
+standard, so the list only ever names finished work, never a known violation; when every folder
+is in, the list goes. What a test can't see (uppercase, one primary action per page, colour as
+the only signal) is for review: the `ui-accessibility-reviewer` agent checks it.
+
+## 8. Screenshots for a PR
 
 A PR that changes how something looks shows before and after, in light and dark, at 1280×800 (the
 window the game opens at) and 960×640 (its minimum).
