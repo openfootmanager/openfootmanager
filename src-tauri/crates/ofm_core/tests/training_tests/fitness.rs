@@ -84,3 +84,29 @@ fn injured_exhausted_players_do_not_trigger_the_warning() {
             .all(|message| !message.id.starts_with("fitness_warn_"))
     );
 }
+
+/// Given three players on 10 and a fourth on exactly 25
+/// When the staff's critical fitness warning runs
+/// Then it names the three, and not the one on 25: critical is below 25, in the names as in the count
+#[test]
+fn the_critical_warning_names_only_players_below_25() {
+    let mut game = make_game();
+    let mut fourth = game.players[0].clone();
+    fourth.id = "p4".to_string();
+    game.players.push(fourth);
+    for (player, condition) in game.players.iter_mut().zip([10, 10, 10, 25]) {
+        player.condition = condition;
+    }
+
+    training::check_squad_fitness_warnings(&mut game);
+
+    let warning = game
+        .messages
+        .iter()
+        .find(|message| message.id.starts_with("fitness_warn_"))
+        .expect("a critical warning");
+    let named = warning.i18n_params["players"].lines().count();
+    assert_eq!(warning.i18n_params["criticalCount"], "3");
+    assert_eq!(named, 3);
+    assert!(!warning.i18n_params["players"].contains("(25%)"));
+}
