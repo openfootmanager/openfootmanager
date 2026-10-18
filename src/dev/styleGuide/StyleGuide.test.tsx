@@ -90,7 +90,15 @@ describe("style guide", () => {
         <StyleGuide options={readStyleGuideOptions("")} />
       </ThemeProvider>,
     );
-    for (const section of ["Tokens", "Controls", "Display", "Cards", "Pitch tokens", "Dialog"]) {
+    for (const section of [
+      "Tokens",
+      "Navigation",
+      "Controls",
+      "Display",
+      "Cards",
+      "Pitch tokens",
+      "Dialog",
+    ]) {
       expect(screen.getByRole("region", { name: section })).toBeInTheDocument();
     }
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
