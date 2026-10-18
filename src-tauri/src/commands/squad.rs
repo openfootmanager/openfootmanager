@@ -617,6 +617,20 @@ pub fn set_player_role_internal(
     })
 }
 
+/// One optional value per tactical dial, as the screen sends them; `None` leaves a dial alone.
+#[derive(Debug, Default)]
+pub struct TacticsPhasePatch {
+    pub build_up_style: Option<String>,
+    pub width: Option<String>,
+    pub tempo: Option<String>,
+    pub defensive_line: Option<String>,
+    pub pressing_intensity: Option<String>,
+    pub defensive_shape: Option<String>,
+    pub marking_style: Option<String>,
+    pub counter_press_duration: Option<String>,
+    pub break_speed: Option<String>,
+}
+
 // One `Option<String>` per tactical dial: this is the IPC signature the UI sends,
 // and each dial is independently optional. Bundling them into a struct would move
 // the same field count behind a serde type without making any call site simpler.
@@ -634,32 +648,51 @@ pub fn set_tactics_phase(
     counter_press_duration: Option<String>,
     break_speed: Option<String>,
 ) -> Result<Game, String> {
+    set_tactics_phase_internal(
+        &state,
+        TacticsPhasePatch {
+            build_up_style,
+            width,
+            tempo,
+            defensive_line,
+            pressing_intensity,
+            defensive_shape,
+            marking_style,
+            counter_press_duration,
+            break_speed,
+        },
+    )
+}
+
+pub fn set_tactics_phase_internal(
+    state: &StateManager,
+    patch: TacticsPhasePatch,
+) -> Result<Game, String> {
     use domain::team::*;
     info!("[cmd] set_tactics_phase");
-    mutate_active_game(&state, |game| {
-        let team = user_team_mut(game)?;
-        let p = &mut team.tactics_phase;
-        if let Some(v) = build_up_style {
+    mutate_active_game(state, |game| {
+        let p = &mut user_team_mut(game)?.tactics_phase;
+        if let Some(v) = patch.build_up_style {
             p.build_up_style = match v.as_str() {
                 "Short" => BuildUpStyle::Short,
                 "Long" => BuildUpStyle::Long,
                 _ => BuildUpStyle::Mixed,
             };
         }
-        if let Some(v) = width {
+        if let Some(v) = patch.width {
             p.width = match v.as_str() {
                 "Narrow" => PitchWidth::Narrow,
                 "Wide" => PitchWidth::Wide,
                 _ => PitchWidth::Normal,
             };
         }
-        if let Some(v) = tempo {
+        if let Some(v) = patch.tempo {
             p.tempo = match v.as_str() {
                 "Patient" => Tempo::Patient,
                 _ => Tempo::Direct,
             };
         }
-        if let Some(v) = defensive_line {
+        if let Some(v) = patch.defensive_line {
             p.defensive_line = match v.as_str() {
                 "VeryLow" => DefensiveLine::VeryLow,
                 "Low" => DefensiveLine::Low,
@@ -667,35 +700,35 @@ pub fn set_tactics_phase(
                 _ => DefensiveLine::Medium,
             };
         }
-        if let Some(v) = pressing_intensity {
+        if let Some(v) = patch.pressing_intensity {
             p.pressing_intensity = match v.as_str() {
                 "Passive" => PressingIntensity::Passive,
                 "Aggressive" => PressingIntensity::Aggressive,
                 _ => PressingIntensity::Medium,
             };
         }
-        if let Some(v) = defensive_shape {
+        if let Some(v) = patch.defensive_shape {
             p.defensive_shape = match v.as_str() {
                 "Stretched" => DefensiveShape::Stretched,
                 "Compact" => DefensiveShape::Compact,
                 _ => DefensiveShape::Normal,
             };
         }
-        if let Some(v) = marking_style {
+        if let Some(v) = patch.marking_style {
             p.marking_style = match v.as_str() {
                 "ManToMan" => MarkingStyle::ManToMan,
                 "Mixed" => MarkingStyle::Mixed,
                 _ => MarkingStyle::Zonal,
             };
         }
-        if let Some(v) = counter_press_duration {
+        if let Some(v) = patch.counter_press_duration {
             p.counter_press_duration = match v.as_str() {
                 "Short" => CounterPressDuration::Short,
                 "Long" => CounterPressDuration::Long,
                 _ => CounterPressDuration::None,
             };
         }
-        if let Some(v) = break_speed {
+        if let Some(v) = patch.break_speed {
             p.break_speed = match v.as_str() {
                 "Slow" => BreakSpeed::Slow,
                 "Fast" => BreakSpeed::Fast,
@@ -714,6 +747,7 @@ mod tests {
         apply_tactic_preset_internal, get_tactics_blueprint_status_internal,
         set_formation_internal, set_play_style_internal, set_player_role_internal,
         set_player_squad_role_internal, set_player_training_focus_internal,
+        set_tactics_phase_internal, TacticsPhasePatch,
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
@@ -1393,5 +1427,31 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("user player");
         assert_ne!(user_player.training_focus, Some(TrainingFocus::Technical));
+    }
+
+    /// Given a user team on the default blueprint,
+    /// When the screen sends only a high defensive line,
+    /// Then that dial turns and the other eight stay where they were.
+    #[test]
+    fn setting_one_dial_leaves_the_other_eight_alone() {
+        use domain::team::{DefensiveLine, TacticsPhaseSettings};
+
+        let state = StateManager::new();
+        state.set_game(make_game(make_player("1998-01-01")));
+
+        let game = set_tactics_phase_internal(
+            &state,
+            TacticsPhasePatch {
+                defensive_line: Some("High".to_string()),
+                ..TacticsPhasePatch::default()
+            },
+        )
+        .expect("a dial can be set on the user's team");
+
+        let expected = TacticsPhaseSettings {
+            defensive_line: DefensiveLine::High,
+            ..TacticsPhaseSettings::default()
+        };
+        assert_eq!(game.teams[0].tactics_phase, expected);
     }
 }
