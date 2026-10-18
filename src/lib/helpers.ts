@@ -29,6 +29,7 @@ export {
   formatMatchDate,
 } from "./dateFormatting";
 export {
+  contractExpiryLabel,
   getContractRiskBadgeVariant,
   getContractYearsRemaining,
 } from "./contractUtils";
