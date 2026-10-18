@@ -8,9 +8,9 @@
 //! his own stream shift the whole curve (an early or late bloomer) and slow or speed his decline
 //! (how long he lasts), so a few players are still good at 35.
 //!
-//! The numbers are those of the research behind the model
-//! (`~/.claude/orchestrate/drafts/player-development-research.md`), to be tuned against the
-//! season harness, not by hand.
+//! The numbers (growth per age, the decline table, the trait spreads, the ceiling drift) are
+//! written out as constants below and approved on #869; they are tuned against the multi-season
+//! reports of `season-harness::ageing`, not by hand.
 
 use domain::player::{Player, PlayerAttributes, Position};
 use rand::{Rng, RngExt};
@@ -659,12 +659,13 @@ mod tests {
         assert!(still_s > 0.95, "{still_s} of them are still S");
     }
 
-    /// Given the ceilings the generator draws for sixteen-year-olds (a bell narrower, and centred
-    /// higher, by what the drift will still add),
-    /// When they drift until it stops,
-    /// Then they land on the world's bell: the centre and a spread of 5.
+    /// Given a bell built directly: narrower by the variance `ceiling_drift_still_to_come` reports
+    /// for sixteen (and centred by its mean) -- the arithmetic `shaped_ceiling` relies on, not
+    /// `shaped_ceiling` itself, with ratings far below the ceilings so the rating floor stays out,
+    /// When `drift_ceiling` runs on every ceiling until the drift stops,
+    /// Then they land on the target bell: the centre and a spread of 5.
     #[test]
-    fn a_young_players_narrower_bell_drifts_onto_the_worlds_bell() {
+    fn the_drift_arithmetic_lands_a_narrowed_start_on_the_target_bell() {
         let (drift_mean, drift_variance) = ceiling_drift_still_to_come(16);
         let centre = 69.6 - drift_mean;
         let spread = (25.0_f64 - drift_variance).sqrt();

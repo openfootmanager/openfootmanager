@@ -58,6 +58,9 @@ pub struct AgeingReport {
 /// A player's rating and age on the day the last report was made.
 pub type Snapshot = HashMap<String, (u8, i32)>;
 
+/// Records the rating and age of every active (not retired) player on `game.clock.current_date`,
+/// keyed by id. The next report reads the change per age band against it, by the age each player
+/// had when the season began.
 pub fn snapshot_of(game: &Game) -> Snapshot {
     let on = game.clock.current_date.date_naive();
     game.players
