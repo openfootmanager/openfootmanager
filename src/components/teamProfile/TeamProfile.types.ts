@@ -6,7 +6,6 @@ export interface TeamProfileProps {
   team: TeamData;
   gameState: GameStateData;
   isOwnTeam: boolean;
-  onClose: () => void;
   onSelectPlayer?: (id: string) => void;
 }
 
