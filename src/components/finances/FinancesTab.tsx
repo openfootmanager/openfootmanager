@@ -249,10 +249,7 @@ function FinancesTabLoaded({
         days: recoveryPreviews.marketingCampaign.cooldownDays,
       })
     : null;
-  const contractRiskLevel = useContractRiskLevels(
-    roster.map((player) => player.id),
-    gameState.clock.current_date,
-  );
+  const contractRiskLevel = useContractRiskLevels(roster, gameState.clock.current_date);
   const contractRiskPlayers = roster
     .map((player) => {
       const riskLevel = contractRiskLevel(player.id);

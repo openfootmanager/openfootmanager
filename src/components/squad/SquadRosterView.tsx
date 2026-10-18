@@ -126,10 +126,7 @@ export default function SquadRosterView({
     );
 
   const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
-  const riskLevelOf = useContractRiskLevels(
-    roster.map((player) => player.id),
-    clockDate,
-  );
+  const riskLevelOf = useContractRiskLevels(roster, clockDate);
 
   const available = roster.filter(isMatchDayEligible);
   const formation = team.formation || "4-4-2";

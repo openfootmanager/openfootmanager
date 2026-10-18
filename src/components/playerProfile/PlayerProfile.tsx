@@ -88,7 +88,7 @@ export default function PlayerProfile({
     unknown: t("common.unknown"),
   });
   const contractRiskLevel = useContractRiskLevels(
-    [player.id],
+    [player],
     gameState.clock.current_date,
   )(player.id);
   const contractRiskLabel =

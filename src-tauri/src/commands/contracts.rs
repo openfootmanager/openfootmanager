@@ -345,6 +345,8 @@ pub fn get_contract_warning_stages(
     get_contract_warning_stages_internal(&state, &player_ids)
 }
 
+/// The stage each of `player_ids`' contracts is in for the daily warnings (`None` when none applies),
+/// so a badge and a warning can never disagree. An id no player has is left out of the answer.
 pub fn get_contract_warning_stages_internal(
     state: &StateManager,
     player_ids: &[String],
