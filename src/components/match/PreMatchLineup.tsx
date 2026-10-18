@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { MatchSnapshot, EnginePlayerData } from "./types";
@@ -30,18 +32,6 @@ export const POSITION_KEY_STATS: Record<string, { label: string; key: string }[]
     { label: "DRI", key: "dribbling" },
   ],
 };
-
-export function statColor(v: number): string {
-  if (v >= 75) return "text-primary-500 dark:text-primary-400 font-bold";
-  if (v >= 60) return "text-gray-700 dark:text-gray-200";
-  return "text-gray-500 dark:text-gray-400";
-}
-
-export function starterOvrColor(ovr: number): string {
-  if (ovr >= 70) return "text-primary-600 dark:text-primary-400";
-  if (ovr >= 50) return "text-gray-700 dark:text-gray-300";
-  return "text-red-600 dark:text-red-400";
-}
 
 function hexToRgb(color: string): { red: number; green: number; blue: number } | null {
   const normalized = normalizeHexColor(color);
@@ -181,6 +171,7 @@ export default function PreMatchLineup({
   formationControls,
   showStartingList = true,
 }: PreMatchLineupProps) {
+  const tierOf = useRatingTiers();
   const { t } = useTranslation();
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
@@ -335,14 +326,14 @@ export default function PreMatchLineup({
                       )}
                       <div className="flex items-center gap-0">
                         <span
-                          className={`text-[10px] font-heading font-bold tabular-nums w-7 text-center ${starterOvrColor(posOvr)}`}
+                          className={`text-[10px] font-heading font-bold tabular-nums w-7 text-center ${ratingTierClass(tierOf(posOvr), "text")}`}
                         >
                           {posOvr}
                         </span>
                         {keyStats.map((s) => (
                           <span
                             key={s.label}
-                            className={`text-[10px] font-heading tabular-nums w-7 text-center ${statColor(getStatVal(p, s.key))}`}
+                            className={`text-[10px] font-heading tabular-nums w-7 text-center ${ratingTierClass(tierOf(getStatVal(p, s.key)), "text")}`}
                           >
                             {getStatVal(p, s.key)}
                           </span>
@@ -435,7 +426,7 @@ export default function PreMatchLineup({
                     {keyStats.map((s) => (
                       <span
                         key={s.label}
-                        className={`text-[10px] font-heading tabular-nums w-7 text-center ${statColor(getStatVal(bp, s.key))}`}
+                        className={`text-[10px] font-heading tabular-nums w-7 text-center ${ratingTierClass(tierOf(getStatVal(bp, s.key)), "text")}`}
                       >
                         {getStatVal(bp, s.key)}
                       </span>

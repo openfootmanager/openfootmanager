@@ -396,11 +396,6 @@
     "growth": "Wachstum",
     "traits": "Eigenschaften",
     "condition": "Zustand",
-    "potWorldClass": "Weltklasse",
-    "potExcellent": "Hervorragend",
-    "potPromising": "Vielversprechend",
-    "potDecent": "Ordentlich",
-    "potLimited": "Begrenzt",
     "delegateToYouthAcademy": "An die Jugendakademie delegieren",
     "promoteToSeniorSquad": "In den Profikader befördern"
   },

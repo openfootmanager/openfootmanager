@@ -6,6 +6,11 @@ import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store
 import YouthAcademyTab from "./YouthAcademyTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
+
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
@@ -432,6 +437,47 @@ describe("YouthAcademyTab", () => {
   // advances. Promoting a player must patch that cache from the mutation
   // response, or the promoted player lingers in the list until the user
   // switches pages.
+  /**
+   * Given youth prospects with ceilings of 81 (S), 77 (A), 76 (B) and 60 (the rest)
+   * When the academy lists them
+   * Then each ceiling carries its backend tier's letter (none for the rest), and the "high potential"
+   *      count is the S and A prospects: two.
+   */
+  it("shows each prospect's ceiling as its backend tier", async () => {
+    const prospect = (id: string, potential: number) =>
+      createPlayer({
+        id,
+        full_name: `Prospect ${potential}`,
+        date_of_birth: "2008-01-01",
+        squad_role: "Youth",
+        potential,
+        ovr: 50,
+      });
+    const state = createGameState([
+      prospect("s", 81),
+      prospect("a", 77),
+      prospect("b", 76),
+      prospect("r", 60),
+    ]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} />);
+
+    const letterOf = async (potential: number) =>
+      (await screen.findByText(`Prospect ${potential}`))
+        .closest("tr")
+        ?.querySelector("p.text-\\[9px\\]");
+    expect((await letterOf(81))?.textContent).toBe("S");
+    expect((await letterOf(77))?.textContent).toBe("A");
+    expect((await letterOf(76))?.textContent).toBe("B");
+    expect(await letterOf(60)).toBeNull();
+    expect(screen.getByText("High Potential").previousElementSibling).toHaveTextContent("2");
+  });
+
   it("removes a promoted player from the prospects list without a refetch", async () => {
     const youthPlayer = createPlayer({
       id: "player-young",

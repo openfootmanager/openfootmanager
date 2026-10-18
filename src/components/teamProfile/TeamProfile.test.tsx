@@ -1,10 +1,16 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import { ratingTierClass } from "../../lib/ratingTier";
 import TeamProfile from "./TeamProfile";
 import { createSeasonContext } from "../../test-utils/factories";
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -352,6 +358,31 @@ describe("TeamProfile", () => {
       expect(screen.getByText("3-1")).toBeInTheDocument();
       expect(screen.getByText("62.0%")).toBeInTheDocument();
     });
+  });
+
+  /**
+   * Given the user's own club with players rated 76 and 77 (and a rival's, whose ratings are hidden)
+   * When the roster renders
+   * Then the own club's ratings take the colour of their backend tier, and a hidden one reads as the rest.
+   */
+  it("colours the own club's ratings by their backend tier", async () => {
+    const team = createTeam();
+    const state = createGameState(team);
+    state.players = [
+      createPlayer({ id: "p-76", full_name: "Seventy Six", match_name: "S. Six", ovr: 76 }),
+      createPlayer({ id: "p-77", full_name: "Seventy Seven", match_name: "S. Seven", ovr: 77 }),
+    ].map((player) => ({ ...player, team_id: team.id }));
+
+    render(<TeamProfile team={team} gameState={state} isOwnTeam onClose={vi.fn()} />);
+
+    const ratingOf = async (name: string, rating: string) =>
+      within((await screen.findByText(name)).closest("tr") as HTMLElement).getByText(rating);
+    expect(await ratingOf("Seventy Seven", "77")).toHaveClass(
+      ...ratingTierClass("A", "text").split(" "),
+    );
+    expect(await ratingOf("Seventy Six", "76")).toHaveClass(
+      ...ratingTierClass("B", "text").split(" "),
+    );
   });
 
   it("offers a roster context menu action to view the player profile", async () => {

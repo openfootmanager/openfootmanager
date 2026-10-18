@@ -4,6 +4,7 @@ import { invoke, type InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import type { CustomTactic } from "../../services/customTacticsService";
 import TacticsTab from "./TacticsTab";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("react-i18next", () => ({
@@ -23,6 +24,11 @@ vi.mock("react-i18next", () => ({
     i18n: { language: "en" },
   }),
 }));
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -721,6 +727,31 @@ describe("TacticsTab", () => {
     expect(onSelectPlayer).not.toHaveBeenCalled();
     // Modal stays closed until a second player is selected
     expect(screen.queryByText("tactics.selectedPlayer")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given starters rated 76 and 77, either side of the A-tier cut-off
+   * When the lineup list renders
+   * Then each rating badge takes the colour of its backend tier (B and A).
+   */
+  it("colours each starter's rating badge by its backend tier", () => {
+    const gameState = makeGameState();
+    gameState.players = gameState.players.map((player) =>
+      player.id === "d1"
+        ? { ...player, ovr: 76 }
+        : player.id === "f1"
+          ? { ...player, ovr: 77 }
+          : player,
+    );
+
+    render(<TacticsTab gameState={gameState} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    expect(within(screen.getByTestId("xi-player-f1")).getByText("77")).toHaveClass(
+      ...ratingTierClass("A", "badge").split(" "),
+    );
+    expect(within(screen.getByTestId("xi-player-d1")).getByText("76")).toHaveClass(
+      ...ratingTierClass("B", "badge").split(" "),
+    );
   });
 
   it("shows all starting XI players in the left panel list", () => {

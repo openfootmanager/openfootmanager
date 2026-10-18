@@ -2,19 +2,22 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { RatingTier } from "../services/squadService";
-import { useRatingTiers } from "./useRatingTiers";
+import { resetRatingTiersCache, useRatingTiers } from "./useRatingTiers";
 
 vi.mock("../services/squadService", () => ({ getRatingTiers: vi.fn() }));
 
 const { getRatingTiers } = await import("../services/squadService");
 const mockedTiers = vi.mocked(getRatingTiers);
 
-/** A table that cuts at 77 and 81, as the backend's does. */
+/** A table that cuts at 70, 77 and 81, as the backend's does. */
 const table = (): RatingTier[] =>
-  Array.from({ length: 100 }, (_, rating) => (rating >= 81 ? "S" : rating >= 77 ? "A" : "Rest"));
+  Array.from({ length: 100 }, (_, rating) =>
+    rating >= 81 ? "S" : rating >= 77 ? "A" : rating >= 70 ? "B" : "Rest",
+  );
 
 beforeEach(() => {
   mockedTiers.mockReset();
+  resetRatingTiersCache();
 });
 
 describe("useRatingTiers", () => {
@@ -32,7 +35,9 @@ describe("useRatingTiers", () => {
     await waitFor(() => expect(result.current(90)).toBe("S"));
     expect(result.current(80)).toBe("A");
     expect(result.current(77)).toBe("A");
-    expect(result.current(76)).toBe("Rest");
+    expect(result.current(76)).toBe("B");
+    expect(result.current(70)).toBe("B");
+    expect(result.current(69)).toBe("Rest");
     expect(mockedTiers).toHaveBeenCalledTimes(1);
   });
 
@@ -61,6 +66,42 @@ describe("useRatingTiers", () => {
     await waitFor(() => expect(result.current(90)).toBe("S"));
 
     expect(result.current(76.6)).toBe("A");
+    expect(result.current(69.6)).toBe("B");
     expect(result.current(120)).toBe("Rest");
+  });
+
+  /**
+   * Given a screen that mounts the hook once per row
+   * When three rows mount, and a later one after the table has arrived
+   * Then the backend is asked once, and the later row reads the table on its first render.
+   */
+  it("asks the backend once for however many mounts", async () => {
+    mockedTiers.mockResolvedValue(table());
+
+    const rows = [1, 2, 3].map(() => renderHook(() => useRatingTiers()));
+    await waitFor(() => expect(rows[2].result.current(90)).toBe("S"));
+    const late = renderHook(() => useRatingTiers());
+
+    expect(late.result.current(90)).toBe("S");
+    expect(mockedTiers).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given a first request that fails
+   * When a screen mounts the hook again
+   * Then it asks again, instead of keeping the failure.
+   */
+  it("asks again after a failed request", async () => {
+    mockedTiers.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(table());
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const first = renderHook(() => useRatingTiers());
+    await waitFor(() => expect(quiet).toHaveBeenCalled());
+    expect(first.result.current(90)).toBe("Rest");
+    const second = renderHook(() => useRatingTiers());
+
+    await waitFor(() => expect(second.result.current(90)).toBe("S"));
+    expect(mockedTiers).toHaveBeenCalledTimes(2);
+    quiet.mockRestore();
   });
 });

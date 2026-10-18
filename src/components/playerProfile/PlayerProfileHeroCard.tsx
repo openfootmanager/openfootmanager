@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { Shield } from "lucide-react";
 import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/helpers";
@@ -51,6 +53,7 @@ export default function PlayerProfileHeroCard({
   team,
   t,
 }: PlayerProfileHeroCardProps) {
+  const tierOf = useRatingTiers();
   const teamContextItems =
     player.team_id && onSelectTeam
       ? [buildViewTeamMenuItem(t, () => onSelectTeam(player.team_id!))]
@@ -62,13 +65,7 @@ export default function PlayerProfileHeroCard({
         <div className="flex items-start gap-6">
           <PlayerAvatar
             player={player}
-            className={`w-24 h-24 rounded-2xl flex items-center justify-center font-heading font-bold text-4xl border-2 overflow-hidden ${
-              ovr >= 75
-                ? "bg-primary-500/20 text-primary-400 border-primary-500/30"
-                : ovr >= 55
-                  ? "bg-accent-500/20 text-accent-400 border-accent-500/30"
-                  : "bg-gray-500/20 text-gray-400 border-gray-500/30"
-            }`}
+            className={`w-24 h-24 rounded-2xl flex items-center justify-center font-heading font-bold text-4xl border-2 overflow-hidden ${ratingTierClass(tierOf(ovr), "hero")}`}
             fallback={<span>{ovr}</span>}
           />
           {player.jersey_number != null && team != null && (

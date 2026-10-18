@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass, ratingTierLetter } from "../../lib/ratingTier";
 import { ArrowLeft, CheckCircle2, MailOpen, MessageCircle, Trash2 } from "lucide-react";
 import type { TFunction } from "i18next";
 import type { JSX } from "react";
@@ -53,6 +55,7 @@ export default function InboxMessageDetailPane({
   onRequestDelete,
   onScoutPlayerClick,
 }: InboxMessageDetailPaneProps): JSX.Element {
+  const tierOf = useRatingTiers();
   const { t } = useTranslation();
   const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch | null>(null);
 
@@ -236,7 +239,8 @@ export default function InboxMessageDetailPane({
                     const prospectPosition = naturalPositionOf(prospect);
                     const signedToAcademy = prospect.team_id === currentTeamId;
                     const potential = prospect.potential ?? 0;
-                    const potentialLabel = getProspectPotentialLabel(potential, t);
+                    const potentialTier = tierOf(potential);
+                    const potentialLetter = ratingTierLetter(potentialTier);
                     const growthRoom = Math.max(0, potential - (prospect.ovr ?? 0));
 
                     return (
@@ -303,11 +307,13 @@ export default function InboxMessageDetailPane({
                                   +{growthRoom}
                                 </span>
                               </div>
-                              <p
-                                className={`mt-1 text-[10px] font-heading uppercase tracking-wider ${potentialLabel.color}`}
-                              >
-                                {potentialLabel.label}
-                              </p>
+                              {potentialLetter && (
+                                <p
+                                  className={`mt-1 text-[10px] font-heading uppercase tracking-wider ${ratingTierClass(potentialTier, "text")}`}
+                                >
+                                  {potentialLetter}
+                                </p>
+                              )}
                             </div>
 
                             <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-navy-600 dark:bg-navy-700/40">
@@ -500,24 +506,4 @@ function translateYouthSearchObjective(t: TFunction, value: string): string {
   }
 
   return t("scouting.objectiveBalanced");
-}
-
-function getProspectPotentialLabel(
-  potential: number,
-  t: TFunction,
-): { label: string; color: string } {
-  if (potential >= 85) {
-    return { label: t("youthAcademy.potWorldClass"), color: "text-accent-400" };
-  }
-  if (potential >= 75) {
-    return { label: t("youthAcademy.potExcellent"), color: "text-green-400" };
-  }
-  if (potential >= 65) {
-    return { label: t("youthAcademy.potPromising"), color: "text-primary-400" };
-  }
-  if (potential >= 55) {
-    return { label: t("youthAcademy.potDecent"), color: "text-gray-400" };
-  }
-
-  return { label: t("youthAcademy.potLimited"), color: "text-gray-500" };
 }

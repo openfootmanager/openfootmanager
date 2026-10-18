@@ -397,12 +397,7 @@
     "traits": "Vlastnosti",
     "condition": "Kondice",
     "delegateToYouthAcademy": "Přeřadit do akademie",
-    "promoteToSeniorSquad": "Povýšit do A-týmu",
-    "potWorldClass": "Světová třída",
-    "potExcellent": "Excelentní",
-    "potPromising": "Nadějný",
-    "potDecent": "Slušný",
-    "potLimited": "Omezený"
+    "promoteToSeniorSquad": "Povýšit do A-týmu"
   },
   "common": {
     "ordinal": {
