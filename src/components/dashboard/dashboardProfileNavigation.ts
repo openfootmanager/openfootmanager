@@ -171,3 +171,23 @@ export function hasDashboardProfileHistory(state: DashboardProfileNavigationStat
     state.navHistory.length > 0 || state.selectedPlayerId !== null || state.selectedTeamId !== null
   );
 }
+
+interface ProfileSubjects {
+  players: ReadonlyArray<{ id: string; match_name: string }>;
+  teams: ReadonlyArray<{ id: string; name: string }>;
+}
+
+// A club profile wins over a player one, as in DashboardWorkspaceContent, which shows the club
+// when both are selected.
+export function openProfileTitle(
+  state: DashboardProfileNavigationState,
+  world: ProfileSubjects,
+): string | null {
+  if (state.selectedTeamId !== null) {
+    return world.teams.find((team) => team.id === state.selectedTeamId)?.name ?? null;
+  }
+  if (state.selectedPlayerId !== null) {
+    return world.players.find((player) => player.id === state.selectedPlayerId)?.match_name ?? null;
+  }
+  return null;
+}
