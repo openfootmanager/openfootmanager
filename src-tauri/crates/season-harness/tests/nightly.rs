@@ -63,17 +63,19 @@ impl SeasonObserver for SquadFloorWatch {
 }
 
 /// The rule for the player's own club, which the game never signs for: it is warned when a
-/// shortage enters and again when one gets worse (never a repeat for a shortage that has not
-/// changed, so the inbox is not flooded, and no warning for one that merely leaves: the
-/// maintainer's rule of 12 Oct 2026), and at kick-off it can still put a side out (the kick-off
-/// gate tops it up only when it cannot).
+/// shortage enters and again when one changes, that is when the number of seniors it is short
+/// at moves (the game keeps a warning marker for each `(shortage, seniors)` pair); never a repeat
+/// for a shortage that has not changed, so the inbox is not flooded, and no warning for one that
+/// merely leaves (the maintainer's rule of 12 Oct 2026). At kick-off it can still put a side out
+/// (the kick-off gate tops it up only when it cannot).
 #[derive(Default)]
 struct PlayerClubWatch {
     /// The shortages the club had at the last day end, each with how many seniors it has where it
     /// is short: the same pair the game keeps a warning marker for.
     known: BTreeSet<String>,
-    /// What entered or got worse on `changed_on`, still owed a warning.
-    owed: String,
+    /// What entered or changed on `changed_on`, still owed a warning; one that ends before the
+    /// warning is due is no longer owed.
+    owed: BTreeSet<String>,
     changed_on: String,
     reported: bool,
     /// A change in the shortfall that was never warned about (#787).
@@ -116,15 +118,13 @@ impl PlayerClubWatch {
             })
             .collect();
         let entered: Vec<String> = now.difference(&self.known).cloned().collect();
+        self.owed.retain(|owed| now.contains(owed));
         if !entered.is_empty() {
-            self.owed = entered.join(", ");
+            self.owed.extend(entered);
             self.changed_on = today.to_string();
             self.reported = false;
         }
         self.known = now;
-        if self.known.is_empty() {
-            self.owed.clear();
-        }
         if self.owed.is_empty() || self.reported {
             return;
         }
@@ -144,7 +144,8 @@ impl PlayerClubWatch {
             self.reported = true;
             self.unwarned.push(format!(
                 "[season {season} day {day}] {club}'s shortfall changed on {}: {} entered or got worse and was not warned about (last warning: {last_warning})",
-                self.changed_on, self.owed
+                self.changed_on,
+                self.owed.iter().cloned().collect::<Vec<_>>().join(", ")
             ));
         }
     }
@@ -291,12 +292,14 @@ fn a_shortage_that_leaves_while_another_stays_is_not_news() {
     watch_days(&mut watch, &mut game, 2);
 
     game.players.extend(defenders);
-    assert!(
-        squad_shortfall(&game, &club)
-            .iter()
-            .all(|(shortage, _)| *shortage == Shortage::Group(Position::Forward)),
-        "the defence is filled and only the forwards are short: {:?}",
-        squad_shortfall(&game, &club)
+    let short: Vec<Shortage> = squad_shortfall(&game, &club)
+        .into_iter()
+        .map(|(shortage, _)| shortage)
+        .collect();
+    assert_eq!(
+        short,
+        vec![Shortage::Group(Position::Forward)],
+        "the defence is filled and the forwards alone are still short"
     );
     watch_days(&mut watch, &mut game, 3);
 
