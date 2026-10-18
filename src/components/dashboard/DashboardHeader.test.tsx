@@ -115,7 +115,7 @@ describe("DashboardHeader", () => {
 
     render(
       <DashboardHeader
-        activeTabLabel="Dashboard"
+        title="Dashboard"
         currentDate="2026-08-10"
         hasProfileHistory={false}
         hasMatchToday={false}
@@ -182,7 +182,7 @@ describe("DashboardHeader", () => {
 
       render(
         <DashboardHeader
-          activeTabLabel="Dashboard"
+          title="Dashboard"
           currentDate="2026-08-10"
           hasProfileHistory={false}
           hasMatchToday={false}
