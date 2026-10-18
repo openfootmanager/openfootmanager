@@ -400,9 +400,6 @@ mod tests {
         assert_eq!(state.get_game(|game| game.teams.len()), None);
     }
 
-    /// Given a state that has issued career tokens
-    /// When more are asked for
-    /// Then each is new and none is 0, the value an uninstalled game carries.
     /// Given career B is active (token 7) and a write meant for career A (token 3) arrives
     /// When it is applied through update_game_for
     /// Then it is refused with the career-changed key and its closure never runs; the right token
@@ -446,6 +443,9 @@ mod tests {
         );
     }
 
+    /// Given a state that has issued career tokens
+    /// When more are asked for
+    /// Then each is new and none is 0, the value an uninstalled game carries.
     #[test]
     fn career_tokens_are_never_repeated_and_never_zero() {
         let state = StateManager::new();

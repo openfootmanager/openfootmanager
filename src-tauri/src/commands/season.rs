@@ -197,8 +197,6 @@ pub(crate) mod tests {
         game
     }
 
-    /// Given all required fixtures completed, when the shared command rolls over,
-    /// then the season increments, the table and player stats reset, and fixtures regenerate.
     /// Given a finished season in career B (token 2) and a screen holding career A's token (1)
     /// When the screen asks to roll the season over
     /// Then it is refused with the career-changed key and B's season is not rolled over.
@@ -217,6 +215,8 @@ pub(crate) mod tests {
         assert_eq!(after, before);
     }
 
+    /// Given all required fixtures completed, when the shared command rolls over,
+    /// then the season increments, the table and player stats reset, and fixtures regenerate.
     #[test]
     fn season_advance_rolls_the_season_over() {
         let state = StateManager::new();

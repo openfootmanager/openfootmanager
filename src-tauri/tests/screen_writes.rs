@@ -11,19 +11,28 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Production code that may write the active game without naming a career, and why.
-const ALLOWED: &[(&str, &str, &str)] = &[
+/// The only functions that may write the active game without naming a career: `(call, file,
+/// enclosing fn, why)`. Scoped to the function, so a second `set_game` added elsewhere in
+/// `application/career.rs` is still caught.
+const ALLOWED: &[(&str, &str, &str, &str)] = &[
     (
         "set_game",
         "src/application/career.rs",
-        "install_career is where a game becomes the active career, under the career lock",
+        "install_career",
+        "where a game becomes the active career, under the career lock",
     ),
     (
         "clear_game",
         "src/application/saving.rs",
-        "exit_to_menu closes the active career after saving it",
+        "exit_to_menu",
+        "closes the active career after saving it",
     ),
 ];
+
+/// The calls that write the active game. Only the game: the live match session and the stats are
+/// separate state (`set_live_match`, `take_live_match`, `append_stats_state`, ...) and are not
+/// covered here.
+const WRITES: &[&str] = &["update_game", "set_game", "clear_game"];
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir).expect("read source dir") {
@@ -121,40 +130,65 @@ fn is_char_literal(chars: &[char], at: usize) -> bool {
     )
 }
 
+/// Removes `#[cfg(test)] mod name { .. }` blocks. An out-of-line `#[cfg(test)] mod name;` removes
+/// only that statement, never the item after it. A `#[cfg(test)]` on anything else drops just the
+/// attribute, so the item is scanned: the safe error is a false alarm, not a hidden call.
 fn remove_test_modules(source: &str) -> String {
+    const ATTRIBUTE: &str = "#[cfg(test)]";
     let mut out = String::new();
     let mut rest = source;
-    while let Some(at) = rest.find("#[cfg(test)]") {
+    while let Some(at) = rest.find(ATTRIBUTE) {
         out.push_str(&rest[..at]);
-        let after = &rest[at + "#[cfg(test)]".len()..];
-        match after.find('{') {
-            Some(open) if after[..open].contains("mod ") => {
-                let mut depth = 0usize;
-                let mut end = after.len();
-                for (offset, c) in after[open..].char_indices() {
-                    match c {
-                        '{' => depth += 1,
-                        '}' => {
-                            depth -= 1;
-                            if depth == 0 {
-                                end = open + offset + 1;
-                                break;
-                            }
+        let after = &rest[at + ATTRIBUTE.len()..];
+        let item = after.trim_start();
+        let item = strip_visibility(item);
+        let Some(named) = item.strip_prefix("mod ") else {
+            rest = after;
+            continue;
+        };
+        let name_end = named
+            .find(|c: char| !(c.is_alphanumeric() || c == '_'))
+            .unwrap_or(named.len());
+        let tail = named[name_end..].trim_start();
+        let consumed = |remaining: &str| after.len() - remaining.len();
+        if let Some(body) = tail.strip_prefix('{') {
+            let mut depth = 1usize;
+            let mut end = body.len();
+            for (offset, c) in body.char_indices() {
+                match c {
+                    '{' => depth += 1,
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            end = offset + 1;
+                            break;
                         }
-                        _ => {}
                     }
+                    _ => {}
                 }
-                rest = &after[end..];
             }
-            // A `#[cfg(test)]` on a single item (a `use`, a fn): drop through its end.
-            _ => {
-                let end = after.find(['\n']).map_or(after.len(), |n| n + 1);
-                rest = &after[end..];
-            }
+            rest = &after[consumed(&body[end..])..];
+        } else if let Some(after_semicolon) = tail.strip_prefix(';') {
+            rest = &after[consumed(after_semicolon)..];
+        } else {
+            rest = after;
         }
     }
     out.push_str(rest);
     out
+}
+
+fn strip_visibility(item: &str) -> &str {
+    let Some(rest) = item.strip_prefix("pub") else {
+        return item;
+    };
+    let rest = rest.trim_start();
+    match rest.strip_prefix('(') {
+        Some(inner) => inner
+            .split_once(')')
+            .map_or(item, |(_, after)| after.trim_start()),
+        None => rest,
+    }
 }
 
 fn production_sources() -> Vec<(String, String)> {
@@ -177,24 +211,79 @@ fn production_sources() -> Vec<(String, String)> {
         .collect()
 }
 
-/// Given the root crate's production code
-/// When it is searched for direct writes of the active game
-/// Then `update_game`, `set_game` and `clear_game` appear only where a career is installed or
-///      closed: everything else goes through `update_game_for`, which names a career and checks it.
-#[test]
-fn no_production_code_writes_the_active_game_without_naming_a_career() {
-    let mut offenders = Vec::new();
-    for (file, code) in production_sources() {
-        for call in ["update_game", "set_game", "clear_game"] {
-            let needle = format!(".{call}(");
-            let allowed = ALLOWED.iter().any(|(allowed_call, allowed_file, _)| {
-                *allowed_call == call && *allowed_file == file
-            });
-            if code.contains(&needle) && !allowed {
-                offenders.push(format!("{file}: .{call}("));
+/// The name of the function whose body contains byte `at` of `code`, innermost first.
+fn enclosing_fn(code: &str, at: usize) -> Option<String> {
+    let mut best: Option<(usize, String)> = None;
+    for (start, _) in code.match_indices("fn ") {
+        let before = code[..start].chars().next_back();
+        if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let name: String = code[start + 3..]
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_')
+            .collect();
+        let Some(open) = code[start..].find('{').map(|n| start + n) else {
+            continue;
+        };
+        let mut depth = 0usize;
+        let mut end = code.len();
+        for (offset, c) in code[open..].char_indices() {
+            match c {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = open + offset + 1;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if open < at && at < end && best.as_ref().is_none_or(|(s, _)| start > *s) {
+            best = Some((start, name));
+        }
+    }
+    best.map(|(_, name)| name)
+}
+
+/// Every direct write of the active game in `code` (a file's production code) that is not one of
+/// the scoped exceptions, as `file: call (in fn)`. A call is `x.call(` or `Type::call(`.
+fn direct_writes(file: &str, code: &str, allowed: &[(&str, &str, &str, &str)]) -> Vec<String> {
+    let mut found = Vec::new();
+    for call in WRITES {
+        let needle = format!("{call}(");
+        for (at, _) in code.match_indices(&needle) {
+            let before = &code[..at];
+            if !(before.ends_with('.') || before.ends_with("::")) {
+                continue;
+            }
+            let function = enclosing_fn(code, at).unwrap_or_default();
+            let permitted = allowed
+                .iter()
+                .any(|(allowed_call, allowed_file, allowed_fn, _)| {
+                    allowed_call == call && *allowed_file == file && *allowed_fn == function
+                });
+            if !permitted {
+                found.push(format!("{file}: {call} (in fn {function})"));
             }
         }
     }
+    found
+}
+
+/// Given the root crate's production code
+/// When it is searched for direct writes of the active game
+/// Then `update_game`, `set_game` and `clear_game` appear only in the functions that install or
+///      close a career: everything else goes through `update_game_for`, which names a career and
+///      checks it.
+#[test]
+fn no_production_code_writes_the_active_game_without_naming_a_career() {
+    let offenders: Vec<String> = production_sources()
+        .iter()
+        .flat_map(|(file, code)| direct_writes(file, code, ALLOWED))
+        .collect();
     assert!(
         offenders.is_empty(),
         "direct writes of the active game, bypassing the career check: {offenders:#?}"
@@ -250,33 +339,52 @@ fn no_tauri_command_writes_for_whichever_career_is_active() {
     );
 }
 
-/// The scanner itself: the two helpers must find a call in production code and ignore the same
-/// text in a comment, a string and a test module, or the tests above prove nothing.
+/// Given production code that calls the writes in ways a plain `.call(` search misses
+/// When the scanner reads it
+/// Then each way is found: a qualified call, a call after an out-of-line test module, and a second
+///      call in a file that has an allowed one, while comments, strings and test modules are not.
 #[test]
-fn the_scanner_sees_production_calls_and_ignores_comments_strings_and_test_modules() {
-    let source = r#"
-        fn real(state: &S) { state.update_game(|g| g.x = 1); }
-        // state.set_game(g)
-        fn quoted() -> &'static str { "state.clear_game()" }
-        #[cfg(test)]
-        mod tests { fn t(state: &S) { state.set_game(game()); let c = '{'; } }
-        fn after_tests(state: &S) { state.clear_game(); }
-    "#;
+fn the_scanner_finds_every_way_to_write_and_ignores_what_is_not_code() {
+    let allowed = [("set_game", "a.rs", "install", "the installer")];
+    let scan = |source: &str| direct_writes("a.rs", &production_code(source), &allowed);
 
-    let code = production_code(source);
-
-    assert!(code.contains(".update_game("));
-    assert!(
-        code.contains(".clear_game("),
-        "code after a test module is production code"
+    // A qualified call.
+    assert_eq!(
+        scan("fn f(s: &S) { StateManager::update_game(s, g); }").len(),
+        1
     );
-    assert!(
-        !code.contains(".set_game("),
-        "comments and test modules are ignored: {code}"
+    // An out-of-line test module must not swallow the next braced item.
+    assert_eq!(
+        scan("#[cfg(test)]\nmod helpers;\nfn f(s: &S) { s.update_game(g); }").len(),
+        1
     );
     assert_eq!(
-        code.matches(".clear_game(").count(),
-        1,
-        "a string is ignored"
+        scan("#[cfg(test)]\npub(crate) mod helpers;\nfn f(s: &S) { s.clear_game(); }").len(),
+        1
     );
+    // An inline test module is removed, and code after it is still scanned.
+    let after_tests = scan(
+        "#[cfg(test)]\nmod tests { fn t(s: &S) { s.set_game(g); let c = '{'; } }\nfn f(s: &S) { s.clear_game(); }",
+    );
+    assert_eq!(after_tests, ["a.rs: clear_game (in fn f)"]);
+    // Comments and strings are not code.
+    assert!(scan("// s.set_game(g)\nfn q() -> &'static str { \"s.clear_game()\" }").is_empty());
+}
+
+/// Given an exception for `set_game` in `install`
+/// When the same file calls it from another function, or calls a write the exception does not name
+/// Then only the call in `install` is allowed.
+#[test]
+fn an_exception_is_scoped_to_its_function() {
+    let allowed = [("set_game", "a.rs", "install", "the installer")];
+    let code = production_code(
+        "fn install(s: &S) { s.set_game(g); }\nfn other(s: &S) { s.set_game(g); s.update_game(f); }",
+    );
+
+    let found = direct_writes("a.rs", &code, &allowed);
+
+    assert_eq!(found.len(), 2);
+    assert!(found.iter().all(|f| f.contains("in fn other")));
+    // And the same call in the same function of another file is not excused.
+    assert_eq!(direct_writes("b.rs", &code, &allowed).len(), 3);
 }

@@ -1856,10 +1856,11 @@ mod live_session_tests {
         state
     }
 
-    /// Given a live match in career 0 at minute 30 and a screen holding another career's token (5)
-    /// When the screen's start, step, command, finish, team talk and press conference arrive
+    /// Given a live match at minute 30 and a screen holding a token that is not its career's (5)
+    /// When the screen's step, command and finish arrive
     /// Then each is refused with the career-changed key, the match is still at minute 30 and
-    ///      still there to finish, and the game is untouched; the right career then finishes it.
+    ///      still there to finish, and the game is untouched; the match's own career then
+    ///      finishes it.
     #[test]
     fn live_match_writes_for_a_replaced_career_are_refused_and_leave_the_match_alone() {
         use ofm_core::state::Career;
