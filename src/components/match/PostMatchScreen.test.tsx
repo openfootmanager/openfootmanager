@@ -529,6 +529,37 @@ describe("PostMatchScreen", (): void => {
     expect(screen.getByText("match.quickStats")).toBeInTheDocument();
   });
 
+  /**
+   * Given an away club called Beta FC whose short name is BTA, not its name's first three letters
+   * When the match report lists a key event of the away side
+   * Then the event is badged with the club's short name, as the score header shows it.
+   */
+  it("badges a key event with its club's short name", (): void => {
+    const snapshot = makeSnapshot();
+    const gameState = makeGameState();
+    gameState.teams = gameState.teams.map((team) =>
+      team.id === snapshot.away_team.id ? { ...team, short_name: "BTA" } : team,
+    );
+    render(
+      <ThemeProvider>
+        <PostMatchScreen
+          snapshot={snapshot}
+          gameState={gameState}
+          userSide="Home"
+          isSpectator={false}
+          importantEvents={[makeEvent("Goal", "Away")]}
+          onContinue={() => {}}
+          onFinish={() => {}}
+        />
+      </ThemeProvider>,
+    );
+
+    fireEvent.click(screen.getByText("match.matchReport"));
+
+    expect(screen.getAllByText("BTA").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Bet")).not.toBeInTheDocument();
+  });
+
   it("renders Match Report tab by default for a spectator", (): void => {
     render(
       <ThemeProvider>
