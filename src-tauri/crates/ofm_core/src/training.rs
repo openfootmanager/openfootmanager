@@ -154,14 +154,12 @@ fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
 /// just played ninety minutes as free to train, and they would recover on the
 /// very day they were emptied.
 ///
-/// Only competitions in the active scope count. A dormant competition is
-/// resolved by a scoreline-only model that charges nobody any condition, so its
-/// clubs have not had a match in any physical sense — closing the training
-/// ground on them would cost them the day's recovery for nothing.
+/// Every competition counts, whether or not the player follows it: a club that plays on a day is a
+/// club that plays on that day, and its training ground is closed (#869). The taper before a
+/// match ([`tapering_teams`]) still reads only the competitions in the active scope.
 pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
     game.competitions_in_play()
         .iter()
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.date == date)
         .flat_map(|fixture| [fixture.home_team_id.clone(), fixture.away_team_id.clone()])

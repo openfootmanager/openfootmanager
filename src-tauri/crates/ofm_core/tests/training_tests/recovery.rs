@@ -353,3 +353,36 @@ fn a_two_match_week_in_a_dormant_competition_does_not_taper() {
          should load ({before} → {after})"
     );
 }
+
+/// A club's matchday closes its training ground whichever competition the match is in. A match in a
+/// competition nobody follows is still a match the club plays that day.
+///
+/// Given the user's club and another club drawn together today in a competition outside the active
+///       scope, and the user's players on a hard session,
+/// When the day's training runs,
+/// Then neither club trains: the session that would have cost condition does not happen.
+#[test]
+fn a_match_in_a_dormant_competition_still_closes_the_training_ground() {
+    let mut game = user_team_training_hard_at(60);
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    schedule_user_fixture_in(&mut game, 5);
+    let mut active = game.league.clone().expect("the active league");
+    active.id = "active".to_string();
+
+    let mut dormant = active.clone();
+    dormant.id = "dormant".to_string();
+    dormant.fixtures[0].id = "dormant_today".to_string();
+    dormant.fixtures[0].date = today;
+
+    game.active_competition_ids = vec![active.id.clone()];
+    game.competitions = vec![active, dormant];
+    let before = p2_condition(&game);
+
+    training::process_training(&mut game, 0);
+
+    assert_eq!(
+        p2_condition(&game),
+        before,
+        "the club played today, in a competition outside the active scope, and trained anyway"
+    );
+}
