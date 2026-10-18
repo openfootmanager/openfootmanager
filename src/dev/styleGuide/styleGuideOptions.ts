@@ -13,6 +13,23 @@ function pick<T extends string>(value: string | null, allowed: readonly T[], fal
   return allowed.find((option) => option === value) ?? fallback;
 }
 
+/**
+ * Puts the options on the document the way the app would: the theme, density and high-contrast
+ * classes and the ui_scale root size. ThemeProvider reads its starting theme from storage, so the
+ * guide's own toggle starts from the URL's theme too.
+ */
+export function applyStyleGuideOptions(
+  options: StyleGuideOptions,
+  root: HTMLElement,
+  storage: Pick<Storage, "setItem">,
+): void {
+  root.classList.toggle("dark", options.theme === "dark");
+  root.classList.toggle("density-compact", options.density === "compact");
+  root.classList.toggle("high-contrast", options.highContrast);
+  root.style.fontSize = options.rootFontSize;
+  storage.setItem("ofm-theme", options.theme);
+}
+
 /** The guide's settings, from the URL so a screenshot can ask for any combination. */
 export function readStyleGuideOptions(search: string): StyleGuideOptions {
   const params = new URLSearchParams(search);

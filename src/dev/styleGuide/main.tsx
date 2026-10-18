@@ -5,16 +5,10 @@ import "../../App.css";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { i18nReady } from "../../i18n";
 import { StyleGuide } from "./StyleGuide";
-import { readStyleGuideOptions } from "./styleGuideOptions";
+import { applyStyleGuideOptions, readStyleGuideOptions } from "./styleGuideOptions";
 
 const options = readStyleGuideOptions(window.location.search);
-const root = document.documentElement;
-root.classList.toggle("dark", options.theme === "dark");
-root.classList.toggle("density-compact", options.density === "compact");
-root.classList.toggle("high-contrast", options.highContrast);
-root.style.fontSize = options.rootFontSize;
-// ThemeProvider reads its starting theme from here, so the toggle in the guide agrees with the URL.
-localStorage.setItem("ofm-theme", options.theme);
+applyStyleGuideOptions(options, document.documentElement, localStorage);
 
 const rootElement = document.getElementById("root");
 if (rootElement) {

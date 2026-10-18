@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { i18nReady } from "../../i18n";
 import { StyleGuide } from "./StyleGuide";
-import { readStyleGuideOptions } from "./styleGuideOptions";
+import { applyStyleGuideOptions, readStyleGuideOptions } from "./styleGuideOptions";
 
 const SOURCES = import.meta.glob(["../../components/ui/index.ts", "./StyleGuide.tsx"], {
   query: "?raw",
@@ -93,5 +93,46 @@ describe("style guide", () => {
     for (const section of ["Tokens", "Controls", "Display", "Cards", "Pitch tokens", "Dialog"]) {
       expect(screen.getByRole("region", { name: section })).toBeInTheDocument();
     }
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a URL with dialog=open,
+   * when the guide renders,
+   * then the dialog is already open, named and showing, so it can be screenshotted.
+   */
+  it("opens the dialog when the URL asks for it", () => {
+    render(
+      <ThemeProvider>
+        <StyleGuide options={readStyleGuideOptions("?dialog=open")} />
+      </ThemeProvider>,
+    );
+    expect(screen.getByRole("dialog", { name: "Go to the field?" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given dark, compact, extra large and high contrast in the URL,
+   * when the options are put on the document,
+   * then the root carries the three classes and the 20px root size, and the theme is stored for
+   * ThemeProvider; light, comfortable and normal take the classes off again.
+   */
+  it("puts every option on the document", () => {
+    const root = document.createElement("html");
+    const stored = new Map<string, string>();
+    const storage = { setItem: (key: string, value: string) => stored.set(key, value) };
+
+    applyStyleGuideOptions(
+      readStyleGuideOptions("?theme=dark&density=compact&scale=xlarge&contrast=high"),
+      root,
+      storage,
+    );
+    expect([...root.classList].sort()).toEqual(["dark", "density-compact", "high-contrast"]);
+    expect(root.style.fontSize).toBe("20px");
+    expect(stored.get("ofm-theme")).toBe("dark");
+
+    applyStyleGuideOptions(readStyleGuideOptions(""), root, storage);
+    expect([...root.classList]).toEqual([]);
+    expect(root.style.fontSize).toBe("16px");
+    expect(stored.get("ofm-theme")).toBe("light");
   });
 });
