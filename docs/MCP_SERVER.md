@@ -57,6 +57,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 | `--mcp-port <PORT>` | **Yes** | — | Port for the MCP SSE server. Without this flag, no MCP server starts. |
 | `--mcp-mode <MODE>` | No | `sandbox` | `sandbox` = all tools available. `competition` = restricted tool set (see below). |
 | `--mcp-auto-start <WORLD[,TEAM]>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json"` or `"/path/to/world.json,team_id"`. Team ID is optional for HistoricalSnapshot worlds where the manager already has a team assigned. \*\*Required in competition mode\*\* (enforced after CLI parsing, at startup). |
+| `--build-revision` | No | — | Print the version and the source revision the binary was built from (`0.3.0+<revision>`) and exit. Needs no display, answers before the app starts, and works in any build (the MCP feature is not required). The E2E fixture uses it to refuse a stale binary. |
 | `--no-gui` | No | off | Hide the GUI window (headless). Saves ~150MB RAM per instance. |
 | `--mcp-seed <N>`, `--mcp-start-year <YEAR>`, `--mcp-start-phase <PHASE>` | No | — | Same as `game_new`'s `seed`, `start_year` and `start_phase`. Use `random` as the world to generate one: one seed gives the same team ids, so a sandbox run with the seed tells you which `team_id` to pass. |
 | `--manager-name <NAME>` | No | `Agent` | Manager first name for auto-start. |

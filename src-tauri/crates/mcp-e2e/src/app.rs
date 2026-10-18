@@ -16,6 +16,9 @@ const LOG_LINES_IN_BUNDLE: usize = 50;
 const LAST_EXCHANGES_IN_BUNDLE: usize = 10;
 const SHORTENED_TO: usize = 400;
 const STATE_CAPTURE_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long `--build-revision` gets to answer. It needs no display and takes milliseconds; a
+/// binary that is still silent after this is too old to know the flag.
+const PROBE_WITHIN: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -129,11 +132,23 @@ impl App {
     /// Starts the app on a free port with private `XDG_DATA_HOME` and `XDG_CONFIG_HOME`, and
     /// returns once `initialize` succeeds. Fails loudly; there is no skip.
     pub fn launch(config: &AppConfig) -> Result<Self, LaunchError> {
+        Self::launch_after(config, require_virtual_display)
+    }
+
+    /// [`App::launch`] with the display check passed in, so a test can see that the stale-binary
+    /// refusal comes before it.
+    fn launch_after(
+        config: &AppConfig,
+        display_check: impl FnOnce() -> Result<(), LaunchError>,
+    ) -> Result<Self, LaunchError> {
         let binary = config.binary.clone().unwrap_or_else(app_binary);
         if !binary.is_file() {
             return Err(LaunchError::BinaryMissing(binary));
         }
-        require_virtual_display()?;
+        // Before the display and before the app boots: the binary names its own revision, so a
+        // stale build is refused the same way whatever the display is doing.
+        refuse_stale_binary(&binary, expected_revision(config).as_deref(), PROBE_WITHIN)?;
+        display_check()?;
 
         let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
         for sub in ["data", "config", "cache", "state"] {
@@ -176,12 +191,8 @@ impl App {
         };
         match app.wait_until_ready() {
             Ok(client) => {
-                let verdict = check_revision(
-                    client.server_version(),
-                    expected_revision(config).as_deref(),
-                );
                 app.client = Some(client);
-                verdict.map(|()| app)
+                Ok(app)
             }
             Err(detail) => {
                 let bundle = app.failure_bundle(&detail);
@@ -514,6 +525,60 @@ fn expected_revision(config: &AppConfig) -> Option<String> {
     })
 }
 
+/// Asks the binary for its version line (`0.3.0+<revision>`) with `--build-revision`, which the app
+/// answers before it touches a display or any toolkit. The environment carries no display, so a
+/// binary that predates the flag cannot open a window while it is asked: it fails or hangs, and
+/// `None` follows.
+fn probe_build_version(binary: &Path, within: Duration) -> Option<String> {
+    let mut child = Command::new(binary)
+        .arg("--build-revision")
+        .env_remove("DISPLAY")
+        .env_remove("WAYLAND_DISPLAY")
+        .env_remove("WAYLAND_SOCKET")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let started = Instant::now();
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break status,
+            Ok(None) if started.elapsed() < within => std::thread::sleep(Duration::from_millis(25)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
+            }
+        }
+    };
+    if !status.success() {
+        return None;
+    }
+    let mut output = String::new();
+    std::io::Read::read_to_string(&mut child.stdout.take()?, &mut output).ok()?;
+    output
+        .lines()
+        .map(str::trim)
+        .rev()
+        .find(|line| line.starts_with(|c: char| c.is_ascii_digit()))
+        .map(str::to_string)
+}
+
+/// Refuses a binary built from other sources than `expected`, learning its revision from the binary
+/// itself. No expectation, no probe.
+fn refuse_stale_binary(
+    binary: &Path,
+    expected: Option<&str>,
+    within: Duration,
+) -> Result<(), LaunchError> {
+    if expected.is_none() {
+        return Ok(());
+    }
+    let reported = probe_build_version(binary, within);
+    check_revision(reported.as_deref().unwrap_or(""), expected)
+}
+
 /// Compares what the binary reports (`0.3.0+<revision>`) with the revision expected.
 fn check_revision(server_version: &str, expected: Option<&str>) -> Result<(), LaunchError> {
     let Some(expected) = expected else {
@@ -693,7 +758,112 @@ mod tests {
 
     use super::{
         app_command, authority_is_only_for, check_revision, check_virtual_display, display_number,
+        probe_build_version, refuse_stale_binary, App, AppConfig, LaunchError,
     };
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::{Path, PathBuf};
+    use std::time::Duration;
+
+    /// A stand-in for the app binary: a script that runs `body` when started.
+    fn fake_binary(dir: &Path, body: &str) -> PathBuf {
+        let path = dir.join("openfootmanager");
+        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        path
+    }
+
+    fn config_for(binary: PathBuf, expected: &str) -> AppConfig {
+        AppConfig {
+            binary: Some(binary),
+            expected_revision: Some(expected.to_string()),
+            ..AppConfig::default()
+        }
+    }
+
+    /// Given a binary built from other sources, and a display check that must not run
+    /// When the app is launched expecting a revision
+    /// Then the stale refusal comes back without the display being touched: it needs neither a
+    ///      display nor a booted app, so a display that resets the connection cannot hide it.
+    #[test]
+    fn a_stale_binary_is_refused_before_the_display_is_touched() {
+        let dir = tempfile::tempdir().unwrap();
+        let binary = fake_binary(dir.path(), "echo 0.3.0+oldoldoldold");
+
+        let result = App::launch_after(&config_for(binary, "newnewnewnew"), || {
+            panic!("the display was touched before the stale check")
+        });
+
+        match result {
+            Err(LaunchError::StaleBinary {
+                binary_revision,
+                expected_revision,
+            }) => {
+                assert_eq!(binary_revision, "oldoldoldold");
+                assert_eq!(expected_revision, "newnewnewnew");
+            }
+            other => panic!("expected the stale refusal, got {:?}", other.err()),
+        }
+    }
+
+    /// Given a binary from the right sources
+    /// When the app is launched
+    /// Then the display is checked next, so the stale check did not skip it.
+    #[test]
+    fn a_current_binary_goes_on_to_the_display_check() {
+        let dir = tempfile::tempdir().unwrap();
+        let binary = fake_binary(dir.path(), "echo 0.3.0+samesamesame");
+
+        let result = App::launch_after(&config_for(binary, "samesamesame"), || {
+            Err(LaunchError::NoDisplay)
+        });
+
+        assert!(matches!(result, Err(LaunchError::NoDisplay)));
+    }
+
+    /// Given a binary too old to know `--build-revision` (it prints nothing and exits), and one
+    ///       that never answers
+    /// When the stale check runs
+    /// Then both are stale, reported as unknown: a build that cannot say what it is was not built
+    ///      from the sources under test.
+    #[test]
+    fn a_binary_that_cannot_name_its_revision_is_stale() {
+        let dir = tempfile::tempdir().unwrap();
+        let silent = fake_binary(dir.path(), "exit 1");
+        let hanging_dir = tempfile::tempdir().unwrap();
+        let hanging = fake_binary(hanging_dir.path(), "sleep 30");
+
+        for binary in [silent, hanging] {
+            let started = std::time::Instant::now();
+            let refusal = refuse_stale_binary(&binary, Some("abc123"), Duration::from_millis(400))
+                .unwrap_err();
+            assert!(
+                started.elapsed() < Duration::from_secs(10),
+                "the probe must give up at its bound, not wait for the binary"
+            );
+            match refusal {
+                LaunchError::StaleBinary {
+                    binary_revision, ..
+                } => assert_eq!(binary_revision, "unknown"),
+                other => panic!("expected a stale refusal, got {other}"),
+            }
+        }
+    }
+
+    /// Given a binary that prints its version line
+    /// When it is probed
+    /// Then the line is read back, whatever else is on the output before it; no expectation
+    ///      skips the probe altogether.
+    #[test]
+    fn the_probe_reads_the_version_line_and_is_skipped_without_an_expectation() {
+        let dir = tempfile::tempdir().unwrap();
+        let binary = fake_binary(dir.path(), "echo warming up; echo 0.3.0+abc123abc123");
+
+        assert_eq!(
+            probe_build_version(&binary, Duration::from_secs(5)).as_deref(),
+            Some("0.3.0+abc123abc123")
+        );
+        assert!(refuse_stale_binary(&binary, None, Duration::from_secs(5)).is_ok());
+    }
 
     /// Given XWayland, an unidentified display, an xvfb-run display, and one vouched for
     /// When the fixture decides whether the display is virtual

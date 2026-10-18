@@ -1,5 +1,6 @@
 mod application;
 mod atomic_file;
+mod build_info;
 mod commands;
 mod crash;
 mod main_window;
@@ -21,6 +22,13 @@ pub struct SaveManagerState(pub Mutex<SaveManager>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Before anything that needs a display or a file: a harness asks a binary what it was built
+    // from without starting it, so a stale build is refused whatever the display is doing.
+    if build_info::requested(std::env::args().skip(1)) {
+        println!("{}", build_info::build_version());
+        return;
+    }
+
     // First of all, so that everything below is covered — including plugin registration and the
     // graphics configuration, where a panic would otherwise leave nothing at all behind. The hook
     // has no file to write to yet; `setup` gives it one as soon as the app data directory
