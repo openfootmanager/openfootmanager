@@ -269,6 +269,7 @@ pub fn run() {
             set_training,
             set_training_schedule,
             get_training_focus_attributes,
+            get_rating_tiers,
             set_training_groups,
             set_player_training_focus,
             set_player_squad_role,

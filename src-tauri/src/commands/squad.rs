@@ -237,6 +237,13 @@ pub fn set_training_internal(
     })
 }
 
+/// Every rating's tier, 0 to 99, for the screens that colour a rating. Needs no game, so the
+/// package editor, which works on package data alone, reads it too.
+#[tauri::command]
+pub fn get_rating_tiers() -> Vec<ofm_core::player_tier::PlayerTier> {
+    ofm_core::player_tier::rating_tiers()
+}
+
 #[tauri::command]
 pub fn get_training_focus_attributes() -> Vec<ofm_core::training::TrainingFocusAttributes> {
     ofm_core::training::training_focus_attributes()
@@ -711,7 +718,7 @@ pub fn set_tactics_phase(
 mod tests {
     use super::TacticsBlueprintStatus;
     use super::{
-        apply_tactic_preset_internal, get_tactics_blueprint_status_internal,
+        apply_tactic_preset_internal, get_rating_tiers, get_tactics_blueprint_status_internal,
         set_formation_internal, set_play_style_internal, set_player_role_internal,
         set_player_squad_role_internal, set_player_training_focus_internal,
     };
@@ -1393,5 +1400,20 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("user player");
         assert_ne!(user_player.training_focus, Some(TrainingFocus::Technical));
+    }
+
+    /// Given the command that names every rating's tier,
+    /// When it is asked for,
+    /// Then it is the backend's table: a 76 is the rest, a 77 an A, a 81 an S, and it needs no game.
+    #[test]
+    fn get_rating_tiers_is_the_backends_table() {
+        use ofm_core::player_tier::PlayerTier;
+
+        let tiers = get_rating_tiers();
+
+        assert_eq!(tiers.len(), 100);
+        assert_eq!(tiers[76], PlayerTier::Rest);
+        assert_eq!(tiers[77], PlayerTier::A);
+        assert_eq!(tiers[81], PlayerTier::S);
     }
 }
