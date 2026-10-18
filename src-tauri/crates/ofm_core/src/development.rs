@@ -707,6 +707,80 @@ mod tests {
         );
     }
 
+    /// An id whose peak offset lies in `offsets`, so a player of a known age has a known curve age.
+    fn id_with_peak_offset(offsets: std::ops::RangeInclusive<f64>) -> String {
+        (0..5000)
+            .map(|n| format!("vet{n}"))
+            .find(|id| offsets.contains(&traits_of(5, id).peak_offset))
+            .expect("some player has a peak offset in the range")
+    }
+
+    /// Given players of 27 to 39 on the decline table, each with a ceiling far above his rating,
+    /// When a season of development is run,
+    /// Then the ceiling sits exactly at the rating afterwards: a declining player never shows
+    ///      room to grow.
+    #[test]
+    fn a_declining_players_ceiling_comes_down_to_his_rating() {
+        let id = id_with_peak_offset(-0.4..=0.4);
+        for age in 28..=39 {
+            for seed in 0..40 {
+                let mut p = player(&id, Position::CentralMidfielder, 70, 90);
+                develop_one_season(&mut p, age, 5, &mut rng(seed));
+                assert_eq!(
+                    p.potential,
+                    natural_ovr(&p).round() as u8,
+                    "age {age}, seed {seed}: rating {}",
+                    natural_ovr(&p)
+                );
+            }
+        }
+    }
+
+    /// Given a 22-year-old with a high ceiling and room to grow,
+    /// When a season of development is run,
+    /// Then his ceiling is only the drift of a young player's: it keeps most of its height and he
+    ///      still has room to grow.
+    #[test]
+    fn a_twenty_two_year_olds_ceiling_is_not_touched_by_the_rule() {
+        let id = id_with_peak_offset(-0.4..=0.4);
+        for seed in 0..40 {
+            let mut p = player(&id, Position::CentralMidfielder, 60, 85);
+            develop_one_season(&mut p, 22, 5, &mut rng(seed));
+            assert!(p.potential >= 82, "ceiling {}", p.potential);
+            assert!(p.potential > natural_ovr(&p).round() as u8 + 10);
+        }
+    }
+
+    /// Given a peaked 28-year-old (growth ended on his curve) with a gap of 10 to his ceiling,
+    /// When a season of development is run,
+    /// Then the gap is gone: he is on the decline table, so his ceiling comes down to his rating.
+    #[test]
+    fn a_peaked_twenty_eight_year_old_loses_the_room_he_had() {
+        let id = id_with_peak_offset(-0.4..=0.4);
+        for seed in 0..40 {
+            let mut p = player(&id, Position::CentralMidfielder, 70, 80);
+            develop_one_season(&mut p, 28, 5, &mut rng(seed));
+            assert_eq!(p.potential, natural_ovr(&p).round() as u8);
+        }
+    }
+
+    /// Given a late bloomer of 29 whose curve still reads 26 and who has room to grow,
+    /// When a season of development is run,
+    /// Then he is still growing and keeps his ceiling: the rule follows the curve, not the birthday.
+    #[test]
+    fn a_late_bloomer_keeps_his_ceiling_while_his_curve_is_still_growing() {
+        let id = id_with_peak_offset(2.9..=3.0);
+        let mut gained = 0.0;
+        for seed in 0..40 {
+            let mut p = player(&id, Position::CentralMidfielder, 70, 80);
+            let before = natural_ovr(&p);
+            develop_one_season(&mut p, 29, 5, &mut rng(seed));
+            assert!(p.potential > natural_ovr(&p).round() as u8, "seed {seed}");
+            gained += natural_ovr(&p) - before;
+        }
+        assert!(gained > 0.0, "he grew by {gained} over 40 seasons");
+    }
+
     /// Given players of each age,
     /// When the drift they still have to come is read,
     /// Then it shrinks with age and is nothing once the drift has stopped.
