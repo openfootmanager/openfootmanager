@@ -335,7 +335,7 @@ export default function DashboardHeader({
           <button
             type="button"
             onClick={onBack}
-            className="-ml-2 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 dark:hover:bg-navy-700 dark:hover:text-white"
+            className="-ml-2 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-navy-800 dark:hover:bg-navy-700 dark:hover:text-white"
             title={t("common.back")}
             aria-label={t("common.back")}
           >
