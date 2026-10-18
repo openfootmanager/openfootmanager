@@ -9,6 +9,7 @@ use domain::{
         HistoricalManagerAwardWinner, HistoricalPlayerAwardWinner, HistoricalSeasonAwardsRecord,
     },
 };
+use rand::{Rng, RngExt};
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -34,14 +35,22 @@ fn season_start_string(season: u32) -> String {
     format!("{:04}-07-01", season)
 }
 
+/// The clubs of one domestic league, under the id its stream of randomness is keyed on.
+struct LeagueGroup {
+    key: String,
+    team_ids: Vec<String>,
+}
+
 /// Partition the world's teams into the leagues they actually play in, so a
 /// historical season reflects a real ~20-team league rather than treating all
 /// 440 clubs as one mega-league (which produced ~878-match seasons). Falls back
-/// to a single all-teams group for legacy single-competition worlds.
-fn historical_league_groups(game: &Game) -> Vec<Vec<String>> {
+/// to a single all-teams group for legacy single-competition worlds. A club is in one group
+/// only: a second competition over the same clubs (an Apertura and its Clausura) is not a second
+/// table, because a club has one record per season.
+fn historical_league_groups(game: &Game) -> Vec<LeagueGroup> {
     let valid: std::collections::HashSet<&str> =
         game.teams.iter().map(|team| team.id.as_str()).collect();
-    let mut groups: Vec<Vec<String>> = Vec::new();
+    let mut groups: Vec<LeagueGroup> = Vec::new();
     let mut covered: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for competition in &game.competitions {
@@ -68,7 +77,10 @@ fn historical_league_groups(game: &Game) -> Vec<Vec<String>> {
             for id in &members {
                 covered.insert(id.clone());
             }
-            groups.push(members);
+            groups.push(LeagueGroup {
+                key: competition.id.clone(),
+                team_ids: members,
+            });
         }
     }
 
@@ -80,85 +92,194 @@ fn historical_league_groups(game: &Game) -> Vec<Vec<String>> {
         .filter(|id| !covered.contains(id))
         .collect();
     if !residual.is_empty() {
-        groups.push(residual);
+        groups.push(LeagueGroup {
+            key: "residual".to_string(),
+            team_ids: residual,
+        });
     }
 
     groups
 }
 
-fn build_historical_standings(game: &Game, season: u32) -> Vec<StandingEntry> {
-    historical_league_groups(game)
-        .into_iter()
-        .flat_map(|team_ids| build_league_season_standings(game, season, &team_ids))
+// The one parameter set the past is tuned with, against real leagues: over twelve to twenty
+// seasons a top flight sees 3 to 7 champions, its favourite (the best-reputation club) wins
+// 30 to 50% of the titles, and the champion's points run 75 to 100 with a real spread.
+//
+/// How many goals of log-ratio a standard deviation of reputation is worth: the pull of
+/// reputation on a club's strength.
+const STRENGTH_PER_REPUTATION_SD: f64 = 0.5;
+/// The spread of a club's form around what its reputation says.
+const FORM_SD: f64 = 0.2;
+/// How much of a club's form carries into the next season: dynasties form and break.
+const FORM_PERSISTENCE: f64 = 0.7;
+/// The chance in a season that a club's form is knocked by something (a manager, a takeover, an
+/// injury crisis), and how hard.
+const SHOCK_CHANCE: f64 = 0.03;
+const SHOCK_SD: f64 = 0.4;
+/// Goals a home and an away side score when the clubs are level: the home edge.
+const HOME_GOALS: f64 = 1.50;
+const AWAY_GOALS: f64 = 1.15;
+
+/// A standard normal draw.
+fn normal(rng: &mut impl Rng) -> f64 {
+    crate::development::standard_normal(rng)
+}
+
+/// A Poisson draw of mean `mean` (Knuth): the goals a side scores.
+fn poisson(rng: &mut impl Rng, mean: f64) -> u32 {
+    let limit = (-mean).exp();
+    let mut goals = 0;
+    let mut product: f64 = rng.random_range(0.0..1.0);
+    while product > limit {
+        goals += 1;
+        product *= rng.random_range(0.0..1.0);
+    }
+    goals
+}
+
+/// A club's strength this season, in log-goals: what its reputation says, relative to its league,
+/// plus its form.
+fn strengths_of(reputations: &[f64], form: &[f64]) -> Vec<f64> {
+    let count = reputations.len() as f64;
+    let mean = reputations.iter().sum::<f64>() / count;
+    let spread = (reputations.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / count).sqrt();
+    reputations
+        .iter()
+        .zip(form)
+        .map(|(reputation, form)| {
+            let standard = if spread > 0.0 {
+                (reputation - mean) / spread
+            } else {
+                0.0
+            };
+            STRENGTH_PER_REPUTATION_SD * standard + form
+        })
         .collect()
 }
 
-/// Synthesize one season's standings for a single league of `team_ids`.
-fn build_league_season_standings(
-    game: &Game,
-    season: u32,
-    team_ids: &[String],
-) -> Vec<StandingEntry> {
-    let num_teams = team_ids.len() as u32;
-    let matches_played = if num_teams > 1 {
-        (num_teams - 1) * 2
-    } else {
-        0
-    };
-
-    let mut ranking_scores: Vec<(String, u32)> = team_ids
+/// Plays every fixture of a double round robin among clubs of these `strengths` and returns
+/// the table, best first.
+fn play_season(team_ids: &[String], strengths: &[f64], rng: &mut impl Rng) -> Vec<StandingEntry> {
+    let mut table: Vec<StandingEntry> = team_ids
         .iter()
-        .filter_map(|id| game.teams.iter().find(|team| &team.id == id))
-        .map(|team| {
-            let score = team.reputation.saturating_mul(10)
-                + deterministic_u32((&team.id, season, "ranking"), 250);
-            (team.id.clone(), score)
-        })
+        .map(|id| StandingEntry::new(id.clone()))
         .collect();
-    ranking_scores.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
-
-    ranking_scores
-        .into_iter()
-        .enumerate()
-        .map(|(index, (team_id, _))| {
-            let strength = num_teams.saturating_sub(index as u32);
-            let max_draws =
-                matches_played.min(4 + deterministic_u32((&team_id, season, "draws"), 5));
-            let target_wins = ((matches_played * strength) / (num_teams + 1))
-                .saturating_add(2)
-                .min(matches_played.saturating_sub(max_draws));
-            let wins = target_wins;
-            let draws = max_draws.min(matches_played.saturating_sub(wins));
-            let losses = matches_played.saturating_sub(wins + draws);
-            let goals_for = 18
-                + wins.saturating_mul(2)
-                + draws
-                + deterministic_u32((&team_id, season, "goals_for"), 12);
-            let goals_against = 10
-                + losses.saturating_mul(2)
-                + deterministic_u32((&team_id, season, "goals_against"), 10)
-                + index as u32;
-
-            StandingEntry {
-                team_id,
-                played: matches_played,
-                won: wins,
-                drawn: draws,
-                lost: losses,
-                goals_for,
-                goals_against,
-                points: wins.saturating_mul(3).saturating_add(draws),
+    for home in 0..table.len() {
+        for away in 0..table.len() {
+            if home == away {
+                continue;
             }
+            let edge = strengths[home] - strengths[away];
+            let home_goals = poisson(rng, HOME_GOALS * (edge / 2.0).exp());
+            let away_goals = poisson(rng, AWAY_GOALS * (-edge / 2.0).exp());
+            record_result(&mut table[home], home_goals, away_goals);
+            record_result(&mut table[away], away_goals, home_goals);
+        }
+    }
+    table.sort_by(|left, right| {
+        right
+            .points
+            .cmp(&left.points)
+            .then_with(|| goal_difference(right).cmp(&goal_difference(left)))
+            .then_with(|| right.goals_for.cmp(&left.goals_for))
+            .then_with(|| left.team_id.cmp(&right.team_id))
+    });
+    table
+}
+
+fn goal_difference(entry: &StandingEntry) -> i64 {
+    i64::from(entry.goals_for) - i64::from(entry.goals_against)
+}
+
+fn record_result(entry: &mut StandingEntry, scored: u32, conceded: u32) {
+    entry.played += 1;
+    entry.goals_for += scored;
+    entry.goals_against += conceded;
+    match scored.cmp(&conceded) {
+        std::cmp::Ordering::Greater => {
+            entry.won += 1;
+            entry.points += 3;
+        }
+        std::cmp::Ordering::Equal => {
+            entry.drawn += 1;
+            entry.points += 1;
+        }
+        std::cmp::Ordering::Less => entry.lost += 1,
+    }
+}
+
+/// The tables of one league over `seasons` seasons, oldest first. Its clubs' form carries from
+/// one season to the next, and the draws come from a stream of the world's seed and the league
+/// alone: the same world has the same past, another world another.
+fn simulate_league_past(
+    world_seed: u64,
+    group: &LeagueGroup,
+    reputations: &[f64],
+    seasons: usize,
+) -> Vec<Vec<StandingEntry>> {
+    let mut rng = crate::seed::rng_for_seed(world_seed, &format!("history/{}", group.key), "-");
+    let mut form: Vec<f64> = reputations
+        .iter()
+        .map(|_| FORM_SD * normal(&mut rng))
+        .collect();
+    let carried = (1.0 - FORM_PERSISTENCE * FORM_PERSISTENCE).sqrt();
+    (0..seasons)
+        .map(|_| {
+            for club_form in form.iter_mut() {
+                *club_form = FORM_PERSISTENCE * *club_form + carried * FORM_SD * normal(&mut rng);
+                if rng.random_range(0.0..1.0) < SHOCK_CHANCE {
+                    *club_form += SHOCK_SD * normal(&mut rng);
+                }
+            }
+            let strengths = strengths_of(reputations, &form);
+            play_season(&group.team_ids, &strengths, &mut rng)
         })
         .collect()
 }
 
-fn upsert_team_history(game: &mut Game, season: u32, standings: &[StandingEntry]) {
-    let standings_by_team: HashMap<&str, (u32, &StandingEntry)> = standings
+/// Every league's table for each of the `seasons` seasons from `first_season`: one entry per
+/// season, oldest first, holding one table per league, best club first.
+fn simulate_past_tables(game: &Game, seasons: usize) -> Vec<Vec<Vec<StandingEntry>>> {
+    let reputation_of: HashMap<&str, f64> = game
+        .teams
         .iter()
-        .enumerate()
-        .map(|(index, standing)| (standing.team_id.as_str(), ((index + 1) as u32, standing)))
+        .map(|team| (team.id.as_str(), f64::from(team.reputation)))
         .collect();
+    let per_league: Vec<Vec<Vec<StandingEntry>>> = historical_league_groups(game)
+        .iter()
+        .map(|group| {
+            let reputations: Vec<f64> = group
+                .team_ids
+                .iter()
+                .map(|id| reputation_of.get(id.as_str()).copied().unwrap_or(0.0))
+                .collect();
+            simulate_league_past(game.seed, group, &reputations, seasons)
+        })
+        .collect();
+    (0..seasons)
+        .map(|season| {
+            per_league
+                .iter()
+                .map(|league| league[season].clone())
+                .collect()
+        })
+        .collect()
+}
+
+/// Each club's place in its own league's table and its row, for the season whose tables these are.
+fn positions_by_team(tables: &[Vec<StandingEntry>]) -> HashMap<&str, (u32, &StandingEntry)> {
+    tables
+        .iter()
+        .flat_map(|table| {
+            table.iter().enumerate().map(|(index, standing)| {
+                (standing.team_id.as_str(), ((index + 1) as u32, standing))
+            })
+        })
+        .collect()
+}
+
+fn upsert_team_history(game: &mut Game, season: u32, tables: &[Vec<StandingEntry>]) {
+    let standings_by_team = positions_by_team(tables);
 
     for team in game.teams.iter_mut() {
         let Some((league_position, standing)) = standings_by_team.get(team.id.as_str()) else {
@@ -236,12 +357,8 @@ fn prepare_seeded_managers(game: &mut Game, first_season: u32) {
     }
 }
 
-fn upsert_manager_history(game: &mut Game, standings: &[StandingEntry]) {
-    let standings_by_team: HashMap<&str, (u32, &StandingEntry)> = standings
-        .iter()
-        .enumerate()
-        .map(|(index, standing)| (standing.team_id.as_str(), ((index + 1) as u32, standing)))
-        .collect();
+fn upsert_manager_history(game: &mut Game, tables: &[Vec<StandingEntry>]) {
+    let standings_by_team = positions_by_team(tables);
 
     for manager in game.managers.iter_mut() {
         let Some(team_id) = manager.team_id.clone() else {
@@ -514,11 +631,12 @@ pub fn generate_past_world_history(game: &mut Game, start_year: i32, history_dep
     let original_date = game.clock.current_date;
     let original_league = game.league.clone();
 
-    for season_year in first_season..start_year {
+    let past = simulate_past_tables(game, (start_year - first_season) as usize);
+    for (season_year, tables) in (first_season..start_year).zip(&past) {
         let season = season_year as u32;
-        let standings = build_historical_standings(game, season);
-        upsert_team_history(game, season, &standings);
-        upsert_manager_history(game, &standings);
+        let standings: Vec<StandingEntry> = tables.iter().flatten().cloned().collect();
+        upsert_team_history(game, season, tables);
+        upsert_manager_history(game, tables);
         upsert_player_career(game, season, &standings);
 
         game.clock.current_date = Utc
@@ -795,7 +913,8 @@ mod tests {
         // Two 6-team domestic leagues, not one 12-team mega-league.
         game.competitions = vec![division("league-a", 0..6), division("league-b", 6..12)];
 
-        let standings = super::build_historical_standings(&game, 2031);
+        let tables = super::simulate_past_tables(&game, 1);
+        let standings: Vec<_> = tables[0].iter().flatten().collect();
 
         assert_eq!(standings.len(), 12);
         // A 6-team double round robin is (6-1)*2 = 10 matches — not the
@@ -995,5 +1114,155 @@ mod tests {
             assert!(awards.most_appearances.is_some());
         }
         assert!(game.players.iter().any(|player| !player.career.is_empty()));
+    }
+
+    fn league_of(count: usize) -> (super::LeagueGroup, Vec<f64>) {
+        let group = super::LeagueGroup {
+            key: "league".to_string(),
+            team_ids: (0..count).map(|index| format!("club-{index:02}")).collect(),
+        };
+        // What a generated division looks like: reputation falling in even steps down the table.
+        let reputations = (0..count)
+            .map(|index| 850.0 - 10.8 * index as f64)
+            .collect();
+        (group, reputations)
+    }
+
+    /// Given a 20-club league,
+    /// When one past season is played,
+    /// Then every club played 38, wins draws and losses add up to that, the goals scored equal the
+    ///      goals conceded, points are three a win and one a draw, and the table is in points order.
+    #[test]
+    fn a_past_season_is_a_double_round_robin_whose_numbers_tally() {
+        let (group, reputations) = league_of(20);
+
+        let table = &super::simulate_league_past(9, &group, &reputations, 1)[0];
+
+        assert_eq!(table.len(), 20);
+        for entry in table {
+            assert_eq!(entry.played, 38);
+            assert_eq!(entry.won + entry.drawn + entry.lost, 38);
+            assert_eq!(entry.points, entry.won * 3 + entry.drawn);
+        }
+        let scored: u32 = table.iter().map(|entry| entry.goals_for).sum();
+        let conceded: u32 = table.iter().map(|entry| entry.goals_against).sum();
+        assert_eq!(scored, conceded);
+        assert_eq!(
+            table.iter().map(|entry| entry.won).sum::<u32>(),
+            table.iter().map(|entry| entry.lost).sum::<u32>()
+        );
+        assert!(
+            table
+                .windows(2)
+                .all(|pair| pair[0].points >= pair[1].points)
+        );
+    }
+
+    /// Given the same league in the same world twice, and in other worlds,
+    /// When the past is played,
+    /// Then the same world has the same past, and the other worlds do not all crown the same
+    ///      champions.
+    #[test]
+    fn a_pasts_champions_follow_the_worlds_seed() {
+        let (group, reputations) = league_of(20);
+        let champions = |seed: u64| -> Vec<String> {
+            super::simulate_league_past(seed, &group, &reputations, 12)
+                .iter()
+                .map(|table| table[0].team_id.clone())
+                .collect()
+        };
+
+        assert_eq!(champions(3), champions(3));
+        let others: std::collections::HashSet<Vec<String>> = (10..20).map(champions).collect();
+        assert!(
+            others.len() > 5,
+            "{} different pasts in ten worlds",
+            others.len()
+        );
+    }
+
+    /// Given many 20-club leagues of generated reputations over twelve seasons,
+    /// When the champions are counted,
+    /// Then they are those of a typical top league: 3 to 7 different champions, the
+    ///      best-reputation club winning 30 to 50% of the titles, a champion on 75 to 100 points
+    ///      with a real spread from year to year.
+    #[test]
+    fn a_past_has_the_variety_of_a_typical_top_league() {
+        let (group, reputations) = league_of(20);
+        let (mut distinct, mut favourite, mut points) = (Vec::new(), Vec::new(), Vec::new());
+        for seed in 0..60 {
+            let past = super::simulate_league_past(seed, &group, &reputations, 12);
+            let champions: Vec<&str> = past.iter().map(|table| table[0].team_id.as_str()).collect();
+            let unique: std::collections::HashSet<&str> = champions.iter().copied().collect();
+            distinct.push(unique.len() as f64);
+            favourite.push(champions.iter().filter(|id| **id == "club-00").count() as f64 / 12.0);
+            points.extend(past.iter().map(|table| f64::from(table[0].points)));
+        }
+        let mean = |values: &[f64]| values.iter().sum::<f64>() / values.len() as f64;
+        let points_mean = mean(&points);
+        let points_spread = (points
+            .iter()
+            .map(|p| (p - points_mean).powi(2))
+            .sum::<f64>()
+            / points.len() as f64)
+            .sqrt();
+        assert!(
+            (3.5..=6.5).contains(&mean(&distinct)),
+            "distinct {}",
+            mean(&distinct)
+        );
+        assert!(
+            (0.30..=0.50).contains(&mean(&favourite)),
+            "favourite {}",
+            mean(&favourite)
+        );
+        assert!((78.0..=95.0).contains(&points_mean), "points {points_mean}");
+        assert!(points_spread > 3.0, "points spread {points_spread}");
+    }
+
+    /// Given a world of two 6-club leagues,
+    /// When its past is generated,
+    /// Then every club's recorded place is within its own league (1 to 6) and each league has one
+    ///      club in each place every season.
+    #[test]
+    fn a_clubs_place_in_the_past_is_its_place_in_its_own_league() {
+        use domain::league::League;
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2032, 7, 1, 0, 0, 0).unwrap());
+        let manager = Manager::new(
+            "mgr".to_string(),
+            "Alex".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let teams = (0..12).map(make_team).collect::<Vec<_>>();
+        let mut game = Game::new(clock, manager, teams, vec![], vec![], vec![]);
+        let division = |id: &str, range: std::ops::Range<usize>| League {
+            id: id.to_string(),
+            name: id.to_string(),
+            season: 2031,
+            participant_ids: range.map(|index| format!("team-{}", index + 1)).collect(),
+            ..League::default()
+        };
+        game.competitions = vec![division("league-a", 0..6), division("league-b", 6..12)];
+
+        generate_past_world_history(&mut game, 2032, 3);
+
+        for (members, name) in [(0..6, "league-a"), (6..12, "league-b")] {
+            for season in 2029..2032 {
+                let mut places: Vec<u32> = game.teams[members.clone()]
+                    .iter()
+                    .map(|team| {
+                        team.history
+                            .iter()
+                            .find(|record| record.season == season)
+                            .unwrap_or_else(|| panic!("{name} {season}"))
+                            .league_position
+                    })
+                    .collect();
+                places.sort_unstable();
+                assert_eq!(places, vec![1, 2, 3, 4, 5, 6], "{name} {season}");
+            }
+        }
     }
 }
