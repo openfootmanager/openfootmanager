@@ -26,6 +26,7 @@ pub mod contracts;
 pub mod currency;
 pub mod custom_tactics;
 pub mod delegated_renewals;
+pub mod development;
 pub mod edition_archive;
 pub mod end_of_season;
 pub mod finances;

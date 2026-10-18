@@ -2199,8 +2199,8 @@ fn season_end_ages_players_and_retires_out_of_contract_veterans() {
         "seasonal aging should reduce veteran pace"
     );
     assert!(
-        veteran.attributes.passing >= 70,
-        "technical attributes should not decline before the post-32 flat phase"
+        veteran.attributes.passing < 70,
+        "technique declines too, more slowly than pace, at thirty-eight"
     );
 }
 
@@ -3956,10 +3956,30 @@ fn retiree_scout_judging_attributes_derived_from_player_attrs() {
         .iter()
         .find(|s| s.id == "staff_retired_scout_attr_test")
         .expect("scout should exist");
-    // vision=74, decisions=70 → judging_ability = (74+70)/2 = 72
-    assert_eq!(scout.attributes.judging_ability, 72);
-    // positioning=72, teamwork=68 → judging_potential = (72+68)/2 = 70
-    assert_eq!(scout.attributes.judging_potential, 70);
+    // The scout is built from the attributes the player retired with, which a last season of
+    // ageing has already moved, so the expectation is read off the archived player.
+    let retired = game
+        .retired_players
+        .iter()
+        .find(|record| record.id == "attr_test")
+        .expect("the player retired into the archive")
+        .to_player();
+    let (vision, decisions) = (
+        u16::from(retired.attributes.vision),
+        u16::from(retired.attributes.decisions),
+    );
+    let (positioning, teamwork) = (
+        u16::from(retired.attributes.positioning),
+        u16::from(retired.attributes.teamwork),
+    );
+    assert_eq!(
+        u16::from(scout.attributes.judging_ability),
+        (vision + decisions) / 2
+    );
+    assert_eq!(
+        u16::from(scout.attributes.judging_potential),
+        (positioning + teamwork) / 2
+    );
 }
 
 #[test]
