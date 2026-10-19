@@ -46,16 +46,15 @@ fn scorers_for_side(
     game: &Game,
     report: &engine::MatchReport,
     side: engine::Side,
-) -> Vec<(String, u32)> {
+) -> Vec<news::ReportScorer> {
     report
         .goals
         .iter()
         .filter(|goal| goal.side == side)
-        .map(|goal| {
-            (
-                player_match_name_or_id(game, &goal.scorer_id),
-                goal.minute as u32,
-            )
+        .map(|goal| news::ReportScorer {
+            player_id: goal.scorer_id.clone(),
+            name: player_match_name_or_id(game, &goal.scorer_id),
+            minute: u32::from(goal.minute),
         })
         .collect()
 }
@@ -759,7 +758,8 @@ pub(super) fn generate_match_news(
     away_team_id: &str,
     report: &engine::MatchReport,
 ) {
-    let fixture = &game.league.as_ref().unwrap().fixtures[fixture_index];
+    let league = game.league.as_ref().unwrap();
+    let fixture = &league.fixtures[fixture_index];
     let article_id = format!("report_{}", fixture.id);
     if game.news.iter().any(|n| n.id == article_id) {
         return;
@@ -769,21 +769,32 @@ pub(super) fn generate_match_news(
     let away_name = team_name_or(game, away_team_id, "Away");
     let home_scorers = scorers_for_side(game, report, engine::Side::Home);
     let away_scorers = scorers_for_side(game, report, engine::Side::Away);
+    let date = game.clock.current_date.to_rfc3339();
 
-    let article = news::match_report_article(
-        &fixture.id,
-        &home_name,
-        &away_name,
-        report.home_goals,
-        report.away_goals,
-        home_team_id,
-        away_team_id,
-        fixture.competition.clone(),
-        fixture.matchday,
-        &home_scorers,
-        &away_scorers,
-        &game.clock.current_date.to_rfc3339(),
-    );
+    let article = news::match_report_article(&news::MatchReportFacts {
+        fixture_id: &fixture.id,
+        competition: news::ReportCompetition {
+            kind: fixture.competition.clone(),
+            name: &league.name,
+            name_key: league.name_key.as_deref(),
+            country_id: league.country_id.as_deref(),
+            season: league.season,
+        },
+        matchday: fixture.matchday,
+        date: &date,
+        home: news::ReportSide {
+            team_id: home_team_id,
+            name: &home_name,
+            goals: report.home_goals,
+            scorers: &home_scorers,
+        },
+        away: news::ReportSide {
+            team_id: away_team_id,
+            name: &away_name,
+            goals: report.away_goals,
+            scorers: &away_scorers,
+        },
+    });
     game.news.push(article);
 }
 
@@ -1352,7 +1363,8 @@ mod tests {
         );
         assert_eq!(
             article.player_ids,
-            vec!["Alice".to_string(), "ghost9".to_string()]
+            vec!["p1".to_string(), "ghost9".to_string()],
+            "player_ids are ids to link to; the names travel in scorersData"
         );
         assert_eq!(
             article.match_score.as_ref().map(|score| (
@@ -1421,6 +1433,99 @@ mod tests {
         assert_eq!(
             article.i18n_params.get("scorersData"),
             Some(&"[]".to_string())
+        );
+    }
+
+    fn goal(minute: u8, scorer_id: &str, side: Side) -> GoalDetail {
+        GoalDetail {
+            minute,
+            scorer_id: scorer_id.to_string(),
+            assist_id: None,
+            goal_source: engine::report::GoalSource::OpenPlay,
+            side,
+        }
+    }
+
+    /// Given a home player who scores three times,
+    /// when the match report is written,
+    /// then the article links that player once, by id.
+    #[test]
+    fn a_hat_trick_scorer_is_linked_once_by_player_id() {
+        let mut game = make_game("2025-08-12", FixtureStatus::Completed);
+        game.players = vec![make_player("p1", "Alice", "team1")];
+        let report = make_report(
+            vec![
+                goal(10, "p1", Side::Home),
+                goal(30, "p1", Side::Home),
+                goal(80, "p1", Side::Home),
+            ],
+            3,
+            0,
+        );
+
+        generate_match_news(&mut game, 0, "team1", "team2", &report);
+
+        assert_eq!(game.news[0].player_ids, vec!["p1".to_string()]);
+    }
+
+    /// Given a cup tie (and each other competitive fixture outside the league round),
+    /// when its report is written,
+    /// then it is not framed as a friendly, and it names its competition.
+    #[test]
+    fn a_competitive_match_outside_the_league_is_not_reported_as_a_friendly() {
+        for competition in [
+            FixtureCompetition::Cup,
+            FixtureCompetition::ContinentalClub,
+            FixtureCompetition::InternationalClub,
+            FixtureCompetition::InternationalNation,
+        ] {
+            let mut game = make_game("2025-08-12", FixtureStatus::Completed);
+            let league = game.league.as_mut().unwrap();
+            league.name = "Germany Cup".to_string();
+            league.name_key = Some("tournaments.competitions.nationalCup".to_string());
+            league.country_id = Some("DE".to_string());
+            league.fixtures[0].competition = competition.clone();
+            let report = make_report(vec![], 2, 1);
+
+            generate_match_news(&mut game, 0, "team1", "team2", &report);
+
+            let article = &game.news[0];
+            assert_eq!(
+                article.headline_key.as_deref(),
+                Some("be.news.matchReport.reportCompetition.title"),
+                "{competition:?}"
+            );
+            assert_eq!(
+                article.body_key.as_deref(),
+                Some("be.news.matchReport.reportCompetition.body"),
+                "{competition:?}"
+            );
+            let param = |name: &str| article.i18n_params.get(name).map(String::as_str);
+            assert_eq!(param("competition"), Some("Germany Cup"), "{competition:?}");
+            assert_eq!(
+                param("competitionKey"),
+                Some("tournaments.competitions.nationalCup"),
+                "the frontend translates the name from its key, as every other screen does"
+            );
+            assert_eq!(param("competitionCountry"), Some("DE"));
+            assert_eq!(param("competitionSeason"), Some("1"));
+        }
+    }
+
+    /// Given a friendly-cup fixture (a preseason invitational),
+    /// when its report is written,
+    /// then it keeps the friendly framing.
+    #[test]
+    fn a_friendly_cup_match_keeps_the_friendly_copy() {
+        let mut game = make_game("2025-08-12", FixtureStatus::Completed);
+        game.league.as_mut().unwrap().fixtures[0].competition = FixtureCompetition::FriendlyCup;
+        let report = make_report(vec![], 1, 1);
+
+        generate_match_news(&mut game, 0, "team1", "team2", &report);
+
+        assert_eq!(
+            game.news[0].headline_key.as_deref(),
+            Some("be.news.matchReport.reportFriendly.title")
         );
     }
 

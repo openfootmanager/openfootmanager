@@ -3569,6 +3569,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: 季前锦标赛战报",
           "body": "在季前锦标赛中,{{home}} {{homeGoals}} - {{awayGoals}} {{away}}。双方都把这场比赛当作正式赛季开始前的热身机会。{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}:战报({{competition}})",
+          "body": "{{competition}}:比赛结束,比分为 {{home}} {{homeGoals}} - {{awayGoals}} {{away}}。{{scorersSection}}"
         }
       },
       "roundup": {
