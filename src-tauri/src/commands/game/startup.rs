@@ -80,6 +80,19 @@ pub(super) fn manager_age_error(
     }
 }
 
+/// Refuses a manager the age rule rejects on the day this world's career opens: the clock
+/// `start_new_game` builds, which a historical snapshot sets itself. This is the last word; the
+/// form can only check the generated-world date (`manager_dob_error`).
+pub(super) fn check_manager_age(
+    birth_date: chrono::NaiveDate,
+    clock: &ofm_core::clock::GameClock,
+) -> Result<(), String> {
+    match manager_age_error(birth_date, clock.current_date.date_naive()) {
+        Some(key) => Err(key.to_string()),
+        None => Ok(()),
+    }
+}
+
 /// What the create-manager form asks before a world has been chosen: the date of birth against the
 /// day a generated world's career opens on (`current_date_for_phase`: 1 June in a World Cup summer,
 /// 1 July otherwise, plus 120 days mid-season). A historical package can set its own opening date,
@@ -444,6 +457,26 @@ mod tests {
         );
     }
 
+    /// Given a 2026 career, which opens on 1 June
+    /// When managers born on 1 June and on 2 June of the years that make them 30 and 99 are checked
+    /// Then exactly 30 and exactly 99 pass, and a day short of 30 or a day past 99 do not: the age
+    ///      limits are inclusive at 30 and at 99.
+    #[test]
+    fn manager_age_limits_are_inclusive_to_the_day() {
+        let age_30_today = manager_dob_error("1996-06-01", 2026, "seasonStart").unwrap();
+        let almost_30 = manager_dob_error("1996-06-02", 2026, "seasonStart").unwrap();
+        let age_99_today = manager_dob_error("1927-06-01", 2026, "seasonStart").unwrap();
+        let age_100_today = manager_dob_error("1926-06-01", 2026, "seasonStart").unwrap();
+
+        assert_eq!(age_30_today, None);
+        assert_eq!(almost_30, Some("be.error.createManager.minAge".to_string()));
+        assert_eq!(age_99_today, None);
+        assert_eq!(
+            age_100_today,
+            Some("be.error.createManager.invalidDob".to_string())
+        );
+    }
+
     /// Given a manager born on 1 August 1996 and a 2026 career
     /// When the career opens at the start of the season (1 June) and mid-season (29 September)
     /// Then he is 29 at the start and 30 mid-season: he turns 30 in between, so the phase decides.
@@ -526,6 +559,33 @@ mod tests {
             i64::from(domain::age::age_between(birth_date, reference_date)),
             29
         );
+    }
+
+    /// Given a historical-snapshot package whose career opens on 20 November 2031 whatever the start
+    ///       year says, and managers born on 15 December 2001 (29 that day) and on 20 November 2001
+    ///       (30 that day)
+    /// When `start_new_game` checks their age against the world's own clock
+    /// Then the first is refused with minAge and the second passes, although the form, which only
+    ///      knows a generated world's date, lets the first through for the same 2032 start: the
+    ///      backend has the last word.
+    #[test]
+    fn start_new_game_refuses_a_manager_too_young_on_the_snapshot_date() {
+        let startup_options = StartupOptions {
+            start_year: 2032,
+            start_phase: StartPhase::MidSeason,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let world = make_historical_snapshot_world();
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+        let too_young = chrono::NaiveDate::from_ymd_opt(2001, 12, 15).unwrap();
+        let just_old_enough = chrono::NaiveDate::from_ymd_opt(2001, 11, 20).unwrap();
+
+        assert_eq!(
+            check_manager_age(too_young, &clock),
+            Err("be.error.createManager.minAge".to_string())
+        );
+        assert_eq!(check_manager_age(just_old_enough, &clock), Ok(()));
+        assert_eq!(manager_dob_error("2001-12-15", 2032, "midSeason"), Ok(None));
     }
 
     #[test]

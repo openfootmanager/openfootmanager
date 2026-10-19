@@ -133,10 +133,7 @@ pub async fn start_new_game(
     let clock = game_clock_for_world(&startup_options, &world.metadata)?;
     let is_non_random = package_ids.as_deref().is_some_and(|ids| !ids.is_empty())
         || matches!(world_source.as_deref(), Some(source) if source != "random");
-    let reference_date = clock.current_date.date_naive();
-    if let Some(error) = manager_age_error(birth_date, reference_date) {
-        return Err(error.to_string());
-    }
+    check_manager_age(birth_date, &clock)?;
 
     let manager = Manager::new(
         "mgr_user".to_string(),
