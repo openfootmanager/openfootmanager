@@ -320,8 +320,8 @@ mod tests {
         assert!(report.bands.iter().all(|b| b.players == 0));
     }
 
-    /// Given four players aged 33 or more, one rated S, one a B-tier 74 and two ordinary (and a
-    ///       star of 25),
+    /// Given four players aged 33 or more, one rated S, one a B-tier 74 and two ordinary (and two
+    ///       stars under 33),
     /// When the season is reported,
     /// Then a quarter of the 33+ are still A or S: the B tier does not count.
     #[test]
@@ -332,6 +332,7 @@ mod tests {
             aged("x", 33, 65, Position::Forward),
             aged("y", 35, 60, Position::Forward),
             aged("young", 25, 90, Position::Forward),
+            aged("young2", 27, 85, Position::Forward),
         ];
 
         let report = ageing_report(&Snapshot::new(), &players, on());
