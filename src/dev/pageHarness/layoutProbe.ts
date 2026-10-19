@@ -28,9 +28,28 @@ function describeElement(element: Element): string {
   return `${element.tagName.toLowerCase()}${role ? `[role=${role}]` : ""}${name ? ` "${name}"` : ""}`;
 }
 
+/**
+ * A box that scrolls sideways on purpose, like a wide table's wrapper. Computed style alone can't
+ * tell: `overflow-y: auto` makes `overflow-x` compute to auto as well, so the workspace (which
+ * scrolls down) would count, and every overflow inside it would be hidden. A deliberate sideways
+ * scroller clips across but doesn't scroll down.
+ */
+export function isSidewaysScroller(box: {
+  overflowX: string;
+  scrollHeight: number;
+  clientHeight: number;
+}): boolean {
+  const clips = box.overflowX === "auto" || box.overflowX === "scroll";
+  return clips && box.scrollHeight <= box.clientHeight + 1;
+}
+
 function scrollsSideways(element: Element): boolean {
-  const overflowX = getComputedStyle(element).overflowX;
-  return overflowX === "auto" || overflowX === "scroll";
+  const { overflowX } = getComputedStyle(element);
+  return isSidewaysScroller({
+    overflowX,
+    scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+  });
 }
 
 /**

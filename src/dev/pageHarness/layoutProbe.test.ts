@@ -1,6 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import { boxesPastEdge } from "./layoutProbe";
+import { boxesPastEdge, isSidewaysScroller } from "./layoutProbe";
+
+describe("isSidewaysScroller", () => {
+  /** Given a wide table's wrapper (scrolls across, not down), then it is a sideways scroller. */
+  it("counts a box that scrolls across but not down", () => {
+    expect(isSidewaysScroller({ overflowX: "auto", scrollHeight: 300, clientHeight: 300 })).toBe(
+      true,
+    );
+  });
+
+  /**
+   * Given the workspace, which scrolls down (overflow-y: auto makes overflow-x compute to auto
+   * too), then it is not one, so overflow inside it is still reported.
+   */
+  it("does not count a vertical scroller", () => {
+    expect(isSidewaysScroller({ overflowX: "auto", scrollHeight: 2400, clientHeight: 600 })).toBe(
+      false,
+    );
+  });
+
+  /** Given a box that doesn't clip, then it is not a scroller. */
+  it("does not count a box that doesn't scroll", () => {
+    expect(isSidewaysScroller({ overflowX: "visible", scrollHeight: 300, clientHeight: 300 })).toBe(
+      false,
+    );
+  });
+});
 
 const box = (
   label: string,
