@@ -776,3 +776,146 @@ fn extra_time_flag_passed_through() {
     let session = live_match_manager::create_live_match(&game, 0, MatchMode::Instant, true);
     assert!(session.is_ok());
 }
+
+// ---------------------------------------------------------------------------
+// follow_saved_plan_before_kick_off
+// ---------------------------------------------------------------------------
+
+fn waiting_session(game: &Game) -> live_match_manager::LiveMatchSession {
+    let session = live_match_manager::create_live_match(game, 0, MatchMode::Live, false).unwrap();
+    assert_eq!(session.match_state.phase(), MatchPhase::PreKickOff);
+    session
+}
+
+fn first_starter_at(
+    session: &live_match_manager::LiveMatchSession,
+    side: engine::Side,
+    position: engine::Position,
+) -> String {
+    session
+        .match_state
+        .team(side)
+        .players
+        .iter()
+        .find(|player| player.position == position)
+        .map(|player| player.id.clone())
+        .expect("a starter in that position")
+}
+
+fn session_role_of(
+    session: &live_match_manager::LiveMatchSession,
+    player_id: &str,
+) -> engine::PlayerRole {
+    session
+        .match_state
+        .team(engine::Side::Home)
+        .players
+        .iter()
+        .find(|player| player.id == player_id)
+        .expect("the player starts")
+        .role
+}
+
+/// Given a user team at home whose match waits at kick-off,
+/// When a high defensive line is saved on the team,
+/// Then the home side of the match takes the high line and the away side keeps its own.
+#[test]
+fn a_saved_dial_reaches_the_users_side_of_a_waiting_match() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    game.teams[0].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
+
+    session.follow_saved_plan_before_kick_off(&game).unwrap();
+
+    let snapshot = session.snapshot();
+    assert_eq!(
+        snapshot.home_team.tactics.defensive_line,
+        engine::DefensiveLine::High
+    );
+    assert_eq!(
+        snapshot.away_team.tactics.defensive_line,
+        engine::DefensiveLine::Medium
+    );
+}
+
+/// Given a user team playing away whose match waits at kick-off,
+/// When a high defensive line is saved on the team,
+/// Then the away side of the match takes it and the home side keeps its own.
+#[test]
+fn a_saved_dial_reaches_the_users_side_when_playing_away() {
+    let mut game = make_game_with_fixture();
+    game.manager.team_id = Some("team2".to_string());
+    let mut session = waiting_session(&game);
+    game.teams[1].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
+
+    session.follow_saved_plan_before_kick_off(&game).unwrap();
+
+    let snapshot = session.snapshot();
+    assert_eq!(
+        snapshot.away_team.tactics.defensive_line,
+        engine::DefensiveLine::High
+    );
+    assert_eq!(
+        snapshot.home_team.tactics.defensive_line,
+        engine::DefensiveLine::Medium
+    );
+}
+
+/// Given a match waiting at kick-off,
+/// When one of the user's starting forwards is saved as a Poacher,
+/// Then he goes into the match as a Poacher.
+#[test]
+fn a_saved_role_reaches_a_starter_of_a_waiting_match() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    let forward = first_starter_at(&session, engine::Side::Home, engine::Position::Forward);
+    game.teams[0]
+        .player_roles
+        .insert(forward.clone(), domain::team::PlayerRole::Poacher);
+
+    session.follow_saved_plan_before_kick_off(&game).unwrap();
+
+    assert_eq!(
+        session_role_of(&session, &forward),
+        engine::PlayerRole::Poacher
+    );
+}
+
+/// Given a match waiting at kick-off,
+/// When a starting defender carries a saved Poacher role, which a defender cannot take,
+/// Then the plan is still followed without an error and he stays on the Standard role.
+#[test]
+fn a_saved_role_the_starters_position_refuses_is_left_out() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    let defender = first_starter_at(&session, engine::Side::Home, engine::Position::Defender);
+    game.teams[0]
+        .player_roles
+        .insert(defender.clone(), domain::team::PlayerRole::Poacher);
+
+    session.follow_saved_plan_before_kick_off(&game).unwrap();
+
+    assert_eq!(
+        session_role_of(&session, &defender),
+        engine::PlayerRole::Standard
+    );
+}
+
+/// Given a match that has kicked off,
+/// When a high defensive line is saved on the user's team,
+/// Then the match keeps the line it was playing with.
+#[test]
+fn a_match_that_has_kicked_off_does_not_follow_the_saved_plan() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    session.step();
+    assert_ne!(session.match_state.phase(), MatchPhase::PreKickOff);
+    game.teams[0].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
+
+    session.follow_saved_plan_before_kick_off(&game).unwrap();
+
+    assert_eq!(
+        session.snapshot().home_team.tactics.defensive_line,
+        engine::DefensiveLine::Medium
+    );
+}
