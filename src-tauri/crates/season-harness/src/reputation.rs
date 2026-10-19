@@ -44,6 +44,13 @@ pub struct ReputationReport {
     pub tiers: Vec<(u32, GroupReport)>,
 }
 
+/// The report for `game` on its own date.
+///
+/// Only seniors (aged `SENIOR_MIN_AGE` or more, not retired) are counted. Clubs are ranked by
+/// reputation, ties broken by id, and split into five groups of equal size (the remainder going to
+/// the higher groups). A player whose `team_id` names no club in `game.teams` counts as unattached.
+/// A club is counted once in the by-league rows, in the league of the lowest `priority`; the S and
+/// A shares are fractions of every senior S or A in the world.
 pub fn reputation_report(game: &Game) -> ReputationReport {
     let on = game.clock.current_date.date_naive();
     let seniors: Vec<&Player> = game
