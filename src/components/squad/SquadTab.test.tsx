@@ -318,6 +318,7 @@ describe("SquadTab", () => {
     renderSquadTab(gameState, { onSelectPlayer });
 
     expect(screen.getByText("Critical")).toBeInTheDocument();
+    expect(screen.getByText("Expires October 15, 2026")).toBeInTheDocument();
 
     const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();

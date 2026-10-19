@@ -31,7 +31,7 @@ export interface DashboardMatchModeMeta {
 }
 
 interface DashboardHeaderProps {
-  activeTabLabel: string;
+  title: string;
   currentDate: string;
   hasProfileHistory: boolean;
   hasMatchToday: boolean;
@@ -262,7 +262,7 @@ function renderSearchResults(props: {
 }
 
 export default function DashboardHeader({
-  activeTabLabel,
+  title,
   currentDate,
   hasProfileHistory,
   hasMatchToday,
@@ -335,15 +335,19 @@ export default function DashboardHeader({
           <button
             type="button"
             onClick={onBack}
-            className="-ml-2 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-navy-700 dark:hover:text-white"
+            className="-ml-2 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 dark:focus-visible:ring-primary-400 dark:focus-visible:ring-offset-navy-800 dark:hover:bg-navy-700 dark:hover:text-white"
             title={t("common.back")}
+            aria-label={t("common.back")}
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
-        <div>
-          <h2 className="text-xl font-heading font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100">
-            {activeTabLabel}
+        <div className="min-w-0">
+          <h2
+            className="max-w-64 truncate text-xl font-heading font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100"
+            title={title}
+          >
+            {title}
           </h2>
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
             <CalendarIcon className="h-3.5 w-3.5" />

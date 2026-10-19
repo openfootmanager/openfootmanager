@@ -18,7 +18,11 @@ export function competitionKindLabel(t: TFunction, kind?: string): string | null
   return t(`teamSelect.kinds.${kind}`, { defaultValue: kind });
 }
 
-export function buildFallbackRegions(
+/**
+ * The regions a new career can be scoped to: each region a competition declares for a club's
+ * country, with the countries it covers. The game itself carries no region list.
+ */
+export function regionsFromCompetitions(
   t: TFunction,
   gameState: GameStateData,
   competitions: LeagueData[],

@@ -236,6 +236,20 @@ describe("TeamProfile", () => {
   });
 
   /**
+   * Given a club's profile, shown under the dashboard header that already has a Back
+   * When it renders
+   * Then it adds no second Back of its own
+   */
+  it("leaves Back to the dashboard header", async () => {
+    const team = createTeam();
+
+    render(<TeamProfile team={team} gameState={createGameState(team)} isOwnTeam={false} />);
+
+    expect(await screen.findByText(team.name)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
+  });
+
+  /**
    * Given a club the backend places 3rd in its own division's table
    * When its profile opens
    * Then the position and the league standing card come from that answer
@@ -265,7 +279,7 @@ describe("TeamProfile", () => {
     const state = createGameState(team);
     state.league = null;
 
-    render(<TeamProfile team={team} gameState={state} isOwnTeam={false} onClose={vi.fn()} />);
+    render(<TeamProfile team={team} gameState={state} isOwnTeam={false} />);
 
     expect(await screen.findAllByText("#3")).not.toHaveLength(0);
     expect(screen.getByText("13")).toBeInTheDocument();
@@ -295,9 +309,7 @@ describe("TeamProfile", () => {
       return null;
     });
 
-    render(
-      <TeamProfile team={team} gameState={createGameState(team)} isOwnTeam onClose={vi.fn()} />,
-    );
+    render(<TeamProfile team={team} gameState={createGameState(team)} isOwnTeam />);
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_team_stats_overview", {
@@ -339,9 +351,7 @@ describe("TeamProfile", () => {
       return null;
     });
 
-    render(
-      <TeamProfile team={team} gameState={createGameState(team)} isOwnTeam onClose={vi.fn()} />,
-    );
+    render(<TeamProfile team={team} gameState={createGameState(team)} isOwnTeam />);
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_team_match_history", {
@@ -363,7 +373,6 @@ describe("TeamProfile", () => {
         team={team}
         gameState={createGameState(team)}
         isOwnTeam
-        onClose={vi.fn()}
         onSelectPlayer={onSelectPlayer}
       />,
     );

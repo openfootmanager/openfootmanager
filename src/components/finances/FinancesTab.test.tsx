@@ -902,8 +902,8 @@ describe("FinancesTab facilities", () => {
     expect(screen.getAllByText("Ben Warning").length).toBeGreaterThan(0);
     expect(screen.getByText("Critical")).toBeInTheDocument();
     expect(screen.getByText("Warning")).toBeInTheDocument();
-    expect(screen.getByText("Expires 2025-04-30")).toBeInTheDocument();
-    expect(screen.getByText("Expires 2025-10-15")).toBeInTheDocument();
+    expect(screen.getByText("Expires April 30, 2025")).toBeInTheDocument();
+    expect(screen.getByText("Expires October 15, 2025")).toBeInTheDocument();
     expect(screen.getByText("€60,000/wk at risk")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Renew Contract" })).toHaveLength(2);
 

@@ -111,7 +111,7 @@ function RuntimePortraitFallback({
 
 export function PlayerAvatar({
   player,
-  className = "h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-xs font-heading font-bold text-gray-500 dark:text-gray-300",
+  className = "h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-sunken flex items-center justify-center text-caption font-heading font-bold text-fg-muted",
   imageClassName = "h-full w-full object-cover",
   fallback,
   enableRuntimePortrait = true,
