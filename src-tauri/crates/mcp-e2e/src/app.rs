@@ -947,6 +947,52 @@ mod tests {
         );
     }
 
+    /// Whether a process is still running (a zombie waiting to be reaped is not).
+    fn process_is_running(pid: u32) -> bool {
+        std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .ok()
+            .and_then(|stat| {
+                stat.rsplit_once(')')
+                    .map(|(_, rest)| rest.trim_start().to_string())
+            })
+            .is_some_and(|rest| !rest.starts_with('Z'))
+    }
+
+    /// Given a binary that starts a helper process of its own before it prints its version, as the
+    ///       app's WebKit helpers do
+    /// When it is probed
+    /// Then the helper is gone afterwards: the probe kills the whole process group, not only the
+    ///      binary, so nothing it started outlives the probe.
+    #[test]
+    fn a_probe_leaves_no_helper_process_behind() {
+        let dir = tempfile::tempdir().unwrap();
+        let pid_file = dir.path().join("helper.pid");
+        let binary = fake_binary(
+            dir.path(),
+            &format!(
+                "sleep 30 >/dev/null 2>&1 &\necho $! > {}\necho 0.3.0+abc123abc123",
+                pid_file.display()
+            ),
+        );
+
+        let version = probe_build_version(&binary, Duration::from_secs(5));
+
+        assert_eq!(version.as_deref(), Some("0.3.0+abc123abc123"));
+        let helper: u32 = std::fs::read_to_string(&pid_file)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while process_is_running(helper) && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(
+            !process_is_running(helper),
+            "the helper process {helper} outlived the probe"
+        );
+    }
+
     /// Given a binary that prints its version line
     /// When it is probed
     /// Then the line is read back, whatever else is on the output before it; no expectation
