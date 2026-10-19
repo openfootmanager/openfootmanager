@@ -211,6 +211,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 |---------|-----------|---------|-------------|
 | `get_club_league_standing` | team_id | The club's league table, position and standing, or null | Any club, not only the manager's; in a split season the half the year is on; cups have no table |
 | `get_scouted_report` | player_id | The scout's dated attribute snapshot with `out_of_date`, or null | Out of date means scouted before the current season started; decided in Rust |
+| `get_player_knowledge` | player_ids | Per player: `own`, `known` (a club in the manager's division), `scouted` (with `scouted_on` and `current`) or `unknown`; an unknown id is left out | The one rule for what the manager's club knows about a player (`ofm_core::player_knowledge`); screens hide what it does not know. The serialized `Game` still carries every value |
 | `get_squad` | team_id | Player rows with `match_day_eligible` | Complete club roster with computed match-day eligibility; youth call-ups retain their academy role |
 | `set_formation` | formation | `Game` | Change team formation |
 | `set_play_style` | play_style | `Game` | Change play style |

@@ -1,8 +1,10 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use tauri::State;
 
 use domain::message::InboxMessage;
+use ofm_core::player_knowledge::{players_knowledge, PlayerKnowledge};
 use ofm_core::slices::competitions::{query_competitions, CompetitionsQuery, CompetitionsView};
 use ofm_core::slices::inbox::{query_messages, MessagesQuery};
 use ofm_core::slices::news::{query_news_feed, NewsFeed, NewsFeedQuery};
@@ -112,6 +114,23 @@ pub async fn get_scouted_report(
 }
 
 #[tauri::command]
+pub async fn get_player_knowledge(
+    state: State<'_, Arc<StateManager>>,
+    player_ids: Vec<String>,
+) -> Result<HashMap<String, PlayerKnowledge>, String> {
+    get_player_knowledge_internal(&state, &player_ids)
+}
+
+fn get_player_knowledge_internal(
+    state: &StateManager,
+    player_ids: &[String],
+) -> Result<HashMap<String, PlayerKnowledge>, String> {
+    state
+        .get_game(|game| players_knowledge(game, player_ids))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+#[tauri::command]
 pub async fn get_squad(
     state: State<'_, Arc<StateManager>>,
     team_id: String,
@@ -208,5 +227,67 @@ mod tests {
         assert_eq!(youth["match_day_eligible"], true);
         assert_eq!(youth["squad_role"], "Youth");
         assert!(get_squad_internal(&state, "other-club").unwrap().is_empty());
+    }
+
+    /// Given no active game, when the knowledge adapter reads it,
+    /// then the translated session error is returned.
+    #[test]
+    fn the_knowledge_adapter_reports_a_missing_session() {
+        assert_eq!(
+            get_player_knowledge_internal(&StateManager::new(), &["p".to_string()]).unwrap_err(),
+            NO_ACTIVE_GAME
+        );
+    }
+
+    /// Given the manager's own player in the live session, and an id no player has,
+    /// when the IPC adapter is asked about both,
+    /// then the screen receives the player tagged as the club's own, and nothing for the stray id.
+    #[test]
+    fn the_knowledge_adapter_answers_from_the_live_session() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        use domain::player::{Player, PlayerAttributes, Position};
+        let attrs: PlayerAttributes = serde_json::from_value(serde_json::json!({
+            "pace": 60, "stamina": 60, "strength": 60, "agility": 60, "passing": 60,
+            "shooting": 60, "tackling": 60, "dribbling": 60, "defending": 60,
+            "positioning": 60, "vision": 60, "decisions": 60, "composure": 60,
+            "aggression": 60, "teamwork": 60, "leadership": 60,
+            "handling": 60, "reflexes": 60, "aerial": 60
+        }))
+        .unwrap();
+        let mut own = Player::new(
+            "own".into(),
+            "Own".into(),
+            "Own Player".into(),
+            "2000-01-01".into(),
+            "GB".into(),
+            Position::Midfielder,
+            attrs,
+        );
+        own.team_id = Some("club".into());
+        let mut manager = Manager::new(
+            "m".into(),
+            "M".into(),
+            "Gr".into(),
+            "1980-01-01".into(),
+            "GB".into(),
+        );
+        manager.team_id = Some("club".into());
+        let state = StateManager::new();
+        state.set_game(ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap(),
+            ),
+            manager,
+            vec![],
+            vec![own],
+            vec![],
+            vec![],
+        ));
+
+        let answer = get_player_knowledge_internal(&state, &["own".into(), "nobody".into()]);
+        let value = serde_json::to_value(answer.unwrap()).unwrap();
+
+        assert_eq!(value, serde_json::json!({ "own": { "kind": "own" } }));
     }
 }
