@@ -1317,6 +1317,70 @@ mod tests {
         assert_eq!(order, ["b", "c", "a", "d", "e"]);
     }
 
+    /// Given clubs level on points whose goal difference and goals scored disagree
+    ///       (the best difference scored the fewest, another conceded nothing's worth of ratio),
+    /// When the table is ordered,
+    /// Then goal difference decides, not goals scored and not the ratio of the two.
+    #[test]
+    fn goal_difference_decides_a_points_tie_before_goals_scored() {
+        let mut table = vec![
+            entry("r", 60, 55, 50),
+            entry("q", 60, 20, 9),
+            entry("p", 60, 50, 30),
+        ];
+
+        super::order_table(&mut table);
+
+        let order: Vec<&str> = table.iter().map(|entry| entry.team_id.as_str()).collect();
+        // p +20, q +11, r +5: by goals scored it would be r, p, q; by the ratio q, r, p.
+        assert_eq!(order, ["p", "q", "r"]);
+
+        let mut conceding_nothing = vec![entry("x", 60, 10, 0), entry("y", 60, 30, 12)];
+        super::order_table(&mut conceding_nothing);
+        assert_eq!(conceding_nothing[0].team_id, "y", "+18 beats +10");
+    }
+
+    /// Given two clubs whose strengths are 0.5 and -0.5 (an edge of one),
+    /// When many seasons of the pair are played,
+    /// Then the stronger club's goals a season are the home and away means scaled by half the
+    ///      edge (about 4.4): the goal model is pinned, not just the shape of its output.
+    #[test]
+    fn the_edge_between_two_clubs_scales_their_goals_by_half_the_gap() {
+        use rand::SeedableRng;
+        let mut rng = rand_chacha::ChaCha12Rng::seed_from_u64(7);
+        let ids = vec!["strong".to_string(), "weak".to_string()];
+        let seasons = 4000;
+        let mut strong_goals = 0u32;
+        let mut weak_goals = 0u32;
+        for _ in 0..seasons {
+            let table = super::play_season(&ids, &[0.5, -0.5], &mut rng);
+            strong_goals += table
+                .iter()
+                .find(|row| row.team_id == "strong")
+                .unwrap()
+                .goals_for;
+            weak_goals += table
+                .iter()
+                .find(|row| row.team_id == "weak")
+                .unwrap()
+                .goals_for;
+        }
+        let strong = f64::from(strong_goals) / f64::from(seasons);
+        let weak = f64::from(weak_goals) / f64::from(seasons);
+
+        let half_edge = 0.5_f64.exp();
+        let expected_strong = super::HOME_GOALS * half_edge + super::AWAY_GOALS * half_edge;
+        let expected_weak = super::HOME_GOALS / half_edge + super::AWAY_GOALS / half_edge;
+        assert!(
+            (strong - expected_strong).abs() < 0.15,
+            "strong {strong}, expected {expected_strong}"
+        );
+        assert!(
+            (weak - expected_weak).abs() < 0.15,
+            "weak {weak}, expected {expected_weak}"
+        );
+    }
+
     /// Given three clubs of reputation 100, 200 and 300 and no form,
     /// When their strengths are read,
     /// Then they are the standardised reputation times the pull of reputation, level at the

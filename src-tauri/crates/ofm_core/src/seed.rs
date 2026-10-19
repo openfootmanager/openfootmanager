@@ -87,7 +87,7 @@ pub fn rng_from_u64(seed: u64) -> ChaCha12Rng {
 }
 
 /// A standard normal draw (Box-Muller): this crate carries no distributions library.
-pub fn standard_normal(rng: &mut impl Rng) -> f64 {
+pub(crate) fn standard_normal(rng: &mut impl Rng) -> f64 {
     let first: f64 = 1.0 - rng.random_range(0.0..1.0);
     let second: f64 = rng.random_range(0.0..1.0);
     (-2.0 * first.ln()).sqrt() * (std::f64::consts::TAU * second).cos()
