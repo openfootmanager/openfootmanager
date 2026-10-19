@@ -96,8 +96,10 @@ Otherwise keep it next to its feature.
 
 `Button.tsx` is the reference implementation. Match it.
 
-- Visible focus on every interactive element: `focus:outline-none focus:ring-2 focus:ring-focus
-  focus:ring-offset-2 focus:ring-offset-page`. Removing an outline without replacing it is a bug.
+- Visible focus on every interactive element: `focus:outline-none focus-visible:ring-2
+  focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page`. The ring is
+  drawn on `focus-visible`, so a click doesn't light it, and it is always `ring-focus`
+  (`designSystem.test.ts` rule 6). Removing an outline without replacing it is a bug.
 - Semantic elements. A clickable `div` is not a button; a `<button>` is.
 - Every icon-only control gets an accessible name — `aria-label` with a **translated** string.
   (`aria-label` is in the `audit-i18n` attribute allowlist precisely because it is user-facing.)

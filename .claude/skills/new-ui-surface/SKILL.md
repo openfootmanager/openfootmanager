@@ -65,8 +65,8 @@ read it before inventing a new pattern.
 
 Not optional, and cheap if done while writing rather than after.
 
-- **Focus is visible.** Every interactive element: `focus:outline-none focus:ring-2 focus:ring-focus
-  focus:ring-offset-2 focus:ring-offset-page`. Removing an outline without replacing it is a bug.
+- **Focus is visible.** Every interactive element: `focus:outline-none focus-visible:ring-2
+  focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page`, always `ring-focus`. Removing an outline without replacing it is a bug.
 - **Semantic elements.** `<button>` for actions, `<a>` for navigation, `<table>` for tabular data,
   headings in order. A `div` with `onClick` is not keyboard reachable.
 - **Icon-only controls get an accessible name** — `aria-label={t("…")}`, a translated string.

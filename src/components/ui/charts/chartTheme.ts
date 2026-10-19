@@ -9,7 +9,6 @@ export interface ChartTheme {
   tooltipBg: string;
   tooltipBorder: string;
   tooltipText: string;
-  tickFontSize: string;
 }
 
 // Every value is a role token. SVG attributes resolve var() in WebKitGTK and Chromium, so a chart
@@ -25,7 +24,6 @@ const CHART_THEME: ChartTheme = {
   tooltipBg: "var(--color-panel)",
   tooltipBorder: "var(--color-line)",
   tooltipText: "var(--color-fg)",
-  tickFontSize: "var(--text-caption)",
 };
 
 export function useChartTheme(): ChartTheme {

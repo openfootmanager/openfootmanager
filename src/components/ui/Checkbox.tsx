@@ -59,7 +59,7 @@ export function Checkbox({
         className="peer sr-only"
       />
       <div
-        className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors peer-checked:bg-primary-600 peer-checked:border-primary-600 peer-focus:ring-2 peer-focus:ring-focus peer-focus:ring-offset-2 peer-focus:ring-offset-page peer-focus:outline-none ${
+        className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors peer-checked:bg-primary-600 peer-checked:border-primary-600 peer-focus-visible:ring-2 peer-focus-visible:ring-focus peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-page peer-focus:outline-none ${
           indeterminate ? "bg-primary-600 border-primary-600" : "border-line-strong bg-panel"
         }`}
         aria-hidden="true"
