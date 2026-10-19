@@ -195,6 +195,8 @@ describe("PreMatchSetup opponent scout panel", () => {
 
   it("shows the translated competition name for the current named cup fixture", () => {
     const fixture: FixtureData = {
+      competitive: true,
+      advancing_team_id: null,
       id: "cup-match",
       competition_id: "cup-2026",
       competition: "Cup",

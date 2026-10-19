@@ -28,22 +28,22 @@ describe("ProgressBar", () => {
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
   });
 
-  it("uses auto variant: success for >= 70", () => {
+  it("uses auto variant: positive for >= 70", () => {
     const { container } = render(<ProgressBar value={80} />);
     const bar = container.querySelector("[style]") as HTMLElement;
-    expect(bar.className).toContain("bg-success-400");
+    expect(bar.className).toContain("bg-positive-solid");
   });
 
-  it("uses auto variant: accent for 40-69", () => {
+  it("uses auto variant: warning for 40-69", () => {
     const { container } = render(<ProgressBar value={55} />);
     const bar = container.querySelector("[style]") as HTMLElement;
-    expect(bar.className).toContain("bg-accent-400");
+    expect(bar.className).toContain("bg-warning-solid");
   });
 
   it("uses auto variant: danger for < 40", () => {
     const { container } = render(<ProgressBar value={20} />);
     const bar = container.querySelector("[style]") as HTMLElement;
-    expect(bar.className).toContain("bg-red-500");
+    expect(bar.className).toContain("bg-danger-solid");
   });
 
   it("uses explicit variant when specified", () => {

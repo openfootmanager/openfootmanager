@@ -33,6 +33,8 @@ describe("DashboardOverlays", () => {
         showMatchConfirm={true}
         teams={[]}
         todayMatchFixture={{
+          competitive: true,
+          advancing_team_id: null,
           id: "cup-match",
           competition_id: "cup-1",
           competition: "Cup",

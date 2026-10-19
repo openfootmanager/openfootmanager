@@ -1,3 +1,4 @@
+import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import { useId, useMemo, useRef, useState } from "react";
 import type {
   GameStateData,
@@ -19,9 +20,9 @@ import { TraitList } from "../TraitBadge";
 import { SquadSortHeader } from "./SquadSortHeader";
 import {
   calcAge,
+  contractExpiryLabel,
   getPlayerOvr,
   getContractRiskBadgeVariant,
-  getContractRiskLevel,
   getContractYearsRemaining,
   positionBadgeVariant,
 } from "../../lib/helpers";
@@ -101,7 +102,7 @@ export default function SquadRosterView({
   sortState,
   onSortStateChange,
 }: SquadRosterViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [playerSearch, setPlayerSearch] = useState("");
   // Ties each visible filter label to its control, so the control is announced by that label.
   const searchInputId = useId();
@@ -126,6 +127,7 @@ export default function SquadRosterView({
     );
 
   const playersById = useMemo(() => new Map(roster.map((player) => [player.id, player])), [roster]);
+  const riskLevelOf = useContractRiskLevels(roster, clockDate);
 
   const available = roster.filter(isMatchDayEligible);
   const formation = team.formation || "4-4-2";
@@ -638,7 +640,7 @@ export default function SquadRosterView({
                 const wrongPos = inXI && isOutOfPosition(player);
                 const tacticalFit = getTacticalFit(player);
                 const styleFit = getPlayStyleFit(player, activePlayStyle, currentPos);
-                const contractRiskLevel = getContractRiskLevel(player.contract_end, clockDate);
+                const contractRiskLevel = riskLevelOf(player.id);
                 const contractRiskLabel =
                   contractRiskLevel === "critical"
                     ? t("finances.contractRiskCritical")
@@ -915,7 +917,7 @@ export default function SquadRosterView({
                           </div>
                           <div className="text-gray-500 dark:text-gray-400">
                             {player.contract_end
-                              ? t("finances.contractExpiresOn", { date: player.contract_end })
+                              ? contractExpiryLabel(player.contract_end, i18n.language, t)
                               : "—"}
                           </div>
                           {player.transfer_listed || player.loan_listed || player.injury ? (

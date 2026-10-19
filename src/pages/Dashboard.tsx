@@ -24,6 +24,7 @@ import {
   navigateDashboardProfiles,
   openDashboardSearchPlayer,
   openDashboardSearchTeam,
+  openProfileTitle,
   selectDashboardPlayer,
   selectDashboardTeam,
   type DashboardNavigateContext,
@@ -524,6 +525,9 @@ export default function Dashboard(): JSX.Element {
   const activeTabLabel = TAB_TRANSLATION_KEYS[profileNavigation.activeTab]
     ? t(TAB_TRANSLATION_KEYS[profileNavigation.activeTab])
     : profileNavigation.activeTab;
+  const headerTitle =
+    openProfileTitle(profileNavigation, gameState) ??
+    (profileNavigation.selectedPlayerId !== null ? t("common.player") : activeTabLabel);
   const dashboardTabContentModel = createDashboardTabContentModel({
     activeTab: profileNavigation.activeTab,
     gameState,
@@ -606,7 +610,7 @@ export default function Dashboard(): JSX.Element {
           </p>
         ) : null}
         <DashboardHeader
-          activeTabLabel={activeTabLabel}
+          title={headerTitle}
           currentDate={currentDate}
           hasProfileHistory={hasProfileHistory}
           hasMatchToday={hasMatchToday}
@@ -641,7 +645,6 @@ export default function Dashboard(): JSX.Element {
           gameState={gameState}
           profileNavigation={profileNavigation}
           dashboardTabContentModel={dashboardTabContentModel}
-          onBack={handleBack}
           onNavigate={handleNavigate}
           onSelectPlayer={selectPlayer}
           onSelectTeam={selectTeam}

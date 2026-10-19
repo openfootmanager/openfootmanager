@@ -205,6 +205,8 @@ describe("dashboardHelpers", (): void => {
       home_team_id: "team-1",
       away_team_id: "team-2",
       competition: "League" as const,
+      competitive: true,
+      advancing_team_id: null,
       status: "Scheduled" as const,
       result: null,
     };

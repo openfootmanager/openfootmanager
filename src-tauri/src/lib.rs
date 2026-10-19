@@ -14,7 +14,7 @@ use db::save_manager::SaveManager;
 use ofm_core::state::StateManager;
 use std::sync::{Arc, Mutex};
 
-const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
+pub(crate) use db::save_manager::SAVE_MANAGER_UNAVAILABLE_ERROR;
 
 /// Tauri-managed wrapper around SaveManager.
 pub struct SaveManagerState(pub Mutex<SaveManager>);
@@ -253,6 +253,7 @@ pub fn run() {
             set_contract_exit_intent,
             clear_contract_exit_intent,
             preview_contract_termination,
+            get_contract_warning_stages,
             terminate_contract_now,
             set_formation,
             list_custom_tactics,

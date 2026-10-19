@@ -414,27 +414,24 @@ export function Select({
   }, [activeIndex]);
 
   const base =
-    "rounded-lg border transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/30 disabled:opacity-50 disabled:cursor-not-allowed";
+    "rounded-lg border transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page disabled:opacity-50 disabled:cursor-not-allowed";
 
   const variants = {
-    default:
-      "bg-white dark:bg-navy-800 border-gray-200 dark:border-navy-600 text-gray-700 dark:text-gray-200",
-    subtle:
-      "bg-gray-100 dark:bg-navy-700 border-gray-200 dark:border-navy-600 text-gray-600 dark:text-gray-300",
-    muted:
-      "bg-gray-50 dark:bg-navy-700 border-gray-200 dark:border-navy-600 text-gray-700 dark:text-gray-300",
+    default: "bg-panel border-line text-fg",
+    subtle: "bg-sunken border-line text-fg-muted",
+    muted: "bg-sunken border-line text-fg",
     highlighted:
       "bg-primary-50 dark:bg-primary-500/10 border-primary-300 dark:border-primary-500/40 text-primary-700 dark:text-primary-300 font-bold",
-    placeholder:
-      "bg-gray-50 dark:bg-navy-700 border-gray-200 dark:border-navy-600 text-gray-400 dark:text-gray-500",
-    ghost: "bg-white/10 border-white/10 text-white hover:bg-white/20",
+    placeholder: "bg-sunken border-line text-fg-subtle",
+    // On chrome or the turf only: on-brand text is white, so on a light panel it can't be read.
+    ghost: "bg-on-brand/10 border-on-brand/10 text-on-brand hover:bg-on-brand/20",
   };
 
   const sizes = {
-    "2xs": "py-0.5 text-[9px]",
-    xs: "py-0.5 text-[10px]",
-    sm: "py-1.5 text-xs",
-    md: "py-2 text-sm",
+    "2xs": "py-0.5 text-caption",
+    xs: "py-0.5 text-caption",
+    sm: "py-1.5 text-caption",
+    md: "py-2 text-body",
   };
 
   const leftPadding = icon
@@ -449,16 +446,19 @@ export function Select({
   const chevronSize = { "2xs": "w-2.5 h-2.5", xs: "w-3 h-3", sm: "w-4 h-4", md: "w-4 h-4" }[
     selectSize
   ];
-  const optionTextSize = { "2xs": "text-[9px]", xs: "text-[10px]", sm: "text-xs", md: "text-sm" }[
-    selectSize
-  ];
+  const optionTextSize = {
+    "2xs": "text-caption",
+    xs: "text-caption",
+    sm: "text-caption",
+    md: "text-body",
+  }[selectSize];
 
   return (
     <div ref={wrapperRef} className={`relative ${fullWidth ? "w-full" : ""} ${wrapperClassName}`}>
       {name ? <input type="hidden" name={name} value={selectedValue} disabled={disabled} /> : null}
       {icon ? (
         <span
-          className={`pointer-events-none absolute inset-y-0 ${iconInset} flex items-center text-gray-400 dark:text-gray-500`}
+          className={`pointer-events-none absolute inset-y-0 ${iconInset} flex items-center text-fg-subtle`}
           aria-hidden="true"
         >
           <span className="[&>svg]:w-4 [&>svg]:h-4">{icon}</span>
@@ -491,7 +491,7 @@ export function Select({
         <span className="truncate">{selectedOption?.label ?? ""}</span>
       </button>
       <span
-        className={`pointer-events-none absolute inset-y-0 ${chevronInset} flex items-center text-gray-400 dark:text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`}
+        className={`pointer-events-none absolute inset-y-0 ${chevronInset} flex items-center text-fg-subtle transition-transform ${isOpen ? "rotate-180" : ""}`}
         aria-hidden="true"
       >
         <ChevronDown className={chevronSize} />
@@ -501,7 +501,7 @@ export function Select({
         ? createPortal(
             <div
               ref={menuRef}
-              className="fixed z-50 w-max overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl dark:border-navy-600 dark:bg-navy-800"
+              className="fixed z-50 w-max overflow-hidden rounded-lg border border-line bg-panel shadow-xl"
             >
               <div
                 id={listboxId}
@@ -526,7 +526,7 @@ export function Select({
                         tabIndex={-1}
                         aria-selected={isSelected}
                         disabled={option.disabled}
-                        className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400" : "text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-navy-700"} ${isActive && !isSelected ? "bg-gray-50 dark:bg-navy-700" : ""} ${isActive ? "ring-2 ring-inset ring-primary-500/40 dark:ring-primary-400/40" : ""} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                        className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400" : "text-fg hover:bg-hover"} ${isActive && !isSelected ? "bg-hover" : ""} ${isActive ? "ring-2 ring-inset ring-primary-500/40 dark:ring-primary-400/40" : ""} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
                         onMouseDown={(event) => event.preventDefault()}
                         onMouseEnter={() => {
                           if (!option.disabled) {
@@ -559,7 +559,7 @@ export function Select({
                     <div key={`group-${sectionIndex}`} role="group" aria-label={section.label}>
                       <div
                         aria-hidden="true"
-                        className="px-3 pb-1 pt-2 text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-400 dark:text-gray-500"
+                        className="px-3 pb-1 pt-2 text-caption font-semibold text-fg-subtle"
                       >
                         {section.label}
                       </div>

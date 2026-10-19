@@ -2,6 +2,7 @@ import i18n from "../i18n";
 import { formatExactMoney, formatPreciseCompact } from "../lib/helpers";
 import { formatDate } from "../lib/dateFormatting";
 import { countryName } from "../lib/countries";
+import { competitionDisplayName } from "../lib/competitionName";
 import { useSettingsStore } from "../store/settingsStore";
 import type {
   MessageActionOption,
@@ -476,6 +477,36 @@ function normalizeStandingsParams(
   }
 }
 
+/**
+ * A generated competition is stored under an English template name ("Germany Cup"); its
+ * report carries the name key, country and season so it reads as every other screen names it.
+ */
+function normalizeReportCompetitionName(
+  article: NewsArticle,
+  params?: Record<string, string>,
+): Record<string, string> | undefined {
+  if (
+    article.body_key !== "be.news.matchReport.reportCompetition.body" ||
+    !params?.competitionKey
+  ) {
+    return params;
+  }
+
+  const season = Number(params.competitionSeason);
+  return {
+    ...params,
+    competition: competitionDisplayName(
+      {
+        name: params.competition,
+        name_key: params.competitionKey,
+        country_id: params.competitionCountry ?? null,
+        season: Number.isFinite(season) ? season : undefined,
+      },
+      (key, options) => i18n.t(key, options),
+    ),
+  };
+}
+
 function normalizeMatchReportParams(
   article: NewsArticle,
   params?: Record<string, string>,
@@ -483,7 +514,8 @@ function normalizeMatchReportParams(
   if (
     !article.body_key?.startsWith("be.news.matchReport.body") &&
     article.body_key !== "be.news.matchReport.reportFriendly.body" &&
-    article.body_key !== "be.news.matchReport.reportPreseason.body"
+    article.body_key !== "be.news.matchReport.reportPreseason.body" &&
+    article.body_key !== "be.news.matchReport.reportCompetition.body"
   ) {
     return params;
   }
@@ -686,6 +718,7 @@ const ARTICLE_PARAM_NORMALIZERS: ArticleParamNormalizer[] = [
   normalizeRoundupParams,
   normalizeStandingsParams,
   normalizeMatchReportParams,
+  normalizeReportCompetitionName,
   normalizePressConferenceParams,
   normalizeTransferRoundupParams,
 ];
