@@ -10,7 +10,7 @@
 // Exits 1 when a case fails. Not a CI gate yet: it needs Chrome and a running dev server.
 
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -57,18 +57,38 @@ function caseUrl(base, { page, scale, lang }) {
   return `${base}/style-guide.html?${query}`;
 }
 
-async function devtools(port) {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
-      const page = targets.find((target) => target.type === "page");
-      if (page) return page.webSocketDebuggerUrl;
-    } catch {
-      // Chrome is still starting; try again shortly.
+/**
+ * The page's DevTools socket. Chrome was asked for any free port (0) and writes the one it took to
+ * DevToolsActivePort in its profile, so two runs at once never collide on a fixed port.
+ */
+async function devtools(profile, chrome) {
+  const portFile = join(profile, "DevToolsActivePort");
+  for (let attempt = 0; attempt < 75; attempt += 1) {
+    if (chrome.startError) throw chrome.startError;
+    if (chrome.exitCode !== null) throw new Error(`Chrome exited (${chrome.exitCode}) on start`);
+    if (existsSync(portFile)) {
+      const [port] = readFileSync(portFile, "utf-8").split("\n");
+      try {
+        const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
+        const page = targets.find((target) => target.type === "page");
+        if (page) return page.webSocketDebuggerUrl;
+      } catch (error) {
+        // The port file can appear a moment before the endpoint answers: say so, then retry.
+        console.error(`waiting for Chrome's DevTools: ${error.message}`);
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   throw new Error("Chrome's DevTools endpoint never came up");
+}
+
+/** Stops Chrome's whole process group; one that has already gone is not an error. */
+function stopChrome(chrome) {
+  try {
+    process.kill(-chrome.pid);
+  } catch (error) {
+    if (error.code !== "ESRCH") throw error;
+  }
 }
 
 function connect(url) {
@@ -107,7 +127,6 @@ async function measure(call, base, testCase) {
 }
 
 async function main(base) {
-  const port = 9334;
   const profile = mkdtempSync(join(tmpdir(), "page-layout-check-"));
   const chrome = spawn(
     "google-chrome",
@@ -115,17 +134,21 @@ async function main(base) {
       "--headless=new",
       "--disable-gpu",
       "--no-sandbox",
-      `--remote-debugging-port=${port}`,
-      `--remote-allow-origins=http://127.0.0.1:${port}`,
+      "--remote-debugging-port=0",
       `--user-data-dir=${profile}`,
       "about:blank",
     ],
     // Its own process group, so stopping it also stops the helper processes that write the profile.
     { stdio: "ignore", detached: true },
   );
+  // Listen at once: a failed start (no google-chrome on PATH) is reported, not thrown unhandled.
+  const exited = new Promise((resolve) => chrome.once("exit", resolve));
+  chrome.once("error", (error) => {
+    chrome.startError = error;
+  });
   let failed = 0;
   try {
-    const { socket, call } = await connect(await devtools(port));
+    const { socket, call } = await connect(await devtools(profile, chrome));
     for (const testCase of CASES) {
       const problems = judge(await measure(call, base, testCase));
       const label = `${testCase.page ?? "style guide"} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
@@ -136,9 +159,10 @@ async function main(base) {
     }
     socket.close();
   } finally {
-    const exited = new Promise((resolve) => chrome.once("exit", resolve));
-    process.kill(-chrome.pid);
-    await exited;
+    if (chrome.pid !== undefined && chrome.exitCode === null) {
+      stopChrome(chrome);
+      await exited;
+    }
     rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
   console.log(`${CASES.length - failed} of ${CASES.length} cases pass`);
