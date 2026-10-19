@@ -2,7 +2,14 @@ import type { SupportedLanguageCode } from "../../i18n";
 import type { SettingsResponse } from "../../store/settingsStore";
 import type { StyleGuideOptions } from "../styleGuide/styleGuideOptions";
 import * as fixture from "./fixture.generated";
-import type { CommandHandlers } from "./harnessIpc";
+import { type CommandHandlers, UNANSWERED } from "./harnessIpc";
+
+/** The fixture holds one club, the user's: anything asked about another club is declined. */
+const USER_CLUB = fixture.gameState.manager.team_id;
+
+function forUserClub(teamId: unknown, answer: () => unknown): unknown {
+  return teamId === USER_CLUB ? answer() : UNANSWERED;
+}
 
 /** The settings the page sees, matching what the URL put on the document. */
 export function harnessSettings(
@@ -35,13 +42,21 @@ export function fixtureHandlers(
     get_active_game: () => fixture.gameState,
     get_active_save_id: () => "page-harness",
     get_career_stage: () => fixture.careerStage,
-    get_finance_snapshot: () => ({
-      snapshot: fixture.financeSnapshot,
-      previews: fixture.financePreviews,
-    }),
-    get_club_league_standing: () => fixture.clubLeagueStanding,
-    get_squad: () => fixture.squad,
+    // No team id means the manager's club, as in the Rust command.
+    get_finance_snapshot: ({ teamId }) =>
+      forUserClub(teamId ?? USER_CLUB, () => ({
+        snapshot: fixture.financeSnapshot,
+        previews: fixture.financePreviews,
+      })),
+    get_club_league_standing: ({ teamId }) => forUserClub(teamId, () => fixture.clubLeagueStanding),
+    get_squad: ({ teamId }) => forUserClub(teamId, () => fixture.squad),
     get_available_jobs: () => fixture.availableJobs,
-    get_contract_warning_stages: () => fixture.contractWarningStages,
+    // Only the players asked about; Rust leaves out an id no player has.
+    get_contract_warning_stages: ({ playerIds }) => {
+      const asked = new Set(Array.isArray(playerIds) ? playerIds : []);
+      return Object.fromEntries(
+        Object.entries(fixture.contractWarningStages).filter(([id]) => asked.has(id)),
+      );
+    },
   };
 }
