@@ -179,11 +179,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
         makes clicking the caption open the picker the way clicking the caption
         of a native select does. `aria-labelledby` alone only supplied a name.
       */}
-      <label
-        id={labelId}
-        htmlFor={buttonId}
-        className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400"
-      >
+      <label id={labelId} htmlFor={buttonId} className="text-caption font-medium text-fg-muted">
         {label}
       </label>
       <div className="relative">
@@ -210,33 +206,33 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
           onClick={(e) => {
             if (e.detail === 0) isOpen ? close() : open();
           }}
-          className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 px-3 py-2 text-sm text-left transition focus:outline-none focus:ring-2 focus:ring-primary-400 min-h-[38px]"
+          className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-body text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page min-h-[38px]"
         >
           {selectedLabel ? (
-            <span className="flex items-center gap-2 text-gray-900 dark:text-white">
+            <span className="flex items-center gap-2 text-fg">
               {resources && (
                 <resources.CountryFlag
                   code={value}
                   locale={locale}
                   decorative
-                  className="text-base leading-none"
+                  className="text-lead leading-none"
                 />
               )}
               <span>{selectedLabel}</span>
             </span>
           ) : (
-            <span className="text-gray-400 dark:text-gray-500">{placeholder ?? "—"}</span>
+            <span className="text-fg-subtle">{placeholder ?? "—"}</span>
           )}
           <ChevronDown
-            className={`absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition-transform ${isOpen ? "rotate-180" : ""}`}
+            className={`absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle transition-transform ${isOpen ? "rotate-180" : ""}`}
           />
         </button>
 
         {isOpen && (
-          <div className="absolute top-full left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-700 shadow-xl">
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 overflow-hidden rounded-lg border border-line bg-panel shadow-xl">
             {resources ? (
               <>
-                <div className="border-b border-gray-100 dark:border-navy-600 p-2">
+                <div className="border-b border-line p-2">
                   <input
                     type="text"
                     // biome-ignore lint/a11y/noAutofocus: the search field only exists while the combobox is open.
@@ -254,14 +250,12 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                       setActiveIndex(0);
                     }}
                     onKeyDown={handleSearchKeyDown}
-                    className="w-full rounded-md border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-3 py-1.5 text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:border-primary-500"
+                    className="w-full rounded-md border border-line bg-sunken px-3 py-1.5 text-body text-fg outline-none placeholder:text-fg-subtle focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
                   />
                 </div>
                 <div className="max-h-48 overflow-y-auto overscroll-contain">
                   {filtered.length === 0 && (
-                    <p className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">
-                      {t("menu.noResults")}
-                    </p>
+                    <p className="px-3 py-2 text-caption text-fg-subtle">{t("menu.noResults")}</p>
                   )}
                   {/*
                     A real listbox, because the trigger promises one with
@@ -297,10 +291,10 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                         onClick={(e) => {
                           if (e.detail === 0) select(entry.code);
                         }}
-                        className={`flex w-full items-center justify-between px-3 py-2 text-sm transition-colors ${
+                        className={`flex w-full items-center justify-between px-3 py-2 text-body transition-colors ${
                           value === entry.code
                             ? "bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400"
-                            : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-navy-600"
+                            : "text-fg hover:bg-hover"
                         } ${
                           index === active
                             ? "ring-2 ring-inset ring-primary-400 dark:ring-primary-500"
@@ -312,7 +306,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                             code={entry.code}
                             locale={locale}
                             decorative
-                            className="text-base leading-none"
+                            className="text-lead leading-none"
                           />
                           <span>{entry.name}</span>
                         </span>

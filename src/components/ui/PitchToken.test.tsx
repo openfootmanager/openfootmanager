@@ -96,7 +96,7 @@ describe("PitchToken condition bar", () => {
       <PitchToken name="A" positionAbbr="GK" ovr={70} condition={90} fitTone="out" hidePortrait />,
     );
 
-    expect(container.innerHTML).toContain("ring-red-400");
+    expect(container.innerHTML).toContain("ring-danger-solid");
   });
 });
 
