@@ -71,7 +71,11 @@ pub(crate) fn build_team_with_bench_from(
     // striker's slot does not), and anyone's can go stale when the side changes.
     let convert_player = |p: &domain::player::Player, deployed: Option<&DomainPosition>| {
         let playing_at = deployed.unwrap_or(&p.natural_position);
-        let role = match_role(player_roles, &p.id, playing_at);
+        let role = player_roles
+            .and_then(|roles| roles.get(&p.id))
+            .filter(|role| playing_at.admits_role(role))
+            .map(domain_to_engine_role)
+            .unwrap_or(EnginePlayerRole::Standard);
         to_engine_player(p, role, deployed)
     };
 
@@ -743,20 +747,6 @@ pub(crate) fn domain_to_engine_role(role: &domain::team::PlayerRole) -> EnginePl
         domain::team::PlayerRole::PressingForward => EnginePlayerRole::PressingForward,
         domain::team::PlayerRole::CompleteForward => EnginePlayerRole::CompleteForward,
     }
-}
-
-/// The role a player takes into a match: his saved role where the position he is playing
-/// admits it, otherwise `Standard`.
-pub(crate) fn match_role(
-    saved_roles: Option<&std::collections::HashMap<String, domain::team::PlayerRole>>,
-    player_id: &str,
-    playing_at: &DomainPosition,
-) -> EnginePlayerRole {
-    saved_roles
-        .and_then(|roles| roles.get(player_id))
-        .filter(|role| playing_at.admits_role(role))
-        .map(domain_to_engine_role)
-        .unwrap_or(EnginePlayerRole::Standard)
 }
 
 pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -> TacticsConfig {

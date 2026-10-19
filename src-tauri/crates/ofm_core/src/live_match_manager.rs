@@ -6,7 +6,8 @@
 use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
 use crate::turn::squad::{
-    build_team_with_bench_from, domain_to_engine_tactics, match_role, set_piece_takers_among,
+    build_team_with_bench_from, domain_to_engine_role, domain_to_engine_tactics,
+    set_piece_takers_among,
 };
 
 use rand_chacha::ChaCha12Rng;
@@ -257,21 +258,26 @@ impl LiveMatchSession {
         Ok(())
     }
 
-    /// Starters whose role in the session differs from the one their saved role gives them in
-    /// the slot they occupy.
+    /// Starters whose role in the session is not their saved one. A saved role counts only where
+    /// the starter's position in the session admits it, which is the rule the live role command
+    /// applies: a pre-match formation change or swap moves players in the session alone, so the
+    /// saved team's slots no longer describe it.
     fn starter_roles_to_change(
         &self,
         side: Side,
         team: &domain::team::Team,
     ) -> Vec<(String, engine::PlayerRole)> {
-        let side_data = self.match_state.team(side);
-        let slots = crate::player_rating::formation_slots(&side_data.formation);
-        side_data
+        self.match_state
+            .team(side)
             .players
             .iter()
-            .zip(slots.iter())
-            .filter_map(|(player, slot)| {
-                let role = match_role(Some(&team.player_roles), &player.id, slot);
+            .filter_map(|player| {
+                let role = team
+                    .player_roles
+                    .get(&player.id)
+                    .map(domain_to_engine_role)
+                    .filter(|role| role.suits(player.position))
+                    .unwrap_or(engine::PlayerRole::Standard);
                 (role != player.role).then(|| (player.id.clone(), role))
             })
             .collect()

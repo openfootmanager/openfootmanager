@@ -103,6 +103,11 @@ impl PlayerRole {
         Self::CompleteForward,
     ];
 
+    /// Whether a player in `position`'s group may be given this role.
+    pub fn suits(self, position: Position) -> bool {
+        self == Self::Standard || self.position_groups().contains(&position)
+    }
+
     /// The position groups whose players may be given this role. The wide roles
     /// are open to wide midfielders and to wingers; `Standard` suits everyone
     /// and is left out.
@@ -346,16 +351,27 @@ pub enum TacticalDial {
 impl TacticsConfig {
     /// All nine dials of this plan, each set as the plan has it.
     pub fn dials(&self) -> [TacticalDial; 9] {
+        let TacticsConfig {
+            pressing_intensity,
+            defensive_line,
+            width,
+            build_up_style,
+            marking_style,
+            tempo,
+            defensive_shape,
+            counter_press_duration,
+            break_speed,
+        } = *self;
         [
-            TacticalDial::PressingIntensity(self.pressing_intensity),
-            TacticalDial::DefensiveLine(self.defensive_line),
-            TacticalDial::Width(self.width),
-            TacticalDial::BuildUpStyle(self.build_up_style),
-            TacticalDial::MarkingStyle(self.marking_style),
-            TacticalDial::Tempo(self.tempo),
-            TacticalDial::DefensiveShape(self.defensive_shape),
-            TacticalDial::CounterPressDuration(self.counter_press_duration),
-            TacticalDial::BreakSpeed(self.break_speed),
+            TacticalDial::PressingIntensity(pressing_intensity),
+            TacticalDial::DefensiveLine(defensive_line),
+            TacticalDial::Width(width),
+            TacticalDial::BuildUpStyle(build_up_style),
+            TacticalDial::MarkingStyle(marking_style),
+            TacticalDial::Tempo(tempo),
+            TacticalDial::DefensiveShape(defensive_shape),
+            TacticalDial::CounterPressDuration(counter_press_duration),
+            TacticalDial::BreakSpeed(break_speed),
         ]
     }
 }

@@ -389,7 +389,7 @@ impl LiveMatchState {
                     .iter_mut()
                     .find(|p| p.id == player_id)
                     .ok_or("be.error.liveMatch.playerNotOnPitch")?;
-                if !is_role_valid_for_position(role, player.position) {
+                if !role.suits(player.position) {
                     return Err("be.error.roleNotValidForPosition".into());
                 }
                 player.role = role;
@@ -481,8 +481,4 @@ impl LiveMatchState {
         self.home_score = home;
         self.away_score = away;
     }
-}
-
-fn is_role_valid_for_position(role: PlayerRole, position: crate::types::Position) -> bool {
-    role == PlayerRole::Standard || role.position_groups().contains(&position)
 }

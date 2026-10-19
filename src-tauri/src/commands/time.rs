@@ -1580,4 +1580,69 @@ mod tests {
             .expect("a live match session exists");
         assert_eq!(line_in_play, engine::DefensiveLine::Medium);
     }
+
+    /// Given a pre-kick-off match where a substitute forward, saved as a Poacher, has been
+    /// swapped into a defender's place on the pre-match screen,
+    /// When the user then raises the defensive line,
+    /// Then the line reaches the match and the forward plays in defence on the Standard role,
+    /// because a Poacher's role does not suit the position he now holds.
+    #[test]
+    fn a_saved_role_that_no_longer_suits_the_match_position_is_left_out() {
+        let state = StateManager::new();
+        let mut game = make_round_summary_game();
+        game.players.push(make_player(
+            "a-fwd-spare",
+            "a Fwd Spare",
+            "team1",
+            Position::Forward,
+        ));
+        state.set_game(game);
+        advance_time_with_mode_internal(&state, "live").expect("live advance response");
+        let (forward_on_bench, defender_starting) = state
+            .with_live_match(|session| {
+                let snapshot = session.snapshot();
+                let bench_forward = snapshot
+                    .home_bench
+                    .iter()
+                    .find(|player| player.position == engine::Position::Forward)
+                    .map(|player| player.id.clone())
+                    .expect("a forward waits on the bench");
+                let starting_defender = snapshot
+                    .home_team
+                    .players
+                    .iter()
+                    .find(|player| player.position == engine::Position::Defender)
+                    .map(|player| player.id.clone())
+                    .expect("a defender starts");
+                (bench_forward, starting_defender)
+            })
+            .expect("a live match session exists");
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            forward_on_bench.clone(),
+            Some("Poacher".to_string()),
+        )
+        .expect("a forward may be a Poacher");
+        crate::application::live_match::apply_match_command(
+            &state,
+            engine::MatchCommand::PreMatchSwap {
+                side: engine::Side::Home,
+                player_off_id: defender_starting,
+                player_on_id: forward_on_bench.clone(),
+            },
+        )
+        .expect("the swap is made before kick-off");
+
+        set_defensive_line_high(&state);
+
+        let side = user_side_in_session(&state);
+        assert_eq!(side.tactics.defensive_line, engine::DefensiveLine::High);
+        let swapped_in = side
+            .players
+            .iter()
+            .find(|player| player.id == forward_on_bench)
+            .expect("the forward now starts");
+        assert_eq!(swapped_in.position, engine::Position::Defender);
+        assert_eq!(swapped_in.role, engine::PlayerRole::Standard);
+    }
 }

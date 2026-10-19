@@ -621,21 +621,20 @@ pub fn set_player_role_internal(
 
 /// One optional value per tactical dial, as the screen sends them; `None` leaves a dial alone.
 #[derive(Debug, Default)]
-pub struct TacticsPhasePatch {
-    pub build_up_style: Option<String>,
-    pub width: Option<String>,
-    pub tempo: Option<String>,
-    pub defensive_line: Option<String>,
-    pub pressing_intensity: Option<String>,
-    pub defensive_shape: Option<String>,
-    pub marking_style: Option<String>,
-    pub counter_press_duration: Option<String>,
-    pub break_speed: Option<String>,
+pub(crate) struct TacticsPhasePatch {
+    pub(crate) build_up_style: Option<String>,
+    pub(crate) width: Option<String>,
+    pub(crate) tempo: Option<String>,
+    pub(crate) defensive_line: Option<String>,
+    pub(crate) pressing_intensity: Option<String>,
+    pub(crate) defensive_shape: Option<String>,
+    pub(crate) marking_style: Option<String>,
+    pub(crate) counter_press_duration: Option<String>,
+    pub(crate) break_speed: Option<String>,
 }
 
-// One `Option<String>` per tactical dial: this is the IPC signature the UI sends,
-// and each dial is independently optional. Bundling them into a struct would move
-// the same field count behind a serde type without making any call site simpler.
+// One `Option<String>` per tactical dial is the IPC signature the UI sends; the
+// command gathers them into a TacticsPhasePatch for the internal function.
 #[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub fn set_tactics_phase(
@@ -666,7 +665,7 @@ pub fn set_tactics_phase(
     )
 }
 
-pub fn set_tactics_phase_internal(
+pub(crate) fn set_tactics_phase_internal(
     state: &StateManager,
     patch: TacticsPhasePatch,
 ) -> Result<Game, String> {
