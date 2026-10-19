@@ -165,9 +165,10 @@ never a grey number that could read as a low value.
 
 ## 7. Enforcement
 
-`src/designSystem.test.ts` checks five rules in every folder listed in its `FINISHED_FOLDERS`:
+`src/designSystem.test.ts` checks six rules in every folder listed in its `FINISHED_FOLDERS`:
 role type sizes only, no colour literal (except SVG artwork whose colours are data), no raw palette
-class, a full-screen overlay only through `Dialog`, and no `on-brand` text on a `-solid` fill. Each
+class, a full-screen overlay only through `Dialog`, no `on-brand` text on a `-solid` fill, and one
+focus ring (`ring-focus`, on `focus-visible`, never plain `focus` or another colour). Each
 rule has a fixture that breaks it. A folder joins the list in the PR that brings it up to
 standard, so the list only ever names finished work, never a known violation; when every folder
 is in, the list goes. What a test can't see (uppercase, one primary action per page, colour as

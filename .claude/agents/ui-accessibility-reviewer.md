@@ -66,9 +66,11 @@ disabled states.
 - In a folder that hasn't been migrated yet, an unchanged raw palette class still needs its
   `dark:` partner (`bg-white` with `dark:bg-navy-800`); a missing pair means invisible or glaring
   content in one theme. Borders, shadows, dividers and placeholder text are the ones people forget.
-- Focus rings use `focus:ring-focus focus:ring-offset-page`, or in an unmigrated folder
-  `dark:focus:ring-offset-navy-800`. The offset colour must match the surface, or the ring renders
-  against the wrong background.
+- Focus rings use `focus-visible:ring-focus focus-visible:ring-offset-page` (rule 6 of
+  `src/designSystem.test.ts` enforces it in finished folders), or in an unmigrated folder
+  `dark:focus:ring-offset-navy-800`. A ring in any other colour (a brand `ring-primary-*`, an
+  `accent` ring) is a finding: it misses 3:1 on some surface. A control drawn on a sunken surface
+  may take that surface's offset (`ring-offset-sunken`).
 
 ### Keyboard and focus
 - `focus:outline-none` with **nothing visible put back**. Removing focus visibility is a bug, not a

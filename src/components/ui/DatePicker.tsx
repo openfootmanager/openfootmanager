@@ -252,8 +252,8 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
           value={day}
           onChange={handleDayChange}
           onBlur={() => setDay(normaliseDayOnBlur(day))}
-          className={`w-full bg-sunken border text-fg rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-fg-subtle text-center ${
-            error ? "border-danger-solid focus:ring-focus" : "border-line-strong focus:ring-focus"
+          className={`w-full bg-sunken border text-fg rounded-lg p-3 outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page transition-all placeholder:text-fg-subtle text-center ${
+            error ? "border-danger-solid" : "border-line-strong"
           }`}
         />
       </div>
@@ -263,7 +263,7 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
         <button
           type="button"
           onClick={() => setMonthOpen(!monthOpen)}
-          className={`w-full flex items-center justify-between bg-sunken border text-left rounded-lg p-3 outline-none transition-all focus-visible:ring-2 focus-visible:ring-focus ${
+          className={`w-full flex items-center justify-between bg-sunken border text-left rounded-lg p-3 outline-none transition-all focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page ${
             error ? "border-danger-solid" : monthOpen ? "border-primary-500" : "border-line-strong"
           }`}
         >
@@ -348,8 +348,8 @@ export function DatePicker({ value, onChange, error, labelledBy }: DatePickerPro
               }
             }
           }}
-          className={`w-full bg-sunken border text-fg rounded-lg p-3 outline-none focus:ring-2 transition-all placeholder:text-fg-subtle text-center ${
-            error ? "border-danger-solid focus:ring-focus" : "border-line-strong focus:ring-focus"
+          className={`w-full bg-sunken border text-fg rounded-lg p-3 outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page transition-all placeholder:text-fg-subtle text-center ${
+            error ? "border-danger-solid" : "border-line-strong"
           }`}
         />
       </div>

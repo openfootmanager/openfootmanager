@@ -20,14 +20,16 @@ export function ProgressBar({
       ? clamped >= 70
         ? "success"
         : clamped >= 40
-          ? "accent"
+          ? "warning"
           : "danger"
       : variant;
 
   const barColors = {
     primary: "bg-primary-500",
     accent: "bg-accent-400",
-    success: "bg-success-400",
+    // The auto scale is a status, not the brand, so it fills with the status solids.
+    success: "bg-positive-solid",
+    warning: "bg-warning-solid",
     danger: "bg-danger-solid",
     muted: "bg-fg-subtle",
   };

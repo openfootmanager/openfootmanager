@@ -13,7 +13,8 @@ export function Badge({ children, variant = "neutral", size = "sm", className = 
     accent: "bg-accent-100 text-accent-700 dark:bg-accent-900/40 dark:text-accent-300",
     success: "bg-positive-tint text-positive",
     danger: "bg-danger-tint text-danger",
-    neutral: "bg-sunken text-fg-muted",
+    // The inset line keeps it visible on a white panel, where sunken alone is 1.04:1.
+    neutral: "bg-sunken text-fg-muted ring-1 ring-inset ring-line",
   };
 
   const sizes = {

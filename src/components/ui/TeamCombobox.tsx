@@ -133,7 +133,7 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
               else setIsOpen(true);
             }
           }}
-          className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-body text-left transition focus:outline-none focus:ring-2 focus:ring-focus focus:ring-offset-2 focus:ring-offset-page min-h-[38px]"
+          className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-body text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page min-h-[38px]"
         >
           <span className={selected ? "text-fg" : "text-fg-subtle"}>
             {selected?.label ?? placeholder ?? "—"}
@@ -163,7 +163,7 @@ export function TeamCombobox({ label, value, options, onChange, placeholder }: T
                   setActiveIndex(0);
                 }}
                 onKeyDown={handleSearchKeyDown}
-                className="w-full rounded-md border border-line bg-sunken px-3 py-1.5 text-body text-fg outline-none placeholder:text-fg-subtle focus:ring-2 focus:ring-focus"
+                className="w-full rounded-md border border-line bg-sunken px-3 py-1.5 text-body text-fg outline-none placeholder:text-fg-subtle focus-visible:ring-2 focus-visible:ring-focus"
               />
             </div>
             <div className="max-h-48 overflow-y-auto overscroll-contain">

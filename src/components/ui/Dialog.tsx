@@ -109,7 +109,7 @@ export function DialogCloseButton({
       onClick={onClose}
       disabled={disabled}
       aria-label={t("common.close")}
-      className="rounded-lg p-1.5 text-fg-muted transition-colors hover:bg-hover hover:text-fg focus:outline-none focus:ring-2 focus:ring-focus disabled:opacity-50"
+      className="rounded-lg p-1.5 text-fg-muted transition-colors hover:bg-hover hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page disabled:opacity-50"
     >
       <span aria-hidden="true" className="font-heading text-body">
         ✕
