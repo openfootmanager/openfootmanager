@@ -27,7 +27,7 @@ export function PageToolbar({ start, filters, action }: PageToolbarProps) {
           {start}
         </div>
       ) : null}
-      <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2 py-2">
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2 py-2">
         {filters}
         {action}
       </div>

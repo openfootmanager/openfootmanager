@@ -144,20 +144,32 @@ describe("Tabs", () => {
   /**
    * Given a selection made with the keyboard,
    * when the selected tab changes,
-   * then it is scrolled into view within the tablist; nothing is scrolled on first render.
+   * then the tablist scrolls just enough to show it, and the page doesn't move.
    */
-  it("scrolls the newly selected tab into view", () => {
+  it("scrolls the tablist, never the page, to show the newly selected tab", () => {
+    const windowScroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     render(<Harness />);
-    expect(scrollIntoView).not.toHaveBeenCalled();
+    // jsdom has no layout: give the tablist a 200px view and the last tab a place past it.
+    const list = screen.getByRole("tablist");
+    Object.defineProperty(list, "clientWidth", { value: 200 });
+    Object.defineProperty(list, "scrollLeft", { value: 0, writable: true });
+    const offers = screen.getByRole("tab", { name: /Offers/ });
+    Object.defineProperty(offers, "offsetLeft", { value: 300 });
+    Object.defineProperty(offers, "offsetWidth", { value: 80 });
+    expect(list.scrollLeft).toBe(0);
 
     const first = screen.getByRole("tab", { name: /Players/ });
     first.focus();
     fireEvent.keyDown(first, { key: "End" });
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(scrollIntoView.mock.contexts[0]).toBe(screen.getByRole("tab", { name: /Offers/ }));
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: "nearest", inline: "nearest" });
+    expect(list.scrollLeft).toBe(180);
+
+    fireEvent.keyDown(offers, { key: "Home" });
+    expect(list.scrollLeft).toBe(0);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(windowScroll).not.toHaveBeenCalled();
+    windowScroll.mockRestore();
   });
 
   /**

@@ -40,6 +40,16 @@ describe("PageToolbar", () => {
     expect(slot).toHaveClass("min-w-0", "max-w-full", "min-h-toolbar");
   });
 
+  /**
+   * Given filters and an action that wrap onto a new line,
+   * then their group packs to the right, so the action stays at the toolbar's right end.
+   */
+  it("keeps the action at the right end when the filters wrap", () => {
+    render(<PageToolbar action={<button type="button">Hire</button>} />);
+    const group = screen.getByRole("button", { name: "Hire" }).parentElement;
+    expect(group).toHaveClass("ml-auto", "justify-end");
+  });
+
   /** Given only an action, then the toolbar renders it on its own. */
   it("renders with only an action", () => {
     render(<PageToolbar action={<button type="button">Hire</button>} />);

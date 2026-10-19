@@ -21,17 +21,30 @@ interface TabsProps {
 }
 
 const tabDomId = (prefix: string, id: string) => `${prefix}-tab-${id}`;
+
+/**
+ * Scrolls `list` sideways just enough to show `tab`. Not scrollIntoView: that also scrolls the page
+ * when the tablist is off screen. `offsetLeft` is measured from the list, which is `relative`.
+ */
+function revealInList(list: HTMLElement, tab: HTMLElement) {
+  const tabRight = tab.offsetLeft + tab.offsetWidth;
+  if (tab.offsetLeft < list.scrollLeft) {
+    list.scrollLeft = tab.offsetLeft;
+  } else if (tabRight > list.scrollLeft + list.clientWidth) {
+    list.scrollLeft = tabRight - list.clientWidth;
+  }
+}
 const panelDomId = (prefix: string, id: string) => `${prefix}-panel-${id}`;
 
 const LOOKS = {
   underline: {
-    list: "flex min-w-0 max-w-full items-stretch gap-1 self-stretch overflow-x-auto",
+    list: "relative flex min-w-0 max-w-full items-stretch gap-1 self-stretch overflow-x-auto",
     tab: "flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 font-heading text-body font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset",
     selected: "border-positive text-positive",
     idle: "border-transparent text-fg-muted hover:text-fg",
   },
   segmented: {
-    list: "inline-flex min-w-0 max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-line bg-sunken p-0.5",
+    list: "relative inline-flex min-w-0 max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-line bg-sunken p-1",
     tab: "flex h-7 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 font-heading text-caption font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-sunken",
     selected: "bg-panel text-fg shadow-sm ring-1 ring-line-strong",
     idle: "text-fg-muted hover:text-fg",
@@ -43,7 +56,7 @@ const LOOKS = {
  * selection and the focus together, wrapping at both ends. When the tabs don't fit (long labels,
  * a large UI scale) the tablist scrolls inside its own box rather than wrapping: a second row of
  * underline tabs reads as a second tab bar, and wrapping would change the toolbar's height by
- * locale. The selected tab is scrolled into view whenever the selection changes.
+ * locale. When the selection changes, the tablist (never the page) scrolls just enough to show it.
  */
 export function Tabs({
   idPrefix,
@@ -54,6 +67,7 @@ export function Tabs({
   look = "underline",
 }: TabsProps) {
   const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const list = useRef<HTMLDivElement>(null);
   const shownId = useRef(selectedId);
   const styles = LOOKS[look];
   // A selection no tab has must not leave the tablist with no tab stop at all.
@@ -62,7 +76,8 @@ export function Tabs({
   useEffect(() => {
     if (shownId.current === selectedId) return;
     shownId.current = selectedId;
-    buttons.current.get(selectedId)?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    const tab = buttons.current.get(selectedId);
+    if (list.current && tab) revealInList(list.current, tab);
   }, [selectedId]);
 
   function selectAndFocus(index: number) {
@@ -84,7 +99,7 @@ export function Tabs({
   }
 
   return (
-    <div role="tablist" aria-label={label} className={styles.list}>
+    <div ref={list} role="tablist" aria-label={label} className={styles.list}>
       {tabs.map((tab, index) => {
         const selected = tab.id === selectedId;
         return (
