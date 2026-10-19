@@ -1,3 +1,4 @@
+use crate::seed::{rng_for_seed, standard_normal};
 use crate::{game::Game, season_awards::SeasonAwards};
 use chrono::{TimeZone, Utc};
 use domain::{
@@ -120,11 +121,6 @@ const SHOCK_SD: f64 = 0.4;
 const HOME_GOALS: f64 = 1.50;
 const AWAY_GOALS: f64 = 1.15;
 
-/// A standard normal draw.
-fn normal(rng: &mut impl Rng) -> f64 {
-    crate::development::standard_normal(rng)
-}
-
 /// A Poisson draw of mean `mean` (Knuth): the goals a side scores.
 fn poisson(rng: &mut impl Rng, mean: f64) -> u32 {
     let limit = (-mean).exp();
@@ -176,6 +172,13 @@ fn play_season(team_ids: &[String], strengths: &[f64], rng: &mut impl Rng) -> Ve
             record_result(&mut table[away], away_goals, home_goals);
         }
     }
+    order_table(&mut table);
+    table
+}
+
+/// Best first: points, then goal difference, then goals scored, then the club's id so the order
+/// is the same on every run.
+fn order_table(table: &mut [StandingEntry]) {
     table.sort_by(|left, right| {
         right
             .points
@@ -184,7 +187,6 @@ fn play_season(team_ids: &[String], strengths: &[f64], rng: &mut impl Rng) -> Ve
             .then_with(|| right.goals_for.cmp(&left.goals_for))
             .then_with(|| left.team_id.cmp(&right.team_id))
     });
-    table
 }
 
 fn goal_difference(entry: &StandingEntry) -> i64 {
@@ -208,6 +210,20 @@ fn record_result(entry: &mut StandingEntry, scored: u32, conceded: u32) {
     }
 }
 
+/// Moves every club's form on one season: part of last season's carries over (so a good run
+/// lasts, and a dynasty can break), the rest is new, and now and then something knocks it
+/// (a manager, a takeover, an injury crisis). The spread of a club's form stays `form_sd` (plus
+/// the shocks).
+fn advance_form(form: &mut [f64], form_sd: f64, rng: &mut impl Rng) {
+    let carried = (1.0 - FORM_PERSISTENCE * FORM_PERSISTENCE).sqrt();
+    for club_form in form.iter_mut() {
+        *club_form = FORM_PERSISTENCE * *club_form + carried * form_sd * standard_normal(rng);
+        if rng.random_range(0.0..1.0) < SHOCK_CHANCE {
+            *club_form += SHOCK_SD * standard_normal(rng);
+        }
+    }
+}
+
 /// The tables of one league over `seasons` seasons, oldest first. Its clubs' form carries from
 /// one season to the next, and the draws come from a stream of the world's seed and the league
 /// alone: the same world has the same past, another world another.
@@ -217,20 +233,26 @@ fn simulate_league_past(
     reputations: &[f64],
     seasons: usize,
 ) -> Vec<Vec<StandingEntry>> {
-    let mut rng = crate::seed::rng_for_seed(world_seed, &format!("history/{}", group.key), "-");
+    simulate_league_with_form(world_seed, group, reputations, seasons, FORM_SD)
+}
+
+/// [`simulate_league_past`] with the spread of the clubs' form given (a test reads the model
+/// without its form to see what the form adds).
+fn simulate_league_with_form(
+    world_seed: u64,
+    group: &LeagueGroup,
+    reputations: &[f64],
+    seasons: usize,
+    form_sd: f64,
+) -> Vec<Vec<StandingEntry>> {
+    let mut rng = rng_for_seed(world_seed, &format!("history/{}", group.key), "-");
     let mut form: Vec<f64> = reputations
         .iter()
-        .map(|_| FORM_SD * normal(&mut rng))
+        .map(|_| form_sd * standard_normal(&mut rng))
         .collect();
-    let carried = (1.0 - FORM_PERSISTENCE * FORM_PERSISTENCE).sqrt();
     (0..seasons)
         .map(|_| {
-            for club_form in form.iter_mut() {
-                *club_form = FORM_PERSISTENCE * *club_form + carried * FORM_SD * normal(&mut rng);
-                if rng.random_range(0.0..1.0) < SHOCK_CHANCE {
-                    *club_form += SHOCK_SD * normal(&mut rng);
-                }
-            }
+            advance_form(&mut form, form_sd, &mut rng);
             let strengths = strengths_of(reputations, &form);
             play_season(&group.team_ids, &strengths, &mut rng)
         })
@@ -1264,5 +1286,158 @@ mod tests {
                 assert_eq!(places, vec![1, 2, 3, 4, 5, 6], "{name} {season}");
             }
         }
+    }
+
+    fn entry(team: &str, points: u32, scored: u32, conceded: u32) -> domain::league::StandingEntry {
+        let mut entry = domain::league::StandingEntry::new(team.to_string());
+        entry.points = points;
+        entry.goals_for = scored;
+        entry.goals_against = conceded;
+        entry
+    }
+
+    /// Given clubs level on points, then on goal difference, then on goals scored,
+    /// When the table is ordered,
+    /// Then points come first, goal difference breaks a tie, goals scored breaks the next, and the
+    ///      club id the last.
+    #[test]
+    fn a_table_is_ordered_by_points_goal_difference_goals_scored_then_id() {
+        let mut table = vec![
+            entry("e", 60, 50, 40),
+            entry("d", 60, 55, 45),
+            entry("c", 60, 60, 45),
+            entry("b", 70, 20, 60),
+            entry("a", 60, 55, 45),
+        ];
+
+        super::order_table(&mut table);
+
+        let order: Vec<&str> = table.iter().map(|entry| entry.team_id.as_str()).collect();
+        // b: most points. c: +15. then a, d (+10, 55 scored, by id), then e (+10, 50 scored).
+        assert_eq!(order, ["b", "c", "a", "d", "e"]);
+    }
+
+    /// Given three clubs of reputation 100, 200 and 300 and no form,
+    /// When their strengths are read,
+    /// Then they are the standardised reputation times the pull of reputation, level at the
+    ///      middle, and form is added as it is.
+    #[test]
+    fn a_clubs_strength_is_its_standardised_reputation_plus_its_form() {
+        let level = super::strengths_of(&[100.0, 200.0, 300.0], &[0.0, 0.0, 0.0]);
+        // The population spread of 100, 200 and 300 is sqrt(20000 / 3).
+        let expected = super::STRENGTH_PER_REPUTATION_SD * 100.0 / (20_000.0_f64 / 3.0).sqrt();
+        assert!((level[0] + expected).abs() < 1e-9, "{level:?}");
+        assert!(level[1].abs() < 1e-9);
+        assert!((level[2] - expected).abs() < 1e-9);
+
+        let formed = super::strengths_of(&[100.0, 200.0, 300.0], &[0.1, -0.2, 0.3]);
+        assert!((formed[0] - (level[0] + 0.1)).abs() < 1e-9);
+        assert!((formed[1] - (level[1] - 0.2)).abs() < 1e-9);
+        assert!((formed[2] - (level[2] + 0.3)).abs() < 1e-9);
+        // A league of equals has no pull to read.
+        assert_eq!(
+            super::strengths_of(&[500.0, 500.0], &[0.0, 0.0]),
+            vec![0.0, 0.0]
+        );
+    }
+
+    /// Given many clubs' form moved on for many seasons,
+    /// When the spread of the form and its correlation with last season's are read,
+    /// Then the spread stays what the model sets (with the shocks) and about the persistence of
+    ///      it carries over.
+    #[test]
+    fn form_keeps_its_spread_and_carries_over_by_the_persistence() {
+        use rand::SeedableRng;
+        let mut rng = rand_chacha::ChaCha12Rng::seed_from_u64(5);
+        let mut form = vec![0.0; 2000];
+        for _ in 0..30 {
+            super::advance_form(&mut form, super::FORM_SD, &mut rng);
+        }
+        let previous = form.clone();
+        super::advance_form(&mut form, super::FORM_SD, &mut rng);
+
+        let n = form.len() as f64;
+        let spread = (form.iter().map(|f| f * f).sum::<f64>() / n).sqrt();
+        let correlation = form.iter().zip(&previous).map(|(f, p)| f * p).sum::<f64>()
+            / (n * spread * (previous.iter().map(|p| p * p).sum::<f64>() / n).sqrt());
+        // 0.2 of ordinary form, plus a shock 3% of the time, 0.4 wide and fading by the persistence.
+        assert!((0.205..0.245).contains(&spread), "spread {spread}");
+        assert!(
+            (0.62..0.78).contains(&correlation),
+            "correlation {correlation}"
+        );
+    }
+
+    /// Given a 20-club league over twelve seasons, with and without clubs' form,
+    /// When a club's points are correlated with its points the season before (each against the
+    ///      club's own average),
+    /// Then with form they follow each other (good and bad spells), and without it they do not.
+    #[test]
+    fn a_clubs_good_and_bad_spells_come_from_its_form() {
+        let (group, reputations) = league_of(20);
+        let autocorrelation = |form_sd: f64| {
+            let (mut numerator, mut left, mut right) = (0.0, 0.0, 0.0);
+            for seed in 0..40 {
+                let past =
+                    super::simulate_league_with_form(seed, &group, &reputations, 12, form_sd);
+                for id in &group.team_ids {
+                    let points: Vec<f64> = past
+                        .iter()
+                        .map(|table| {
+                            f64::from(table.iter().find(|row| &row.team_id == id).unwrap().points)
+                        })
+                        .collect();
+                    let mean = points.iter().sum::<f64>() / points.len() as f64;
+                    for pair in points.windows(2) {
+                        numerator += (pair[0] - mean) * (pair[1] - mean);
+                        left += (pair[0] - mean).powi(2);
+                        right += (pair[1] - mean).powi(2);
+                    }
+                }
+            }
+            numerator / (left * right).sqrt()
+        };
+
+        let with_form = autocorrelation(super::FORM_SD);
+        let without = autocorrelation(0.0);
+
+        assert!(with_form > 0.07, "with form {with_form}");
+        assert!(
+            with_form > without + 0.08,
+            "with {with_form}, without {without}"
+        );
+    }
+
+    /// Given the managers of a small world's clubs,
+    /// When four past seasons are generated,
+    /// Then every club's manager carries that club's titles, matches and best finish.
+    #[test]
+    fn a_clubs_manager_carries_the_clubs_past() {
+        let mut game = make_game();
+
+        generate_past_world_history(&mut game, 2032, 4);
+
+        let mut titles_seen = 0;
+        for team in &game.teams {
+            let manager = game
+                .managers
+                .iter()
+                .find(|manager| manager.team_id.as_deref() == Some(team.id.as_str()))
+                .unwrap_or_else(|| panic!("{} has a manager", team.id));
+            let titles = team
+                .history
+                .iter()
+                .filter(|record| record.league_position == 1)
+                .count() as u32;
+            titles_seen += titles;
+            assert_eq!(manager.career_stats.trophies, titles, "{}", team.id);
+            assert_eq!(manager.career_stats.matches_managed, 6 * 4);
+            let best = team.history.iter().map(|r| r.league_position).min();
+            assert_eq!(manager.career_stats.best_finish, best);
+        }
+        assert_eq!(
+            titles_seen, 4,
+            "one champion a season in a one-league world"
+        );
     }
 }

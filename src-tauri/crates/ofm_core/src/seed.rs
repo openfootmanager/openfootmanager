@@ -12,7 +12,7 @@
 //! shifts whenever any other subsystem draws one more number, so adding a feature
 //! would silently re-roll every other feature's results.
 
-use rand::SeedableRng;
+use rand::{Rng, RngExt, SeedableRng};
 use rand_chacha::ChaCha12Rng;
 
 use crate::game::Game;
@@ -84,6 +84,13 @@ impl Game {
 /// same algorithm as [`Game::rng_for`], so nothing on the day path depends on `StdRng`.
 pub fn rng_from_u64(seed: u64) -> ChaCha12Rng {
     ChaCha12Rng::seed_from_u64(seed)
+}
+
+/// A standard normal draw (Box-Muller): this crate carries no distributions library.
+pub fn standard_normal(rng: &mut impl Rng) -> f64 {
+    let first: f64 = 1.0 - rng.random_range(0.0..1.0);
+    let second: f64 = rng.random_range(0.0..1.0);
+    (-2.0 * first.ln()).sqrt() * (std::f64::consts::TAU * second).cos()
 }
 
 /// [`Game::rng_for`] for a seed that is not (yet) on a game: a world being built into one.
@@ -189,6 +196,20 @@ mod tests {
     use super::*;
     use crate::clock::GameClock;
     use crate::world::start_date_for_year;
+
+    /// Given a hundred thousand standard normal draws,
+    /// When their mean and spread are read,
+    /// Then they are 0 and 1: a lean either way would tilt every draw built on them.
+    #[test]
+    fn the_normal_draw_is_centred_and_unit() {
+        let mut dealer = rng_for_seed(11, "normal", "-");
+        let draws: Vec<f64> = (0..200_000).map(|_| standard_normal(&mut dealer)).collect();
+        let mean = draws.iter().sum::<f64>() / draws.len() as f64;
+        let spread =
+            (draws.iter().map(|d| (d - mean).powi(2)).sum::<f64>() / draws.len() as f64).sqrt();
+        assert!(mean.abs() < 0.01, "mean {mean}");
+        assert!((spread - 1.0).abs() < 0.01, "spread {spread}");
+    }
 
     fn draws(mut rng: ChaCha12Rng) -> Vec<u32> {
         (0..8).map(|_| rng.random()).collect()

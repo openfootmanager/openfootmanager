@@ -16,7 +16,7 @@ use domain::player::{Player, PlayerAttributes, Position};
 use rand::{Rng, RngExt};
 
 use crate::player_rating::{move_attributes_to, natural_ovr};
-use crate::seed::rng_for_seed;
+use crate::seed::{rng_for_seed, standard_normal};
 
 /// Growth per season, in rating points, of a player far below his ceiling, for curve ages 16 to
 /// 26. Below 16 it is the first value; at 27 it is gone and the decline table governs.
@@ -71,13 +71,6 @@ pub struct DevelopmentTraits {
     pub peak_offset: f64,
     /// Divides the size of a decline: above 1 he declines more slowly.
     pub resilience: f64,
-}
-
-/// A standard normal draw (Box-Muller): this crate carries no distributions library.
-pub(crate) fn standard_normal(rng: &mut impl Rng) -> f64 {
-    let first: f64 = 1.0 - rng.random_range(0.0..1.0);
-    let second: f64 = rng.random_range(0.0..1.0);
-    (-2.0 * first.ln()).sqrt() * (std::f64::consts::TAU * second).cos()
 }
 
 /// A player's traits, from the world's seed and his id alone: the same every time they are asked
@@ -914,18 +907,6 @@ mod tests {
             "handling {}",
             handling / n
         );
-    }
-
-    /// Given a hundred thousand standard normal draws,
-    /// When their mean and spread are read,
-    /// Then they are 0 and 1: a lean either way would tilt every peak age and every ceiling step.
-    #[test]
-    fn the_normal_draw_is_centred_and_unit() {
-        let mut dealer = rng(11);
-        let draws: Vec<f64> = (0..200_000).map(|_| standard_normal(&mut dealer)).collect();
-        let (mean, spread) = mean_and_spread(&draws);
-        assert!(mean.abs() < 0.01, "mean {mean}");
-        assert!((spread - 1.0).abs() < 0.01, "spread {spread}");
     }
 
     /// Given the traits of five thousand players,
