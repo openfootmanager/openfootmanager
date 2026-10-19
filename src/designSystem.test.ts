@@ -77,23 +77,41 @@ function overlayViolations(path: string, source: string): string[] {
   return linesMatching(source, /\bfixed inset-0\b/g);
 }
 
-const CLASS_STRING = /(["'`])((?:(?!\1)[^\n])*)\1/g;
+/** A quoted string on one line, or a template literal, which may run over several. */
+const CLASS_STRING = /(["'])((?:(?!\1)[^\n])*)\1|`([^`]*)`/g;
 
 /**
  * Rule 5: no text on a -solid fill. Solids are for bars and dots; white on them is under 4.5:1.
  * Checked per class string, since a fill and its text are set together.
  */
 function textOnSolid(source: string): string[] {
-  return withoutComments(source)
-    .split("\n")
-    .flatMap((line, index) =>
-      [...line.matchAll(CLASS_STRING)]
-        .map((match) => match[2])
-        .filter(
-          (classes) => /\bbg-[\w-]+-solid\b/.test(classes) && /\btext-on-brand\b/.test(classes),
-        )
-        .map((classes) => `${index + 1}: ${classes}`),
-    );
+  const code = withoutComments(source);
+  return [...code.matchAll(CLASS_STRING)]
+    .map((match) => ({ classes: match[2] ?? match[3], index: match.index }))
+    .filter(
+      ({ classes }) => /\bbg-[\w-]+-solid\b/.test(classes) && /\btext-on-brand\b/.test(classes),
+    )
+    .map(({ classes, index }) => `${code.slice(0, index).split("\n").length}: ${classes}`);
+}
+
+/** A focus-state ring class: its variant (group 1) and what follows `ring-` (group 2). */
+const FOCUS_RING =
+  /(?<![\w-])((?:peer-|group-)?focus(?:-visible|-within)?):ring-([\w-]+(?:\/\d+)?)/g;
+/** What may follow `ring-` and is not a colour. */
+const RING_NOT_A_COLOUR = /^(?:\d+|inset|offset-[\w-]+)$/;
+
+/**
+ * Rule 6: one focus ring. It is drawn on focus-visible, never plain focus (a click would light it),
+ * and its colour is ring-focus, the themed one that reaches 3:1 everywhere.
+ */
+function focusRingViolations(source: string): string[] {
+  return linesMatching(source, FOCUS_RING).filter((hit) => {
+    const [, variant, rest] = /: ((?:peer-|group-)?focus(?:-visible|-within)?):ring-(.+)$/.exec(
+      hit,
+    ) ?? ["", "", ""];
+    const plainFocus = !variant.endsWith("-visible") && !variant.endsWith("-within");
+    return plainFocus || !(rest === "focus" || RING_NOT_A_COLOUR.test(rest));
+  });
 }
 
 function finishedFiles(): Array<[string, string]> {
@@ -158,6 +176,16 @@ describe("design system rules in finished folders", () => {
     expect(report((_, source) => textOnSolid(source))).toEqual([]);
   });
 
+  /**
+   * Given a finished folder,
+   * when its source is read,
+   * then every focus ring is ring-focus, shown on focus-visible, so it is the themed colour that
+   * reaches 3:1 in every theme.
+   */
+  it("draws every focus ring in the focus colour", () => {
+    expect(report((_, source) => focusRingViolations(source))).toEqual([]);
+  });
+
   /** Given the artwork list, then every file on it exists, so a rename can't leave a stale exemption. */
   it("lists only files that exist as artwork files", () => {
     expect(Object.keys(ARTWORK_FILES).filter((path) => !(path in SOURCES))).toEqual([]);
@@ -193,6 +221,35 @@ describe("the rule checks themselves", () => {
     expect(textOnSolid('<span className="bg-primary-700 text-on-brand" />')).toEqual([]);
     expect(
       textOnSolid('<span className="bg-danger-solid" /><b className="text-on-brand" />'),
+    ).toEqual([]);
+  });
+
+  /** Given a class string that spans lines in a template literal, then text on a solid is reported. */
+  it("catches text on a solid fill across the lines of a template literal", () => {
+    expect(
+      textOnSolid("const a = 1;\n<span className={`bg-danger-solid\n  text-on-brand`} />"),
+    ).toEqual(["2: bg-danger-solid\n  text-on-brand"]);
+  });
+
+  /**
+   * Given a focus ring in a brand colour, one on plain focus and one on a peer, then each is
+   * reported; given the focus colour on focus-visible, then nothing is.
+   */
+  it("catches a focus ring that is not ring-focus on focus-visible", () => {
+    expect(
+      focusRingViolations(
+        'className="focus-visible:ring-primary-500 focus:ring-2 dark:focus:ring-offset-navy-800 peer-focus:ring-focus"',
+      ),
+    ).toEqual([
+      "1: focus-visible:ring-primary-500",
+      "1: focus:ring-2",
+      "1: focus:ring-offset-navy-800",
+      "1: peer-focus:ring-focus",
+    ]);
+    expect(
+      focusRingViolations(
+        'className="focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page peer-focus-visible:ring-inset"',
+      ),
     ).toEqual([]);
   });
 
