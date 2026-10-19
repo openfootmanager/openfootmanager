@@ -65,24 +65,13 @@ fn build_career() -> Result<Game, String> {
     };
     let (mut game, stats) =
         build_game_from_world_data(clock, manager, history, world, ReputationBasis::Stored);
-    let club = strongest_club(&game)?;
+    let club = ofm_core::world::strongest_club(&game.teams, NATION)
+        .map(str::to_string)
+        .ok_or_else(|| format!("the world has no {NATION} club"))?;
     begin_career(&mut game, &club, CareerScope::default(), stats)?;
     // What the app's state manager stamps on an installed career; the frontend sends it back.
     game.career_token = 1;
     Ok(game)
-}
-
-fn strongest_club(game: &Game) -> Result<String, String> {
-    game.teams
-        .iter()
-        .filter(|team| team.football_nation == NATION)
-        .max_by(|a, b| {
-            a.reputation
-                .cmp(&b.reputation)
-                .then_with(|| b.id.cmp(&a.id))
-        })
-        .map(|team| team.id.clone())
-        .ok_or_else(|| format!("the world has no {NATION} club"))
 }
 
 /// One export per command the harness answers, each checked against its frontend type.
