@@ -11,25 +11,25 @@ describe("Badge", () => {
   it("applies neutral variant classes by default", () => {
     render(<Badge>DEF</Badge>);
     const el = screen.getByText("DEF");
-    expect(el.className).toContain("bg-gray-100");
+    expect(el.className).toContain("bg-sunken");
   });
 
   it("applies the correct variant classes", () => {
     render(<Badge variant="danger">RED</Badge>);
     const el = screen.getByText("RED");
-    expect(el.className).toContain("bg-red-100");
+    expect(el.className).toContain("bg-danger-tint");
   });
 
   it("applies sm size by default", () => {
     render(<Badge>SM</Badge>);
     const el = screen.getByText("SM");
-    expect(el.className).toContain("text-xs");
+    expect(el.className).toContain("text-caption");
   });
 
   it("applies md size when specified", () => {
     render(<Badge size="md">MD</Badge>);
     const el = screen.getByText("MD");
-    expect(el.className).toContain("text-sm");
+    expect(el.className).toContain("text-body");
   });
 
   it("merges custom className", () => {

@@ -67,23 +67,15 @@ function MatchSlot({
   const homeName = fixture.home_team_id ? resolveTeamName(fixture.home_team_id) : tbdLabel;
   const awayName = fixture.away_team_id ? resolveTeamName(fixture.away_team_id) : tbdLabel;
 
-  // A knockout decided on penalties is level on goals: fall back to the
-  // shootout score so the advancing side is highlighted, not left neutral.
+  // The tally is shown for a tie the shootout settled; who advances is the backend's answer.
   const decidedByPenalties =
     !!result &&
     result.home_penalties != null &&
     result.away_penalties != null &&
     result.home_goals === result.away_goals;
-  const isHomeWinner =
-    !!result &&
-    (decidedByPenalties
-      ? result.home_penalties! > result.away_penalties!
-      : result.home_goals > result.away_goals);
-  const isAwayWinner =
-    !!result &&
-    (decidedByPenalties
-      ? result.away_penalties! > result.home_penalties!
-      : result.away_goals > result.home_goals);
+  const advancingTeamId = fixture.advancing_team_id ?? null;
+  const isHomeWinner = !!result && advancingTeamId === fixture.home_team_id;
+  const isAwayWinner = !!result && advancingTeamId === fixture.away_team_id;
 
   const userInvolved =
     userTeamId && (fixture.home_team_id === userTeamId || fixture.away_team_id === userTeamId);

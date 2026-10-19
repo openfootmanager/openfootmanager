@@ -24,6 +24,7 @@ function createNextOpponent(): NextOpponentWidgetData {
   return {
     fixture: {
       competitive: true,
+      advancing_team_id: null,
       id: "fixture-1",
       matchday: 2,
       date: "2025-01-12",

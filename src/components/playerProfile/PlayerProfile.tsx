@@ -1,7 +1,6 @@
 import { getPlayerOvr } from "../../lib/helpers";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { PlayerData, GameStateData } from "../../store/gameStore";
-import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Select } from "../ui";
 import { getRoleOptions } from "../../lib/playerRoles";
@@ -44,7 +43,6 @@ interface PlayerProfileProps {
   isOwnClub: boolean;
   startWithRenewalModal?: boolean;
   startWithTerminationModal?: boolean;
-  onClose: () => void;
   onSelectTeam?: (id: string) => void;
   onGameUpdate?: (g: GameStateData) => void;
 }
@@ -55,7 +53,6 @@ export default function PlayerProfile({
   isOwnClub,
   startWithRenewalModal = false,
   startWithTerminationModal = false,
-  onClose,
   onSelectTeam,
   onGameUpdate,
 }: PlayerProfileProps) {
@@ -224,18 +221,8 @@ export default function PlayerProfile({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="font-heading font-bold uppercase tracking-wider">
-            {t("common.back")}
-          </span>
-        </button>
-        {onGameUpdate ? (
+      {onGameUpdate ? (
+        <div className="mb-4 flex justify-end">
           <PlayerProfileActionsMenu
             player={player}
             gameState={gameState}
@@ -253,8 +240,8 @@ export default function PlayerProfile({
             onOpenFreeAgentContract={() => openFreeAgentContract(player)}
             onError={setContractActionError}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <PlayerProfileHeroCard
         player={player}

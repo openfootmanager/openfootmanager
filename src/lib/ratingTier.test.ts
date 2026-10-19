@@ -20,13 +20,21 @@ describe("ratingTierClass", () => {
   });
 
   /**
-   * Given the top tier and the second
+   * Given the four tiers
    * When their text classes are asked for
-   * Then S is the accent and A the primary, and each carries its dark-theme partner.
+   * Then S, A and B take the design system's top, good and fair tones, and the rest is muted: role
+   *      tokens, so no `dark:` partner and no raw palette colour.
    */
-  it("makes S the accent and A the primary, each with a dark partner", () => {
-    expect(ratingTierClass("S", "text")).toBe("text-accent-500 dark:text-accent-400");
-    expect(ratingTierClass("A", "text")).toBe("text-primary-500 dark:text-primary-400");
+  it("paints the tiers with the design system's tones", () => {
+    expect(ratingTierClass("S", "text")).toBe("text-tone-top");
+    expect(ratingTierClass("A", "text")).toBe("text-tone-good");
+    expect(ratingTierClass("B", "text")).toBe("text-tone-fair");
+    expect(ratingTierClass("Rest", "text")).toBe("text-fg-muted");
+    for (const role of ROLES) {
+      for (const tier of TIERS) {
+        expect(ratingTierClass(tier, role), `${tier} ${role}`).not.toMatch(/dark:|gray-|white/);
+      }
+    }
   });
 });
 

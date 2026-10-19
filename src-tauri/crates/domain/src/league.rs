@@ -270,10 +270,11 @@ pub struct Fixture {
     pub postponement: Option<Postponement>,
 }
 
-/// Written by hand, not derived, to add `competitive` to what the screens receive. The answer is
-/// computed from `competition`, not a field; but every serializer of a fixture, including the
-/// save's JSON, writes it, and `Deserialize` ignores it on the way back in (a saved fixture loads
-/// with or without it). The destructuring below makes a new `Fixture` field a compile error here,
+/// Written by hand, not derived, to add `competitive` and `advancing_team_id` to what the screens
+/// receive. Both are computed (from `competition`, from `result`), not fields; but every serializer
+/// of a fixture, including the save's JSON, writes them, and `Deserialize` ignores them on the way
+/// back in (a saved fixture loads with or without them). `advancing_team_id` is the side a knockout
+/// tie sends on, so a screen reads it for knockout fixtures only. The destructuring below makes a new `Fixture` field a compile error here,
 /// so it cannot be dropped from every save unnoticed.
 impl Serialize for Fixture {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -290,7 +291,7 @@ impl Serialize for Fixture {
             result,
             postponement,
         } = self;
-        let mut fixture = serializer.serialize_struct("Fixture", 11)?;
+        let mut fixture = serializer.serialize_struct("Fixture", 12)?;
         fixture.serialize_field("id", id)?;
         fixture.serialize_field("competition_id", competition_id)?;
         fixture.serialize_field("matchday", matchday)?;
@@ -302,6 +303,7 @@ impl Serialize for Fixture {
         fixture.serialize_field("result", result)?;
         fixture.serialize_field("postponement", postponement)?;
         fixture.serialize_field("competitive", &self.is_competitive())?;
+        fixture.serialize_field("advancing_team_id", &self.advancing_team_id())?;
         fixture.end()
     }
 }
@@ -643,14 +645,52 @@ mod tests {
         );
     }
 
+    fn knockout_fixture(home_goals: u8, away_goals: u8, penalties: Option<(u8, u8)>) -> Fixture {
+        Fixture {
+            home_team_id: "home".to_string(),
+            away_team_id: "away".to_string(),
+            competition: FixtureCompetition::Cup,
+            result: Some(MatchResult {
+                home_goals,
+                away_goals,
+                home_penalties: penalties.map(|(home, _)| home),
+                away_penalties: penalties.map(|(_, away)| away),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// Given a knockout tie level after extra time that the away side wins on penalties, a tie the
+    ///       home side wins on goals, and a fixture with no result yet
+    /// When they are serialised for the screens
+    /// Then each carries `advancing_team_id`: the shootout winner, the goals winner, and null.
+    #[test]
+    fn a_serialised_fixture_names_the_side_that_advances() {
+        let on_penalties = knockout_fixture(1, 1, Some((3, 4)));
+        let on_goals = knockout_fixture(2, 1, None);
+        let unplayed = Fixture::default();
+
+        assert_eq!(
+            serde_json::to_value(&on_penalties).unwrap()["advancing_team_id"],
+            "away"
+        );
+        assert_eq!(
+            serde_json::to_value(&on_goals).unwrap()["advancing_team_id"],
+            "home"
+        );
+        assert!(serde_json::to_value(&unplayed).unwrap()["advancing_team_id"].is_null());
+    }
+
     /// Given a fixture saved before the field existed, or carrying it
     /// When it is read back
-    /// Then it loads either way: the answer is computed, never stored.
+    /// Then it loads either way: the answers are computed, never stored.
     #[test]
     fn a_fixture_loads_with_or_without_the_competitive_field() {
         let written = serde_json::to_string(&Fixture::default()).unwrap();
         let mut old: serde_json::Value = serde_json::from_str(&written).unwrap();
         old.as_object_mut().unwrap().remove("competitive");
+        old.as_object_mut().unwrap().remove("advancing_team_id");
 
         assert!(serde_json::from_str::<Fixture>(&written).is_ok());
         assert!(serde_json::from_value::<Fixture>(old).is_ok());
