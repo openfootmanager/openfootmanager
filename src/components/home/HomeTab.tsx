@@ -81,7 +81,8 @@ export default function HomeTab({
   const { avgOvr, coldPlayers, hotPlayers, unavailablePlayers } = getHomeRosterOverview(roster);
   // Fitness is the backend's: injured players are not in the squad that can play.
   const fitness = useSquadFitness(gameState);
-  const avgCondition = Math.round(fitness?.average_condition ?? 0);
+  const avgCondition =
+    fitness?.average_condition != null ? Math.round(fitness.average_condition) : null;
   const exhaustedCount = fitness?.exhausted_count ?? 0;
   const resolveInjuryName = (injuryName: string): string => {
     if (injuryName.includes(".")) {

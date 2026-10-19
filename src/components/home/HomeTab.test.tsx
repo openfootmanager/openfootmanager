@@ -9,7 +9,7 @@ import type {
   PlayerData,
   TeamData,
 } from "../../store/gameStore";
-import { createSeasonContext } from "../../test-utils/factories";
+import { createSeasonContext, createSquadFitness } from "../../test-utils/factories";
 
 const squadMocks = vi.hoisted(() => ({
   getSquad: vi.fn().mockResolvedValue([]),
@@ -365,28 +365,37 @@ describe("HomeTab", (): void => {
     expect(screen.getByText("No league digest yet.")).toBeInTheDocument();
   });
 
-  // Given the backend's fitness summary for the squad (45 on average, one exhausted)
+  // Given the backend's fitness summary for the squad (45 on average, four exhausted of whom one
+  //       is critical)
   // When Home shows the squad overview
-  // Then it shows those figures: the average and the exhausted count are the backend's, not a
-  //      sum the screen makes over the players it holds.
+  // Then it shows those figures: the average and the exhausted count (four, not the one critical)
+  //      are the backend's, not a sum the screen makes over the players it holds.
   it("shows the squad fitness the backend reports", async () => {
-    squadMocks.getSquadFitness.mockResolvedValueOnce({
-      players: 2,
-      average_condition: 45,
-      exhausted_count: 1,
-      critical_count: 1,
-    });
+    squadMocks.getSquadFitness.mockResolvedValueOnce(
+      createSquadFitness({ average_condition: 45, exhausted_count: 4, critical_count: 1 }),
+    );
     render(<HomeTab gameState={createGameState()} visitedOnboardingTabs={new Set()} />);
     await waitFor(() => expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("45|"));
-    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("45|0|1");
+    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("45|0|4");
+  });
+
+  // Given the backend has not answered yet (or has no healthy first-team player to average)
+  // When Home shows the squad overview
+  // Then the average is absent (null), not an invented 0.
+  it("has no average condition until the backend gives one", async () => {
+    squadMocks.getSquadFitness.mockResolvedValueOnce(
+      createSquadFitness({ players: 0, average_condition: null }),
+    );
+    render(<HomeTab gameState={createGameState()} visitedOnboardingTabs={new Set()} />);
+
+    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("null|");
+    await waitFor(() => expect(squadMocks.getSquadFitness).toHaveBeenCalled());
+    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("null|");
   });
   it("keeps youth academy players out of first-team home summaries", async () => {
-    squadMocks.getSquadFitness.mockResolvedValueOnce({
-      players: 1,
-      average_condition: 80,
-      exhausted_count: 0,
-      critical_count: 0,
-    });
+    squadMocks.getSquadFitness.mockResolvedValueOnce(
+      createSquadFitness({ players: 1, average_condition: 80 }),
+    );
     const players = [
       createPlayer({
         id: "senior-1",
