@@ -108,6 +108,15 @@ describe("Tabs", () => {
     expect(screen.queryByText("offers content")).not.toBeVisible();
   });
 
+  /**
+   * Given a panel that opens with plain text,
+   * then the panel itself is in the tab order, so the keyboard can reach its content.
+   */
+  it("puts the panel in the tab order", () => {
+    render(<Harness />);
+    expect(screen.getByRole("tabpanel", { name: /Players/ })).toHaveAttribute("tabindex", "0");
+  });
+
   /** Given the segmented look, then the semantics and keyboard are the same as underline. */
   it("keeps the same semantics in the segmented look", () => {
     render(<Harness look="segmented" />);

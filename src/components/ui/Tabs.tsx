@@ -32,7 +32,7 @@ const LOOKS = {
   },
   segmented: {
     list: "inline-flex items-center gap-0.5 rounded-lg border border-line bg-sunken p-0.5",
-    tab: "flex h-7 items-center gap-2 rounded-md px-3 font-heading text-caption font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+    tab: "flex h-7 items-center gap-2 rounded-md px-3 font-heading text-caption font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-sunken",
     selected: "bg-panel text-fg shadow-sm ring-1 ring-line-strong",
     idle: "text-fg-muted hover:text-fg",
   },
@@ -125,6 +125,8 @@ export function TabPanel({ idPrefix, tabId, hidden, children, className = "" }: 
       id={panelDomId(idPrefix, tabId)}
       aria-labelledby={tabDomId(idPrefix, tabId)}
       hidden={hidden}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: the WAI-ARIA tabs pattern gives a text-first tabpanel the tab stop after the tab list
+      tabIndex={0}
       className={className}
     >
       {children}

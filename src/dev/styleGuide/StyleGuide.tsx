@@ -348,6 +348,12 @@ function NavigationSection() {
           onSelect={setView}
         />
       </Row>
+      <TabPanel idPrefix="guide-view" tabId="list" hidden={view !== "list"}>
+        <p className="text-body text-fg-muted">The attributes as a list.</p>
+      </TabPanel>
+      <TabPanel idPrefix="guide-view" tabId="radar" hidden={view !== "radar"}>
+        <p className="text-body text-fg-muted">The attributes as a radar.</p>
+      </TabPanel>
       <PageToolbar action={<Button size="sm">Hire</Button>} />
     </Section>
   );
