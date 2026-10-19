@@ -7,7 +7,9 @@
 //   npm run dev                              # in another terminal
 //   node scripts/page-layout-check.mjs [http://localhost:1420]
 //
-// Exits 1 when a case fails. Not a CI gate yet: it needs Chrome and a running dev server.
+// Exits 1 when a case fails. Not a CI gate yet: it needs Chrome and a running dev server. It also
+// needs Node 22 or later, for the built-in WebSocket (the project otherwise runs on Node 18+); on an
+// older Node it says so and exits rather than adding a dependency for a dev-only tool.
 
 import { spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -26,6 +28,13 @@ const WINDOWS = [
 export const CASES = [undefined, "home", "squad"].flatMap((page) =>
   WINDOWS.map((window) => ({ page, ...window })),
 );
+
+/** Why this Node can't run the check, or null when it can. */
+export function nodeProblem(webSocket, version) {
+  return typeof webSocket === "function"
+    ? null
+    : `page-layout-check needs Node 22 or later for the built-in WebSocket; you have ${version}`;
+}
 
 /** What is wrong with one measured case; empty when it passes. */
 export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered }) {
@@ -170,5 +179,10 @@ async function main(base) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  const problem = nodeProblem(globalThis.WebSocket, process.version);
+  if (problem) {
+    console.error(problem);
+    process.exit(1);
+  }
   await main(process.argv[2] ?? "http://localhost:1420");
 }

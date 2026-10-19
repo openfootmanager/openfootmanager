@@ -1,6 +1,20 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { CASES, judge } from "./page-layout-check.mjs";
+import { CASES, judge, nodeProblem } from "./page-layout-check.mjs";
+
+describe("the Node check", () => {
+  /** Given a Node without the built-in WebSocket (before 22), then the check says why it can't run. */
+  it("names the Node version it needs", () => {
+    expect(nodeProblem(undefined, "v18.19.0")).toBe(
+      "page-layout-check needs Node 22 or later for the built-in WebSocket; you have v18.19.0",
+    );
+  });
+
+  /** Given Node 22 or later, then there is nothing to say. */
+  it("accepts a Node with the built-in WebSocket", () => {
+    expect(nodeProblem(class {}, "v22.22.2")).toBeNull();
+  });
+});
 
 const clean = { scrollWidth: 960, innerWidth: 960, unanswered: [], pastEdge: [], rendered: true };
 

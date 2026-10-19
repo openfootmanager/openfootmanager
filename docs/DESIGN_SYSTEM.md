@@ -207,6 +207,10 @@ window the game opens at) and 960×640 (its minimum).
   - A command the page asks for that the fixture doesn't answer fails, and is listed in
     `window.__pageHarness.unanswered`; `window.__pageHarness.pastEdge()` lists anything reaching
     past the window's right edge. Neither is a CI check yet.
+  - `node scripts/page-layout-check.mjs [dev-server-url]` loads the guide and each page at 1280×800
+    and 960×640, and in German at extra large, and fails a page that scrolls sideways or reaches
+    past the edge. It needs Chrome, a running dev server, and Node 22 or later (for the built-in
+    WebSocket); on an older Node it says so and exits.
   - The harness is not the real app: note the real-app check you did, or didn't do, in the PR.
 - **The real app:** run a debug build with `--features mcp` under Xvfb through `tauri-driver`,
   start a career over the MCP port (`game_new`), and drive the UI over WebDriver. Give the app
