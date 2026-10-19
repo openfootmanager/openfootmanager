@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} es obligatorio",
     "maxLength": "{{field}} no debe exceder de {{max}} caracteres",
-    "minStartYear": "El año de inicio debe ser {{min}} o posterior",
-    "minAge": "El entrenador debe tener al menos {{min}} años — cambia la fecha de nacimiento para continuar.",
-    "invalidDate": "Fecha inválida",
-    "invalidDob": "Fecha de nacimiento inválida"
+    "minStartYear": "El año de inicio debe ser {{min}} o posterior"
   },
   "worldSelect": {
     "title": "Elegir Mundo",
