@@ -51,6 +51,8 @@ const LAST_DRIFT_AGE: u32 = 24;
 /// growth already stands for a typical year in the training ground, and a day's training adds to
 /// it by this share of the weight it once carried alone.
 const TRAINING_SHARE: f64 = 0.25;
+/// The room a declining player's training reads at least (see `training_factor`).
+const DECLINING_TRAINING_ROOM: u8 = 3;
 
 /// The five groups the decline table is written in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -152,6 +154,13 @@ fn growth_points(curve_age: f64, gap: u8) -> f64 {
 /// ceiling: the most when young, tapering smoothly to nothing by the mid-thirties, and slowed by
 /// the same brake as growth. Replaces both the step by age and the gate at the ceiling.
 pub fn training_factor(curve_age: f64, gap: u8) -> f64 {
+    // A player whose curve has turned still trains against his decline, though his ceiling is his
+    // rating (no gap): the gap is read as at least this much room.
+    let room = if curve_age >= DECLINE_STARTS_AT {
+        gap.max(DECLINING_TRAINING_ROOM)
+    } else {
+        gap
+    };
     const POINTS: [(f64, f64); 5] = [
         (21.0, 1.5),
         (26.0, 1.0),
@@ -170,7 +179,7 @@ pub fn training_factor(curve_age: f64, gap: u8) -> f64 {
                 pair[0].1 + (pair[1].1 - pair[0].1) * share
             })
     };
-    TRAINING_SHARE * age_factor * headroom_brake(gap)
+    TRAINING_SHARE * age_factor * headroom_brake(room)
 }
 
 /// The expected change in points of one attribute in a season, for a player the decline table
@@ -802,6 +811,21 @@ mod tests {
             gained += natural_ovr(&p) - before;
         }
         assert!(gained > 0.0, "he grew by {gained} over 40 seasons");
+    }
+
+    /// Given a player at his ceiling,
+    /// When his training factor is read before and after his curve turns,
+    /// Then before it he takes none, and after it he still takes some, as if he had the least
+    ///      room a declining player is given, and more room means more.
+    #[test]
+    fn a_declining_player_trains_as_if_he_had_a_little_room() {
+        assert_eq!(training_factor(26.9, 0), 0.0);
+        assert!(training_factor(27.0, 0) > 0.0);
+        assert_eq!(
+            training_factor(30.0, 0),
+            training_factor(30.0, DECLINING_TRAINING_ROOM)
+        );
+        assert!(training_factor(30.0, 20) > training_factor(30.0, 0));
     }
 
     /// Given players of each age,

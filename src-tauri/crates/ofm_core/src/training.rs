@@ -845,6 +845,96 @@ mod tests {
         assert_eq!(player.attributes.passing, 60);
     }
 
+    /// A midfielder born in `birth_year`, rated alike in every attribute, whose ceiling is his rating
+    /// (his curve has turned if he is old enough).
+    fn peaked_midfielder(birth_year: i32) -> Player {
+        let mut player = player_at("peaked", "team1", "2029-06-30");
+        player.date_of_birth = format!("{birth_year}-03-15");
+        player.condition = 100;
+        player.fitness = 80;
+        player.morale = 80;
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+        player.potential = player.ovr;
+        player
+    }
+
+    /// Given a 31-year-old whose ceiling is his rating, and a 24-year-old in the same position,
+    /// When a technical session with a successful roll runs for each,
+    /// Then the veteran still gains (training works against his decline) and the young peaked
+    ///      player gains nothing.
+    #[test]
+    fn a_declining_veteran_still_trains_against_his_decline_and_a_young_peaked_player_does_not() {
+        let mut veteran = peaked_midfielder(1995);
+        let mut young = peaked_midfielder(2002);
+        let (veteran_before, young_before) = (attributes(&veteran), attributes(&young));
+
+        session(&mut veteran, &plan(TrainingFocus::Technical), 0);
+        session(&mut young, &plan(TrainingFocus::Technical), 0);
+
+        assert_ne!(attributes(&veteran), veteran_before, "the veteran trained");
+        assert_eq!(
+            attributes(&young),
+            young_before,
+            "the young peaked player cannot gain"
+        );
+    }
+
+    /// Given veterans of 31 to 33 at their ceiling, with and without a season of training before
+    ///      the summer's decline,
+    /// When the net change in rating over the season is averaged,
+    /// Then the one who trains declines less, and still declines: training slows the decline, it
+    ///      does not undo it, so a declining player never ends a year above where the year began.
+    #[test]
+    fn training_slows_a_veterans_decline_without_undoing_it() {
+        use rand::SeedableRng;
+        let net_change = |trains: bool| {
+            let mut total = 0.0;
+            let mut count = 0.0;
+            for birth_year in [1993, 1994, 1995] {
+                for seed in 0..25 {
+                    let mut player = peaked_midfielder(birth_year);
+                    let before = f64::from(player.ovr);
+                    let mut rng = rand_chacha::ChaCha12Rng::seed_from_u64(seed);
+                    if trains {
+                        for day in 0..250u32 {
+                            train_player(
+                                &mut player,
+                                &plan(TrainingFocus::Technical),
+                                &TrainingDay {
+                                    weekday_num: day % 5,
+                                    date: domain::age::season_midpoint(2026),
+                                    world_seed: 1,
+                                },
+                                &mut rng,
+                            );
+                        }
+                    }
+                    let age = domain::age::playing_age(
+                        domain::age::season_midpoint(2026),
+                        &player.date_of_birth,
+                    );
+                    crate::development::develop_one_season(&mut player, age as i32, 1, &mut rng);
+                    refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+                    total += f64::from(player.ovr) - before;
+                    count += 1.0;
+                }
+            }
+            total / count
+        };
+
+        let without = net_change(false);
+        let with = net_change(true);
+
+        assert!(
+            with > without + 0.1,
+            "with training {with:.2}, without {without:.2}"
+        );
+        assert!(
+            with < 0.0,
+            "a veteran who trains still ends the year lower: {with:.2}"
+        );
+    }
+
     /// Given a keeper already at its potential, when a technical session has successful rolls, then attributes and its career ceiling cannot drift upward.
     #[test]
     fn a_peaked_goalkeeper_cannot_gain_attributes() {
