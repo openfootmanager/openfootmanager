@@ -225,62 +225,75 @@ impl LiveMatchSession {
         self.match_state.is_finished()
     }
 
-    /// The session is built on match day, before the pre-match screen opens, so a dial or a
-    /// starter's role changed there is stored on the user's team and must also be handed to the
-    /// match. Once the match has kicked off, changes go through the live commands instead.
-    pub fn follow_saved_plan_before_kick_off(&mut self, game: &Game) -> Result<(), String> {
-        if self.match_state.phase() != MatchPhase::PreKickOff {
-            return Ok(());
-        }
-        let Some(side) = self.user_side else {
+    /// The session is built on match day, before the pre-match screen opens, so dials saved
+    /// there must also be handed to the match. Once it has kicked off, the live commands change
+    /// them instead. Only the dials are handed over: a role changed in the session is left alone.
+    pub fn follow_saved_dials_before_kick_off(&mut self, game: &Game) -> Result<(), String> {
+        let Some((side, team)) = self.user_team_before_kick_off(game) else {
             return Ok(());
         };
-        let team_id = match side {
-            Side::Home => &self.home_team_id,
-            Side::Away => &self.away_team_id,
-        };
-        let Some(team) = game.teams.iter().find(|team| &team.id == team_id) else {
-            return Ok(());
-        };
-
         for dial in domain_to_engine_tactics(&team.tactics_phase).dials() {
             self.match_state
                 .apply_command(MatchCommand::ChangeTacticalDial { side, dial })?;
         }
-        for (player_id, role) in self.starter_roles_to_change(side, team) {
-            self.match_state
-                .apply_command(MatchCommand::ChangePlayerRole {
-                    side,
-                    player_id,
-                    role,
-                })?;
-        }
         Ok(())
     }
 
-    /// Starters whose role in the session is not their saved one. A saved role counts only where
-    /// the starter's position in the session admits it, which is the rule the live role command
+    /// The role saved for one player before kick-off, handed to the match if he starts. It counts
+    /// only where his position in the session admits it, which is the rule the live role command
     /// applies: a pre-match formation change or swap moves players in the session alone, so the
     /// saved team's slots no longer describe it.
-    fn starter_roles_to_change(
-        &self,
-        side: Side,
-        team: &domain::team::Team,
-    ) -> Vec<(String, engine::PlayerRole)> {
-        self.match_state
+    pub fn follow_saved_role_before_kick_off(
+        &mut self,
+        game: &Game,
+        player_id: &str,
+    ) -> Result<(), String> {
+        let Some((side, team)) = self.user_team_before_kick_off(game) else {
+            return Ok(());
+        };
+        let Some(starter) = self
+            .match_state
             .team(side)
             .players
             .iter()
-            .filter_map(|player| {
-                let role = team
-                    .player_roles
-                    .get(&player.id)
-                    .map(domain_to_engine_role)
-                    .filter(|role| role.suits(player.position))
-                    .unwrap_or(engine::PlayerRole::Standard);
-                (role != player.role).then(|| (player.id.clone(), role))
+            .find(|player| player.id == player_id)
+        else {
+            return Ok(());
+        };
+        let role = team
+            .player_roles
+            .get(player_id)
+            .map(domain_to_engine_role)
+            .filter(|role| role.suits(starter.position))
+            .unwrap_or(engine::PlayerRole::Standard);
+        if role == starter.role {
+            return Ok(());
+        }
+        self.match_state
+            .apply_command(MatchCommand::ChangePlayerRole {
+                side,
+                player_id: player_id.to_string(),
+                role,
             })
-            .collect()
+    }
+
+    /// The user's side and saved team, while the match still waits at kick-off.
+    fn user_team_before_kick_off<'g>(
+        &self,
+        game: &'g Game,
+    ) -> Option<(Side, &'g domain::team::Team)> {
+        if self.match_state.phase() != MatchPhase::PreKickOff {
+            return None;
+        }
+        let side = self.user_side?;
+        let team_id = match side {
+            Side::Home => &self.home_team_id,
+            Side::Away => &self.away_team_id,
+        };
+        game.teams
+            .iter()
+            .find(|team| &team.id == team_id)
+            .map(|team| (side, team))
     }
 
     fn apply_ai_decisions(&mut self) {

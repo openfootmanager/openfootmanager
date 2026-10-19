@@ -413,9 +413,20 @@ pub fn get_match_snapshot(state: &StateManager) -> Result<engine::MatchSnapshot,
     Ok(snapshot)
 }
 
-/// A dial or a starter's role saved before kick-off also reaches the match waiting to be played.
-pub fn follow_saved_plan_before_kick_off(state: &StateManager, game: &Game) -> Result<(), String> {
+/// Dials saved before kick-off also reach the match waiting to be played.
+pub fn follow_saved_dials_before_kick_off(state: &StateManager, game: &Game) -> Result<(), String> {
     state
-        .with_live_match(|session| session.follow_saved_plan_before_kick_off(game))
+        .with_live_match(|session| session.follow_saved_dials_before_kick_off(game))
+        .unwrap_or(Ok(()))
+}
+
+/// A starter's role saved before kick-off also reaches the match waiting to be played.
+pub fn follow_saved_role_before_kick_off(
+    state: &StateManager,
+    game: &Game,
+    player_id: &str,
+) -> Result<(), String> {
+    state
+        .with_live_match(|session| session.follow_saved_role_before_kick_off(game, player_id))
         .unwrap_or(Ok(()))
 }

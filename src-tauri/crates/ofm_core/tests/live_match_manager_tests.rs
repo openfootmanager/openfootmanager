@@ -778,7 +778,7 @@ fn extra_time_flag_passed_through() {
 }
 
 // ---------------------------------------------------------------------------
-// follow_saved_plan_before_kick_off
+// follow_saved_dials_before_kick_off / follow_saved_role_before_kick_off
 // ---------------------------------------------------------------------------
 
 fn waiting_session(game: &Game) -> live_match_manager::LiveMatchSession {
@@ -825,7 +825,7 @@ fn a_saved_dial_reaches_the_users_side_of_a_waiting_match() {
     let mut session = waiting_session(&game);
     game.teams[0].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
 
-    session.follow_saved_plan_before_kick_off(&game).unwrap();
+    session.follow_saved_dials_before_kick_off(&game).unwrap();
 
     let snapshot = session.snapshot();
     assert_eq!(
@@ -848,7 +848,7 @@ fn a_saved_dial_reaches_the_users_side_when_playing_away() {
     let mut session = waiting_session(&game);
     game.teams[1].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
 
-    session.follow_saved_plan_before_kick_off(&game).unwrap();
+    session.follow_saved_dials_before_kick_off(&game).unwrap();
 
     let snapshot = session.snapshot();
     assert_eq!(
@@ -873,7 +873,9 @@ fn a_saved_role_reaches_a_starter_of_a_waiting_match() {
         .player_roles
         .insert(forward.clone(), domain::team::PlayerRole::Poacher);
 
-    session.follow_saved_plan_before_kick_off(&game).unwrap();
+    session
+        .follow_saved_role_before_kick_off(&game, &forward)
+        .unwrap();
 
     assert_eq!(
         session_role_of(&session, &forward),
@@ -893,7 +895,9 @@ fn a_saved_role_the_starters_position_refuses_is_left_out() {
         .player_roles
         .insert(defender.clone(), domain::team::PlayerRole::Poacher);
 
-    session.follow_saved_plan_before_kick_off(&game).unwrap();
+    session
+        .follow_saved_role_before_kick_off(&game, &defender)
+        .unwrap();
 
     assert_eq!(
         session_role_of(&session, &defender),
@@ -912,10 +916,72 @@ fn a_match_that_has_kicked_off_does_not_follow_the_saved_plan() {
     assert_ne!(session.match_state.phase(), MatchPhase::PreKickOff);
     game.teams[0].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
 
-    session.follow_saved_plan_before_kick_off(&game).unwrap();
+    session.follow_saved_dials_before_kick_off(&game).unwrap();
 
     assert_eq!(
         session.snapshot().home_team.tactics.defensive_line,
         engine::DefensiveLine::Medium
+    );
+}
+
+/// Given a match waiting at kick-off in which a starting forward was made a Poacher through the
+/// live role command,
+/// When a dial is saved on the user's team,
+/// Then the dial reaches the match and the forward is still a Poacher.
+#[test]
+fn saving_a_dial_leaves_a_role_changed_in_the_match_alone() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    let forward = first_starter_at(&session, engine::Side::Home, engine::Position::Forward);
+    session
+        .apply_command(engine::MatchCommand::ChangePlayerRole {
+            side: engine::Side::Home,
+            player_id: forward.clone(),
+            role: engine::PlayerRole::Poacher,
+        })
+        .unwrap();
+    game.teams[0].tactics_phase.defensive_line = domain::team::DefensiveLine::High;
+
+    session.follow_saved_dials_before_kick_off(&game).unwrap();
+
+    assert_eq!(
+        session.snapshot().home_team.tactics.defensive_line,
+        engine::DefensiveLine::High
+    );
+    assert_eq!(
+        session_role_of(&session, &forward),
+        engine::PlayerRole::Poacher
+    );
+}
+
+/// Given a match waiting at kick-off whose high line was set through the live dial command,
+/// When a starter's role is saved on the user's team,
+/// Then the role reaches the match and the line is still high.
+#[test]
+fn saving_a_role_leaves_a_dial_changed_in_the_match_alone() {
+    let mut game = make_game_with_fixture();
+    let mut session = waiting_session(&game);
+    session
+        .apply_command(engine::MatchCommand::ChangeTacticalDial {
+            side: engine::Side::Home,
+            dial: engine::TacticalDial::DefensiveLine(engine::DefensiveLine::High),
+        })
+        .unwrap();
+    let forward = first_starter_at(&session, engine::Side::Home, engine::Position::Forward);
+    game.teams[0]
+        .player_roles
+        .insert(forward.clone(), domain::team::PlayerRole::Poacher);
+
+    session
+        .follow_saved_role_before_kick_off(&game, &forward)
+        .unwrap();
+
+    assert_eq!(
+        session_role_of(&session, &forward),
+        engine::PlayerRole::Poacher
+    );
+    assert_eq!(
+        session.snapshot().home_team.tactics.defensive_line,
+        engine::DefensiveLine::High
     );
 }

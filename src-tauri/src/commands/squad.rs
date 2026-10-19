@@ -615,7 +615,7 @@ pub fn set_player_role_internal(
 
         Ok(())
     })?;
-    crate::application::live_match::follow_saved_plan_before_kick_off(state, &game)?;
+    crate::application::live_match::follow_saved_role_before_kick_off(state, &game, &player_id)?;
     Ok(game)
 }
 
@@ -739,7 +739,7 @@ pub(crate) fn set_tactics_phase_internal(
 
         Ok(())
     })?;
-    crate::application::live_match::follow_saved_plan_before_kick_off(state, &game)?;
+    crate::application::live_match::follow_saved_dials_before_kick_off(state, &game)?;
     Ok(game)
 }
 
