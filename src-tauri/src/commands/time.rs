@@ -846,6 +846,50 @@ mod tests {
         assert_eq!(stats.player_matches[0].fixture_id, "fixture-1");
     }
 
+    /// Given a quiet game, and one where two starters are injured so a blocker stands
+    /// When the user skips to their next match day, and when they continue to the next event
+    /// Then a blocker that stands after a day stops the skip with it listed (days_skipped 1), and
+    ///      a day without one never reports "blocked": a quiet game is not stopped, a blocked one
+    ///      is not skipped past.
+    #[test]
+    fn skipping_and_continuing_stop_on_a_blocker_and_only_then() {
+        use ofm_core::state::Career;
+        let blocked_game = || {
+            let mut game = make_game(11);
+            for player_id in ["p2", "p5"] {
+                let player = game.players.iter_mut().find(|p| p.id == player_id).unwrap();
+                player.injury = Some(Injury {
+                    name: "Hamstring".to_string(),
+                    days_remaining: 7,
+                });
+            }
+            game
+        };
+        let run = |game: Game, advance: fn(&StateManager, Career) -> Result<Value, String>| {
+            let state = StateManager::new();
+            state.set_game(game);
+            advance(&state, Career::Active).expect("the advance answers")
+        };
+
+        for advance in [
+            super::skip_to_match_day_internal as fn(&StateManager, Career) -> Result<Value, String>,
+            super::advance_to_next_event_internal,
+        ] {
+            let blocked = run(blocked_game(), advance);
+            assert_eq!(blocked["action"], "blocked", "{blocked}");
+            assert_eq!(blocked["days_skipped"], 1, "{blocked}");
+            assert!(!blocked["blockers"].as_array().unwrap().is_empty());
+
+            let quiet = run(make_game(11), advance);
+            if quiet["action"] == "blocked" {
+                assert!(
+                    !quiet["blockers"].as_array().unwrap().is_empty(),
+                    "a day without a blocker was reported as blocked: {quiet}"
+                );
+            }
+        }
+    }
+
     /// Given career B is active (token 2) and a screen still holds career A's token (1)
     /// When each way of advancing time arrives with A's token
     /// Then each is refused with the career-changed key and career B's clock, messages and stats
