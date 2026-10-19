@@ -228,6 +228,7 @@ describe("TrainingTab", () => {
     const onGameUpdate = vi.fn();
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad") return defaultRoster;
+      if (command === "get_squad_fitness") return createSquadFitness();
       return updatedState;
     });
 
