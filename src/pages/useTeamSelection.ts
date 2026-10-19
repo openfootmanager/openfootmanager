@@ -10,7 +10,7 @@ import { resolveBackendError } from "../utils/backendI18n";
 import { prewarmManagerSquadPortraits } from "../services/portraitService";
 import { showError } from "../lib/errorDialog";
 import {
-  buildFallbackRegions,
+  regionsFromCompetitions,
   competitionRequiredRegions,
   likelyXi,
   sortCompetitions,
@@ -55,13 +55,10 @@ export function useTeamSelection({
     [gameState],
   );
 
+  // The game carries no region list: the regions are the ones the competitions declare for the
+  // clubs' countries.
   const regions = useMemo(
-    () =>
-      gameState
-        ? gameState.regions && gameState.regions.length > 0
-          ? gameState.regions
-          : buildFallbackRegions(t, gameState, competitions)
-        : [],
+    () => (gameState ? regionsFromCompetitions(t, gameState, competitions) : []),
     [competitions, gameState, t],
   );
 

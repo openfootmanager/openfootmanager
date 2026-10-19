@@ -253,7 +253,6 @@ function renderWorkspace(
           onNavigate: vi.fn(),
         },
       })}
-      onBack={vi.fn()}
       onNavigate={vi.fn()}
       onSelectPlayer={vi.fn()}
       onSelectTeam={vi.fn()}
@@ -290,7 +289,6 @@ describe("DashboardWorkspaceContent", () => {
             onNavigate,
           },
         })}
-        onBack={vi.fn()}
         onNavigate={onNavigate}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
@@ -332,7 +330,6 @@ describe("DashboardWorkspaceContent", () => {
             onNavigate: vi.fn(),
           },
         })}
-        onBack={vi.fn()}
         onNavigate={vi.fn()}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
@@ -411,7 +408,6 @@ describe("DashboardWorkspaceContent", () => {
             onNavigate: vi.fn(),
           },
         })}
-        onBack={vi.fn()}
         onNavigate={vi.fn()}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
@@ -449,7 +445,6 @@ describe("DashboardWorkspaceContent", () => {
             onNavigate: vi.fn(),
           },
         })}
-        onBack={vi.fn()}
         onNavigate={vi.fn()}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}

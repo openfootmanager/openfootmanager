@@ -4,6 +4,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { useSettingsStore } from "./store/settingsStore";
 import i18n, { changeAppLanguage } from "./i18n";
 import { formatAppVersion } from "./lib/appVersion";
+import { rootFontSizeFor } from "./lib/uiScale";
 import "./App.css";
 
 const MainMenu = lazy(() => import("./pages/MainMenu"));
@@ -21,13 +22,6 @@ function LazyFallback() {
     </div>
   );
 }
-
-const SCALE_MAP: Record<string, string> = {
-  small: "14px",
-  normal: "16px",
-  large: "18px",
-  xlarge: "20px",
-};
 
 function App() {
   const { settings, loaded, loadSettings } = useSettingsStore();
@@ -52,7 +46,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const size = SCALE_MAP[settings.ui_scale] || "16px";
+    const size = rootFontSizeFor(settings.ui_scale);
     document.documentElement.style.fontSize = size;
   }, [settings.ui_scale]);
 
