@@ -299,6 +299,7 @@ const defaultProps = {
     id: "fix1",
     competition: "League" as const,
     competitive: true,
+    advancing_team_id: null,
     home_team_id: "team1",
     away_team_id: "team2",
     date: "2026-08-10",

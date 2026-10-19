@@ -1,4 +1,15 @@
 import type { ContractWarningStage } from "../services/contractService";
+import { formatDate } from "./dateFormatting";
+
+type ExpiryTranslate = (key: string, options: { date: string }) => string;
+
+export function contractExpiryLabel(
+  contractEnd: string,
+  language: string,
+  t: ExpiryTranslate,
+): string {
+  return t("finances.contractExpiresOn", { date: formatDate(contractEnd, language) });
+}
 
 export type ContractRiskLevel = "critical" | "warning" | "stable";
 
