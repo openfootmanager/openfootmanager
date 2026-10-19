@@ -100,8 +100,13 @@ fn a_match_report_is_worded_the_same_way_each_time() {
         let fixture_id = format!("fixture-{date}");
         news::match_report_article(&news::MatchReportFacts {
             fixture_id: &fixture_id,
-            competition: FixtureCompetition::League,
-            competition_name: "Premier Division",
+            competition: news::ReportCompetition {
+                kind: FixtureCompetition::League,
+                name: "Premier Division",
+                name_key: None,
+                country_id: None,
+                season: 1,
+            },
             matchday: 3,
             date,
             home: news::ReportSide {

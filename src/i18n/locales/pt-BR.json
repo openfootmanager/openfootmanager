@@ -3571,7 +3571,7 @@
           "body": "No torneio de pré-temporada, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Os dois times usaram o jogo para ganhar ritmo antes do início oficial da temporada.{{scorersSection}}"
         },
         "reportCompetition": {
-          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: resumo da partida ({{competition}})",
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Resumo da partida ({{competition}})",
           "body": "{{competition}}: a partida terminou {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },

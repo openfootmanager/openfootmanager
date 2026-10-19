@@ -714,8 +714,13 @@ pub(super) fn generate_match_news(
 
     let article = news::match_report_article(&news::MatchReportFacts {
         fixture_id: &fixture.id,
-        competition: fixture.competition.clone(),
-        competition_name: &league.name,
+        competition: news::ReportCompetition {
+            kind: fixture.competition.clone(),
+            name: &league.name,
+            name_key: league.name_key.as_deref(),
+            country_id: league.country_id.as_deref(),
+            season: league.season,
+        },
         matchday: fixture.matchday,
         date: &date,
         home: news::ReportSide {
@@ -1417,7 +1422,9 @@ mod tests {
         ] {
             let mut game = make_game("2025-08-12", FixtureStatus::Completed);
             let league = game.league.as_mut().unwrap();
-            league.name = "National Cup".to_string();
+            league.name = "Germany Cup".to_string();
+            league.name_key = Some("tournaments.competitions.nationalCup".to_string());
+            league.country_id = Some("DE".to_string());
             league.fixtures[0].competition = competition.clone();
             let report = make_report(vec![], 2, 1);
 
@@ -1434,11 +1441,15 @@ mod tests {
                 Some("be.news.matchReport.reportCompetition.body"),
                 "{competition:?}"
             );
+            let param = |name: &str| article.i18n_params.get(name).map(String::as_str);
+            assert_eq!(param("competition"), Some("Germany Cup"), "{competition:?}");
             assert_eq!(
-                article.i18n_params.get("competition").map(String::as_str),
-                Some("National Cup"),
-                "{competition:?}"
+                param("competitionKey"),
+                Some("tournaments.competitions.nationalCup"),
+                "the frontend translates the name from its key, as every other screen does"
             );
+            assert_eq!(param("competitionCountry"), Some("DE"));
+            assert_eq!(param("competitionSeason"), Some("1"));
         }
     }
 

@@ -1,5 +1,7 @@
 mod match_report;
-pub use match_report::{MatchReportFacts, ReportScorer, ReportSide, match_report_article};
+pub use match_report::{
+    MatchReportFacts, ReportCompetition, ReportScorer, ReportSide, match_report_article,
+};
 
 use crate::season_awards::SeasonAwards;
 use domain::news::*;

@@ -19,12 +19,23 @@ pub struct ReportSide<'a> {
     pub scorers: &'a [ReportScorer],
 }
 
+/// The competition a match was played in, as the report names it.
+///
+/// A generated competition's `name` is an English template ("Germany Cup"); the frontend shows
+/// the translated `name_key` with the country and season, as every other screen does. The key,
+/// the country and the season travel with the name so the report can be translated the same way.
+pub struct ReportCompetition<'a> {
+    pub kind: FixtureCompetition,
+    pub name: &'a str,
+    pub name_key: Option<&'a str>,
+    pub country_id: Option<&'a str>,
+    pub season: u32,
+}
+
 /// Everything a match report is written from.
 pub struct MatchReportFacts<'a> {
     pub fixture_id: &'a str,
-    pub competition: FixtureCompetition,
-    /// The competition's own name, for copy that is not a league round or a friendly.
-    pub competition_name: &'a str,
+    pub competition: ReportCompetition<'a>,
     pub matchday: u32,
     pub date: &'a str,
     pub home: ReportSide<'a>,
@@ -112,7 +123,7 @@ pub fn match_report_article(facts: &MatchReportFacts<'_>) -> NewsArticle {
         "news/match-report/{}/{}/{}/{}",
         home.team_id, away.team_id, facts.matchday, facts.date
     ));
-    let is_league_fixture = matches!(facts.competition, FixtureCompetition::League);
+    let is_league_fixture = matches!(facts.competition.kind, FixtureCompetition::League);
 
     let scorers_data = scorer_params_json(facts);
 
@@ -136,7 +147,24 @@ pub fn match_report_article(facts: &MatchReportFacts<'_>) -> NewsArticle {
     let away_goals = away.goals.to_string();
 
     if !is_league_fixture {
-        let (title_key, body_key) = non_league_copy(&facts.competition);
+        let (title_key, body_key) = non_league_copy(&facts.competition.kind);
+        let mut report_params = params(&[
+            ("home", home.name),
+            ("away", away.name),
+            ("homeGoals", &home_goals),
+            ("awayGoals", &away_goals),
+            ("competition", facts.competition.name),
+            ("competitionSeason", &facts.competition.season.to_string()),
+            ("scorers", ""),
+            ("scorersSection", ""),
+            ("scorersData", &scorers_data),
+        ]);
+        if let Some(name_key) = facts.competition.name_key {
+            report_params.insert("competitionKey".to_string(), name_key.to_string());
+        }
+        if let Some(country_id) = facts.competition.country_id {
+            report_params.insert("competitionCountry".to_string(), country_id.to_string());
+        }
 
         return NewsArticle::new(
             format!("report_{}", facts.fixture_id),
@@ -148,21 +176,7 @@ pub fn match_report_article(facts: &MatchReportFacts<'_>) -> NewsArticle {
         )
         .with_teams(vec![home.team_id.to_string(), away.team_id.to_string()])
         .with_players(player_ids)
-        .with_i18n(
-            title_key,
-            body_key,
-            source_key,
-            params(&[
-                ("home", home.name),
-                ("away", away.name),
-                ("homeGoals", &home_goals),
-                ("awayGoals", &away_goals),
-                ("competition", facts.competition_name),
-                ("scorers", ""),
-                ("scorersSection", ""),
-                ("scorersData", &scorers_data),
-            ]),
-        )
+        .with_i18n(title_key, body_key, source_key, report_params)
         .with_score(score);
     }
 
@@ -221,7 +235,9 @@ pub fn match_report_article(facts: &MatchReportFacts<'_>) -> NewsArticle {
 
 #[cfg(test)]
 mod tests {
-    use super::{MatchReportFacts, ReportScorer, ReportSide, match_report_article};
+    use super::{
+        MatchReportFacts, ReportCompetition, ReportScorer, ReportSide, match_report_article,
+    };
     use domain::league::FixtureCompetition;
     use domain::news::NewsCategory;
 
@@ -243,8 +259,13 @@ mod tests {
     ) -> MatchReportFacts<'a> {
         MatchReportFacts {
             fixture_id,
-            competition,
-            competition_name: "Premier Division",
+            competition: ReportCompetition {
+                kind: competition,
+                name: "Premier Division",
+                name_key: None,
+                country_id: None,
+                season: 1,
+            },
             matchday,
             date,
             home: ReportSide {
@@ -442,6 +463,28 @@ mod tests {
         assert_eq!(
             article.i18n_params.get("scorersData"),
             Some(&"[]".to_string())
+        );
+    }
+
+    /// Given a 1-0 league win where only the home side scored,
+    /// when its report is written,
+    /// then it uses a body with a goals line, not the scoreless one.
+    #[test]
+    fn a_one_sided_win_still_lists_its_scorer() {
+        let home = [scorer("p-alice", "Alice", 55)];
+        let article = match_report_article(&facts(
+            "fix6",
+            FixtureCompetition::League,
+            (1, 0),
+            (&home, &[]),
+            8,
+            "2025-07-28",
+        ));
+
+        let body_key = article.body_key.as_deref().unwrap();
+        assert!(
+            !body_key.ends_with(".noScorers"),
+            "a goal was scored, so the report lists it: {body_key}"
         );
     }
 

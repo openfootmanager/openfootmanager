@@ -3571,7 +3571,7 @@
           "body": "En el torneo de pretemporada, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Ambos equipos aprovecharon el encuentro para afilarse antes del inicio de la temporada competitiva.{{scorersSection}}"
         },
         "reportCompetition": {
-          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: crónica del partido ({{competition}})",
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Crónica del partido ({{competition}})",
           "body": "{{competition}}: el partido terminó {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },

@@ -3571,7 +3571,7 @@
           "body": "In preseason tournament action, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Both sides used the fixture to build sharpness before the competitive campaign.{{scorersSection}}"
         },
         "reportCompetition": {
-          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: match report ({{competition}})",
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Match report ({{competition}})",
           "body": "{{competition}}: the match ended {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
