@@ -59,6 +59,18 @@ pub fn validate_competition_definitions(
     ))
 }
 
+/// Whether a manager's date of birth will do on the day a career opens, for the create-manager
+/// form: `None` when it will, else the translation key of the problem. The age rule is the one
+/// `start_new_game` applies, so the form cannot disagree with it about the opening date.
+#[tauri::command]
+pub fn validate_manager_dob(
+    dob: String,
+    start_year: i32,
+    start_phase: String,
+) -> Result<Option<String>, String> {
+    super::manager_dob_error(&dob, start_year, &start_phase)
+}
+
 /// One problem found while loading a world package, shaped for the UI.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]

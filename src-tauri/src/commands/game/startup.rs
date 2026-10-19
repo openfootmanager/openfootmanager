@@ -10,6 +10,9 @@ use chrono::{Datelike, Duration, Utc};
 use ofm_core::career::StartPhase;
 use ofm_core::world::{start_date_for_year, MIN_START_YEAR};
 
+/// A manager must be at least this old on the day the career opens.
+const MANAGER_MINIMUM_AGE: i32 = 30;
+const MANAGER_MAXIMUM_AGE: i32 = 99;
 pub(super) const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS: u32 = 12;
 pub(super) const MAX_GENERATED_HISTORY_DEPTH_YEARS: u32 = 24;
 
@@ -59,6 +62,41 @@ pub(super) fn current_date_for_phase(
         StartPhase::SeasonStart => start_date,
         StartPhase::MidSeason => start_date + Duration::days(120),
     })
+}
+
+/// The translation key of what is wrong with a manager's date of birth on the day a career opens,
+/// or `None` when it will do. The one rule: `start_new_game` and the create-manager form both ask it.
+pub(super) fn manager_age_error(
+    birth_date: chrono::NaiveDate,
+    opening: chrono::NaiveDate,
+) -> Option<&'static str> {
+    let age = domain::age::age_between(birth_date, opening);
+    if age < MANAGER_MINIMUM_AGE {
+        Some("be.error.createManager.minAge")
+    } else if age > MANAGER_MAXIMUM_AGE {
+        Some("be.error.createManager.invalidDob")
+    } else {
+        None
+    }
+}
+
+/// What the create-manager form asks before a world has been chosen: the date of birth against the
+/// day a generated world's career opens on (`current_date_for_phase`: 1 June in a World Cup summer,
+/// 1 July otherwise, plus 120 days mid-season). A historical package can set its own opening date,
+/// so `start_new_game` still has the last word. `Err` is a bad year or phase, which is the caller's
+/// mistake; `Ok(Some(key))` is a finding about the date of birth.
+pub(super) fn manager_dob_error(
+    dob: &str,
+    start_year: i32,
+    start_phase: &str,
+) -> Result<Option<String>, String> {
+    let start_phase = StartPhase::parse(start_phase)
+        .ok_or_else(|| "be.error.createManager.invalidStartPhase".to_string())?;
+    let opening = current_date_for_phase(start_year, start_phase)?.date_naive();
+    let Ok(birth_date) = chrono::NaiveDate::parse_from_str(dob, "%Y-%m-%d") else {
+        return Ok(Some("be.error.createManager.invalidDobFormat".to_string()));
+    };
+    Ok(manager_age_error(birth_date, opening).map(str::to_string))
 }
 
 pub(super) fn normalize_startup_options(
@@ -386,6 +424,66 @@ mod tests {
         assert_eq!(
             i64::from(domain::age::age_between(birth_date, reference_date)),
             30
+        );
+    }
+
+    /// Given a manager born on 15 June 1996 and a career opening in 2026, a World Cup summer
+    ///       (the clock starts on 1 June, not 1 July)
+    /// When the form asks whether the date of birth will do
+    /// Then he is 29 on the day the career opens, so he is too young; and in 2027, which opens on
+    ///      1 July, a manager born on 15 June 1997 is 30 and passes.
+    #[test]
+    fn manager_dob_is_checked_against_the_day_the_career_really_opens() {
+        assert_eq!(
+            manager_dob_error("1996-06-15", 2026, "seasonStart").unwrap(),
+            Some("be.error.createManager.minAge".to_string())
+        );
+        assert_eq!(
+            manager_dob_error("1997-06-15", 2027, "seasonStart").unwrap(),
+            None
+        );
+    }
+
+    /// Given a manager born on 1 August 1996 and a 2026 career
+    /// When the career opens at the start of the season (1 June) and mid-season (29 September)
+    /// Then he is 29 at the start and 30 mid-season: he turns 30 in between, so the phase decides.
+    #[test]
+    fn manager_dob_follows_the_start_phase() {
+        assert_eq!(
+            manager_dob_error("1996-08-01", 2026, "seasonStart").unwrap(),
+            Some("be.error.createManager.minAge".to_string())
+        );
+        assert_eq!(
+            manager_dob_error("1996-08-01", 2026, "midSeason").unwrap(),
+            None
+        );
+    }
+
+    /// Given dates of birth that make a manager 100, that are not dates, and that are fine
+    /// When the form asks
+    /// Then they answer invalidDob, invalidDobFormat and nothing; an unknown start phase or year is
+    ///      the caller's error, not a finding about the date of birth.
+    #[test]
+    fn manager_dob_names_each_kind_of_problem() {
+        assert_eq!(
+            manager_dob_error("1900-01-01", 2026, "seasonStart").unwrap(),
+            Some("be.error.createManager.invalidDob".to_string())
+        );
+        assert_eq!(
+            manager_dob_error("not-a-date", 2026, "seasonStart").unwrap(),
+            Some("be.error.createManager.invalidDobFormat".to_string())
+        );
+        assert_eq!(
+            manager_dob_error("1980-01-01", 2026, "seasonStart").unwrap(),
+            None
+        );
+        assert_eq!(
+            manager_dob_error("1980-01-01", 2026, "nextWeek").unwrap_err(),
+            "be.error.createManager.invalidStartPhase"
+        );
+        assert_eq!(
+            manager_dob_error("1980-01-01", i32::MAX, "seasonStart").unwrap_err(),
+            "be.error.createManager.invalidStartYear"
         );
     }
 

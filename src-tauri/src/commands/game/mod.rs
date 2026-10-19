@@ -134,12 +134,8 @@ pub async fn start_new_game(
     let is_non_random = package_ids.as_deref().is_some_and(|ids| !ids.is_empty())
         || matches!(world_source.as_deref(), Some(source) if source != "random");
     let reference_date = clock.current_date.date_naive();
-    let age = domain::age::age_between(birth_date, reference_date);
-    if age < 30 {
-        return Err("be.error.createManager.minAge".to_string());
-    }
-    if age > 99 {
-        return Err("be.error.createManager.invalidDob".to_string());
+    if let Some(error) = manager_age_error(birth_date, reference_date) {
+        return Err(error.to_string());
     }
 
     let manager = Manager::new(

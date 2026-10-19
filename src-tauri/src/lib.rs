@@ -217,6 +217,7 @@ pub fn run() {
             get_nations,
             start_new_game,
             validate_competition_definitions,
+            validate_manager_dob,
             validate_world_package,
             inspect_world_package,
             export_world_database,
