@@ -232,4 +232,24 @@ competitions:
         // No usable component → a sensible default rather than an empty name.
         assert_eq!(package_folder_name(""), "World Package");
     }
+
+    /// Given the command the create-manager form calls, with no game and no state
+    /// When it is asked about a manager born on 15 June 1996 for a 2026 career (opening 1 June), one
+    ///      born in 1980, and a start phase that does not exist
+    /// Then it answers the too-young key, nothing, and an error: it is the age rule, not a stub.
+    #[test]
+    fn validate_manager_dob_answers_from_the_age_rule() {
+        assert_eq!(
+            validate_manager_dob("1996-06-15".to_string(), 2026, "seasonStart".to_string()),
+            Ok(Some("be.error.createManager.minAge".to_string()))
+        );
+        assert_eq!(
+            validate_manager_dob("1980-01-01".to_string(), 2026, "seasonStart".to_string()),
+            Ok(None)
+        );
+        assert_eq!(
+            validate_manager_dob("1980-01-01".to_string(), 2026, "nextWeek".to_string()),
+            Err("be.error.createManager.invalidStartPhase".to_string())
+        );
+    }
 }

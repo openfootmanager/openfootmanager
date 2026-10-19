@@ -564,12 +564,12 @@ mod tests {
     /// Given a historical-snapshot package whose career opens on 20 November 2031 whatever the start
     ///       year says, and managers born on 15 December 2001 (29 that day) and on 20 November 2001
     ///       (30 that day)
-    /// When `start_new_game` checks their age against the world's own clock
+    /// When `check_manager_age`, the check `start_new_game` makes, runs against the world's own clock
     /// Then the first is refused with minAge and the second passes, although the form, which only
     ///      knows a generated world's date, lets the first through for the same 2032 start: the
     ///      backend has the last word.
     #[test]
-    fn start_new_game_refuses_a_manager_too_young_on_the_snapshot_date() {
+    fn check_manager_age_refuses_a_manager_too_young_on_the_snapshot_date() {
         let startup_options = StartupOptions {
             start_year: 2032,
             start_phase: StartPhase::MidSeason,
