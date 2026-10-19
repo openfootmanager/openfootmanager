@@ -542,6 +542,19 @@ describe("Dashboard", () => {
    * When the dashboard loads
    * Then the competition name is in the sidebar, whatever tab is open.
    */
+  /**
+   * Given no starting tab, the dashboard opens on Home; given a starting tab (the dev page
+   * harness mounts a page this way), it opens on that one.
+   */
+  it("opens on Home, or on the tab it is given", async () => {
+    const { unmount } = render(<Dashboard />);
+    expect(await screen.findByText("Tab Content Home")).toBeInTheDocument();
+    unmount();
+
+    render(<Dashboard initialTab="Squad" />);
+    expect(await screen.findByText("Tab Content Squad")).toBeInTheDocument();
+  });
+
   it("shows the club's competition in the sidebar", async () => {
     const original = invokeMock.getMockImplementation();
     invokeMock.mockImplementation((command: string, ...args: unknown[]) => {
