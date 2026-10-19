@@ -140,13 +140,19 @@ pub(crate) fn release_player_contract(
     if !leaves_user_squad {
         return;
     }
+    // Each release appends one entry to the append-only movement history, so its position names
+    // this release and no other: a player can be released, re-signed and released again, even
+    // on the same day, and a key that named only the player or the day would let the ledger
+    // silence the second release.
+    let release_number = game.players[player_index].movement_history.len();
+    let release_id = format!("{player_id}_{today}_{release_number}");
     let message = match reason {
         ContractReleaseReason::Expired => {
-            contract_expired_message(&player_id, &player_name, &team_name, &today)
+            contract_expired_message(&release_id, &player_name, &team_name, &today)
         }
         ContractReleaseReason::ManagerTermination { severance_cost } => {
             contract_terminated_message(
-                &player_id,
+                &release_id,
                 &player_name,
                 &team_name,
                 severance_cost,
@@ -159,7 +165,7 @@ pub(crate) fn release_player_contract(
 }
 
 pub(crate) fn contract_expired_message(
-    player_id: &str,
+    release_id: &str,
     player_name: &str,
     team_name: &str,
     date: &str,
@@ -169,9 +175,7 @@ pub(crate) fn contract_expired_message(
     i18n_params.insert("team".to_string(), team_name.to_string());
 
     InboxMessage::new(
-        // Scoped to the day: a player can re-sign and run out again, and a key naming only the
-        // player would let the ledger silence the second expiry.
-        format!("contract_expired_{player_id}_{date}"),
+        format!("contract_expired_{release_id}"),
         String::new(),
         String::new(),
         String::new(),

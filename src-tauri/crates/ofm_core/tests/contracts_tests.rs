@@ -382,7 +382,7 @@ fn terminate_contract_now_releases_player_and_charges_severance() {
     let message = game
         .messages
         .iter()
-        .find(|message| message.id == "contract_terminated_player-1_2026-08-01")
+        .find(|message| message.id == "contract_terminated_player-1_2026-08-01_1")
         .expect("termination should create an inbox message");
     assert_eq!(
         message.subject_key.as_deref(),
@@ -1638,14 +1638,14 @@ fn the_users_expired_contract_is_sent_once_through_the_ledger() {
 
     let sent = expiry_messages(&game);
     assert_eq!(sent.len(), 1);
-    assert_eq!(sent[0].id, "contract_expired_player-1_2026-08-01");
+    assert_eq!(sent[0].id, "contract_expired_player-1_2026-08-01_1");
     assert_eq!(
         sent[0].i18n_params.get("team").map(String::as_str),
         Some("Alpha FC")
     );
     assert!(
         game.emitted_events
-            .contains("contract_expired_player-1_2026-08-01"),
+            .contains("contract_expired_player-1_2026-08-01_1"),
         "the send is recorded in the ledger, not only in the mailbox"
     );
 }
@@ -1681,7 +1681,7 @@ fn a_loanee_whose_parent_contract_expires_is_reported_to_the_borrower() {
 
 /// Given a player released at expiry who later re-signs and runs out again,
 /// when the second expiry is processed on a later day,
-/// then the user is told again: the ledger key is scoped to the day, not the player.
+/// then the user is told again: the ledger key names the release, not the player.
 #[test]
 fn a_player_who_expires_again_after_re_signing_is_reported_again() {
     let mut game = make_game();
@@ -1700,15 +1700,15 @@ fn a_player_who_expires_again_after_re_signing_is_reported_again() {
     assert_eq!(
         ids,
         vec![
-            "contract_expired_player-1_2026-08-01",
-            "contract_expired_player-1_2027-07-01"
+            "contract_expired_player-1_2026-08-01_1",
+            "contract_expired_player-1_2027-07-01_2"
         ]
     );
 }
 
 /// Given the user terminates a contract,
 /// when the release is recorded,
-/// then the message goes through the ledger under a key scoped to the day.
+/// then the message goes through the ledger under a key naming that release.
 #[test]
 fn a_terminated_contract_is_sent_through_the_ledger() {
     let mut game = make_squad_game();
@@ -1718,11 +1718,45 @@ fn a_terminated_contract_is_sent_through_the_ledger() {
 
     assert!(
         game.emitted_events
-            .contains("contract_terminated_player-1_2026-08-01")
+            .contains("contract_terminated_player-1_2026-08-01_1")
     );
     assert!(
         game.messages
             .iter()
-            .any(|message| message.id == "contract_terminated_player-1_2026-08-01")
+            .any(|message| message.id == "contract_terminated_player-1_2026-08-01_1")
+    );
+}
+
+/// Given the user terminates a player, re-signs them and terminates them again the same day,
+/// when the second release is recorded,
+/// then the user is told about both: the key names the release, not the day.
+#[test]
+fn a_second_termination_on_the_same_day_is_reported_too() {
+    let mut game = make_squad_game();
+    give_squad_depth(&mut game);
+    terminate_contract_now(&mut game, "player-1").expect("first termination succeeds");
+
+    let player = game
+        .players
+        .iter_mut()
+        .find(|player| player.id == "player-1")
+        .unwrap();
+    player.team_id = Some("team-1".to_string());
+    player.stage_contract_end(Some("2026-10-15".to_string()));
+    player.stage_wage(12_000);
+    terminate_contract_now(&mut game, "player-1").expect("second termination succeeds");
+
+    let terminated: Vec<&str> = game
+        .messages
+        .iter()
+        .filter(|message| message.id.starts_with("contract_terminated_player-1_"))
+        .map(|message| message.id.as_str())
+        .collect();
+    assert_eq!(
+        terminated,
+        vec![
+            "contract_terminated_player-1_2026-08-01_1",
+            "contract_terminated_player-1_2026-08-01_2"
+        ]
     );
 }

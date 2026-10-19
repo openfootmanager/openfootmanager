@@ -160,7 +160,7 @@ pub(crate) fn termination_severance_cost(player: &Player, current_date: NaiveDat
 }
 
 pub(crate) fn contract_terminated_message(
-    player_id: &str,
+    release_id: &str,
     player_name: &str,
     team_name: &str,
     severance_cost: i64,
@@ -172,8 +172,7 @@ pub(crate) fn contract_terminated_message(
     i18n_params.insert("severance".to_string(), severance_cost.to_string());
 
     InboxMessage::new(
-        // Scoped to the day, like the expiry key: a player can be signed and released again.
-        format!("contract_terminated_{player_id}_{date}"),
+        format!("contract_terminated_{release_id}"),
         String::new(),
         String::new(),
         String::new(),
