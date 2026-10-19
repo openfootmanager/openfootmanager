@@ -80,7 +80,7 @@ mod tests {
 
     /// Given a season that rolled over on 25 May, and a report taken in preseason on 4 June
     /// When it is queried on 15 September, after the league's 1 August start
-    /// Then it is current: nobody has developed since it was taken
+    /// Then it is current: the season's growth applied before it was taken
     #[test]
     fn a_preseason_report_taken_after_the_rollover_is_current() {
         assert!(!is_out_of_date(&game_with_report(
@@ -91,7 +91,7 @@ mod tests {
 
     /// Given a report taken on 10 April, before the season rolled over on 25 May
     /// When it is queried
-    /// Then it is out of date: the player has aged and developed since
+    /// Then it is out of date: the player has aged and the season's growth applied since
     #[test]
     fn a_report_from_before_the_last_rollover_is_out_of_date() {
         assert!(is_out_of_date(&game_with_report(

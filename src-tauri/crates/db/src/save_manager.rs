@@ -617,6 +617,14 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        // A save from before the rollover day was kept would call every scout report current until
+        // its next season end; the day comes from its last league season instead. Once: the day is
+        // then saved.
+        if ofm_core::end_of_season::backfill_last_season_rollover(&mut game) {
+            info!("[save_manager] backfilled the last season rollover day for save {save_id}");
+            needs_resave = true;
+        }
+
         // A save written before the squad floor was enforced can open with
         // clubs already short of it. Before the stranded-fixture repair below:
         // that one scores fixtures from the squads, so it reads them repaired.
@@ -1328,6 +1336,55 @@ mod tests {
         ];
 
         Game::new(clock, manager, vec![team], players, vec![], vec![])
+    }
+
+    /// Given a second-season career saved before the rollover day was kept, whose league season
+    ///      finished on 22 May 2026
+    /// When the save is loaded
+    /// Then the day is taken from that season and written back to the file (read with plain SQL,
+    ///      not by loading again), so it is backfilled once, not on every load.
+    #[test]
+    fn loading_an_old_career_backfills_its_rollover_day_and_persists_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        let clubs = ["team-001".to_string(), "team-002".to_string()];
+        game.competitions.push(domain::league::League::new(
+            "division-one".to_string(),
+            "Division One".to_string(),
+            2026,
+            &clubs,
+        ));
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: "division-one".to_string(),
+                season: 2025,
+                completed_on: "2026-05-22".to_string(),
+                champion_id: "team-002".to_string(),
+                participant_ids: clubs.to_vec(),
+                standings: vec![],
+                groups: vec![],
+                knockout_rounds: vec![],
+                fixtures: vec![],
+            });
+        game.last_season_rollover_on = None;
+        let save_id = sm.create_save(&game, "Career").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(
+            loaded.last_season_rollover_on.as_deref(),
+            Some("2026-05-22")
+        );
+        let db = GameDatabase::open_save(&saves_dir.join(format!("{save_id}.db"))).unwrap();
+        let stored: Option<String> = db
+            .conn()
+            .query_row("SELECT last_season_rollover_on FROM game_meta", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(stored.as_deref(), Some("2026-05-22"));
     }
 
     /// Given a saved career whose young prospect has an S-tier ceiling but no wonderkid tag, and

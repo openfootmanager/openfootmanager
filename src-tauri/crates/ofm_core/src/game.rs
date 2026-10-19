@@ -172,10 +172,11 @@ pub struct Game {
     /// is copied in once more, then marked. Persistence is `game_meta.legacy_tactics_imported`.
     #[serde(default)]
     pub legacy_tactics_imported: bool,
-    /// The day the last season ended and every player aged and developed (ISO date). A scout's
-    /// report taken before it no longer describes the player. `None` until this career's first
-    /// season end, and for a save from before the field: then no report is out of date, since
-    /// nobody has developed since it was taken. Persistence is `game_meta.last_season_rollover_on`.
+    /// The day the last season ended (ISO date): every player aged then, and the season's growth
+    /// applied. A scout's report taken before it no longer describes the player. `None` until this
+    /// career's first season end; a save from before the field takes it from its last league season
+    /// on load (`end_of_season::backfill_last_season_rollover`). Persistence is
+    /// `game_meta.last_season_rollover_on`.
     #[serde(default)]
     pub last_season_rollover_on: Option<String>,
     /// Names the career this game was installed as (`StateManager::next_career_token`). It travels

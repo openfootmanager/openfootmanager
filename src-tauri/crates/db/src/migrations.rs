@@ -1019,7 +1019,7 @@ mod tests {
     ("v057_manager_known_as.sql", 0x1a62f523b6d15799),
     ("v058_archived_messages.sql", 0x853776cba0dffed1),
     ("v059_legacy_tactics_imported.sql", 0xf2fdbc95bf5fdc99),
-    ("v060_last_season_rollover.sql", 0x07beb733bb040eee),
+    ("v060_last_season_rollover.sql", 0x111c4c4f40b3952a),
     ];
 
     /// Given the migrations already shipped
