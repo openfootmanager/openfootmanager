@@ -141,6 +141,16 @@ A tone never stands alone: there is always a letter, a word or the number next t
 the game doesn't know (an unscouted attribute, a match not yet rated) shows "–" in `fg-subtle`,
 never a grey number that could read as a low value.
 
+Condition has words as well as tones, from one rule in `ofm_core` that also drives the staff
+warnings and the squad's fitness counts. The words, the tones and the counts therefore always agree:
+
+| Condition | Word | Tone |
+|---|---|---|
+| 75 and over | Fresh | `good` |
+| 40–74 | Tiring | `neutral` |
+| 25–39 | Exhausted | `low` |
+| under 25 | Critical | `bad` |
+
 ## 5. Layout rules
 
 1. The dashboard workspace owns the scroll and applies `max-w-page` once.
