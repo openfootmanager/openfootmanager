@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useManagerDobError } from "./useManagerDobError";
@@ -70,5 +70,55 @@ describe("useManagerDobError", () => {
 
     await waitFor(() => expect(result.current).toBeNull());
     expect(mockedValidate).toHaveBeenLastCalledWith("2008-08-01", 2038, "midSeason");
+  });
+
+  /**
+   * Given an under-age verdict and then a year the backend cannot open a career in (the call fails)
+   * When the hook asks again
+   * Then the old verdict is dropped: a failed read does not keep blocking the form with it.
+   */
+  it("drops the old verdict when a read fails", async () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockedValidate
+      .mockResolvedValueOnce("be.error.createManager.minAge")
+      .mockRejectedValueOnce("be.error.createManager.invalidStartYear");
+    const { result, rerender } = renderHook(
+      ({ year }) => useManagerDobError("2010-06-15", year, "seasonStart"),
+      { initialProps: { year: 2026 } },
+    );
+    await waitFor(() => expect(result.current).toBe("be.error.createManager.minAge"));
+
+    rerender({ year: 300000 });
+
+    await waitFor(() => expect(result.current).toBeNull());
+    quiet.mockRestore();
+  });
+
+  /**
+   * Given a first question still unanswered when the form changes, and a second that answers first
+   * When the first, which belongs to the old form, answers last
+   * Then its verdict is dropped: the form keeps the answer to what is on screen.
+   */
+  it("ignores a late answer to a question the form has moved past", async () => {
+    let answerFirst: (value: string | null) => void = () => {};
+    mockedValidate
+      .mockReturnValueOnce(
+        new Promise<string | null>((resolve) => {
+          answerFirst = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(null);
+    const { result, rerender } = renderHook(
+      ({ phase }) => useManagerDobError("2008-08-01", 2038, phase),
+      { initialProps: { phase: "seasonStart" } },
+    );
+    rerender({ phase: "midSeason" });
+    await waitFor(() => expect(mockedValidate).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      answerFirst("be.error.createManager.minAge");
+    });
+
+    expect(result.current).toBeNull();
   });
 });

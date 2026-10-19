@@ -28,6 +28,7 @@ export function useManagerDobError(
       })
       .catch((error: unknown) => {
         console.error("Failed to check the manager's date of birth:", error);
+        if (!cancelled) setErrorKey(null);
       });
     return () => {
       cancelled = true;

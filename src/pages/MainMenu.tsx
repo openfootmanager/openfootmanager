@@ -57,9 +57,6 @@ interface SaveEntry {
 }
 
 /**
- * Minimum manager age (years) on create.
- */
-/**
  * Earliest year a career may start. Historical world packages recreate eras
  * decades before the modern game, so the floor only keeps the clock inside a
  * sane calendar range. Must match `MIN_START_YEAR` in `commands/game.rs`.
