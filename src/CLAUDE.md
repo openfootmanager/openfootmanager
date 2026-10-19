@@ -40,7 +40,9 @@ Use `/add-ui-string` — it is the whole procedure, in order.
 ## 2. Design tokens and the "Matchday" language
 
 Tailwind v4 keeps its config **in CSS**: the `@theme` block in `src/App.css`. That block is the
-only place colours, type sizes and layout sizes are defined.
+only place colours, type sizes and layout sizes are defined. The full reference is
+[`docs/DESIGN_SYSTEM.md`](../docs/DESIGN_SYSTEM.md); every primitive is drawn, in every theme
+and scale, at `/style-guide.html` on the dev server.
 
 | Token family | Meaning |
 |---|---|

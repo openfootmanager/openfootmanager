@@ -1,6 +1,11 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["scripts/*.mjs", "scripts/perf/*.mjs", ".github/scripts/*.mjs"],
+  "entry": [
+    "scripts/*.mjs",
+    "scripts/perf/*.mjs",
+    ".github/scripts/*.mjs",
+    "src/dev/styleGuide/main.tsx"
+  ],
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs", ".github/scripts/**/*.mjs"],
   "ignoreDependencies": ["@fontsource/.*", "tailwindcss"],
   "ignoreExportsUsedInFile": true
