@@ -250,7 +250,7 @@ export function CountryCombobox({ label, value, onChange, placeholder }: Country
                       setActiveIndex(0);
                     }}
                     onKeyDown={handleSearchKeyDown}
-                    className="w-full rounded-md border border-line bg-sunken px-3 py-1.5 text-body text-fg outline-none placeholder:text-fg-subtle focus-visible:ring-2 focus-visible:ring-focus"
+                    className="w-full rounded-md border border-line bg-sunken px-3 py-1.5 text-body text-fg outline-none placeholder:text-fg-subtle focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
                   />
                 </div>
                 <div className="max-h-48 overflow-y-auto overscroll-contain">
