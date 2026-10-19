@@ -22,13 +22,37 @@ pub enum PlayerKnowledge {
 }
 
 pub fn player_knowledge(game: &Game, player: &Player) -> PlayerKnowledge {
-    let Some(manager_club) = game.manager.team_id.as_deref() else {
-        return scouted_or_unknown(game, player);
-    };
-    if is_at_or_owned_by(player, manager_club) {
+    knowledge_from(game, &Viewer::of(game), player)
+}
+
+/// The manager's club and the league table it plays in, worked out once per request rather than
+/// once per player.
+struct Viewer<'a> {
+    club: Option<&'a str>,
+    division: Option<&'a str>,
+}
+
+impl<'a> Viewer<'a> {
+    fn of(game: &'a Game) -> Self {
+        let club = game.manager.team_id.as_deref();
+        Self {
+            club,
+            division: club.and_then(|club| division_of(game, club)),
+        }
+    }
+}
+
+fn knowledge_from(game: &Game, viewer: &Viewer, player: &Player) -> PlayerKnowledge {
+    if viewer
+        .club
+        .is_some_and(|club| is_at_or_owned_by(player, club))
+    {
         return PlayerKnowledge::Own;
     }
-    if plays_in_the_division_of(game, player, manager_club) {
+    if viewer
+        .division
+        .is_some_and(|division| plays_in(game, player, division))
+    {
         return PlayerKnowledge::Known;
     }
     scouted_or_unknown(game, player)
@@ -44,13 +68,16 @@ fn is_at_or_owned_by(player: &Player, club_id: &str) -> bool {
             .is_some_and(|loan| loan.parent_team_id == club_id)
 }
 
-/// Both clubs contest the same league table. The legacy `game.league` never stands in for one.
-fn plays_in_the_division_of(game: &Game, player: &Player, manager_club: &str) -> bool {
-    let Some(player_club) = player.team_id.as_deref() else {
-        return false;
-    };
-    let division_of = |club| crate::end_of_season::club_league_table(game, club).map(|l| &l.id);
-    division_of(manager_club).is_some_and(|division| division_of(player_club) == Some(division))
+/// The league table a club contests. The legacy `game.league` never stands in for one.
+fn division_of<'a>(game: &'a Game, club: &str) -> Option<&'a str> {
+    crate::end_of_season::club_league_table(game, club).map(|league| league.id.as_str())
+}
+
+fn plays_in(game: &Game, player: &Player, division: &str) -> bool {
+    player
+        .team_id
+        .as_deref()
+        .is_some_and(|club| division_of(game, club) == Some(division))
 }
 
 fn scouted_or_unknown(game: &Game, player: &Player) -> PlayerKnowledge {
@@ -66,10 +93,11 @@ fn scouted_or_unknown(game: &Game, player: &Player) -> PlayerKnowledge {
 /// The knowledge of each requested player. An id no player has is left out of the answer.
 pub fn players_knowledge(game: &Game, player_ids: &[String]) -> HashMap<String, PlayerKnowledge> {
     let wanted: HashSet<&str> = player_ids.iter().map(String::as_str).collect();
+    let viewer = Viewer::of(game);
     game.players
         .iter()
         .filter(|player| wanted.contains(player.id.as_str()))
-        .map(|player| (player.id.clone(), player_knowledge(game, player)))
+        .map(|player| (player.id.clone(), knowledge_from(game, &viewer, player)))
         .collect()
 }
 
