@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} est obligatoire",
     "maxLength": "{{field}} ne doit pas dépasser {{max}} caractères",
-    "minStartYear": "L'année de départ doit être {{min}} ou ultérieure",
-    "minAge": "L'entraîneur doit avoir au moins {{min}} ans — modifie la date de naissance pour continuer.",
-    "invalidDate": "Date invalide",
-    "invalidDob": "Date de naissance invalide"
+    "minStartYear": "L'année de départ doit être {{min}} ou ultérieure"
   },
   "worldSelect": {
     "title": "Choisir le Monde",

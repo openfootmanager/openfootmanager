@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} wajib diisi",
     "maxLength": "{{field}} tidak boleh melebihi {{max}} karakter",
-    "minStartYear": "Tahun mulai harus {{min}} atau setelahnya",
-    "minAge": "Manajer minimal berusia {{min}} tahun — ubah tanggal lahir untuk melanjutkan.",
-    "invalidDate": "Tanggal tidak valid",
-    "invalidDob": "Tanggal lahir tidak valid"
+    "minStartYear": "Tahun mulai harus {{min}} atau setelahnya"
   },
   "worldSelect": {
     "title": "Pilih Dunia",

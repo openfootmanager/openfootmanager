@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} 为必填项",
     "maxLength": "{{field}} 不能超过 {{max}} 个字符",
-    "minStartYear": "开始年份必须为 {{min}} 或之后",
-    "minAge": "经理年龄必须至少为 {{min}} 岁 — 请修改出生日期以继续。",
-    "invalidDate": "无效日期",
-    "invalidDob": "无效的出生日期"
+    "minStartYear": "开始年份必须为 {{min}} 或之后"
   },
   "worldSelect": {
     "title": "选择世界",

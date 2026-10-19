@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} zorunludur",
     "maxLength": "{{field}} {{max}} karakteri geçmemelidir",
-    "minStartYear": "Başlangıç yılı {{min}} veya sonrası olmalıdır",
-    "minAge": "Menajer en az {{min}} yaşında olmalıdır — devam etmek için doğum tarihini değiştirin.",
-    "invalidDate": "Geçersiz tarih",
-    "invalidDob": "Geçersiz doğum tarihi"
+    "minStartYear": "Başlangıç yılı {{min}} veya sonrası olmalıdır"
   },
   "worldSelect": {
     "title": "Dünya Seç",

@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} is required",
     "maxLength": "{{field}} must not exceed {{max}} characters",
-    "minStartYear": "Start year must be {{min}} or later",
-    "minAge": "Manager must be at least {{min}} years old — change the date of birth to continue.",
-    "invalidDate": "Invalid date",
-    "invalidDob": "Invalid date of birth"
+    "minStartYear": "Start year must be {{min}} or later"
   },
   "worldSelect": {
     "title": "Choose World",
