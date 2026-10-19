@@ -97,12 +97,15 @@ function textOnSolid(source: string): string[] {
 /** A focus-state ring class: its variant (group 1) and what follows `ring-` (group 2). */
 const FOCUS_RING =
   /(?<![\w-])((?:peer-|group-)?focus(?:-visible|-within)?):ring-([\w-]+(?:\/\d+)?)/g;
-/** What may follow `ring-` and is not a colour. */
-const RING_NOT_A_COLOUR = /^(?:\d+|inset|offset-[\w-]+)$/;
+/**
+ * What may follow `ring-` besides `focus`: a width, inset, an offset width, or an offset in the
+ * surface the control sits on, so the gap between control and ring matches what is behind it.
+ */
+const RING_ALLOWED = /^(?:\d+|inset|offset-(?:\d+|page|panel|sunken|chrome))$/;
 
 /**
  * Rule 6: one focus ring. It is drawn on focus-visible, never plain focus (a click would light it),
- * and its colour is ring-focus, the themed one that reaches 3:1 everywhere.
+ * its colour is ring-focus, the themed one that reaches 3:1 everywhere, and its offset is a surface.
  */
 function focusRingViolations(source: string): string[] {
   return linesMatching(source, FOCUS_RING).filter((hit) => {
@@ -110,7 +113,7 @@ function focusRingViolations(source: string): string[] {
       hit,
     ) ?? ["", "", ""];
     const plainFocus = !variant.endsWith("-visible") && !variant.endsWith("-within");
-    return plainFocus || !(rest === "focus" || RING_NOT_A_COLOUR.test(rest));
+    return plainFocus || !(rest === "focus" || RING_ALLOWED.test(rest));
   });
 }
 
@@ -249,6 +252,21 @@ describe("the rule checks themselves", () => {
     expect(
       focusRingViolations(
         'className="focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page peer-focus-visible:ring-inset"',
+      ),
+    ).toEqual([]);
+  });
+
+  /**
+   * Given a focus ring offset in a brand colour on focus-visible, then it is reported; given an
+   * offset in the surface the control sits on (page, panel, sunken, chrome), then it is not.
+   */
+  it("catches a focus ring offset that is not a surface colour", () => {
+    expect(focusRingViolations('className="focus-visible:ring-offset-navy-800"')).toEqual([
+      "1: focus-visible:ring-offset-navy-800",
+    ]);
+    expect(
+      focusRingViolations(
+        'className="focus-visible:ring-offset-sunken focus-visible:ring-offset-panel focus-visible:ring-offset-chrome focus-visible:ring-offset-1"',
       ),
     ).toEqual([]);
   });

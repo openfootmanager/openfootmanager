@@ -2,10 +2,19 @@ import { AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import {
-  getInjuryBadgeClassName,
+  getInjurySeverity,
   resolveInjuryName,
   type InjuryDisplayData,
+  type InjurySeverity,
 } from "../../lib/injury";
+
+/** Short injuries warn and long ones are danger; the stronger border marks the worse of each pair. */
+const SEVERITY_CLASSES: Record<InjurySeverity, string> = {
+  minor: "border-line-strong bg-warning-tint text-warning",
+  moderate: "border-warning-solid bg-warning-tint text-warning",
+  serious: "border-line-strong bg-danger-tint text-danger",
+  major: "border-danger-solid bg-danger-tint text-danger",
+};
 
 interface InjuryBadgeProps {
   injury: InjuryDisplayData;
@@ -24,9 +33,9 @@ export function InjuryBadge({ injury, showName = true }: InjuryBadgeProps) {
 
   return (
     <span
-      className={`inline-flex max-w-44 items-center gap-1 rounded-md border px-2 py-0.5 font-heading text-caption font-bold uppercase tracking-label ${getInjuryBadgeClassName(
-        injury.days_remaining,
-      )}`}
+      className={`inline-flex max-w-44 items-center gap-1 rounded-md border px-2 py-0.5 font-heading text-caption font-bold uppercase tracking-label ${
+        SEVERITY_CLASSES[getInjurySeverity(injury.days_remaining)]
+      }`}
       role="img"
       title={title}
       aria-label={title}
