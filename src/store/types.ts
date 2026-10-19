@@ -918,12 +918,8 @@ export interface GameStateData {
     rivalries?: unknown[];
     season_awards?: unknown[];
   };
-  // Authored competition definitions (resolved at game creation; present on
-  // imported worlds that ship their own competitions).
-  competitionDefinitions?: unknown;
   active_region_ids?: string[];
   active_competition_ids?: string[];
-  regions?: WorldRegionData[];
   league: LeagueData | null;
   scouting_assignments: ScoutingAssignment[];
   youth_scouting_assignments?: YouthScoutingAssignment[];
