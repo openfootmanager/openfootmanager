@@ -14,10 +14,13 @@ import {
   DialogCloseButton,
   InjuryBadge,
   JerseyIcon,
+  PageToolbar,
   PitchToken,
   PlayerAvatar,
   ProgressBar,
   Select,
+  TabPanel,
+  Tabs,
   TeamLocation,
   TeamLogo,
   ThemeToggle,
@@ -373,6 +376,97 @@ function PitchSection() {
   );
 }
 
+const MARKET_TABS = [
+  { id: "players", label: "Players", count: 3915 },
+  { id: "list", label: "My list", count: 8 },
+  { id: "offers", label: "Offers", count: 5 },
+];
+
+// The longest real toolbar: the Transfers centre in German. At 960 wide and extra-large scale its
+// tabs don't fit, so they scroll inside the tablist (the page harness measures this).
+const LONG_TABS = [
+  { id: "list", label: "Meine Transferliste", count: 8 },
+  { id: "market", label: "Transfermarkt", count: 3915 },
+  { id: "free", label: "Ablösefreie", count: 214 },
+  { id: "loans", label: "Leihmarkt", count: 96 },
+  { id: "offers", label: "Angebote", count: 5 },
+];
+
+function NavigationSection() {
+  const [page, setPage] = useState("players");
+  const [longPage, setLongPage] = useState("market");
+  const [view, setView] = useState("list");
+  return (
+    <Section title="Navigation">
+      <PageToolbar
+        start={
+          <Tabs
+            idPrefix="guide-market"
+            label="Transfer market"
+            tabs={MARKET_TABS}
+            selectedId={page}
+            onSelect={setPage}
+          />
+        }
+        filters={
+          <Select selectSize="sm" aria-label="Position" defaultValue="all">
+            <option value="all">All positions</option>
+            <option value="def">Defenders</option>
+          </Select>
+        }
+        action={<Button size="sm">Make bid</Button>}
+      />
+      {MARKET_TABS.map((tab) => (
+        <TabPanel key={tab.id} idPrefix="guide-market" tabId={tab.id} hidden={tab.id !== page}>
+          <p className="text-body text-fg-muted">The {tab.label.toLowerCase()} view.</p>
+        </TabPanel>
+      ))}
+      <PageToolbar
+        start={
+          <Tabs
+            idPrefix="guide-long"
+            label="Transfers, long labels"
+            tabs={LONG_TABS}
+            selectedId={longPage}
+            onSelect={setLongPage}
+          />
+        }
+        filters={
+          <Select selectSize="sm" aria-label="Position" defaultValue="all">
+            <option value="all">Alle Positionen</option>
+          </Select>
+        }
+        action={<Button size="sm">Transferangebot abgeben</Button>}
+      />
+      {LONG_TABS.map((tab) => (
+        <TabPanel key={tab.id} idPrefix="guide-long" tabId={tab.id} hidden={tab.id !== longPage}>
+          <p className="text-body text-fg-muted">{tab.label}</p>
+        </TabPanel>
+      ))}
+      <Row>
+        <Tabs
+          idPrefix="guide-view"
+          label="Attributes view"
+          look="segmented"
+          tabs={[
+            { id: "list", label: "List" },
+            { id: "radar", label: "Radar" },
+          ]}
+          selectedId={view}
+          onSelect={setView}
+        />
+      </Row>
+      <TabPanel idPrefix="guide-view" tabId="list" hidden={view !== "list"}>
+        <p className="text-body text-fg-muted">The attributes as a list.</p>
+      </TabPanel>
+      <TabPanel idPrefix="guide-view" tabId="radar" hidden={view !== "radar"}>
+        <p className="text-body text-fg-muted">The attributes as a radar.</p>
+      </TabPanel>
+      <PageToolbar action={<Button size="sm">Hire</Button>} />
+    </Section>
+  );
+}
+
 function DialogSection({ open }: { open: boolean }) {
   const [isOpen, setIsOpen] = useState(open);
   return (
@@ -422,6 +516,7 @@ export function StyleGuide({ options }: { options: StyleGuideOptions }) {
           </p>
         </header>
         <TokensSection />
+        <NavigationSection />
         <ControlsSection />
         <DisplaySection />
         <CardsSection />
