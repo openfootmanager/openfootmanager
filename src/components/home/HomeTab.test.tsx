@@ -177,6 +177,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
   return {
     competitive: true,
+    advancing_team_id: null,
     id: "fixture-1",
     matchday: 2,
     date: "2025-01-12",

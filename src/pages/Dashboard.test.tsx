@@ -720,6 +720,7 @@ describe("Dashboard", () => {
           away_team_id: "ar-01",
           competition: "League",
           competitive: true,
+          advancing_team_id: null,
           status: "Completed",
           result: null,
         },
@@ -731,6 +732,7 @@ describe("Dashboard", () => {
           away_team_id: "ar-00",
           competition: "League",
           competitive: true,
+          advancing_team_id: null,
           status: "Scheduled",
           result: null,
         },
@@ -803,6 +805,7 @@ describe("Dashboard", () => {
         fixtures: [
           {
             competitive: true,
+            advancing_team_id: null,
             id: "cup-match",
             competition_id: "cup-1",
             competition: "Cup",
