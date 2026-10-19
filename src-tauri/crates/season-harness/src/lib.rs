@@ -20,6 +20,7 @@
 //! * [`fingerprint`] reduces a world to what a replay must reproduce.
 //! * [`invariants`] are the rules, held to after every day and every rollover.
 
+pub mod ageing;
 pub mod calendar;
 pub mod distribution;
 pub mod driver;

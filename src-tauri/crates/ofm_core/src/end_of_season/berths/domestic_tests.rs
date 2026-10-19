@@ -1,4 +1,4 @@
-use super::super::continental::resolve_continental_fields;
+use super::super::continental::{continental_qualified_entrants, resolve_continental_fields};
 use super::super::pyramid::apply_pyramid_promotion_relegation;
 use super::super::test_support::*;
 use super::*;
@@ -677,5 +677,86 @@ fn apply_domestic_berth_ignores_unfinished_non_position_range_source() {
         by_id("playoff").participant_ids,
         vec!["p1".to_string(), "p2".to_string()],
         "PlayoffWinner source is not a feeder"
+    );
+}
+
+fn league_in_region(id: &str, country: &str, region: &str, club: &str) -> League {
+    let mut league = division(id, 0, country, &[(club, 30)]);
+    league.region_id = Some(region.to_string());
+    league
+}
+
+fn continental_cup(id: &str, regions: &[&str]) -> League {
+    let seeds: Vec<String> = (0..4).map(|index| format!("seed-{index}")).collect();
+    let mut cup = League::new(id.to_string(), id.to_string(), 2026, &seeds);
+    cup.scope = CompetitionScope::Continental;
+    cup.kind = CompetitionType::ContinentalClub;
+    cup.required_region_ids = regions.iter().map(|region| (*region).to_string()).collect();
+    cup
+}
+
+/// Given a continental cup limited to Europe, a South American champion, and a
+/// higher-reputation South American club, when qualification runs, then neither
+/// South American club enters: the champion is not a qualifier and the star is
+/// not the reputation top-up.
+#[test]
+fn a_declared_feeder_region_limits_qualification_and_the_reputation_top_up() {
+    let mut game = empty_game();
+    game.competitions = vec![
+        continental_cup("euro", &["europe"]),
+        league_in_region("es-d1", "ES", "europe", "es1"),
+        league_in_region("br-d1", "BR", "south-america", "br1"),
+    ];
+    game.teams.push(filler_club("es-filler", "ES", 10));
+    game.teams.push(filler_club("br-star", "BR", 99));
+
+    let field = continental_qualified_entrants(&game, &game.competitions[0]);
+
+    assert!(
+        field.contains(&"es1".to_string()),
+        "the European champion qualifies: {field:?}"
+    );
+    assert_eq!(
+        field.get(1).map(String::as_str),
+        Some("es-filler"),
+        "the top-up stays inside the declared region: {field:?}"
+    );
+    assert!(
+        !field.iter().any(|id| id == "br1" || id == "br-star"),
+        "South America is outside the declared feeder region: {field:?}"
+    );
+}
+
+/// Given a continental cup that declares no regions, when qualification runs,
+/// then both countries' champions qualify and the higher-reputation club from
+/// either region can fill a spare place.
+#[test]
+fn an_undeclared_feeder_region_includes_every_region_in_the_competition_set() {
+    let mut game = empty_game();
+    // Three qualifiers into a four-club field, so exactly one reputation
+    // top-up remains. The minimum field is four.
+    let mut spain = division("es-d1", 0, "ES", &[("es1", 30), ("es2", 20)]);
+    spain.region_id = Some("europe".to_string());
+    game.competitions = vec![
+        continental_cup("open", &[]),
+        spain,
+        league_in_region("br-d1", "BR", "south-america", "br1"),
+    ];
+    game.teams.push(filler_club("es-filler", "ES", 10));
+    game.teams.push(filler_club("br-star", "BR", 99));
+
+    let field = continental_qualified_entrants(&game, &game.competitions[0]);
+
+    assert!(
+        field.contains(&"es1".to_string()) && field.contains(&"br1".to_string()),
+        "both champions qualify when no region is declared: {field:?}"
+    );
+    assert!(
+        field.contains(&"br-star".to_string()),
+        "a spare place may be filled from any region present: {field:?}"
+    );
+    assert!(
+        !field.contains(&"es-filler".to_string()),
+        "the lower-reputation filler loses the spare place: {field:?}"
     );
 }

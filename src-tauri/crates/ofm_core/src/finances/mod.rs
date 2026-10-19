@@ -1612,6 +1612,7 @@ mod tests {
             player("split", "team2", 20_000, Some(("team1", "team2", 60))),
             player("self-loan", "team2", 7_000, Some(("team2", "team2", 50))),
             player("free", "team1", 0, None),
+            player("idle", "zero-club", 0, None),
         ];
         game.players[3].team_id = None;
         let mut coach = Staff::new(
@@ -1637,7 +1638,7 @@ mod tests {
 
         let bills = super::wage_bills_by_club(&game);
 
-        for club in ["team1", "team2", "nobody", "volunteer-club"] {
+        for club in ["team1", "team2", "nobody", "volunteer-club", "zero-club"] {
             assert_eq!(
                 bills.get(club).copied().unwrap_or(0),
                 super::calc_wages(&game, club),
@@ -1645,6 +1646,10 @@ mod tests {
             );
         }
         assert!(!bills.contains_key("nobody"));
+        assert!(
+            !bills.contains_key("zero-club"),
+            "a club whose players all earn nothing is absent too"
+        );
         assert!(
             !bills.contains_key("volunteer-club"),
             "a club paying nobody is absent, as documented"

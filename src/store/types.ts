@@ -594,6 +594,9 @@ export interface FixtureData {
   home_team_id: string;
   away_team_id: string;
   competition: FixtureCompetition;
+  /** Whether the match is played for something: not a friendly, friendly cup or preseason
+   *  tournament. Computed by the backend (`Fixture::is_competitive`), never stored. */
+  competitive: boolean;
   status: "Scheduled" | "InProgress" | "Completed";
   /** Set when the match was moved off a date the player had already been shown. */
   postponement?: {

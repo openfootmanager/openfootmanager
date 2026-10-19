@@ -1113,7 +1113,7 @@ pub(crate) mod match_day_pool_tests {
             "the club signed nobody, so this proves nothing"
         );
         assert_eq!(
-            lookups.club("club"),
+            lookups.club(&with, "club"),
             crate::match_day_eligibility::club_positions(&with.players, "club")
         );
     }

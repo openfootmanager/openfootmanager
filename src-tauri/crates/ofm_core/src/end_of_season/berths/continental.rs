@@ -14,6 +14,19 @@ use domain::league::{Berth, BerthRule, CompetitionScope, CompetitionType, League
 /// first division. Cup winners qualify on top of these.
 const CONTINENTAL_LEAGUE_SLOTS: usize = 4;
 
+/// The competition's declared regions, or — if it declares none — every region
+/// present in the domestic competition set.
+fn feeder_regions(game: &Game, competition: &League) -> std::collections::HashSet<String> {
+    if competition.required_region_ids.is_empty() {
+        game.competitions
+            .iter()
+            .filter_map(|source| source.region_id.clone())
+            .collect()
+    } else {
+        competition.required_region_ids.iter().cloned().collect()
+    }
+}
+
 /// The clubs that qualify for a continental competition next season, decided by
 /// the domestic season just completed: the top finishers of each first division
 /// in the competition's feeder regions, plus domestic cup winners. The field is
@@ -27,16 +40,7 @@ const CONTINENTAL_LEAGUE_SLOTS: usize = 4;
 pub fn continental_qualified_entrants(game: &Game, competition: &League) -> Vec<String> {
     use std::collections::{BTreeMap, HashSet};
 
-    // Feeder regions: the competition's declared regions, or — if it declares
-    // none — every region present in the domestic competition set.
-    let feeder_regions: HashSet<String> = if competition.required_region_ids.is_empty() {
-        game.competitions
-            .iter()
-            .filter_map(|c| c.region_id.clone())
-            .collect()
-    } else {
-        competition.required_region_ids.iter().cloned().collect()
-    };
+    let feeder_regions = feeder_regions(game, competition);
     let in_feeder = |c: &League| {
         c.region_id
             .as_deref()
@@ -331,15 +335,7 @@ fn seed_cap_and_fill(
     seen: std::collections::HashSet<String>,
 ) -> Vec<String> {
     let field_size = competition.participant_ids.len().max(4);
-    let feeder_regions: std::collections::HashSet<String> =
-        if competition.required_region_ids.is_empty() {
-            game.competitions
-                .iter()
-                .filter_map(|c| c.region_id.clone())
-                .collect()
-        } else {
-            competition.required_region_ids.iter().cloned().collect()
-        };
+    let feeder_regions = feeder_regions(game, competition);
 
     let reputation = |id: &str| {
         game.teams

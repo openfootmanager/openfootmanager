@@ -197,6 +197,55 @@ describe("resolveMatchFixture", () => {
     expect(resolveMatchFixture(gameState, makeSnapshot(), route)?.id).toBe("cup-tie");
   });
 
+  /**
+   * Given two fixtures between the same two clubs (a league meeting weeks ago and today's cup tie)
+   * When the route names the league meeting
+   * Then it is the one named, not today's tie: the id decides, the pairing never overrules it.
+   */
+  it("resolves the fixture the route names even when another one pairs the same clubs", () => {
+    const earlier = fixture("league-meeting", "League", "home1", "away1");
+    earlier.date = "2026-03-01";
+    const todaysTie = fixture("cup-tie", "Cup", "home1", "away1");
+    todaysTie.date = "2026-08-01";
+    const game = {
+      clock: { current_date: "2026-08-01T12:00:00Z" },
+      league: { ...league, fixtures: [earlier] },
+      competitions: [
+        { ...league, fixtures: [earlier] },
+        { ...cup, fixtures: [todaysTie] },
+      ],
+    } as unknown as GameStateData;
+
+    expect(
+      resolveMatchFixture(game, makeSnapshot(), {
+        competitionId: "league-1",
+        fixtureId: "league-meeting",
+      })?.id,
+    ).toBe("league-meeting");
+  });
+
+  /**
+   * Given the same two fixtures and a route that carries no ids
+   * When the match is resolved from the two clubs
+   * Then it is the one dated today, not the earlier league meeting that happens to come first.
+   */
+  it("prefers the pairing played today when the route carries no ids", () => {
+    const earlier = fixture("league-meeting", "League", "home1", "away1");
+    earlier.date = "2026-03-01";
+    const todaysTie = fixture("cup-tie", "Cup", "home1", "away1");
+    todaysTie.date = "2026-08-01";
+    const game = {
+      clock: { current_date: "2026-08-01T12:00:00Z" },
+      league: { ...league, fixtures: [earlier] },
+      competitions: [
+        { ...league, fixtures: [earlier] },
+        { ...cup, fixtures: [todaysTie] },
+      ],
+    } as unknown as GameStateData;
+
+    expect(resolveMatchFixture(game, makeSnapshot())?.id).toBe("cup-tie");
+  });
+
   it("falls back to matching the snapshot teams when the route carries no ids", () => {
     expect(resolveMatchFixture(gameState, makeSnapshot())?.id).toBe("cup-tie");
   });

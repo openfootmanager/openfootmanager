@@ -2,9 +2,7 @@
 //! The legacy rollover guard is not a proof that a cup reached its final.
 
 use chrono::NaiveDate;
-use domain::league::{
-    CompetitionFormat, Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry,
-};
+use domain::league::{CompetitionFormat, Fixture, FixtureStatus, League, StandingEntry};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -48,10 +46,7 @@ pub fn verify_completed_edition(
             if table {
                 f.counts_for_league_standings()
             } else {
-                !matches!(
-                    f.competition,
-                    FixtureCompetition::Friendly | FixtureCompetition::PreseasonTournament
-                )
+                f.is_competitive()
             }
         })
         .collect();
@@ -329,6 +324,23 @@ mod tests {
             });
             blocked(&competition, None, CompletionFailure::InvalidBracket);
         }
+    }
+
+    /// Given a finished cup that also holds a friendly-cup tie nobody played
+    /// When completion is verified
+    /// Then the cup is complete: a friendly cup is not competitive, so its unplayed tie does not
+    ///      hold the edition open (a friendly cup was counted as competitive here).
+    #[test]
+    fn an_unplayed_friendly_cup_tie_does_not_hold_a_finished_cup_open() {
+        let mut competition = cup(4);
+        competition.fixtures.push(Fixture {
+            id: "friendly-cup-tie".into(),
+            competition: FixtureCompetition::FriendlyCup,
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        });
+
+        assert!(verify_completed_edition(&competition, None).is_ok());
     }
 
     /// Given completed three and four club tables of one and two legs, when completion is verified, then each full authored schedule has a proof with its actual final date.

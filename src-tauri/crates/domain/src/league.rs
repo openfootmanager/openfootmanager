@@ -253,7 +253,7 @@ pub enum FixtureCompetition {
     PreseasonTournament,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct Fixture {
     pub id: String,
@@ -268,6 +268,42 @@ pub struct Fixture {
     /// Set when the match was moved off a date the player had already been shown.
     #[serde(default)]
     pub postponement: Option<Postponement>,
+}
+
+/// Written by hand, not derived, to add `competitive` to what the screens receive. The answer is
+/// computed from `competition`, not a field; but every serializer of a fixture, including the
+/// save's JSON, writes it, and `Deserialize` ignores it on the way back in (a saved fixture loads
+/// with or without it). The destructuring below makes a new `Fixture` field a compile error here,
+/// so it cannot be dropped from every save unnoticed.
+impl Serialize for Fixture {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+        let Fixture {
+            id,
+            competition_id,
+            matchday,
+            date,
+            home_team_id,
+            away_team_id,
+            competition,
+            status,
+            result,
+            postponement,
+        } = self;
+        let mut fixture = serializer.serialize_struct("Fixture", 11)?;
+        fixture.serialize_field("id", id)?;
+        fixture.serialize_field("competition_id", competition_id)?;
+        fixture.serialize_field("matchday", matchday)?;
+        fixture.serialize_field("date", date)?;
+        fixture.serialize_field("home_team_id", home_team_id)?;
+        fixture.serialize_field("away_team_id", away_team_id)?;
+        fixture.serialize_field("competition", competition)?;
+        fixture.serialize_field("status", status)?;
+        fixture.serialize_field("result", result)?;
+        fixture.serialize_field("postponement", postponement)?;
+        fixture.serialize_field("competitive", &self.is_competitive())?;
+        fixture.end()
+    }
 }
 
 /// Where a moved match was first scheduled and why it moved.
@@ -444,6 +480,18 @@ impl Fixture {
         matches!(self.competition, FixtureCompetition::League)
     }
 
+    /// Whether the match is played for something: everything but a friendly, a friendly cup and a
+    /// preseason tournament. The one statement of it (the cup summaries, the completion proof and
+    /// the screens all ask it).
+    pub fn is_competitive(&self) -> bool {
+        !matches!(
+            self.competition,
+            FixtureCompetition::Friendly
+                | FixtureCompetition::FriendlyCup
+                | FixtureCompetition::PreseasonTournament
+        )
+    }
+
     /// The team advancing from this knockout fixture once a result is
     /// recorded: the winner on goals, or on penalties after a drawn tie.
     pub fn advancing_team_id(&self) -> Option<&str> {
@@ -549,6 +597,64 @@ impl Default for Fixture {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given a fixture of each competition kind
+    /// When it is asked whether it is competitive
+    /// Then a friendly, a friendly cup and a preseason tournament are not, and every other kind is.
+    #[test]
+    fn only_friendlies_and_preseason_tournaments_are_not_competitive() {
+        let kinds = [
+            (FixtureCompetition::League, true),
+            (FixtureCompetition::Cup, true),
+            (FixtureCompetition::ContinentalClub, true),
+            (FixtureCompetition::InternationalClub, true),
+            (FixtureCompetition::InternationalNation, true),
+            (FixtureCompetition::Friendly, false),
+            (FixtureCompetition::FriendlyCup, false),
+            (FixtureCompetition::PreseasonTournament, false),
+        ];
+        for (competition, expected) in kinds {
+            let kind = format!("{competition:?}");
+            let fixture = Fixture {
+                competition,
+                ..Default::default()
+            };
+            assert_eq!(fixture.is_competitive(), expected, "{kind}");
+        }
+    }
+
+    /// Given a friendly cup fixture and a league fixture
+    /// When they are serialised for the screens
+    /// Then each carries `competitive`, the backend's answer, so no screen decides it again.
+    #[test]
+    fn a_serialised_fixture_says_whether_it_is_competitive() {
+        let friendly_cup = Fixture {
+            competition: FixtureCompetition::FriendlyCup,
+            ..Default::default()
+        };
+
+        assert_eq!(
+            serde_json::to_value(&friendly_cup).unwrap()["competitive"],
+            false
+        );
+        assert_eq!(
+            serde_json::to_value(Fixture::default()).unwrap()["competitive"],
+            true
+        );
+    }
+
+    /// Given a fixture saved before the field existed, or carrying it
+    /// When it is read back
+    /// Then it loads either way: the answer is computed, never stored.
+    #[test]
+    fn a_fixture_loads_with_or_without_the_competitive_field() {
+        let written = serde_json::to_string(&Fixture::default()).unwrap();
+        let mut old: serde_json::Value = serde_json::from_str(&written).unwrap();
+        old.as_object_mut().unwrap().remove("competitive");
+
+        assert!(serde_json::from_str::<Fixture>(&written).is_ok());
+        assert!(serde_json::from_value::<Fixture>(old).is_ok());
+    }
 
     #[test]
     fn old_competition_rules_default_to_four_clubs_per_group() {

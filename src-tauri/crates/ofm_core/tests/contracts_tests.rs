@@ -9,9 +9,10 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::{FinancialTransactionKind, Team};
 use ofm_core::clock::GameClock;
 use ofm_core::contracts::{
-    DelegatedRenewalOptions, DelegatedRenewalResultStatus, RenewalDecision, RenewalOffer,
-    clear_contract_exit_intent, delegate_renewals, evaluate_renewal_offer, has_let_expire_intent,
-    offer_free_agent_contract, preview_contract_termination, project_free_agent_contract_impact,
+    ContractWarningStage, DelegatedRenewalOptions, DelegatedRenewalResultStatus, RenewalDecision,
+    RenewalOffer, clear_contract_exit_intent, contract_warning_stages, delegate_renewals,
+    evaluate_renewal_offer, has_let_expire_intent, offer_free_agent_contract,
+    preview_contract_termination, project_free_agent_contract_impact,
     project_renewal_financial_impact, propose_renewal, set_contract_exit_intent,
     terminate_contract_now,
 };
@@ -1527,4 +1528,52 @@ fn a_retired_player_cannot_be_signed_and_nothing_is_written() {
 
     assert!(refused.is_err());
     assert!(game.players[0].movement_history.is_empty());
+}
+
+/// Given players whose contracts end 400, 365, 181, 180, 90, 30 and 0 days from the game date (1 Aug
+///       2026), one already expired, and a player id the game does not have
+/// When the warning stages are asked for
+/// Then each carries the stage the daily warnings use (a year, six months, three months, the final
+///      weeks), a contract beyond a year or already over has none, and the unknown id is left out
+#[test]
+fn the_warning_stages_are_the_ones_the_daily_warnings_use() {
+    let mut game = make_game();
+    let ends = [
+        ("far", "2027-09-05"),
+        ("year", "2027-08-01"),
+        ("just-over-six", "2027-01-29"),
+        ("six", "2027-01-28"),
+        ("three", "2026-10-30"),
+        ("final", "2026-08-31"),
+        ("today", "2026-08-01"),
+        ("expired", "2026-07-27"),
+    ];
+    game.players = ends
+        .iter()
+        .map(|(id, end)| make_player_with(id, 1_000, end))
+        .collect();
+    let mut ids: Vec<String> = ends.iter().map(|(id, _)| id.to_string()).collect();
+    ids.push("nobody".to_string());
+
+    let stages = contract_warning_stages(&game, &ids);
+
+    let stage = |id: &str| stages.get(id).copied();
+    assert_eq!(stage("far"), Some(None));
+    assert_eq!(
+        stage("year"),
+        Some(Some(ContractWarningStage::TwelveMonths))
+    );
+    assert_eq!(
+        stage("just-over-six"),
+        Some(Some(ContractWarningStage::TwelveMonths))
+    );
+    assert_eq!(stage("six"), Some(Some(ContractWarningStage::SixMonths)));
+    assert_eq!(
+        stage("three"),
+        Some(Some(ContractWarningStage::ThreeMonths))
+    );
+    assert_eq!(stage("final"), Some(Some(ContractWarningStage::FinalWeeks)));
+    assert_eq!(stage("today"), Some(None));
+    assert_eq!(stage("expired"), Some(None));
+    assert_eq!(stage("nobody"), None);
 }

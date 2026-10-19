@@ -92,6 +92,8 @@ fn compute_coaching_bonus(game: &Game, team_id: &str, focus: &TrainingFocus) -> 
 struct TrainingDay {
     weekday_num: u32,
     date: chrono::NaiveDate,
+    /// The game's seed, which a player's development traits are drawn from.
+    world_seed: u64,
 }
 
 /// Below this individual condition a player is automatically rested in training
@@ -282,6 +284,7 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
     let day = TrainingDay {
         weekday_num,
         date: current_date,
+        world_seed: game.seed,
     };
     // One stream for the day's session: players are visited in the order of `game.players`,
     // which is stable, and `process_training` runs once a day.
@@ -427,18 +430,13 @@ fn train_player(
         return;
     }
 
-    // Age factor for attribute gains: younger players grow faster, older players slower
-    let age_factor = if age <= 21 {
-        1.5
-    } else if age <= 25 {
-        1.2
-    } else if age <= 29 {
-        1.0
-    } else if age <= 33 {
-        0.6
-    } else {
-        0.3
-    };
+    // Younger players grow faster and older ones slower, smoothly: by where the player is on his own
+    // development curve (late bloomers and goalkeepers read later) and how far he is from his
+    // ceiling. There is no step by age and no gate at the ceiling.
+    let traits = crate::development::traits_of(day.world_seed, &player.id);
+    let curve = crate::development::curve_age(player, age as i32, &traits);
+    let gap = player.potential.saturating_sub(player.ovr);
+    let age_factor = crate::development::training_factor(curve, gap);
 
     // Base gain per attribute per session, boosted by coaching staff
     let gain = 0.15
@@ -447,20 +445,14 @@ fn train_player(
         * plan.bonus.coaching_mult
         * plan.bonus.specialization_mult;
 
-    // Peaked players (ovr == potential) get no attribute gains. Without this
-    // gate, attribute drift lifts ovr, and `refresh_player_derived`'s
-    // `potential = max(potential, ovr)` invariant silently raises the career
-    // ceiling in lockstep — the ceiling stops being a ceiling.
-    if player.potential > player.ovr {
-        let is_goalkeeper = player.natural_position.to_group_position() == Position::Goalkeeper;
-        apply_focus_gains(
-            &mut player.attributes,
-            &session.focus,
-            is_goalkeeper,
-            gain,
-            rng,
-        );
-    }
+    let is_goalkeeper = player.natural_position.to_group_position() == Position::Goalkeeper;
+    apply_focus_gains(
+        &mut player.attributes,
+        &session.focus,
+        is_goalkeeper,
+        gain,
+        rng,
+    );
     apply_fitness_change(
         &mut player.fitness,
         &session.focus,
@@ -631,20 +623,21 @@ mod tests {
         }
     }
 
-    /// One sixth succeeds at the primary 0.225 rate and fails at the secondary 0.1125 rate.
+    /// One thirty-second succeeds at the primary rate (about 0.05 for a young player far from his
+    /// ceiling, after training's share of development) and fails at the secondary (about 0.025).
     struct BetweenGainRates;
 
     impl rand::TryRng for BetweenGainRates {
         type Error = std::convert::Infallible;
         fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            Ok(u32::MAX / 6)
+            Ok(u32::MAX / 32)
         }
         fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(u64::MAX / 6)
+            Ok(u64::MAX / 32)
         }
         fn try_fill_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Self::Error> {
             for chunk in bytes.chunks_mut(8) {
-                chunk.copy_from_slice(&(u64::MAX / 6).to_le_bytes()[..chunk.len()]);
+                chunk.copy_from_slice(&(u64::MAX / 32).to_le_bytes()[..chunk.len()]);
             }
             Ok(())
         }
@@ -688,6 +681,7 @@ mod tests {
             &TrainingDay {
                 weekday_num,
                 date: domain::age::season_midpoint(2026),
+                world_seed: 1,
             },
             &mut LowestRoll,
         );
@@ -764,6 +758,7 @@ mod tests {
             &TrainingDay {
                 weekday_num: 0,
                 date: domain::age::season_midpoint(2026),
+                world_seed: 1,
             },
             &mut BetweenGainRates,
         );
@@ -915,6 +910,7 @@ mod tests {
                 &TrainingDay {
                     weekday_num: 2,
                     date: chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap(),
+                    world_seed: 1,
                 },
                 &mut LowestRoll,
             );

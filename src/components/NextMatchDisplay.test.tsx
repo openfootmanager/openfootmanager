@@ -103,6 +103,7 @@ function createGameState(): GameStateData {
       standings: [],
       fixtures: [
         {
+          competitive: false,
           id: "friendly-1",
           matchday: 0,
           date: "2026-07-17",
@@ -163,6 +164,7 @@ function completedTwoClubLeague(): GameStateData {
       },
     ],
     fixtures: [1, 2].map((matchday) => ({
+      competitive: true,
       id: `league-${matchday}`,
       matchday,
       date: `2026-08-0${matchday}`,
