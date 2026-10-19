@@ -28,6 +28,28 @@ describe("PageToolbar", () => {
     expect(order).toEqual(["tabs", "Position", "Make bid"]);
   });
 
+  /**
+   * Given tabs wider than the toolbar,
+   * then their slot may shrink to the toolbar's width, so the tablist scrolls inside it rather
+   * than pushing the page sideways, and keeps a full toolbar row's height when the filters wrap
+   * below it, so the underline still sits on the row's bottom edge.
+   */
+  it("lets the tabs' slot shrink to the toolbar's width and keep a row's height", () => {
+    render(<PageToolbar start={<span>tabs</span>} />);
+    const slot = screen.getByText("tabs").parentElement;
+    expect(slot).toHaveClass("min-w-0", "max-w-full", "min-h-toolbar");
+  });
+
+  /**
+   * Given filters and an action that wrap onto a new line,
+   * then their group packs to the right, so the action stays at the toolbar's right end.
+   */
+  it("keeps the action at the right end when the filters wrap", () => {
+    render(<PageToolbar action={<button type="button">Hire</button>} />);
+    const group = screen.getByRole("button", { name: "Hire" }).parentElement;
+    expect(group).toHaveClass("ml-auto", "justify-end");
+  });
+
   /** Given only an action, then the toolbar renders it on its own. */
   it("renders with only an action", () => {
     render(<PageToolbar action={<button type="button">Hire</button>} />);

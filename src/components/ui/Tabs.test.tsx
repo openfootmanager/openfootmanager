@@ -125,4 +125,66 @@ describe("Tabs", () => {
     fireEvent.keyDown(first, { key: "ArrowRight" });
     expect(screen.getByRole("tab", { name: /My list/ })).toHaveAttribute("aria-selected", "true");
   });
+
+  /**
+   * Given more tabs than fit (long German labels at extra-large scale),
+   * when they render,
+   * then the tablist scrolls inside its own box and may shrink, and no label breaks or squeezes,
+   * so the page never scrolls sideways. jsdom has no layout: the page harness measures it.
+   */
+  it("scrolls a long tablist inside its own box", () => {
+    render(<Harness />);
+    const tablist = screen.getByRole("tablist");
+    expect(tablist).toHaveClass("overflow-x-auto", "min-w-0");
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("shrink-0", "whitespace-nowrap");
+    }
+  });
+
+  /**
+   * Given a selection made with the keyboard,
+   * when the selected tab changes,
+   * then the tablist scrolls just enough to show it, and the page doesn't move.
+   */
+  it("scrolls the tablist, never the page, to show the newly selected tab", () => {
+    const windowScroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<Harness />);
+    // jsdom has no layout: give the tablist a 200px view and the last tab a place past it.
+    const list = screen.getByRole("tablist");
+    Object.defineProperty(list, "clientWidth", { value: 200 });
+    Object.defineProperty(list, "scrollLeft", { value: 0, writable: true });
+    const offers = screen.getByRole("tab", { name: /Offers/ });
+    Object.defineProperty(offers, "offsetLeft", { value: 300 });
+    Object.defineProperty(offers, "offsetWidth", { value: 80 });
+    expect(list.scrollLeft).toBe(0);
+
+    const first = screen.getByRole("tab", { name: /Players/ });
+    first.focus();
+    fireEvent.keyDown(first, { key: "End" });
+    expect(list.scrollLeft).toBe(180);
+
+    fireEvent.keyDown(offers, { key: "Home" });
+    expect(list.scrollLeft).toBe(0);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(windowScroll).not.toHaveBeenCalled();
+    windowScroll.mockRestore();
+  });
+
+  /**
+   * Given a selected id that no tab has,
+   * when the tabs render,
+   * then the first tab takes the tab stop, so the tablist can still be reached.
+   */
+  it("keeps a tab stop when the selected id matches no tab", () => {
+    render(<Tabs idPrefix="t" label="Tabs" tabs={TABS} selectedId="gone" onSelect={vi.fn()} />);
+    expect(screen.getAllByRole("tab").map((tab) => tab.tabIndex)).toEqual([0, -1, -1]);
+  });
+
+  /** Given the underline look, then the selected tab's underline is the positive colour (5.48:1). */
+  it("underlines the selected tab in the positive colour", () => {
+    render(<Harness />);
+    expect(screen.getByRole("tab", { name: /Players/ })).toHaveClass("border-positive");
+  });
 });
