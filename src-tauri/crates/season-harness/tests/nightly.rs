@@ -143,7 +143,7 @@ impl PlayerClubWatch {
                 .unwrap_or("never");
             self.reported = true;
             self.unwarned.push(format!(
-                "[season {season} day {day}] {club}'s shortfall changed on {}: {} entered or got worse and was not warned about (last warning: {last_warning})",
+                "[season {season} day {day}] {club}'s shortfall changed on {}: {} entered or changed and was not warned about (last warning: {last_warning})",
                 self.changed_on,
                 self.owed.iter().cloned().collect::<Vec<_>>().join(", ")
             ));
@@ -277,7 +277,7 @@ fn warn_about_every_shortage(game: &mut Game) {
 
 /// Given the player's club short in defence and in attack, warned about both,
 /// When the defence is filled and the attack gap stays as it was,
-/// Then nothing is owed: the game warns when a shortage enters or gets worse, not when one leaves
+/// Then nothing is owed: the game warns when a shortage enters or changes, not when one leaves
 ///      (the maintainer's rule of 12 Oct 2026). This is the 4 Jul 2037 case of the red nightly.
 #[test]
 #[ignore = "nightly tier"]
@@ -345,6 +345,33 @@ fn a_shortage_getting_worse_is_news_even_while_another_leaves() {
 
     game.players.extend(defenders);
     take_out(&mut game, &club, Position::Forward, 0);
+    watch_days(&mut watch, &mut game, 3);
+
+    assert_eq!(watch.unwarned.len(), 1, "{:?}", watch.unwarned);
+}
+
+/// Given the player's club with no forwards, warned about it,
+/// When one forward comes back, so the club is still one short, and nothing is sent,
+/// Then the watch reports it: the game's marker includes the count, so any change warns again,
+///      an improvement that is still short included.
+#[test]
+#[ignore = "nightly tier"]
+fn a_shortage_that_improves_while_still_short_is_news() {
+    let mut game = WorldSpec::gate(1).build().expect("the world builds");
+    let club = players_club(&game);
+    let mut forwards = take_out(&mut game, &club, Position::Forward, 0);
+    let mut watch = PlayerClubWatch::default();
+    game.clock.advance_days(1);
+    warn_about_every_shortage(&mut game);
+    watch_days(&mut watch, &mut game, 2);
+    assert!(watch.unwarned.is_empty(), "{:?}", watch.unwarned);
+
+    game.players.push(forwards.remove(0));
+    let shortfall = squad_shortfall(&game, &club);
+    assert!(
+        shortfall.contains(&(Shortage::Group(Position::Forward), 1)),
+        "one forward back, still one short: {shortfall:?}"
+    );
     watch_days(&mut watch, &mut game, 3);
 
     assert_eq!(watch.unwarned.len(), 1, "{:?}", watch.unwarned);
