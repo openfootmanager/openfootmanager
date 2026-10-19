@@ -7,6 +7,7 @@ import KnockoutBracket from "./KnockoutBracket";
 function penaltyFixture(): FixtureData {
   return {
     competitive: true,
+    advancing_team_id: "away",
     id: "ko-1",
     matchday: 1,
     date: "2026-07-10",
@@ -23,6 +24,13 @@ function penaltyFixture(): FixtureData {
       away_penalties: 4,
     },
   };
+}
+
+/** The goals say the home side won; the backend's answer is what the bracket follows. */
+function fixtureWhoseBackendAnswerIsAway(): FixtureData {
+  const fixture = penaltyFixture();
+  fixture.result = { home_goals: 2, away_goals: 1, home_scorers: [], away_scorers: [] };
+  return fixture;
 }
 
 function renderBracket(fixture: FixtureData) {
@@ -58,6 +66,7 @@ describe("KnockoutBracket penalty shootouts", () => {
 
   it("does not show a shootout tally when the tie was settled in normal time", () => {
     const fixture = penaltyFixture();
+    fixture.advancing_team_id = "home";
     fixture.result = {
       home_goals: 2,
       away_goals: 1,
@@ -68,5 +77,40 @@ describe("KnockoutBracket penalty shootouts", () => {
 
     const slot = screen.getByTestId("tournaments-bracket-ko-1");
     expect(within(slot).queryByText(/\(\d+\)/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a played tie whose goals favour the home side but for which the backend names the away side
+   * When the bracket renders it
+   * Then the away row is the winner: the bracket follows the backend, it does not compare scores.
+   */
+  it("marks the side the backend says advances, not the side with more goals", () => {
+    renderBracket(fixtureWhoseBackendAnswerIsAway());
+
+    const slot = screen.getByTestId("tournaments-bracket-ko-1");
+    expect(within(slot).getByText("France").closest("div")?.className).toContain("bg-primary-50");
+    expect(within(slot).getByText("Brazil").closest("div")?.className).not.toContain(
+      "bg-primary-50",
+    );
+  });
+
+  /**
+   * Given a tie with no result yet and no answer from the backend
+   * When the bracket renders it
+   * Then neither row is marked.
+   */
+  it("marks no side before there is a result", () => {
+    const fixture = penaltyFixture();
+    fixture.result = null;
+    fixture.advancing_team_id = null;
+    renderBracket(fixture);
+
+    const slot = screen.getByTestId("tournaments-bracket-ko-1");
+    expect(within(slot).getByText("France").closest("div")?.className).not.toContain(
+      "bg-primary-50",
+    );
+    expect(within(slot).getByText("Brazil").closest("div")?.className).not.toContain(
+      "bg-primary-50",
+    );
   });
 });

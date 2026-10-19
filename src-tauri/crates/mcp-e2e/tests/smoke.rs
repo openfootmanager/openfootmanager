@@ -112,10 +112,7 @@ fn the_file_on_disk_holds_what_the_game_holds() {
     let on_disk = saves.load_game(&career.save_id).unwrap();
 
     let on_disk = by_national_team_id(serde_json::to_value(&on_disk).unwrap());
-    let mut differing = Vec::new();
-    json_differences("game", &live, &on_disk, &mut differing);
-
-    let unexplained = differing;
+    let unexplained = unexplained_differences(&live, &on_disk);
     assert!(
         unexplained.is_empty(),
         "{} places differ after a save and load, first ten:\n{}{}",
@@ -159,6 +156,25 @@ fn shapes(paths: &[String]) -> String {
         *shapes.entry(shape).or_default() += 1;
     }
     format!("\nshapes:\n{shapes:#?}")
+}
+
+/// Fields of the live game that a save deliberately does not hold, each with the reason. A path
+/// listed here is skipped exactly: a field of the same name anywhere else is still compared.
+const NOT_SAVED: &[(&str, &str)] = &[(
+    "game.career_token",
+    "session identity: install_career stamps a fresh one on every load, the screen reads it from the \
+     game JSON, and it is never written to the save",
+)];
+
+/// Where the live game and the one loaded from the save differ, minus the fields in [`NOT_SAVED`].
+fn unexplained_differences(live: &Value, on_disk: &Value) -> Vec<String> {
+    let mut differing = Vec::new();
+    json_differences("game", live, on_disk, &mut differing);
+    differing.retain(|difference| {
+        let path = difference.split(": ").next().unwrap_or(difference);
+        !NOT_SAVED.iter().any(|(skipped, _)| *skipped == path)
+    });
+    differing
 }
 
 /// Where two JSON documents differ, as paths.
@@ -287,3 +303,63 @@ hidden_in_competition_mode!(
     competition_omits_and_rejects_game_exit => "game_exit",
     competition_omits_and_rejects_game_load_save => "game_load_save",
 );
+
+/// Given a live game carrying a career token (session identity) and a save that has none
+/// When they are compared
+/// Then the token is not a difference: a save never holds it, and a loaded game is stamped anew.
+#[test]
+fn a_field_that_is_session_identity_is_not_a_difference() {
+    let live = json!({ "career_token": 2, "clock": { "current_date": "2026-08-01" } });
+    let on_disk = json!({ "career_token": 0, "clock": { "current_date": "2026-08-01" } });
+
+    assert_eq!(
+        unexplained_differences(&live, &on_disk),
+        Vec::<String>::new()
+    );
+}
+
+/// Given a save that lost a real field, and the same field name under another path
+/// When they are compared
+/// Then both are differences: only the exact path in the not-saved list is skipped.
+#[test]
+fn a_real_difference_is_still_reported_and_an_exception_is_exact() {
+    let live = json!({
+        "career_token": 2,
+        "teams": [{ "finance": 100, "career_token": 5 }],
+    });
+    let on_disk = json!({
+        "career_token": 0,
+        "teams": [{ "finance": 90, "career_token": 6 }],
+    });
+
+    let found = unexplained_differences(&live, &on_disk);
+
+    assert_eq!(found.len(), 2, "{found:?}");
+    assert!(found.iter().any(|d| d.starts_with("game.teams[0].finance")));
+    assert!(found
+        .iter()
+        .any(|d| d.starts_with("game.teams[0].career_token")));
+}
+
+/// Given the fields the comparison skips
+/// When each entry is read
+/// Then it names one exact path under `game` and gives a real reason: a field added to the list
+///      without saying why a save does not hold it fails here.
+#[test]
+fn every_field_the_save_does_not_hold_names_an_exact_path_and_a_reason() {
+    assert!(!NOT_SAVED.is_empty());
+    for (path, reason) in NOT_SAVED {
+        assert!(
+            path.starts_with("game."),
+            "{path} must be a path under game"
+        );
+        assert!(
+            !path.contains(['*', '[', ']']),
+            "{path} must be one exact path, not a pattern"
+        );
+        assert!(
+            reason.split_whitespace().count() >= 8,
+            "{path} needs a reason a reviewer can weigh, not a label: {reason:?}"
+        );
+    }
+}
