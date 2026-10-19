@@ -3569,6 +3569,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : Rapport du tournoi de présaison",
           "body": "Dans ce tournoi de présaison, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Les deux équipes ont profité de la rencontre pour se mettre en jambes avant le début de la saison compétitive.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : Compte rendu du match ({{competition}})",
+          "body": "{{competition}} : le match s'est terminé sur le score de {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {

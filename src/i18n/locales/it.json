@@ -3569,6 +3569,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Rapporto torneo di pre-stagione",
           "body": "Nel torneo di pre-stagione, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Entrambe le squadre hanno usato la partita per affinare la forma.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Cronaca della partita ({{competition}})",
+          "body": "{{competition}}: la partita è finita {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
