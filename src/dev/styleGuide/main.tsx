@@ -5,7 +5,11 @@ import "../../App.css";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { i18nReady } from "../../i18n";
 import { StyleGuide } from "./StyleGuide";
-import { applyStyleGuideOptions, readStyleGuideOptions } from "./styleGuideOptions";
+import {
+  applyStyleGuideOptions,
+  readStyleGuideOptions,
+  STYLE_GUIDE_THEME_KEY,
+} from "./styleGuideOptions";
 
 const options = readStyleGuideOptions(window.location.search);
 applyStyleGuideOptions(options, document.documentElement, localStorage);
@@ -15,7 +19,7 @@ if (rootElement) {
   void i18nReady.then(() => {
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
-        <ThemeProvider>
+        <ThemeProvider storageKey={STYLE_GUIDE_THEME_KEY}>
           <StyleGuide options={options} />
         </ThemeProvider>
       </React.StrictMode>,

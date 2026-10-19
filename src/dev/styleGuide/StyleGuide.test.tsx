@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +13,16 @@ const SOURCES = import.meta.glob(["../../components/ui/index.ts", "./StyleGuide.
   import: "default",
   eager: true,
 }) as Record<string, string>;
+
+/** Every design token `@theme` in App.css defines (a `--text-*--line-height` belongs to its size). */
+function themeTokens(): string[] {
+  // Read with node:fs: Vitest stubs CSS imports to "" even with ?raw.
+  const css = readFileSync("src/App.css", "utf-8");
+  const theme = css.slice(css.indexOf("@theme {"), css.indexOf("\n}", css.indexOf("@theme {")));
+  return [...theme.matchAll(/^\s*(--[a-z0-9-]+):/gm)]
+    .map((match) => match[1])
+    .filter((name) => !name.includes("--line-height"));
+}
 
 /** The components index.ts exports: hooks and types are not drawn, so they are left out. */
 function exportedComponents(): string[] {
@@ -48,6 +60,36 @@ describe("style guide", () => {
     );
     expect(exportedComponents().length).toBeGreaterThan(10);
     expect(missing).toEqual([]);
+  });
+
+  /**
+   * Given every token App.css's @theme defines,
+   * when the style guide's source is read,
+   * then each one is named there, so the guide shows every token and a new one can't ship unseen.
+   */
+  it("names every theme token", () => {
+    const guide = SOURCES["./StyleGuide.tsx"];
+    const tokens = themeTokens();
+    expect(tokens.length).toBeGreaterThan(80);
+    expect(tokens.filter((token) => !guide.includes(`"${token}"`))).toEqual([]);
+  });
+
+  /**
+   * Given the type specimens,
+   * when the guide renders,
+   * then each is set by its static role class, never an inline size, as the type rule says.
+   */
+  it("sets each type specimen with its role class", () => {
+    render(
+      <ThemeProvider>
+        <StyleGuide options={readStyleGuideOptions("")} />
+      </ThemeProvider>,
+    );
+    for (const role of ["caption", "body", "lead", "heading", "title", "display"]) {
+      const specimen = screen.getByText(new RegExp(`^${role}: Callum Fraser`));
+      expect(specimen).toHaveClass(`text-${role}`);
+      expect(specimen.style.fontSize).toBe("");
+    }
   });
 
   /**
@@ -113,8 +155,8 @@ describe("style guide", () => {
   /**
    * Given dark, compact, extra large and high contrast in the URL,
    * when the options are put on the document,
-   * then the root carries the three classes and the 20px root size, and the theme is stored for
-   * ThemeProvider; light, comfortable and normal take the classes off again.
+   * then the root carries the three classes and the 20px root size, and the theme is stored under
+   * the guide's own key, never the app's; light, comfortable and normal take the classes off again.
    */
   it("puts every option on the document", () => {
     const root = document.createElement("html");
@@ -128,11 +170,12 @@ describe("style guide", () => {
     );
     expect([...root.classList].sort()).toEqual(["dark", "density-compact", "high-contrast"]);
     expect(root.style.fontSize).toBe("20px");
-    expect(stored.get("ofm-theme")).toBe("dark");
+    expect(stored.get("ofm-style-guide-theme")).toBe("dark");
+    expect(stored.has("ofm-theme")).toBe(false);
 
     applyStyleGuideOptions(readStyleGuideOptions(""), root, storage);
     expect([...root.classList]).toEqual([]);
     expect(root.style.fontSize).toBe("16px");
-    expect(stored.get("ofm-theme")).toBe("light");
+    expect(stored.get("ofm-style-guide-theme")).toBe("light");
   });
 });

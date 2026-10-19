@@ -49,6 +49,8 @@ const TEXT_AND_LINES = [
   "--color-line-strong",
   "--color-focus",
   "--color-on-brand",
+  "--color-chrome-fg",
+  "--color-chrome-fg-muted",
 ];
 const STATUSES = [
   ["--color-positive", "--color-positive-tint", "--color-positive-solid"],
@@ -63,13 +65,51 @@ const TONES = [
   ["--color-tone-low", "--color-tone-low-tint", "--color-tone-low-solid"],
   ["--color-tone-bad", "--color-tone-bad-tint", "--color-tone-bad-solid"],
 ].flat();
+const BRAND = [
+  ["--color-primary-50", "--color-primary-100", "--color-primary-200", "--color-primary-300"],
+  ["--color-primary-400", "--color-primary-500", "--color-primary-600", "--color-primary-700"],
+  ["--color-primary-800", "--color-primary-900"],
+  ["--color-accent-50", "--color-accent-100", "--color-accent-200", "--color-accent-300"],
+  ["--color-accent-400", "--color-accent-500", "--color-accent-600", "--color-accent-700"],
+  ["--color-accent-800", "--color-accent-900"],
+  ["--color-navy-900", "--color-navy-800", "--color-navy-700", "--color-navy-600"],
+  ["--color-success-400", "--color-success-500", "--color-success-600"],
+].flat();
+const DATA_AND_PITCH = [
+  "--color-series-1",
+  "--color-series-2",
+  "--color-kit-home-fallback",
+  "--color-kit-away-fallback",
+  "--color-turf-near",
+  "--color-turf-far",
+  "--color-pitch-line",
+  "--color-pitch-press",
+  "--color-pitch-defensive-line",
+];
+// Static classes, not an inline size from the variable: the guide follows the type rule it shows.
 const TYPE_ROLES = [
-  "--text-caption",
-  "--text-body",
-  "--text-lead",
-  "--text-heading",
-  "--text-title",
-  "--text-display",
+  { token: "--text-caption", className: "text-caption" },
+  { token: "--text-body", className: "text-body" },
+  { token: "--text-lead", className: "text-lead" },
+  { token: "--text-heading", className: "text-heading" },
+  { token: "--text-title", className: "text-title" },
+  { token: "--text-display", className: "text-display" },
+];
+const HEIGHTS = [
+  { token: "--spacing-row", className: "h-row", use: "a table or list row" },
+  { token: "--spacing-panel-header", className: "h-panel-header", use: "a panel's header" },
+  { token: "--spacing-toolbar", className: "h-toolbar", use: "a page toolbar" },
+];
+const WIDTHS = [
+  { token: "--container-page", use: "the page width (max-w-page)" },
+  {
+    token: "--container-split",
+    use: "two panels side by side above this container width (@split)",
+  },
+];
+const FONTS = [
+  { token: "--font-heading", className: "font-heading uppercase tracking-label" },
+  { token: "--font-sans", className: "font-sans" },
 ];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -111,14 +151,49 @@ function TokensSection() {
       <Swatches tokens={TEXT_AND_LINES} />
       <Swatches tokens={STATUSES} />
       <Swatches tokens={TONES} />
+      <Swatches tokens={BRAND} />
+      <Swatches tokens={DATA_AND_PITCH} />
       <div className="flex flex-col gap-1 rounded-lg border border-line bg-panel p-4">
-        {TYPE_ROLES.map((role) => (
-          <p key={role} className="text-fg" style={{ fontSize: `var(${role})` }}>
-            {role.replace("--text-", "")}: Callum Fraser · Central midfielder · 77
+        {TYPE_ROLES.map(({ token, className }) => (
+          <p key={token} className={`${className} text-fg`}>
+            {token.replace("--text-", "")}: Callum Fraser · Central midfielder · 77
           </p>
         ))}
       </div>
+      <LayoutTokens />
     </Section>
+  );
+}
+
+/** Heights drawn at their size (they shrink under compact density); widths, fonts and tracking named. */
+function LayoutTokens() {
+  return (
+    <div className="grid gap-2 rounded-lg border border-line bg-panel p-4 text-caption text-fg-muted">
+      {HEIGHTS.map(({ token, className, use }) => (
+        <div key={token} className="flex items-center gap-3">
+          <div
+            className={`${className} w-16 shrink-0 rounded-sm bg-sunken ring-1 ring-inset ring-line`}
+          />
+          <span>
+            <span className="text-fg">{token.replace("--", "")}</span>: {use}
+          </span>
+        </div>
+      ))}
+      {WIDTHS.map(({ token, use }) => (
+        <p key={token}>
+          <span className="text-fg">{token.replace("--", "")}</span>: {use}
+        </p>
+      ))}
+      {FONTS.map(({ token, className }) => (
+        <p key={token} className={`${className} text-body text-fg`}>
+          {token.replace("--", "")}: Callum Fraser · 77
+        </p>
+      ))}
+      <p>
+        <span className="text-fg">{"--tracking-label".replace("--", "")}</span>: the letter spacing
+        of uppercase headings, buttons, badges and tabs
+      </p>
+    </div>
   );
 }
 

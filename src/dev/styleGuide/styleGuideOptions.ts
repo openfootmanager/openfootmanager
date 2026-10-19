@@ -1,5 +1,11 @@
 import { rootFontSizeFor, type UiScale } from "../../lib/uiScale";
 
+/**
+ * The guide keeps its theme under its own key: it runs on the same dev origin as the app, and
+ * writing the app's key would change the theme the app opens in.
+ */
+export const STYLE_GUIDE_THEME_KEY = "ofm-style-guide-theme";
+
 export interface StyleGuideOptions {
   theme: "light" | "dark";
   density: "comfortable" | "compact";
@@ -27,7 +33,7 @@ export function applyStyleGuideOptions(
   root.classList.toggle("density-compact", options.density === "compact");
   root.classList.toggle("high-contrast", options.highContrast);
   root.style.fontSize = options.rootFontSize;
-  storage.setItem("ofm-theme", options.theme);
+  storage.setItem(STYLE_GUIDE_THEME_KEY, options.theme);
 }
 
 /** The guide's settings, from the URL so a screenshot can ask for any combination. */

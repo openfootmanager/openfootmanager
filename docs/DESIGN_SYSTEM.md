@@ -13,7 +13,8 @@ colours), the Rust side decides and the frontend only paints.
 
 Run `npm run dev` and open **http://localhost:1420/style-guide.html**. The style guide draws
 every token and every component in `src/components/ui` from fixtures, with no backend and no
-career. It's for development only: it isn't in the build, and no player sees it.
+career; its test fails when a token in `@theme` or an exported component is missing from it. It's
+for development only: it isn't in the build, and no player sees it.
 
 Its URL sets the conditions:
 
@@ -131,7 +132,7 @@ cards. Each one gets a row here and a place in the style guide in the PR that ad
 ## 4. Rated values
 
 Any value the game rates (OVR and potential, an attribute, condition, morale, a match rating,
-form) is coloured by **tone**: `top`, `good`, `fair`, `neutral`, `low`, `bad`. **The backend
+form) is coloured by **tone**: `top`, `good`, `fair`, `neutral` (no colour), `low`, `bad`. **The backend
 decides the tone**, the way `ofm_core::player_tier` decides S, A and B, and the frontend only
 paints it. A TypeScript file never compares a number against a threshold to pick a colour.
 
@@ -139,8 +140,10 @@ A tone never stands alone: there is always a letter, a word or the number next t
 the game doesn't know (an unscouted attribute, a match not yet rated) shows "–" in `fg-subtle`,
 never a grey number that could read as a low value.
 
-Condition has words as well as tones, from one rule in `ofm_core` that also drives the staff
-warnings and the squad's fitness counts. The words, the tones and the counts therefore always agree:
+Condition will have words as well as tones, from one rule in `ofm_core` that will also drive the
+staff warnings and the squad's fitness counts, so the words, the tones and the counts always
+agree. The maintainer chose these bands; the rule doesn't exist yet (today's fitness status splits
+only at 40 and 25), and this section is updated when it lands:
 
 | Condition | Word | Tone |
 |---|---|---|
@@ -192,7 +195,11 @@ window the game opens at) and 960×640 (its minimum).
   Chrome, for example
   `google-chrome --headless=new --window-size=1280,3300 --screenshot=out.png "http://localhost:1420/style-guide.html?theme=dark"`.
 - **A page:** run a debug build with `--features mcp` under Xvfb through `tauri-driver`, start a
-  career over the MCP port (`game_new`), and drive the UI over WebDriver. Under Xvfb the webview
+  career over the MCP port (`game_new`), and drive the UI over WebDriver. Give the app private
+  `XDG_DATA_HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` directories, so it
+  never reads or writes your real saves and settings, and `GDK_BACKEND=x11` with
+  `XDG_SESSION_TYPE=x11`, so it opens on the Xvfb display rather than your Wayland desktop.
+  `src-tauri/crates/mcp-e2e/src/app.rs` launches it this way. Under Xvfb the webview
   runs at device pixel ratio 2. If screenshots stop returning while JavaScript still answers,
   the webview has stopped painting: restart the whole stack, including orphaned
   `WebKitWebProcess` processes.
