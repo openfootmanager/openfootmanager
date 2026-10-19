@@ -1440,14 +1440,31 @@ mod tests {
     /// The user's side as the live session holds it — the engine's own copy of
     /// the team, which is what the match is actually played with.
     fn user_side_in_session(state: &StateManager) -> engine::TeamData {
+        let (phase, side) = user_side_and_phase(state);
+        assert_eq!(phase, engine::MatchPhase::PreKickOff);
+        side
+    }
+
+    fn user_side_and_phase(state: &StateManager) -> (engine::MatchPhase, engine::TeamData) {
         let snapshot = state
             .with_live_match(|session| session.snapshot())
             .expect("a live match session exists after a live advance");
-        assert_eq!(snapshot.phase, engine::MatchPhase::PreKickOff);
-        [snapshot.home_team, snapshot.away_team]
+        let side = [snapshot.home_team, snapshot.away_team]
             .into_iter()
             .find(|team| team.id == "team1")
-            .expect("the user's club is one of the two sides")
+            .expect("the user's club is one of the two sides");
+        (snapshot.phase, side)
+    }
+
+    /// The round-summary game with the user's fixture turned round, so team1 plays away.
+    fn make_round_summary_game_away() -> Game {
+        let mut game = make_round_summary_game();
+        for league in game.league.iter_mut().chain(game.competitions.iter_mut()) {
+            for fixture in league.fixtures.iter_mut().filter(|f| f.id == "fix1") {
+                std::mem::swap(&mut fixture.home_team_id, &mut fixture.away_team_id);
+            }
+        }
+        game
     }
 
     fn user_goalkeeper_role_in_session(state: &StateManager) -> engine::PlayerRole {
@@ -1572,13 +1589,23 @@ mod tests {
         state.set_game(make_round_summary_game());
         advance_time_with_mode_internal(&state, "live").expect("live advance response");
         crate::application::live_match::step_live_match(&state, 1).expect("the match kicks off");
+        let (phase, side) = user_side_and_phase(&state);
+        assert_ne!(
+            phase,
+            engine::MatchPhase::PreKickOff,
+            "the match must have started"
+        );
+        let line_at_kick_off = side.tactics.defensive_line;
+        assert_ne!(line_at_kick_off, engine::DefensiveLine::High);
 
         set_defensive_line_high(&state);
 
-        let line_in_play = state
-            .with_live_match(|session| session.snapshot().home_team.tactics.defensive_line)
-            .expect("a live match session exists");
-        assert_eq!(line_in_play, engine::DefensiveLine::Medium);
+        let stored_line = state
+            .get_game(|game| game.teams[0].tactics_phase.defensive_line.clone())
+            .expect("active game");
+        assert_eq!(stored_line, domain::team::DefensiveLine::High);
+        let (_, side) = user_side_and_phase(&state);
+        assert_eq!(side.tactics.defensive_line, line_at_kick_off);
     }
 
     /// Given a pre-kick-off match where a substitute forward, saved as a Poacher, has been
@@ -1644,5 +1671,62 @@ mod tests {
             .expect("the forward now starts");
         assert_eq!(swapped_in.position, engine::Position::Defender);
         assert_eq!(swapped_in.role, engine::PlayerRole::Standard);
+    }
+
+    /// Given an active career whose user team plays away, with the match waiting at kick-off,
+    /// When the user raises the defensive line on the pre-match screen,
+    /// Then the away side of the match plays with the high line.
+    #[test]
+    fn a_dial_changed_before_kick_off_reaches_an_away_match() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game_away());
+        advance_time_with_mode_internal(&state, "live").expect("live advance response");
+        let away_id = state
+            .with_live_match(|session| session.snapshot().away_team.id)
+            .expect("a live match session exists");
+        assert_eq!(
+            away_id, "team1",
+            "the fixture must put the user's club away"
+        );
+        assert_ne!(
+            user_side_in_session(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+
+        set_defensive_line_high(&state);
+
+        assert_eq!(
+            user_side_in_session(&state).tactics.defensive_line,
+            engine::DefensiveLine::High
+        );
+    }
+
+    /// Given a pre-kick-off match whose goalkeeper was made a Sweeper Keeper on the pre-match
+    /// screen,
+    /// When the user clears his role,
+    /// Then he goes into the match on the Standard role.
+    #[test]
+    fn a_role_cleared_before_kick_off_leaves_the_match_on_standard() {
+        let state = StateManager::new();
+        state.set_game(make_round_summary_game());
+        advance_time_with_mode_internal(&state, "live").expect("live advance response");
+        crate::commands::squad::set_player_role_internal(
+            &state,
+            "a-gk".to_string(),
+            Some("SweeperKeeper".to_string()),
+        )
+        .expect("a goalkeeper may be a Sweeper Keeper");
+        assert_eq!(
+            user_goalkeeper_role_in_session(&state),
+            engine::PlayerRole::SweeperKeeper
+        );
+
+        crate::commands::squad::set_player_role_internal(&state, "a-gk".to_string(), None)
+            .expect("a role can be cleared");
+
+        assert_eq!(
+            user_goalkeeper_role_in_session(&state),
+            engine::PlayerRole::Standard
+        );
     }
 }

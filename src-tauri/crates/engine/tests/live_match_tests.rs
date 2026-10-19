@@ -682,39 +682,44 @@ fn a_role_that_suits_the_position_is_applied() {
 }
 
 /// Given a forward on the pitch
-/// When he is made an Inside Forward, a role the forward group admits
-/// Then he takes it, as he would have if the role had been set before the match.
+/// When he is made a Wide Forward, an Inside Forward or an Inverted Winger
+/// Then he takes each, as he would have if the role had been set before the match.
 #[test]
-fn a_wide_forward_role_suits_a_forward() {
-    let mut state = make_live_match(false);
-    let mut rng = seeded_rng(42);
-    state.step_minute(&mut rng);
-    let striker_id = state
-        .snapshot()
-        .home_team
-        .players
-        .iter()
-        .find(|p| p.position == Position::Forward)
-        .unwrap()
-        .id
-        .clone();
+fn every_wide_role_of_the_forward_group_suits_a_forward() {
+    for role in [
+        PlayerRole::WideForward,
+        PlayerRole::InsideForward,
+        PlayerRole::InvertedWinger,
+    ] {
+        let mut state = make_live_match(false);
+        let mut rng = seeded_rng(42);
+        state.step_minute(&mut rng);
+        let striker_id = state
+            .snapshot()
+            .home_team
+            .players
+            .iter()
+            .find(|p| p.position == Position::Forward)
+            .unwrap()
+            .id
+            .clone();
 
-    state
-        .apply_command(MatchCommand::ChangePlayerRole {
+        let applied = state.apply_command(MatchCommand::ChangePlayerRole {
             side: Side::Home,
             player_id: striker_id.clone(),
-            role: PlayerRole::InsideForward,
-        })
-        .unwrap();
+            role,
+        });
 
-    let snap = state.snapshot();
-    let striker = snap
-        .home_team
-        .players
-        .iter()
-        .find(|p| p.id == striker_id)
-        .unwrap();
-    assert_eq!(striker.role, PlayerRole::InsideForward);
+        assert_eq!(applied, Ok(()), "{role:?} must suit a forward");
+        let snap = state.snapshot();
+        let striker = snap
+            .home_team
+            .players
+            .iter()
+            .find(|p| p.id == striker_id)
+            .unwrap();
+        assert_eq!(striker.role, role);
+    }
 }
 
 /// Given a forward on the pitch

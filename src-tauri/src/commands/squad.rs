@@ -1432,15 +1432,17 @@ mod tests {
         assert_ne!(user_player.training_focus, Some(TrainingFocus::Technical));
     }
 
-    /// Given a user team on the default blueprint,
+    /// Given a user team playing wide, otherwise on the default blueprint,
     /// When the screen sends only a high defensive line,
     /// Then that dial turns and the other eight stay where they were.
     #[test]
     fn setting_one_dial_leaves_the_other_eight_alone() {
-        use domain::team::{DefensiveLine, TacticsPhaseSettings};
+        use domain::team::{DefensiveLine, PitchWidth, TacticsPhaseSettings};
 
+        let mut game = make_game(make_player("1998-01-01"));
+        game.teams[0].tactics_phase.width = PitchWidth::Wide;
         let state = StateManager::new();
-        state.set_game(make_game(make_player("1998-01-01")));
+        state.set_game(game);
 
         let game = set_tactics_phase_internal(
             &state,
@@ -1453,6 +1455,7 @@ mod tests {
 
         let expected = TacticsPhaseSettings {
             defensive_line: DefensiveLine::High,
+            width: PitchWidth::Wide,
             ..TacticsPhaseSettings::default()
         };
         assert_eq!(game.teams[0].tactics_phase, expected);

@@ -9,9 +9,9 @@
 
 use engine::live_match::LiveMatchState;
 use engine::{
-    BreakSpeed, CounterPressDuration, DefensiveShape, EventType, MatchConfig, PlayStyle,
-    PlayerData, PlayerRole, Position, PressingIntensity, Side, TacticsConfig, TeamData, Tempo,
-    simulate_with_rng,
+    BreakSpeed, CounterPressDuration, DefensiveLine, DefensiveShape, EventType, MarkingStyle,
+    MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, PressingIntensity, Side,
+    TacticsBuildUpStyle, TacticsConfig, TacticsPitchWidth, TeamData, Tempo, simulate_with_rng,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -372,4 +372,29 @@ fn aggressive_pressing_tires_the_team_more_than_passive() {
         aggressive_cond < passive_cond,
         "aggressive pressing should leave the team more tired: aggressive {aggressive_cond} vs passive {passive_cond}"
     );
+}
+
+/// Given a plan with every one of its nine dials off its default
+/// When its dials are turned one by one on a default plan
+/// Then the default plan becomes that plan.
+#[test]
+fn a_plan_handed_over_dial_by_dial_arrives_whole() {
+    let plan = TacticsConfig {
+        pressing_intensity: PressingIntensity::Aggressive,
+        defensive_line: DefensiveLine::High,
+        width: TacticsPitchWidth::Wide,
+        build_up_style: TacticsBuildUpStyle::Long,
+        marking_style: MarkingStyle::ManToMan,
+        tempo: Tempo::Patient,
+        defensive_shape: DefensiveShape::Compact,
+        counter_press_duration: CounterPressDuration::Long,
+        break_speed: BreakSpeed::Fast,
+    };
+    let mut received = TacticsConfig::default();
+
+    for dial in plan.dials() {
+        dial.set_on(&mut received);
+    }
+
+    assert_eq!(received, plan);
 }
