@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { readHarnessPage } from "./harnessPage";
+import { readHarnessLanguage, readHarnessPage } from "./harnessPage";
+
+describe("readHarnessLanguage", () => {
+  /** Given ?lang=de, then the page renders in German, the longest labels the layout check measures. */
+  it("reads a shipped language", () => {
+    expect(readHarnessLanguage("?page=squad&lang=de")).toBe("de");
+    expect(readHarnessLanguage("?lang=pt-BR")).toBe("pt-BR");
+  });
+
+  /** Given no language, or one the game doesn't ship, then English. */
+  it("falls back to English", () => {
+    expect(readHarnessLanguage("?page=squad")).toBe("en");
+    expect(readHarnessLanguage("?lang=klingon")).toBe("en");
+  });
+});
 
 describe("readHarnessPage", () => {
   /** Given ?page=squad or ?page=home among other options, then that page is mounted. */
