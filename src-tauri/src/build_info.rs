@@ -22,12 +22,17 @@ fn version_with(package_version: &str, revision: &str) -> String {
 }
 
 /// Whether the process was asked for its build version instead of being started.
+///
+/// Takes the raw arguments: this runs before the crash hook, and `std::env::args()` panics on an
+/// argument that is not valid Unicode (a path on Linux can be any bytes), which would abort the
+/// launch with no crash report and no log.
 pub fn requested<I, S>(args: I) -> bool
 where
     I: IntoIterator<Item = S>,
-    S: AsRef<str>,
+    S: AsRef<std::ffi::OsStr>,
 {
-    args.into_iter().any(|arg| arg.as_ref() == FLAG)
+    args.into_iter()
+        .any(|arg| arg.as_ref() == std::ffi::OsStr::new(FLAG))
 }
 
 #[cfg(test)]
@@ -53,6 +58,21 @@ mod tests {
         assert!(!requested(["--mcp-port", "3001"]));
         assert!(!requested(["--build-revision-please"]));
         assert!(!requested(Vec::<String>::new()));
+    }
+
+    /// Given a launch with an argument that is not valid Unicode (a path of arbitrary bytes)
+    /// When the arguments are searched for the flag
+    /// Then the search neither panics nor mistakes it for the flag, and still finds the flag next
+    ///      to it.
+    #[cfg(unix)]
+    #[test]
+    fn an_argument_that_is_not_unicode_is_not_the_flag_and_does_not_panic() {
+        use std::ffi::OsString;
+        use std::os::unix::ffi::OsStringExt;
+        let not_unicode = OsString::from_vec(vec![0xff, 0xfe]);
+
+        assert!(!requested([not_unicode.clone()]));
+        assert!(requested([not_unicode, OsString::from("--build-revision")]));
     }
 
     /// Given the binary under test
