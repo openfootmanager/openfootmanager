@@ -181,12 +181,23 @@ pub fn apply_team_talk(
     career_token: u64,
 ) -> Result<Vec<serde_json::Value>, String> {
     info!("[cmd] apply_team_talk: tone={}, context={}", tone, context);
+    apply_team_talk_on(&state, Career::Token(career_token), &tone, &context)
+}
+
+/// Applies a team talk to the career `career` names and returns the morale changes; refused if
+/// another career is active. The command and the MCP tool share it.
+pub fn apply_team_talk_on(
+    state: &StateManager,
+    career: Career,
+    tone: &str,
+    context: &str,
+) -> Result<Vec<serde_json::Value>, String> {
     // apply_team_talk validates (team assigned) before mutating morale.
-    let phase = live_phase_tag(&state);
+    let phase = live_phase_tag(state);
     state
-        .update_game_for(Career::Token(career_token), |game| {
-            let seed = team_talk_seed_in_phase(game, &tone, &context, &phase);
-            apply_team_talk_internal(game, &tone, &context, seed)
+        .update_game_for(career, |game| {
+            let seed = team_talk_seed_in_phase(game, tone, context, &phase);
+            apply_team_talk_internal(game, tone, context, seed)
         })
         .and_then(|talk| talk)
 }
@@ -199,10 +210,18 @@ pub fn submit_press_conference(
     career_token: u64,
 ) -> Result<serde_json::Value, String> {
     info!("[cmd] submit_press_conference: {} answers", answers.len());
+    submit_press_conference_on(&state, Career::Token(career_token), &answers)
+}
+
+/// Applies press conference answers to the career `career` names; refused if another career is
+/// active.
+pub fn submit_press_conference_on(
+    state: &StateManager,
+    career: Career,
+    answers: &[PressConferenceAnswer],
+) -> Result<serde_json::Value, String> {
     state
-        .update_game_for(Career::Token(career_token), |game| {
-            apply_press_conference(game, &answers)
-        })
+        .update_game_for(career, |game| apply_press_conference(game, answers))
         .and_then(|conference| conference)
 }
 
@@ -1892,6 +1911,41 @@ mod live_session_tests {
             30
         );
         assert!(live_match::finish_live_match(&state, Career::Active).is_ok());
+    }
+
+    /// Given a game in career 3 and a screen holding career 5's token
+    /// When a team talk and a press conference arrive
+    /// Then both are refused with the career-changed key and the game is untouched; the right
+    ///      token reaches the team talk and applies it.
+    #[test]
+    fn a_team_talk_and_a_press_conference_for_a_replaced_career_are_refused() {
+        use ofm_core::state::Career;
+        let state = StateManager::new();
+        let mut game = make_game_with_matchday();
+        game.career_token = 3;
+        state.set_game(game);
+        let game_json = |state: &StateManager| {
+            serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap()
+        };
+        let before = game_json(&state);
+        let key = Some("be.error.careerChanged".to_string());
+
+        assert_eq!(
+            super::apply_team_talk_on(&state, Career::Token(5), "calm", "drawing").err(),
+            key
+        );
+        assert_eq!(
+            super::submit_press_conference_on(&state, Career::Token(5), &[]).err(),
+            key
+        );
+
+        assert_eq!(game_json(&state), before);
+        assert!(super::apply_team_talk_on(&state, Career::Token(3), "calm", "drawing").is_ok());
+        assert_ne!(
+            super::submit_press_conference_on(&state, Career::Token(3), &[]).err(),
+            key,
+            "the right token reaches the press conference itself"
+        );
     }
 
     /// Given a game in career 3 with no match under way and a screen holding career 5's token
