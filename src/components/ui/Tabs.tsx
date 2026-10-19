@@ -1,4 +1,4 @@
-import { type KeyboardEvent, type ReactNode, useRef } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 
 export interface TabItem {
   id: string;
@@ -25,14 +25,14 @@ const panelDomId = (prefix: string, id: string) => `${prefix}-panel-${id}`;
 
 const LOOKS = {
   underline: {
-    list: "flex items-stretch gap-1 self-stretch",
-    tab: "flex items-center gap-2 border-b-2 px-3 font-heading text-body font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset",
-    selected: "border-primary-500 text-positive",
+    list: "flex min-w-0 max-w-full items-stretch gap-1 self-stretch overflow-x-auto",
+    tab: "flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 font-heading text-body font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset",
+    selected: "border-positive text-positive",
     idle: "border-transparent text-fg-muted hover:text-fg",
   },
   segmented: {
-    list: "inline-flex items-center gap-0.5 rounded-lg border border-line bg-sunken p-0.5",
-    tab: "flex h-7 items-center gap-2 rounded-md px-3 font-heading text-caption font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-sunken",
+    list: "inline-flex min-w-0 max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-line bg-sunken p-0.5",
+    tab: "flex h-7 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 font-heading text-caption font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-sunken",
     selected: "bg-panel text-fg shadow-sm ring-1 ring-line-strong",
     idle: "text-fg-muted hover:text-fg",
   },
@@ -40,7 +40,10 @@ const LOOKS = {
 
 /**
  * The one tab bar: an ARIA tablist with a roving tab stop. The arrow keys, Home and End move the
- * selection and the focus together, wrapping at both ends.
+ * selection and the focus together, wrapping at both ends. When the tabs don't fit (long labels,
+ * a large UI scale) the tablist scrolls inside its own box rather than wrapping: a second row of
+ * underline tabs reads as a second tab bar, and wrapping would change the toolbar's height by
+ * locale. The selected tab is scrolled into view whenever the selection changes.
  */
 export function Tabs({
   idPrefix,
@@ -51,7 +54,16 @@ export function Tabs({
   look = "underline",
 }: TabsProps) {
   const buttons = useRef(new Map<string, HTMLButtonElement>());
+  const shownId = useRef(selectedId);
   const styles = LOOKS[look];
+  // A selection no tab has must not leave the tablist with no tab stop at all.
+  const tabStopId = tabs.some((tab) => tab.id === selectedId) ? selectedId : tabs[0]?.id;
+
+  useEffect(() => {
+    if (shownId.current === selectedId) return;
+    shownId.current = selectedId;
+    buttons.current.get(selectedId)?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [selectedId]);
 
   function selectAndFocus(index: number) {
     const tab = tabs[(index + tabs.length) % tabs.length];
@@ -87,7 +99,7 @@ export function Tabs({
             id={tabDomId(idPrefix, tab.id)}
             aria-selected={selected}
             aria-controls={panelDomId(idPrefix, tab.id)}
-            tabIndex={selected ? 0 : -1}
+            tabIndex={tab.id === tabStopId ? 0 : -1}
             onClick={() => onSelect(tab.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={`${styles.tab} ${selected ? styles.selected : styles.idle}`}
@@ -117,7 +129,10 @@ interface TabPanelProps {
   className?: string;
 }
 
-/** The content a tab controls, labelled by that tab. Keep every panel mounted or not, but always pass hidden. */
+/**
+ * The content a tab controls, labelled by that tab. Keep every panel mounted and pass `hidden` to
+ * all but the selected one: each tab's aria-controls points at its panel's id, which must exist.
+ */
 export function TabPanel({ idPrefix, tabId, hidden, children, className = "" }: TabPanelProps) {
   return (
     <div

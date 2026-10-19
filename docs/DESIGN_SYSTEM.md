@@ -113,7 +113,7 @@ drawn in the style guide.
 | Need | Use |
 |---|---|
 | a page's sections, filters and one primary action | `PageToolbar`, with `Tabs` in its `start` slot and the action at its right end |
-| sections of a page, or a two- or three-way switch in a panel | `Tabs` (`look="underline"` or `"segmented"`) with a `TabPanel` each; the arrow keys, Home and End move between tabs |
+| sections of a page, or a two- or three-way switch in a panel | `Tabs` (`look="underline"` or `"segmented"`) with a `TabPanel` each, all mounted and all but one `hidden`; the arrow keys, Home and End move between tabs. Tabs that don't fit scroll inside the tablist, and the selected one is scrolled into view |
 | a card or panel | `Card`, `CardHeader`, `CardBody` |
 | a button | `Button` |
 | a chip or label | `Badge` |

@@ -18,9 +18,15 @@ export function PageToolbar({ start, filters, action }: PageToolbarProps) {
   return (
     <div
       data-testid="page-toolbar"
-      className="flex min-h-toolbar flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-line bg-panel px-3"
+      // An inset ring, not a border: it takes no space, so a tabs row of min-h-toolbar fills the
+      // toolbar exactly instead of making it two pixels taller.
+      className="flex min-h-toolbar flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-panel px-3 ring-1 ring-inset ring-line"
     >
-      {start ? <div className="flex min-w-0 items-stretch self-stretch">{start}</div> : null}
+      {start ? (
+        <div className="flex min-h-toolbar min-w-0 max-w-full items-stretch self-stretch">
+          {start}
+        </div>
+      ) : null}
       <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2 py-2">
         {filters}
         {action}
