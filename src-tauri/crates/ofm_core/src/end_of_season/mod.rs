@@ -806,6 +806,7 @@ fn notify_user_division_change(
 /// rating, and nothing else would stop a fifteen-year-old being picked.
 pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate, season: u32) {
     crate::aging::apply_seasonal_aging(game, date, season);
+    game.last_season_rollover_on = Some(date.format("%Y-%m-%d").to_string());
     crate::ai_contracts::plan_every_ai_squad(game);
     crate::youth_intake::apply_youth_intake(game, date, season);
 }
@@ -1993,5 +1994,23 @@ mod tests {
             at(2035, 7, 1),
             4,
         );
+    }
+
+    /// Given a season that ends on 30 May 2027
+    /// When its squad turnover runs, and every player ages and develops
+    /// Then the game keeps that day as its last rollover, so a scout's report from before it reads
+    ///      as out of date
+    #[test]
+    fn a_season_end_records_the_day_players_developed() {
+        let mut game = calendar_game(at(2027, 5, 30));
+        game.last_season_rollover_on = Some("2026-05-28".to_string());
+
+        apply_season_end_squad_turnover(
+            &mut game,
+            chrono::NaiveDate::from_ymd_opt(2027, 5, 30).unwrap(),
+            2026,
+        );
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-30"));
     }
 }
