@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { boxesPastEdge } from "./layoutProbe";
 
-const box = (label: string, right: number, extra: Partial<{ width: number; inScroller: boolean }> = {}) => ({
+const box = (
+  label: string,
+  right: number,
+  extra: Partial<{ width: number; inScroller: boolean }> = {},
+) => ({
   label,
   right,
   width: 100,
