@@ -52,7 +52,7 @@ interface BackendFinanceActionPreviewsData {
   marketing_campaign?: BackendMarketingCampaignPreviewData | null;
 }
 
-interface BackendFinanceSnapshotResponseData {
+export interface BackendFinanceSnapshotResponseData {
   snapshot: BackendTeamFinanceSnapshotData;
   previews?: BackendFinanceActionPreviewsData | null;
 }
