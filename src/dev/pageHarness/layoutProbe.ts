@@ -18,10 +18,14 @@ export function boxesPastEdge(boxes: Box[], viewportWidth: number): string[] {
     .map((box) => box.label);
 }
 
+/** Tag, role and a few words of its name or text, enough to find it on the page. */
 function describeElement(element: Element): string {
-  const id = element.id ? `#${element.id}` : "";
   const role = element.getAttribute("role");
-  return `${element.tagName.toLowerCase()}${id}${role ? `[role=${role}]` : ""}`;
+  const name = (element.getAttribute("aria-label") ?? element.textContent ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 40);
+  return `${element.tagName.toLowerCase()}${role ? `[role=${role}]` : ""}${name ? ` "${name}"` : ""}`;
 }
 
 function scrollsSideways(element: Element): boolean {
@@ -29,15 +33,27 @@ function scrollsSideways(element: Element): boolean {
   return overflowX === "auto" || overflowX === "scroll";
 }
 
-/** Every element under `root` that reaches past the window's right edge, outside sideways scrollers. */
+/**
+ * The outermost elements under `root` that reach past the window's right edge, outside sideways
+ * scrollers: an element inside one already reported is left out, so one overflow is one line.
+ */
 export function elementsPastEdge(root: Element, viewportWidth = window.innerWidth): string[] {
-  const boxes = [...root.querySelectorAll("*")].map((element) => {
+  const elements = [...root.querySelectorAll("*")];
+  const boxes = elements.map((element, index) => {
     const rect = element.getBoundingClientRect();
     let inScroller = false;
     for (let parent = element.parentElement; parent && !inScroller; parent = parent.parentElement) {
       inScroller = scrollsSideways(parent);
     }
-    return { label: describeElement(element), right: rect.right, width: rect.width, inScroller };
+    return {
+      label: String(index),
+      right: rect.right,
+      width: rect.width,
+      inScroller,
+    };
   });
-  return boxesPastEdge(boxes, viewportWidth);
+  const past = new Set(boxesPastEdge(boxes, viewportWidth).map((index) => elements[Number(index)]));
+  return [...past]
+    .filter((element) => ![...past].some((other) => other !== element && other.contains(element)))
+    .map(describeElement);
 }

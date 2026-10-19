@@ -12,7 +12,9 @@ describe("page layout check", () => {
 
   /** Given a page wider than the window, then it fails: the page scrolls sideways. */
   it("fails a page that scrolls sideways", () => {
-    expect(judge({ ...clean, scrollWidth: 1003 })).toEqual(["the page scrolls sideways (1003 > 960)"]);
+    expect(judge({ ...clean, scrollWidth: 1003 })).toEqual([
+      "the page scrolls sideways (1003 > 960)",
+    ]);
   });
 
   /** Given elements past the right edge, then each is named. */
@@ -38,6 +40,10 @@ describe("page layout check", () => {
     const worst = CASES.filter(
       (c) => c.lang === "de" && c.scale === "xlarge" && c.width === 960 && c.height === 640,
     );
-    expect(worst.map((c) => c.page ?? "style guide").sort()).toEqual(["home", "squad", "style guide"]);
+    expect(worst.map((c) => c.page ?? "style guide").sort()).toEqual([
+      "home",
+      "squad",
+      "style guide",
+    ]);
   });
 });

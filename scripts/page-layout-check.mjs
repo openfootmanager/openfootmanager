@@ -120,7 +120,8 @@ async function main(base) {
       `--user-data-dir=${profile}`,
       "about:blank",
     ],
-    { stdio: "ignore" },
+    // Its own process group, so stopping it also stops the helper processes that write the profile.
+    { stdio: "ignore", detached: true },
   );
   let failed = 0;
   try {
@@ -128,13 +129,17 @@ async function main(base) {
     for (const testCase of CASES) {
       const problems = judge(await measure(call, base, testCase));
       const label = `${testCase.page ?? "style guide"} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
-      console.log(`${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`);
+      console.log(
+        `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,
+      );
       if (problems.length > 0) failed += 1;
     }
     socket.close();
   } finally {
-    chrome.kill();
-    rmSync(profile, { recursive: true, force: true });
+    const exited = new Promise((resolve) => chrome.once("exit", resolve));
+    process.kill(-chrome.pid);
+    await exited;
+    rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
   }
   console.log(`${CASES.length - failed} of ${CASES.length} cases pass`);
   process.exitCode = failed > 0 ? 1 : 0;
