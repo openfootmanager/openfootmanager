@@ -369,6 +369,52 @@ mod tests {
         assert_eq!(report.quintiles[4].first_team_ovr, 70.0);
     }
 
+    /// Given a free-agent A player and a free-agent S player,
+    /// When the world is reported,
+    /// Then the unattached row counts the A player as all of the world's A and none of its S, and the S player the reverse.
+    #[test]
+    fn unattached_a_and_s_players_are_counted_apart() {
+        let report = reputation_report(&world(vec![
+            player("free-a", None, 78, "1995-01-01"),
+            player("free-s", None, 90, "1995-01-01"),
+            player("club-s", Some("c9"), 90, "1995-01-01"),
+        ]));
+
+        assert_eq!(report.unattached.a_share, 1.0);
+        assert_eq!(report.unattached.s_share, 0.5);
+    }
+
+    /// Given two clubs of the top fifth whose elevens are rated 60 and 80,
+    /// When the world is reported,
+    /// Then the fifth's first-team rating is their mean, 70.
+    #[test]
+    fn a_fifths_first_team_rating_is_the_mean_of_its_clubs() {
+        let mut players = Vec::new();
+        for (club, ovr) in [("c8", 60), ("c9", 80)] {
+            players
+                .extend((0..11).map(|index| {
+                    player(&format!("{club}-{index}"), Some(club), ovr, "1995-01-01")
+                }));
+        }
+
+        let report = reputation_report(&world(players));
+
+        assert_eq!(report.quintiles[4].first_team_ovr, 70.0);
+    }
+
+    /// Given the log observing a season's end,
+    /// When the season ends,
+    /// Then it keeps that season's report.
+    #[test]
+    fn the_log_keeps_a_report_for_each_season_end() {
+        let game = world(vec![player("s", Some("c9"), 90, "1995-01-01")]);
+        let mut log = ReputationLog::default();
+
+        log.on_season_end(&game, &EndOfSeasonSummary::default(), 1);
+
+        assert_eq!(log.after_each_season, vec![reputation_report(&game)]);
+    }
+
     /// Given no teams at all, when the world is reported, then nothing divides by zero.
     #[test]
     fn a_world_without_clubs_reports_zeros() {
