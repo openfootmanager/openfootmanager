@@ -202,12 +202,12 @@ pub fn get_squad_fitness(
 }
 
 /// How fit the user's squad is, from the one summary the staff's warnings read too; none when the
-/// user has no club or no first-team player is fit to count.
+/// user has no club.
 pub fn get_squad_fitness_internal(state: &StateManager) -> Result<Option<SquadFitness>, String> {
     state
         .get_game(|game| {
             let team_id = game.manager.team_id.as_deref()?;
-            ofm_core::training::squad_fitness(game, team_id)
+            Some(ofm_core::training::squad_fitness(game, team_id))
         })
         .ok_or_else(|| "be.error.noActiveGameSession".to_string())
 }
@@ -866,9 +866,15 @@ mod tests {
             .expect("a summary");
 
         assert_eq!(fitness.players, 1);
-        assert_eq!(fitness.average_condition, 30.0);
+        assert_eq!(fitness.average_condition, Some(30.0));
         assert_eq!(fitness.exhausted_count, 1);
         assert_eq!(fitness.critical_count, 0);
+        // The injured player is outside the figures but not outside the lists.
+        assert_eq!(fitness.statuses.len(), 2);
+        assert_eq!(
+            fitness.statuses["player-2"],
+            ofm_core::training::FitnessStatus::Critical
+        );
 
         game.manager.team_id = None;
         state.set_game(game);

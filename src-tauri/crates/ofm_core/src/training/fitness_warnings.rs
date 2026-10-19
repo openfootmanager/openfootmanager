@@ -1,5 +1,5 @@
 use crate::game::Game;
-use crate::match_day_eligibility::match_day_eligible_players;
+use crate::match_day_eligibility::{club_players, match_day_eligible_players};
 use domain::player::Player;
 use domain::team::{TrainingIntensity, TrainingSchedule};
 use serde::Serialize;
@@ -10,16 +10,41 @@ const EXHAUSTED_BELOW: u8 = 40;
 /// Below this condition a player is in a critical state.
 const CRITICAL_BELOW: u8 = 25;
 
+/// How tired a player is, by the two cut-offs the staff's warnings and the screens share.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum FitnessStatus {
+    Fit,
+    /// Below 40, and not critical.
+    Exhausted,
+    /// Below 25.
+    Critical,
+}
+
+/// The one rule for a condition's status: every count and every per-player colour reads it.
+pub fn fitness_status(condition: u8) -> FitnessStatus {
+    if condition < CRITICAL_BELOW {
+        FitnessStatus::Critical
+    } else if condition < EXHAUSTED_BELOW {
+        FitnessStatus::Exhausted
+    } else {
+        FitnessStatus::Fit
+    }
+}
+
 /// How fit the club's squad is, as the staff's warnings and the screens both read it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct SquadFitness {
     /// The healthy first-team players the figures are over.
     pub players: usize,
-    pub average_condition: f64,
-    /// Players below 40.
+    /// Their average condition; none when there is no healthy first-team player to average.
+    pub average_condition: Option<f64>,
+    /// Players below 40, the critical ones among them.
     pub exhausted_count: usize,
     /// Players below 25.
     pub critical_count: usize,
+    /// Every player of the club, injured and academy players included (the lists show them), by
+    /// player id. The counts above leave the injured and the uncalled academy out.
+    pub statuses: HashMap<String, FitnessStatus>,
 }
 
 /// The club's healthy first-team players: the match-day pool (seniors and called-up youth) without
@@ -31,23 +56,28 @@ fn healthy_first_team<'a>(game: &'a Game, team_id: &str) -> Vec<&'a Player> {
         .collect()
 }
 
-fn fitness_of(players: &[&Player]) -> Option<SquadFitness> {
-    if players.is_empty() {
-        return None;
+/// The squad fitness summary for `team_id`.
+pub fn squad_fitness(game: &Game, team_id: &str) -> SquadFitness {
+    let healthy = healthy_first_team(game, team_id);
+    let status_of = |player: &&Player| fitness_status(player.condition);
+    SquadFitness {
+        players: healthy.len(),
+        average_condition: (!healthy.is_empty()).then(|| {
+            healthy.iter().map(|p| f64::from(p.condition)).sum::<f64>() / healthy.len() as f64
+        }),
+        exhausted_count: healthy
+            .iter()
+            .filter(|p| status_of(p) != FitnessStatus::Fit)
+            .count(),
+        critical_count: healthy
+            .iter()
+            .filter(|p| status_of(p) == FitnessStatus::Critical)
+            .count(),
+        statuses: club_players(&game.players, team_id)
+            .into_iter()
+            .map(|player| (player.id.clone(), fitness_status(player.condition)))
+            .collect(),
     }
-    let below = |limit: u8| players.iter().filter(|p| p.condition < limit).count();
-    Some(SquadFitness {
-        players: players.len(),
-        average_condition: players.iter().map(|p| p.condition as f64).sum::<f64>()
-            / players.len() as f64,
-        exhausted_count: below(EXHAUSTED_BELOW),
-        critical_count: below(CRITICAL_BELOW),
-    })
-}
-
-/// The squad fitness summary for `team_id`; none when no first-team player is fit to be counted.
-pub fn squad_fitness(game: &Game, team_id: &str) -> Option<SquadFitness> {
-    fitness_of(&healthy_first_team(game, team_id))
 }
 
 /// Check squad fitness and generate staff warning messages when players are exhausted.
@@ -63,12 +93,12 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
 
     // The same summary the screens show.
     let team_players = healthy_first_team(game, &user_team_id);
-    let Some(SquadFitness {
-        average_condition: avg_condition,
+    let SquadFitness {
+        average_condition: Some(avg_condition),
         exhausted_count,
         critical_count,
         ..
-    }) = fitness_of(&team_players)
+    } = squad_fitness(game, &user_team_id)
     else {
         return;
     };
@@ -126,7 +156,7 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
     if critical_count >= 3 {
         let exhausted_names: Vec<String> = team_players
             .iter()
-            .filter(|p| p.condition < CRITICAL_BELOW)
+            .filter(|p| fitness_status(p.condition) == FitnessStatus::Critical)
             .take(5)
             .map(|p| format!("{} ({}%)", p.match_name, p.condition))
             .collect();
