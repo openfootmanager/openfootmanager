@@ -687,15 +687,10 @@ pub(super) fn generate_weekly_digest_news(game: &mut Game, today: &str) {
     }
 
     let date = game.clock.current_date.to_rfc3339();
-    // A division with no table has nothing to report, and "Unknown leads the table" is not news.
-    let Some(leader_team_id) = league
+    let leader_team_id = league
         .sorted_standings()
         .first()
-        .map(|entry| entry.team_id.clone())
-    else {
-        return;
-    };
-    let leader = team_name(game, &leader_team_id);
+        .map(|entry| entry.team_id.clone());
     let top_scorer = division_top_scorer(game, league).map(|player| {
         (
             player.id.clone(),
@@ -706,6 +701,21 @@ pub(super) fn generate_weekly_digest_news(game: &mut Game, today: &str) {
     let storylines = weekly_storyline_articles(game, &suffix, &date);
     // Rumours are drawn even on a full day: drawing them also retires stale ones.
     let rumours = weekly_rumour_articles(game, &suffix, &date);
+    let mut coverage = Vec::new();
+    if let Some(roundup) = weekly_transfer_roundup_article(game, &suffix, today, &date) {
+        coverage.push(roundup);
+    }
+    coverage.extend(storylines);
+    coverage.extend(rumours);
+
+    // A division with no table has no digest ("Unknown leads the table" is not news), but the
+    // week's other coverage does not depend on the table.
+    let Some(leader_team_id) = leader_team_id else {
+        let coverage = apply_daily_world_news_cap(game, &date, coverage);
+        game.news.extend(coverage);
+        return;
+    };
+    let leader = team_name(game, &leader_team_id);
 
     // The digest is the week's anchor, so it takes the first free slot and the rest of the
     // week's coverage competes for what is left. With no slot there is no digest: a digest that
@@ -714,12 +724,6 @@ pub(super) fn generate_weekly_digest_news(game: &mut Game, today: &str) {
     if available_slots == 0 {
         return;
     }
-    let mut coverage = Vec::new();
-    if let Some(roundup) = weekly_transfer_roundup_article(game, &suffix, today, &date) {
-        coverage.push(roundup);
-    }
-    coverage.extend(storylines);
-    coverage.extend(rumours);
     let coverage = keep_highest_priority(game, coverage, available_slots - 1);
     // Counted after the cap, so the digest names only storylines that were published.
     let storyline_count = coverage
@@ -1990,6 +1994,11 @@ mod tests {
             "the digest may only count storylines the reader can find"
         );
         assert_eq!(published_storylines(&game), 1);
+        assert_eq!(
+            digest.body_key.as_deref(),
+            Some("be.news.weeklyDigest.bodyNoTopScorer"),
+            "a published storyline is announced in the body"
+        );
     }
 
     /// Given a day whose world-news slots are all taken,
@@ -2063,6 +2072,34 @@ mod tests {
         generate_weekly_digest_news(&mut game, "2025-08-11");
 
         assert!(weekly_digest(&game).is_none());
+    }
+
+    /// Given a division with no table but a completed transfer this week,
+    /// when the week's news is written,
+    /// then the transfer roundup is still published: only the digest needs a table.
+    #[test]
+    fn a_division_without_a_table_still_gets_its_other_weekly_news() {
+        let mut game = make_game("2025-08-11", FixtureStatus::Completed);
+        set_current_date(&mut game, 2025, 8, 11);
+        game.league.as_mut().unwrap().standings.clear();
+        add_completed_transfer(
+            &mut game,
+            "2025-08-10",
+            "player-transfer-1",
+            "Rafa",
+            "team2",
+            "team3",
+            1_400_000,
+        );
+
+        generate_weekly_digest_news(&mut game, "2025-08-11");
+
+        assert!(weekly_digest(&game).is_none());
+        assert!(
+            game.news
+                .iter()
+                .any(|article| article.id.starts_with("weekly_transfer_roundup_"))
+        );
     }
 
     #[test]
