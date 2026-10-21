@@ -120,6 +120,8 @@ describe("PackageBuildStep close control", () => {
   it("names its close control and gives it a focus ring", () => {
     render(<PackageBuildStep {...baseProps} installedPackages={[namePack]} />);
 
-    expect(screen.getByRole("button", { name: "common.close" })).toHaveClass("focus-visible:ring-focus");
+    expect(screen.getByRole("button", { name: "common.close" })).toHaveClass(
+      "focus-visible:ring-focus",
+    );
   });
 });
