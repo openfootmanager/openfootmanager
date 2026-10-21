@@ -8,5 +8,6 @@
   ],
   "project": ["src/**/*.{ts,tsx}", "scripts/**/*.mjs", ".github/scripts/**/*.mjs"],
   "ignoreDependencies": ["@fontsource/.*", "tailwindcss"],
+  "ignoreBinaries": ["google-chrome"],
   "ignoreExportsUsedInFile": true
 }

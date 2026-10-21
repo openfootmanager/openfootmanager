@@ -538,6 +538,26 @@ describe("Dashboard", () => {
   });
 
   /**
+   * Given no starting tab
+   * When the dashboard loads
+   * Then it opens on Home, as the app always does.
+   */
+  it("opens on Home by default", async () => {
+    render(<Dashboard />);
+    expect(await screen.findByText("Tab Content Home")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a starting tab (the dev page harness mounts a page this way)
+   * When the dashboard loads
+   * Then it opens on that tab.
+   */
+  it("opens on the tab it is given", async () => {
+    render(<Dashboard initialTab="Squad" />);
+    expect(await screen.findByText("Tab Content Squad")).toBeInTheDocument();
+  });
+
+  /**
    * Given the backend names the user's league
    * When the dashboard loads
    * Then the competition name is in the sidebar, whatever tab is open.

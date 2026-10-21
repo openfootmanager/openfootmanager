@@ -11,6 +11,7 @@
     "lint": "biome lint --error-on-warnings",
     "lint:fix": "biome lint --write",
     "format:check": "biome format",
+    "fixture:pages": "cargo run --release --manifest-path src-tauri/Cargo.toml -p ofm_core --example page_fixture -- src/dev/pageHarness/fixture.generated.ts",
     "knip": "knip --no-progress",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -93,7 +93,12 @@ const TAB_TRANSLATION_KEYS: Record<string, string> = {
   Youth: "dashboard.youthAcademy",
 };
 
-export default function Dashboard(): JSX.Element {
+interface DashboardProps {
+  /** The tab it opens on. The app always opens on Home; the dev page harness mounts other pages. */
+  initialTab?: string;
+}
+
+export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.Element {
   const navigate = useNavigate();
   const {
     hasActiveGame,
@@ -119,7 +124,7 @@ export default function Dashboard(): JSX.Element {
   const [saveError, setSaveError] = useState<unknown>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [profileNavigation, setProfileNavigation] = useState(() =>
-    createDashboardProfileNavigationState("Home"),
+    createDashboardProfileNavigationState(initialTab),
   );
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isExitingToMenu, setIsExitingToMenu] = useState(false);
