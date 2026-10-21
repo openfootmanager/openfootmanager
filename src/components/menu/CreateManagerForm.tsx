@@ -93,7 +93,7 @@ export default function CreateManagerForm({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-navy-600 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-offset-navy-800"
+          className="rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-navy-600 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
           aria-label={t("common.close")}
         >
           <X className="h-5 w-5" aria-hidden="true" />

@@ -97,6 +97,6 @@ describe("SavesList", () => {
     renderList([save()]);
 
     const close = screen.getByRole("button", { name: "Close" });
-    expect(close).toHaveClass("focus:ring-2");
+    expect(close).toHaveClass("focus-visible:ring-focus");
   });
 });

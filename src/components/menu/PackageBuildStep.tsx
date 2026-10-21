@@ -251,7 +251,7 @@ export default function PackageBuildStep({
         <button
           type="button"
           onClick={onClose}
-          className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-offset-navy-800"
+          className="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-navy-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
           aria-label={t("common.close")}
         >
           <X className="w-5 h-5" aria-hidden="true" />

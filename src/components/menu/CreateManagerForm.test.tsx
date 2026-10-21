@@ -36,6 +36,6 @@ describe("CreateManagerForm close control", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "common.close" })).toHaveClass("focus:ring-2");
+    expect(screen.getByRole("button", { name: "common.close" })).toHaveClass("focus-visible:ring-focus");
   });
 });

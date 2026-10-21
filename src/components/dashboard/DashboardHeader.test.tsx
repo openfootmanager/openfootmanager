@@ -193,7 +193,7 @@ describe("DashboardHeader", () => {
     );
 
     expect(screen.getByRole("button", { name: "dashboard.matchModeMenu" })).toHaveClass(
-      "focus:ring-2",
+      "focus-visible:ring-focus",
     );
   });
 
