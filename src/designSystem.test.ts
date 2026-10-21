@@ -7,7 +7,17 @@ import { describe, expect, it } from "vitest";
  * names finished work, never a known violation. When every folder is in, the list goes and the
  * checks cover all of `src/`. The rules themselves are in src/CLAUDE.md §2.
  */
-const FINISHED_FOLDERS = ["./components/ui/"];
+const FINISHED_FOLDERS = [
+  "./components/ui/",
+  // The dashboard shell. The rest of components/dashboard (its modals) joins with them, and these
+  // five entries become the one folder.
+  "./components/dashboard/DashboardAlerts.tsx",
+  "./components/dashboard/DashboardHeader.tsx",
+  "./components/dashboard/DashboardSidebar.tsx",
+  "./components/dashboard/DashboardWorkspaceContent.tsx",
+  "./components/dashboard/sidebarAutoCollapse.ts",
+  "./pages/Dashboard.tsx",
+];
 
 /**
  * SVG artwork whose colours are data, not design: a club's crest or kit, a player's generated
