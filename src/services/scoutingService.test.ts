@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import {
   cancelYouthScouting,
+  getPlayerKnowledge,
   getScoutedReport,
   reassignYouthScouting,
   sendScout,
@@ -78,5 +79,34 @@ describe("scoutingService", () => {
       assignmentId: "ysa-1",
       scoutId: "staff-2",
     });
+  });
+
+  /**
+   * Given the backend's knowledge of two players, one the club's own and one scouted
+   * When the screen asks about both
+   * Then the command is called with their ids and the tagged answer comes back as it is
+   */
+  it("asks the backend what the club knows about each player", async () => {
+    const answer = {
+      own: { kind: "own" },
+      rival: { kind: "scouted", scouted_on: "2026-06-04", current: true },
+    };
+    mockedInvoke.mockResolvedValueOnce(answer);
+
+    await expect(getPlayerKnowledge(["own", "rival"])).resolves.toEqual(answer);
+    expect(mockedInvoke).toHaveBeenCalledWith("get_player_knowledge", {
+      playerIds: ["own", "rival"],
+    });
+  });
+
+  /**
+   * Given no active game
+   * When the screen asks what the club knows
+   * Then the backend's translated error reaches the caller
+   */
+  it("passes on the backend's error when there is no game", async () => {
+    mockedInvoke.mockRejectedValueOnce("be.error.noActiveGameSession");
+
+    await expect(getPlayerKnowledge(["p1"])).rejects.toBe("be.error.noActiveGameSession");
   });
 });
