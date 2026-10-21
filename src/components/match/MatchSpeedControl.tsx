@@ -56,6 +56,8 @@ export function MatchSpeedControl({
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.code !== "Space" && event.key !== " ") return;
+      // A held key repeats, which would flicker the match; a modified Space is someone else's.
+      if (event.repeat || event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
       if (ownsSpace(event.target)) return;
       event.preventDefault();
       onTogglePause();

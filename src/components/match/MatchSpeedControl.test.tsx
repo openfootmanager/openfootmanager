@@ -78,6 +78,22 @@ describe("MatchSpeedControl", () => {
   });
 
   /**
+   * Given nothing focused on the match screen
+   * When Space is held down (the key repeats) or pressed with a modifier
+   * Then the match isn't toggled again: a held key would flicker it, and a modified Space belongs
+   * to the system or another shortcut.
+   */
+  it("ignores a held or modified Space", () => {
+    const props = renderControl();
+    fireEvent.keyDown(document.body, { key: " ", code: "Space", repeat: true });
+    fireEvent.keyDown(document.body, { key: " ", code: "Space", ctrlKey: true });
+    fireEvent.keyDown(document.body, { key: " ", code: "Space", shiftKey: true });
+    fireEvent.keyDown(document.body, { key: " ", code: "Space", altKey: true });
+    fireEvent.keyDown(document.body, { key: " ", code: "Space", metaKey: true });
+    expect(props.onTogglePause).not.toHaveBeenCalled();
+  });
+
+  /**
    * Given the focus in a text field or on a button
    * When Space is pressed
    * Then the shortcut leaves it alone: the field types a space and the button presses itself.
