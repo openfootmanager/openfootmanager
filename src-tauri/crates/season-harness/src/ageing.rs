@@ -337,6 +337,26 @@ mod tests {
         assert_eq!(report.aged_33_plus_a_or_s_share, 0.25);
     }
 
+    /// Given stars rated A or S at 32, 33 and 34, and ordinary players at 33 and 34,
+    /// When the season is reported,
+    /// Then the 33+ share counts the stars of 33 and 34 over the four players aged 33 or more,
+    ///      a half: the star of 32 is too young to count.
+    #[test]
+    fn only_players_aged_33_or_more_count_toward_the_old_stars_share() {
+        let players = [
+            aged("star32", 32, 85, Position::Forward),
+            aged("star33", 33, 85, Position::Forward),
+            aged("star34", 34, 78, Position::Forward),
+            aged("plain33", 33, 60, Position::Forward),
+            aged("plain34", 34, 60, Position::Forward),
+        ];
+
+        let report = ageing_report(&Snapshot::new(), &players, on());
+
+        assert_eq!(report.aged_33_plus, 4);
+        assert_eq!(report.aged_33_plus_a_or_s_share, 0.5);
+    }
+
     /// Given players of different ratings and ages,
     /// When the season is reported,
     /// Then the profile is taken over the best by rating: the median age, the shares from 31, 33
