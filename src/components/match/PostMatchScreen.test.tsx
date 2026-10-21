@@ -221,7 +221,7 @@ describe("PostMatchScreen", (): void => {
       </ThemeProvider>,
     );
 
-    fireEvent.click(screen.getByText("match.matchReport"));
+    fireEvent.click(screen.getByRole("tab", { name: "match.matchReport" }));
 
     // The score header also shows the short name (in the crest), so read the events card alone.
     const eventsCard = screen.getByText("match.matchEvents").parentElement as HTMLElement;

@@ -1,8 +1,9 @@
 // Fixtures for the screens that read a match snapshot and the game around it: a finished 2-1 between
 // Alpha FC (home) and Beta FC (away, id "team2"), as the match engine and the game state shape them.
 import type { GameStateData } from "../../store/gameStore";
+import type { MatchSnapshot } from "./types";
 
-export function makeSnapshot() {
+export function makeSnapshot(): MatchSnapshot {
   return {
     phase: "FullTime",
     current_minute: 90,

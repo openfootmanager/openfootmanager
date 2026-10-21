@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ThemeProvider } from "../../context/ThemeContext";
 import HalfTimeBreak from "./HalfTimeBreak";
 import { makeGameState, makeSnapshot } from "./matchScreenFixtures";
-import type { MatchEvent, MatchSnapshot } from "./types";
+import type { MatchEvent } from "./types";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
@@ -43,7 +43,7 @@ describe("HalfTimeBreak", () => {
    * Then the event row is badged with the club's short name, as the score header shows it.
    */
   it("badges a first-half event with its club's short name", () => {
-    const snapshot = makeSnapshot() as unknown as MatchSnapshot;
+    const snapshot = makeSnapshot();
     const gameState = makeGameState();
     gameState.teams = gameState.teams.map((team) =>
       team.id === snapshot.away_team.id ? { ...team, short_name: "BTA" } : team,
@@ -63,7 +63,8 @@ describe("HalfTimeBreak", () => {
       </ThemeProvider>,
     );
 
-    const row = screen.getByText("31'").closest("div.flex") as HTMLElement;
-    expect(within(row).getByText("BTA")).toBeInTheDocument();
+    // The score header also shows the short name (in the crest), so read the first-half card alone.
+    const eventsCard = screen.getByText("match.firstHalfEvents").parentElement as HTMLElement;
+    expect(within(eventsCard).getByText("BTA")).toBeInTheDocument();
   });
 });
