@@ -170,6 +170,7 @@
     "digestSimulating": "Симуляция...",
     "digestMatchDay": "Игровой день",
     "digestMatchDayDesc": "Сегодня у вашей команды запланирован матч.",
+    "matchModeMenu": "Выбрать режим матча",
     "digestReturnHome": "Вернуться на главную",
     "digestBlocked": "Требуется действие",
     "digestBlockedDesc": "Есть проблемы, требующие вашего внимания перед продолжением.",
@@ -198,8 +199,7 @@
     "skipToMatchDay": "Перейти к матчу",
     "skipToMatchDayDesc": "Быстро перейти к следующей игре",
     "matchDayTitle": "День матча",
-    "delegateWarning": "Ассистент проведёт матч. Вмешаться в процесс не получится.",
-    "matchOptions": "Параметры матча"
+    "delegateWarning": "Ассистент проведёт матч. Вмешаться в процесс не получится."
   },
   "exitConfirm": {
     "title": "Выйти в главное меню?",

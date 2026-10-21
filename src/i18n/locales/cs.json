@@ -170,6 +170,7 @@
     "digestSimulating": "Zpracování...",
     "digestMatchDay": "Zápasový den",
     "digestMatchDayDesc": "Vaše utkání je připraveno k odehrání.",
+    "matchModeMenu": "Vybrat režim zápasu",
     "digestReturnHome": "Zpět na hlavní panel",
     "digestBlocked": "Vyžadována akce",
     "digestBlockedDesc": "Před pokračováním musíte vyřešit některé záležitosti.",
@@ -198,8 +199,7 @@
     "skipToMatchDay": "Přeskočit na zápasový den",
     "skipToMatchDayDesc": "Rychlý posun k vašemu dalšímu utkání",
     "matchDayTitle": "Zápasový den",
-    "delegateWarning": "Zápas odřídí váš asistent. Nebudete moci do průběhu zasahovat.",
-    "matchOptions": "Možnosti zápasu"
+    "delegateWarning": "Zápas odřídí váš asistent. Nebudete moci do průběhu zasahovat."
   },
   "exitConfirm": {
     "title": "Odejít do hlavního menu?",

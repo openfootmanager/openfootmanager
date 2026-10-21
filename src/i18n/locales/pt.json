@@ -170,6 +170,7 @@
     "digestSimulating": "A simular...",
     "digestMatchDay": "Dia de jogo",
     "digestMatchDayDesc": "A sua equipa tem um jogo marcado para hoje.",
+    "matchModeMenu": "Escolher o modo de jogo",
     "digestReturnHome": "Voltar ao início",
     "digestBlocked": "Ação necessária",
     "digestBlockedDesc": "Há problemas que precisam da sua atenção antes de avançar.",
@@ -198,8 +199,7 @@
     "skipToMatchDay": "Avançar para o Dia de Jogo",
     "skipToMatchDayDesc": "Avançar até ao próximo jogo",
     "matchDayTitle": "Dia de Jogo",
-    "delegateWarning": "O teu assistente vai gerir o jogo. Não poderás intervir.",
-    "matchOptions": "Opções do jogo"
+    "delegateWarning": "O teu assistente vai gerir o jogo. Não poderás intervir."
   },
   "closeConfirm": {
     "title": "Alterações não guardadas",

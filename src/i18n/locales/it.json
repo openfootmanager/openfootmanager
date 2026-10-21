@@ -170,6 +170,7 @@
     "digestSimulating": "Simulazione...",
     "digestMatchDay": "Giorno di gara",
     "digestMatchDayDesc": "La tua squadra ha una partita in programma oggi.",
+    "matchModeMenu": "Scegli la modalità di partita",
     "digestReturnHome": "Torna alla dashboard",
     "digestBlocked": "Azione richiesta",
     "digestBlockedDesc": "Ci sono problemi che richiedono la tua attenzione prima di avanzare.",
@@ -198,8 +199,7 @@
     "skipToMatchDay": "Salta al giorno partita",
     "skipToMatchDayDesc": "Avanza rapidamente fino alla prossima gara",
     "matchDayTitle": "Giorno partita",
-    "delegateWarning": "Il tuo assistente gestirà la partita. Non potrai intervenire.",
-    "matchOptions": "Opzioni partita"
+    "delegateWarning": "Il tuo assistente gestirà la partita. Non potrai intervenire."
   },
   "exitConfirm": {
     "title": "Uscire al menu principale?",

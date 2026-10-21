@@ -170,6 +170,7 @@
     "digestSimulating": "Processing...",
     "digestMatchDay": "Match Day",
     "digestMatchDayDesc": "Your fixture is ready to play.",
+    "matchModeMenu": "Choose match mode",
     "digestReturnHome": "Back to Dashboard",
     "digestBlocked": "Action Required",
     "digestBlockedDesc": "Some issues need your attention before advancing.",
@@ -198,8 +199,7 @@
     "skipToMatchDay": "Skip to Match Day",
     "skipToMatchDayDesc": "Fast-forward to your next fixture",
     "matchDayTitle": "Match Day",
-    "delegateWarning": "Your assistant will manage the match. You won't be able to intervene.",
-    "matchOptions": "Match options"
+    "delegateWarning": "Your assistant will manage the match. You won't be able to intervene."
   },
   "exitConfirm": {
     "title": "Exit to Main Menu?",

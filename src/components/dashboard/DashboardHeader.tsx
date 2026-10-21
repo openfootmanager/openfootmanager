@@ -432,11 +432,11 @@ export default function DashboardHeader({
               <button
                 type="button"
                 onClick={handleContinueMenuToggleClick}
-                aria-label={t("continueMenu.matchOptions")}
+                aria-label={t("dashboard.matchModeMenu")}
                 aria-expanded={showContinueMenu}
                 className={`${FORWARD_ACTION} rounded-r-lg border-l border-on-brand/30 px-2`}
               >
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
 

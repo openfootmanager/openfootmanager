@@ -170,6 +170,7 @@
     "digestSimulating": "Simulando...",
     "digestMatchDay": "Día de partido",
     "digestMatchDayDesc": "Tu equipo tiene un partido programado hoy.",
+    "matchModeMenu": "Elegir modo de partido",
     "digestReturnHome": "Volver al inicio",
     "digestBlocked": "Acción requerida",
     "digestBlockedDesc": "Hay problemas que necesitan tu atención antes de continuar.",
@@ -198,8 +199,7 @@
     "skipToMatchDay": "Saltar al Día de Partido",
     "skipToMatchDayDesc": "Avanzar hasta tu próximo partido",
     "matchDayTitle": "Día de Partido",
-    "delegateWarning": "Tu asistente gestionará el partido. No podrás intervenir.",
-    "matchOptions": "Opciones de partido"
+    "delegateWarning": "Tu asistente gestionará el partido. No podrás intervenir."
   },
   "closeConfirm": {
     "title": "Cambios sin guardar",

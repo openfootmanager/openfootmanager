@@ -170,6 +170,7 @@
     "digestSimulating": "İşleniyor...",
     "digestMatchDay": "Maç Günü",
     "digestMatchDayDesc": "Maçınız oynanmaya hazır.",
+    "matchModeMenu": "Maç modunu seç",
     "digestReturnHome": "Panele Dön",
     "digestBlocked": "İşlem Gerekli",
     "digestBlockedDesc": "İlerlemeden önce bazı sorunlarla ilgilenmeniz gerekiyor.",
@@ -198,8 +199,7 @@
     "skipToMatchDay": "Maç Gününe Atla",
     "skipToMatchDayDesc": "Bir sonraki maçına kadar hızlı ilerle",
     "matchDayTitle": "Maç Günü",
-    "delegateWarning": "Maçı yardımcınız yönetecek. Müdahale edemeyeceksiniz.",
-    "matchOptions": "Maç seçenekleri"
+    "delegateWarning": "Maçı yardımcınız yönetecek. Müdahale edemeyeceksiniz."
   },
   "exitConfirm": {
     "title": "Ana menüye dönülsün mü?",

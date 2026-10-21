@@ -170,6 +170,7 @@
     "digestSimulating": "模拟中...",
     "digestMatchDay": "比赛日",
     "digestMatchDayDesc": "您的球队今天有一场比赛。",
+    "matchModeMenu": "选择比赛模式",
     "digestReturnHome": "返回主页",
     "digestBlocked": "需要操作",
     "digestBlockedDesc": "在继续之前，有些问题需要您的关注。",
@@ -198,8 +199,7 @@
     "skipToMatchDay": "跳至比赛日",
     "skipToMatchDayDesc": "快进到下一场赛程",
     "matchDayTitle": "比赛日",
-    "delegateWarning": "助理教练将接管比赛。您将无法介入。",
-    "matchOptions": "比赛选项"
+    "delegateWarning": "助理教练将接管比赛。您将无法介入。"
   },
   "exitConfirm": {
     "title": "返回主菜单？",
