@@ -84,12 +84,12 @@ export function MatchSpeedControl({
           <Pause className="h-5 w-5" fill="currentColor" aria-hidden="true" />
         )}
         {paused ? t("match.resume") : t("match.pause")}
-        <kbd
+        <span
           aria-hidden="true"
           className="absolute right-3 rounded border border-on-brand/50 px-1.5 py-0.5 font-sans text-caption font-semibold normal-case tracking-normal"
         >
           {t("match.spaceKey")}
-        </kbd>
+        </span>
       </button>
       <p aria-live="polite" className="text-caption text-fg-muted">
         {paused

@@ -9,11 +9,9 @@ import {
   type SubstitutionSwap,
   type MatchEvent,
   type MinuteResult,
-  type SimSpeed,
   SPEED_MS,
   MINUTES_PER_TICK,
   FORMATIONS,
-  isPersistableSpeed,
 } from "./types";
 import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./helpers";
 import { Badge, TeamLogo } from "../ui";
@@ -24,17 +22,14 @@ import { SubPanel } from "./SubPanel";
 import { applyRoleChange } from "./applyRoleChange";
 import { sendMatchCommand } from "./matchCommands";
 import { applySubstitutions } from "./applySubstitutions";
+import { type MatchPace, MatchSpeedControl } from "./MatchSpeedControl";
+import { useMatchPace } from "./useMatchPace";
 import {
-  Play,
-  Pause,
-  FastForward,
-  SkipForward,
   Clock,
   Users,
   BarChart3,
   MessageSquare,
   RefreshCw,
-  ChevronRight,
   Zap,
   Shield,
   Crosshair,
@@ -75,14 +70,16 @@ export default function MatchLive({
 }: MatchLiveProps) {
   const { t } = useTranslation();
   const { settings } = useSettingsStore();
-  const initialSpeed: SimSpeed =
+  const initialPace: MatchPace =
     preferredSpeed ??
     (settings.match_speed === "slow" || settings.match_speed === "fast"
       ? settings.match_speed
       : "normal");
-  const [speed, setSpeed] = useState<SimSpeed>(initialSpeed);
   const [activePanel, setActivePanel] = useState<ActivePanel>("events");
-  const [isRunning, setIsRunning] = useState(true);
+  const { pace, isRunning, pause, togglePause, selectPace } = useMatchPace(
+    initialPace,
+    onPreferredSpeedChange,
+  );
   const [showSubPanel, setShowSubPanel] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventFeedRef = useRef<HTMLDivElement>(null);
@@ -133,8 +130,7 @@ export default function MatchLive({
           const phase = lastResult.phase;
           if (phase === "HalfTime" && !signaledRef.current.has("HalfTime")) {
             signaledRef.current.add("HalfTime");
-            setIsRunning(false);
-            setSpeed("paused");
+            pause();
             // Small delay so the last event renders before transitioning
             setTimeout(() => onHalfTime("HalfTime"), 600);
             return;
@@ -142,34 +138,31 @@ export default function MatchLive({
 
           if (phase === "ExtraTimeHalfTime" && !signaledRef.current.has("ExtraTimeHalfTime")) {
             signaledRef.current.add("ExtraTimeHalfTime");
-            setIsRunning(false);
-            setSpeed("paused");
+            pause();
             setTimeout(() => onHalfTime("ExtraTimeHalfTime"), 600);
             return;
           }
 
           if (phase === "PenaltyShootout" && !signaledRef.current.has("PenaltyShootout")) {
             signaledRef.current.add("PenaltyShootout");
-            setIsRunning(false);
-            setSpeed("paused");
+            pause();
             setTimeout(() => onPenaltyShootout?.(), 600);
             return;
           }
 
           if (lastResult.is_finished && !signaledRef.current.has("Finished")) {
             signaledRef.current.add("Finished");
-            setIsRunning(false);
-            setSpeed("paused");
+            pause();
             setTimeout(() => onFullTime(), 600);
             return;
           }
         }
       } catch (err) {
         console.error("Failed to step match:", err);
-        setIsRunning(false);
+        pause();
       }
     },
-    [onSnapshotUpdate, onImportantEvent, onHalfTime, onFullTime, onPenaltyShootout],
+    [pause, onSnapshotUpdate, onImportantEvent, onHalfTime, onFullTime, onPenaltyShootout],
   );
 
   // Auto-step timer
@@ -179,10 +172,10 @@ export default function MatchLive({
       timerRef.current = null;
     }
 
-    if (isRunning && speed !== "paused" && !isFinished && !showSubPanel) {
+    if (isRunning && !isFinished && !showSubPanel) {
       timerRef.current = setTimeout(async () => {
-        await stepMatch(MINUTES_PER_TICK[speed]);
-      }, SPEED_MS[speed]);
+        await stepMatch(MINUTES_PER_TICK[pace]);
+      }, SPEED_MS[pace]);
     }
 
     return () => {
@@ -190,7 +183,7 @@ export default function MatchLive({
     };
   }, [
     isRunning,
-    speed,
+    pace,
     snapshot.current_minute,
     snapshot.phase,
     stepMatch,
@@ -412,71 +405,16 @@ export default function MatchLive({
         </div>
 
         {/* Right Panel: Controls */}
-        <aside className="w-72 bg-white dark:bg-navy-800 border-l border-gray-200 dark:border-navy-700 flex flex-col transition-colors duration-300">
+        <aside className="w-72 bg-panel border-l border-line flex flex-col transition-colors duration-300">
           {/* Speed Controls */}
-          <div className="p-4 border-b border-gray-200 dark:border-navy-700">
-            <h3 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
-              {t("match.simSpeed")}
-            </h3>
-            <div className="flex gap-1">
-              {[
-                {
-                  id: "paused" as SimSpeed,
-                  icon: <Pause className="w-4 h-4" />,
-                  label: t("match.pause"),
-                },
-                {
-                  id: "slow" as SimSpeed,
-                  icon: <Play className="w-4 h-4" />,
-                  label: t("match.slow"),
-                },
-                {
-                  id: "normal" as SimSpeed,
-                  icon: <Play className="w-4 h-4" />,
-                  label: t("match.normal"),
-                },
-                {
-                  id: "fast" as SimSpeed,
-                  icon: <FastForward className="w-4 h-4" />,
-                  label: t("match.fast"),
-                },
-                {
-                  id: "instant" as SimSpeed,
-                  icon: <SkipForward className="w-4 h-4" />,
-                  label: t("match.max"),
-                },
-              ].map((s) => (
-                <button
-                  type="button"
-                  key={s.id}
-                  onClick={() => {
-                    setSpeed(s.id);
-                    setIsRunning(s.id !== "paused");
-                    if (isPersistableSpeed(s.id)) {
-                      onPreferredSpeedChange?.(s.id);
-                    }
-                  }}
-                  className={`flex-1 flex flex-col items-center gap-1 py-2 rounded-lg text-xs font-heading uppercase tracking-wider transition-all ${
-                    speed === s.id
-                      ? "bg-primary-500/20 text-primary-500 dark:text-primary-400 ring-1 ring-primary-500/50"
-                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-navy-700"
-                  }`}
-                >
-                  {s.icon}
-                  <span className="text-[10px]">{s.label}</span>
-                </button>
-              ))}
-            </div>
-            {speed === "paused" && (
-              <button
-                type="button"
-                onClick={() => stepMatch(1)}
-                className="w-full mt-2 flex items-center justify-center gap-2 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg text-sm font-heading uppercase tracking-wider text-gray-700 dark:text-gray-300 transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-                {t("match.step1Min")}
-              </button>
-            )}
+          <div className="p-4 border-b border-line">
+            <MatchSpeedControl
+              paused={!isRunning}
+              pace={pace}
+              onTogglePause={togglePause}
+              onSelectPace={selectPace}
+              onStep={() => stepMatch(1)}
+            />
           </div>
 
           {/* User Controls */}

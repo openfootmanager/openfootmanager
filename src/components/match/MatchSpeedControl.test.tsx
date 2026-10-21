@@ -87,7 +87,10 @@ describe("MatchSpeedControl", () => {
     const field = document.createElement("input");
     document.body.append(field);
     fireEvent.keyDown(field, { key: " ", code: "Space" });
-    fireEvent.keyDown(screen.getByRole("radio", { name: "match.fast" }), { key: " ", code: "Space" });
+    fireEvent.keyDown(screen.getByRole("radio", { name: "match.fast" }), {
+      key: " ",
+      code: "Space",
+    });
     expect(props.onTogglePause).not.toHaveBeenCalled();
     field.remove();
   });
