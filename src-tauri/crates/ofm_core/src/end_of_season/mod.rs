@@ -804,6 +804,13 @@ fn notify_user_division_change(
 /// then every club takes its youth intake. The intake comes last so the rebuild
 /// cannot promote a youngster on the day he joins: academy promotion goes by
 /// rating, and nothing else would stop a fifteen-year-old being picked.
+pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate, season: u32) {
+    crate::aging::apply_seasonal_aging(game, date, season);
+    game.last_season_rollover_on = Some(date.format("%Y-%m-%d").to_string());
+    crate::ai_contracts::plan_every_ai_squad(game);
+    crate::youth_intake::apply_youth_intake(game, date, season);
+}
+
 /// For a save from before the rollover day was kept: take it from the latest finished edition of a
 /// league table the manager's club played in, so a report from an earlier season in that save still
 /// reads as out of date. True when it filled the day in. A new career has no such edition and stays
@@ -831,13 +838,6 @@ pub fn backfill_last_season_rollover(game: &mut Game) -> bool {
         .map(str::to_string);
     game.last_season_rollover_on = last_league_season_end;
     game.last_season_rollover_on.is_some()
-}
-
-pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate, season: u32) {
-    crate::aging::apply_seasonal_aging(game, date, season);
-    game.last_season_rollover_on = Some(date.format("%Y-%m-%d").to_string());
-    crate::ai_contracts::plan_every_ai_squad(game);
-    crate::youth_intake::apply_youth_intake(game, date, season);
 }
 
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
@@ -2155,6 +2155,60 @@ mod tests {
         assert!(backfill_last_season_rollover(&mut game));
 
         assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-22"));
+    }
+
+    /// Given an old career whose manager moved from "mine" (league season finished 22 May) to
+    ///      "newclub", whose league season finished on 25 May
+    /// When it is loaded
+    /// Then the day comes from the club he manages now: 25 May
+    #[test]
+    fn a_manager_who_changed_club_takes_the_rollover_from_his_new_league() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        let new_clubs = ["newclub".to_string(), "other".to_string()];
+        game.competitions.push(League::new(
+            "division-two".to_string(),
+            "division-two".to_string(),
+            2027,
+            &new_clubs,
+        ));
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: "division-two".to_string(),
+                season: 2026,
+                completed_on: "2027-05-25".to_string(),
+                champion_id: "other".to_string(),
+                participant_ids: new_clubs.to_vec(),
+                standings: vec![],
+                groups: vec![],
+                knockout_rounds: vec![],
+                fixtures: vec![],
+            });
+        game.manager.team_id = Some("newclub".to_string());
+
+        assert!(backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-25"));
+    }
+
+    /// Given an old career whose manager is out of work
+    /// When it is loaded
+    /// Then no club's league gives a day: none is set
+    #[test]
+    fn an_unemployed_manager_gets_no_backfilled_rollover() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        game.manager.team_id = None;
+
+        assert!(!backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on, None);
     }
 
     /// Given a career in its first season, with nothing archived yet
