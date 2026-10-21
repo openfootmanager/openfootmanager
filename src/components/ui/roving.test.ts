@@ -27,6 +27,16 @@ describe("rovingTarget", () => {
     expect(rovingTarget("ArrowDown", 1, 4)).toBeNull();
   });
 
+  /**
+   * Given a row that must not wrap (the match speed, where wrapping from Slow lands on Max and runs
+   * the match to half time), then the arrows stop at both ends.
+   */
+  it("stops at both ends when wrapping is off", () => {
+    expect(rovingTarget("ArrowRight", 3, 4, { wrap: false })).toBe(3);
+    expect(rovingTarget("ArrowLeft", 0, 4, { wrap: false })).toBe(0);
+    expect(rovingTarget("ArrowRight", 1, 4, { wrap: false })).toBe(2);
+  });
+
   /** Given any other key, then nothing moves. */
   it("ignores other keys", () => {
     expect(rovingTarget("Enter", 1, 4)).toBeNull();

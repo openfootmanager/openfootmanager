@@ -112,7 +112,9 @@ export function MatchSpeedControl({
         ]}
         value={pace}
         onChange={onSelectPace}
-        emphasis={paused ? "quiet" : "strong"}
+        emphasis={paused ? "outlined" : "strong"}
+        // Wrapping from Slow (or past Fast) would land on Max, which runs the match to half time.
+        wrap={false}
         layout="stacked"
         fill
       />
@@ -122,7 +124,7 @@ export function MatchSpeedControl({
         icon={<StepForward />}
         onClick={onStep}
         disabled={!paused}
-        className="w-full"
+        className="h-row w-full"
       >
         {t("match.step1Min")}
       </Button>

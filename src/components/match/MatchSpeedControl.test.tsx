@@ -55,6 +55,59 @@ describe("MatchSpeedControl", () => {
     expect(screen.getByRole("button", { name: "match.step1Min" })).toBeEnabled();
   });
 
+  /**
+   * Given a paused match
+   * When the control renders
+   * Then the speed it resumes at stays outlined, not filled (that means playing) and not a faint
+   * grey ring; and Step is a full row tall, like every target in the panel.
+   */
+  it("outlines the pace a paused match resumes at, and Step is a row tall", () => {
+    renderControl({ paused: true, pace: "fast" });
+    const fast = screen.getByRole("radio", { name: "match.fast" });
+    expect(fast).toHaveClass("ring-positive-solid");
+    expect(fast).not.toHaveClass("bg-primary-700");
+    expect(screen.getByRole("button", { name: "match.step1Min" })).toHaveClass("h-row");
+  });
+
+  /**
+   * Given Fast chosen, or Slow
+   * When the arrow keys go past the end of the speeds
+   * Then the choice stays put: wrapping would land on Max, which runs the match to half time and
+   * can't be undone.
+   */
+  it("doesn't wrap the arrows round to Max", () => {
+    const props = renderControl({ pace: "instant" });
+    fireEvent.keyDown(screen.getByRole("radio", { name: "match.max" }), { key: "ArrowRight" });
+    expect(props.onSelectPace).not.toHaveBeenCalled();
+  });
+
+  it("doesn't wrap from Slow back to Max", () => {
+    const props = renderControl({ pace: "slow" });
+    fireEvent.keyDown(screen.getByRole("radio", { name: "match.slow" }), { key: "ArrowLeft" });
+    expect(props.onSelectPace).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given the control has left the screen (the match moved on to half time)
+   * When Space is pressed
+   * Then nothing toggles: the shortcut goes with the control.
+   */
+  it("stops listening for Space once it is gone", () => {
+    const onTogglePause = vi.fn();
+    const { unmount } = render(
+      <MatchSpeedControl
+        paused={false}
+        pace="normal"
+        onTogglePause={onTogglePause}
+        onSelectPace={vi.fn()}
+        onStep={vi.fn()}
+      />,
+    );
+    unmount();
+    fireEvent.keyDown(document.body, { key: " ", code: "Space" });
+    expect(onTogglePause).not.toHaveBeenCalled();
+  });
+
   /** Given the control, when the toggle, a speed and the step are pressed, then each is reported. */
   it("reports the toggle, a chosen speed and a step", () => {
     const props = renderControl({ paused: true });

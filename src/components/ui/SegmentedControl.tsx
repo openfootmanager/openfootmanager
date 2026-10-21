@@ -15,12 +15,17 @@ interface SegmentedControlProps<V extends string> {
   options: readonly SegmentedOption<V>[];
   value: V;
   onChange: (value: V) => void;
-  /** `strong` fills the chosen option, for a setting the player watches; `quiet` raises it. */
-  emphasis?: "quiet" | "strong";
+  /**
+   * `strong` fills the chosen option, for a setting the player watches; `outlined` rings it, for one
+   * chosen but not running (a paused match's speed); `quiet` raises it.
+   */
+  emphasis?: "quiet" | "strong" | "outlined";
   /** `stacked` puts each icon over its label in a 52px target; `inline` is one compact line. */
   layout?: "inline" | "stacked";
   /** Stretch across the container, the options sharing its width. */
   fill?: boolean;
+  /** Whether the arrows wrap from one end to the other; off where an end is a one-way step. */
+  wrap?: boolean;
 }
 
 /**
@@ -34,6 +39,7 @@ export function SegmentedControl<V extends string>({
   value,
   onChange,
   emphasis = "quiet",
+  wrap = true,
   layout = "inline",
   fill = false,
 }: SegmentedControlProps<V>) {
@@ -42,9 +48,11 @@ export function SegmentedControl<V extends string>({
   const tabStop = options.some((option) => option.value === value) ? value : options[0]?.value;
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const target = rovingTarget(event.key, index, options.length, { upDown: true });
+    const target = rovingTarget(event.key, index, options.length, { upDown: true, wrap });
     if (target === null) return;
     event.preventDefault();
+    // At an end of a group that doesn't wrap, the key goes nowhere: no change to report.
+    if (target === index) return;
     const option = options[target];
     onChange(option.value);
     radios.current.get(option.value)?.focus();

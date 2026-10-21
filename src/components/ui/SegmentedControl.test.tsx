@@ -12,7 +12,7 @@ const PACES = [
 ] as const;
 type Pace = (typeof PACES)[number]["value"];
 
-function Harness({ emphasis }: { emphasis?: "quiet" | "strong" }) {
+function Harness({ emphasis }: { emphasis?: "quiet" | "strong" | "outlined" }) {
   const [pace, setPace] = useState<Pace>("normal");
   return (
     <>
@@ -100,6 +100,33 @@ describe("SegmentedControl", () => {
     expect(track).not.toHaveClass("overflow-x-auto");
     expect(track).not.toHaveClass("inline-flex");
     expect(screen.getByRole("radio", { name: "Fast" })).toHaveClass("flex-auto");
+  });
+
+  /**
+   * Given the outlined emphasis (a setting that is chosen but not running, like a paused match's
+   * speed), then the chosen option is outlined in the positive colour, not filled or merely raised.
+   */
+  it("outlines the chosen option when outlined", () => {
+    render(<Harness emphasis="outlined" />);
+    const normal = screen.getByRole("radio", { name: "Normal" });
+    expect(normal).toHaveClass("ring-2", "ring-inset", "ring-positive-solid", "text-positive");
+    expect(normal).not.toHaveClass("bg-primary-700");
+  });
+
+  /** Given a group that must not wrap, when the arrows reach an end, then the choice stays there. */
+  it("stops at the ends when it doesn't wrap", () => {
+    const onChange = vi.fn();
+    render(
+      <SegmentedControl
+        labelledBy="x"
+        options={PACES}
+        value="max"
+        onChange={onChange}
+        wrap={false}
+      />,
+    );
+    fireEvent.keyDown(screen.getByRole("radio", { name: "Max" }), { key: "ArrowRight" });
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   /** Given a value no option has, then the first option is the tab stop, so the group can be reached. */
