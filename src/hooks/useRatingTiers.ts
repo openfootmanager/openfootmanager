@@ -3,14 +3,17 @@ import { useCallback, useEffect, useState } from "react";
 import { getRatingTiers, type RatingTier } from "../services/squadService";
 
 // The table is the same for the whole session, and a screen mounts this hook once per row, so one
-// request serves every mount. A failed request is dropped so the next mount asks again.
+// request serves every mount. A failed request is dropped so the next mount asks again; whichever
+// request finally succeeds hands the table to every mount, including one whose own request failed.
 let pending: Promise<RatingTier[]> | null = null;
 let resolved: RatingTier[] | null = null;
+const mounted = new Set<(table: RatingTier[]) => void>();
 
 function loadRatingTiers(): Promise<RatingTier[]> {
   pending ??= getRatingTiers()
     .then((table) => {
       resolved = table;
+      for (const show of mounted) show(table);
       return table;
     })
     .catch((error: unknown) => {
@@ -24,6 +27,7 @@ function loadRatingTiers(): Promise<RatingTier[]> {
 export function resetRatingTiersCache(): void {
   pending = null;
   resolved = null;
+  mounted.clear();
 }
 
 /**
@@ -35,16 +39,12 @@ export function useRatingTiers(): (rating: number) => RatingTier {
   const [tiers, setTiers] = useState<RatingTier[]>(resolved ?? []);
 
   useEffect(() => {
-    let cancelled = false;
-    loadRatingTiers()
-      .then((table) => {
-        if (!cancelled) setTiers(table);
-      })
-      .catch((error: unknown) => {
-        console.error("Failed to load the rating tiers:", error);
-      });
+    mounted.add(setTiers);
+    loadRatingTiers().catch((error: unknown) => {
+      console.error("Failed to load the rating tiers:", error);
+    });
     return () => {
-      cancelled = true;
+      mounted.delete(setTiers);
     };
   }, []);
 

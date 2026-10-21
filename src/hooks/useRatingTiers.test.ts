@@ -104,4 +104,23 @@ describe("useRatingTiers", () => {
     expect(mockedTiers).toHaveBeenCalledTimes(2);
     quiet.mockRestore();
   });
+
+  /**
+   * Given a first mount whose request failed, so it reads "Rest" for everything
+   * When a later mount asks again and its request succeeds
+   * Then the first mount reads the table too, instead of staying on "Rest" for good.
+   */
+  it("gives a mount whose request failed the table a later retry fetches", async () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockedTiers.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(table());
+
+    const first = renderHook(() => useRatingTiers());
+    await waitFor(() => expect(quiet).toHaveBeenCalled());
+    expect(first.result.current(90)).toBe("Rest");
+    const second = renderHook(() => useRatingTiers());
+    await waitFor(() => expect(second.result.current(90)).toBe("S"));
+
+    await waitFor(() => expect(first.result.current(90)).toBe("S"));
+    quiet.mockRestore();
+  });
 });

@@ -220,13 +220,17 @@ describe("PreMatchSetup opponent scout panel", () => {
       within(screen.getByText(name).closest("div.flex") as HTMLElement)
         .getAllByText(rating)
         .filter((element) => element.className.includes("tabular-nums"));
-    for (const element of statsOf("Away A", "77")) {
+    // The rating and the shooting stat of each player: an empty list must not pass the loops below.
+    const aTier = statsOf("Away A", "77");
+    const bTier = statsOf("Away B", "76");
+    expect(aTier.length).toBeGreaterThanOrEqual(2);
+    expect(bTier.length).toBeGreaterThanOrEqual(2);
+    for (const element of aTier) {
       expect(element).toHaveClass(...ratingTierClass("A", "text").split(" "));
     }
-    for (const element of statsOf("Away B", "76")) {
+    for (const element of bTier) {
       expect(element).toHaveClass(...ratingTierClass("B", "text").split(" "));
     }
-    expect(statsOf("Away A", "77").length).toBeGreaterThanOrEqual(2);
   });
 
   it("shows the translated competition name for the current named cup fixture", () => {
