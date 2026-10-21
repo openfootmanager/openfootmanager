@@ -14,22 +14,26 @@ name: mutation-tests
 # person to judge — plenty are equivalent mutants that no test could reasonably catch. Blocking a
 # PR on that would be the fastest way to get this deleted.
 #
-# The work is cut into *slots*, each a crate or one `--shard` of a crate, sized to finish inside
-# one job. GitHub stops a hosted job at six hours, and the crates are nothing alike:
+# The work is cut into *slots*, each one bucket of one crate, sized to finish inside one job.
+# GitHub stops a hosted job at six hours, and the crates are nothing alike (21 Oct 2026):
 #
-#   domain      367 mutants
-#   db          488 mutants    17.8 s each, measured (27 Sep 2026: 2h 27m)
-#   engine    1,547 mutants    ~4.5 s each on a workstation; not yet measured here
-#   ofm_core  8,360 mutants    34.2 s each, measured (6 Oct 2026); 115 s before the build changes
-#                              in the mutate step below
+#   domain      420 mutants     1 bucket
+#   db          553 mutants     2 buckets   17.8 s each, measured (27 Sep 2026: 2h 27m)
+#   engine    1,648 mutants     4 buckets   ~4.5 s each on a workstation; not yet measured here
+#   ofm_core  9,524 mutants    44 buckets   34.2 s each, measured (6 Oct 2026); 115 s before
+#                                           the build changes in the mutate step below
 #
-# This used to be one fixed slot a week, with `ofm_core` split 13 ways on the strength of the
-# `db` figure. `ofm_core`'s mutants turned out to cost six times as much, so its slots needed
-# about twenty hours each: the 4 Oct run timed out after 141 of 643 mutants. The split is now
-# computed every run from the live mutant counts and a per-crate cost, by
-# `scripts/mutation-slot.sh` — the costs live there, with where each one came from, and that is
-# the file to change when a run overruns. Six slots run in parallel each Sunday, so the rotation
-# (33 slots at the counts above) comes round about every six weeks.
+# A mutant's bucket comes from a hash of its name without the line and column, so it stays put
+# while the code around it changes, and the bucket counts are constants. `scripts/mutation-slot.sh`
+# holds them, the per-mutant costs, and where each number came from; it refuses a bucket that has
+# outgrown its slot instead of planning one that cannot finish. Eight slots run in parallel each
+# Sunday, so the 51-slot rotation tests every mutant once in a little under seven weeks.
+#
+# This replaced a rotation of `--shard` slots whose count was recomputed from the live mutant
+# counts every run. The count moved (29 to 32 `ofm_core` shards between 11 and 18 Oct 2026) and
+# the rotation jumped with it; and because cargo-mutants deals shards by position in its list,
+# one added mutant reshuffled every shard after it, so consecutive weeks never added up to a
+# full pass.
 
 on:
   schedule:
@@ -48,8 +52,8 @@ on:
           - db
           - engine
           - ofm_core
-      shard:
-        description: "Zero-based shard, e.g. 0/3. Leave blank for the first shard of the chosen crate."
+      bucket:
+        description: "Zero-based bucket, e.g. 3/44. Leave blank for the first bucket of the chosen crate."
         required: false
         default: ""
         type: string
@@ -64,15 +68,15 @@ jobs:
     # run cannot burn six hours of the default timeout unnoticed.
     timeout-minutes: 300
 
-    # Six slots each Sunday, one per job; a manual dispatch runs exactly the one it names. The
+    # Eight slots each Sunday, one per job; a manual dispatch runs exactly the one it names. The
     # jobs find their slot from `strategy.job-index` and `strategy.job-total`, so this list is the
     # only place the weekly number is written down. `fail-fast: false` because each job is hours
-    # of independent work: one slot overrunning must not cancel the other five. Nothing reads
+    # of independent work: one slot overrunning must not cancel the other seven. Nothing reads
     # `matrix.job` itself; its values exist only to set how many jobs there are.
     strategy:
       fail-fast: false
       matrix:
-        job: ${{ fromJSON(github.event_name == 'schedule' && '[0, 1, 2, 3, 4, 5]' || '[0]') }}
+        job: ${{ fromJSON(github.event_name == 'schedule' && '[0, 1, 2, 3, 4, 5, 6, 7]' || '[0]') }}
 
     steps:
       - name: Checkout
@@ -101,72 +105,64 @@ jobs:
           tool: cargo-mutants@25.3.1
 
       # A cron trigger carries no inputs, so the week number and this job's place in the matrix
-      # pick the slot; a manual dispatch names its own crate and shard. Count weeks from the Unix
-      # epoch so the rotation continues across year boundaries.
+      # pick the slot; a manual dispatch names its own crate and, optionally, its bucket. Weeks
+      # are counted from the Unix epoch, so the rotation continues across year boundaries.
       #
-      # The shard counts come from today's mutant counts, not from a table written down once —
-      # see `scripts/mutation-slot.sh` for why. `--list` only parses the source, so this costs
-      # seconds. A listing that fails stops the step here under `-e`; one that prints nothing
-      # counts as zero, which the script refuses rather than quietly planning without that crate.
-      # The rotation shifts when a count crosses a shard boundary. That is no real loss of
-      # coverage: cargo-mutants deals mutants to shards by their position in the list, so any
-      # commit that adds or removes one mutant already reshuffles every shard of that crate, and a
-      # fixed table never promised each mutant a turn either. The rotation guarantees each slot
-      # *of the code as it stands that week* is a fair sample — and that it finishes.
+      # The slot is then turned into the exact mutants it holds: `--list` (it only parses the
+      # source, so this costs seconds) feeds `mutation-slot.sh select`, which prints one anchored
+      # `--re` pattern per mutant of the bucket. A listing that fails stops the step under `-e`;
+      # one that prints nothing, or a bucket that selects nothing, is refused by the script,
+      # because a run with no `--re` at all would mutate the whole crate.
+      #
+      # Last, cargo-mutants itself is asked how many mutants those patterns select. If that is
+      # not the bucket's size, an escaping slip would quietly test fewer mutants than planned, so
+      # the job stops here rather than after hours of work on the wrong set.
       - name: Choose this week's slot
         id: crate
         env:
           INPUT_CRATE: ${{ inputs.crate }}
-          INPUT_SHARD: ${{ inputs.shard }}
+          INPUT_BUCKET: ${{ inputs.bucket }}
           JOB_INDEX: ${{ strategy.job-index }}
           JOB_TOTAL: ${{ strategy.job-total }}
         run: |
           set -euo pipefail
-          count_mutants() {
-            counts=()
-            for listed in domain db engine ofm_core; do
-              count="$(cargo mutants --manifest-path src-tauri/Cargo.toml --package "$listed" --list | wc -l)"
-              counts+=("$listed=$count")
-            done
-            echo "Mutant counts: ${counts[*]}"
-          }
-
           # `slot=` on its own line: a failure inside `read <<< "$(…)"` is not one `-e` sees, so
           # the planner refusing its input would otherwise surface later as "Invalid crate: ".
-          # A manual run that names its shard needs no counts, so it does not list anything.
-          if [ -n "$INPUT_CRATE" ] && [ -n "$INPUT_SHARD" ]; then
-            slot="$INPUT_CRATE $INPUT_SHARD"
+          if [ -n "$INPUT_CRATE" ] && [ -n "$INPUT_BUCKET" ]; then
+            slot="$INPUT_CRATE $INPUT_BUCKET"
           elif [ -n "$INPUT_CRATE" ]; then
-            count_mutants
-            slot="$(./scripts/mutation-slot.sh first "$INPUT_CRATE" "${counts[@]}")"
+            slot="$(./scripts/mutation-slot.sh first "$INPUT_CRATE")"
           else
-            count_mutants
             week=$(( $(date -u +%s) / 604800 ))
-            slot="$(./scripts/mutation-slot.sh pick "$week" "$JOB_INDEX" "$JOB_TOTAL" "${counts[@]}")"
+            slot="$(./scripts/mutation-slot.sh pick "$week" "$JOB_INDEX" "$JOB_TOTAL")"
           fi
-          read -r crate shard <<< "$slot"
+          read -r crate bucket <<< "$slot"
           case "$crate" in
             domain|db|engine|ofm_core) ;;
             *) echo "Invalid crate: $crate" >&2; exit 1 ;;
           esac
-          if [[ ! "$shard" =~ ^[0-9]+/[0-9]+$ ]]; then
-            echo "Invalid shard: $shard" >&2
+
+          listing="$RUNNER_TEMP/mutants-listing.txt"
+          examine="$RUNNER_TEMP/mutants-examine.txt"
+          cargo mutants --manifest-path src-tauri/Cargo.toml --package "$crate" --list > "$listing"
+          # `select` validates the bucket, including one typed into a manual dispatch.
+          ./scripts/mutation-slot.sh select "$crate" "$bucket" < "$listing" > "$examine"
+          planned="$(wc -l < "$examine")"
+          re_args=()
+          while IFS= read -r pattern; do re_args+=(--re "$pattern"); done < "$examine"
+          matched="$(cargo mutants --manifest-path src-tauri/Cargo.toml --package "$crate" \
+            --list "${re_args[@]}" | wc -l)"
+          if [ "$matched" -ne "$planned" ]; then
+            echo "Bucket $bucket of $crate has $planned mutants, but its patterns match $matched" >&2
             exit 1
           fi
-          IFS=/ read -r shard_index shard_count <<< "$shard"
-          if (( ${#shard_index} > 18 || ${#shard_count} > 18 )); then
-            echo "Invalid shard: $shard" >&2
-            exit 1
-          fi
-          if (( 10#$shard_count == 0 || 10#$shard_index >= 10#$shard_count )); then
-            echo "Invalid shard: $shard" >&2
-            exit 1
-          fi
+
           echo "name=$crate" >> "$GITHUB_OUTPUT"
-          echo "shard=$shard" >> "$GITHUB_OUTPUT"
-          # A filesystem-safe label for the artifact name: `ofm_core 3/13` -> `ofm_core-3of13`.
-          echo "label=${crate}-${shard/\//of}" >> "$GITHUB_OUTPUT"
-          echo "Mutating $crate, shard $shard"
+          echo "bucket=$bucket" >> "$GITHUB_OUTPUT"
+          echo "examine=$examine" >> "$GITHUB_OUTPUT"
+          # A filesystem-safe label for the artifact name: `ofm_core 3/44` -> `ofm_core-b3of44`.
+          echo "label=${crate}-b${bucket/\//of}" >> "$GITHUB_OUTPUT"
+          echo "Mutating $crate, bucket $bucket: $planned mutants"
 
       # Surviving mutants are the *output*, not a failure. Which exit statuses mean "the run did
       # its job" is decided by `scripts/mutation-outcome.sh`, which says why for each one and is
@@ -199,18 +195,26 @@ jobs:
       #     is certain to win over the value rust-cache wrote to `$GITHUB_ENV`.
       #   * `--profile mutants` (`src-tauri/Cargo.toml`): the test profile without debuginfo.
       #     Nobody reads a mutant's backtrace, and generating debuginfo is part of every rebuild.
-      - name: Mutate ${{ steps.crate.outputs.name }} (shard ${{ steps.crate.outputs.shard }})
+      - name: Mutate ${{ steps.crate.outputs.name }} (bucket ${{ steps.crate.outputs.bucket }})
         timeout-minutes: 270
         env:
           MUTATION_CRATE: ${{ steps.crate.outputs.name }}
-          MUTATION_SHARD: ${{ steps.crate.outputs.shard }}
+          MUTATION_EXAMINE: ${{ steps.crate.outputs.examine }}
         run: |
           set -uo pipefail
           export CARGO_INCREMENTAL=1
+          re_args=()
+          while IFS= read -r pattern; do re_args+=(--re "$pattern"); done < "$MUTATION_EXAMINE"
+          # The previous step refused an empty bucket; this guards the hand-off, because no
+          # `--re` at all means the whole crate.
+          if [ "${#re_args[@]}" -eq 0 ]; then
+            echo "No mutants selected for $MUTATION_CRATE" >&2
+            exit 1
+          fi
           status=0
           cargo mutants --manifest-path src-tauri/Cargo.toml \
             --package "$MUTATION_CRATE" \
-            --shard "$MUTATION_SHARD" \
+            "${re_args[@]}" \
             --profile mutants \
             --in-place --no-shuffle --timeout 300 \
             --output mutants-out || status=$?
@@ -224,7 +228,7 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           MUTATION_CRATE: ${{ steps.crate.outputs.name }}
-          MUTATION_SHARD: ${{ steps.crate.outputs.shard }}
+          MUTATION_BUCKET: ${{ steps.crate.outputs.bucket }}
         run: |
           set -uo pipefail
           report=mutants-out/mutants.out
@@ -232,7 +236,7 @@ jobs:
             if [ -f "$report/$1.txt" ]; then wc -l < "$report/$1.txt"; else echo 0; fi
           }
           {
-            echo "## Mutants: $MUTATION_CRATE, shard $MUTATION_SHARD"
+            echo "## Mutants: $MUTATION_CRATE, bucket $MUTATION_BUCKET"
             echo ""
             if [ ! -d "$report" ]; then
               echo "No report: the run stopped before cargo-mutants wrote one."
