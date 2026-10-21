@@ -893,15 +893,16 @@ mod tests {
         }
     }
 
-    /// Given a historical-snapshot world on disk whose career opens on 20 November 2031 (a 2032
-    ///       mid-season start would be 29 October 2032), and managers born on 15 December 2001
-    ///       (29 on the snapshot date, 30 on the form's date) and on 20 November 2001 (30 on it)
-    /// When `start_new_game_internal` starts a career for each
-    /// Then the first is refused with minAge and no game is installed, and the second gets his
-    ///      career: the age refusal is the command's own, against the clock the world sets.
-    #[test]
-    fn start_new_game_internal_refuses_a_manager_too_young_on_the_snapshot_clock() {
-        let dir = crate::commands::game::testkit::temp_pkg_dir("sng-snapshot");
+    /// A historical-snapshot world written to disk (its career opens on 20 November 2031, whatever
+    /// the start year says), the environment to read it with, and the directory to remove after.
+    fn snapshot_world_on_disk(
+        tag: &str,
+    ) -> (
+        std::path::PathBuf,
+        std::path::PathBuf,
+        crate::commands::game::StartEnvironment,
+    ) {
+        let dir = crate::commands::game::testkit::temp_pkg_dir(tag);
         let world_file = dir.join("snapshot-world.json");
         std::fs::write(
             &world_file,
@@ -913,17 +914,22 @@ mod tests {
             asset_root: None,
             sources: ofm_core::generator::DefinitionSources::embedded_only(),
         };
+        (dir, world_file, environment)
+    }
+
+    /// Given a historical-snapshot world whose career opens on 20 November 2031, and a manager born
+    ///       on 15 December 2001 (29 on that date, though 30 on the form's 2032 date)
+    /// When `start_new_game_internal` starts a career for him
+    /// Then it refuses with minAge and installs no game: the age refusal is the command's own,
+    ///      against the clock the world sets.
+    #[test]
+    fn start_new_game_internal_refuses_a_manager_too_young_on_the_snapshot_clock() {
+        let (dir, world_file, environment) = snapshot_world_on_disk("sng-too-young");
         let state = ofm_core::state::StateManager::new();
 
         let refused = crate::commands::game::start_new_game_internal(
             &state,
             request_for_world("2001-12-15", &world_file),
-            &environment,
-        );
-        let nothing_installed = state.get_game(|_| ()).is_none();
-        let accepted = crate::commands::game::start_new_game_internal(
-            &state,
-            request_for_world("2001-11-20", &world_file),
             &environment,
         );
         std::fs::remove_dir_all(&dir).ok();
@@ -932,7 +938,25 @@ mod tests {
             refused.err().as_deref(),
             Some("be.error.createManager.minAge")
         );
-        assert!(nothing_installed);
+        assert!(state.get_game(|_| ()).is_none());
+    }
+
+    /// Given the same snapshot world and a manager born on 20 November 2001 (30 on that date)
+    /// When `start_new_game_internal` starts a career for him
+    /// Then he gets his career, and it is installed as the active game.
+    #[test]
+    fn start_new_game_internal_accepts_a_manager_old_enough_on_the_snapshot_clock() {
+        let (dir, world_file, environment) = snapshot_world_on_disk("sng-old-enough");
+        let state = ofm_core::state::StateManager::new();
+
+        let accepted = crate::commands::game::start_new_game_internal(
+            &state,
+            request_for_world("2001-11-20", &world_file),
+            &environment,
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
         assert_eq!(accepted.unwrap().manager.date_of_birth, "2001-11-20");
+        assert!(state.get_game(|_| ()).is_some());
     }
 }
