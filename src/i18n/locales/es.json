@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} es obligatorio",
     "maxLength": "{{field}} no debe exceder de {{max}} caracteres",
-    "minStartYear": "El año de inicio debe ser {{min}} o posterior",
-    "minAge": "El entrenador debe tener al menos {{min}} años — cambia la fecha de nacimiento para continuar.",
-    "invalidDate": "Fecha inválida",
-    "invalidDob": "Fecha de nacimiento inválida"
+    "minStartYear": "El año de inicio debe ser {{min}} o posterior"
   },
   "worldSelect": {
     "title": "Elegir Mundo",
@@ -3570,6 +3567,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Informe del torneo de pretemporada",
           "body": "En el torneo de pretemporada, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Ambos equipos aprovecharon el encuentro para afilarse antes del inicio de la temporada competitiva.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Crónica del partido ({{competition}})",
+          "body": "{{competition}}: el partido terminó {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {

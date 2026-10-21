@@ -86,10 +86,18 @@
   --color-fg-subtle: #646d7b;
   --color-line: #e5e7eb;
   --color-line-strong: #d1d5db;
-  --color-focus: #10b981;
-  /* Text on the brand fill (primary-700) or on chrome. Never on a -solid colour: those are for
-     bars, dots and fills that carry no text, and white on them falls under 4.5:1. */
+  /* The focus ring. Themed so it reaches WCAG 1.4.11's 3:1 against the page and a panel in both themes. */
+  --color-focus: #047857;
+  /* Text and icons on the brand fill (primary-700), on chrome, on the turf or a dark hero. Never
+     on a -solid colour: those are for bars, dots and fills that carry no text, and white on them
+     falls under 4.5:1. */
   --color-on-brand: #ffffff;
+  /* The surface under the pointer: a hovered row, menu item or ghost button. */
+  --color-hover: #e5e7eb;
+  /* Chart series, in order. Charts read these through var(), which SVG attributes resolve in
+     WebKitGTK and Chromium alike, so a chart follows the theme with no colours in TypeScript. */
+  --color-series-1: #059669;
+  --color-series-2: #4f46e5;
 
   /* Status: text, tint (backgrounds) and solid (bars and dots only; they carry no text). */
   --color-positive: #047857;
@@ -152,6 +160,10 @@
     --color-fg-subtle: #8d99ae;
     --color-line: #243054;
     --color-line-strong: #2f3d66;
+    --color-focus: #34d399;
+    --color-hover: #243054;
+    --color-series-1: #10b981;
+    --color-series-2: #6366f1;
     --color-positive: #34d399;
     --color-positive-tint: rgb(6 78 59 / 0.55);
     --color-warning: #fbbf24;

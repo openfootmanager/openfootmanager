@@ -20,6 +20,7 @@ import { TraitList } from "../TraitBadge";
 import { SquadSortHeader } from "./SquadSortHeader";
 import {
   calcAge,
+  contractExpiryLabel,
   getPlayerOvr,
   getContractRiskBadgeVariant,
   getContractYearsRemaining,
@@ -101,7 +102,7 @@ export default function SquadRosterView({
   sortState,
   onSortStateChange,
 }: SquadRosterViewProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [playerSearch, setPlayerSearch] = useState("");
   // Ties each visible filter label to its control, so the control is announced by that label.
   const searchInputId = useId();
@@ -916,7 +917,7 @@ export default function SquadRosterView({
                           </div>
                           <div className="text-gray-500 dark:text-gray-400">
                             {player.contract_end
-                              ? t("finances.contractExpiresOn", { date: player.contract_end })
+                              ? contractExpiryLabel(player.contract_end, i18n.language, t)
                               : "—"}
                           </div>
                           {player.transfer_listed || player.loan_listed || player.injury ? (

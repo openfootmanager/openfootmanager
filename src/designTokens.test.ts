@@ -101,6 +101,10 @@ const THEMED_COLOURS = [
   "fg-subtle",
   "line",
   "line-strong",
+  "hover",
+  "focus",
+  "series-1",
+  "series-2",
   ...["positive", "warning", "danger", "info"].flatMap((s) => [s, `${s}-tint`]),
   ...["top", "good", "fair", "low", "bad"].flatMap((t) => [`tone-${t}`, `tone-${t}-tint`]),
 ].map((name) => `--color-${name}`);
@@ -152,6 +156,18 @@ describe("design tokens", () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+
+  /**
+   * Given the focus ring,
+   * when it is drawn against the page or a panel in any mode,
+   * then it reaches the 3:1 that WCAG 1.4.11 asks of a non-text indicator.
+   */
+  it.each(MODES)("keeps the focus ring visible in %s", (mode) => {
+    for (const surface of ["--color-page", "--color-panel"]) {
+      const ratio = contrast(rendered(mode, "--color-focus"), rendered(mode, surface));
+      expect(ratio, `focus on ${surface}`).toBeGreaterThanOrEqual(3);
+    }
   });
 
   /**

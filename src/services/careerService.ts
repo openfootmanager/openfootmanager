@@ -19,3 +19,16 @@ export async function routeForActiveCareer(): Promise<"/select-team" | "/dashboa
     return "/dashboard";
   }
 }
+
+/**
+ * The translation key of what is wrong with a manager's date of birth on the day a career opens,
+ * or `null` when it will do. The backend owns the age rule and the opening date (1 June in a World
+ * Cup summer, 1 July otherwise, 120 days later mid-season); the form only shows the answer.
+ */
+export function validateManagerDob(
+  dob: string,
+  startYear: number,
+  startPhase: string,
+): Promise<string | null> {
+  return invoke<string | null>("validate_manager_dob", { dob, startYear, startPhase });
+}

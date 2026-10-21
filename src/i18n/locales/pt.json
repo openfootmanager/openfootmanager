@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} é obrigatório",
     "maxLength": "{{field}} não deve exceder {{max}} caracteres",
-    "minStartYear": "O ano de início deve ser {{min}} ou posterior",
-    "minAge": "O treinador deve ter pelo menos {{min}} anos — altere a data de nascimento para continuar.",
-    "invalidDate": "Data inválida",
-    "invalidDob": "Data de nascimento inválida"
+    "minStartYear": "O ano de início deve ser {{min}} ou posterior"
   },
   "worldSelect": {
     "title": "Escolher Mundo",
@@ -3570,6 +3567,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: resumo do torneio de pré-época",
           "body": "No torneio de pré-época, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Ambas as equipas usaram o jogo para ganhar ritmo antes do arranque oficial da época.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Resumo do jogo ({{competition}})",
+          "body": "{{competition}}: o jogo terminou {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
