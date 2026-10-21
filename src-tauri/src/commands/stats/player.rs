@@ -80,6 +80,11 @@ fn league_peers(game: &Game, player: &Player) -> (Option<PeerGroupDto>, HashSet<
         competition_name: table.name.clone(),
         competition_name_key: table.name_key.clone(),
         country_id: table.country_id.clone(),
+        competition_division_tier: table
+            .calendar
+            .as_ref()
+            .and_then(|calendar| calendar.season.division.as_ref())
+            .map(|division| division.tier),
         // The serialized name, the same one `PlayerData.natural_position` sends.
         position: serde_json::to_value(position)
             .ok()

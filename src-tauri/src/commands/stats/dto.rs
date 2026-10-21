@@ -36,6 +36,8 @@ pub struct PeerGroupDto {
     pub competition_name: String,
     pub competition_name_key: Option<String>,
     pub country_id: Option<String>,
+    #[serde(default)]
+    pub competition_division_tier: Option<u32>,
     /// The natural position the peers share, as `Position`'s name (e.g. `Striker`).
     pub position: String,
 }
@@ -127,4 +129,43 @@ pub struct TeamStatsOverviewDto {
     pub goal_difference: i32,
     pub possession_average: Option<f32>,
     pub metrics: TeamStatsOverviewMetricsDto,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PeerGroupDto;
+
+    /// Given a peer group with a division tier, when it is serialized, then the tier is exposed
+    /// under the camel-case IPC field name.
+    #[test]
+    fn peer_group_serializes_the_competition_division_tier() {
+        let peer_group = PeerGroupDto {
+            competition_id: "eng-d3".to_string(),
+            competition_name: "England Division 3".to_string(),
+            competition_name_key: Some("tournaments.competitions.tierDivision".to_string()),
+            country_id: Some("ENG".to_string()),
+            competition_division_tier: Some(3),
+            position: "Striker".to_string(),
+        };
+
+        let value = serde_json::to_value(peer_group).expect("peer group serializes");
+
+        assert_eq!(value["competitionDivisionTier"], 3);
+    }
+
+    /// Given legacy peer-group JSON without a tier, when it is deserialized, then the tier defaults
+    /// to `None` so older responses remain readable.
+    #[test]
+    fn peer_group_defaults_the_tier_when_reading_legacy_json() {
+        let peer_group: PeerGroupDto = serde_json::from_value(serde_json::json!({
+            "competitionId": "eng-d2",
+            "competitionName": "England Second Division",
+            "competitionNameKey": "tournaments.competitions.secondDivision",
+            "countryId": "ENG",
+            "position": "Striker"
+        }))
+        .expect("legacy peer group deserializes");
+
+        assert_eq!(peer_group.competition_division_tier, None);
+    }
 }

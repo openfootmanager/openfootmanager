@@ -6,6 +6,7 @@ import type { CupRoundSummary, MatchSnapshot, MatchEvent, RoundSummary } from ".
 import CupRoundSection from "./CupRoundSection";
 import { getEventDisplay, makeTeamFallback } from "./helpers";
 import { QuickStat } from "./PostMatchHelpers";
+import { competitionDisplayName } from "../../lib/competitionName";
 import { Badge, Dialog, TeamLogo } from "../ui";
 import { Trophy, TrendingDown, Minus, ChevronRight, ArrowUp, ArrowDown, Flame } from "lucide-react";
 
@@ -159,7 +160,14 @@ export default function RoundDigestScreen({
     ? userStanding.previous_position - userStanding.current_position
     : 0;
 
-  const leagueName = gameState.league?.name;
+  const roundFixtureIds = new Set(
+    (roundSummary?.completed_results ?? []).map((result) => result.fixture_id),
+  );
+  const roundCompetition = gameState.competitions?.find((competition) =>
+    competition.fixtures?.some((fixture) => roundFixtureIds.has(fixture.id)),
+  );
+  const league = roundCompetition ?? gameState.league;
+  const leagueName = league ? competitionDisplayName(league, t) : undefined;
   const matchdayLabel = roundSummary
     ? t("schedule.matchday", { number: roundSummary.matchday })
     : null;

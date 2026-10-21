@@ -18,6 +18,7 @@ import { resolveNewsArticle } from "../../utils/backendI18n";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import AwardsCeremonyScreen from "../season/AwardsCeremonyScreen";
+import { competitionDisplayName } from "../../lib/competitionName";
 import { Select } from "../ui";
 import { fetchNewsFeed, type NewsFeed } from "../../services/newsService";
 import { isNewsArticleVisible } from "../../utils/newsVisibility";
@@ -130,7 +131,19 @@ export default function NewsTab({ gameState, onSelectTeam }: NewsTabProps) {
     (gameState.teams ?? []).map((t) => [t.id, t.name]),
   );
   const teamNames: Record<string, string> = feed?.team_names ?? fallbackTeamNames;
-  const leagueName = feed?.league_name ?? gameState.league?.name ?? "";
+  const feedLeague = feed?.league_name
+    ? {
+        name: feed.league_name,
+        name_key: feed.league_name_key,
+        country_id: feed.league_country_id,
+        division_tier: feed.league_division_tier,
+      }
+    : undefined;
+  const leagueName = feedLeague
+    ? competitionDisplayName(feedLeague, t)
+    : gameState.league
+      ? competitionDisplayName(gameState.league, t)
+      : "";
 
   const news = rawArticles.map(resolveNewsArticle);
   const sortedNews = [...news].sort((a, b) => b.date.localeCompare(a.date));

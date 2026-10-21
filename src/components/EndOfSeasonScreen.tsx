@@ -11,6 +11,9 @@ import { Trophy, Star, ArrowRight, Crown } from "lucide-react";
 interface EndOfSeasonSummary {
   season: number;
   league_name: string;
+  league_name_key?: string | null;
+  country_id?: string | null;
+  division_tier?: number | null;
   champion_id: string;
   champion_name: string;
   user_position: number;
@@ -257,7 +260,15 @@ export default function EndOfSeasonScreen({ gameState, onGameUpdate }: EndOfSeas
       {step === "ceremony" && summary && (
         <AwardsCeremonyScreen
           season={summary.season}
-          leagueName={summary.league_name}
+          leagueName={competitionDisplayName(
+            {
+              name: summary.league_name,
+              name_key: summary.league_name_key,
+              country_id: summary.country_id,
+              division_tier: summary.division_tier,
+            },
+            t,
+          )}
           gameState={gameState}
           awards={summary.season_awards}
           onContinue={() => setStep("done")}

@@ -166,6 +166,7 @@ export default function PlayerProfileAdvancedStatsCard({
                   name: summary.peerGroup.competitionName,
                   name_key: summary.peerGroup.competitionNameKey,
                   country_id: summary.peerGroup.countryId,
+                  division_tier: summary.peerGroup.competitionDivisionTier,
                 },
                 t,
               ),

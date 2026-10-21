@@ -1,12 +1,20 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { GameStateData, NewsArticle, TeamData } from "../../store/gameStore";
 import NewsTab from "./NewsTab";
 import { createSeasonContext } from "../../test-utils/factories";
+import { fetchNewsFeed, type NewsFeed } from "../../services/newsService";
+
+vi.mock("../../services/newsService", () => ({ fetchNewsFeed: vi.fn() }));
 
 vi.mock("../season/AwardsCeremonyScreen", () => ({
-  default: () => <div>Awards Ceremony Mock</div>,
+  default: ({ leagueName }: { leagueName: string }) => (
+    <div>
+      <span>Awards Ceremony Mock</span>
+      <span data-testid="awards-league-name">{leagueName}</span>
+    </div>
+  ),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -19,6 +27,10 @@ vi.mock("react-i18next", () => ({
       if (key === "news.allTeams") return "All Teams";
       if (key === "news.backToNews") return "Back to news";
       if (key === "news.nArticles") return `${params?.count} articles`;
+      if (key === "nations.ar") return "Argentina";
+      if (key === "tournaments.competitions.tierDivisionClosing") {
+        return `${params?.country} Division ${params?.tier} Clausura`;
+      }
       if (key.startsWith("news.categories.")) {
         return key.replace("news.categories.", "");
       }
@@ -118,6 +130,10 @@ function createGameState(news: NewsArticle[]): GameStateData {
 }
 
 describe("NewsTab", () => {
+  beforeEach(() => {
+    vi.mocked(fetchNewsFeed).mockReturnValue(new Promise<NewsFeed>(() => {}));
+  });
+
   it("renders the empty state when there is no news", () => {
     render(<NewsTab gameState={createGameState([])} onSelectTeam={vi.fn()} />);
 
@@ -237,5 +253,32 @@ describe("NewsTab", () => {
     fireEvent.click(screen.getByRole("button", { name: /Season awards night/i }));
 
     expect(screen.getByText("Awards Ceremony Mock")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the news feed projects a generic tier key for a split-season league
+   * When the player opens the season awards article
+   * Then the ceremony uses the translated phase-specific division name
+   */
+  it("uses translated phase metadata projected by the news feed", async () => {
+    const awardsArticle = createNewsArticle({
+      id: "season_awards_6",
+      headline: "Season awards night",
+      category: "Editorial",
+      i18n_params: { season: "6" },
+    });
+    vi.mocked(fetchNewsFeed).mockResolvedValue({
+      articles: [awardsArticle],
+      team_names: {},
+      league_name: "Argentina Division 3",
+      league_name_key: "tournaments.competitions.tierDivisionClosing",
+      league_country_id: "AR",
+      league_division_tier: 3,
+    });
+
+    render(<NewsTab gameState={createGameState([awardsArticle])} onSelectTeam={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: /Season awards night/i }));
+
+    expect(await screen.findByText("Argentina Division 3 Clausura")).toBeInTheDocument();
   });
 });

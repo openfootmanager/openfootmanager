@@ -15,6 +15,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
+      if (key === "nations.eng") return "England";
+      if (key === "tournaments.competitions.tierDivision") {
+        return `${params?.country} Division ${params?.tier}`;
+      }
       if (key === "endOfSeason.seasonComplete") return "Season complete";
       if (key === "endOfSeason.seasonLine") return `Season ${params?.season} ${params?.league}`;
       if (key === "endOfSeason.position") return "Position";
@@ -215,12 +219,20 @@ function createGameState(): GameStateData {
 }
 
 describe("EndOfSeasonScreen", () => {
+  /**
+   * Given a season summary with a generic division key and tier
+   * When the player advances to the next season
+   * Then the awards screen shows the translated division name
+   */
   it("shows the awards ceremony after advancing to the next season", async () => {
     vi.mocked(invoke).mockResolvedValue({
       game: createGameState(),
       summary: {
         season: 6,
-        league_name: "Premier League",
+        league_name: "ENG Division 3",
+        league_name_key: "tournaments.competitions.tierDivision",
+        country_id: "ENG",
+        division_tier: 3,
         champion_id: "team-1",
         champion_name: "Alpha FC",
         user_position: 1,
@@ -246,6 +258,7 @@ describe("EndOfSeasonScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start next season" }));
 
     expect(await screen.findByText("Awards Ceremony")).toBeInTheDocument();
+    expect(screen.getByText("Season 6 in England Division 3")).toBeInTheDocument();
     expect(screen.getAllByText("Manager of the Season").length).toBeGreaterThan(0);
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(onGameUpdate).toHaveBeenCalled();
