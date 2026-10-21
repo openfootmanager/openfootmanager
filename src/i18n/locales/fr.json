@@ -699,19 +699,13 @@
     "bestRole": "Meilleur rôle",
     "formationFit": "Compatibilité avec la formation",
     "startingXi": "Onze de départ",
-    "styleFit": "Compatibilité de style",
     "starter": "Titulaire",
     "benchOption": "Banc",
     "naturalFit": "Adaptation naturelle",
     "adaptedFit": "Rôle adapté",
     "needsCover": "Besoin d'une doublure",
     "makeStarter": "Mettre titulaire",
-    "sendToBench": "Envoyer sur le banc",
-    "styleFitValues": {
-      "strong": "Compatibilité de style : Forte",
-      "good": "Compatibilité de style : Bonne",
-      "risky": "Compatibilité de style : Risquée"
-    }
+    "sendToBench": "Envoyer sur le banc"
   },
   "tactics": {
     "formationStyle": "Formation & style",
@@ -894,7 +888,6 @@
     "positionSelector": "Poste tactique",
     "playablePositions": "Postes",
     "slotFit": "Adaptation au poste",
-    "styleFit": "Compatibilité de style",
     "responsibilities": "Responsabilités",
     "noSpecialRoles": "Aucun rôle spécial",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "Affûté",
       "managing": "À gérer",
       "risk": "Risque"
-    },
-    "styleFitLevels": {
-      "strong": "Très bon match",
-      "good": "Bon match",
-      "risky": "Adaptation risquée"
     }
   },
   "training": {

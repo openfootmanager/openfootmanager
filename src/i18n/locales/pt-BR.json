@@ -699,19 +699,13 @@
     "bestRole": "Melhor função",
     "formationFit": "Encaixe na formação",
     "startingXi": "Onze inicial",
-    "styleFit": "Encaixe com o estilo",
     "starter": "Titular",
     "benchOption": "Banco",
     "naturalFit": "Encaixe natural",
     "adaptedFit": "Função adaptada",
     "needsCover": "Precisa de cobertura",
     "makeStarter": "Colocar como titular",
-    "sendToBench": "Mandar para o banco",
-    "styleFitValues": {
-      "strong": "Encaixe com o estilo: Forte",
-      "good": "Encaixe com o estilo: Bom",
-      "risky": "Encaixe com o estilo: Arriscado"
-    }
+    "sendToBench": "Mandar para o banco"
   },
   "tactics": {
     "formationStyle": "Formação & Estilo",
@@ -894,7 +888,6 @@
     "positionSelector": "Slot tático",
     "playablePositions": "Posições",
     "slotFit": "Encaixe no slot",
-    "styleFit": "Encaixe com o estilo",
     "responsibilities": "Responsabilidades",
     "noSpecialRoles": "Sem funções especiais",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "Afiado",
       "managing": "Gerenciando",
       "risk": "Risco"
-    },
-    "styleFitLevels": {
-      "strong": "Ótimo encaixe",
-      "good": "Bom encaixe",
-      "risky": "Encaixe arriscado"
     }
   },
   "training": {

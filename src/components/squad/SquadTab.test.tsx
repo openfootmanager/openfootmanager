@@ -58,7 +58,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 // Squad fixtures rate every player 60 across the board — keepers' handling and reflexes included —
-// so formation and style fit differ only by position. The rest comes from the shared factory.
+// so formation fit differs only by position. The rest comes from the shared factory.
 const makePlayer = (
   id: string,
   position: string,
@@ -230,12 +230,13 @@ describe("SquadTab", () => {
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
     expect(screen.queryByText("squad.planStatus")).not.toBeInTheDocument();
     expect(screen.getByText("squad.formationFit")).toBeInTheDocument();
-    expect(screen.getByText("squad.styleFit")).toBeInTheDocument();
+    // The game does not tell the manager how well a player suits the play style: no column, no chip.
+    expect(screen.queryByText(/styleFit/)).not.toBeInTheDocument();
     expect(screen.getByText("squad.traits")).toBeInTheDocument();
     expect(screen.getByText(/squad.currentPlan/)).toBeInTheDocument();
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
     expect(screen.getAllByText(/squad.needsCover/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/squad.styleFitValues./).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/squad.styleFitValues./)).not.toBeInTheDocument();
   });
 
   it("shows progressive injury details in the roster", () => {
