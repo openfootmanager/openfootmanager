@@ -2006,7 +2006,6 @@
     "alreadyQueued": "Already queued for a substitution",
     "substitutionsPartlyMade": "{{applied}} of {{total}} substitutions made",
     "substitutionRefused": "Substitution refused: {{off}} for {{on}}. {{reason}}",
-    "playerRoles": "Player roles",
     "roleFor": "Role for {{player}}",
     "roleChangeRefused": "Could not change {{player}}'s role. {{reason}}",
     "noBenchAvailable": "No bench players available",

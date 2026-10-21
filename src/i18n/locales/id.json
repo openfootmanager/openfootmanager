@@ -2006,7 +2006,6 @@
     "alreadyQueued": "Sudah masuk antrean pergantian",
     "substitutionsPartlyMade": "{{applied}} dari {{total}} pergantian dilakukan",
     "substitutionRefused": "Pergantian ditolak: {{off}} diganti {{on}}. {{reason}}",
-    "playerRoles": "Peran pemain",
     "roleFor": "Peran {{player}}",
     "roleChangeRefused": "Peran {{player}} tidak dapat diubah. {{reason}}",
     "noBenchAvailable": "Tidak ada pemain cadangan tersedia",

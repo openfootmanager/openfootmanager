@@ -2006,7 +2006,6 @@
     "alreadyQueued": "Zaten bir oyuncu değişikliği için sırada",
     "substitutionsPartlyMade": "{{total}} değişiklikten {{applied}} tanesi yapıldı",
     "substitutionRefused": "Oyuncu değişikliği reddedildi: {{off}} yerine {{on}}. {{reason}}",
-    "playerRoles": "Oyuncu rolleri",
     "roleFor": "{{player}} oyuncusunun rolü",
     "roleChangeRefused": "{{player}} oyuncusunun rolü değiştirilemedi. {{reason}}",
     "noBenchAvailable": "Uygun yedek oyuncu yok",

@@ -2002,7 +2002,6 @@
     "alreadyQueued": "Déjà en attente d'un remplacement",
     "substitutionsPartlyMade": "{{applied}} remplacement(s) sur {{total}} effectué(s)",
     "substitutionRefused": "Remplacement refusé : {{off}} par {{on}}. {{reason}}",
-    "playerRoles": "Rôles des joueurs",
     "roleFor": "Rôle de {{player}}",
     "roleChangeRefused": "Impossible de changer le rôle de {{player}}. {{reason}}",
     "noBenchAvailable": "Aucun joueur disponible sur le banc",

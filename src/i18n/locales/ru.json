@@ -2002,7 +2002,6 @@
     "alreadyQueued": "Уже в очереди на замену",
     "substitutionsPartlyMade": "Выполнено замен: {{applied}} из {{total}}",
     "substitutionRefused": "Замена отклонена: {{off}} на {{on}}. {{reason}}",
-    "playerRoles": "Роли игроков",
     "roleFor": "Роль игрока {{player}}",
     "roleChangeRefused": "Не удалось сменить роль игрока {{player}}. {{reason}}",
     "noBenchAvailable": "На скамейке нет игроков",
