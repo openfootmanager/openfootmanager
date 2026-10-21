@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} è obbligatorio",
     "maxLength": "{{field}} non deve superare {{max}} caratteri",
-    "minStartYear": "L'anno di inizio deve essere {{min}} o successivo",
-    "minAge": "L'allenatore deve avere almeno {{min}} anni — modifica la data di nascita per continuare.",
-    "invalidDate": "Data non valida",
-    "invalidDob": "Data di nascita non valida"
+    "minStartYear": "L'anno di inizio deve essere {{min}} o successivo"
   },
   "worldSelect": {
     "title": "Scegli Mondo",
@@ -3569,6 +3566,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Rapporto torneo di pre-stagione",
           "body": "Nel torneo di pre-stagione, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Entrambe le squadre hanno usato la partita per affinare la forma.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Cronaca della partita ({{competition}})",
+          "body": "{{competition}}: la partita è finita {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
