@@ -25,7 +25,10 @@
     "worldEditor.playerId",
     "worldEditor.competitionId",
     "worldEditor.teamId",
-    "worldEditor.staffId"
+    "worldEditor.staffId",
+    "common.ratingTier.S",
+    "common.ratingTier.A",
+    "common.ratingTier.B"
   ],
   "de": [
     "nations.eng",

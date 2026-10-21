@@ -400,6 +400,11 @@
     "promoteToSeniorSquad": "Promote to senior squad"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}st",
       "two": "{{n}}nd",

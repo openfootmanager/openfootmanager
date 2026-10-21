@@ -41,9 +41,24 @@ export function ratingTierClass(tier: RatingTier, role: RatingTierRole): string 
   return TIER_CLASSES[tier][role];
 }
 
-/** The tier's letter for a chip or caption; the rest has none, the number alone says enough. */
-export function ratingTierLetter(tier: RatingTier): "S" | "A" | "B" | null {
-  return tier === "Rest" ? null : tier;
+/**
+ * The translation key of a tier's letter, for a chip or caption (`common.ratingTier.S` and its
+ * kin); the rest has none, the number alone says enough. The letters read the same in every
+ * language, but they are text a player reads, so they go through `t` like any other.
+ */
+export function ratingTierLetterKey(
+  tier: RatingTier,
+): "common.ratingTier.S" | "common.ratingTier.A" | "common.ratingTier.B" | null {
+  switch (tier) {
+    case "S":
+      return "common.ratingTier.S";
+    case "A":
+      return "common.ratingTier.A";
+    case "B":
+      return "common.ratingTier.B";
+    case "Rest":
+      return null;
+  }
 }
 
 /** Whether a tier is one of the two the game calls elite (S and A). */

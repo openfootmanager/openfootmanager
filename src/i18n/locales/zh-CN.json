@@ -400,6 +400,11 @@
     "promoteToSeniorSquad": "提拔至一线队"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "第{{n}}",
       "two": "第{{n}}",

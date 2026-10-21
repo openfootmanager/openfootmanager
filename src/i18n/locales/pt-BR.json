@@ -400,6 +400,11 @@
     "promoteToSeniorSquad": "Promover ao elenco principal"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}º",
       "two": "{{n}}º",

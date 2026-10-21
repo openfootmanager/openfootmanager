@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { RatingTier } from "../services/squadService";
-import { isEliteTier, ratingTierClass, ratingTierLetter, type RatingTierRole } from "./ratingTier";
+import {
+  isEliteTier,
+  ratingTierClass,
+  ratingTierLetterKey,
+  type RatingTierRole,
+} from "./ratingTier";
 
 const TIERS: RatingTier[] = ["S", "A", "B", "Rest"];
 const ROLES: RatingTierRole[] = ["text", "bar", "badge", "hero"];
@@ -38,14 +43,19 @@ describe("ratingTierClass", () => {
   });
 });
 
-describe("ratingTierLetter", () => {
+describe("ratingTierLetterKey", () => {
   /**
    * Given each tier
    * When its letter is asked for
-   * Then S, A and B name themselves and the rest has none.
+   * Then S, A and B have their translation key and the rest has none.
    */
-  it("is the tier's own letter, and none for the rest", () => {
-    expect(TIERS.map(ratingTierLetter)).toEqual(["S", "A", "B", null]);
+  it("is the tier's own key, and none for the rest", () => {
+    expect(TIERS.map(ratingTierLetterKey)).toEqual([
+      "common.ratingTier.S",
+      "common.ratingTier.A",
+      "common.ratingTier.B",
+      null,
+    ]);
   });
 });
 

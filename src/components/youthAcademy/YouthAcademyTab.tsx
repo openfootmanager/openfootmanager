@@ -1,5 +1,5 @@
 import { useRatingTiers } from "../../hooks/useRatingTiers";
-import { isEliteTier, ratingTierClass, ratingTierLetter } from "../../lib/ratingTier";
+import { isEliteTier, ratingTierClass, ratingTierLetterKey } from "../../lib/ratingTier";
 import { useEffect, useRef, useState } from "react";
 import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
@@ -448,7 +448,7 @@ export default function YouthAcademyTab({
               <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
                 {youthPlayers.map((player) => {
                   const potTier = tierOf(player.potential);
-                  const potLetter = ratingTierLetter(potTier);
+                  const potLetterKey = ratingTierLetterKey(potTier);
                   const growthRoom = player.potential - player.ovr;
                   const contextItems = [
                     buildViewProfileMenuItem(t, () => onSelectPlayer?.(player.id)),
@@ -518,11 +518,11 @@ export default function YouthAcademyTab({
                           >
                             {player.potential}
                           </span>
-                          {potLetter && (
+                          {potLetterKey && (
                             <p
                               className={`text-[9px] font-heading uppercase tracking-wider ${ratingTierClass(potTier, "text")}`}
                             >
-                              {potLetter}
+                              {t(potLetterKey)}
                             </p>
                           )}
                         </td>

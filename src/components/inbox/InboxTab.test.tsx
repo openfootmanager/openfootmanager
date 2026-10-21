@@ -45,6 +45,9 @@ const mockTranslationState = vi.hoisted(() => ({
       "youthAcademy.growth": "Growth",
       "youthAcademy.ovr": "OVR",
       "youthAcademy.potential": "Potential",
+      "common.ratingTier.S": "S",
+      "common.ratingTier.A": "A",
+      "common.ratingTier.B": "B",
     },
     "pt-BR": {
       "inbox.effectOutcomeLabel": "Desfecho",

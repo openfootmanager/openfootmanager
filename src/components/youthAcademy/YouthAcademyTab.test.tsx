@@ -49,6 +49,7 @@ vi.mock("react-i18next", () => ({
       if (key === "youthAcademy.traits") return "Traits";
       if (key === "youthAcademy.condition") return "Condition";
       if (key.startsWith("youthAcademy.pot")) return key.replace("youthAcademy.", "");
+      if (key.startsWith("common.ratingTier.")) return key.replace("common.ratingTier.", "");
       if (key.startsWith("common.posAbbr.")) return key.replace("common.posAbbr.", "");
       if (key === "scouting.youthRecruitment") return "Youth Recruitment";
       if (key === "scouting.youthRecruitmentHint")

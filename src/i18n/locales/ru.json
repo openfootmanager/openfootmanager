@@ -400,6 +400,11 @@
     "promoteToSeniorSquad": "Перевести в основную команду"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}-й",
       "two": "{{n}}-й",

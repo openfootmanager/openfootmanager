@@ -1,5 +1,5 @@
 import { useRatingTiers } from "../../hooks/useRatingTiers";
-import { ratingTierClass, ratingTierLetter } from "../../lib/ratingTier";
+import { ratingTierClass, ratingTierLetterKey } from "../../lib/ratingTier";
 import { ArrowLeft, CheckCircle2, MailOpen, MessageCircle, Trash2 } from "lucide-react";
 import type { TFunction } from "i18next";
 import type { JSX } from "react";
@@ -240,7 +240,7 @@ export default function InboxMessageDetailPane({
                     const signedToAcademy = prospect.team_id === currentTeamId;
                     const potential = prospect.potential ?? 0;
                     const potentialTier = tierOf(potential);
-                    const potentialLetter = ratingTierLetter(potentialTier);
+                    const potentialLetterKey = ratingTierLetterKey(potentialTier);
                     const growthRoom = Math.max(0, potential - (prospect.ovr ?? 0));
 
                     return (
@@ -307,11 +307,11 @@ export default function InboxMessageDetailPane({
                                   +{growthRoom}
                                 </span>
                               </div>
-                              {potentialLetter && (
+                              {potentialLetterKey && (
                                 <p
                                   className={`mt-1 text-[10px] font-heading uppercase tracking-wider ${ratingTierClass(potentialTier, "text")}`}
                                 >
-                                  {potentialLetter}
+                                  {t(potentialLetterKey)}
                                 </p>
                               )}
                             </div>

@@ -419,6 +419,11 @@
     "promoteToSeniorSquad": "Promuovi in prima squadra"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}º",
       "two": "{{n}}º",

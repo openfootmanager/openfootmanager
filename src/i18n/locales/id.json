@@ -400,6 +400,11 @@
     "promoteToSeniorSquad": "Naikkan ke skuad senior"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "ke-{{n}}",
       "two": "ke-{{n}}",
