@@ -496,6 +496,7 @@ mod tests {
                 seed: 0,
                 legacy_world_cup_draw: false,
                 legacy_tactics_imported: false,
+                last_season_rollover_on: None,
             },
         )
         .unwrap();
@@ -623,6 +624,7 @@ mod tests {
                 seed: 0,
                 legacy_world_cup_draw: false,
                 legacy_tactics_imported: false,
+                last_season_rollover_on: None,
             },
         )
         .unwrap();

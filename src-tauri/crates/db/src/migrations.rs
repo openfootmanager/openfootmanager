@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 59;
+const EXPECTED_MIGRATION_COUNT: usize = 60;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -167,6 +167,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "v059_legacy_tactics_imported.sql",
         include_str!("sql/v059_legacy_tactics_imported.sql"),
+    ),
+    // V60: The day the last season ended, so a scout report from before it reads as out of date
+    (
+        "v060_last_season_rollover.sql",
+        include_str!("sql/v060_last_season_rollover.sql"),
     ),
 ];
 
@@ -635,6 +640,45 @@ mod tests {
         }
     }
 
+    /// Given a real v059 save, written before the season rollover date was kept
+    /// When it is migrated, twice
+    /// Then its game_meta row reads "no rollover recorded" (NULL), so no scout report in it is
+    ///      called out of date until the next season ends, and the rest of the row is untouched.
+    #[test]
+    fn rollover_v060_upgrades_a_v059_save_with_no_rollover_recorded() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(59)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT last_season_rollover_on FROM game_meta")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<String>) = conn
+                .query_row(
+                    "SELECT save_name, last_season_rollover_on FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("v060 must add the column to a real v059 save");
+            assert_eq!(row, ("Old career".to_string(), None));
+        }
+    }
+
     /// Given a real v058 save (written before the old-tactics import was recorded)
     /// When it is migrated, twice
     /// Then its game_meta row reads "not imported yet", so the import runs once more and is then
@@ -975,6 +1019,7 @@ mod tests {
     ("v057_manager_known_as.sql", 0x1a62f523b6d15799),
     ("v058_archived_messages.sql", 0x853776cba0dffed1),
     ("v059_legacy_tactics_imported.sql", 0xf2fdbc95bf5fdc99),
+    ("v060_last_season_rollover.sql", 0x111c4c4f40b3952a),
     ];
 
     /// Given the migrations already shipped

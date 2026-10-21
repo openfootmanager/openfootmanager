@@ -172,6 +172,13 @@ pub struct Game {
     /// is copied in once more, then marked. Persistence is `game_meta.legacy_tactics_imported`.
     #[serde(default)]
     pub legacy_tactics_imported: bool,
+    /// The day the last season ended (ISO date): every player aged then, and the season's growth
+    /// applied. A scout's report taken before it no longer describes the player. `None` until this
+    /// career's first season end; a save from before the field takes it from its last league season
+    /// on load (`end_of_season::backfill_last_season_rollover`). Persistence is
+    /// `game_meta.last_season_rollover_on`.
+    #[serde(default)]
+    pub last_season_rollover_on: Option<String>,
     /// Names the career this game was installed as (`StateManager::next_career_token`). It travels
     /// to the screen with the game, and a command that writes on the screen's behalf hands it back
     /// to be checked against the active game inside the write. Not saved: a loaded game is
@@ -268,6 +275,7 @@ impl Game {
             retired_managers: Vec::new(),
             custom_tactics: Vec::new(),
             legacy_tactics_imported: false,
+            last_season_rollover_on: None,
             career_token: 0,
             archived_messages: Vec::new(),
             emitted_events: BTreeSet::new(),
