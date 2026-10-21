@@ -91,22 +91,37 @@ fn an_injury_report_is_worded_the_same_way_each_time() {
 
 #[test]
 fn a_match_report_is_worded_the_same_way_each_time() {
-    let scorers = vec![("A. Player".to_string(), 12)];
+    let scorers = vec![news::ReportScorer {
+        player_id: "p1".to_string(),
+        name: "A. Player".to_string(),
+        minute: 12,
+    }];
     assert_replays_but_varies("match report", |date| {
-        news::match_report_article(
-            &format!("fixture-{date}"),
-            "Alpha FC",
-            "Beta FC",
-            2,
-            0,
-            "t1",
-            "t2",
-            FixtureCompetition::League,
-            3,
-            &scorers,
-            &[],
+        let fixture_id = format!("fixture-{date}");
+        news::match_report_article(&news::MatchReportFacts {
+            fixture_id: &fixture_id,
+            competition: news::ReportCompetition {
+                kind: FixtureCompetition::League,
+                name: "Premier Division",
+                name_key: None,
+                country_id: None,
+                season: 1,
+            },
+            matchday: 3,
             date,
-        )
+            home: news::ReportSide {
+                team_id: "t1",
+                name: "Alpha FC",
+                goals: 2,
+                scorers: &scorers,
+            },
+            away: news::ReportSide {
+                team_id: "t2",
+                name: "Beta FC",
+                goals: 0,
+                scorers: &[],
+            },
+        })
     });
 }
 

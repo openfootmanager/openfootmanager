@@ -19,13 +19,17 @@ vi.mock("../services/portraitService", () => ({
 
 vi.mock("../store/gameStore", () => ({ useGameStore: vi.fn() }));
 
+// One `t` for every render, as react-i18next gives: a fresh function each time would make anything
+// memoised on it (the derived regions) a new value on every render.
+const translate = vi.hoisted(
+  () => (key: string, params?: Record<string, string | number>) =>
+    params?.defaultValue !== undefined ? String(params.defaultValue) : key,
+);
+const i18nState = vi.hoisted(() => ({ language: "en" }));
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, string | number>) =>
-      params?.defaultValue !== undefined ? String(params.defaultValue) : key,
-    i18n: { language: "en" },
-  }),
+  useTranslation: () => ({ t: translate, i18n: i18nState }),
 }));
 
 // jsdom doesn't implement matchMedia, which ThemeProvider reads on mount.
@@ -64,7 +68,6 @@ function buildGameState(): GameStateData {
   return {
     teams: [createTeam({ id: "team-1", name: "Alpha FC", country: "GB" })],
     players: [createPlayer({ id: "p1", team_id: "team-1" })],
-    regions: [{ id: "europe", name: "Europe", country_codes: ["GB"] }],
     competitions: [league()],
     league: null,
     manager: { first_name: "Sam", last_name: "Boss" },

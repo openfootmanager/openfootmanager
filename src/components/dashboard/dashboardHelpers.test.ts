@@ -10,7 +10,7 @@ import {
   getTodayMatchFixture,
   getUnreadMessagesCount,
 } from "./dashboardHelpers";
-import { createSeasonContext } from "../../test-utils/factories";
+import { createSeasonContext, createSquadFitness } from "../../test-utils/factories";
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -316,13 +316,38 @@ describe("dashboardHelpers", (): void => {
       messages: [createMessage({ id: "urgent-1", priority: "Urgent", read: false })],
     });
 
-    const alerts = getDashboardAlerts(gameState, true, translateDashboardAlert);
+    // The backend counts three players in a critical state (injured ones are not in the squad that
+    // can play, so they are not among them).
+    const fitness = createSquadFitness({ exhausted_count: 3, critical_count: 3 });
+    const alerts = getDashboardAlerts(gameState, true, translateDashboardAlert, null, fitness);
     const alertIds = alerts.map((alert) => alert.id);
 
     expect(alertIds).toContain("exhausted");
     expect(alertIds).toContain("injured_xi");
     expect(alertIds).toContain("urgent");
     expect(alertIds).toContain("matchxi");
+  });
+
+  /**
+   * Given a squad with exhausted players on the injured list, for which the backend counts five
+   *       exhausted (below 40) but only one critical (below 25)
+   * When the dashboard alerts are built
+   * Then there is no exhaustion alert: it follows the backend's critical count, not the exhausted
+   *      count and not every player below 25.
+   */
+  it("raises the exhaustion alert from the backend's critical count, not from the roster", (): void => {
+    const roster = ["p1", "p2", "p3"].map((id) =>
+      createPlayer({ id, condition: 20, injury: { name: "Hamstring", days_remaining: 5 } }),
+    );
+    const gameState = createGameState({
+      teams: [createTeam({ starting_xi_ids: [] })],
+      players: roster,
+    });
+    const fitness = createSquadFitness({ exhausted_count: 5, critical_count: 1 });
+
+    const alerts = getDashboardAlerts(gameState, false, translateDashboardAlert, null, fitness);
+
+    expect(alerts.map((alert) => alert.id)).not.toContain("exhausted");
   });
 
   it("builds dashboard alerts for finance pressure", (): void => {

@@ -261,6 +261,7 @@ Read-only reviewers. Point them at your diff before you open a PR.
 | [`docs/MCP_SERVER.md`](docs/MCP_SERVER.md) | The MCP server: 89 tools, competition mode, transport, adding a tool |
 | [`docs/modding/`](docs/modding/) | `.ofm` packages, the CLI, the Package Editor, the entity schema reference |
 | [`docs/DEFINITIONS.md`](docs/DEFINITIONS.md) | World-generator definition file formats |
+| [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md) | Tokens, type, components, rated values, layout rules, the `/style-guide.html` dev page, screenshots for a PR |
 
 Scoped guidance loads automatically when you work in these trees:
 

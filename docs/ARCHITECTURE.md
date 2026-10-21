@@ -184,6 +184,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 |---------|-----------|---------|-------------|
 | `list_world_databases` | — | `Vec<WorldDatabaseInfo>` | Scan for available world databases |
 | `start_new_game` | first_name, last_name, dob, nationality, world_source? | — | Create game, generate or load world |
+| `validate_manager_dob` | dob, start_year, start_phase | `Option<String>` | The translation key of what is wrong with a manager's date of birth on the day a generated-world career opens (1 June in a World Cup summer, else 1 July, plus 120 days mid-season), or null. The one age rule `start_new_game` applies; the create-manager form shows the answer. A historical package can set its own opening date, so `start_new_game` still has the last word |
 | `choose_team` | team_id | `Game` | Assign manager to a team |
 | `get_active_game` | — | `GameStateData` | Get current game state |
 | `get_career_stage` | — | `awaitingClub` \| `unemployed` \| `employed` | Decided in Rust (`career_stage`): a manager with no club who has never held one is awaiting a club, so the menu and dashboard send them to team selection; a sacked manager stays on the dashboard |
