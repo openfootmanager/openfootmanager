@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { findDuplicateKeys } from "./duplicateKeys.helpers";
+
 /**
  * Every locale file's text, read raw. `JSON.parse` (and so the bundler's JSON import, and so the
  * app) keeps the LAST of two equal keys in an object and says nothing, so the first translation is
@@ -11,63 +13,6 @@ const localeSources = import.meta.glob<string>("./locales/*.json", {
   import: "default",
   eager: true,
 });
-
-interface Duplicate {
-  /** The key's path from the root, e.g. `match.playerRoles`. */
-  path: string;
-  key: string;
-}
-
-/**
- * The keys that appear more than once in the same object of a JSON text. It reads the text once,
- * tracking each open object's keys; a string is a key only where an object expects one, so a value
- * that looks like a key, an escaped quote, or the same key in two different objects is not a hit.
- */
-export function findDuplicateKeys(text: string): Duplicate[] {
-  const duplicates: Duplicate[] = [];
-  type Frame =
-    | { kind: "object"; keys: Set<string>; expectKey: boolean; name: string | null }
-    | { kind: "array" };
-  const stack: Frame[] = [];
-  // The key the next `{` is the value of, which names that object in a path.
-  let pendingName: string | null = null;
-  const pathOf = (): string[] =>
-    stack.flatMap((frame) => (frame.kind === "object" && frame.name !== null ? [frame.name] : []));
-
-  let index = 0;
-  while (index < text.length) {
-    const char = text[index];
-    if (char === "{") {
-      stack.push({ kind: "object", keys: new Set(), expectKey: true, name: pendingName });
-      pendingName = null;
-    } else if (char === "[") {
-      stack.push({ kind: "array" });
-      pendingName = null;
-    } else if (char === "}" || char === "]") {
-      stack.pop();
-    } else if (char === ",") {
-      const top = stack[stack.length - 1];
-      if (top?.kind === "object") top.expectKey = true;
-    } else if (char === '"') {
-      let end = index + 1;
-      while (text[end] !== '"') end += text[end] === "\\" ? 2 : 1;
-      const top = stack[stack.length - 1];
-      if (top?.kind === "object" && top.expectKey) {
-        const key = text.slice(index + 1, end);
-        if (top.keys.has(key)) {
-          duplicates.push({ path: [...pathOf(), key].join("."), key });
-        }
-        top.keys.add(key);
-        top.expectKey = false;
-        // If an object is this key's value, the key names it.
-        pendingName = /^\s*:\s*\{/.test(text.slice(end + 1, end + 40)) ? key : null;
-      }
-      index = end;
-    }
-    index += 1;
-  }
-  return duplicates;
-}
 
 describe("findDuplicateKeys", () => {
   /**
@@ -99,7 +44,30 @@ describe("findDuplicateKeys", () => {
    * Then it is reported.
    */
   it("reports a repeat inside an object in an array", () => {
-    expect(findDuplicateKeys('{"list": [{"k": 1, "k": 2}]}')).toEqual([{ path: "k", key: "k" }]);
+    expect(findDuplicateKeys('{"list": [{"k": 1, "k": 2}]}')).toEqual([
+      { path: "list.k", key: "k" },
+    ]);
+  });
+
+  /**
+   * Given a key written once plainly and once with a unicode escape
+   * When their text is scanned
+   * Then they are the same key, as JSON.parse reads them, and the repeat is reported.
+   */
+  it("treats an escaped spelling of a key as the same key", () => {
+    expect(findDuplicateKeys('{"playerRoles": 1, "player\\u0052oles": 2}')).toEqual([
+      { path: "playerRoles", key: "playerRoles" },
+    ]);
+  });
+
+  /**
+   * Given a file cut off in the middle of a string, as a truncated or badly merged one is
+   * When its text is scanned
+   * Then it says the string never ends, instead of reading past the end of the text.
+   */
+  it("throws on a string that never closes", () => {
+    expect(() => findDuplicateKeys('{"a": "b')).toThrow(/unterminated string/);
+    expect(() => findDuplicateKeys('{"a": "b\\')).toThrow(/unterminated string/);
   });
 });
 
