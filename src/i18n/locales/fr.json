@@ -198,7 +198,8 @@
     "skipToMatchDay": "Avancer au Jour de Match",
     "skipToMatchDayDesc": "Avancer jusqu'à votre prochain match",
     "matchDayTitle": "Jour de Match",
-    "delegateWarning": "Votre assistant gérera le match. Vous ne pourrez pas intervenir."
+    "delegateWarning": "Votre assistant gérera le match. Vous ne pourrez pas intervenir.",
+    "matchOptions": "Options du match"
   },
   "closeConfirm": {
     "title": "Modifications non sauvegardées",

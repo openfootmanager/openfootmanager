@@ -198,7 +198,8 @@
     "skipToMatchDay": "跳至比赛日",
     "skipToMatchDayDesc": "快进到下一场赛程",
     "matchDayTitle": "比赛日",
-    "delegateWarning": "助理教练将接管比赛。您将无法介入。"
+    "delegateWarning": "助理教练将接管比赛。您将无法介入。",
+    "matchOptions": "比赛选项"
   },
   "exitConfirm": {
     "title": "返回主菜单？",

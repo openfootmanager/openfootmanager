@@ -198,7 +198,8 @@
     "skipToMatchDay": "Přeskočit na zápasový den",
     "skipToMatchDayDesc": "Rychlý posun k vašemu dalšímu utkání",
     "matchDayTitle": "Zápasový den",
-    "delegateWarning": "Zápas odřídí váš asistent. Nebudete moci do průběhu zasahovat."
+    "delegateWarning": "Zápas odřídí váš asistent. Nebudete moci do průběhu zasahovat.",
+    "matchOptions": "Možnosti zápasu"
   },
   "exitConfirm": {
     "title": "Odejít do hlavního menu?",

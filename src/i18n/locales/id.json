@@ -198,7 +198,8 @@
     "skipToMatchDay": "Lanjut ke Hari Pertandingan",
     "skipToMatchDayDesc": "Lompat ke pertandingan berikutnya",
     "matchDayTitle": "Hari Pertandingan",
-    "delegateWarning": "Asisten akan menangani pertandingan ini. Kamu tidak dapat ikut campur."
+    "delegateWarning": "Asisten akan menangani pertandingan ini. Kamu tidak dapat ikut campur.",
+    "matchOptions": "Opsi pertandingan"
   },
   "exitConfirm": {
     "title": "Keluar ke Menu Utama?",

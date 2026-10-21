@@ -198,7 +198,8 @@
     "skipToMatchDay": "Skip to Match Day",
     "skipToMatchDayDesc": "Fast-forward to your next fixture",
     "matchDayTitle": "Match Day",
-    "delegateWarning": "Your assistant will manage the match. You won't be able to intervene."
+    "delegateWarning": "Your assistant will manage the match. You won't be able to intervene.",
+    "matchOptions": "Match options"
   },
   "exitConfirm": {
     "title": "Exit to Main Menu?",

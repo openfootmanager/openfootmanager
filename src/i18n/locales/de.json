@@ -198,7 +198,8 @@
     "skipToMatchDay": "Zum Spieltag springen",
     "skipToMatchDayDesc": "Vorspulen bis zum nächsten Spiel",
     "matchDayTitle": "Spieltag",
-    "delegateWarning": "Dein Assistent übernimmt das Spiel. Du kannst nicht eingreifen."
+    "delegateWarning": "Dein Assistent übernimmt das Spiel. Du kannst nicht eingreifen.",
+    "matchOptions": "Spieloptionen"
   },
   "closeConfirm": {
     "title": "Nicht gespeicherte Änderungen",

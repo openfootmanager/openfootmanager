@@ -198,7 +198,8 @@
     "skipToMatchDay": "Pular para o Dia de Jogo",
     "skipToMatchDayDesc": "Avançar até a próxima partida",
     "matchDayTitle": "Dia de Jogo",
-    "delegateWarning": "Seu assistente comandará a partida. Você não poderá intervir."
+    "delegateWarning": "Seu assistente comandará a partida. Você não poderá intervir.",
+    "matchOptions": "Opções da partida"
   },
   "closeConfirm": {
     "title": "Alterações não salvas",

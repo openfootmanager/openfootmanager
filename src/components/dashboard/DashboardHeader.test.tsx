@@ -84,23 +84,17 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 function createModeMeta(): Record<MatchModeType, DashboardMatchModeMeta> {
   return {
     live: {
-      buttonColorClass: "from-primary-500 to-primary-600",
       desc: "Live",
-      dropdownColorClass: "from-primary-600 to-primary-700",
       icon: <span>L</span>,
       label: "Live",
     },
     spectator: {
-      buttonColorClass: "from-primary-500 to-primary-600",
       desc: "Spectator",
-      dropdownColorClass: "from-primary-600 to-primary-700",
       icon: <span>S</span>,
       label: "Spectator",
     },
     delegate: {
-      buttonColorClass: "from-primary-500 to-primary-600",
       desc: "Delegate",
-      dropdownColorClass: "from-primary-600 to-primary-700",
       icon: <span>D</span>,
       label: "Delegate",
     },
@@ -117,6 +111,7 @@ describe("DashboardHeader", () => {
       <DashboardHeader
         title="Dashboard"
         currentDate="2026-08-10"
+        currentDateShort="2026-08-10"
         hasProfileHistory={false}
         hasMatchToday={false}
         isAdvancing={false}
@@ -166,6 +161,7 @@ describe("DashboardHeader", () => {
       <DashboardHeader
         title="J. Smith"
         currentDate="2026-08-10"
+        currentDateShort="2026-08-10"
         hasProfileHistory
         hasMatchToday={false}
         isAdvancing={false}
@@ -231,6 +227,7 @@ describe("DashboardHeader", () => {
         <DashboardHeader
           title="Dashboard"
           currentDate="2026-08-10"
+          currentDateShort="2026-08-10"
           hasProfileHistory={false}
           hasMatchToday={false}
           isAdvancing={false}
@@ -263,4 +260,70 @@ describe("DashboardHeader", () => {
       expect(screen.getByText(abbreviation)).toHaveClass(expectedClass);
     },
   );
+});
+
+function renderHeader(overrides: Partial<React.ComponentProps<typeof DashboardHeader>> = {}) {
+  const teams = [createTeam()];
+  return render(
+    <DashboardHeader
+      title="Squad"
+      currentDate="Tuesday, 1 July 2031"
+      currentDateShort="1 July 2031"
+      hasProfileHistory={false}
+      hasMatchToday={false}
+      isAdvancing={false}
+      isUnemployed={false}
+      isSaving={false}
+      matchMode="live"
+      matchedPlayers={[]}
+      matchedTeams={[]}
+      modeMeta={createModeMeta()}
+      onBack={vi.fn()}
+      onContinue={vi.fn()}
+      onSave={vi.fn()}
+      onSearchBlur={vi.fn()}
+      onSearchFocus={vi.fn()}
+      onSearchQueryChange={vi.fn()}
+      onSelectMatchMode={vi.fn()}
+      onSelectSearchPlayer={vi.fn()}
+      onSelectSearchTeam={vi.fn()}
+      onSkipToMatchDay={vi.fn()}
+      onToggleContinueMenu={vi.fn()}
+      saveFlash={false}
+      searchOpen={false}
+      searchQuery=""
+      seasonComplete={false}
+      showContinueMenu={false}
+      teams={teams}
+      {...overrides}
+    />,
+  );
+}
+
+describe("DashboardHeader in a narrow window (layout rule L5)", () => {
+  /**
+   * Given a header too narrow for the search field (a container query hides it there)
+   * When the player presses the search button
+   * Then the field opens and takes the focus, so search is one press away at any width.
+   */
+  it("opens a collapsed search field from its button and focuses it", () => {
+    renderHeader();
+    const field = screen.getByPlaceholderText("Search");
+    expect(field.closest("[data-search-field]")).toHaveClass("hidden");
+
+    fireEvent.click(screen.getByRole("button", { name: "common.search" }));
+    expect(field.closest("[data-search-field]")).not.toHaveClass("hidden");
+    expect(field).toHaveFocus();
+  });
+
+  /**
+   * Given the date with and without its weekday
+   * When the header renders
+   * Then both are there: the short one shows when the header is narrow, the full one when wide.
+   */
+  it("carries the date with and without the weekday", () => {
+    renderHeader();
+    expect(screen.getByText("Tuesday, 1 July 2031")).toBeInTheDocument();
+    expect(screen.getByText("1 July 2031")).toBeInTheDocument();
+  });
 });

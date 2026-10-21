@@ -198,7 +198,8 @@
     "skipToMatchDay": "Maç Gününe Atla",
     "skipToMatchDayDesc": "Bir sonraki maçına kadar hızlı ilerle",
     "matchDayTitle": "Maç Günü",
-    "delegateWarning": "Maçı yardımcınız yönetecek. Müdahale edemeyeceksiniz."
+    "delegateWarning": "Maçı yardımcınız yönetecek. Müdahale edemeyeceksiniz.",
+    "matchOptions": "Maç seçenekleri"
   },
   "exitConfirm": {
     "title": "Ana menüye dönülsün mü?",
