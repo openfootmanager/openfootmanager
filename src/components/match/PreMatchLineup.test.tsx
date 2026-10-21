@@ -343,6 +343,34 @@ describe("PreMatchLineup component", () => {
     }
   });
 
+  /**
+   * Given bench players rated 76 and 77, either side of the A-tier cut-off
+   * When the lineup lists the bench
+   * Then each rating pill takes the badge colour of its backend tier (B and A), not a cut-off of
+   *      the lineup's own.
+   */
+  it("colours the bench rating pill by its backend tier", () => {
+    const props = {
+      ...defaultProps,
+      userBench: [
+        makePlayer({ id: "b76", name: "Bench Seventy Six", ovr: 76, condition: 90 }),
+        makePlayer({ id: "b77", name: "Bench Seventy Seven", ovr: 77, condition: 90 }),
+      ],
+    };
+    render(<PreMatchLineup {...props} />);
+
+    const pillOf = (name: string, rating: string) =>
+      within(screen.getByText(name).closest("div.flex") as HTMLElement)
+        .getAllByText(rating)
+        .find((element) => element.className.includes("rounded-full"));
+    expect(pillOf("Bench Seventy Seven", "77")).toHaveClass(
+      ...ratingTierClass("A", "badge").split(" "),
+    );
+    expect(pillOf("Bench Seventy Six", "76")).toHaveClass(
+      ...ratingTierClass("B", "badge").split(" "),
+    );
+  });
+
   it("renders bench section with substitutes", () => {
     render(<PreMatchLineup {...defaultProps} />);
     expect(screen.getByText("match.substitutes")).toBeInTheDocument();

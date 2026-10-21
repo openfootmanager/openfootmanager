@@ -433,13 +433,7 @@ export default function PreMatchLineup({
                     ))}
                   </div>
                   <span
-                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${
-                      posOvr >= 80
-                        ? "bg-primary-500 text-white"
-                        : posOvr >= 60
-                          ? "bg-accent-500/20 text-accent-600 dark:text-accent-400"
-                          : "bg-gray-100 text-gray-500 dark:bg-navy-700 dark:text-gray-400"
-                    }`}
+                    className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-heading font-bold ${ratingTierClass(tierOf(posOvr), "badge")}`}
                   >
                     {posOvr}
                   </span>
