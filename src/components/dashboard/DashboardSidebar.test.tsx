@@ -63,4 +63,30 @@ describe("DashboardSidebar", () => {
       "Ada Lovelace Alpha FC England First Division",
     );
   });
+
+  /**
+   * Given a window too narrow for the expanded sidebar
+   * When the sidebar is folded for it
+   * Then there is no expand button (expanding would push the workspace under 40rem), and every
+   * destination is still a labelled button on the icon rail.
+   */
+  it("folds to a labelled icon rail with no expand button when the window forces it", () => {
+    renderSidebar({ collapsed: true, collapseForced: true });
+
+    expect(screen.queryByRole("button", { name: "dashboard.expandSidebar" })).toBeNull();
+    for (const name of ["dashboard.home", "dashboard.squad", "dashboard.settings"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+  });
+
+  /**
+   * Given a window with room
+   * When the player folds the sidebar themselves
+   * Then the expand button is there to open it again.
+   */
+  it("keeps the expand button when the player folded it", () => {
+    renderSidebar({ collapsed: true, collapseForced: false });
+
+    expect(screen.getByRole("button", { name: "dashboard.expandSidebar" })).toBeInTheDocument();
+  });
 });
