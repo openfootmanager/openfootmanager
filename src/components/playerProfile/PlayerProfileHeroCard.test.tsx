@@ -32,6 +32,8 @@ function renderHero(face?: string) {
       scoutStatus="idle"
       scoutError={null}
       onScout={() => {}}
+      traits={[]}
+      showsPrivateState
       t={t}
     />,
   );

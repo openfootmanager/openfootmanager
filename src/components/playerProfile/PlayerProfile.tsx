@@ -36,6 +36,8 @@ import { usePlayerProfileData } from "./usePlayerProfileData";
 import { useScoutPlayerFlow } from "./useScoutPlayerFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
 import { naturalPositionOf } from "../../lib/positions";
+import { knowsPlayerRating, knowsPrivateState, visibleTraits } from "../../lib/playerKnowledge";
+import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
 
 interface PlayerProfileProps {
   player: PlayerData;
@@ -72,6 +74,11 @@ export default function PlayerProfile({
   });
   const ovr = getPlayerOvr(player);
   const age = calcAgeOnDate(player.date_of_birth, gameState.clock.current_date);
+  const knowledge = usePlayerKnowledge(
+    [player.id],
+    `${gameState.clock.current_date}|${player.team_id ?? ""}|${gameState.manager.team_id ?? ""}`,
+  )(player.id);
+  const showsPrivateState = knowsPrivateState(knowledge);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
   // Offer roles for the deployed slot when the player is in the starting XI —
@@ -259,6 +266,8 @@ export default function PlayerProfile({
         onScout={sendScout}
         onSelectTeam={onSelectTeam}
         team={playerTeam}
+        traits={visibleTraits(player.traits ?? [], knowledge)}
+        showsPrivateState={showsPrivateState}
         t={t}
       />
 
@@ -303,10 +312,10 @@ export default function PlayerProfile({
           dateOfBirth={player.date_of_birth}
           contractEnd={player.contract_end}
           currentDate={gameState.clock.current_date}
-          condition={player.condition}
-          morale={player.morale}
+          condition={showsPrivateState ? player.condition : null}
+          morale={showsPrivateState ? player.morale : null}
           marketValue={player.market_value}
-          wage={player.wage}
+          wage={showsPrivateState ? player.wage : null}
           language={i18n.language}
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}
@@ -331,7 +340,7 @@ export default function PlayerProfile({
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
           player={attributesPlayer}
-          attributesVisible={isManagerSquadProfile || scoutedReport !== null}
+          attributesVisible={knowsPlayerRating(knowledge) || scoutedReport !== null}
           scoutNote={
             scoutedReport
               ? {
