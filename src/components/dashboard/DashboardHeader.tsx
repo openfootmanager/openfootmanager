@@ -7,7 +7,7 @@ import {
   Save,
   Search,
 } from "lucide-react";
-import { type JSX, type ReactNode, useEffect, useRef, useState } from "react";
+import { type JSX, type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { getTeamName, positionBadgeVariant } from "../../lib/helpers";
@@ -132,6 +132,14 @@ function renderContinueButtonContent(
   );
 }
 
+/**
+ * A mouse press on a result must not take the focus from the field: WebKit doesn't focus a pressed
+ * button, so the field would blur, the search would fold and the click would land on nothing.
+ */
+function keepFocusInSearch(event: MouseEvent): void {
+  event.preventDefault();
+}
+
 function renderSearchResults(props: {
   matchedPlayers: PlayerData[];
   matchedTeams: TeamData[];
@@ -161,7 +169,8 @@ function renderSearchResults(props: {
               <ContextMenu items={contextItems} key={team.id}>
                 <button
                   type="button"
-                  onMouseDown={() => onSelectSearchTeam(team.id)}
+                  onMouseDown={keepFocusInSearch}
+                  onClick={() => onSelectSearchTeam(team.id)}
                   className={MENU_ROW}
                   data-testid={`dashboard-search-team-${team.id}`}
                 >
@@ -198,7 +207,8 @@ function renderSearchResults(props: {
               <ContextMenu items={contextItems} key={player.id}>
                 <button
                   type="button"
-                  onMouseDown={() => onSelectSearchPlayer(player.id)}
+                  onMouseDown={keepFocusInSearch}
+                  onClick={() => onSelectSearchPlayer(player.id)}
                   className={MENU_ROW}
                   data-testid={`dashboard-search-player-${player.id}`}
                 >
@@ -332,9 +342,16 @@ export default function DashboardHeader({
         </div>
       </div>
 
+      {/* The search folds when the focus leaves the field and its results, not when it moves from
+          the field into a result: a keyboard player tabs into the results to pick one. */}
       <div
         data-search-field
         className={`relative min-w-0 flex-1 ${searchExpanded ? "" : "hidden @3xl/header:block"}`}
+        onBlur={(event) => {
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          setSearchExpanded(false);
+          onSearchBlur();
+        }}
       >
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
         <input
@@ -345,10 +362,6 @@ export default function DashboardHeader({
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
           onFocus={onSearchFocus}
-          onBlur={() => {
-            setSearchExpanded(false);
-            onSearchBlur();
-          }}
           className={`w-full rounded-lg border border-line bg-sunken py-2 pl-9 pr-3 text-body text-fg placeholder:text-fg-subtle ${FOCUS_RING}`}
         />
         {showSearchResults && (

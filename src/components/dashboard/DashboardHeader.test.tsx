@@ -300,6 +300,67 @@ function renderHeader(overrides: Partial<React.ComponentProps<typeof DashboardHe
   );
 }
 
+describe("DashboardHeader search", () => {
+  /**
+   * Given a narrow header whose search field was opened from its button, with a result showing
+   * When a keyboard player moves the focus from the field into the results and presses Enter
+   * Then the field stays open while the focus is in the results, and Enter picks the player.
+   */
+  it("keeps the results open while the focus moves into them, and picks one by keyboard", () => {
+    const onSelectSearchPlayer = vi.fn();
+    const onSearchBlur = vi.fn();
+    renderHeader({
+      searchOpen: true,
+      searchQuery: "jo",
+      matchedPlayers: [createPlayer()],
+      onSelectSearchPlayer,
+      onSearchBlur,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "common.search" }));
+    const field = screen.getByRole("textbox", { name: "common.search" });
+    const result = screen.getByTestId("dashboard-search-player-player-1");
+
+    fireEvent.blur(field, { relatedTarget: result });
+    result.focus();
+
+    expect(field.closest("[data-search-field]")).not.toHaveClass("hidden");
+    expect(onSearchBlur).not.toHaveBeenCalled();
+    // A focused button turns Enter and Space into a click.
+    fireEvent.click(result);
+    expect(onSelectSearchPlayer).toHaveBeenCalledWith("player-1");
+  });
+
+  /**
+   * Given the results showing
+   * When the mouse presses a result
+   * Then the press doesn't take the focus from the field (WebKit doesn't focus a pressed button,
+   * so the field would blur and the results vanish before the click lands).
+   */
+  it("keeps the focus in the field when a result is pressed with the mouse", () => {
+    renderHeader({ searchOpen: true, searchQuery: "jo", matchedPlayers: [createPlayer()] });
+    const result = screen.getByTestId("dashboard-search-player-player-1");
+
+    expect(fireEvent.mouseDown(result)).toBe(false);
+  });
+
+  /**
+   * Given the search field opened from its button
+   * When the focus leaves the search for something else
+   * Then the field folds back to its button and the results close.
+   */
+  it("folds the field when the focus leaves the search", () => {
+    const onSearchBlur = vi.fn();
+    renderHeader({ onSearchBlur });
+    fireEvent.click(screen.getByRole("button", { name: "common.search" }));
+    const field = screen.getByRole("textbox", { name: "common.search" });
+
+    fireEvent.blur(field, { relatedTarget: null });
+
+    expect(field.closest("[data-search-field]")).toHaveClass("hidden");
+    expect(onSearchBlur).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("DashboardHeader in a narrow window (layout rule L5)", () => {
   /**
    * Given a header too narrow for the search field (a container query hides it there)
