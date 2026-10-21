@@ -65,28 +65,31 @@ describe("DashboardSidebar", () => {
   });
 
   /**
-   * Given a window too narrow for the expanded sidebar
-   * When the sidebar is folded for it
-   * Then there is no expand button (expanding would push the workspace under 40rem), and every
-   * destination is still a labelled button on the icon rail.
+   * Given the player folded the sidebar
+   * When it shows as the icon rail
+   * Then every destination is still a labelled button and the expand button opens it again.
    */
-  it("folds to a labelled icon rail with no expand button when the window forces it", () => {
-    renderSidebar({ collapsed: true, collapseForced: true });
+  it("folds to a labelled icon rail the player can open again", () => {
+    renderSidebar({ collapsed: true });
 
-    expect(screen.queryByRole("button", { name: "dashboard.expandSidebar" })).toBeNull();
+    expect(screen.getByRole("button", { name: "dashboard.expandSidebar" })).toBeInTheDocument();
     for (const name of ["dashboard.home", "dashboard.squad", "dashboard.settings"]) {
       expect(screen.getByRole("button", { name })).toBeInTheDocument();
     }
   });
 
   /**
-   * Given a window with room
-   * When the player folds the sidebar themselves
-   * Then the expand button is there to open it again.
+   * Given three unread messages, open and folded
+   * When the inbox badge is drawn
+   * Then it is a circle (as tall as it is wide for one digit, a fixed height with tight padding so
+   * more digits widen it only as much as they need), not a pill with wide side padding.
    */
-  it("keeps the expand button when the player folded it", () => {
-    renderSidebar({ collapsed: true, collapseForced: false });
+  it.each([false, true])("draws the unread badge as a circle (folded: %s)", (collapsed) => {
+    renderSidebar({ collapsed, unreadMessagesCount: 3 });
+    const badge = screen.getByText("3");
 
-    expect(screen.getByRole("button", { name: "dashboard.expandSidebar" })).toBeInTheDocument();
+    expect(badge).toHaveClass("h-5", "min-w-5", "px-1", "rounded-full");
+    expect(badge).not.toHaveClass("px-2");
+    expect(badge).not.toHaveClass("py-0.5");
   });
 });

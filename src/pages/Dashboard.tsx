@@ -50,7 +50,6 @@ import {
 import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
 import { formatDate, formatDateFull, getFixtureCompetitionName } from "../lib/helpers";
-import { useSidebarMustCollapse } from "../components/dashboard/sidebarAutoCollapse";
 import { useTranslation } from "react-i18next";
 import { useClubLeagueStanding } from "../components/teamProfile/useClubLeagueStanding";
 import { useSettingsStore } from "../store/settingsStore";
@@ -124,8 +123,6 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
   const [saveFlash, setSaveFlash] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  // Layout rule L5: below a 40rem workspace the sidebar folds to its icon rail, whatever the player chose.
-  const sidebarMustCollapse = useSidebarMustCollapse();
   const [profileNavigation, setProfileNavigation] = useState(() =>
     createDashboardProfileNavigationState(initialTab),
   );
@@ -551,8 +548,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     <div className="flex min-h-screen bg-page">
       <DashboardSidebar
         activeTab={profileNavigation.activeTab}
-        collapsed={isSidebarCollapsed || sidebarMustCollapse}
-        collapseForced={sidebarMustCollapse}
+        collapsed={isSidebarCollapsed}
         onNavClick={handleNavClick}
         onToggleCollapse={() => {
           setIsSidebarCollapsed((currentValue) => !currentValue);

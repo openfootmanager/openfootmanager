@@ -10,12 +10,11 @@ import { describe, expect, it } from "vitest";
 const FINISHED_FOLDERS = [
   "./components/ui/",
   // The dashboard shell. The rest of components/dashboard (its modals) joins with them, and these
-  // five entries become the one folder.
+  // four entries become the one folder.
   "./components/dashboard/DashboardAlerts.tsx",
   "./components/dashboard/DashboardHeader.tsx",
   "./components/dashboard/DashboardSidebar.tsx",
   "./components/dashboard/DashboardWorkspaceContent.tsx",
-  "./components/dashboard/sidebarAutoCollapse.ts",
   "./pages/Dashboard.tsx",
 ];
 
