@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 
 interface HomeSquadOverviewCardProps {
-  avgCondition: number;
+  /** Null until the backend answers, and when no healthy first-team player can be averaged. */
+  avgCondition: number | null;
   avgOvr: number;
   exhaustedCount: number;
   scheduleIcon: React.ReactNode;
@@ -48,10 +49,10 @@ export default function HomeSquadOverviewCard({
               {t("home.avgCondition")}
             </span>
             <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-100">
-              {avgCondition}%
+              {avgCondition !== null ? `${avgCondition}%` : "—"}
             </span>
           </div>
-          <ProgressBar value={avgCondition} variant="auto" size="md" />
+          <ProgressBar value={avgCondition ?? 0} variant="auto" size="md" />
 
           <div className="flex items-center justify-between mt-1">
             <span className="text-xs text-gray-500 dark:text-gray-400">{t("home.avgOvr")}</span>

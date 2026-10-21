@@ -1,4 +1,5 @@
 import type { PlayerData, SeasonContextData, TeamData } from "../store/gameStore";
+import type { SquadFitness } from "../services/squadService";
 
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -108,6 +109,18 @@ export function createSeasonContext(overrides: Partial<SeasonContextData> = {}):
       days_until_opens: null,
       days_remaining: null,
     },
+    ...overrides,
+  };
+}
+
+/** The backend's squad fitness answer; a test sets what it is about and leaves the rest quiet. */
+export function createSquadFitness(overrides: Partial<SquadFitness> = {}): SquadFitness {
+  return {
+    players: 11,
+    average_condition: 70,
+    exhausted_count: 0,
+    critical_count: 0,
+    statuses: {},
     ...overrides,
   };
 }

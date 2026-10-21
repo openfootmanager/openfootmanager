@@ -268,6 +268,7 @@ pub fn run() {
             get_tactics_blueprint_status,
             set_team_match_roles,
             set_training,
+            get_squad_fitness,
             set_training_schedule,
             get_training_focus_attributes,
             set_training_groups,
