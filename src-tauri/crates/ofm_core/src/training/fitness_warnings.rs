@@ -92,7 +92,6 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
     let today_str = game.clock.current_date.format("%Y-%m-%d").to_string();
 
     // The same summary the screens show.
-    let team_players = healthy_first_team(game, &user_team_id);
     let SquadFitness {
         average_condition: Some(avg_condition),
         exhausted_count,
@@ -154,7 +153,7 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
 
     // Critical: multiple players below 25 condition
     if critical_count >= 3 {
-        let exhausted_names: Vec<String> = team_players
+        let exhausted_names: Vec<String> = healthy_first_team(game, &user_team_id)
             .iter()
             .filter(|p| fitness_status(p.condition) == FitnessStatus::Critical)
             .take(5)
