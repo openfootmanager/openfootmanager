@@ -369,7 +369,7 @@ mod tests {
         assert_eq!(report.quintiles[4].first_team_ovr, 70.0);
     }
 
-    /// Given a free-agent A player and a free-agent S player,
+    /// Given a free-agent A player, a free-agent S player and an ordinary free agent,
     /// When the world is reported,
     /// Then the unattached row counts the A player as all of the world's A and none of its S, and the S player the reverse.
     #[test]
@@ -377,6 +377,7 @@ mod tests {
         let report = reputation_report(&world(vec![
             player("free-a", None, 78, "1995-01-01"),
             player("free-s", None, 90, "1995-01-01"),
+            player("free-ordinary", None, 60, "1995-01-01"),
             player("club-s", Some("c9"), 90, "1995-01-01"),
         ]));
 
