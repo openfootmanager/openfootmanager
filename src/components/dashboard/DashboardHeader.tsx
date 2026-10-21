@@ -65,8 +65,10 @@ interface DashboardHeaderProps {
 const FOCUS_RING =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel";
 const ICON_BUTTON = `rounded-lg p-2 text-fg-muted transition-colors hover:bg-hover hover:text-fg ${FOCUS_RING}`;
-const MENU_ROW =
-  "flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-hover";
+// Inside a menu the ring is inset: an offset ring would be clipped by the menu's edge.
+const MENU_FOCUS =
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus";
+const MENU_ROW = `flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-hover ${MENU_FOCUS}`;
 
 function getSaveButtonClassName(saveFlash: boolean, isSaving: boolean): string {
   const state = saveFlash
@@ -339,6 +341,7 @@ export default function DashboardHeader({
           ref={searchInput}
           type="text"
           placeholder={t("dashboard.searchPlaceholder")}
+          aria-label={t("common.search")}
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
           onFocus={onSearchFocus}
@@ -435,7 +438,7 @@ export default function DashboardHeader({
                       type="button"
                       key={mode}
                       onClick={() => onSelectMatchMode(mode)}
-                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-hover ${
+                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-hover ${MENU_FOCUS} ${
                         isActive ? "bg-hover" : ""
                       }`}
                     >
@@ -456,7 +459,7 @@ export default function DashboardHeader({
                 <button
                   type="button"
                   onClick={handleSkipToMatchDayClick}
-                  className="w-full px-4 py-2.5 text-left transition-colors hover:bg-hover"
+                  className={`w-full px-4 py-2.5 text-left transition-colors hover:bg-hover ${MENU_FOCUS}`}
                 >
                   <span className="font-heading text-body font-bold uppercase tracking-label text-fg">
                     {t("continueMenu.skipToMatchDay")}

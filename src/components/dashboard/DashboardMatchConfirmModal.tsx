@@ -72,7 +72,7 @@ export default function DashboardMatchConfirmModal({
         <button
           type="button"
           onClick={onConfirm}
-          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-700 px-4 py-2.5 font-heading text-body font-bold uppercase tracking-label text-on-brand transition-colors hover:bg-primary-800"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-700 px-4 py-2.5 font-heading text-body font-bold uppercase tracking-label text-on-brand transition-colors hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
         >
           {modeMeta.icon}
           {t("common.confirm")}

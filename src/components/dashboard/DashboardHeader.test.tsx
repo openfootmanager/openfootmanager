@@ -308,7 +308,7 @@ describe("DashboardHeader in a narrow window (layout rule L5)", () => {
    */
   it("opens a collapsed search field from its button and focuses it", () => {
     renderHeader();
-    const field = screen.getByPlaceholderText("Search");
+    const field = screen.getByRole("textbox", { name: "common.search" });
     expect(field.closest("[data-search-field]")).toHaveClass("hidden");
 
     fireEvent.click(screen.getByRole("button", { name: "common.search" }));
@@ -319,11 +319,27 @@ describe("DashboardHeader in a narrow window (layout rule L5)", () => {
   /**
    * Given the date with and without its weekday
    * When the header renders
-   * Then both are there: the short one shows when the header is narrow, the full one when wide.
+   * Then the full date shows from 42rem of header width and the short one below it. jsdom can't
+   * evaluate a container query, so this pins the breakpoint classes; the page harness's
+   * screenshots show the switch.
    */
-  it("carries the date with and without the weekday", () => {
+  it("swaps the full date for the short one below 42rem", () => {
     renderHeader();
-    expect(screen.getByText("Tuesday, 1 July 2031")).toBeInTheDocument();
-    expect(screen.getByText("1 July 2031")).toBeInTheDocument();
+    expect(screen.getByText("Tuesday, 1 July 2031")).toHaveClass("hidden", "@2xl/header:inline");
+    expect(screen.getByText("1 July 2031")).toHaveClass("@2xl/header:hidden");
+    expect(screen.getByText("1 July 2031")).not.toHaveClass("hidden");
+  });
+
+  /**
+   * Given the Continue menu open, with its match modes and the skip action
+   * When a keyboard user moves through it
+   * Then every item shows the focus ring.
+   */
+  it("draws the focus ring on every Continue menu item", () => {
+    renderHeader({ showContinueMenu: true });
+    const items = ["Live", "Spectator", "Delegate", "continueMenu.skipToMatchDay"].map((name) =>
+      screen.getByRole("button", { name: new RegExp(name) }),
+    );
+    for (const item of items) expect(item).toHaveClass("focus-visible:ring-focus");
   });
 });
