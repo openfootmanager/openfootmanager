@@ -18,6 +18,7 @@ vi.mock("react-i18next", () => ({
       if (key === "dashboard.saveGame") return "Save game";
       if (key === "common.save") return "Save";
       if (key === "dashboard.continue") return "Continue";
+      if (key === "dashboard.matchModeMenu") return "Choose match mode";
       if (key === "common.back") return "Back";
       if (key === "squad.viewProfile") return "View profile";
       if (key === "common.viewTeam") return "View team";
@@ -192,7 +193,7 @@ describe("DashboardHeader", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "dashboard.matchModeMenu" })).toHaveClass(
+    expect(screen.getByRole("button", { name: "Choose match mode" })).toHaveClass(
       "focus-visible:ring-focus",
     );
   });
