@@ -1,6 +1,11 @@
+import type { RatedTone } from "../../store/types";
+import { TONE_FILL } from "./ratedTone";
+
 interface ProgressBarProps {
   value: number; // 0-100
   variant?: "primary" | "accent" | "success" | "danger" | "muted" | "auto";
+  /** The backend's tone for the value; when given it fills the bar and `variant` is ignored. */
+  tone?: RatedTone;
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
   className?: string;
@@ -9,6 +14,7 @@ interface ProgressBarProps {
 export function ProgressBar({
   value,
   variant = "auto",
+  tone,
   size = "sm",
   showLabel = false,
   className = "",
@@ -44,7 +50,7 @@ export function ProgressBar({
     <div className={`flex items-center gap-2 ${className}`}>
       <div className={`flex-1 bg-line rounded-full ${heights[size]} overflow-hidden`}>
         <div
-          className={`${barColors[resolvedVariant]} ${heights[size]} rounded-full transition-all duration-500`}
+          className={`${tone ? TONE_FILL[tone] : barColors[resolvedVariant]} ${heights[size]} rounded-full transition-all duration-500`}
           style={{ width: `${clamped}%` }}
         />
       </div>

@@ -2638,6 +2638,12 @@
     "compare": "比较"
   },
   "be": {
+    "condition": {
+      "fresh": "精力充沛",
+      "tiring": "体力下降",
+      "exhausted": "筋疲力尽",
+      "critical": "体能危急"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "该球员无法离队：阵容将低于俱乐部必须保留的最低人数。涉及位置：{{group}}。",

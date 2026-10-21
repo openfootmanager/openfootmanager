@@ -2638,6 +2638,12 @@
     "compare": "Compare"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresh",
+      "tiring": "Tiring",
+      "exhausted": "Exhausted",
+      "critical": "Critical"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",

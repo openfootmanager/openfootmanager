@@ -2,6 +2,7 @@ export { Card, CardHeader, CardBody } from "./Card";
 export { Button } from "./Button";
 export { Badge } from "./Badge";
 export { ProgressBar } from "./ProgressBar";
+export { TONE_FILL, TONE_TEXT } from "./ratedTone";
 export { CountryFlag } from "./CountryFlag";
 export { TeamLocation } from "./TeamLocation";
 export { ThemeToggle } from "./ThemeToggle";

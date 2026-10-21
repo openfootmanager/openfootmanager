@@ -2638,6 +2638,12 @@
     "compare": "Comparer"
   },
   "be": {
+    "condition": {
+      "fresh": "Frais",
+      "tiring": "Fatigué",
+      "exhausted": "Épuisé",
+      "critical": "Critique"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Ce joueur ne peut pas partir : l'effectif passerait sous le minimum qu'un club doit conserver. Ligne concernée : {{group}}.",

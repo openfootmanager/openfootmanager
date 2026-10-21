@@ -882,7 +882,14 @@ export default function SquadRosterView({
                         {age}
                       </td>
                       <td className="py-2.5 px-4 w-28">
-                        <ProgressBar value={player.condition} variant="auto" size="sm" showLabel />
+                        {/* The tone is the backend's band; a roster not yet fetched stays neutral. */}
+                        <ProgressBar
+                          value={player.condition}
+                          variant={player.condition_status ? undefined : "muted"}
+                          tone={player.condition_status?.tone}
+                          size="sm"
+                          showLabel
+                        />
                       </td>
                       <td className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
                         {player.morale}

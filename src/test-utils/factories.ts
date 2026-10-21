@@ -1,5 +1,6 @@
 import type { PlayerData, SeasonContextData, TeamData } from "../store/gameStore";
 import type { SquadFitness } from "../services/squadService";
+import type { ConditionBand, ConditionStatus, RatedTone } from "../store/types";
 
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -114,6 +115,17 @@ export function createSeasonContext(overrides: Partial<SeasonContextData> = {}):
 }
 
 /** The backend's squad fitness answer; a test sets what it is about and leaves the rest quiet. */
+/** A condition status as the backend sends it, for the band a test names. */
+export function createConditionStatus(band: ConditionBand): ConditionStatus {
+  const steps: Record<ConditionBand, RatedTone> = {
+    Fresh: "good",
+    Tiring: "fair",
+    Exhausted: "low",
+    Critical: "bad",
+  };
+  return { band, label_key: `be.condition.${band.toLowerCase()}`, tone: steps[band] };
+}
+
 export function createSquadFitness(overrides: Partial<SquadFitness> = {}): SquadFitness {
   return {
     players: 11,

@@ -198,6 +198,28 @@ describe("SquadTab", () => {
     );
   }
 
+  /**
+   * Given a player on 30 whom the backend's squad projection rates fresh
+   * When Squad lists him
+   * Then his condition bar is painted in the backend's tone, not in a colour picked from 30.
+   */
+  it("paints each condition bar in the backend's tone", async () => {
+    const state = makeGameState();
+    state.players = [
+      makePlayer("p1", "Forward", {
+        full_name: "Rated Fresh",
+        match_name: "Rated Fresh",
+        condition: 30,
+        condition_status: { band: "Fresh", label_key: "be.condition.fresh", tone: "good" },
+      }),
+    ];
+    renderSquadTab(state);
+
+    const row = await screen.findByRole("row", { name: /Rated Fresh/ });
+    expect(row.querySelector(".bg-tone-good-solid")).not.toBeNull();
+    expect(row.querySelector(".bg-danger-solid")).toBeNull();
+  });
+
   // Given a backend-called-up youth, when Squad opens, then the manager can see him.
   it("shows called-up youth in the senior roster", async () => {
     const state = makeGameState();

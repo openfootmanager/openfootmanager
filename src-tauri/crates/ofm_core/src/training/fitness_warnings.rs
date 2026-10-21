@@ -1,33 +1,91 @@
 use crate::game::Game;
 use crate::match_day_eligibility::{club_players, match_day_eligible_players};
+use crate::rated_tone::RatedTone;
 use domain::player::Player;
 use domain::team::{TrainingIntensity, TrainingSchedule};
 use serde::Serialize;
 use std::collections::HashMap;
 
+/// From this condition up a player is fresh.
+const FRESH_FROM: u8 = 75;
 /// Below this condition a player is exhausted.
 const EXHAUSTED_BELOW: u8 = 40;
 /// Below this condition a player is in a critical state.
 const CRITICAL_BELOW: u8 = 25;
 
-/// How tired a player is, by the two cut-offs the staff's warnings and the screens share.
+/// The band a player's condition falls in, the one the staff's warnings, the counts and every
+/// screen share.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum FitnessStatus {
-    Fit,
-    /// Below 40, and not critical.
+    /// 75 and up.
+    Fresh,
+    /// 40 to 74.
+    Tiring,
+    /// 25 to 39.
     Exhausted,
     /// Below 25.
     Critical,
 }
 
-/// The one rule for a condition's status: every count and every per-player colour reads it.
+impl FitnessStatus {
+    /// Exhausted or worse: below 40, the band the squad's exhausted count and the staff's
+    /// warnings are about. Tiring is not exhausted, so the counts read as they did before the
+    /// band split "fit" in two.
+    pub fn is_exhausted(self) -> bool {
+        matches!(self, Self::Exhausted | Self::Critical)
+    }
+
+    /// The word the screens show for the band, as a translation key.
+    pub fn label_key(self) -> &'static str {
+        match self {
+            Self::Fresh => "be.condition.fresh",
+            Self::Tiring => "be.condition.tiring",
+            Self::Exhausted => "be.condition.exhausted",
+            Self::Critical => "be.condition.critical",
+        }
+    }
+
+    /// Where the band sits on the good-to-bad scale. Four bands take the scale's lower four
+    /// steps: a fresh player is as good as condition gets, which is good rather than top, the step
+    /// kept for a rating that stands out.
+    pub fn tone(self) -> RatedTone {
+        match self {
+            Self::Fresh => RatedTone::Good,
+            Self::Tiring => RatedTone::Fair,
+            Self::Exhausted => RatedTone::Low,
+            Self::Critical => RatedTone::Bad,
+        }
+    }
+}
+
+/// The one rule for a condition's band: every count, word and colour reads it.
 pub fn fitness_status(condition: u8) -> FitnessStatus {
     if condition < CRITICAL_BELOW {
         FitnessStatus::Critical
     } else if condition < EXHAUSTED_BELOW {
         FitnessStatus::Exhausted
+    } else if condition < FRESH_FROM {
+        FitnessStatus::Tiring
     } else {
-        FitnessStatus::Fit
+        FitnessStatus::Fresh
+    }
+}
+
+/// A condition as the screens show it: its band, the word for it and the tone to paint it in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct ConditionStatus {
+    pub band: FitnessStatus,
+    pub label_key: &'static str,
+    pub tone: RatedTone,
+}
+
+/// How to show a player's condition, from the one band rule.
+pub fn condition_status(condition: u8) -> ConditionStatus {
+    let band = fitness_status(condition);
+    ConditionStatus {
+        band,
+        label_key: band.label_key(),
+        tone: band.tone(),
     }
 }
 
@@ -44,7 +102,7 @@ pub struct SquadFitness {
     pub critical_count: usize,
     /// Every player of the club, injured and academy players included (the lists show them), by
     /// player id. The counts above leave the injured and the uncalled academy out.
-    pub statuses: HashMap<String, FitnessStatus>,
+    pub statuses: HashMap<String, ConditionStatus>,
 }
 
 /// The club's healthy first-team players: the match-day pool (seniors and called-up youth) without
@@ -67,7 +125,7 @@ pub fn squad_fitness(game: &Game, team_id: &str) -> SquadFitness {
         }),
         exhausted_count: healthy
             .iter()
-            .filter(|p| status_of(p) != FitnessStatus::Fit)
+            .filter(|p| status_of(p).is_exhausted())
             .count(),
         critical_count: healthy
             .iter()
@@ -75,7 +133,7 @@ pub fn squad_fitness(game: &Game, team_id: &str) -> SquadFitness {
             .count(),
         statuses: club_players(&game.players, team_id)
             .into_iter()
-            .map(|player| (player.id.clone(), fitness_status(player.condition)))
+            .map(|player| (player.id.clone(), condition_status(player.condition)))
             .collect(),
     }
 }

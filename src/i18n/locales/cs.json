@@ -2638,6 +2638,12 @@
     "compare": "Porovnat"
   },
   "be": {
+    "condition": {
+      "fresh": "Odpočatý",
+      "tiring": "Unavuje se",
+      "exhausted": "Vyčerpaný",
+      "critical": "Kritický"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}.",

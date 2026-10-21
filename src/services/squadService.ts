@@ -1,14 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData } from "../store/gameStore";
-import type { PlayerRole, PlayerSquadRole, TacticsPhaseSettings } from "../store/types";
+import type {
+  ConditionStatus,
+  PlayerRole,
+  PlayerSquadRole,
+  TacticsPhaseSettings,
+} from "../store/types";
 
 export async function getSquad(teamId: string): Promise<PlayerData[]> {
   return invoke<PlayerData[]>("get_squad", { teamId });
 }
-
-/** How tired a player is, by the backend's one rule (below 25 critical, below 40 exhausted). */
-export type FitnessStatus = "Fit" | "Exhausted" | "Critical";
 
 /** How fit the squad is, as the staff's warnings read it: healthy first-team players only. */
 export interface SquadFitness {
@@ -20,7 +22,7 @@ export interface SquadFitness {
   /** Players below 25. */
   critical_count: number;
   /** Every player of the club by id, the injured and the academy included. */
-  statuses: Record<string, FitnessStatus>;
+  statuses: Record<string, ConditionStatus>;
 }
 
 /** The user's squad fitness; null when the user has no club. */

@@ -2638,6 +2638,12 @@
     "compare": "Bandingkan"
   },
   "be": {
+    "condition": {
+      "fresh": "Bugar",
+      "tiring": "Mulai lelah",
+      "exhausted": "Kelelahan",
+      "critical": "Kritis"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}.",

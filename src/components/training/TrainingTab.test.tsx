@@ -1,9 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TrainingTab from "./TrainingTab";
-import { createSeasonContext, createSquadFitness } from "../../test-utils/factories";
+import {
+  createConditionStatus,
+  createSeasonContext,
+  createSquadFitness,
+} from "../../test-utils/factories";
 
 const invokeMock = vi.fn();
 
@@ -379,20 +383,24 @@ describe("TrainingTab", () => {
 
   /**
    * Given a player on 90 whom the backend marks critical (he is injured, on 90 in the list but the
-   *       status is the backend's) and one on 10 whom it marks fit
+   *       band is the backend's) and one on 10 whom it marks fresh
    * When Training lists the players
-   * Then each name takes the colour of the backend's status, not of his condition.
+   * Then each row shows the backend's word for the band and paints it, and the bar, in the
+   *      backend's tone, not in a colour picked from his condition.
    */
-  it("colours each player's name by the backend's status, not his condition", async () => {
+  it("shows each player's band in the backend's word and tone, not from his condition", async () => {
     const state = createGameState(true);
     state.players = [
       createPlayer({ id: "p-critical", match_name: "Flagged Critical", condition: 90 }),
-      createPlayer({ id: "p-fit", match_name: "Flagged Fit", condition: 10 }),
+      createPlayer({ id: "p-fresh", match_name: "Flagged Fresh", condition: 10 }),
     ];
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad_fitness") {
         return createSquadFitness({
-          statuses: { "p-critical": "Critical", "p-fit": "Fit" },
+          statuses: {
+            "p-critical": createConditionStatus("Critical"),
+            "p-fresh": createConditionStatus("Fresh"),
+          },
         });
       }
       return command === "get_squad" ? state.players : state;
@@ -400,9 +408,11 @@ describe("TrainingTab", () => {
 
     render(<TrainingTab gameState={state} />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Flagged Critical")).toHaveClass("text-red-600");
-    });
-    expect(screen.getByText("Flagged Fit")).not.toHaveClass("text-red-600");
+    const critical = await screen.findByRole("listitem", { name: /Flagged Critical/ });
+    expect(within(critical).getByText("be.condition.critical")).toHaveClass("text-tone-bad");
+    expect(critical.querySelector(".bg-tone-bad-solid")).not.toBeNull();
+    const fresh = screen.getByRole("listitem", { name: /Flagged Fresh/ });
+    expect(within(fresh).getByText("be.condition.fresh")).toHaveClass("text-tone-good");
+    expect(fresh.querySelector(".bg-tone-good-solid")).not.toBeNull();
   });
 });

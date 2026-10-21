@@ -76,6 +76,18 @@ describe("ProgressBar", () => {
     expect(bar.style.width).toBe("65%");
   });
 
+  /**
+   * Given a value of 95 that the backend rates bad
+   * When the bar is drawn with the backend's tone
+   * Then it fills in that tone, not in a colour of its own picked from the number.
+   */
+  it("fills with the backend's tone, not a colour from the value", () => {
+    const { container } = render(<ProgressBar value={95} tone="bad" />);
+    const bar = container.querySelector("[style]") as HTMLElement;
+    expect(bar.className).toContain("bg-tone-bad-solid");
+    expect(bar.className).not.toContain("bg-positive-solid");
+  });
+
   it("merges custom className", () => {
     const { container } = render(<ProgressBar value={50} className="my-bar" />);
     const el = container.firstChild as HTMLElement;

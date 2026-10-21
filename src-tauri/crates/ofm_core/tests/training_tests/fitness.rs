@@ -2,6 +2,7 @@
 
 use super::*;
 use domain::player::{Injury, SquadRole};
+use ofm_core::rated_tone::RatedTone;
 use training::FitnessStatus;
 
 fn knock() -> Injury {
@@ -61,15 +62,77 @@ fn the_thresholds_are_below_25_and_below_40() {
     assert_eq!(summary.exhausted_count, 3);
 }
 
-/// Given conditions on each side of both cut-offs
-/// When each is given its status
-/// Then 24 is critical, 25 and 39 are exhausted, and 40 is fit: the one function the counts use.
+/// Given conditions on each side of the three cut-offs
+/// When each is given its band
+/// Then 24 is critical, 25 and 39 exhausted, 40 and 74 tiring, 75 and 100 fresh: the one function
+///      the counts, the words and the colours all use.
 #[test]
-fn a_condition_has_a_status_by_the_two_cut_offs() {
+fn a_condition_falls_in_one_of_four_bands() {
+    assert_eq!(training::fitness_status(0), FitnessStatus::Critical);
     assert_eq!(training::fitness_status(24), FitnessStatus::Critical);
     assert_eq!(training::fitness_status(25), FitnessStatus::Exhausted);
     assert_eq!(training::fitness_status(39), FitnessStatus::Exhausted);
-    assert_eq!(training::fitness_status(40), FitnessStatus::Fit);
+    assert_eq!(training::fitness_status(40), FitnessStatus::Tiring);
+    assert_eq!(training::fitness_status(74), FitnessStatus::Tiring);
+    assert_eq!(training::fitness_status(75), FitnessStatus::Fresh);
+    assert_eq!(training::fitness_status(100), FitnessStatus::Fresh);
+}
+
+/// Given a condition in each band
+/// When the screens ask how to show it
+/// Then each band brings its own word key and its step on the good-to-bad scale, so no screen
+///      compares the number against a threshold of its own.
+#[test]
+fn each_band_carries_its_word_and_its_tone() {
+    let shown = |condition| {
+        let status = training::condition_status(condition);
+        (status.band, status.label_key, status.tone)
+    };
+    assert_eq!(
+        shown(90),
+        (FitnessStatus::Fresh, "be.condition.fresh", RatedTone::Good)
+    );
+    assert_eq!(
+        shown(60),
+        (
+            FitnessStatus::Tiring,
+            "be.condition.tiring",
+            RatedTone::Fair
+        )
+    );
+    assert_eq!(
+        shown(30),
+        (
+            FitnessStatus::Exhausted,
+            "be.condition.exhausted",
+            RatedTone::Low
+        )
+    );
+    assert_eq!(
+        shown(10),
+        (
+            FitnessStatus::Critical,
+            "be.condition.critical",
+            RatedTone::Bad
+        )
+    );
+}
+
+/// Given healthy seniors on 40 and 74, the edges of the tiring band
+/// When the summary is asked for
+/// Then neither is counted as exhausted: the new band splits the old "fit" in two and leaves the
+///      exhausted and critical counts, and the warnings that read them, exactly where they were.
+#[test]
+fn tiring_players_are_not_counted_as_exhausted() {
+    let mut game = make_game();
+    game.players[0].condition = 40;
+    game.players[1].condition = 74;
+    game.players[2].condition = 39;
+
+    let summary = training::squad_fitness(&game, "team1");
+
+    assert_eq!(summary.exhausted_count, 1);
+    assert_eq!(summary.critical_count, 0);
 }
 
 /// Given a club whose every player is injured
@@ -94,7 +157,7 @@ fn a_club_of_injured_players_has_no_average_but_every_player_a_status() {
         summary
             .statuses
             .values()
-            .all(|status| *status == FitnessStatus::Critical)
+            .all(|status| status.band == FitnessStatus::Critical)
     );
 }
 
@@ -112,9 +175,9 @@ fn the_statuses_cover_the_injured_the_counts_leave_out() {
 
     let summary = training::squad_fitness(&game, "team1");
 
-    assert_eq!(summary.statuses["p1"], FitnessStatus::Critical);
-    assert_eq!(summary.statuses["p2"], FitnessStatus::Exhausted);
-    assert_eq!(summary.statuses["p3"], FitnessStatus::Fit);
+    assert_eq!(summary.statuses["p1"].band, FitnessStatus::Critical);
+    assert_eq!(summary.statuses["p2"].band, FitnessStatus::Exhausted);
+    assert_eq!(summary.statuses["p3"].band, FitnessStatus::Fresh);
     assert_eq!(summary.critical_count, 0);
 }
 
@@ -137,7 +200,7 @@ fn an_academy_player_who_is_not_called_up_is_not_counted() {
     assert_eq!(summary.players, 18);
     assert_eq!(summary.critical_count, 0);
     assert_eq!(summary.average_condition, Some(90.0));
-    assert_eq!(summary.statuses["academy"], FitnessStatus::Critical);
+    assert_eq!(summary.statuses["academy"].band, FitnessStatus::Critical);
 }
 
 /// Given eighteen fit seniors and three academy players on 10, none called up

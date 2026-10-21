@@ -57,6 +57,7 @@ pub mod player_tier;
 pub mod player_wear;
 pub mod promotion;
 pub mod random_events;
+pub mod rated_tone;
 pub mod reputation;
 pub mod retirees;
 pub mod roster;

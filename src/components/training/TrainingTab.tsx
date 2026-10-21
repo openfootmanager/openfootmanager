@@ -21,8 +21,7 @@ import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { useTrainingFocusAttributes } from "../../hooks/useTrainingFocusAttributes";
 import { setTraining, setTrainingSchedule } from "../../services/trainingService";
-import type { FitnessStatus } from "../../services/squadService";
-import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
+import { Card, CardBody, CardHeader, ProgressBar, TONE_TEXT } from "../ui";
 import TrainingGroupsCard from "./TrainingGroupsCard";
 import TrainingSettingsPanel from "./TrainingSettingsPanel";
 import { getTrainingStaffAdvice } from "./trainingAdvice";
@@ -76,13 +75,6 @@ const SCHEDULE_TRAINING_DAYS: Record<string, number[]> = {
   Intense: [0, 1, 2, 3, 4, 5],
   Balanced: [0, 1, 3, 4],
   Light: [1, 3],
-};
-
-/** How a player's name reads in the fitness list; which status he is in is the backend's. */
-const FITNESS_NAME_CLASS: Record<FitnessStatus, string> = {
-  Critical: "text-red-600 dark:text-red-400",
-  Exhausted: "text-amber-600 dark:text-amber-400",
-  Fit: "text-gray-800 dark:text-gray-200",
 };
 
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
@@ -300,29 +292,44 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
         <Card>
           <CardHeader>{t("training.playerFitness")}</CardHeader>
           <CardBody className="p-0 max-h-64 overflow-y-auto">
-            <div className="divide-y divide-gray-100 dark:divide-navy-600">
+            <ul className="divide-y divide-gray-100 dark:divide-navy-600">
               {[...roster]
                 .sort((left, right) => left.condition - right.condition)
-                .map((player) => (
-                  <div key={player.id} className="flex items-center px-4 py-2 gap-3">
-                    <span
-                      className={`text-sm font-medium flex-1 truncate ${
-                        FITNESS_NAME_CLASS[fitness?.statuses[player.id] ?? "Fit"]
-                      }`}
+                .map((player) => {
+                  // The band, its word and its tone are the backend's; until it answers the bar
+                  // stays neutral rather than guessing from the number.
+                  const status = fitness?.statuses[player.id];
+                  const nameId = `fitness-name-${player.id}`;
+                  return (
+                    <li
+                      key={player.id}
+                      aria-labelledby={nameId}
+                      className="flex items-center px-4 py-2 gap-3"
                     >
-                      {player.match_name}
-                      {player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
-                    </span>
-                    <ProgressBar
-                      value={player.condition}
-                      variant="auto"
-                      size="sm"
-                      showLabel
-                      className="w-24"
-                    />
-                  </div>
-                ))}
-            </div>
+                      <span
+                        id={nameId}
+                        className="text-sm font-medium flex-1 truncate text-gray-800 dark:text-gray-200"
+                      >
+                        {player.match_name}
+                        {player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
+                      </span>
+                      {status ? (
+                        <span className={`text-caption font-semibold ${TONE_TEXT[status.tone]}`}>
+                          {t(status.label_key)}
+                        </span>
+                      ) : null}
+                      <ProgressBar
+                        value={player.condition}
+                        variant={status ? undefined : "muted"}
+                        tone={status?.tone}
+                        size="sm"
+                        showLabel
+                        className="w-24"
+                      />
+                    </li>
+                  );
+                })}
+            </ul>
           </CardBody>
         </Card>
       </div>
