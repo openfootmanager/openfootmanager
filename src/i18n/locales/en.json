@@ -2597,7 +2597,11 @@
     "pts": "pts",
     "cupPenalties": "({{home}}–{{away}} on penalties)",
     "cupAdvances": "{{team}} go through",
-    "cupTiesPending": "Some ties are still to be played"
+    "cupTiesPending": "Some ties are still to be played",
+    "resume": "Resume",
+    "pausedResumesAt": "Paused · resumes at {{speed}}",
+    "playingAt": "Playing at {{speed}}",
+    "spaceKey": "Space"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",

@@ -2597,7 +2597,11 @@
     "pts": "Pkt.",
     "cupPenalties": "({{home}}–{{away}} im Elfmeterschießen)",
     "cupAdvances": "{{team}} kommt weiter",
-    "cupTiesPending": "Einige Partien stehen noch aus"
+    "cupTiesPending": "Einige Partien stehen noch aus",
+    "resume": "Fortsetzen",
+    "pausedResumesAt": "Pausiert · weiter mit {{speed}}",
+    "playingAt": "Läuft mit {{speed}}",
+    "spaceKey": "Leertaste"
   },
   "endOfSeason": {
     "seasonComplete": "Saison beendet",
