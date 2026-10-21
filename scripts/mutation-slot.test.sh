@@ -246,6 +246,37 @@ expect_output '^crates/domain/src/a\.rs:3:9: replace <impl Fn\(\&\[u8\]\)>::call
     "a name's regex metacharacters are escaped, so it selects exactly that mutant" -- \
     select domain 0/1 < "$odd"
 
+# Real `ofm_core` names from develop on 21 Oct 2026, pinned to the buckets they hash to. The
+# cases above check properties, which an awk that hashed differently would satisfy just as
+# well, and moving every mutant to another bucket would silently break the cycle that is in
+# progress. The runners' `awk` is mawk, and gawk and mawk agree on these only because the script
+# hashes bytes under `LC_ALL=C`: in a UTF-8 locale gawk counts the accented letters as one
+# character each. Hence names with non-ASCII bytes and regex metacharacters, and one mutation
+# repeated three times in one function.
+golden="$scratch/golden.txt"
+cat > "$golden" <<'NAMES'
+crates/ofm_core/src/advance_results.rs:41:5: replace collect_advance_results -> Vec<AdvanceMatchResult> with vec![Default::default()]
+crates/ofm_core/src/world/mod.rs:243:9: delete match arm "São Paulo" | "Rio" | "Belo Horizonte" | "Santos" | "Campinas" | "Bragantino" | "Juiz de Fora" | "Vitória" in brazil_state_region
+crates/ofm_core/src/generator/clubs.rs:348:13: delete match arm 'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' | 'à' | 'á' | 'â' | 'ã' | 'ä' | 'å' in ascii_letters
+crates/ofm_core/src/advance_results.rs:53:12: delete ! in collect_advance_results
+crates/ofm_core/src/advance_results.rs:53:36: delete ! in collect_advance_results
+crates/ofm_core/src/advance_results.rs:84:32: delete ! in collect_advance_results
+NAMES
+want_golden="$(printf '%s\n' \
+    '28	crates/ofm_core/src/advance_results.rs: replace collect_advance_results -> Vec<AdvanceMatchResult> with vec![Default::default()]' \
+    '4	crates/ofm_core/src/world/mod.rs: delete match arm "São Paulo" | "Rio" | "Belo Horizonte" | "Santos" | "Campinas" | "Bragantino" | "Juiz de Fora" | "Vitória" in brazil_state_region' \
+    '5	crates/ofm_core/src/generator/clubs.rs: delete match arm '"'À' | 'Á' | 'Â' | 'Ã' | 'Ä' | 'Å' | 'à' | 'á' | 'â' | 'ã' | 'ä' | 'å'"' in ascii_letters' \
+    '6	crates/ofm_core/src/advance_results.rs: delete ! in collect_advance_results' \
+    '7	crates/ofm_core/src/advance_results.rs: delete ! in collect_advance_results' \
+    '8	crates/ofm_core/src/advance_results.rs: delete ! in collect_advance_results')"
+got_golden="$(bucket_of_each ofm_core 44 "$golden")"
+if [ "$got_golden" = "$want_golden" ]; then
+    record 1 "real mutant names land in the buckets they have always landed in" ""
+else
+    record 0 "real mutant names land in the buckets they have always landed in" \
+        "$(diff <(printf '%s\n' "$want_golden") <(printf '%s\n' "$got_golden"))"
+fi
+
 echo "mutation-slot.test: selections that cannot be trusted"
 
 empty="$scratch/empty.txt"

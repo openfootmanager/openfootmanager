@@ -117,8 +117,10 @@ rotation() {
 # how many earlier mutants in the listing share that name. The same mutation often appears at
 # several lines of one function, and without the count they would all land in one bucket, which
 # made `ofm_core`'s largest bucket a quarter bigger. Lines moving, or mutants elsewhere coming
-# and going, change neither part; only a repeat of the same mutation earlier in the same
-# function shifts the count of the ones after it.
+# and going, change neither part. The one known limit, measured and accepted: a new repeat of a
+# mutation, added earlier in the same function than its existing repeats, shifts their counts and
+# so their buckets, and within that cycle each of those repeats may be skipped once or tested
+# twice. Everything else in the crate is unaffected.
 #
 # The hash is a polynomial one over the name's bytes, modulo the prime 2^31 - 1, written for
 # any POSIX awk: the runners' default awk is mawk, which has no bitwise operators. It only has
