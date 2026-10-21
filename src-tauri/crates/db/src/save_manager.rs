@@ -1343,6 +1343,10 @@ mod tests {
     /// When the save is loaded
     /// Then the day is taken from that season and written back to the file (read with plain SQL,
     ///      not by loading again), so it is backfilled once, not on every load.
+    ///
+    /// A freshly created save trips other backfills that resave anyway, so the save is settled by
+    /// one load first and the day cleared behind `load_game`'s back: on the second load the
+    /// backfill's own resave flag is the only thing that can write it, which is what this pins.
     #[test]
     fn loading_an_old_career_backfills_its_rollover_day_and_persists_it() {
         let dir = tempfile::tempdir().unwrap();
@@ -1370,6 +1374,13 @@ mod tests {
             });
         game.last_season_rollover_on = None;
         let save_id = sm.create_save(&game, "Career").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        sm.load_game(&save_id).unwrap();
+        GameDatabase::open_save(&db_path)
+            .unwrap()
+            .conn()
+            .execute("UPDATE game_meta SET last_season_rollover_on = NULL", [])
+            .unwrap();
 
         let loaded = sm.load_game(&save_id).unwrap();
 
@@ -1377,7 +1388,7 @@ mod tests {
             loaded.last_season_rollover_on.as_deref(),
             Some("2026-05-22")
         );
-        let db = GameDatabase::open_save(&saves_dir.join(format!("{save_id}.db"))).unwrap();
+        let db = GameDatabase::open_save(&db_path).unwrap();
         let stored: Option<String> = db
             .conn()
             .query_row("SELECT last_season_rollover_on FROM game_meta", [], |row| {
