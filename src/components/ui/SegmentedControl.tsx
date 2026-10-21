@@ -54,7 +54,7 @@ export function SegmentedControl<V extends string>({
     <div
       role="radiogroup"
       aria-labelledby={labelledBy}
-      className={`${SEGMENTED.track} ${fill ? "flex w-full" : ""}`}
+      className={`${SEGMENTED.track} ${fill ? SEGMENTED.wrap : SEGMENTED.scroll}`}
     >
       {options.map((option, index) => {
         const checked = option.value === value;
@@ -71,7 +71,7 @@ export function SegmentedControl<V extends string>({
             tabIndex={option.value === tabStop ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`${SEGMENTED.item} ${SEGMENTED[layout]} ${fill ? "flex-1 justify-center" : ""} ${
+            className={`${SEGMENTED.item} ${SEGMENTED[layout]} ${fill ? "flex-auto justify-center" : "shrink-0"} ${
               checked ? SEGMENTED.selected[emphasis] : SEGMENTED.idle
             }`}
           >

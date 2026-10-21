@@ -86,6 +86,22 @@ describe("SegmentedControl", () => {
     expect(screen.getByRole("radio", { name: "Normal" })).toHaveClass("bg-panel");
   });
 
+  /**
+   * Given a control filling its width (the match speed in a narrow side panel)
+   * When its labels are too long for one row (Russian, or German at a large text size)
+   * Then the options wrap onto another row instead of scrolling one out of sight.
+   */
+  it("wraps a filled control's options instead of scrolling them", () => {
+    render(
+      <SegmentedControl labelledBy="x" options={PACES} value="normal" onChange={vi.fn()} fill />,
+    );
+    const track = screen.getByRole("radiogroup");
+    expect(track).toHaveClass("flex-wrap");
+    expect(track).not.toHaveClass("overflow-x-auto");
+    expect(track).not.toHaveClass("inline-flex");
+    expect(screen.getByRole("radio", { name: "Fast" })).toHaveClass("flex-auto");
+  });
+
   /** Given a value no option has, then the first option is the tab stop, so the group can be reached. */
   it("keeps a tab stop when the value matches no option", () => {
     render(

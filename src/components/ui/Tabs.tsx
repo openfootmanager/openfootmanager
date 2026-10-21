@@ -47,8 +47,8 @@ const LOOKS = {
     idle: "border-transparent text-fg-muted hover:text-fg",
   },
   segmented: {
-    list: SEGMENTED.track,
-    tab: `${SEGMENTED.item} ${SEGMENTED.inline}`,
+    list: `${SEGMENTED.track} ${SEGMENTED.scroll}`,
+    tab: `${SEGMENTED.item} ${SEGMENTED.inline} shrink-0`,
     selected: SEGMENTED.selected.quiet,
     idle: SEGMENTED.idle,
   },
