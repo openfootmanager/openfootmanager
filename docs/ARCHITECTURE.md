@@ -223,6 +223,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `set_training` | focus, intensity | `Game` | Set training focus and intensity |
 | `set_training_schedule` | schedule | `Game` | Set weekly training schedule |
 | `get_training_focus_attributes` | - | `TrainingFocusAttributes[]` | Which attributes each training focus trains, for outfield players and for goalkeepers; the same table the daily gains use |
+| `get_rating_tiers` | - | `PlayerTier[]` (100 entries) | The tier (`S` 81+, `A` 77-80, `B` 70-76, `Rest`) of every rating from 0 to 99, from `ofm_core::player_tier`, the one rule. Needs no game, so the package editor reads it too; the frontend colours a rating by looking it up (`useRatingTiers`) |
 | `hire_staff` | staff_id | `Game` | Hire an unattached staff member |
 | `release_staff` | staff_id | `Game` | Release a staff member |
 
