@@ -1,5 +1,8 @@
 import { type KeyboardEvent, type ReactNode, useEffect, useRef } from "react";
 
+import { rovingTarget } from "./roving";
+import { SEGMENTED } from "./segmented";
+
 export interface TabItem {
   id: string;
   label: ReactNode;
@@ -44,10 +47,10 @@ const LOOKS = {
     idle: "border-transparent text-fg-muted hover:text-fg",
   },
   segmented: {
-    list: "relative inline-flex min-w-0 max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-line bg-sunken p-1",
-    tab: "flex h-7 shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 font-heading text-caption font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-sunken",
-    selected: "bg-panel text-fg shadow-sm ring-1 ring-line-strong",
-    idle: "text-fg-muted hover:text-fg",
+    list: SEGMENTED.track,
+    tab: `${SEGMENTED.item} ${SEGMENTED.inline}`,
+    selected: SEGMENTED.selected.quiet,
+    idle: SEGMENTED.idle,
   },
 };
 
@@ -80,22 +83,13 @@ export function Tabs({
     if (list.current && tab) revealInList(list.current, tab);
   }, [selectedId]);
 
-  function selectAndFocus(index: number) {
-    const tab = tabs[(index + tabs.length) % tabs.length];
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const target = rovingTarget(event.key, index, tabs.length);
+    if (target === null) return;
+    event.preventDefault();
+    const tab = tabs[target];
     onSelect(tab.id);
     buttons.current.get(tab.id)?.focus();
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const target = {
-      ArrowRight: index + 1,
-      ArrowLeft: index - 1,
-      Home: 0,
-      End: tabs.length - 1,
-    }[event.key];
-    if (target === undefined) return;
-    event.preventDefault();
-    selectAndFocus(target);
   }
 
   return (
