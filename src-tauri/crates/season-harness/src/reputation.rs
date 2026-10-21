@@ -5,7 +5,7 @@
 //! players and the mean rating of its first teams, so a change to how players are generated or
 //! moved can be read as a before and after. The same figures are given by league tier.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use domain::age::age_on_or_unknown;
 use domain::league::CompetitionType;
@@ -99,35 +99,47 @@ pub fn reputation_report(game: &Game) -> ReputationReport {
         );
     }
 
-    let attached: Vec<&str> = game.teams.iter().map(|team| team.id.as_str()).collect();
-    let unattached: Vec<&Player> = seniors
+    report.unattached = unattached_report(game, &seniors, world_s, world_a);
+    report.tiers = clubs_by_tier(game)
+        .into_iter()
+        .map(|(tier, clubs)| (tier, group(&clubs)))
+        .collect();
+    report
+}
+
+/// The S and A shares of the seniors whose `team_id` names no club in `game.teams`.
+fn unattached_report(
+    game: &Game,
+    seniors: &[&Player],
+    world_s: usize,
+    world_a: usize,
+) -> GroupReport {
+    let attached: HashSet<&str> = game.teams.iter().map(|team| team.id.as_str()).collect();
+    let unattached: Vec<&&Player> = seniors
         .iter()
-        .copied()
         .filter(|p| {
             p.team_id
                 .as_deref()
-                .is_none_or(|club| !attached.contains(&club))
+                .is_none_or(|club| !attached.contains(club))
         })
         .collect();
-    report.unattached = GroupReport {
-        clubs: 0,
-        s_share: share(
-            unattached
-                .iter()
-                .filter(|p| player_tier(p.ovr) == PlayerTier::S)
-                .count(),
-            world_s,
-        ),
-        a_share: share(
-            unattached
-                .iter()
-                .filter(|p| player_tier(p.ovr) == PlayerTier::A)
-                .count(),
-            world_a,
-        ),
-        first_team_ovr: 0.0,
+    let in_tier = |tier: PlayerTier| {
+        unattached
+            .iter()
+            .filter(|p| player_tier(p.ovr) == tier)
+            .count()
     };
+    GroupReport {
+        clubs: 0,
+        s_share: share(in_tier(PlayerTier::S), world_s),
+        a_share: share(in_tier(PlayerTier::A), world_a),
+        first_team_ovr: 0.0,
+    }
+}
 
+/// Each club once, under the lowest `priority` among the leagues it stands in; cups and other
+/// competitions do not place a club.
+fn clubs_by_tier(game: &Game) -> BTreeMap<u32, Vec<&str>> {
     let mut tier_of: HashMap<&str, u32> = HashMap::new();
     for competition in game
         .competitions
@@ -145,11 +157,7 @@ pub fn reputation_report(game: &Game) -> ReputationReport {
     for (club, tier) in tier_of {
         tiers.entry(tier).or_default().push(club);
     }
-    report.tiers = tiers
-        .into_iter()
-        .map(|(tier, clubs)| (tier, group(&clubs)))
-        .collect();
-    report
+    tiers
 }
 
 fn share(count: usize, of: usize) -> f64 {
@@ -287,6 +295,13 @@ mod tests {
         Game::new(clock, manager, teams, players, vec![], vec![])
     }
 
+    fn league(id: &str, priority: u32, clubs: &[&str]) -> domain::league::League {
+        let teams: Vec<String> = clubs.iter().map(|club| club.to_string()).collect();
+        let mut league = domain::league::League::new(id.to_string(), id.to_string(), 1, &teams);
+        league.priority = priority;
+        league
+    }
+
     /// Given ten clubs of rising reputation (listed out of order),
     /// When the world is reported,
     /// Then each fifth has two clubs and the top fifth holds the two highest reputations.
@@ -414,6 +429,40 @@ mod tests {
         log.on_season_end(&game, &EndOfSeasonSummary::default(), 1);
 
         assert_eq!(log.after_each_season, vec![reputation_report(&game)]);
+    }
+
+    /// Given a club that stands in a tier-2 league and also in a tier-1 league,
+    /// When the world is reported,
+    /// Then it is counted once, in tier 1.
+    #[test]
+    fn a_club_in_two_leagues_is_counted_in_the_higher_tier() {
+        let mut game = world(vec![]);
+        game.competitions = vec![
+            league("second", 2, &["c0", "c1", "c2"]),
+            league("first", 1, &["c0"]),
+        ];
+
+        let report = reputation_report(&game);
+
+        let counts: Vec<(u32, usize)> = report
+            .tiers
+            .iter()
+            .map(|(tier, group)| (*tier, group.clubs))
+            .collect();
+        assert_eq!(counts, vec![(1, 1), (2, 2)]);
+    }
+
+    /// Given a cup holding clubs that no league holds,
+    /// When the world is reported,
+    /// Then the cup places no club in any tier.
+    #[test]
+    fn a_cup_does_not_place_a_club_in_a_tier() {
+        let mut game = world(vec![]);
+        let mut cup = league("cup", 0, &["c0", "c1"]);
+        cup.kind = CompetitionType::Cup;
+        game.competitions = vec![cup];
+
+        assert!(reputation_report(&game).tiers.is_empty());
     }
 
     /// Given no teams at all, when the world is reported, then nothing divides by zero.
