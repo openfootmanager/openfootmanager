@@ -872,4 +872,67 @@ mod tests {
             .iter()
             .any(|manager| !manager.career_history.is_empty()));
     }
+
+    /// A new-game request for a world read from `world_file`, as the screens would send it: a 2032
+    /// mid-season start (which a historical snapshot overrides with its own date).
+    fn request_for_world(
+        dob: &str,
+        world_file: &std::path::Path,
+    ) -> crate::commands::game::NewGameRequest {
+        crate::commands::game::NewGameRequest {
+            first_name: "Alex".to_string(),
+            last_name: "Manager".to_string(),
+            dob: dob.to_string(),
+            nationality: "GB".to_string(),
+            startup_options: Some(
+                serde_json::from_str(r#"{"startYear":2032,"startPhase":"midSeason"}"#).unwrap(),
+            ),
+            world_source: Some(world_file.to_string_lossy().into_owned()),
+            competition_definitions_json: None,
+            package_ids: None,
+        }
+    }
+
+    /// Given a historical-snapshot world on disk whose career opens on 20 November 2031 (a 2032
+    ///       mid-season start would be 29 October 2032), and managers born on 15 December 2001
+    ///       (29 on the snapshot date, 30 on the form's date) and on 20 November 2001 (30 on it)
+    /// When `start_new_game_internal` starts a career for each
+    /// Then the first is refused with minAge and no game is installed, and the second gets his
+    ///      career: the age refusal is the command's own, against the clock the world sets.
+    #[test]
+    fn start_new_game_internal_refuses_a_manager_too_young_on_the_snapshot_clock() {
+        let dir = crate::commands::game::testkit::temp_pkg_dir("sng-snapshot");
+        let world_file = dir.join("snapshot-world.json");
+        std::fs::write(
+            &world_file,
+            serde_json::to_string(&make_historical_snapshot_world()).unwrap(),
+        )
+        .unwrap();
+        let environment = crate::commands::game::StartEnvironment {
+            packages_dir: Err("no packages in this test".to_string()),
+            asset_root: None,
+            sources: ofm_core::generator::DefinitionSources::embedded_only(),
+        };
+        let state = ofm_core::state::StateManager::new();
+
+        let refused = crate::commands::game::start_new_game_internal(
+            &state,
+            request_for_world("2001-12-15", &world_file),
+            &environment,
+        );
+        let nothing_installed = state.get_game(|_| ()).is_none();
+        let accepted = crate::commands::game::start_new_game_internal(
+            &state,
+            request_for_world("2001-11-20", &world_file),
+            &environment,
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.createManager.minAge")
+        );
+        assert!(nothing_installed);
+        assert_eq!(accepted.unwrap().manager.date_of_birth, "2001-11-20");
+    }
 }
