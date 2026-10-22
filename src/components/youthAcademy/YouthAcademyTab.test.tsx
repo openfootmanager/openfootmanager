@@ -307,6 +307,7 @@ describe("YouthAcademyTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        careerToken: 0,
         playerId: "player-young-senior",
         squadRole: "Youth",
       });
@@ -386,6 +387,7 @@ describe("YouthAcademyTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("start_youth_scouting", {
+        careerToken: 0,
         scoutId: "staff-1",
         region: "Domestic",
         objective: "Balanced",
@@ -512,6 +514,7 @@ describe("YouthAcademyTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        careerToken: 0,
         playerId: "player-young",
         squadRole: "Senior",
       });

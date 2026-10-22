@@ -302,6 +302,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("make_transfer_bid", {
+        careerToken: 0,
         playerId: "player-market-1",
         fee: 1000000,
       });
@@ -405,6 +406,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
+        careerToken: 0,
         playerId: "loan-target",
         endDate: "2027-01-01",
         wageContributionPct: 75,
@@ -477,6 +479,7 @@ describe("TransfersTab", (): void => {
     fireEvent.click(screen.getByRole("button", { name: /submit loan offer/i }));
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
+        careerToken: 0,
         playerId: "loan-target",
         endDate: "2027-06-30",
         wageContributionPct: 100,
@@ -592,6 +595,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("make_transfer_bid", {
+        careerToken: 0,
         playerId: "transfer-target",
         fee: 1_000_000,
       });

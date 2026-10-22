@@ -35,7 +35,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 vi.mock("../store/gameStore", () => ({
-  useGameStore: () => gameStoreState,
+  useGameStore: Object.assign(() => gameStoreState, { getState: () => gameStoreState }),
 }));
 
 vi.mock("../store/settingsStore", () => ({
@@ -428,6 +428,7 @@ describe("MatchSimulation", (): void => {
 
       await waitFor((): void => {
         expect(mockedInvoke).toHaveBeenCalledWith("start_live_match", {
+          careerToken: 0,
           allowsExtraTime: false,
           fixtureIndex: 4,
           competitionId: "cup1",
@@ -486,7 +487,7 @@ describe("MatchSimulation", (): void => {
     fireEvent.click(screen.getByTestId("match-live"));
 
     await waitFor((): void => {
-      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match");
+      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match", { careerToken: 0 });
       expect(screen.getByTestId("postmatch-finish")).toBeInTheDocument();
     });
 
@@ -536,7 +537,7 @@ describe("MatchSimulation", (): void => {
     fireEvent.click(screen.getByTestId("match-live"));
 
     await waitFor((): void => {
-      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match");
+      expect(mockedInvoke).toHaveBeenLastCalledWith("finish_live_match", { careerToken: 0 });
       expect(screen.getByTestId("postmatch-finish")).toBeInTheDocument();
     });
 

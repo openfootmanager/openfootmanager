@@ -517,6 +517,7 @@ describe("PlayersListTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("send_scout", {
+        careerToken: 0,
         scoutId: "staff-1",
         playerId: "player-2",
       });
@@ -629,6 +630,7 @@ describe("PlayersListTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("make_transfer_bid", {
+        careerToken: 0,
         playerId: "player-2",
         fee: 300000,
       });

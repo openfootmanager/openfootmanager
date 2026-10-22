@@ -89,6 +89,15 @@ setup tools above; `--mcp-disable-tools` can still disable individual tools expl
 
 ---
 
+## Career token
+
+The game's screen sends a career token with every command that changes the game, so a request
+meant for a replaced career is refused. MCP tools carry no token: an agent acts on whichever career
+is active, so every MCP tool writes with `Career::Active`. See "Screen writes and the career check"
+in `docs/ARCHITECTURE.md`.
+
+---
+
 ## Tool Reference
 
 90 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.

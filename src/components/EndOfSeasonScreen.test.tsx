@@ -50,8 +50,12 @@ vi.mock("../store/gameStore", async () => {
   const actual = await vi.importActual<typeof import("../store/gameStore")>("../store/gameStore");
   return {
     ...actual,
-    useGameStore: (selector: (state: { setShowFiredModal: typeof setShowFiredModal }) => unknown) =>
-      selector({ setShowFiredModal }),
+    useGameStore: Object.assign(
+      (selector: (state: { setShowFiredModal: typeof setShowFiredModal }) => unknown) =>
+        selector({ setShowFiredModal }),
+      // The service layer reads the career token from the store's current game.
+      { getState: () => ({ gameState: null }) },
+    ),
   };
 });
 

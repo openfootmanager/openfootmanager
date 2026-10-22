@@ -229,8 +229,8 @@ vi.mock("@tauri-apps/api/event", () => ({
   listen: listenMock,
 }));
 
-vi.mock("../store/gameStore", () => ({
-  useGameStore: () => ({
+vi.mock("../store/gameStore", () => {
+  const state = () => ({
     hasActiveGame: true,
     managerName: "Jane Doe",
     gameState,
@@ -238,8 +238,10 @@ vi.mock("../store/gameStore", () => ({
     clearGame: clearGameMock,
     isDirty,
     markClean: markCleanMock,
-  }),
-}));
+  });
+  // The service layer reads the career token from the store's current game.
+  return { useGameStore: Object.assign(state, { getState: state }) };
+});
 
 vi.mock("../store/settingsStore", () => {
   const getState = () => ({
@@ -506,7 +508,7 @@ describe("Dashboard", () => {
     );
     await requestWindowClose();
     fireEvent.click(screen.getByRole("button", { name: "Save & Quit" }));
-    expect(invokeMock).toHaveBeenCalledWith("save_game");
+    expect(invokeMock).toHaveBeenCalledWith("save_game", { careerToken: 0 });
     expect(destroyMock).not.toHaveBeenCalled();
     expect(markCleanMock).not.toHaveBeenCalled();
     await act(async () => finishSave?.());
@@ -521,7 +523,7 @@ describe("Dashboard", () => {
     await requestWindowClose();
     fireEvent.click(screen.getByRole("button", { name: "Quit Without Saving" }));
     await waitFor(() => expect(destroyMock).toHaveBeenCalledOnce());
-    expect(invokeMock).not.toHaveBeenCalledWith("save_game");
+    expect(invokeMock).not.toHaveBeenCalledWith("save_game", { careerToken: 0 });
     expect(markCleanMock).not.toHaveBeenCalled();
   });
 

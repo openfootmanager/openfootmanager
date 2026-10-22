@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData } from "../store/gameStore";
 import type { ScoutingAssignment, StaffData, YouthScoutingAssignment } from "../store/types";
+import { invokeForCareer } from "./careerInvoke";
 
 export interface StaffSlice {
   team_staff: StaffData[];
@@ -15,9 +16,9 @@ export async function getStaff(teamId: string): Promise<StaffSlice> {
 }
 
 export async function hireStaff(staffId: string): Promise<GameStateData> {
-  return invoke<GameStateData>("hire_staff", { staffId });
+  return invokeForCareer<GameStateData>("hire_staff", { staffId });
 }
 
 export async function releaseStaff(staffId: string): Promise<GameStateData> {
-  return invoke<GameStateData>("release_staff", { staffId });
+  return invokeForCareer<GameStateData>("release_staff", { staffId });
 }
