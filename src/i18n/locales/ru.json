@@ -412,6 +412,7 @@
     "currentWage": "Текущая зарплата",
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
+    "detailsFor": "Подробности: {{name}}",
     "noResults": "Ничего не найдено.",
     "place": {
       "1": "1-е",

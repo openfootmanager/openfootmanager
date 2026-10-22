@@ -412,6 +412,7 @@
     "currentWage": "Salaire actuel",
     "loading": "Chargement...",
     "loadingGameState": "Chargement de l'état du jeu...",
+    "detailsFor": "Détails de {{name}}",
     "noResults": "Aucun résultat trouvé.",
     "place": {
       "1": "1er",
