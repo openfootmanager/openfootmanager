@@ -137,10 +137,13 @@ fn unattached_report(
     }
 }
 
-/// Each club once, under the highest division it plays in. A division's tier is its place among
-/// its own country's leagues by `priority` (1 = top flight): `priority` itself is a counter that
-/// runs on across countries, so it cannot be compared between them. Cups and other competitions do
-/// not place a club. Clubs within a tier are sorted, so a report is the same every time.
+/// Each club once, under the highest division it plays in. A division's tier is the one its
+/// calendar names (`calendar.season.division.tier`, which both halves of a split season share);
+/// without one, its place among its own country's leagues by `priority` (1 = top flight), with
+/// leagues that name no country ranked together. `priority` itself is a counter that runs on across
+/// countries, and a split season's halves take consecutive ones, so it is no tier on its own. Cups
+/// and other competitions do not place a club. Clubs within a tier are sorted, so a report is the
+/// same every time.
 fn clubs_by_tier(game: &Game) -> BTreeMap<u32, Vec<&str>> {
     let leagues = || {
         game.competitions
@@ -156,10 +159,19 @@ fn clubs_by_tier(game: &Game) -> BTreeMap<u32, Vec<&str>> {
     }
     let mut tier_of: HashMap<&str, u32> = HashMap::new();
     for league in leagues() {
-        let tier = priorities[&league.country_id.as_deref()]
-            .range(..league.priority)
-            .count() as u32
-            + 1;
+        let tier = league
+            .calendar
+            .as_ref()
+            .and_then(|calendar| calendar.season.division.as_ref())
+            .map_or_else(
+                || {
+                    priorities[&league.country_id.as_deref()]
+                        .range(..league.priority)
+                        .count() as u32
+                        + 1
+                },
+                |division| division.tier,
+            );
         for standing in &league.standings {
             tier_of
                 .entry(standing.team_id.as_str())
@@ -509,6 +521,47 @@ mod tests {
         assert_eq!(reputation_report(&game), reputation_report(&game));
     }
 
+    /// Given a split-season country (Apertura and Clausura halves on consecutive priorities, as the
+    ///       world generator plans them) with a top flight and a second division,
+    /// When the world is reported,
+    /// Then the halves of one division share a tier and the second division is tier 2.
+    #[test]
+    fn the_halves_of_a_split_season_division_are_one_tier() {
+        use domain::competition_calendar::{
+            CalendarMetadata, DivisionIdentity, SeasonCalendar, SeasonPhase,
+        };
+        let half = |id: &str, priority: u32, tier: u32, phase: SeasonPhase, clubs: &[&str]| {
+            let mut half = league(id, "ar", priority, clubs);
+            half.calendar = Some(CalendarMetadata {
+                season: SeasonCalendar {
+                    division: Some(DivisionIdentity {
+                        family_id: "ar-league".to_string(),
+                        tier,
+                        phase,
+                    }),
+                    ..SeasonCalendar::default()
+                },
+                ..CalendarMetadata::default()
+            });
+            half
+        };
+        let mut game = world(vec![]);
+        game.competitions = vec![
+            half("d1-apertura", 0, 1, SeasonPhase::Opening, &["c0", "c1"]),
+            half("d1-clausura", 1, 1, SeasonPhase::Closing, &["c0", "c1"]),
+            half("d2-apertura", 2, 2, SeasonPhase::Opening, &["c2", "c3"]),
+            half("d2-clausura", 3, 2, SeasonPhase::Closing, &["c2", "c3"]),
+        ];
+
+        let counts: Vec<(u32, usize)> = reputation_report(&game)
+            .tiers
+            .iter()
+            .map(|(tier, group)| (*tier, group.clubs))
+            .collect();
+
+        assert_eq!(counts, vec![(1, 2), (2, 2)]);
+    }
+
     /// Given a cup holding clubs that no league holds,
     /// When the world is reported,
     /// Then the cup places no club in any tier.
@@ -553,9 +606,16 @@ mod tests {
         let s: f64 =
             report.quintiles.iter().map(|g| g.s_share).sum::<f64>() + report.unattached.s_share;
         assert!((s - 1.0).abs() < 1e-9, "S shares add to {s}");
+        let tiers: Vec<u32> = report.tiers.iter().map(|(tier, _)| *tier).collect();
+        let divisions = u32::try_from(tiers.len()).expect("a handful of tiers");
+        assert_eq!(
+            tiers,
+            (1..=divisions).collect::<Vec<u32>>(),
+            "a generated world has divisions 1..n, however many countries and split seasons"
+        );
         assert!(
-            !report.tiers.is_empty(),
-            "a generated world has league tiers"
+            divisions >= 2,
+            "a generated world has at least two divisions"
         );
     }
 }
