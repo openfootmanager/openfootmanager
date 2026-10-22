@@ -1,8 +1,25 @@
-import { render, screen, within } from "@testing-library/react";
-import { beforeAll, describe, expect, it } from "vitest";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetPositionGroupsCache } from "../../hooks/usePositionGroups";
 import { i18nReady } from "../../i18n";
 import { PositionBadge, PositionBadges } from "./PositionBadge";
+
+vi.mock("../../services/positionService", () => ({ getPositionGroups: vi.fn() }));
+
+const { getPositionGroups } = await import("../../services/positionService");
+
+/** The backend's table, with one position moved to the wrong group on purpose (see below). */
+const groups = [
+  { position: "Striker", group: "Forward" },
+  { position: "RightWinger", group: "Defender" },
+  { position: "CenterBack", group: "Defender" },
+];
+
+beforeEach(() => {
+  resetPositionGroupsCache();
+  vi.mocked(getPositionGroups).mockResolvedValue(groups);
+});
 
 const describePosition = (position: string) => ({
   label: position === "Striker" ? "ST" : position === "CenterBack" ? "CB" : "RW",
@@ -60,6 +77,19 @@ describe("PositionBadge", () => {
     );
     expect(container.firstElementChild).toHaveClass("outline-warning-solid");
     expect(container.firstElementChild).not.toHaveClass("outline-dashed");
+  });
+
+  /**
+   * Given a backend table that puts a winger in the defender group (nothing a TypeScript map says)
+   * When the winger's badge renders
+   * Then it is toned as the table's group, and as the neutral tone while the table is not here.
+   */
+  it("tones the badge by the group the backend names", async () => {
+    const { container } = render(<PositionBadge position="RightWinger" label="RW" name="Winger" />);
+    expect(container.querySelector(".bg-sunken")).not.toBeNull();
+
+    await waitFor(() => expect(container.querySelector(".bg-primary-100")).not.toBeNull());
+    expect(container.querySelector(".bg-danger-tint")).toBeNull();
   });
 
   /**

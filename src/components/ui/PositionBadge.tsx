@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import { positionBadgeVariant } from "../../lib/playerRating";
+import { usePositionGroups } from "../../hooks/usePositionGroups";
 import { Badge } from "./Badge";
 
 /** How the position a player is deployed in relates to the ones he knows. */
@@ -10,6 +10,14 @@ const FAMILIARITY_KEY: Record<PositionFamiliarity, string> = {
   natural: "squad.naturalFit",
   adapted: "squad.adaptedFit",
   out: "squad.outOfPosition",
+};
+
+/** The tone of each group the backend names; a group it does not name reads as neutral. */
+const GROUP_VARIANT: Record<string, "accent" | "primary" | "success" | "danger"> = {
+  Goalkeeper: "accent",
+  Defender: "primary",
+  Midfielder: "success",
+  Forward: "danger",
 };
 
 /** The wrapper's outline: quiet for a natural slot, dashed for an adapted one, solid warning out. */
@@ -58,13 +66,15 @@ export function PositionBadge({
   familiarity,
 }: PositionBadgeProps) {
   const { t } = useTranslation();
+  const groupOf = usePositionGroups();
+  const variant = GROUP_VARIANT[groupOf(position) ?? ""] ?? "neutral";
   const words = familiarity ? `${name}, ${t(FAMILIARITY_KEY[familiarity])}` : name;
   return (
     <span
       title={words}
       className={`relative inline-flex rounded-md ${familiarity ? OUTLINE_CLASS[familiarity] : ""}`}
     >
-      <Badge variant={kind === "alternate" ? "outline" : positionBadgeVariant(position)}>
+      <Badge variant={kind === "alternate" ? "outline" : variant}>
         <span aria-hidden="true">{label}</span>
         <span className="sr-only">{words}</span>
       </Badge>

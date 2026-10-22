@@ -224,6 +224,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `set_training` | focus, intensity | `Game` | Set training focus and intensity |
 | `set_training_schedule` | schedule | `Game` | Set weekly training schedule |
 | `get_training_focus_attributes` | - | `TrainingFocusAttributes[]` | Which attributes each training focus trains, for outfield players and for goalkeepers; the same table the daily gains use |
+| `get_position_groups` | - | `{ position, group }[]` (17 entries) | The group (`Goalkeeper`, `Defender`, `Midfielder`, `Forward`) of every position, from `ofm_core::position_group` over `Position::to_group_position`, the one rule. Needs no game; feeds `PositionBadge`'s tone through `usePositionGroups` |
 | `hire_staff` | staff_id | `Game` | Hire an unattached staff member |
 | `release_staff` | staff_id | `Game` | Release a staff member |
 
