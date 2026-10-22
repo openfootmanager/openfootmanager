@@ -18,7 +18,7 @@ pub const PYRAMID_BANDS: [(&str, i32, i32); 5] = [
     ("21-24", 21, 24),
     ("25-28", 25, 28),
     ("29-32", 29, 32),
-    ("33+", 33, 200),
+    ("33+", 33, i32::MAX),
 ];
 
 /// One band of the pyramid.
@@ -151,6 +151,19 @@ mod tests {
 
     fn band<'a>(pyramid: &'a AgePyramid, label: &str) -> &'a BandShare {
         pyramid.bands.iter().find(|b| b.label == label).unwrap()
+    }
+
+    /// Given the log watching a season end,
+    /// When the season ends,
+    /// Then it keeps that season's pyramid.
+    #[test]
+    fn the_log_keeps_a_pyramid_for_each_season_end() {
+        let game = world(vec![player("1990-01-01")]);
+        let mut log = PyramidLog::default();
+
+        log.on_season_end(&game, &EndOfSeasonSummary::default(), 1);
+
+        assert_eq!(log.after_each_season, vec![age_pyramid(&game)]);
     }
 
     /// Given players aged 19, 20, 21, 24, 25, 28, 29, 32, 33 and 38,
