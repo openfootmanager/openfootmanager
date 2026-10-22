@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -29,7 +28,7 @@ const SCRIPT_BY_LOCALE: Record<SupportedLanguageCode, "latin" | "latin-ext" | "c
 const INTER_WEIGHTS = [400, 500, 600, 700];
 
 function appCss(): string {
-  return readFileSync(resolve(__dirname, "../App.css"), "utf8");
+  return readFileSync("src/App.css", "utf-8");
 }
 
 describe("bundled font coverage", () => {
@@ -50,13 +49,32 @@ describe("bundled font coverage", () => {
    * Then Inter's face for that script is imported at every weight the UI uses, so the text is
    *      not drawn in a system fallback
    */
-  it.each(
-    [...new Set(Object.values(SCRIPT_BY_LOCALE))].filter((script) => script !== "cjk"),
-  )("bundles Inter %s at every UI weight", (script) => {
-    const css = appCss();
+  it.each([...new Set(Object.values(SCRIPT_BY_LOCALE))].filter((script) => script !== "cjk"))(
+    "bundles Inter %s at every UI weight",
+    (script) => {
+      const css = appCss();
 
-    for (const weight of INTER_WEIGHTS) {
-      expect(css).toContain(`@import "@fontsource/inter/${script}-${weight}.css";`);
+      for (const weight of INTER_WEIGHTS) {
+        expect(css).toContain(`@import "@fontsource/inter/${script}-${weight}.css";`);
+      }
+    },
+  );
+
+  /**
+   * Given Barlow Condensed, the heading face, has no Cyrillic glyphs
+   * When a Russian heading is drawn
+   * Then the heading stack names a bundled condensed Cyrillic face right after Barlow, so it does
+   *      not fall back to the much wider Inter and overflow the sidebar and tab bars
+   */
+  it("gives headings a bundled condensed Cyrillic face behind Barlow Condensed", () => {
+    const css = appCss();
+    const headingStack = css.match(/--font-heading:\s*([^;]+);/)?.[1] ?? "";
+
+    expect(headingStack).toMatch(/^"Barlow Condensed",\s*"Fira Sans Extra Condensed"/);
+    for (const weight of [600, 700]) {
+      expect(css).toContain(
+        `@import "@fontsource/fira-sans-extra-condensed/cyrillic-${weight}.css";`,
+      );
     }
   });
 });

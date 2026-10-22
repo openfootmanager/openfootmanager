@@ -352,7 +352,7 @@ The UI follows a **"Matchday" broadcast-quality** design language:
 
 - **Colors**: Emerald green primary (#10b981), gold accent (#ffd60a), dark navy backgrounds
 - **Typography**: Barlow Condensed (headings, uppercase tracking) + Inter (body)
-- **Fonts**: Bundled locally via `@fontsource` packages (no CDN)
+- **Fonts**: Bundled locally via `@fontsource` packages (no CDN). Inter covers Latin, Latin-ext and Cyrillic; Barlow Condensed has no Cyrillic, so headings fall back to Fira Sans Extra Condensed for Russian, which `src/i18n/fontCoverage.test.ts` pins. Chinese is not bundled: it falls through to the system CJK face.
 - **Dark/Light**: Full theme support with system detection
 
 ---

@@ -21,13 +21,15 @@
 @import "@fontsource/barlow-condensed/latin-700.css";
 @import "@fontsource/barlow-condensed/latin-ext-600.css";
 @import "@fontsource/barlow-condensed/latin-ext-700.css";
+@import "@fontsource/fira-sans-extra-condensed/cyrillic-600.css";
+@import "@fontsource/fira-sans-extra-condensed/cyrillic-700.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   /* Typography — CJK fallbacks (PingFang SC/Microsoft YaHei/Noto Sans CJK SC) kick in on Chinese characters via the font-family fallback chain */
   --font-sans: "Inter", "Avenir", "Helvetica", "Arial", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
-  --font-heading: "Barlow Condensed", "Inter", "Arial Narrow", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --font-heading: "Barlow Condensed", "Fira Sans Extra Condensed", "Inter", "Arial Narrow", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
 
   /* Primary: Emerald Green */
   --color-primary-50: #ecfdf5;
