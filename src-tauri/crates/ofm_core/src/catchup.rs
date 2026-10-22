@@ -973,6 +973,80 @@ mod tests {
         );
     }
 
+    /// Given a national-team competition a package authored at continental scope, with one tie
+    ///       stranded in June while the clock reads December
+    /// When stranded fixtures are repaired
+    /// Then the tie is resolved: the World Cup's processors serve international scope only, so
+    ///      this one is the fallback sweep's to settle, or nobody's
+    #[test]
+    fn repairs_a_stranded_fixture_in_a_continental_national_team_competition() {
+        let mut game = game_with_two_national_squads("2030-12-01");
+        let mut competition = League::new(
+            "nations-cup-2030".to_string(),
+            "Nations Cup 2030".to_string(),
+            2030,
+            &["nt-eng".to_string(), "nt-bra".to_string()],
+        );
+        competition.kind = CompetitionType::InternationalNation;
+        competition.scope = CompetitionScope::Continental;
+        let mut tie = international_fixture("nc-g1", "2030-06-12", "nt-eng", "nt-bra");
+        tie.competition_id = competition.id.clone();
+        competition.fixtures = vec![tie];
+        game.competitions = vec![competition];
+
+        let repaired = super::repair_stranded_fixtures(&mut game);
+
+        assert_eq!(
+            (repaired, game.competitions[0].fixtures[0].status.clone()),
+            (1, FixtureStatus::Completed)
+        );
+    }
+
+    /// Given a league match and a knockout tie between sides of equal strength
+    /// When each is resolved by scoreline, seed after seed, until the league match has been drawn
+    ///      and the knockout tie both drawn and won outright
+    /// Then only the drawn knockout tie goes to penalties: a drawn league match stays a draw, and
+    ///      a decided tie needs no shootout
+    #[test]
+    fn catch_up_rolls_a_shootout_only_for_a_level_knockout_tie() {
+        use rand::SeedableRng;
+        let (mut drawn_league, mut drawn_tie, mut decided_tie) = (false, false, false);
+        for seed in 0..400u64 {
+            let mut league = league_with_fixture_on("2030-06-01");
+            super::resolve_fixture_with_strengths(
+                &mut league,
+                0,
+                |_| 50.0,
+                &mut rand::rngs::StdRng::seed_from_u64(seed),
+            );
+            let result = league.fixtures[0].result.as_ref().expect("resolved");
+            if result.home_goals == result.away_goals {
+                drawn_league = true;
+                assert_eq!(result.home_penalties, None, "seed {seed}: a league draw");
+            }
+
+            let mut cup = eight_team_cup_starting_on("2030-06-01");
+            super::resolve_fixture_with_strengths(
+                &mut cup,
+                0,
+                |_| 50.0,
+                &mut rand::rngs::StdRng::seed_from_u64(seed),
+            );
+            let result = cup.fixtures[0].result.as_ref().expect("resolved");
+            if result.home_goals == result.away_goals {
+                drawn_tie = true;
+                assert!(result.home_penalties.is_some(), "seed {seed}: a level tie");
+            } else {
+                decided_tie = true;
+                assert_eq!(result.home_penalties, None, "seed {seed}: a decided tie");
+            }
+        }
+        assert!(
+            drawn_league && drawn_tie && decided_tie,
+            "every case must occur: {drawn_league} {drawn_tie} {decided_tie}"
+        );
+    }
+
     #[test]
     fn a_cascaded_international_round_still_goes_through_the_national_team_path() {
         // The two fixes meet here, and the first version got it wrong.
