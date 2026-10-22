@@ -127,6 +127,7 @@ export default function DashboardSidebar({
   const managerNameId = useId();
   const teamNameId = useId();
   const competitionNameId = useId();
+  const sidebarId = useId();
   const appName = t("app.name");
   const [appNamePrimary, ...appNameSecondaryParts] = appName.split(" ");
   const appNameSecondary = appNameSecondaryParts.join(" ");
@@ -208,6 +209,7 @@ export default function DashboardSidebar({
         {/* `dark`: the sidebar is chrome, dark in both themes, so its role tokens take their dark
         values (the light focus colour would miss 3:1 on navy). */}
         <aside
+          id={sidebarId}
           ref={asideRef}
           {...asideHandlers}
           className={`dark absolute inset-y-0 left-0 flex flex-col border-r border-line bg-chrome text-fg transition-[width] duration-200 motion-reduce:transition-none ${WIDTH_CLASS[layout.drawn]} ${
@@ -242,6 +244,7 @@ export default function DashboardSidebar({
                   type="button"
                   onClick={handleToggle}
                   aria-expanded={layout.opensDrawer ? layout.overlay : undefined}
+                  aria-controls={sidebarId}
                   title={toggleSidebarLabel}
                   aria-label={toggleSidebarLabel}
                   className={`rounded-lg p-2 text-fg-muted transition-colors hover:bg-hover hover:text-fg ${FOCUS_RING}`}

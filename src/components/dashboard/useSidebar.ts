@@ -48,7 +48,7 @@ export interface SidebarControls {
   layout: SidebarLayout;
   /** On the sidebar: a pointer-down outside it closes a drawer. */
   asideRef: RefObject<HTMLElement | null>;
-  /** Hover and keyboard focus, for Expand on hover; spread on the sidebar. */
+  /** Hover and keyboard focus (Expand on hover), and a drawer's focus leaving it; spread on the sidebar. */
   asideHandlers: {
     onPointerEnter: () => void;
     onPointerLeave: () => void;
@@ -63,8 +63,9 @@ export interface SidebarControls {
 /**
  * The sidebar's behaviour: where it sits (sidebarLayout) and what opens it over the page. Expand on
  * hover opens after a short delay or on keyboard focus, and closes when the pointer or the focus
- * leaves; Esc closes any overlay, and a hover closed with Esc stays closed until the pointer
- * leaves. `onEscape` lets the sidebar return the focus to its button.
+ * leaves; a drawer closes when the focus moves on to the page; Esc (outside a dialog) closes any
+ * overlay, and a hover closed with Esc stays closed until the pointer leaves. `onEscape` lets the
+ * sidebar return the focus to its button.
  */
 export function useSidebar(settings: SidebarSettings, onEscape?: () => void): SidebarControls {
   const frame = useFrame();
@@ -99,6 +100,9 @@ export function useSidebar(settings: SidebarSettings, onEscape?: () => void): Si
     if (!layout.overlay) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
+      // An Esc pressed in a dialog is the dialog's: closing the drawer too would move the focus
+      // to the sidebar's button from under it.
+      if (event.target instanceof Element && event.target.closest('[role="dialog"]')) return;
       clearTimeout(timer.current);
       escaped.current = hover;
       setOverlayOpen(false);
@@ -137,10 +141,18 @@ export function useSidebar(settings: SidebarSettings, onEscape?: () => void): Si
         setOverlayOpen(true);
       },
       onBlur: (event) => {
-        if (!hover || event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-        escaped.current = false;
-        clearTimeout(timer.current);
-        setOverlayOpen(false);
+        const next = event.relatedTarget as Node | null;
+        if (event.currentTarget.contains(next)) return;
+        if (hover) {
+          escaped.current = false;
+          clearTimeout(timer.current);
+          setOverlayOpen(false);
+          return;
+        }
+        // A drawer closes once the focus moves on to the page, so it never sits over the focused
+        // element (WCAG 2.4.11). Focus lost to nothing (a click on the drawer's own padding, the
+        // window losing focus) leaves it open; a click outside closes it on its own.
+        if (layout.overlay && next) setOverlayOpen(false);
       },
     },
     toggle: () => setOverlayOpen((open) => !open),

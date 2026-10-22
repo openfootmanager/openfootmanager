@@ -173,6 +173,56 @@ describe("useSidebar", () => {
   });
 
   /**
+   * Given Expand on click, the drawer open over the page with the focus on one of its items
+   * When the focus moves to another of its items, is lost to nothing (a click on the drawer's own
+   * padding), and then moves on to the page (Tab to the header's search)
+   * Then the drawer stays open while the focus is inside or nowhere, and closes once the focus is
+   * on the page: a drawer never sits over the focused element (WCAG 2.4.11).
+   */
+  it.each(["click", "normal"] as const)(
+    "closes the %s drawer when the focus moves on to the page",
+    (behaviour) => {
+      if (behaviour === "normal") setWindowWidth(880);
+      const { result } = renderHook(() => useSidebar(settings(behaviour)));
+      act(() => result.current.toggle());
+      expect(result.current.layout.overlay).toBe(true);
+      const aside = document.createElement("aside");
+      const item = aside.appendChild(document.createElement("button"));
+      const search = document.createElement("input");
+      const blurTo = (next: Element | null) =>
+        ({ currentTarget: aside, relatedTarget: next }) as unknown as FocusEvent<HTMLElement>;
+
+      act(() => result.current.asideHandlers.onBlur(blurTo(item)));
+      act(() => result.current.asideHandlers.onBlur(blurTo(null)));
+      expect(result.current.layout.overlay).toBe(true);
+
+      act(() => result.current.asideHandlers.onBlur(blurTo(search)));
+      expect(result.current.layout.overlay).toBe(false);
+    },
+  );
+
+  /**
+   * Given the drawer open, and a dialog open over the page (Exit's confirmation)
+   * When Esc is pressed inside the dialog
+   * Then the Esc is the dialog's: the drawer stays as it is and its button doesn't take the focus.
+   */
+  it("leaves an Esc pressed in a dialog to the dialog", () => {
+    const onEscape = vi.fn();
+    const { result } = renderHook(() => useSidebar(settings("click"), onEscape));
+    act(() => result.current.toggle());
+    const dialog = document.body.appendChild(document.createElement("div"));
+    dialog.setAttribute("role", "dialog");
+    const confirm = dialog.appendChild(document.createElement("button"));
+
+    act(() => {
+      confirm.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    });
+    expect(onEscape).not.toHaveBeenCalled();
+    expect(result.current.layout.overlay).toBe(true);
+    dialog.remove();
+  });
+
+  /**
    * Given the hook has gone (the dashboard left the screen)
    * When it unmounts
    * Then it stops listening to the window and stops watching the root's style.

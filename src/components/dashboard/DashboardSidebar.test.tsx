@@ -134,6 +134,43 @@ describe("DashboardSidebar", () => {
   });
 
   /**
+   * Given Expand on click, the drawer open with the focus on the current page's item
+   * When the player Tabs out of the drawer to a control on the page (the header's search)
+   * Then the drawer closes, so it doesn't cover the control that now has the focus.
+   */
+  it("closes the drawer when the focus Tabs out to the page", () => {
+    renderSidebar({ behaviour: "click" });
+    const aside = screen.getByRole("navigation").closest("aside");
+    const search = document.body.appendChild(document.createElement("input"));
+
+    fireEvent.click(screen.getByRole("button", { name: "dashboard.expandSidebar" }));
+    const current = screen.getByRole("button", { name: "dashboard.home" });
+    fireEvent.focusOut(current, {
+      relatedTarget: screen.getByRole("button", { name: "dashboard.squad" }),
+    });
+    expect(aside).toHaveClass("w-sidebar-standard");
+
+    fireEvent.focusOut(current, { relatedTarget: search });
+    expect(aside).toHaveClass("w-sidebar-rail");
+    search.remove();
+  });
+
+  /**
+   * Given a sidebar with a button that folds it or opens it as a drawer
+   * When a screen reader reaches the button
+   * Then the button says which element it controls: the sidebar.
+   */
+  it.each(["normal", "click"] as const)("names the sidebar its %s button controls", (behaviour) => {
+    renderSidebar({ behaviour });
+    const aside = screen.getByRole("navigation").closest("aside");
+    const button = screen.getByRole("button", {
+      name: behaviour === "click" ? "dashboard.expandSidebar" : "dashboard.collapseSidebar",
+    });
+    expect(aside?.id).toBeTruthy();
+    expect(button).toHaveAttribute("aria-controls", aside?.id);
+  });
+
+  /**
    * Given the drawer open
    * When the player chooses a page, or presses outside the sidebar
    * Then it closes; a page choice says it came from the drawer (the dashboard then moves the focus
