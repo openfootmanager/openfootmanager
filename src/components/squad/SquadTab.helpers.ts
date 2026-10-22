@@ -20,7 +20,6 @@ export type PitchSlot = {
 };
 export type PitchSlotRow = PitchRow & { slots: PitchSlot[] };
 export type SquadTacticalFit = "natural" | "adapted" | "out";
-export type SquadStyleFit = "strong" | "good" | "risky";
 export type SquadRoleCoverageStatus = "covered" | "thin" | "uncovered";
 export type SquadRoleCoverage = {
   role: string;
@@ -409,15 +408,6 @@ export function getSquadTacticalFit(player: PlayerData, currentPos: string): Squ
   return "adapted";
 }
 
-function averageAttributes(
-  player: PlayerData,
-  attributeKeys: Array<keyof PlayerData["attributes"]>,
-): number {
-  return (
-    attributeKeys.reduce((total, key) => total + player.attributes[key], 0) / attributeKeys.length
-  );
-}
-
 export function getBestRoleForFormation(player: PlayerData, formation: string): string {
   const formationSlots = buildPitchRows(formation).flatMap((row) => row.positions);
   // Best role is an ability recommendation, so it is driven by the player's
@@ -456,55 +446,6 @@ export function getBestRoleForFormation(player: PlayerData, formation: string): 
   );
 
   return firstGroupRole ?? getPreferredPositions(player)[0] ?? naturalPosition;
-}
-
-// Penalty (in attribute points) applied to the style-fit score based on how
-// naturally the player suits their current field position. Tunable.
-const STYLE_FIT_POSITION_PENALTY: Record<SquadTacticalFit, number> = {
-  natural: 0,
-  adapted: 8,
-  out: 18,
-};
-
-export function getPlayStyleFit(
-  player: PlayerData,
-  playStyle: string,
-  currentPos?: string,
-): SquadStyleFit {
-  const attributeScore = (() => {
-    switch (playStyle) {
-      case "Attacking":
-        return averageAttributes(player, ["shooting", "dribbling", "pace", "passing"]);
-      case "Defensive":
-        return averageAttributes(player, ["defending", "tackling", "positioning", "strength"]);
-      case "Possession":
-        return averageAttributes(player, ["passing", "vision", "decisions", "composure"]);
-      case "Counter":
-        return averageAttributes(player, ["pace", "dribbling", "passing", "positioning"]);
-      case "HighPress":
-        return averageAttributes(player, ["stamina", "aggression", "teamwork", "pace", "tackling"]);
-      default:
-        return averageAttributes(player, ["decisions", "teamwork", "composure", "stamina"]);
-    }
-  })();
-
-  // A player asked to execute a style out of position is a worse fit regardless
-  // of raw attributes (e.g. a striker shoehorned at centre-back). When no
-  // position is supplied the score is attribute-only as before.
-  const positionPenalty = currentPos
-    ? STYLE_FIT_POSITION_PENALTY[getSquadTacticalFit(player, currentPos)]
-    : 0;
-  const fitScore = attributeScore - positionPenalty;
-
-  if (fitScore >= 72) {
-    return "strong";
-  }
-
-  if (fitScore >= 58) {
-    return "good";
-  }
-
-  return "risky";
 }
 
 export function buildRoleCoverageSummary(

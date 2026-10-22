@@ -394,15 +394,15 @@
     "growth": "Crescimento",
     "traits": "Características",
     "condition": "Condição",
-    "potWorldClass": "Classe Mundial",
-    "potExcellent": "Excelente",
-    "potPromising": "Promissor",
-    "potDecent": "Razoável",
-    "potLimited": "Limitado",
     "delegateToYouthAcademy": "Delegar para a base",
     "promoteToSeniorSquad": "Promover ao elenco principal"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}º",
       "two": "{{n}}º",
@@ -697,21 +697,15 @@
     "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banco {{bench}}",
     "bestRole": "Melhor função",
-    "formationFit": "Encaixe na formação",
+    "formationFit": "Familiaridade",
     "startingXi": "Onze inicial",
-    "styleFit": "Encaixe com o estilo",
     "starter": "Titular",
     "benchOption": "Banco",
-    "naturalFit": "Encaixe natural",
-    "adaptedFit": "Função adaptada",
+    "naturalFit": "Posição natural",
+    "adaptedFit": "Pode jogar lá",
     "needsCover": "Precisa de cobertura",
     "makeStarter": "Colocar como titular",
-    "sendToBench": "Mandar para o banco",
-    "styleFitValues": {
-      "strong": "Encaixe com o estilo: Forte",
-      "good": "Encaixe com o estilo: Bom",
-      "risky": "Encaixe com o estilo: Arriscado"
-    }
+    "sendToBench": "Mandar para o banco"
   },
   "tactics": {
     "formationStyle": "Formação & Estilo",
@@ -862,8 +856,8 @@
     "setCornerTaker": "Definir escanteios",
     "inspector": "Inspetor",
     "inspectorEmptyTitle": "Nada selecionado",
-    "naturalFit": "Encaixe natural",
-    "adaptedFit": "Função adaptada",
+    "naturalFit": "Posição natural",
+    "adaptedFit": "Pode jogar lá",
     "tokenStates": {
       "ready": "Pronto",
       "adjusted": "Ajustado",
@@ -879,7 +873,7 @@
     "clearSelection": "Limpar seleção",
     "compareWithSelected": "Comparar com selecionado",
     "selectForSwap": "Selecionar para troca",
-    "assignBestFit": "Atribuir ao melhor encaixe",
+    "assignBestFit": "Atribuir melhor posição",
     "moveToBench": "Mover para o banco",
     "promoteToLineup": "Promover para o time titular",
     "tableView": "Visão de tabela",
@@ -894,7 +888,6 @@
     "positionSelector": "Slot tático",
     "playablePositions": "Posições",
     "slotFit": "Encaixe no slot",
-    "styleFit": "Encaixe com o estilo",
     "responsibilities": "Responsabilidades",
     "noSpecialRoles": "Sem funções especiais",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "Afiado",
       "managing": "Gerenciando",
       "risk": "Risco"
-    },
-    "styleFitLevels": {
-      "strong": "Ótimo encaixe",
-      "good": "Bom encaixe",
-      "risky": "Encaixe arriscado"
     }
   },
   "training": {
@@ -2209,7 +2197,7 @@
     "preMatchPrep": "Preparação Pré-Jogo",
     "startingLineup": "Escalação Titular",
     "setPiecesCaptain": "Bola Parada e Capitão",
-    "formationFit": "Ajuste da Formação",
+    "formationFit": "Formação",
     "selecting": "Selecionando...",
     "autoSelectXI": "Selecionar Melhores Titulares",
     "startingXI": "Titulares",
@@ -2540,7 +2528,11 @@
     "pts": "pts",
     "cupPenalties": "({{home}}–{{away}} nos pênaltis)",
     "cupAdvances": "{{team}} avança de fase",
-    "cupTiesPending": "Ainda faltam confrontos a serem disputados"
+    "cupTiesPending": "Ainda faltam confrontos a serem disputados",
+    "resume": "Retomar",
+    "pausedResumesAt": "Pausado · retoma em {{speed}}",
+    "playingAt": "Jogando em {{speed}}",
+    "spaceKey": "Espaço"
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Encerrada",
