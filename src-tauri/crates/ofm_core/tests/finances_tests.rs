@@ -172,6 +172,42 @@ fn team_finance_snapshot_flags_wage_pressure() {
     );
 }
 
+/// Given a club whose wage bill of 1,700 is one over its budget of 1,699, about 100.06%, which the
+///       whole-number usage percentage shows as 100
+/// When its finances are summarised
+/// Then it is over budget, and its wage status says so: Warning, not Watch
+#[test]
+fn a_wage_bill_a_fraction_over_budget_is_a_warning_not_a_watch() {
+    let mut game = make_monday_game();
+    game.teams[0].wage_budget = 1_699;
+
+    let snapshot = finances::team_finance_snapshot(&game, "team1").expect("snapshot");
+
+    assert_eq!(snapshot.wage_budget_usage_percent, 100);
+    assert!(snapshot.currently_over_budget);
+    assert_eq!(
+        snapshot.wage_budget_status,
+        finances::FinanceHealthLevel::Warning
+    );
+}
+
+/// Given a club whose wage bill of 1,700 is exactly its budget
+/// When its finances are summarised
+/// Then it is not over budget, and its wage status is Watch: spending all of it is not a breach
+#[test]
+fn a_wage_bill_exactly_on_budget_is_a_watch_not_a_warning() {
+    let mut game = make_monday_game();
+    game.teams[0].wage_budget = 1_700;
+
+    let snapshot = finances::team_finance_snapshot(&game, "team1").expect("snapshot");
+
+    assert!(!snapshot.currently_over_budget);
+    assert_eq!(
+        snapshot.wage_budget_status,
+        finances::FinanceHealthLevel::Watch
+    );
+}
+
 #[test]
 fn team_finance_snapshot_flags_runway_crisis() {
     let mut game = make_monday_game();

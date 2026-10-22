@@ -137,12 +137,21 @@ pub struct MarketingCampaignResult {
     pub cooldown_days: u32,
 }
 
-fn wage_budget_status(usage_percent: u32) -> FinanceHealthLevel {
+/// Whether a club's wage bill is over its wage budget: the one definition behind the finance
+/// snapshot's flag, its wage status, the finance director's warning and the board's wage policy.
+pub(crate) fn wage_bill_over_budget(wage_bill: i64, wage_budget: i64) -> bool {
+    wage_bill > wage_budget
+}
+
+fn wage_budget_status(usage_percent: u32, over_budget: bool) -> FinanceHealthLevel {
     if usage_percent > 110 {
         return FinanceHealthLevel::Critical;
     }
 
-    if usage_percent > 100 {
+    // From the flag, not from `usage_percent > 100`: the percentage is a whole number rounded
+    // down, so a bill up to 1% over budget reads 100 and was reported as Watch while the same
+    // snapshot said the club was over budget.
+    if over_budget {
         return FinanceHealthLevel::Warning;
     }
 
@@ -378,7 +387,8 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
     let cash_runway_weeks = calc_cash_runway_weeks(team.finance, projected_weekly_net);
     let wage_budget_usage_percent = ((annual_wage_bill * 100) / std::cmp::max(1, team.wage_budget))
         .clamp(0, u32::MAX as i64) as u32;
-    let wage_budget_status = wage_budget_status(wage_budget_usage_percent);
+    let currently_over_budget = wage_bill_over_budget(annual_wage_bill, team.wage_budget);
+    let wage_budget_status = wage_budget_status(wage_budget_usage_percent, currently_over_budget);
     let runway_status = runway_status(team.finance, cash_runway_weeks);
 
     Some(TeamFinanceSnapshot {
@@ -391,7 +401,7 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
         cash_runway_weeks,
         wage_budget_usage_percent,
         currently_in_debt: team.finance < 0,
-        currently_over_budget: annual_wage_bill > team.wage_budget,
+        currently_over_budget,
         wage_budget_status,
         runway_status,
         overall_status: most_severe_level(wage_budget_status, runway_status),
@@ -1412,7 +1422,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         }
     }
     // Over budget warning: wages exceed budget
-    else if weekly_wages > team.wage_budget {
+    else if wage_bill_over_budget(weekly_wages, team.wage_budget) {
         let msg_id = format!("wage_over_budget_{}", today);
         if !existing_ids.contains(&msg_id) {
             new_messages.push(
