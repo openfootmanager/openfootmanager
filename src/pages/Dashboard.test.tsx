@@ -27,6 +27,7 @@ const setGameStateMock = vi.fn();
 const clearGameMock = vi.fn();
 const markCleanMock = vi.fn();
 const loadSettingsMock = vi.fn();
+const updateSettingsMock = vi.fn(async () => undefined);
 const destroyMock = vi.fn();
 let closeRequested: ((event: { preventDefault: () => void }) => Promise<void>) | undefined;
 let isDirty = false;
@@ -246,13 +247,14 @@ vi.mock("../store/settingsStore", () => {
     settings: {
       language: "en",
       default_match_mode: "live",
+      sidebar_collapsed: false,
     },
     currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
     supportedCurrencies: { EUR: { code: "EUR", symbol: "€", exchange_rate: 1 } },
     loaded: true,
   });
   const useSettingsStore = Object.assign(
-    () => ({ ...getState(), loadSettings: loadSettingsMock }),
+    () => ({ ...getState(), loadSettings: loadSettingsMock, updateSettings: updateSettingsMock }),
     { getState },
   );
   return { useSettingsStore };
@@ -278,12 +280,14 @@ vi.mock("../hooks/useAdvanceTime", () => ({
 vi.mock("../components/dashboard/DashboardSidebar", () => ({
   default: ({
     onNavClick,
+    onToggleCollapse,
     activeTab,
     onExitClick,
     competitionName,
   }: {
+    onToggleCollapse: () => void;
     onExitClick: () => void;
-    onNavClick: (tab: string) => void;
+    onNavClick: (tab: string, options?: { fromDrawer: boolean }) => void;
     activeTab: string;
     competitionName?: string | null;
   }) => (
@@ -298,6 +302,12 @@ vi.mock("../components/dashboard/DashboardSidebar", () => ({
       </button>
       <button type="button" onClick={() => onNavClick("Managers")}>
         nav-managers
+      </button>
+      <button type="button" onClick={() => onNavClick("Squad", { fromDrawer: true })}>
+        nav-squad-from-drawer
+      </button>
+      <button type="button" onClick={onToggleCollapse}>
+        fold-sidebar
       </button>
     </div>
   ),
@@ -323,7 +333,9 @@ vi.mock("../components/dashboard/DashboardHeader", () => ({
         <button type="button" onClick={onSave}>
           {t("common.save")}
         </button>
-        <span>Header {title}</span>
+        <h2 data-page-title tabIndex={-1}>
+          Header {title}
+        </h2>
         <button type="button" onClick={onBack}>
           header-back
         </button>
@@ -375,10 +387,21 @@ vi.mock("../components/dashboard/DashboardAlerts", () => ({
 }));
 
 vi.mock("../components/dashboard/DashboardTabContent", () => ({
-  default: ({ viewModel }: { viewModel: { activeTab: string; seasonComplete: boolean } }) => (
+  default: ({
+    viewModel,
+  }: {
+    viewModel: {
+      activeTab: string;
+      seasonComplete: boolean;
+      handlers: { onNavigate: (tab: string) => void };
+    };
+  }) => (
     <div>
       <div>Tab Content {viewModel.activeTab}</div>
       {viewModel.seasonComplete ? <div>season over</div> : null}
+      <button type="button" onClick={() => viewModel.handlers.onNavigate("Inbox")}>
+        content-nav-inbox
+      </button>
     </div>
   ),
 }));
@@ -404,6 +427,7 @@ describe("Dashboard", () => {
     clearGameMock.mockReset();
     markCleanMock.mockReset();
     loadSettingsMock.mockReset();
+    updateSettingsMock.mockClear();
     navigateMock.mockReset();
     vi.mocked(applyExtraTranslations).mockReset();
     window.localStorage.clear();
@@ -493,6 +517,66 @@ describe("Dashboard", () => {
   }
 
   /** Given a dirty career, when Save & Quit succeeds, then saving precedes closing the window. */
+  /**
+   * Given the sidebar open as a drawer over the page
+   * When the player chooses a page from it, and then a page from the sidebar itself
+   * Then the new page's heading takes the focus after the drawer, so a keyboard player lands on the
+   * page; a choice from the open sidebar leaves the focus where it is.
+   */
+  it("moves the focus to the page heading after a page chosen from the drawer", async () => {
+    render(<Dashboard />);
+    fireEvent.click(await screen.findByRole("button", { name: "nav-squad-from-drawer" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /Header/ })).toHaveFocus());
+
+    const inbox = screen.getByRole("button", { name: "nav-inbox" });
+    inbox.focus();
+    fireEvent.click(inbox);
+    await waitFor(() => expect(screen.getByText("Sidebar Inbox")).toBeInTheDocument());
+    expect(inbox).toHaveFocus();
+  });
+
+  /**
+   * Given an unfolded sidebar (Normal, room to spare)
+   * When the player folds it
+   * Then the fold is saved in the settings, so the next launch opens folded too.
+   */
+  it("saves the player's fold of the sidebar", async () => {
+    render(<Dashboard />);
+    fireEvent.click(await screen.findByRole("button", { name: "fold-sidebar" }));
+    expect(updateSettingsMock).toHaveBeenCalledWith({ sidebar_collapsed: true });
+  });
+
+  /**
+   * Given Squad open
+   * When the player chooses Squad again from the drawer
+   * Then the heading still takes the focus: the drawer closed, and the keyboard player lands on the
+   * page even though the page didn't change.
+   */
+  it("moves the focus to the heading when the drawer chooses the page already open", async () => {
+    render(<Dashboard initialTab="Squad" />);
+    const choice = await screen.findByRole("button", { name: "nav-squad-from-drawer" });
+    choice.focus();
+    fireEvent.click(choice);
+    await waitFor(() => expect(screen.getByRole("heading", { name: /Header/ })).toHaveFocus());
+  });
+
+  /**
+   * Given Squad open, and the drawer has chosen Squad again
+   * When the page itself then navigates to the Inbox (not the drawer)
+   * Then the focus stays where the player put it: a heading focus is owed only to a drawer choice,
+   * and the earlier one was already paid.
+   */
+  it("doesn't move the focus on a later navigation from the page", async () => {
+    render(<Dashboard initialTab="Squad" />);
+    fireEvent.click(await screen.findByRole("button", { name: "nav-squad-from-drawer" }));
+
+    const contentLink = screen.getByRole("button", { name: "content-nav-inbox" });
+    contentLink.focus();
+    fireEvent.click(contentLink);
+    await waitFor(() => expect(screen.getByText("Sidebar Inbox")).toBeInTheDocument());
+    expect(contentLink).toHaveFocus();
+  });
+
   it("closes the window after a successful save", async () => {
     isDirty = true;
     render(<Dashboard />);
