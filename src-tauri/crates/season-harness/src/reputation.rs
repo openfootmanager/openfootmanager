@@ -5,7 +5,7 @@
 //! players and the mean rating of its first teams, so a change to how players are generated or
 //! moved can be read as a before and after. The same figures are given by league tier.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use domain::age::age_on_or_unknown;
 use domain::league::CompetitionType;
@@ -39,8 +39,8 @@ pub struct ReputationReport {
     pub reputation_range: [(u32, u32); 5],
     /// Seniors who belong to no club.
     pub unattached: GroupReport,
-    /// Clubs in a league of that tier (the competition's `priority`: lower is higher), in tier
-    /// order. A club is counted once, in its league.
+    /// Clubs by division tier (1 = top flight of each country), in tier order. A club is counted
+    /// once, in the highest division it plays in.
     pub tiers: Vec<(u32, GroupReport)>,
 }
 
@@ -49,7 +49,7 @@ pub struct ReputationReport {
 /// Only seniors (aged `SENIOR_MIN_AGE` or more, not retired) are counted. Clubs are ranked by
 /// reputation, ties broken by id, and split into five groups whose sizes differ by at most one. A
 /// player whose `team_id` names no club in `game.teams` counts as unattached.
-/// A club is counted once in the by-league rows, in the league of the lowest `priority`; the S and
+/// A club is counted once in the by-tier rows, in the highest division it plays in; the S and
 /// A shares are fractions of every senior S or A in the world.
 pub fn reputation_report(game: &Game) -> ReputationReport {
     let on = game.clock.current_date.date_naive();
@@ -137,25 +137,42 @@ fn unattached_report(
     }
 }
 
-/// Each club once, under the lowest `priority` among the leagues it stands in; cups and other
-/// competitions do not place a club.
+/// Each club once, under the highest division it plays in. A division's tier is its place among
+/// its own country's leagues by `priority` (1 = top flight): `priority` itself is a counter that
+/// runs on across countries, so it cannot be compared between them. Cups and other competitions do
+/// not place a club. Clubs within a tier are sorted, so a report is the same every time.
 fn clubs_by_tier(game: &Game) -> BTreeMap<u32, Vec<&str>> {
+    let leagues = || {
+        game.competitions
+            .iter()
+            .filter(|competition| competition.kind == CompetitionType::League)
+    };
+    let mut priorities: BTreeMap<Option<&str>, BTreeSet<u32>> = BTreeMap::new();
+    for league in leagues() {
+        priorities
+            .entry(league.country_id.as_deref())
+            .or_default()
+            .insert(league.priority);
+    }
     let mut tier_of: HashMap<&str, u32> = HashMap::new();
-    for competition in game
-        .competitions
-        .iter()
-        .filter(|competition| competition.kind == CompetitionType::League)
-    {
-        for standing in &competition.standings {
+    for league in leagues() {
+        let tier = priorities[&league.country_id.as_deref()]
+            .range(..league.priority)
+            .count() as u32
+            + 1;
+        for standing in &league.standings {
             tier_of
                 .entry(standing.team_id.as_str())
-                .and_modify(|tier| *tier = (*tier).min(competition.priority))
-                .or_insert(competition.priority);
+                .and_modify(|best| *best = (*best).min(tier))
+                .or_insert(tier);
         }
     }
     let mut tiers: BTreeMap<u32, Vec<&str>> = BTreeMap::new();
     for (club, tier) in tier_of {
         tiers.entry(tier).or_default().push(club);
+    }
+    for clubs in tiers.values_mut() {
+        clubs.sort_unstable();
     }
     tiers
 }
@@ -295,10 +312,11 @@ mod tests {
         Game::new(clock, manager, teams, players, vec![], vec![])
     }
 
-    fn league(id: &str, priority: u32, clubs: &[&str]) -> domain::league::League {
+    fn league(id: &str, country: &str, priority: u32, clubs: &[&str]) -> domain::league::League {
         let teams: Vec<String> = clubs.iter().map(|club| club.to_string()).collect();
         let mut league = domain::league::League::new(id.to_string(), id.to_string(), 1, &teams);
         league.priority = priority;
+        league.country_id = Some(country.to_string());
         league
     }
 
@@ -438,8 +456,8 @@ mod tests {
     fn a_club_in_two_leagues_is_counted_in_the_higher_tier() {
         let mut game = world(vec![]);
         game.competitions = vec![
-            league("second", 2, &["c0", "c1", "c2"]),
-            league("first", 1, &["c0"]),
+            league("second", "x", 2, &["c0", "c1", "c2"]),
+            league("first", "x", 1, &["c0"]),
         ];
 
         let report = reputation_report(&game);
@@ -452,13 +470,52 @@ mod tests {
         assert_eq!(counts, vec![(1, 1), (2, 2)]);
     }
 
+    /// Given two countries whose leagues carry the world's running priority counter
+    ///       (0 and 1 in one country, 2 and 3 in the other),
+    /// When the world is reported,
+    /// Then each country's top flight is tier 1 and its second division tier 2: two rows, not four.
+    #[test]
+    fn tiers_are_counted_within_each_country() {
+        let mut game = world(vec![]);
+        game.competitions = vec![
+            league("a1", "a", 0, &["c0", "c1"]),
+            league("a2", "a", 1, &["c2", "c3"]),
+            league("b1", "b", 2, &["c4", "c5"]),
+            league("b2", "b", 3, &["c6", "c7"]),
+        ];
+
+        let report = reputation_report(&game);
+
+        let counts: Vec<(u32, usize)> = report
+            .tiers
+            .iter()
+            .map(|(tier, group)| (*tier, group.clubs))
+            .collect();
+        assert_eq!(counts, vec![(1, 4), (2, 4)]);
+    }
+
+    /// Given a world with several tiers,
+    /// When it is reported twice,
+    /// Then the two reports are exactly equal: club order within a tier does not depend on hashing.
+    #[test]
+    fn two_reports_of_one_game_are_identical() {
+        let mut game = world(vec![
+            player("p0", Some("c0"), 90, "1995-01-01"),
+            player("p1", Some("c1"), 78, "1995-01-01"),
+            player("p2", Some("c2"), 77, "1995-01-01"),
+        ]);
+        game.competitions = vec![league("l", "a", 0, &["c0", "c1", "c2", "c3", "c4", "c5"])];
+
+        assert_eq!(reputation_report(&game), reputation_report(&game));
+    }
+
     /// Given a cup holding clubs that no league holds,
     /// When the world is reported,
     /// Then the cup places no club in any tier.
     #[test]
     fn a_cup_does_not_place_a_club_in_a_tier() {
         let mut game = world(vec![]);
-        let mut cup = league("cup", 0, &["c0", "c1"]);
+        let mut cup = league("cup", "x", 0, &["c0", "c1"]);
         cup.kind = CompetitionType::Cup;
         game.competitions = vec![cup];
 
