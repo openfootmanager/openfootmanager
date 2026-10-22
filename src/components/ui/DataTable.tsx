@@ -18,7 +18,10 @@ export interface DataTableColumn<Row> {
   numeric?: boolean;
   /** Its header asks to sort by it (the table never sorts the rows itself). */
   sortable?: boolean;
-  /** The cell that names the row: it holds the row's open button and its details toggle. */
+  /**
+   * The cell that names the row: it holds the row's open button and its details toggle. With none
+   * marked (or the marked one folding away), the first column that never folds does.
+   */
   primary?: boolean;
   /** Folded away in a narrow table (under 48rem), and shown in the row's details instead. */
   drawer?: boolean;
@@ -111,6 +114,12 @@ export function DataTable<Row>({
   const idBase = useId();
   const [openDetails, setOpenDetails] = useState<ReadonlySet<string>>(new Set());
   const folded = columns.filter((column) => column.drawer);
+  // The column holding the row's open button and details toggle: the primary one, or the first
+  // that never folds, so a keyboard can always open a row and reach what folded away.
+  const nameColumnKey = (
+    columns.find((column) => column.primary && !column.drawer) ??
+    columns.find((column) => !column.drawer)
+  )?.key;
   const span = columns.length + (rowAction ? 1 : 0);
 
   function toggleDetails(key: string) {
@@ -203,7 +212,7 @@ export function DataTable<Row>({
                         column.drawer ? FOLDED : ""
                       } ${index === 0 ? `${ACCENT_EDGE} ${ACCENT[accent ?? "none"]}` : ""}`}
                     >
-                      {column.primary ? (
+                      {column.key === nameColumnKey ? (
                         <span className="inline-flex min-w-0 items-center gap-1">
                           {onOpen ? (
                             <button

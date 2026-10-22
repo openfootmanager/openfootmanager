@@ -145,17 +145,18 @@ const VOCABULARY_KEYS = [
   ...["Striker", "S", "A", "B", "Fresh", "Tiring", "Exhausted", "Critical"],
 ];
 const VOCABULARY_COLOUR_MAP = new RegExp(
-  `(?<![\\w-])["']?(?:${VOCABULARY_KEYS.join("|")})["']?\\s*:\\s*["'\`][^"'\`\\n]*(?<![\\w-])(?:bg|text|border|ring)-[\\w-]+`,
+  // A plain, quoted or computed key (`[Position.Goalkeeper]`), then a string holding a colour class.
+  `(?<![\\w-])(?:\\[[\\w.]*?\\.)?["']?(?:${VOCABULARY_KEYS.join("|")})["']?\\]?\\s*:\\s*["'\`][^"'\`\\n]*(?<![\\w-])(?:bg|text|border|ring)-[\\w-]+`,
   "g",
 );
 
 /**
- * A rated value judged against a number on a screen, in either order. Known to over-match a
- * has-a-value guard (`potential > 0`, as in InboxMessageDetailPane): when that folder joins, the
- * guard is rewritten as a presence check rather than exempted.
+ * A rated value judged against a number on a screen, in either order, by order or equality. Known
+ * to over-match a has-a-value guard (`potential > 0`, as in InboxMessageDetailPane): when that
+ * folder joins, the guard is rewritten as a presence check rather than exempted.
  */
 const RATED_THRESHOLD =
-  /\b(?:condition|ovr|potential|morale|reputation)\s*(?:>=|<=|>|<)\s*\d+|\b\d+\s*(?:>=|<=|>|<)\s*[\w.?]*\b(?:condition|ovr|potential|morale|reputation)\b/g;
+  /\b(?:condition|ovr|potential|morale|reputation)\s*(?:===|!==|==|!=|>=|<=|>|<)\s*\d+|\b\d+\s*(?:===|!==|==|!=|>=|<=|>|<)\s*[\w.?]*\b(?:condition|ovr|potential|morale|reputation)\b/g;
 
 /**
  * Helpers whose primitive has landed: importing one is a way around it. Each round-4 PR adds the
@@ -426,6 +427,28 @@ describe("the rule checks themselves", () => {
       '5: S: "bg-tone-top-tint text-tone-top',
       '5: A: "bg-tone-good-tint',
       '6: "Tiring": "text-tone-fair',
+    ]);
+  });
+
+  /** Given a colour map keyed by a computed key (an enum member), then it is reported too. */
+  it("catches a colour map with computed keys", () => {
+    const source =
+      'const COLOUR = { [Position.Goalkeeper]: "bg-tone-top-tint", [Band.Critical]: "text-tone-bad" };';
+    expect(vocabularyViolations("./components/squad/X.tsx", source)).toEqual([
+      '1: [Position.Goalkeeper]: "bg-tone-top-tint',
+      '1: [Band.Critical]: "text-tone-bad',
+    ]);
+  });
+
+  /** Given a rated value tested for equality with a number, then it is reported like any comparison. */
+  it("catches a rated value compared for equality with a number", () => {
+    const source = [
+      "if (player.condition === 70) tone = good;",
+      "const capped = 99 !== player.ovr;",
+    ].join("\n");
+    expect(vocabularyViolations("./components/squad/X.tsx", source)).toEqual([
+      "1: condition === 70",
+      "2: 99 !== player.ovr",
     ]);
   });
 

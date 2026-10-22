@@ -165,6 +165,26 @@ describe("DataTable", () => {
     expect(details).toHaveTextContent("72");
   });
 
+  /**
+   * Given a table whose columns name none as primary (or whose primary column folds away)
+   * When it is drawn with rows that open and a folded column
+   * Then its first column that never folds holds the open button and the details toggle, so a
+   * keyboard can still open a row and reach the folded column.
+   */
+  it("puts the open button and details in the first unfolded column when none is primary", () => {
+    const onOpen = vi.fn();
+    const columns: DataTableColumn<Player>[] = [
+      { key: "name", header: "Name", cell: (p) => p.name },
+      { key: "age", header: "Age", cell: (p) => p.age, numeric: true },
+      { key: "morale", header: "Morale", cell: (p) => p.morale, numeric: true, drawer: true },
+    ];
+    renderTable({ columns, onOpen });
+
+    fireEvent.click(screen.getByRole("button", { name: "Anderson" }));
+    expect(onOpen).toHaveBeenCalledWith(PLAYERS[0]);
+    expect(screen.getByRole("button", { name: "common.detailsFor:Anderson" })).toBeInTheDocument();
+  });
+
   /** Given no folded columns, then rows have no details button. */
   it("offers no details without folded columns", () => {
     renderTable({ columns: COLUMNS.map((column) => ({ ...column, drawer: false })) });
