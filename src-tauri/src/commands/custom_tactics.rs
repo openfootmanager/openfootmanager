@@ -163,6 +163,22 @@ mod tests {
         assert_eq!(list_custom_tactics_internal(&state).unwrap(), left);
     }
 
+    /// Given career B is active holding one tactic and a screen still holds career A's token
+    /// When the screen's delete arrives through the command
+    /// Then it is refused with the career-changed key and the tactic is still in the library.
+    #[test]
+    fn the_delete_command_for_a_replaced_career_is_refused_and_keeps_the_tactic() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let state = state_with_game();
+        save_custom_tactic_internal(&state, &tactic("a"), Career::Active).unwrap();
+        let app = WrapperApp::around(state, 0);
+
+        let refused = super::delete_custom_tactic(app.state(), "a".to_string(), 7);
+
+        assert_eq!(refused, Err("be.error.careerChanged".to_string()));
+        assert_eq!(list_custom_tactics_internal(&app.state()).unwrap().len(), 1);
+    }
+
     /// Given a career whose old browser library has not been copied in
     /// When the import is marked done
     /// Then it is pending before, not pending after, and marking twice changes nothing.

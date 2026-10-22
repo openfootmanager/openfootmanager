@@ -36,15 +36,33 @@ impl WrapperApp {
         let mut save_manager = SaveManager::init(saves.path()).expect("save manager");
         let save_id = with_save.then(|| save_manager.create_save(&game, "wrapper").expect("save"));
 
-        let state = Arc::new(StateManager::new());
+        let state = StateManager::new();
         let token = crate::application::career::install_career(
             &state,
             game,
             StatsState::default(),
             save_id.clone(),
         );
+        Self::managing(state, token, save_manager, save_id, saves)
+    }
+
+    /// An app around a state a test already built (a live match in progress, say). `token` is the
+    /// one its game carries.
+    pub fn around(state: StateManager, token: u64) -> Self {
+        let saves = tempfile::tempdir().expect("temp dir");
+        let save_manager = SaveManager::init(saves.path()).expect("save manager");
+        Self::managing(state, token, save_manager, None, saves)
+    }
+
+    fn managing(
+        state: StateManager,
+        token: u64,
+        save_manager: SaveManager,
+        save_id: Option<String>,
+        saves: tempfile::TempDir,
+    ) -> Self {
         let app = mock_app();
-        app.manage(state);
+        app.manage(Arc::new(state));
         app.manage(Arc::new(SaveManagerState(Mutex::new(save_manager))));
         Self {
             app,

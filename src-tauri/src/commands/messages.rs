@@ -390,6 +390,25 @@ mod tests {
         game
     }
 
+    /// Given career B is active and a screen still holds career A's token
+    /// When the screen's delete arrives through the command
+    /// Then it is refused with the career-changed key and the message is still in the inbox.
+    #[test]
+    fn the_delete_command_for_a_replaced_career_is_refused_and_keeps_the_message() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(), false);
+        let inbox = |app: &WrapperApp| app.state().get_game(|g| g.messages.len()).unwrap();
+        let before = inbox(&app);
+
+        let refused = super::delete_message(app.state(), "remove-stale".to_string(), app.token + 1);
+
+        assert_eq!(
+            refused.map(|_| ()),
+            Err("be.error.careerChanged".to_string())
+        );
+        assert_eq!(inbox(&app), before);
+    }
+
     /// Given career B is active (token 2) and a screen holds career A's token (1)
     /// When mark-read, mark-all, delete, clear and resolve arrive with A's token
     /// Then each is refused with the career-changed key and career B's inbox is untouched.

@@ -846,6 +846,23 @@ mod tests {
         assert_eq!(stats.player_matches[0].fixture_id, "fixture-1");
     }
 
+    /// Given career B is active and a screen still holds career A's token
+    /// When the screen's Continue arrives through the command
+    /// Then it is refused with the career-changed key and the date has not moved.
+    #[test]
+    fn the_continue_command_for_a_replaced_career_is_refused_and_the_date_stays() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(11), false);
+        let date = |app: &WrapperApp| app.state().get_game(|g| g.clock.current_date).unwrap();
+        let before = date(&app);
+
+        let refused =
+            tauri::async_runtime::block_on(super::advance_one_day(app.state(), app.token + 1));
+
+        assert_eq!(refused, Err("be.error.careerChanged".to_string()));
+        assert_eq!(date(&app), before);
+    }
+
     /// Given a quiet game, and one where two starters are injured so a blocker stands
     /// When the user skips to their next match day, and when they continue to the next event
     /// Then a blocker that stands after a day stops the skip with it listed (days_skipped 1), and

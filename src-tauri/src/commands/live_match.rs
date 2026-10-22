@@ -1875,6 +1875,25 @@ mod live_session_tests {
         state
     }
 
+    /// Given a live match at minute 30 and a screen holding another career's token
+    /// When the screen's step arrives through the command
+    /// Then it is refused with the career-changed key and the match is still at minute 30.
+    #[test]
+    fn the_step_command_for_a_replaced_career_is_refused_and_the_match_stays() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::around(state_at_minute_thirty(), 0);
+
+        let refused = super::step_live_match(app.state(), 10, 5);
+
+        assert_eq!(refused.err(), Some("be.error.careerChanged".to_string()));
+        assert_eq!(
+            live_match::get_match_snapshot(&app.state())
+                .unwrap()
+                .current_minute,
+            30
+        );
+    }
+
     /// Given a live match at minute 30 and a screen holding a token that is not its career's (5)
     /// When the screen's step, command and finish arrive
     /// Then each is refused with the career-changed key, the match is still at minute 30 and
