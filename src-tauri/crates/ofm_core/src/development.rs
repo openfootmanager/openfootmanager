@@ -24,6 +24,11 @@ const GROWTH_BY_AGE: [f64; 11] = [6.0, 6.0, 5.5, 5.0, 4.5, 4.0, 3.5, 3.0, 2.5, 2
 const FIRST_GROWTH_AGE: f64 = 16.0;
 /// The curve age from which the decline table replaces growth.
 const DECLINE_STARTS_AT: f64 = 27.0;
+/// The curve age from which a player's ceiling is his rating. The decline table starts at 27, but
+/// it is rating-neutral until about 32 (pace falls while the mind still gains), and a player who
+/// still has room to his ceiling at 27 to 29 is still on his way to it: from 30 the table really
+/// takes rating points, and a falling player has no room to grow.
+const CEILING_FOLLOWS_RATING_FROM: f64 = 30.0;
 /// The gap to the ceiling at which growth is half what it would be far below it.
 const BRAKE_HALF_GAP: f64 = 6.0;
 
@@ -51,8 +56,6 @@ const LAST_DRIFT_AGE: u32 = 24;
 /// growth already stands for a typical year in the training ground, and a day's training adds to
 /// it by this share of the weight it once carried alone.
 const TRAINING_SHARE: f64 = 0.25;
-/// The room a declining player's training reads at least (see `training_factor`).
-const DECLINING_TRAINING_ROOM: u8 = 3;
 
 /// The five groups the decline table is written in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -154,13 +157,6 @@ fn growth_points(curve_age: f64, gap: u8) -> f64 {
 /// ceiling: the most when young, tapering smoothly to nothing by the mid-thirties, and slowed by
 /// the same brake as growth. Replaces both the step by age and the gate at the ceiling.
 pub fn training_factor(curve_age: f64, gap: u8) -> f64 {
-    // A player whose curve has turned still trains against his decline, though his ceiling is his
-    // rating (no gap): the gap is read as at least this much room.
-    let room = if curve_age >= DECLINE_STARTS_AT {
-        gap.max(DECLINING_TRAINING_ROOM)
-    } else {
-        gap
-    };
     const POINTS: [(f64, f64); 5] = [
         (21.0, 1.5),
         (26.0, 1.0),
@@ -179,7 +175,7 @@ pub fn training_factor(curve_age: f64, gap: u8) -> f64 {
                 pair[0].1 + (pair[1].1 - pair[0].1) * share
             })
     };
-    TRAINING_SHARE * age_factor * headroom_brake(room)
+    TRAINING_SHARE * age_factor * headroom_brake(gap)
 }
 
 /// The expected change in points of one attribute in a season, for a player the decline table
@@ -339,24 +335,22 @@ fn drift_ceiling(player: &mut Player, age: u32, rng: &mut impl Rng) {
     player.potential = ceiling.max(natural_ovr(player).round() as u8);
 }
 
-/// Once a player's curve has stopped growing and started declining, his ceiling is his rating:
-/// it comes down with him and, being the rating, never sits above it. A veteran never shows room
-/// to grow; a young player's ceiling is not touched (this runs only on the decline branch). The
-/// switch is the one that ends growth (`DECLINE_STARTS_AT`), so a late bloomer keeps his ceiling
-/// while his own curve still grows and an early bloomer loses it when his own curve turns.
+/// Once a player's curve reads `CEILING_FOLLOWS_RATING_FROM` his ceiling is his rating: it comes
+/// down with him and, being the rating, never sits above it, so a falling veteran never shows room
+/// to grow. A young player's ceiling is not touched. The switch is on the curve, not the
+/// birthday: a late bloomer keeps his ceiling while his own curve is short of it.
 fn bring_ceiling_down_to_rating(player: &mut Player) {
     player.potential = (natural_ovr(player).round() as u8).max(1);
 }
 
 /// One season of development for a player aged `age`: growth while his curve says he grows, the
-/// decline table once it says he declines (and his ceiling comes down to his rating), and the
-/// drift of a young player's ceiling on the way. Draws from `rng`, which the caller derives from
-/// the player and the date so a replay gives the same season.
+/// decline table once it says he declines, the drift of a young player's ceiling on the way, and
+/// from the curve age at which he really falls, the ceiling brought down to his rating. Draws from
+/// `rng`, which the caller derives from the player and the date so a replay gives the same season.
 pub fn develop_one_season(player: &mut Player, age: i32, world_seed: u64, rng: &mut impl Rng) {
     let traits = traits_of(world_seed, &player.id);
     let curve = curve_age(player, age, &traits);
-    let declining = curve >= DECLINE_STARTS_AT;
-    if declining {
+    if curve >= DECLINE_STARTS_AT {
         decline(player, curve, &traits, rng);
     } else {
         let gap = player
@@ -365,7 +359,7 @@ pub fn develop_one_season(player: &mut Player, age: i32, world_seed: u64, rng: &
         grow(player, growth_points(curve, gap), curve, rng);
     }
     drift_ceiling(player, age.max(0) as u32, rng);
-    if declining {
+    if curve >= CEILING_FOLLOWS_RATING_FROM {
         bring_ceiling_down_to_rating(player);
     }
 }
@@ -747,14 +741,14 @@ mod tests {
             .expect("some player has a peak offset in the range")
     }
 
-    /// Given players of 27 to 39 on the decline table, each with a ceiling far above his rating,
+    /// Given players of 31 to 39 (their curve past 30), each with a ceiling far above his rating,
     /// When a season of development is run,
-    /// Then the ceiling sits exactly at the rating afterwards: a declining player never shows
+    /// Then the ceiling sits exactly at the rating afterwards: a falling player never shows
     ///      room to grow.
     #[test]
     fn a_declining_players_ceiling_comes_down_to_his_rating() {
         let id = id_with_peak_offset(-0.4..=0.4);
-        for age in 28..=39 {
+        for age in 31..=39 {
             for seed in 0..40 {
                 let mut p = player(&id, Position::CentralMidfielder, 70, 90);
                 develop_one_season(&mut p, age, 5, &mut rng(seed));
@@ -783,16 +777,42 @@ mod tests {
         }
     }
 
-    /// Given a peaked 28-year-old (growth ended on his curve) with a gap of 10 to his ceiling,
+    /// Given a 28-year-old (growth ended on his curve, the table not yet taking rating) with a gap
+    ///       of 10 to his ceiling,
     /// When a season of development is run,
-    /// Then the gap is gone: he is on the decline table, so his ceiling comes down to his rating.
+    /// Then he keeps the room: the ceiling follows the rating only from curve 30.
     #[test]
-    fn a_peaked_twenty_eight_year_old_loses_the_room_he_had() {
+    fn a_twenty_eight_year_old_keeps_the_room_he_has() {
         let id = id_with_peak_offset(-0.4..=0.4);
         for seed in 0..40 {
             let mut p = player(&id, Position::CentralMidfielder, 70, 80);
             develop_one_season(&mut p, 28, 5, &mut rng(seed));
-            assert_eq!(p.potential, natural_ovr(&p).round() as u8);
+            assert!(
+                p.potential > natural_ovr(&p).round() as u8 + 5,
+                "seed {seed}: ceiling {}",
+                p.potential
+            );
+        }
+    }
+
+    /// Given a player whose curve reads exactly 30 (thirty-three, a late bloomer clamped to +3
+    ///       years) and one whose curve reads 29,
+    /// When a season of development is run,
+    /// Then the first has his ceiling brought down to his rating and the second keeps his room.
+    #[test]
+    fn the_ceiling_follows_the_rating_from_a_curve_of_exactly_thirty() {
+        let id = (0..2000)
+            .map(|n| format!("late{n}"))
+            .find(|id| traits_of(5, id).peak_offset == PEAK_OFFSET_LIMIT)
+            .expect("about one player in forty is clamped at the late end");
+        for seed in 0..20 {
+            let mut thirty = player(&id, Position::CentralMidfielder, 70, 85);
+            develop_one_season(&mut thirty, 33, 5, &mut rng(seed));
+            assert_eq!(thirty.potential, natural_ovr(&thirty).round() as u8);
+
+            let mut twenty_nine = player(&id, Position::CentralMidfielder, 70, 85);
+            develop_one_season(&mut twenty_nine, 32, 5, &mut rng(seed));
+            assert!(twenty_nine.potential > natural_ovr(&twenty_nine).round() as u8 + 5);
         }
     }
 
@@ -811,21 +831,6 @@ mod tests {
             gained += natural_ovr(&p) - before;
         }
         assert!(gained > 0.0, "he grew by {gained} over 40 seasons");
-    }
-
-    /// Given a player at his ceiling,
-    /// When his training factor is read before and after his curve turns,
-    /// Then before it he takes none, and after it he still takes some, as if he had the least
-    ///      room a declining player is given, and more room means more.
-    #[test]
-    fn a_declining_player_trains_as_if_he_had_a_little_room() {
-        assert_eq!(training_factor(26.9, 0), 0.0);
-        assert!(training_factor(27.0, 0) > 0.0);
-        assert_eq!(
-            training_factor(30.0, 0),
-            training_factor(30.0, DECLINING_TRAINING_ROOM)
-        );
-        assert!(training_factor(30.0, 20) > training_factor(30.0, 0));
     }
 
     /// Given players of each age,

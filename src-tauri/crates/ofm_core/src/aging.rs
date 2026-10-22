@@ -405,13 +405,13 @@ mod tests {
         assert!(mean_change_after_a_season(35, 70, 200) < -1.0);
     }
 
-    /// Given a save written before ceilings followed decline, in which a 30-year-old rated 70
+    /// Given a save written before ceilings followed decline, in which a 32-year-old rated 70
     /// still carries a ceiling of 90,
     /// When his next summer's ageing runs (no rewrite on load),
     /// Then his ceiling has come down to his rating, and stays there the summer after.
     #[test]
     fn an_old_saves_veteran_loses_his_stale_ceiling_at_the_next_summer() {
-        let mut veteran = make_player("old-save", "1996-01-01");
+        let mut veteran = make_player("old-save", "1994-01-01");
         veteran.stage_contract_end(Some("2031-06-30".to_string()));
         veteran.potential = 90;
         let mut game = make_game(vec![veteran]);
