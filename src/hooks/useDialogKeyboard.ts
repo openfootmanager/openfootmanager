@@ -4,11 +4,24 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
- * The dialogs open now, in the order they opened; the last is on top (it renders later, so it is
- * drawn over the others). Every dialog listens on the window, so without this one Escape would
- * close them all, and a busy dialog on top couldn't stop the one beneath from closing.
+ * Marks the panel of every open dialog this hook manages. Every dialog listens on the window, so
+ * without knowing which one is on top, one Escape would close them all, and a busy dialog on top
+ * couldn't stop the one beneath from closing. The mark lives on the panel, so it goes when the
+ * dialog does: there is no list to keep in step. Only dialogs drawn by ui/Dialog carry it; another
+ * full-screen overlay (the transfer deal workspace) doesn't take their keys.
  */
-const openDialogs: RefObject<HTMLElement | null>[] = [];
+const OPEN_DIALOG = "data-open-dialog";
+
+/**
+ * The dialog drawn on top: the marked panel that comes last in the document (querySelectorAll
+ * returns document order). A later overlay paints over an earlier one, and a dialog nested in
+ * another's content comes after it; the order the dialogs opened in can't say this, since a
+ * parent's effects run after its children's.
+ */
+function topDialog(): Element | null {
+  const open = document.querySelectorAll(`[${OPEN_DIALOG}]`);
+  return open.length === 0 ? null : open[open.length - 1];
+}
 
 /**
  * Escape asks to close, Tab stays inside, focus returns where it was. Shared so the dialogs cannot
@@ -21,18 +34,15 @@ export function useDialogKeyboard(
   dialogRef: RefObject<HTMLElement | null>,
   onEscape: () => void,
 ): void {
+  // No cleanup: the panel leaves the document with the dialog, and its mark with it.
   useEffect(() => {
-    openDialogs.push(dialogRef);
-    return () => {
-      const index = openDialogs.lastIndexOf(dialogRef);
-      if (index !== -1) openDialogs.splice(index, 1);
-    };
+    dialogRef.current?.setAttribute(OPEN_DIALOG, "");
   }, [dialogRef]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // Escape and Tab belong to the dialog on top.
-      if (openDialogs[openDialogs.length - 1] !== dialogRef) return;
+      if (dialogRef.current === null || topDialog() !== dialogRef.current) return;
       if (event.key === "Escape") {
         // A control inside the dialog (an open menu, a select list) that already used this Escape
         // to close itself has handled it; the dialog stays.
@@ -79,6 +89,15 @@ export function useDialogKeyboard(
   // when it closes.
   // Read during the first render, not in an effect: a child that focuses itself on mount has
   // already moved focus by the time any effect runs, and would be recorded as the opener.
+  // Unless another dialog holds the focus by then: a dialog beneath that closes first (an advance
+  // finishing under the close confirmation) must not pull the focus out of the one on top.
   const [opener] = useState(() => document.activeElement as HTMLElement | null);
-  useEffect(() => () => opener?.focus?.(), [opener]);
+  useEffect(
+    () => () => {
+      const holder = document.activeElement?.closest(`[${OPEN_DIALOG}]`);
+      const heldByAnother = holder != null && holder !== dialogRef.current;
+      if (!heldByAnother) opener?.focus?.();
+    },
+    [opener, dialogRef],
+  );
 }

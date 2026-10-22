@@ -288,6 +288,104 @@ describe("Dialog", () => {
    * Then the key is kept from the browser and the focus stays on the panel, rather than moving to
    * the page behind the overlay.
    */
+  /**
+   * Given a dialog nested inside another's content (opened from within it)
+   * When the player presses Escape
+   * Then the inner one, drawn on top, is asked to close, not the one around it.
+   */
+  it("gives Escape to a dialog nested inside another", () => {
+    const outer = vi.fn();
+    const inner = vi.fn();
+    render(
+      <Dialog labelledBy="outer" onClose={outer}>
+        <h2 id="outer">Outer</h2>
+        <Dialog labelledBy="inner" onClose={inner}>
+          <h2 id="inner">Inner</h2>
+        </Dialog>
+      </Dialog>,
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(inner).toHaveBeenCalledOnce();
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given two dialogs, the lower one closing first (an advance finishing under the window's close
+   * confirmation), and then the lower one opening again
+   * When the player presses Escape each time
+   * Then the one still open answers it, and the reopened one, on top again, answers the next.
+   */
+  it("hands Escape to whichever dialog is on top as dialogs close and open", () => {
+    const lower = vi.fn();
+    const upper = vi.fn();
+    function Stack({ lowerOpen, upperOpen }: { lowerOpen: boolean; upperOpen: boolean }) {
+      return (
+        <>
+          {lowerOpen && (
+            <Dialog labelledBy="lower" onClose={lower}>
+              <h2 id="lower">Lower</h2>
+            </Dialog>
+          )}
+          {upperOpen && (
+            <Dialog labelledBy="upper" onClose={upper}>
+              <h2 id="upper">Upper</h2>
+            </Dialog>
+          )}
+        </>
+      );
+    }
+    const { rerender } = render(<Stack lowerOpen upperOpen />);
+
+    rerender(<Stack lowerOpen={false} upperOpen />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(upper).toHaveBeenCalledTimes(1);
+
+    rerender(<Stack lowerOpen={false} upperOpen={false} />);
+    rerender(<Stack lowerOpen upperOpen={false} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(lower).toHaveBeenCalledTimes(1);
+    expect(upper).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given the focus on a button, a busy dialog opened from it, and a second dialog opened over that
+   * When the lower dialog closes first (the advance finishes under the close confirmation)
+   * Then the focus stays in the dialog still on top, not pulled back to the button behind it.
+   */
+  it("doesn't pull the focus out of the top dialog when the one beneath closes", () => {
+    function Stack({ lowerOpen, upperOpen }: { lowerOpen: boolean; upperOpen: boolean }) {
+      return (
+        <>
+          <button type="button">Continue</button>
+          {lowerOpen && (
+            <Dialog labelledBy="advance" busy>
+              <h2 id="advance">Advancing</h2>
+            </Dialog>
+          )}
+          {upperOpen && (
+            <Dialog labelledBy="confirm" onClose={vi.fn()}>
+              <h2 id="confirm">Quit?</h2>
+              <button type="button">Cancel</button>
+            </Dialog>
+          )}
+        </>
+      );
+    }
+    const { rerender } = render(<Stack lowerOpen={false} upperOpen={false} />);
+    screen.getByRole("button", { name: "Continue" }).focus();
+    rerender(<Stack lowerOpen upperOpen={false} />);
+    rerender(<Stack lowerOpen upperOpen />);
+    const top = screen.getByRole("dialog", { name: "Quit?" });
+    expect(top).toContainElement(document.activeElement as HTMLElement);
+
+    rerender(<Stack lowerOpen={false} upperOpen />);
+
+    expect(top).toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole("button", { name: "Continue" })).not.toHaveFocus();
+  });
+
   it.each([false, true])("keeps Tab on a dialog with nothing to focus (shift: %s)", (shiftKey) => {
     render(
       <>
