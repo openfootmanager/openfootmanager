@@ -352,29 +352,46 @@ describe("DashboardHeader search", () => {
    * When a keyboard player moves the focus from the field into the results and presses Enter
    * Then the field stays open while the focus is in the results, and Enter picks the player.
    */
-  it("keeps the results open while the focus moves into them, and picks one by keyboard", () => {
-    const onSelectSearchPlayer = vi.fn();
-    const onSearchBlur = vi.fn();
-    renderHeader({
-      searchOpen: true,
-      searchQuery: "jo",
-      matchedPlayers: [createPlayer()],
-      onSelectSearchPlayer,
-      onSearchBlur,
-    });
-    fireEvent.click(screen.getByRole("button", { name: "common.search" }));
-    const field = screen.getByRole("textbox", { name: "common.search" });
-    const result = screen.getByTestId("dashboard-search-player-player-1");
+  /**
+   * Given a team result and a player result. The real Enter key needs user-event, which isn't a
+   * dependency here; jsdom doesn't turn a keydown into a click on its own. So this pins what makes
+   * Enter and Space work: each result is a native button (whose activation the HTML spec defines
+   * as a click), it is named, and it takes the focus.
+   */
+  it.each([
+    ["team", /^Alpha FC/, "onSelectSearchTeam", "team-1"],
+    ["player", /John Striker/, "onSelectSearchPlayer", "player-1"],
+  ] as const)(
+    "keeps the results open while the focus moves into a %s result, and picks it",
+    (_kind, name, handler, id) => {
+      const handlers = { onSelectSearchTeam: vi.fn(), onSelectSearchPlayer: vi.fn() };
+      const onSearchBlur = vi.fn();
+      renderHeader({
+        searchOpen: true,
+        searchQuery: "al",
+        matchedTeams: [createTeam()],
+        matchedPlayers: [createPlayer()],
+        ...handlers,
+        onSearchBlur,
+      });
+      fireEvent.click(screen.getByRole("button", { name: "common.search" }));
+      const field = screen.getByRole("textbox", { name: "common.search" });
+      const result = screen.getByRole("button", { name });
 
-    fireEvent.blur(field, { relatedTarget: result });
-    result.focus();
+      fireEvent.blur(field, { relatedTarget: result });
+      result.focus();
 
-    expect(field.closest("[data-search-field]")).not.toHaveClass("hidden");
-    expect(onSearchBlur).not.toHaveBeenCalled();
-    // A focused button turns Enter and Space into a click.
-    fireEvent.click(result);
-    expect(onSelectSearchPlayer).toHaveBeenCalledWith("player-1");
-  });
+      expect(result).toHaveFocus();
+      expect(result.tagName).toBe("BUTTON");
+      expect(field.closest("[data-search-field]")).not.toHaveClass("hidden");
+      expect(onSearchBlur).not.toHaveBeenCalled();
+      fireEvent.click(result);
+      expect(handlers[handler]).toHaveBeenCalledWith(id);
+      const other =
+        handler === "onSelectSearchTeam" ? "onSelectSearchPlayer" : "onSelectSearchTeam";
+      expect(handlers[other]).not.toHaveBeenCalled();
+    },
+  );
 
   /**
    * Given the results showing
@@ -384,7 +401,7 @@ describe("DashboardHeader search", () => {
    */
   it("keeps the focus in the field when a result is pressed with the mouse", () => {
     renderHeader({ searchOpen: true, searchQuery: "jo", matchedPlayers: [createPlayer()] });
-    const result = screen.getByTestId("dashboard-search-player-player-1");
+    const result = screen.getByRole("button", { name: /John Striker/ });
 
     expect(fireEvent.mouseDown(result)).toBe(false);
   });
