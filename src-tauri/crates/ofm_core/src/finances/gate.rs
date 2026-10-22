@@ -21,6 +21,10 @@ const GATE_POST_PREFIX: &str = "gate-";
 /// the week straddling the cutover is paid once and nothing before it is paid retroactively.
 const LEGACY_GATE_WINDOW_DAYS: i64 = 6;
 
+/// Payday runs every Monday, so an edition archived more than this many days ago has already been
+/// through a settlement since and holds nothing that a later one should pay.
+const PAYDAY_INTERVAL_DAYS: i64 = 7;
+
 fn gate_post_id(fixture_id: &str) -> String {
     format!("{GATE_POST_PREFIX}{fixture_id}")
 }
@@ -50,16 +54,16 @@ pub fn gate_takings(capacity: u32, attendance_percent: i64, ticket_price: i64) -
         .map(|takings| takings / 100)
 }
 
-/// The gates `team_id` is due over the next seven days, counting today, from the fixtures it has
-/// not played yet.
+/// The gates `team_id` is due over the next seven days, counting today: the home fixtures it has
+/// not played yet, and one completed today that the coming payday has still to pay.
 pub fn expected_gate_next_week(game: &Game, team_id: &str, host_capacity: u32) -> i64 {
     let today = game.clock.current_date.date_naive();
     let week_end = today + Duration::days(7);
     home_fixtures(game, team_id)
-        .filter(|fixture| fixture.status != FixtureStatus::Completed)
         .filter(|fixture| {
             fixture_date(fixture).is_some_and(|date| date >= today && date < week_end)
         })
+        .filter(|fixture| fixture.status != FixtureStatus::Completed || !is_paid(game, fixture))
         .filter_map(|fixture| expected_gate(game, host_capacity, fixture))
         .sum()
 }
@@ -74,12 +78,16 @@ pub fn settle_gate_income(game: &mut Game, today: NaiveDate) {
     let mut due = Vec::new();
     let mut seen = HashSet::new();
     // A rollover clears the fixtures of the edition it archives, so a gate that failed before it
-    // is retried from the archive. An edition completed before the cutover has nothing to pay.
-    let settled_from_key = settled_from.format("%Y-%m-%d").to_string();
+    // is retried from the archive. An edition completed before the cutover, or before the previous
+    // payday, has nothing left to pay: bounding the scan keeps it from growing with the archive.
+    let archived_since = settled_from
+        .max(today - Duration::days(PAYDAY_INTERVAL_DAYS))
+        .format("%Y-%m-%d")
+        .to_string();
     let archived = game
         .edition_archive
         .iter()
-        .filter(|edition| edition.completed_on >= settled_from_key)
+        .filter(|edition| edition.completed_on >= archived_since)
         .flat_map(|edition| edition.fixtures.iter());
     let in_play = game
         .competitions_in_play()
@@ -119,6 +127,11 @@ pub fn settle_gate_income(game: &mut Game, today: NaiveDate) {
 
 /// The first date a completed fixture can be paid for. Fixed the first time gates are settled and
 /// saved with the game, so a fixture played before per-fixture gates existed is never paid.
+///
+/// It is the day after the last legacy payday that posted a gate, so a first settlement on any
+/// weekday (the rollover's, say) cannot overlap the week that payday already paid. It never reaches
+/// back further than the old weekly window, so a save whose last legacy gate is weeks old is not
+/// paid for the weeks in between.
 fn settlement_start(game: &mut Game, today: NaiveDate) -> NaiveDate {
     let stored = game
         .gate_settled_from
@@ -127,9 +140,31 @@ fn settlement_start(game: &mut Game, today: NaiveDate) -> NaiveDate {
     if let Some(date) = stored {
         return date;
     }
-    let start = today - Duration::days(LEGACY_GATE_WINDOW_DAYS);
+    let legacy_reach = today - Duration::days(LEGACY_GATE_WINDOW_DAYS);
+    let start = last_legacy_payday(game)
+        .map(|payday| payday + Duration::days(1))
+        .map_or(legacy_reach, |after_payday| after_payday.max(legacy_reach));
     game.gate_settled_from = Some(start.format("%Y-%m-%d").to_string());
     start
+}
+
+/// The latest date the weekly gate of the old code posted: a `Matchday` post with a generated id
+/// rather than one keyed on its fixture.
+fn last_legacy_payday(game: &Game) -> Option<NaiveDate> {
+    game.cash_journal
+        .iter()
+        .filter(|post| post.kind == CashKind::Matchday && !post.id.starts_with(GATE_POST_PREFIX))
+        .filter_map(|post| NaiveDate::parse_from_str(&post.date, "%Y-%m-%d").ok())
+        .max()
+}
+
+/// Only the forecast asks this, for a home fixture completed today, so one journal scan per such
+/// fixture is cheaper than building the whole paid set for every snapshot.
+fn is_paid(game: &Game, fixture: &Fixture) -> bool {
+    let post_id = gate_post_id(&fixture.id);
+    game.cash_journal
+        .iter()
+        .any(|post| post.kind == CashKind::Matchday && post.id == post_id)
 }
 
 fn paid_fixture_ids(game: &Game) -> HashSet<&str> {
@@ -432,6 +467,8 @@ mod tests {
         assert_eq!(gate_takings(0, 80, 20), Some(0));
         assert_eq!(gate_takings(30_000, 0, 20), Some(0));
         assert_eq!(gate_takings(30_000, 80, 20), Some(480_000));
+        assert_eq!(gate_takings(30_000, 80, 0), Some(0));
+        assert_eq!(gate_takings(30_000, -5, 20), Some(0));
         assert_eq!(gate_takings(30_000, 80, -1), None);
         assert_eq!(gate_takings(u32::MAX, i64::MAX / 2, 20), None);
     }
@@ -537,5 +574,144 @@ mod tests {
             .collect();
         assert_eq!(ids, vec!["gate-recent"]);
         assert_eq!(game.gate_settled_from.as_deref(), Some("2025-06-10"));
+    }
+
+    /// Given home fixtures today, seven days out and thirty days out,
+    /// When the snapshot is read,
+    /// Then its expected gate is today's fixture alone.
+    #[test]
+    fn the_forecast_counts_only_the_home_fixtures_of_the_next_seven_days() {
+        let mut game = monday();
+        game.competitions = vec![competition(
+            "league",
+            vec![
+                scheduled("today", "2025-06-16", "user", "rival"),
+                scheduled("in-seven", "2025-06-23", "user", "rival"),
+                scheduled("in-thirty", "2025-07-16", "user", "rival"),
+            ],
+        )];
+        game.sync_legacy_league();
+
+        let snapshot = crate::finances::team_finance_snapshot(&game, "user").unwrap();
+        let forecast = snapshot.weekly_recurring_income - snapshot.weekly_sponsor_income;
+
+        assert_eq!(forecast, gate_for(&game, "today"));
+    }
+
+    /// Given a home fixture completed today and not yet paid,
+    /// When the forecast is read before and after the settlement that pays it,
+    /// Then it counts the gate until it is paid and not after.
+    #[test]
+    fn the_forecast_counts_a_fixture_completed_today_until_it_is_paid() {
+        let mut game = monday();
+        game.competitions = vec![competition(
+            "league",
+            vec![played("whistle", "2025-06-16", "user", "rival")],
+        )];
+        let before = expected_gate_next_week(&game, "user", CAPACITY);
+
+        settle_today(&mut game);
+
+        assert_eq!(before, gate_for(&game, "whistle"));
+        assert_eq!(gates_of(&game, "user")[0].amount, before);
+        assert_eq!(expected_gate_next_week(&game, "user", CAPACITY), 0);
+    }
+
+    /// Given a save from before per-fixture gates whose last legacy payday, a Monday, paid
+    ///       Saturday's home fixture,
+    /// When its first settlement is the rollover on the Tuesday after,
+    /// Then only Tuesday's fixture is paid and the cutover is the day after that payday.
+    #[test]
+    fn a_save_from_before_per_fixture_gates_first_settled_on_a_tuesday_pays_nothing_twice() {
+        let mut game = game_on(2025, 6, 17);
+        let legacy_payday = NaiveDate::from_ymd_opt(2025, 6, 16).unwrap();
+        post_all(
+            &mut game,
+            &[PostRequest::new(
+                "user",
+                480_000,
+                CashKind::Matchday,
+                legacy_payday,
+            )],
+        )
+        .unwrap();
+        game.competitions = vec![competition(
+            "league",
+            vec![
+                played("saturday", "2025-06-14", "user", "rival"),
+                played("tuesday", "2025-06-17", "hosts", "guests"),
+            ],
+        )];
+
+        settle_today(&mut game);
+
+        let gate_ids: Vec<&str> = game
+            .cash_journal
+            .iter()
+            .filter(|post| post.id.starts_with(GATE_POST_PREFIX))
+            .map(|post| post.id.as_str())
+            .collect();
+        assert_eq!(gate_ids, vec!["gate-tuesday"]);
+        assert_eq!(game.gate_settled_from.as_deref(), Some("2025-06-17"));
+    }
+
+    /// Given a save from before per-fixture gates whose last legacy payday was three weeks ago,
+    /// When its first settlement runs,
+    /// Then it reaches back no further than the old weekly window.
+    #[test]
+    fn an_old_legacy_payday_does_not_widen_the_first_settlement() {
+        let mut game = monday();
+        let old_payday = NaiveDate::from_ymd_opt(2025, 5, 26).unwrap();
+        post_all(
+            &mut game,
+            &[PostRequest::new(
+                "user",
+                480_000,
+                CashKind::Matchday,
+                old_payday,
+            )],
+        )
+        .unwrap();
+        game.competitions = vec![competition(
+            "league",
+            vec![
+                played("old", "2025-06-01", "hosts", "guests"),
+                played("recent", "2025-06-14", "hosts", "guests"),
+            ],
+        )];
+
+        settle_today(&mut game);
+
+        let ids: Vec<&str> = gates_of(&game, "hosts")
+            .iter()
+            .map(|post| post.id.as_str())
+            .collect();
+        assert_eq!(ids, vec!["gate-recent"]);
+        assert_eq!(game.gate_settled_from.as_deref(), Some("2025-06-10"));
+    }
+
+    /// Given an edition archived three weeks ago, after the cutover, with an unpaid home fixture,
+    /// When payday runs,
+    /// Then the edition is not scanned: the paydays since its archiving had their chance.
+    #[test]
+    fn an_edition_archived_before_the_previous_payday_is_not_scanned_again() {
+        let mut game = monday();
+        game.gate_settled_from = Some("2025-05-01".to_string());
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: "cup".to_string(),
+                season: 2025,
+                completed_on: "2025-05-26".to_string(),
+                champion_id: "hosts".to_string(),
+                participant_ids: vec!["hosts".to_string(), "guests".to_string()],
+                standings: vec![],
+                groups: vec![],
+                knockout_rounds: vec![],
+                fixtures: vec![played("final", "2025-05-26", "hosts", "guests")],
+            });
+
+        settle_today(&mut game);
+
+        assert!(gates_of(&game, "hosts").is_empty());
     }
 }
