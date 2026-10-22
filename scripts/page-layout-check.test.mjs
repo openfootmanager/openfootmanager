@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
+import { HARNESS_PAGES } from "../src/dev/pageHarness/harnessPage";
 import { CASES, judge, nodeProblem } from "./page-layout-check.mjs";
 
 describe("the Node check", () => {
@@ -54,10 +55,8 @@ describe("page layout check", () => {
     const worst = CASES.filter(
       (c) => c.lang === "de" && c.scale === "xlarge" && c.width === 960 && c.height === 640,
     );
-    expect(worst.map((c) => c.page ?? "style guide").sort()).toEqual([
-      "home",
-      "squad",
-      "style guide",
-    ]);
+    expect(worst.map((c) => c.page ?? "style guide").sort()).toEqual(
+      [...Object.keys(HARNESS_PAGES), "style guide"].sort(),
+    );
   });
 });

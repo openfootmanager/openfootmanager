@@ -122,6 +122,19 @@ describe("useFetchedSquad", () => {
     rerender({ revision: {} });
     await waitFor(() => expect(result.current[0]?.[0]?.match_day_eligible).toBe(false));
   });
+  // Given a cached player the backend rates tiring, when a Game mutation omits projection fields,
+  // then his condition band stays until the fresh backend response replaces it.
+  it("keeps the condition band through a mutation until the backend refresh replaces it", async () => {
+    const tiring = { band: "Tiring", label_key: "be.condition.tiring", tone: "fair" } as const;
+    mockedGetSquad.mockResolvedValue([{ id: "p1", condition_status: tiring } as PlayerData]);
+    const { result } = renderHook(() => useFetchedSquad("team1", "2026-08-01", {}));
+    await waitFor(() => expect(result.current[0]?.[0]?.condition_status).toEqual(tiring));
+
+    act(() => result.current[1]([{ id: "p1", training_focus: "Recovery" } as PlayerData]));
+
+    expect(result.current[0]?.[0]?.condition_status).toEqual(tiring);
+  });
+
   // Given a cached called-up youth, when a Game mutation omits projection fields,
   // then he stays visible until the fresh backend response revokes his call-up.
   it("preserves call-up metadata until the backend refresh replaces it", async () => {
