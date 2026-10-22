@@ -9,13 +9,17 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("../services/portraitService", () => ({
   prewarmManagerSquadPortraits: vi.fn(),
 }));
+// One `t` for every render, as react-i18next gives: a fresh function each time would make anything
+// memoised on it (the derived regions) a new value on every render.
+const translate = vi.hoisted(
+  () => (key: string, params?: Record<string, string | number>) =>
+    params?.defaultValue !== undefined ? String(params.defaultValue) : key,
+);
+const i18nState = vi.hoisted(() => ({ language: "en" }));
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
-  useTranslation: () => ({
-    t: (key: string, params?: Record<string, string | number>) =>
-      params?.defaultValue !== undefined ? String(params.defaultValue) : key,
-    i18n: { language: "en" },
-  }),
+  useTranslation: () => ({ t: translate, i18n: i18nState }),
 }));
 
 function league(overrides: Partial<LeagueData> = {}): LeagueData {
@@ -37,11 +41,6 @@ function buildGameState(): GameStateData {
   return {
     teams: [createTeam({ id: "team-1", country: "GB", short_name: "ALP" })],
     players: [createPlayer({ id: "p1", team_id: "team-1" })],
-    regions: [
-      { id: "europe", name: "Europe", country_codes: ["GB"] },
-      { id: "south_america", name: "South America", country_codes: ["BR"] },
-      { id: "asia", name: "Asia", country_codes: ["JP"] },
-    ],
     competitions: [
       league({
         id: "epl",
@@ -181,16 +180,16 @@ describe("useTeamSelection scope toggles", () => {
 
 describe("useTeamSelection home-region club filter", () => {
   /**
-   * Given a region the backend ships with no countries
-   * When the player picks it as their home region
-   * Then no club is listed: the frontend invents no membership of its own, as it did when it
-   * guessed a club's region from a table of country codes.
+   * Given a club in a country that no competition places in a region
+   * When team selection derives its regions
+   * Then there is none and no home region is picked, so there is nothing to filter by and the club
+   * is still listed: the frontend invents no region of its own, as it did when it guessed a club's
+   * region from a table of country codes.
    */
-  it("lists no club for a region the backend gives no countries", () => {
+  it("derives no region for a country no competition places, and still lists the club", () => {
     const gameState = {
       teams: [createTeam({ id: "team-gb", country: "GB", short_name: "ENG" })],
       players: [],
-      regions: [{ id: "europe", name: "Europe", country_codes: [] }],
       competitions: [],
       league: null,
       manager: { first_name: "Sam", last_name: "Boss" },
@@ -198,7 +197,7 @@ describe("useTeamSelection home-region club filter", () => {
     const externals = { setGameState: vi.fn(), setGameActive: vi.fn(), navigate: vi.fn() };
     const { result } = renderHook(() => useTeamSelection({ gameState, ...externals }));
 
-    expect(result.current.selectedHomeRegionId).toBe("europe");
-    expect(result.current.filteredTeams).toEqual([]);
+    expect(result.current.selectedHomeRegionId).toBeNull();
+    expect(result.current.filteredTeams.map((team) => team.id)).toEqual(["team-gb"]);
   });
 });

@@ -40,4 +40,26 @@ describe("HomeSquadOverviewCard", () => {
     expect(screen.getByText("Balanced")).toBeInTheDocument();
     expect(screen.getByText("Physical")).toBeInTheDocument();
   });
+
+  /**
+   * Given no average condition (the backend has not answered, or no healthy first-team player)
+   * When the card renders
+   * Then it shows a dash, not 0%.
+   */
+  it("shows a dash instead of 0% when there is no average condition", () => {
+    render(
+      <HomeSquadOverviewCard
+        avgCondition={null}
+        avgOvr={64}
+        exhaustedCount={0}
+        scheduleIcon={<Scale className="w-3.5 h-3.5" />}
+        scheduleColorClass="text-primary-500"
+        scheduleLabel="Balanced"
+        focus="Physical"
+      />,
+    );
+
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
+  });
 });

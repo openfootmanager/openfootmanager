@@ -58,10 +58,7 @@
   "validation": {
     "required": "Pole {{field}} je povinné",
     "maxLength": "Pole {{field}} nesmí překročit {{max}} znaků",
-    "minStartYear": "Výchozí rok musí být {{min}} nebo novější",
-    "minAge": "Manažer musí mít alespoň {{min}} let — pro pokračování změňte datum narození.",
-    "invalidDate": "Neplatné datum",
-    "invalidDob": "Neplatné datum narození"
+    "minStartYear": "Výchozí rok musí být {{min}} nebo novější"
   },
   "worldSelect": {
     "title": "Vybrat svět",
@@ -173,6 +170,7 @@
     "digestSimulating": "Zpracování...",
     "digestMatchDay": "Zápasový den",
     "digestMatchDayDesc": "Vaše utkání je připraveno k odehrání.",
+    "matchModeMenu": "Vybrat režim zápasu",
     "digestReturnHome": "Zpět na hlavní panel",
     "digestBlocked": "Vyžadována akce",
     "digestBlockedDesc": "Před pokračováním musíte vyřešit některé záležitosti.",
@@ -2009,7 +2007,6 @@
     "alreadyQueued": "Už čeká ve frontě na střídání",
     "substitutionsPartlyMade": "Provedeno střídání: {{applied}} z {{total}}",
     "substitutionRefused": "Střídání zamítnuto: {{off}} za {{on}}. {{reason}}",
-    "playerRoles": "Role hráčů",
     "roleFor": "Role hráče {{player}}",
     "roleChangeRefused": "Roli hráče {{player}} se nepodařilo změnit. {{reason}}",
     "noBenchAvailable": "Na lavičce nejsou k dispozici žádní hráči",
@@ -3569,6 +3566,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Zpráva z předsezónního turnaje",
           "body": "V předsezónním turnaji {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Obě strany využily toto střetnutí k nabrání ostrosti před soutěžní kampaní.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Zpráva ze zápasu ({{competition}})",
+          "body": "{{competition}}: zápas skončil {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {

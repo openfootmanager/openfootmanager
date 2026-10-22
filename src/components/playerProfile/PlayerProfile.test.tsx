@@ -400,7 +400,6 @@ function RenewalHarness({ initialPlayer }: { initialPlayer?: PlayerData }) {
       player={gameState.players[0]}
       gameState={gameState}
       isOwnClub
-      onClose={vi.fn()}
       onGameUpdate={setGameState}
     />
   );
@@ -425,7 +424,6 @@ describe("PlayerProfile contract surfaces", () => {
         gameState={createGameState(player, [createStaff()])}
         isOwnClub
         startWithRenewalModal
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -467,7 +465,6 @@ describe("PlayerProfile contract surfaces", () => {
         gameState={createGameState(player, [createStaff()])}
         isOwnClub
         startWithTerminationModal
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -495,7 +492,6 @@ describe("PlayerProfile contract surfaces", () => {
         isOwnClub={false}
         startWithRenewalModal
         startWithTerminationModal
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -532,7 +528,6 @@ describe("PlayerProfile contract surfaces", () => {
         player={player}
         gameState={createGameState(player, [createStaff()])}
         isOwnClub={false}
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -559,7 +554,6 @@ describe("PlayerProfile contract surfaces", () => {
         player={player}
         gameState={createGameState(player, [createStaff()])}
         isOwnClub={false}
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -580,9 +574,22 @@ describe("PlayerProfile contract surfaces", () => {
     const state = createGameState(player);
     state.clock = { ...state.clock, current_date: "2030-08-01T00:00:00Z" };
 
-    render(<PlayerProfile player={player} gameState={state} isOwnClub onClose={vi.fn()} />);
+    render(<PlayerProfile player={player} gameState={state} isOwnClub />);
 
     expect(screen.getByText("Age 30")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player's profile, shown under the dashboard header that already has a Back
+   * When it renders
+   * Then it adds no second Back of its own
+   */
+  it("leaves Back to the dashboard header", () => {
+    const player = createPlayer();
+
+    render(<PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />);
+
+    expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
   });
 
   /**
@@ -598,7 +605,7 @@ describe("PlayerProfile contract surfaces", () => {
     const state = createGameState(player);
     state.clock = { ...state.clock, current_date: date };
 
-    render(<PlayerProfile player={player} gameState={state} isOwnClub onClose={vi.fn()} />);
+    render(<PlayerProfile player={player} gameState={state} isOwnClub />);
 
     expect(screen.getByText(`Age ${age}`)).toBeInTheDocument();
   });
@@ -608,10 +615,10 @@ describe("PlayerProfile contract surfaces", () => {
     riskLevels.current = { [player.id]: "critical" };
     const gameState = createGameState(player);
 
-    render(<PlayerProfile player={player} gameState={gameState} isOwnClub onClose={vi.fn()} />);
+    render(<PlayerProfile player={player} gameState={gameState} isOwnClub />);
 
     expect(screen.getByText("Contract Info")).toBeInTheDocument();
-    expect(screen.getByText("Expires 2026-10-15")).toBeInTheDocument();
+    expect(screen.getByText("Expires October 15, 2026")).toBeInTheDocument();
     expect(screen.getByText("Years Remaining")).toBeInTheDocument();
     expect(screen.getByText("Contract Risk")).toBeInTheDocument();
     expect(screen.getByText("Critical")).toBeInTheDocument();
@@ -649,13 +656,7 @@ describe("PlayerProfile contract surfaces", () => {
     );
 
     render(
-      <PlayerProfile
-        player={player}
-        gameState={gameState}
-        isOwnClub
-        onClose={vi.fn()}
-        onGameUpdate={vi.fn()}
-      />,
+      <PlayerProfile player={player} gameState={gameState} isOwnClub onGameUpdate={vi.fn()} />,
     );
 
     expect(screen.getByText("Loan Status")).toBeInTheDocument();
@@ -697,7 +698,6 @@ describe("PlayerProfile contract surfaces", () => {
         player={player}
         gameState={gameState}
         isOwnClub={false}
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -718,13 +718,7 @@ describe("PlayerProfile contract surfaces", () => {
     const onSelectTeam = vi.fn();
 
     render(
-      <PlayerProfile
-        player={player}
-        gameState={gameState}
-        isOwnClub
-        onClose={vi.fn()}
-        onSelectTeam={onSelectTeam}
-      />,
+      <PlayerProfile player={player} gameState={gameState} isOwnClub onSelectTeam={onSelectTeam} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Alpha FC" }));
@@ -738,13 +732,7 @@ describe("PlayerProfile contract surfaces", () => {
     const onSelectTeam = vi.fn();
 
     render(
-      <PlayerProfile
-        player={player}
-        gameState={gameState}
-        isOwnClub
-        onClose={vi.fn()}
-        onSelectTeam={onSelectTeam}
-      />,
+      <PlayerProfile player={player} gameState={gameState} isOwnClub onSelectTeam={onSelectTeam} />,
     );
 
     fireEvent.contextMenu(screen.getByTestId("player-profile-team-link"));
@@ -835,7 +823,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(<PlayerProfile player={player} gameState={gameState} isOwnClub onClose={vi.fn()} />);
+    render(<PlayerProfile player={player} gameState={gameState} isOwnClub />);
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_player_stats_overview", {
@@ -877,14 +865,7 @@ describe("PlayerProfile contract surfaces", () => {
         return defaultInvokeResponse(command);
       });
 
-      render(
-        <PlayerProfile
-          player={player}
-          gameState={createGameState(player)}
-          isOwnClub
-          onClose={vi.fn()}
-        />,
-      );
+      render(<PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />);
 
       await waitFor(() => {
         expect(
@@ -940,14 +921,7 @@ describe("PlayerProfile contract surfaces", () => {
       return defaultInvokeResponse(command);
     });
 
-    render(
-      <PlayerProfile
-        player={player}
-        gameState={createGameState(player)}
-        isOwnClub
-        onClose={vi.fn()}
-      />,
-    );
+    render(<PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />);
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_player_match_history", {
@@ -987,14 +961,7 @@ describe("PlayerProfile contract surfaces", () => {
       ],
     });
 
-    render(
-      <PlayerProfile
-        player={player}
-        gameState={createGameState(player)}
-        isOwnClub
-        onClose={vi.fn()}
-      />,
-    );
+    render(<PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />);
 
     expect(screen.getByText("Movement History")).toBeInTheDocument();
     expect(screen.getByText("Gamma FC -> Alpha FC")).toBeInTheDocument();
@@ -1092,7 +1059,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Offer accepted")).toBeInTheDocument();
-      expect(screen.getByText("Expires 2029-08-01")).toBeInTheDocument();
+      expect(screen.getByText("Expires August 1, 2029")).toBeInTheDocument();
       expect(
         screen.getAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "15K"))
           .length,
@@ -1263,7 +1230,6 @@ describe("PlayerProfile contract surfaces", () => {
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
         isOwnClub
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1308,7 +1274,6 @@ describe("PlayerProfile contract surfaces", () => {
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
         isOwnClub
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1354,7 +1319,6 @@ describe("PlayerProfile contract surfaces", () => {
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
         isOwnClub
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1400,7 +1364,6 @@ describe("PlayerProfile contract surfaces", () => {
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
         isOwnClub
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1440,7 +1403,6 @@ describe("PlayerProfile contract surfaces", () => {
         player={createPlayer()}
         gameState={createGameState(createPlayer(), [createStaff()])}
         isOwnClub
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1699,7 +1661,6 @@ describe("PlayerProfile switching between players", () => {
         player={first}
         gameState={gameState}
         isOwnClub={false}
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1723,7 +1684,6 @@ describe("PlayerProfile switching between players", () => {
         player={second}
         gameState={createGameState(second, [scoutStaff()])}
         isOwnClub={false}
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1768,7 +1728,6 @@ describe("PlayerProfile switching between players", () => {
         player={first}
         gameState={createGameState(first)}
         isOwnClub
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1787,7 +1746,6 @@ describe("PlayerProfile switching between players", () => {
         player={second}
         gameState={createGameState(second)}
         isOwnClub
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1817,7 +1775,6 @@ describe("PlayerProfile free agent signing", () => {
         player={freeAgent}
         gameState={gameState}
         isOwnClub={false}
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1839,7 +1796,6 @@ describe("PlayerProfile free agent signing", () => {
         player={retired}
         gameState={gameState}
         isOwnClub={false}
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1861,7 +1817,6 @@ describe("PlayerProfile free agent signing", () => {
         player={freeAgent}
         gameState={gameState}
         isOwnClub={false}
-        onClose={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
@@ -1908,7 +1863,6 @@ describe("PlayerProfile free agent signing", () => {
         player={freeAgent}
         gameState={createGameState(freeAgent)}
         isOwnClub={false}
-        onClose={vi.fn()}
         onGameUpdate={onGameUpdate}
       />,
     );

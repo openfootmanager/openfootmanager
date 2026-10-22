@@ -58,10 +58,7 @@
   "validation": {
     "required": "Поле «{{field}}» обязательно",
     "maxLength": "Поле «{{field}}» не должно превышать {{max}} символов",
-    "minStartYear": "Год старта должен быть не раньше {{min}}",
-    "minAge": "Менеджер должен быть не моложе {{min}} лет — измените дату рождения, чтобы продолжить.",
-    "invalidDate": "Недопустимая дата",
-    "invalidDob": "Недопустимая дата рождения"
+    "minStartYear": "Год старта должен быть не раньше {{min}}"
   },
   "worldSelect": {
     "title": "Выберите мир",
@@ -173,6 +170,7 @@
     "digestSimulating": "Симуляция...",
     "digestMatchDay": "Игровой день",
     "digestMatchDayDesc": "Сегодня у вашей команды запланирован матч.",
+    "matchModeMenu": "Выбрать режим матча",
     "digestReturnHome": "Вернуться на главную",
     "digestBlocked": "Требуется действие",
     "digestBlockedDesc": "Есть проблемы, требующие вашего внимания перед продолжением.",
@@ -2005,7 +2003,6 @@
     "alreadyQueued": "Уже в очереди на замену",
     "substitutionsPartlyMade": "Выполнено замен: {{applied}} из {{total}}",
     "substitutionRefused": "Замена отклонена: {{off}} на {{on}}. {{reason}}",
-    "playerRoles": "Роли игроков",
     "roleFor": "Роль игрока {{player}}",
     "roleChangeRefused": "Не удалось сменить роль игрока {{player}}. {{reason}}",
     "noBenchAvailable": "На скамейке нет игроков",
@@ -3569,6 +3566,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: отчёт о предсезонном матче",
           "body": "В предсезонном матче {{home}} сыграл с {{away}} со счётом {{homeGoals}}-{{awayGoals}}. Обе команды использовали эту игру, чтобы набрать форму перед официальными матчами.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Отчёт о матче ({{competition}})",
+          "body": "{{competition}}: матч завершился со счётом {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {

@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} wajib diisi",
     "maxLength": "{{field}} tidak boleh melebihi {{max}} karakter",
-    "minStartYear": "Tahun mulai harus {{min}} atau setelahnya",
-    "minAge": "Manajer minimal berusia {{min}} tahun — ubah tanggal lahir untuk melanjutkan.",
-    "invalidDate": "Tanggal tidak valid",
-    "invalidDob": "Tanggal lahir tidak valid"
+    "minStartYear": "Tahun mulai harus {{min}} atau setelahnya"
   },
   "worldSelect": {
     "title": "Pilih Dunia",
@@ -173,6 +170,7 @@
     "digestSimulating": "Memproses...",
     "digestMatchDay": "Hari Pertandingan",
     "digestMatchDayDesc": "Pertandingan siap dimainkan.",
+    "matchModeMenu": "Pilih mode pertandingan",
     "digestReturnHome": "Kembali ke Beranda",
     "digestBlocked": "Perlu Tindakan",
     "digestBlockedDesc": "Beberapa masalah memerlukan perhatian sebelum melanjutkan.",
@@ -2009,7 +2007,6 @@
     "alreadyQueued": "Sudah masuk antrean pergantian",
     "substitutionsPartlyMade": "{{applied}} dari {{total}} pergantian dilakukan",
     "substitutionRefused": "Pergantian ditolak: {{off}} diganti {{on}}. {{reason}}",
-    "playerRoles": "Peran pemain",
     "roleFor": "Peran {{player}}",
     "roleChangeRefused": "Peran {{player}} tidak dapat diubah. {{reason}}",
     "noBenchAvailable": "Tidak ada pemain cadangan tersedia",
@@ -3569,6 +3566,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Laporan Turnamen Pramusim",
           "body": "Dalam laga turnamen pramusim, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Kedua tim menggunakan laga ini untuk mengasah ketajaman sebelum musim kompetitif dimulai.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Laporan Pertandingan ({{competition}})",
+          "body": "{{competition}}: pertandingan berakhir {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {

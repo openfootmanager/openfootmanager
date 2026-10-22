@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} est obligatoire",
     "maxLength": "{{field}} ne doit pas dépasser {{max}} caractères",
-    "minStartYear": "L'année de départ doit être {{min}} ou ultérieure",
-    "minAge": "L'entraîneur doit avoir au moins {{min}} ans — modifie la date de naissance pour continuer.",
-    "invalidDate": "Date invalide",
-    "invalidDob": "Date de naissance invalide"
+    "minStartYear": "L'année de départ doit être {{min}} ou ultérieure"
   },
   "worldSelect": {
     "title": "Choisir le Monde",
@@ -173,6 +170,7 @@
     "digestSimulating": "Simulation...",
     "digestMatchDay": "Jour de match",
     "digestMatchDayDesc": "Votre équipe a un match prévu aujourd'hui.",
+    "matchModeMenu": "Choisir le mode de match",
     "digestReturnHome": "Retour au tableau de bord",
     "digestBlocked": "Action requise",
     "digestBlockedDesc": "Des problèmes nécessitent votre attention avant d'avancer.",
@@ -2005,7 +2003,6 @@
     "alreadyQueued": "Déjà en attente d'un remplacement",
     "substitutionsPartlyMade": "{{applied}} remplacement(s) sur {{total}} effectué(s)",
     "substitutionRefused": "Remplacement refusé : {{off}} par {{on}}. {{reason}}",
-    "playerRoles": "Rôles des joueurs",
     "roleFor": "Rôle de {{player}}",
     "roleChangeRefused": "Impossible de changer le rôle de {{player}}. {{reason}}",
     "noBenchAvailable": "Aucun joueur disponible sur le banc",
@@ -3569,6 +3566,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : Rapport du tournoi de présaison",
           "body": "Dans ce tournoi de présaison, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Les deux équipes ont profité de la rencontre pour se mettre en jambes avant le début de la saison compétitive.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}} : Compte rendu du match ({{competition}})",
+          "body": "{{competition}} : le match s'est terminé sur le score de {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {

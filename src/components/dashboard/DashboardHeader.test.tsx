@@ -18,6 +18,7 @@ vi.mock("react-i18next", () => ({
       if (key === "dashboard.saveGame") return "Save game";
       if (key === "common.save") return "Save";
       if (key === "dashboard.continue") return "Continue";
+      if (key === "dashboard.matchModeMenu") return "Choose match mode";
       if (key === "common.back") return "Back";
       if (key === "squad.viewProfile") return "View profile";
       if (key === "common.viewTeam") return "View team";
@@ -115,7 +116,7 @@ describe("DashboardHeader", () => {
 
     render(
       <DashboardHeader
-        activeTabLabel="Dashboard"
+        title="Dashboard"
         currentDate="2026-08-10"
         hasProfileHistory={false}
         hasMatchToday={false}
@@ -153,6 +154,97 @@ describe("DashboardHeader", () => {
     expect(onSelectSearchPlayer).not.toHaveBeenCalled();
   });
 
+  /**
+   * Given the header's Continue button, which has a chevron half that opens the match-mode menu
+   * When that half is looked up by what a screen reader announces
+   * Then it is named (the translated "Choose match mode") and shows a focus ring.
+   */
+  it("names the Continue dropdown toggle and gives it a focus ring", () => {
+    render(
+      <DashboardHeader
+        title="Dashboard"
+        currentDate="2026-08-10"
+        hasProfileHistory={false}
+        hasMatchToday={false}
+        isAdvancing={false}
+        isUnemployed={false}
+        isSaving={false}
+        matchMode="live"
+        matchedPlayers={[]}
+        matchedTeams={[]}
+        modeMeta={createModeMeta()}
+        onBack={vi.fn()}
+        onContinue={vi.fn()}
+        onSave={vi.fn()}
+        onSearchBlur={vi.fn()}
+        onSearchFocus={vi.fn()}
+        onSearchQueryChange={vi.fn()}
+        onSelectMatchMode={vi.fn()}
+        onSelectSearchPlayer={vi.fn()}
+        onSelectSearchTeam={vi.fn()}
+        onSkipToMatchDay={vi.fn()}
+        onToggleContinueMenu={vi.fn()}
+        saveFlash={false}
+        searchOpen={false}
+        searchQuery=""
+        seasonComplete={false}
+        showContinueMenu={false}
+        teams={[]}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Choose match mode" })).toHaveClass(
+      "focus-visible:ring-focus",
+    );
+  });
+
+  /**
+   * Given a profile open, so there is somewhere to go back to
+   * When the manager uses the header's Back, the only Back on screen
+   * Then it is found by its name and it goes back
+   */
+  it("offers a named Back that goes back when there is history", () => {
+    const onBack = vi.fn();
+    const teams = [createTeam()];
+
+    render(
+      <DashboardHeader
+        title="J. Smith"
+        currentDate="2026-08-10"
+        hasProfileHistory
+        hasMatchToday={false}
+        isAdvancing={false}
+        isUnemployed={false}
+        isSaving={false}
+        matchMode="live"
+        matchedPlayers={[]}
+        matchedTeams={[]}
+        modeMeta={createModeMeta()}
+        onBack={onBack}
+        onContinue={vi.fn()}
+        onSave={vi.fn()}
+        onSearchBlur={vi.fn()}
+        onSearchFocus={vi.fn()}
+        onSearchQueryChange={vi.fn()}
+        onSelectMatchMode={vi.fn()}
+        onSelectSearchPlayer={vi.fn()}
+        onSelectSearchTeam={vi.fn()}
+        onSkipToMatchDay={vi.fn()}
+        onToggleContinueMenu={vi.fn()}
+        saveFlash={false}
+        searchOpen={false}
+        searchQuery=""
+        seasonComplete={false}
+        showContinueMenu={false}
+        teams={teams}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   // `position` is held at a legacy bucket that matches none of these rows, so only a read of
   // `natural_position` can pass. Every position positionBadgeVariant names explicitly. The dashboard used to
   // keep its own four-bucket copy, so each granular position rendered red here
@@ -165,16 +257,16 @@ describe("DashboardHeader", () => {
     ["LeftBack", "LB", "bg-primary-100"],
     ["RightWingBack", "RWB", "bg-primary-100"],
     ["LeftWingBack", "LWB", "bg-primary-100"],
-    ["Midfielder", "MID", "bg-green-100"],
-    ["DefensiveMidfielder", "DM", "bg-green-100"],
-    ["CentralMidfielder", "CM", "bg-green-100"],
-    ["AttackingMidfielder", "AM", "bg-green-100"],
-    ["RightMidfielder", "RM", "bg-green-100"],
-    ["LeftMidfielder", "LM", "bg-green-100"],
-    ["Forward", "FWD", "bg-red-100"],
-    ["RightWinger", "RW", "bg-red-100"],
-    ["LeftWinger", "LW", "bg-red-100"],
-    ["Striker", "ST", "bg-red-100"],
+    ["Midfielder", "MID", "bg-positive-tint"],
+    ["DefensiveMidfielder", "DM", "bg-positive-tint"],
+    ["CentralMidfielder", "CM", "bg-positive-tint"],
+    ["AttackingMidfielder", "AM", "bg-positive-tint"],
+    ["RightMidfielder", "RM", "bg-positive-tint"],
+    ["LeftMidfielder", "LM", "bg-positive-tint"],
+    ["Forward", "FWD", "bg-danger-tint"],
+    ["RightWinger", "RW", "bg-danger-tint"],
+    ["LeftWinger", "LW", "bg-danger-tint"],
+    ["Striker", "ST", "bg-danger-tint"],
   ])(
     "badges a %s the same way the rest of the app does",
     (position, abbreviation, expectedClass) => {
@@ -182,7 +274,7 @@ describe("DashboardHeader", () => {
 
       render(
         <DashboardHeader
-          activeTabLabel="Dashboard"
+          title="Dashboard"
           currentDate="2026-08-10"
           hasProfileHistory={false}
           hasMatchToday={false}

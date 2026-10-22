@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} zorunludur",
     "maxLength": "{{field}} {{max}} karakteri geçmemelidir",
-    "minStartYear": "Başlangıç yılı {{min}} veya sonrası olmalıdır",
-    "minAge": "Menajer en az {{min}} yaşında olmalıdır — devam etmek için doğum tarihini değiştirin.",
-    "invalidDate": "Geçersiz tarih",
-    "invalidDob": "Geçersiz doğum tarihi"
+    "minStartYear": "Başlangıç yılı {{min}} veya sonrası olmalıdır"
   },
   "worldSelect": {
     "title": "Dünya Seç",
@@ -173,6 +170,7 @@
     "digestSimulating": "İşleniyor...",
     "digestMatchDay": "Maç Günü",
     "digestMatchDayDesc": "Maçınız oynanmaya hazır.",
+    "matchModeMenu": "Maç modunu seç",
     "digestReturnHome": "Panele Dön",
     "digestBlocked": "İşlem Gerekli",
     "digestBlockedDesc": "İlerlemeden önce bazı sorunlarla ilgilenmeniz gerekiyor.",
@@ -2009,7 +2007,6 @@
     "alreadyQueued": "Zaten bir oyuncu değişikliği için sırada",
     "substitutionsPartlyMade": "{{total}} değişiklikten {{applied}} tanesi yapıldı",
     "substitutionRefused": "Oyuncu değişikliği reddedildi: {{off}} yerine {{on}}. {{reason}}",
-    "playerRoles": "Oyuncu rolleri",
     "roleFor": "{{player}} oyuncusunun rolü",
     "roleChangeRefused": "{{player}} oyuncusunun rolü değiştirilemedi. {{reason}}",
     "noBenchAvailable": "Uygun yedek oyuncu yok",
@@ -3569,6 +3566,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Sezon öncesi turnuva raporu",
           "body": "Sezon öncesi turnuva mücadelesinde {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. İki taraf da resmi maçlar öncesinde form tutmak için bu karşılaşmadan yararlandı.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Maç raporu ({{competition}})",
+          "body": "{{competition}}: Maç {{home}} {{homeGoals}} - {{awayGoals}} {{away}} skoruyla sona erdi.{{scorersSection}}"
         }
       },
       "roundup": {

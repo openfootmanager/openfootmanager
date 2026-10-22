@@ -8,6 +8,27 @@ export async function getSquad(teamId: string): Promise<PlayerData[]> {
   return invoke<PlayerData[]>("get_squad", { teamId });
 }
 
+/** How tired a player is, by the backend's one rule (below 25 critical, below 40 exhausted). */
+export type FitnessStatus = "Fit" | "Exhausted" | "Critical";
+
+/** How fit the squad is, as the staff's warnings read it: healthy first-team players only. */
+export interface SquadFitness {
+  players: number;
+  /** Null when there is no healthy first-team player to average. */
+  average_condition: number | null;
+  /** Players below 40, the critical ones among them. */
+  exhausted_count: number;
+  /** Players below 25. */
+  critical_count: number;
+  /** Every player of the club by id, the injured and the academy included. */
+  statuses: Record<string, FitnessStatus>;
+}
+
+/** The user's squad fitness; null when the user has no club. */
+export async function getSquadFitness(): Promise<SquadFitness | null> {
+  return invoke<SquadFitness | null>("get_squad_fitness");
+}
+
 /** The takers the match would use for these players when none are assigned, as the backend picks them. */
 export interface AutoSetPieces {
   captain: string | null;

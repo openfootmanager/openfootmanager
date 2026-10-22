@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} é obrigatório",
     "maxLength": "{{field}} não deve exceder {{max}} caracteres",
-    "minStartYear": "O ano de início deve ser {{min}} ou posterior",
-    "minAge": "O treinador deve ter pelo menos {{min}} anos — altere a data de nascimento para continuar.",
-    "invalidDate": "Data inválida",
-    "invalidDob": "Data de nascimento inválida"
+    "minStartYear": "O ano de início deve ser {{min}} ou posterior"
   },
   "worldSelect": {
     "title": "Escolher Mundo",
@@ -173,6 +170,7 @@
     "digestSimulating": "A simular...",
     "digestMatchDay": "Dia de jogo",
     "digestMatchDayDesc": "A sua equipa tem um jogo marcado para hoje.",
+    "matchModeMenu": "Escolher o modo de jogo",
     "digestReturnHome": "Voltar ao início",
     "digestBlocked": "Ação necessária",
     "digestBlockedDesc": "Há problemas que precisam da sua atenção antes de avançar.",
@@ -2005,7 +2003,6 @@
     "alreadyQueued": "Já está na fila para uma substituição",
     "substitutionsPartlyMade": "{{applied}} de {{total}} substituições feitas",
     "substitutionRefused": "Substituição recusada: {{off}} por {{on}}. {{reason}}",
-    "playerRoles": "Funções dos jogadores",
     "roleFor": "Função de {{player}}",
     "roleChangeRefused": "Não foi possível mudar a função de {{player}}. {{reason}}",
     "noBenchAvailable": "Sem jogadores no banco",
@@ -3569,6 +3566,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: resumo do torneio de pré-época",
           "body": "No torneio de pré-época, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Ambas as equipas usaram o jogo para ganhar ritmo antes do arranque oficial da época.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Resumo do jogo ({{competition}})",
+          "body": "{{competition}}: o jogo terminou {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {

@@ -11,6 +11,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import {
+  contractExpiryLabel,
   formatDate,
   getContractRiskBadgeVariant,
   getContractYearsRemaining,
@@ -80,7 +81,7 @@ export default function PlayerProfileContractCard({
             label={t("common.contract")}
             value={
               contractEnd
-                ? t("finances.contractExpiresOn", { date: contractEnd })
+                ? contractExpiryLabel(contractEnd, language, t)
                 : t("playerProfile.noContract")
             }
           />

@@ -11,6 +11,7 @@ import {
   getTeamTalkOptions,
   type TeamTalkTone,
 } from "./types";
+import MatchEventSideBadge from "./MatchEventSideBadge";
 import { getEventDisplay, getPlayerName, makeTeamFallback } from "./helpers";
 import { getTalkIcon } from "./TeamTalkIcons";
 import { SubPanel } from "./SubPanel";
@@ -66,6 +67,8 @@ export default function HalfTimeBreak({
 
   const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
   const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
+  const homeTeam = homeFullTeam ?? makeTeamFallback(snapshot.home_team.name);
+  const awayTeam = awayFullTeam ?? makeTeamFallback(snapshot.away_team.name);
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
@@ -156,7 +159,7 @@ export default function HalfTimeBreak({
           <div className="flex items-center justify-center gap-8">
             <div className="flex items-center gap-3">
               <TeamLogo
-                team={homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)}
+                team={homeTeam}
                 className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
                 imageClassName="h-9 w-9 object-contain drop-shadow"
                 style={{
@@ -194,7 +197,7 @@ export default function HalfTimeBreak({
                 {snapshot.away_team.name}
               </p>
               <TeamLogo
-                team={awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)}
+                team={awayTeam}
                 className="w-12 h-12 rounded-xl flex items-center justify-center font-heading font-bold overflow-hidden"
                 imageClassName="h-9 w-9 object-contain drop-shadow"
                 style={{
@@ -256,11 +259,11 @@ export default function HalfTimeBreak({
                         <span className={`${display.color} font-medium truncate`}>
                           {getPlayerName(snapshot, evt.player_id)}
                         </span>
-                        <Badge variant={evt.side === "Home" ? "primary" : "accent"} size="sm">
-                          {evt.side === "Home"
-                            ? snapshot.home_team.name.substring(0, 3)
-                            : snapshot.away_team.name.substring(0, 3)}
-                        </Badge>
+                        <MatchEventSideBadge
+                          side={evt.side}
+                          homeTeam={homeTeam}
+                          awayTeam={awayTeam}
+                        />
                       </div>
                     );
                   })}

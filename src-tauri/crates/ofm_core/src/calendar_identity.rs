@@ -3,7 +3,7 @@
 use crate::generator::CompetitionDefinition;
 use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use domain::competition_calendar::{CalendarMetadata, EditionBasis, SeasonPhase};
-use domain::league::{CompetitionFormat, CompetitionScope, FixtureCompetition, League};
+use domain::league::{CompetitionFormat, CompetitionScope, League};
 
 pub(crate) fn invalid_definition_calendar(def: &CompetitionDefinition) -> bool {
     let Some(calendar) = &def.calendar else {
@@ -93,6 +93,9 @@ pub fn ensure_competition_calendar(league: &mut League) -> bool {
     true
 }
 
+/// The opener is the first match played for something: a friendly, a friendly cup or a preseason
+/// tournament can be dated before it, or on the authored date while the league opens later.
+/// Only reached for a competition with no stored calendar; a stored basis is never recomputed.
 fn verified_ordinal_basis(league: &League) -> Option<EditionBasis> {
     if !ordinal_counter(league.season) {
         return None;
@@ -100,7 +103,7 @@ fn verified_ordinal_basis(league: &League) -> Option<EditionBasis> {
     let dates = league
         .fixtures
         .iter()
-        .filter(|fixture| fixture.competition != FixtureCompetition::Friendly)
+        .filter(|fixture| fixture.is_competitive())
         .map(|fixture| NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d"))
         .collect::<Result<Vec<_>, _>>()
         .ok()?;

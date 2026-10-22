@@ -15,8 +15,9 @@ import {
   FORMATIONS,
   isPersistableSpeed,
 } from "./types";
+import MatchEventSideBadge from "./MatchEventSideBadge";
 import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./helpers";
-import { Badge, TeamLogo } from "../ui";
+import { TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
 import MatchScreenLayout from "./MatchScreenLayout";
@@ -92,6 +93,8 @@ export default function MatchLive({
 
   const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
   const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
+  const homeTeam = homeFullTeam ?? makeTeamFallback(snapshot.home_team.name);
+  const awayTeam = awayFullTeam ?? makeTeamFallback(snapshot.away_team.name);
   const homeTeamColor = homeFullTeam?.colors?.primary || "#10b981";
   const awayTeamColor = awayFullTeam?.colors?.primary || "#6366f1";
 
@@ -278,7 +281,7 @@ export default function MatchLive({
                   </p>
                 </div>
                 <TeamLogo
-                  team={homeFullTeam ?? makeTeamFallback(snapshot.home_team.name)}
+                  team={homeTeam}
                   className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm overflow-hidden"
                   imageClassName="h-8 w-8 object-contain drop-shadow"
                   style={{
@@ -308,7 +311,7 @@ export default function MatchLive({
 
               <div className="flex items-center gap-3">
                 <TeamLogo
-                  team={awayFullTeam ?? makeTeamFallback(snapshot.away_team.name)}
+                  team={awayTeam}
                   className="w-10 h-10 rounded-lg flex items-center justify-center font-heading font-bold text-sm overflow-hidden"
                   imageClassName="h-8 w-8 object-contain drop-shadow"
                   style={{
@@ -585,11 +588,11 @@ export default function MatchLive({
                       <span className={`${display.color} font-medium truncate`}>
                         {getPlayerName(snapshot, evt.player_id)}
                       </span>
-                      <Badge variant={evt.side === "Home" ? "primary" : "accent"} size="sm">
-                        {evt.side === "Home"
-                          ? snapshot.home_team.name.substring(0, 3)
-                          : snapshot.away_team.name.substring(0, 3)}
-                      </Badge>
+                      <MatchEventSideBadge
+                        side={evt.side}
+                        homeTeam={homeTeam}
+                        awayTeam={awayTeam}
+                      />
                     </div>
                   );
                 })}

@@ -4,6 +4,7 @@ import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { GameStateData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge, ProgressBar, Button, Checkbox } from "../ui";
 import {
+  contractExpiryLabel,
   formatExactMoney,
   formatVal,
   formatWeeklyAmount,
@@ -165,7 +166,7 @@ function FinancesTabLoaded({
   onGameUpdate,
   onSelectPlayer,
 }: FinancesTabLoadedProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [delegatedRenewalsSummary, setDelegatedRenewalsSummary] = useState<string | null>(null);
   // What the manager has switched off, not what is switched on: everyone at risk is selected until
@@ -700,9 +701,9 @@ function FinancesTabLoaded({
                             {player.full_name}
                           </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400">
-                            {t("finances.contractExpiresOn", {
-                              date: player.contract_end,
-                            })}
+                            {player.contract_end
+                              ? contractExpiryLabel(player.contract_end, i18n.language, t)
+                              : null}
                           </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400">
                             {t("playerProfile.yearsRemaining")}:{" "}

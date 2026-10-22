@@ -87,4 +87,16 @@ describe("SavesList", () => {
     expect(container.querySelector("strong")).not.toBeNull();
     expect(container.textContent).toContain('<img src=x onerror="alert(1)">');
   });
+
+  /**
+   * Given the Load Game list, whose close control is an icon alone
+   * When it is looked up by what a screen reader announces
+   * Then it is named "Close" and shows a focus ring.
+   */
+  it("names its close control and gives it a focus ring", () => {
+    renderList([save()]);
+
+    const close = screen.getByRole("button", { name: "Close" });
+    expect(close).toHaveClass("focus-visible:ring-focus");
+  });
 });

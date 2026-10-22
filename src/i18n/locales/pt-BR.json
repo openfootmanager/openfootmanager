@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} é obrigatório",
     "maxLength": "{{field}} não deve exceder {{max}} caracteres",
-    "minStartYear": "O ano de início deve ser {{min}} ou posterior",
-    "minAge": "O treinador deve ter pelo menos {{min}} anos — altere a data de nascimento para continuar.",
-    "invalidDate": "Data inválida",
-    "invalidDob": "Data de nascimento inválida"
+    "minStartYear": "O ano de início deve ser {{min}} ou posterior"
   },
   "worldSelect": {
     "title": "Escolher Mundo",
@@ -173,6 +170,7 @@
     "digestSimulating": "Simulando...",
     "digestMatchDay": "Dia de jogo",
     "digestMatchDayDesc": "Seu time tem uma partida programada para hoje.",
+    "matchModeMenu": "Escolher modo de partida",
     "digestReturnHome": "Voltar ao início",
     "digestBlocked": "Ação necessária",
     "digestBlockedDesc": "Há problemas que precisam da sua atenção antes de avançar.",
@@ -1948,7 +1946,6 @@
     "alreadyQueued": "Já está na fila para uma substituição",
     "substitutionsPartlyMade": "{{applied}} de {{total}} substituições feitas",
     "substitutionRefused": "Substituição recusada: {{off}} por {{on}}. {{reason}}",
-    "playerRoles": "Funções dos jogadores",
     "roleFor": "Função de {{player}}",
     "roleChangeRefused": "Não foi possível mudar a função de {{player}}. {{reason}}",
     "noBenchAvailable": "Nenhum jogador no banco disponível",
@@ -3569,6 +3566,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: resumo do torneio de pré-temporada",
           "body": "No torneio de pré-temporada, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Os dois times usaram o jogo para ganhar ritmo antes do início oficial da temporada.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Resumo da partida ({{competition}})",
+          "body": "{{competition}}: a partida terminou {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
