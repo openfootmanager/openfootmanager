@@ -2585,7 +2585,11 @@
     "pts": "pts",
     "cupPenalties": "({{home}}–{{away}} aux tirs au but)",
     "cupAdvances": "{{team}} se qualifie",
-    "cupTiesPending": "Certaines rencontres restent à jouer"
+    "cupTiesPending": "Certaines rencontres restent à jouer",
+    "resume": "Reprendre",
+    "pausedResumesAt": "En pause · reprend en {{speed}}",
+    "playingAt": "En cours en {{speed}}",
+    "spaceKey": "Espace"
   },
   "endOfSeason": {
     "seasonComplete": "Saison Terminée",

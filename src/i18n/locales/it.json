@@ -2604,7 +2604,11 @@
     "pts": "pts.",
     "cupPenalties": "({{home}}–{{away}} ai rigori)",
     "cupAdvances": "{{team}} passa il turno",
-    "cupTiesPending": "Alcune sfide sono ancora da giocare"
+    "cupTiesPending": "Alcune sfide sono ancora da giocare",
+    "resume": "Riprendi",
+    "pausedResumesAt": "In pausa · riprende a {{speed}}",
+    "playingAt": "In corso a {{speed}}",
+    "spaceKey": "Spazio"
   },
   "notifications": {
     "attentionRequired": "Attenzione Richiesta",

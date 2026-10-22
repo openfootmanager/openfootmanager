@@ -2585,7 +2585,11 @@
     "pts": "P",
     "cupPenalties": "(penaltılarla {{home}}–{{away}})",
     "cupAdvances": "{{team}} bir üst tura çıktı",
-    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı"
+    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı",
+    "resume": "Devam et",
+    "pausedResumesAt": "Duraklatıldı · {{speed}} hızında sürecek",
+    "playingAt": "{{speed}} hızında oynanıyor",
+    "spaceKey": "Boşluk"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",

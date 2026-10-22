@@ -2585,7 +2585,11 @@
     "pts": "poin",
     "cupPenalties": "({{home}}–{{away}} lewat adu penalti)",
     "cupAdvances": "{{team}} lolos ke babak berikutnya",
-    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan"
+    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan",
+    "resume": "Lanjutkan",
+    "pausedResumesAt": "Dijeda · lanjut dengan {{speed}}",
+    "playingAt": "Berjalan dengan {{speed}}",
+    "spaceKey": "Spasi"
   },
   "endOfSeason": {
     "seasonComplete": "Musim Selesai",

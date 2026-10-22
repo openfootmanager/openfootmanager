@@ -2585,7 +2585,11 @@
     "pts": "b.",
     "cupPenalties": "({{home}}–{{away}} na penalty)",
     "cupAdvances": "{{team}} postupuje dál",
-    "cupTiesPending": "Některá utkání se ještě odehrají"
+    "cupTiesPending": "Některá utkání se ještě odehrají",
+    "resume": "Pokračovat",
+    "pausedResumesAt": "Pozastaveno · pokračuje: {{speed}}",
+    "playingAt": "Běží: {{speed}}",
+    "spaceKey": "Mezerník"
   },
   "endOfSeason": {
     "seasonComplete": "Sezóna dokončena",
