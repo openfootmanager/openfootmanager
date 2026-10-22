@@ -699,19 +699,13 @@
     "bestRole": "最佳角色",
     "formationFit": "阵型适配",
     "startingXi": "首发阵容",
-    "styleFit": "风格适配",
     "starter": "首发",
     "benchOption": "替补",
     "naturalFit": "自然适配",
     "adaptedFit": "适应角色",
     "needsCover": "需要轮换",
     "makeStarter": "设为首发",
-    "sendToBench": "放到替补席",
-    "styleFitValues": {
-      "strong": "风格适配：强",
-      "good": "风格适配：良好",
-      "risky": "风格适配：有风险"
-    }
+    "sendToBench": "放到替补席"
   },
   "tactics": {
     "formationStyle": "阵型与风格",
@@ -894,7 +888,6 @@
     "positionSelector": "战术位置",
     "playablePositions": "可踢位置",
     "slotFit": "位置适配",
-    "styleFit": "风格适配",
     "responsibilities": "职责",
     "noSpecialRoles": "没有特殊角色",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "状态上佳",
       "managing": "需要管理",
       "risk": "风险"
-    },
-    "styleFitLevels": {
-      "strong": "高度适配",
-      "good": "适配良好",
-      "risky": "适配风险高"
     }
   },
   "training": {

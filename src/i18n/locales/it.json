@@ -718,19 +718,13 @@
     "bestRole": "Ruolo migliore",
     "formationFit": "Adattamento al modulo",
     "startingXi": "Undici titolare",
-    "styleFit": "Adattamento allo stile",
     "starter": "Titolare",
     "benchOption": "Panchina",
     "naturalFit": "Adattamento naturale",
     "adaptedFit": "Ruolo adattato",
     "needsCover": "Serve copertura",
     "makeStarter": "Metti titolare",
-    "sendToBench": "Manda in panchina",
-    "styleFitValues": {
-      "strong": "Adattamento allo stile: Forte",
-      "good": "Adattamento allo stile: Buono",
-      "risky": "Adattamento allo stile: Rischioso"
-    }
+    "sendToBench": "Manda in panchina"
   },
   "tactics": {
     "formationStyle": "Formazione e stile",
@@ -913,7 +907,6 @@
     "positionSelector": "Slot tattico",
     "playablePositions": "Posizioni",
     "slotFit": "Adattamento al ruolo",
-    "styleFit": "Adattamento allo stile",
     "responsibilities": "Responsabilità",
     "noSpecialRoles": "Nessun ruolo speciale",
     "moraleLevels": {
@@ -929,11 +922,6 @@
       "sharp": "Brillante",
       "managing": "Da gestire",
       "risk": "Rischio"
-    },
-    "styleFitLevels": {
-      "strong": "Ottimo incastro",
-      "good": "Buon incastro",
-      "risky": "Incastro rischioso"
     }
   },
   "training": {
