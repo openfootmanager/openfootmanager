@@ -412,6 +412,8 @@
     "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",
+    "overallRating": "Overall {{value}}",
+    "overallRatingTier": "Overall {{value}}, tier {{tier}}",
     "noResults": "No results found.",
     "place": {
       "1": "1st",

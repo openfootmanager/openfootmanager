@@ -18,6 +18,7 @@ import {
   PitchToken,
   PlayerAvatar,
   ProgressBar,
+  RatingChip,
   SegmentedControl,
   Select,
   TabPanel,
@@ -269,6 +270,27 @@ function DisplaySection() {
         <Badge size="md">medium</Badge>
         <InjuryBadge injury={{ name: "Hamstring strain", days_remaining: 4 }} />
         <InjuryBadge injury={{ name: "Metatarsal fracture", days_remaining: 42 }} />
+      </Row>
+      <Row>
+        {/* The backend's tiers (S, A, B and the rest), at the row's size and a card's. */}
+        {(
+          [
+            [88, "S"],
+            [79, "A"],
+            [71, "B"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={tier} value={value} tier={tier} />
+        ))}
+        {(
+          [
+            [88, "S"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={`md-${tier}`} value={value} tier={tier} size="md" />
+        ))}
       </Row>
       <div className="grid max-w-md gap-2">
         {(["auto", "primary", "accent", "success", "danger", "muted"] as const).map(
