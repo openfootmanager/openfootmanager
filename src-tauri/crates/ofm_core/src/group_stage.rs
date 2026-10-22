@@ -470,21 +470,33 @@ mod tests {
     #[test]
     fn group_stage_fixtures_carry_their_competitions_fixture_tag() {
         let tags: Vec<(CompetitionType, Vec<FixtureCompetition>)> = [
-            CompetitionType::ContinentalClub,
-            CompetitionType::InternationalClub,
-            CompetitionType::InternationalNation,
-            CompetitionType::FriendlyCup,
-            CompetitionType::Cup,
+            (
+                CompetitionType::ContinentalClub,
+                CompetitionScope::Continental,
+            ),
+            (
+                CompetitionType::InternationalClub,
+                CompetitionScope::International,
+            ),
+            (
+                CompetitionType::InternationalNation,
+                CompetitionScope::International,
+            ),
+            (
+                CompetitionType::FriendlyCup,
+                CompetitionScope::International,
+            ),
+            (CompetitionType::Cup, CompetitionScope::Domestic),
         ]
         .into_iter()
-        .map(|kind| {
+        .map(|(kind, scope)| {
             let cup = generate_group_knockout_cup(
                 "Tagged Cup",
                 2026,
                 &clubs(8),
                 start(),
                 kind.clone(),
-                CompetitionScope::International,
+                scope,
             );
             let mut seen: Vec<FixtureCompetition> = cup
                 .fixtures

@@ -337,7 +337,9 @@ mod tests {
     /// Then its calendar is rejected: only a league table can be a division of a pyramid
     #[test]
     fn a_division_calendar_on_a_knockout_competition_is_rejected() {
-        assert!(calendar_is_rejected(definition("Knockout")));
+        let mut raw = serde_json::to_value(definition("Knockout")).unwrap();
+        raw["type"] = json!("Cup");
+        assert!(calendar_is_rejected(serde_json::from_value(raw).unwrap()));
     }
 
     /// Given a league table that claims a division calendar but is played at continental scope
