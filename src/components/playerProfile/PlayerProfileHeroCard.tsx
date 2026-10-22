@@ -169,7 +169,7 @@ export default function PlayerProfileHeroCard({
               value={showsPrivateState ? `${player.condition}%` : NO_DATA}
               color={
                 !showsPrivateState
-                  ? "text-gray-400"
+                  ? "text-chrome-fg-muted"
                   : player.condition >= 70
                     ? "text-primary-400"
                     : "text-red-400"
@@ -180,7 +180,7 @@ export default function PlayerProfileHeroCard({
               value={showsPrivateState ? `${player.morale}%` : NO_DATA}
               color={
                 !showsPrivateState
-                  ? "text-gray-400"
+                  ? "text-chrome-fg-muted"
                   : player.morale >= 70
                     ? "text-primary-400"
                     : "text-accent-400"
@@ -194,7 +194,7 @@ export default function PlayerProfileHeroCard({
             <QuickStat
               label={t("common.wage")}
               value={showsPrivateState ? formatPlayerWageCompact(player.wage) : NO_DATA}
-              color={showsPrivateState ? "text-white" : "text-gray-400"}
+              color={showsPrivateState ? "text-white" : "text-chrome-fg-muted"}
             />
           </div>
         </div>
@@ -206,7 +206,7 @@ export default function PlayerProfileHeroCard({
           value={showsPrivateState ? `${player.condition}%` : NO_DATA}
           color={
             !showsPrivateState
-              ? "text-gray-400 dark:text-gray-500"
+              ? "text-fg-muted"
               : player.condition >= 70
                 ? "text-primary-500"
                 : "text-red-500"
@@ -217,7 +217,7 @@ export default function PlayerProfileHeroCard({
           value={showsPrivateState ? `${player.morale}%` : NO_DATA}
           color={
             !showsPrivateState
-              ? "text-gray-400 dark:text-gray-500"
+              ? "text-fg-muted"
               : player.morale >= 70
                 ? "text-primary-500"
                 : "text-accent-500"
@@ -231,11 +231,7 @@ export default function PlayerProfileHeroCard({
         <MobileQuickStat
           label={t("common.wage")}
           value={showsPrivateState ? formatPlayerWageCompact(player.wage) : NO_DATA}
-          color={
-            showsPrivateState
-              ? "text-gray-700 dark:text-gray-200"
-              : "text-gray-400 dark:text-gray-500"
-          }
+          color={showsPrivateState ? "text-gray-700 dark:text-gray-200" : "text-fg-muted"}
         />
       </div>
     </Card>
