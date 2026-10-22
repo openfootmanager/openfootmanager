@@ -195,15 +195,24 @@ impl<'a> IntoIterator for &'a MovementLedger {
     }
 }
 
+/// What a ledger writes into a player, under the keys [`LedgerKeys`] reads back.
+#[derive(Serialize)]
+struct LedgerWire<'a> {
+    movement_history: &'a [PlayerMovementEntry],
+    wage: u32,
+    contract_start: Option<&'a str>,
+    contract_end: Option<&'a str>,
+}
+
 impl Serialize for MovementLedger {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeMap;
-        let mut map = serializer.serialize_map(Some(4))?;
-        map.serialize_entry("movement_history", &self.entries)?;
-        map.serialize_entry("wage", &self.wage())?;
-        map.serialize_entry("contract_start", &self.start())?;
-        map.serialize_entry("contract_end", &self.end())?;
-        map.end()
+        LedgerWire {
+            movement_history: &self.entries,
+            wage: self.wage(),
+            contract_start: self.start(),
+            contract_end: self.end(),
+        }
+        .serialize(serializer)
     }
 }
 

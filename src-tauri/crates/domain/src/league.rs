@@ -270,15 +270,32 @@ pub struct Fixture {
     pub postponement: Option<Postponement>,
 }
 
-/// Written by hand, not derived, to add `competitive` and `advancing_team_id` to what the screens
-/// receive. Both are computed (from `competition`, from `result`), not fields; but every serializer
-/// of a fixture, including the save's JSON, writes them, and `Deserialize` ignores them on the way
-/// back in (a saved fixture loads with or without them). `advancing_team_id` is the side a knockout
-/// tie sends on, so a screen reads it for knockout fixtures only. The destructuring below makes a new `Fixture` field a compile error here,
-/// so it cannot be dropped from every save unnoticed.
+/// A fixture as every serializer writes it, the save's JSON included: its fields plus
+/// `competitive` and `advancing_team_id`, which are computed (from `competition`, from `result`)
+/// so no screen decides them again. `Deserialize` ignores both on the way back in, so a saved
+/// fixture loads with or without them. `advancing_team_id` is the side a knockout tie sends on, so
+/// a screen reads it for knockout fixtures only.
+#[derive(Serialize)]
+#[serde(rename = "Fixture")]
+struct FixtureWire<'a> {
+    id: &'a str,
+    competition_id: &'a str,
+    matchday: u32,
+    date: &'a str,
+    home_team_id: &'a str,
+    away_team_id: &'a str,
+    competition: &'a FixtureCompetition,
+    status: &'a FixtureStatus,
+    result: Option<&'a MatchResult>,
+    postponement: Option<&'a Postponement>,
+    competitive: bool,
+    advancing_team_id: Option<&'a str>,
+}
+
+/// The destructuring makes a new `Fixture` field a compile error here, so it cannot be dropped
+/// from every save unnoticed.
 impl Serialize for Fixture {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
         let Fixture {
             id,
             competition_id,
@@ -291,20 +308,21 @@ impl Serialize for Fixture {
             result,
             postponement,
         } = self;
-        let mut fixture = serializer.serialize_struct("Fixture", 12)?;
-        fixture.serialize_field("id", id)?;
-        fixture.serialize_field("competition_id", competition_id)?;
-        fixture.serialize_field("matchday", matchday)?;
-        fixture.serialize_field("date", date)?;
-        fixture.serialize_field("home_team_id", home_team_id)?;
-        fixture.serialize_field("away_team_id", away_team_id)?;
-        fixture.serialize_field("competition", competition)?;
-        fixture.serialize_field("status", status)?;
-        fixture.serialize_field("result", result)?;
-        fixture.serialize_field("postponement", postponement)?;
-        fixture.serialize_field("competitive", &self.is_competitive())?;
-        fixture.serialize_field("advancing_team_id", &self.advancing_team_id())?;
-        fixture.end()
+        FixtureWire {
+            id,
+            competition_id,
+            matchday: *matchday,
+            date,
+            home_team_id,
+            away_team_id,
+            competition,
+            status,
+            result: result.as_ref(),
+            postponement: postponement.as_ref(),
+            competitive: self.is_competitive(),
+            advancing_team_id: self.advancing_team_id(),
+        }
+        .serialize(serializer)
     }
 }
 
