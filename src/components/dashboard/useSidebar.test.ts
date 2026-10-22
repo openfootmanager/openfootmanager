@@ -141,6 +141,38 @@ describe("useSidebar", () => {
   });
 
   /**
+   * Given Normal in a narrow window, the drawer opened from its button
+   * When the window widens until the sidebar sits open in the page, Esc is pressed (say to close a
+   * dialog), and the window narrows again
+   * Then the drawer is gone with the overlay: Esc is not the sidebar's (its focus stays put), and
+   * the narrow window shows the rail, not a drawer left open.
+   */
+  it("forgets an open drawer once the window is wide enough to hold the sidebar", () => {
+    setWindowWidth(880);
+    const onEscape = vi.fn();
+    const { result } = renderHook(() => useSidebar(settings("normal"), onEscape));
+    act(() => result.current.toggle());
+    expect(result.current.layout).toMatchObject({ slot: "rail", overlay: true });
+
+    act(() => {
+      setWindowWidth(1280);
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(result.current.layout).toMatchObject({ slot: "standard", overlay: false });
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(onEscape).not.toHaveBeenCalled();
+
+    act(() => {
+      setWindowWidth(880);
+      window.dispatchEvent(new Event("resize"));
+    });
+    expect(result.current.layout).toMatchObject({ drawn: "rail", overlay: false });
+  });
+
+  /**
    * Given the hook has gone (the dashboard left the screen)
    * When it unmounts
    * Then it stops listening to the window and stops watching the root's style.

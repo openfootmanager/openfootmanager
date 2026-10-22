@@ -87,8 +87,16 @@ export function useSidebar(settings: SidebarSettings, onEscape?: () => void): Si
     timer.current = setTimeout(() => setOverlayOpen(open), delay);
   }, []);
 
+  // An overlay the layout no longer draws (the window widened until the sidebar fits in the page)
+  // is forgotten, so it doesn't come back open when the window narrows again.
   useEffect(() => {
-    if (!overlayOpen) return;
+    if (overlayOpen && !layout.overlay) setOverlayOpen(false);
+  }, [overlayOpen, layout.overlay]);
+
+  // The listeners follow the overlay as drawn, not the request: a request the layout ignores must
+  // not take Esc from the page (a dialog's, say).
+  useEffect(() => {
+    if (!layout.overlay) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       clearTimeout(timer.current);
@@ -98,19 +106,19 @@ export function useSidebar(settings: SidebarSettings, onEscape?: () => void): Si
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [overlayOpen, hover, onEscape]);
+  }, [layout.overlay, hover, onEscape]);
 
   // A drawer closes on a click outside it. No full-screen backdrop catches that click: the only
   // full-screen overlay is ui/Dialog's (design rule 4), and the page should stay usable around it.
   useEffect(() => {
-    if (!overlayOpen || !layout.closesOnOutsideClick) return;
+    if (!layout.overlay || !layout.closesOnOutsideClick) return;
     function handlePointerDown(event: PointerEvent) {
       if (asideRef.current?.contains(event.target as Node)) return;
       setOverlayOpen(false);
     }
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
-  }, [overlayOpen, layout.closesOnOutsideClick]);
+  }, [layout.overlay, layout.closesOnOutsideClick]);
 
   return {
     layout,
