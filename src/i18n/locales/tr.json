@@ -1616,6 +1616,7 @@
     "dateOfBirth": "Doğum Tarihi",
     "noContract": "Sözleşme yok",
     "weeklyWage": "Haftalık Maaş",
+    "approximateWage": "yaklaşık {{wage}}",
     "annualWage": "Yıllık Maaş",
     "yearsRemaining": "Kalan Yıl",
     "contractRisk": "Sözleşme Riski",

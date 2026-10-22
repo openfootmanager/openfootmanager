@@ -1,6 +1,6 @@
 import type { PlayerKnowledge } from "../services/scoutingService";
 
-/** The club sees his live rating, attributes and potential: he is its own, or in its division. */
+/** The club sees his live rating and attributes: he is its own, or plays in its division. */
 export function knowsPlayerRating(knowledge: PlayerKnowledge): boolean {
   return knowledge.kind === "own" || knowledge.kind === "known";
 }

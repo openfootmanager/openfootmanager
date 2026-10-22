@@ -1922,6 +1922,10 @@ describe("PlayerProfile shows only what the club knows", () => {
     );
   }
 
+  // The contract card's weekly wage row: its value, apart from its label.
+  const contractWageValue = () =>
+    screen.getByText("Weekly Wage").parentElement?.textContent?.replace("Weekly Wage", "").trim();
+
   const showsWage = () =>
     screen.queryAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "12K")).length >
     0;
@@ -1942,6 +1946,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(screen.queryByText("80%")).not.toBeInTheDocument();
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
     expect(showsWage()).toBe(false);
+    expect(contractWageValue()).toBe("–");
     expect(screen.queryByText(/Wonderkid/)).not.toBeInTheDocument();
     expect(screen.getAllByText("€350K").length).toBeGreaterThan(0);
   });
@@ -1963,6 +1968,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(screen.queryByText("80%")).not.toBeInTheDocument();
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
     expect(showsWage()).toBe(false);
+    expect(contractWageValue()).toBe("–");
   });
 
   /**
@@ -1996,6 +2002,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(screen.queryByText(/Wonderkid/)).not.toBeInTheDocument();
     expect(screen.queryByText("80%")).not.toBeInTheDocument();
     expect(showsWage()).toBe(false);
+    expect(contractWageValue()).toBe("–");
   });
 
   /**
@@ -2012,6 +2019,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(screen.getAllByText("80%").length).toBeGreaterThan(0);
     expect(screen.getAllByText("75%").length).toBeGreaterThan(0);
     expect(showsWage()).toBe(true);
+    expect(contractWageValue()).not.toBe("–");
     expect(screen.getByText(/Wonderkid/)).toBeInTheDocument();
   });
 });
