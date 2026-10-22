@@ -2235,6 +2235,42 @@ fn manager_career_stats_updated() {
     assert_eq!(game.manager.career_stats.losses, 0);
 }
 
+/// Given a finished season in which Rival FC (team2), managed by another manager, lost both matches
+/// When the season ends
+/// Then his record has that season too, not only the user's: two matches, two defeats, last place
+#[test]
+fn another_clubs_manager_has_his_season_on_his_record() {
+    let mut game = make_completed_season_game();
+    let mut rival_boss = Manager::new(
+        "mgr2".to_string(),
+        "Rival".to_string(),
+        "Boss".to_string(),
+        "1978-01-01".to_string(),
+        "England".to_string(),
+    );
+    rival_boss.hire("team2".to_string());
+    game.managers.push(rival_boss);
+    // A generated world's league, which the rollover can archive: its clubs, and a calendar that
+    // says it is a double round robin.
+    let league = game.league.as_mut().unwrap();
+    league.participant_ids = vec!["team1".to_string(), "team2".to_string()];
+    league.calendar = Some(domain::competition_calendar::CalendarMetadata {
+        league_legs: Some(2),
+        ..Default::default()
+    });
+    for fixture in &mut league.fixtures {
+        fixture.competition_id = league.id.clone();
+    }
+
+    process_end_of_season(&mut game);
+
+    let rival_boss = game.managers.iter().find(|m| m.id == "mgr2").unwrap();
+    assert_eq!(rival_boss.career_stats.matches_managed, 2);
+    assert_eq!(rival_boss.career_stats.losses, 2);
+    assert_eq!(rival_boss.career_stats.best_finish, Some(2));
+    assert_eq!(game.manager.career_stats.matches_managed, 2);
+}
+
 #[test]
 fn manager_trophy_awarded_for_first_place() {
     let mut game = make_completed_season_game();
