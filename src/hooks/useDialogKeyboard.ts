@@ -4,6 +4,13 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
+ * The dialogs open now, in the order they opened; the last is on top (it renders later, so it is
+ * drawn over the others). Every dialog listens on the window, so without this one Escape would
+ * close them all, and a busy dialog on top couldn't stop the one beneath from closing.
+ */
+const openDialogs: RefObject<HTMLElement | null>[] = [];
+
+/**
  * Escape asks to close, Tab stays inside, focus returns where it was. Shared so the dialogs cannot
  * drift apart.
  *
@@ -15,7 +22,17 @@ export function useDialogKeyboard(
   onEscape: () => void,
 ): void {
   useEffect(() => {
+    openDialogs.push(dialogRef);
+    return () => {
+      const index = openDialogs.lastIndexOf(dialogRef);
+      if (index !== -1) openDialogs.splice(index, 1);
+    };
+  }, [dialogRef]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Escape and Tab belong to the dialog on top.
+      if (openDialogs[openDialogs.length - 1] !== dialogRef) return;
       if (event.key === "Escape") {
         // A control inside the dialog (an open menu, a select list) that already used this Escape
         // to close itself has handled it; the dialog stays.

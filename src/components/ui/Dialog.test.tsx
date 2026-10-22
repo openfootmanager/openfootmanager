@@ -246,6 +246,43 @@ describe("Dialog", () => {
   });
 
   /**
+   * Given two dialogs open at once, the later one on top (the window's close confirmation over an
+   * advance)
+   * When the player presses Escape
+   * Then only the top one is asked to close; the one under it stays as it is. And a busy dialog on
+   * top, which can't close, doesn't let Escape through to close the one beneath.
+   */
+  it.each([
+    ["a closable dialog", true],
+    ["a busy dialog", false],
+  ])("gives Escape to the top dialog only, when it is %s", (_top, topCloses) => {
+    const under = vi.fn();
+    const top = vi.fn();
+    render(
+      <>
+        <Dialog labelledBy="under" onClose={under}>
+          <h2 id="under">Under</h2>
+          <button type="button">Under's button</button>
+        </Dialog>
+        {topCloses ? (
+          <Dialog labelledBy="top" onClose={top}>
+            <h2 id="top">Top</h2>
+          </Dialog>
+        ) : (
+          <Dialog labelledBy="top" busy>
+            <h2 id="top">Top</h2>
+          </Dialog>
+        )}
+      </>,
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(under).not.toHaveBeenCalled();
+    if (topCloses) expect(top).toHaveBeenCalledOnce();
+  });
+
+  /**
    * Given a dialog with nothing to focus in it (a "Saving…" spinner), the focus on its panel
    * When the player presses Tab, or Shift+Tab
    * Then the key is kept from the browser and the focus stays on the panel, rather than moving to
