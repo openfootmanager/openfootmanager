@@ -283,7 +283,7 @@ vi.mock("../components/dashboard/DashboardSidebar", () => ({
     competitionName,
   }: {
     onExitClick: () => void;
-    onNavClick: (tab: string) => void;
+    onNavClick: (tab: string, options?: { fromDrawer: boolean }) => void;
     activeTab: string;
     competitionName?: string | null;
   }) => (
@@ -298,6 +298,9 @@ vi.mock("../components/dashboard/DashboardSidebar", () => ({
       </button>
       <button type="button" onClick={() => onNavClick("Managers")}>
         nav-managers
+      </button>
+      <button type="button" onClick={() => onNavClick("Squad", { fromDrawer: true })}>
+        nav-squad-from-drawer
       </button>
     </div>
   ),
@@ -323,7 +326,9 @@ vi.mock("../components/dashboard/DashboardHeader", () => ({
         <button type="button" onClick={onSave}>
           {t("common.save")}
         </button>
-        <span>Header {title}</span>
+        <h2 data-page-title tabIndex={-1}>
+          Header {title}
+        </h2>
         <button type="button" onClick={onBack}>
           header-back
         </button>
@@ -493,6 +498,24 @@ describe("Dashboard", () => {
   }
 
   /** Given a dirty career, when Save & Quit succeeds, then saving precedes closing the window. */
+  /**
+   * Given the sidebar open as a drawer over the page
+   * When the player chooses a page from it, and then a page from the sidebar itself
+   * Then the new page's heading takes the focus after the drawer, so a keyboard player lands on the
+   * page; a choice from the open sidebar leaves the focus where it is.
+   */
+  it("moves the focus to the page heading after a page chosen from the drawer", async () => {
+    render(<Dashboard />);
+    fireEvent.click(await screen.findByRole("button", { name: "nav-squad-from-drawer" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: /Header/ })).toHaveFocus());
+
+    const inbox = screen.getByRole("button", { name: "nav-inbox" });
+    inbox.focus();
+    fireEvent.click(inbox);
+    await waitFor(() => expect(screen.getByText("Sidebar Inbox")).toBeInTheDocument());
+    expect(inbox).toHaveFocus();
+  });
+
   it("closes the window after a successful save", async () => {
     isDirty = true;
     render(<Dashboard />);

@@ -328,7 +328,11 @@ export default function DashboardHeader({
           </button>
         )}
         <div className="min-w-0">
+          {/* Focusable from script only: after a page is chosen from the sidebar's drawer, the
+              focus lands here, on the page, rather than going back to the sidebar. */}
           <h2
+            data-page-title
+            tabIndex={-1}
             className="max-w-64 truncate font-heading text-title font-bold uppercase tracking-label text-fg"
             title={title}
           >
