@@ -43,7 +43,10 @@ mod tests {
 
         assert_eq!(table.len(), Position::ALL.len());
         for position in Position::ALL {
-            let entries = table.iter().filter(|entry| entry.position == position).count();
+            let entries = table
+                .iter()
+                .filter(|entry| entry.position == position)
+                .count();
             assert_eq!(entries, 1, "{position:?}");
         }
     }
@@ -55,10 +58,22 @@ mod tests {
     fn the_table_follows_the_domain_rule() {
         let table = position_groups();
 
-        assert_eq!(group_of(&table, Position::RightWingBack), Some(Position::Defender));
-        assert_eq!(group_of(&table, Position::LeftWinger), Some(Position::Forward));
-        assert_eq!(group_of(&table, Position::DefensiveMidfielder), Some(Position::Midfielder));
-        assert_eq!(group_of(&table, Position::Goalkeeper), Some(Position::Goalkeeper));
+        assert_eq!(
+            group_of(&table, Position::RightWingBack),
+            Some(Position::Defender)
+        );
+        assert_eq!(
+            group_of(&table, Position::LeftWinger),
+            Some(Position::Forward)
+        );
+        assert_eq!(
+            group_of(&table, Position::DefensiveMidfielder),
+            Some(Position::Midfielder)
+        );
+        assert_eq!(
+            group_of(&table, Position::Goalkeeper),
+            Some(Position::Goalkeeper)
+        );
     }
 
     /// Given the table of position groups,
