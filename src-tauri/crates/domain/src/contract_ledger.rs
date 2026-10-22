@@ -428,6 +428,76 @@ mod tests {
         )
     }
 
+    /// The ledger is only ever written flattened into a player, between his other fields.
+    #[derive(Serialize)]
+    struct FlattenedLedger<'a> {
+        before: u8,
+        #[serde(flatten)]
+        ledger: &'a MovementLedger,
+        after: u8,
+    }
+
+    fn flattened_json(ledger: &MovementLedger) -> String {
+        serde_json::to_string(&FlattenedLedger {
+            before: 1,
+            ledger,
+            after: 2,
+        })
+        .unwrap()
+    }
+
+    /// Given a ledger with a contract staged from a save's old columns and no entries
+    /// When it is written into a player
+    /// Then its four keys sit in place, in order, carrying the staged terms.
+    #[test]
+    fn a_staged_contract_is_written_under_the_old_keys() {
+        let ledger = MovementLedger::restore(
+            Vec::new(),
+            Some("2026-07-01".into()),
+            Some("2029-06-30".into()),
+            1200,
+        );
+
+        assert_eq!(
+            flattened_json(&ledger),
+            concat!(
+                r#"{"before":1,"movement_history":[],"wage":1200,"#,
+                r#""contract_start":"2026-07-01","contract_end":"2029-06-30","after":2}"#,
+            )
+        );
+    }
+
+    /// Given a ledger whose latest entry records a transfer with terms
+    /// When it is written into a player
+    /// Then the entries and the recorded terms are written under the same four keys.
+    #[test]
+    fn a_recorded_contract_is_written_under_the_old_keys() {
+        let entry = PlayerMovementEntry {
+            from_team_id: Some("old".into()),
+            to_team_id: Some("new".into()),
+            fee: Some(5_000_000),
+            contract: Some(ContractRecord {
+                start: Some("2026-07-01".into()),
+                end: Some("2030-06-30".into()),
+                weekly_wage: 900,
+                source: ContractSource::Transfer,
+            }),
+            ..PlayerMovementEntry::new("2026-07-01", PlayerMovementKind::PermanentTransfer)
+        };
+        let ledger = MovementLedger::restore(vec![entry], None, None, 0);
+
+        assert_eq!(
+            flattened_json(&ledger),
+            concat!(
+                r#"{"before":1,"movement_history":[{"date":"2026-07-01","#,
+                r#""kind":"permanent_transfer","from_team_id":"old","to_team_id":"new","#,
+                r#""fee":5000000,"contract":{"start":"2026-07-01","end":"2030-06-30","#,
+                r#""weekly_wage":900,"source":"transfer"}}],"wage":900,"#,
+                r#""contract_start":"2026-07-01","contract_end":"2030-06-30","after":2}"#,
+            )
+        );
+    }
+
     fn contract(
         start: Option<&str>,
         end: &str,

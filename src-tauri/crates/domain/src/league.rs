@@ -682,6 +682,37 @@ mod tests {
         assert!(serde_json::to_value(&unplayed).unwrap()["advancing_team_id"].is_null());
     }
 
+    /// Given a played, postponed knockout fixture with every field set
+    /// When it is serialised
+    /// Then the JSON is exactly what screens and saves have always read, keys in the same order.
+    #[test]
+    fn a_serialised_fixture_keeps_its_exact_shape() {
+        let fixture = Fixture {
+            id: "fx-1".to_string(),
+            competition_id: "eng-cup".to_string(),
+            matchday: 3,
+            date: "2026-11-07".to_string(),
+            postponement: Some(Postponement {
+                original_date: "2026-10-10".to_string(),
+                reason: RescheduleReason::InternationalWindow,
+            }),
+            status: FixtureStatus::Completed,
+            ..knockout_fixture(1, 1, Some((3, 4)))
+        };
+
+        assert_eq!(
+            serde_json::to_string(&fixture).unwrap(),
+            concat!(
+                r#"{"id":"fx-1","competition_id":"eng-cup","matchday":3,"date":"2026-11-07","#,
+                r#""home_team_id":"home","away_team_id":"away","competition":"Cup","#,
+                r#""status":"Completed","result":{"home_goals":1,"away_goals":1,"#,
+                r#""home_scorers":[],"away_scorers":[],"report":null,"home_penalties":3,"#,
+                r#""away_penalties":4},"postponement":{"original_date":"2026-10-10","#,
+                r#""reason":"InternationalWindow"},"competitive":true,"advancing_team_id":"away"}"#,
+            )
+        );
+    }
+
     /// Given a fixture saved before the field existed, or carrying it
     /// When it is read back
     /// Then it loads either way: the answers are computed, never stored.
