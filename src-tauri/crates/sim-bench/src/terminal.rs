@@ -289,18 +289,19 @@ fn metric(label: &str, value: f64, decimals: usize) {
 /// measures; anything else gets a quiet dot (inside) or bang (outside).
 fn calibration(verdicts: &[Verdict]) {
     section("CALIBRATION BANDS");
+    println!("{}", calibration_text(verdicts));
+}
+
+fn calibration_text(verdicts: &[Verdict]) -> String {
     let mut table = Table::new();
     table.load_preset(comfy_table::presets::UTF8_FULL);
     table.set_header(vec!["Metric", "Value", "Band", "Source", ""]);
     for verdict in verdicts {
-        let (source, judged) = match &verdict.provenance {
-            Provenance::Measured { seasons, .. } => (
-                format!("measured, {seasons}"),
-                verdict.not_comparable.is_none(),
-            ),
-            Provenance::Unsourced => ("unsourced".dimmed().to_string(), false),
+        let source = match &verdict.provenance {
+            Provenance::Measured { seasons, .. } => format!("measured, {seasons}"),
+            Provenance::Unsourced => "unsourced".dimmed().to_string(),
         };
-        let mark = match (judged, verdict.inside) {
+        let mark = match (verdict.is_judged(), verdict.inside) {
             (true, true) => "✓".green().bold().to_string(),
             (true, false) => "✗".red().bold().to_string(),
             (false, true) => "·".dimmed().to_string(),
@@ -314,7 +315,7 @@ fn calibration(verdicts: &[Verdict]) {
             Cell::new(mark),
         ]);
     }
-    println!("{table}");
+    let mut text = format!("{table}\n");
     if let Some(Provenance::Measured {
         source,
         competitions,
@@ -325,10 +326,10 @@ fn calibration(verdicts: &[Verdict]) {
         .map(|verdict| &verdict.provenance)
         .find(|provenance| matches!(provenance, Provenance::Measured { .. }))
     {
-        println!(
-            "  {} {source}: {competitions} (retrieved {retrieved})",
+        text.push_str(&format!(
+            "  {} {source}: {competitions} (retrieved {retrieved})\n",
             "measured:".dimmed()
-        );
+        ));
     }
     let caveated: Vec<&str> = verdicts
         .iter()
@@ -336,12 +337,39 @@ fn calibration(verdicts: &[Verdict]) {
         .map(|verdict| verdict.label)
         .collect();
     if let Some(reason) = verdicts.iter().find_map(|verdict| verdict.not_comparable) {
-        println!(
-            "  {} {}: {}",
+        text.push_str(&format!(
+            "  {} {}: {}\n",
             "n/c".dimmed(),
             caveated.join(", "),
             reason.dimmed()
-        );
+        ));
     }
-    println!();
+    text
+}
+
+#[cfg(test)]
+mod tests {
+    use super::calibration_text;
+    use crate::stats::BenchStats;
+
+    /// Given a run's verdicts,
+    /// When the calibration table is drawn,
+    /// Then it names every band, cites the measured source once, and gives the one-fixture
+    /// caveat once for all the bands it covers.
+    #[test]
+    fn the_calibration_table_names_every_band_and_gives_the_caveat_once() {
+        let stats = BenchStats {
+            games: 100,
+            ..BenchStats::default()
+        };
+        let verdicts = crate::targets::evaluate(&stats).unwrap();
+
+        let text = calibration_text(&verdicts);
+
+        for verdict in &verdicts {
+            assert!(text.contains(verdict.label), "{} is missing", verdict.label);
+        }
+        assert_eq!(text.matches("openfootball").count(), 1);
+        assert_eq!(text.matches("the bench replays one fixture").count(), 1);
+    }
 }

@@ -779,9 +779,7 @@ fn targets_table(verdicts: &[Verdict]) -> String {
             } => format!(r#"<span title="{source}: {competitions}">measured, {seasons}</span>"#),
             Provenance::Unsourced => "unsourced".to_string(),
         };
-        let judged = matches!(verdict.provenance, Provenance::Measured { .. })
-            && verdict.not_comparable.is_none();
-        let badge = match (judged, verdict.inside) {
+        let badge = match (verdict.is_judged(), verdict.inside) {
             (true, true) => r#"<span class="tag tag-ok">✓ OK</span>"#.to_string(),
             (true, false) => r#"<span class="tag tag-bad">✗ Off target</span>"#.to_string(),
             (false, inside) => {
@@ -868,5 +866,52 @@ fn range_class(value: f64, lo: f64, hi: f64) -> &'static str {
         "ok"
     } else {
         "bad"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{generate_html, RunConfig};
+    use crate::stats::BenchStats;
+
+    /// Given a run's verdicts,
+    /// When the HTML report is written,
+    /// Then its benchmark table lists every band with its source, and marks the bands it cannot
+    /// judge as not judged rather than ticking them.
+    #[test]
+    fn the_report_lists_every_band_with_its_source() {
+        let stats = BenchStats {
+            games: 100,
+            ..BenchStats::default()
+        };
+        let verdicts = crate::targets::evaluate(&stats).unwrap();
+        let cfg = RunConfig {
+            home_name: "Home FC",
+            away_name: "Away FC",
+            home_style: "Balanced",
+            away_style: "Balanced",
+            home_formation: "4-4-2",
+            away_formation: "4-4-2",
+            home_rating: 70,
+            away_rating: 70,
+            goal_conversion_base: 0.36,
+            seed: Some(1),
+        };
+
+        let html = generate_html(&stats, &cfg, &verdicts);
+
+        for verdict in &verdicts {
+            assert!(html.contains(verdict.label), "{} is missing", verdict.label);
+        }
+        assert!(html.contains("measured, 2014-15 to 2023-24"));
+        assert!(html.contains("unsourced"));
+        assert!(
+            !html.contains("✓ OK"),
+            "no band in this table can be judged"
+        );
+        assert!(
+            !html.contains("Off target"),
+            "no band in this table can be judged"
+        );
     }
 }

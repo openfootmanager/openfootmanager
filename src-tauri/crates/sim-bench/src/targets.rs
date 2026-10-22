@@ -81,6 +81,14 @@ pub struct Verdict {
     pub not_comparable: Option<&'static str>,
 }
 
+impl Verdict {
+    /// Whether the band can say the engine is right or wrong here: measured, and measuring what
+    /// the bench plays. Anything else is shown for orientation only.
+    pub fn is_judged(&self) -> bool {
+        matches!(self.provenance, Provenance::Measured { .. }) && self.not_comparable.is_none()
+    }
+}
+
 #[derive(Deserialize)]
 struct Artifact {
     source: ArtifactSource,
@@ -337,6 +345,7 @@ pub fn all() -> Result<Vec<Target>, String> {
     ])
 }
 
+/// Both edges of a band count as inside it.
 pub fn verdict(target: &Target, stats: &BenchStats) -> Verdict {
     let value = (target.read)(stats);
     Verdict {
@@ -351,6 +360,7 @@ pub fn verdict(target: &Target, stats: &BenchStats) -> Verdict {
     }
 }
 
+/// Fails only if the compiled-in scoreline artifact cannot be read or lacks a band.
 pub fn evaluate(stats: &BenchStats) -> Result<Vec<Verdict>, String> {
     Ok(all()?.iter().map(|target| verdict(target, stats)).collect())
 }
@@ -434,6 +444,65 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Given a rate and a percentage,
+    /// When they and their bands are printed,
+    /// Then both read to two decimals, so a value just past a measured edge never prints equal
+    /// to it.
+    #[test]
+    fn a_rate_and_a_percentage_read_to_two_decimals() {
+        assert_eq!(Unit::PerGame.value(2.982), "2.98");
+        assert_eq!(Unit::PerGame.band(2.5547, 3.1232), "2.55–3.12");
+        assert_eq!(Unit::Percent.value(59.1968), "59.20%");
+        assert_eq!(Unit::Percent.band(48.3158, 59.183), "48.32–59.18%");
+    }
+
+    /// Given a finished run,
+    /// When it is evaluated,
+    /// Then every band in the table gets a verdict, in the table's order.
+    #[test]
+    fn every_band_in_the_table_gets_a_verdict() {
+        let stats = BenchStats {
+            games: 100,
+            ..BenchStats::default()
+        };
+        let labels: Vec<&str> = evaluate(&stats)
+            .unwrap()
+            .iter()
+            .map(|verdict| verdict.label)
+            .collect();
+        let expected: Vec<&str> = table().iter().map(|target| target.label).collect();
+        assert_eq!(labels, expected);
+    }
+
+    fn verdict_with(provenance: Provenance, not_comparable: Option<&'static str>) -> Verdict {
+        Verdict {
+            label: "Goals/game",
+            unit: Unit::PerGame,
+            value: 2.8,
+            low: 2.5,
+            high: 3.1,
+            inside: true,
+            provenance,
+            not_comparable,
+        }
+    }
+
+    /// Given a measured band the bench plays, a measured band it does not, and an unsourced one,
+    /// When each is asked whether it is judged,
+    /// Then only the first is.
+    #[test]
+    fn only_a_measured_band_the_bench_plays_is_judged() {
+        let measured = Provenance::Measured {
+            source: "s".into(),
+            competitions: "c".into(),
+            seasons: "s".into(),
+            retrieved: "r".into(),
+        };
+        assert!(verdict_with(measured.clone(), None).is_judged());
+        assert!(!verdict_with(measured, Some(ONE_FIXTURE_IS_NOT_A_LEAGUE)).is_judged());
+        assert!(!verdict_with(Provenance::Unsourced, None).is_judged());
     }
 
     /// Given a value exactly on a band's edge, and one just outside it,

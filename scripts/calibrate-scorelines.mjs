@@ -53,6 +53,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 /** The upstream revision these bands were derived from. */
 const PINNED_COMMIT = "4e4146c901b62bcafa1b6deabb7e4a3fccdc9b1f";
@@ -220,7 +221,7 @@ function main() {
   };
 
   const out = path.join(
-    path.dirname(new URL(import.meta.url).pathname),
+    path.dirname(fileURLToPath(import.meta.url)),
     "..",
     "src-tauri",
     "crates",
