@@ -132,6 +132,28 @@ pub enum Position {
 }
 
 impl Position {
+    /// Every position, so a table over positions cannot miss one: the exhaustive match in the
+    /// tests fails to compile when a variant is added and not listed here.
+    pub const ALL: [Position; 17] = [
+        Position::Goalkeeper,
+        Position::Defender,
+        Position::Midfielder,
+        Position::Forward,
+        Position::RightBack,
+        Position::CenterBack,
+        Position::LeftBack,
+        Position::RightWingBack,
+        Position::LeftWingBack,
+        Position::DefensiveMidfielder,
+        Position::CentralMidfielder,
+        Position::AttackingMidfielder,
+        Position::RightMidfielder,
+        Position::LeftMidfielder,
+        Position::RightWinger,
+        Position::LeftWinger,
+        Position::Striker,
+    ];
+
     /// Every role a player in this position may be given, `Standard` first.
     ///
     /// This is the canonical backend table. It lived in the Tauri command layer,
@@ -859,6 +881,36 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given the list of every position,
+    /// When it is checked against an exhaustive match over the enum,
+    /// Then each variant is listed once; adding a variant breaks the match until it is listed.
+    #[test]
+    fn position_all_lists_every_variant_once() {
+        let listed = |position: &Position| Position::ALL.iter().filter(|p| *p == position).count();
+        for position in Position::ALL {
+            // Exhaustive: a new variant is a compile error here, which is the prompt to list it.
+            match position {
+                Position::Goalkeeper
+                | Position::Defender
+                | Position::Midfielder
+                | Position::Forward
+                | Position::RightBack
+                | Position::CenterBack
+                | Position::LeftBack
+                | Position::RightWingBack
+                | Position::LeftWingBack
+                | Position::DefensiveMidfielder
+                | Position::CentralMidfielder
+                | Position::AttackingMidfielder
+                | Position::RightMidfielder
+                | Position::LeftMidfielder
+                | Position::RightWinger
+                | Position::LeftWinger
+                | Position::Striker => assert_eq!(listed(&position), 1, "{position:?}"),
+            }
+        }
+    }
 
     fn sample_attributes() -> PlayerAttributes {
         PlayerAttributes {
