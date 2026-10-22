@@ -699,19 +699,13 @@
     "bestRole": "Beste Rolle",
     "formationFit": "Vertrautheit",
     "startingXi": "Startelf",
-    "styleFit": "Stileignung",
     "starter": "Startelf",
     "benchOption": "Bank",
     "naturalFit": "Natürliche Position",
     "adaptedFit": "Kann dort spielen",
     "needsCover": "Benötigt Ersatz",
     "makeStarter": "In die Startelf",
-    "sendToBench": "Auf die Bank",
-    "styleFitValues": {
-      "strong": "Stileignung: Stark",
-      "good": "Stileignung: Gut",
-      "risky": "Stileignung: Riskant"
-    }
+    "sendToBench": "Auf die Bank"
   },
   "tactics": {
     "formationStyle": "Formation & Stil",
@@ -894,7 +888,6 @@
     "positionSelector": "Taktik-Slot",
     "playablePositions": "Positionen",
     "slotFit": "Slot-Eignung",
-    "styleFit": "Stileignung",
     "responsibilities": "Verantwortlichkeiten",
     "noSpecialRoles": "Keine Sonderrollen",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "Scharf",
       "managing": "Verwaltet",
       "risk": "Risiko"
-    },
-    "styleFitLevels": {
-      "strong": "Starke Übereinstimmung",
-      "good": "Gute Übereinstimmung",
-      "risky": "Riskante Passung"
     }
   },
   "training": {
@@ -2003,7 +1991,6 @@
     "alreadyQueued": "Bereits für einen Wechsel vorgemerkt",
     "substitutionsPartlyMade": "{{applied}} von {{total}} Wechseln durchgeführt",
     "substitutionRefused": "Wechsel abgelehnt: {{off}} für {{on}}. {{reason}}",
-    "playerRoles": "Spielerrollen",
     "roleFor": "Rolle von {{player}}",
     "roleChangeRefused": "Die Rolle von {{player}} konnte nicht geändert werden. {{reason}}",
     "noBenchAvailable": "Keine Bankspieler verfügbar",

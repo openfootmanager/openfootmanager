@@ -672,7 +672,6 @@
     "bestRole": "Peran terbaik",
     "formationFit": "Penguasaan posisi",
     "startingXi": "Starting XI",
-    "styleFit": "Kecocokan gaya",
     "starter": "Starter",
     "benchOption": "Cadangan",
     "naturalFit": "Posisi alami",
@@ -680,11 +679,6 @@
     "needsCover": "Perlu pengisi",
     "makeStarter": "Jadikan pemain utama",
     "sendToBench": "Kirim ke bangku cadangan",
-    "styleFitValues": {
-      "strong": "Kecocokan gaya: Kuat",
-      "good": "Kecocokan gaya: Baik",
-      "risky": "Kecocokan gaya: Berisiko"
-    },
     "noBench": "Tidak ada pemain cadangan.",
     "viewProfile": "Lihat profil",
     "swapPlayer": "Tukar pemain",
@@ -887,7 +881,6 @@
     "positionSelector": "Slot taktis",
     "playablePositions": "Posisi",
     "slotFit": "Kecocokan slot",
-    "styleFit": "Kecocokan gaya",
     "responsibilities": "Tanggung jawab",
     "noSpecialRoles": "Tidak ada peran khusus",
     "naturalFit": "Posisi alami",
@@ -905,11 +898,6 @@
       "sharp": "Prima",
       "managing": "Menjaga",
       "risk": "Berisiko"
-    },
-    "styleFitLevels": {
-      "strong": "Kecocokan kuat",
-      "good": "Kecocokan baik",
-      "risky": "Kecocokan berisiko"
     },
     "tokenStates": {
       "ready": "Siap",
@@ -2007,7 +1995,6 @@
     "alreadyQueued": "Sudah masuk antrean pergantian",
     "substitutionsPartlyMade": "{{applied}} dari {{total}} pergantian dilakukan",
     "substitutionRefused": "Pergantian ditolak: {{off}} diganti {{on}}. {{reason}}",
-    "playerRoles": "Peran pemain",
     "roleFor": "Peran {{player}}",
     "roleChangeRefused": "Peran {{player}} tidak dapat diubah. {{reason}}",
     "noBenchAvailable": "Tidak ada pemain cadangan tersedia",

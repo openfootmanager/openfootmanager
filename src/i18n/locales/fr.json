@@ -699,19 +699,13 @@
     "bestRole": "Meilleur rôle",
     "formationFit": "Familiarité",
     "startingXi": "Onze de départ",
-    "styleFit": "Compatibilité de style",
     "starter": "Titulaire",
     "benchOption": "Banc",
     "naturalFit": "Poste naturel",
     "adaptedFit": "Peut y jouer",
     "needsCover": "Besoin d'une doublure",
     "makeStarter": "Mettre titulaire",
-    "sendToBench": "Envoyer sur le banc",
-    "styleFitValues": {
-      "strong": "Compatibilité de style : Forte",
-      "good": "Compatibilité de style : Bonne",
-      "risky": "Compatibilité de style : Risquée"
-    }
+    "sendToBench": "Envoyer sur le banc"
   },
   "tactics": {
     "formationStyle": "Formation & style",
@@ -894,7 +888,6 @@
     "positionSelector": "Poste tactique",
     "playablePositions": "Postes",
     "slotFit": "Adaptation au poste",
-    "styleFit": "Compatibilité de style",
     "responsibilities": "Responsabilités",
     "noSpecialRoles": "Aucun rôle spécial",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "Affûté",
       "managing": "À gérer",
       "risk": "Risque"
-    },
-    "styleFitLevels": {
-      "strong": "Très bon match",
-      "good": "Bon match",
-      "risky": "Adaptation risquée"
     }
   },
   "training": {
@@ -2003,7 +1991,6 @@
     "alreadyQueued": "Déjà en attente d'un remplacement",
     "substitutionsPartlyMade": "{{applied}} remplacement(s) sur {{total}} effectué(s)",
     "substitutionRefused": "Remplacement refusé : {{off}} par {{on}}. {{reason}}",
-    "playerRoles": "Rôles des joueurs",
     "roleFor": "Rôle de {{player}}",
     "roleChangeRefused": "Impossible de changer le rôle de {{player}}. {{reason}}",
     "noBenchAvailable": "Aucun joueur disponible sur le banc",

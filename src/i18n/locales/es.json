@@ -699,19 +699,13 @@
     "bestRole": "Mejor rol",
     "formationFit": "Familiaridad",
     "startingXi": "Once titular",
-    "styleFit": "Encaje con el estilo",
     "starter": "Titular",
     "benchOption": "Banquillo",
     "naturalFit": "Posición natural",
     "adaptedFit": "Puede jugar ahí",
     "needsCover": "Necesita recambio",
     "makeStarter": "Poner de titular",
-    "sendToBench": "Enviar al banquillo",
-    "styleFitValues": {
-      "strong": "Encaje de estilo: Fuerte",
-      "good": "Encaje de estilo: Bueno",
-      "risky": "Encaje de estilo: Arriesgado"
-    }
+    "sendToBench": "Enviar al banquillo"
   },
   "tactics": {
     "formationStyle": "Formación y Estilo",
@@ -894,7 +888,6 @@
     "positionSelector": "Hueco táctico",
     "playablePositions": "Posiciones",
     "slotFit": "Encaje del puesto",
-    "styleFit": "Encaje con el estilo",
     "responsibilities": "Responsabilidades",
     "noSpecialRoles": "Sin roles especiales",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "Afinado",
       "managing": "Controlado",
       "risk": "Riesgo"
-    },
-    "styleFitLevels": {
-      "strong": "Encaje fuerte",
-      "good": "Buen encaje",
-      "risky": "Encaje arriesgado"
     }
   },
   "training": {
@@ -2003,7 +1991,6 @@
     "alreadyQueued": "Ya está en cola para un cambio",
     "substitutionsPartlyMade": "{{applied}} de {{total}} cambios realizados",
     "substitutionRefused": "Cambio rechazado: {{off}} por {{on}}. {{reason}}",
-    "playerRoles": "Roles de los jugadores",
     "roleFor": "Rol de {{player}}",
     "roleChangeRefused": "No se pudo cambiar el rol de {{player}}. {{reason}}",
     "noBenchAvailable": "No hay jugadores en el banquillo",
