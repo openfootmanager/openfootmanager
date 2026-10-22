@@ -88,6 +88,10 @@ const AT_ROLLOVER: &[(&str, RolloverRule)] = &[
     ("regenerated-tables-are-fresh", regenerated_tables_are_fresh),
     ("season-stats-are-reset", season_stats_are_reset),
     ("finished-ladders-move-clubs", finished_ladders_move_clubs),
+    (
+        "managers-take-their-league-season",
+        managers_take_their_league_season,
+    ),
 ];
 
 /// Violations kept per rule: enough to name what is wrong, not enough for one systemic failure
@@ -227,6 +231,15 @@ struct Before {
     /// Countries whose every domestic table had finished, so the ladder had
     /// everything it needs to move clubs.
     finished_countries: BTreeSet<String>,
+    /// How many editions were archived, so the ones this rollover adds can be told apart.
+    archived_editions: usize,
+    /// Each employed manager's club and the matches on his record, by manager id.
+    managers: BTreeMap<String, ManagerBefore>,
+}
+
+struct ManagerBefore {
+    team_id: String,
+    matches_managed: u32,
 }
 
 struct CompetitionBefore {
@@ -271,11 +284,28 @@ impl Before {
             }
         }
 
+        let managers = game
+            .managers
+            .iter()
+            .filter_map(|manager| {
+                let team_id = manager.team_id.clone()?;
+                Some((
+                    manager.id.clone(),
+                    ManagerBefore {
+                        team_id,
+                        matches_managed: manager.career_stats.matches_managed,
+                    },
+                ))
+            })
+            .collect();
+
         Self {
             authored_sizes: authored_sizes.clone(),
             competitions,
             membership,
             finished_countries,
+            archived_editions: game.edition_archive.len(),
+            managers,
         }
     }
 }
@@ -596,6 +626,55 @@ fn completed_competitions_advance_one_season(before: &Before, after: &Game) -> V
                 format!(
                     "{} was complete in season {} and is now season {}",
                     competition.id, was.season, competition.season
+                )
+            })
+        })
+        .collect()
+}
+
+/// Given the league-table editions the rollover archived,
+/// When a manager who kept his club through it does not have exactly his club's matches in them
+///      added to his record,
+/// Then that is reported. Other clubs' managers' records used to stay frozen at career start.
+fn managers_take_their_league_season(before: &Before, after: &Game) -> Vec<String> {
+    let mut league_matches: BTreeMap<&str, u32> = BTreeMap::new();
+    let new_editions = after
+        .edition_archive
+        .get(before.archived_editions..)
+        .unwrap_or_default();
+    for edition in new_editions {
+        let is_league_table = after.competitions.iter().any(|competition| {
+            competition.id == edition.competition_id
+                && competition.rules.format == CompetitionFormat::LeagueTable
+        });
+        if !is_league_table {
+            continue;
+        }
+        for row in &edition.standings {
+            *league_matches.entry(row.team_id.as_str()).or_default() +=
+                row.won + row.drawn + row.lost;
+        }
+    }
+
+    after
+        .managers
+        .iter()
+        .filter_map(|manager| {
+            let was = before.managers.get(&manager.id)?;
+            if manager.team_id.as_deref() != Some(was.team_id.as_str()) {
+                return None;
+            }
+            let expected = was.matches_managed
+                + league_matches
+                    .get(was.team_id.as_str())
+                    .copied()
+                    .unwrap_or_default();
+            let recorded = manager.career_stats.matches_managed;
+            (recorded != expected).then(|| {
+                format!(
+                    "manager {} of {} has {recorded} matches on his record after the rollover, \
+                     expected {expected}",
+                    manager.id, was.team_id
                 )
             })
         })
@@ -1035,6 +1114,91 @@ mod tests {
             &season_stats_are_reset(&was, &after),
             "kept last season's stats"
         ));
+    }
+
+    /// The world before and after an `eng-d1` season archived at the rollover, with one club's
+    /// manager having played it 3 wins, 1 draw, 2 defeats; and that manager's id.
+    fn world_with_an_archived_league_season() -> (Before, Game, String) {
+        let game = world();
+        let was = before(&game);
+        let clubs = game
+            .competitions
+            .iter()
+            .find(|competition| competition.id == "eng-d1")
+            .expect("eng-d1 exists")
+            .participant_ids
+            .clone();
+        let manager = game
+            .managers
+            .iter()
+            .find(|manager| {
+                manager.id != game.manager_id
+                    && manager
+                        .team_id
+                        .as_ref()
+                        .is_some_and(|team_id| clubs.contains(team_id))
+            })
+            .expect("an eng-d1 club has a manager");
+        let team_id = manager.team_id.clone().expect("he has a club");
+        let manager_id = manager.id.clone();
+
+        let mut after = game.clone();
+        after
+            .edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: "eng-d1".to_string(),
+                season: 1,
+                completed_on: "2027-05-30".to_string(),
+                champion_id: team_id.clone(),
+                participant_ids: clubs,
+                standings: vec![domain::league::StandingEntry {
+                    team_id,
+                    played: 6,
+                    won: 3,
+                    drawn: 1,
+                    lost: 2,
+                    goals_for: 0,
+                    goals_against: 0,
+                    points: 10,
+                }],
+                groups: Vec::new(),
+                knockout_rounds: Vec::new(),
+                fixtures: Vec::new(),
+            });
+        (was, after, manager_id)
+    }
+
+    /// Given an `eng-d1` season archived at the rollover, 6 matches for one club,
+    /// When his manager's record is unchanged by it,
+    /// Then that is reported, naming the manager.
+    #[test]
+    fn a_manager_whose_record_misses_his_clubs_league_season_is_noticed() {
+        let (was, after, manager_id) = world_with_an_archived_league_season();
+
+        assert!(mentions(
+            &managers_take_their_league_season(&was, &after),
+            &manager_id
+        ));
+    }
+
+    /// Given the same archived season,
+    /// When his manager's record has its 6 matches added, and nobody else's has changed,
+    /// Then nothing is reported.
+    #[test]
+    fn a_manager_credited_with_his_clubs_league_season_is_not_reported() {
+        let (was, mut after, manager_id) = world_with_an_archived_league_season();
+        after
+            .managers
+            .iter_mut()
+            .find(|manager| manager.id == manager_id)
+            .expect("the manager is still there")
+            .career_stats
+            .matches_managed += 6;
+
+        assert_eq!(
+            managers_take_their_league_season(&was, &after),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
