@@ -29,6 +29,28 @@ describe("useVisibleWage", () => {
   });
 
   /**
+   * Given the profile shows the club's own player's exact wage
+   * When it moves on to a rival whose answer has not arrived yet
+   * Then it reads hidden meanwhile, never the previous player's figure
+   */
+  it("never shows the previous player's wage while the next one's is asked", async () => {
+    mockedWage.mockResolvedValueOnce({ kind: "exact", weekly: 15_843 });
+    mockedWage.mockReturnValueOnce(new Promise<never>(() => undefined));
+
+    const { result, rerender } = renderHook(
+      ({ playerId }) => useVisibleWage(playerId, "2026-09-15"),
+      {
+        initialProps: { playerId: "own-player" },
+      },
+    );
+    await waitFor(() => expect(result.current).toEqual({ kind: "exact", weekly: 15_843 }));
+
+    rerender({ playerId: "rival" });
+
+    expect(result.current).toEqual({ kind: "hidden" });
+  });
+
+  /**
    * Given the hook has its answer
    * When the game moves on (a renewal, a transfer, a scout's report)
    * Then it asks the backend again
