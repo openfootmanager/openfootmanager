@@ -30,6 +30,25 @@ describe("RatingChip", () => {
     expect(chip?.querySelector("[aria-hidden='true']")).toHaveTextContent(/^79$/);
   });
 
+  /**
+   * Given tiers that no cut-off of the chip's own could give (60 put in S, 90 left in the rest:
+   * the backend's table decides, e.g. for a league's own scale)
+   * When the chips are drawn
+   * Then each paints and names the tier it was given, not one worked out from its number.
+   */
+  it("paints and names the tier it is given, whatever its number", () => {
+    render(
+      <>
+        <RatingChip value={60} tier="S" />
+        <RatingChip value={90} tier="Rest" />
+      </>,
+    );
+    const high = screen.getByText("Overall 60, tier S").closest("[title]");
+    expect(high).toHaveClass("bg-tone-top-tint", "text-tone-top");
+    const plain = screen.getByText("Overall 90").closest("[title]");
+    expect(plain).toHaveClass("bg-sunken", "text-fg-muted");
+  });
+
   /** Given a rating below every tier, then the chip is neutral and names the rating alone. */
   it("is neutral and names no tier for a rating below the tiers", () => {
     render(<RatingChip value={58} tier="Rest" />);

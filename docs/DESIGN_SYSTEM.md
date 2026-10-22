@@ -61,9 +61,10 @@ the selected navigation item, a logo strip. The raw Tailwind palette (`gray-500`
 `white`, …) isn't used in a finished folder (§7).
 
 A control that is on or chosen (a switch that is on, a segmented option filled with `strong`, a
-checked box, a count badge) is getting its own `selected` role, with a dark pair, in place of
-the brand green: one place to change how "chosen" looks (maintainer, 22 Oct). Until that PR lands
-they use `primary-700`.
+checked box, a count badge, the highlighted option in `Select` and the chosen day in
+`DatePicker`) is getting its own `selected` role, with a dark pair, in place of the brand green:
+one place to change how "chosen" looks (maintainer, 22 Oct). Until that PR lands they use the
+`primary-*` greens.
 
 **Readability is tested, not hoped for.** `src/designTokens.test.ts` checks that every text role
 reaches 4.5:1 on every surface it sits on, and that the focus ring reaches 3:1, in light, dark,
