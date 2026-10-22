@@ -386,6 +386,72 @@ describe("Dialog", () => {
     expect(screen.getByRole("button", { name: "Continue" })).not.toHaveFocus();
   });
 
+  /**
+   * Given the focus on a button, and two dialogs opened from it in the same render (both remember
+   * that button as their opener)
+   * When the upper one closes
+   * Then the focus moves into the dialog still open, not to the button behind it.
+   */
+  it("returns the focus to its opener inside the dialog beneath when the top one closes", () => {
+    function Stack({ confirmOpen }: { confirmOpen: boolean }) {
+      return (
+        <Dialog labelledBy="renewal" onClose={vi.fn()}>
+          <h2 id="renewal">Renewal</h2>
+          <button type="button">Submit</button>
+          {confirmOpen && (
+            <Dialog labelledBy="confirm" onClose={vi.fn()}>
+              <h2 id="confirm">Sure?</h2>
+              <button type="button">Yes</button>
+            </Dialog>
+          )}
+        </Dialog>
+      );
+    }
+    const { rerender } = render(<Stack confirmOpen={false} />);
+    const submit = screen.getByRole("button", { name: "Submit" });
+    submit.focus();
+    rerender(<Stack confirmOpen />);
+    expect(submit).not.toHaveFocus();
+
+    rerender(<Stack confirmOpen={false} />);
+
+    expect(submit).toHaveFocus();
+  });
+
+  it("keeps the focus in the dialog still open when the top one closes", () => {
+    function Stack({ open, upperOpen }: { open: boolean; upperOpen: boolean }) {
+      return (
+        <>
+          <button type="button">Continue</button>
+          {open && (
+            <Dialog labelledBy="advance" busy>
+              <h2 id="advance">Advancing</h2>
+            </Dialog>
+          )}
+          {open && upperOpen && (
+            <Dialog labelledBy="confirm" onClose={vi.fn()}>
+              <h2 id="confirm">Quit?</h2>
+              <button type="button">Cancel</button>
+            </Dialog>
+          )}
+        </>
+      );
+    }
+    const { rerender } = render(<Stack open={false} upperOpen={false} />);
+    screen.getByRole("button", { name: "Continue" }).focus();
+    rerender(<Stack open upperOpen />);
+    expect(screen.getByRole("dialog", { name: "Quit?" })).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+
+    rerender(<Stack open upperOpen={false} />);
+
+    expect(screen.getByRole("dialog", { name: "Advancing" })).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+    expect(screen.getByRole("button", { name: "Continue" })).not.toHaveFocus();
+  });
+
   it.each([false, true])("keeps Tab on a dialog with nothing to focus (shift: %s)", (shiftKey) => {
     render(
       <>

@@ -89,14 +89,23 @@ export function useDialogKeyboard(
   // when it closes.
   // Read during the first render, not in an effect: a child that focuses itself on mount has
   // already moved focus by the time any effect runs, and would be recorded as the opener.
-  // Unless another dialog holds the focus by then: a dialog beneath that closes first (an advance
-  // finishing under the close confirmation) must not pull the focus out of the one on top.
+  // Unless another dialog is still open. If it holds the focus (a dialog beneath closed first: an
+  // advance finishing under the close confirmation), the focus stays there. If the focus is nowhere
+  // (this dialog, on top, took it away with it), it goes into the dialog now on top, not behind
+  // it: to the opener if the opener is inside that dialog, else to its panel.
   const [opener] = useState(() => document.activeElement as HTMLElement | null);
   useEffect(
     () => () => {
+      const self = dialogRef.current;
       const holder = document.activeElement?.closest(`[${OPEN_DIALOG}]`);
-      const heldByAnother = holder != null && holder !== dialogRef.current;
-      if (!heldByAnother) opener?.focus?.();
+      if (holder != null && holder !== self) return;
+      const remaining = topDialog();
+      if (remaining instanceof HTMLElement && remaining !== self) {
+        if (opener && remaining.contains(opener)) opener.focus();
+        else remaining.focus();
+        return;
+      }
+      opener?.focus?.();
     },
     [opener, dialogRef],
   );
