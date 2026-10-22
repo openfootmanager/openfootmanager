@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ThemeProvider } from "../context/ThemeContext";
+import { useSettingsStore } from "../store/settingsStore";
 import Settings from "./Settings";
 
 const invokeMock = vi.hoisted(() => vi.fn());
@@ -47,21 +48,25 @@ const lastSaved = () => {
   return saved[saved.length - 1];
 };
 
-describe("Settings: the sidebar", () => {
-  beforeEach(() => {
-    invokeMock.mockReset();
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_settings") {
-        return {
-          settings: {},
-          currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
-          supported_currencies: [{ code: "EUR", symbol: "€", exchange_rate: 1 }],
-        };
-      }
-      return command.startsWith("list_") ? [] : null;
-    });
-  });
+// The store as a fresh launch has it: a choice saved by one test must not be the next one's.
+const freshStore = useSettingsStore.getState();
 
+beforeEach(() => {
+  useSettingsStore.setState(freshStore, true);
+  invokeMock.mockReset();
+  invokeMock.mockImplementation(async (command: string) => {
+    if (command === "get_settings") {
+      return {
+        settings: {},
+        currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
+        supported_currencies: [{ code: "EUR", symbol: "€", exchange_rate: 1 }],
+      };
+    }
+    return command.startsWith("list_") ? [] : null;
+  });
+});
+
+describe("Settings: the sidebar", () => {
   /**
    * Given the Display settings
    * When the player picks the Compact width, then Expand on click
@@ -70,12 +75,16 @@ describe("Settings: the sidebar", () => {
   it("saves the sidebar's width and behaviour", async () => {
     renderSettings();
 
+    const width = await screen.findByRole("radiogroup", { name: "settings.sidebarWidth" });
     fireEvent.click(
-      await screen.findByRole("button", { name: "settings.sidebarWidthOptions.compact" }),
+      within(width).getByRole("radio", { name: "settings.sidebarWidthOptions.compact" }),
     );
     await waitFor(() => expect(lastSaved()).toMatchObject({ sidebar_width: "compact" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "settings.sidebarBehaviourOptions.click" }));
+    const behaviour = screen.getByRole("radiogroup", { name: "settings.sidebarBehaviour" });
+    fireEvent.click(
+      within(behaviour).getByRole("radio", { name: "settings.sidebarBehaviourOptions.click" }),
+    );
     await waitFor(() =>
       expect(lastSaved()).toMatchObject({
         sidebar_width: "compact",
@@ -87,17 +96,63 @@ describe("Settings: the sidebar", () => {
   /** Given the Display settings, then both rows offer every choice, named for the player. */
   it("offers every width and behaviour", async () => {
     renderSettings();
-    expect(await screen.findByText("settings.sidebarWidth")).toBeInTheDocument();
-    expect(screen.getByText("settings.sidebarBehaviour")).toBeInTheDocument();
+    const width = await screen.findByRole("radiogroup", { name: "settings.sidebarWidth" });
     for (const option of ["compact", "standard", "wide"]) {
       expect(
-        screen.getByRole("button", { name: `settings.sidebarWidthOptions.${option}` }),
+        within(width).getByRole("radio", { name: `settings.sidebarWidthOptions.${option}` }),
       ).toBeInTheDocument();
     }
+    const behaviour = screen.getByRole("radiogroup", { name: "settings.sidebarBehaviour" });
     for (const option of ["normal", "hover", "click", "icons"]) {
       expect(
-        screen.getByRole("button", { name: `settings.sidebarBehaviourOptions.${option}` }),
+        within(behaviour).getByRole("radio", {
+          name: `settings.sidebarBehaviourOptions.${option}`,
+        }),
       ).toBeInTheDocument();
     }
+  });
+});
+
+describe("Settings: the choices", () => {
+  /**
+   * Given the Settings page
+   * When a screen reader reaches each row with a choice of a few
+   * Then it is a radio group named by the row's own label, with the saved choice checked and the
+   * only one in the tab order: theme, UI scale, sidebar width, sidebar behaviour, match speed.
+   */
+  it.each([
+    ["settings.theme", "settings.themeOptions.dark"],
+    ["settings.uiScale", "settings.uiScaleOptions.normal"],
+    ["settings.sidebarWidth", "settings.sidebarWidthOptions.standard"],
+    ["settings.sidebarBehaviour", "settings.sidebarBehaviourOptions.normal"],
+    ["settings.matchSpeed", "settings.speeds.normal"],
+  ])("draws %s as a radio group named by its row", async (row, saved) => {
+    renderSettings();
+    const group = await screen.findByRole("radiogroup", { name: row });
+    const checked = within(group).getByRole("radio", { checked: true });
+    expect(checked).toHaveAccessibleName(saved);
+    expect(checked).toHaveAttribute("tabindex", "0");
+    for (const other of within(group).getAllByRole("radio", { checked: false })) {
+      expect(other).toHaveAttribute("tabindex", "-1");
+    }
+  });
+
+  /**
+   * Given the sidebar behaviour on Normal, with the focus on it
+   * When the player presses the right arrow
+   * Then the choice and the focus move to Expand on hover, and it is saved.
+   */
+  it("moves a choice with the arrow keys", async () => {
+    renderSettings();
+    const behaviour = await screen.findByRole("radiogroup", { name: "settings.sidebarBehaviour" });
+    const normal = within(behaviour).getByRole("radio", {
+      name: "settings.sidebarBehaviourOptions.normal",
+    });
+    normal.focus();
+    fireEvent.keyDown(normal, { key: "ArrowRight" });
+    await waitFor(() => expect(lastSaved()).toMatchObject({ sidebar_behaviour: "hover" }));
+    expect(
+      within(behaviour).getByRole("radio", { name: "settings.sidebarBehaviourOptions.hover" }),
+    ).toHaveFocus();
   });
 });
