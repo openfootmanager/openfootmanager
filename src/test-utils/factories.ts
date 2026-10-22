@@ -130,6 +130,7 @@ export function createSquadFitness(overrides: Partial<SquadFitness> = {}): Squad
   return {
     players: 11,
     average_condition: 70,
+    average_status: createConditionStatus("Tiring"),
     exhausted_count: 0,
     critical_count: 0,
     statuses: {},

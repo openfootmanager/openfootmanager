@@ -17,6 +17,8 @@ export interface SquadFitness {
   players: number;
   /** Null when there is no healthy first-team player to average. */
   average_condition: number | null;
+  /** The band of the rounded average, to paint it with; null with no average. */
+  average_status: ConditionStatus | null;
   /** Players below 40, the critical ones among them. */
   exhausted_count: number;
   /** Players below 25. */

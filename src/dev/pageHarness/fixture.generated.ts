@@ -1436,6 +1436,11 @@ export const squad = [
 
 export const squadFitness = {
   "average_condition": 87.05263157894737,
+  "average_status": {
+    "band": "Fresh",
+    "label_key": "be.condition.fresh",
+    "tone": "good",
+  },
   "critical_count": 0,
   "exhausted_count": 0,
   "players": 19,

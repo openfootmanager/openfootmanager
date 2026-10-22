@@ -42,6 +42,46 @@ fn the_summary_leaves_injured_players_out_and_counts_below_the_thresholds() {
     assert_eq!(summary.critical_count, 0);
 }
 
+/// Given healthy players on 70 and 75, an average of 72.5
+/// When the summary is asked for
+/// Then the average is painted from the same band rule as each player: Tiring, fair, not the green
+///      a 70-up threshold gave it above players marked Tiring.
+#[test]
+fn the_average_has_a_band_from_the_same_rule() {
+    let mut game = make_game();
+    game.players.truncate(2);
+    game.players[0].condition = 70;
+    game.players[1].condition = 75;
+
+    let summary = training::squad_fitness(&game, "team1");
+
+    assert_eq!(summary.average_condition, Some(72.5));
+    let average = summary.average_status.expect("an average to paint");
+    assert_eq!(average.band, FitnessStatus::Tiring);
+    assert_eq!(average.tone, RatedTone::Fair);
+    assert_eq!(average.label_key, "be.condition.tiring");
+}
+
+/// Given healthy players on 74 and 75, an average of 74.5 that the screens show as 75
+/// When the summary is asked for
+/// Then the average's band is the band of the number shown, Fresh: the word never disagrees with
+///      the figure beside it.
+#[test]
+fn the_average_band_is_the_band_of_the_rounded_figure() {
+    let mut game = make_game();
+    game.players.truncate(2);
+    game.players[0].condition = 74;
+    game.players[1].condition = 75;
+
+    let summary = training::squad_fitness(&game, "team1");
+
+    assert_eq!(summary.average_condition, Some(74.5));
+    assert_eq!(
+        summary.average_status.map(|status| status.band),
+        Some(FitnessStatus::Fresh)
+    );
+}
+
 /// Given players on 24, 25, 39 and 40
 /// When the summary is asked for
 /// Then critical is below 25 (one), exhausted is below 40 (three, the critical one among them): the
@@ -151,6 +191,7 @@ fn a_club_of_injured_players_has_no_average_but_every_player_a_status() {
 
     assert_eq!(summary.players, 0);
     assert_eq!(summary.average_condition, None);
+    assert_eq!(summary.average_status, None);
     assert_eq!(summary.critical_count, 0);
     assert_eq!(summary.statuses.len(), 3);
     assert!(

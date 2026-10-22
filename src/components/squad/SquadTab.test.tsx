@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type {
@@ -216,8 +216,9 @@ describe("SquadTab", () => {
     renderSquadTab(state);
 
     const row = await screen.findByRole("row", { name: /Rated Fresh/ });
-    expect(row.querySelector(".bg-tone-good-solid")).not.toBeNull();
-    expect(row.querySelector(".bg-danger-solid")).toBeNull();
+    const bar = within(row).getByRole("progressbar", { name: "common.condition" });
+    expect(bar.firstElementChild).toHaveClass("bg-tone-good-solid");
+    expect(bar.firstElementChild).not.toHaveClass("bg-danger-solid");
   });
 
   // Given a backend-called-up youth, when Squad opens, then the manager can see him.

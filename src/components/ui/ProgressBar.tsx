@@ -8,6 +8,11 @@ interface ProgressBarProps {
   tone?: RatedTone;
   size?: "sm" | "md" | "lg";
   showLabel?: boolean;
+  /**
+   * What the bar measures, translated. With it the bar is a named progress bar; without it the
+   * bar is plain decoration, never an unnamed progress bar announced with no idea what it measures.
+   */
+  label?: string;
   className?: string;
 }
 
@@ -17,6 +22,7 @@ export function ProgressBar({
   tone,
   size = "sm",
   showLabel = false,
+  label,
   className = "",
 }: ProgressBarProps) {
   const clamped = Math.max(0, Math.min(100, value));
@@ -48,7 +54,18 @@ export function ProgressBar({
 
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <div className={`flex-1 bg-line rounded-full ${heights[size]} overflow-hidden`}>
+      <div
+        className={`flex-1 bg-line rounded-full ${heights[size]} overflow-hidden`}
+        {...(label
+          ? {
+              role: "progressbar",
+              "aria-label": label,
+              "aria-valuenow": clamped,
+              "aria-valuemin": 0,
+              "aria-valuemax": 100,
+            }
+          : {})}
+      >
         <div
           className={`${tone ? TONE_FILL[tone] : barColors[resolvedVariant]} ${heights[size]} rounded-full transition-all duration-500`}
           style={{ width: `${clamped}%` }}

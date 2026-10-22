@@ -96,6 +96,9 @@ pub struct SquadFitness {
     pub players: usize,
     /// Their average condition; none when there is no healthy first-team player to average.
     pub average_condition: Option<f64>,
+    /// How to paint the average: the band of the whole number the screens show for it, so the
+    /// word and the figure beside it never disagree.
+    pub average_status: Option<ConditionStatus>,
     /// Players below 40, the critical ones among them.
     pub exhausted_count: usize,
     /// Players below 25.
@@ -118,11 +121,14 @@ fn healthy_first_team<'a>(game: &'a Game, team_id: &str) -> Vec<&'a Player> {
 pub fn squad_fitness(game: &Game, team_id: &str) -> SquadFitness {
     let healthy = healthy_first_team(game, team_id);
     let status_of = |player: &&Player| fitness_status(player.condition);
+    let average_condition = (!healthy.is_empty()).then(|| {
+        healthy.iter().map(|p| f64::from(p.condition)).sum::<f64>() / healthy.len() as f64
+    });
     SquadFitness {
         players: healthy.len(),
-        average_condition: (!healthy.is_empty()).then(|| {
-            healthy.iter().map(|p| f64::from(p.condition)).sum::<f64>() / healthy.len() as f64
-        }),
+        average_condition,
+        // An average of u8 conditions rounds back into u8's range.
+        average_status: average_condition.map(|average| condition_status(average.round() as u8)),
         exhausted_count: healthy
             .iter()
             .filter(|p| status_of(p).is_exhausted())

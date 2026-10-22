@@ -114,6 +114,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
   // Fitness is the backend's: injured players are not in the squad that can play.
   const avgCondition =
     fitness?.average_condition != null ? Math.round(fitness.average_condition) : null;
+  const averageTone = fitness?.average_status?.tone;
   const avgMorale =
     roster.length > 0
       ? Math.round(roster.reduce((sum, player) => sum + player.morale, 0) / roster.length)
@@ -256,7 +257,14 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
                     {avgCondition !== null ? `${avgCondition}%` : "—"}
                   </span>
                 </div>
-                <ProgressBar value={avgCondition ?? 0} variant="auto" size="md" />
+                {/* The backend's band for the average; neutral until it answers. */}
+                <ProgressBar
+                  value={avgCondition ?? 0}
+                  variant={averageTone ? undefined : "muted"}
+                  tone={averageTone}
+                  size="md"
+                  label={t("training.avgCondition")}
+                />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
@@ -324,6 +332,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
                         tone={status?.tone}
                         size="sm"
                         showLabel
+                        label={t("common.condition")}
                         className="w-24"
                       />
                     </li>

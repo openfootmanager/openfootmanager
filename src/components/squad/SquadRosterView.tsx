@@ -889,6 +889,7 @@ export default function SquadRosterView({
                           tone={player.condition_status?.tone}
                           size="sm"
                           showLabel
+                          label={t("common.condition")}
                         />
                       </td>
                       <td className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">

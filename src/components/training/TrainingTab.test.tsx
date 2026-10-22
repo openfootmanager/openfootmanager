@@ -410,9 +410,36 @@ describe("TrainingTab", () => {
 
     const critical = await screen.findByRole("listitem", { name: /Flagged Critical/ });
     expect(within(critical).getByText("be.condition.critical")).toHaveClass("text-tone-bad");
-    expect(critical.querySelector(".bg-tone-bad-solid")).not.toBeNull();
+    const criticalBar = within(critical).getByRole("progressbar", { name: "common.condition" });
+    expect(criticalBar.firstElementChild).toHaveClass("bg-tone-bad-solid");
     const fresh = screen.getByRole("listitem", { name: /Flagged Fresh/ });
     expect(within(fresh).getByText("be.condition.fresh")).toHaveClass("text-tone-good");
-    expect(fresh.querySelector(".bg-tone-good-solid")).not.toBeNull();
+    const freshBar = within(fresh).getByRole("progressbar", { name: "common.condition" });
+    expect(freshBar.firstElementChild).toHaveClass("bg-tone-good-solid");
+  });
+
+  /**
+   * Given an average of 90 that the backend's band rule paints bad (the fixture contradicts the
+   *       number on purpose)
+   * When Training draws the squad's average condition
+   * Then its bar is filled in the backend's tone, not the green a 70-up threshold picked.
+   */
+  it("paints the average condition bar in the backend's tone", async () => {
+    const state = createGameState(true);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({
+          average_condition: 90,
+          average_status: createConditionStatus("Critical"),
+        });
+      }
+      return command === "get_squad" ? state.players : state;
+    });
+
+    render(<TrainingTab gameState={state} />);
+
+    const average = await screen.findByRole("progressbar", { name: "training.avgCondition" });
+    await waitFor(() => expect(average.firstElementChild).toHaveClass("bg-tone-bad-solid"));
+    expect(average.firstElementChild).not.toHaveClass("bg-positive-solid");
   });
 });
