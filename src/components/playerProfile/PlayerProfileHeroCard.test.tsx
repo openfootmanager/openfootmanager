@@ -14,13 +14,13 @@ function t(key: string): string {
   return key === "common.ovr" ? "OVR" : key;
 }
 
-function renderHero(face?: string) {
+function renderHero(face?: string, ovr: number | null = 77) {
   const player = createPlayer({ ovr: 77, media: face ? { face } : undefined });
 
   render(
     <PlayerProfileHeroCard
       player={player}
-      ovr={77}
+      ovr={ovr}
       primaryPosition="Midfielder"
       age={22}
       teamName="Brussels FC"
@@ -38,12 +38,28 @@ function renderHero(face?: string) {
       scoutStatus="idle"
       scoutError={null}
       onScout={() => {}}
+      traits={[]}
+      showsPrivateState
+      wageText="€12K/wk"
       t={t}
     />,
   );
 }
 
 describe("PlayerProfileHeroCard", () => {
+  /**
+   * Given a player whose rating the club does not know
+   * When the hero is drawn
+   * Then the OVR tile reads "–", and no tier is asked for, so its colour gives nothing away either
+   */
+  it("shows a dash in the OVR tile when the rating is not known", () => {
+    renderHero(undefined, null);
+
+    expect(screen.getByText("OVR")).toBeInTheDocument();
+    expect(screen.getByText("–")).toBeInTheDocument();
+    expect(screen.queryByText("77")).not.toBeInTheDocument();
+  });
+
   /**
    * Given a player whose face picture is shown in the hero
    * When his profile opens
@@ -92,6 +108,9 @@ function renderHeroAtOvr(ovr: number) {
       scoutStatus="idle"
       scoutError={null}
       onScout={vi.fn()}
+      traits={[]}
+      showsPrivateState
+      wageText="€12K/wk"
       t={(key: string) => key}
     />,
   );
