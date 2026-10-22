@@ -30,6 +30,7 @@
   "de": [
     "settings.sidebarBehaviourOptions.normal",
     "settings.sidebarWidthOptions.standard",
+    "match.formationFit",
     "nations.eng",
     "nations.wal",
     "nations.pt",
@@ -141,6 +142,7 @@
   "fr": [
     "settings.sidebarBehaviourOptions.normal",
     "settings.sidebarWidthOptions.standard",
+    "match.formationFit",
     "nations.pt",
     "nations.ua",
     "nations.gh",
