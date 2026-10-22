@@ -879,7 +879,7 @@ mod tests {
         // The injured player is outside the figures but not outside the lists.
         assert_eq!(fitness.statuses.len(), 2);
         assert_eq!(
-            fitness.statuses["player-2"],
+            fitness.statuses["player-2"].band,
             ofm_core::training::FitnessStatus::Critical
         );
 
