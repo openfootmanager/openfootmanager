@@ -3,9 +3,10 @@ use crate::match_day_eligibility::match_day_eligible_players;
 use domain::player::Player;
 use serde::Serialize;
 use std::collections::HashSet;
+use ts_rs::TS;
 
 /// Read-only squad projection: eligibility is computed, never persisted on Player.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 pub struct SquadPlayer {
     #[serde(flatten)]
     pub player: Player,

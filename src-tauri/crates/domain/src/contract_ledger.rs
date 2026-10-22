@@ -21,10 +21,11 @@
 
 use crate::player::{Player, PlayerMovementEntry, PlayerMovementKind};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// How a contract came to exist. Mirrors the `ContractSource` in the contract spec
 /// (#350), so the ledger can become that entity's history without a rewrite.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ContractSource {
     /// In force when the career opened.
@@ -40,7 +41,7 @@ pub enum ContractSource {
 }
 
 /// Why a player left his club's books.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum ReleaseReason {
     Expired,
@@ -48,7 +49,7 @@ pub enum ReleaseReason {
 }
 
 /// The terms of one agreement.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct ContractRecord {
     /// `None` is an honest unknown (a save from before starts were recorded), never
     /// "expired" and never a guessed date.
@@ -195,8 +196,9 @@ impl<'a> IntoIterator for &'a MovementLedger {
     }
 }
 
-/// What a ledger writes into a player, under the keys [`LedgerKeys`] reads back.
-#[derive(Serialize)]
+/// What a ledger writes into a player, under the keys [`LedgerKeys`] reads back. The TypeScript
+/// player type is generated from this struct, so it describes exactly what is written.
+#[derive(Serialize, TS)]
 struct LedgerWire<'a> {
     movement_history: &'a [PlayerMovementEntry],
     wage: u32,
@@ -213,6 +215,32 @@ impl Serialize for MovementLedger {
             contract_end: self.end(),
         }
         .serialize(serializer)
+    }
+}
+
+/// By hand because the ledger is flattened into a player and `ts-rs` cannot flatten a type
+/// declared `#[ts(as = ..)]`. Every answer is [`LedgerWire`]'s.
+impl TS for MovementLedger {
+    type WithoutGenerics = Self;
+    type OptionInnerType = Self;
+
+    fn name(config: &ts_rs::Config) -> String {
+        LedgerWire::name(config)
+    }
+
+    fn inline(config: &ts_rs::Config) -> String {
+        LedgerWire::inline(config)
+    }
+
+    fn inline_flattened(config: &ts_rs::Config) -> String {
+        LedgerWire::inline_flattened(config)
+    }
+
+    fn visit_dependencies(visitor: &mut impl ts_rs::TypeVisitor)
+    where
+        Self: 'static,
+    {
+        LedgerWire::visit_dependencies(visitor);
     }
 }
 

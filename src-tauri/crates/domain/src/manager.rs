@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 fn default_fan_approval() -> u8 {
     50
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Manager {
     pub id: String,
     pub first_name: String,
@@ -47,7 +48,7 @@ pub struct Manager {
     pub display_name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 pub struct ManagerCareerStats {
     pub matches_managed: u32,
     pub wins: u32,
@@ -57,7 +58,7 @@ pub struct ManagerCareerStats {
     pub best_finish: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ManagerCareerEntry {
     pub team_id: String,
     pub team_name: String,

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum CompetitionType {
     #[default]
     League,
@@ -11,7 +12,7 @@ pub enum CompetitionType {
     FriendlyCup,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum CompetitionScope {
     #[default]
     Domestic,
@@ -20,7 +21,7 @@ pub enum CompetitionScope {
     International,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum CompetitionFormat {
     #[default]
     LeagueTable,
@@ -38,7 +39,7 @@ fn default_group_size() -> u32 {
     DEFAULT_GROUP_SIZE
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(default)]
 pub struct CompetitionRules {
     pub format: CompetitionFormat,
@@ -86,7 +87,7 @@ impl Default for CompetitionRules {
 
 /// One group of a group-and-knockout competition: a mini league table whose
 /// top finishers advance to the knockout rounds.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[serde(default)]
 pub struct GroupState {
     pub id: String,
@@ -96,7 +97,7 @@ pub struct GroupState {
     pub standings: Vec<StandingEntry>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(default)]
 pub struct KnockoutRoundState {
     pub id: String,
@@ -112,7 +113,7 @@ pub struct KnockoutRoundState {
 /// season's results (e.g. "league finishers 1–4 enter the Champions Cup").
 /// Authored on competition definitions; carried on the runtime competition so
 /// it can be evaluated at season rollover.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct Berth {
     /// Competition id the qualifying club(s) enter.
@@ -127,7 +128,7 @@ pub struct Berth {
 }
 
 /// How a [`Berth`] selects qualifying clubs from the source competition.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum BerthRule {
     /// League finishers in the inclusive 1-based range `[from, to]`.
@@ -139,7 +140,7 @@ pub enum BerthRule {
     PlayoffWinner { from: u32, to: u32 },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct League {
     pub id: String,
@@ -221,7 +222,7 @@ impl Default for League {
 
 pub type CompetitionState = League;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct CompletedTransfer {
     pub date: String,
     pub from_team_id: String,
@@ -230,7 +231,7 @@ pub struct CompletedTransfer {
     pub fee: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct TransferRumour {
     pub id: String,
     pub date: String,
@@ -240,7 +241,7 @@ pub struct TransferRumour {
     pub team_name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum FixtureCompetition {
     #[default]
     League,
@@ -253,8 +254,9 @@ pub enum FixtureCompetition {
     PreseasonTournament,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(default)]
+#[ts(as = "FixtureWire<'static>")]
 pub struct Fixture {
     pub id: String,
     pub competition_id: String,
@@ -274,9 +276,11 @@ pub struct Fixture {
 /// `competitive` and `advancing_team_id`, which are computed (from `competition`, from `result`)
 /// so no screen decides them again. `Deserialize` ignores both on the way back in, so a saved
 /// fixture loads with or without them. `advancing_team_id` is the side a knockout tie sends on, so
-/// a screen reads it for knockout fixtures only.
-#[derive(Serialize)]
+/// a screen reads it for knockout fixtures only. The TypeScript `Fixture` is generated from this
+/// struct, so it describes exactly what is written.
+#[derive(Serialize, TS)]
 #[serde(rename = "Fixture")]
+#[ts(rename = "Fixture")]
 struct FixtureWire<'a> {
     id: &'a str,
     competition_id: &'a str,
@@ -327,13 +331,13 @@ impl Serialize for Fixture {
 }
 
 /// Where a moved match was first scheduled and why it moved.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct Postponement {
     pub original_date: String,
     pub reason: RescheduleReason,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub enum RescheduleReason {
     InternationalWindow,
     CupTie,
@@ -341,14 +345,14 @@ pub enum RescheduleReason {
     LeagueClash,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum FixtureStatus {
     Scheduled,
     InProgress,
     Completed,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 pub struct MatchResult {
     pub home_goals: u8,
     pub away_goals: u8,
@@ -415,13 +419,13 @@ mod match_result_tests {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct GoalEvent {
     pub player_id: String,
     pub minute: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct CompactMatchReport {
     pub total_minutes: u8,
     pub home_stats: CompactTeamMatchStats,
@@ -429,7 +433,7 @@ pub struct CompactMatchReport {
     pub events: Vec<CompactMatchEvent>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct CompactTeamMatchStats {
     pub possession_pct: u8,
     pub shots: u16,
@@ -440,7 +444,7 @@ pub struct CompactTeamMatchStats {
     pub red_cards: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct CompactMatchEvent {
     pub minute: u8,
     pub event_type: String,
@@ -449,7 +453,7 @@ pub struct CompactMatchEvent {
     pub secondary_player_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct StandingEntry {
     pub team_id: String,
     pub played: u32,

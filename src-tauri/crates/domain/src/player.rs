@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Player {
     pub id: String,
     pub match_name: String,
@@ -103,13 +104,13 @@ pub struct Player {
     pub jersey_number: Option<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
 pub struct PlayerMedia {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub face: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, TS)]
 pub enum Position {
     #[default]
     Goalkeeper,
@@ -270,7 +271,7 @@ impl Position {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 pub enum Footedness {
     Left,
     #[default]
@@ -278,14 +279,14 @@ pub enum Footedness {
     Both,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default, TS)]
 pub enum SquadRole {
     #[default]
     Senior,
     Youth,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct PlayerAttributes {
     // Physical
     pub pace: u8,
@@ -341,38 +342,38 @@ fn default_fitness() -> u8 {
     75
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Injury {
     pub name: String,
     pub days_remaining: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub enum PlayerIssueCategory {
     Contract,
     PlayingTime,
     Morale,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct PlayerIssue {
     pub category: PlayerIssueCategory,
     pub severity: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(default)]
 pub struct RecentTreatmentMemory {
     pub action_key: String,
     pub times_recently_used: u8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub enum PlayerPromiseKind {
     PlayingTime,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum RenewalSessionStatus {
     #[default]
     Idle,
@@ -382,7 +383,7 @@ pub enum RenewalSessionStatus {
     Stalled,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub enum RenewalSessionOutcome {
     #[default]
     None,
@@ -393,7 +394,7 @@ pub enum RenewalSessionOutcome {
     Stalled,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ContractExitIntent {
     LetExpire {
@@ -403,7 +404,7 @@ pub enum ContractExitIntent {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(default)]
 pub struct ContractRenewalState {
     pub status: RenewalSessionStatus,
@@ -429,7 +430,7 @@ impl Default for ContractRenewalState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(default)]
 pub struct PlayerPromise {
     pub kind: PlayerPromiseKind,
@@ -445,7 +446,7 @@ impl Default for PlayerPromise {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(default)]
 pub struct PlayerMoraleCore {
     pub manager_trust: u8,
@@ -493,7 +494,7 @@ fn default_loan_offer_date() -> String {
     String::new()
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, TS)]
 #[serde(default)]
 pub struct PlayerSeasonStats {
     pub appearances: u32,
@@ -516,7 +517,7 @@ pub struct PlayerSeasonStats {
     pub fouls_committed: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct CareerEntry {
     pub season: u32,
     pub team_id: String,
@@ -526,7 +527,7 @@ pub struct CareerEntry {
     pub assists: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum PlayerMovementKind {
     PermanentTransfer,
@@ -543,7 +544,7 @@ pub enum PlayerMovementKind {
     InitialContract,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct PlayerMovementEntry {
     pub date: String,
     pub kind: PlayerMovementKind,
@@ -586,7 +587,7 @@ impl PlayerMovementEntry {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct TransferOffer {
     pub id: String,
     pub from_team_id: String,
@@ -615,7 +616,7 @@ pub struct TransferOffer {
     pub closed_on: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum TransferOfferStatus {
     Pending,
     PendingRegistration,
@@ -624,7 +625,7 @@ pub enum TransferOfferStatus {
     Withdrawn,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub enum TransferRegistrationFailureReason {
     InsufficientFunds,
     LoanConflict,
@@ -632,7 +633,7 @@ pub enum TransferRegistrationFailureReason {
     RegistrationBlocked,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct LoanOffer {
     pub id: String,
     pub from_team_id: String,
@@ -666,7 +667,7 @@ pub struct LoanOffer {
     pub closed_on: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum LoanOfferStatus {
     Pending,
     PendingRegistration,
@@ -675,7 +676,7 @@ pub enum LoanOfferStatus {
     Withdrawn,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct ActiveLoan {
     pub parent_team_id: String,
     pub loan_team_id: String,
@@ -694,7 +695,7 @@ pub struct ActiveLoan {
     pub development_reported_appearances: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 pub enum PlayerTrait {
     // Physical
     Speedster, // pace >= 85

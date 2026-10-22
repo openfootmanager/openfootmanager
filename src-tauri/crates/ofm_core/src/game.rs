@@ -13,8 +13,9 @@ use domain::world_history::WorldHistoryArchive;
 
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap, HashSet};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum ObjectiveType {
     LeaguePosition,
     Wins,
@@ -22,7 +23,7 @@ pub enum ObjectiveType {
     FinancialStability,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct BoardObjective {
     pub id: String,
     pub description: String,
@@ -31,7 +32,7 @@ pub struct BoardObjective {
     pub met: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ScoutingAssignment {
     pub id: String,
     pub scout_id: String,
@@ -41,21 +42,21 @@ pub struct ScoutingAssignment {
 
 /// What a finished scouting job revealed about a player, as of `scouted_on`.
 /// The attributes are a snapshot: they do not follow the player's later changes.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ScoutedPlayer {
     pub player_id: String,
     pub scouted_on: String,
     pub attributes: PlayerAttributes,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum YouthScoutingRegion {
     #[default]
     Domestic,
     International,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum YouthScoutingObjective {
     #[default]
     Balanced,
@@ -63,7 +64,7 @@ pub enum YouthScoutingObjective {
     ReadySoon,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct YouthScoutingAssignment {
     pub id: String,
     pub scout_id: String,
@@ -83,7 +84,7 @@ pub struct DayStart {
     pub bracket_fixtures: std::collections::HashSet<(String, String)>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Game {
     pub clock: GameClock,
     pub manager: Manager,

@@ -1,9 +1,13 @@
 //! Calendar specification and edition provenance; renewal policy lives in `ofm_core`.
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+/// Renamed in TypeScript only: `season::SeasonPhase` (pre-season, in season, post-season) has the
+/// same Rust name, and the screens need both. The JSON is unchanged.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "CompetitionSeasonPhase")]
 pub enum SeasonPhase {
     #[default]
     Annual,
@@ -12,7 +16,7 @@ pub enum SeasonPhase {
 }
 
 /// Explicit division identity, independent of current participants or display names.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DivisionIdentity {
     #[serde(default)]
@@ -23,7 +27,7 @@ pub struct DivisionIdentity {
     pub phase: SeasonPhase,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub struct CalendarDate {
     #[serde(default)]
     pub month: u8,
@@ -32,7 +36,7 @@ pub struct CalendarDate {
 }
 
 /// Optional authored bounds. The opener remains League's existing month/day fields.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SeasonCalendar {
     #[serde(default)]
@@ -43,7 +47,7 @@ pub struct SeasonCalendar {
 }
 
 /// Interpretation of the existing `League::season`, without changing old counters.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum EditionBasis {
     CalendarYear,
@@ -59,7 +63,7 @@ pub enum EditionBasis {
 }
 
 /// Durable definition identity, supported edition provenance and authored ordinary-table shape.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, TS)]
 pub struct CalendarMetadata {
     #[serde(default)]
     pub definition_id: String,
