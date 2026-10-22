@@ -18,4 +18,5 @@ export { PitchToken, usePitchTokenFocus } from "./PitchToken";
 export type { PitchFitTone } from "./PitchToken";
 export { PageToolbar } from "./PageToolbar";
 export { SegmentedControl } from "./SegmentedControl";
+export { Switch } from "./Switch";
 export { TabPanel, Tabs } from "./Tabs";

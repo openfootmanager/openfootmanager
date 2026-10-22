@@ -3,7 +3,7 @@
  *
  * Split out when the page crossed the size threshold: these are pure presentation with no state
  * and no dependency on the page itself, so they are the seam that costs nothing to cut. A choice
- * of a few is ui/SegmentedControl.
+ * of a few is ui/SegmentedControl, and an on/off setting is ui/Switch.
  */
 import { type ReactNode, useId } from "react";
 
@@ -63,29 +63,5 @@ export function SettingRow({
         {typeof children === "function" ? children(labelId) : children}
       </div>
     </div>
-  );
-}
-
-export function Toggle({
-  checked,
-  onChange,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-        checked ? "bg-primary-500" : "bg-gray-300 dark:bg-navy-600"
-      }`}
-    >
-      <div
-        className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-          checked ? "translate-x-[22px]" : "translate-x-0.5"
-        }`}
-      />
-    </button>
   );
 }
