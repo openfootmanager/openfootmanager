@@ -244,6 +244,30 @@ describe("Dialog", () => {
 
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-busy", "true");
   });
+
+  /**
+   * Given a dialog that can't be closed yet (a save in flight), drawn with no onClose
+   * When the player presses Escape, or clicks the backdrop
+   * Then nothing happens and it stays: there is nothing to ask, and no error.
+   */
+  it("stays open with no onClose, whatever is pressed", () => {
+    const onError = vi.fn();
+    window.addEventListener("error", onError);
+    render(
+      <Dialog labelledBy="saving" busy dismissOnBackdrop>
+        <h2 id="saving">Saving</h2>
+      </Dialog>,
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    const backdrop = screen.getByTestId("dialog-backdrop");
+    fireEvent.mouseDown(backdrop);
+    fireEvent.click(backdrop);
+
+    window.removeEventListener("error", onError);
+    expect(onError).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Saving" })).toBeInTheDocument();
+  });
 });
 
 describe("DialogCloseButton", () => {
