@@ -6,7 +6,7 @@ import type { GameStateData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
 import { Badge, Card, CardBody, CardHeader, CountryFlag, TeamLogo } from "../ui";
-import { derivePastChampions } from "./HallOfFameWorldTab.model";
+import { useHallOfFameChampions } from "./useHallOfFameChampions";
 import { useHallOfFameLegends } from "./useHallOfFameLegends";
 
 interface HallOfFameWorldTabProps {
@@ -22,7 +22,12 @@ export default function HallOfFameWorldTab({
 }: HallOfFameWorldTabProps) {
   const { t, i18n } = useTranslation();
   const legends = useHallOfFameLegends(gameState.clock.current_date);
-  const champions = derivePastChampions(gameState);
+  const titles = useHallOfFameChampions(gameState.clock.current_date);
+  // The backend names the titles; the screen only attaches the club it shows.
+  const champions = titles.flatMap(({ season, team_id, record }) => {
+    const team = gameState.teams.find((candidate) => candidate.id === team_id);
+    return team ? [{ season, team, record }] : [];
+  });
   const worldCupChampions = gameState.world_history?.world_cup_champions ?? [];
 
   return (

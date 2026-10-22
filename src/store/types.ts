@@ -55,6 +55,15 @@ export interface TeamSeasonRecord {
   lost: number;
   goals_for: number;
   goals_against: number;
+  /** The league the table was in; blank on a record saved before it was kept. */
+  competition_id: string;
+}
+
+/** A league title in the world's past, as the backend names it. */
+export interface PastChampionData {
+  season: number;
+  team_id: string;
+  record: TeamSeasonRecord;
 }
 
 export type PlayerRole =
