@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { Shield } from "lucide-react";
 import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/helpers";
@@ -59,6 +61,7 @@ export default function PlayerProfileHeroCard({
   showsPrivateState,
   t,
 }: PlayerProfileHeroCardProps) {
+  const tierOf = useRatingTiers();
   const teamContextItems =
     player.team_id && onSelectTeam
       ? [buildViewTeamMenuItem(t, () => onSelectTeam(player.team_id!))]
@@ -73,13 +76,7 @@ export default function PlayerProfileHeroCard({
             className="w-24 h-24 shrink-0 rounded-2xl flex items-center justify-center font-heading font-bold text-3xl border-2 border-white/10 bg-white/5 text-gray-300 overflow-hidden"
           />
           <div
-            className={`flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-2xl border-2 font-heading ${
-              ovr >= 75
-                ? "bg-primary-500/20 text-primary-400 border-primary-500/30"
-                : ovr >= 55
-                  ? "bg-accent-500/20 text-accent-400 border-accent-500/30"
-                  : "bg-gray-500/20 text-gray-400 border-gray-500/30"
-            }`}
+            className={`flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-2xl border-2 font-heading ${ratingTierClass(tierOf(ovr), "hero")}`}
           >
             <span className="text-xs font-bold uppercase tracking-wider">{t("common.ovr")}</span>
             <span className="text-4xl font-bold leading-none">{ovr}</span>

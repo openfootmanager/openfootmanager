@@ -413,15 +413,15 @@
     "growth": "Crescita",
     "traits": "Tratti",
     "condition": "Condizione",
-    "potWorldClass": "Di livello mondiale",
-    "potExcellent": "Eccellente",
-    "potPromising": "Promettente",
-    "potDecent": "Discreto",
-    "potLimited": "Limitato",
     "delegateToYouthAcademy": "Delega al settore giovanile",
     "promoteToSeniorSquad": "Promuovi in prima squadra"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}º",
       "two": "{{n}}º",

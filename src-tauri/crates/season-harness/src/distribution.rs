@@ -60,12 +60,12 @@ fn distribution_of(players: &[Player], on: NaiveDate) -> DistributionReport {
         match player_tier(player.ovr) {
             PlayerTier::S => ovr_s += 1,
             PlayerTier::A => ovr_a += 1,
-            PlayerTier::Rest => {}
+            PlayerTier::B | PlayerTier::Rest => {}
         }
         match player_tier(player.potential) {
             PlayerTier::S => ceiling_s += 1,
             PlayerTier::A => ceiling_a += 1,
-            PlayerTier::Rest => {}
+            PlayerTier::B | PlayerTier::Rest => {}
         }
     }
     let share = |count: usize, of: usize| {

@@ -395,14 +395,14 @@
     "traits": "特质",
     "condition": "状态",
     "delegateToYouthAcademy": "下放至青训营",
-    "promoteToSeniorSquad": "提拔至一线队",
-    "potWorldClass": "世界级",
-    "potExcellent": "优秀",
-    "potPromising": "有前途",
-    "potDecent": "尚可",
-    "potLimited": "有限"
+    "promoteToSeniorSquad": "提拔至一线队"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "第{{n}}",
       "two": "第{{n}}",

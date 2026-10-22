@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { countryName } from "../../lib/countries";
 import { calcAge, formatVal, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
@@ -23,6 +25,7 @@ export default function TeamProfileRosterCard({
   t,
   onSelectPlayer,
 }: TeamProfileRosterCardProps) {
+  const tierOf = useRatingTiers();
   return (
     <Card className="lg:col-span-3">
       <CardHeader>
@@ -118,15 +121,10 @@ export default function TeamProfileRosterCard({
                     )}
                     <td className="py-3 px-5">
                       <span
-                        className={`font-heading font-bold text-lg tabular-nums ${
-                          isOwnTeam
-                            ? ovr >= 75
-                              ? "text-primary-500"
-                              : ovr >= 55
-                                ? "text-accent-500"
-                                : "text-gray-400"
-                            : "text-gray-400"
-                        }`}
+                        className={`font-heading font-bold text-lg tabular-nums ${ratingTierClass(
+                          isOwnTeam ? tierOf(ovr) : "Rest",
+                          "text",
+                        )}`}
                       >
                         {isOwnTeam ? ovr : "??"}
                       </span>
