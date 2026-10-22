@@ -30,7 +30,13 @@ export function useDialogKeyboard(
       // page behind the overlay stays fully tabbable. Without this, Tab walks out of the dialog
       // into controls the player cannot see.
       const focusable = dialog.querySelectorAll<HTMLElement>(FOCUSABLE);
-      if (focusable.length === 0) return;
+      // A dialog with nothing to focus (a "Saving…" spinner) keeps the focus on itself: left to
+      // the browser, Tab would move it to the page behind the overlay.
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       const active = document.activeElement;

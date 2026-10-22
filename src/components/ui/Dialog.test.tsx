@@ -246,6 +246,30 @@ describe("Dialog", () => {
   });
 
   /**
+   * Given a dialog with nothing to focus in it (a "Saving…" spinner), the focus on its panel
+   * When the player presses Tab, or Shift+Tab
+   * Then the key is kept from the browser and the focus stays on the panel, rather than moving to
+   * the page behind the overlay.
+   */
+  it.each([false, true])("keeps Tab on a dialog with nothing to focus (shift: %s)", (shiftKey) => {
+    render(
+      <>
+        <button type="button">Behind</button>
+        <Dialog labelledBy="saving" busy>
+          <h2 id="saving">Saving</h2>
+        </Dialog>
+      </>,
+    );
+    const panel = screen.getByRole("dialog", { name: "Saving" });
+    expect(panel).toHaveFocus();
+
+    const notPrevented = fireEvent.keyDown(window, { key: "Tab", shiftKey });
+
+    expect(notPrevented).toBe(false);
+    expect(panel).toHaveFocus();
+  });
+
+  /**
    * Given a dialog that can't be closed yet (a save in flight), drawn with no onClose
    * When the player presses Escape, or clicks the backdrop
    * Then nothing happens and it stays: there is nothing to ask, and no error.
