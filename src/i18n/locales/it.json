@@ -431,6 +431,7 @@
     "currentWage": "Stipendio attuale",
     "loading": "Caricamento...",
     "loadingGameState": "Caricamento stato di gioco...",
+    "detailsFor": "Dettagli di {{name}}",
     "noResults": "Nessun risultato trovato.",
     "place": {
       "1": "1°",

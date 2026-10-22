@@ -412,6 +412,7 @@
     "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
+    "detailsFor": "Podrobnosti: {{name}}",
     "noResults": "Výsledky nenalezeny.",
     "place": {
       "1": "1.",

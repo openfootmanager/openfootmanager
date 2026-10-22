@@ -412,6 +412,7 @@
     "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",
+    "detailsFor": "Details zu {{name}}",
     "noResults": "Keine Ergebnisse gefunden.",
     "place": {
       "1": "1.",

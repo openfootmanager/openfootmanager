@@ -412,6 +412,7 @@
     "currentWage": "Mevcut maaş",
     "loading": "Yükleniyor...",
     "loadingGameState": "Oyun durumu yükleniyor...",
+    "detailsFor": "{{name}} ayrıntıları",
     "noResults": "Sonuç bulunamadı.",
     "place": {
       "1": "1.",
