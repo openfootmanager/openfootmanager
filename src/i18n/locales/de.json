@@ -2003,7 +2003,6 @@
     "alreadyQueued": "Bereits für einen Wechsel vorgemerkt",
     "substitutionsPartlyMade": "{{applied}} von {{total}} Wechseln durchgeführt",
     "substitutionRefused": "Wechsel abgelehnt: {{off}} für {{on}}. {{reason}}",
-    "playerRoles": "Spielerrollen",
     "roleFor": "Rolle von {{player}}",
     "roleChangeRefused": "Die Rolle von {{player}} konnte nicht geändert werden. {{reason}}",
     "noBenchAvailable": "Keine Bankspieler verfügbar",

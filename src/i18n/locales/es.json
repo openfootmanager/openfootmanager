@@ -2003,7 +2003,6 @@
     "alreadyQueued": "Ya está en cola para un cambio",
     "substitutionsPartlyMade": "{{applied}} de {{total}} cambios realizados",
     "substitutionRefused": "Cambio rechazado: {{off}} por {{on}}. {{reason}}",
-    "playerRoles": "Roles de los jugadores",
     "roleFor": "Rol de {{player}}",
     "roleChangeRefused": "No se pudo cambiar el rol de {{player}}. {{reason}}",
     "noBenchAvailable": "No hay jugadores en el banquillo",
