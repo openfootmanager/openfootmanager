@@ -31,6 +31,32 @@ function appCss(): string {
   return readFileSync("src/App.css", "utf-8");
 }
 
+/** The @font-face block of `family` at `weight` whose file is `file`, or null. */
+function faceBlock(css: string, family: string, weight: number, file: string): string | null {
+  const blocks = css.match(/@font-face\s*\{[^}]*\}/g) ?? [];
+  return (
+    blocks.find(
+      (block) =>
+        block.includes(`font-family: "${family}"`) &&
+        block.includes(`font-weight: ${weight};`) &&
+        block.includes(file),
+    ) ?? null
+  );
+}
+
+/** The first code point of every range in a block's unicode-range. */
+function rangeStarts(block: string): number[] {
+  const range = block.match(/unicode-range:\s*([^;]+);/)?.[1] ?? "";
+  return [...range.matchAll(/U\+([0-9A-Fa-f]+)/g)].map((match) => Number.parseInt(match[1], 16));
+}
+
+/** The block declares a unicode-range, and none of it reaches below the combining accent at U+0301. */
+function expectCyrillicOnly(block: string): void {
+  const starts = rangeStarts(block);
+  expect(starts.length).toBeGreaterThan(0);
+  expect(Math.min(...starts)).toBeGreaterThanOrEqual(0x0301);
+}
+
 describe("bundled font coverage", () => {
   /**
    * Given every locale the game ships
@@ -44,37 +70,54 @@ describe("bundled font coverage", () => {
   });
 
   /**
-   * Given a locale written in a script other than Latin that the game bundles a face for
+   * Given the Latin scripts the game bundles Inter for
    * When App.css is read
-   * Then Inter's face for that script is imported at every weight the UI uses, so the text is
-   *      not drawn in a system fallback
+   * Then Inter's face for each is imported at every weight the UI uses
    */
-  it.each([...new Set(Object.values(SCRIPT_BY_LOCALE))].filter((script) => script !== "cjk"))(
-    "bundles Inter %s at every UI weight",
-    (script) => {
-      const css = appCss();
+  it.each(["latin", "latin-ext"])("bundles Inter %s at every UI weight", (script) => {
+    const css = appCss();
 
-      for (const weight of INTER_WEIGHTS) {
-        expect(css).toContain(`@import "@fontsource/inter/${script}-${weight}.css";`);
-      }
-    },
-  );
+    for (const weight of INTER_WEIGHTS) {
+      expect(css).toContain(`@import "@fontsource/inter/${script}-${weight}.css";`);
+    }
+  });
+
+  /**
+   * Given Russian is written in Cyrillic, which the Latin faces do not cover
+   * When App.css is read
+   * Then Inter's Cyrillic face is declared at every UI weight, limited to Cyrillic code points, so
+   *      the text is not drawn in a system fallback
+   */
+  it("declares Inter cyrillic at every UI weight, scoped to Cyrillic", () => {
+    const css = appCss();
+
+    for (const weight of INTER_WEIGHTS) {
+      const block = faceBlock(css, "Inter", weight, `inter-cyrillic-${weight}-normal.woff2`);
+      expect(block, `Inter cyrillic ${weight}`).not.toBeNull();
+      expectCyrillicOnly(block ?? "");
+    }
+  });
 
   /**
    * Given Barlow Condensed, the heading face, has no Cyrillic glyphs
    * When a Russian heading is drawn
-   * Then the heading stack names a bundled condensed Cyrillic face right after Barlow, so it does
-   *      not fall back to the much wider Inter and overflow the sidebar and tab bars
+   * Then the heading stack names a bundled condensed Cyrillic face right after Barlow, and that
+   *      face claims Cyrillic code points only, so Latin headings stay Barlow Condensed
    */
-  it("gives headings a bundled condensed Cyrillic face behind Barlow Condensed", () => {
+  it("gives headings a Cyrillic-only condensed face behind Barlow Condensed", () => {
     const css = appCss();
     const headingStack = css.match(/--font-heading:\s*([^;]+);/)?.[1] ?? "";
 
     expect(headingStack).toMatch(/^"Barlow Condensed",\s*"Fira Sans Extra Condensed"/);
     for (const weight of [600, 700]) {
-      expect(css).toContain(
-        `@import "@fontsource/fira-sans-extra-condensed/cyrillic-${weight}.css";`,
+      const block = faceBlock(
+        css,
+        "Fira Sans Extra Condensed",
+        weight,
+        `fira-sans-extra-condensed-cyrillic-${weight}-normal.woff2`,
       );
+      expect(block, `Fira cyrillic ${weight}`).not.toBeNull();
+      expectCyrillicOnly(block ?? "");
     }
   });
 });
