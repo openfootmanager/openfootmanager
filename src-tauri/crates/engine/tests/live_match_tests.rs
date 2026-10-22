@@ -2031,3 +2031,185 @@ fn every_period_lasts_its_full_length_whatever_stoppage_came_before() {
         "200 seeds should include first-half stoppage and a drawn match, or this test proves nothing"
     );
 }
+
+/// A home 4-4-2 whose target man is strong and a fair tackler and whose left back is slight:
+/// the side a defensive-score re-sort gets wrong. `adjust` changes anyone else before kick-off.
+fn match_with_a_target_man_and_a_slight_left_back(
+    adjust: impl Fn(&mut PlayerData),
+) -> LiveMatchState {
+    let mut home = make_team("home", "Home", 60, PlayStyle::Balanced);
+    for player in &mut home.players {
+        match player.id.as_str() {
+            "home_fwd1" => {
+                player.strength = 95;
+                player.defending = 70;
+                player.tackling = 70;
+            }
+            "home_def4" => {
+                player.strength = 45;
+                player.defending = 55;
+                player.tackling = 55;
+            }
+            _ => {}
+        }
+        adjust(player);
+    }
+    let away = make_team("away", "Away", 60, PlayStyle::Balanced);
+    LiveMatchState::new(
+        home,
+        away,
+        MatchConfig::default(),
+        make_bench("home", 60),
+        make_bench("away", 60),
+        false,
+    )
+}
+
+fn as_built(_: &mut PlayerData) {}
+
+fn change_home_formation(state: &mut LiveMatchState, formation: &str) {
+    state
+        .apply_command(MatchCommand::ChangeFormation {
+            side: Side::Home,
+            formation: formation.to_string(),
+        })
+        .unwrap();
+}
+
+fn home_lines(state: &LiveMatchState) -> Vec<(String, Position)> {
+    state
+        .snapshot()
+        .home_team
+        .players
+        .iter()
+        .map(|player| (player.id.clone(), player.position))
+        .collect()
+}
+
+fn home_line_of(state: &LiveMatchState, id: &str) -> Position {
+    home_lines(state)
+        .into_iter()
+        .find(|(player_id, _)| player_id == id)
+        .map(|(_, line)| line)
+        .unwrap()
+}
+
+/// Given a 4-4-2 with a strong target man and a slight left back,
+/// When the manager switches to 4-3-3,
+/// Then the target man still plays up front and the left back still defends.
+#[test]
+fn a_formation_change_keeps_a_target_man_up_front() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+
+    change_home_formation(&mut state, "4-3-3");
+
+    assert_eq!(home_line_of(&state, "home_fwd1"), Position::Forward);
+    assert_eq!(home_line_of(&state, "home_def4"), Position::Defender);
+}
+
+/// Given a 4-4-2 with a strong target man and a slight left back,
+/// When the manager picks 4-4-2 again,
+/// Then nobody moves: every player keeps his line and his place in the eleven.
+#[test]
+fn a_change_to_the_same_shape_moves_nobody() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+    let before = home_lines(&state);
+
+    change_home_formation(&mut state, "4-4-2");
+
+    assert_eq!(home_lines(&state), before);
+}
+
+/// Given a 4-4-2 with a strong target man, a slight left back and one midfielder who is the
+/// side's best tackler,
+/// When the manager switches to a back five,
+/// Then the extra defender is that midfielder, both forwards stay up front and the left back
+/// stays in defence.
+#[test]
+fn a_back_five_takes_its_extra_defender_from_midfield() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(|player| {
+        if player.id == "home_mid3" {
+            player.defending = 85;
+            player.tackling = 85;
+            player.strength = 80;
+        }
+    });
+
+    change_home_formation(&mut state, "5-3-2");
+
+    assert_eq!(home_line_of(&state, "home_mid3"), Position::Defender);
+    assert_eq!(home_line_of(&state, "home_fwd1"), Position::Forward);
+    assert_eq!(home_line_of(&state, "home_fwd2"), Position::Forward);
+    assert_eq!(home_line_of(&state, "home_def4"), Position::Defender);
+}
+
+/// Given a 4-4-2 with a strong target man and a slight left back,
+/// When the manager switches to 4-3-3,
+/// Then the third forward comes from midfield, and every defender stays in defence.
+#[test]
+fn a_front_three_takes_its_extra_forward_from_midfield() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+
+    change_home_formation(&mut state, "4-3-3");
+
+    for defender in ["home_def1", "home_def2", "home_def3", "home_def4"] {
+        assert_eq!(
+            home_line_of(&state, defender),
+            Position::Defender,
+            "{defender}"
+        );
+    }
+    let midfielders_up_front = ["home_mid1", "home_mid2", "home_mid3", "home_mid4"]
+        .into_iter()
+        .filter(|id| home_line_of(&state, id) == Position::Forward)
+        .count();
+    assert_eq!(midfielders_up_front, 1);
+}
+
+/// Given a 4-4-2 with a strong target man and a slight left back,
+/// When the manager switches to 3-4-3, which needs one defender fewer and one forward more,
+/// Then the change goes through midfield: one defender steps into midfield, one midfielder
+/// steps up front, and no defender jumps straight to the front line.
+#[test]
+fn a_player_moves_only_into_the_next_line() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+
+    change_home_formation(&mut state, "3-4-3");
+
+    let defenders = ["home_def1", "home_def2", "home_def3", "home_def4"];
+    for defender in defenders {
+        assert_ne!(
+            home_line_of(&state, defender),
+            Position::Forward,
+            "{defender}"
+        );
+    }
+    let defenders_into_midfield = defenders
+        .into_iter()
+        .filter(|id| home_line_of(&state, id) == Position::Midfielder)
+        .count();
+    assert_eq!(defenders_into_midfield, 1);
+    assert_eq!(home_line_of(&state, "home_fwd1"), Position::Forward);
+    assert_eq!(home_line_of(&state, "home_fwd2"), Position::Forward);
+}
+
+/// Given a 4-4-2,
+/// When the manager switches to a back five,
+/// Then the eleven reads back to front: the keeper, five defenders, three midfielders and two
+/// forwards, so player i plays slot i of the new shape on the pitch.
+#[test]
+fn the_eleven_is_listed_back_to_front_after_a_formation_change() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+
+    change_home_formation(&mut state, "5-3-2");
+
+    let lines: Vec<Position> = home_lines(&state)
+        .into_iter()
+        .map(|(_, line)| line)
+        .collect();
+    let mut expected = vec![Position::Goalkeeper];
+    expected.extend([Position::Defender; 5]);
+    expected.extend([Position::Midfielder; 3]);
+    expected.extend([Position::Forward; 2]);
+    assert_eq!(lines, expected);
+}
