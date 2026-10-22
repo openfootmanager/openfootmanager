@@ -99,6 +99,12 @@ webkit2gtk = { version = "2.0", features = ["v2_20"] }
 [target.'cfg(target_os = "linux")'.dev-dependencies]
 gtk = "0.18"
 
+# `tauri::test` is what lets a test hand a real `tauri::State` to a `#[tauri::command]` wrapper. Without it
+# the wrapper (the line that turns the IPC `career_token` into `Career::Token`) was the one thing no test
+# could call, and a mutant that emptied it survived (cloud mutants on #930).
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
 # is the dominant cause of the in-app sluggishness. Lightly optimizing our own
 # crates and fully optimizing dependencies keeps incremental compiles fast while
