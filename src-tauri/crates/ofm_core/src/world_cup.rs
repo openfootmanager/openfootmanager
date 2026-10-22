@@ -278,6 +278,13 @@ fn group_admits(group: &[String], code: &str, regions: &HashMap<String, String>)
 /// Place each team of one pot into a distinct group (one per group) without
 /// breaching the confederation cap, by backtracking. Returns whether it found a
 /// full assignment.
+///
+/// A team is only placed when the groups after it can still each take one of the teams left,
+/// so the search never backs out of a dead end it could have seen coming. That used to be
+/// unbounded: a pot the caps cannot place was searched through every order the earlier groups
+/// allow, up to g! for g groups (12! is about 4.8 × 10⁸ for a 48-team field), on each of the
+/// draw's 64 reshuffles. The check only prunes branches with no complete placement, so the
+/// placement found is the one the full search found, and a seed draws the same groups.
 fn place_pot(
     pot: &[String],
     used: &mut [bool],
@@ -292,13 +299,71 @@ fn place_pot(
         if used[i] || !group_admits(&groups[group_index], code, regions) {
             continue;
         }
-        groups[group_index].push(code.clone());
         used[i] = true;
-        if place_pot(pot, used, group_index + 1, groups, regions) {
-            return true;
+        if can_fill_groups_from(pot, used, group_index + 1, groups, regions) {
+            groups[group_index].push(code.clone());
+            if place_pot(pot, used, group_index + 1, groups, regions) {
+                return true;
+            }
+            groups[group_index].pop();
         }
         used[i] = false;
-        groups[group_index].pop();
+    }
+    false
+}
+
+/// Whether the pot's unused teams can fill every group from `first_group` on, one team each,
+/// within the cap: a perfect matching between those groups and those teams. Each group takes
+/// exactly one team from a pot, so whether a team fits a group depends only on what the group
+/// already holds, and Kuhn's augmenting paths decide it in polynomial time.
+fn can_fill_groups_from(
+    pot: &[String],
+    used: &[bool],
+    first_group: usize,
+    groups: &[Vec<String>],
+    regions: &HashMap<String, String>,
+) -> bool {
+    let open_groups: Vec<usize> = (first_group..groups.len()).collect();
+    let free_teams: Vec<usize> = (0..pot.len()).filter(|&team| !used[team]).collect();
+    if free_teams.len() < open_groups.len() {
+        return false;
+    }
+    let fits: Vec<Vec<usize>> = open_groups
+        .iter()
+        .map(|&group| {
+            (0..free_teams.len())
+                .filter(|&slot| group_admits(&groups[group], &pot[free_teams[slot]], regions))
+                .collect()
+        })
+        .collect();
+    let mut team_taken_by: Vec<Option<usize>> = vec![None; free_teams.len()];
+    (0..open_groups.len()).all(|group| {
+        let mut visited = vec![false; free_teams.len()];
+        claim_a_team(group, &fits, &mut team_taken_by, &mut visited)
+    })
+}
+
+/// Kuhn's augmenting step: give `group` a team that fits it, moving the team's current group
+/// to another fitting team if it has one.
+fn claim_a_team(
+    group: usize,
+    fits: &[Vec<usize>],
+    team_taken_by: &mut [Option<usize>],
+    visited: &mut [bool],
+) -> bool {
+    for &team in &fits[group] {
+        if visited[team] {
+            continue;
+        }
+        visited[team] = true;
+        let reassigned = match team_taken_by[team] {
+            None => true,
+            Some(holder) => claim_a_team(holder, fits, team_taken_by, visited),
+        };
+        if reassigned {
+            team_taken_by[team] = Some(group);
+            return true;
+        }
     }
     false
 }
@@ -3293,5 +3358,97 @@ mod tests {
                 "settled winner {winner} is in the field"
             );
         }
+    }
+
+    fn codes(prefix: &str, count: usize) -> Vec<String> {
+        (0..count).map(|n| format!("{prefix}{n}")).collect()
+    }
+
+    fn regions_of(teams: &[(&[String], &str)]) -> HashMap<String, String> {
+        teams
+            .iter()
+            .flat_map(|(codes, region)| codes.iter().map(|code| (code.clone(), region.to_string())))
+            .collect()
+    }
+
+    /// Given thirteen empty groups but the last, which already holds an Asian side, and a pot of
+    ///       thirteen Asian sides, which the one-per-confederation cap cannot place
+    /// When the pot is placed
+    /// Then the search gives up within moments, rather than trying every one of the 13! orders
+    ///      the first twelve groups allow before finding the last one full every time
+    #[test]
+    fn a_pot_the_confederation_caps_cannot_place_is_given_up_on_quickly() {
+        let pot = codes("AS", 13);
+        let seeded = vec!["ASX".to_string()];
+        let regions = regions_of(&[(&pot, "asia"), (&seeded, "asia")]);
+        let mut groups: Vec<Vec<String>> = vec![Vec::new(); 13];
+        groups[12].push("ASX".to_string());
+        let (sender, receiver) = std::sync::mpsc::channel();
+
+        std::thread::spawn(move || {
+            let mut used = vec![false; pot.len()];
+            let placed = place_pot(&pot, &mut used, 0, &mut groups, &regions);
+            let _ = sender.send(placed);
+        });
+
+        let placed = receiver
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("the search for an impossible pot was still running after five seconds");
+        assert!(!placed);
+    }
+
+    /// Given twelve groups, all but the first already holding an Asian side, and a pot of eleven
+    ///       African sides and one Asian side, the Asian side last
+    /// When the pot is placed
+    /// Then it is placed with one team in every group, the Asian side in the first group: the
+    ///      only placement there is, behind 11 × 10! orders that start with an African side there
+    #[test]
+    fn a_pot_whose_only_placement_comes_last_in_search_order_is_still_placed() {
+        let africa = codes("AF", 11);
+        let asia = codes("AS", 12);
+        let regions = regions_of(&[(&africa, "africa"), (&asia, "asia")]);
+        let mut pot = africa.clone();
+        pot.push(asia[0].clone());
+        let mut groups: Vec<Vec<String>> = (0..12)
+            .map(|group| {
+                if group == 0 {
+                    Vec::new()
+                } else {
+                    vec![asia[group].clone()]
+                }
+            })
+            .collect();
+        let mut used = vec![false; pot.len()];
+
+        let placed = place_pot(&pot, &mut used, 0, &mut groups, &regions);
+
+        assert!(placed);
+        assert_eq!(groups[0], vec![asia[0].clone()]);
+        assert!(groups[1..].iter().all(|group| group.len() == 2));
+    }
+
+    /// Given three groups, the second and third already holding an Asian side, and a pot of two
+    ///       African sides and one Asian one, in that order
+    /// When the pot is placed
+    /// Then it is placed, by backtracking out of the first choices: the Asian side goes to the
+    ///      first group, the only one that can take it, and every group keeps to the cap
+    #[test]
+    fn a_pot_that_needs_backtracking_is_still_placed_within_the_caps() {
+        let africa = codes("AF", 2);
+        let asia = codes("AS", 3);
+        let regions = regions_of(&[(&africa, "africa"), (&asia, "asia")]);
+        let pot = vec![africa[0].clone(), africa[1].clone(), asia[0].clone()];
+        let mut groups = vec![Vec::new(), vec![asia[1].clone()], vec![asia[2].clone()]];
+        let mut used = vec![false; pot.len()];
+
+        let placed = place_pot(&pot, &mut used, 0, &mut groups, &regions);
+
+        assert!(placed);
+        assert_eq!(groups[0], vec![asia[0].clone()]);
+        assert!(
+            groups
+                .iter()
+                .all(|group| group.iter().filter(|code| regions[*code] == "asia").count() <= 1)
+        );
     }
 }
