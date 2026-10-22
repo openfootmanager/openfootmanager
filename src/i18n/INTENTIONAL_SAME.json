@@ -28,6 +28,7 @@
     "worldEditor.staffId"
   ],
   "de": [
+    "match.formationFit",
     "nations.eng",
     "nations.wal",
     "nations.pt",
@@ -137,6 +138,7 @@
     "packageBuild.patches"
   ],
   "fr": [
+    "match.formationFit",
     "nations.pt",
     "nations.ua",
     "nations.gh",

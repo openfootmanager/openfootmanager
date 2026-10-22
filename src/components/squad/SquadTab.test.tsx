@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type {
@@ -229,7 +229,8 @@ describe("SquadTab", () => {
     expect(screen.queryByTestId("bench-player-d5")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
     expect(screen.queryByText("squad.planStatus")).not.toBeInTheDocument();
-    expect(screen.getByText("squad.formationFit")).toBeInTheDocument();
+    // Familiarity rides on the Position column's badges: no column of its own.
+    expect(screen.queryByText("squad.formationFit")).not.toBeInTheDocument();
     // The game does not tell the manager how well a player suits the play style: no column, no chip.
     expect(screen.queryByText(/styleFit/)).not.toBeInTheDocument();
     expect(screen.getByText("squad.traits")).toBeInTheDocument();
@@ -237,6 +238,41 @@ describe("SquadTab", () => {
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
     expect(screen.getAllByText(/squad.needsCover/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/squad.styleFitValues./)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a starting XI in which the goalkeeper and a forward have swapped slots
+   * When the roster table renders
+   * Then both are read as out of position on their Position badges, with no column of their own
+   *      for it; and the unswapped XI states no such thing.
+   */
+  it("marks a player deployed out of position on his position badge", () => {
+    renderSquadTab(makeGameState());
+    expect(screen.queryAllByText(/, squad\.outOfPosition$/)).toHaveLength(0);
+
+    cleanup();
+    const swapped = makeGameState();
+    swapped.teams[0].starting_xi_ids = [
+      "f1",
+      "d1",
+      "d2",
+      "d3",
+      "d4",
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "gk1",
+      "f2",
+    ];
+    renderSquadTab(swapped);
+
+    expect(screen.getAllByText(/, squad\.outOfPosition$/)).toHaveLength(2);
+    // The fixture's coarse buckets read as adapted in granular slots; only the swapped pair is warned.
+    const warned = screen
+      .getAllByTestId("familiarity-dot")
+      .filter((dot) => dot.classList.contains("bg-warning-solid"));
+    expect(warned).toHaveLength(2);
   });
 
   it("shows progressive injury details in the roster", () => {

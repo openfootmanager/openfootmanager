@@ -17,6 +17,8 @@ import {
   PageToolbar,
   PitchToken,
   PlayerAvatar,
+  PositionBadge,
+  PositionBadges,
   ProgressBar,
   Select,
   TabPanel,
@@ -352,6 +354,41 @@ const PITCH_FIXTURES = [
   { name: "DUPONT", abbr: "RB", position: "RightBack", ovr: 70, condition: 98, fit: "out" },
 ] as const;
 
+const BADGE_NAMES: Record<string, { label: string; name: string }> = {
+  Striker: { label: "ST", name: "Striker" },
+  RightWinger: { label: "RW", name: "Right Winger" },
+  LeftWinger: { label: "LW", name: "Left Winger" },
+  CenterBack: { label: "CB", name: "Center Back" },
+};
+
+function PositionBadgeSection() {
+  const describe = (position: string) => BADGE_NAMES[position];
+  return (
+    <Section title="Position badges">
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadge position="Striker" {...BADGE_NAMES.Striker} familiarity="natural" />
+        <PositionBadge position="RightWinger" {...BADGE_NAMES.RightWinger} familiarity="adapted" />
+        <PositionBadge position="CenterBack" {...BADGE_NAMES.CenterBack} familiarity="out" />
+        <PositionBadge position="LeftWinger" {...BADGE_NAMES.LeftWinger} kind="alternate" />
+      </div>
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger", "LeftWinger"]}
+          deployed="RightWinger"
+          describe={describe}
+        />
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger"]}
+          deployed="CenterBack"
+          describe={describe}
+        />
+      </div>
+    </Section>
+  );
+}
+
 function PitchSection() {
   return (
     <Section title="Pitch tokens">
@@ -520,6 +557,7 @@ export function StyleGuide({ options }: { options: StyleGuideOptions }) {
         <ControlsSection />
         <DisplaySection />
         <CardsSection />
+        <PositionBadgeSection />
         <PitchSection />
         <DialogSection open={options.dialogOpen} />
       </div>
