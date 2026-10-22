@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import type { FocusEvent } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useSidebar } from "./useSidebar";
@@ -39,6 +40,30 @@ describe("useSidebar", () => {
 
     act(() => result.current.asideHandlers.onPointerLeave());
     act(() => vi.advanceTimersByTime(260));
+    expect(result.current.layout.drawn).toBe("rail");
+  });
+
+  /**
+   * Given Expand on hover and a keyboard player tabbing into the rail
+   * When the focus enters, moves between its items, then leaves the sidebar
+   * Then it opens at once (no hover delay for the keyboard), stays open while the focus is inside,
+   * and closes when the focus leaves.
+   */
+  it("opens on keyboard focus and closes when the focus leaves the sidebar", () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSidebar(settings("hover")));
+    const aside = document.createElement("aside");
+    const item = aside.appendChild(document.createElement("button"));
+    const blurTo = (next: Element | null) =>
+      ({ currentTarget: aside, relatedTarget: next }) as unknown as FocusEvent<HTMLElement>;
+
+    act(() => result.current.asideHandlers.onFocus());
+    expect(result.current.layout).toMatchObject({ drawn: "standard", overlay: true });
+
+    act(() => result.current.asideHandlers.onBlur(blurTo(item)));
+    expect(result.current.layout.drawn).toBe("standard");
+
+    act(() => result.current.asideHandlers.onBlur(blurTo(document.body)));
     expect(result.current.layout.drawn).toBe("rail");
   });
 
