@@ -21,6 +21,7 @@
 
 use crate::player::{Player, PlayerMovementEntry, PlayerMovementKind};
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use ts_rs::TS;
 
 /// How a contract came to exist. Mirrors the `ContractSource` in the contract spec
@@ -77,18 +78,19 @@ struct StagedContract {
     wage: u32,
 }
 
-/// What a saved or serialized player says about his contract and moves, under the keys
-/// it has always used.
-#[derive(Deserialize)]
-struct LedgerKeys {
+/// What a player says about his contract and moves, under the keys it has always used. One struct
+/// writes them (borrowing the ledger) and reads them back (owning what a save holds), so the two
+/// directions cannot drift apart. The TypeScript player type is generated from it.
+#[derive(Serialize, Deserialize, TS)]
+struct LedgerKeys<'a> {
     #[serde(default)]
-    movement_history: Vec<PlayerMovementEntry>,
+    movement_history: Cow<'a, [PlayerMovementEntry]>,
     #[serde(default)]
     wage: u32,
     #[serde(default)]
-    contract_start: Option<String>,
+    contract_start: Option<Cow<'a, str>>,
     #[serde(default)]
-    contract_end: Option<String>,
+    contract_end: Option<Cow<'a, str>>,
 }
 
 /// A player's moves and contracts. Reads like the list of entries it holds; only
@@ -196,51 +198,43 @@ impl<'a> IntoIterator for &'a MovementLedger {
     }
 }
 
-/// What a ledger writes into a player, under the keys [`LedgerKeys`] reads back. The TypeScript
-/// player type is generated from this struct, so it describes exactly what is written.
-#[derive(Serialize, TS)]
-struct LedgerWire<'a> {
-    movement_history: &'a [PlayerMovementEntry],
-    wage: u32,
-    contract_start: Option<&'a str>,
-    contract_end: Option<&'a str>,
-}
-
 impl Serialize for MovementLedger {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        LedgerWire {
-            movement_history: &self.entries,
+        LedgerKeys {
+            movement_history: Cow::Borrowed(&self.entries),
             wage: self.wage(),
-            contract_start: self.start(),
-            contract_end: self.end(),
+            contract_start: self.start().map(Cow::Borrowed),
+            contract_end: self.end().map(Cow::Borrowed),
         }
         .serialize(serializer)
     }
 }
 
 /// By hand because the ledger is flattened into a player and `ts-rs` cannot flatten a type
-/// declared `#[ts(as = ..)]`. Every answer is [`LedgerWire`]'s.
+/// declared `#[ts(as = ..)]`. Every answer is [`LedgerKeys`]'s. It has no declaration of its own,
+/// so its name is its inline shape: were it ever used unflattened, the TypeScript would still be
+/// complete rather than name a type no file declares.
 impl TS for MovementLedger {
     type WithoutGenerics = Self;
     type OptionInnerType = Self;
 
     fn name(config: &ts_rs::Config) -> String {
-        LedgerWire::name(config)
+        Self::inline(config)
     }
 
     fn inline(config: &ts_rs::Config) -> String {
-        LedgerWire::inline(config)
+        LedgerKeys::inline(config)
     }
 
     fn inline_flattened(config: &ts_rs::Config) -> String {
-        LedgerWire::inline_flattened(config)
+        LedgerKeys::inline_flattened(config)
     }
 
     fn visit_dependencies(visitor: &mut impl ts_rs::TypeVisitor)
     where
         Self: 'static,
     {
-        LedgerWire::visit_dependencies(visitor);
+        LedgerKeys::visit_dependencies(visitor);
     }
 }
 
@@ -248,9 +242,9 @@ impl<'de> Deserialize<'de> for MovementLedger {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let keys = LedgerKeys::deserialize(deserializer)?;
         Ok(Self::restore(
-            keys.movement_history,
-            keys.contract_start,
-            keys.contract_end,
+            keys.movement_history.into_owned(),
+            keys.contract_start.map(Cow::into_owned),
+            keys.contract_end.map(Cow::into_owned),
             keys.wage,
         ))
     }
@@ -533,6 +527,27 @@ mod tests {
                 r#""contract_start":"2026-07-01","contract_end":"2030-06-30","after":2}"#,
             )
         );
+    }
+
+    /// Given a ledger whose entries record a transfer with terms
+    /// When it is written into a player and the player is read back
+    /// Then the same entries come back, not just the contract they imply.
+    #[test]
+    fn a_written_ledger_reads_back_whole() {
+        let entry = PlayerMovementEntry {
+            contract: Some(ContractRecord {
+                start: Some("2026-07-01".into()),
+                end: Some("2030-06-30".into()),
+                weekly_wage: 900,
+                source: ContractSource::Transfer,
+            }),
+            ..PlayerMovementEntry::new("2026-07-01", PlayerMovementKind::PermanentTransfer)
+        };
+        let ledger = MovementLedger::restore(vec![entry], None, None, 0);
+
+        let back: MovementLedger = serde_json::from_str(&flattened_json(&ledger)).unwrap();
+
+        assert_eq!(back, ledger);
     }
 
     fn contract(
