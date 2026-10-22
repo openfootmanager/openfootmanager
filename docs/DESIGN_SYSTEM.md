@@ -196,12 +196,28 @@ window the game opens at) and 960×640 (its minimum).
 - **A primitive:** run the dev server on each commit and screenshot the style guide in headless
   Chrome, for example
   `google-chrome --headless=new --window-size=1280,3300 --screenshot=out.png "http://localhost:1420/style-guide.html?theme=dark"`.
-- **A page:** run a debug build with `--features mcp` under Xvfb through `tauri-driver`, start a
-  career over the MCP port (`game_new`), and drive the UI over WebDriver. Give the app private
-  `XDG_DATA_HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` directories, so it
-  never reads or writes your real saves and settings, and `GDK_BACKEND=x11` with
+- **A page:** the page harness mounts the real dashboard on a small generated career, with the
+  backend mocked, in the same dev page: `/style-guide.html?page=squad` (or `page=home`), with the
+  same theme, density, scale and contrast options. Screenshot it the same way.
+  - The career is `src/dev/pageHarness/fixture.generated.ts`: one eight-club league from a fixed
+    seed, begun the way the app begins one, plus each command's answer for it. Regenerate it with
+    `npm run fixture:pages` (the generator is `src-tauri/crates/ofm_core/examples/page_fixture.rs`).
+  - Every value in it `satisfies` the frontend type its command returns, so `npm run build` fails
+    when the backend's shape and the frontend's type stop agreeing.
+  - A command the page asks for that the fixture doesn't answer fails, and is listed in
+    `window.__pageHarness.unanswered`; `window.__pageHarness.pastEdge()` lists anything reaching
+    past the window's right edge. Neither is a CI check yet.
+  - `node scripts/page-layout-check.mjs [dev-server-url]` loads the guide and each page at 1280×800
+    and 960×640, and in German at extra large, and fails a page that scrolls sideways or reaches
+    past the edge. It needs Chrome, a running dev server, and Node 22 or later (for the built-in
+    WebSocket); on an older Node it says so and exits.
+  - The harness is not the real app: note the real-app check you did, or didn't do, in the PR.
+- **The real app:** run a debug build with `--features mcp` under Xvfb through `tauri-driver`,
+  start a career over the MCP port (`game_new`), and drive the UI over WebDriver. Give the app
+  private `XDG_DATA_HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` directories, so
+  it never reads or writes your real saves and settings, and `GDK_BACKEND=x11` with
   `XDG_SESSION_TYPE=x11`, so it opens on the Xvfb display rather than your Wayland desktop.
-  `src-tauri/crates/mcp-e2e/src/app.rs` launches it this way. Under Xvfb the webview
-  runs at device pixel ratio 2. If screenshots stop returning while JavaScript still answers,
-  the webview has stopped painting: restart the whole stack, including orphaned
+  `src-tauri/crates/mcp-e2e/src/app.rs` launches it this way. Under Xvfb the webview runs at device
+  pixel ratio 2. If screenshots stop returning while JavaScript still answers, the webview has
+  stopped painting: restart the whole stack, including orphaned
   `WebKitWebProcess` processes.

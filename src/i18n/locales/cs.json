@@ -58,10 +58,7 @@
   "validation": {
     "required": "Pole {{field}} je povinné",
     "maxLength": "Pole {{field}} nesmí překročit {{max}} znaků",
-    "minStartYear": "Výchozí rok musí být {{min}} nebo novější",
-    "minAge": "Manažer musí mít alespoň {{min}} let — pro pokračování změňte datum narození.",
-    "invalidDate": "Neplatné datum",
-    "invalidDob": "Neplatné datum narození"
+    "minStartYear": "Výchozí rok musí být {{min}} nebo novější"
   },
   "worldSelect": {
     "title": "Vybrat svět",
@@ -173,6 +170,7 @@
     "digestSimulating": "Zpracování...",
     "digestMatchDay": "Zápasový den",
     "digestMatchDayDesc": "Vaše utkání je připraveno k odehrání.",
+    "matchModeMenu": "Vybrat režim zápasu",
     "digestReturnHome": "Zpět na hlavní panel",
     "digestBlocked": "Vyžadována akce",
     "digestBlockedDesc": "Před pokračováním musíte vyřešit některé záležitosti.",

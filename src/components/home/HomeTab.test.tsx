@@ -9,10 +9,16 @@ import type {
   PlayerData,
   TeamData,
 } from "../../store/gameStore";
-import { createSeasonContext } from "../../test-utils/factories";
+import { createSeasonContext, createSquadFitness } from "../../test-utils/factories";
 
-const squadMocks = vi.hoisted(() => ({ getSquad: vi.fn().mockResolvedValue([]) }));
-vi.mock("../../services/squadService", () => ({ getSquad: squadMocks.getSquad }));
+const squadMocks = vi.hoisted(() => ({
+  getSquad: vi.fn().mockResolvedValue([]),
+  getSquadFitness: vi.fn().mockResolvedValue(null),
+}));
+vi.mock("../../services/squadService", () => ({
+  getSquad: squadMocks.getSquad,
+  getSquadFitness: squadMocks.getSquadFitness,
+}));
 
 const backendI18nMocks = vi.hoisted(() => ({
   resolveBoardObjective: vi.fn((value: unknown) => value),
@@ -360,52 +366,69 @@ describe("HomeTab", (): void => {
     expect(screen.getByText("No league digest yet.")).toBeInTheDocument();
   });
 
-  // Given a called-up exhausted youth, when Home fetches the roster, then he
-  // contributes to the same first-team fitness overview as senior players.
-  it("includes backend-called-up youth in the home overview", async () => {
-    const state = createGameState();
-    const senior = createPlayer({ id: "senior", condition: 80 });
-    const youth = createPlayer({
-      id: "called",
-      condition: 10,
-      squad_role: "Youth",
-      match_day_eligible: true,
-    });
-    squadMocks.getSquad.mockResolvedValueOnce([senior, youth]);
-    render(<HomeTab gameState={state} visitedOnboardingTabs={new Set()} />);
+  // Given the backend's fitness summary for the squad (45 on average, four exhausted of whom one
+  //       is critical)
+  // When Home shows the squad overview
+  // Then it shows those figures: the average and the exhausted count (four, not the one critical)
+  //      are the backend's, not a sum the screen makes over the players it holds.
+  it("shows the squad fitness the backend reports", async () => {
+    squadMocks.getSquadFitness.mockResolvedValueOnce(
+      createSquadFitness({ average_condition: 45, exhausted_count: 4, critical_count: 1 }),
+    );
+    render(<HomeTab gameState={createGameState()} visitedOnboardingTabs={new Set()} />);
     await waitFor(() => expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("45|"));
+    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("45|0|4");
   });
-  it("keeps youth academy players out of first-team home summaries", (): void => {
+
+  // Given the backend has not answered yet (or has no healthy first-team player to average)
+  // When Home shows the squad overview
+  // Then the average is absent (null), not an invented 0.
+  it("has no average condition until the backend gives one", async () => {
+    squadMocks.getSquadFitness.mockResolvedValueOnce(
+      createSquadFitness({ players: 0, average_condition: null }),
+    );
+    render(<HomeTab gameState={createGameState()} visitedOnboardingTabs={new Set()} />);
+
+    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("null|");
+    await waitFor(() => expect(squadMocks.getSquadFitness).toHaveBeenCalled());
+    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("null|");
+  });
+  it("keeps youth academy players out of first-team home summaries", async () => {
+    squadMocks.getSquadFitness.mockResolvedValueOnce(
+      createSquadFitness({ players: 1, average_condition: 80 }),
+    );
+    const players = [
+      createPlayer({
+        id: "senior-1",
+        full_name: "Senior Starter",
+        condition: 80,
+        injury: {
+          name: "hamstring_strain",
+          days_remaining: 5,
+        },
+      }),
+      createPlayer({
+        id: "youth-1",
+        full_name: "Youth Prospect",
+        condition: 10,
+        injury: {
+          name: "ankle_sprain",
+          days_remaining: 14,
+        },
+        squad_role: "Youth",
+      }),
+    ];
+    squadMocks.getSquad.mockResolvedValueOnce(players);
     render(
       <HomeTab
-        gameState={createGameState({
-          players: [
-            createPlayer({
-              id: "senior-1",
-              full_name: "Senior Starter",
-              condition: 80,
-              injury: {
-                name: "hamstring_strain",
-                days_remaining: 5,
-              },
-            }),
-            createPlayer({
-              id: "youth-1",
-              full_name: "Youth Prospect",
-              condition: 10,
-              injury: {
-                name: "ankle_sprain",
-                days_remaining: 14,
-              },
-              squad_role: "Youth",
-            }),
-          ],
-        })}
+        gameState={createGameState({ players })}
         visitedOnboardingTabs={new Set<string>()}
       />,
     );
 
-    expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("80|1|0");
+    await waitFor(() =>
+      expect(screen.getByTestId("home-squad-overview")).toHaveTextContent("80|1|0"),
+    );
     expect(screen.getByTestId("home-unavailable-players")).toHaveTextContent("Senior Starter");
     expect(screen.getByTestId("home-unavailable-players")).not.toHaveTextContent("Youth Prospect");
   });

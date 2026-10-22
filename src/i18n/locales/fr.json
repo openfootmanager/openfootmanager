@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} est obligatoire",
     "maxLength": "{{field}} ne doit pas dépasser {{max}} caractères",
-    "minStartYear": "L'année de départ doit être {{min}} ou ultérieure",
-    "minAge": "L'entraîneur doit avoir au moins {{min}} ans — modifie la date de naissance pour continuer.",
-    "invalidDate": "Date invalide",
-    "invalidDob": "Date de naissance invalide"
+    "minStartYear": "L'année de départ doit être {{min}} ou ultérieure"
   },
   "worldSelect": {
     "title": "Choisir le Monde",
@@ -173,6 +170,7 @@
     "digestSimulating": "Simulation...",
     "digestMatchDay": "Jour de match",
     "digestMatchDayDesc": "Votre équipe a un match prévu aujourd'hui.",
+    "matchModeMenu": "Choisir le mode de match",
     "digestReturnHome": "Retour au tableau de bord",
     "digestBlocked": "Action requise",
     "digestBlockedDesc": "Des problèmes nécessitent votre attention avant d'avancer.",

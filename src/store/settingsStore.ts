@@ -21,7 +21,7 @@ export interface CurrencyDefinition {
   exchange_rate: number;
 }
 
-interface SettingsResponse {
+export interface SettingsResponse {
   settings: Partial<AppSettings>;
   currency: CurrencyDefinition;
   supported_currencies: CurrencyDefinition[];

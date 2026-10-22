@@ -18,6 +18,7 @@ vi.mock("react-i18next", () => ({
       if (key === "dashboard.saveGame") return "Save game";
       if (key === "common.save") return "Save";
       if (key === "dashboard.continue") return "Continue";
+      if (key === "dashboard.matchModeMenu") return "Choose match mode";
       if (key === "common.back") return "Back";
       if (key === "squad.viewProfile") return "View profile";
       if (key === "common.viewTeam") return "View team";
@@ -151,6 +152,50 @@ describe("DashboardHeader", () => {
 
     expect(onSelectSearchTeam).toHaveBeenCalledWith("team-1");
     expect(onSelectSearchPlayer).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given the header's Continue button, which has a chevron half that opens the match-mode menu
+   * When that half is looked up by what a screen reader announces
+   * Then it is named (the translated "Choose match mode") and shows a focus ring.
+   */
+  it("names the Continue dropdown toggle and gives it a focus ring", () => {
+    render(
+      <DashboardHeader
+        title="Dashboard"
+        currentDate="2026-08-10"
+        hasProfileHistory={false}
+        hasMatchToday={false}
+        isAdvancing={false}
+        isUnemployed={false}
+        isSaving={false}
+        matchMode="live"
+        matchedPlayers={[]}
+        matchedTeams={[]}
+        modeMeta={createModeMeta()}
+        onBack={vi.fn()}
+        onContinue={vi.fn()}
+        onSave={vi.fn()}
+        onSearchBlur={vi.fn()}
+        onSearchFocus={vi.fn()}
+        onSearchQueryChange={vi.fn()}
+        onSelectMatchMode={vi.fn()}
+        onSelectSearchPlayer={vi.fn()}
+        onSelectSearchTeam={vi.fn()}
+        onSkipToMatchDay={vi.fn()}
+        onToggleContinueMenu={vi.fn()}
+        saveFlash={false}
+        searchOpen={false}
+        searchQuery=""
+        seasonComplete={false}
+        showContinueMenu={false}
+        teams={[]}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Choose match mode" })).toHaveClass(
+      "focus-visible:ring-focus",
+    );
   });
 
   /**

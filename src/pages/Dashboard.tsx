@@ -1,3 +1,4 @@
+import { useSquadFitness } from "../hooks/useSquadFitness";
 import { routeForActiveCareer } from "../services/careerService";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyExtraTranslations } from "../lib/extraTranslations";
@@ -93,7 +94,12 @@ const TAB_TRANSLATION_KEYS: Record<string, string> = {
   Youth: "dashboard.youthAcademy",
 };
 
-export default function Dashboard(): JSX.Element {
+interface DashboardProps {
+  /** The tab it opens on. The app always opens on Home; the dev page harness mounts other pages. */
+  initialTab?: string;
+}
+
+export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.Element {
   const navigate = useNavigate();
   const {
     hasActiveGame,
@@ -119,7 +125,7 @@ export default function Dashboard(): JSX.Element {
   const [saveError, setSaveError] = useState<unknown>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [profileNavigation, setProfileNavigation] = useState(() =>
-    createDashboardProfileNavigationState("Home"),
+    createDashboardProfileNavigationState(initialTab),
   );
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isExitingToMenu, setIsExitingToMenu] = useState(false);
@@ -132,6 +138,7 @@ export default function Dashboard(): JSX.Element {
   const [squadListSortState, setSquadListSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
   );
+  const squadFitness = useSquadFitness(gameState);
   const [financeVerdict, setFinanceVerdict] = useState<{
     teamId: string;
     snapshot: TeamFinanceSnapshotData;
@@ -520,7 +527,13 @@ export default function Dashboard(): JSX.Element {
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const currentFinanceVerdict =
     financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
-  const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t, currentFinanceVerdict);
+  const dashboardAlerts = getDashboardAlerts(
+    gameState,
+    hasMatchToday,
+    t,
+    currentFinanceVerdict,
+    squadFitness,
+  );
   const hasProfileHistory = hasDashboardProfileHistory(profileNavigation);
   const activeTabLabel = TAB_TRANSLATION_KEYS[profileNavigation.activeTab]
     ? t(TAB_TRANSLATION_KEYS[profileNavigation.activeTab])
