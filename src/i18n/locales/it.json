@@ -1854,6 +1854,21 @@
     },
     "uiScale": "Scala interfaccia",
     "uiScaleDesc": "Regola dimensione del testo e spaziatura per migliorare la leggibilità",
+    "sidebarWidth": "Larghezza della barra laterale",
+    "sidebarWidthDesc": "Quanto è larga la barra laterale aperta. «Larga» mostra ogni voce del menu su una riga.",
+    "sidebarWidthOptions": {
+      "compact": "Compatta",
+      "standard": "Standard",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra laterale",
+    "sidebarBehaviourDesc": "Come si apre la barra laterale. Se la finestra è troppo stretta, si apre sopra la pagina.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normale",
+      "hover": "Apri al passaggio del mouse",
+      "click": "Apri con un clic",
+      "icons": "Solo icone"
+    },
     "uiScaleOptions": {
       "small": "Piccola",
       "normal": "Normale",

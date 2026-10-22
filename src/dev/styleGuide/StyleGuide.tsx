@@ -13,6 +13,7 @@ import {
   Dialog,
   DialogCloseButton,
   InjuryBadge,
+  UnreadBadge,
   JerseyIcon,
   PageToolbar,
   PitchToken,
@@ -20,6 +21,7 @@ import {
   ProgressBar,
   SegmentedControl,
   Select,
+  Switch,
   TabPanel,
   Tabs,
   TeamLocation,
@@ -106,6 +108,10 @@ const HEIGHTS = [
 ];
 const WIDTHS = [
   { token: "--container-page", use: "the page width (max-w-page)" },
+  { token: "--spacing-sidebar-rail", use: "the sidebar's icon rail (w-sidebar-rail)" },
+  { token: "--spacing-sidebar-compact", use: "the open sidebar, Compact (w-sidebar-compact)" },
+  { token: "--spacing-sidebar-standard", use: "the open sidebar, Standard (w-sidebar-standard)" },
+  { token: "--spacing-sidebar-wide", use: "the open sidebar, Wide (w-sidebar-wide)" },
   {
     token: "--container-split",
     use: "two panels side by side above this container width (@split)",
@@ -249,6 +255,12 @@ function ControlsSection() {
         <Checkbox checked={false} indeterminate onChange={() => undefined} aria-label="Mixed" />
         <Checkbox checked onChange={() => undefined} disabled aria-label="Disabled" />
       </Row>
+      <Row>
+        <Switch label="Switch, on" checked={checked} onChange={setChecked} />
+        <Switch label="Switch, off" checked={false} onChange={() => undefined} />
+        <Switch label="Switch, disabled on" checked disabled onChange={() => undefined} />
+        <Switch label="Switch, disabled off" checked={false} disabled onChange={() => undefined} />
+      </Row>
       <div className="grid max-w-md gap-3">
         <DatePicker value={date} onChange={setDate} />
         <DatePicker value="" onChange={() => undefined} error />
@@ -269,6 +281,9 @@ function DisplaySection() {
         <Badge size="md">medium</Badge>
         <InjuryBadge injury={{ name: "Hamstring strain", days_remaining: 4 }} />
         <InjuryBadge injury={{ name: "Metatarsal fracture", days_remaining: 42 }} />
+        <UnreadBadge count={3} />
+        <UnreadBadge count={42} />
+        <UnreadBadge count={120} />
       </Row>
       <div className="grid max-w-md gap-2">
         {(["auto", "primary", "accent", "success", "danger", "muted"] as const).map(

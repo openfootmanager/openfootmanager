@@ -1835,6 +1835,21 @@
     },
     "uiScale": "Escala de UI",
     "uiScaleDesc": "Ajustar tamaño de fuente y espaciado para legibilidad",
+    "sidebarWidth": "Ancho de la barra lateral",
+    "sidebarWidthDesc": "Qué tan ancha es la barra lateral abierta. «Ancha» muestra cada nombre del menú en una línea.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Estándar",
+      "wide": "Ancha"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Cómo se abre la barra lateral. Si la ventana es demasiado estrecha, se abre sobre la página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir al pasar el ratón",
+      "click": "Abrir con un clic",
+      "icons": "Solo iconos"
+    },
     "uiScaleOptions": {
       "small": "Pequeña",
       "normal": "Normal",

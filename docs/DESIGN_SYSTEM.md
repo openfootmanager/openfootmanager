@@ -97,6 +97,8 @@ Two rules follow from what those numbers allow:
 | `h-row` / `min-h-row` | 40px, 32px when compact | list and table rows |
 | `h-panel-header` | 40px, 36px when compact | a panel's header |
 | `h-toolbar` | 48px, 40px when compact | the page toolbar |
+| `w-sidebar-rail` | 3.5rem | the sidebar's icon rail |
+| `w-sidebar-compact` / `w-sidebar-standard` / `w-sidebar-wide` | 13 / 16 / 17.75rem | the open sidebar, by Settings › Sidebar width; `sidebarLayout.ts` reckons with the same values |
 | `max-w-page` | 80rem | the page width, applied once by the workspace |
 | `@split` | 36rem | the container breakpoint for two panels |
 
@@ -125,6 +127,7 @@ drawn in the style guide.
 | a progress or condition bar | `ProgressBar` |
 | a player, club or country | `PlayerAvatar`, `TeamLogo`, `CountryFlag`, `TeamLocation` |
 | an injury | `InjuryBadge` |
+| an unread count or a mark on a nav item (a circle for one digit, 99+ at most) | `UnreadBadge` |
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
 
