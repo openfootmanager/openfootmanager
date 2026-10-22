@@ -14,12 +14,105 @@
 @import "@fontsource/barlow-condensed/latin-ext-600.css";
 @import "@fontsource/barlow-condensed/latin-ext-700.css";
 
+/* Cyrillic faces are declared here, not imported, because @fontsource's per-subset CSS carries no
+   unicode-range: a Fira face without one would claim every character, Latin headings included. The
+   ranges are the ones in @fontsource's combined CSS. woff2 only (the webview supports it). */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-400-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-500-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-500-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-600-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-700-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-700-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Fira Sans Extra Condensed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../node_modules/@fontsource/fira-sans-extra-condensed/files/fira-sans-extra-condensed-cyrillic-600-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Fira Sans Extra Condensed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../node_modules/@fontsource/fira-sans-extra-condensed/files/fira-sans-extra-condensed-cyrillic-700-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   /* Typography — CJK fallbacks (PingFang SC/Microsoft YaHei/Noto Sans CJK SC) kick in on Chinese characters via the font-family fallback chain */
   --font-sans: "Inter", "Avenir", "Helvetica", "Arial", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
-  --font-heading: "Barlow Condensed", "Inter", "Arial Narrow", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --font-heading: "Barlow Condensed", "Fira Sans Extra Condensed", "Inter", "Arial Narrow", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
 
   /* Primary: Emerald Green */
   --color-primary-50: #ecfdf5;
