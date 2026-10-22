@@ -959,4 +959,22 @@ mod tests {
         assert_eq!(accepted.unwrap().manager.date_of_birth, "2001-11-20");
         assert!(state.get_game(|_| ()).is_some());
     }
+
+    /// Given an empty list of package ids and a world file, with no packages directory at all
+    /// When `start_new_game_internal` starts a career
+    /// Then the empty list means "no packages": it reads the world file instead of failing on the
+    ///      missing packages directory.
+    #[test]
+    fn start_new_game_internal_treats_an_empty_package_list_as_no_packages() {
+        let (dir, world_file, environment) = snapshot_world_on_disk("sng-empty-packages");
+        let state = ofm_core::state::StateManager::new();
+        let mut request = request_for_world("2001-11-20", &world_file);
+        request.package_ids = Some(vec![]);
+
+        let started = crate::commands::game::start_new_game_internal(&state, request, &environment);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(started.is_ok(), "{:?}", started.err());
+        assert!(state.get_game(|_| ()).is_some());
+    }
 }
