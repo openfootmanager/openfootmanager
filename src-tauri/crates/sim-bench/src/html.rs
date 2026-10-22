@@ -772,10 +772,11 @@ fn targets_table(verdicts: &[Verdict]) -> String {
         let target_str = verdict.unit.band(verdict.low, verdict.high);
         let source = match &verdict.provenance {
             Provenance::Measured {
+                source,
                 competitions,
                 seasons,
                 ..
-            } => format!("{competitions}, {seasons}"),
+            } => format!(r#"<span title="{source}: {competitions}">measured, {seasons}</span>"#),
             Provenance::Unsourced => "unsourced".to_string(),
         };
         let judged = matches!(verdict.provenance, Provenance::Measured { .. })

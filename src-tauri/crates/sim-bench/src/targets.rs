@@ -33,14 +33,14 @@ impl Unit {
     pub fn value(self, value: f64) -> String {
         match self {
             Unit::PerGame => format!("{value:.2}"),
-            Unit::Percent => format!("{value:.1}%"),
+            Unit::Percent => format!("{value:.2}%"),
         }
     }
 
     pub fn band(self, low: f64, high: f64) -> String {
         match self {
             Unit::PerGame => format!("{low:.2}–{high:.2}"),
-            Unit::Percent => format!("{low:.1}–{high:.1}%"),
+            Unit::Percent => format!("{low:.2}–{high:.2}%"),
         }
     }
 }

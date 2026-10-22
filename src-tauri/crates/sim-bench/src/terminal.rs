@@ -294,12 +294,8 @@ fn calibration(verdicts: &[Verdict]) {
     table.set_header(vec!["Metric", "Value", "Band", "Source", ""]);
     for verdict in verdicts {
         let (source, judged) = match &verdict.provenance {
-            Provenance::Measured {
-                competitions,
-                seasons,
-                ..
-            } => (
-                format!("{competitions}, {seasons}"),
+            Provenance::Measured { seasons, .. } => (
+                format!("measured, {seasons}"),
                 verdict.not_comparable.is_none(),
             ),
             Provenance::Unsourced => ("unsourced".dimmed().to_string(), false),
@@ -319,15 +315,33 @@ fn calibration(verdicts: &[Verdict]) {
         ]);
     }
     println!("{table}");
-    for verdict in verdicts {
-        if let Some(reason) = verdict.not_comparable {
-            println!(
-                "  {} {}: {}",
-                "n/c".dimmed(),
-                verdict.label,
-                reason.dimmed()
-            );
-        }
+    if let Some(Provenance::Measured {
+        source,
+        competitions,
+        retrieved,
+        ..
+    }) = verdicts
+        .iter()
+        .map(|verdict| &verdict.provenance)
+        .find(|provenance| matches!(provenance, Provenance::Measured { .. }))
+    {
+        println!(
+            "  {} {source}: {competitions} (retrieved {retrieved})",
+            "measured:".dimmed()
+        );
+    }
+    let caveated: Vec<&str> = verdicts
+        .iter()
+        .filter(|verdict| verdict.not_comparable.is_some())
+        .map(|verdict| verdict.label)
+        .collect();
+    if let Some(reason) = verdicts.iter().find_map(|verdict| verdict.not_comparable) {
+        println!(
+            "  {} {}: {}",
+            "n/c".dimmed(),
+            caveated.join(", "),
+            reason.dimmed()
+        );
     }
     println!();
 }
