@@ -65,16 +65,27 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered,
   return problems;
 }
 
-// document.fonts.load() resolves to the faces it loaded: none means no bundled face matched, and a
-// system font drew that text. (document.fonts.check() can't tell: it answers true for a family it
-// has never heard of.) The sample includes German letters, the check's longest labels.
+/**
+ * Loads each face and reports the weights it loaded at. Runs in the page (its source is sent
+ * there), on `document.fonts`. `load()` resolves to the faces it loaded: none means no bundled face
+ * matched, and a system font drew that text (`check()` can't tell: it answers true for a family it
+ * has never heard of). A request that errors (the dev server refusing the font file) is a face that
+ * didn't load, so the case names it instead of the error ending the run. The sample includes German
+ * letters, the check's longest labels.
+ */
+export async function loadFaces(fonts, faces) {
+  return Promise.all(
+    faces.map(async ({ family, weight }) => {
+      const loaded = await fonts.load(`${weight} 16px "${family}"`, "Aa ÄÖÜß").catch(() => []);
+      return { family, weight, loadedWeights: loaded.map((face) => face.weight) };
+    }),
+  );
+}
+
+// The first wait lets the harness mount and its answers land; the fonts are waited for after.
 const MEASURE = `(async () => {
   await new Promise((resolve) => setTimeout(resolve, 2500));
-  const faces = await Promise.all(${JSON.stringify(REQUIRED_FACES)}.map(async ({ family, weight }) => ({
-    family,
-    weight,
-    loadedWeights: (await document.fonts.load(weight + ' 16px "' + family + '"', "Aa ÄÖÜß")).map((face) => face.weight),
-  })));
+  const faces = await (${loadFaces.toString()})(document.fonts, ${JSON.stringify(REQUIRED_FACES)});
   await document.fonts.ready;
   const harness = window.__pageHarness;
   return JSON.stringify({

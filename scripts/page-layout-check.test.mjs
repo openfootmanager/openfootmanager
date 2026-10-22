@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { CASES, judge, nodeProblem, REQUIRED_FACES } from "./page-layout-check.mjs";
+import { CASES, judge, loadFaces, nodeProblem, REQUIRED_FACES } from "./page-layout-check.mjs";
 
 describe("the Node check", () => {
   /** Given a Node without the built-in WebSocket (before 22), then the check says why it can't run. */
@@ -58,6 +58,34 @@ describe("the fonts it measures with", () => {
         faces: [{ family: "Barlow Condensed", weight: 700, loadedWeights: ["600"] }],
       }),
     ).toEqual(["font not loaded: Barlow Condensed 700 (a system fallback drew it)"]);
+  });
+
+  /**
+   * Given a font request that errors (the dev server refuses the font file, as Vite does for a
+   * node_modules outside its allowed folders)
+   * When the faces are loaded
+   * Then each is reported as not loaded, so the case fails naming it, rather than the error ending
+   * the run with nothing said.
+   */
+  it("reports a face whose request errors as not loaded", async () => {
+    const refusing = { load: () => Promise.reject(new Error("403")) };
+    const faces = await loadFaces(refusing, REQUIRED_FACES.slice(0, 2));
+    expect(faces).toEqual([
+      { ...REQUIRED_FACES[0], loadedWeights: [] },
+      { ...REQUIRED_FACES[1], loadedWeights: [] },
+    ]);
+    expect(judge({ ...clean, faces })).toEqual([
+      `font not loaded: Inter 400 (a system fallback drew it)`,
+      `font not loaded: Inter 500 (a system fallback drew it)`,
+    ]);
+  });
+
+  /** Given faces that load, then each reports the weights it loaded at. */
+  it("reports the weights each face loaded at", async () => {
+    const serving = { load: (font) => Promise.resolve([{ weight: font.split(" ")[0] }]) };
+    expect(await loadFaces(serving, [{ family: "Inter", weight: 600 }])).toEqual([
+      { family: "Inter", weight: 600, loadedWeights: ["600"] },
+    ]);
   });
 
   /**
