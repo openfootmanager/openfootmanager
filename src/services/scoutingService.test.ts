@@ -5,6 +5,7 @@ import {
   cancelYouthScouting,
   getPlayerKnowledge,
   getScoutedReport,
+  getVisibleWage,
   reassignYouthScouting,
   sendScout,
   startYouthScouting,
@@ -104,6 +105,18 @@ describe("scoutingService", () => {
    * When the screen asks what the club knows
    * Then the backend's translated error reaches the caller
    */
+  /**
+   * Given a scouted player
+   * When his profile asks for the wage it may show
+   * Then the command is called with his id and the backend's rounded figure comes back as it is
+   */
+  it("asks the backend for the wage the club may see", async () => {
+    mockedInvoke.mockResolvedValueOnce({ kind: "approximate", weekly: 16_000 });
+
+    await expect(getVisibleWage("p1")).resolves.toEqual({ kind: "approximate", weekly: 16_000 });
+    expect(mockedInvoke).toHaveBeenCalledWith("get_visible_wage", { playerId: "p1" });
+  });
+
   it("passes on the backend's error when there is no game", async () => {
     mockedInvoke.mockRejectedValueOnce("be.error.noActiveGameSession");
 

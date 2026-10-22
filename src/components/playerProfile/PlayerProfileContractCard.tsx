@@ -16,7 +16,7 @@ import {
   getContractRiskBadgeVariant,
   getContractYearsRemaining,
 } from "../../lib/helpers";
-import { formatPlayerWage, formatPlayerMarketValue } from "./PlayerProfile.helpers";
+import { formatPlayerMarketValue } from "./PlayerProfile.helpers";
 import { Badge, Button, Card, CardBody, CardHeader } from "../ui";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
@@ -31,7 +31,8 @@ interface PlayerProfileContractCardProps {
   condition: number | null;
   morale: number | null;
   marketValue: number;
-  wage: number | null;
+  /** His weekly wage as the club may see it, already written: exact, approximate or "–". */
+  wageText: string;
   language: string;
   contractRiskLevel: "critical" | "warning" | "stable";
   contractRiskLabel: string;
@@ -54,7 +55,7 @@ export default function PlayerProfileContractCard({
   condition,
   morale,
   marketValue,
-  wage,
+  wageText,
   language,
   contractRiskLevel,
   contractRiskLabel,
@@ -110,7 +111,7 @@ export default function PlayerProfileContractCard({
           <InfoRow
             icon={<TrendingUp className="w-4 h-4" />}
             label={t("playerProfile.weeklyWage")}
-            value={wage === null ? NO_DATA : formatPlayerWage(wage)}
+            value={wageText}
           />
           <InfoRow
             icon={<Heart className="w-4 h-4" />}

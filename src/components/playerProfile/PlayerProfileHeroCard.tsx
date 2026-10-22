@@ -7,7 +7,7 @@ import type { PlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
-import { formatPlayerWageCompact, formatPlayerMarketValue } from "./PlayerProfile.helpers";
+import { formatPlayerMarketValue } from "./PlayerProfile.helpers";
 import type { PlayerProfileScoutStatus, ScoutAvailability } from "./PlayerProfile.scouting";
 import PlayerProfileScoutAction from "./PlayerProfileScoutAction";
 import { TraitList } from "../TraitBadge";
@@ -20,7 +20,8 @@ const NO_DATA = "–";
 
 interface PlayerProfileHeroCardProps {
   player: PlayerData;
-  ovr: number;
+  /** Null when the club does not know his rating: the tile reads "–" and takes no tier colour. */
+  ovr: number | null;
   primaryPosition: string;
   age: number;
   teamName: string;
@@ -38,6 +39,8 @@ interface PlayerProfileHeroCardProps {
   traits: string[];
   /** Condition, morale and the exact wage are shown only for the club's own player. */
   showsPrivateState: boolean;
+  /** His weekly wage as the club may see it, already written: exact, approximate or "–". */
+  wageText: string;
   t: TranslateFn;
 }
 
@@ -59,6 +62,7 @@ export default function PlayerProfileHeroCard({
   team,
   traits,
   showsPrivateState,
+  wageText,
   t,
 }: PlayerProfileHeroCardProps) {
   const tierOf = useRatingTiers();
@@ -76,10 +80,10 @@ export default function PlayerProfileHeroCard({
             className="w-24 h-24 shrink-0 rounded-2xl flex items-center justify-center font-heading font-bold text-3xl border-2 border-white/10 bg-white/5 text-gray-300 overflow-hidden"
           />
           <div
-            className={`flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-2xl border-2 font-heading ${ratingTierClass(tierOf(ovr), "hero")}`}
+            className={`flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-2xl border-2 font-heading ${ovr === null ? "border-white/10 bg-white/5 text-chrome-fg-muted" : ratingTierClass(tierOf(ovr), "hero")}`}
           >
             <span className="text-xs font-bold uppercase tracking-wider">{t("common.ovr")}</span>
-            <span className="text-4xl font-bold leading-none">{ovr}</span>
+            <span className="text-4xl font-bold leading-none">{ovr ?? NO_DATA}</span>
           </div>
           {player.jersey_number != null && team != null && (
             <JerseyIcon
@@ -190,8 +194,8 @@ export default function PlayerProfileHeroCard({
             />
             <QuickStat
               label={t("common.wage")}
-              value={showsPrivateState ? formatPlayerWageCompact(player.wage) : NO_DATA}
-              color={showsPrivateState ? "text-white" : "text-chrome-fg-muted"}
+              value={wageText}
+              color={wageText === NO_DATA ? "text-chrome-fg-muted" : "text-white"}
             />
           </div>
         </div>
@@ -227,8 +231,8 @@ export default function PlayerProfileHeroCard({
         />
         <MobileQuickStat
           label={t("common.wage")}
-          value={showsPrivateState ? formatPlayerWageCompact(player.wage) : NO_DATA}
-          color={showsPrivateState ? "text-gray-700 dark:text-gray-200" : "text-fg-muted"}
+          value={wageText}
+          color={wageText === NO_DATA ? "text-fg-muted" : "text-gray-700 dark:text-gray-200"}
         />
       </div>
     </Card>
