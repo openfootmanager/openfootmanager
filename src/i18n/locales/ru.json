@@ -395,14 +395,14 @@
     "traits": "Черты",
     "condition": "Состояние",
     "delegateToYouthAcademy": "Передать в академию",
-    "promoteToSeniorSquad": "Перевести в основную команду",
-    "potWorldClass": "Мировой класс",
-    "potExcellent": "Отличный",
-    "potPromising": "Многообещающий",
-    "potDecent": "Приличный",
-    "potLimited": "Ограниченный"
+    "promoteToSeniorSquad": "Перевести в основную команду"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}-й",
       "two": "{{n}}-й",

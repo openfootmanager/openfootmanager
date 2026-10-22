@@ -231,6 +231,49 @@ mod tests {
         assert!(game.teams.iter().all(|team| team.history.len() == 2));
     }
 
+    /// Given a saved world that already carries its past seasons (a historical snapshot),
+    /// When a game is built from it with a history depth (the default a new career asks for),
+    /// Then every club keeps exactly the history it was stored with: only a new world is given a
+    ///      generated past, and an old save is never rewritten.
+    #[test]
+    fn a_world_that_already_has_a_past_keeps_it() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        world.metadata.kind = crate::generator::WorldDataKind::HistoricalSnapshot;
+        for (index, team) in world.teams.iter_mut().enumerate() {
+            team.history = vec![domain::team::TeamSeasonRecord {
+                season: 2031,
+                league_position: (index % 7 + 1) as u32,
+                played: 38,
+                won: 10 + index as u32 % 5,
+                drawn: 8,
+                lost: 20 - index as u32 % 5,
+                goals_for: 40 + index as u32,
+                goals_against: 50,
+            }];
+        }
+        let stored: Vec<String> = world
+            .teams
+            .iter()
+            .map(|team| format!("{:?}", team.history))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 12,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        let kept: Vec<String> = game
+            .teams
+            .iter()
+            .map(|team| format!("{:?}", team.history))
+            .collect();
+        assert_eq!(kept, stored);
+    }
+
     /// Given any world, generated or imported
     /// When a career is built from it
     /// Then the career is marked as having imported the browser tactics already: a career begun by

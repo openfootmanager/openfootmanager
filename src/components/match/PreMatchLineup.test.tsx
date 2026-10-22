@@ -2,15 +2,19 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import {
   parseFormationNeeds,
-  statColor,
-  starterOvrColor,
   starterBadgeStyle,
   getStatVal,
   POSITION_KEY_STATS,
 } from "./PreMatchLineup";
 import { condColor } from "../../lib/playerConditionDisplay";
 import PreMatchLineup from "./PreMatchLineup";
+import { ratingTierClass } from "../../lib/ratingTier";
 import type { EnginePlayerData, EngineTeamData } from "./types";
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 // Mock react-i18next
 vi.mock("react-i18next", () => ({
@@ -166,35 +170,6 @@ describe("condColor", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// statColor
-// ---------------------------------------------------------------------------
-
-describe("statColor", () => {
-  it("returns primary + bold for high stats (>= 75)", () => {
-    expect(statColor(75)).toBe("text-primary-500 dark:text-primary-400 font-bold");
-    expect(statColor(99)).toBe("text-primary-500 dark:text-primary-400 font-bold");
-  });
-
-  it("returns theme-safe neutral for medium stats (60-74)", () => {
-    expect(statColor(60)).toBe("text-gray-700 dark:text-gray-200");
-    expect(statColor(74)).toBe("text-gray-700 dark:text-gray-200");
-  });
-
-  it("returns subdued but readable neutral for low stats (< 60)", () => {
-    expect(statColor(59)).toBe("text-gray-500 dark:text-gray-400");
-    expect(statColor(0)).toBe("text-gray-500 dark:text-gray-400");
-  });
-});
-
-describe("starterOvrColor", () => {
-  it("uses theme-safe colors for each OVR tier", () => {
-    expect(starterOvrColor(72)).toBe("text-primary-600 dark:text-primary-400");
-    expect(starterOvrColor(58)).toBe("text-gray-700 dark:text-gray-300");
-    expect(starterOvrColor(44)).toBe("text-red-600 dark:text-red-400");
-  });
-});
-
 describe("starterBadgeStyle", () => {
   it("keeps dark team colors as the badge accent", () => {
     expect(starterBadgeStyle("#008866")).toEqual({
@@ -320,6 +295,80 @@ describe("PreMatchLineup component", () => {
     expect(screen.getByText("Def One")).toBeInTheDocument();
     expect(screen.getByText("Mid One")).toBeInTheDocument();
     expect(screen.getByText("Fwd One")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a forward whose shooting is 77 and pace 76, either side of the A-tier cut-off, and a bench
+   *       midfielder with the same two stats
+   * When the lineup lists them
+   * Then each key stat takes the colour of its backend tier (B and A), for starter and bench alike.
+   */
+  it("colours each key stat by its backend tier", () => {
+    const props = {
+      ...defaultProps,
+      userTeam: makeTeam({
+        players: [
+          makePlayer({ id: "f1", name: "Fwd Tier", position: "Forward", shooting: 77, pace: 76 }),
+        ],
+      }),
+      userBench: [
+        makePlayer({
+          id: "b1",
+          name: "Bench Tier",
+          position: "Forward",
+          shooting: 77,
+          pace: 76,
+          condition: 90,
+        }),
+      ],
+    };
+    render(<PreMatchLineup {...props} />);
+
+    for (const name of ["Fwd Tier", "Bench Tier"]) {
+      const row = screen.getByText(name).closest("div.flex") as HTMLElement;
+      const aTier = within(row)
+        .getAllByText("77")
+        .filter((element) => element.className.includes("tabular-nums"));
+      const bTier = within(row)
+        .getAllByText("76")
+        .filter((element) => element.className.includes("tabular-nums"));
+      expect(aTier.length, name).toBeGreaterThan(0);
+      expect(bTier.length, name).toBeGreaterThan(0);
+      for (const element of aTier) {
+        expect(element, name).toHaveClass(...ratingTierClass("A", "text").split(" "));
+      }
+      for (const element of bTier) {
+        expect(element, name).toHaveClass(...ratingTierClass("B", "text").split(" "));
+      }
+    }
+  });
+
+  /**
+   * Given bench players rated 76 and 77, either side of the A-tier cut-off
+   * When the lineup lists the bench
+   * Then each rating pill takes the badge colour of its backend tier (B and A), not a cut-off of
+   *      the lineup's own.
+   */
+  it("colours the bench rating pill by its backend tier", () => {
+    const props = {
+      ...defaultProps,
+      userBench: [
+        makePlayer({ id: "b76", name: "Bench Seventy Six", ovr: 76, condition: 90 }),
+        makePlayer({ id: "b77", name: "Bench Seventy Seven", ovr: 77, condition: 90 }),
+      ],
+    };
+    render(<PreMatchLineup {...props} />);
+
+    const pillOf = (name: string, rating: string) =>
+      within(screen.getByText(name).closest("div.flex") as HTMLElement)
+        .getAllByText(rating)
+        .find((element) => element.className.includes("rounded-full"));
+    expect(pillOf("Bench Seventy Seven", "77")).toHaveClass(
+      ...ratingTierClass("A", "badge").split(" "),
+    );
+    expect(pillOf("Bench Seventy Six", "76")).toHaveClass(
+      ...ratingTierClass("B", "badge").split(" "),
+    );
   });
 
   it("renders bench section with substitutes", () => {
