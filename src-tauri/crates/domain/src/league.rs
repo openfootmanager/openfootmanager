@@ -277,10 +277,11 @@ pub struct Fixture {
 /// so no screen decides them again. `Deserialize` ignores both on the way back in, so a saved
 /// fixture loads with or without them. `advancing_team_id` is the side a knockout tie sends on, so
 /// a screen reads it for knockout fixtures only. The TypeScript `Fixture` is generated from this
-/// struct, so it describes exactly what is written.
+/// struct (`Fixture`'s `#[ts(as)]` takes its shape), so it describes exactly what is written.
+/// That route cannot be flattened: a `#[serde(flatten)]` fixture would fail the generator.
 #[derive(Serialize, TS)]
+// The struct name the hand-written serializer used. JSON ignores it; other formats need not.
 #[serde(rename = "Fixture")]
-#[ts(rename = "Fixture")]
 struct FixtureWire<'a> {
     id: &'a str,
     competition_id: &'a str,
