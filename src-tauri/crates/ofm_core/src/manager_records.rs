@@ -319,4 +319,55 @@ mod tests {
 
         assert_eq!(boss(&game, "rival-boss").career_stats.matches_managed, 28);
     }
+
+    /// Given a manager back at a club he left before, that first spell closed in his history
+    /// When a league season at the club is added to his record
+    /// Then it opens a new stint, dated from the season, and the closed spell keeps its numbers
+    #[test]
+    fn a_season_back_at_a_former_club_opens_a_new_stint() {
+        let mut returning = manager("returning", None);
+        returning.career_history.push(ManagerCareerEntry {
+            team_id: "rival".to_string(),
+            team_name: "rival FC".to_string(),
+            start_date: "2020-07-01".to_string(),
+            end_date: Some("2023-05-30".to_string()),
+            matches: 114,
+            wins: 50,
+            draws: 30,
+            losses: 34,
+            best_league_position: Some(2),
+        });
+
+        credit_league_season(
+            &mut returning,
+            &LeagueSeason {
+                team_id: "rival",
+                team_name: "rival FC",
+                won: 20,
+                drawn: 5,
+                lost: 3,
+                position: 1,
+                on: "2027-05-22",
+            },
+        );
+
+        let spells: Vec<(&str, Option<&str>, u32)> = returning
+            .career_history
+            .iter()
+            .map(|spell| {
+                (
+                    spell.start_date.as_str(),
+                    spell.end_date.as_deref(),
+                    spell.matches,
+                )
+            })
+            .collect();
+        assert_eq!(
+            spells,
+            vec![
+                ("2020-07-01", Some("2023-05-30"), 114),
+                ("2027-05-22", None, 28)
+            ]
+        );
+    }
 }
