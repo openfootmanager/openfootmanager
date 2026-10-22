@@ -132,4 +132,17 @@ unmaintained = "workspace"
 
 # Empty, and it should stay that way unless someone writes down why. An entry here silences
 # a real advisory: it needs the RUSTSEC id, the reason, and what would let us remove it.
-ignore = []
+#
+# The three `zip` entries are fixed only in 9.0.0, a major release that had five patch releases
+# in its first eight days, mostly to the very extraction code these advisories are about. All
+# three are confined to `ZipArchive::extract` and `ZipStreamReader::extract`. We never call
+# either: `generator/package.rs` walks entries with `by_index`, refuses symlinks and zip-slip
+# paths itself, and writes each file with `std::fs::write`, so no permission bits or link
+# targets from an archive ever reach the disk. Its tests pin that behaviour. Upgrade to zip 9.x
+# and delete these three entries once 9.x has gone two weeks without a release (re-check on or
+# after 4 Nov 2026).
+ignore = [
+    { id = "RUSTSEC-2026-0367", reason = "ZipArchive::extract / ZipStreamReader::extract only; OFM never calls them (package.rs reads with by_index and checks symlinks and zip-slip itself). Remove when zip 9.x has had two quiet weeks." },
+    { id = "RUSTSEC-2026-0368", reason = "ZipArchive::extract / ZipStreamReader::extract only; OFM never calls them (package.rs reads with by_index and checks symlinks and zip-slip itself). Remove when zip 9.x has had two quiet weeks." },
+    { id = "RUSTSEC-2026-0369", reason = "ZipArchive::extract / ZipStreamReader::extract only; OFM never calls them (package.rs reads with by_index and checks symlinks and zip-slip itself). Remove when zip 9.x has had two quiet weeks." },
+]
