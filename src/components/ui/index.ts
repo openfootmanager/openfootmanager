@@ -19,4 +19,4 @@ export { PageToolbar } from "./PageToolbar";
 export { SegmentedControl } from "./SegmentedControl";
 export { TabPanel, Tabs } from "./Tabs";
 export { DataTable } from "./DataTable";
-export type { DataTableColumn, RowAccent, SortDirection } from "./DataTable";
+export type { DataTableColumn, SortDirection } from "./DataTable";

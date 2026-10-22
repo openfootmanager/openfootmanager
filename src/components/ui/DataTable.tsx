@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 export type SortDirection = "asc" | "desc";
 
 /** A row's left accent: `positive` for a starter, `danger` for a player who can't play. */
-export type RowAccent = "positive" | "danger";
+type RowAccent = "positive" | "danger";
 
 export interface DataTableColumn<Row> {
   key: string;
@@ -143,7 +143,7 @@ export function DataTable<Row>({
                   aria-sort={
                     direction ? (direction === "asc" ? "ascending" : "descending") : undefined
                   }
-                  className={`sticky top-0 z-10 h-8 whitespace-nowrap border-b border-line-strong bg-panel px-2 text-caption first:border-l-3 first:border-l-transparent first:pl-3.5 ${
+                  className={`h-8 whitespace-nowrap border-b border-line-strong bg-panel px-2 text-caption first:border-l-3 first:border-l-transparent first:pl-3.5 ${
                     column.numeric ? "text-right" : "text-left"
                   } ${direction ? "font-semibold text-fg" : "font-medium text-fg-subtle"} ${
                     column.drawer ? FOLDED : ""
@@ -162,10 +162,7 @@ export function DataTable<Row>({
               );
             })}
             {rowAction ? (
-              <th
-                scope="col"
-                className="sticky top-0 z-10 h-8 border-b border-line-strong bg-panel px-2"
-              >
+              <th scope="col" className="h-8 border-b border-line-strong bg-panel px-2">
                 <span className="sr-only">{rowAction.header}</span>
               </th>
             ) : null}
@@ -254,8 +251,9 @@ export function DataTable<Row>({
                     </td>
                   ) : null}
                 </tr>
-                {detailsOpen && folded.length > 0 ? (
-                  <tr id={detailsId} className={UNFOLDED_ONLY}>
+                {/* Rendered while closed too, hidden, so the toggle's aria-controls always resolves. */}
+                {folded.length > 0 ? (
+                  <tr id={detailsId} hidden={!detailsOpen} className={UNFOLDED_ONLY}>
                     <td colSpan={span} className="border-b border-line bg-sunken px-3.5 py-2.5">
                       <dl className="flex flex-wrap gap-x-7 gap-y-2 text-caption">
                         {folded.map((column) => (

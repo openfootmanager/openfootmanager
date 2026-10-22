@@ -149,13 +149,19 @@ const VOCABULARY_COLOUR_MAP = new RegExp(
   "g",
 );
 
-/** A rated value judged against a number on a screen, in either order. */
+/**
+ * A rated value judged against a number on a screen, in either order. Known to over-match a
+ * has-a-value guard (`potential > 0`, as in InboxMessageDetailPane): when that folder joins, the
+ * guard is rewritten as a presence check rather than exempted.
+ */
 const RATED_THRESHOLD =
   /\b(?:condition|ovr|potential|morale|reputation)\s*(?:>=|<=|>|<)\s*\d+|\b\d+\s*(?:>=|<=|>|<)\s*[\w.?]*\b(?:condition|ovr|potential|morale|reputation)\b/g;
 
 /**
  * Helpers whose primitive has landed: importing one is a way around it. Each round-4 PR adds the
- * helper it retires and deletes it (knip then catches a stray copy).
+ * helper it retires and deletes it (knip then catches a stray copy). A dynamic `import("…")` (the
+ * dashboard lazy-loads its tabs that way) isn't matched; deleting the helper makes one fail to
+ * build anyway.
  */
 const RETIRED_HELPERS: string[] = [];
 

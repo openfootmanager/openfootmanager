@@ -151,6 +151,10 @@ describe("DataTable", () => {
     renderTable();
     const toggle = screen.getByRole("button", { name: "common.detailsFor:Anderson" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
+    // What the toggle controls exists while closed too, hidden.
+    const closed = document.getElementById(toggle.getAttribute("aria-controls") ?? "");
+    expect(closed).not.toBeNull();
+    expect(closed).not.toBeVisible();
 
     fireEvent.click(toggle);
 
