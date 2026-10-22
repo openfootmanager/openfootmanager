@@ -1921,7 +1921,7 @@ describe("PlayerProfile shows only what the club knows", () => {
   });
 
   // Condition 80, morale 75, a weekly wage of 12K and the potential-derived Wonderkid tag: each one
-  // something a club only knows about its own player, or (the tag) about one whose rating it knows.
+  // something a club only knows about its own player, or (the tag) about one it has scouted.
   function rival(): PlayerData {
     return createPlayer({
       team_id: "team-2",
@@ -1977,18 +1977,19 @@ describe("PlayerProfile shows only what the club knows", () => {
   /**
    * Given a player at a club in the manager's own division, never scouted
    * When his profile opens
-   * Then his OVR, attributes and Wonderkid tag show, as the staff see him every season; his
-   *      condition, morale and wage stay his club's business
+   * Then his OVR and attributes show, as the staff see him every season; the Wonderkid tag, which
+   *      tells his potential, waits for a scout; his condition, morale and wage stay his club's
+   *      business
    */
-  it("shows a known rival's attributes and tag but not his club's private state", async () => {
+  it("shows a known rival's attributes but not his potential or his club's private state", async () => {
     const player = rival();
     knowledge.current = { [player.id]: { kind: "known" } };
     wages.current = { [player.id]: { kind: "hidden" } };
 
     renderProfile(player);
 
-    expect(await screen.findByText(/Wonderkid/)).toBeInTheDocument();
-    expect(screen.getByText("77")).toBeInTheDocument();
+    expect(await screen.findByText("77")).toBeInTheDocument();
+    expect(screen.queryByText(/Wonderkid/)).not.toBeInTheDocument();
     expect(screen.queryByText("playerProfile.attributesHidden")).not.toBeInTheDocument();
     expect(screen.queryByText("80%")).not.toBeInTheDocument();
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
@@ -1999,9 +2000,8 @@ describe("PlayerProfile shows only what the club knows", () => {
   /**
    * Given a player in another division whom a scout reported on this season
    * When his profile opens
-   * Then the scout's attributes show and his wage reads as about the figure, but not his OVR (no
-   *      estimate yet), the Wonderkid tag (the scout's view of his potential is not kept), his
-   *      condition or his morale
+   * Then the scout's attributes and the Wonderkid tag (his view of the potential) show and his wage
+   *      reads as about the figure, but not his OVR (no estimate yet), his condition or his morale
    */
   it("shows a scouted player's report but not what the scout could not see", async () => {
     const player = rival();
@@ -2026,7 +2026,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     await waitFor(() => {
       expect(screen.queryByText("playerProfile.attributesHidden")).not.toBeInTheDocument();
     });
-    expect(screen.queryByText(/Wonderkid/)).not.toBeInTheDocument();
+    expect(await screen.findByText(/Wonderkid/)).toBeInTheDocument();
     expect(screen.queryByText("80%")).not.toBeInTheDocument();
     expect(screen.queryByText("77")).not.toBeInTheDocument();
     expect(contractWageValue()).toBe("about €16,000/wk");

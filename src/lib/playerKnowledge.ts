@@ -14,9 +14,17 @@ export function knowsPrivateState(knowledge: PlayerKnowledge): boolean {
 // `ofm_core::player_rating::qualifies_for_wonderkid`): showing one tells the potential.
 const POTENTIAL_DERIVED_TRAITS: readonly string[] = ["Wonderkid"];
 
-/** The traits the club may see: a potential-derived one only when it knows his rating. */
+/**
+ * His potential is a scout's opinion: the club has one for its own player and for a player it has
+ * scouted. Knowing a rival's rating from sharing his division is not enough.
+ */
+function knowsPotential(knowledge: PlayerKnowledge): boolean {
+  return knowledge.kind === "own" || knowledge.kind === "scouted";
+}
+
+/** The traits the club may see: a potential-derived one only when it has a view of his potential. */
 export function visibleTraits(traits: string[], knowledge: PlayerKnowledge): string[] {
-  return knowsPlayerRating(knowledge)
+  return knowsPotential(knowledge)
     ? traits
     : traits.filter((trait) => !POTENTIAL_DERIVED_TRAITS.includes(trait));
 }
