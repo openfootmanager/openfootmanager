@@ -716,14 +716,12 @@ pub(super) fn generate_weekly_digest_news(game: &mut Game, today: &str) {
     };
     let leader = team_name(game, &leader_team_id);
 
-    // The digest is the week's anchor, so it takes the first free slot and the rest of the
-    // week's coverage competes for what is left. With no slot there is no digest: a digest that
-    // points at coverage the reader cannot find is worse than none.
+    // The digest is published every week, outside the daily cap, as match reports are: on a busy
+    // Monday the transfer, loan, appointment and injury writers can fill the day before it runs,
+    // and the week's summary must not be what gives way. The rest of the week's coverage competes
+    // for the slots that are left, and the digest counts only the storylines that won one.
     let available_slots = available_world_news_slots(game, &date);
-    if available_slots == 0 {
-        return;
-    }
-    let coverage = keep_highest_priority(game, coverage, available_slots - 1);
+    let coverage = keep_highest_priority(game, coverage, available_slots);
     // Counted after the cap, so the digest names only storylines that were published.
     let storyline_count = coverage
         .iter()
@@ -2012,12 +2010,19 @@ mod tests {
         fringe_player.market_value = 900_000;
         game.players.push(fringe_player);
 
+        // One article already out today leaves four slots for the five coverage candidates (the
+        // roundup, two storylines, two rumours), so the cap has to choose between the rumours.
+        publish_earlier_news_today(&mut game, 1);
         generate_weekly_digest_news(&mut game, "2025-08-11");
 
+        assert!(weekly_digest(&game).is_some());
         assert_eq!(
-            game.news.len(),
+            game.news
+                .iter()
+                .filter(|article| !article.id.starts_with("weekly_digest_"))
+                .count(),
             5,
-            "weekly world news should respect the hard cap"
+            "the week's other coverage respects the hard cap; only the digest stands outside it"
         );
         assert!(
             game.news
@@ -2080,7 +2085,7 @@ mod tests {
             .count()
     }
 
-    /// Given a week with two storylines and only two free news slots today,
+    /// Given a week with two storylines and only one free news slot today,
     /// when the weekly digest is written,
     /// then it is published, and the number of storylines it announces is the number published.
     #[test]
@@ -2088,11 +2093,11 @@ mod tests {
         let mut game = make_game("2025-08-11", FixtureStatus::Completed);
         set_current_date(&mut game, 2025, 8, 11);
         set_up_a_week_with_two_storylines(&mut game);
-        publish_earlier_news_today(&mut game, 3);
+        publish_earlier_news_today(&mut game, 4);
 
         generate_weekly_digest_news(&mut game, "2025-08-11");
 
-        let digest = weekly_digest(&game).expect("the digest takes the first free slot");
+        let digest = weekly_digest(&game).expect("the digest is published outside the cap");
         assert_eq!(
             digest.i18n_params.get("storylineCount"),
             Some(&published_storylines(&game).to_string()),
@@ -2106,11 +2111,12 @@ mod tests {
         );
     }
 
-    /// Given a day whose world-news slots are all taken,
-    /// when the weekly digest would be written,
-    /// then no digest is written rather than one that points at nothing.
+    /// Given a busy Monday whose world-news slots were all taken by earlier news,
+    /// when the weekly digest is written,
+    /// then the digest is still published, with none of the week's other coverage, and it says
+    /// nothing about storylines it could not publish.
     #[test]
-    fn a_full_news_day_gets_no_digest() {
+    fn a_full_news_day_still_gets_its_digest_and_no_coverage() {
         let mut game = make_game("2025-08-11", FixtureStatus::Completed);
         set_current_date(&mut game, 2025, 8, 11);
         set_up_a_week_with_two_storylines(&mut game);
@@ -2118,8 +2124,13 @@ mod tests {
 
         generate_weekly_digest_news(&mut game, "2025-08-11");
 
-        assert!(weekly_digest(&game).is_none());
+        let digest = weekly_digest(&game).expect("the digest is not subject to the daily cap");
         assert_eq!(published_storylines(&game), 0);
+        assert_eq!(
+            digest.body_key.as_deref(),
+            Some("be.news.weeklyDigest.bodyNoTopScorerNoStorylines")
+        );
+        assert!(!digest.i18n_params.contains_key("storylineCount"));
     }
 
     /// Given a week with no storyline,
