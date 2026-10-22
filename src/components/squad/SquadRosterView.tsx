@@ -43,7 +43,6 @@ import {
   buildDemoteFromStartingXi,
   getBestRoleForFormation,
   getCurrentPosition,
-  getPlayStyleFit,
   buildPitchRows,
   buildPitchSlotRows,
   buildPromoteToStartingXi,
@@ -251,16 +250,6 @@ export default function SquadRosterView({
       return fit === "natural" ? 0 : fit === "adapted" ? 1 : 2;
     };
 
-    // Style-fit rank: lower is a better style match.
-    const styleRank = (player: PlayerData): number => {
-      const style = getPlayStyleFit(
-        player,
-        activePlayStyle,
-        getCurrentPosition(player, xiActivePosition),
-      );
-      return style === "strong" ? 0 : style === "good" ? 1 : 2;
-    };
-
     // Contract-remaining rank for sorting: sooner-expiring first when asc.
     // Missing contract_end sorts last.
     const contractRank = (player: PlayerData): string => player.contract_end ?? "9999-99-99";
@@ -287,8 +276,6 @@ export default function SquadRosterView({
         }
         case "fit":
           return fitRank(a) - fitRank(b);
-        case "style":
-          return styleRank(a) - styleRank(b);
         case "age":
           return calcAge(a.date_of_birth) - calcAge(b.date_of_birth);
         case "condition":
@@ -306,7 +293,6 @@ export default function SquadRosterView({
 
     return sortDir === "desc" ? sorted.reverse() : sorted;
   }, [
-    activePlayStyle,
     formation,
     playerSearch,
     positionFilter,
@@ -581,13 +567,6 @@ export default function SquadRosterView({
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SquadSortHeader
-                  col="style"
-                  label={t("squad.styleFit")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("squad.traits")}
                 </th>
@@ -639,7 +618,6 @@ export default function SquadRosterView({
                 const age = calcAge(player.date_of_birth);
                 const wrongPos = inXI && isOutOfPosition(player);
                 const tacticalFit = getTacticalFit(player);
-                const styleFit = getPlayStyleFit(player, activePlayStyle, currentPos);
                 const contractRiskLevel = riskLevelOf(player.id);
                 const contractRiskLabel =
                   contractRiskLevel === "critical"
@@ -858,21 +836,6 @@ export default function SquadRosterView({
                             </span>
                           ) : null}
                         </div>
-                      </td>
-                      {/* Style fit */}
-                      <td className="py-2.5 px-4">
-                        <Badge
-                          variant={
-                            styleFit === "strong"
-                              ? "success"
-                              : styleFit === "good"
-                                ? "accent"
-                                : "danger"
-                          }
-                          size="sm"
-                        >
-                          {t(`squad.styleFitValues.${styleFit}`)}
-                        </Badge>
                       </td>
                       {/* Traits — all of them, wraps as needed */}
                       <td className="py-2.5 px-4">

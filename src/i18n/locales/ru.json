@@ -697,21 +697,15 @@
     "coverageNeedsAttention": "{{count}} группам ролей нужна подстраховка",
     "coverageBadge": "XI {{starters}}/{{required}} · Запас {{bench}}",
     "bestRole": "Лучшая роль",
-    "formationFit": "Соответствие схеме",
+    "formationFit": "Знакомство с позицией",
     "startingXi": "Стартовый состав",
-    "styleFit": "Соответствие стилю",
     "starter": "Основа",
     "benchOption": "Запас",
-    "naturalFit": "Естественная роль",
-    "adaptedFit": "Адаптированная роль",
+    "naturalFit": "Естественная позиция",
+    "adaptedFit": "Может сыграть там",
     "needsCover": "Нужна подмена",
     "makeStarter": "Сделать игроком основы",
-    "sendToBench": "Отправить в запас",
-    "styleFitValues": {
-      "strong": "Соответствие стилю: Сильное",
-      "good": "Соответствие стилю: Хорошее",
-      "risky": "Соответствие стилю: Рискованное"
-    }
+    "sendToBench": "Отправить в запас"
   },
   "tactics": {
     "formationStyle": "Схема и стиль",
@@ -862,8 +856,8 @@
     "setCornerTaker": "Назначить исполнителя угловых",
     "inspector": "Инспектор",
     "inspectorEmptyTitle": "Ничего не выбрано",
-    "naturalFit": "Естественная роль",
-    "adaptedFit": "Адаптированная роль",
+    "naturalFit": "Естественная позиция",
+    "adaptedFit": "Может сыграть там",
     "tokenStates": {
       "ready": "Готов",
       "adjusted": "Адаптирован",
@@ -879,7 +873,7 @@
     "clearSelection": "Сбросить выбор",
     "compareWithSelected": "Сравнить с выбранным",
     "selectForSwap": "Выбрать для обмена",
-    "assignBestFit": "Назначить в лучший слот",
+    "assignBestFit": "Назначить лучшую позицию",
     "moveToBench": "Отправить в запас",
     "promoteToLineup": "Вернуть в основу",
     "tableView": "Табличный вид",
@@ -894,7 +888,6 @@
     "positionSelector": "Тактический слот",
     "playablePositions": "Позиции",
     "slotFit": "Соответствие слоту",
-    "styleFit": "Соответствие стилю",
     "responsibilities": "Обязанности",
     "noSpecialRoles": "Нет особых ролей",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "В тонусе",
       "managing": "Под нагрузкой",
       "risk": "Риск"
-    },
-    "styleFitLevels": {
-      "strong": "Сильное соответствие",
-      "good": "Хорошее соответствие",
-      "risky": "Рискованное соответствие"
     }
   },
   "training": {
@@ -2266,7 +2254,7 @@
     "preMatchPrep": "Подготовка к матчу",
     "startingLineup": "Стартовый состав",
     "setPiecesCaptain": "Стандарты и капитан",
-    "formationFit": "Соответствие схеме",
+    "formationFit": "Схема",
     "selecting": "Подбираем...",
     "autoSelectXI": "Автоподбор лучшего состава",
     "startingXI": "Стартовый состав",
@@ -2597,7 +2585,11 @@
     "pts": "очк.",
     "cupPenalties": "({{home}}–{{away}} по пенальти)",
     "cupAdvances": "{{team}} проходит дальше",
-    "cupTiesPending": "Некоторые матчи ещё не сыграны"
+    "cupTiesPending": "Некоторые матчи ещё не сыграны",
+    "resume": "Продолжить",
+    "pausedResumesAt": "Пауза · продолжится: {{speed}}",
+    "playingAt": "Идёт: {{speed}}",
+    "spaceKey": "Пробел"
   },
   "endOfSeason": {
     "seasonComplete": "Сезон завершён",

@@ -670,21 +670,15 @@
     "coverageNeedsAttention": "{{count}} kelompok peran perlu pengisi",
     "coverageBadge": "XI {{starters}}/{{required}} · Cadangan {{bench}}",
     "bestRole": "Peran terbaik",
-    "formationFit": "Kecocokan formasi",
+    "formationFit": "Penguasaan posisi",
     "startingXi": "Starting XI",
-    "styleFit": "Kecocokan gaya",
     "starter": "Starter",
     "benchOption": "Cadangan",
-    "naturalFit": "Kecocokan alami",
-    "adaptedFit": "Kecocokan adaptif",
+    "naturalFit": "Posisi alami",
+    "adaptedFit": "Bisa bermain di sana",
     "needsCover": "Perlu pengisi",
     "makeStarter": "Jadikan pemain utama",
     "sendToBench": "Kirim ke bangku cadangan",
-    "styleFitValues": {
-      "strong": "Kecocokan gaya: Kuat",
-      "good": "Kecocokan gaya: Baik",
-      "risky": "Kecocokan gaya: Berisiko"
-    },
     "noBench": "Tidak ada pemain cadangan.",
     "viewProfile": "Lihat profil",
     "swapPlayer": "Tukar pemain",
@@ -858,7 +852,7 @@
     "clearSelection": "Hapus pilihan",
     "compareWithSelected": "Bandingkan dengan yang dipilih",
     "selectForSwap": "Pilih untuk ditukar",
-    "assignBestFit": "Tetapkan ke slot paling cocok",
+    "assignBestFit": "Tetapkan posisi terbaik",
     "moveToBench": "Pindah ke bangku cadangan",
     "promoteToLineup": "Naikkan ke Starting XI",
     "makeCaptain": "Jadikan kapten",
@@ -887,11 +881,10 @@
     "positionSelector": "Slot taktis",
     "playablePositions": "Posisi",
     "slotFit": "Kecocokan slot",
-    "styleFit": "Kecocokan gaya",
     "responsibilities": "Tanggung jawab",
     "noSpecialRoles": "Tidak ada peran khusus",
-    "naturalFit": "Kecocokan alami",
-    "adaptedFit": "Peran adaptif",
+    "naturalFit": "Posisi alami",
+    "adaptedFit": "Bisa bermain di sana",
     "moraleLevels": {
       "superb": "Luar Biasa",
       "veryGood": "Sangat Baik",
@@ -905,11 +898,6 @@
       "sharp": "Prima",
       "managing": "Menjaga",
       "risk": "Berisiko"
-    },
-    "styleFitLevels": {
-      "strong": "Kecocokan kuat",
-      "good": "Kecocokan baik",
-      "risky": "Kecocokan berisiko"
     },
     "tokenStates": {
       "ready": "Siap",
@@ -2300,7 +2288,7 @@
     "preMatchPrep": "Persiapan Sebelum Pertandingan",
     "startingLineup": "Susunan Awal",
     "setPiecesCaptain": "Bola Mati & Kapten",
-    "formationFit": "Kecocokan Formasi",
+    "formationFit": "Formasi",
     "selecting": "Memilih...",
     "autoSelectXI": "Pilih Otomatis XI Terbaik",
     "startingXI": "Starting XI",
@@ -2597,7 +2585,11 @@
     "pts": "poin",
     "cupPenalties": "({{home}}–{{away}} lewat adu penalti)",
     "cupAdvances": "{{team}} lolos ke babak berikutnya",
-    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan"
+    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan",
+    "resume": "Lanjutkan",
+    "pausedResumesAt": "Dijeda · lanjut dengan {{speed}}",
+    "playingAt": "Berjalan dengan {{speed}}",
+    "spaceKey": "Spasi"
   },
   "endOfSeason": {
     "seasonComplete": "Musim Selesai",

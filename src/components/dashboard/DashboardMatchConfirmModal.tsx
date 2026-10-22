@@ -32,9 +32,7 @@ export default function DashboardMatchConfirmModal({
   return (
     <DashboardModalFrame maxWidthClassName="max-w-md">
       <div className="mb-4 flex items-center gap-3">
-        <div
-          className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${modeMeta.buttonColorClass} text-white`}
-        >
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-700 text-on-brand">
           {modeMeta.icon}
         </div>
         <div>
@@ -74,7 +72,7 @@ export default function DashboardMatchConfirmModal({
         <button
           type="button"
           onClick={onConfirm}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg bg-gradient-to-r ${modeMeta.buttonColorClass} px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white transition-all hover:brightness-110`}
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-700 px-4 py-2.5 font-heading text-body font-bold uppercase tracking-label text-on-brand transition-colors hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
         >
           {modeMeta.icon}
           {t("common.confirm")}
