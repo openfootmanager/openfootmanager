@@ -8,6 +8,14 @@ import type {
   TacticsPhaseSettings,
 } from "../store/types";
 
+/** The backend's tier names, in the order a rating climbs through them. */
+export type RatingTier = "S" | "A" | "B" | "Rest";
+
+/** The tier of every rating from 0 to 99, indexed by rating: the backend's one rule, no game needed. */
+export async function getRatingTiers(): Promise<RatingTier[]> {
+  return invoke<RatingTier[]>("get_rating_tiers");
+}
+
 export async function getSquad(teamId: string): Promise<PlayerData[]> {
   return invoke<PlayerData[]>("get_squad", { teamId });
 }
