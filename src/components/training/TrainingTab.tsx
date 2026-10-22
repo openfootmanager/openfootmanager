@@ -263,7 +263,8 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
                   variant={averageTone ? undefined : "muted"}
                   tone={averageTone}
                   size="md"
-                  label={t("training.avgCondition")}
+                  // No average, no progress bar: "0%" would be read out for a number that doesn't exist.
+                  label={avgCondition !== null ? t("training.avgCondition") : undefined}
                 />
               </div>
               <div>

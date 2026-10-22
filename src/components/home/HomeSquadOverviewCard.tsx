@@ -61,7 +61,8 @@ export default function HomeSquadOverviewCard({
             variant={avgConditionTone ? undefined : "muted"}
             tone={avgConditionTone ?? undefined}
             size="md"
-            label={t("home.avgCondition")}
+            // No average, no progress bar: "0%" would be read out for a number that doesn't exist.
+            label={avgCondition !== null ? t("home.avgCondition") : undefined}
           />
 
           <div className="flex items-center justify-between mt-1">

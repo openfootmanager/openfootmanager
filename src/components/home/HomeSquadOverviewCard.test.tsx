@@ -78,6 +78,17 @@ describe("HomeSquadOverviewCard", () => {
     expect(fill).not.toHaveClass("bg-positive-solid");
   });
 
+  /**
+   * Given no average condition (the backend has not answered, or no healthy first-team player)
+   * When the card renders
+   * Then no progress bar is announced: "Avg Condition 0%" would read out a number that doesn't
+   * exist.
+   */
+  it("exposes no progress bar while there is no average", () => {
+    renderWithAverage(null, null);
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  });
+
   /** Given no tone for the average yet, then the bar stays neutral rather than judge the number. */
   it("leaves the average condition bar neutral without the backend's tone", () => {
     renderWithAverage(90, null);
@@ -87,7 +98,7 @@ describe("HomeSquadOverviewCard", () => {
   });
 });
 
-function renderWithAverage(avgCondition: number, avgConditionTone: RatedTone | null) {
+function renderWithAverage(avgCondition: number | null, avgConditionTone: RatedTone | null) {
   render(
     <HomeSquadOverviewCard
       avgCondition={avgCondition}

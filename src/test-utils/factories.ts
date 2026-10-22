@@ -127,10 +127,13 @@ export function createConditionStatus(band: ConditionBand): ConditionStatus {
 }
 
 export function createSquadFitness(overrides: Partial<SquadFitness> = {}): SquadFitness {
+  const averageCondition =
+    overrides.average_condition === undefined ? 70 : overrides.average_condition;
   return {
     players: 11,
-    average_condition: 70,
-    average_status: createConditionStatus("Tiring"),
+    average_condition: averageCondition,
+    // As the backend has it: no average, no band for it.
+    average_status: averageCondition === null ? null : createConditionStatus("Tiring"),
     exhausted_count: 0,
     critical_count: 0,
     statuses: {},

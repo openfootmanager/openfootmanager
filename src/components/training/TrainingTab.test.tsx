@@ -442,4 +442,26 @@ describe("TrainingTab", () => {
     await waitFor(() => expect(average.firstElementChild).toHaveClass("bg-tone-bad-solid"));
     expect(average.firstElementChild).not.toHaveClass("bg-positive-solid");
   });
+
+  /**
+   * Given no healthy first-team player to average (the backend's average is null)
+   * When Training draws the squad's fitness
+   * Then the average's bar is no progress bar: "Avg Condition 0%" would read out a number that
+   * doesn't exist.
+   */
+  it("exposes no average progress bar while there is no average", async () => {
+    const state = createGameState(true);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({ players: 0, average_condition: null });
+      }
+      return command === "get_squad" ? state.players : state;
+    });
+
+    render(<TrainingTab gameState={state} />);
+
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("get_squad_fitness"));
+    await waitFor(() => expect(screen.getByText("—")).toBeInTheDocument());
+    expect(screen.queryByRole("progressbar", { name: "training.avgCondition" })).toBeNull();
+  });
 });
