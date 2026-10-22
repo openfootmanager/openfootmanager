@@ -31,12 +31,12 @@ impl FitnessStatus {
     /// Exhausted or worse: below 40, the band the squad's exhausted count and the staff's
     /// warnings are about. Tiring is not exhausted, so the counts read as they did before the
     /// band split "fit" in two.
-    pub fn is_exhausted(self) -> bool {
+    fn is_exhausted(self) -> bool {
         matches!(self, Self::Exhausted | Self::Critical)
     }
 
     /// The word the screens show for the band, as a translation key.
-    pub fn label_key(self) -> &'static str {
+    fn label_key(self) -> &'static str {
         match self {
             Self::Fresh => "be.condition.fresh",
             Self::Tiring => "be.condition.tiring",
@@ -48,7 +48,7 @@ impl FitnessStatus {
     /// Where the band sits on the good-to-bad scale. Four bands take the scale's lower four
     /// steps: a fresh player is as good as condition gets, which is good rather than top, the step
     /// kept for a rating that stands out.
-    pub fn tone(self) -> RatedTone {
+    fn tone(self) -> RatedTone {
         match self {
             Self::Fresh => RatedTone::Good,
             Self::Tiring => RatedTone::Fair,
