@@ -125,7 +125,10 @@ describe("SegmentedControl", () => {
         wrap={false}
       />,
     );
-    fireEvent.keyDown(screen.getByRole("radio", { name: "Max" }), { key: "ArrowRight" });
+    // The key is still the group's: its default (scrolling the panel) is prevented.
+    expect(
+      fireEvent.keyDown(screen.getByRole("radio", { name: "Max" }), { key: "ArrowRight" }),
+    ).toBe(false);
     expect(onChange).not.toHaveBeenCalled();
   });
 

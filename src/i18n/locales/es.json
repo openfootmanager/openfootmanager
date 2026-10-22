@@ -2600,7 +2600,7 @@
     "cupTiesPending": "Aún quedan eliminatorias por jugar",
     "resume": "Reanudar",
     "pausedResumesAt": "En pausa · se reanuda a {{speed}}",
-    "playingAt": "En juego a {{speed}}",
+    "playingAt": "Jugando a {{speed}}",
     "spaceKey": "Espacio"
   },
   "endOfSeason": {

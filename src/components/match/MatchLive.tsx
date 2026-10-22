@@ -87,8 +87,9 @@ export default function MatchLive({
   const signaledRef = useRef<Set<string>>(new Set());
   // Set when a step reaches half time, extra-time half time, the shootout or the end: the screen
   // hands over 600ms later, and nothing may step the match on in between (a Space or a Step there
-  // started the second half before the break). The ref answers synchronously inside stepMatch; the
-  // state re-renders the speed control. MatchLive remounts per stage, so it never needs clearing.
+  // started the second half before the break). stepMatch checks the ref, the one guard every step
+  // goes through; the state switches the speed control's Space off. MatchLive remounts per stage,
+  // so it never needs clearing.
   const transitioningRef = useRef(false);
   const [transitioning, setTransitioning] = useState(false);
   const beginTransition = useCallback(() => {
@@ -192,7 +193,7 @@ export default function MatchLive({
       timerRef.current = null;
     }
 
-    if (isRunning && !isFinished && !showSubPanel && !transitioning) {
+    if (isRunning && !isFinished && !showSubPanel) {
       timerRef.current = setTimeout(async () => {
         await stepMatch(MINUTES_PER_TICK[pace]);
       }, SPEED_MS[pace]);
@@ -209,7 +210,6 @@ export default function MatchLive({
     stepMatch,
     isFinished,
     showSubPanel,
-    transitioning,
   ]);
 
   // Auto-scroll event feed

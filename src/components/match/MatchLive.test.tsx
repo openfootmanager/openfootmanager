@@ -128,6 +128,7 @@ describe("MatchLive", () => {
     expect(stepCalls()).toHaveLength(1);
 
     fireEvent.keyDown(document.body, { key: " ", code: "Space" });
+    fireEvent.click(screen.getByRole("button", { name: "match.step1Min" }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(500);
     });
