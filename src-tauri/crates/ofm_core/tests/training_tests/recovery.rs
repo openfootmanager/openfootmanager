@@ -316,12 +316,17 @@ fn a_lone_fixture_still_only_tapers_one_step() {
     );
 }
 
-/// A dormant competition is resolved by a scoreline-only model that charges no
-/// condition, so a two-match week in one is no reason to spend a week on
-/// recovery sessions. Only the active fixture here counts, and it is six days
-/// off: the session is a normal one and costs.
+/// A congested week tapers whichever competition the congestion is in: the club plays those matches
+/// whether or not anyone follows them, so the rule that rests a squad does not look at the active
+/// scope. Only the active fixture here is six days off; the two in the dormant competition fall
+/// inside the taper window.
+///
+/// Given the user's club with one fixture six days off in the active league and two within four
+///       days in a dormant competition, on a hard session,
+/// When the day's training runs,
+/// Then the week tapers: the session does not cost condition.
 #[test]
-fn a_two_match_week_in_a_dormant_competition_does_not_taper() {
+fn a_two_match_week_in_a_dormant_competition_tapers() {
     let mut game = user_team_training_hard_at(60);
     schedule_user_fixture_in(&mut game, 6);
     let active = game.league.clone().expect("the active league");
@@ -348,9 +353,8 @@ fn a_two_match_week_in_a_dormant_competition_does_not_taper() {
 
     let after = p2_condition(&game);
     assert!(
-        after < before,
-        "the only congestion is in a competition nobody plays out, so the session \
-         should load ({before} → {after})"
+        after >= before,
+        "a congested week in a competition nobody follows still tapers ({before} → {after})"
     );
 }
 

@@ -156,7 +156,7 @@ fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
 ///
 /// Every competition counts, whether or not the player follows it: a club that plays on a day is a
 /// club that plays on that day, and its training ground is closed (#869). The taper before a
-/// match ([`tapering_teams`]) still reads only the competitions in the active scope.
+/// match ([`tapering_teams`]) reads every competition the same way.
 pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
     game.competitions_in_play()
         .iter()
@@ -173,8 +173,8 @@ pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::Has
 /// fixture list rather than a per-club scan — this runs for every club, every
 /// day, and a populated world holds tens of thousands of fixtures.
 ///
-/// Only competitions in the active scope count, as in [`teams_playing_on`]: a
-/// dormant match charges nobody any condition, so it is nothing to taper for.
+/// Every competition counts, as in [`teams_playing_on`]: a club plays its dormant
+/// matches too, so one rule rests every club.
 fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     use chrono::NaiveDate;
     use domain::league::FixtureStatus;
@@ -189,7 +189,6 @@ fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     for fixture in game
         .competitions_in_play()
         .iter()
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
     {
