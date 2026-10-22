@@ -21,6 +21,10 @@ pub enum PlayerKnowledge {
     Unknown,
 }
 
+/// The strongest thing the club knows, in this order: its own player, then a player in its division,
+/// then one a scout reported on, then nothing. A scouted player at a club in the manager's division is
+/// `Known` (live), not `Scouted` (a snapshot). An unemployed manager has no club and no division, so
+/// he knows only the players his scouts reported on.
 pub fn player_knowledge(game: &Game, player: &Player) -> PlayerKnowledge {
     knowledge_from(game, &Viewer::of(game), player)
 }

@@ -239,9 +239,10 @@ mod tests {
         );
     }
 
-    /// Given the manager's own player in the live session, and an id no player has,
-    /// when the IPC adapter is asked about both,
-    /// then the screen receives the player tagged as the club's own, and nothing for the stray id.
+    /// Given the manager's own player, a free agent a scout reported on, and an id no player has,
+    /// when the IPC adapter is asked about all three,
+    /// then the screen receives the exact wire shape it reads: the own player tagged `own`, the
+    /// scouted one with `scouted_on` and `current`, and nothing for the stray id.
     #[test]
     fn the_knowledge_adapter_answers_from_the_live_session() {
         use chrono::TimeZone;
@@ -262,9 +263,18 @@ mod tests {
             "2000-01-01".into(),
             "GB".into(),
             Position::Midfielder,
-            attrs,
+            attrs.clone(),
         );
         own.team_id = Some("club".into());
+        let free_agent = Player::new(
+            "free".into(),
+            "Free".into(),
+            "Free Agent".into(),
+            "2000-01-01".into(),
+            "GB".into(),
+            Position::Forward,
+            attrs.clone(),
+        );
         let mut manager = Manager::new(
             "m".into(),
             "M".into(),
@@ -273,21 +283,34 @@ mod tests {
             "GB".into(),
         );
         manager.team_id = Some("club".into());
-        let state = StateManager::new();
-        state.set_game(ofm_core::game::Game::new(
+        let mut game = ofm_core::game::Game::new(
             ofm_core::clock::GameClock::new(
                 chrono::Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap(),
             ),
             manager,
             vec![],
-            vec![own],
+            vec![own, free_agent],
             vec![],
             vec![],
-        ));
+        );
+        game.scouted_players.push(ofm_core::game::ScoutedPlayer {
+            player_id: "free".into(),
+            scouted_on: "2026-07-20".into(),
+            attributes: attrs,
+        });
+        let state = StateManager::new();
+        state.set_game(game);
 
-        let answer = get_player_knowledge_internal(&state, &["own".into(), "nobody".into()]);
+        let answer =
+            get_player_knowledge_internal(&state, &["own".into(), "free".into(), "nobody".into()]);
         let value = serde_json::to_value(answer.unwrap()).unwrap();
 
-        assert_eq!(value, serde_json::json!({ "own": { "kind": "own" } }));
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "own": { "kind": "own" },
+                "free": { "kind": "scouted", "scouted_on": "2026-07-20", "current": true },
+            })
+        );
     }
 }
