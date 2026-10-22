@@ -1835,6 +1835,21 @@
     },
     "uiScale": "Skala UI",
     "uiScaleDesc": "Sesuaikan ukuran huruf dan jarak agar mudah dibaca",
+    "sidebarWidth": "Lebar bilah sisi",
+    "sidebarWidthDesc": "Seberapa lebar bilah sisi saat terbuka. “Lebar” menampilkan setiap nama menu dalam satu baris.",
+    "sidebarWidthOptions": {
+      "compact": "Ringkas",
+      "standard": "Standar",
+      "wide": "Lebar"
+    },
+    "sidebarBehaviour": "Bilah sisi",
+    "sidebarBehaviourDesc": "Cara bilah sisi terbuka. Jika jendela terlalu sempit, bilah sisi terbuka di atas halaman.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Buka saat diarahkan",
+      "click": "Buka dengan klik",
+      "icons": "Hanya ikon"
+    },
     "uiScaleOptions": {
       "small": "Kecil",
       "normal": "Normal",

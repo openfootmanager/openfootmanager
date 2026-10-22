@@ -28,6 +28,8 @@
     "worldEditor.staffId"
   ],
   "de": [
+    "settings.sidebarBehaviourOptions.normal",
+    "settings.sidebarWidthOptions.standard",
     "nations.eng",
     "nations.wal",
     "nations.pt",
@@ -137,6 +139,8 @@
     "packageBuild.patches"
   ],
   "fr": [
+    "settings.sidebarBehaviourOptions.normal",
+    "settings.sidebarWidthOptions.standard",
     "nations.pt",
     "nations.ua",
     "nations.gh",
@@ -259,6 +263,7 @@
     "packageBuild.patches"
   ],
   "it": [
+    "settings.sidebarWidthOptions.standard",
     "nations.ru",
     "nations.sn",
     "nations.gh",
@@ -328,6 +333,7 @@
     "teamSelect.regionLabels.africa"
   ],
   "es": [
+    "settings.sidebarBehaviourOptions.normal",
     "nations.pt",
     "nations.cn",
     "nations.sn",
@@ -388,6 +394,7 @@
     "worldEditor.staffSpecialization.Fitness"
   ],
   "pt-BR": [
+    "settings.sidebarBehaviourOptions.normal",
     "nations.pt",
     "nations.cn",
     "nations.sn",
@@ -431,6 +438,7 @@
     "packageBuild.patches"
   ],
   "pt": [
+    "settings.sidebarBehaviourOptions.normal",
     "nations.pt",
     "nations.cn",
     "nations.sn",
@@ -474,6 +482,7 @@
   "ru": ["dashboard.recapTransferLine"],
   "zh-CN": ["be.news.roundup.resultLine", "be.news.preseasonDigest.resultLine"],
   "tr": [
+    "settings.sidebarBehaviourOptions.normal",
     "dashboard.recapTransferLine",
     "common.vs",
     "tactics.phaseSettings.width_Normal",
@@ -561,6 +570,7 @@
     "tournaments.competitions.premierDivision"
   ],
   "id": [
+    "settings.sidebarBehaviourOptions.normal",
     "awardsCeremony.rating",
     "be.msg.youthRecruitment.option.shortlist.label",
     "be.news.matchReport.scorer",

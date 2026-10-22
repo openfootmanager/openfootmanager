@@ -37,6 +37,8 @@ const THEME_OPTION_KEYS = ["light", "dark", "system"] as const;
 const MATCH_MODE_KEYS = ["live", "spectator", "delegate"] as const;
 const MATCH_SPEED_KEYS = ["slow", "normal", "fast"] as const;
 const UI_SCALE_KEYS = ["small", "normal", "large", "xlarge"] as const;
+const SIDEBAR_WIDTH_KEYS = ["compact", "standard", "wide"] as const;
+const SIDEBAR_BEHAVIOUR_KEYS = ["normal", "hover", "click", "icons"] as const;
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -222,6 +224,36 @@ export default function Settings() {
                 onChange={(v) => handleUpdate({ ui_scale: v as AppSettings["ui_scale"] })}
               />
             </div>
+          </SettingRow>
+
+          <SettingRow
+            label={t("settings.sidebarWidth")}
+            description={t("settings.sidebarWidthDesc")}
+          >
+            <SegmentedControl
+              options={SIDEBAR_WIDTH_KEYS.map((key) => ({
+                value: key,
+                label: t(`settings.sidebarWidthOptions.${key}`),
+              }))}
+              value={settings.sidebar_width}
+              onChange={(v) => handleUpdate({ sidebar_width: v as AppSettings["sidebar_width"] })}
+            />
+          </SettingRow>
+
+          <SettingRow
+            label={t("settings.sidebarBehaviour")}
+            description={t("settings.sidebarBehaviourDesc")}
+          >
+            <SegmentedControl
+              options={SIDEBAR_BEHAVIOUR_KEYS.map((key) => ({
+                value: key,
+                label: t(`settings.sidebarBehaviourOptions.${key}`),
+              }))}
+              value={settings.sidebar_behaviour}
+              onChange={(v) =>
+                handleUpdate({ sidebar_behaviour: v as AppSettings["sidebar_behaviour"] })
+              }
+            />
           </SettingRow>
 
           <SettingRow
