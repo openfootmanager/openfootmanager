@@ -672,7 +672,6 @@
     "bestRole": "En iyi rol",
     "formationFit": "Dizilişe uyum",
     "startingXi": "İlk 11",
-    "styleFit": "Stil uyumu",
     "starter": "As Oyuncu",
     "benchOption": "Yedek",
     "naturalFit": "Doğal uyum",
@@ -680,11 +679,6 @@
     "needsCover": "Takviye gerekli",
     "makeStarter": "İlk 11'e al",
     "sendToBench": "Yedeğe çek",
-    "styleFitValues": {
-      "strong": "Stil uyumu: Güçlü",
-      "good": "Stil uyumu: İyi",
-      "risky": "Stil uyumu: Riskli"
-    },
     "noBench": "Yedek oyuncu yok.",
     "viewProfile": "Profili görüntüle",
     "swapPlayer": "Oyuncuyu değiştir",
@@ -887,7 +881,6 @@
     "positionSelector": "Taktik mevki",
     "playablePositions": "Pozisyonlar",
     "slotFit": "Mevki uyumu",
-    "styleFit": "Stil uyumu",
     "responsibilities": "Sorumluluklar",
     "noSpecialRoles": "Özel rol yok",
     "naturalFit": "Doğal uyum",
@@ -905,11 +898,6 @@
       "sharp": "Formda",
       "managing": "İdare Ediyor",
       "risk": "Riskli"
-    },
-    "styleFitLevels": {
-      "strong": "Güçlü uyum",
-      "good": "İyi uyum",
-      "risky": "Riskli uyum"
     },
     "tokenStates": {
       "ready": "Hazır",
@@ -2007,7 +1995,6 @@
     "alreadyQueued": "Zaten bir oyuncu değişikliği için sırada",
     "substitutionsPartlyMade": "{{total}} değişiklikten {{applied}} tanesi yapıldı",
     "substitutionRefused": "Oyuncu değişikliği reddedildi: {{off}} yerine {{on}}. {{reason}}",
-    "playerRoles": "Oyuncu rolleri",
     "roleFor": "{{player}} oyuncusunun rolü",
     "roleChangeRefused": "{{player}} oyuncusunun rolü değiştirilemedi. {{reason}}",
     "noBenchAvailable": "Uygun yedek oyuncu yok",

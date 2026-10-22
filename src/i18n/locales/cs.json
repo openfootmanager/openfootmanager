@@ -672,7 +672,6 @@
     "bestRole": "Nejlepší role",
     "formationFit": "Vhodnost do sestavy",
     "startingXi": "Základní sestava",
-    "styleFit": "Vhodnost stylu",
     "starter": "Člen základu",
     "benchOption": "Lavička",
     "naturalFit": "Přirozená pozice",
@@ -680,11 +679,6 @@
     "needsCover": "Vyžaduje pokrytí",
     "makeStarter": "Dát do základu",
     "sendToBench": "Posadit na lavičku",
-    "styleFitValues": {
-      "strong": "Vhodnost stylu: Silná",
-      "good": "Vhodnost stylu: Dobrá",
-      "risky": "Vhodnost stylu: Riziková"
-    },
     "noBench": "Žádní hráči na lavičce.",
     "viewProfile": "Zobrazit profil",
     "swapPlayer": "Prohodit hráče",
@@ -887,7 +881,6 @@
     "positionSelector": "Taktická pozice",
     "playablePositions": "Pozice",
     "slotFit": "Vhodnost pozice",
-    "styleFit": "Vhodnost stylu",
     "responsibilities": "Povinnosti",
     "noSpecialRoles": "Žádné speciální role",
     "naturalFit": "Přirozená pozice",
@@ -905,11 +898,6 @@
       "sharp": "V plné formě",
       "managing": "Zvládá zátěž",
       "risk": "Riziko zranění"
-    },
-    "styleFitLevels": {
-      "strong": "Skvělá shoda",
-      "good": "Dobrá shoda",
-      "risky": "Riziková shoda"
     },
     "tokenStates": {
       "ready": "Připraven",
@@ -2007,7 +1995,6 @@
     "alreadyQueued": "Už čeká ve frontě na střídání",
     "substitutionsPartlyMade": "Provedeno střídání: {{applied}} z {{total}}",
     "substitutionRefused": "Střídání zamítnuto: {{off}} za {{on}}. {{reason}}",
-    "playerRoles": "Role hráčů",
     "roleFor": "Role hráče {{player}}",
     "roleChangeRefused": "Roli hráče {{player}} se nepodařilo změnit. {{reason}}",
     "noBenchAvailable": "Na lavičce nejsou k dispozici žádní hráči",

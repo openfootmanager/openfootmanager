@@ -699,19 +699,13 @@
     "bestRole": "Лучшая роль",
     "formationFit": "Соответствие схеме",
     "startingXi": "Стартовый состав",
-    "styleFit": "Соответствие стилю",
     "starter": "Основа",
     "benchOption": "Запас",
     "naturalFit": "Естественная роль",
     "adaptedFit": "Адаптированная роль",
     "needsCover": "Нужна подмена",
     "makeStarter": "Сделать игроком основы",
-    "sendToBench": "Отправить в запас",
-    "styleFitValues": {
-      "strong": "Соответствие стилю: Сильное",
-      "good": "Соответствие стилю: Хорошее",
-      "risky": "Соответствие стилю: Рискованное"
-    }
+    "sendToBench": "Отправить в запас"
   },
   "tactics": {
     "formationStyle": "Схема и стиль",
@@ -894,7 +888,6 @@
     "positionSelector": "Тактический слот",
     "playablePositions": "Позиции",
     "slotFit": "Соответствие слоту",
-    "styleFit": "Соответствие стилю",
     "responsibilities": "Обязанности",
     "noSpecialRoles": "Нет особых ролей",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "В тонусе",
       "managing": "Под нагрузкой",
       "risk": "Риск"
-    },
-    "styleFitLevels": {
-      "strong": "Сильное соответствие",
-      "good": "Хорошее соответствие",
-      "risky": "Рискованное соответствие"
     }
   },
   "training": {
@@ -2003,7 +1991,6 @@
     "alreadyQueued": "Уже в очереди на замену",
     "substitutionsPartlyMade": "Выполнено замен: {{applied}} из {{total}}",
     "substitutionRefused": "Замена отклонена: {{off}} на {{on}}. {{reason}}",
-    "playerRoles": "Роли игроков",
     "roleFor": "Роль игрока {{player}}",
     "roleChangeRefused": "Не удалось сменить роль игрока {{player}}. {{reason}}",
     "noBenchAvailable": "На скамейке нет игроков",
