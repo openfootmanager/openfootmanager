@@ -70,7 +70,8 @@ describe("useSidebar", () => {
   /**
    * Given Expand on click
    * When its button is pressed, and then Esc
-   * Then it opens as a drawer with a backdrop, and Esc closes it; hovering never opens it.
+   * Then it opens as a drawer that a click outside closes, and Esc closes it; hovering never
+   * opens it.
    */
   it("opens as a drawer from its button and closes on Esc, never on hover", () => {
     vi.useFakeTimers();
@@ -83,7 +84,7 @@ describe("useSidebar", () => {
     expect(result.current.layout).toMatchObject({
       drawn: "standard",
       overlay: true,
-      backdrop: true,
+      closesOnOutsideClick: true,
     });
     act(() => {
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));

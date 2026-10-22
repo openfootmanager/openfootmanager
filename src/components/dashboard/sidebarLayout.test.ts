@@ -64,7 +64,8 @@ describe("sidebarLayout", () => {
   /**
    * Given Normal in a window too narrow for the open sidebar
    * When the player presses expand
-   * Then the sidebar opens over the page with a backdrop, the page keeping the rail's width.
+   * Then the sidebar opens over the page and a click outside closes it, the page keeping the rail's
+   * width.
    */
   it("opens over the page as a drawer when the window is too narrow", () => {
     const frame = { windowPx: 960, rootPx: 20 };
@@ -83,7 +84,7 @@ describe("sidebarLayout", () => {
       slot: "rail",
       drawn: "standard",
       overlay: true,
-      backdrop: true,
+      closesOnOutsideClick: true,
       toggle: "collapse",
     });
   });
@@ -91,8 +92,9 @@ describe("sidebarLayout", () => {
   /**
    * Given Expand on hover, Expand on click and Icons only, in a window with plenty of room
    * When they are laid out at rest, and opened
-   * Then all three rest as a rail; hover opens over the page with no backdrop and no button; click
-   * opens a drawer with a backdrop from its button; icons only never opens.
+   * Then all three rest as a rail; hover opens over the page with no button and closes when the pointer
+   * leaves; click opens a drawer from its button that a click outside closes; icons only never
+   * opens.
    */
   it("rests as a rail for hover, click and icons, and opens each its own way", () => {
     const frame = { windowPx: 1600, rootPx: 16 };
@@ -104,7 +106,7 @@ describe("sidebarLayout", () => {
       slot: "rail",
       drawn: "wide",
       overlay: true,
-      backdrop: false,
+      closesOnOutsideClick: false,
     });
     expect(at("click", false)).toMatchObject({
       slot: "rail",
@@ -116,7 +118,7 @@ describe("sidebarLayout", () => {
       slot: "rail",
       drawn: "wide",
       overlay: true,
-      backdrop: true,
+      closesOnOutsideClick: true,
       toggle: "collapse",
     });
     expect(at("icons", true)).toMatchObject({

@@ -36,8 +36,8 @@ export interface SidebarLayout {
   drawn: SidebarWidth | "rail";
   /** Drawn over the page. */
   overlay: boolean;
-  /** A backdrop behind it that closes it on a click (the drawer, not the hover). */
-  backdrop: boolean;
+  /** A click outside closes it (the drawer; the hover closes when the pointer leaves). */
+  closesOnOutsideClick: boolean;
   /** What the sidebar's own button does, or null when it has none. */
   toggle: "expand" | "collapse" | null;
   /** The button opens a drawer over the page instead of folding the sidebar in place. */
@@ -49,13 +49,17 @@ function tooNarrow(width: SidebarWidth, { windowPx, rootPx }: SidebarFrame): boo
   return windowPx < (MIN_PAGE_REM + SIDEBAR_REM[width]) * rootPx;
 }
 
-function overlayLayout(state: SidebarState, backdrop: boolean, hasButton: boolean): SidebarLayout {
+function overlayLayout(
+  state: SidebarState,
+  closesOnOutsideClick: boolean,
+  hasButton: boolean,
+): SidebarLayout {
   const open = state.overlayOpen;
   return {
     slot: "rail",
     drawn: open ? state.width : "rail",
     overlay: open,
-    backdrop: backdrop && open,
+    closesOnOutsideClick: closesOnOutsideClick && open,
     toggle: hasButton ? (open ? "collapse" : "expand") : null,
     opensDrawer: hasButton,
   };
@@ -76,7 +80,7 @@ export function sidebarLayout(state: SidebarState, frame: SidebarFrame): Sidebar
         slot: "rail",
         drawn: "rail",
         overlay: false,
-        backdrop: false,
+        closesOnOutsideClick: false,
         toggle: null,
         opensDrawer: false,
       };
@@ -91,7 +95,7 @@ export function sidebarLayout(state: SidebarState, frame: SidebarFrame): Sidebar
         slot: size,
         drawn: size,
         overlay: false,
-        backdrop: false,
+        closesOnOutsideClick: false,
         toggle: state.collapsed ? "expand" : "collapse",
         opensDrawer: false,
       };

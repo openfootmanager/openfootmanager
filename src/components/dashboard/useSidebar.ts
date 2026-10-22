@@ -1,4 +1,4 @@
-import { type FocusEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type FocusEvent, type RefObject, useCallback, useEffect, useRef, useState } from "react";
 
 import type { AppSettings } from "../../store/settingsStore";
 import { type SidebarLayout, sidebarLayout } from "./sidebarLayout";
@@ -46,6 +46,8 @@ function useFrame(): Frame {
 
 export interface SidebarControls {
   layout: SidebarLayout;
+  /** On the sidebar: a pointer-down outside it closes a drawer. */
+  asideRef: RefObject<HTMLElement | null>;
   /** Hover and keyboard focus, for Expand on hover; spread on the sidebar. */
   asideHandlers: {
     onPointerEnter: () => void;
@@ -69,6 +71,7 @@ export function useSidebar(settings: SidebarSettings, onEscape?: () => void): Si
   const [overlayOpen, setOverlayOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const escaped = useRef(false);
+  const asideRef = useRef<HTMLElement | null>(null);
   const hover = settings.behaviour === "hover";
   const layout = sidebarLayout({ ...settings, overlayOpen }, frame);
 
@@ -97,8 +100,21 @@ export function useSidebar(settings: SidebarSettings, onEscape?: () => void): Si
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [overlayOpen, hover, onEscape]);
 
+  // A drawer closes on a click outside it. No full-screen backdrop catches that click: the only
+  // full-screen overlay is ui/Dialog's (design rule 4), and the page should stay usable around it.
+  useEffect(() => {
+    if (!overlayOpen || !layout.closesOnOutsideClick) return;
+    function handlePointerDown(event: PointerEvent) {
+      if (asideRef.current?.contains(event.target as Node)) return;
+      setOverlayOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [overlayOpen, layout.closesOnOutsideClick]);
+
   return {
     layout,
+    asideRef,
     asideHandlers: {
       onPointerEnter: () => {
         if (hover && !escaped.current) schedule(true, OPEN_DELAY_MS);
