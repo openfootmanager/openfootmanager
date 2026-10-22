@@ -382,18 +382,21 @@ mod tests {
         assert_eq!(report.quintiles[0].s_share, 1.0);
     }
 
-    /// Given a B-rated player at the top club,
+    /// Given a B-rated and an A-rated player at the top club and an S-rated one at the bottom club,
     /// When the world is reported,
-    /// Then he is in neither share: the report counts the S and A tiers only.
+    /// Then the B player is in neither share: the top club's S share is 0 of the world's one S player
+    ///      and its A share all of the world's one A player.
     #[test]
     fn a_b_rated_player_is_in_neither_share() {
         let report = reputation_report(&world(vec![
             player("b", Some("c9"), 72, "1995-01-01"),
             player("a", Some("c9"), 78, "1995-01-01"),
+            player("s", Some("c0"), 90, "1995-01-01"),
         ]));
 
         assert_eq!(report.quintiles[4].a_share, 1.0);
         assert_eq!(report.quintiles[4].s_share, 0.0);
+        assert_eq!(report.quintiles[0].s_share, 1.0);
     }
 
     /// Given a youth rated S at the top club,
