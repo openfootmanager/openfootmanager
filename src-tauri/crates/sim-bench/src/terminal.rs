@@ -2,6 +2,7 @@ use colored::Colorize;
 use comfy_table::{Cell, ContentArrangement, Table};
 
 use crate::stats::BenchStats;
+use crate::targets::{Provenance, Verdict};
 
 pub struct RunConfig<'a> {
     pub home_name: &'a str,
@@ -16,7 +17,7 @@ pub struct RunConfig<'a> {
     pub seed: Option<u64>,
 }
 
-pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
+pub fn print_report(stats: &BenchStats, cfg: &RunConfig, verdicts: &[Verdict]) {
     let sep = "═".repeat(64);
 
     println!("\n{}", sep.bright_cyan());
@@ -93,36 +94,12 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let cs_a = stats.clean_sheet_away_pct();
     let btts = stats.btts_pct();
 
-    metric(
-        "  Avg goals/game   ",
-        gpg,
-        2,
-        "2.3–3.0",
-        check(gpg, 2.3, 3.0),
-    );
-    metric("  Home goals/game  ", stats.home_gpg(), 2, "", true);
-    metric("  Away goals/game  ", stats.away_gpg(), 2, "", true);
-    metric(
-        "  Clean sheet Home ",
-        cs_h,
-        1,
-        "22–35%",
-        check(cs_h, 22.0, 35.0),
-    );
-    metric(
-        "  Clean sheet Away ",
-        cs_a,
-        1,
-        "22–35%",
-        check(cs_a, 22.0, 35.0),
-    );
-    metric(
-        "  BTTS             ",
-        btts,
-        1,
-        "50–55%",
-        check(btts, 50.0, 55.0),
-    );
+    metric("  Avg goals/game   ", gpg, 2);
+    metric("  Home goals/game  ", stats.home_gpg(), 2);
+    metric("  Away goals/game  ", stats.away_gpg(), 2);
+    metric("  Clean sheet Home ", cs_h, 1);
+    metric("  Clean sheet Away ", cs_a, 1);
+    metric("  BTTS             ", btts, 1);
     println!();
 
     // Goals-per-game distribution
@@ -174,28 +151,10 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let conv = stats.goal_conversion_pct();
     let xg = stats.xg_proxy_pg(cfg.goal_conversion_base);
 
-    metric(
-        "  Shots/game       ",
-        shots,
-        1,
-        "18–32",
-        check(shots, 18.0, 32.0),
-    );
-    metric(
-        "  Shots on target %",
-        acc,
-        1,
-        "32–45%",
-        check(acc, 32.0, 45.0),
-    );
-    metric(
-        "  Goal conversion %",
-        conv,
-        1,
-        "20–40%",
-        check(conv, 20.0, 40.0),
-    );
-    metric("  xG/game (proxy)  ", xg, 2, "", true);
+    metric("  Shots/game       ", shots, 1);
+    metric("  Shots on target %", acc, 1);
+    metric("  Goal conversion %", conv, 1);
+    metric("  xG/game (proxy)  ", xg, 2);
     let diff = stats.gpg() - xg;
     let diff_label = if diff >= 0.0 {
         format!("{:+.2} (overperforming)", diff).green().to_string()
@@ -216,30 +175,12 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let pc = stats.penalty_conversion_pct();
     let inj = stats.injuries_pg();
 
-    metric("  Yellow cards/game", y, 2, "2.0–4.0", check(y, 2.0, 4.0));
-    metric(
-        "  Red cards/game   ",
-        r,
-        3,
-        "0.05–0.15",
-        check(r, 0.05, 0.15),
-    );
-    metric("  Fouls/game       ", f, 1, "18–28", check(f, 18.0, 28.0));
-    metric(
-        "  Penalties/game   ",
-        p,
-        2,
-        "0.20–0.50",
-        check(p, 0.20, 0.50),
-    );
-    metric(
-        "  Pen. conversion %",
-        pc,
-        1,
-        "65–85%",
-        check(pc, 65.0, 85.0),
-    );
-    metric("  Injuries/game    ", inj, 2, "", true);
+    metric("  Yellow cards/game", y, 2);
+    metric("  Red cards/game   ", r, 3);
+    metric("  Fouls/game       ", f, 1);
+    metric("  Penalties/game   ", p, 2);
+    metric("  Pen. conversion %", pc, 1);
+    metric("  Injuries/game    ", inj, 2);
     println!();
 
     // ── Set pieces ───────────────────────────────────────────────────────────
@@ -249,10 +190,10 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let gk = stats.goal_kicks_pg();
     let cr = stats.crosses_pg();
 
-    metric("  Corners/game     ", c, 1, "8–14", check(c, 8.0, 14.0));
-    metric("  Free kicks/game  ", fk, 1, "", true);
-    metric("  Goal kicks/game  ", gk, 1, "8–14", check(gk, 8.0, 14.0));
-    metric("  Crosses/game     ", cr, 1, "15–30", check(cr, 15.0, 30.0));
+    metric("  Corners/game     ", c, 1);
+    metric("  Free kicks/game  ", fk, 1);
+    metric("  Goal kicks/game  ", gk, 1);
+    metric("  Crosses/game     ", cr, 1);
     println!();
 
     // ── Goal sources ─────────────────────────────────────────────────────────
@@ -262,34 +203,10 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
     let fkp = stats.free_kick_goal_pct();
     let pep = stats.penalty_goal_pct();
 
-    metric(
-        "  Open play %      ",
-        op,
-        1,
-        "60–75%",
-        check(op, 60.0, 75.0),
-    );
-    metric(
-        "  Corners %        ",
-        co,
-        1,
-        "10–20%",
-        check(co, 10.0, 20.0),
-    );
-    metric(
-        "  Free kicks %     ",
-        fkp,
-        1,
-        "5–15%",
-        check(fkp, 5.0, 15.0),
-    );
-    metric(
-        "  Penalties %      ",
-        pep,
-        1,
-        "5–15%",
-        check(pep, 5.0, 15.0),
-    );
+    metric("  Open play %      ", op, 1);
+    metric("  Corners %        ", co, 1);
+    metric("  Free kicks %     ", fkp, 1);
+    metric("  Penalties %      ", pep, 1);
     println!();
 
     // ── Possession & passing ─────────────────────────────────────────────────
@@ -302,7 +219,7 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
         100.0 - hp
     );
     let passes_pg = stats.passes_completed as f64 / stats.games as f64;
-    metric("  Passes/game      ", passes_pg, 1, "", true);
+    metric("  Passes/game      ", passes_pg, 1);
     // Note: passes_intercepted only covers buildup zone; pass accuracy intentionally omitted
     println!();
 
@@ -331,7 +248,10 @@ pub fn print_report(stats: &BenchStats, cfg: &RunConfig) {
         stats.total_time_secs,
         stats.games_per_sec()
     );
-    println!("\n{}", sep.bright_cyan());
+    println!();
+
+    calibration(verdicts);
+    println!("{}", sep.bright_cyan());
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -360,21 +280,54 @@ fn pct_of_games(count: u32, games: u32) -> f64 {
     count as f64 / games as f64 * 100.0
 }
 
-fn check(value: f64, lo: f64, hi: f64) -> bool {
-    value >= lo && value <= hi
+fn metric(label: &str, value: f64, decimals: usize) {
+    println!("{label}{:.prec$}", value, prec = decimals);
 }
 
-fn metric(label: &str, value: f64, decimals: usize, target: &str, ok: bool) {
-    let val_str = format!("{:.prec$}", value, prec = decimals);
-    if target.is_empty() {
-        println!("{label}{val_str}");
-    } else {
-        let indicator = if ok {
-            "✓".green().bold()
-        } else {
-            "✗".red().bold()
+/// Every metric against its band, with the band's source. A tick or a cross is a claim about real
+/// football, so it is printed only where the band is measured and the bench plays what it
+/// measures; anything else gets a quiet dot (inside) or bang (outside).
+fn calibration(verdicts: &[Verdict]) {
+    section("CALIBRATION BANDS");
+    let mut table = Table::new();
+    table.load_preset(comfy_table::presets::UTF8_FULL);
+    table.set_header(vec!["Metric", "Value", "Band", "Source", ""]);
+    for verdict in verdicts {
+        let (source, judged) = match &verdict.provenance {
+            Provenance::Measured {
+                competitions,
+                seasons,
+                ..
+            } => (
+                format!("{competitions}, {seasons}"),
+                verdict.not_comparable.is_none(),
+            ),
+            Provenance::Unsourced => ("unsourced".dimmed().to_string(), false),
         };
-        let target_str = format!("[{target}]").dimmed();
-        println!("{label}{:<10}  {target_str}  {indicator}", val_str);
+        let mark = match (judged, verdict.inside) {
+            (true, true) => "✓".green().bold().to_string(),
+            (true, false) => "✗".red().bold().to_string(),
+            (false, true) => "·".dimmed().to_string(),
+            (false, false) => "!".dimmed().to_string(),
+        };
+        table.add_row(vec![
+            Cell::new(verdict.label),
+            Cell::new(verdict.unit.value(verdict.value)),
+            Cell::new(verdict.unit.band(verdict.low, verdict.high)),
+            Cell::new(source),
+            Cell::new(mark),
+        ]);
     }
+    println!("{table}");
+    for verdict in verdicts {
+        if let Some(reason) = verdict.not_comparable {
+            println!(
+                "  {} {}: {}",
+                "n/c".dimmed(),
+                verdict.label,
+                reason.dimmed()
+            );
+        }
+    }
+    println!();
 }

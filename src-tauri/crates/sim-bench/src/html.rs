@@ -1,4 +1,5 @@
 use crate::stats::BenchStats;
+use crate::targets::{Provenance, Verdict};
 
 pub struct RunConfig<'a> {
     pub home_name: &'a str,
@@ -13,7 +14,7 @@ pub struct RunConfig<'a> {
     pub seed: Option<u64>,
 }
 
-pub fn generate_html(stats: &BenchStats, cfg: &RunConfig) -> String {
+pub fn generate_html(stats: &BenchStats, cfg: &RunConfig, verdicts: &[Verdict]) -> String {
     let seed_line = cfg.seed.map(|s| format!(" · seed {s}")).unwrap_or_default();
 
     let xg = stats.xg_proxy_pg(cfg.goal_conversion_base);
@@ -31,7 +32,7 @@ pub fn generate_html(stats: &BenchStats, cfg: &RunConfig) -> String {
     let possession_html = possession_section(stats, hp);
     let goal_sources_html = goal_sources_section(stats);
     let benchmark_html = benchmark_section(stats);
-    let targets_html = targets_table(stats, xg);
+    let targets_html = targets_table(verdicts);
 
     format!(
         r#"<!DOCTYPE html>
@@ -764,100 +765,39 @@ fn benchmark_section(stats: &BenchStats) -> String {
     )
 }
 
-fn targets_table(stats: &BenchStats, xg: f64) -> String {
-    let rows = [
-        ("Goals/game", stats.gpg(), 2.3, 3.0, "f64"),
-        ("Shots/game", stats.shots_pg(), 18.0, 32.0, "f64"),
-        (
-            "Shots on target %",
-            stats.shot_accuracy_pct(),
-            32.0,
-            45.0,
-            "pct",
-        ),
-        (
-            "Goal conversion %",
-            stats.goal_conversion_pct(),
-            20.0,
-            40.0,
-            "pct",
-        ),
-        ("Yellow cards/game", stats.yellows_pg(), 2.0, 4.0, "f64"),
-        ("Red cards/game", stats.reds_pg(), 0.05, 0.15, "f64"),
-        ("Fouls/game", stats.fouls_pg(), 18.0, 28.0, "f64"),
-        ("Corners/game", stats.corners_pg(), 8.0, 14.0, "f64"),
-        ("Goal kicks/game", stats.goal_kicks_pg(), 8.0, 14.0, "f64"),
-        ("Crosses/game", stats.crosses_pg(), 15.0, 30.0, "f64"),
-        ("Home win %", stats.home_win_pct(), 40.0, 52.0, "pct"),
-        (
-            "Clean sheet %",
-            stats.clean_sheet_home_pct(),
-            22.0,
-            35.0,
-            "pct",
-        ),
-        ("Penalties/game", stats.penalties_pg(), 0.20, 0.50, "f64"),
-        (
-            "Pen. conversion %",
-            stats.penalty_conversion_pct(),
-            65.0,
-            85.0,
-            "pct",
-        ),
-        ("BTTS %", stats.btts_pct(), 50.0, 55.0, "pct"),
-        (
-            "Open play goals %",
-            stats.open_play_goal_pct(),
-            60.0,
-            75.0,
-            "pct",
-        ),
-        ("Corner goals %", stats.corner_goal_pct(), 10.0, 20.0, "pct"),
-        (
-            "Free kick goals %",
-            stats.free_kick_goal_pct(),
-            5.0,
-            15.0,
-            "pct",
-        ),
-        (
-            "Penalty goals %",
-            stats.penalty_goal_pct(),
-            5.0,
-            15.0,
-            "pct",
-        ),
-        ("xG/game (proxy)", xg, 0.0, 9999.0, "f64"),
-    ];
-
+fn targets_table(verdicts: &[Verdict]) -> String {
     let mut body = String::new();
-    for (label, value, lo, hi, fmt) in &rows {
-        let ok = *value >= *lo && *value <= *hi;
-        let value_str = match *fmt {
-            "pct" => format!("{value:.1}%"),
-            _ => format!("{value:.2}"),
+    for verdict in verdicts {
+        let value_str = verdict.unit.value(verdict.value);
+        let target_str = verdict.unit.band(verdict.low, verdict.high);
+        let source = match &verdict.provenance {
+            Provenance::Measured {
+                competitions,
+                seasons,
+                ..
+            } => format!("{competitions}, {seasons}"),
+            Provenance::Unsourced => "unsourced".to_string(),
         };
-        let target_str = if *hi >= 9000.0 {
-            "—".to_string()
-        } else if *fmt == "pct" {
-            format!("{lo}–{hi}%")
-        } else {
-            format!("{lo}–{hi}")
-        };
-        let badge = if *hi >= 9000.0 {
-            String::new()
-        } else if ok {
-            r#"<span class="tag tag-ok">✓ OK</span>"#.to_string()
-        } else {
-            r#"<span class="tag tag-bad">✗ Off target</span>"#.to_string()
+        let judged = matches!(verdict.provenance, Provenance::Measured { .. })
+            && verdict.not_comparable.is_none();
+        let badge = match (judged, verdict.inside) {
+            (true, true) => r#"<span class="tag tag-ok">✓ OK</span>"#.to_string(),
+            (true, false) => r#"<span class="tag tag-bad">✗ Off target</span>"#.to_string(),
+            (false, inside) => {
+                let side = if inside { "inside" } else { "outside" };
+                let why = verdict.not_comparable.unwrap_or("no source for this band");
+                format!(r#"<span class="tag" title="{why}">{side} (not judged)</span>"#)
+            }
         };
         body.push_str(&format!(
             r#"<tr>
   <td style="padding:8px 12px;color:var(--muted)">{label}</td>
   <td style="padding:8px 12px;font-weight:700;font-variant-numeric:tabular-nums">{value_str}</td>
   <td style="padding:8px 12px;color:var(--muted)">{target_str}</td>
+  <td style="padding:8px 12px;color:var(--muted)">{source}</td>
   <td style="padding:8px 12px">{badge}</td>
-</tr>"#
+</tr>"#,
+            label = verdict.label,
         ));
     }
 
@@ -870,6 +810,7 @@ fn targets_table(stats: &BenchStats, xg: f64) -> String {
         <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase">Metric</th>
         <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase">Simulated</th>
         <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase">Real-World Target</th>
+        <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase">Source</th>
         <th style="padding:8px 12px;text-align:left;color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase">Status</th>
       </tr>
     </thead>
