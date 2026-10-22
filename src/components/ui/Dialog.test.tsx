@@ -418,6 +418,43 @@ describe("Dialog", () => {
     expect(submit).toHaveFocus();
   });
 
+  /**
+   * Given a confirmation opened from a button inside another dialog, the button disabled by the
+   * time the confirmation closes (its action now running)
+   * When the confirmation closes
+   * Then the focus still lands inside the dialog beneath (its panel), not outside every dialog.
+   */
+  it("keeps the focus in the dialog beneath when its opener can't take it back", () => {
+    function Stack({ confirmOpen, submitting }: { confirmOpen: boolean; submitting: boolean }) {
+      return (
+        <>
+          <button type="button">Behind</button>
+          <Dialog labelledBy="renewal" onClose={vi.fn()}>
+            <h2 id="renewal">Renewal</h2>
+            <button type="button" disabled={submitting}>
+              Submit
+            </button>
+            {confirmOpen && (
+              <Dialog labelledBy="confirm" onClose={vi.fn()}>
+                <h2 id="confirm">Sure?</h2>
+                <button type="button">Yes</button>
+              </Dialog>
+            )}
+          </Dialog>
+        </>
+      );
+    }
+    const { rerender } = render(<Stack confirmOpen={false} submitting={false} />);
+    screen.getByRole("button", { name: "Submit" }).focus();
+    rerender(<Stack confirmOpen submitting={false} />);
+
+    rerender(<Stack confirmOpen={false} submitting />);
+
+    expect(screen.getByRole("dialog", { name: "Renewal" })).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+  });
+
   it("keeps the focus in the dialog still open when the top one closes", () => {
     function Stack({ open, upperOpen }: { open: boolean; upperOpen: boolean }) {
       return (

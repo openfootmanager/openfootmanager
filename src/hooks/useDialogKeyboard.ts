@@ -102,7 +102,8 @@ export function useDialogKeyboard(
       const remaining = topDialog();
       if (remaining instanceof HTMLElement && remaining !== self) {
         if (opener && remaining.contains(opener)) opener.focus();
-        else remaining.focus();
+        // The opener may refuse it (disabled by now, its action running): the panel then has it.
+        if (!remaining.contains(document.activeElement)) remaining.focus();
         return;
       }
       opener?.focus?.();
