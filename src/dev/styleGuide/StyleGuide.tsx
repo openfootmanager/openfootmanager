@@ -18,6 +18,7 @@ import {
   PitchToken,
   PlayerAvatar,
   ProgressBar,
+  TONE_TEXT,
   Select,
   TabPanel,
   Tabs,
@@ -275,6 +276,22 @@ function DisplaySection() {
             <ProgressBar key={variant} value={95 - i * 17} variant={variant} showLabel />
           ),
         )}
+      </div>
+      {/* The good-to-bad scale the backend rates values on: a tone fills the bar, its word says it. */}
+      <div className="grid max-w-md gap-2">
+        {(
+          [
+            ["good", "Fresh", 90],
+            ["fair", "Tiring", 60],
+            ["low", "Exhausted", 32],
+            ["bad", "Critical", 15],
+          ] as const
+        ).map(([tone, word, value]) => (
+          <div key={tone} className="flex items-center gap-3">
+            <span className={`w-20 text-caption font-semibold ${TONE_TEXT[tone]}`}>{word}</span>
+            <ProgressBar value={value} tone={tone} showLabel className="flex-1" />
+          </div>
+        ))}
       </div>
       <Row>
         <CountryFlag code="BE" />
