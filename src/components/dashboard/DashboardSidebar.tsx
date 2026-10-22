@@ -25,6 +25,7 @@ import {
   PanelLeftOpen,
   User,
 } from "lucide-react";
+import { UnreadBadge } from "../ui";
 
 interface DashboardSidebarProps {
   activeTab: string;
@@ -50,10 +51,6 @@ interface NavItemProps {
   label: string;
   onClick?: () => void;
 }
-
-/** A circle for one digit (as wide as it is tall); more digits widen it only by their own width. */
-const UNREAD_BADGE =
-  "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-700 px-1 text-caption font-bold leading-none text-on-brand tabular-nums";
 
 const FOCUS_RING =
   "focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-chrome";
@@ -82,15 +79,11 @@ function NavItem({ active, badge, collapsed, icon, label, onClick }: NavItemProp
         )}
       </div>
       {badge !== undefined && badge !== 0 && badge !== "" && (
-        <span
-          className={
-            collapsed
-              ? `absolute right-0.5 top-0.5 ${UNREAD_BADGE} ring-2 ring-chrome`
-              : UNREAD_BADGE
-          }
-        >
-          {badge}
-        </span>
+        // On the rail the count sits on the icon's top-right corner, ringed in the chrome colour.
+        <UnreadBadge
+          count={badge}
+          className={collapsed ? "absolute left-1/2 top-1 ml-1 ring-2 ring-chrome" : ""}
+        />
       )}
     </button>
   );

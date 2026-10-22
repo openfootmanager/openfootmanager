@@ -126,6 +126,7 @@ drawn in the style guide.
 | a progress or condition bar | `ProgressBar` |
 | a player, club or country | `PlayerAvatar`, `TeamLogo`, `CountryFlag`, `TeamLocation` |
 | an injury | `InjuryBadge` |
+| an unread count or a mark on a nav item (a circle for one digit, 99+ at most) | `UnreadBadge` |
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
 
