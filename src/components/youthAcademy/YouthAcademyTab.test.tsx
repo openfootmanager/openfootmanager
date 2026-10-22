@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -468,10 +468,10 @@ describe("YouthAcademyTab", () => {
 
     render(<YouthAcademyTab gameState={state} />);
 
-    const letterOf = async (potential: number) =>
-      (await screen.findByText(`Prospect ${potential}`))
-        .closest("tr")
-        ?.querySelector("p.text-\\[9px\\]");
+    const letterOf = async (potential: number) => {
+      const row = (await screen.findByText(`Prospect ${potential}`)).closest("tr");
+      return row ? within(row).queryByText(/^[SAB]$/) : null;
+    };
     expect((await letterOf(81))?.textContent).toBe("S");
     expect((await letterOf(77))?.textContent).toBe("A");
     expect((await letterOf(76))?.textContent).toBe("B");

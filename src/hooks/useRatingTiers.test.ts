@@ -123,4 +123,23 @@ describe("useRatingTiers", () => {
     await waitFor(() => expect(first.result.current(90)).toBe("S"));
     quiet.mockRestore();
   });
+
+  /**
+   * Given a first mount whose request is still in flight
+   * When a second mount renders before the table arrives, and then the table arrives
+   * Then both mounts read the table, from the one request.
+   */
+  it("gives a mount rendered while the request is in flight the table", async () => {
+    let arrive: (answer: RatingTier[]) => void = () => {};
+    mockedTiers.mockReturnValue(new Promise<RatingTier[]>((resolve) => (arrive = resolve)));
+
+    const first = renderHook(() => useRatingTiers());
+    const second = renderHook(() => useRatingTiers());
+    expect(second.result.current(90)).toBe("Rest");
+    arrive(table());
+
+    await waitFor(() => expect(second.result.current(90)).toBe("S"));
+    expect(first.result.current(90)).toBe("S");
+    expect(mockedTiers).toHaveBeenCalledTimes(1);
+  });
 });

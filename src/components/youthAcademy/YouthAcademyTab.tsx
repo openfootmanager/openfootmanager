@@ -520,7 +520,7 @@ export default function YouthAcademyTab({
                           </span>
                           {potLetterKey && (
                             <p
-                              className={`text-[9px] font-heading uppercase tracking-wider ${ratingTierClass(potTier, "text")}`}
+                              className={`text-caption font-heading uppercase tracking-wider ${ratingTierClass(potTier, "text")}`}
                             >
                               {t(potLetterKey)}
                             </p>

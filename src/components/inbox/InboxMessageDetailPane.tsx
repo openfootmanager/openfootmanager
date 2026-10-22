@@ -309,7 +309,7 @@ export default function InboxMessageDetailPane({
                               </div>
                               {potentialLetterKey && (
                                 <p
-                                  className={`mt-1 text-[10px] font-heading uppercase tracking-wider ${ratingTierClass(potentialTier, "text")}`}
+                                  className={`mt-1 text-caption font-heading uppercase tracking-wider ${ratingTierClass(potentialTier, "text")}`}
                                 >
                                   {t(potentialLetterKey)}
                                 </p>

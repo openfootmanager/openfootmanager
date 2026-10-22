@@ -40,6 +40,8 @@ export function useRatingTiers(): (rating: number) => RatingTier {
 
   useEffect(() => {
     mounted.add(setTiers);
+    // The table can land between this mount's render and its effect; nothing would tell it then.
+    if (resolved) setTiers(resolved);
     loadRatingTiers().catch((error: unknown) => {
       console.error("Failed to load the rating tiers:", error);
     });
