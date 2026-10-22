@@ -2600,7 +2600,11 @@
     "pts": "очк.",
     "cupPenalties": "({{home}}–{{away}} по пенальти)",
     "cupAdvances": "{{team}} проходит дальше",
-    "cupTiesPending": "Некоторые матчи ещё не сыграны"
+    "cupTiesPending": "Некоторые матчи ещё не сыграны",
+    "resume": "Продолжить",
+    "pausedResumesAt": "Пауза · продолжится: {{speed}}",
+    "playingAt": "Идёт: {{speed}}",
+    "spaceKey": "Пробел"
   },
   "endOfSeason": {
     "seasonComplete": "Сезон завершён",

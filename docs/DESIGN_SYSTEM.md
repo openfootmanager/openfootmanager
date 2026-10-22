@@ -116,6 +116,7 @@ drawn in the style guide.
 |---|---|
 | a page's sections, filters and one primary action | `PageToolbar`, with `Tabs` in its `start` slot and the action at its right end |
 | sections of a page, or a two- or three-way switch in a panel | `Tabs` (`look="underline"` or `"segmented"`) with a `TabPanel` each, all mounted and all but one `hidden`; the arrow keys, Home and End move between tabs. Tabs that don't fit scroll inside the tablist, and the selected one is scrolled into view |
+| a choice of one value from a few (a match's speed, a density) | `SegmentedControl`, a radio group with Tabs' segmented look: `emphasis="strong"` fills the chosen option for a setting the player watches, `layout="stacked"` puts an icon over each label in a 52px target |
 | a card or panel | `Card`, `CardHeader`, `CardBody` |
 | a button | `Button` |
 | a chip or label | `Badge` |

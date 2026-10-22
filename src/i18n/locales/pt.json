@@ -2600,7 +2600,11 @@
     "pts": "pts",
     "cupPenalties": "({{home}}–{{away}} nos penáltis)",
     "cupAdvances": "{{team}} passa à eliminatória seguinte",
-    "cupTiesPending": "Ainda faltam eliminatórias por disputar"
+    "cupTiesPending": "Ainda faltam eliminatórias por disputar",
+    "resume": "Retomar",
+    "pausedResumesAt": "Em pausa · retoma a {{speed}}",
+    "playingAt": "A jogar a {{speed}}",
+    "spaceKey": "Espaço"
   },
   "endOfSeason": {
     "seasonComplete": "Época Completa",

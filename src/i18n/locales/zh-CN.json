@@ -2600,7 +2600,11 @@
     "pts": "分",
     "cupPenalties": "（点球 {{home}}–{{away}}）",
     "cupAdvances": "{{team}} 晋级",
-    "cupTiesPending": "部分对阵尚未进行"
+    "cupTiesPending": "部分对阵尚未进行",
+    "resume": "继续",
+    "pausedResumesAt": "已暂停 · 将以{{speed}}继续",
+    "playingAt": "正在以{{speed}}进行",
+    "spaceKey": "空格"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",
