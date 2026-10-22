@@ -6,6 +6,8 @@ use mcp_results::time::{
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{require_game, require_league};
+use crate::SaveManagerState;
+use ofm_core::state::StateManager;
 use std::sync::{Arc, Mutex};
 
 // ─── time_advance ───────────────────────────────────────────────────────────
@@ -62,7 +64,12 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
         results,
     };
 
-    let auto_saved = response.game.is_some() && auto_save_if_due(&ctx);
+    let auto_saved = response.game.is_some()
+        && auto_save_if_due(
+            &ctx.state_manager,
+            &ctx.save_manager_state,
+            ctx.config.auto_save_interval_days,
+        );
 
     // Notify GUI about state change
     {
@@ -114,13 +121,13 @@ fn standings_update(game: &ofm_core::game::Game) -> Option<StandingsUpdate> {
     })
 }
 
-/// Saves the game every `auto_save_interval_days` in-game days, counted per save.
+/// Saves the game every `interval_days` in-game days, counted per save; 0 turns it off.
 /// Returns whether it saved.
-fn auto_save_if_due(ctx: &McpContext) -> bool {
-    if ctx.config.auto_save_interval_days == 0 {
+fn auto_save_if_due(state: &StateManager, saves: &SaveManagerState, interval_days: u32) -> bool {
+    if interval_days == 0 {
         return false;
     }
-    let Some(save_id) = ctx.state_manager.get_save_id() else {
+    let Some(save_id) = state.get_save_id() else {
         return false;
     };
     use std::collections::HashMap;
@@ -133,18 +140,14 @@ fn auto_save_if_due(ctx: &McpContext) -> bool {
     };
     let days = counters.entry(save_id).or_insert(0);
     *days += 1;
-    if *days < ctx.config.auto_save_interval_days {
+    if *days < interval_days {
         return false;
     }
     *days = 0;
     drop(counters); // release lock before save
-    ctx.save_manager_state.0.lock().is_ok_and(|mut sm| {
-        crate::commands::util::persist_active_game(
-            &ctx.state_manager,
-            &mut sm,
-            ofm_core::state::Career::Active,
-        )
-        .is_ok()
+    saves.0.lock().is_ok_and(|mut sm| {
+        crate::commands::util::persist_active_game(state, &mut sm, ofm_core::state::Career::Active)
+            .is_ok()
     })
 }
 
@@ -270,7 +273,8 @@ pub fn time_check_blockers(ctx: Arc<McpContext>) -> Result<Blockers, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::standings_update;
+    use super::{auto_save_if_due, standings_update};
+    use crate::commands::wrapper_testkit::WrapperApp;
     use chrono::TimeZone;
     use domain::league::{League, StandingEntry};
     use domain::manager::Manager;
@@ -318,5 +322,80 @@ mod tests {
 
         assert_eq!(update.position, 1);
         assert_eq!(update.goal_difference, 2);
+    }
+
+    fn game_to_autosave() -> Game {
+        let manager = Manager::new(
+            "mgr".to_string(),
+            "Original".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let clock = GameClock::new(chrono::Utc.with_ymd_and_hms(2030, 9, 1, 12, 0, 0).unwrap());
+        Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Changes the live game after its save was made, so a save shows up as a different name on disk.
+    fn rename_in_memory(app: &WrapperApp) {
+        app.state()
+            .update_game(|game| game.manager.first_name = "Renamed".to_string())
+            .expect("game");
+    }
+
+    /// Given an interval of 0 (auto-save off) and a changed game
+    /// When a day passes
+    /// Then it reports no save and the file on disk is unchanged.
+    #[test]
+    fn an_interval_of_zero_never_saves() {
+        let app = WrapperApp::new(game_to_autosave(), true);
+        rename_in_memory(&app);
+
+        let saved = auto_save_if_due(&app.state(), &app.saves(), 0);
+
+        assert!(!saved);
+        assert_eq!(app.saved_game().manager.first_name, "Original");
+    }
+
+    /// Given a game that has no save behind it
+    /// When a day passes with auto-save on
+    /// Then it reports no save, rather than claiming one it cannot make.
+    #[test]
+    fn a_game_without_a_save_is_not_auto_saved() {
+        let app = WrapperApp::new(game_to_autosave(), false);
+
+        assert!(!auto_save_if_due(&app.state(), &app.saves(), 1));
+    }
+
+    /// Given an interval of 1 and a changed game
+    /// When a day passes
+    /// Then it reports a save and the file on disk holds the change.
+    #[test]
+    fn an_interval_of_one_saves_every_day() {
+        let app = WrapperApp::new(game_to_autosave(), true);
+        rename_in_memory(&app);
+
+        let saved = auto_save_if_due(&app.state(), &app.saves(), 1);
+
+        assert!(saved);
+        assert_eq!(app.saved_game().manager.first_name, "Renamed");
+    }
+
+    /// Given an interval of 2 and a changed game
+    /// When two days pass
+    /// Then the first day saves nothing and the second saves.
+    #[test]
+    fn an_interval_of_two_saves_on_the_second_day_only() {
+        let app = WrapperApp::new(game_to_autosave(), true);
+        rename_in_memory(&app);
+
+        let first = auto_save_if_due(&app.state(), &app.saves(), 2);
+        let on_disk_after_first = app.saved_game().manager.first_name;
+        let second = auto_save_if_due(&app.state(), &app.saves(), 2);
+
+        assert!(!first);
+        assert_eq!(on_disk_after_first, "Original");
+        assert!(second);
+        assert_eq!(app.saved_game().manager.first_name, "Renamed");
     }
 }
