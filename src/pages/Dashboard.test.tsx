@@ -380,10 +380,21 @@ vi.mock("../components/dashboard/DashboardAlerts", () => ({
 }));
 
 vi.mock("../components/dashboard/DashboardTabContent", () => ({
-  default: ({ viewModel }: { viewModel: { activeTab: string; seasonComplete: boolean } }) => (
+  default: ({
+    viewModel,
+  }: {
+    viewModel: {
+      activeTab: string;
+      seasonComplete: boolean;
+      handlers: { onNavigate: (tab: string) => void };
+    };
+  }) => (
     <div>
       <div>Tab Content {viewModel.activeTab}</div>
       {viewModel.seasonComplete ? <div>season over</div> : null}
+      <button type="button" onClick={() => viewModel.handlers.onNavigate("Inbox")}>
+        content-nav-inbox
+      </button>
     </div>
   ),
 }));
@@ -514,6 +525,37 @@ describe("Dashboard", () => {
     fireEvent.click(inbox);
     await waitFor(() => expect(screen.getByText("Sidebar Inbox")).toBeInTheDocument());
     expect(inbox).toHaveFocus();
+  });
+
+  /**
+   * Given Squad open
+   * When the player chooses Squad again from the drawer
+   * Then the heading still takes the focus: the drawer closed, and the keyboard player lands on the
+   * page even though the page didn't change.
+   */
+  it("moves the focus to the heading when the drawer chooses the page already open", async () => {
+    render(<Dashboard initialTab="Squad" />);
+    const choice = await screen.findByRole("button", { name: "nav-squad-from-drawer" });
+    choice.focus();
+    fireEvent.click(choice);
+    await waitFor(() => expect(screen.getByRole("heading", { name: /Header/ })).toHaveFocus());
+  });
+
+  /**
+   * Given Squad open, and the drawer has chosen Squad again
+   * When the page itself then navigates to the Inbox (not the drawer)
+   * Then the focus stays where the player put it: a heading focus is owed only to a drawer choice,
+   * and the earlier one was already paid.
+   */
+  it("doesn't move the focus on a later navigation from the page", async () => {
+    render(<Dashboard initialTab="Squad" />);
+    fireEvent.click(await screen.findByRole("button", { name: "nav-squad-from-drawer" }));
+
+    const contentLink = screen.getByRole("button", { name: "content-nav-inbox" });
+    contentLink.focus();
+    fireEvent.click(contentLink);
+    await waitFor(() => expect(screen.getByText("Sidebar Inbox")).toBeInTheDocument());
+    expect(contentLink).toHaveFocus();
   });
 
   it("closes the window after a successful save", async () => {
