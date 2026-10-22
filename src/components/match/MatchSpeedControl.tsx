@@ -34,6 +34,8 @@ interface MatchSpeedControlProps {
   onTogglePause: () => void;
   onSelectPace: (pace: MatchPace) => void;
   onStep: () => void;
+  /** Whether Space toggles the match; off while a dialog is open or the screen hands over. */
+  enabled?: boolean;
 }
 
 /**
@@ -48,12 +50,14 @@ export function MatchSpeedControl({
   onTogglePause,
   onSelectPace,
   onStep,
+  enabled = true,
 }: MatchSpeedControlProps) {
   const { t } = useTranslation();
   const headingId = useId();
   const paceName = t(PACE_LABEL_KEYS[pace]);
 
   useEffect(() => {
+    if (!enabled) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (event.code !== "Space" && event.key !== " ") return;
       // A held key repeats, which would flicker the match; a modified Space is someone else's.
@@ -64,7 +68,7 @@ export function MatchSpeedControl({
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onTogglePause]);
+  }, [onTogglePause, enabled]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -97,7 +101,7 @@ export function MatchSpeedControl({
           {t("match.spaceKey")}
         </span>
       </button>
-      <p aria-live="polite" className="text-caption text-fg-muted">
+      <p role="status" className="text-caption text-fg-muted">
         {paused
           ? t("match.pausedResumesAt", { speed: paceName })
           : t("match.playingAt", { speed: paceName })}

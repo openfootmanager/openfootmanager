@@ -34,7 +34,7 @@ describe("MatchSpeedControl", () => {
     renderControl();
     const toggle = screen.getByRole("button", { name: "match.pause" });
     expect(toggle).toHaveAttribute("aria-keyshortcuts", "Space");
-    expect(screen.getByText("match.playingAt(match.normal)")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("match.playingAt(match.normal)");
     expect(screen.getByRole("radiogroup", { name: "match.simSpeed" })).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "match.normal" })).toHaveAttribute(
       "aria-checked",
@@ -51,7 +51,7 @@ describe("MatchSpeedControl", () => {
   it("shows a paused match: Resume, where it resumes, and the step", () => {
     renderControl({ paused: true, pace: "fast" });
     expect(screen.getByRole("button", { name: "match.resume" })).toBeInTheDocument();
-    expect(screen.getByText("match.pausedResumesAt(match.fast)")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("match.pausedResumesAt(match.fast)");
     expect(screen.getByRole("button", { name: "match.step1Min" })).toBeEnabled();
   });
 
@@ -85,6 +85,18 @@ describe("MatchSpeedControl", () => {
     const props = renderControl({ pace: "slow" });
     fireEvent.keyDown(screen.getByRole("radio", { name: "match.slow" }), { key: "ArrowLeft" });
     expect(props.onSelectPace).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given the control switched off (a dialog is open over the match, or it is handing over to the
+   * break)
+   * When Space is pressed
+   * Then nothing toggles.
+   */
+  it("leaves Space alone when switched off", () => {
+    const props = renderControl({ enabled: false });
+    fireEvent.keyDown(document.body, { key: " ", code: "Space" });
+    expect(props.onTogglePause).not.toHaveBeenCalled();
   });
 
   /**

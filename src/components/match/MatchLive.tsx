@@ -85,6 +85,17 @@ export default function MatchLive({
   const eventFeedRef = useRef<HTMLDivElement>(null);
   // Track phases we've already signaled to avoid double-firing
   const signaledRef = useRef<Set<string>>(new Set());
+  // Set when a step reaches half time, extra-time half time, the shootout or the end: the screen
+  // hands over 600ms later, and nothing may step the match on in between (a Space or a Step there
+  // started the second half before the break). The ref answers synchronously inside stepMatch; the
+  // state re-renders the speed control. MatchLive remounts per stage, so it never needs clearing.
+  const transitioningRef = useRef(false);
+  const [transitioning, setTransitioning] = useState(false);
+  const beginTransition = useCallback(() => {
+    transitioningRef.current = true;
+    setTransitioning(true);
+    pause();
+  }, [pause]);
 
   const homeFullTeam = gameState.teams.find((t) => t.id === snapshot.home_team.id);
   const awayFullTeam = gameState.teams.find((t) => t.id === snapshot.away_team.id);
@@ -107,6 +118,7 @@ export default function MatchLive({
   // ofm_core/live_match_manager.rs; MINUTES_PER_TICK on this side is what makes batches possible.
   const stepMatch = useCallback(
     async (minutes: number) => {
+      if (transitioningRef.current) return;
       try {
         const results = await invoke<MinuteResult[]>("step_live_match", { minutes });
         if (results.length > 0) {
@@ -130,7 +142,7 @@ export default function MatchLive({
           const phase = lastResult.phase;
           if (phase === "HalfTime" && !signaledRef.current.has("HalfTime")) {
             signaledRef.current.add("HalfTime");
-            pause();
+            beginTransition();
             // Small delay so the last event renders before transitioning
             setTimeout(() => onHalfTime("HalfTime"), 600);
             return;
@@ -138,21 +150,21 @@ export default function MatchLive({
 
           if (phase === "ExtraTimeHalfTime" && !signaledRef.current.has("ExtraTimeHalfTime")) {
             signaledRef.current.add("ExtraTimeHalfTime");
-            pause();
+            beginTransition();
             setTimeout(() => onHalfTime("ExtraTimeHalfTime"), 600);
             return;
           }
 
           if (phase === "PenaltyShootout" && !signaledRef.current.has("PenaltyShootout")) {
             signaledRef.current.add("PenaltyShootout");
-            pause();
+            beginTransition();
             setTimeout(() => onPenaltyShootout?.(), 600);
             return;
           }
 
           if (lastResult.is_finished && !signaledRef.current.has("Finished")) {
             signaledRef.current.add("Finished");
-            pause();
+            beginTransition();
             setTimeout(() => onFullTime(), 600);
             return;
           }
@@ -162,7 +174,15 @@ export default function MatchLive({
         pause();
       }
     },
-    [pause, onSnapshotUpdate, onImportantEvent, onHalfTime, onFullTime, onPenaltyShootout],
+    [
+      pause,
+      beginTransition,
+      onSnapshotUpdate,
+      onImportantEvent,
+      onHalfTime,
+      onFullTime,
+      onPenaltyShootout,
+    ],
   );
 
   // Auto-step timer
@@ -172,7 +192,7 @@ export default function MatchLive({
       timerRef.current = null;
     }
 
-    if (isRunning && !isFinished && !showSubPanel) {
+    if (isRunning && !isFinished && !showSubPanel && !transitioning) {
       timerRef.current = setTimeout(async () => {
         await stepMatch(MINUTES_PER_TICK[pace]);
       }, SPEED_MS[pace]);
@@ -189,6 +209,7 @@ export default function MatchLive({
     stepMatch,
     isFinished,
     showSubPanel,
+    transitioning,
   ]);
 
   // Auto-scroll event feed
@@ -414,6 +435,8 @@ export default function MatchLive({
               onTogglePause={togglePause}
               onSelectPace={selectPace}
               onStep={() => stepMatch(1)}
+              // No Space while the screen hands over or a dialog is open over the match.
+              enabled={!transitioning && !isFinished && !showSubPanel}
             />
           </div>
 
