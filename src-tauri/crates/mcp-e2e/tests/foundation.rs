@@ -20,6 +20,20 @@ fn the_app_starts_and_answers_the_handshake() {
     assert!(pong.message.contains("alive"));
 }
 
+/// Given a running app
+/// When `initialize` reports its version and the binary is asked `--build-revision`
+/// Then the two are the same string: the fixture's stale check and the server's `serverInfo` read
+///      one source.
+#[test]
+#[ignore = "needs a built MCP binary and a display; run via --ignored by the nightly"]
+fn the_server_reports_the_version_the_binary_prints() {
+    let app = App::launch(&AppConfig::default()).unwrap();
+
+    let printed = mcp_e2e::probe_build_version(app.binary(), std::time::Duration::from_secs(15));
+
+    assert_eq!(printed.as_deref(), Some(app.client().server_version()));
+}
+
 /// Given no binary where one is expected
 /// When the fixture launches
 /// Then it fails naming the missing binary, before any assertion.

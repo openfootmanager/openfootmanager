@@ -1,4 +1,4 @@
-import { Globe, Trophy } from "lucide-react";
+import { FastForward, Globe, Play, SkipForward, Snail, Trophy } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import {
@@ -18,6 +18,7 @@ import {
   PitchToken,
   PlayerAvatar,
   ProgressBar,
+  SegmentedControl,
   Select,
   TabPanel,
   Tabs,
@@ -396,6 +397,8 @@ function NavigationSection() {
   const [page, setPage] = useState("players");
   const [longPage, setLongPage] = useState("market");
   const [view, setView] = useState("list");
+  const [pace, setPace] = useState("normal");
+  const [density, setDensity] = useState("comfortable");
   return (
     <Section title="Navigation">
       <PageToolbar
@@ -462,6 +465,39 @@ function NavigationSection() {
       <TabPanel idPrefix="guide-view" tabId="radar" hidden={view !== "radar"}>
         <p className="text-body text-fg-muted">The attributes as a radar.</p>
       </TabPanel>
+      <p id="guide-pace" className="text-caption text-fg-muted">
+        Speed: a segmented control, strong and stacked
+      </p>
+      <div className="max-w-sm">
+        <SegmentedControl
+          labelledBy="guide-pace"
+          options={[
+            { value: "slow", label: "Slow", icon: <Snail /> },
+            { value: "normal", label: "Normal", icon: <Play /> },
+            { value: "fast", label: "Fast", icon: <FastForward /> },
+            { value: "max", label: "Max", icon: <SkipForward /> },
+          ]}
+          value={pace}
+          onChange={setPace}
+          emphasis="strong"
+          layout="stacked"
+          fill
+        />
+      </div>
+      <p id="guide-density" className="text-caption text-fg-muted">
+        Density: a segmented control, quiet and inline
+      </p>
+      <Row>
+        <SegmentedControl
+          labelledBy="guide-density"
+          options={[
+            { value: "comfortable", label: "Comfortable" },
+            { value: "compact", label: "Compact" },
+          ]}
+          value={density}
+          onChange={setDensity}
+        />
+      </Row>
       <PageToolbar action={<Button size="sm">Hire</Button>} />
     </Section>
   );

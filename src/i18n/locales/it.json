@@ -170,6 +170,7 @@
     "digestSimulating": "Simulazione...",
     "digestMatchDay": "Giorno di gara",
     "digestMatchDayDesc": "La tua squadra ha una partita in programma oggi.",
+    "matchModeMenu": "Scegli la modalità di partita",
     "digestReturnHome": "Torna alla dashboard",
     "digestBlocked": "Azione richiesta",
     "digestBlockedDesc": "Ci sono problemi che richiedono la tua attenzione prima di avanzare.",
@@ -715,21 +716,15 @@
     "coverageNeedsAttention": "{{count}} gruppi di ruoli hanno bisogno di copertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Panchina {{bench}}",
     "bestRole": "Ruolo migliore",
-    "formationFit": "Adattamento al modulo",
+    "formationFit": "Familiarità",
     "startingXi": "Undici titolare",
-    "styleFit": "Adattamento allo stile",
     "starter": "Titolare",
     "benchOption": "Panchina",
-    "naturalFit": "Adattamento naturale",
-    "adaptedFit": "Ruolo adattato",
+    "naturalFit": "Ruolo naturale",
+    "adaptedFit": "Può giocare lì",
     "needsCover": "Serve copertura",
     "makeStarter": "Metti titolare",
-    "sendToBench": "Manda in panchina",
-    "styleFitValues": {
-      "strong": "Adattamento allo stile: Forte",
-      "good": "Adattamento allo stile: Buono",
-      "risky": "Adattamento allo stile: Rischioso"
-    }
+    "sendToBench": "Manda in panchina"
   },
   "tactics": {
     "formationStyle": "Formazione e stile",
@@ -880,8 +875,8 @@
     "setCornerTaker": "Assegna angoli",
     "inspector": "Ispettore",
     "inspectorEmptyTitle": "Nessuna selezione",
-    "naturalFit": "Adattamento naturale",
-    "adaptedFit": "Ruolo adattato",
+    "naturalFit": "Ruolo naturale",
+    "adaptedFit": "Può giocare lì",
     "tokenStates": {
       "ready": "Pronto",
       "adjusted": "Adattato",
@@ -897,7 +892,7 @@
     "clearSelection": "Cancella selezione",
     "compareWithSelected": "Confronta con selezionato",
     "selectForSwap": "Seleziona per scambio",
-    "assignBestFit": "Assegna al ruolo migliore",
+    "assignBestFit": "Assegna il ruolo migliore",
     "moveToBench": "Sposta in panchina",
     "promoteToLineup": "Promuovi nell'undici",
     "tableView": "Vista tabella",
@@ -912,7 +907,6 @@
     "positionSelector": "Slot tattico",
     "playablePositions": "Posizioni",
     "slotFit": "Adattamento al ruolo",
-    "styleFit": "Adattamento allo stile",
     "responsibilities": "Responsabilità",
     "noSpecialRoles": "Nessun ruolo speciale",
     "moraleLevels": {
@@ -928,11 +922,6 @@
       "sharp": "Brillante",
       "managing": "Da gestire",
       "risk": "Rischio"
-    },
-    "styleFitLevels": {
-      "strong": "Ottimo incastro",
-      "good": "Buon incastro",
-      "risky": "Incastro rischioso"
     }
   },
   "training": {
@@ -2021,7 +2010,6 @@
     "alreadyQueued": "Già in coda per una sostituzione",
     "substitutionsPartlyMade": "{{applied}} sostituzioni su {{total}} effettuate",
     "substitutionRefused": "Sostituzione rifiutata: {{off}} per {{on}}. {{reason}}",
-    "playerRoles": "Ruoli dei giocatori",
     "roleFor": "Ruolo di {{player}}",
     "roleChangeRefused": "Impossibile cambiare il ruolo di {{player}}. {{reason}}",
     "noBenchAvailable": "Nessun giocatore disponibile in panchina",
@@ -2285,7 +2273,7 @@
     "preMatchPrep": "Preparazione pre-partita",
     "startingLineup": "Formazione titolare",
     "setPiecesCaptain": "Piazzati e capitano",
-    "formationFit": "Adattamento alla formazione",
+    "formationFit": "Modulo",
     "selecting": "Selezione in corso...",
     "autoSelectXI": "Seleziona automaticamente il miglior XI",
     "startingXI": "XI titolare",
@@ -2616,7 +2604,11 @@
     "pts": "pts.",
     "cupPenalties": "({{home}}–{{away}} ai rigori)",
     "cupAdvances": "{{team}} passa il turno",
-    "cupTiesPending": "Alcune sfide sono ancora da giocare"
+    "cupTiesPending": "Alcune sfide sono ancora da giocare",
+    "resume": "Riprendi",
+    "pausedResumesAt": "In pausa · riprende a {{speed}}",
+    "playingAt": "In corso a {{speed}}",
+    "spaceKey": "Spazio"
   },
   "notifications": {
     "attentionRequired": "Attenzione Richiesta",
