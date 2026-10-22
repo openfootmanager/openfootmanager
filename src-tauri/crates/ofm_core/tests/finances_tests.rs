@@ -162,22 +162,23 @@ fn team_finance_snapshot_flags_wage_pressure() {
 
     assert!(snapshot.currently_over_budget);
     assert_eq!(snapshot.wage_budget_usage_percent, 110);
+    // 1,700 on 1,545 is 110.03%: past the Critical line, though the whole-number percentage
+    // reads 110.
     assert_eq!(
         snapshot.wage_budget_status,
-        finances::FinanceHealthLevel::Warning
+        finances::FinanceHealthLevel::Critical
     );
     assert_eq!(
         snapshot.overall_status,
-        finances::FinanceHealthLevel::Warning
+        finances::FinanceHealthLevel::Critical
     );
 }
 
-/// Given a club whose wage bill of 1,700 is one over its budget of 1,699, about 100.06%, which the
-///       whole-number usage percentage shows as 100
+/// Given a club whose wage bill of 1,700 is one over its budget of 1,699, about 100.06%
 /// When its finances are summarised
-/// Then it is over budget, and its wage status says so: Warning, not Watch
+/// Then it is over budget, and its wage status stays at Watch: Warning starts at 101%
 #[test]
-fn a_wage_bill_a_fraction_over_budget_is_a_warning_not_a_watch() {
+fn a_wage_bill_a_fraction_over_budget_is_over_budget_but_only_on_watch() {
     let mut game = make_monday_game();
     game.teams[0].wage_budget = 1_699;
 
@@ -187,7 +188,7 @@ fn a_wage_bill_a_fraction_over_budget_is_a_warning_not_a_watch() {
     assert!(snapshot.currently_over_budget);
     assert_eq!(
         snapshot.wage_budget_status,
-        finances::FinanceHealthLevel::Warning
+        finances::FinanceHealthLevel::Watch
     );
 }
 
@@ -205,6 +206,101 @@ fn a_wage_bill_exactly_on_budget_is_a_watch_not_a_warning() {
     assert_eq!(
         snapshot.wage_budget_status,
         finances::FinanceHealthLevel::Watch
+    );
+}
+
+/// The wage status of a club whose players cost 1,500 and whose one staff member costs
+/// `staff_wage`, against `wage_budget`.
+fn wage_status_with(staff_wage: u32, wage_budget: i64) -> finances::FinanceHealthLevel {
+    let mut game = make_monday_game();
+    game.staff[0].wage = staff_wage;
+    game.teams[0].wage_budget = wage_budget;
+    finances::team_finance_snapshot(&game, "team1")
+        .expect("snapshot")
+        .wage_budget_status
+}
+
+/// Given a club with no players, no staff and a wage budget of 0
+/// When its finances are summarised
+/// Then its wages are Stable: nothing owed against nothing budgeted is no pressure at all
+#[test]
+fn no_wages_against_no_budget_is_stable() {
+    let mut game = make_monday_game();
+    game.players.clear();
+    game.staff.clear();
+    game.teams[0].wage_budget = 0;
+
+    let snapshot = finances::team_finance_snapshot(&game, "team1").expect("snapshot");
+
+    assert_eq!(
+        (snapshot.currently_over_budget, snapshot.wage_budget_status),
+        (false, finances::FinanceHealthLevel::Stable)
+    );
+}
+
+/// Given a club whose wage bill of 1,515 is exactly 101% of its 1,500 budget
+/// When its finances are summarised
+/// Then its wages are at Warning: 101% is where Warning starts
+#[test]
+fn a_wage_bill_of_exactly_101_percent_is_a_warning() {
+    assert_eq!(
+        wage_status_with(15, 1_500),
+        finances::FinanceHealthLevel::Warning
+    );
+}
+
+/// Given a club whose wage bill of 1,514 is one short of 101% of its 1,500 budget
+/// When its finances are summarised
+/// Then its wages are on Watch, though over budget
+#[test]
+fn a_wage_bill_one_under_101_percent_is_on_watch() {
+    assert_eq!(
+        wage_status_with(14, 1_500),
+        finances::FinanceHealthLevel::Watch
+    );
+}
+
+/// Given a club whose wage bill of 1,650 is exactly 110% of its 1,500 budget
+/// When its finances are summarised
+/// Then its wages are at Warning: 110% is the last bill that is not Critical
+#[test]
+fn a_wage_bill_of_exactly_110_percent_is_a_warning_not_critical() {
+    assert_eq!(
+        wage_status_with(150, 1_500),
+        finances::FinanceHealthLevel::Warning
+    );
+}
+
+/// Given a club whose wage bill of 1,651 is one over 110% of its 1,500 budget
+/// When its finances are summarised
+/// Then its wages are Critical, though the whole-number percentage reads 110
+#[test]
+fn a_wage_bill_one_over_110_percent_is_critical() {
+    assert_eq!(
+        wage_status_with(151, 1_500),
+        finances::FinanceHealthLevel::Critical
+    );
+}
+
+/// Given a club whose wage bill of 1,700 is exactly 85% of its 2,000 budget
+/// When its finances are summarised
+/// Then its wages are on Watch
+#[test]
+fn a_wage_bill_of_exactly_85_percent_is_on_watch() {
+    assert_eq!(
+        wage_status_with(200, 2_000),
+        finances::FinanceHealthLevel::Watch
+    );
+}
+
+/// Given a club whose wage bill of 1,699 is one short of 85% of its 2,000 budget
+/// When its finances are summarised
+/// Then its wages are Stable
+#[test]
+fn a_wage_bill_one_under_85_percent_is_stable() {
+    assert_eq!(
+        wage_status_with(199, 2_000),
+        finances::FinanceHealthLevel::Stable
     );
 }
 
@@ -876,10 +972,35 @@ fn no_warning_when_finances_healthy() {
     assert_eq!(game.manager.satisfaction, 77);
 }
 
+/// Given a club whose wage bill of 1,700 is about 100.5% of its 1,692 budget
+/// When the weekly finances run
+/// Then the board neither docks satisfaction nor sends a pressure message: a bill under 101% of
+///      budget stays penalty-free, as it always was (maintainer ruling on #978)
+#[test]
+fn a_wage_bill_half_a_percent_over_budget_draws_no_board_penalty() {
+    let mut game = make_monday_game();
+    game.teams[0].wage_budget = 1_692;
+    game.manager.satisfaction = 60;
+
+    finances::process_weekly_finances(&mut game);
+
+    let pressure: Vec<Option<&str>> = game
+        .messages
+        .iter()
+        .filter(|m| m.id.starts_with("finance_board_pressure_"))
+        .map(|m| m.body_key.as_deref())
+        .collect();
+    assert_eq!(
+        (game.manager.satisfaction, pressure),
+        (60, Vec::<Option<&str>>::new())
+    );
+}
+
 #[test]
 fn warning_finances_reduce_board_satisfaction_midseason() {
     let mut game = make_monday_game();
-    game.teams[0].wage_budget = 1_545;
+    // 1,700 on 1,600 is 106%: over budget, short of Critical's 110%.
+    game.teams[0].wage_budget = 1_600;
     game.manager.satisfaction = 60;
 
     finances::process_weekly_finances(&mut game);

@@ -137,24 +137,54 @@ pub struct MarketingCampaignResult {
     pub cooldown_days: u32,
 }
 
+/// A wage bill more than this share of the budget puts a club's wages at Critical.
+const WAGE_CRITICAL_PERCENT: u32 = 110;
+
+/// A wage bill of at least this share of the budget puts a club's wages at Warning.
+///
+/// 101, not 100: a bill up to 1% over budget stays at Watch, with no satisfaction penalty and no
+/// board message. That is where the rounded-down percentage put the line, and the maintainer
+/// ruled (on #978) that fixing how the bill is compared must not change the balance. The club
+/// is still over budget for every other purpose: the snapshot's flag, the finance director's
+/// warning and the board's wage policy all read `wage_bill_over_budget`.
+const WAGE_WARNING_PERCENT: u32 = 101;
+
+/// How a club's wage bill compares with `percent` of its wage budget, exactly.
+///
+/// Every wage threshold reads this rather than `wage_budget_usage_percent`. That percentage is a
+/// whole number rounded down, so a bill up to 1% past a line read as on it: a club 0.5% over
+/// budget was Watch, 110.5% was Warning rather than Critical, and met "wages within budget".
+pub(crate) fn wage_bill_against_percent(
+    wage_bill: i64,
+    wage_budget: i64,
+    percent: u32,
+) -> std::cmp::Ordering {
+    (i128::from(wage_bill) * 100).cmp(&(i128::from(wage_budget) * i128::from(percent)))
+}
+
 /// Whether a club's wage bill is over its wage budget: the one definition behind the finance
 /// snapshot's flag, its wage status, the finance director's warning and the board's wage policy.
 pub(crate) fn wage_bill_over_budget(wage_bill: i64, wage_budget: i64) -> bool {
-    wage_bill > wage_budget
+    wage_bill_against_percent(wage_bill, wage_budget, 100) == std::cmp::Ordering::Greater
 }
 
-fn wage_budget_status(usage_percent: u32, over_budget: bool) -> FinanceHealthLevel {
-    if usage_percent > 110 {
+fn wage_budget_status(wage_bill: i64, wage_budget: i64, usage_percent: u32) -> FinanceHealthLevel {
+    // A budget of 0 is read as 1, as the usage percentage reads it: otherwise no wages against
+    // no budget sit exactly on the Warning line.
+    let wage_budget = wage_budget.max(1);
+    if wage_bill_against_percent(wage_bill, wage_budget, WAGE_CRITICAL_PERCENT)
+        == std::cmp::Ordering::Greater
+    {
         return FinanceHealthLevel::Critical;
     }
 
-    // From the flag, not from `usage_percent > 100`: the percentage is a whole number rounded
-    // down, so a bill up to 1% over budget reads 100 and was reported as Watch while the same
-    // snapshot said the club was over budget.
-    if over_budget {
+    if wage_bill_against_percent(wage_bill, wage_budget, WAGE_WARNING_PERCENT)
+        != std::cmp::Ordering::Less
+    {
         return FinanceHealthLevel::Warning;
     }
 
+    // Exact as it stands: a whole number rounded down reaches 85 exactly when the bill does.
     if usage_percent >= 85 {
         return FinanceHealthLevel::Watch;
     }
@@ -388,7 +418,11 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
     let wage_budget_usage_percent = ((annual_wage_bill * 100) / std::cmp::max(1, team.wage_budget))
         .clamp(0, u32::MAX as i64) as u32;
     let currently_over_budget = wage_bill_over_budget(annual_wage_bill, team.wage_budget);
-    let wage_budget_status = wage_budget_status(wage_budget_usage_percent, currently_over_budget);
+    let wage_budget_status = wage_budget_status(
+        annual_wage_bill,
+        team.wage_budget,
+        wage_budget_usage_percent,
+    );
     let runway_status = runway_status(team.finance, cash_runway_weeks);
 
     Some(TeamFinanceSnapshot {
