@@ -143,6 +143,14 @@
   --spacing-row: 2.5rem;
   --spacing-panel-header: 2.5rem;
   --spacing-toolbar: 3rem;
+  /* The sidebar's widths: the icon rail and the three open widths (Settings > Sidebar width). Wide
+     is the narrowest that puts every nav label on one line in all 12 locales, measured on the OS
+     fallback font; it is re-measured once the game bundles its Cyrillic fonts. sidebarLayout.ts
+     reckons with the same values, and a test holds them together. */
+  --spacing-sidebar-rail: 3.5rem;
+  --spacing-sidebar-compact: 13rem;
+  --spacing-sidebar-standard: 16rem;
+  --spacing-sidebar-wide: 17.75rem;
   --container-page: 80rem;
   /* Two-panel breakpoint for container queries. A container query's rem follows ui_scale, so in a
      960px window: at normal scale (16px root) 36rem = 576px fits the 655px workspace and two
