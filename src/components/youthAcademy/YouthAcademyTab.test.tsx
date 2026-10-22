@@ -468,14 +468,13 @@ describe("YouthAcademyTab", () => {
 
     render(<YouthAcademyTab gameState={state} />);
 
-    const letterOf = async (potential: number) => {
-      const row = (await screen.findByText(`Prospect ${potential}`)).closest("tr");
-      return row ? within(row).queryByText(/^[SAB]$/) : null;
-    };
-    expect((await letterOf(81))?.textContent).toBe("S");
-    expect((await letterOf(77))?.textContent).toBe("A");
-    expect((await letterOf(76))?.textContent).toBe("B");
-    expect(await letterOf(60)).toBeNull();
+    // The ceiling cell reads as its number and, for a tiered prospect, the tier letter: "81 S".
+    const ceilingOf = async (potential: number) =>
+      within(await screen.findByRole("row", { name: new RegExp(`Prospect ${potential}\\b`) }));
+    expect((await ceilingOf(81)).getByRole("cell", { name: "81 S" })).toBeInTheDocument();
+    expect((await ceilingOf(77)).getByRole("cell", { name: "77 A" })).toBeInTheDocument();
+    expect((await ceilingOf(76)).getByRole("cell", { name: "76 B" })).toBeInTheDocument();
+    expect((await ceilingOf(60)).getByRole("cell", { name: "60" })).toBeInTheDocument();
     expect(screen.getByText("High Potential").previousElementSibling).toHaveTextContent("2");
   });
 
