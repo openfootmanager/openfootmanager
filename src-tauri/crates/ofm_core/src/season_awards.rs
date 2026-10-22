@@ -1009,6 +1009,7 @@ mod tests {
             lost: 5,
             goals_for: 72,
             goals_against: 30,
+            competition_id: String::new(),
         });
         alpha.manager_id = Some("mgr1".to_string());
 
@@ -1022,6 +1023,7 @@ mod tests {
             lost: 7,
             goals_for: 65,
             goals_against: 35,
+            competition_id: String::new(),
         });
         beta.manager_id = Some("mgr2".to_string());
 
@@ -1050,6 +1052,7 @@ mod tests {
             lost: 5,
             goals_for: 30,
             goals_against: 18,
+            competition_id: String::new(),
         });
         alpha.manager_id = Some("mgr1".to_string());
 

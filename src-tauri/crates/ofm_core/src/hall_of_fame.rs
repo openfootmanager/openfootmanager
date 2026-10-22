@@ -1,11 +1,14 @@
-//! The retired legends of the world, read from the archive of players who have stopped playing.
+//! The retired legends of the world, read from the archive of players who have stopped playing, and
+//! the champions of its past seasons.
 
 use std::collections::{HashMap, HashSet};
 
 use domain::player::Position;
 use domain::retired_player::RetiredPlayer;
+use domain::team::TeamSeasonRecord;
 use serde::Serialize;
 
+use crate::end_of_season::ladder_rungs;
 use crate::game::Game;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -44,18 +47,86 @@ pub fn hall_of_fame_legends(game: &Game) -> Vec<HallOfFameLegend> {
     legends
 }
 
+/// The tier of every competition on a country's league ladder, top flight 0.
+fn ladder_tiers(game: &Game) -> HashMap<&str, u32> {
+    ladder_rungs(game)
+        .into_iter()
+        .map(|(tier, league)| (league.id.as_str(), tier))
+        .collect()
+}
+
+/// Whether a club's season record is a league title: first place in the top flight of its country.
+///
+/// A second division's winner is promoted, not crowned. The tier is read off the record's
+/// competition, so it follows the ladder as it is today. A record that cannot be placed on the
+/// ladder (a blank id, from a save made before records named their competition, or a competition
+/// that has since left the ladder) keeps the old reading, first place, so a past title is never
+/// erased; the cost is that such a record cannot tell a second-division win from a title.
+fn is_league_title(tiers: &HashMap<&str, u32>, record: &TeamSeasonRecord) -> bool {
+    record.league_position == 1
+        && tiers
+            .get(record.competition_id.as_str())
+            .is_none_or(|tier| *tier == 0)
+}
+
 fn championship_seasons_by_club(game: &Game) -> HashMap<&str, HashSet<u32>> {
+    let tiers = ladder_tiers(game);
     game.teams
         .iter()
         .map(|team| {
             let seasons = team
                 .history
                 .iter()
-                .filter(|record| record.league_position == 1)
+                .filter(|record| is_league_title(&tiers, record))
                 .map(|record| record.season)
                 .collect();
             (team.id.as_str(), seasons)
         })
+        .collect()
+}
+
+/// A club that won a league title, and the season record that says so.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PastChampion {
+    pub season: u32,
+    pub team_id: String,
+    pub record: TeamSeasonRecord,
+}
+
+/// Every league title in the world's past, the latest season first, then the more wins, then the
+/// club's name.
+pub fn hall_of_fame_champions(game: &Game) -> Vec<PastChampion> {
+    let tiers = ladder_tiers(game);
+    let mut champions: Vec<(&str, PastChampion)> = game
+        .teams
+        .iter()
+        .flat_map(|team| {
+            let tiers = &tiers;
+            team.history
+                .iter()
+                .filter(move |record| is_league_title(tiers, record))
+                .map(move |record| {
+                    (
+                        team.name.as_str(),
+                        PastChampion {
+                            season: record.season,
+                            team_id: team.id.clone(),
+                            record: record.clone(),
+                        },
+                    )
+                })
+        })
+        .collect();
+    champions.sort_by(|(left_name, left), (right_name, right)| {
+        right
+            .season
+            .cmp(&left.season)
+            .then(right.record.won.cmp(&left.record.won))
+            .then_with(|| left_name.cmp(right_name))
+    });
+    champions
+        .into_iter()
+        .map(|(_, champion)| champion)
         .collect()
 }
 
@@ -92,6 +163,7 @@ fn legend_of(
 mod tests {
     use super::*;
     use chrono::{TimeZone, Utc};
+    use domain::league::League;
     use domain::manager::Manager;
     use domain::player::{CareerEntry, Player, PlayerAttributes};
     use domain::retired_player::RetiredPlayer;
@@ -144,6 +216,7 @@ mod tests {
                 lost: 4,
                 goals_for: 80,
                 goals_against: 30,
+                competition_id: String::new(),
             });
         }
         team
@@ -329,5 +402,115 @@ mod tests {
 
         assert_eq!(positions["p-archived"], Position::LeftBack);
         assert_eq!(positions["p-roster"], Position::Striker);
+    }
+
+    /// A country's two divisions, "div-1" the top flight (priority 1) and "div-2" under it.
+    fn english_ladder(game: &mut Game) {
+        for (id, priority) in [("div-1", 1), ("div-2", 2)] {
+            let mut league = League::new(id.into(), id.into(), 2039, &[]);
+            league.country_id = Some("ENG".into());
+            league.priority = priority;
+            game.competitions.push(league);
+        }
+    }
+
+    fn won_in(team: &mut Team, season: u32, competition_id: &str, won: u32) {
+        team.history.push(TeamSeasonRecord {
+            season,
+            league_position: 1,
+            played: 38,
+            won,
+            drawn: 4,
+            lost: 4,
+            goals_for: 80,
+            goals_against: 30,
+            competition_id: competition_id.into(),
+        });
+    }
+
+    fn champions_of(game: &Game) -> Vec<(u32, String)> {
+        hall_of_fame_champions(game)
+            .into_iter()
+            .map(|champion| (champion.season, champion.team_id))
+            .collect()
+    }
+
+    /// Given a club that finished first in the second division and another in the top flight,
+    /// When the world's champions are listed,
+    /// Then only the top-flight club is one: promotion is not a title.
+    #[test]
+    fn a_second_division_winner_is_not_a_champion() {
+        let mut top = champion_team("top", "Top FC", &[]);
+        won_in(&mut top, 2038, "div-1", 30);
+        let mut second = champion_team("second", "Second FC", &[]);
+        won_in(&mut second, 2038, "div-2", 31);
+        let mut game = game_with(vec![], vec![top, second]);
+        english_ladder(&mut game);
+
+        assert_eq!(champions_of(&game), vec![(2038, "top".to_string())]);
+    }
+
+    /// Given titles in different seasons, with wins that differ and a tie on both,
+    /// When the champions are listed,
+    /// Then the latest season is first, then the more wins, then the club's name.
+    #[test]
+    fn champions_are_ordered_by_season_then_wins_then_name() {
+        let mut older = champion_team("older", "Older FC", &[]);
+        won_in(&mut older, 2036, "div-1", 35);
+        let mut rich = champion_team("rich", "Zeta FC", &[]);
+        won_in(&mut rich, 2038, "div-1", 28);
+        let mut tied = champion_team("tied", "Alpha FC", &[]);
+        won_in(&mut tied, 2038, "div-1", 28);
+        let mut strong = champion_team("strong", "Mid FC", &[]);
+        won_in(&mut strong, 2038, "div-1", 33);
+        let mut game = game_with(vec![], vec![older, rich, tied, strong]);
+        english_ladder(&mut game);
+
+        let order: Vec<String> = champions_of(&game).into_iter().map(|(_, id)| id).collect();
+
+        assert_eq!(order, vec!["strong", "tied", "rich", "older"]);
+    }
+
+    /// Given a record saved before records named their competition (a blank id), and one whose
+    /// competition has since left the world,
+    /// When the champions are listed,
+    /// Then both keep the old reading, first place, so a past title is never erased.
+    #[test]
+    fn a_record_that_cannot_be_placed_on_the_ladder_keeps_the_old_reading() {
+        let mut old_save = champion_team("old", "Old FC", &[]);
+        won_in(&mut old_save, 2030, "", 30);
+        let mut gone = champion_team("gone", "Gone FC", &[]);
+        won_in(&mut gone, 2031, "removed-league", 30);
+        let mut game = game_with(vec![], vec![old_save, gone]);
+        english_ladder(&mut game);
+
+        assert_eq!(
+            champions_of(&game),
+            vec![(2031, "gone".to_string()), (2030, "old".to_string())]
+        );
+    }
+
+    /// Given a retiree who spent a season at a club that won the second division and another at a
+    /// club that won the top flight,
+    /// When legends are listed,
+    /// Then only the top-flight season counts as one of his titles.
+    #[test]
+    fn a_legends_titles_count_top_flight_titles_only() {
+        let mut top = champion_team("top", "Top FC", &[]);
+        won_in(&mut top, 2037, "div-1", 30);
+        let mut second = champion_team("second", "Second FC", &[]);
+        won_in(&mut second, 2038, "div-2", 30);
+        let both = veteran(
+            "both",
+            "Both Ways",
+            vec![
+                career(2037, "top", "Top FC", 30, 5),
+                career(2038, "second", "Second FC", 30, 5),
+            ],
+        );
+        let mut game = game_with(vec![both], vec![top, second]);
+        english_ladder(&mut game);
+
+        assert_eq!(hall_of_fame_legends(&game)[0].titles, 1);
     }
 }

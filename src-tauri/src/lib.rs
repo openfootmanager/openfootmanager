@@ -316,6 +316,7 @@ pub fn run() {
             advance_to_next_season,
             get_season_awards,
             get_hall_of_fame_legends,
+            get_hall_of_fame_champions,
             get_retired_player,
             resolve_message_action,
             start_live_match,
