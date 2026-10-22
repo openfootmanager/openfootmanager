@@ -27,6 +27,7 @@ const setGameStateMock = vi.fn();
 const clearGameMock = vi.fn();
 const markCleanMock = vi.fn();
 const loadSettingsMock = vi.fn();
+const updateSettingsMock = vi.fn(async () => undefined);
 const destroyMock = vi.fn();
 let closeRequested: ((event: { preventDefault: () => void }) => Promise<void>) | undefined;
 let isDirty = false;
@@ -246,13 +247,14 @@ vi.mock("../store/settingsStore", () => {
     settings: {
       language: "en",
       default_match_mode: "live",
+      sidebar_collapsed: false,
     },
     currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
     supportedCurrencies: { EUR: { code: "EUR", symbol: "€", exchange_rate: 1 } },
     loaded: true,
   });
   const useSettingsStore = Object.assign(
-    () => ({ ...getState(), loadSettings: loadSettingsMock }),
+    () => ({ ...getState(), loadSettings: loadSettingsMock, updateSettings: updateSettingsMock }),
     { getState },
   );
   return { useSettingsStore };
@@ -278,10 +280,12 @@ vi.mock("../hooks/useAdvanceTime", () => ({
 vi.mock("../components/dashboard/DashboardSidebar", () => ({
   default: ({
     onNavClick,
+    onToggleCollapse,
     activeTab,
     onExitClick,
     competitionName,
   }: {
+    onToggleCollapse: () => void;
     onExitClick: () => void;
     onNavClick: (tab: string, options?: { fromDrawer: boolean }) => void;
     activeTab: string;
@@ -301,6 +305,9 @@ vi.mock("../components/dashboard/DashboardSidebar", () => ({
       </button>
       <button type="button" onClick={() => onNavClick("Squad", { fromDrawer: true })}>
         nav-squad-from-drawer
+      </button>
+      <button type="button" onClick={onToggleCollapse}>
+        fold-sidebar
       </button>
     </div>
   ),
@@ -420,6 +427,7 @@ describe("Dashboard", () => {
     clearGameMock.mockReset();
     markCleanMock.mockReset();
     loadSettingsMock.mockReset();
+    updateSettingsMock.mockClear();
     navigateMock.mockReset();
     vi.mocked(applyExtraTranslations).mockReset();
     window.localStorage.clear();
@@ -525,6 +533,17 @@ describe("Dashboard", () => {
     fireEvent.click(inbox);
     await waitFor(() => expect(screen.getByText("Sidebar Inbox")).toBeInTheDocument());
     expect(inbox).toHaveFocus();
+  });
+
+  /**
+   * Given an unfolded sidebar (Normal, room to spare)
+   * When the player folds it
+   * Then the fold is saved in the settings, so the next launch opens folded too.
+   */
+  it("saves the player's fold of the sidebar", async () => {
+    render(<Dashboard />);
+    fireEvent.click(await screen.findByRole("button", { name: "fold-sidebar" }));
+    expect(updateSettingsMock).toHaveBeenCalledWith({ sidebar_collapsed: true });
   });
 
   /**
