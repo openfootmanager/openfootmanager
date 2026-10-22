@@ -670,7 +670,6 @@
     "coverageNeedsAttention": "{{count}} role groups need cover",
     "coverageBadge": "XI {{starters}}/{{required}} · Bench {{bench}}",
     "bestRole": "Best role",
-    "formationFit": "Familiarity",
     "startingXi": "Starting XI",
     "starter": "Starter",
     "benchOption": "Bench",

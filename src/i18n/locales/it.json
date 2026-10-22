@@ -716,7 +716,6 @@
     "coverageNeedsAttention": "{{count}} gruppi di ruoli hanno bisogno di copertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Panchina {{bench}}",
     "bestRole": "Ruolo migliore",
-    "formationFit": "Familiarità",
     "startingXi": "Undici titolare",
     "starter": "Titolare",
     "benchOption": "Panchina",

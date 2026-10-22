@@ -697,7 +697,6 @@
     "coverageNeedsAttention": "{{count}} группам ролей нужна подстраховка",
     "coverageBadge": "XI {{starters}}/{{required}} · Запас {{bench}}",
     "bestRole": "Лучшая роль",
-    "formationFit": "Знакомство с позицией",
     "startingXi": "Стартовый состав",
     "starter": "Основа",
     "benchOption": "Запас",

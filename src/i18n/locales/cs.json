@@ -670,7 +670,6 @@
     "coverageNeedsAttention": "Počet skupin rolí vyžadujících pokrytí: {{count}}",
     "coverageBadge": "Základ {{starters}}/{{required}} · Lavička {{bench}}",
     "bestRole": "Nejlepší role",
-    "formationFit": "Zvyklost na pozici",
     "startingXi": "Základní sestava",
     "starter": "Člen základu",
     "benchOption": "Lavička",
