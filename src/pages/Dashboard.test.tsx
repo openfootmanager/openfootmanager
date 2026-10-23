@@ -492,6 +492,27 @@ describe("Dashboard", () => {
     });
   }
 
+  /**
+   * Given the dashboard, with the focus on the Exit button
+   * When the player presses it, and then Escape
+   * Then the focus is inside "Exit to Main Menu?" (not left on the Exit button behind it), and
+   * Escape closes the confirmation and gives the focus back to the Exit button.
+   */
+  it("moves the focus into the Exit confirmation and back on Escape", async () => {
+    await i18n.changeLanguage("en");
+    render(<Dashboard />);
+    const exit = screen.getByRole("button", { name: "exit-menu" });
+    exit.focus();
+    fireEvent.click(exit);
+
+    const dialog = screen.getByRole("dialog", { name: i18n.t("exitConfirm.title") });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(exit).toHaveFocus();
+  });
+
   /** Given a dirty career, when Save & Quit succeeds, then saving precedes closing the window. */
   it("closes the window after a successful save", async () => {
     isDirty = true;
