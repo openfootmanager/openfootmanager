@@ -206,11 +206,13 @@ case "$command" in
             die "$crate has ${BUCKETS[$crate]} buckets, not $buckets"
         [ "$bucket" -lt "$buckets" ] || die "bucket $bucket does not exist in $crate's $buckets"
 
-        # Without colour codes. In CI `dtolnay/rust-toolchain` exports CARGO_TERM_COLOR=always,
-        # and cargo-mutants then colours the function and the replacement even into a file, so
-        # every pattern carried escape codes that no mutant name contains: the 25 Oct 2026 run
-        # failed in all eight slots with "patterns match 0". `--re` matches the plain name.
-        listing="$(LC_ALL=C sed $'s/\033\\[[0-9;]*m//g')"
+        # Without terminal control codes: every CSI sequence (`ESC [`, parameters, a final byte),
+        # colour included. In CI `dtolnay/rust-toolchain` exports CARGO_TERM_COLOR=always, and
+        # cargo-mutants then colours the function and the replacement even into a file, so every
+        # pattern carried escape codes that no mutant name contains: the 25 Oct 2026 run failed in
+        # all eight slots with "patterns match 0". `--re` matches the plain name. The workflow
+        # also lists with `--colors never`; this keeps a listing from anywhere else safe too.
+        listing="$(LC_ALL=C sed $'s/\033\\[[0-9;?]*[@-~]//g')"
         # A listing that failed prints nothing. Selecting from nothing would find an empty bucket,
         # and the job would go green having never looked at the crate.
         [ -n "$listing" ] || die "the listing for $crate is empty, which means it failed"
