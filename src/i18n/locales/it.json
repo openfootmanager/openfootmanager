@@ -431,6 +431,8 @@
     "currentWage": "Stipendio attuale",
     "loading": "Caricamento...",
     "loadingGameState": "Caricamento stato di gioco...",
+    "overallRating": "Valutazione generale {{value}}",
+    "overallRatingTier": "Valutazione generale {{value}}, fascia {{tier}}",
     "noResults": "Nessun risultato trovato.",
     "place": {
       "1": "1°",

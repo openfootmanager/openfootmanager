@@ -412,6 +412,8 @@
     "currentWage": "当前工资",
     "loading": "加载中……",
     "loadingGameState": "加载游戏状态中……",
+    "overallRating": "综合实力 {{value}}",
+    "overallRatingTier": "综合实力 {{value}}，等级 {{tier}}",
     "noResults": "未找到结果。",
     "place": {
       "1": "第1",

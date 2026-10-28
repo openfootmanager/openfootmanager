@@ -412,6 +412,8 @@
     "currentWage": "Mevcut maaş",
     "loading": "Yükleniyor...",
     "loadingGameState": "Oyun durumu yükleniyor...",
+    "overallRating": "Genel {{value}}",
+    "overallRatingTier": "Genel {{value}}, seviye {{tier}}",
     "noResults": "Sonuç bulunamadı.",
     "place": {
       "1": "1.",

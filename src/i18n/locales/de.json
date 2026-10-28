@@ -412,6 +412,8 @@
     "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",
+    "overallRating": "Gesamtstärke {{value}}",
+    "overallRatingTier": "Gesamtstärke {{value}}, Stufe {{tier}}",
     "noResults": "Keine Ergebnisse gefunden.",
     "place": {
       "1": "1.",
