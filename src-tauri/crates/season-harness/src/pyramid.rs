@@ -4,6 +4,8 @@
 //! report gives each band's share of all players and of the seniors, so a change to the youth
 //! intake, to retirement ages or to the ages generation draws can be read as a before and after.
 //! The age profile of the best 100 players is `ageing::ageing_report`'s.
+//! A birth date that cannot be read counts as `UNKNOWN_BIRTH_AGE` (30), so that player lands in 29-32. The
+//! `<=20` band holds every under-21 in the world, first team and academy alike.
 
 use domain::age::age_on_or_unknown;
 use ofm_core::end_of_season::EndOfSeasonSummary;

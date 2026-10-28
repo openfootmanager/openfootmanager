@@ -394,15 +394,15 @@
     "growth": "Wachstum",
     "traits": "Eigenschaften",
     "condition": "Zustand",
-    "potWorldClass": "Weltklasse",
-    "potExcellent": "Hervorragend",
-    "potPromising": "Vielversprechend",
-    "potDecent": "Ordentlich",
-    "potLimited": "Begrenzt",
     "delegateToYouthAcademy": "An die Jugendakademie delegieren",
     "promoteToSeniorSquad": "In den Profikader befördern"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -697,21 +697,15 @@
     "coverageNeedsAttention": "{{count}} Rollengruppen brauchen Verstärkung",
     "coverageBadge": "XI {{starters}}/{{required}} · Bank {{bench}}",
     "bestRole": "Beste Rolle",
-    "formationFit": "Formations-Eignung",
+    "formationFit": "Vertrautheit",
     "startingXi": "Startelf",
-    "styleFit": "Stileignung",
     "starter": "Startelf",
     "benchOption": "Bank",
-    "naturalFit": "Natürliche Rolle",
-    "adaptedFit": "Angepasste Rolle",
+    "naturalFit": "Natürliche Position",
+    "adaptedFit": "Kann dort spielen",
     "needsCover": "Benötigt Ersatz",
     "makeStarter": "In die Startelf",
-    "sendToBench": "Auf die Bank",
-    "styleFitValues": {
-      "strong": "Stileignung: Stark",
-      "good": "Stileignung: Gut",
-      "risky": "Stileignung: Riskant"
-    }
+    "sendToBench": "Auf die Bank"
   },
   "tactics": {
     "formationStyle": "Formation & Stil",
@@ -862,8 +856,8 @@
     "setCornerTaker": "Ecken festlegen",
     "inspector": "Inspektor",
     "inspectorEmptyTitle": "Nichts ausgewählt",
-    "naturalFit": "Natürliche Rolle",
-    "adaptedFit": "Angepasste Rolle",
+    "naturalFit": "Natürliche Position",
+    "adaptedFit": "Kann dort spielen",
     "tokenStates": {
       "ready": "Bereit",
       "adjusted": "Angepasst",
@@ -879,7 +873,7 @@
     "clearSelection": "Auswahl aufheben",
     "compareWithSelected": "Mit Auswahl vergleichen",
     "selectForSwap": "Für Tausch auswählen",
-    "assignBestFit": "Bestpassenden Platz zuweisen",
+    "assignBestFit": "Beste Position zuweisen",
     "moveToBench": "Auf die Bank setzen",
     "promoteToLineup": "In die Startelf befördern",
     "tableView": "Tabellenansicht",
@@ -894,7 +888,6 @@
     "positionSelector": "Taktik-Slot",
     "playablePositions": "Positionen",
     "slotFit": "Slot-Eignung",
-    "styleFit": "Stileignung",
     "responsibilities": "Verantwortlichkeiten",
     "noSpecialRoles": "Keine Sonderrollen",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "Scharf",
       "managing": "Verwaltet",
       "risk": "Risiko"
-    },
-    "styleFitLevels": {
-      "strong": "Starke Übereinstimmung",
-      "good": "Gute Übereinstimmung",
-      "risky": "Riskante Passung"
     }
   },
   "training": {
@@ -2003,7 +1991,6 @@
     "alreadyQueued": "Bereits für einen Wechsel vorgemerkt",
     "substitutionsPartlyMade": "{{applied}} von {{total}} Wechseln durchgeführt",
     "substitutionRefused": "Wechsel abgelehnt: {{off}} für {{on}}. {{reason}}",
-    "playerRoles": "Spielerrollen",
     "roleFor": "Rolle von {{player}}",
     "roleChangeRefused": "Die Rolle von {{player}} konnte nicht geändert werden. {{reason}}",
     "noBenchAvailable": "Keine Bankspieler verfügbar",
@@ -2267,7 +2254,7 @@
     "preMatchPrep": "Vorbereitung vor dem Spiel",
     "startingLineup": "Startaufstellung",
     "setPiecesCaptain": "Standards & Kapitän",
-    "formationFit": "Formationsanpassung",
+    "formationFit": "Formation",
     "selecting": "Auswahl...",
     "autoSelectXI": "Beste XI auswählen",
     "startingXI": "Start-XI",
@@ -2598,7 +2585,11 @@
     "pts": "Pkt.",
     "cupPenalties": "({{home}}–{{away}} im Elfmeterschießen)",
     "cupAdvances": "{{team}} kommt weiter",
-    "cupTiesPending": "Einige Partien stehen noch aus"
+    "cupTiesPending": "Einige Partien stehen noch aus",
+    "resume": "Fortsetzen",
+    "pausedResumesAt": "Pausiert · weiter mit {{speed}}",
+    "playingAt": "Läuft mit {{speed}}",
+    "spaceKey": "Leertaste"
   },
   "endOfSeason": {
     "seasonComplete": "Saison beendet",
