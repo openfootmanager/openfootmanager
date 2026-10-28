@@ -395,14 +395,14 @@
     "traits": "Özellikler",
     "condition": "Kondisyon",
     "delegateToYouthAcademy": "Altyapı akademisine devret",
-    "promoteToSeniorSquad": "A takıma yükselt",
-    "potWorldClass": "Dünya Klasiği",
-    "potExcellent": "Mükemmel",
-    "potPromising": "Umut vadeden",
-    "potDecent": "İyi",
-    "potLimited": "Sınırlı"
+    "promoteToSeniorSquad": "A takıma yükselt"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -2630,6 +2630,12 @@
     "compare": "Karşılaştır"
   },
   "be": {
+    "condition": {
+      "fresh": "Dinç",
+      "tiring": "Yoruluyor",
+      "exhausted": "Bitkin",
+      "critical": "Kritik"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Bu oyuncu ayrılamaz: kadro, bir kulübün koruması gereken asgari sayının altına düşer. Etkilenen bölge: {{group}}.",

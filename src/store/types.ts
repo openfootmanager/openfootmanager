@@ -302,9 +302,25 @@ export interface PlayerMediaData {
   face?: string;
 }
 
+/** A step on the backend's one good-to-bad scale; each names a `tone-*` colour token. */
+export type RatedTone = "top" | "good" | "fair" | "low" | "bad";
+
+/** The band a player's condition is in, by the backend's one rule (fresh 75+, tiring 40 to 74,
+ * exhausted 25 to 39, critical below 25). */
+export type ConditionBand = "Fresh" | "Tiring" | "Exhausted" | "Critical";
+
+/** A condition as the backend says to show it: its band, the word for it and its tone. */
+export interface ConditionStatus {
+  band: ConditionBand;
+  label_key: string;
+  tone: RatedTone;
+}
+
 export interface PlayerData {
   /** Computed by the backend squad projection; never stored in a save. */
   match_day_eligible?: boolean;
+  /** Computed by the backend squad projection; never stored in a save. */
+  condition_status?: ConditionStatus;
   birth_country?: string | null;
   fitness?: number;
   id: string;

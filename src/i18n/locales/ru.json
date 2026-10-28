@@ -395,14 +395,14 @@
     "traits": "Черты",
     "condition": "Состояние",
     "delegateToYouthAcademy": "Передать в академию",
-    "promoteToSeniorSquad": "Перевести в основную команду",
-    "potWorldClass": "Мировой класс",
-    "potExcellent": "Отличный",
-    "potPromising": "Многообещающий",
-    "potDecent": "Приличный",
-    "potLimited": "Ограниченный"
+    "promoteToSeniorSquad": "Перевести в основную команду"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}-й",
       "two": "{{n}}-й",
@@ -2630,6 +2630,12 @@
     "compare": "Сравнение"
   },
   "be": {
+    "condition": {
+      "fresh": "Свежий",
+      "tiring": "Устаёт",
+      "exhausted": "Измотан",
+      "critical": "Критично"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Этот игрок не может уйти: состав опустится ниже минимума, который обязан держать клуб. Линия: {{group}}.",

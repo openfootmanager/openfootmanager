@@ -1,7 +1,8 @@
 mod fitness_warnings;
 mod focus_attributes;
 pub use fitness_warnings::{
-    FitnessStatus, SquadFitness, check_squad_fitness_warnings, fitness_status, squad_fitness,
+    ConditionStatus, FitnessStatus, SquadFitness, check_squad_fitness_warnings, condition_status,
+    fitness_status, squad_fitness,
 };
 
 use crate::game::Game;

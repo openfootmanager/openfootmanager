@@ -394,15 +394,15 @@
     "growth": "Wachstum",
     "traits": "Eigenschaften",
     "condition": "Zustand",
-    "potWorldClass": "Weltklasse",
-    "potExcellent": "Hervorragend",
-    "potPromising": "Vielversprechend",
-    "potDecent": "Ordentlich",
-    "potLimited": "Begrenzt",
     "delegateToYouthAcademy": "An die Jugendakademie delegieren",
     "promoteToSeniorSquad": "In den Profikader befördern"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -2630,6 +2630,12 @@
     "compare": "Vergleichen"
   },
   "be": {
+    "condition": {
+      "fresh": "Frisch",
+      "tiring": "Ermüdet",
+      "exhausted": "Erschöpft",
+      "critical": "Kritisch"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}.",

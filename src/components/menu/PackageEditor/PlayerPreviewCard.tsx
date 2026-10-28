@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../../lib/ratingTier";
 import { calcAgeOnDate, localDateIso } from "../../../lib/valueFormatting";
 import { User } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -6,14 +8,6 @@ import { GeneratedCrest } from "../../ui/GeneratedCrest";
 import { POSITION_COLOR, PLAYER_ATTR_GROUPS } from "./helpers";
 import type { PlayerAttributesDef, PlayerDef, Position, TeamDef } from "./types";
 import { useAssetDataUrl } from "../../../hooks/useAssetDataUrl";
-
-function attrColor(val: number): string {
-  if (val >= 80) return "bg-success-500";
-  if (val >= 65) return "bg-primary-500";
-  if (val >= 50) return "bg-accent-500";
-  if (val >= 35) return "bg-yellow-500";
-  return "bg-red-500";
-}
 
 function estimateAttributesFromOvr(overall: number, position: Position): PlayerAttributesDef {
   const b = Math.max(30, Math.min(97, overall));
@@ -70,6 +64,7 @@ export function PlayerPreviewCard({
   teams,
   projectDir,
 }: PlayerPreviewCardProps) {
+  const tierOf = useRatingTiers();
   const { t } = useTranslation();
 
   const displayName =
@@ -131,15 +126,7 @@ export function PlayerPreviewCard({
           <div className="flex items-baseline gap-1.5">
             <span className="text-[10px] uppercase tracking-wide text-gray-400">OVR</span>
             <span
-              className="text-2xl font-heading font-black leading-none"
-              style={{
-                color:
-                  editing.overall >= 80
-                    ? "var(--color-success-500, #22c55e)"
-                    : editing.overall >= 65
-                      ? "var(--color-primary-500, #3b82f6)"
-                      : "#9ca3af",
-              }}
+              className={`text-2xl font-heading font-black leading-none ${ratingTierClass(tierOf(editing.overall), "text")}`}
             >
               {editing.overall}
             </span>
@@ -172,7 +159,7 @@ export function PlayerPreviewCard({
                           </span>
                           <div className="flex-1 h-1 bg-gray-100 dark:bg-navy-600 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full ${attrColor(val)}`}
+                              className={`h-full rounded-full ${ratingTierClass(tierOf(val), "bar")}`}
                               style={{ width: `${(val / 99) * 100}%` }}
                             />
                           </div>

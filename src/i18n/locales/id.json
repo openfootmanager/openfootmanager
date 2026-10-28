@@ -395,14 +395,14 @@
     "traits": "Traits",
     "condition": "Kondisi",
     "delegateToYouthAcademy": "Delegasikan ke akademi",
-    "promoteToSeniorSquad": "Naikkan ke skuad senior",
-    "potWorldClass": "Kelas Dunia",
-    "potExcellent": "Luar Biasa",
-    "potPromising": "Menjanjikan",
-    "potDecent": "Cukup Baik",
-    "potLimited": "Terbatas"
+    "promoteToSeniorSquad": "Naikkan ke skuad senior"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "ke-{{n}}",
       "two": "ke-{{n}}",
@@ -2630,6 +2630,12 @@
     "compare": "Bandingkan"
   },
   "be": {
+    "condition": {
+      "fresh": "Bugar",
+      "tiring": "Mulai lelah",
+      "exhausted": "Kelelahan",
+      "critical": "Kritis"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}.",
