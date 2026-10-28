@@ -1590,10 +1590,6 @@
       "firstDivision": "{{country}} First Division",
       "secondDivision": "{{country}} Second Division",
       "tierDivision": "{{country}} Division {{tier}}",
-      "splitSeason": {
-        "opening": "Opening: {{competition}}",
-        "closing": "Closing: {{competition}}"
-      },
       "nationalCup": "{{country}} Cup",
       "continentalChampionsCup": "Continental Champions Cup",
       "premierDivision": "Premier Division"

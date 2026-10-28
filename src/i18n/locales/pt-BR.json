@@ -1590,10 +1590,6 @@
       "firstDivision": "Primeira Divisão de {{country}}",
       "secondDivision": "Segunda Divisão de {{country}}",
       "tierDivision": "{{tier}}ª Divisão de {{country}}",
-      "splitSeason": {
-        "opening": "Abertura: {{competition}}",
-        "closing": "Encerramento: {{competition}}"
-      },
       "nationalCup": "Copa de {{country}}",
       "continentalChampionsCup": "Copa Continental de Campeões",
       "premierDivision": "Primeira Divisão"

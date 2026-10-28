@@ -1590,10 +1590,6 @@
       "firstDivision": "{{country}} Erste Division",
       "secondDivision": "{{country}} Zweite Division",
       "tierDivision": "{{country}} {{tier}}. Liga",
-      "splitSeason": {
-        "opening": "Hinrunde: {{competition}}",
-        "closing": "Rückrunde: {{competition}}"
-      },
       "nationalCup": "{{country}} Pokal",
       "continentalChampionsCup": "Kontinentaler Meisterpokal",
       "premierDivision": "Erste Division"

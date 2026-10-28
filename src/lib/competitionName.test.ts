@@ -5,8 +5,6 @@ import { competitionDisplayName, type NamedCompetition } from "./competitionName
 const messages: Record<string, string> = {
   "nations.arg": "Argentina",
   "tournaments.competitions.tierDivision": "{{country}} Division {{tier}}",
-  "tournaments.competitions.splitSeason.opening": "Opening: {{competition}}",
-  "tournaments.competitions.splitSeason.closing": "Closing: {{competition}}",
 };
 
 function translate(key: string, options: Record<string, unknown> = {}): string {
@@ -47,27 +45,5 @@ describe("competitionDisplayName", () => {
         translate,
       ),
     ).toBe("Argentina Division 3");
-  });
-
-  /** Given an opening split-season tier, when its title is translated, then it names the opening half. */
-  it("labels the opening half of a split-season division", () => {
-    const competition = {
-      name_key: "tournaments.competitions.tierDivision",
-      country_id: "ARG",
-      calendar: { season: { division: { tier: 1, phase: "opening" as const } } },
-    };
-
-    expect(competitionDisplayName(competition, translate)).toBe("Opening: Argentina Division 1");
-  });
-
-  /** Given a closing split-season tier, when its title is translated, then it names the closing half. */
-  it("labels the closing half of a split-season division", () => {
-    const competition = {
-      name_key: "tournaments.competitions.tierDivision",
-      country_id: "ARG",
-      calendar: { season: { division: { tier: 1, phase: "closing" as const } } },
-    };
-
-    expect(competitionDisplayName(competition, translate)).toBe("Closing: Argentina Division 1");
   });
 });
