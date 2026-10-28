@@ -1725,4 +1725,98 @@ mod tests {
         assert_eq!(everything(&one), everything(&again));
         assert_ne!(everything(&one), everything(&other));
     }
+
+    fn club_from(country: &str) -> domain::team::Team {
+        domain::team::Team::new(
+            country.to_string(),
+            country.to_string(),
+            country.to_string(),
+            country.to_string(),
+            "City".to_string(),
+            "Stadium".to_string(),
+            10_000,
+        )
+    }
+
+    /// A world file with these clubs and no `regions` key, loaded the way a
+    /// save loads one. Inference has to happen inside that load: calling
+    /// `infer_world_regions` directly would stay green if the load stopped
+    /// filling an empty region list.
+    fn load_regionless_world(countries: &[&str]) -> WorldData {
+        let teams: Vec<_> = countries.iter().copied().map(club_from).collect();
+        let json = serde_json::json!({ "teams": teams }).to_string();
+        assert!(
+            !json.contains("\"regions\""),
+            "the file must not declare regions"
+        );
+        load_world_from_json(&json).expect("a regionless world loads")
+    }
+
+    fn region_filing<'a>(country: &str, regions: &'a [WorldRegionDefinition]) -> Option<&'a str> {
+        regions
+            .iter()
+            .find(|region| region.country_codes.iter().any(|code| code == country))
+            .map(|region| region.id.as_str())
+    }
+
+    /// Given clubs from nations the old hand-written fallback did not know, and
+    /// a world file that declares no regions, when the file is loaded, then each
+    /// club is filed under its catalog region. England stays in Europe, so the
+    /// assertion is not "everything leaves Europe".
+    #[test]
+    fn a_regionless_world_files_catalog_nations_in_their_own_region() {
+        let expected = [
+            ("NG", "africa"),
+            ("EG", "africa"),
+            ("JP", "asia"),
+            ("JM", "central-america"),
+            ("ENG", "europe"),
+        ];
+        let countries: Vec<&str> = expected.iter().map(|(country, _)| *country).collect();
+
+        let world = load_regionless_world(&countries);
+
+        for (country, region) in expected {
+            assert_eq!(
+                region_filing(country, &world.regions),
+                Some(region),
+                "{country} was filed under {:?}",
+                world.regions
+            );
+        }
+    }
+
+    /// Given a club from every catalogued African nation and a world file with
+    /// no regions, when the file is loaded, then all of them are filed under Africa.
+    #[test]
+    fn a_regionless_world_files_every_catalogued_african_nation_under_africa() {
+        let codes: Vec<&str> = crate::nations::all_nations()
+            .filter(|nation| nation.region_id == "africa")
+            .map(|nation| nation.code)
+            .collect();
+        assert!(
+            codes.len() >= 54,
+            "the catalog should know the African nations the old fallback missed, got {}",
+            codes.len()
+        );
+
+        let world = load_regionless_world(&codes);
+
+        assert_eq!(
+            world.regions.len(),
+            1,
+            "inferred regions: {:?}",
+            world.regions
+        );
+        assert_eq!(world.regions[0].id, "africa");
+        for code in &codes {
+            assert!(
+                world.regions[0]
+                    .country_codes
+                    .iter()
+                    .any(|country| country == code),
+                "{code} was not filed under Africa"
+            );
+        }
+    }
 }
