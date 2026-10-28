@@ -238,6 +238,23 @@ fn default_season_month_for_region(region_id: &str) -> u8 {
     }
 }
 
+/// The id of `football_nation`'s highest-reputation club, ties going to the smaller id so the
+/// choice is the same on every run. A test world or tool starts its career here.
+pub fn strongest_club<'a>(
+    teams: &'a [domain::team::Team],
+    football_nation: &str,
+) -> Option<&'a str> {
+    teams
+        .iter()
+        .filter(|team| team.football_nation == football_nation)
+        .max_by(|a, b| {
+            a.reputation
+                .cmp(&b.reputation)
+                .then_with(|| b.id.cmp(&a.id))
+        })
+        .map(|team| team.id.as_str())
+}
+
 fn brazil_state_region(city: &str) -> Option<&'static str> {
     match city {
         "São Paulo" | "Rio" | "Belo Horizonte" | "Santos" | "Campinas" | "Bragantino"
@@ -252,6 +269,37 @@ fn brazil_state_region(city: &str) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::world::test_fixtures::nation_team;
+
+    /// Given clubs of two nations, when the strongest of one is asked for, then it is that
+    /// nation's highest-reputation club, however strong the other nation's are.
+    #[test]
+    fn strongest_club_is_the_nations_highest_reputation_club() {
+        let teams = vec![
+            nation_team("sco-mid", "SCO", 600),
+            nation_team("eng-top", "ENG", 950),
+            nation_team("sco-top", "SCO", 800),
+        ];
+        assert_eq!(strongest_club(&teams, "SCO"), Some("sco-top"));
+    }
+
+    /// Given two clubs of equal reputation, when the strongest is asked for, then the one with
+    /// the smaller id wins, so the choice is the same on every run.
+    #[test]
+    fn strongest_club_breaks_a_reputation_tie_by_the_smaller_id() {
+        let teams = vec![
+            nation_team("b-club", "SCO", 700),
+            nation_team("a-club", "SCO", 700),
+        ];
+        assert_eq!(strongest_club(&teams, "SCO"), Some("a-club"));
+    }
+
+    /// Given no club of the nation, when the strongest is asked for, then there is none.
+    #[test]
+    fn strongest_club_of_a_nation_with_no_clubs_is_none() {
+        let teams = vec![nation_team("eng-top", "ENG", 950)];
+        assert_eq!(strongest_club(&teams, "SCO"), None);
+    }
 
     #[test]
     fn select_continental_entrants_takes_top_clubs_per_region_by_reputation() {

@@ -1,3 +1,4 @@
+import { useSquadFitness } from "../../hooks/useSquadFitness";
 import { useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -20,6 +21,7 @@ import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { useTrainingFocusAttributes } from "../../hooks/useTrainingFocusAttributes";
 import { setTraining, setTrainingSchedule } from "../../services/trainingService";
+import type { FitnessStatus } from "../../services/squadService";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import TrainingGroupsCard from "./TrainingGroupsCard";
 import TrainingSettingsPanel from "./TrainingSettingsPanel";
@@ -76,6 +78,13 @@ const SCHEDULE_TRAINING_DAYS: Record<string, number[]> = {
   Light: [1, 3],
 };
 
+/** How a player's name reads in the fitness list; which status he is in is the backend's. */
+const FITNESS_NAME_CLASS: Record<FitnessStatus, string> = {
+  Critical: "text-red-600 dark:text-red-400",
+  Exhausted: "text-amber-600 dark:text-amber-400",
+  Fit: "text-gray-800 dark:text-gray-200",
+};
+
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 function getWeekdayFromDate(dateStr: string): number {
@@ -95,6 +104,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
     sessionState ?? gameState,
   );
   const focusAttributes = useTrainingFocusAttributes();
+  const fitness = useSquadFitness(sessionState ?? gameState);
 
   const team = sessionState?.team ?? gameState?.teams.find((t) => t.id === teamId) ?? null;
 
@@ -109,16 +119,15 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
   const allSquadPlayers =
     fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
   const roster = allSquadPlayers.filter(isFirstTeamSquadPlayer);
+  // Fitness is the backend's: injured players are not in the squad that can play.
   const avgCondition =
-    roster.length > 0
-      ? Math.round(roster.reduce((sum, player) => sum + player.condition, 0) / roster.length)
-      : 0;
+    fitness?.average_condition != null ? Math.round(fitness.average_condition) : null;
   const avgMorale =
     roster.length > 0
       ? Math.round(roster.reduce((sum, player) => sum + player.morale, 0) / roster.length)
       : 0;
-  const exhaustedCount = roster.filter((player) => player.condition < 40).length;
-  const criticalCount = roster.filter((player) => player.condition < 25).length;
+  const exhaustedCount = fitness?.exhausted_count ?? 0;
+  const criticalCount = fitness?.critical_count ?? 0;
 
   const todayWeekday = getWeekdayFromDate(clockDate);
   const trainingDays = SCHEDULE_TRAINING_DAYS[currentSchedule] || SCHEDULE_TRAINING_DAYS.Balanced;
@@ -148,13 +157,17 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
     }
   };
 
-  const staffAdvice = getTrainingStaffAdvice(t, {
-    criticalCount,
-    avgCondition,
-    exhaustedCount,
-    currentSchedule,
-    currentFocus,
-  });
+  // No advice until the backend has said how fit the squad is: an unanswered 0% is not "tired".
+  const staffAdvice =
+    avgCondition !== null
+      ? getTrainingStaffAdvice(t, {
+          criticalCount,
+          avgCondition,
+          exhaustedCount,
+          currentSchedule,
+          currentFocus,
+        })
+      : null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -248,10 +261,10 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
                     {t("training.avgCondition")}
                   </span>
                   <span className="font-heading font-bold text-gray-800 dark:text-gray-100">
-                    {avgCondition}%
+                    {avgCondition !== null ? `${avgCondition}%` : "—"}
                   </span>
                 </div>
-                <ProgressBar value={avgCondition} variant="auto" size="md" />
+                <ProgressBar value={avgCondition ?? 0} variant="auto" size="md" />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
@@ -294,11 +307,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
                   <div key={player.id} className="flex items-center px-4 py-2 gap-3">
                     <span
                       className={`text-sm font-medium flex-1 truncate ${
-                        player.condition < 25
-                          ? "text-red-600 dark:text-red-400"
-                          : player.condition < 40
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-gray-800 dark:text-gray-200"
+                        FITNESS_NAME_CLASS[fitness?.statuses[player.id] ?? "Fit"]
                       }`}
                     >
                       {player.match_name}

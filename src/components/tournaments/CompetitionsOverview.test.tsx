@@ -10,6 +10,7 @@ function fixture(
 ): FixtureData {
   return {
     competitive,
+    advancing_team_id: null,
     id: `f-${Math.random()}`,
     matchday: 1,
     date: "2026-08-01",

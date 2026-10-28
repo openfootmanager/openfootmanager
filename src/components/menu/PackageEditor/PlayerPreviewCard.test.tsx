@@ -1,8 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ratingTierClass } from "../../../lib/ratingTier";
 import { PlayerPreviewCard } from "./PlayerPreviewCard";
 import type { PlayerDef } from "./types";
+
+vi.mock("../../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 // Mock react-i18next so translation keys render verbatim; this lets us assert
 // that the footedness value goes through t() rather than printing the raw enum.
@@ -120,5 +126,28 @@ describe("PlayerPreviewCard", () => {
 
       expect(screen.queryByText(/playerAgeToday/)).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("PlayerPreviewCard rating tiers", () => {
+  /**
+   * Given a package player rated 76 and another rated 77, either side of the A-tier cut-off, and
+   *       no game to ask (the editor works on package data alone)
+   * When each preview shows its overall rating
+   * Then the number takes the colour of its backend tier (B and A), not a threshold of the editor's.
+   */
+  it("colours the overall rating by its backend tier", () => {
+    const { unmount } = render(
+      <PlayerPreviewCard editing={makePlayer({ overall: 76 })} photoDataUrl={null} />,
+    );
+    expect(screen.getByText("OVR").nextElementSibling).toHaveClass(
+      ...ratingTierClass("B", "text").split(" "),
+    );
+    unmount();
+
+    render(<PlayerPreviewCard editing={makePlayer({ overall: 77 })} photoDataUrl={null} />);
+    expect(screen.getByText("OVR").nextElementSibling).toHaveClass(
+      ...ratingTierClass("A", "text").split(" "),
+    );
   });
 });

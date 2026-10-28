@@ -4,6 +4,7 @@ use tauri::State;
 
 use ofm_core::game::Game;
 use ofm_core::state::StateManager;
+use ofm_core::training::SquadFitness;
 
 use crate::commands::util::{mutate_active_game, user_team_id, user_team_mut};
 
@@ -194,6 +195,24 @@ pub fn set_team_match_roles_internal(
 }
 
 #[tauri::command]
+pub fn get_squad_fitness(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<Option<SquadFitness>, String> {
+    get_squad_fitness_internal(&state)
+}
+
+/// How fit the user's squad is, from the one summary the staff's warnings read too; none when the
+/// user has no club.
+pub fn get_squad_fitness_internal(state: &StateManager) -> Result<Option<SquadFitness>, String> {
+    state
+        .get_game(|game| {
+            let team_id = game.manager.team_id.as_deref()?;
+            Some(ofm_core::training::squad_fitness(game, team_id))
+        })
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())
+}
+
+#[tauri::command]
 pub fn set_training(
     state: State<'_, Arc<StateManager>>,
     focus: String,
@@ -235,6 +254,13 @@ pub fn set_training_internal(
 
         Ok(())
     })
+}
+
+/// Every rating's tier, 0 to 99, for the screens that colour a rating. Needs no game, so the
+/// package editor, which works on package data alone, reads it too.
+#[tauri::command]
+pub fn get_rating_tiers() -> Vec<ofm_core::player_tier::PlayerTier> {
+    ofm_core::player_tier::rating_tiers()
 }
 
 #[tauri::command]
@@ -711,9 +737,10 @@ pub fn set_tactics_phase(
 mod tests {
     use super::TacticsBlueprintStatus;
     use super::{
-        apply_tactic_preset_internal, get_tactics_blueprint_status_internal,
-        set_formation_internal, set_play_style_internal, set_player_role_internal,
-        set_player_squad_role_internal, set_player_training_focus_internal,
+        apply_tactic_preset_internal, get_rating_tiers, get_squad_fitness_internal,
+        get_tactics_blueprint_status_internal, set_formation_internal, set_play_style_internal,
+        set_player_role_internal, set_player_squad_role_internal,
+        set_player_training_focus_internal,
     };
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
@@ -815,6 +842,50 @@ mod tests {
         let mut game = make_game(player);
         game.teams[0].id = "team-elsewhere".to_string();
         game
+    }
+
+    /// Given an active game whose club has one fit player on 30 and one injured player on 10
+    /// When the squad fitness is asked for
+    /// Then the figures are over the fit player alone; with no game the command says so, and a
+    ///      manager with no club has none.
+    #[test]
+    fn get_squad_fitness_internal_answers_from_the_users_club() {
+        let state = StateManager::new();
+        assert_eq!(
+            get_squad_fitness_internal(&state).err().as_deref(),
+            Some("be.error.noActiveGameSession")
+        );
+
+        let mut fit = make_player("1998-01-01");
+        fit.condition = 30;
+        let mut injured = make_player_for_team("player-2", "team-1", "1998-01-01");
+        injured.condition = 10;
+        injured.injury = Some(domain::player::Injury {
+            name: "knock".to_string(),
+            days_remaining: 5,
+        });
+        let mut game = make_game(fit);
+        game.players.push(injured);
+        state.set_game(game.clone());
+
+        let fitness = get_squad_fitness_internal(&state)
+            .expect("fitness")
+            .expect("a summary");
+
+        assert_eq!(fitness.players, 1);
+        assert_eq!(fitness.average_condition, Some(30.0));
+        assert_eq!(fitness.exhausted_count, 1);
+        assert_eq!(fitness.critical_count, 0);
+        // The injured player is outside the figures but not outside the lists.
+        assert_eq!(fitness.statuses.len(), 2);
+        assert_eq!(
+            fitness.statuses["player-2"],
+            ofm_core::training::FitnessStatus::Critical
+        );
+
+        game.manager.team_id = None;
+        state.set_game(game);
+        assert_eq!(get_squad_fitness_internal(&state), Ok(None));
     }
 
     #[test]
@@ -1393,5 +1464,23 @@ mod tests {
             .find(|player| player.id == "player-1")
             .expect("user player");
         assert_ne!(user_player.training_focus, Some(TrainingFocus::Technical));
+    }
+
+    /// Given the command that names every rating's tier,
+    /// When it is asked for,
+    /// Then it is the backend's table: a 69 is the rest, a 70 and a 76 are B, a 77 an A, an 81 an S,
+    ///      and it needs no game.
+    #[test]
+    fn get_rating_tiers_is_the_backends_table() {
+        use ofm_core::player_tier::PlayerTier;
+
+        let tiers = get_rating_tiers();
+
+        assert_eq!(tiers.len(), 100);
+        assert_eq!(tiers[69], PlayerTier::Rest);
+        assert_eq!(tiers[70], PlayerTier::B);
+        assert_eq!(tiers[76], PlayerTier::B);
+        assert_eq!(tiers[77], PlayerTier::A);
+        assert_eq!(tiers[81], PlayerTier::S);
     }
 }

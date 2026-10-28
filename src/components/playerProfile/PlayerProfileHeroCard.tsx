@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { Shield } from "lucide-react";
 import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/helpers";
@@ -51,6 +53,7 @@ export default function PlayerProfileHeroCard({
   team,
   t,
 }: PlayerProfileHeroCardProps) {
+  const tierOf = useRatingTiers();
   const teamContextItems =
     player.team_id && onSelectTeam
       ? [buildViewTeamMenuItem(t, () => onSelectTeam(player.team_id!))]
@@ -59,18 +62,17 @@ export default function PlayerProfileHeroCard({
   return (
     <Card accent="primary" className="mb-5">
       <div className="bg-linear-to-r from-navy-700 to-navy-800 p-8 rounded-t-xl">
-        <div className="flex items-start gap-6">
+        <div className="flex flex-wrap items-start gap-6">
           <PlayerAvatar
             player={player}
-            className={`w-24 h-24 rounded-2xl flex items-center justify-center font-heading font-bold text-4xl border-2 overflow-hidden ${
-              ovr >= 75
-                ? "bg-primary-500/20 text-primary-400 border-primary-500/30"
-                : ovr >= 55
-                  ? "bg-accent-500/20 text-accent-400 border-accent-500/30"
-                  : "bg-gray-500/20 text-gray-400 border-gray-500/30"
-            }`}
-            fallback={<span>{ovr}</span>}
+            className="w-24 h-24 shrink-0 rounded-2xl flex items-center justify-center font-heading font-bold text-3xl border-2 border-white/10 bg-white/5 text-gray-300 overflow-hidden"
           />
+          <div
+            className={`flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-2xl border-2 font-heading ${ratingTierClass(tierOf(ovr), "hero")}`}
+          >
+            <span className="text-xs font-bold uppercase tracking-wider">{t("common.ovr")}</span>
+            <span className="text-4xl font-bold leading-none">{ovr}</span>
+          </div>
           {player.jersey_number != null && team != null && (
             <JerseyIcon
               primaryColor={team.colors.primary}
@@ -81,11 +83,11 @@ export default function PlayerProfileHeroCard({
               className="flex-shrink-0 self-center"
             />
           )}
-          <div className="flex-1">
-            <h2 className="text-3xl font-heading font-bold text-white uppercase tracking-wide">
+          <div className="min-w-0 flex-1 basis-64">
+            <h2 className="text-3xl font-heading font-bold text-white uppercase tracking-wide break-words">
               {player.full_name}
             </h2>
-            <div className="flex items-center gap-3 mt-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
               <Badge variant={positionBadgeVariant(primaryPosition)}>
                 {translatePositionLabel(t, primaryPosition)}
               </Badge>
@@ -94,7 +96,7 @@ export default function PlayerProfileHeroCard({
                   {translatePositionLabel(t, alternatePosition)}
                 </Badge>
               ))}
-              <span className="text-gray-400 text-sm">
+              <span className="whitespace-nowrap text-gray-400 text-sm">
                 <CountryFlag
                   code={player.nationality}
                   locale={language}
@@ -103,15 +105,15 @@ export default function PlayerProfileHeroCard({
                 {countryName(player.nationality, language)}
               </span>
               <span className="text-gray-500">•</span>
-              <span className="text-gray-400 text-sm">
+              <span className="whitespace-nowrap text-gray-400 text-sm">
                 {t("common.age")} {age}
               </span>
               <span className="text-gray-500">•</span>
-              <span className="text-gray-400 text-sm">
+              <span className="whitespace-nowrap text-gray-400 text-sm">
                 {t("common.footednessLabel")}: {footednessLabel}
               </span>
               <span className="text-gray-500">•</span>
-              <span className="text-gray-400 text-sm">
+              <span className="whitespace-nowrap text-gray-400 text-sm">
                 {t("common.weakFoot")}: {weakFootValue}/5
               </span>
             </div>
@@ -150,7 +152,7 @@ export default function PlayerProfileHeroCard({
             </div>
           ) : null}
 
-          <div className="hidden md:grid grid-cols-2 gap-3">
+          <div className="hidden md:grid grid-cols-2 gap-3 shrink-0">
             <QuickStat
               label={t("common.condition")}
               value={`${player.condition}%`}

@@ -1,10 +1,16 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import { ratingTierClass } from "../../lib/ratingTier";
 import TeamProfile from "./TeamProfile";
 import { createSeasonContext } from "../../test-utils/factories";
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -236,6 +242,20 @@ describe("TeamProfile", () => {
   });
 
   /**
+   * Given a club's profile, shown under the dashboard header that already has a Back
+   * When it renders
+   * Then it adds no second Back of its own
+   */
+  it("leaves Back to the dashboard header", async () => {
+    const team = createTeam();
+
+    render(<TeamProfile team={team} gameState={createGameState(team)} isOwnTeam={false} />);
+
+    expect(await screen.findByText(team.name)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
+  });
+
+  /**
    * Given a club the backend places 3rd in its own division's table
    * When its profile opens
    * Then the position and the league standing card come from that answer
@@ -265,7 +285,7 @@ describe("TeamProfile", () => {
     const state = createGameState(team);
     state.league = null;
 
-    render(<TeamProfile team={team} gameState={state} isOwnTeam={false} onClose={vi.fn()} />);
+    render(<TeamProfile team={team} gameState={state} isOwnTeam={false} />);
 
     expect(await screen.findAllByText("#3")).not.toHaveLength(0);
     expect(screen.getByText("13")).toBeInTheDocument();
@@ -295,9 +315,7 @@ describe("TeamProfile", () => {
       return null;
     });
 
-    render(
-      <TeamProfile team={team} gameState={createGameState(team)} isOwnTeam onClose={vi.fn()} />,
-    );
+    render(<TeamProfile team={team} gameState={createGameState(team)} isOwnTeam />);
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_team_stats_overview", {
@@ -339,9 +357,7 @@ describe("TeamProfile", () => {
       return null;
     });
 
-    render(
-      <TeamProfile team={team} gameState={createGameState(team)} isOwnTeam onClose={vi.fn()} />,
-    );
+    render(<TeamProfile team={team} gameState={createGameState(team)} isOwnTeam />);
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_team_match_history", {
@@ -354,6 +370,31 @@ describe("TeamProfile", () => {
     });
   });
 
+  /**
+   * Given the user's own club with players rated 76 and 77 (and a rival's, whose ratings are hidden)
+   * When the roster renders
+   * Then the own club's ratings take the colour of their backend tier, and a hidden one reads as the rest.
+   */
+  it("colours the own club's ratings by their backend tier", async () => {
+    const team = createTeam();
+    const state = createGameState(team);
+    state.players = [
+      createPlayer({ id: "p-76", full_name: "Seventy Six", match_name: "S. Six", ovr: 76 }),
+      createPlayer({ id: "p-77", full_name: "Seventy Seven", match_name: "S. Seven", ovr: 77 }),
+    ].map((player) => ({ ...player, team_id: team.id }));
+
+    render(<TeamProfile team={team} gameState={state} isOwnTeam />);
+
+    const ratingOf = async (name: string, rating: string) =>
+      within((await screen.findByText(name)).closest("tr") as HTMLElement).getByText(rating);
+    expect(await ratingOf("Seventy Seven", "77")).toHaveClass(
+      ...ratingTierClass("A", "text").split(" "),
+    );
+    expect(await ratingOf("Seventy Six", "76")).toHaveClass(
+      ...ratingTierClass("B", "text").split(" "),
+    );
+  });
+
   it("offers a roster context menu action to view the player profile", async () => {
     const team = createTeam();
     const onSelectPlayer = vi.fn();
@@ -363,7 +404,6 @@ describe("TeamProfile", () => {
         team={team}
         gameState={createGameState(team)}
         isOwnTeam
-        onClose={vi.fn()}
         onSelectPlayer={onSelectPlayer}
       />,
     );

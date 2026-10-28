@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { History } from "lucide-react";
 import type { MouseEventHandler } from "react";
 import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
@@ -94,6 +96,7 @@ export function PlayerRowDetails({
   transferOffersForThisPlayer,
   loanOffersForThisPlayer,
 }: PlayerRowDetailsProps) {
+  const tierOf = useRatingTiers();
   const {
     view,
     onSelectPlayer,
@@ -162,7 +165,7 @@ export function PlayerRowDetails({
       </td>
       <td className="py-2.5 px-4">
         <span
-          className={`font-heading font-bold text-base tabular-nums ${ovr >= 75 ? "text-primary-700 dark:text-primary-400" : ovr >= 55 ? "text-accent-700 dark:text-accent-400" : "text-gray-500 dark:text-gray-300"}`}
+          className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(tierOf(ovr), "text")}`}
         >
           {ovr}
         </span>

@@ -60,6 +60,7 @@ function createTeam(overrides: Partial<TeamData> = {}): TeamData {
 function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
   return {
     competitive: true,
+    advancing_team_id: null,
     id: "fixture-1",
     matchday: 1,
     date: "2025-01-10",
@@ -499,9 +500,7 @@ describe("HomeTab.helpers", (): void => {
 
     const result = getHomeRosterOverview(roster);
 
-    expect(result.avgCondition).toBe(61);
     expect(result.avgOvr).toBe(65);
-    expect(result.exhaustedCount).toBe(1);
     expect(result.unavailablePlayers.map((player) => player.id)).toEqual(["player-injured"]);
     expect(result.hotPlayers.map((player) => player.id)).toEqual(["player-hot"]);
     expect(result.coldPlayers.map((player) => player.id)).toEqual(["player-cold"]);

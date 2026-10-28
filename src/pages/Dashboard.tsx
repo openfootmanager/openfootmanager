@@ -1,3 +1,4 @@
+import { useSquadFitness } from "../hooks/useSquadFitness";
 import { routeForActiveCareer } from "../services/careerService";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyExtraTranslations } from "../lib/extraTranslations";
@@ -24,6 +25,7 @@ import {
   navigateDashboardProfiles,
   openDashboardSearchPlayer,
   openDashboardSearchTeam,
+  openProfileTitle,
   selectDashboardPlayer,
   selectDashboardTeam,
   type DashboardNavigateContext,
@@ -48,7 +50,7 @@ import {
 } from "../components/dashboard/dashboardHelpers";
 import { useAdvanceTime } from "../hooks/useAdvanceTime";
 import { Cpu, Eye, Gamepad2 } from "lucide-react";
-import { formatDateFull, getFixtureCompetitionName } from "../lib/helpers";
+import { formatDate, formatDateFull, getFixtureCompetitionName } from "../lib/helpers";
 import { useTranslation } from "react-i18next";
 import { useClubLeagueStanding } from "../components/teamProfile/useClubLeagueStanding";
 import { useSettingsStore } from "../store/settingsStore";
@@ -92,7 +94,12 @@ const TAB_TRANSLATION_KEYS: Record<string, string> = {
   Youth: "dashboard.youthAcademy",
 };
 
-export default function Dashboard(): JSX.Element {
+interface DashboardProps {
+  /** The tab it opens on. The app always opens on Home; the dev page harness mounts other pages. */
+  initialTab?: string;
+}
+
+export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.Element {
   const navigate = useNavigate();
   const {
     hasActiveGame,
@@ -118,7 +125,7 @@ export default function Dashboard(): JSX.Element {
   const [saveError, setSaveError] = useState<unknown>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [profileNavigation, setProfileNavigation] = useState(() =>
-    createDashboardProfileNavigationState("Home"),
+    createDashboardProfileNavigationState(initialTab),
   );
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [isExitingToMenu, setIsExitingToMenu] = useState(false);
@@ -131,6 +138,7 @@ export default function Dashboard(): JSX.Element {
   const [squadListSortState, setSquadListSortState] = useState<SquadListSortState>(
     DEFAULT_SQUAD_LIST_SORT_STATE,
   );
+  const squadFitness = useSquadFitness(gameState);
   const [financeVerdict, setFinanceVerdict] = useState<{
     teamId: string;
     snapshot: TeamFinanceSnapshotData;
@@ -398,22 +406,16 @@ export default function Dashboard(): JSX.Element {
       label: t("continueMenu.goToField"),
       icon: <Gamepad2 className="w-4 h-4" />,
       desc: t("continueMenu.goToFieldDesc"),
-      buttonColorClass: "from-primary-500 to-primary-600",
-      dropdownColorClass: "from-primary-600 to-primary-700",
     },
     spectator: {
       label: t("continueMenu.watchSpectator"),
       icon: <Eye className="w-4 h-4" />,
       desc: t("continueMenu.watchSpectatorDesc"),
-      buttonColorClass: "from-indigo-500 to-indigo-600",
-      dropdownColorClass: "from-indigo-600 to-indigo-700",
     },
     delegate: {
       label: t("continueMenu.delegateAssistant"),
       icon: <Cpu className="w-4 h-4" />,
       desc: t("continueMenu.delegateAssistantDesc"),
-      buttonColorClass: "from-amber-500 to-amber-600",
-      dropdownColorClass: "from-amber-600 to-amber-700",
     },
   };
 
@@ -500,10 +502,10 @@ export default function Dashboard(): JSX.Element {
 
   if (!gameState) {
     return (
-      <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex items-center justify-center transition-colors">
+      <div className="flex min-h-screen items-center justify-center bg-page">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider text-sm">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-700 border-t-transparent motion-reduce:animate-none" />
+          <span className="font-heading text-body uppercase tracking-label text-fg-muted">
             {t("dashboard.loading")}
           </span>
         </div>
@@ -512,6 +514,7 @@ export default function Dashboard(): JSX.Element {
   }
 
   const currentDate = formatDateFull(gameState.clock.current_date, settings.language);
+  const currentDateShort = formatDate(gameState.clock.current_date, settings.language);
   const unreadMessagesCount =
     sessionState?.unread_messages_count ?? getUnreadMessagesCount(gameState);
   const myTeamName = getManagerTeamName(gameState);
@@ -519,11 +522,20 @@ export default function Dashboard(): JSX.Element {
   const searchResults = getDashboardSearchResults(gameState, searchQuery);
   const currentFinanceVerdict =
     financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
-  const dashboardAlerts = getDashboardAlerts(gameState, hasMatchToday, t, currentFinanceVerdict);
+  const dashboardAlerts = getDashboardAlerts(
+    gameState,
+    hasMatchToday,
+    t,
+    currentFinanceVerdict,
+    squadFitness,
+  );
   const hasProfileHistory = hasDashboardProfileHistory(profileNavigation);
   const activeTabLabel = TAB_TRANSLATION_KEYS[profileNavigation.activeTab]
     ? t(TAB_TRANSLATION_KEYS[profileNavigation.activeTab])
     : profileNavigation.activeTab;
+  const headerTitle =
+    openProfileTitle(profileNavigation, gameState) ??
+    (profileNavigation.selectedPlayerId !== null ? t("common.player") : activeTabLabel);
   const dashboardTabContentModel = createDashboardTabContentModel({
     activeTab: profileNavigation.activeTab,
     gameState,
@@ -541,7 +553,7 @@ export default function Dashboard(): JSX.Element {
   });
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex transition-colors duration-300">
+    <div className="flex min-h-screen bg-page">
       <DashboardSidebar
         activeTab={profileNavigation.activeTab}
         collapsed={isSidebarCollapsed}
@@ -596,18 +608,20 @@ export default function Dashboard(): JSX.Element {
       <FiredModal />
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-screen overflow-hidden">
+      {/* min-w-0: a wide page (a table) must not widen <main>, and with it the window (layout rule L1). */}
+      <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
         {saveError !== null ? (
           <p
             role="alert"
-            className="m-3 rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-900 dark:border-accent-700 dark:bg-navy-800 dark:text-accent-200"
+            className="m-3 rounded-lg border border-line bg-warning-tint px-4 py-3 text-body text-warning"
           >
             {resolveBackendError(saveError)}
           </p>
         ) : null}
         <DashboardHeader
-          activeTabLabel={activeTabLabel}
+          title={headerTitle}
           currentDate={currentDate}
+          currentDateShort={currentDateShort}
           hasProfileHistory={hasProfileHistory}
           hasMatchToday={hasMatchToday}
           isAdvancing={isAdvancing}
@@ -641,7 +655,6 @@ export default function Dashboard(): JSX.Element {
           gameState={gameState}
           profileNavigation={profileNavigation}
           dashboardTabContentModel={dashboardTabContentModel}
-          onBack={handleBack}
           onNavigate={handleNavigate}
           onSelectPlayer={selectPlayer}
           onSelectTeam={selectTeam}

@@ -13,6 +13,12 @@ export interface AppSettings {
   continue_to_next_event: boolean;
   ui_scale: "small" | "normal" | "large" | "xlarge";
   high_contrast: boolean;
+  /** The open sidebar's width. */
+  sidebar_width: "compact" | "standard" | "wide";
+  /** How the sidebar opens: as today, on hover, on a click, or never (icons only). */
+  sidebar_behaviour: "normal" | "hover" | "click" | "icons";
+  /** Whether the player folded the sidebar to its icon rail. */
+  sidebar_collapsed: boolean;
 }
 
 export interface CurrencyDefinition {
@@ -21,7 +27,7 @@ export interface CurrencyDefinition {
   exchange_rate: number;
 }
 
-interface SettingsResponse {
+export interface SettingsResponse {
   settings: Partial<AppSettings>;
   currency: CurrencyDefinition;
   supported_currencies: CurrencyDefinition[];
@@ -39,6 +45,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   continue_to_next_event: false,
   ui_scale: "normal",
   high_contrast: false,
+  sidebar_width: "standard",
+  sidebar_behaviour: "normal",
+  sidebar_collapsed: false,
 };
 
 const DEFAULT_CURRENCY: CurrencyDefinition = {

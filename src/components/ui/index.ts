@@ -15,3 +15,6 @@ export { InjuryBadge } from "./InjuryBadge";
 export { default as JerseyIcon } from "./JerseyIcon";
 export { PitchToken, usePitchTokenFocus } from "./PitchToken";
 export type { PitchFitTone } from "./PitchToken";
+export { PageToolbar } from "./PageToolbar";
+export { SegmentedControl } from "./SegmentedControl";
+export { TabPanel, Tabs } from "./Tabs";

@@ -763,6 +763,82 @@ describe("resolveNewsArticle", () => {
     }
   });
 
+  // Given a cup-tie report with one scorer, when it is resolved in German,
+  // then it names its competition and lists the scorer instead of ending at the score.
+  it("writes the scorers into a competition match report", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("de");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "",
+        headline_key: "be.news.matchReport.reportCompetition.title",
+        body: "",
+        body_key: "be.news.matchReport.reportCompetition.body",
+        source: "",
+        source_key: "be.source.sportsGazette",
+        i18n_params: {
+          home: "Alpha FC",
+          away: "Beta FC",
+          homeGoals: "2",
+          awayGoals: "1",
+          competition: "Landespokal",
+          scorers: "",
+          scorersSection: "",
+          scorersData: JSON.stringify([{ player: "Alice", minute: 10, team: "Alpha FC" }]),
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Alpha FC 2 - 1 Beta FC: Spielbericht (Landespokal)");
+      expect(result.body).toContain("Landespokal: Die Partie endete Alpha FC 2 - 1 Beta FC.");
+      expect(result.body).toContain("Tore: Alice (10. Min., Alpha FC)");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
+  // Given a generated national cup, whose stored name is the English template "Germany Cup",
+  // when its report is resolved in German,
+  // then the competition is named the way every other screen names it: from its key.
+  it("translates a generated competition's name in its match report", async () => {
+    const previousLanguage = i18n.language;
+    await i18n.changeLanguage("de");
+
+    try {
+      const article = makeNewsArticle({
+        headline: "",
+        headline_key: "be.news.matchReport.reportCompetition.title",
+        body: "",
+        body_key: "be.news.matchReport.reportCompetition.body",
+        source: "",
+        source_key: "be.source.sportsGazette",
+        i18n_params: {
+          home: "Alpha FC",
+          away: "Beta FC",
+          homeGoals: "1",
+          awayGoals: "0",
+          competition: "Germany Cup",
+          competitionKey: "tournaments.competitions.nationalCup",
+          competitionCountry: "DE",
+          competitionSeason: "2026",
+          scorers: "",
+          scorersSection: "",
+          scorersData: "[]",
+        },
+      });
+
+      const result = resolveNewsArticle(article);
+
+      expect(result.headline).toBe("Alpha FC 1 - 0 Beta FC: Spielbericht (Deutschland Pokal)");
+      expect(result.body).toContain("Deutschland Pokal: Die Partie endete");
+      expect(result.body).not.toContain("Germany Cup");
+    } finally {
+      await i18n.changeLanguage(previousLanguage);
+    }
+  });
+
   it("localizes league match report scorers from structured scorer data", async () => {
     const previousLanguage = i18n.language;
     await i18n.changeLanguage("pt-BR");

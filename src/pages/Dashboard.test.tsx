@@ -305,14 +305,14 @@ vi.mock("../components/dashboard/DashboardSidebar", () => ({
 
 vi.mock("../components/dashboard/DashboardHeader", () => ({
   default: ({
-    activeTabLabel,
+    title,
     onBack,
     onSelectSearchPlayer,
     onSelectSearchTeam,
     onSave,
   }: {
     onSave: () => void;
-    activeTabLabel: string;
+    title: string;
     onBack: () => void;
     onSelectSearchPlayer: (playerId: string) => void;
     onSelectSearchTeam: (teamId: string) => void;
@@ -323,12 +323,15 @@ vi.mock("../components/dashboard/DashboardHeader", () => ({
         <button type="button" onClick={onSave}>
           {t("common.save")}
         </button>
-        <span>Header {activeTabLabel}</span>
+        <span>Header {title}</span>
         <button type="button" onClick={onBack}>
           header-back
         </button>
         <button type="button" onClick={() => onSelectSearchPlayer("player-1")}>
           search-player
+        </button>
+        <button type="button" onClick={() => onSelectSearchPlayer("retired-9")}>
+          search-retired-player
         </button>
         <button type="button" onClick={() => onSelectSearchTeam("team-2")}>
           search-team
@@ -339,18 +342,9 @@ vi.mock("../components/dashboard/DashboardHeader", () => ({
 }));
 
 vi.mock("../components/playerProfile/PlayerProfile", () => ({
-  default: ({
-    onClose,
-    onSelectTeam,
-  }: {
-    onClose: () => void;
-    onSelectTeam: (teamId: string) => void;
-  }) => (
+  default: ({ onSelectTeam }: { onSelectTeam: (teamId: string) => void }) => (
     <div>
       <span>Player Profile Mock</span>
-      <button type="button" onClick={onClose}>
-        player-close
-      </button>
       <button type="button" onClick={() => onSelectTeam("team-2")}>
         player-select-team
       </button>
@@ -359,18 +353,9 @@ vi.mock("../components/playerProfile/PlayerProfile", () => ({
 }));
 
 vi.mock("../components/teamProfile", () => ({
-  default: ({
-    onClose,
-    onSelectPlayer,
-  }: {
-    onClose: () => void;
-    onSelectPlayer: (playerId: string) => void;
-  }) => (
+  default: ({ onSelectPlayer }: { onSelectPlayer: (playerId: string) => void }) => (
     <div>
       <span>Team Profile Mock</span>
-      <button type="button" onClick={onClose}>
-        team-close
-      </button>
       <button type="button" onClick={() => onSelectPlayer("player-1")}>
         team-select-player
       </button>
@@ -550,6 +535,26 @@ describe("Dashboard", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("disk unavailable");
     expect(destroyMock).not.toHaveBeenCalled();
     expect(markCleanMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given no starting tab
+   * When the dashboard loads
+   * Then it opens on Home, as the app always does.
+   */
+  it("opens on Home by default", async () => {
+    render(<Dashboard />);
+    expect(await screen.findByText("Tab Content Home")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a starting tab (the dev page harness mounts a page this way)
+   * When the dashboard loads
+   * Then it opens on that tab.
+   */
+  it("opens on the tab it is given", async () => {
+    render(<Dashboard initialTab="Squad" />);
+    expect(await screen.findByText("Tab Content Squad")).toBeInTheDocument();
   });
 
   /**
@@ -735,6 +740,7 @@ describe("Dashboard", () => {
           away_team_id: "ar-01",
           competition: "League",
           competitive: true,
+          advancing_team_id: null,
           status: "Completed",
           result: null,
         },
@@ -746,6 +752,7 @@ describe("Dashboard", () => {
           away_team_id: "ar-00",
           competition: "League",
           competitive: true,
+          advancing_team_id: null,
           status: "Scheduled",
           result: null,
         },
@@ -818,6 +825,7 @@ describe("Dashboard", () => {
         fixtures: [
           {
             competitive: true,
+            advancing_team_id: null,
             id: "cup-match",
             competition_id: "cup-1",
             competition: "Cup",
@@ -863,6 +871,44 @@ describe("Dashboard", () => {
 
     fireEvent.click(screen.getByText("nav-managers"));
     expect(screen.getByText("Header Managers")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the dashboard on Home
+   * When a player's profile opens, then his club's, then Back is pressed twice
+   * Then the header names the player, then the club, then Home again
+   */
+  it("names the open profile in the header, not the tab it was opened from", async () => {
+    render(<Dashboard />);
+    await waitFor(() => {
+      expect(screen.getByText("Tab Content Home")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("search-player"));
+    expect(screen.getByText("Header J. Smith")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("player-select-team"));
+    expect(screen.getByText("Header Beta FC")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("header-back"));
+    fireEvent.click(screen.getByText("header-back"));
+    expect(screen.getByText("Header Home")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the dashboard on Home
+   * When the profile of a player who is not in the world (a retired player) opens
+   * Then the header says it is a player's profile, not the tab it was opened from
+   */
+  it("calls a retired player's profile a player's in the header", async () => {
+    render(<Dashboard />);
+    await waitFor(() => {
+      expect(screen.getByText("Tab Content Home")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("search-retired-player"));
+
+    expect(screen.getByText("Header Player")).toBeInTheDocument();
   });
 
   it("loads game state when the active save id fetch fails", async () => {

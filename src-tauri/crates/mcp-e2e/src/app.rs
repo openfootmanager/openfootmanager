@@ -16,6 +16,9 @@ const LOG_LINES_IN_BUNDLE: usize = 50;
 const LAST_EXCHANGES_IN_BUNDLE: usize = 10;
 const SHORTENED_TO: usize = 400;
 const STATE_CAPTURE_TIMEOUT: Duration = Duration::from_secs(5);
+/// How long `--build-revision` gets to answer. It needs no display and takes milliseconds; a
+/// binary that is still silent after this is too old to know the flag.
+const PROBE_WITHIN: Duration = Duration::from_secs(15);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -129,11 +132,23 @@ impl App {
     /// Starts the app on a free port with private `XDG_DATA_HOME` and `XDG_CONFIG_HOME`, and
     /// returns once `initialize` succeeds. Fails loudly; there is no skip.
     pub fn launch(config: &AppConfig) -> Result<Self, LaunchError> {
+        Self::launch_after(config, require_virtual_display)
+    }
+
+    /// [`App::launch`] with the display check passed in, so a test can see that the stale-binary
+    /// refusal comes before it.
+    fn launch_after(
+        config: &AppConfig,
+        display_check: impl FnOnce() -> Result<(), LaunchError>,
+    ) -> Result<Self, LaunchError> {
         let binary = config.binary.clone().unwrap_or_else(app_binary);
         if !binary.is_file() {
             return Err(LaunchError::BinaryMissing(binary));
         }
-        require_virtual_display()?;
+        // Before the display and before the app boots: the binary names its own revision, so a
+        // stale build is refused the same way whatever the display is doing.
+        refuse_stale_binary(&binary, expected_revision(config).as_deref(), PROBE_WITHIN)?;
+        display_check()?;
 
         let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
         for sub in ["data", "config", "cache", "state"] {
@@ -176,12 +191,8 @@ impl App {
         };
         match app.wait_until_ready() {
             Ok(client) => {
-                let verdict = check_revision(
-                    client.server_version(),
-                    expected_revision(config).as_deref(),
-                );
                 app.client = Some(client);
-                verdict.map(|()| app)
+                Ok(app)
             }
             Err(detail) => {
                 let bundle = app.failure_bundle(&detail);
@@ -189,6 +200,11 @@ impl App {
                 Err(LaunchError::NotReady(bundle))
             }
         }
+    }
+
+    /// The binary this app was started from.
+    pub fn binary(&self) -> &Path {
+        &self.binary
     }
 
     pub fn client(&self) -> &Client {
@@ -514,6 +530,77 @@ fn expected_revision(config: &AppConfig) -> Option<String> {
     })
 }
 
+/// The command that asks a binary for its version line: the app's own environment (`app_command`,
+/// so the two cannot drift) with no display at all.
+///
+/// A binary built before the flag existed ignores it and starts up. In the app's environment it
+/// has no display to open a window on (`GDK_BACKEND=x11`, the Wayland variables removed, no
+/// `DISPLAY`), so it fails within a second; it also writes only under `dir`, never into the
+/// developer's own data, settings or cache, where it would otherwise leave a startup-failure mark.
+fn probe_command(binary: &Path, dir: &Path) -> Command {
+    let mut command = app_command(binary, &["--build-revision".to_string()], dir);
+    command.env_remove("DISPLAY");
+    command
+}
+
+/// Asks the binary for its version line (`0.3.0+<revision>`) with `--build-revision`, which the app
+/// answers before it touches a display or any toolkit. `None` when it does not answer in time or
+/// at all, as a binary too old to know the flag does not.
+pub fn probe_build_version(binary: &Path, within: Duration) -> Option<String> {
+    let dir = tempfile::tempdir().ok()?;
+    for sub in ["data", "config", "cache", "state"] {
+        fs::create_dir_all(dir.path().join(sub)).ok()?;
+    }
+    let mut child = probe_command(binary, dir.path())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .ok()?;
+    let started = Instant::now();
+    let finished = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) if started.elapsed() < within => std::thread::sleep(Duration::from_millis(25)),
+            _ => break None,
+        }
+    };
+    let mut output = String::new();
+    let read = match (finished, child.stdout.take()) {
+        (Some(status), Some(mut stdout)) if status.success() => {
+            std::io::Read::read_to_string(&mut stdout, &mut output).is_ok()
+        }
+        _ => false,
+    };
+    // A binary that ignored the flag may have started its helpers in the process group.
+    let _ = child.kill();
+    let _ = child.wait();
+    signal_group(child.id(), "-KILL");
+    if !read {
+        return None;
+    }
+    output
+        .lines()
+        .map(str::trim)
+        .rev()
+        .find(|line| line.starts_with(|c: char| c.is_ascii_digit()))
+        .map(str::to_string)
+}
+
+/// Refuses a binary built from other sources than `expected`, learning its revision from the binary
+/// itself. No expectation, no probe.
+fn refuse_stale_binary(
+    binary: &Path,
+    expected: Option<&str>,
+    within: Duration,
+) -> Result<(), LaunchError> {
+    if expected.is_none() {
+        return Ok(());
+    }
+    let reported = probe_build_version(binary, within);
+    check_revision(reported.as_deref().unwrap_or(""), expected)
+}
+
 /// Compares what the binary reports (`0.3.0+<revision>`) with the revision expected.
 fn check_revision(server_version: &str, expected: Option<&str>) -> Result<(), LaunchError> {
     let Some(expected) = expected else {
@@ -693,7 +780,234 @@ mod tests {
 
     use super::{
         app_command, authority_is_only_for, check_revision, check_virtual_display, display_number,
+        probe_build_version, probe_command, refuse_stale_binary, App, AppConfig, LaunchError,
     };
+    use std::os::unix::fs::PermissionsExt;
+    use std::path::{Path, PathBuf};
+    use std::time::Duration;
+
+    /// A stand-in for the app binary: a script that runs `body` when started.
+    fn fake_binary(dir: &Path, body: &str) -> PathBuf {
+        let path = dir.join("openfootmanager");
+        std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        path
+    }
+
+    fn config_for(binary: PathBuf, expected: &str) -> AppConfig {
+        AppConfig {
+            binary: Some(binary),
+            expected_revision: Some(expected.to_string()),
+            ..AppConfig::default()
+        }
+    }
+
+    /// Given a binary built from other sources, and a display check that must not run
+    /// When the app is launched expecting a revision
+    /// Then the stale refusal comes back without the display being touched: it needs neither a
+    ///      display nor a booted app, so a display that resets the connection cannot hide it.
+    #[test]
+    fn a_stale_binary_is_refused_before_the_display_is_touched() {
+        let dir = tempfile::tempdir().unwrap();
+        let binary = fake_binary(dir.path(), "echo 0.3.0+oldoldoldold");
+
+        let result = App::launch_after(&config_for(binary, "newnewnewnew"), || {
+            panic!("the display was touched before the stale check")
+        });
+
+        match result {
+            Err(LaunchError::StaleBinary {
+                binary_revision,
+                expected_revision,
+            }) => {
+                assert_eq!(binary_revision, "oldoldoldold");
+                assert_eq!(expected_revision, "newnewnewnew");
+            }
+            other => panic!("expected the stale refusal, got {:?}", other.err()),
+        }
+    }
+
+    /// Given a binary from the right sources
+    /// When the app is launched
+    /// Then the display is checked next, so the stale check did not skip it.
+    #[test]
+    fn a_current_binary_goes_on_to_the_display_check() {
+        let dir = tempfile::tempdir().unwrap();
+        let binary = fake_binary(dir.path(), "echo 0.3.0+samesamesame");
+
+        let result = App::launch_after(&config_for(binary, "samesamesame"), || {
+            Err(LaunchError::NoDisplay)
+        });
+
+        assert!(matches!(result, Err(LaunchError::NoDisplay)));
+    }
+
+    /// Given a binary too old to know `--build-revision` (it prints nothing and exits), and one
+    ///       that never answers
+    /// When the stale check runs
+    /// Then both are stale, reported as unknown: a build that cannot say what it is was not built
+    ///      from the sources under test.
+    #[test]
+    fn a_binary_that_cannot_name_its_revision_is_stale() {
+        let dir = tempfile::tempdir().unwrap();
+        let silent = fake_binary(dir.path(), "exit 1");
+        let hanging_dir = tempfile::tempdir().unwrap();
+        let hanging = fake_binary(hanging_dir.path(), "sleep 30");
+
+        for binary in [silent, hanging] {
+            let started = std::time::Instant::now();
+            let refusal = refuse_stale_binary(&binary, Some("abc123"), Duration::from_millis(400))
+                .unwrap_err();
+            assert!(
+                started.elapsed() < Duration::from_secs(10),
+                "the probe must give up at its bound, not wait for the binary"
+            );
+            match refusal {
+                LaunchError::StaleBinary {
+                    binary_revision, ..
+                } => assert_eq!(binary_revision, "unknown"),
+                other => panic!("expected a stale refusal, got {other}"),
+            }
+        }
+    }
+
+    /// Given a probe of a binary
+    /// When its command is built
+    /// Then it runs in the app's own environment: X11 forced, the Wayland variables removed, no
+    ///      DISPLAY, and private XDG directories that are not the developer's.
+    #[test]
+    fn the_probe_runs_in_the_apps_environment_with_private_directories() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let command = probe_command(Path::new("/bin/true"), dir.path());
+        let environment: std::collections::HashMap<_, _> = command.get_envs().collect();
+
+        assert_eq!(
+            environment.get(OsStr::new("GDK_BACKEND")),
+            Some(&Some(OsStr::new("x11")))
+        );
+        for removed in ["DISPLAY", "WAYLAND_DISPLAY", "WAYLAND_SOCKET"] {
+            assert_eq!(
+                environment.get(OsStr::new(removed)),
+                Some(&None),
+                "{removed}"
+            );
+        }
+        for (variable, sub) in [
+            ("XDG_DATA_HOME", "data"),
+            ("XDG_CONFIG_HOME", "config"),
+            ("XDG_CACHE_HOME", "cache"),
+            ("XDG_STATE_HOME", "state"),
+        ] {
+            assert_eq!(
+                environment.get(OsStr::new(variable)),
+                Some(&Some(dir.path().join(sub).as_os_str())),
+                "{variable}"
+            );
+        }
+        assert_eq!(command.get_args().collect::<Vec<_>>(), ["--build-revision"]);
+    }
+
+    /// Given a stand-in binary that records the environment it was started in
+    /// When it is probed
+    /// Then it saw the app's environment and a private cache, not the developer's own, and the
+    ///      scratch directory is gone afterwards.
+    #[test]
+    fn a_probed_binary_sees_the_apps_environment_and_leaves_nothing_behind() {
+        let dir = tempfile::tempdir().unwrap();
+        let seen = dir.path().join("seen.env");
+        let binary = fake_binary(
+            dir.path(),
+            &format!("env > {}; echo 0.3.0+abc123abc123", seen.display()),
+        );
+
+        let version = probe_build_version(&binary, Duration::from_secs(5));
+
+        assert_eq!(version.as_deref(), Some("0.3.0+abc123abc123"));
+        let environment = std::fs::read_to_string(&seen).unwrap();
+        assert!(
+            environment.lines().any(|l| l == "GDK_BACKEND=x11"),
+            "{environment}"
+        );
+        assert!(
+            !environment.lines().any(|l| l.starts_with("DISPLAY=")),
+            "{environment}"
+        );
+        let cache = environment
+            .lines()
+            .find_map(|l| l.strip_prefix("XDG_CACHE_HOME="))
+            .expect("a private cache directory");
+        assert!(
+            Path::new(cache).starts_with(std::env::temp_dir()),
+            "{cache} is not a private scratch directory"
+        );
+        assert!(
+            !Path::new(cache).exists(),
+            "the probe's scratch directory was left behind"
+        );
+    }
+
+    /// Whether a process is still running (a zombie waiting to be reaped is not).
+    fn process_is_running(pid: u32) -> bool {
+        std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .ok()
+            .and_then(|stat| {
+                stat.rsplit_once(')')
+                    .map(|(_, rest)| rest.trim_start().to_string())
+            })
+            .is_some_and(|rest| !rest.starts_with('Z'))
+    }
+
+    /// Given a binary that starts a helper process of its own before it prints its version, as the
+    ///       app's WebKit helpers do
+    /// When it is probed
+    /// Then the helper is gone afterwards: the probe kills the whole process group, not only the
+    ///      binary, so nothing it started outlives the probe.
+    #[test]
+    fn a_probe_leaves_no_helper_process_behind() {
+        let dir = tempfile::tempdir().unwrap();
+        let pid_file = dir.path().join("helper.pid");
+        let binary = fake_binary(
+            dir.path(),
+            &format!(
+                "sleep 30 >/dev/null 2>&1 &\necho $! > {}\necho 0.3.0+abc123abc123",
+                pid_file.display()
+            ),
+        );
+
+        let version = probe_build_version(&binary, Duration::from_secs(5));
+
+        assert_eq!(version.as_deref(), Some("0.3.0+abc123abc123"));
+        let helper: u32 = std::fs::read_to_string(&pid_file)
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while process_is_running(helper) && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(
+            !process_is_running(helper),
+            "the helper process {helper} outlived the probe"
+        );
+    }
+
+    /// Given a binary that prints its version line
+    /// When it is probed
+    /// Then the line is read back, whatever else is on the output before it; no expectation
+    ///      skips the probe altogether.
+    #[test]
+    fn the_probe_reads_the_version_line_and_is_skipped_without_an_expectation() {
+        let dir = tempfile::tempdir().unwrap();
+        let binary = fake_binary(dir.path(), "echo warming up; echo 0.3.0+abc123abc123");
+
+        assert_eq!(
+            probe_build_version(&binary, Duration::from_secs(5)).as_deref(),
+            Some("0.3.0+abc123abc123")
+        );
+        assert!(refuse_stale_binary(&binary, None, Duration::from_secs(5)).is_ok());
+    }
 
     /// Given XWayland, an unidentified display, an xvfb-run display, and one vouched for
     /// When the fixture decides whether the display is virtual
