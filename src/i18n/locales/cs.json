@@ -1590,6 +1590,10 @@
       "firstDivision": "{{country}} — 1. liga",
       "secondDivision": "{{country}} — 2. liga",
       "tierDivision": "{{country}} — {{tier}}. liga",
+      "splitSeason": {
+        "opening": "Úvodní část: {{competition}}",
+        "closing": "Závěrečná část: {{competition}}"
+      },
       "nationalCup": "{{country}} — pohár",
       "continentalChampionsCup": "Kontinentální Liga mistrů",
       "premierDivision": "Premier Division"

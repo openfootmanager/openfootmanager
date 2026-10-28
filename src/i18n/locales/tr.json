@@ -1590,6 +1590,10 @@
       "firstDivision": "{{country}} 1. Ligi",
       "secondDivision": "{{country}} 2. Ligi",
       "tierDivision": "{{country}} {{tier}}. Ligi",
+      "splitSeason": {
+        "opening": "Açılış: {{competition}}",
+        "closing": "Kapanış: {{competition}}"
+      },
       "nationalCup": "{{country}} Kupası",
       "continentalChampionsCup": "Kıtasal Şampiyonlar Kupası",
       "premierDivision": "Premier Lig"

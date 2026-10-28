@@ -32,6 +32,15 @@ vi.mock("react-i18next", () => ({
       if (key === "schedule.calendar.prevMonth") return "Previous month";
       if (key === "schedule.calendar.nextMonth") return "Next month";
       if (key === "schedule.season") return `Season ${(params as Record<string, number>)?.number}`;
+      if (key === "nations.arg") return "Argentina";
+      if (key === "tournaments.competitions.tierDivision") {
+        const values = params as Record<string, string | number>;
+        return `${values.country} Division ${values.tier}`;
+      }
+      if (key === "tournaments.competitions.splitSeason.opening")
+        return `Opening: ${(params as Record<string, string>)?.competition}`;
+      if (key === "tournaments.competitions.splitSeason.closing")
+        return `Closing: ${(params as Record<string, string>)?.competition}`;
       if (key === "tournaments.competitions.worldCup") return "Copa do Mundo 2026";
       if (key === "common.matchday") return `Matchday ${(params as Record<string, number>)?.n}`;
       if (key === "season.friendly") return "Friendly";
@@ -544,6 +553,54 @@ describe("ScheduleTab", () => {
         query: { competition_id: "bra-1" },
       });
     });
+  });
+
+  /** Given same-tier split-season competitions, when the selector opens, then each option names its phase. */
+  it("distinguishes split-season phases in competition options", async () => {
+    const state = makeGameState(true);
+    const baseCompetition = state.competitions?.[0];
+    if (!baseCompetition) {
+      throw new Error("Expected the test game state to contain a competition");
+    }
+    const calendar = (phase: "opening" | "closing") => ({
+      definition_id: `arg-tier-1-${phase}`,
+      edition_basis: { kind: "calendarYear" as const },
+      league_legs: null,
+      matchday_gap_days: null,
+      season: { division: { familyId: "arg-tier-1", tier: 1, phase } },
+    });
+    state.competitions = [
+      {
+        ...baseCompetition,
+        id: "arg-opening",
+        name: "Argentina Division 1",
+        name_key: "tournaments.competitions.tierDivision",
+        country_id: "ARG",
+        calendar: calendar("opening"),
+      },
+      {
+        ...baseCompetition,
+        id: "arg-closing",
+        name: "Argentina Division 1",
+        name_key: "tournaments.competitions.tierDivision",
+        country_id: "ARG",
+        calendar: calendar("closing"),
+      },
+    ];
+    state.active_competition_ids = ["arg-opening", "arg-closing"];
+
+    render(<ScheduleTab gameState={state} onSelectTeam={vi.fn()} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("combobox"));
+    });
+
+    expect(
+      screen.getByRole("option", { name: "Opening: Argentina Division 1" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Closing: Argentina Division 1" }),
+    ).toBeInTheDocument();
   });
 
   it("hides the international toggle when there are no national-team fixtures", () => {

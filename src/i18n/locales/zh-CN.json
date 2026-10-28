@@ -1590,6 +1590,10 @@
       "firstDivision": "{{country}}甲级联赛",
       "secondDivision": "{{country}}乙级联赛",
       "tierDivision": "{{country}}第{{tier}}级联赛",
+      "splitSeason": {
+        "opening": "开幕阶段：{{competition}}",
+        "closing": "收官阶段：{{competition}}"
+      },
       "nationalCup": "{{country}}杯",
       "continentalChampionsCup": "洲际冠军杯",
       "premierDivision": "超级联赛"

@@ -1590,6 +1590,10 @@
       "firstDivision": "Divisi Utama {{country}}",
       "secondDivision": "Divisi Kedua {{country}}",
       "tierDivision": "Divisi {{tier}} {{country}}",
+      "splitSeason": {
+        "opening": "Putaran pembuka: {{competition}}",
+        "closing": "Putaran penutup: {{competition}}"
+      },
       "nationalCup": "Piala {{country}}",
       "continentalChampionsCup": "Piala Champions Kontinental",
       "premierDivision": "Divisi Premier"

@@ -1609,6 +1609,10 @@
       "firstDivision": "Prima Divisione di {{country}}",
       "secondDivision": "Seconda Divisione di {{country}}",
       "tierDivision": "{{tier}}ª Divisione di {{country}}",
+      "splitSeason": {
+        "opening": "Fase di apertura: {{competition}}",
+        "closing": "Fase di chiusura: {{competition}}"
+      },
       "nationalCup": "Coppa di {{country}}",
       "continentalChampionsCup": "Coppa dei Campioni Continentale",
       "premierDivision": "Prima Divisione"

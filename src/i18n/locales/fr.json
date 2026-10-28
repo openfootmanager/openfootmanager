@@ -1590,6 +1590,10 @@
       "firstDivision": "Première Division de {{country}}",
       "secondDivision": "Deuxième Division de {{country}}",
       "tierDivision": "{{tier}}e Division de {{country}}",
+      "splitSeason": {
+        "opening": "Tournoi d’ouverture : {{competition}}",
+        "closing": "Tournoi de clôture : {{competition}}"
+      },
       "nationalCup": "Coupe de {{country}}",
       "continentalChampionsCup": "Coupe Continentale des Champions",
       "premierDivision": "Première Division"
