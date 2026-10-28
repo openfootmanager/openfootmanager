@@ -3247,6 +3247,30 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// Archives written by an earlier build of the game, so a change of zip crate is tested
+    /// against bytes it did not write. Never regenerate them with the current writer.
+    fn testdata(name: &str) -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/generator/testdata")
+            .join(name)
+    }
+
+    /// Given a package that an earlier build exported with zip 2.4.2
+    /// When the current installer extracts it
+    /// Then every file comes back with the same path and the same bytes.
+    #[test]
+    fn a_package_exported_by_an_earlier_build_still_extracts_to_its_files() {
+        let source = packable_tree();
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&testdata("exported-by-zip-2.ofm"), &dest).unwrap();
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(files_under(&dest), files_under(&source));
+        std::fs::remove_dir_all(&source).ok();
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
     #[test]
     fn player_def_deserializes_footedness_from_frontend_key() {
         // The package-editor frontend sends the chosen foot under the camelCase
