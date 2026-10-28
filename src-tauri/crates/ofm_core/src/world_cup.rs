@@ -3427,6 +3427,37 @@ mod tests {
         assert!(groups[1..].iter().all(|group| group.len() == 2));
     }
 
+    /// Given three groups, the third already holding an African side, and a pot of a European, an
+    ///       Asian and an African side, in that order
+    /// When the pot is placed
+    /// Then the European goes first, as the full search would put him: Europe to the first group,
+    ///      Africa to the second, Asia to the third. Placing the European first leaves the African
+    ///      only the second group and the Asian the third, so a feasibility check that cannot move
+    ///      an already-matched team (or forgets which it has tried) wrongly prunes that branch,
+    ///      and the draw stops being the one a seed always drew
+    #[test]
+    fn the_feasibility_check_keeps_every_branch_the_full_search_would_take() {
+        let europe = codes("EU", 1);
+        let asia = codes("AS", 1);
+        let africa = codes("AF", 2);
+        let regions = regions_of(&[(&europe, "europe"), (&asia, "asia"), (&africa, "africa")]);
+        let pot = vec![europe[0].clone(), asia[0].clone(), africa[0].clone()];
+        let mut groups = vec![Vec::new(), Vec::new(), vec![africa[1].clone()]];
+        let mut used = vec![false; pot.len()];
+
+        let placed = place_pot(&pot, &mut used, 0, &mut groups, &regions);
+
+        assert!(placed);
+        assert_eq!(
+            groups,
+            vec![
+                vec![europe[0].clone()],
+                vec![africa[0].clone()],
+                vec![africa[1].clone(), asia[0].clone()],
+            ]
+        );
+    }
+
     /// Given three groups, the second and third already holding an Asian side, and a pot of two
     ///       African sides and one Asian one, in that order
     /// When the pot is placed
