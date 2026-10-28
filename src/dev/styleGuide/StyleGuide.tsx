@@ -377,12 +377,14 @@ function PositionBadgeSection() {
           natural="Striker"
           alternates={["RightWinger", "LeftWinger"]}
           deployed="RightWinger"
+          familiarity="adapted"
           describe={describe}
         />
         <PositionBadges
           natural="Striker"
           alternates={["RightWinger"]}
           deployed="CenterBack"
+          familiarity="out"
           describe={describe}
         />
       </div>

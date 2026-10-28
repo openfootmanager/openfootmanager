@@ -132,8 +132,9 @@ pub enum Position {
 }
 
 impl Position {
-    /// Every position, so a table over positions cannot miss one: the exhaustive match in the
-    /// tests fails to compile when a variant is added and not listed here.
+    /// Every position, so a table over positions cannot miss one. A new variant breaks the
+    /// exhaustive match in `position_all_lists_every_variant_once`; add it to that match, to its
+    /// `VARIANTS` constant and to this list.
     pub const ALL: [Position; 17] = [
         Position::Goalkeeper,
         Position::Defender,
