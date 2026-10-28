@@ -89,6 +89,12 @@ fn render_module(game: &Game) -> Result<String, String> {
     export(&mut module, "squad", "PlayerData[]", &squad)?;
     export(
         &mut module,
+        "squadFitness",
+        "SquadFitness",
+        &ofm_core::training::squad_fitness(game, &club),
+    )?;
+    export(
+        &mut module,
         "clubLeagueStanding",
         "ClubLeagueStanding | null",
         &ofm_core::slices::teams::query_club_league_standing(game, &club),
@@ -137,6 +143,7 @@ import type { CareerStage } from \"../../services/careerService\";
 import type { ContractWarningStage } from \"../../services/contractService\";
 import type { BackendFinanceSnapshotResponseData } from \"../../services/financeService\";
 import type { JobOpportunity } from \"../../services/jobService\";
+import type { SquadFitness } from \"../../services/squadService\";
 import type { GameStateData, PlayerData } from \"../../store/types\";
 ";
 
