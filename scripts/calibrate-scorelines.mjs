@@ -20,9 +20,9 @@
  * # The band rule, fixed before the first number was computed
  *
  * Each league-season contributes ONE value per metric. The band is the
- * **10th to 90th percentile across those league-seasons**, kept to four
- * decimals. The report rounds only when it prints; widening the band to the
- * printed precision would make it looser than the data says.
+ * **10th to 90th percentile across those league-seasons**, stored at full
+ * precision. The report rounds only when it prints: rounding the stored band
+ * would move a value at its edge from one side to the other.
  *
  * So a band says: *a value outside this is outside the range where eight in ten
  * real top-flight league-seasons fell.* It is deliberately not a confidence
@@ -150,8 +150,9 @@ function main() {
       let text;
       try {
         text = atPin(`${season}/${league}.json`);
-      } catch {
-        console.error(`missing ${season}/${league}.json at the pinned commit`);
+      } catch (error) {
+        const reason = error.stderr?.toString().trim() || error.message;
+        console.error(`cannot read ${season}/${league}.json at ${PINNED_COMMIT}: ${reason}`);
         process.exit(1);
       }
       const matches = (JSON.parse(text).matches ?? []).filter(
@@ -175,8 +176,8 @@ function main() {
   const metrics = METRICS.map((metric) => {
     const values = rows.map((r) => r.values[metric.key]).sort((x, y) => x - y);
     const round = (v) => Number(v.toFixed(4));
-    const low = round(percentile(values, 10));
-    const high = round(percentile(values, 90));
+    const low = percentile(values, 10);
+    const high = percentile(values, 90);
     return {
       key: metric.key,
       label: metric.label,
@@ -215,8 +216,8 @@ function main() {
       matches: totalMatches,
     },
     band_rule:
-      "10th-90th percentile of the per-league-season values, kept to four " +
-      "decimals. Fixed before the first number was computed.",
+      "10th-90th percentile of the per-league-season values, stored at full " +
+      "precision. Fixed before the first number was computed.",
     metrics,
   };
 

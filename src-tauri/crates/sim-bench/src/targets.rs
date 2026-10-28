@@ -530,4 +530,24 @@ mod tests {
         assert!(verdict(&target, &on_the_edge).inside);
         assert!(!verdict(&target, &just_outside).inside);
     }
+
+    /// Given the measured goals band, whose lower edge is the real 10th percentile, 2.55473…,
+    /// When a run averages 2.5547 goals a game, just below that edge,
+    /// Then it is outside the band: the band keeps the percentile's full precision, so rounding
+    /// it for storage cannot move a value from outside to inside.
+    #[test]
+    fn a_value_just_below_a_measured_edge_is_outside_it() {
+        let table = table();
+        let goals = table
+            .iter()
+            .find(|target| target.label == "Goals/game")
+            .unwrap();
+        let just_below = BenchStats {
+            games: 10_000,
+            total_goals: 25_547,
+            ..BenchStats::default()
+        };
+
+        assert!(!verdict(goals, &just_below).inside);
+    }
 }

@@ -31,14 +31,14 @@
     "league_seasons": 40,
     "matches": 14534
   },
-  "band_rule": "10th-90th percentile of the per-league-season values, kept to four decimals. Fixed before the first number was computed.",
+  "band_rule": "10th-90th percentile of the per-league-season values, stored at full precision. Fixed before the first number was computed.",
   "metrics": [
     {
       "key": "goals_per_game",
       "label": "Goals/game",
       "unit": "per_game",
-      "low": 2.5547,
-      "high": 3.1232,
+      "low": 2.554736842105263,
+      "high": 3.123202614379085,
       "observed": {
         "min": 2.4921,
         "p10": 2.5547,
@@ -52,8 +52,8 @@
       "key": "clean_sheets_home_pct",
       "label": "Clean sheets (home)",
       "unit": "percent",
-      "low": 27.2133,
-      "high": 35.838,
+      "low": 27.21327829377365,
+      "high": 35.837977296181634,
       "observed": {
         "min": 23.4211,
         "p10": 27.2133,
@@ -67,7 +67,7 @@
       "key": "clean_sheets_away_pct",
       "label": "Clean sheets (away)",
       "unit": "percent",
-      "low": 18.268,
+      "low": 18.26797385620915,
       "high": 25,
       "observed": {
         "min": 16.6667,
@@ -82,8 +82,8 @@
       "key": "both_teams_scored_pct",
       "label": "Both teams scored",
       "unit": "percent",
-      "low": 48.3158,
-      "high": 59.183,
+      "low": 48.31578947368421,
+      "high": 59.18300653594772,
       "observed": {
         "min": 46.3158,
         "p10": 48.3158,
@@ -97,8 +97,8 @@
       "key": "home_win_pct",
       "label": "Home win %",
       "unit": "percent",
-      "low": 41.7895,
-      "high": 48.4211,
+      "low": 41.78947368421053,
+      "high": 48.421052631578945,
       "observed": {
         "min": 38.9474,
         "p10": 41.7895,
