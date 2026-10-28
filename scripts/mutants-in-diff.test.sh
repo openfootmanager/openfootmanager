@@ -66,8 +66,9 @@ expect() {
     local repo output got
     repo="$(new_repo)"
     : > "$scratch/cargo.log"
-    output="$(cd "$repo" && env FAKE_LOG="$scratch/cargo.log" CARGO="$fake_cargo" "$@" \
-        "$script" base 2>&1)"
+    [ -n "${PREPARE:-}" ] && "$PREPARE" "$repo"
+    output="$(cd "$repo" && env FAKE_LOG="$scratch/cargo.log" CARGO="$fake_cargo" \
+        MUTANTS_IN_DIFF_EXCLUSIONS="$no_exclusions" "$@" "$script" base 2>&1)"
     got=$?
     if [ "$got" -eq "$want" ] && [[ "$output" == *"$needle"* ]]; then
         passed=$((passed + 1))
@@ -80,6 +81,11 @@ expect() {
     fi
     LAST_REPO="$repo"
 }
+
+# Cases that are not about the glue list get an empty one: the real list names this repository's
+# files, which a throwaway repository does not have.
+no_exclusions="$scratch/no-exclusions"
+: > "$no_exclusions"
 
 ran_list() { grep -q -- "--list" "$scratch/cargo.log"; }
 ran_mutants() { grep -qv -- "--list" "$scratch/cargo.log"; }
@@ -123,6 +129,90 @@ if ran_mutants && git -C "$LAST_REPO" diff --quiet; then
 else
     failed=$((failed + 1)); echo "  FAIL  the mutated file was left in the tree"
 fi
+
+echo "mutants-in-diff.test: glue that no unit test can observe"
+# A glue entry: a function in a file, which every cargo-mutants call must exclude.
+glue="$scratch/glue"
+printf '%s\n' '# comment lines and blank lines are ignored' '' \
+    'crates/core/src/lib.rs answer  the fake crate entry point' > "$glue"
+expect 0 "a glue function is excluded from the listing and from the run" "caught" -- \
+    FAKE_LIST=2 FAKE_TOTAL=2 FAKE_STATUS=0 MUTANTS_IN_DIFF_EXCLUSIONS="$glue"
+if [ "$(grep -c -F -- '--exclude-re ^crates/core/src/lib\.rs:[0-9]+:[0-9]+: (replace answer( ->| with )|.* in answer$)' "$scratch/cargo.log")" -eq 2 ]; then
+    passed=$((passed + 1)); echo "  ok    and both the listing and the run carry its --exclude-re"
+else
+    failed=$((failed + 1)); echo "  FAIL  the glue pattern is missing from a call: $(cat "$scratch/cargo.log")"
+fi
+
+stale="$scratch/stale-glue"
+echo 'crates/core/src/lib.rs renamed_away  a function that was renamed' > "$stale"
+expect 1 "a glue entry that no longer names a function is refused before anything runs" \
+    "no longer" -- FAKE_LIST=2 MUTANTS_IN_DIFF_EXCLUSIONS="$stale"
+if [ ! -s "$scratch/cargo.log" ]; then
+    passed=$((passed + 1)); echo "  ok    and cargo-mutants is never called"
+else
+    failed=$((failed + 1)); echo "  FAIL  cargo-mutants ran despite a stale entry: $(cat "$scratch/cargo.log")"
+fi
+
+# A Tauri command that only forwards to its tested `_internal`, and one that does not.
+add_commands() {
+    mkdir -p "$1/src-tauri/src/commands"
+    cat > "$1/src-tauri/src/commands/club.rs" <<'RUST'
+#[tauri::command]
+pub async fn rename_club(state: State<'_, Arc<StateManager>>, name: String) -> Result<(), String> {
+    rename_club_internal(&state, &name)
+}
+
+pub fn rename_club_internal(state: &StateManager, name: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
+pub fn club_count(state: State<'_, Arc<StateManager>>) -> usize {
+    3
+}
+RUST
+    git -C "$1" add -A && git -C "$1" commit -qm commands
+}
+PREPARE=add_commands expect 0 "a command that forwards to its _internal is excluded" "caught" -- \
+    FAKE_LIST=2 FAKE_TOTAL=2 FAKE_STATUS=0
+if grep -q -F -- 'src/commands/club\.rs:[0-9]+:[0-9]+: (replace rename_club( ->| with )|.* in rename_club$)' "$scratch/cargo.log" &&
+    ! grep -q -- 'club_count' "$scratch/cargo.log" &&
+    ! grep -q -- 'in rename_club_internal' "$scratch/cargo.log"; then
+    passed=$((passed + 1)); echo "  ok    and a command with logic of its own, and the _internal itself, are not"
+else
+    failed=$((failed + 1)); echo "  FAIL  wrong command exclusions: $(cat "$scratch/cargo.log")"
+fi
+
+real_check="$(cd "$here/.." && "$script" --check-exclusions 2>&1)"
+if [ $? -eq 0 ]; then
+    passed=$((passed + 1)); echo "  ok    every entry of the real glue list still names a function in this repository"
+else
+    failed=$((failed + 1)); echo "  FAIL  the real glue list is stale: $real_check"
+fi
+
+echo "mutants-in-diff.test: a diff too big to run here"
+expect 0 "over 60 mutants is not run locally, and says so" "not run locally" -- \
+    FAKE_LIST=61 FAKE_TOTAL=61
+if ! ran_mutants; then
+    passed=$((passed + 1)); echo "  ok    and no mutation run starts"
+else
+    failed=$((failed + 1)); echo "  FAIL  a mutation run started over the cap"
+fi
+expect 0 "60 mutants still run" "60 caught" -- FAKE_LIST=60 FAKE_TOTAL=60 FAKE_STATUS=0
+
+echo "mutants-in-diff.test: re-checking only the survivors"
+survivors="$scratch/survivors"
+echo 'crates/core/src/lib.rs:1:1: replace answer -> u32 with 0' > "$survivors"
+expect 0 "a re-check runs only the named survivors, wherever their line has moved" "caught" -- \
+    FAKE_LIST=1 FAKE_TOTAL=1 FAKE_STATUS=0 MUTANTS_IN_DIFF_ONLY="$survivors"
+if grep -q -F -- '--re ^crates/core/src/lib\.rs:[0-9]+:[0-9]+: replace answer \-> u32 with 0$' "$scratch/cargo.log"; then
+    passed=$((passed + 1)); echo "  ok    and each survivor is one anchored --re"
+else
+    failed=$((failed + 1)); echo "  FAIL  no anchored --re for the survivor: $(cat "$scratch/cargo.log")"
+fi
+: > "$scratch/no-survivors"
+expect 1 "a re-check with no survivors named is refused" "names no mutant" -- \
+    FAKE_LIST=1 MUTANTS_IN_DIFF_ONLY="$scratch/no-survivors"
 
 echo ""
 if [ "$failed" -ne 0 ]; then
