@@ -863,14 +863,25 @@ mod tests {
         assert_eq!(date(&app), before);
     }
 
-    /// Given a quiet game, and one where two starters are injured so a blocker stands
+    /// Given a game with nobody injured, and one where two starters are injured
     /// When the user skips to their next match day, and when they continue to the next event
-    /// Then a blocker that stands after a day stops the skip with it listed (days_skipped 1), and
-    ///      a day without one never reports "blocked": a quiet game is not stopped, a blocked one
-    ///      is not skipped past.
+    /// Then the injured game stops after a day with the injured-XI blocker listed (days_skipped 1),
+    ///      and the healthy game is stopped, if at all, only by the informational unread-urgent-mail
+    ///      blocker a day's post brings: no injury, squad or contract blocker appears from nowhere.
     #[test]
     fn skipping_and_continuing_stop_on_a_blocker_and_only_then() {
         use ofm_core::state::Career;
+        let blocker_ids = |outcome: &Value| -> Vec<String> {
+            outcome["blockers"]
+                .as_array()
+                .map(|blockers| {
+                    blockers
+                        .iter()
+                        .map(|blocker| blocker["id"].as_str().unwrap().to_string())
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
         let blocked_game = || {
             let mut game = make_game(11);
             for player_id in ["p2", "p5"] {
@@ -895,15 +906,18 @@ mod tests {
             let blocked = run(blocked_game(), advance);
             assert_eq!(blocked["action"], "blocked", "{blocked}");
             assert_eq!(blocked["days_skipped"], 1, "{blocked}");
-            assert!(!blocked["blockers"].as_array().unwrap().is_empty());
+            assert!(
+                blocker_ids(&blocked).contains(&"injured_xi".to_string()),
+                "{blocked}"
+            );
 
-            let quiet = run(make_game(11), advance);
-            if quiet["action"] == "blocked" {
-                assert!(
-                    !quiet["blockers"].as_array().unwrap().is_empty(),
-                    "a day without a blocker was reported as blocked: {quiet}"
-                );
-            }
+            let healthy = run(make_game(11), advance);
+            assert!(
+                blocker_ids(&healthy)
+                    .iter()
+                    .all(|id| id == "urgent_messages"),
+                "a healthy squad was stopped for something other than mail: {healthy}"
+            );
         }
     }
 
