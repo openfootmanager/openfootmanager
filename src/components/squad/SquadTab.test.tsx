@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type {
@@ -205,6 +205,29 @@ describe("SquadTab", () => {
   }
 
   /**
+   * Given a player on 30 whom the backend's squad projection rates fresh
+   * When Squad lists him
+   * Then his condition bar is painted in the backend's tone, not in a colour picked from 30.
+   */
+  it("paints each condition bar in the backend's tone", async () => {
+    const state = makeGameState();
+    state.players = [
+      makePlayer("p1", "Forward", {
+        full_name: "Rated Fresh",
+        match_name: "Rated Fresh",
+        condition: 30,
+        condition_status: { band: "Fresh", label_key: "be.condition.fresh", tone: "good" },
+      }),
+    ];
+    renderSquadTab(state);
+
+    const row = await screen.findByRole("row", { name: /Rated Fresh/ });
+    const bar = within(row).getByRole("progressbar", { name: "common.condition" });
+    expect(bar.firstElementChild).toHaveClass("bg-tone-good-solid");
+    expect(bar.firstElementChild).not.toHaveClass("bg-danger-solid");
+  });
+
+  /**
    * Given two senior players rated 76 and 77, either side of the A-tier cut-off
    * When the roster renders
    * Then each rating takes the colour of its backend tier (B and A).
@@ -256,7 +279,9 @@ describe("SquadTab", () => {
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
     expect(screen.queryByText("squad.planStatus")).not.toBeInTheDocument();
     // Familiarity rides on the Position column's badges: no column of its own.
-    expect(screen.queryByText("squad.formationFit")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "squad.formationFit" }),
+    ).not.toBeInTheDocument();
     // The game does not tell the manager how well a player suits the play style: no column, no chip.
     expect(screen.queryByText(/styleFit/)).not.toBeInTheDocument();
     expect(screen.getByText("squad.traits")).toBeInTheDocument();

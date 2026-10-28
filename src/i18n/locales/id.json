@@ -412,6 +412,8 @@
     "currentWage": "Gaji Saat Ini",
     "loading": "Memuat...",
     "loadingGameState": "Memuat status permainan...",
+    "overallRating": "Keseluruhan {{value}}",
+    "overallRatingTier": "Keseluruhan {{value}}, tingkat {{tier}}",
     "noResults": "Tidak ada hasil ditemukan.",
     "place": {
       "1": "ke-1",
@@ -2629,6 +2631,12 @@
     "compare": "Bandingkan"
   },
   "be": {
+    "condition": {
+      "fresh": "Bugar",
+      "tiring": "Mulai lelah",
+      "exhausted": "Kelelahan",
+      "critical": "Kritis"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}.",

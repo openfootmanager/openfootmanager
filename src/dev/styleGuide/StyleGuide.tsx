@@ -20,8 +20,10 @@ import {
   PositionBadge,
   PositionBadges,
   ProgressBar,
+  RatingChip,
   SegmentedControl,
   Select,
+  TONE_TEXT,
   TabPanel,
   Tabs,
   TeamLocation,
@@ -272,12 +274,49 @@ function DisplaySection() {
         <InjuryBadge injury={{ name: "Hamstring strain", days_remaining: 4 }} />
         <InjuryBadge injury={{ name: "Metatarsal fracture", days_remaining: 42 }} />
       </Row>
+      <Row>
+        {/* The backend's tiers (S, A, B and the rest), at the row's size and a card's. */}
+        {(
+          [
+            [88, "S"],
+            [79, "A"],
+            [71, "B"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={tier} value={value} tier={tier} />
+        ))}
+        {(
+          [
+            [88, "S"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={`md-${tier}`} value={value} tier={tier} size="md" />
+        ))}
+      </Row>
       <div className="grid max-w-md gap-2">
         {(["auto", "primary", "accent", "success", "danger", "muted"] as const).map(
           (variant, i) => (
             <ProgressBar key={variant} value={95 - i * 17} variant={variant} showLabel />
           ),
         )}
+      </div>
+      {/* The good-to-bad scale the backend rates values on: a tone fills the bar, its word says it. */}
+      <div className="grid max-w-md gap-2">
+        {(
+          [
+            ["good", "Fresh", 90],
+            ["fair", "Tiring", 60],
+            ["low", "Exhausted", 32],
+            ["bad", "Critical", 15],
+          ] as const
+        ).map(([tone, word, value]) => (
+          <div key={tone} className="flex items-center gap-3">
+            <span className={`w-20 text-caption font-semibold ${TONE_TEXT[tone]}`}>{word}</span>
+            <ProgressBar value={value} tone={tone} showLabel className="flex-1" />
+          </div>
+        ))}
       </div>
       <Row>
         <CountryFlag code="BE" />

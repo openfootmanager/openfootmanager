@@ -412,6 +412,8 @@
     "currentWage": "Salario actual",
     "loading": "Cargando...",
     "loadingGameState": "Cargando estado del juego...",
+    "overallRating": "Nivel general {{value}}",
+    "overallRatingTier": "Nivel general {{value}}, categoría {{tier}}",
     "noResults": "No se encontraron resultados.",
     "place": {
       "1": "1º",
@@ -2629,6 +2631,12 @@
     "compare": "Comparar"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresco",
+      "tiring": "Cansándose",
+      "exhausted": "Agotado",
+      "critical": "Crítico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}.",

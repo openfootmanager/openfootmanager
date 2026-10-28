@@ -50,6 +50,8 @@ export function fixtureHandlers(
       })),
     get_club_league_standing: ({ teamId }) => forUserClub(teamId, () => fixture.clubLeagueStanding),
     get_squad: ({ teamId }) => forUserClub(teamId, () => fixture.squad),
+    // The user's club only, as in the Rust command.
+    get_squad_fitness: () => fixture.squadFitness,
     get_available_jobs: () => fixture.availableJobs,
     // Only the players asked about; Rust leaves out an id no player has.
     get_contract_warning_stages: ({ playerIds }) => {

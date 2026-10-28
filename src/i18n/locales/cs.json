@@ -412,6 +412,8 @@
     "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
+    "overallRating": "Hodnocení {{value}}",
+    "overallRatingTier": "Hodnocení {{value}}, úroveň {{tier}}",
     "noResults": "Výsledky nenalezeny.",
     "place": {
       "1": "1.",
@@ -2629,6 +2631,12 @@
     "compare": "Porovnat"
   },
   "be": {
+    "condition": {
+      "fresh": "Odpočatý",
+      "tiring": "Unavuje se",
+      "exhausted": "Vyčerpaný",
+      "critical": "Kritický"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}.",

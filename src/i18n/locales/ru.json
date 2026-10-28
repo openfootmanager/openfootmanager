@@ -412,6 +412,8 @@
     "currentWage": "Текущая зарплата",
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
+    "overallRating": "Общий уровень {{value}}",
+    "overallRatingTier": "Общий уровень {{value}}, категория {{tier}}",
     "noResults": "Ничего не найдено.",
     "place": {
       "1": "1-е",
@@ -2629,6 +2631,12 @@
     "compare": "Сравнение"
   },
   "be": {
+    "condition": {
+      "fresh": "Свежий",
+      "tiring": "Устаёт",
+      "exhausted": "Измотан",
+      "critical": "Критично"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Этот игрок не может уйти: состав опустится ниже минимума, который обязан держать клуб. Линия: {{group}}.",

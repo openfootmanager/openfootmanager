@@ -1,11 +1,14 @@
 import { AlertTriangle, Dumbbell } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import type { RatedTone } from "../../store/types";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 
 interface HomeSquadOverviewCardProps {
   /** Null until the backend answers, and when no healthy first-team player can be averaged. */
   avgCondition: number | null;
+  /** The backend's tone for the average; null leaves its bar neutral. */
+  avgConditionTone: RatedTone | null;
   avgOvr: number;
   exhaustedCount: number;
   scheduleIcon: React.ReactNode;
@@ -17,6 +20,7 @@ interface HomeSquadOverviewCardProps {
 
 export default function HomeSquadOverviewCard({
   avgCondition,
+  avgConditionTone,
   avgOvr,
   exhaustedCount,
   scheduleIcon,
@@ -52,7 +56,14 @@ export default function HomeSquadOverviewCard({
               {avgCondition !== null ? `${avgCondition}%` : "—"}
             </span>
           </div>
-          <ProgressBar value={avgCondition ?? 0} variant="auto" size="md" />
+          <ProgressBar
+            value={avgCondition ?? 0}
+            variant={avgConditionTone ? undefined : "muted"}
+            tone={avgConditionTone ?? undefined}
+            size="md"
+            // No average, no progress bar: "0%" would be read out for a number that doesn't exist.
+            label={avgCondition !== null ? t("home.avgCondition") : undefined}
+          />
 
           <div className="flex items-center justify-between mt-1">
             <span className="text-xs text-gray-500 dark:text-gray-400">{t("home.avgOvr")}</span>

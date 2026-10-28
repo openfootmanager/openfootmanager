@@ -431,6 +431,8 @@
     "currentWage": "Stipendio attuale",
     "loading": "Caricamento...",
     "loadingGameState": "Caricamento stato di gioco...",
+    "overallRating": "Valutazione generale {{value}}",
+    "overallRatingTier": "Valutazione generale {{value}}, fascia {{tier}}",
     "noResults": "Nessun risultato trovato.",
     "place": {
       "1": "1°",
@@ -2629,6 +2631,12 @@
     "compare": "Confronta"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresco",
+      "tiring": "Affaticato",
+      "exhausted": "Esausto",
+      "critical": "Critico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Questo giocatore non può partire: la rosa scenderebbe sotto il minimo che un club deve mantenere. Reparto interessato: {{group}}.",
