@@ -279,6 +279,7 @@ describe("SquadTab", () => {
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
     expect(screen.queryByText("squad.planStatus")).not.toBeInTheDocument();
     // Familiarity rides on the Position column's badges: no column of its own.
+    expect(screen.getByRole("columnheader", { name: /squad\.pos/ })).toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: "squad.formationFit" }),
     ).not.toBeInTheDocument();
