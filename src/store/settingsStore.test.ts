@@ -18,6 +18,9 @@ const DEFAULT_SETTINGS = {
   continue_to_next_event: false,
   ui_scale: "normal",
   high_contrast: false,
+  sidebar_width: "standard",
+  sidebar_behaviour: "normal",
+  sidebar_collapsed: false,
 } as const;
 
 const SUPPORTED_CURRENCIES = [
@@ -68,6 +71,28 @@ describe("useSettingsStore", () => {
       confirm_advance: true,
     });
     expect(useSettingsStore.getState().currency).toEqual(SUPPORTED_CURRENCIES[0]);
+  });
+
+  /**
+   * Given the backend has a compact sidebar that expands on click, folded by the player
+   * When the settings load
+   * Then the store keeps all three (AppSettings round-trips through Rust, so a field the store
+   * doesn't declare would be lost on the next save).
+   */
+  it("keeps the sidebar settings the backend loads", async () => {
+    vi.mocked(invoke).mockResolvedValue({
+      settings: { sidebar_width: "compact", sidebar_behaviour: "click", sidebar_collapsed: true },
+      currency: SUPPORTED_CURRENCIES[0],
+      supported_currencies: SUPPORTED_CURRENCIES,
+    });
+
+    await useSettingsStore.getState().loadSettings();
+
+    expect(useSettingsStore.getState().settings).toMatchObject({
+      sidebar_width: "compact",
+      sidebar_behaviour: "click",
+      sidebar_collapsed: true,
+    });
   });
 
   it("falls back to default settings when loading fails", async () => {
