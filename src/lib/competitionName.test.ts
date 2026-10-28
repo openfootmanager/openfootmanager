@@ -17,7 +17,7 @@ describe("competitionDisplayName", () => {
     const competition: NamedCompetition = {
       name_key: "tournaments.competitions.tierDivision",
       country_id: "ARG",
-      calendar: { season: { division: { tier: 3, phase: "annual" } } },
+      calendar: { season: { division: { tier: 3 } } },
     };
 
     expect(competitionDisplayName(competition, translate)).toBe("Argentina Division 3");
@@ -26,7 +26,7 @@ describe("competitionDisplayName", () => {
         {
           ...competition,
           calendar: {
-            season: { division: { tier: 4, phase: "annual" } },
+            season: { division: { tier: 4 } },
           },
         },
         translate,
