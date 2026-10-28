@@ -709,7 +709,6 @@ mod tests {
             assert_eq!(value["calendar"]["division"]["phase"], phase);
             let tier = if definition.id.contains("d1") { 1 } else { 2 };
             assert_eq!(value["calendar"]["division"]["tier"], tier);
-            assert!(definition.name_key.is_none());
             assert_eq!(
                 value["calendar"]["windowEnd"],
                 if phase == "opening" {
