@@ -6,6 +6,7 @@ import {
   gameState,
   playersPage,
   playersPageQuery,
+  ratingTiers,
   squad,
   squadFitness,
   staff,
@@ -33,6 +34,19 @@ describe("fixture answers", () => {
     expect(Object.keys(squadFitness.statuses).sort()).toEqual(squad.map((p) => p.id).sort());
     const statuses: Record<string, { label_key: string }> = squadFitness.statuses;
     expect(statuses[squad[0].id].label_key).toMatch(/^be\.condition\./);
+  });
+
+  /**
+   * Given Squad colouring its ratings (RatingChip, #952), when it asks for the rating tiers, then
+   * the harness gives the backend's table, generated from the ofm_core function the command
+   * returns: one tier for every rating from 0 to 99, Rest at the bottom and S at the top.
+   */
+  it("answers the rating tiers with the backend's table", () => {
+    expect(handlers.get_rating_tiers({})).toBe(ratingTiers);
+    expect(ratingTiers).toHaveLength(100);
+    expect(ratingTiers[0]).toBe("Rest");
+    expect(ratingTiers[99]).toBe("S");
+    expect(new Set(ratingTiers)).toEqual(new Set(["S", "A", "B", "Rest"]));
   });
 
   /**

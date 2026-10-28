@@ -129,6 +129,12 @@ fn render_module(game: &Game) -> Result<String, String> {
     )?;
     export(
         &mut module,
+        "ratingTiers",
+        "RatingTier[]",
+        &ofm_core::player_tier::rating_tiers(),
+    )?;
+    export(
+        &mut module,
         "careerStage",
         "CareerStage",
         &ofm_core::career_stage::career_stage(game),
@@ -183,7 +189,7 @@ import type { ContractWarningStage } from \"../../services/contractService\";
 import type { BackendFinanceSnapshotResponseData } from \"../../services/financeService\";
 import type { JobOpportunity } from \"../../services/jobService\";
 import type { PlayersPage, PlayersPageQuery } from \"../../services/playersService\";
-import type { SquadFitness } from \"../../services/squadService\";
+import type { RatingTier, SquadFitness } from \"../../services/squadService\";
 import type { StaffSlice } from \"../../services/staffService\";
 import type { TeamsDirectory } from \"../../services/teamsService\";
 import type { GameStateData, PlayerData } from \"../../store/types\";
