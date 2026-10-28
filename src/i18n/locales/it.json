@@ -413,15 +413,15 @@
     "growth": "Crescita",
     "traits": "Tratti",
     "condition": "Condizione",
-    "potWorldClass": "Di livello mondiale",
-    "potExcellent": "Eccellente",
-    "potPromising": "Promettente",
-    "potDecent": "Discreto",
-    "potLimited": "Limitato",
     "delegateToYouthAcademy": "Delega al settore giovanile",
     "promoteToSeniorSquad": "Promuovi in prima squadra"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}º",
       "two": "{{n}}º",
@@ -2603,7 +2603,11 @@
     "pts": "pts.",
     "cupPenalties": "({{home}}–{{away}} ai rigori)",
     "cupAdvances": "{{team}} passa il turno",
-    "cupTiesPending": "Alcune sfide sono ancora da giocare"
+    "cupTiesPending": "Alcune sfide sono ancora da giocare",
+    "resume": "Riprendi",
+    "pausedResumesAt": "In pausa · riprende a {{speed}}",
+    "playingAt": "In corso a {{speed}}",
+    "spaceKey": "Spazio"
   },
   "notifications": {
     "attentionRequired": "Attenzione Richiesta",

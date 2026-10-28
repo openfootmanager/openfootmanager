@@ -395,14 +395,14 @@
     "traits": "Vlastnosti",
     "condition": "Kondice",
     "delegateToYouthAcademy": "Přeřadit do akademie",
-    "promoteToSeniorSquad": "Povýšit do A-týmu",
-    "potWorldClass": "Světová třída",
-    "potExcellent": "Excelentní",
-    "potPromising": "Nadějný",
-    "potDecent": "Slušný",
-    "potLimited": "Omezený"
+    "promoteToSeniorSquad": "Povýšit do A-týmu"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -2584,7 +2584,11 @@
     "pts": "b.",
     "cupPenalties": "({{home}}–{{away}} na penalty)",
     "cupAdvances": "{{team}} postupuje dál",
-    "cupTiesPending": "Některá utkání se ještě odehrají"
+    "cupTiesPending": "Některá utkání se ještě odehrají",
+    "resume": "Pokračovat",
+    "pausedResumesAt": "Pozastaveno · pokračuje: {{speed}}",
+    "playingAt": "Běží: {{speed}}",
+    "spaceKey": "Mezerník"
   },
   "endOfSeason": {
     "seasonComplete": "Sezóna dokončena",

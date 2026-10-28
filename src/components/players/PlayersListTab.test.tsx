@@ -7,7 +7,13 @@ import { calcAge } from "../../lib/helpers";
 import type { PlayerSummary, PlayersPage, PlayersPageQuery } from "../../services/playersService";
 import { resetPackageAssetRoot } from "../../hooks/usePackageAssetSrc";
 import PlayersListTab from "./PlayersListTab";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { createSeasonContext } from "../../test-utils/factories";
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((path: string) => `asset://localhost/${path}`),
@@ -668,5 +674,30 @@ describe("PlayersListTab", () => {
 
     expect(screen.queryByRole("button", { name: "Offer Contract" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Scout" })).not.toBeInTheDocument();
+  });
+});
+
+describe("PlayersListTab rating tiers", () => {
+  /**
+   * Given two players rated 76 and 77, either side of the A-tier cut-off
+   * When the players list renders
+   * Then each rating takes the colour of its backend tier (B and A), not one from a threshold here.
+   */
+  it("colours each rating by its backend tier", async () => {
+    const gameState: GameStateData = {
+      ...createGameState(),
+      players: [
+        createPlayer({ id: "p-76", full_name: "Seventy Six", match_name: "S. Six", ovr: 76 }),
+        createPlayer({ id: "p-77", full_name: "Seventy Seven", match_name: "S. Seven", ovr: 77 }),
+      ],
+    };
+    setupSliceMock(gameState);
+
+    render(
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
+    );
+
+    expect(await screen.findByText("77")).toHaveClass(...ratingTierClass("A", "text").split(" "));
+    expect(screen.getByText("76")).toHaveClass(...ratingTierClass("B", "text").split(" "));
   });
 });

@@ -395,14 +395,14 @@
     "traits": "Özellikler",
     "condition": "Kondisyon",
     "delegateToYouthAcademy": "Altyapı akademisine devret",
-    "promoteToSeniorSquad": "A takıma yükselt",
-    "potWorldClass": "Dünya Klasiği",
-    "potExcellent": "Mükemmel",
-    "potPromising": "Umut vadeden",
-    "potDecent": "İyi",
-    "potLimited": "Sınırlı"
+    "promoteToSeniorSquad": "A takıma yükselt"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -2584,7 +2584,11 @@
     "pts": "P",
     "cupPenalties": "(penaltılarla {{home}}–{{away}})",
     "cupAdvances": "{{team}} bir üst tura çıktı",
-    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı"
+    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı",
+    "resume": "Devam et",
+    "pausedResumesAt": "Duraklatıldı · {{speed}} hızında sürecek",
+    "playingAt": "{{speed}} hızında oynanıyor",
+    "spaceKey": "Boşluk"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",

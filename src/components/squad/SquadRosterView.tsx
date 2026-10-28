@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import { useId, useMemo, useRef, useState } from "react";
 import type {
@@ -110,6 +112,7 @@ export default function SquadRosterView({
   sortState,
   onSortStateChange,
 }: SquadRosterViewProps) {
+  const tierOf = useRatingTiers();
   const { t, i18n } = useTranslation();
   const [playerSearch, setPlayerSearch] = useState("");
   // Ties each visible filter label to its control, so the control is announced by that label.
@@ -810,13 +813,7 @@ export default function SquadRosterView({
                       {/* OVR (moved next to identity block) */}
                       <td className="py-2.5 px-4">
                         <span
-                          className={`font-heading font-bold text-sm ${
-                            ovr >= 80
-                              ? "text-primary-500"
-                              : ovr >= 55
-                                ? "text-accent-600 dark:text-accent-400"
-                                : "text-gray-500 dark:text-gray-400"
-                          }`}
+                          className={`font-heading font-bold text-sm ${ratingTierClass(tierOf(ovr), "text")}`}
                         >
                           {ovr}
                         </span>

@@ -394,15 +394,15 @@
     "growth": "Crescimento",
     "traits": "Traços",
     "condition": "Condição",
-    "potWorldClass": "Classe Mundial",
-    "potExcellent": "Excelente",
-    "potPromising": "Promissor",
-    "potDecent": "Decente",
-    "potLimited": "Limitado",
     "delegateToYouthAcademy": "Delegar para a base",
     "promoteToSeniorSquad": "Promover à equipa principal"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.º",
       "two": "{{n}}.º",
@@ -2584,7 +2584,11 @@
     "pts": "pts",
     "cupPenalties": "({{home}}–{{away}} nos penáltis)",
     "cupAdvances": "{{team}} passa à eliminatória seguinte",
-    "cupTiesPending": "Ainda faltam eliminatórias por disputar"
+    "cupTiesPending": "Ainda faltam eliminatórias por disputar",
+    "resume": "Retomar",
+    "pausedResumesAt": "Em pausa · retoma a {{speed}}",
+    "playingAt": "A jogar a {{speed}}",
+    "spaceKey": "Espaço"
   },
   "endOfSeason": {
     "seasonComplete": "Época Completa",

@@ -395,14 +395,14 @@
     "traits": "Traits",
     "condition": "Condition",
     "delegateToYouthAcademy": "Delegate to youth academy",
-    "promoteToSeniorSquad": "Promote to senior squad",
-    "potWorldClass": "World Class",
-    "potExcellent": "Excellent",
-    "potPromising": "Promising",
-    "potDecent": "Decent",
-    "potLimited": "Limited"
+    "promoteToSeniorSquad": "Promote to senior squad"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}st",
       "two": "{{n}}nd",
@@ -2584,7 +2584,11 @@
     "pts": "pts",
     "cupPenalties": "({{home}}–{{away}} on penalties)",
     "cupAdvances": "{{team}} go through",
-    "cupTiesPending": "Some ties are still to be played"
+    "cupTiesPending": "Some ties are still to be played",
+    "resume": "Resume",
+    "pausedResumesAt": "Paused · resumes at {{speed}}",
+    "playingAt": "Playing at {{speed}}",
+    "spaceKey": "Space"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",
