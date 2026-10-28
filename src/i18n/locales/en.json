@@ -1603,6 +1603,7 @@
       "league": "{{country}} League",
       "firstDivision": "{{country}} First Division",
       "secondDivision": "{{country}} Second Division",
+      "tierDivision": "{{country}} Division {{tier}}",
       "nationalCup": "{{country}} Cup",
       "continentalChampionsCup": "Continental Champions Cup",
       "premierDivision": "Premier Division"

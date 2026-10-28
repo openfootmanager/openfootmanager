@@ -1603,6 +1603,7 @@
       "league": "{{country}} lize",
       "firstDivision": "{{country}} — 1. liga",
       "secondDivision": "{{country}} — 2. liga",
+      "tierDivision": "{{country}} — {{tier}}. liga",
       "nationalCup": "{{country}} — pohár",
       "continentalChampionsCup": "Kontinentální Liga mistrů",
       "premierDivision": "Premier Division"

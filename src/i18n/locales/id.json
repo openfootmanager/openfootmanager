@@ -1603,6 +1603,7 @@
       "league": "Liga {{country}}",
       "firstDivision": "Divisi Utama {{country}}",
       "secondDivision": "Divisi Kedua {{country}}",
+      "tierDivision": "Divisi {{tier}} {{country}}",
       "nationalCup": "Piala {{country}}",
       "continentalChampionsCup": "Piala Champions Kontinental",
       "premierDivision": "Divisi Premier"
