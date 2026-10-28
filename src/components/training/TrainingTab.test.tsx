@@ -444,24 +444,37 @@ describe("TrainingTab", () => {
   });
 
   /**
-   * Given no healthy first-team player to average (the backend's average is null)
-   * When Training draws the squad's fitness
+   * Given a squad whose only player is injured, so the backend has no healthy first-team player to
+   *       average (its average is null) but still a band for him
+   * When Training has the backend's answer (his band is on the list)
    * Then the average's bar is no progress bar: "Avg Condition 0%" would read out a number that
    * doesn't exist.
    */
   it("exposes no average progress bar while there is no average", async () => {
     const state = createGameState(true);
+    state.players = [
+      createPlayer({
+        id: "p-injured",
+        match_name: "Sidelined",
+        condition: 30,
+        injury: { name: "hamstring_strain", days_remaining: 9 },
+      }),
+    ];
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad_fitness") {
-        return createSquadFitness({ players: 0, average_condition: null });
+        return createSquadFitness({
+          players: 0,
+          average_condition: null,
+          statuses: { "p-injured": createConditionStatus("Exhausted") },
+        });
       }
       return command === "get_squad" ? state.players : state;
     });
 
     render(<TrainingTab gameState={state} />);
 
-    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("get_squad_fitness"));
-    await waitFor(() => expect(screen.getByText("—")).toBeInTheDocument());
+    const injured = await screen.findByRole("listitem", { name: /Sidelined/ });
+    expect(await within(injured).findByText("be.condition.exhausted")).toBeInTheDocument();
     expect(screen.queryByRole("progressbar", { name: "training.avgCondition" })).toBeNull();
   });
 });

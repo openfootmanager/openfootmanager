@@ -19,3 +19,4 @@ export type { PitchFitTone } from "./PitchToken";
 export { PageToolbar } from "./PageToolbar";
 export { SegmentedControl } from "./SegmentedControl";
 export { TabPanel, Tabs } from "./Tabs";
+export { RatingChip } from "./RatingChip";

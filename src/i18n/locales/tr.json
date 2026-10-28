@@ -395,14 +395,14 @@
     "traits": "Özellikler",
     "condition": "Kondisyon",
     "delegateToYouthAcademy": "Altyapı akademisine devret",
-    "promoteToSeniorSquad": "A takıma yükselt",
-    "potWorldClass": "Dünya Klasiği",
-    "potExcellent": "Mükemmel",
-    "potPromising": "Umut vadeden",
-    "potDecent": "İyi",
-    "potLimited": "Sınırlı"
+    "promoteToSeniorSquad": "A takıma yükselt"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -412,6 +412,8 @@
     "currentWage": "Mevcut maaş",
     "loading": "Yükleniyor...",
     "loadingGameState": "Oyun durumu yükleniyor...",
+    "overallRating": "Genel {{value}}",
+    "overallRatingTier": "Genel {{value}}, seviye {{tier}}",
     "noResults": "Sonuç bulunamadı.",
     "place": {
       "1": "1.",

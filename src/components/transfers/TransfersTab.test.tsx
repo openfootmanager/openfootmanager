@@ -4,6 +4,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { InvokeArgs } from "@tauri-apps/api/core";
 
 import TransfersTab from "./TransfersTab";
+import { ratingTierClass } from "../../lib/ratingTier";
 
 /**
  * The fields these mocks read out of an invoke payload. Tauri's IPC boundary is untyped by
@@ -15,6 +16,11 @@ type MockInvokePayload = {
   fee?: number;
   weeklyWage?: number;
 };
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn((path: string) => path),
@@ -145,6 +151,39 @@ describe("TransfersTab", (): void => {
     expect(table.getByText("TRANSFER")).toBeInTheDocument();
     expect(table.getByText("LOAN")).toBeInTheDocument();
     expect(screen.getByText(/My Transfer List \(1\)/)).toBeInTheDocument();
+  });
+  /**
+   * Given two transfer-listed players rated 76 and 77, either side of the A-tier cut-off
+   * When the transfer list renders
+   * Then each rating takes the colour of its backend tier (B and A).
+   */
+  it("colours each listed player's rating by its backend tier", async (): Promise<void> => {
+    const listed = [76, 77].map((ovr) =>
+      createPlayer({
+        id: `listed-${ovr}`,
+        full_name: `Listed ${ovr}`,
+        match_name: `L. ${ovr}`,
+        transfer_listed: true,
+        ovr,
+      }),
+    );
+    marketAnswer = answerList("user_listed", listed);
+    render(
+      <TransfersTab
+        gameState={createGameState(listed)}
+        onSelectPlayer={vi.fn()}
+        onSelectTeam={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /my transfer list/i }));
+
+    const table = within(await screen.findByRole("table"));
+    const ratingOf = (name: string, rating: string) =>
+      within(table.getByText(name).closest("tr") as HTMLElement).getByText(rating);
+    expect(ratingOf("Listed 77", "77")).toHaveClass(...ratingTierClass("A", "text").split(" "));
+    expect(ratingOf("Listed 76", "76")).toHaveClass(...ratingTierClass("B", "text").split(" "));
   });
   it("paginates the transfer players list instead of mounting every market row", async (): Promise<void> => {
     const rows = Array.from({ length: 65 }, (_, index) =>

@@ -394,15 +394,15 @@
     "growth": "Crecimiento",
     "traits": "Rasgos",
     "condition": "Condición",
-    "potWorldClass": "Clase Mundial",
-    "potExcellent": "Excelente",
-    "potPromising": "Prometedor",
-    "potDecent": "Decente",
-    "potLimited": "Limitado",
     "delegateToYouthAcademy": "Delegar a la cantera",
     "promoteToSeniorSquad": "Ascender al primer equipo"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.º",
       "two": "{{n}}.º",
@@ -412,6 +412,8 @@
     "currentWage": "Salario actual",
     "loading": "Cargando...",
     "loadingGameState": "Cargando estado del juego...",
+    "overallRating": "Nivel general {{value}}",
+    "overallRatingTier": "Nivel general {{value}}, categoría {{tier}}",
     "noResults": "No se encontraron resultados.",
     "place": {
       "1": "1º",

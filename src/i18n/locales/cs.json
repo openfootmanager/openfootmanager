@@ -395,14 +395,14 @@
     "traits": "Vlastnosti",
     "condition": "Kondice",
     "delegateToYouthAcademy": "Přeřadit do akademie",
-    "promoteToSeniorSquad": "Povýšit do A-týmu",
-    "potWorldClass": "Světová třída",
-    "potExcellent": "Excelentní",
-    "potPromising": "Nadějný",
-    "potDecent": "Slušný",
-    "potLimited": "Omezený"
+    "promoteToSeniorSquad": "Povýšit do A-týmu"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -412,6 +412,8 @@
     "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
+    "overallRating": "Hodnocení {{value}}",
+    "overallRatingTier": "Hodnocení {{value}}, úroveň {{tier}}",
     "noResults": "Výsledky nenalezeny.",
     "place": {
       "1": "1.",
