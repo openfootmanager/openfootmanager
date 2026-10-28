@@ -2194,22 +2194,30 @@ fn a_player_moves_only_into_the_next_line() {
 }
 
 /// Given a 4-4-2,
-/// When the manager switches to a back five,
-/// Then the eleven reads back to front: the keeper, five defenders, three midfielders and two
+/// When the manager switches to 4-3-3, so a midfielder from the middle of the list steps up
+/// front,
+/// Then the eleven reads back to front: the keeper, four defenders, three midfielders and three
 /// forwards, so player i plays slot i of the new shape on the pitch.
 #[test]
 fn the_eleven_is_listed_back_to_front_after_a_formation_change() {
-    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+    let mut state = match_with_a_target_man_and_a_slight_left_back(|player| {
+        if player.id == "home_mid2" {
+            player.shooting = 90;
+            player.dribbling = 90;
+            player.pace = 90;
+        }
+    });
 
-    change_home_formation(&mut state, "5-3-2");
+    change_home_formation(&mut state, "4-3-3");
 
     let lines: Vec<Position> = home_lines(&state)
         .into_iter()
         .map(|(_, line)| line)
         .collect();
     let mut expected = vec![Position::Goalkeeper];
-    expected.extend([Position::Defender; 5]);
+    expected.extend([Position::Defender; 4]);
     expected.extend([Position::Midfielder; 3]);
-    expected.extend([Position::Forward; 2]);
+    expected.extend([Position::Forward; 3]);
     assert_eq!(lines, expected);
+    assert_eq!(home_line_of(&state, "home_mid2"), Position::Forward);
 }
