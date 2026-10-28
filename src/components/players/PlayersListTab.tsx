@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { useCallback, useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
@@ -74,6 +76,7 @@ export default function PlayersListTab({
   onSelectTeam,
 }: PlayersListTabProps) {
   const { t } = useTranslation();
+  const tierOf = useRatingTiers();
   const {
     query,
     patchQuery,
@@ -410,13 +413,7 @@ export default function PlayersListTab({
                       </td>
                       <td className="py-2.5 px-4">
                         <span
-                          className={`font-heading font-bold text-base tabular-nums ${
-                            ovr >= 75
-                              ? "text-primary-500"
-                              : ovr >= 55
-                                ? "text-accent-500"
-                                : "text-gray-400"
-                          }`}
+                          className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(tierOf(ovr), "text")}`}
                         >
                           {ovr}
                         </span>
