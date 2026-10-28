@@ -106,7 +106,7 @@ Two rules follow from what those numbers allow:
 | `max-w-page` | 80rem | the page width, applied once by the workspace |
 | `@split` | 36rem | the container breakpoint for two panels |
 
-Rows are `h-row`, 40px; there is no taller row token (maintainer, 22 Oct).
+Rows are `h-row`, 40px, or 32px when compact; there is no taller row token (maintainer, 22 Oct).
 
 A container breakpoint is in rem, so it moves with the UI scale. In a 960×640 window at normal
 scale `@split` is 576px and fits the 655px workspace, so two panels show; at extra large it is
