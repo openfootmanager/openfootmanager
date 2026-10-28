@@ -154,9 +154,11 @@ fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
 /// just played ninety minutes as free to train, and they would recover on the
 /// very day they were emptied.
 ///
-/// Every competition counts, whether or not the player follows it: a club that plays on a day is a
-/// club that plays on that day, and its training ground is closed (#869). The taper before a
-/// match ([`tapering_teams`]) reads every competition the same way.
+/// Every competition counts, whether or not the player follows it: one calendar rule for every club
+/// (#869), ahead of the dormant tier's removal (every match will be played for real). Today a dormant
+/// match is still settled by scoreline and costs no condition, so closing the ground for it is
+/// the rule, not a recovery model. The taper before a match ([`tapering_teams`]) reads every
+/// competition the same way.
 pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
     game.competitions_in_play()
         .iter()
@@ -173,8 +175,8 @@ pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::Has
 /// fixture list rather than a per-club scan — this runs for every club, every
 /// day, and a populated world holds tens of thousands of fixtures.
 ///
-/// Every competition counts, as in [`teams_playing_on`]: a club plays its dormant
-/// matches too, so one rule rests every club.
+/// Every competition counts, as in [`teams_playing_on`]: one calendar rule for every club, whether or
+/// not its fixtures are played out by the engine today.
 fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     use chrono::NaiveDate;
     use domain::league::FixtureStatus;
