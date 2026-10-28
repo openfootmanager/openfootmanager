@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
@@ -7,8 +9,6 @@ import { type MatchSnapshot, type EnginePlayerData, FORMATIONS, PLAY_STYLES } fr
 import PreMatchLineup, {
   parseFormationNeeds,
   POSITION_KEY_STATS,
-  statColor,
-  starterOvrColor,
   getStatVal,
 } from "./PreMatchLineup";
 import { condColor } from "../../lib/playerConditionDisplay";
@@ -47,6 +47,7 @@ export default function PreMatchSetup({
   onStart,
   onUpdateSnapshot,
 }: PreMatchSetupProps) {
+  const tierOf = useRatingTiers();
   const { t } = useTranslation();
   const [selectedStarterId, setSelectedStarterId] = useState<string | null>(null);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
@@ -572,14 +573,14 @@ export default function PreMatchSetup({
                   </span>
                   <div className="flex items-center">
                     <span
-                      className={`text-[10px] font-heading font-bold tabular-nums w-7 text-center ${starterOvrColor(p.ovr)}`}
+                      className={`text-[10px] font-heading font-bold tabular-nums w-7 text-center ${ratingTierClass(tierOf(p.ovr), "text")}`}
                     >
                       {p.ovr}
                     </span>
                     {keyStats.map((s) => (
                       <span
                         key={s.label}
-                        className={`text-[10px] font-heading tabular-nums w-7 text-center ${statColor(getStatVal(p, s.key))}`}
+                        className={`text-[10px] font-heading tabular-nums w-7 text-center ${ratingTierClass(tierOf(getStatVal(p, s.key)), "text")}`}
                       >
                         {getStatVal(p, s.key)}
                       </span>

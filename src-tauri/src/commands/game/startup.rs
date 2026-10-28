@@ -872,4 +872,109 @@ mod tests {
             .iter()
             .any(|manager| !manager.career_history.is_empty()));
     }
+
+    /// A new-game request for a world read from `world_file`, as the screens would send it: a 2032
+    /// mid-season start (which a historical snapshot overrides with its own date).
+    fn request_for_world(
+        dob: &str,
+        world_file: &std::path::Path,
+    ) -> crate::commands::game::NewGameRequest {
+        crate::commands::game::NewGameRequest {
+            first_name: "Alex".to_string(),
+            last_name: "Manager".to_string(),
+            dob: dob.to_string(),
+            nationality: "GB".to_string(),
+            startup_options: Some(
+                serde_json::from_str(r#"{"startYear":2032,"startPhase":"midSeason"}"#).unwrap(),
+            ),
+            world_source: Some(world_file.to_string_lossy().into_owned()),
+            competition_definitions_json: None,
+            package_ids: None,
+        }
+    }
+
+    /// A historical-snapshot world written to disk (its career opens on 20 November 2031, whatever
+    /// the start year says), the environment to read it with, and the directory to remove after.
+    fn snapshot_world_on_disk(
+        tag: &str,
+    ) -> (
+        std::path::PathBuf,
+        std::path::PathBuf,
+        crate::commands::game::StartEnvironment,
+    ) {
+        let dir = crate::commands::game::testkit::temp_pkg_dir(tag);
+        let world_file = dir.join("snapshot-world.json");
+        std::fs::write(
+            &world_file,
+            serde_json::to_string(&make_historical_snapshot_world()).unwrap(),
+        )
+        .unwrap();
+        let environment = crate::commands::game::StartEnvironment {
+            packages_dir: Err("no packages in this test".to_string()),
+            asset_root: None,
+            sources: ofm_core::generator::DefinitionSources::embedded_only(),
+        };
+        (dir, world_file, environment)
+    }
+
+    /// Given a historical-snapshot world whose career opens on 20 November 2031, and a manager born
+    ///       on 15 December 2001 (29 on that date, though 30 on the form's 2032 date)
+    /// When `start_new_game_internal` starts a career for him
+    /// Then it refuses with minAge and installs no game: the age refusal is the command's own,
+    ///      against the clock the world sets.
+    #[test]
+    fn start_new_game_internal_refuses_a_manager_too_young_on_the_snapshot_clock() {
+        let (dir, world_file, environment) = snapshot_world_on_disk("sng-too-young");
+        let state = ofm_core::state::StateManager::new();
+
+        let refused = crate::commands::game::start_new_game_internal(
+            &state,
+            request_for_world("2001-12-15", &world_file),
+            &environment,
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.createManager.minAge")
+        );
+        assert!(state.get_game(|_| ()).is_none());
+    }
+
+    /// Given the same snapshot world and a manager born on 20 November 2001 (30 on that date)
+    /// When `start_new_game_internal` starts a career for him
+    /// Then he gets his career, and it is installed as the active game.
+    #[test]
+    fn start_new_game_internal_accepts_a_manager_old_enough_on_the_snapshot_clock() {
+        let (dir, world_file, environment) = snapshot_world_on_disk("sng-old-enough");
+        let state = ofm_core::state::StateManager::new();
+
+        let accepted = crate::commands::game::start_new_game_internal(
+            &state,
+            request_for_world("2001-11-20", &world_file),
+            &environment,
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(accepted.unwrap().manager.date_of_birth, "2001-11-20");
+        assert!(state.get_game(|_| ()).is_some());
+    }
+
+    /// Given an empty list of package ids and a world file, with no packages directory at all
+    /// When `start_new_game_internal` starts a career
+    /// Then the empty list means "no packages": it reads the world file instead of failing on the
+    ///      missing packages directory.
+    #[test]
+    fn start_new_game_internal_treats_an_empty_package_list_as_no_packages() {
+        let (dir, world_file, environment) = snapshot_world_on_disk("sng-empty-packages");
+        let state = ofm_core::state::StateManager::new();
+        let mut request = request_for_world("2001-11-20", &world_file);
+        request.package_ids = Some(vec![]);
+
+        let started = crate::commands::game::start_new_game_internal(&state, request, &environment);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(started.is_ok(), "{:?}", started.err());
+        assert!(state.get_game(|_| ()).is_some());
+    }
 }

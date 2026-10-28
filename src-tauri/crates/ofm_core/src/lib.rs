@@ -52,6 +52,7 @@ pub mod nations;
 pub mod news;
 pub mod player_events;
 pub mod player_identity;
+pub mod player_knowledge;
 pub mod player_rating;
 pub mod player_tier;
 pub mod player_wear;

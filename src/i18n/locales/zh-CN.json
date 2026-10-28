@@ -395,14 +395,14 @@
     "traits": "特质",
     "condition": "状态",
     "delegateToYouthAcademy": "下放至青训营",
-    "promoteToSeniorSquad": "提拔至一线队",
-    "potWorldClass": "世界级",
-    "potExcellent": "优秀",
-    "potPromising": "有前途",
-    "potDecent": "尚可",
-    "potLimited": "有限"
+    "promoteToSeniorSquad": "提拔至一线队"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "第{{n}}",
       "two": "第{{n}}",
@@ -697,21 +697,15 @@
     "coverageNeedsAttention": "{{count}} 个角色组需要补强",
     "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
     "bestRole": "最佳角色",
-    "formationFit": "阵型适配",
+    "formationFit": "位置熟悉度",
     "startingXi": "首发阵容",
-    "styleFit": "风格适配",
     "starter": "首发",
     "benchOption": "替补",
-    "naturalFit": "自然适配",
-    "adaptedFit": "适应角色",
+    "naturalFit": "惯用位置",
+    "adaptedFit": "可胜任",
     "needsCover": "需要轮换",
     "makeStarter": "设为首发",
-    "sendToBench": "放到替补席",
-    "styleFitValues": {
-      "strong": "风格适配：强",
-      "good": "风格适配：良好",
-      "risky": "风格适配：有风险"
-    }
+    "sendToBench": "放到替补席"
   },
   "tactics": {
     "formationStyle": "阵型与风格",
@@ -862,8 +856,8 @@
     "setCornerTaker": "指定角球手",
     "inspector": "检视面板",
     "inspectorEmptyTitle": "未选择任何内容",
-    "naturalFit": "自然适配",
-    "adaptedFit": "适应角色",
+    "naturalFit": "惯用位置",
+    "adaptedFit": "可胜任",
     "tokenStates": {
       "ready": "就绪",
       "adjusted": "调整中",
@@ -879,7 +873,7 @@
     "clearSelection": "清除选择",
     "compareWithSelected": "与已选球员比较",
     "selectForSwap": "选择用于交换",
-    "assignBestFit": "分配到最佳位置",
+    "assignBestFit": "分配最佳位置",
     "moveToBench": "移到替补席",
     "promoteToLineup": "提入首发",
     "tableView": "表格视图",
@@ -894,7 +888,6 @@
     "positionSelector": "战术位置",
     "playablePositions": "可踢位置",
     "slotFit": "位置适配",
-    "styleFit": "风格适配",
     "responsibilities": "职责",
     "noSpecialRoles": "没有特殊角色",
     "moraleLevels": {
@@ -910,11 +903,6 @@
       "sharp": "状态上佳",
       "managing": "需要管理",
       "risk": "风险"
-    },
-    "styleFitLevels": {
-      "strong": "高度适配",
-      "good": "适配良好",
-      "risky": "适配风险高"
     }
   },
   "training": {
@@ -2266,7 +2254,7 @@
     "preMatchPrep": "赛前准备",
     "startingLineup": "首发阵容",
     "setPiecesCaptain": "定位球与队长",
-    "formationFit": "阵型契合度",
+    "formationFit": "阵型",
     "selecting": "选择中……",
     "autoSelectXI": "自动选择最佳首发11人",
     "startingXI": "首发11人",
@@ -2597,7 +2585,11 @@
     "pts": "分",
     "cupPenalties": "（点球 {{home}}–{{away}}）",
     "cupAdvances": "{{team}} 晋级",
-    "cupTiesPending": "部分对阵尚未进行"
+    "cupTiesPending": "部分对阵尚未进行",
+    "resume": "继续",
+    "pausedResumesAt": "已暂停 · 将以{{speed}}继续",
+    "playingAt": "正在以{{speed}}进行",
+    "spaceKey": "空格"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",
