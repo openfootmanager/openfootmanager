@@ -60,6 +60,12 @@ Brand palettes (`primary-*`, `accent-*`, `navy-*`) stay for brand moments: the C
 the selected navigation item, a logo strip. The raw Tailwind palette (`gray-500`, `red-400`,
 `white`, …) isn't used in a finished folder (§7).
 
+A control that is on or chosen (a switch that is on, a segmented option filled with `strong`, a
+checked box, a count badge, the highlighted option in `Select` and the chosen day in
+`DatePicker`) is getting its own `selected` role, with a dark pair, in place of the brand green:
+one place to change how "chosen" looks (maintainer, 22 Oct). Until that PR lands they use the
+`primary-*` greens.
+
 **Readability is tested, not hoped for.** `src/designTokens.test.ts` checks that every text role
 reaches 4.5:1 on every surface it sits on, and that the focus ring reaches 3:1, in light, dark,
 high-contrast light and high-contrast dark. It composites a translucent tint over the panel
@@ -100,6 +106,8 @@ Two rules follow from what those numbers allow:
 | `max-w-page` | 80rem | the page width, applied once by the workspace |
 | `@split` | 36rem | the container breakpoint for two panels |
 
+Rows are `h-row`, 40px, or 32px when compact; there is no taller row token (maintainer, 22 Oct).
+
 A container breakpoint is in rem, so it moves with the UI scale. In a 960×640 window at normal
 scale `@split` is 576px and fits the 655px workspace, so two panels show; at extra large it is
 720px and they stack. Choose breakpoints by computing them at a 20px root, not by the name of
@@ -127,9 +135,10 @@ drawn in the style guide.
 | an injury | `InjuryBadge` |
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
+| a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
 More primitives arrive as the migration goes on: empty and loading states,
-stat tile, data table, search field, toggle, the rated-value chip, and player, match and club
+stat tile, data table, search field, toggle, and player, match and club
 cards. Each one gets a row here and a place in the style guide in the PR that adds it.
 
 ## 4. Rated values
@@ -138,6 +147,10 @@ Any value the game rates (OVR and potential, an attribute, condition, morale, a 
 form) is coloured by **tone**: `top`, `good`, `fair`, `neutral` (no colour), `low`, `bad`. **The backend
 decides the tone**, the way `ofm_core::player_tier` decides S, A and B, and the frontend only
 paints it. A TypeScript file never compares a number against a threshold to pick a colour.
+
+**The game rates; it doesn't advise.** There is no style-fit verdict and no "best position for
+this formation" badge on a player who isn't starting (maintainer, 22 Oct): picking the team is the
+manager's job. A position badge says where a player can play, not where they should.
 
 A tone never stands alone: there is always a letter, a word or the number next to it. A value
 the game doesn't know (an unscouted attribute, a match not yet rated) shows "–" in `fg-subtle`,

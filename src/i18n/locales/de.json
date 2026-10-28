@@ -412,6 +412,8 @@
     "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",
+    "overallRating": "Gesamtstärke {{value}}",
+    "overallRatingTier": "Gesamtstärke {{value}}, Stufe {{tier}}",
     "noResults": "Keine Ergebnisse gefunden.",
     "place": {
       "1": "1.",
@@ -2630,6 +2632,12 @@
     "compare": "Vergleichen"
   },
   "be": {
+    "condition": {
+      "fresh": "Frisch",
+      "tiring": "Ermüdet",
+      "exhausted": "Erschöpft",
+      "critical": "Kritisch"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}.",
