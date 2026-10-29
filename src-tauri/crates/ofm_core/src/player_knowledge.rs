@@ -215,6 +215,14 @@ mod tests {
         League::new(id.to_string(), id.to_string(), 2026, &clubs)
     }
 
+    /// A knockout cup: a competition that is not anyone's division.
+    fn cup(id: &str, clubs: &[&str]) -> League {
+        let mut cup = division(id, clubs);
+        cup.kind = domain::league::CompetitionType::Cup;
+        cup.rules.format = domain::league::CompetitionFormat::Knockout;
+        cup
+    }
+
     /// My club and "rival" play in division one; "faraway" plays in division two.
     fn world(manager_club: Option<&str>, players: Vec<Player>) -> Game {
         let mut manager = Manager::new(
@@ -533,7 +541,7 @@ mod tests {
     fn an_opponents_condition_shows_on_a_cup_tie_too() {
         let mut game = world(Some(MY_CLUB), vec![tired(player("f", Some("faraway")), 58)]);
         game.competitions
-            .push(division("cup", &[MY_CLUB, "rival", "faraway", "other"]));
+            .push(cup("cup", &[MY_CLUB, "rival", "faraway", "other"]));
         fixture_in(&mut game, "cup", "2026-09-15", MY_CLUB, "faraway");
 
         assert_eq!(condition_of(&game, "f"), Some(58));
