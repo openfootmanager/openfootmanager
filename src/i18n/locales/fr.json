@@ -394,15 +394,15 @@
     "growth": "Croissance",
     "traits": "Attributs",
     "condition": "Condition",
-    "potWorldClass": "Classe Mondiale",
-    "potExcellent": "Excellent",
-    "potPromising": "Prometteur",
-    "potDecent": "Correct",
-    "potLimited": "Limité",
     "delegateToYouthAcademy": "Déléguer au centre de formation",
     "promoteToSeniorSquad": "Promouvoir en équipe première"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}er",
       "two": "{{n}}e",
@@ -412,6 +412,8 @@
     "currentWage": "Salaire actuel",
     "loading": "Chargement...",
     "loadingGameState": "Chargement de l'état du jeu...",
+    "overallRating": "Niveau général {{value}}",
+    "overallRatingTier": "Niveau général {{value}}, catégorie {{tier}}",
     "noResults": "Aucun résultat trouvé.",
     "place": {
       "1": "1er",
@@ -2645,6 +2647,12 @@
     "compare": "Comparer"
   },
   "be": {
+    "condition": {
+      "fresh": "Frais",
+      "tiring": "Fatigué",
+      "exhausted": "Épuisé",
+      "critical": "Critique"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Ce joueur ne peut pas partir : l'effectif passerait sous le minimum qu'un club doit conserver. Ligne concernée : {{group}}.",

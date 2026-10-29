@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { useTranslation } from "react-i18next";
 import type { PlayerData } from "../../store/gameStore";
 import { Badge, Button, Card, CountryFlag } from "../ui";
@@ -44,20 +46,6 @@ interface TacticsPlayerFocusPanelProps {
   selectedPlayer: PlayerData | null;
 }
 
-function valueTone(value: number): string {
-  if (value >= 80) return "text-success-500 dark:text-success-400";
-  if (value >= 65) return "text-primary-500 dark:text-primary-400";
-  if (value >= 50) return "text-accent-500 dark:text-accent-400";
-  return "text-gray-500 dark:text-gray-400";
-}
-
-function valueBarTone(value: number): string {
-  if (value >= 80) return "bg-success-500";
-  if (value >= 65) return "bg-primary-500";
-  if (value >= 50) return "bg-accent-500";
-  return "bg-gray-300 dark:bg-navy-600";
-}
-
 function getNormalizedPlayerPosition(player: PlayerData): string {
   return normalisePosition(naturalPositionOf(player));
 }
@@ -102,6 +90,7 @@ function PlayerSummary({ label, player }: { label: string; player: PlayerData })
 }
 
 function SinglePlayerAttributes({ player }: { player: PlayerData }) {
+  const tierOf = useRatingTiers();
   const { t } = useTranslation();
   const isGoalkeeper = getNormalizedPlayerPosition(player) === "Goalkeeper";
 
@@ -125,13 +114,13 @@ function SinglePlayerAttributes({ player }: { player: PlayerData }) {
                     </div>
                     <div className="h-2 rounded-full bg-gray-100 dark:bg-navy-800 overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${valueBarTone(value)}`}
+                        className={`h-full rounded-full ${ratingTierClass(tierOf(value), "bar")}`}
                         style={{ width: `${value}%` }}
                       />
                     </div>
                   </div>
                   <span
-                    className={`text-sm font-heading font-bold tabular-nums ${valueTone(value)}`}
+                    className={`text-sm font-heading font-bold tabular-nums ${ratingTierClass(tierOf(value), "text")}`}
                   >
                     {value}
                   </span>
@@ -156,6 +145,7 @@ function CompareAttributes({
   onConfirmSwap: () => void;
   selectedPlayer: PlayerData;
 }) {
+  const tierOf = useRatingTiers();
   const { t } = useTranslation();
   const showGoalkeeperAttrs =
     getNormalizedPlayerPosition(selectedPlayer) === "Goalkeeper" ||
@@ -197,11 +187,15 @@ function CompareAttributes({
                     className={`rounded-lg px-2 py-2 ${leftWins ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "bg-gray-50 dark:bg-navy-800/70"}`}
                   >
                     <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                      <span className={`font-heading font-bold ${valueTone(left)}`}>{left}</span>
+                      <span
+                        className={`font-heading font-bold ${ratingTierClass(tierOf(left), "text")}`}
+                      >
+                        {left}
+                      </span>
                     </div>
                     <div className="h-2 rounded-full bg-white dark:bg-navy-700 overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${valueBarTone(left)}`}
+                        className={`h-full rounded-full ${ratingTierClass(tierOf(left), "bar")}`}
                         style={{ width: `${left}%` }}
                       />
                     </div>
@@ -213,11 +207,15 @@ function CompareAttributes({
                     className={`rounded-lg px-2 py-2 ${rightWins ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "bg-gray-50 dark:bg-navy-800/70"}`}
                   >
                     <div className="flex items-center justify-between gap-2 text-xs mb-1">
-                      <span className={`font-heading font-bold ${valueTone(right)}`}>{right}</span>
+                      <span
+                        className={`font-heading font-bold ${ratingTierClass(tierOf(right), "text")}`}
+                      >
+                        {right}
+                      </span>
                     </div>
                     <div className="h-2 rounded-full bg-white dark:bg-navy-700 overflow-hidden">
                       <div
-                        className={`h-full rounded-full ${valueBarTone(right)}`}
+                        className={`h-full rounded-full ${ratingTierClass(tierOf(right), "bar")}`}
                         style={{ width: `${right}%` }}
                       />
                     </div>

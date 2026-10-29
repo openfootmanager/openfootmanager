@@ -25,7 +25,10 @@
     "worldEditor.playerId",
     "worldEditor.competitionId",
     "worldEditor.teamId",
-    "worldEditor.staffId"
+    "worldEditor.staffId",
+    "common.ratingTier.S",
+    "common.ratingTier.A",
+    "common.ratingTier.B"
   ],
   "de": [
     "settings.sidebarBehaviourOptions.normal",
@@ -192,7 +195,6 @@
     "inbox.important",
     "traits.Leader.label",
     "scouting.action",
-    "youthAcademy.potExcellent",
     "common.attributes.vision",
     "common.actions",
     "match.corners",

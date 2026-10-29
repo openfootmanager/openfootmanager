@@ -394,15 +394,15 @@
     "growth": "Crescimento",
     "traits": "Características",
     "condition": "Condição",
-    "potWorldClass": "Classe Mundial",
-    "potExcellent": "Excelente",
-    "potPromising": "Promissor",
-    "potDecent": "Razoável",
-    "potLimited": "Limitado",
     "delegateToYouthAcademy": "Delegar para a base",
     "promoteToSeniorSquad": "Promover ao elenco principal"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}º",
       "two": "{{n}}º",
@@ -412,6 +412,8 @@
     "currentWage": "Salário atual",
     "loading": "Carregando...",
     "loadingGameState": "Carregando estado do jogo...",
+    "overallRating": "Geral {{value}}",
+    "overallRatingTier": "Geral {{value}}, nível {{tier}}",
     "noResults": "Nenhum resultado encontrado.",
     "place": {
       "1": "1º",
@@ -2645,6 +2647,12 @@
     "confidence": "Confiança"
   },
   "be": {
+    "condition": {
+      "fresh": "Descansado",
+      "tiring": "Cansando",
+      "exhausted": "Exausto",
+      "critical": "Crítico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Este jogador não pode sair: o elenco ficaria abaixo do mínimo que um clube precisa manter. Setor afetado: {{group}}.",

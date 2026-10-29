@@ -21,8 +21,7 @@ import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { useTrainingFocusAttributes } from "../../hooks/useTrainingFocusAttributes";
 import { setTraining, setTrainingSchedule } from "../../services/trainingService";
-import type { FitnessStatus } from "../../services/squadService";
-import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
+import { Card, CardBody, CardHeader, ProgressBar, TONE_TEXT } from "../ui";
 import TrainingGroupsCard from "./TrainingGroupsCard";
 import TrainingSettingsPanel from "./TrainingSettingsPanel";
 import { getTrainingStaffAdvice } from "./trainingAdvice";
@@ -78,13 +77,6 @@ const SCHEDULE_TRAINING_DAYS: Record<string, number[]> = {
   Light: [1, 3],
 };
 
-/** How a player's name reads in the fitness list; which status he is in is the backend's. */
-const FITNESS_NAME_CLASS: Record<FitnessStatus, string> = {
-  Critical: "text-red-600 dark:text-red-400",
-  Exhausted: "text-amber-600 dark:text-amber-400",
-  Fit: "text-gray-800 dark:text-gray-200",
-};
-
 const DAY_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
 function getWeekdayFromDate(dateStr: string): number {
@@ -122,6 +114,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
   // Fitness is the backend's: injured players are not in the squad that can play.
   const avgCondition =
     fitness?.average_condition != null ? Math.round(fitness.average_condition) : null;
+  const averageTone = fitness?.average_status?.tone;
   const avgMorale =
     roster.length > 0
       ? Math.round(roster.reduce((sum, player) => sum + player.morale, 0) / roster.length)
@@ -264,7 +257,15 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
                     {avgCondition !== null ? `${avgCondition}%` : "—"}
                   </span>
                 </div>
-                <ProgressBar value={avgCondition ?? 0} variant="auto" size="md" />
+                {/* The backend's band for the average; neutral until it answers. */}
+                <ProgressBar
+                  value={avgCondition ?? 0}
+                  variant={averageTone ? undefined : "muted"}
+                  tone={averageTone}
+                  size="md"
+                  // No average, no progress bar: "0%" would be read out for a number that doesn't exist.
+                  label={avgCondition !== null ? t("training.avgCondition") : undefined}
+                />
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
@@ -300,29 +301,45 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
         <Card>
           <CardHeader>{t("training.playerFitness")}</CardHeader>
           <CardBody className="p-0 max-h-64 overflow-y-auto">
-            <div className="divide-y divide-gray-100 dark:divide-navy-600">
+            <ul className="divide-y divide-gray-100 dark:divide-navy-600">
               {[...roster]
                 .sort((left, right) => left.condition - right.condition)
-                .map((player) => (
-                  <div key={player.id} className="flex items-center px-4 py-2 gap-3">
-                    <span
-                      className={`text-sm font-medium flex-1 truncate ${
-                        FITNESS_NAME_CLASS[fitness?.statuses[player.id] ?? "Fit"]
-                      }`}
+                .map((player) => {
+                  // The band, its word and its tone are the backend's; until it answers the bar
+                  // stays neutral rather than guessing from the number.
+                  const status = fitness?.statuses[player.id];
+                  const nameId = `fitness-name-${player.id}`;
+                  return (
+                    <li
+                      key={player.id}
+                      aria-labelledby={nameId}
+                      className="flex items-center px-4 py-2 gap-3"
                     >
-                      {player.match_name}
-                      {player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
-                    </span>
-                    <ProgressBar
-                      value={player.condition}
-                      variant="auto"
-                      size="sm"
-                      showLabel
-                      className="w-24"
-                    />
-                  </div>
-                ))}
-            </div>
+                      <span
+                        id={nameId}
+                        className="text-sm font-medium flex-1 truncate text-gray-800 dark:text-gray-200"
+                      >
+                        {player.match_name}
+                        {player.jersey_number != null ? ` (#${player.jersey_number})` : ""}
+                      </span>
+                      {status ? (
+                        <span className={`text-caption font-semibold ${TONE_TEXT[status.tone]}`}>
+                          {t(status.label_key)}
+                        </span>
+                      ) : null}
+                      <ProgressBar
+                        value={player.condition}
+                        variant={status ? undefined : "muted"}
+                        tone={status?.tone}
+                        size="sm"
+                        showLabel
+                        label={t("common.condition")}
+                        className="w-24"
+                      />
+                    </li>
+                  );
+                })}
+            </ul>
           </CardBody>
         </Card>
       </div>
