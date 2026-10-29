@@ -37,13 +37,17 @@ vi.mock("../../hooks/useContractWarningStages", () => ({
 // What the club knows about each player, by id, as the backend's knowledge rule would answer; a test
 // names the rivals it shows. Everyone else reads as the club's own, which most of these tests render.
 // The hook that asks for it has its own test.
+// Each revision the profile hands the hook is kept, so a test can see when it would ask again.
 const knowledge = vi.hoisted(() => ({
   current: {} as Record<string, PlayerKnowledge>,
+  revisions: [] as string[],
 }));
 
 vi.mock("../../hooks/usePlayerKnowledge", () => ({
-  usePlayerKnowledge: () => (playerId: string) =>
-    knowledge.current[playerId] ?? ({ kind: "own" } as const),
+  usePlayerKnowledge: (_playerIds: string[], revision: string) => {
+    knowledge.revisions.push(revision);
+    return (playerId: string) => knowledge.current[playerId] ?? ({ kind: "own" } as const);
+  },
 }));
 
 // The wage the club may see, by player id, as the backend's `visible_wage` would answer. Everyone
@@ -51,12 +55,17 @@ vi.mock("../../hooks/usePlayerKnowledge", () => ({
 // with, as the backend would answer after a renewal.
 const wages = vi.hoisted(() => ({
   current: {} as Record<string, VisibleWage>,
+  revisions: [] as string[],
 }));
 
 vi.mock("../../hooks/useVisibleWage", () => ({
-  useVisibleWage: (playerId: string, revision: string) =>
-    wages.current[playerId] ??
-    ({ kind: "exact", weekly: Number(JSON.parse(revision).at(-1)) } as const),
+  useVisibleWage: (playerId: string, revision: string) => {
+    wages.revisions.push(revision);
+    return (
+      wages.current[playerId] ??
+      ({ kind: "exact", weekly: Number(JSON.parse(revision).at(-1)) } as const)
+    );
+  },
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -1915,9 +1924,65 @@ describe("PlayerProfile shows only what the club knows", () => {
   beforeEach(() => {
     riskLevels.current = {};
     knowledge.current = {};
+    knowledge.revisions = [];
     wages.current = {};
+    wages.revisions = [];
     vi.mocked(invoke).mockReset();
     vi.mocked(invoke).mockImplementation(async (command: string) => defaultInvokeResponse(command));
+  });
+
+  // Renders a rival's profile, then the same profile on `next`, and says whether the profile handed
+  // the knowledge and wage hooks a new revision for it: whether they would ask the backend again.
+  function asksAgainOn(next: (gameState: GameStateData) => GameStateData) {
+    const player = rival();
+    const gameState = createGameState(player);
+    const { rerender } = render(
+      <PlayerProfile
+        player={player}
+        gameState={gameState}
+        isOwnClub={false}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+    const last = (revisions: string[]) => revisions[revisions.length - 1];
+    const before = [last(knowledge.revisions), last(wages.revisions)];
+    rerender(
+      <PlayerProfile
+        player={player}
+        gameState={next(gameState)}
+        isOwnClub={false}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+    return [last(knowledge.revisions) !== before[0], last(wages.revisions) !== before[1]];
+  }
+
+  /**
+   * Given a rival's profile open on the last day of a season
+   * When the season rolls over on the same date (promotion and relegation change who is known)
+   * Then the profile asks again what the club knows and which wage it may see
+   */
+  it("asks again about a rival when the season rolls over on the same date", () => {
+    expect(
+      asksAgainOn((gameState) => ({
+        ...gameState,
+        season_context: { ...gameState.season_context, season_start: "2099-07-01" },
+      })),
+    ).toEqual([true, true]);
+  });
+
+  /**
+   * Given a rival's profile open
+   * When another career is installed under it, on the same date, with the same clubs
+   * Then the profile asks again what the club knows and which wage it may see
+   */
+  it("asks again about a rival when another career is installed under the profile", () => {
+    expect(
+      asksAgainOn((gameState) => ({
+        ...gameState,
+        career_token: (gameState.career_token ?? 0) + 1,
+      })),
+    ).toEqual([true, true]);
   });
 
   // Condition 80, morale 75, a weekly wage of 12K (also on his contract in the movement history)
