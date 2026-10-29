@@ -1167,12 +1167,12 @@ mod tests {
     /// Given a club of reputation 800 whose league lists only itself, in a world of twenty clubs
     /// When the board sets its objectives
     /// Then a one-club league cannot set a season, so the targets fall back to the world's twenty
-    ///      clubs: the same as a twenty-club league
+    ///      clubs, the same as a twenty-club league: 22 wins and 57 goals from 38 matchdays
     #[test]
     fn a_one_club_league_falls_back_to_the_world_team_count() {
-        assert_eq!(
-            wins_and_goals_in_a_league_of(1),
-            wins_and_goals_in_a_league_of(20)
-        );
+        let twenty_clubs = wins_and_goals_in_a_league_of(20);
+
+        assert_eq!(twenty_clubs, (22, 57));
+        assert_eq!(wins_and_goals_in_a_league_of(1), twenty_clubs);
     }
 }
