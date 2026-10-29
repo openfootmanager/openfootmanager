@@ -237,6 +237,42 @@ describe("DataTable", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  /**
+   * Given a table whose every column asks to fold away in a narrow window
+   * When it is drawn
+   * Then the first column stays: it still holds the row's open button and its details toggle, so a
+   * narrow table never hides a row with no way to reach it.
+   */
+  it("keeps the first column when every column asks to fold", () => {
+    const allFolding = COLUMNS.map((column) => ({ ...column, primary: false, drawer: true }));
+    renderTable({ columns: allFolding, onOpen: vi.fn() });
+    const nameButton = screen.getByRole("button", { name: "Anderson" });
+    expect(nameButton.closest("td")).not.toHaveClass("@max-3xl:hidden");
+    expect(screen.getByRole("button", { name: "common.detailsFor:Anderson" })).toBeInTheDocument();
+    // The first column is in the row, so its details hold only the others.
+    const details = document.getElementById(
+      screen
+        .getByRole("button", { name: "common.detailsFor:Anderson" })
+        .getAttribute("aria-controls") ?? "",
+    );
+    expect(within(details as HTMLElement).queryByText("Name")).not.toBeInTheDocument();
+    expect(within(details as HTMLElement).getByText("Age")).toBeInTheDocument();
+  });
+
+  /**
+   * Given rows with an accent and a first column that asks to fold
+   * When the table is narrow
+   * Then the first column stays, so the accent on its edge never folds away with it.
+   */
+  it("keeps the accented first column when it asks to fold", () => {
+    const firstFolds = [{ ...COLUMNS[1], drawer: true }, COLUMNS[0], COLUMNS[2]];
+    renderTable({ columns: firstFolds, rowAccent: (p) => (p.starter ? "positive" : null) });
+    const firstCell = within(screen.getByRole("row", { name: /Anderson/ })).getByText("31");
+    expect(firstCell.closest("td")).toHaveClass("border-l-positive-solid");
+    expect(firstCell.closest("td")).not.toHaveClass("@max-3xl:hidden");
+    expect(screen.getByRole("columnheader", { name: "Age" })).not.toHaveClass("@max-3xl:hidden");
+  });
+
   /** Given starters, then their rows carry the starter accent, and the others don't. */
   it("marks a row with its accent", () => {
     renderTable({ rowAccent: (p) => (p.starter ? "positive" : null) });

@@ -23,7 +23,10 @@ export interface DataTableColumn<Row> {
    * marked (or the marked one folding away), the first column that never folds does.
    */
   primary?: boolean;
-  /** Folded away in a narrow table (under 48rem), and shown in the row's details instead. */
+  /**
+   * Folded away in a narrow table (under 48rem), and shown in the row's details instead. Never on
+   * the first column, which carries the row's accent: there it is ignored.
+   */
   drawer?: boolean;
 }
 
@@ -103,7 +106,7 @@ function SortableHeader({
  */
 export function DataTable<Row>({
   label,
-  columns,
+  columns: requestedColumns,
   rows,
   rowKey,
   rowName,
@@ -119,6 +122,11 @@ export function DataTable<Row>({
   const { t } = useTranslation();
   const idBase = useId();
   const [openDetails, setOpenDetails] = useState<ReadonlySet<string>>(new Set());
+  // The first column never folds: its edge carries the accent, and with every column folding it
+  // is the one left to hold the row's name, so a narrow row is never out of reach.
+  const columns = requestedColumns.map((column, index) =>
+    index === 0 && column.drawer ? { ...column, drawer: false } : column,
+  );
   const folded = columns.filter((column) => column.drawer);
   // The column holding the row's open button and details toggle: the primary one, or the first
   // that never folds, so a keyboard can always open a row and reach what folded away.
