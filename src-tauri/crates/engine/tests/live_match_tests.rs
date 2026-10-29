@@ -607,6 +607,81 @@ fn substitution_recorded_in_events() {
     assert_eq!(snap.substitutions[0].player_on_id, on_id);
 }
 
+fn substitutions_in(result: &MinuteResult) -> usize {
+    result
+        .events
+        .iter()
+        .filter(|event| event.event_type == EventType::Substitution)
+        .count()
+}
+
+/// Given a match in its first half,
+/// When the manager makes a substitution between two minutes,
+/// Then the next minute's results report it, once, so the live feed that is built from those
+/// results shows it; the minute after does not report it again.
+#[test]
+fn a_substitution_is_reported_in_the_next_minutes_results() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+    state.step_minute(&mut rng);
+    let off_id = state.snapshot().home_team.players[5].id.clone();
+    let on_id = state.bench(Side::Home)[0].id.clone();
+
+    state
+        .apply_command(MatchCommand::Substitute {
+            side: Side::Home,
+            player_off_id: off_id.clone(),
+            player_on_id: on_id.clone(),
+        })
+        .unwrap();
+    let next = state.step_minute(&mut rng);
+    let after = state.step_minute(&mut rng);
+
+    assert_eq!(substitutions_in(&next), 1);
+    let reported = next
+        .events
+        .iter()
+        .find(|event| event.event_type == EventType::Substitution)
+        .unwrap();
+    assert_eq!(reported.player_id.as_deref(), Some(on_id.as_str()));
+    assert_eq!(
+        reported.secondary_player_id.as_deref(),
+        Some(off_id.as_str())
+    );
+    assert_eq!(substitutions_in(&after), 0);
+}
+
+/// Given a match whose substitution has been reported in a minute's results,
+/// When the match is read back as a whole,
+/// Then its event log holds that substitution once: reporting it in the minute does not log it
+/// twice.
+#[test]
+fn a_reported_substitution_is_logged_once() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+    let off_id = state.snapshot().home_team.players[5].id.clone();
+    let on_id = state.bench(Side::Home)[0].id.clone();
+    state
+        .apply_command(MatchCommand::Substitute {
+            side: Side::Home,
+            player_off_id: off_id,
+            player_on_id: on_id,
+        })
+        .unwrap();
+
+    state.step_minute(&mut rng);
+
+    let logged = state
+        .snapshot()
+        .events
+        .iter()
+        .filter(|event| event.event_type == EventType::Substitution)
+        .count();
+    assert_eq!(logged, 1);
+}
+
 // ===========================================================================
 // Tests: Tactical commands
 // ===========================================================================

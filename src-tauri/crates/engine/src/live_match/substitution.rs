@@ -105,6 +105,7 @@ impl LiveMatchState {
         )
         .with_player(player_on_id)
         .with_secondary(player_off_id);
+        self.unreported_events.push(evt.clone());
         self.events.push(evt);
 
         self.substitutions.push(SubstitutionRecord {
