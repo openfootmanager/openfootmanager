@@ -128,8 +128,8 @@ goes in the PR body. What it does, and why:
   and runs nothing. Paste that line, and either run the diff sharded in the cloud or leave it
   noted as not run. For a shard, run the script itself with `MUTANTS_IN_DIFF_SHARD=k/n` (k from 0
   to n-1, one run per shard), not `cargo mutants --shard` by hand: the script keeps the diff and
-  the glue exclusions, and a bare `cargo mutants` mutates the whole workspace.
-  `MUTANTS_IN_DIFF_MAX` changes the cap for one run.
+  the glue exclusions, and a bare `cargo mutants` mutates the whole workspace. The cap does not
+  apply to a shard. `MUTANTS_IN_DIFF_MAX` changes the cap for one run.
 
 Paste the result into the PR body, with a triage after each surviving or timed-out mutant:
 
@@ -155,7 +155,8 @@ MUTANTS_IN_DIFF_ONLY=/tmp/survivors.txt scripts/mutants-in-diff.sh
 ```
 
 Each name is matched by its file and mutation, not its line, so a test or a fix above it does
-not lose it. Paste the re-check's counts line under the first.
+not lose it. A survivor whose code has changed since, so that it matches no mutant now, stops the
+re-check with its name: triage it by hand. Paste the re-check's counts line under the first.
 
 ## 4. Review evidence
 

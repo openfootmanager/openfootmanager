@@ -137,9 +137,11 @@ collect_exclusions || exit 1
 # A re-check after fixes: only the survivors named, each anchored to its file and mutation but not
 # its line, since a fix above it moves it.
 only=()
+wanted=()
 if [ -n "${MUTANTS_IN_DIFF_ONLY:-}" ]; then
     while IFS= read -r name; do
         [[ "$name" =~ ^([^:]+):[0-9]+:[0-9]+:\ (.+)$ ]] || continue
+        wanted+=("${BASH_REMATCH[1]}: ${BASH_REMATCH[2]}")
         only+=(--re "^$(regex_escape <<< "${BASH_REMATCH[1]}"):[0-9]+:[0-9]+: $(regex_escape <<< "${BASH_REMATCH[2]}")\$")
     done < "$MUTANTS_IN_DIFF_ONLY"
     if [ "${#only[@]}" -eq 0 ]; then
@@ -176,9 +178,26 @@ if [ "$count" -eq 0 ]; then
     echo "Mutants on the diff: 0 mutants (the branch changes no Rust production line)"
     exit 0
 fi
+# A survivor whose function or mutation has changed since the first run matches nothing now. The
+# run would go ahead without it and its counts would read as the whole re-check, so name it and
+# stop. A shard lists only its share, so the check needs the whole listing.
+if [ "${#wanted[@]}" -gt 0 ] && [ "${#shard[@]}" -eq 0 ]; then
+    present="$(printf '%s\n' "$listed" | sed -E 's/^([^:]+):[0-9]+:[0-9]+: /\1: /')"
+    unmatched=()
+    for name in "${wanted[@]}"; do
+        grep -Fxq -- "$name" <<< "$present" || unmatched+=("$name")
+    done
+    if [ "${#unmatched[@]}" -gt 0 ]; then
+        echo "mutants-in-diff: these survivors match no mutant on the diff now; the code they" \
+            "named has changed, so triage each by hand:" >&2
+        printf '  %s\n' "${unmatched[@]}" >&2
+        exit 1
+    fi
+fi
 # Measured in the trial: a 130-mutant diff never finished on the shared machine (two memory kills
-# in three attempts); three cloud shards did it in about 35 minutes each. A re-check is exempt.
-if [ "${#only[@]}" -eq 0 ] && [ "$count" -gt "$max" ]; then
+# in three attempts); three cloud shards did it in about 35 minutes each. A re-check is exempt, and
+# so is a cloud shard: the cap is for this machine.
+if [ "${#only[@]}" -eq 0 ] && [ "${#shard[@]}" -eq 0 ] && [ "$count" -gt "$max" ]; then
     echo "Mutants on the diff: not run locally: $count mutants is over the local cap of $max;" \
         "run it sharded in the cloud (MUTANTS_IN_DIFF_SHARD=k/n, one run per shard), or note it" \
         "here as not run"

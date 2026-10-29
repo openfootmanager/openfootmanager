@@ -14,7 +14,7 @@ failed=0
 scratch="$(mktemp -d)"
 trap 'rm -rf "$scratch"' EXIT
 
-# A fake cargo-mutants. `--list` prints FAKE_LIST lines; a run writes a report of FAKE_TOTAL
+# A fake cargo-mutants. `--list` prints FAKE_LIST lines, each mutation FAKE_LIST_NAME; a run writes a report of FAKE_TOTAL
 # mutants with FAKE_MISSED of them missed (unless FAKE_NO_REPORT is set), optionally leaves a
 # source file mutated (FAKE_LEAVE_MUTATED), and exits FAKE_STATUS. Every call is logged.
 fake_cargo="$scratch/fake-cargo"
@@ -23,7 +23,7 @@ cat > "$fake_cargo" <<'FAKE'
 echo "$*" >> "$FAKE_LOG"
 case " $* " in
   *" --list "*)
-    for ((i = 0; i < ${FAKE_LIST:-0}; i++)); do echo "crates/core/src/lib.rs:$((i + 1)):1: replace x"; done
+    for ((i = 0; i < ${FAKE_LIST:-0}; i++)); do echo "crates/core/src/lib.rs:$((i + 1)):1: ${FAKE_LIST_NAME:-replace x}"; done
     exit 0 ;;
 esac
 out=""
@@ -257,16 +257,29 @@ else
 fi
 expect 1 "a shard that is not k/n with k below n is refused" "MUTANTS_IN_DIFF_SHARD" -- \
     FAKE_LIST=1 MUTANTS_IN_DIFF_SHARD=3/3
+expect 0 "a cloud shard over the local cap still runs: the cap is for this machine" "65 caught" -- \
+    FAKE_LIST=65 FAKE_TOTAL=65 FAKE_STATUS=0 MUTANTS_IN_DIFF_SHARD=0/2
 
 echo "mutants-in-diff.test: re-checking only the survivors"
 survivors="$scratch/survivors"
 echo 'crates/core/src/lib.rs:1:1: replace answer -> u32 with 0' > "$survivors"
 expect 0 "a re-check runs only the named survivors, wherever their line has moved" "caught" -- \
-    FAKE_LIST=1 FAKE_TOTAL=1 FAKE_STATUS=0 MUTANTS_IN_DIFF_ONLY="$survivors"
+    FAKE_LIST=1 FAKE_LIST_NAME="replace answer -> u32 with 0" FAKE_TOTAL=1 FAKE_STATUS=0 \
+    MUTANTS_IN_DIFF_ONLY="$survivors"
 if grep -q -F -- '--re ^crates/core/src/lib\.rs:[0-9]+:[0-9]+: replace answer \-> u32 with 0$' "$scratch/cargo.log"; then
     passed=$((passed + 1)); echo "  ok    and each survivor is one anchored --re"
 else
     failed=$((failed + 1)); echo "  FAIL  no anchored --re for the survivor: $(cat "$scratch/cargo.log")"
+fi
+gone="$scratch/survivors-one-gone"
+{ cat "$survivors"; echo 'crates/core/src/lib.rs:9:1: replace answer -> u32 with 1'; } > "$gone"
+expect 1 "a survivor that matches no mutant on the diff now is named, not silently dropped" \
+    "replace answer -> u32 with 1" -- \
+    FAKE_LIST=1 FAKE_LIST_NAME="replace answer -> u32 with 0" MUTANTS_IN_DIFF_ONLY="$gone"
+if ran_list && ! ran_mutants; then
+    passed=$((passed + 1)); echo "  ok    and no mutation run starts"
+else
+    failed=$((failed + 1)); echo "  FAIL  a mutation run started with a survivor unaccounted for"
 fi
 : > "$scratch/no-survivors"
 expect 1 "a re-check with no survivors named is refused" "names no mutant" -- \
