@@ -125,8 +125,11 @@ goes in the PR body. What it does, and why:
 - **Over 60 mutants, it does not run here.** A 130-mutant diff never finished on the shared
   machine in the trial (two memory kills in three attempts), and three cloud shards did it in
   about 35 minutes each. Over the cap the script prints `Mutants on the diff: not run locally: …`
-  and runs nothing. Paste that line, and either run the diff sharded in the cloud (`cargo mutants
-  --shard k/n`) or leave it noted as not run. `MUTANTS_IN_DIFF_MAX` changes the cap for one run.
+  and runs nothing. Paste that line, and either run the diff sharded in the cloud or leave it
+  noted as not run. For a shard, run the script itself with `MUTANTS_IN_DIFF_SHARD=k/n` (k from 0
+  to n-1, one run per shard), not `cargo mutants --shard` by hand: the script keeps the diff and
+  the glue exclusions, and a bare `cargo mutants` mutates the whole workspace.
+  `MUTANTS_IN_DIFF_MAX` changes the cap for one run.
 
 Paste the result into the PR body, with a triage after each surviving or timed-out mutant:
 
@@ -142,11 +145,12 @@ category is a finding: say so rather than leaving it out.
 
 After adding tests, re-check **only the survivors**, not the whole diff. A full rerun costs the
 whole run again, and in the trial two PRs skipped it because the lock was busy. Pass the previous
-run's missed list:
+run's missed and timed-out lists:
 
 ```bash
-cp "$(git rev-parse --git-path mutants-in-diff)/mutants.out/missed.txt" /tmp/survivors.txt
-# (copy it first: every run starts by clearing that directory)
+out="$(git rev-parse --git-path mutants-in-diff)/mutants.out"
+cat "$out/missed.txt" "$out/timeout.txt" > /tmp/survivors.txt
+# (copy them first: every run starts by clearing that directory)
 MUTANTS_IN_DIFF_ONLY=/tmp/survivors.txt scripts/mutants-in-diff.sh
 ```
 

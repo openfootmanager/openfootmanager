@@ -153,7 +153,9 @@ else
     failed=$((failed + 1)); echo "  FAIL  cargo-mutants ran despite a stale entry: $(cat "$scratch/cargo.log")"
 fi
 
-# A Tauri command that only forwards to its tested `_internal`, and one that does not.
+# Tauri commands that only forward to their tested `_internal` (directly, after a log line, or off
+# the main thread), one with an `_internal` beside it that does work of its own first, and one with
+# no `_internal` at all.
 add_commands() {
     mkdir -p "$1/src-tauri/src/commands"
     cat > "$1/src-tauri/src/commands/club.rs" <<'RUST'
@@ -167,18 +169,58 @@ pub fn rename_club_internal(state: &StateManager, name: &str) -> Result<(), Stri
 }
 
 #[tauri::command]
+pub fn relocate_club(
+    state: State<'_, Arc<StateManager>>,
+    city: String,
+) -> Result<(), String> {
+    info!("[cmd] relocate_club: {}", city);
+    log::debug!("[cmd] relocate_club; from the settings screen");
+    relocate_club_internal(&state, &city)
+}
+
+pub fn relocate_club_internal(state: &StateManager, city: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn rebuild_club(state: State<'_, Arc<StateManager>>) -> Result<(), String> {
+    let state = state.inner().clone();
+    run_off_thread(move || rebuild_club_internal(&state)).await
+}
+
+pub fn rebuild_club_internal(state: &StateManager) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
+pub fn promote_club(
+    state: State<'_, Arc<StateManager>>,
+    name: String,
+) -> Result<(), String> {
+    let name = name.trim().to_string();
+    promote_club_internal(&state, &name)
+}
+
+pub fn promote_club_internal(state: &StateManager, name: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
 pub fn club_count(state: State<'_, Arc<StateManager>>) -> usize {
     3
 }
 RUST
     git -C "$1" add -A && git -C "$1" commit -qm commands
 }
-PREPARE=add_commands expect 0 "a command that forwards to its _internal is excluded" "caught" -- \
+PREPARE=add_commands expect 0 "a command that only forwards to its _internal is excluded" "caught" -- \
     FAKE_LIST=2 FAKE_TOTAL=2 FAKE_STATUS=0
 if grep -q -F -- 'src/commands/club\.rs:[0-9]+:[0-9]+: (replace rename_club( ->| with )|.* in rename_club$)' "$scratch/cargo.log" &&
+    grep -q -F -- '(replace relocate_club( ->| with )|.* in relocate_club$)' "$scratch/cargo.log" &&
+    grep -q -F -- '(replace rebuild_club( ->| with )|.* in rebuild_club$)' "$scratch/cargo.log" &&
     ! grep -q -- 'club_count' "$scratch/cargo.log" &&
+    ! grep -q -- 'promote_club' "$scratch/cargo.log" &&
     ! grep -q -- 'in rename_club_internal' "$scratch/cargo.log"; then
-    passed=$((passed + 1)); echo "  ok    and a command with logic of its own, and the _internal itself, are not"
+    passed=$((passed + 1)); echo "  ok    and a command with logic of its own, even beside an _internal, and the _internal itself, are not"
 else
     failed=$((failed + 1)); echo "  FAIL  wrong command exclusions: $(cat "$scratch/cargo.log")"
 fi
@@ -199,6 +241,15 @@ else
     failed=$((failed + 1)); echo "  FAIL  a mutation run started over the cap"
 fi
 expect 0 "60 mutants still run" "60 caught" -- FAKE_LIST=60 FAKE_TOTAL=60 FAKE_STATUS=0
+expect 0 "a cloud shard runs its part of the diff" "40 caught" -- \
+    FAKE_LIST=40 FAKE_TOTAL=40 FAKE_STATUS=0 MUTANTS_IN_DIFF_SHARD=1/3
+if [ "$(grep -c -- '--in-diff .* --shard 1/3' "$scratch/cargo.log")" -eq 2 ]; then
+    passed=$((passed + 1)); echo "  ok    and both the listing and the run keep the diff and take the shard"
+else
+    failed=$((failed + 1)); echo "  FAIL  the shard lost the diff or was not passed on: $(cat "$scratch/cargo.log")"
+fi
+expect 1 "a shard that is not k/n with k below n is refused" "MUTANTS_IN_DIFF_SHARD" -- \
+    FAKE_LIST=1 MUTANTS_IN_DIFF_SHARD=3/3
 
 echo "mutants-in-diff.test: re-checking only the survivors"
 survivors="$scratch/survivors"

@@ -11,10 +11,12 @@
 #   CARGO                  the cargo command (default cargo). On a shared machine, wrap the whole run in
 #                          one lock instead of passing a build-slot wrapper here: a run lasts hours.
 #   MUTANTS_IN_DIFF_PATCH  a patch to use instead of `git diff base...HEAD` (relative to src-tauri/)
-#   MUTANTS_IN_DIFF_ONLY   a file of mutant names (a previous run's missed list): mutate only those,
-#                          wherever their lines have moved. For re-checking survivors after a fix.
+#   MUTANTS_IN_DIFF_ONLY   a file of mutant names (a previous run's missed and timed-out lists):
+#                          mutate only those, wherever their lines have moved. For re-checking
+#                          survivors after a fix.
 #   MUTANTS_IN_DIFF_MAX    the most mutants run on this machine (default 60); over it, the step says
 #                          so and runs nothing, for the diff to be sharded in the cloud
+#   MUTANTS_IN_DIFF_SHARD  k/n: run shard k (0 to n-1) of the diff's mutants, for a cloud run
 #   MUTANTS_IN_DIFF_EXCLUSIONS  the glue list (default scripts/mutants-in-diff.exclusions)
 #   MUTANTS_TIMEOUT        cap on the whole run, as for timeout(1); default 180m
 #
@@ -66,16 +68,31 @@ collect_exclusions() {
         fi
         excluded+=(--exclude-re "$(function_pattern "$path" "$fn")")
     done < "$list"
-    # A Tauri command that has an `_internal` beside it only forwards to it: the command takes a
+    # A Tauri command whose body only calls the `_internal` beside it is glue: the command takes a
     # `tauri::State` that no test can build, and the `_internal` is what is tested and mutated.
+    # Before the call it may log, and it may hand the call to `run_off_thread`; any other statement
+    # or block is work of its own, and that command stays in.
     for file in src-tauri/src/commands/*.rs; do
         [ -f "$file" ] || continue
         while read -r name; do
             grep -Eq "fn ${name}_internal[<(]" "$file" &&
                 excluded+=(--exclude-re "$(function_pattern "${file#src-tauri/}" "$name")")
-        done < <(awk '/#\[tauri::command\]/ { command = 1; next }
-                     command && match($0, /fn [A-Za-z_][A-Za-z0-9_]*/) {
-                         print substr($0, RSTART + 3, RLENGTH - 3); command = 0 }' "$file")
+        done < <(awk '
+            function only_forwards(text, name) {
+                while (sub(/^(log::)?(trace|debug|info|warn|error)!\("([^"\\]|\\.)*"[^;]*\);/, "", text)) {}
+                sub(/^letstate=state\.inner\(\)\.clone\(\);/, "", text)
+                if (text ~ /[;{]/) return 0
+                return index(text, name "_internal(") == 1 ||
+                    index(text, "run_off_thread(move||" name "_internal(") == 1
+            }
+            /#\[tauri::command\]/ { command = 1; name = ""; next }
+            command && name == "" && match($0, /fn [A-Za-z_][A-Za-z0-9_]*/) {
+                name = substr($0, RSTART + 3, RLENGTH - 3) }
+            command && name != "" && !body && /\{[[:space:]]*$/ { body = 1; text = ""; next }
+            body && /^}/ {
+                if (only_forwards(text, name)) print name
+                command = 0; body = 0; next }
+            body { gsub(/[[:space:]]/, ""); text = text $0 }' "$file")
     done
     # The last command without an `_internal` leaves a failing status; that is not a failure.
     return 0
@@ -131,8 +148,21 @@ if [ -n "${MUTANTS_IN_DIFF_ONLY:-}" ]; then
     fi
 fi
 
+# One cloud shard of a diff too big for this machine: the same diff and exclusions, split by
+# cargo-mutants itself so the shards between them cover every mutant once.
+shard=()
+if [ -n "${MUTANTS_IN_DIFF_SHARD:-}" ]; then
+    if ! [[ "$MUTANTS_IN_DIFF_SHARD" =~ ^([0-9]+)/([0-9]+)$ ]] ||
+        [ "${BASH_REMATCH[1]}" -ge "${BASH_REMATCH[2]}" ]; then
+        echo "mutants-in-diff: MUTANTS_IN_DIFF_SHARD is '$MUTANTS_IN_DIFF_SHARD'; it must be k/n" \
+            "with k from 0 to n-1." >&2
+        exit 1
+    fi
+    shard=(--shard "$MUTANTS_IN_DIFF_SHARD")
+fi
+
 listed="$(cd src-tauri && "${cargo[@]}" mutants --workspace --in-diff "$patch" \
-    "${excluded[@]}" "${only[@]}" --list)" || exit 1
+    "${excluded[@]}" "${only[@]}" "${shard[@]}" --list)" || exit 1
 count="$(printf '%s' "$listed" | grep -c .)"
 if [ "$count" -eq 0 ]; then
     echo "Mutants on the diff: 0 mutants (the branch changes no Rust production line)"
@@ -143,7 +173,8 @@ fi
 max="${MUTANTS_IN_DIFF_MAX:-60}"
 if [ "${#only[@]}" -eq 0 ] && [ "$count" -gt "$max" ]; then
     echo "Mutants on the diff: not run locally: $count mutants is over the local cap of $max;" \
-        "run it sharded in the cloud (cargo mutants --shard k/n), or note it here as not run"
+        "run it sharded in the cloud (MUTANTS_IN_DIFF_SHARD=k/n, one run per shard), or note it" \
+        "here as not run"
     exit 0
 fi
 echo "mutants-in-diff: $count mutants on the diff; about a minute each on a busy machine." >&2
@@ -151,7 +182,7 @@ echo "mutants-in-diff: $count mutants on the diff; about a minute each on a busy
 started=$SECONDS
 (cd src-tauri && CARGO_INCREMENTAL=1 timeout --signal=INT "${MUTANTS_TIMEOUT:-180m}" \
     "${cargo[@]}" mutants --workspace --in-diff "$patch" "${excluded[@]}" "${only[@]}" \
-    --in-place --profile mutants --timeout 300 --output "$out")
+    "${shard[@]}" --in-place --profile mutants --timeout 300 --output "$out")
 status=$?
 minutes=$(( (SECONDS - started + 59) / 60 ))
 
