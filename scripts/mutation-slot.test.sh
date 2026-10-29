@@ -292,6 +292,19 @@ else
     record 0 "a coloured listing selects the plain names cargo-mutants matches against" \
         "$(printf '%s\n' "$coloured_patterns" | head -n 2 | cat -v)"
 fi
+# Colour is one kind of terminal control sequence; a tool can also emit cursor and erase codes
+# (`ESC [ 2 K`, `ESC [ ? 25 h`), private parameters (`ESC [ > 4 ; 2 m`) and intermediate bytes
+# (`ESC [ 2 SP q`). Stripping only colour would leave those in the patterns.
+controlled="$scratch/list-with-control-codes.txt"
+sed -e $'1s/^/\033[2K/' -e $'2s/$/\033[?25h/' -e $'3s/ with /\033[1G with /' \
+    -e $'4s/^/\033[>4;2m/' -e $'5s/ with /\033[2 q with /' \
+    "$fixtures/list-plain.txt" > "$controlled"
+if [ "$(select_bucket domain 0/1 "$controlled")" = "$plain_patterns" ]; then
+    record 1 "any terminal control sequence is stripped, not only colour" ""
+else
+    record 0 "any terminal control sequence is stripped, not only colour" \
+        "$(select_bucket domain 0/1 "$controlled" | head -n 3 | cat -v)"
+fi
 if [ "$(bucket_of_each ofm_core 44 "$fixtures/list-coloured.txt")" = \
     "$(bucket_of_each ofm_core 44 "$fixtures/list-plain.txt")" ]; then
     record 1 "colour does not move a mutant to another bucket" ""
