@@ -148,6 +148,14 @@ if [ -n "${MUTANTS_IN_DIFF_ONLY:-}" ]; then
     fi
 fi
 
+# A cap that is not a whole number would make the count comparison below an error, which `if`
+# reads as false: every diff would run, however big.
+max="${MUTANTS_IN_DIFF_MAX:-60}"
+if ! [[ "$max" =~ ^[0-9]+$ ]]; then
+    echo "mutants-in-diff: MUTANTS_IN_DIFF_MAX is '$max'; it must be a whole number of mutants." >&2
+    exit 1
+fi
+
 # One cloud shard of a diff too big for this machine: the same diff and exclusions, split by
 # cargo-mutants itself so the shards between them cover every mutant once.
 shard=()
@@ -170,7 +178,6 @@ if [ "$count" -eq 0 ]; then
 fi
 # Measured in the trial: a 130-mutant diff never finished on the shared machine (two memory kills
 # in three attempts); three cloud shards did it in about 35 minutes each. A re-check is exempt.
-max="${MUTANTS_IN_DIFF_MAX:-60}"
 if [ "${#only[@]}" -eq 0 ] && [ "$count" -gt "$max" ]; then
     echo "Mutants on the diff: not run locally: $count mutants is over the local cap of $max;" \
         "run it sharded in the cloud (MUTANTS_IN_DIFF_SHARD=k/n, one run per shard), or note it" \

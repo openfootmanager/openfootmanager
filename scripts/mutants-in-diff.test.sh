@@ -241,6 +241,13 @@ else
     failed=$((failed + 1)); echo "  FAIL  a mutation run started over the cap"
 fi
 expect 0 "60 mutants still run" "60 caught" -- FAKE_LIST=60 FAKE_TOTAL=60 FAKE_STATUS=0
+expect 1 "a cap that is not a whole number is refused" "MUTANTS_IN_DIFF_MAX" -- \
+    FAKE_LIST=61 FAKE_TOTAL=61 MUTANTS_IN_DIFF_MAX=60m
+if ! ran_list && ! ran_mutants; then
+    passed=$((passed + 1)); echo "  ok    and cargo-mutants is never called"
+else
+    failed=$((failed + 1)); echo "  FAIL  cargo-mutants ran with a cap of 60m: $(cat "$scratch/cargo.log")"
+fi
 expect 0 "a cloud shard runs its part of the diff" "40 caught" -- \
     FAKE_LIST=40 FAKE_TOTAL=40 FAKE_STATUS=0 MUTANTS_IN_DIFF_SHARD=1/3
 if [ "$(grep -c -- '--in-diff .* --shard 1/3' "$scratch/cargo.log")" -eq 2 ]; then
