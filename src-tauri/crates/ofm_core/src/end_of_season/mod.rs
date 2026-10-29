@@ -145,7 +145,7 @@ pub fn is_season_complete(game: &Game) -> bool {
                 .collect();
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
             let countrymen_still_playing = game.competitions.iter().any(|competition| {
-                berths::is_ladder_tier(competition)
+                crate::world::ladder::is_ladder_table(competition)
                     && competition
                         .country_id
                         .as_deref()
@@ -338,7 +338,7 @@ fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
     for league in game
         .competitions
         .iter()
-        .filter(|competition| berths::is_ladder_tier(competition))
+        .filter(|competition| crate::world::ladder::is_ladder_table(competition))
     {
         match league.country_id.as_deref() {
             Some(country) => by_country.entry(country).or_default().push(league),
