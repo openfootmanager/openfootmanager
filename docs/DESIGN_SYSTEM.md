@@ -130,7 +130,8 @@ drawn in the style guide.
 | a chip or label | `Badge` |
 | a modal | `Dialog` (named, focus-trapped, closes on Escape) |
 | a drop-down | `Select` |
-| a tick box | `Checkbox` |
+| a tick box | `Checkbox`, for a choice that is submitted later |
+| an on/off setting that takes effect at once | `Switch`, a WAI-ARIA switch named by its row's label (`labelledBy`) or its own translated `label`; the state shows by more than the thumb's position |
 | a date | `DatePicker` |
 | a progress or condition bar | `ProgressBar` |
 | a player, club or country | `PlayerAvatar`, `TeamLogo`, `CountryFlag`, `TeamLocation` |

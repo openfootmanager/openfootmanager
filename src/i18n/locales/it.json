@@ -1637,6 +1637,7 @@
     "dateOfBirth": "Data di nascita",
     "noContract": "Nessun contratto",
     "weeklyWage": "Stipendio settimanale",
+    "approximateWage": "circa {{wage}}",
     "annualWage": "Stipendio annuale",
     "yearsRemaining": "Anni rimanenti",
     "contractRisk": "Rischio contrattuale",
@@ -3658,7 +3659,9 @@
       "weeklyDigest": {
         "headline": "Digest Settimanale — Settimana del {{weekStart}}",
         "bodyNoTopScorer": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica e {{storylineCount}} trama/e stanno plasmando la divisione questa settimana.",
-        "bodyWithTopScorer": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica, mentre {{topScorer}} comanda la classifica marcatori con {{topScorerGoals}} gol. {{storylineCount}} trama/e stanno plasmando la divisione questa settimana."
+        "bodyWithTopScorer": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica, mentre {{topScorer}} comanda la classifica marcatori con {{topScorerGoals}} gol. {{storylineCount}} trama/e stanno plasmando la divisione questa settimana.",
+        "bodyNoTopScorerNoStorylines": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica.",
+        "bodyWithTopScorerNoStorylines": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica, mentre {{topScorer}} comanda la classifica marcatori con {{topScorerGoals}} gol."
       },
       "preseasonDigest": {
         "headline": "Digest precampionato — Settimana del {{weekStart}}",

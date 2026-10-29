@@ -2,11 +2,11 @@ import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { useTranslation } from "react-i18next";
 import type { PlayerData } from "../../store/gameStore";
-import { Badge, Button, Card, CountryFlag } from "../ui";
+import { Button, Card, CountryFlag } from "../ui";
 import { Eye, GitCompareArrows, X } from "lucide-react";
-import { calcAge, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
-import { normalisePosition, translatePositionLabel } from "../squad/SquadTab.helpers";
-import { naturalPositionOf } from "../../lib/positions";
+import { calcAge, getPlayerOvr } from "../../lib/helpers";
+import { naturalPositionOf, normalisePosition } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 const ATTRIBUTE_GROUPS: {
   labelKey: string;
@@ -52,7 +52,6 @@ function getNormalizedPlayerPosition(player: PlayerData): string {
 
 function PlayerSummary({ label, player }: { label: string; player: PlayerData }) {
   const { t } = useTranslation();
-  const normalizedPosition = getNormalizedPlayerPosition(player);
   const displayPosition = naturalPositionOf(player);
   const overallRating = getPlayerOvr(player);
 
@@ -67,9 +66,7 @@ function PlayerSummary({ label, player }: { label: string; player: PlayerData })
             {player.full_name}
           </p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <Badge variant={positionBadgeVariant(normalizedPosition)} size="sm">
-              {translatePositionLabel(t, displayPosition)}
-            </Badge>
+            <PlayerPositionBadge position={displayPosition} long />
             <span className="text-xs text-gray-500 dark:text-gray-400">
               <CountryFlag code={player.nationality} className="text-xs leading-none mr-1" />
               {t("common.age")} {calcAge(player.date_of_birth)}

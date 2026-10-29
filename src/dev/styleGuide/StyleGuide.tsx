@@ -28,6 +28,7 @@ import {
   SegmentedControl,
   Select,
   type SortDirection,
+  Switch,
   TabPanel,
   Tabs,
   TeamLocation,
@@ -260,6 +261,12 @@ function ControlsSection() {
         <Checkbox checked={false} onChange={() => undefined} aria-label="Unchecked" />
         <Checkbox checked={false} indeterminate onChange={() => undefined} aria-label="Mixed" />
         <Checkbox checked onChange={() => undefined} disabled aria-label="Disabled" />
+      </Row>
+      <Row>
+        <Switch label="Switch" checked={checked} onChange={setChecked} />
+        <Switch label="Switch, off" checked={false} onChange={() => undefined} />
+        <Switch label="Switch, disabled on" checked disabled onChange={() => undefined} />
+        <Switch label="Switch, disabled off" checked={false} disabled onChange={() => undefined} />
       </Row>
       <div className="grid max-w-md gap-3">
         <DatePicker value={date} onChange={setDate} />

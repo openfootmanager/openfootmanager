@@ -847,6 +847,76 @@ mod tests {
         assert_eq!(player.attributes.passing, 60);
     }
 
+    /// A midfielder born in `birth_year`, rated alike in every attribute, whose ceiling is his rating
+    /// (his curve has turned if he is old enough).
+    fn peaked_midfielder(birth_year: i32) -> Player {
+        let mut player = player_at("peaked", "team1", "2029-06-30");
+        player.date_of_birth = format!("{birth_year}-03-15");
+        player.condition = 100;
+        player.fitness = 80;
+        player.morale = 80;
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+        player.potential = player.ovr;
+        player
+    }
+
+    /// Given players of 30 to 35 at their ceiling (the state a falling player is in after any
+    ///       summer), with and without a season of training before the summer's decline,
+    /// When the net change in rating over the year is averaged,
+    /// Then a declining player never ends a year above where it began, trained or not (a rounding's
+    ///      worth at 30 and 31, where the table takes nothing yet, a fall from 32): the ceiling is
+    ///      his rating, so training has no room to lift him.
+    #[test]
+    fn a_trained_declining_player_never_ends_the_year_above_where_it_began() {
+        use rand::SeedableRng;
+        for age in 30..=35 {
+            let birth_year = 2026 - age;
+            let mut total = 0.0;
+            let seeds = 40;
+            for seed in 0..seeds {
+                let mut player = peaked_midfielder(birth_year);
+                let before = f64::from(player.ovr);
+                let mut rng = rand_chacha::ChaCha12Rng::seed_from_u64(seed);
+                for day in 0..250u32 {
+                    train_player(
+                        &mut player,
+                        &plan(TrainingFocus::Technical),
+                        &TrainingDay {
+                            weekday_num: day % 5,
+                            date: domain::age::season_midpoint(2026),
+                            world_seed: 1,
+                        },
+                        &mut rng,
+                    );
+                }
+                crate::development::develop_one_season(&mut player, age, 1, &mut rng);
+                refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+                total += f64::from(player.ovr) - before;
+            }
+            let net = total / f64::from(seeds as u32);
+            // The decline table takes no rating until 32 (a rounding's worth either way), then
+            // takes about a point a year; training adds nothing past the ceiling.
+            let limit = if age <= 31 { 0.05 } else { -0.3 };
+            assert!(net <= limit, "age {age}: net {net:+.2}");
+        }
+    }
+
+    /// Given a 31-year-old whose ceiling is his rating, and a 24-year-old in the same position,
+    /// When a technical session with a successful roll runs for each,
+    /// Then neither gains: a peaked player has no room to train into, whatever his age.
+    #[test]
+    fn a_player_at_his_ceiling_gains_nothing_from_training_at_any_age() {
+        let mut veteran = peaked_midfielder(1995);
+        let mut young = peaked_midfielder(2002);
+        let (veteran_before, young_before) = (attributes(&veteran), attributes(&young));
+
+        session(&mut veteran, &plan(TrainingFocus::Technical), 0);
+        session(&mut young, &plan(TrainingFocus::Technical), 0);
+
+        assert_eq!(attributes(&veteran), veteran_before);
+        assert_eq!(attributes(&young), young_before);
+    }
+
     /// Given a keeper already at its potential, when a technical session has successful rolls, then attributes and its career ceiling cannot drift upward.
     #[test]
     fn a_peaked_goalkeeper_cannot_gain_attributes() {

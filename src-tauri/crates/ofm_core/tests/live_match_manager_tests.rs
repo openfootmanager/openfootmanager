@@ -1,3 +1,6 @@
+#[path = "live_match_manager_tests/kick_off.rs"]
+mod kick_off;
+
 use chrono::{TimeZone, Utc};
 use domain::league::{Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry};
 use domain::manager::Manager;

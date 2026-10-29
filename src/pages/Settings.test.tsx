@@ -51,19 +51,24 @@ const lastSaved = () => {
 // The store as a fresh launch has it: a choice saved by one test must not be the next one's.
 const freshStore = useSettingsStore.getState();
 
-beforeEach(() => {
-  useSettingsStore.setState(freshStore, true);
-  invokeMock.mockReset();
+/** The backend answers with these saved settings; the rest are the store's defaults. */
+function answerWithSaved(settings: Record<string, unknown>) {
   invokeMock.mockImplementation(async (command: string) => {
     if (command === "get_settings") {
       return {
-        settings: {},
+        settings,
         currency: { code: "EUR", symbol: "€", exchange_rate: 1 },
         supported_currencies: [{ code: "EUR", symbol: "€", exchange_rate: 1 }],
       };
     }
     return command.startsWith("list_") ? [] : null;
   });
+}
+
+beforeEach(() => {
+  useSettingsStore.setState(freshStore, true);
+  invokeMock.mockReset();
+  answerWithSaved({});
 });
 
 describe("Settings: the sidebar", () => {
@@ -154,5 +159,28 @@ describe("Settings: the choices", () => {
     expect(
       within(behaviour).getByRole("radio", { name: "settings.sidebarBehaviourOptions.hover" }),
     ).toHaveFocus();
+  });
+
+  /**
+   * Given each on/off setting saved as the opposite of its default
+   * When a screen reader reaches it on the Settings page
+   * Then it is a switch named by its row's label, saying the saved state (not the default);
+   * flipping it saves the other state.
+   */
+  it.each([
+    ["settings.highContrast", "high_contrast", false],
+    ["settings.matchCommentary", "show_match_commentary", true],
+    ["settings.confirmAdvance", "confirm_advance", false],
+    ["settings.continueToNextEvent", "continue_to_next_event", false],
+    ["settings.autoSave", "auto_save", true],
+  ] as const)("draws %s as a switch named by its row", async (row, field, byDefault) => {
+    const saved = !byDefault;
+    answerWithSaved({ [field]: saved });
+    renderSettings();
+    const control = await screen.findByRole("switch", { name: row });
+    await waitFor(() => expect(control).toHaveAttribute("aria-checked", String(saved)));
+
+    fireEvent.click(control);
+    await waitFor(() => expect(lastSaved()).toMatchObject({ [field]: byDefault }));
   });
 });

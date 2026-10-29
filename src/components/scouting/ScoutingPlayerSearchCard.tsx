@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, ScanSearch } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { countryName } from "../../lib/countries";
-import { calcAge, formatVal, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import { calcAge, formatVal, getTeamName } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import type { PlayersPageQuery } from "../../services/playersService";
 import type { PlayerData, TeamData } from "../../store/gameStore";
@@ -16,8 +16,8 @@ import {
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
-import { Badge, Card, CardBody, CardHeader, CountryFlag, PlayerAvatar } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { Card, CardBody, CardHeader, CountryFlag, PlayerAvatar } from "../ui";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface ScoutingPlayerSearchCardProps {
   players: PlayerData[];
@@ -178,9 +178,7 @@ export default function ScoutingPlayerSearchCard({
                       </div>
                     </td>
                     <td className="py-2 px-1">
-                      <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
-                        {translatePositionAbbreviation(t, naturalPositionOf(player))}
-                      </Badge>
+                      <PlayerPositionBadge position={naturalPositionOf(player)} />
                     </td>
                     <td className="text-center py-2 px-1 text-gray-600 dark:text-gray-400">
                       {calcAge(player.date_of_birth)}
