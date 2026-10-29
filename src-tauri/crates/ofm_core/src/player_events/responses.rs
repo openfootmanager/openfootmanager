@@ -673,3 +673,41 @@ pub fn apply_player_response(
         i18n_params: outcome.i18n_params,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Given morale deltas of +4, −5 and 0
+    /// When the effect's parameters are written
+    /// Then each carries only its signed delta: "+4", "-5" and "+0"
+    #[test]
+    fn effect_params_carry_only_the_signed_morale_delta() {
+        let delta = |d| base_effect_params(d);
+
+        assert_eq!(
+            (delta(4), delta(-5), delta(0)),
+            (
+                HashMap::from([("delta".to_string(), "+4".to_string())]),
+                HashMap::from([("delta".to_string(), "-5".to_string())]),
+                HashMap::from([("delta".to_string(), "+0".to_string())])
+            )
+        );
+    }
+
+    /// Given band weights of 1, 2, 3, 4 and 5
+    /// When their total is taken
+    /// Then it is 15: every band counted once
+    #[test]
+    fn band_weight_total_adds_all_five_bands() {
+        let weights = ResponseBandWeights {
+            strong_positive: 1,
+            mild_positive: 2,
+            neutral: 3,
+            mild_negative: 4,
+            strong_negative: 5,
+        };
+
+        assert_eq!(weights.total(), 15);
+    }
+}
