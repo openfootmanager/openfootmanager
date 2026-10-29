@@ -268,7 +268,7 @@ describe("DataTable", () => {
     const firstFolds = [{ ...COLUMNS[1], drawer: true }, COLUMNS[0], COLUMNS[2]];
     renderTable({ columns: firstFolds, rowAccent: (p) => (p.starter ? "positive" : null) });
     const firstCell = within(screen.getByRole("row", { name: /Anderson/ })).getByText("31");
-    expect(firstCell.closest("td")).toHaveClass("border-l-positive-solid");
+    expect(firstCell.closest("td")).toHaveClass("border-l-positive");
     expect(firstCell.closest("td")).not.toHaveClass("@max-3xl:hidden");
     expect(screen.getByRole("columnheader", { name: "Age" })).not.toHaveClass("@max-3xl:hidden");
   });
@@ -281,5 +281,25 @@ describe("DataTable", () => {
       "positive",
     );
     expect(screen.getByRole("row", { name: /Navarro/ })).not.toHaveAttribute("data-accent");
+    // The starter edge is the positive text colour (5.5:1 on a panel), not the solid (2.5:1).
+    expect(
+      within(screen.getByRole("row", { name: /Anderson/ })).getAllByRole("cell")[0],
+    ).toHaveClass("border-l-positive");
+  });
+
+  /**
+   * Given a name cell with something beside the name (a flag, an injury badge)
+   * When the table is drawn with rows that open
+   * Then that sits beside the row's open button, not inside it, so a screen reader still reads it.
+   */
+  it("draws the name's aside beside its open button", () => {
+    renderTable({
+      onOpen: vi.fn(),
+      primaryAside: (p) => <span role="img" aria-label={`Flag of ${p.name}`} />,
+    });
+    const row = screen.getByRole("row", { name: /Anderson/ });
+    const flag = within(row).getByRole("img", { name: "Flag of Anderson" });
+    expect(flag.closest("button")).toBeNull();
+    expect(within(row).getByRole("button", { name: "Anderson" })).toBeInTheDocument();
   });
 });

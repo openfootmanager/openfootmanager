@@ -304,6 +304,57 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given a starter and an injured bench player
+   * When a screen reader reads their rows
+   * Then the starter's says he starts, the injured player's names his injury, and each names the
+   * player's nationality: none of it hidden inside the name's open button, and none of it only a
+   * colour.
+   */
+  it("says in words who starts, who is hurt and where each is from", async () => {
+    const state = makeGameState();
+    state.players.push(
+      makePlayer("inj", "Forward", {
+        match_name: "Hurt Forward",
+        nationality: "GB",
+        injury: { name: "Knee bruise", days_remaining: 10 },
+        match_day_eligible: false,
+      }),
+    );
+    renderSquadTab(state);
+
+    const starter = await screen.findByRole("row", { name: /GK1/ });
+    expect(within(starter).getByText("squad.startingXi")).toBeInTheDocument();
+    const hurt = screen.getByRole("row", { name: /Hurt Forward/ });
+    const injury = within(hurt).getAllByRole("img", { name: /Knee bruise/ });
+    expect(injury.some((badge) => badge.closest("button") === null)).toBe(true);
+    const flags = within(hurt)
+      .getAllByRole("img")
+      .filter((img) => img.closest("button") === null);
+    expect(flags.length).toBeGreaterThanOrEqual(2);
+    expect(
+      within(screen.getByRole("row", { name: /Bench DEF/ })).queryByText("squad.startingXi"),
+    ).toBeNull();
+  });
+
+  /**
+   * Given the roster
+   * When a keyboard user opens a player's menu from its button
+   * Then the menu opens with its items, and Escape closes it and returns focus to the button.
+   */
+  it("opens a player's menu from the keyboard and gives focus back on Escape", async () => {
+    renderSquadTab(makeGameState());
+    const [button] = await screen.findAllByRole("button", { name: /common\.playerActions/ });
+    button.focus();
+    fireEvent.click(button);
+    expect(await screen.findByRole("menuitem", { name: "Renew Contract" })).toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitem", { name: "Renew Contract" })).toBeNull(),
+    );
+    expect(button).toHaveFocus();
+  });
+
+  /**
    * Given two senior players rated 76 and 77, either side of the A-tier cut-off
    * When the roster renders
    * Then each rating takes the colour of its backend tier (B and A).
@@ -435,7 +486,7 @@ describe("SquadTab", () => {
     // In the keeper's own row; its details repeat the folded columns for a narrow window.
     const keeperRow = screen.getByRole("row", { name: /GK1/ });
     expect(within(keeperRow).getByText("Knee bruise")).toBeInTheDocument();
-    expect(within(keeperRow).getByText("10d")).toBeInTheDocument();
+    expect(within(keeperRow).getAllByText("10d").length).toBeGreaterThan(0);
   });
 
   it("honors a persisted OVR sort state from the dashboard", () => {

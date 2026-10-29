@@ -24,6 +24,9 @@ describe("ConditionMeter", () => {
       />,
     );
     expect(screen.getByText("Tiring")).toHaveClass("text-tone-fair");
+    // The word is the band's non-colour signal, so a long one ("Cansándose") is never cut short.
+    expect(screen.getByText("Tiring")).not.toHaveClass("truncate");
+    expect(screen.getByText("Tiring")).toHaveClass("whitespace-nowrap");
     const bar = screen.getByRole("progressbar", { name: "Condition" });
     expect(bar).toHaveAttribute("aria-valuenow", "64");
     expect(bar.firstElementChild).toHaveClass("bg-tone-fair-solid");

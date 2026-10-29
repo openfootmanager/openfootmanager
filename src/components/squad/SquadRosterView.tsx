@@ -39,7 +39,7 @@ import {
   positionSortRank,
 } from "../../lib/positions";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
-import { squadRosterColumns } from "./SquadRosterView.columns";
+import { SquadNameAside, squadRosterColumns } from "./SquadRosterView.columns";
 import { squadRowMenuItems } from "./SquadRosterView.menu";
 import {
   DEFAULT_SQUAD_LIST_SORT_STATE,
@@ -535,9 +535,20 @@ export default function SquadRosterView({
           rowAccent={(player) =>
             xiIds.has(player.id) ? "positive" : isMatchDayEligible(player) ? null : "danger"
           }
-          onRowContextMenu={(player, event) =>
-            menuRefs.current.get(player.id)?.open(event.clientX, event.clientY)
-          }
+          onRowContextMenu={(player, event) => {
+            // The Menu key and Shift+F10 send a right-click at 0,0: open it at the row instead.
+            const fromKeyboard = event.clientX === 0 && event.clientY === 0;
+            const rect = event.currentTarget.getBoundingClientRect();
+            menuRefs.current
+              .get(player.id)
+              ?.open(
+                fromKeyboard ? rect.left : event.clientX,
+                fromKeyboard ? rect.bottom : event.clientY,
+              );
+          }}
+          primaryAside={(player) => (
+            <SquadNameAside player={player} starting={xiIds.has(player.id)} t={t} />
+          )}
           rowAction={{
             header: t("common.actions"),
             cell: (player) => (
@@ -567,7 +578,11 @@ export default function SquadRosterView({
                 >
                   <MoreVertical className="h-4 w-4" />
                   {player.injury || riskLevelOf(player.id) !== "stable" ? (
-                    <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warning-solid" />
+                    // Decoration: the injury and the contract stage are said in words in the row.
+                    <span
+                      aria-hidden="true"
+                      className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warning-solid"
+                    />
                   ) : null}
                 </button>
               </ContextMenu>

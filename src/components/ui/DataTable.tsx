@@ -44,6 +44,11 @@ interface DataTableProps<Row> {
   onOpen?: (row: Row) => void;
   /** A last column of controls (a menu); its header is for screen readers only. */
   rowAction?: { header: string; cell: (row: Row) => ReactNode };
+  /**
+   * What sits beside the row's name, outside its open button (a flag, an injury badge, a word for
+   * a screen reader): a button's contents are not read out, so anything to be read goes here.
+   */
+  primaryAside?: (row: Row) => ReactNode;
   rowAccent?: (row: Row) => RowAccent | null;
   /**
    * A right-click on the row, for its menu: the row and the pointer's place. The browser's own menu
@@ -67,7 +72,7 @@ const UNFOLDED_ONLY = "@3xl:hidden";
 const ACCENT_EDGE = "border-l-3";
 const ACCENT: Record<RowAccent | "none", string> = {
   none: "border-l-transparent",
-  positive: "border-l-positive-solid",
+  positive: "border-l-positive",
   danger: "border-l-danger-solid",
 };
 
@@ -116,6 +121,7 @@ export function DataTable<Row>({
   rowAction,
   rowAccent,
   onRowContextMenu,
+  primaryAside,
   loading = false,
   empty,
 }: DataTableProps<Row>) {
@@ -248,6 +254,7 @@ export function DataTable<Row>({
                           ) : (
                             column.cell(row)
                           )}
+                          {primaryAside?.(row)}
                           {folded.length > 0 ? (
                             <button
                               type="button"

@@ -23,7 +23,7 @@ export function ConditionMeter({ value, status, className = "" }: ConditionMeter
     <div className={`flex items-center gap-2 ${className}`}>
       {status ? (
         <span
-          className={`w-16 shrink-0 truncate text-caption font-semibold ${TONE_TEXT[status.tone]}`}
+          className={`min-w-16 shrink-0 whitespace-nowrap text-caption font-semibold ${TONE_TEXT[status.tone]}`}
         >
           {t(status.label_key)}
         </span>
