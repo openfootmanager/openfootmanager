@@ -492,7 +492,7 @@ fn apply_carry_back(
         crate::player_wear::apply_match_wear(player, 90, rng);
         crate::player_wear::roll_match_injury(player, rng);
         if morale_delta != 0 {
-            player.morale = (player.morale as i16 + morale_delta).clamp(10, 100) as u8;
+            player.morale = crate::morale::apply_morale_change(player.morale, morale_delta);
         }
     }
 }
@@ -827,5 +827,23 @@ mod tests {
             home_total > away_total,
             "a much stronger home side should outscore the weaker one (home {home_total} vs away {away_total})"
         );
+    }
+
+    /// Given two internationals at morale 3, below the floor of 10 that bad news stops at
+    /// When one plays in a defeat and the other in a win
+    /// Then the defeat leaves the first at 3, and the win lifts the second by its 2 to 5: neither
+    ///      is lifted to 10
+    #[test]
+    fn an_international_result_moves_a_very_unhappy_player_by_what_it_is_worth() {
+        let mut players = vec![make_player("lost", 70), make_player("won", 70)];
+        for player in &mut players {
+            player.morale = 3;
+        }
+        let mut rng = StdRng::seed_from_u64(3);
+
+        apply_carry_back(&mut players, &[0], 0, 1, &mut rng);
+        apply_carry_back(&mut players, &[1], 1, 0, &mut rng);
+
+        assert_eq!((players[0].morale, players[1].morale), (3, 5));
     }
 }

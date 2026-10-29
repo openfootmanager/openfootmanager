@@ -1009,6 +1009,38 @@ fn apply_fan_listen_boosts_morale() {
     assert!(boosted, "Listening to fans should boost morale");
 }
 
+/// Given a squad at morale 0
+/// When the manager listens to the fans' petition, news worth 1 to 3 to each player
+/// Then each player gains 1 to 3, not the jump to 10 a floor would give him
+#[test]
+fn listening_to_the_fans_lifts_a_very_unhappy_squad_by_what_it_is_worth() {
+    let mut game = make_game();
+    for p in &mut game.players {
+        p.morale = 0;
+    }
+    game.messages.push(fan_petition_msg());
+
+    apply_event_response(
+        &mut game,
+        "fan_petition_2025-06-15",
+        "respond",
+        "listen_fans",
+    )
+    .expect("the response applies");
+
+    let squad: Vec<u8> = game
+        .players
+        .iter()
+        .filter(|p| p.team_id.as_deref() == Some("team1"))
+        .map(|p| p.morale)
+        .collect();
+    assert!(!squad.is_empty());
+    assert!(
+        squad.iter().all(|morale| (1..=3).contains(morale)),
+        "{squad:?}"
+    );
+}
+
 #[test]
 fn apply_fan_ignore_resolves() {
     let mut game = make_game();
@@ -1117,6 +1149,47 @@ fn apply_rival_open_to_offers_drops_morale() {
         "be.msg.rivalInterest.effects.openToOffers"
     );
     assert!(game.players[0].morale < 80, "Morale should decrease");
+}
+
+/// Given a player whose morale is already 3, below the floor of 10 that bad news stops at
+/// When the manager tells a rival club he is open to offers for him
+/// Then the bad news leaves him at 3: it is no reason to lift him to 10
+#[test]
+fn telling_a_rival_a_very_unhappy_player_is_available_never_lifts_his_morale() {
+    let mut game = make_game();
+    game.players[0].morale = 3;
+    game.messages.push(rival_interest_msg("p0"));
+
+    apply_event_response(
+        &mut game,
+        "rival_interest_2025-06-15",
+        "respond",
+        "open_to_offers",
+    )
+    .expect("the response applies");
+
+    assert_eq!(game.players[0].morale, 3);
+}
+
+/// Given a player at morale 0
+/// When the manager tells a rival club he is not for sale, news worth 3 to 8 morale
+/// Then he gains 3 to 8, not the jump to 10 a floor would give him
+#[test]
+fn a_very_unhappy_player_told_he_is_not_for_sale_gains_only_what_the_news_is_worth() {
+    let mut game = make_game();
+    game.players[0].morale = 0;
+    game.messages.push(rival_interest_msg("p0"));
+
+    apply_event_response(
+        &mut game,
+        "rival_interest_2025-06-15",
+        "respond",
+        "not_for_sale",
+    )
+    .expect("the response applies");
+
+    let morale = game.players[0].morale;
+    assert!((3..=8).contains(&morale), "morale {morale}");
 }
 
 #[test]
