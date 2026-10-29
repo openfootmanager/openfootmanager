@@ -28,6 +28,14 @@ export function knowledgeRevision(inputs: KnowledgeRevisionInputs): string {
   ]);
 }
 
+/**
+ * A rating as a list or a card writes it: the number when the club knows it, "–" when it does not.
+ * The one place a hidden rating is spelled, so every screen hides it alike.
+ */
+export function visibleRatingText(rating: number | null): string {
+  return rating === null ? "–" : String(rating);
+}
+
 /** The club sees his live rating and attributes: he is its own, or plays in its division. */
 export function knowsPlayerRating(knowledge: PlayerKnowledge): boolean {
   return knowledge.kind === "own" || knowledge.kind === "known";
