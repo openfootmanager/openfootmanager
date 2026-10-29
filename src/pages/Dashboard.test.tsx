@@ -628,7 +628,8 @@ describe("Dashboard", () => {
     await requestWindowClose();
     fireEvent.click(screen.getByRole("button", { name: "Quit Without Saving" }));
     await waitFor(() => expect(destroyMock).toHaveBeenCalledOnce());
-    expect(invokeMock).not.toHaveBeenCalledWith("save_game", { careerToken: 0 });
+    const saves = invokeMock.mock.calls.filter(([command]) => command === "save_game");
+    expect(saves).toEqual([]);
     expect(markCleanMock).not.toHaveBeenCalled();
   });
 

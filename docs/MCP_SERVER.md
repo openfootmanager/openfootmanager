@@ -93,7 +93,7 @@ setup tools above; `--mcp-disable-tools` can still disable individual tools expl
 
 The game's screen sends a career token with every command that changes the game, so a request
 meant for a replaced career is refused. MCP tools carry no token: an agent acts on whichever career
-is active, so every MCP tool writes with `Career::Active`. See "Screen writes and the career check"
+is active, so an MCP tool that changes the active game writes with `Career::Active`. `game_select_team` and `game_load_save` install a career with a fresh token instead of checking one. See "Screen writes and the career check"
 in `docs/ARCHITECTURE.md`.
 
 ---

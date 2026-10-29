@@ -45,6 +45,7 @@ mod tests {
     use super::apply_for_job_internal;
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
+    use domain::team::Team;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
     use ofm_core::state::{Career, StateManager};
@@ -58,7 +59,19 @@ mod tests {
             "1980-01-01".into(),
             "England".into(),
         );
-        let mut game = Game::new(clock, manager, vec![], vec![], vec![], vec![]);
+        // An unemployed manager and a club with no manager of the same reputation: the best odds
+        // the game gives an application, so the positive half of the test hires.
+        let mut vacant_club = Team::new(
+            "team-9".into(),
+            "Vacant FC".into(),
+            "VAC".into(),
+            "England".into(),
+            "London".into(),
+            "Ground".into(),
+            20_000,
+        );
+        vacant_club.reputation = manager.reputation;
+        let mut game = Game::new(clock, manager, vec![vacant_club], vec![], vec![], vec![]);
         game.career_token = token;
         let state = StateManager::new();
         state.set_game(game);
@@ -80,6 +93,8 @@ mod tests {
         let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
         assert_eq!(after, before);
         let applied = apply_for_job_internal(&state, Career::Token(2), "team-9").unwrap();
-        assert!(applied.get("result").is_some());
+        assert_eq!(applied["result"], "hired", "{applied}");
+        let hired_by = state.get_game(|g| g.manager.team_id.clone()).unwrap();
+        assert_eq!(hired_by.as_deref(), Some("team-9"));
     }
 }
