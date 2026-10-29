@@ -51,6 +51,28 @@ describe("useVisibleWage", () => {
   });
 
   /**
+   * Given the club's own player's exact wage on screen
+   * When the game moves on (another career installed, say) and the backend's next answer is
+   *      still on its way, and then fails
+   * Then the wage reads hidden meanwhile and after the failure, never the last answer's figure
+   */
+  it("reads hidden, not the last answer, until the game's next answer arrives", async () => {
+    mockedWage.mockResolvedValueOnce({ kind: "exact", weekly: 15_843 });
+    const { result, rerender } = renderHook(({ revision }) => useVisibleWage("p1", revision), {
+      initialProps: { revision: "career-1" },
+    });
+    await waitFor(() => expect(result.current).toEqual({ kind: "exact", weekly: 15_843 }));
+
+    mockedWage.mockRejectedValueOnce(new Error("no game"));
+    rerender({ revision: "career-2" });
+
+    expect(result.current).toEqual({ kind: "hidden" });
+    await waitFor(() => expect(mockedWage).toHaveBeenCalledTimes(2));
+    await Promise.resolve();
+    expect(result.current).toEqual({ kind: "hidden" });
+  });
+
+  /**
    * Given the hook has its answer
    * When the game moves on (a renewal, a transfer, a scout's report)
    * Then it asks the backend again

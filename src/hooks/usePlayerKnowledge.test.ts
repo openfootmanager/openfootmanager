@@ -57,6 +57,29 @@ describe("usePlayerKnowledge", () => {
   });
 
   /**
+   * Given the hook knows a player as the club's own
+   * When the game moves on (another career installed, say) and the backend's next answer is
+   *      still on its way, and then fails
+   * Then he reads as unknown meanwhile and after the failure, never as the last answer's own
+   */
+  it("reads unknown, not the last answer, until the game's next answer arrives", async () => {
+    mockedKnowledge.mockResolvedValueOnce({ p1: { kind: "own" } });
+    const { result, rerender } = renderHook(
+      ({ revision }) => usePlayerKnowledge(["p1"], revision),
+      { initialProps: { revision: "career-1" } },
+    );
+    await waitFor(() => expect(result.current("p1")).toEqual({ kind: "own" }));
+
+    mockedKnowledge.mockRejectedValueOnce(new Error("no game"));
+    rerender({ revision: "career-2" });
+
+    expect(result.current("p1")).toEqual({ kind: "unknown" });
+    await waitFor(() => expect(mockedKnowledge).toHaveBeenCalledTimes(2));
+    await Promise.resolve();
+    expect(result.current("p1")).toEqual({ kind: "unknown" });
+  });
+
+  /**
    * Given the club's own player, from a package whose ids may hold a comma ("fc,united-9")
    * When the hook asks about him
    * Then the backend is asked about that one id, not two halves of it, and he reads as own
