@@ -1135,4 +1135,44 @@ mod tests {
         ];
         assert_eq!(evaluate_objectives(&game), -15);
     }
+
+    /// The objectives' wins and goals targets for a club of reputation 800 in a 20-club world
+    /// whose league holds `league_size` of those clubs.
+    fn wins_and_goals_in_a_league_of(league_size: usize) -> (u32, u32) {
+        let mut game = make_game(800, 1, 20);
+        let league_ids: Vec<String> = (1..=league_size).map(|idx| format!("team{idx}")).collect();
+        game.league = Some(League::new(
+            "league1".to_string(),
+            "Test League".to_string(),
+            1,
+            &league_ids,
+        ));
+
+        generate_objectives(&mut game);
+
+        (
+            objective_by_id(&game, "obj_wins").target,
+            objective_by_id(&game, "obj_goals").target,
+        )
+    }
+
+    /// Given a club of reputation 800 in a four-club league, in a world of twenty clubs
+    /// When the board sets its objectives
+    /// Then the targets come from the league's six matchdays (3 wins), not the world's 38
+    #[test]
+    fn generate_objectives_scales_targets_to_the_user_league_not_the_whole_world() {
+        assert_eq!(wins_and_goals_in_a_league_of(4).0, 3);
+    }
+
+    /// Given a club of reputation 800 whose league lists only itself, in a world of twenty clubs
+    /// When the board sets its objectives
+    /// Then a one-club league cannot set a season, so the targets fall back to the world's twenty
+    ///      clubs: the same as a twenty-club league
+    #[test]
+    fn a_one_club_league_falls_back_to_the_world_team_count() {
+        assert_eq!(
+            wins_and_goals_in_a_league_of(1),
+            wins_and_goals_in_a_league_of(20)
+        );
+    }
 }
