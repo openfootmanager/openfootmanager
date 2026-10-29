@@ -329,6 +329,32 @@ describe("useFreeAgentContractFlow", () => {
     expect(mockedGetFreeAgentOpeningOffer).toHaveBeenCalledWith(target.id);
   });
 
+  // Given the manager types a wage before the opening offer arrives
+  // When the offer arrives
+  // Then his wage stands, and only the length he left empty takes the offer's
+  it("keeps a wage typed before the opening offer arrives", async () => {
+    const target = createPlayer();
+    const gameState = createGameState([target]);
+    let answer: (offer: { weekly_wage: number; contract_years: number }) => void = () => {};
+    mockedGetFreeAgentOpeningOffer.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+    );
+
+    render(<HookHarness gameState={gameState} target={target} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    fireEvent.change(screen.getByLabelText("Wage"), { target: { value: "4500" } });
+    await act(async () => {
+      answer({ weekly_wage: 7000, contract_years: 4 });
+    });
+
+    expect(screen.getByLabelText("Wage")).toHaveValue("4500");
+    expect(screen.getByLabelText("Years")).toHaveValue("4");
+  });
+
   // Given a player the backend will not open talks with
   // When the manager opens talks
   // Then the backend's reason is shown, and there is no offer to submit

@@ -121,8 +121,9 @@ export function useFreeAgentContractFlow({
         const offer = await getFreeAgentOpeningOffer(freeAgentTargetId);
 
         if (!cancelled) {
-          setContractWage(String(offer.weekly_wage));
-          setContractLength(String(offer.contract_years));
+          // Only a field still empty takes the offer: the manager may have typed while it loaded.
+          setContractWage((typed) => typed || String(offer.weekly_wage));
+          setContractLength((typed) => typed || String(offer.contract_years));
         }
       } catch (error) {
         if (!cancelled) {
