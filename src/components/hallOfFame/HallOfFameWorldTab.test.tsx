@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fetchHallOfFameChampions, fetchHallOfFameLegends } from "../../services/retireesService";
@@ -231,6 +231,24 @@ describe("HallOfFameWorldTab", () => {
     expect(await screen.findByText("Beta United")).toBeInTheDocument();
     expect(screen.queryByText("Alpha FC")).not.toBeInTheDocument();
     expect(screen.getByText("1 title-winning seasons")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the Hall of Fame is open on one career
+   * When another career is installed under the same game date (an MCP career switch)
+   * Then the legends and the champions are asked for again, so the old career's do not stay on screen.
+   */
+  it("asks the backend again when the career changes under an unchanged date", async () => {
+    const first = { ...createGameState(), career_token: 1 };
+    const { rerender } = render(<HallOfFameWorldTab gameState={first} />);
+    await screen.findByText("Beta United");
+    expect(mockedFetchChampions).toHaveBeenCalledTimes(1);
+    expect(mockedFetchLegends).toHaveBeenCalledTimes(1);
+
+    rerender(<HallOfFameWorldTab gameState={{ ...first, career_token: 2 }} />);
+
+    await waitFor(() => expect(mockedFetchChampions).toHaveBeenCalledTimes(2));
+    expect(mockedFetchLegends).toHaveBeenCalledTimes(2);
   });
 
   it("says so when the world has no legends yet", async () => {

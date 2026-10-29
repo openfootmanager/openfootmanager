@@ -21,8 +21,10 @@ export default function HallOfFameWorldTab({
   onSelectTeam,
 }: HallOfFameWorldTabProps) {
   const { t, i18n } = useTranslation();
-  const legends = useHallOfFameLegends(gameState.clock.current_date);
-  const titles = useHallOfFameChampions(gameState.clock.current_date);
+  // A career switch can keep this tab mounted under an unchanged date.
+  const careerToken = gameState.career_token ?? 0;
+  const legends = useHallOfFameLegends(gameState.clock.current_date, careerToken);
+  const titles = useHallOfFameChampions(gameState.clock.current_date, careerToken);
   // The backend names the titles; the screen only attaches the club it shows.
   const champions = titles.flatMap(({ season, team_id, record }) => {
     const team = gameState.teams.find((candidate) => candidate.id === team_id);
