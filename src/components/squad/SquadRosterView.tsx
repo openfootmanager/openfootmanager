@@ -1,5 +1,4 @@
 import { useRatingTiers } from "../../hooks/useRatingTiers";
-import { ratingTierClass } from "../../lib/ratingTier";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import { useId, useMemo, useRef, useState } from "react";
 import type {
@@ -8,45 +7,14 @@ import type {
   PlayerSelectionOptions,
   TeamData,
 } from "../../store/gameStore";
-import {
-  Badge,
-  Card,
-  ProgressBar,
-  Select,
-  CountryFlag,
-  PlayerAvatar,
-  InjuryBadge,
-  PositionBadges,
-} from "../ui";
-import {
-  AlertTriangle,
-  MoreVertical,
-  Repeat,
-  RotateCcw,
-  TimerOff,
-  Trash2,
-  Users,
-} from "lucide-react";
-import { TraitList } from "../TraitBadge";
-import { SquadSortHeader } from "./SquadSortHeader";
-import {
-  calcAge,
-  contractExpiryLabel,
-  getPlayerOvr,
-  getContractRiskBadgeVariant,
-  getContractYearsRemaining,
-} from "../../lib/helpers";
-import {
-  canDelegateToYouthAcademy,
-  isFirstTeamSquadPlayer,
-  isMatchDayEligible,
-} from "../../lib/playerSquad";
-import { getInjurySeverity, resolveInjuryName } from "../../lib/injury";
+import { Badge, Card, DataTable, PositionBadges, Select } from "../ui";
+import { MoreVertical, Users } from "lucide-react";
+import { calcAge, getPlayerOvr } from "../../lib/helpers";
+import { isFirstTeamSquadPlayer, isMatchDayEligible } from "../../lib/playerSquad";
 import { useTranslation } from "react-i18next";
 import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
 import { clearContractExitIntent, setContractExitIntent } from "../../services/contractService";
-import { setPlayerSquadRole, setStartingXi } from "../../services/squadService";
-import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
+import { setStartingXi } from "../../services/squadService";
 import {
   buildActivePositionMap,
   buildRoleCoverageSummary,
@@ -71,13 +39,8 @@ import {
   positionSortRank,
 } from "../../lib/positions";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
-import {
-  buildDelegateToYouthAcademyMenuItem,
-  buildDividerMenuItem,
-  buildToggleLoanListMenuItem,
-  buildToggleTransferListMenuItem,
-  buildViewProfileMenuItem,
-} from "../playerActions/playerContextMenuItems";
+import { squadRosterColumns } from "./SquadRosterView.columns";
+import { squadRowMenuItems } from "./SquadRosterView.menu";
 import {
   DEFAULT_SQUAD_LIST_SORT_STATE,
   type SquadListSortKey,
@@ -379,6 +342,27 @@ export default function SquadRosterView({
     );
   };
 
+  const columns = squadRosterColumns({
+    t,
+    language: i18n.language,
+    clockDate,
+    tierOf,
+    riskLevelOf,
+    renderPositions: renderPreferredPositionMeta,
+  });
+  const benchHasCover = available.some((candidate) => !xiIds.has(candidate.id));
+  const menuContextFor = (player: PlayerData) => ({
+    t,
+    inStartingXi: xiIds.has(player.id),
+    canBench: benchHasCover,
+    contractRisk: riskLevelOf(player.id),
+    contractActionPending: contractActionPlayerId === player.id,
+    onSelectPlayer,
+    onMutationComplete,
+    updateSquadPlanning,
+    updateContractExitIntent,
+  });
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
@@ -539,361 +523,58 @@ export default function SquadRosterView({
             </div>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
-                <SquadSortHeader
-                  col="jersey"
-                  label={t("squad.jerseyNumber")}
-                  ariaLabel={t("squad.jerseyNumberFull")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
-                <SquadSortHeader
-                  col="name"
-                  label={t("common.name")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
-                <SquadSortHeader
-                  col="pos"
-                  label={t("squad.pos")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("squad.traits")}
-                </th>
-                <SquadSortHeader
-                  col="age"
-                  label={t("common.age")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
-                <SquadSortHeader
-                  col="condition"
-                  label={t("common.condition")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
-                <SquadSortHeader
-                  col="morale"
-                  label={t("common.morale")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
-                <SquadSortHeader
-                  col="ovr"
-                  label={t("common.ovr")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
-                <SquadSortHeader
-                  col="contract"
-                  label={t("common.contract")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
-                <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-right">
-                  <span className="sr-only">{t("common.actions")}</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
-              {filteredRoster.map((player) => {
-                const inXI = xiIds.has(player.id);
-                const ovr = getPlayerOvr(player);
-                const age = calcAge(player.date_of_birth);
-                const contractRiskLevel = riskLevelOf(player.id);
-                const contractRiskLabel =
-                  contractRiskLevel === "critical"
-                    ? t("finances.contractRiskCritical")
-                    : contractRiskLevel === "warning"
-                      ? t("finances.contractRiskWarning")
-                      : t("finances.contractRiskStable");
-                const hasLetExpireIntent =
-                  player.morale_core?.renewal_state?.exit_intent?.kind === "let_expire";
-                const isContractActionSubmitting = contractActionPlayerId === player.id;
-
-                const injurySeverity = player.injury
-                  ? getInjurySeverity(player.injury.days_remaining)
-                  : null;
-                const injuryDotClass =
-                  injurySeverity === "major"
-                    ? "bg-red-500"
-                    : injurySeverity === "serious"
-                      ? "bg-orange-400"
-                      : injurySeverity === "moderate"
-                        ? "bg-amber-400"
-                        : injurySeverity === "minor"
-                          ? "bg-yellow-400"
-                          : null;
-                const rowBorderClass = player.injury
-                  ? injurySeverity === "major" || injurySeverity === "serious"
-                    ? "border-l-2 border-l-red-500"
-                    : "border-l-2 border-l-amber-400"
-                  : contractRiskLevel === "critical"
-                    ? "border-l-2 border-l-orange-500"
-                    : contractRiskLevel === "warning"
-                      ? "border-l-2 border-l-yellow-400"
-                      : "";
-                const hasUrgentItems = Boolean(player.injury) || contractRiskLevel !== "stable";
-
-                const contextItems = [
-                  ...(player.injury
-                    ? [
-                        {
-                          type: "label" as const,
-                          label: `${resolveInjuryName(player.injury.name, t)} — ${t("playerProfile.injuryDaysShort", { count: player.injury.days_remaining })}`,
-                          icon: <AlertTriangle className="w-3.5 h-3.5" />,
-                        },
-                        buildDividerMenuItem(),
-                      ]
-                    : []),
-                  buildViewProfileMenuItem(t, () => onSelectPlayer(player.id)),
-                  inXI
-                    ? {
-                        label: t("squad.sendToBench"),
-                        icon: <RotateCcw className="w-4 h-4" />,
-                        disabled:
-                          available.filter((candidate) => !xiIds.has(candidate.id)).length === 0,
-                        onClick: () => {
-                          void updateSquadPlanning(player.id, "demote");
-                        },
-                      }
-                    : {
-                        label: t("squad.makeStarter"),
-                        icon: <Users className="w-4 h-4" />,
-                        disabled: !isMatchDayEligible(player),
-                        onClick: () => {
-                          void updateSquadPlanning(player.id, "promote");
-                        },
-                      },
-                  buildDividerMenuItem(),
-                  {
-                    label: t("common.renewContract"),
-                    icon: <Repeat className="w-4 h-4" />,
-                    urgent: contractRiskLevel !== "stable",
-                    disabled: !player.contract_end,
-                    onClick: () =>
-                      onSelectPlayer(player.id, {
-                        openRenewal: true,
-                      }),
-                  },
-                  hasLetExpireIntent
-                    ? {
-                        label: t("playerProfile.reopenContractTalks"),
-                        icon: <RotateCcw className="w-4 h-4" />,
-                        disabled: !player.contract_end || isContractActionSubmitting,
-                        onClick: () => {
-                          void updateContractExitIntent(player.id, false);
-                        },
-                      }
-                    : {
-                        label: t("playerProfile.letContractExpire"),
-                        icon: <TimerOff className="w-4 h-4" />,
-                        disabled: !player.contract_end || isContractActionSubmitting,
-                        onClick: () => {
-                          void updateContractExitIntent(player.id, true);
-                        },
-                      },
-                  {
-                    label: t("playerProfile.terminateContract"),
-                    icon: <Trash2 className="w-4 h-4" />,
-                    danger: true,
-                    disabled: !player.contract_end,
-                    onClick: () =>
-                      onSelectPlayer(player.id, {
-                        openTermination: true,
-                      }),
-                  },
-                  buildDividerMenuItem(),
-                  buildToggleTransferListMenuItem(t, player.transfer_listed, async () => {
-                    try {
-                      const updated = await toggleTransferList(player.id);
-                      onMutationComplete?.(updated);
-                    } catch {
-                      return;
-                    }
-                  }),
-                  buildToggleLoanListMenuItem(t, player.loan_listed, async () => {
-                    try {
-                      const updated = await toggleLoanList(player.id);
-                      onMutationComplete?.(updated);
-                    } catch {
-                      return;
-                    }
-                  }),
-                  ...(canDelegateToYouthAcademy(player)
-                    ? [
-                        buildDelegateToYouthAcademyMenuItem(t, async () => {
-                          try {
-                            const updated = await setPlayerSquadRole(player.id, "Youth");
-                            onMutationComplete?.(updated);
-                          } catch {
-                            return;
-                          }
-                        }),
-                      ]
-                    : []),
-                ];
-
-                return (
-                  <ContextMenu
-                    items={contextItems}
-                    key={player.id}
-                    ref={(handle) => {
-                      if (handle) menuRefs.current.set(player.id, handle);
-                      else menuRefs.current.delete(player.id);
-                    }}
-                    onOpenChange={(open) => {
-                      setOpenMenuPlayerId((prev) => {
-                        if (open) return player.id;
-                        return prev === player.id ? null : prev;
-                      });
-                    }}
-                  >
-                    <tr
-                      onClick={() => onSelectPlayer(player.id)}
-                      title={inXI ? t("squad.startingXi") : undefined}
-                      className={`hover:bg-primary-500/5 dark:hover:bg-navy-700 transition-colors group cursor-pointer ${inXI ? "border-l-4 border-l-primary-500" : rowBorderClass}`}
-                    >
-                      <td className="py-2.5 px-4 tabular-nums text-sm font-medium text-gray-600 dark:text-gray-400">
-                        {player.jersey_number ?? "—"}
-                      </td>
-                      {/* Name: avatar + injury dot + name + country flag */}
-                      <td className="py-2.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <PlayerAvatar player={player} />
-                          <div className="min-w-0 flex items-center gap-1.5">
-                            {injuryDotClass && (
-                              <span
-                                className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${injuryDotClass}`}
-                                title={
-                                  player.injury
-                                    ? resolveInjuryName(player.injury.name, t)
-                                    : undefined
-                                }
-                              />
-                            )}
-                            <span className="font-semibold text-sm text-gray-900 dark:text-gray-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">
-                              {player.match_name}
-                            </span>
-                            <CountryFlag
-                              code={player.nationality}
-                              className="text-sm leading-none shrink-0"
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      {/* Position badges: natural + alternates */}
-                      <td className="py-2.5 px-4">{renderPreferredPositionMeta(player)}</td>
-                      {/* Traits — all of them, wraps as needed */}
-                      <td className="py-2.5 px-4">
-                        <TraitList traits={player.traits || []} size="xs" />
-                      </td>
-                      <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-                        {age}
-                      </td>
-                      <td className="py-2.5 px-4 w-28">
-                        {/* The tone is the backend's band; a roster not yet fetched stays neutral. */}
-                        <ProgressBar
-                          value={player.condition}
-                          variant={player.condition_status ? undefined : "muted"}
-                          tone={player.condition_status?.tone}
-                          size="sm"
-                          showLabel
-                          label={t("common.condition")}
-                        />
-                      </td>
-                      <td className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
-                        {player.morale}
-                      </td>
-                      {/* OVR (moved next to identity block) */}
-                      <td className="py-2.5 px-4">
-                        <span
-                          className={`font-heading font-bold text-sm ${ratingTierClass(tierOf(ovr), "text")}`}
-                        >
-                          {ovr}
-                        </span>
-                      </td>
-                      {/* Contract: years + risk + expires_on + market pills */}
-                      <td className="py-2.5 px-4 text-xs text-gray-600 dark:text-gray-400">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-gray-700 dark:text-gray-300">
-                              {getContractYearsRemaining(player.contract_end, clockDate)}
-                            </span>
-                            <Badge
-                              variant={getContractRiskBadgeVariant(contractRiskLevel)}
-                              size="sm"
-                            >
-                              {contractRiskLabel}
-                            </Badge>
-                          </div>
-                          <div className="text-gray-500 dark:text-gray-400">
-                            {player.contract_end
-                              ? contractExpiryLabel(player.contract_end, i18n.language, t)
-                              : "—"}
-                          </div>
-                          {player.transfer_listed || player.loan_listed || player.injury ? (
-                            <div className="flex flex-wrap gap-1">
-                              {player.transfer_listed ? (
-                                <Badge variant="accent" size="sm">
-                                  {t("transfers.transfer")}
-                                </Badge>
-                              ) : null}
-                              {player.loan_listed ? (
-                                <Badge variant="primary" size="sm">
-                                  {t("transfers.loan")}
-                                </Badge>
-                              ) : null}
-                              {player.injury ? <InjuryBadge injury={player.injury} /> : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      </td>
-                      {/* Actions (last column) */}
-                      <td className="py-2.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            menuRefs.current.get(player.id)?.open(rect.left, rect.bottom + 4);
-                          }}
-                          aria-label={t("common.playerActions", { name: player.match_name })}
-                          aria-haspopup="menu"
-                          aria-expanded={openMenuPlayerId === player.id}
-                          className="relative rounded-md p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 transition-colors"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                          {hasUrgentItems && (
-                            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-400" />
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  </ContextMenu>
-                );
-              })}
-            </tbody>
-          </table>
-          {filteredRoster.length === 0 ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400 font-heading uppercase tracking-wider text-sm">
-              {t("squad.noPlayers")}
-            </div>
-          ) : null}
-        </div>
+        <DataTable
+          label={t("squad.title", { team: team.name })}
+          columns={columns}
+          rows={filteredRoster}
+          rowKey={(player) => player.id}
+          rowName={(player) => player.match_name}
+          sort={{ key: sortKey, direction: sortDir }}
+          onSortChange={(key) => toggleSort(key as SquadListSortKey)}
+          onOpen={(player) => onSelectPlayer(player.id)}
+          rowAccent={(player) =>
+            xiIds.has(player.id) ? "positive" : isMatchDayEligible(player) ? null : "danger"
+          }
+          onRowContextMenu={(player, event) =>
+            menuRefs.current.get(player.id)?.open(event.clientX, event.clientY)
+          }
+          rowAction={{
+            header: t("common.actions"),
+            cell: (player) => (
+              <ContextMenu
+                items={squadRowMenuItems(player, menuContextFor(player))}
+                ref={(handle) => {
+                  if (handle) menuRefs.current.set(player.id, handle);
+                  else menuRefs.current.delete(player.id);
+                }}
+                onOpenChange={(open) => {
+                  setOpenMenuPlayerId((prev) => {
+                    if (open) return player.id;
+                    return prev === player.id ? null : prev;
+                  });
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    menuRefs.current.get(player.id)?.open(rect.left, rect.bottom + 4);
+                  }}
+                  aria-label={t("common.playerActions", { name: player.match_name })}
+                  aria-haspopup="menu"
+                  aria-expanded={openMenuPlayerId === player.id}
+                  className="relative rounded-md p-1.5 text-fg-subtle transition-colors hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                  {player.injury || riskLevelOf(player.id) !== "stable" ? (
+                    <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warning-solid" />
+                  ) : null}
+                </button>
+              </ContextMenu>
+            ),
+          }}
+          empty={t("squad.noPlayers")}
+        />
       </Card>
 
       {contractActionError ? (

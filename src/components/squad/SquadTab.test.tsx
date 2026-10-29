@@ -228,6 +228,82 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given a player the backend rates tiring
+   * When Squad lists him
+   * Then his condition says the band's word beside the bar, so the colour isn't the only sign.
+   */
+  it("names each player's condition band beside the bar", async () => {
+    const state = makeGameState();
+    state.players = [
+      makePlayer("p1", "Forward", {
+        match_name: "Tiring Forward",
+        condition: 64,
+        condition_status: { band: "Tiring", label_key: "be.condition.tiring", tone: "fair" },
+      }),
+    ];
+    renderSquadTab(state);
+
+    const row = await screen.findByRole("row", { name: /Tiring Forward/ });
+    expect(within(row).getByText("be.condition.tiring")).toHaveClass("text-tone-fair");
+  });
+
+  /**
+   * Given the squad
+   * When the roster renders
+   * Then it is one table named for the squad, sorted by position by default, and its headers say
+   * so (aria-sort) and ask to sort by another column.
+   */
+  it("draws the roster as a named table whose headers say and change its sort", async () => {
+    const onSortStateChange = vi.fn();
+    render(
+      <SquadTab
+        gameState={makeGameState()}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "pos", sortDir: "asc" }}
+        onSortStateChange={onSortStateChange}
+      />,
+    );
+
+    expect(screen.getByRole("table", { name: "squad.title" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /squad\.pos/ })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "common.ovr" }));
+    expect(onSortStateChange).toHaveBeenCalledWith({ sortKey: "ovr", sortDir: "desc" });
+  });
+
+  /**
+   * Given a starter, an injured bench player and a fit bench player
+   * When the roster renders
+   * Then the starter's row carries the starter accent, the injured player's the can't-play one,
+   * and the fit bench player's none.
+   */
+  it("marks starters and players who can't play with the row accent", async () => {
+    const state = makeGameState();
+    state.players.push(
+      makePlayer("inj", "Forward", {
+        match_name: "Hurt Forward",
+        injury: { name: "Knee bruise", days_remaining: 10 },
+        match_day_eligible: false,
+      }),
+    );
+    renderSquadTab(state);
+
+    expect(await screen.findByRole("row", { name: /GK1/ })).toHaveAttribute(
+      "data-accent",
+      "positive",
+    );
+    expect(screen.getByRole("row", { name: /Hurt Forward/ })).toHaveAttribute(
+      "data-accent",
+      "danger",
+    );
+    expect(screen.getByRole("row", { name: /Bench DEF/ })).not.toHaveAttribute("data-accent");
+  });
+
+  /**
    * Given two senior players rated 76 and 77, either side of the A-tier cut-off
    * When the roster renders
    * Then each rating takes the colour of its backend tier (B and A).
@@ -242,9 +318,17 @@ describe("SquadTab", () => {
 
     renderSquadTab(state);
 
-    const aTier = await screen.findByText("77");
-    expect(aTier).toHaveClass(...ratingTierClass("A", "text").split(" "));
-    expect(screen.getByText("76")).toHaveClass(...ratingTierClass("B", "text").split(" "));
+    // Each rating is a RatingChip: the number in its tier's tone, the tier in words.
+    const aTier = (await screen.findByText("77")).parentElement;
+    expect(aTier).toHaveClass(...ratingTierClass("A", "badge").split(" "));
+    expect(screen.getByText("76").parentElement).toHaveClass(
+      ...ratingTierClass("B", "badge").split(" "),
+    );
+    expect(
+      within(screen.getByRole("row", { name: /Seventy Seven/ })).getByText(
+        "common.overallRatingTier",
+      ),
+    ).toBeInTheDocument();
   });
 
   // Given a backend-called-up youth, when Squad opens, then the manager can see him.
@@ -285,7 +369,7 @@ describe("SquadTab", () => {
     ).not.toBeInTheDocument();
     // The game does not tell the manager how well a player suits the play style: no column, no chip.
     expect(screen.queryByText(/styleFit/)).not.toBeInTheDocument();
-    expect(screen.getByText("squad.traits")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "squad.traits" })).toBeInTheDocument();
     expect(screen.getByText(/squad.currentPlan/)).toBeInTheDocument();
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
     expect(screen.getAllByText(/squad.needsCover/).length).toBeGreaterThan(0);
@@ -348,8 +432,10 @@ describe("SquadTab", () => {
       />,
     );
 
-    expect(screen.getByText("Knee bruise")).toBeInTheDocument();
-    expect(screen.getByText("10d")).toBeInTheDocument();
+    // In the keeper's own row; its details repeat the folded columns for a narrow window.
+    const keeperRow = screen.getByRole("row", { name: /GK1/ });
+    expect(within(keeperRow).getByText("Knee bruise")).toBeInTheDocument();
+    expect(within(keeperRow).getByText("10d")).toBeInTheDocument();
   });
 
   it("honors a persisted OVR sort state from the dashboard", () => {
@@ -406,8 +492,9 @@ describe("SquadTab", () => {
 
     renderSquadTab(gameState, { onSelectPlayer });
 
-    expect(screen.getByText("Critical")).toBeInTheDocument();
-    expect(screen.getByText("Expires October 15, 2026")).toBeInTheDocument();
+    const keeperRow = screen.getByRole("row", { name: /GK1/ });
+    expect(within(keeperRow).getByText("Critical")).toBeInTheDocument();
+    expect(within(keeperRow).getByText("Expires October 15, 2026")).toBeInTheDocument();
 
     const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();
