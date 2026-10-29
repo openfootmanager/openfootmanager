@@ -209,6 +209,34 @@ describe("DataTable", () => {
     expect(screen.getByText("common.loading")).toBeInTheDocument();
   });
 
+  /**
+   * Given rows with a menu
+   * When the player right-clicks a row
+   * Then the table hands that row and the pointer's place to the menu, and the browser's own menu
+   * stays shut; without a handler, the browser's menu is left alone.
+   */
+  it("hands a right-click on a row to the row's menu", () => {
+    const onRowContextMenu = vi.fn();
+    renderTable({ onRowContextMenu });
+    const navarro = screen.getByRole("row", { name: /Navarro/ });
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40 });
+    within(navarro).getByText("33").dispatchEvent(event);
+    expect(onRowContextMenu).toHaveBeenCalledTimes(1);
+    expect(onRowContextMenu.mock.calls[0][0]).toBe(PLAYERS[1]);
+    expect(onRowContextMenu.mock.calls[0][1]).toMatchObject({ clientX: 40 });
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  /** Given no menu handler, then a right-click is the browser's. */
+  it("leaves a right-click alone when rows have no menu", () => {
+    renderTable();
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    within(screen.getByRole("row", { name: /Navarro/ }))
+      .getByText("33")
+      .dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
   /** Given starters, then their rows carry the starter accent, and the others don't. */
   it("marks a row with its accent", () => {
     renderTable({ rowAccent: (p) => (p.starter ? "positive" : null) });

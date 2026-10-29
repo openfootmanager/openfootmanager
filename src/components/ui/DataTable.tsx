@@ -42,6 +42,11 @@ interface DataTableProps<Row> {
   /** A last column of controls (a menu); its header is for screen readers only. */
   rowAction?: { header: string; cell: (row: Row) => ReactNode };
   rowAccent?: (row: Row) => RowAccent | null;
+  /**
+   * A right-click on the row, for its menu: the row and the pointer's place. The browser's own menu
+   * stays shut. The keyboard reaches the same menu through `rowAction`.
+   */
+  onRowContextMenu?: (row: Row, event: MouseEvent<HTMLTableRowElement>) => void;
   loading?: boolean;
   /** Shown in place of the rows when there are none; the default says there are no results. */
   empty?: ReactNode;
@@ -107,6 +112,7 @@ export function DataTable<Row>({
   onOpen,
   rowAction,
   rowAccent,
+  onRowContextMenu,
   loading = false,
   empty,
 }: DataTableProps<Row>) {
@@ -200,6 +206,14 @@ export function DataTable<Row>({
                     onOpen
                       ? (event) => {
                           if (!isOnControl(event)) onOpen(row);
+                        }
+                      : undefined
+                  }
+                  onContextMenu={
+                    onRowContextMenu
+                      ? (event) => {
+                          event.preventDefault();
+                          onRowContextMenu(row, event);
                         }
                       : undefined
                   }
