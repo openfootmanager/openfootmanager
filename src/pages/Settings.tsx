@@ -4,10 +4,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore, type AppSettings } from "../store/settingsStore";
 import { useTheme } from "../context/ThemeContext";
-import { SegmentedControl, ThemeToggle, Select } from "../components/ui";
+import { SegmentedControl, Switch, ThemeToggle, Select } from "../components/ui";
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";
 import { formatAppVersion } from "../lib/appVersion";
-import { Section, SettingRow, Toggle } from "./Settings.components";
+import { Section, SettingRow } from "./Settings.components";
 import { ReportBugModal } from "../components/diagnostics/ReportBugModal";
 import { SubmittedReports } from "../components/diagnostics/SubmittedReports";
 import {
@@ -263,10 +263,13 @@ export default function Settings() {
             label={t("settings.highContrast")}
             description={t("settings.highContrastDesc")}
           >
-            <Toggle
-              checked={settings.high_contrast}
-              onChange={(v) => handleUpdate({ high_contrast: v })}
-            />
+            {(labelId) => (
+              <Switch
+                labelledBy={labelId}
+                checked={settings.high_contrast}
+                onChange={(high_contrast) => handleUpdate({ high_contrast })}
+              />
+            )}
           </SettingRow>
 
           <SettingRow label={t("settings.fullscreen")} description={t("settings.fullscreenDesc")}>
@@ -322,37 +325,52 @@ export default function Settings() {
             label={t("settings.matchCommentary")}
             description={t("settings.matchCommentaryDesc")}
           >
-            <Toggle
-              checked={settings.show_match_commentary}
-              onChange={(v) => handleUpdate({ show_match_commentary: v })}
-            />
+            {(labelId) => (
+              <Switch
+                labelledBy={labelId}
+                checked={settings.show_match_commentary}
+                onChange={(show_match_commentary) => handleUpdate({ show_match_commentary })}
+              />
+            )}
           </SettingRow>
 
           <SettingRow
             label={t("settings.confirmAdvance")}
             description={t("settings.confirmAdvanceDesc")}
           >
-            <Toggle
-              checked={settings.confirm_advance}
-              onChange={(v) => handleUpdate({ confirm_advance: v })}
-            />
+            {(labelId) => (
+              <Switch
+                labelledBy={labelId}
+                checked={settings.confirm_advance}
+                onChange={(confirm_advance) => handleUpdate({ confirm_advance })}
+              />
+            )}
           </SettingRow>
 
           <SettingRow
             label={t("settings.continueToNextEvent")}
             description={t("settings.continueToNextEventDesc")}
           >
-            <Toggle
-              checked={settings.continue_to_next_event}
-              onChange={(v) => handleUpdate({ continue_to_next_event: v })}
-            />
+            {(labelId) => (
+              <Switch
+                labelledBy={labelId}
+                checked={settings.continue_to_next_event}
+                onChange={(continue_to_next_event) => handleUpdate({ continue_to_next_event })}
+              />
+            )}
           </SettingRow>
         </Section>
 
         {/* ─── Saves & Data ─── */}
         <Section title={t("settings.savesData")} icon={<Save className="w-5 h-5" />}>
           <SettingRow label={t("settings.autoSave")} description={t("settings.autoSaveDesc")}>
-            <Toggle checked={settings.auto_save} onChange={(v) => handleUpdate({ auto_save: v })} />
+            {(labelId) => (
+              <Switch
+                labelledBy={labelId}
+                checked={settings.auto_save}
+                onChange={(auto_save) => handleUpdate({ auto_save })}
+              />
+            )}
           </SettingRow>
 
           <SettingRow label={t("settings.exportWorld")} description={t("settings.exportWorldDesc")}>
