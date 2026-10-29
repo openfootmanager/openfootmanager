@@ -86,17 +86,55 @@ describe("PitchToken condition bar", () => {
     expect(screen.getByRole("tooltip")).toHaveTextContent("Condition 80%");
   });
 
-  /**
-   * Given an out-of-position and an exact player
-   * When tokens render
-   * Then the ring still encodes fit
-   */
-  it("keeps the ring as the fit channel", () => {
-    const { container } = render(
-      <PitchToken name="A" positionAbbr="GK" ovr={70} condition={90} fitTone="out" hidePortrait />,
-    );
+  const portraitless = (fitTone: PitchFitTone) =>
+    render(
+      <PitchToken
+        name="A"
+        positionAbbr="GK"
+        ovr={70}
+        condition={90}
+        fitTone={fitTone}
+        hidePortrait
+      />,
+    ).container;
 
-    expect(container.innerHTML).toContain("ring-danger-solid");
+  /**
+   * Given a player deployed out of position
+   * When the token renders
+   * Then the disc gets the warning ring and the position badge the filled warning dot.
+   */
+  it("rings an out-of-position player in the warning tone and fills the dot", () => {
+    const container = portraitless("out");
+
+    expect(container.innerHTML).toContain("ring-2 ring-warning-solid");
+    expect(container.innerHTML).not.toContain("ring-danger");
+    expect(screen.getByTestId("familiarity-dot")).toHaveClass("bg-warning-solid");
+  });
+
+  /**
+   * Given a player deployed in a position he can play but is not his own
+   * When the token renders
+   * Then the disc keeps the quiet ring and only a hollow dot marks the badge.
+   */
+  it("marks an adapted player with a hollow dot and no coloured ring", () => {
+    const container = portraitless("adapted");
+
+    expect(container.innerHTML).not.toContain("ring-warning-solid");
+    expect(container.innerHTML).not.toContain("ring-accent");
+    expect(screen.getByTestId("familiarity-dot")).toHaveClass("bg-panel");
+  });
+
+  /**
+   * Given a player in his natural position
+   * When the token renders
+   * Then nothing marks it: the quiet ring and no dot.
+   */
+  it("leaves a natural position unmarked", () => {
+    const container = portraitless("exact");
+
+    expect(container.innerHTML).not.toContain("ring-success");
+    expect(container.innerHTML).not.toContain("ring-warning-solid");
+    expect(screen.queryByTestId("familiarity-dot")).not.toBeInTheDocument();
   });
 });
 

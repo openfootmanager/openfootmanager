@@ -143,11 +143,11 @@ drawn in the style guide.
 | an unread count or a mark on a nav item (a circle for one digit, 99+ at most) | `UnreadBadge` |
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
+| a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a `positive` or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details (never the first column, which keeps the accent and, failing a primary, the name). It draws no panel: put it in a `Card` |
 | a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
-More primitives arrive as the migration goes on: empty and loading states,
-stat tile, data table, search field, toggle, and player, match and club
-cards. Each one gets a row here and a place in the style guide in the PR that adds it.
+More primitives arrive as the migration goes on: empty and loading states outside a table, stat
+tile, search field, toggle, and player, match and club cards. Each one gets a row here and a place in the style guide in the PR that adds it.
 
 ## 4. Rated values
 
@@ -200,7 +200,7 @@ only at 40 and 25), and this section is updated when it lands:
 
 ## 7. Enforcement
 
-`src/designSystem.test.ts` checks seven rules in every folder listed in its `FINISHED_FOLDERS`:
+`src/designSystem.test.ts` checks seven rules (1 to 6, and 8) in every folder listed in its `FINISHED_FOLDERS`:
 role type sizes only, no colour literal (except SVG artwork whose colours are data), no raw palette
 class, a full-screen overlay only through `Dialog`, no `on-brand` text on a `-solid` fill, one
 focus ring (`ring-focus`, on `focus-visible`, never plain `focus` or another colour, offset in the
@@ -208,7 +208,16 @@ surface behind the control: `page`, `panel`, `sunken` or `chrome`), and the bran
 (`primary-*`) only in the brand files its `BRAND_FILES` lists, each with its reason. Each
 rule has a fixture that breaks it. A folder joins the list in the PR that brings it up to
 standard, so the list only ever names finished work, never a known violation; when every folder
-is in, the list goes. What a test can't see (uppercase, one primary action per page, colour as
+is in, the list goes.
+
+Rule 7, one home per vocabulary, runs over its own list, `VOCABULARY_FOLDERS`, which grows as each
+round-4 page moves onto the primitives:
+- no colour map keyed by a position, a tier letter or a condition band;
+- no rated value (`condition`, `ovr`, `potential`, `morale`, `reputation`) compared with a number in
+  a component, because the backend picks a rated value's tone;
+- no import of a helper whose primitive has landed (`RETIRED_HELPERS`).
+
+What a test can't see (uppercase, one primary action per page, colour as
 the only signal) is for review: the `ui-accessibility-reviewer` agent checks it.
 
 ## 8. Screenshots for a PR
@@ -220,10 +229,15 @@ window the game opens at) and 960×640 (its minimum).
   Chrome, for example
   `google-chrome --headless=new --window-size=1280,3300 --screenshot=out.png "http://localhost:1420/style-guide.html?theme=dark"`.
 - **A page:** the page harness mounts the real dashboard on a small generated career, with the
-  backend mocked, in the same dev page: `/style-guide.html?page=squad` (or `page=home`), with the
-  same theme, density, scale and contrast options. Screenshot it the same way.
+  backend mocked, in the same dev page: `/style-guide.html?page=squad`, with the same theme,
+  density, scale and contrast options. The pages are `home`, `squad`, and the world lists
+  `players`, `teams`, `managers` and `staff` (`HARNESS_PAGES` in
+  `src/dev/pageHarness/harnessPage.ts`). Screenshot them the same way.
   - The career is `src/dev/pageHarness/fixture.generated.ts`: one eight-club league from a fixed
-    seed, begun the way the app begins one, plus each command's answer for it. Regenerate it with
+    seed, begun the way the app begins one, plus each command's answer for it. A command that
+    takes a query (the Players page's, the Teams directory's) is answered only for the query the
+    fixture was generated for, so a search or another page shows as unanswered rather than
+    getting the opening page. Regenerate it with
     `npm run fixture:pages` (the generator is `src-tauri/crates/ofm_core/examples/page_fixture.rs`).
   - Every value in it `satisfies` the frontend type its command returns, so `npm run build` fails
     when the backend's shape and the frontend's type stop agreeing.

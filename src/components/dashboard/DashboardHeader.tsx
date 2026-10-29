@@ -10,7 +10,7 @@ import {
 import { type JSX, type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import { getTeamName } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
@@ -19,8 +19,8 @@ import {
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
-import { Badge, PlayerAvatar, TeamLogo, ThemeToggle } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { PlayerAvatar, TeamLogo, ThemeToggle } from "../ui";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 /** A match mode in the Continue menu. Its label and icon name it; it has no colour of its own. */
 export interface DashboardMatchModeMeta {
@@ -216,9 +216,7 @@ function renderSearchResults(props: {
                     player={player}
                     className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sunken font-heading text-caption font-bold text-fg-muted"
                   />
-                  <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
-                    {translatePositionAbbreviation(t, naturalPositionOf(player))}
-                  </Badge>
+                  <PlayerPositionBadge position={naturalPositionOf(player)} />
                   <span className="text-body font-medium text-fg">{player.full_name}</span>
                   <span className="ml-auto text-caption text-fg-subtle">
                     {getTeamName(teams, player.team_id ?? "")}

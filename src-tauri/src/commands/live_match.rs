@@ -1,4 +1,5 @@
 use log::info;
+use ofm_core::morale::apply_morale_change;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -298,7 +299,7 @@ fn apply_press_conference(
                 _ => rng.random_range(0..=3),
             };
             if let Some(p) = game.players.iter_mut().find(|p| p.id == answer.player_id) {
-                p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, player_delta);
             }
         }
     }
@@ -308,7 +309,7 @@ fn apply_press_conference(
     if morale_delta != 0 {
         for p in game.players.iter_mut() {
             if p.team_id.as_deref() == Some(&user_team_id) {
-                p.morale = ((p.morale as i16) + morale_delta).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, morale_delta);
             }
         }
     }
@@ -618,6 +619,104 @@ mod tests {
         )
         .expect("press conference applied");
         morale_snapshot(&game)
+    }
+
+    /// The user's squad after a match, every player at one morale.
+    fn squad_at(morale: u8) -> Game {
+        let mut game = game_after_a_match();
+        for player in game
+            .players
+            .iter_mut()
+            .filter(|player| player.team_id.as_deref() == Some("team1"))
+        {
+            player.morale = morale;
+        }
+        game
+    }
+
+    /// Each user's player's morale, by id.
+    fn squad_morale(game: &Game) -> Vec<(String, u8)> {
+        game.players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == Some("team1"))
+            .map(|player| (player.id.clone(), player.morale))
+            .collect()
+    }
+
+    /// Where each player at 0 should end, from where the same player went from 50: up by what
+    /// the news was worth, or nowhere if it was bad.
+    fn expected_from_zero(steady: &Game) -> Vec<(String, u8)> {
+        squad_morale(steady)
+            .into_iter()
+            .map(|(id, morale)| (id, morale.saturating_sub(50)))
+            .collect()
+    }
+
+    /// Given the user's squad at morale 50, and the same squad at morale 0
+    /// When the same team talk is given to both, from the same seed
+    /// Then each player at 0 rises by what the talk gave the same player at 50, or stays at 0 if
+    ///      the talk went badly: no talk lifts a player to 10 whatever he hears
+    #[test]
+    fn a_team_talk_moves_a_very_unhappy_player_by_what_it_is_worth_and_no_more() {
+        let mut steady = squad_at(50);
+        let mut unhappy = squad_at(0);
+
+        apply_team_talk_internal(&mut steady, "aggressive", "losing", 7).unwrap();
+        apply_team_talk_internal(&mut unhappy, "aggressive", "losing", 7).unwrap();
+
+        let expected = expected_from_zero(&steady);
+        assert!(
+            expected.iter().any(|(_, morale)| *morale < 10),
+            "the talk must move someone by less than 10 to tell the floor apart: {expected:?}"
+        );
+        assert_eq!(squad_morale(&unhappy), expected);
+    }
+
+    /// Given the user's squad at morale 50, and the same squad at morale 0
+    /// When the same upbeat press conference is held for both, from the same seed, praising one
+    ///      player by name
+    /// Then each player at 0 rises by exactly what the same player at 50 rose, not to 10
+    #[test]
+    fn good_press_moves_a_very_unhappy_squad_by_what_it_is_worth_and_no_more() {
+        let answers = [press_answer("player_focus", "praise", "t1_mid0")];
+        let mut steady = squad_at(50);
+        steady.seed = 11;
+        let mut unhappy = squad_at(0);
+        unhappy.seed = 11;
+
+        apply_press_conference(&mut steady, &answers).expect("press conference applied");
+        apply_press_conference(&mut unhappy, &answers).expect("press conference applied");
+
+        assert_eq!(squad_morale(&unhappy), expected_from_zero(&steady));
+    }
+
+    /// Given the user's squad at morale 50, and the same squad at morale 3
+    /// When the same curt press conference is held for both, from the same seed
+    /// Then the squad at 50 drops and the squad at 3 stays at 3: bad press lifts nobody to 10
+    #[test]
+    fn bad_press_never_lifts_a_squad_whose_morale_is_below_ten() {
+        let answers = [
+            press_answer("q1", "curt", ""),
+            press_answer("q2", "evasive", ""),
+        ];
+        let seed = (0..)
+            .find(|&seed| {
+                let mut probe = squad_at(50);
+                probe.seed = seed;
+                apply_press_conference(&mut probe, &answers).expect("press conference applied");
+                squad_morale(&probe).iter().all(|(_, morale)| *morale < 50)
+            })
+            .expect("some seed makes the answers cost morale");
+        let mut unhappy = squad_at(3);
+        unhappy.seed = seed;
+
+        apply_press_conference(&mut unhappy, &answers).expect("press conference applied");
+
+        let unhappy_morale = squad_morale(&unhappy);
+        assert!(
+            unhappy_morale.iter().all(|(_, morale)| *morale == 3),
+            "{unhappy_morale:?}"
+        );
     }
 
     /// Given a club after a match,

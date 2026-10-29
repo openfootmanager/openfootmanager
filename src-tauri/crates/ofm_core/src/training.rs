@@ -155,14 +155,14 @@ fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
 /// just played ninety minutes as free to train, and they would recover on the
 /// very day they were emptied.
 ///
-/// Only competitions in the active scope count. A dormant competition is
-/// resolved by a scoreline-only model that charges nobody any condition, so its
-/// clubs have not had a match in any physical sense — closing the training
-/// ground on them would cost them the day's recovery for nothing.
+/// Every competition counts, whether or not the player follows it: one calendar rule for every club
+/// (#869), ahead of the dormant tier's removal (every match will be played for real). Today a dormant
+/// match is still settled by scoreline and costs no condition, so closing the ground for it is
+/// the rule, not a recovery model. The taper before a match ([`tapering_teams`]) reads every
+/// competition the same way.
 pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
     game.competitions_in_play()
         .iter()
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.date == date)
         .flat_map(|fixture| [fixture.home_team_id.clone(), fixture.away_team_id.clone()])
@@ -176,8 +176,8 @@ pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::Has
 /// fixture list rather than a per-club scan — this runs for every club, every
 /// day, and a populated world holds tens of thousands of fixtures.
 ///
-/// Only competitions in the active scope count, as in [`teams_playing_on`]: a
-/// dormant match charges nobody any condition, so it is nothing to taper for.
+/// Every competition counts, as in [`teams_playing_on`]: one calendar rule for every club, whether or
+/// not its fixtures are played out by the engine today.
 fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     use chrono::NaiveDate;
     use domain::league::FixtureStatus;
@@ -192,7 +192,6 @@ fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     for fixture in game
         .competitions_in_play()
         .iter()
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
     {
@@ -846,6 +845,76 @@ mod tests {
         assert_eq!(player.attributes.reflexes, 54);
         assert_eq!(player.attributes.positioning, 61);
         assert_eq!(player.attributes.passing, 60);
+    }
+
+    /// A midfielder born in `birth_year`, rated alike in every attribute, whose ceiling is his rating
+    /// (his curve has turned if he is old enough).
+    fn peaked_midfielder(birth_year: i32) -> Player {
+        let mut player = player_at("peaked", "team1", "2029-06-30");
+        player.date_of_birth = format!("{birth_year}-03-15");
+        player.condition = 100;
+        player.fitness = 80;
+        player.morale = 80;
+        refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+        player.potential = player.ovr;
+        player
+    }
+
+    /// Given players of 30 to 35 at their ceiling (the state a falling player is in after any
+    ///       summer), with and without a season of training before the summer's decline,
+    /// When the net change in rating over the year is averaged,
+    /// Then a declining player never ends a year above where it began, trained or not (a rounding's
+    ///      worth at 30 and 31, where the table takes nothing yet, a fall from 32): the ceiling is
+    ///      his rating, so training has no room to lift him.
+    #[test]
+    fn a_trained_declining_player_never_ends_the_year_above_where_it_began() {
+        use rand::SeedableRng;
+        for age in 30..=35 {
+            let birth_year = 2026 - age;
+            let mut total = 0.0;
+            let seeds = 40;
+            for seed in 0..seeds {
+                let mut player = peaked_midfielder(birth_year);
+                let before = f64::from(player.ovr);
+                let mut rng = rand_chacha::ChaCha12Rng::seed_from_u64(seed);
+                for day in 0..250u32 {
+                    train_player(
+                        &mut player,
+                        &plan(TrainingFocus::Technical),
+                        &TrainingDay {
+                            weekday_num: day % 5,
+                            date: domain::age::season_midpoint(2026),
+                            world_seed: 1,
+                        },
+                        &mut rng,
+                    );
+                }
+                crate::development::develop_one_season(&mut player, age, 1, &mut rng);
+                refresh_player_derived(&mut player, domain::age::season_midpoint(2026));
+                total += f64::from(player.ovr) - before;
+            }
+            let net = total / f64::from(seeds as u32);
+            // The decline table takes no rating until 32 (a rounding's worth either way), then
+            // takes about a point a year; training adds nothing past the ceiling.
+            let limit = if age <= 31 { 0.05 } else { -0.3 };
+            assert!(net <= limit, "age {age}: net {net:+.2}");
+        }
+    }
+
+    /// Given a 31-year-old whose ceiling is his rating, and a 24-year-old in the same position,
+    /// When a technical session with a successful roll runs for each,
+    /// Then neither gains: a peaked player has no room to train into, whatever his age.
+    #[test]
+    fn a_player_at_his_ceiling_gains_nothing_from_training_at_any_age() {
+        let mut veteran = peaked_midfielder(1995);
+        let mut young = peaked_midfielder(2002);
+        let (veteran_before, young_before) = (attributes(&veteran), attributes(&young));
+
+        session(&mut veteran, &plan(TrainingFocus::Technical), 0);
+        session(&mut young, &plan(TrainingFocus::Technical), 0);
+
+        assert_eq!(attributes(&veteran), veteran_before);
+        assert_eq!(attributes(&young), young_before);
     }
 
     /// Given a keeper already at its potential, when a technical session has successful rolls, then attributes and its career ceiling cannot drift upward.

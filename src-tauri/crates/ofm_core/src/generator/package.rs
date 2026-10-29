@@ -3088,6 +3088,165 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dest);
     }
 
+    fn files_under(root: &Path) -> std::collections::BTreeMap<String, Vec<u8>> {
+        fn walk(root: &Path, dir: &Path, out: &mut std::collections::BTreeMap<String, Vec<u8>>) {
+            for entry in std::fs::read_dir(dir).unwrap() {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    walk(root, &path, out);
+                } else {
+                    let rel = path.strip_prefix(root).unwrap().to_string_lossy();
+                    out.insert(rel.replace('\\', "/"), std::fs::read(&path).unwrap());
+                }
+            }
+        }
+        let mut out = std::collections::BTreeMap::new();
+        walk(root, root, &mut out);
+        out
+    }
+
+    /// A source tree with a manifest, a nested data file, a binary asset holding every byte
+    /// value, and a non-data file large and repetitive enough that deflate really compresses it.
+    fn packable_tree() -> PathBuf {
+        let dir = temp_package();
+        write(
+            &dir,
+            "package.json",
+            r#"{"schema":"world","id":"round-trip","name":"Round Trip","logo":"assets/logo.png"}"#,
+        );
+        write(
+            &dir,
+            "teams/europe/teams.json",
+            r##"{"schema":"team","items":[{"id":"sao","name":"São Paulo FC","city":"São Paulo",
+                 "country":"BR","colors":{"primary":"#f00","secondary":"#000"}}]}"##,
+        );
+        let every_byte: Vec<u8> = (0..=255u8).cycle().take(4096).collect();
+        std::fs::create_dir_all(dir.join("assets")).unwrap();
+        std::fs::write(dir.join("assets/logo.png"), &every_byte).unwrap();
+        write(
+            &dir,
+            "docs/changelog.txt",
+            &"Ünal joins São Paulo.\n".repeat(20_000),
+        );
+        dir
+    }
+
+    /// Given a package directory packed by the exporter
+    /// When the archive is unpacked by the installer's extractor
+    /// Then every file comes back with the same path and the same bytes, and nothing is added.
+    #[test]
+    fn an_exported_package_extracts_to_the_files_it_was_packed_from() {
+        let source = packable_tree();
+        let archive = temp_package().join("round-trip.ofm");
+        super::super::world_io::export_directory_to_ofm(&source, &archive).unwrap();
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(files_under(&dest), files_under(&source));
+        std::fs::remove_dir_all(&source).ok();
+        std::fs::remove_dir_all(archive.parent().unwrap()).ok();
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given a package directory packed by the exporter
+    /// When the package list reads its manifest and logo and the installer loads it
+    /// Then its manifest, its logo and its teams read back from the archive unchanged.
+    #[test]
+    fn an_exported_package_reads_back_its_manifest_logo_and_teams() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let source = packable_tree();
+        let archive = temp_package().join("round-trip.ofm");
+        super::super::world_io::export_directory_to_ofm(&source, &archive).unwrap();
+
+        let manifest = read_package_manifest_from_ofm(&archive).expect("manifest");
+        let logo = read_logo_from_ofm(&archive, "assets/logo.png").expect("logo");
+        let (package, errors) = load_world_package_from_ofm(&archive);
+
+        assert_eq!(manifest.id, "round-trip");
+        assert_eq!(manifest.name, "Round Trip");
+        let logo_bytes = std::fs::read(source.join("assets/logo.png")).unwrap();
+        assert_eq!(
+            logo,
+            format!("data:image/png;base64,{}", STANDARD.encode(logo_bytes))
+        );
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        let team_names: Vec<&str> = package.teams.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(team_names, ["São Paulo FC"]);
+        std::fs::remove_dir_all(&source).ok();
+        std::fs::remove_dir_all(archive.parent().unwrap()).ok();
+    }
+
+    /// Given an archive holding a symlink entry ahead of an ordinary data file
+    /// When it is extracted
+    /// Then the symlink is reported and never created, and the data file still lands.
+    #[test]
+    fn a_symlink_entry_is_reported_and_never_created() {
+        use std::io::Write;
+        use zip::write::SimpleFileOptions;
+        let archive = temp_package().join("symlink.ofm");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&archive).unwrap());
+        let opts = SimpleFileOptions::default();
+        zip.add_symlink("teams/link.json", "/etc/passwd", opts)
+            .unwrap();
+        zip.start_file("teams/teams.json", opts).unwrap();
+        zip.write_all(b"[]").unwrap();
+        zip.finish().unwrap();
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+
+        assert_eq!(
+            errors.iter().map(|e| e.code.as_str()).collect::<Vec<_>>(),
+            [SYMLINK_ERROR]
+        );
+        assert!(std::fs::symlink_metadata(dest.join("teams/link.json")).is_err());
+        assert!(dest.join("teams/teams.json").exists());
+        std::fs::remove_dir_all(archive.parent().unwrap()).ok();
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given an archive with one entry more than the file-count cap
+    /// When it is extracted
+    /// Then extraction is refused before anything is written.
+    #[test]
+    fn an_archive_over_the_file_count_cap_is_refused() {
+        let names: Vec<String> = (0..=MAX_FILE_COUNT)
+            .map(|i| format!("f/{i}.json"))
+            .collect();
+        let entries: Vec<(&str, &[u8])> = names.iter().map(|n| (n.as_str(), &b""[..])).collect();
+        let archive = build_zip(&entries);
+        let dest = temp_package();
+
+        let result = extract_archive_safely(&archive, &dest);
+
+        assert_eq!(result, Err(TOO_MANY_FILES_ERROR.to_string()));
+        assert!(files_under(&dest).is_empty());
+        std::fs::remove_file(&archive).ok();
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given a `.ofm` file that is not a zip archive at all
+    /// When the installer, the package list and the logo reader open it
+    /// Then each reports it unreadable instead of returning a package.
+    #[test]
+    fn a_file_that_is_not_a_zip_archive_is_unreadable() {
+        let dir = temp_package();
+        let archive = dir.join("broken.ofm");
+        std::fs::write(&archive, b"{\"schema\":\"world\"} is not a zip").unwrap();
+
+        let (_, errors) = load_world_package_from_ofm(&archive);
+
+        assert_eq!(
+            errors.iter().map(|e| e.code.as_str()).collect::<Vec<_>>(),
+            [READ_FAILED]
+        );
+        assert!(read_package_manifest_from_ofm(&archive).is_none());
+        assert!(read_logo_from_ofm(&archive, "assets/logo.png").is_none());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
     #[test]
     fn player_def_deserializes_footedness_from_frontend_key() {
         // The package-editor frontend sends the chosen foot under the camelCase
