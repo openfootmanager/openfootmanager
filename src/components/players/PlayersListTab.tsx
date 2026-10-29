@@ -15,9 +15,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { formatVal } from "../../lib/helpers";
-import { positionBadgeVariant } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { sendScout } from "../../services/scoutingService";
@@ -39,6 +37,7 @@ import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface PlayersListTabProps {
   gameState: GameStateData;
@@ -369,9 +368,7 @@ export default function PlayersListTab({
                       className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer group"
                     >
                       <td className="py-2.5 px-4">
-                        <Badge variant={positionBadgeVariant(naturalPositionOf(summary))} size="sm">
-                          {translatePositionAbbreviation(t, naturalPositionOf(summary))}
-                        </Badge>
+                        <PlayerPositionBadge position={naturalPositionOf(summary)} />
                       </td>
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-3">

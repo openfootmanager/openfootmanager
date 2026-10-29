@@ -1618,6 +1618,7 @@
     "dateOfBirth": "Tanggal Lahir",
     "noContract": "Tanpa kontrak",
     "weeklyWage": "Gaji Mingguan",
+    "approximateWage": "sekitar {{wage}}",
     "annualWage": "Gaji Tahunan",
     "yearsRemaining": "Sisa Tahun",
     "contractRisk": "Risiko Kontrak",

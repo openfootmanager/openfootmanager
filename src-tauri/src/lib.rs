@@ -245,6 +245,7 @@ pub fn run() {
             get_club_league_standing,
             get_scouted_report,
             get_player_knowledge,
+            get_visible_wage,
             get_squad,
             get_staff,
             get_active_save_id,

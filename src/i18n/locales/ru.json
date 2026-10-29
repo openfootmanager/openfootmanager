@@ -1618,6 +1618,7 @@
     "dateOfBirth": "Дата рождения",
     "noContract": "Без контракта",
     "weeklyWage": "Недельная зарплата",
+    "approximateWage": "около {{wage}}",
     "annualWage": "Годовая зарплата",
     "yearsRemaining": "Осталось лет",
     "contractRisk": "Риск по контракту",

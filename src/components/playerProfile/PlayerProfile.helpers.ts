@@ -4,8 +4,49 @@ import { weeklyWageAmount } from "../../lib/finance";
 import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import { resolveInjuryName } from "../../lib/injury";
+import type { VisibleWage } from "../../services/scoutingService";
 
 type TranslateFn = (key: string, options?: TOptions) => string;
+
+/** A wage the club may see, written with `format`: as it is, as "about …", or "–". */
+export function visibleWageText(
+  wage: VisibleWage,
+  format: (weeklyWage: number) => string,
+  t: TranslateFn,
+): string {
+  if (wage.kind === "exact") return format(wage.weekly);
+  if (wage.kind === "approximate") {
+    return t("playerProfile.approximateWage", { wage: format(wage.weekly) });
+  }
+  return "–";
+}
+
+/** What the club's knowledge of a player, and the wage it may see, are asked again on. */
+export interface KnowledgeRevisionInputs {
+  /** The career this game was installed as: another career's answers are never kept. */
+  careerToken?: number;
+  date: string;
+  playerClubId?: string | null;
+  managerClubId?: string | null;
+  /** The season's start: a rollover moves clubs between divisions, and so who is known, without
+   *  moving the date. */
+  seasonStart?: string | null;
+  /** Last, so a renewal moves the key. */
+  wage: number;
+}
+
+/** The key the profile's knowledge and wage answers are asked again on when it changes. */
+export function knowledgeRevision(inputs: KnowledgeRevisionInputs): string {
+  // JSON keeps the fields apart: a package's club ids may hold any character, a separator too.
+  return JSON.stringify([
+    inputs.careerToken ?? 0,
+    inputs.date,
+    inputs.playerClubId ?? "",
+    inputs.managerClubId ?? "",
+    inputs.seasonStart ?? "",
+    inputs.wage,
+  ]);
+}
 
 interface PlayerAdvancedMetric {
   total: number;

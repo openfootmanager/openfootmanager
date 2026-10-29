@@ -1618,6 +1618,7 @@
     "dateOfBirth": "Date de Naissance",
     "noContract": "Sans contrat",
     "weeklyWage": "Salaire Hebdomadaire",
+    "approximateWage": "environ {{wage}}",
     "annualWage": "Salaire Annuel",
     "yearsRemaining": "Années restantes",
     "contractRisk": "Risque contractuel",
