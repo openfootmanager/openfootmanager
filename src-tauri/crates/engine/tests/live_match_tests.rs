@@ -2120,6 +2120,40 @@ fn a_change_to_the_same_shape_moves_nobody() {
     assert_eq!(home_lines(&state), before);
 }
 
+/// Given a 4-4-2 whose eleven is listed out of line order (a midfielder ahead of a defender, as
+/// a keeper coming on for an outfielder leaves it),
+/// When the manager picks 4-4-2 again,
+/// Then nobody changes line, and the eleven is listed back to front again.
+#[test]
+fn a_change_to_the_same_shape_puts_an_eleven_back_in_line_order() {
+    let mut home = make_team("home", "Home", 60, PlayStyle::Balanced);
+    home.players.swap(4, 5);
+    assert_eq!(home.players[4].position, Position::Midfielder);
+    let away = make_team("away", "Away", 60, PlayStyle::Balanced);
+    let mut state = LiveMatchState::new(
+        home,
+        away,
+        MatchConfig::default(),
+        make_bench("home", 60),
+        make_bench("away", 60),
+        false,
+    );
+
+    change_home_formation(&mut state, "4-4-2");
+
+    let lines: Vec<Position> = home_lines(&state)
+        .into_iter()
+        .map(|(_, line)| line)
+        .collect();
+    let mut expected = vec![Position::Goalkeeper];
+    expected.extend([Position::Defender; 4]);
+    expected.extend([Position::Midfielder; 4]);
+    expected.extend([Position::Forward; 2]);
+    assert_eq!(lines, expected);
+    assert_eq!(home_line_of(&state, "home_def4"), Position::Defender);
+    assert_eq!(home_line_of(&state, "home_mid1"), Position::Midfielder);
+}
+
 /// Given a 4-4-2 with a strong target man, a slight left back and one midfielder who is the
 /// side's best tackler,
 /// When the manager switches to a back five,
