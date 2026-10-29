@@ -28,6 +28,9 @@ export interface KnowledgeRevisionInputs {
   date: string;
   playerClubId?: string | null;
   managerClubId?: string | null;
+  /** The season's start: a rollover moves clubs between divisions, and so who is known, without
+   *  moving the date. */
+  seasonStart?: string | null;
   /** Last, so a renewal moves the key. */
   wage: number;
 }
@@ -40,6 +43,7 @@ export function knowledgeRevision(inputs: KnowledgeRevisionInputs): string {
     inputs.date,
     inputs.playerClubId ?? "",
     inputs.managerClubId ?? "",
+    inputs.seasonStart ?? "",
     inputs.wage,
   ]);
 }

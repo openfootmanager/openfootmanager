@@ -86,6 +86,7 @@ export default function PlayerProfile({
     date: gameState.clock.current_date,
     playerClubId: player.team_id,
     managerClubId: gameState.manager.team_id,
+    seasonStart: gameState.season_context?.season_start,
     wage: player.wage,
   });
   const knowledge = usePlayerKnowledge([player.id], revision)(player.id);

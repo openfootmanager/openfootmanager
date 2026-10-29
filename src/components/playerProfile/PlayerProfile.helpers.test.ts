@@ -19,6 +19,7 @@ describe("knowledgeRevision", () => {
     date: "2026-09-15",
     playerClubId: "team-2",
     managerClubId: "team-1",
+    seasonStart: "2026-07-01",
     wage: 12_000,
   };
 
@@ -45,6 +46,18 @@ describe("knowledgeRevision", () => {
   it("moves when two club ids trade characters across a separator", () => {
     expect(knowledgeRevision({ ...inputs, playerClubId: "a", managerClubId: "b|c" })).not.toBe(
       knowledgeRevision({ ...inputs, playerClubId: "a|b", managerClubId: "c" }),
+    );
+  });
+
+  /**
+   * Given a profile open on the last day of a season
+   * When the season rolls over (promotion and relegation move clubs between divisions, and so
+   *      who is known) without the date moving
+   * Then the key moves, so the club's knowledge is asked again
+   */
+  it("moves when the season rolls over on the same date", () => {
+    expect(knowledgeRevision({ ...inputs, seasonStart: "2027-07-01" })).not.toBe(
+      knowledgeRevision(inputs),
     );
   });
 
