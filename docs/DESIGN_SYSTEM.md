@@ -214,10 +214,15 @@ window the game opens at) and 960×640 (its minimum).
   Chrome, for example
   `google-chrome --headless=new --window-size=1280,3300 --screenshot=out.png "http://localhost:1420/style-guide.html?theme=dark"`.
 - **A page:** the page harness mounts the real dashboard on a small generated career, with the
-  backend mocked, in the same dev page: `/style-guide.html?page=squad` (or `page=home`), with the
-  same theme, density, scale and contrast options. Screenshot it the same way.
+  backend mocked, in the same dev page: `/style-guide.html?page=squad`, with the same theme,
+  density, scale and contrast options. The pages are `home`, `squad`, and the world lists
+  `players`, `teams`, `managers` and `staff` (`HARNESS_PAGES` in
+  `src/dev/pageHarness/harnessPage.ts`). Screenshot them the same way.
   - The career is `src/dev/pageHarness/fixture.generated.ts`: one eight-club league from a fixed
-    seed, begun the way the app begins one, plus each command's answer for it. Regenerate it with
+    seed, begun the way the app begins one, plus each command's answer for it. A command that
+    takes a query (the Players page's, the Teams directory's) is answered only for the query the
+    fixture was generated for, so a search or another page shows as unanswered rather than
+    getting the opening page. Regenerate it with
     `npm run fixture:pages` (the generator is `src-tauri/crates/ofm_core/examples/page_fixture.rs`).
   - Every value in it `satisfies` the frontend type its command returns, so `npm run build` fails
     when the backend's shape and the frontend's type stop agreeing.

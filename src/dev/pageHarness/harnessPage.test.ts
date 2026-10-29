@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { readHarnessLanguage, readHarnessPage } from "./harnessPage";
+import { HARNESS_PAGES, readHarnessLanguage, readHarnessPage } from "./harnessPage";
 
 describe("readHarnessLanguage", () => {
   /** Given ?lang=de, then the page renders in German, the longest labels the layout check measures. */
@@ -21,6 +21,20 @@ describe("readHarnessPage", () => {
   it("reads a page the harness can mount", () => {
     expect(readHarnessPage("?theme=dark&page=squad")).toBe("squad");
     expect(readHarnessPage("?page=home")).toBe("home");
+  });
+
+  /** Given each world list's page, then the dashboard opens on that tab. */
+  it("reads the world lists: players, teams, managers and staff", () => {
+    expect(readHarnessPage("?page=players")).toBe("players");
+    expect(readHarnessPage("?page=teams")).toBe("teams");
+    expect(readHarnessPage("?page=managers")).toBe("managers");
+    expect(readHarnessPage("?page=staff")).toBe("staff");
+    expect(HARNESS_PAGES).toMatchObject({
+      players: "Players",
+      teams: "Teams",
+      managers: "Managers",
+      staff: "Staff",
+    });
   });
 
   /** Given no page, or one the harness doesn't know, then the style guide itself renders. */
