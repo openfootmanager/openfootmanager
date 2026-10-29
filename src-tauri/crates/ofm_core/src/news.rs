@@ -587,20 +587,41 @@ pub fn loan_move_article(
     )
 }
 
+/// The division's leading scorer, as the weekly digest names and links them.
+pub struct DigestTopScorer<'a> {
+    pub player_id: &'a str,
+    pub name: &'a str,
+    pub goals: u32,
+}
+
+/// The weekly digest of a division.
+///
+/// It says only what it carries: the storyline sentence appears when `storyline_count`
+/// storylines were published with it, and the scorer clause when the division has a scorer.
 pub fn weekly_digest_article(
     id: &str,
     week_start: &str,
+    leader_team_id: &str,
     leader: &str,
-    top_scorer: &str,
-    top_scorer_goals: u32,
+    top_scorer: Option<&DigestTopScorer<'_>>,
     storyline_count: usize,
     date: &str,
 ) -> NewsArticle {
-    let body_key = if top_scorer.is_empty() {
-        "be.news.weeklyDigest.bodyNoTopScorer"
-    } else {
-        "be.news.weeklyDigest.bodyWithTopScorer"
+    let body_key = match (top_scorer.is_some(), storyline_count > 0) {
+        (false, true) => "be.news.weeklyDigest.bodyNoTopScorer",
+        (true, true) => "be.news.weeklyDigest.bodyWithTopScorer",
+        (false, false) => "be.news.weeklyDigest.bodyNoTopScorerNoStorylines",
+        (true, false) => "be.news.weeklyDigest.bodyWithTopScorerNoStorylines",
     };
+
+    let mut i18n_params = params(&[("weekStart", week_start), ("leader", leader)]);
+    if let Some(scorer) = top_scorer {
+        i18n_params.insert("topScorer".to_string(), scorer.name.to_string());
+        i18n_params.insert("topScorerGoals".to_string(), scorer.goals.to_string());
+    }
+    if storyline_count > 0 {
+        i18n_params.insert("storylineCount".to_string(), storyline_count.to_string());
+    }
 
     NewsArticle::new(
         id.to_string(),
@@ -610,17 +631,17 @@ pub fn weekly_digest_article(
         date.to_string(),
         NewsCategory::Editorial,
     )
+    .with_teams(vec![leader_team_id.to_string()])
+    .with_players(
+        top_scorer
+            .map(|scorer| vec![scorer.player_id.to_string()])
+            .unwrap_or_default(),
+    )
     .with_i18n(
         "be.news.weeklyDigest.headline",
         body_key,
         "be.source.leagueChronicle",
-        params(&[
-            ("weekStart", week_start),
-            ("leader", leader),
-            ("topScorer", top_scorer),
-            ("topScorerGoals", &top_scorer_goals.to_string()),
-            ("storylineCount", &storyline_count.to_string()),
-        ]),
+        i18n_params,
     )
 }
 

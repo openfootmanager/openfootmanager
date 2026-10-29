@@ -412,6 +412,8 @@
     "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",
+    "overallRating": "Gesamtstärke {{value}}",
+    "overallRatingTier": "Gesamtstärke {{value}}, Stufe {{tier}}",
     "noResults": "Keine Ergebnisse gefunden.",
     "place": {
       "1": "1.",
@@ -697,7 +699,6 @@
     "coverageNeedsAttention": "{{count}} Rollengruppen brauchen Verstärkung",
     "coverageBadge": "XI {{starters}}/{{required}} · Bank {{bench}}",
     "bestRole": "Beste Rolle",
-    "formationFit": "Vertrautheit",
     "startingXi": "Startelf",
     "starter": "Startelf",
     "benchOption": "Bank",
@@ -1616,6 +1617,7 @@
     "dateOfBirth": "Geburtsdatum",
     "noContract": "Kein Vertrag",
     "weeklyWage": "Wochengehalt",
+    "approximateWage": "etwa {{wage}}",
     "annualWage": "Jahresgehalt",
     "yearsRemaining": "Verbleibende Jahre",
     "contractRisk": "Vertragsrisiko",
@@ -1835,6 +1837,21 @@
     },
     "uiScale": "UI-Skalierung",
     "uiScaleDesc": "Schriftgröße und Abstand für bessere Lesbarkeit anpassen",
+    "sidebarWidth": "Breite der Seitenleiste",
+    "sidebarWidthDesc": "Wie breit die geöffnete Seitenleiste ist. „Breit“ zeigt jeden Menünamen in einer Zeile.",
+    "sidebarWidthOptions": {
+      "compact": "Kompakt",
+      "standard": "Standard",
+      "wide": "Breit"
+    },
+    "sidebarBehaviour": "Seitenleiste",
+    "sidebarBehaviourDesc": "Wie sich die Seitenleiste öffnet. Ist das Fenster zu schmal, öffnet sie sich über der Seite.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Beim Darüberfahren ausklappen",
+      "click": "Per Klick ausklappen",
+      "icons": "Nur Symbole"
+    },
     "uiScaleOptions": {
       "small": "Klein",
       "normal": "Normal",
@@ -2630,6 +2647,12 @@
     "compare": "Vergleichen"
   },
   "be": {
+    "condition": {
+      "fresh": "Frisch",
+      "tiring": "Ermüdet",
+      "exhausted": "Erschöpft",
+      "critical": "Kritisch"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}.",
@@ -3635,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Wochendigest — Woche vom {{weekStart}}",
         "bodyNoTopScorer": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, und {{storylineCount}} Storyline(s) prägen die Liga in dieser Woche.",
-        "bodyWithTopScorer": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, während {{topScorer}} mit {{topScorerGoals}} Tor(en) die Torjägerliste anführt. {{storylineCount}} Storyline(s) prägen die Liga in dieser Woche."
+        "bodyWithTopScorer": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, während {{topScorer}} mit {{topScorerGoals}} Tor(en) die Torjägerliste anführt. {{storylineCount}} Storyline(s) prägen die Liga in dieser Woche.",
+        "bodyNoTopScorerNoStorylines": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an.",
+        "bodyWithTopScorerNoStorylines": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, während {{topScorer}} mit {{topScorerGoals}} Tor(en) die Torjägerliste anführt."
       },
       "preseasonDigest": {
         "headline": "Vorbereitungsspiegel — Woche vom {{weekStart}}",

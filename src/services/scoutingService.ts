@@ -10,6 +10,29 @@ export interface StartYouthScoutingInput {
   targetPosition?: string | null;
 }
 
+/** What the manager's club knows about a player, as `ofm_core::player_knowledge` decides it. */
+export type PlayerKnowledge =
+  | { kind: "own" }
+  | { kind: "known" }
+  | { kind: "scouted"; scouted_on: string; current: boolean }
+  | { kind: "unknown" };
+
+export async function getPlayerKnowledge(
+  playerIds: string[],
+): Promise<Record<string, PlayerKnowledge>> {
+  return invoke<Record<string, PlayerKnowledge>>("get_player_knowledge", { playerIds });
+}
+
+/** The weekly wage the club may see, as `ofm_core::player_knowledge::visible_wage` decides it. */
+export type VisibleWage =
+  | { kind: "exact"; weekly: number }
+  | { kind: "approximate"; weekly: number }
+  | { kind: "hidden" };
+
+export async function getVisibleWage(playerId: string): Promise<VisibleWage | null> {
+  return invoke<VisibleWage | null>("get_visible_wage", { playerId });
+}
+
 export async function getScoutedReport(playerId: string): Promise<ScoutedPlayerView | null> {
   return invoke<ScoutedPlayerView | null>("get_scouted_report", { playerId });
 }

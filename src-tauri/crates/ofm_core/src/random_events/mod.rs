@@ -7,6 +7,7 @@ pub use responses::{RandomEventResponseEffect, apply_event_response};
 
 use crate::contracts::{ContractWarningStage, contract_warning_stage};
 use crate::game::Game;
+use crate::morale::apply_morale_change;
 use chrono::Datelike;
 use domain::message::*;
 use rand::RngExt;
@@ -239,7 +240,7 @@ pub fn check_random_events(game: &mut Game) {
                     } else {
                         rng.random_range(-5..=-1)
                     };
-                    p.morale = ((p.morale as i16) + delta).clamp(10, 100) as u8;
+                    p.morale = apply_morale_change(p.morale, delta);
                 }
             }
         }
@@ -282,7 +283,7 @@ pub fn check_random_events(game: &mut Game) {
                     // Morale boost for being called up
                     let pid = player.id.clone();
                     if let Some(p) = game.players.iter_mut().find(|p| p.id == pid) {
-                        p.morale = (p.morale as i16 + rng.random_range(3..=8)).clamp(10, 100) as u8;
+                        p.morale = apply_morale_change(p.morale, rng.random_range(3..=8));
                     }
                 }
             }

@@ -1,9 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TrainingTab from "./TrainingTab";
-import { createSeasonContext, createSquadFitness } from "../../test-utils/factories";
+import {
+  createConditionStatus,
+  createSeasonContext,
+  createSquadFitness,
+} from "../../test-utils/factories";
 
 const invokeMock = vi.fn();
 
@@ -380,20 +384,24 @@ describe("TrainingTab", () => {
 
   /**
    * Given a player on 90 whom the backend marks critical (he is injured, on 90 in the list but the
-   *       status is the backend's) and one on 10 whom it marks fit
+   *       band is the backend's) and one on 10 whom it marks fresh
    * When Training lists the players
-   * Then each name takes the colour of the backend's status, not of his condition.
+   * Then each row shows the backend's word for the band and paints it, and the bar, in the
+   *      backend's tone, not in a colour picked from his condition.
    */
-  it("colours each player's name by the backend's status, not his condition", async () => {
+  it("shows each player's band in the backend's word and tone, not from his condition", async () => {
     const state = createGameState(true);
     state.players = [
       createPlayer({ id: "p-critical", match_name: "Flagged Critical", condition: 90 }),
-      createPlayer({ id: "p-fit", match_name: "Flagged Fit", condition: 10 }),
+      createPlayer({ id: "p-fresh", match_name: "Flagged Fresh", condition: 10 }),
     ];
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad_fitness") {
         return createSquadFitness({
-          statuses: { "p-critical": "Critical", "p-fit": "Fit" },
+          statuses: {
+            "p-critical": createConditionStatus("Critical"),
+            "p-fresh": createConditionStatus("Fresh"),
+          },
         });
       }
       return command === "get_squad" ? state.players : state;
@@ -401,9 +409,73 @@ describe("TrainingTab", () => {
 
     render(<TrainingTab gameState={state} />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Flagged Critical")).toHaveClass("text-red-600");
+    const critical = await screen.findByRole("listitem", { name: /Flagged Critical/ });
+    expect(within(critical).getByText("be.condition.critical")).toHaveClass("text-tone-bad");
+    const criticalBar = within(critical).getByRole("progressbar", { name: "common.condition" });
+    expect(criticalBar.firstElementChild).toHaveClass("bg-tone-bad-solid");
+    const fresh = screen.getByRole("listitem", { name: /Flagged Fresh/ });
+    expect(within(fresh).getByText("be.condition.fresh")).toHaveClass("text-tone-good");
+    const freshBar = within(fresh).getByRole("progressbar", { name: "common.condition" });
+    expect(freshBar.firstElementChild).toHaveClass("bg-tone-good-solid");
+  });
+
+  /**
+   * Given an average of 90 that the backend's band rule paints bad (the fixture contradicts the
+   *       number on purpose)
+   * When Training draws the squad's average condition
+   * Then its bar is filled in the backend's tone, not the green a 70-up threshold picked.
+   */
+  it("paints the average condition bar in the backend's tone", async () => {
+    const state = createGameState(true);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({
+          average_condition: 90,
+          average_status: createConditionStatus("Critical"),
+        });
+      }
+      return command === "get_squad" ? state.players : state;
     });
-    expect(screen.getByText("Flagged Fit")).not.toHaveClass("text-red-600");
+
+    render(<TrainingTab gameState={state} />);
+
+    const average = await screen.findByRole("progressbar", { name: "training.avgCondition" });
+    await waitFor(() => expect(average.firstElementChild).toHaveClass("bg-tone-bad-solid"));
+    expect(average.firstElementChild).not.toHaveClass("bg-positive-solid");
+  });
+
+  /**
+   * Given a squad whose only player is injured, so the backend has no healthy first-team player to
+   *       average (its average is null) but still a band for him
+   * When Training has the backend's answer (his band is on the list)
+   * Then the average's bar is no progress bar: "Avg Condition 0%" would read out a number that
+   * doesn't exist.
+   */
+  it("exposes no average progress bar while there is no average", async () => {
+    const state = createGameState(true);
+    state.players = [
+      createPlayer({
+        id: "p-injured",
+        match_name: "Sidelined",
+        condition: 30,
+        injury: { name: "hamstring_strain", days_remaining: 9 },
+      }),
+    ];
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({
+          players: 0,
+          average_condition: null,
+          statuses: { "p-injured": createConditionStatus("Exhausted") },
+        });
+      }
+      return command === "get_squad" ? state.players : state;
+    });
+
+    render(<TrainingTab gameState={state} />);
+
+    const injured = await screen.findByRole("listitem", { name: /Sidelined/ });
+    expect(await within(injured).findByText("be.condition.exhausted")).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar", { name: "training.avgCondition" })).toBeNull();
   });
 });

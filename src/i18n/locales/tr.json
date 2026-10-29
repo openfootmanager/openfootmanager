@@ -412,6 +412,8 @@
     "currentWage": "Mevcut maaş",
     "loading": "Yükleniyor...",
     "loadingGameState": "Oyun durumu yükleniyor...",
+    "overallRating": "Genel {{value}}",
+    "overallRatingTier": "Genel {{value}}, seviye {{tier}}",
     "noResults": "Sonuç bulunamadı.",
     "place": {
       "1": "1.",
@@ -670,7 +672,6 @@
     "coverageNeedsAttention": "{{count}} rol grubunda takviye gerekli",
     "coverageBadge": "İlk 11 {{starters}}/{{required}} · Yedek {{bench}}",
     "bestRole": "En iyi rol",
-    "formationFit": "Mevki aşinalığı",
     "startingXi": "İlk 11",
     "starter": "As Oyuncu",
     "benchOption": "Yedek",
@@ -1616,6 +1617,7 @@
     "dateOfBirth": "Doğum Tarihi",
     "noContract": "Sözleşme yok",
     "weeklyWage": "Haftalık Maaş",
+    "approximateWage": "yaklaşık {{wage}}",
     "annualWage": "Yıllık Maaş",
     "yearsRemaining": "Kalan Yıl",
     "contractRisk": "Sözleşme Riski",
@@ -1835,6 +1837,21 @@
     },
     "uiScale": "Arayüz Ölçeği",
     "uiScaleDesc": "Okunabilirlik için yazı ve aralık boyutlarını ayarla",
+    "sidebarWidth": "Kenar çubuğu genişliği",
+    "sidebarWidthDesc": "Açık kenar çubuğunun genişliği. “Geniş” her menü adını tek satırda gösterir.",
+    "sidebarWidthOptions": {
+      "compact": "Kompakt",
+      "standard": "Standart",
+      "wide": "Geniş"
+    },
+    "sidebarBehaviour": "Kenar çubuğu",
+    "sidebarBehaviourDesc": "Kenar çubuğunun nasıl açılacağı. Pencere çok darsa sayfanın üzerinde açılır.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Üzerine gelince aç",
+      "click": "Tıklayınca aç",
+      "icons": "Yalnızca simgeler"
+    },
     "uiScaleOptions": {
       "small": "Küçük",
       "normal": "Normal",
@@ -2630,6 +2647,12 @@
     "compare": "Karşılaştır"
   },
   "be": {
+    "condition": {
+      "fresh": "Dinç",
+      "tiring": "Yoruluyor",
+      "exhausted": "Bitkin",
+      "critical": "Kritik"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Bu oyuncu ayrılamaz: kadro, bir kulübün koruması gereken asgari sayının altına düşer. Etkilenen bölge: {{group}}.",
@@ -3635,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Haftalık Özet — {{weekStart}} Haftası",
         "bodyNoTopScorer": "En yeni haftalık özet burada. {{leader}} zirvede yer alıyor ve bu hafta {{storylineCount}} gelişme lige yön veriyor.",
-        "bodyWithTopScorer": "En yeni haftalık özet burada. {{leader}} zirvede yer alırken {{topScorer}}, {{topScorerGoals}} golle gol krallığında başı çekiyor. Bu hafta {{storylineCount}} gelişme lige yön veriyor."
+        "bodyWithTopScorer": "En yeni haftalık özet burada. {{leader}} zirvede yer alırken {{topScorer}}, {{topScorerGoals}} golle gol krallığında başı çekiyor. Bu hafta {{storylineCount}} gelişme lige yön veriyor.",
+        "bodyNoTopScorerNoStorylines": "En yeni haftalık özet burada. {{leader}} zirvede yer alıyor.",
+        "bodyWithTopScorerNoStorylines": "En yeni haftalık özet burada. {{leader}} zirvede yer alırken {{topScorer}}, {{topScorerGoals}} golle gol krallığında başı çekiyor."
       },
       "preseasonDigest": {
         "headline": "Sezon Öncesi Özeti — {{weekStart}} Haftası",

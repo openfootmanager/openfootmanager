@@ -463,6 +463,75 @@ mod tests {
         )
     }
 
+    /// Given a group cup of each competition kind, from World Cup finals to a friendly tournament
+    /// When its group stage is drawn
+    /// Then every group fixture carries its own competition's tag: a World Cup match is an
+    ///      international fixture, not a domestic cup tie the club calendar would move around
+    #[test]
+    fn group_stage_fixtures_carry_their_competitions_fixture_tag() {
+        let tags: Vec<(CompetitionType, Vec<FixtureCompetition>)> = [
+            (
+                CompetitionType::ContinentalClub,
+                CompetitionScope::Continental,
+            ),
+            (
+                CompetitionType::InternationalClub,
+                CompetitionScope::International,
+            ),
+            (
+                CompetitionType::InternationalNation,
+                CompetitionScope::International,
+            ),
+            (
+                CompetitionType::FriendlyCup,
+                CompetitionScope::International,
+            ),
+            (CompetitionType::Cup, CompetitionScope::Domestic),
+        ]
+        .into_iter()
+        .map(|(kind, scope)| {
+            let cup = generate_group_knockout_cup(
+                "Tagged Cup",
+                2026,
+                &clubs(8),
+                start(),
+                kind.clone(),
+                scope,
+            );
+            let mut seen: Vec<FixtureCompetition> = cup
+                .fixtures
+                .iter()
+                .map(|fixture| fixture.competition.clone())
+                .collect();
+            seen.dedup();
+            (kind, seen)
+        })
+        .collect();
+
+        assert_eq!(
+            tags,
+            vec![
+                (
+                    CompetitionType::ContinentalClub,
+                    vec![FixtureCompetition::ContinentalClub]
+                ),
+                (
+                    CompetitionType::InternationalClub,
+                    vec![FixtureCompetition::InternationalClub]
+                ),
+                (
+                    CompetitionType::InternationalNation,
+                    vec![FixtureCompetition::InternationalNation]
+                ),
+                (
+                    CompetitionType::FriendlyCup,
+                    vec![FixtureCompetition::FriendlyCup]
+                ),
+                (CompetitionType::Cup, vec![FixtureCompetition::Cup]),
+            ]
+        );
+    }
+
     /// Given distinct entrant lists whose comma-joined text is identical,
     /// When snake-seeded group cups are generated for the same season and date,
     /// Then their competition and fixture ids remain distinct.

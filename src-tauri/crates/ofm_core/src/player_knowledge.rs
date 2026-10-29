@@ -94,6 +94,42 @@ fn scouted_or_unknown(game: &Game, player: &Player) -> PlayerKnowledge {
     }
 }
 
+/// The weekly wage the club may see: exact for its own player, rounded for one its scout reported
+/// on, and nothing for anyone else. A known rival's wage is his club's business, like his condition.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum VisibleWage {
+    Exact {
+        weekly: u32,
+    },
+    /// Rounded to two significant figures: what a scout would hear, not the contract's figure.
+    Approximate {
+        weekly: u32,
+    },
+    Hidden,
+}
+
+pub fn visible_wage(game: &Game, player: &Player) -> VisibleWage {
+    match player_knowledge(game, player) {
+        PlayerKnowledge::Own => VisibleWage::Exact {
+            weekly: player.wage(),
+        },
+        PlayerKnowledge::Scouted { .. } => VisibleWage::Approximate {
+            weekly: two_significant_figures(player.wage()),
+        },
+        PlayerKnowledge::Known | PlayerKnowledge::Unknown => VisibleWage::Hidden,
+    }
+}
+
+fn two_significant_figures(value: u32) -> u32 {
+    let mut step = 1;
+    while value / step >= 100 {
+        step *= 10;
+    }
+    // Round half up to the step: 1,250 → 1,300, 15,843 → 16,000.
+    value.saturating_add(step / 2) / step * step
+}
+
 /// The knowledge of each requested player. An id no player has is left out of the answer.
 pub fn players_knowledge(game: &Game, player_ids: &[String]) -> HashMap<String, PlayerKnowledge> {
     let wanted: HashSet<&str> = player_ids.iter().map(String::as_str).collect();
@@ -307,6 +343,80 @@ mod tests {
         game.league = Some(division("legacy", &["homeless", "neighbour"]));
 
         assert_eq!(knowledge_of(&game, "p"), PlayerKnowledge::Unknown);
+    }
+
+    fn paid(mut player: Player, weekly: u32) -> Player {
+        player.stage_wage(weekly);
+        player
+    }
+
+    /// Given the club's own player on 15,843 a week
+    /// When the wage it may see is asked
+    /// Then it is the exact figure
+    #[test]
+    fn the_clubs_own_player_shows_his_exact_wage() {
+        let game = world(
+            Some(MY_CLUB),
+            vec![paid(player("p", Some(MY_CLUB)), 15_843)],
+        );
+        let player = &game.players[0];
+
+        assert_eq!(
+            visible_wage(&game, player),
+            VisibleWage::Exact { weekly: 15_843 }
+        );
+    }
+
+    /// Given a player in another division on 15,843 a week, whom a scout reported on
+    /// When the wage the club may see is asked
+    /// Then it is about 16,000: two significant figures, never the contract's figure
+    #[test]
+    fn a_scouted_player_shows_an_approximate_wage() {
+        let mut game = world(
+            Some(MY_CLUB),
+            vec![paid(player("p", Some("faraway")), 15_843)],
+        );
+        scouted(&mut game, "p", "2026-09-01");
+        let player = &game.players[0];
+
+        assert_eq!(
+            visible_wage(&game, player),
+            VisibleWage::Approximate { weekly: 16_000 }
+        );
+    }
+
+    /// Given a rival in the manager's own division, and a player elsewhere nobody scouted
+    /// When the wage the club may see is asked
+    /// Then neither shows one: a known rival's wage is his club's business
+    #[test]
+    fn a_known_or_unknown_players_wage_is_hidden() {
+        let game = world(
+            Some(MY_CLUB),
+            vec![
+                paid(player("known", Some("rival")), 15_843),
+                paid(player("unknown", Some("faraway")), 15_843),
+            ],
+        );
+
+        assert_eq!(visible_wage(&game, &game.players[0]), VisibleWage::Hidden);
+        assert_eq!(visible_wage(&game, &game.players[1]), VisibleWage::Hidden);
+    }
+
+    /// Given wages of 999, 1,250, 12,345 and 7 a week
+    /// When they are rounded for a scout's ear
+    /// Then they keep two significant figures: 1,000, 1,300, 12,000 and 7
+    #[test]
+    fn an_approximate_wage_keeps_two_significant_figures() {
+        let rounded = |weekly| {
+            let mut game = world(Some(MY_CLUB), vec![paid(player("p", None), weekly)]);
+            scouted(&mut game, "p", "2026-09-01");
+            visible_wage(&game, &game.players[0])
+        };
+
+        assert_eq!(rounded(999), VisibleWage::Approximate { weekly: 1_000 });
+        assert_eq!(rounded(1_250), VisibleWage::Approximate { weekly: 1_300 });
+        assert_eq!(rounded(12_345), VisibleWage::Approximate { weekly: 12_000 });
+        assert_eq!(rounded(7), VisibleWage::Approximate { weekly: 7 });
     }
 
     /// Given a request for several players, one of them an id no player has

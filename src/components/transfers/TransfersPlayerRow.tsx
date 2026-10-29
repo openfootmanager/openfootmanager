@@ -5,16 +5,8 @@ import type { MouseEventHandler } from "react";
 import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
 import { Badge, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
-import {
-  getTeamName,
-  calcAge,
-  formatVal,
-  formatWeeklyWage,
-  getPlayerOvr,
-  positionBadgeVariant,
-} from "../../lib/helpers";
+import { getTeamName, calcAge, formatVal, formatWeeklyWage, getPlayerOvr } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import {
   buildDividerMenuItem,
   buildScoutPlayerMenuItem,
@@ -27,6 +19,7 @@ import type { TransfersTabController } from "./useTransfersTabController";
 import { getRelevantTransferOffers, getRelevantLoanOffers } from "./TransfersTab.model";
 import { PlayerOffersCell } from "./TransfersPlayerOffers";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 type PlayerRowDetailsProps = {
   state: Pick<
     TransfersTabController,
@@ -118,9 +111,7 @@ export function PlayerRowDetails({
       onClick={() => onSelectPlayer(player.id)}
     >
       <td className="py-2.5 px-4">
-        <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
-          {translatePositionAbbreviation(t, naturalPositionOf(player))}
-        </Badge>
+        <PlayerPositionBadge position={naturalPositionOf(player)} />
       </td>
       <td className="py-2.5 px-4">
         <div className="flex items-center gap-3">

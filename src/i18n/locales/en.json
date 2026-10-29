@@ -412,6 +412,8 @@
     "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",
+    "overallRating": "Overall {{value}}",
+    "overallRatingTier": "Overall {{value}}, tier {{tier}}",
     "noResults": "No results found.",
     "place": {
       "1": "1st",
@@ -670,7 +672,6 @@
     "coverageNeedsAttention": "{{count}} role groups need cover",
     "coverageBadge": "XI {{starters}}/{{required}} · Bench {{bench}}",
     "bestRole": "Best role",
-    "formationFit": "Familiarity",
     "startingXi": "Starting XI",
     "starter": "Starter",
     "benchOption": "Bench",
@@ -1616,6 +1617,7 @@
     "dateOfBirth": "Date of Birth",
     "noContract": "No contract",
     "weeklyWage": "Weekly Wage",
+    "approximateWage": "about {{wage}}",
     "annualWage": "Annual Wage",
     "yearsRemaining": "Years Remaining",
     "contractRisk": "Contract Risk",
@@ -1835,6 +1837,21 @@
     },
     "uiScale": "UI Scale",
     "uiScaleDesc": "Adjust font size and spacing for readability",
+    "sidebarWidth": "Sidebar width",
+    "sidebarWidthDesc": "How wide the open sidebar is. Wide fits every menu name on one line.",
+    "sidebarWidthOptions": {
+      "compact": "Compact",
+      "standard": "Standard",
+      "wide": "Wide"
+    },
+    "sidebarBehaviour": "Sidebar",
+    "sidebarBehaviourDesc": "How the sidebar opens. In a window too narrow for it, it opens over the page.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Expand on hover",
+      "click": "Expand on click",
+      "icons": "Icons only"
+    },
     "uiScaleOptions": {
       "small": "Small",
       "normal": "Normal",
@@ -2630,6 +2647,12 @@
     "compare": "Compare"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresh",
+      "tiring": "Tiring",
+      "exhausted": "Exhausted",
+      "critical": "Critical"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",
@@ -3635,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Weekly Digest — Week of {{weekStart}}",
         "bodyNoTopScorer": "The latest weekly digest is here. {{leader}} lead the table, and {{storylineCount}} storyline(s) are shaping the division this week.",
-        "bodyWithTopScorer": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s). {{storylineCount}} storyline(s) are shaping the division this week."
+        "bodyWithTopScorer": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s). {{storylineCount}} storyline(s) are shaping the division this week.",
+        "bodyNoTopScorerNoStorylines": "The latest weekly digest is here. {{leader}} lead the table.",
+        "bodyWithTopScorerNoStorylines": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s)."
       },
       "preseasonDigest": {
         "headline": "Preseason Digest — Week of {{weekStart}}",

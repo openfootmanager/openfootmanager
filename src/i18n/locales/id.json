@@ -412,6 +412,8 @@
     "currentWage": "Gaji Saat Ini",
     "loading": "Memuat...",
     "loadingGameState": "Memuat status permainan...",
+    "overallRating": "Keseluruhan {{value}}",
+    "overallRatingTier": "Keseluruhan {{value}}, tingkat {{tier}}",
     "noResults": "Tidak ada hasil ditemukan.",
     "place": {
       "1": "ke-1",
@@ -670,7 +672,6 @@
     "coverageNeedsAttention": "{{count}} kelompok peran perlu pengisi",
     "coverageBadge": "XI {{starters}}/{{required}} · Cadangan {{bench}}",
     "bestRole": "Peran terbaik",
-    "formationFit": "Penguasaan posisi",
     "startingXi": "Starting XI",
     "starter": "Starter",
     "benchOption": "Cadangan",
@@ -1616,6 +1617,7 @@
     "dateOfBirth": "Tanggal Lahir",
     "noContract": "Tanpa kontrak",
     "weeklyWage": "Gaji Mingguan",
+    "approximateWage": "sekitar {{wage}}",
     "annualWage": "Gaji Tahunan",
     "yearsRemaining": "Sisa Tahun",
     "contractRisk": "Risiko Kontrak",
@@ -1835,6 +1837,21 @@
     },
     "uiScale": "Skala UI",
     "uiScaleDesc": "Sesuaikan ukuran huruf dan jarak agar mudah dibaca",
+    "sidebarWidth": "Lebar bilah sisi",
+    "sidebarWidthDesc": "Seberapa lebar bilah sisi saat terbuka. “Lebar” menampilkan setiap nama menu dalam satu baris.",
+    "sidebarWidthOptions": {
+      "compact": "Ringkas",
+      "standard": "Standar",
+      "wide": "Lebar"
+    },
+    "sidebarBehaviour": "Bilah sisi",
+    "sidebarBehaviourDesc": "Cara bilah sisi terbuka. Jika jendela terlalu sempit, bilah sisi terbuka di atas halaman.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Buka saat diarahkan",
+      "click": "Buka dengan klik",
+      "icons": "Hanya ikon"
+    },
     "uiScaleOptions": {
       "small": "Kecil",
       "normal": "Normal",
@@ -2630,6 +2647,12 @@
     "compare": "Bandingkan"
   },
   "be": {
+    "condition": {
+      "fresh": "Bugar",
+      "tiring": "Mulai lelah",
+      "exhausted": "Kelelahan",
+      "critical": "Kritis"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}.",
@@ -3635,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Ringkasan Mingguan — Pekan {{weekStart}}",
         "bodyNoTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, dan {{storylineCount}} alur cerita mewarnai divisi ini pekan ini.",
-        "bodyWithTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol. {{storylineCount}} alur cerita mewarnai divisi ini pekan ini."
+        "bodyWithTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol. {{storylineCount}} alur cerita mewarnai divisi ini pekan ini.",
+        "bodyNoTopScorerNoStorylines": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen.",
+        "bodyWithTopScorerNoStorylines": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol."
       },
       "preseasonDigest": {
         "headline": "Ringkasan Pramusim — Pekan {{weekStart}}",

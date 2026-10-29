@@ -412,6 +412,8 @@
     "currentWage": "Salário atual",
     "loading": "Carregando...",
     "loadingGameState": "Carregando estado do jogo...",
+    "overallRating": "Geral {{value}}",
+    "overallRatingTier": "Geral {{value}}, nível {{tier}}",
     "noResults": "Nenhum resultado encontrado.",
     "place": {
       "1": "1º",
@@ -697,7 +699,6 @@
     "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banco {{bench}}",
     "bestRole": "Melhor função",
-    "formationFit": "Familiaridade",
     "startingXi": "Onze inicial",
     "starter": "Titular",
     "benchOption": "Banco",
@@ -1616,6 +1617,7 @@
     "dateOfBirth": "Data de Nascimento",
     "noContract": "Sem contrato",
     "weeklyWage": "Salário Semanal",
+    "approximateWage": "cerca de {{wage}}",
     "annualWage": "Salário Anual",
     "yearsRemaining": "Anos restantes",
     "contractRisk": "Risco contratual",
@@ -1835,6 +1837,21 @@
     },
     "uiScale": "Escala da Interface",
     "uiScaleDesc": "Ajuste o tamanho da fonte e espaçamento para melhor leitura",
+    "sidebarWidth": "Largura da barra lateral",
+    "sidebarWidthDesc": "A largura da barra lateral aberta. “Larga” mostra cada nome do menu em uma linha.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Padrão",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Como a barra lateral abre. Se a janela for estreita demais, ela abre sobre a página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir ao passar o mouse",
+      "click": "Abrir com um clique",
+      "icons": "Só ícones"
+    },
     "uiScaleOptions": {
       "small": "Pequena",
       "normal": "Normal",
@@ -2630,6 +2647,12 @@
     "confidence": "Confiança"
   },
   "be": {
+    "condition": {
+      "fresh": "Descansado",
+      "tiring": "Cansando",
+      "exhausted": "Exausto",
+      "critical": "Crítico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Este jogador não pode sair: o elenco ficaria abaixo do mínimo que um clube precisa manter. Setor afetado: {{group}}.",
@@ -3635,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Resumo Semanal — Semana de {{weekStart}}",
         "bodyNoTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela e {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana.",
-        "bodyWithTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s). {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana."
+        "bodyWithTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s). {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana.",
+        "bodyNoTopScorerNoStorylines": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela.",
+        "bodyWithTopScorerNoStorylines": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s)."
       },
       "preseasonDigest": {
         "headline": "Resumo da pré-temporada — Semana de {{weekStart}}",
