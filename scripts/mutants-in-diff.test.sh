@@ -137,7 +137,7 @@ printf '%s\n' '# comment lines and blank lines are ignored' '' \
     'crates/core/src/lib.rs answer  the fake crate entry point' > "$glue"
 expect 0 "a glue function is excluded from the listing and from the run" "caught" -- \
     FAKE_LIST=2 FAKE_TOTAL=2 FAKE_STATUS=0 MUTANTS_IN_DIFF_EXCLUSIONS="$glue"
-if [ "$(grep -c -F -- '--exclude-re ^crates/core/src/lib\.rs:[0-9]+:[0-9]+: (replace answer( ->| with )|.* in answer$)' "$scratch/cargo.log")" -eq 2 ]; then
+if [ "$(grep -c -F -- '--exclude-re ^crates/core/src/lib\.rs:[0-9]+:[0-9]+: (replace (.*::)?answer( ->| with )|.* in (.*::)?answer$)' "$scratch/cargo.log")" -eq 2 ]; then
     passed=$((passed + 1)); echo "  ok    and both the listing and the run carry its --exclude-re"
 else
     failed=$((failed + 1)); echo "  FAIL  the glue pattern is missing from a call: $(cat "$scratch/cargo.log")"
@@ -223,9 +223,9 @@ RUST
 }
 PREPARE=add_commands expect 0 "a command that only forwards to its _internal is excluded" "caught" -- \
     FAKE_LIST=2 FAKE_TOTAL=2 FAKE_STATUS=0
-if grep -q -F -- 'src/commands/club\.rs:[0-9]+:[0-9]+: (replace rename_club( ->| with )|.* in rename_club$)' "$scratch/cargo.log" &&
-    grep -q -F -- '(replace relocate_club( ->| with )|.* in relocate_club$)' "$scratch/cargo.log" &&
-    grep -q -F -- '(replace rebuild_club( ->| with )|.* in rebuild_club$)' "$scratch/cargo.log" &&
+if grep -q -F -- 'src/commands/club\.rs:[0-9]+:[0-9]+: (replace (.*::)?rename_club( ->| with )|.* in (.*::)?rename_club$)' "$scratch/cargo.log" &&
+    grep -q -F -- '(replace (.*::)?relocate_club( ->| with )|.* in (.*::)?relocate_club$)' "$scratch/cargo.log" &&
+    grep -q -F -- '(replace (.*::)?rebuild_club( ->| with )|.* in (.*::)?rebuild_club$)' "$scratch/cargo.log" &&
     ! grep -q -- 'club_count' "$scratch/cargo.log" &&
     ! grep -q -- 'promote_club' "$scratch/cargo.log" &&
     ! grep -q -- 'club_size' "$scratch/cargo.log" &&
@@ -233,6 +233,38 @@ if grep -q -F -- 'src/commands/club\.rs:[0-9]+:[0-9]+: (replace rename_club( ->|
     passed=$((passed + 1)); echo "  ok    and a command with logic of its own, even beside an _internal, and the _internal itself, are not"
 else
     failed=$((failed + 1)); echo "  FAIL  wrong command exclusions: $(cat "$scratch/cargo.log")"
+fi
+
+# What one glue entry's pattern catches, tried on names in cargo-mutants' own shapes: a free
+# function, a method, a trait method and a function in an inline module, each with its whole body
+# replaced and with an operator inside it; and nothing of a function that only shares the name.
+source <(sed -n -e '/^regex_escape() {/,/^}/p' -e '/^function_pattern() {/,/^}/p' "$script")
+glue_pattern="$(function_pattern src/club.rs answer)"
+caught_names=(
+    'src/club.rs:3:5: replace answer -> u32 with 0'
+    'src/club.rs:3:9: replace + with - in answer'
+    'src/club.rs:12:9: replace Club::answer -> u32 with 1'
+    'src/club.rs:12:13: replace == with != in Club::answer'
+    'src/club.rs:20:9: replace <impl Display for Club>::answer -> String with String::new()'
+    'src/club.rs:31:9: replace * with / in inner::answer'
+)
+spared_names=(
+    'src/club.rs:40:5: replace answer_internal -> u32 with 0'
+    'src/club.rs:41:9: replace + with - in Club::other_answer'
+    'src/other.rs:3:5: replace answer -> u32 with 0'
+)
+missed_glue="" spared_wrongly=""
+for name in "${caught_names[@]}"; do
+    grep -Eq -- "$glue_pattern" <<< "$name" || missed_glue+=" [$name]"
+done
+for name in "${spared_names[@]}"; do
+    grep -Eq -- "$glue_pattern" <<< "$name" && spared_wrongly+=" [$name]"
+done
+if [ -z "$missed_glue$spared_wrongly" ]; then
+    passed=$((passed + 1)); echo "  ok    a glue entry catches its function as a method or in a module, and nothing else"
+else
+    failed=$((failed + 1))
+    echo "  FAIL  the glue pattern missed:$missed_glue; and wrongly caught:$spared_wrongly"
 fi
 
 real_check="$(cd "$here/.." && "$script" --check-exclusions 2>&1)"

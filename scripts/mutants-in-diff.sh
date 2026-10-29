@@ -44,11 +44,13 @@ regex_escape() {
     sed -e 's/[][\.+*?(){}|^$#&~-]/\\&/g'
 }
 
-# Every mutant of one function: its whole body replaced, or an operator inside it.
+# Every mutant of one function: its whole body replaced, or an operator inside it. cargo-mutants
+# names a method or a function in an inline module by its path (`Club::answer`,
+# `<impl Display for Club>::answer`, `inner::answer`), so any path may come before the name.
 function_pattern() {
     local path fn
     path="$(regex_escape <<< "$1")" fn="$2"
-    printf '^%s:[0-9]+:[0-9]+: (replace %s( ->| with )|.* in %s$)' "$path" "$fn" "$fn"
+    printf '^%s:[0-9]+:[0-9]+: (replace (.*::)?%s( ->| with )|.* in (.*::)?%s$)' "$path" "$fn" "$fn"
 }
 
 # Fills `excluded` with one `--exclude-re` per glue function, and fails, naming the entry, when an
