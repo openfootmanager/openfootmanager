@@ -83,6 +83,12 @@ error, so mirror an existing wrapper exactly.
 
 Types come from `src/store/types.ts` or `src/store/gameStore.ts`. No `any`.
 
+If the command returns a type the screens receive that `Game` or `SquadPlayer` already reach, its
+TypeScript is generated: derive `TS` on any new Rust type, regenerate with
+`OFM_UPDATE_TS_TYPES=1 cargo test --manifest-path src-tauri/Cargo.toml --test wire_types`, and
+commit `src/store/generated/`. Never edit those files by hand (`src-tauri/CLAUDE.md`, "Wire types
+are generated").
+
 ## 4. Update the store
 
 Commands that return game state feed `gameStore`. Follow the existing call sites: call the
@@ -128,6 +134,7 @@ If the command should also be available to AI agents, continue with `/add-mcp-to
 - [ ] Registered in `generate_handler![…]` in `src-tauri/src/lib.rs`
 - [ ] New modules re-exported from `commands/mod.rs`
 - [ ] Typed wrapper in `src/services/`, camelCase args, no `any`
+- [ ] A changed or new wire type: `TS` derived, `src/store/generated/` regenerated and committed
 - [ ] Store updated without in-place mutation
 - [ ] Backend test on the `_internal` fn (`cargo test --lib`), written first
 - [ ] Frontend service test including the error path
