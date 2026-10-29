@@ -1467,7 +1467,11 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         "info_finance_snapshot",
         "Detailed financial snapshot",
         build_schema(
-            &[("team_id", "string", "Team entity ID (omit for own team)")],
+            &[(
+                "team_id",
+                "string",
+                "Your own club's ID (omit it; other clubs' finances are not public)"
+            )],
             &[]
         ),
         ctx,
