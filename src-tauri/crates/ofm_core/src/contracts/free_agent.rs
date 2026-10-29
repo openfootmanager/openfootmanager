@@ -1,6 +1,6 @@
-//! Signing free agents: the affordability projection, the signing flow that puts
-//! a contract-less player on the manager's books, and the announcement message.
-//! Byte-faithful extraction from the original contracts.rs.
+//! Signing free agents: the offer talks open on, the affordability projection, the
+//! signing flow that puts a contract-less player on the manager's books, and the
+//! announcement message.
 
 use super::*;
 
@@ -30,8 +30,8 @@ pub fn project_free_agent_contract_impact(
 }
 
 /// The terms the manager's first offer to a free agent starts from: his reference wage, for the
-/// years a player his age expects. The same two rules the player judges the offer by, so the
-/// screen never works out a wage or a length of its own.
+/// years a player his age expects. The screen asks for these rather than working out a wage or a
+/// length of its own.
 pub fn free_agent_opening_offer(game: &Game, player_id: &str) -> Result<RenewalOffer, String> {
     let player = free_agent(game, player_id)?;
     Ok(RenewalOffer {
@@ -41,17 +41,23 @@ pub fn free_agent_opening_offer(game: &Game, player_id: &str) -> Result<RenewalO
 }
 
 fn free_agent<'game>(game: &'game Game, player_id: &str) -> Result<&'game Player, String> {
-    let player = game
+    free_agent_index(game, player_id).map(|index| &game.players[index])
+}
+
+/// Where the free agent sits in `game.players`: an index, so the signing can change him.
+fn free_agent_index(game: &Game, player_id: &str) -> Result<usize, String> {
+    let index = game
         .players
         .iter()
-        .find(|candidate| candidate.id == player_id)
+        .position(|candidate| candidate.id == player_id)
         .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
 
+    let player = &game.players[index];
     if player.retired || player.team_id.is_some() {
         return Err(ERR_PLAYER_NOT_FREE_AGENT.to_string());
     }
 
-    Ok(player)
+    Ok(index)
 }
 
 pub fn offer_free_agent_contract(
@@ -72,15 +78,7 @@ pub fn offer_free_agent_contract(
         .ok_or(ERR_MANAGED_TEAM_NOT_FOUND.to_string())?
         .clone();
 
-    let player_index = game
-        .players
-        .iter()
-        .position(|candidate| candidate.id == player_id)
-        .ok_or(ERR_PLAYER_NOT_FOUND.to_string())?;
-
-    if game.players[player_index].retired || game.players[player_index].team_id.is_some() {
-        return Err(ERR_PLAYER_NOT_FREE_AGENT.to_string());
-    }
+    let player_index = free_agent_index(game, player_id)?;
 
     let current_date = game.clock.current_date.date_naive();
     let cooled_off = cool_stale_renewal_session(&mut game.players[player_index], current_date);

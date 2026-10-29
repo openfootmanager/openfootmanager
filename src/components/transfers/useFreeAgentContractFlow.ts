@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   getRenewalStatusClassName,
@@ -71,8 +71,6 @@ export function useFreeAgentContractFlow({
   const [contractSuggestedWage, setContractSuggestedWage] = useState<number | null>(null);
   const [contractSuggestedYears, setContractSuggestedYears] = useState<number | null>(null);
   const [contractIsTerminal, setContractIsTerminal] = useState(false);
-  // An opening offer that arrives after talks moved to another player, or closed, is not shown.
-  const talksOpenWith = useRef<string | null>(null);
 
   const offeredWage = Number(contractWage);
   const offeredYears = Number(contractLength);
@@ -111,21 +109,37 @@ export function useFreeAgentContractFlow({
     };
   }, [freeAgentTarget, isContractWageValid, offeredWage]);
 
-  const loadOpeningOffer = async (playerId: string): Promise<void> => {
-    try {
-      const offer = await getFreeAgentOpeningOffer(playerId);
-      if (talksOpenWith.current !== playerId) return;
-      setContractWage(String(offer.weekly_wage));
-      setContractLength(String(offer.contract_years));
-    } catch (error) {
-      if (talksOpenWith.current !== playerId) return;
-      setContractStatus("error");
-      setContractError(resolveBackendError(error));
+  useEffect(() => {
+    if (freeAgentTargetId === null) {
+      return;
     }
-  };
+
+    let cancelled = false;
+
+    const loadOpeningOffer = async (): Promise<void> => {
+      try {
+        const offer = await getFreeAgentOpeningOffer(freeAgentTargetId);
+
+        if (!cancelled) {
+          setContractWage(String(offer.weekly_wage));
+          setContractLength(String(offer.contract_years));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setContractStatus("error");
+          setContractError(resolveBackendError(error));
+        }
+      }
+    };
+
+    void loadOpeningOffer();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [freeAgentTargetId]);
 
   const openFreeAgentContract = (player: PlayerData): void => {
-    talksOpenWith.current = player.id;
     setFreeAgentTargetId(player.id);
     setContractWage("");
     setContractLength("");
@@ -137,7 +151,6 @@ export function useFreeAgentContractFlow({
     setContractSuggestedWage(null);
     setContractSuggestedYears(null);
     setContractIsTerminal(false);
-    void loadOpeningOffer(player.id);
   };
 
   const closeFreeAgentContract = (): void => {
@@ -145,7 +158,6 @@ export function useFreeAgentContractFlow({
       return;
     }
 
-    talksOpenWith.current = null;
     setFreeAgentTargetId(null);
     setContractWage("");
     setContractLength("");
