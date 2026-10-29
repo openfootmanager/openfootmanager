@@ -21,7 +21,7 @@ pub fn apply_morale_change(morale: u8, delta: i16) -> u8 {
     let bounded = if delta < 0 {
         moved.max(current.min(i16::from(MORALE_FLOOR)))
     } else {
-        moved.min(MORALE_CEILING)
+        moved
     };
     bounded.clamp(0, MORALE_CEILING) as u8
 }
@@ -79,5 +79,72 @@ mod tests {
     #[test]
     fn no_news_leaves_morale_where_it_is() {
         assert_eq!(apply_morale_change(3, 0), 3);
+    }
+
+    /// The hand-written morale clamps outside this file that are meant to be there: knocks with a
+    /// floor of 0, which the transfer market and a free agent's signing deal in. Each is its
+    /// file and the line's text, so moving one does not break the scan, but changing it does.
+    const FLOOR_ZERO_CLAMPS: [(&str, &str); 3] = [
+        (
+            "contracts/free_agent.rs",
+            "player.morale = (i16::from(player.morale) + 6).clamp(0, 100) as u8;",
+        ),
+        (
+            "transfers/execution.rs",
+            "player.morale = (i16::from(player.morale) - 4).clamp(0, 100) as u8;",
+        ),
+        (
+            "transfers/market.rs",
+            "player.morale = (i16::from(player.morale) - morale_drop).clamp(0, 100) as u8;",
+        ),
+    ];
+
+    fn morale_clamps_under(
+        dir: &std::path::Path,
+        root: &std::path::Path,
+        found: &mut Vec<(String, String)>,
+    ) {
+        let mut entries: Vec<_> = std::fs::read_dir(dir)
+            .expect("the source directory can be read")
+            .map(|entry| entry.expect("a directory entry").path())
+            .collect();
+        entries.sort();
+        for path in entries {
+            if path.is_dir() {
+                morale_clamps_under(&path, root, found);
+                continue;
+            }
+            let relative = path
+                .strip_prefix(root)
+                .expect("under the source root")
+                .to_string_lossy()
+                .replace('\\', "/");
+            if path.extension().is_none_or(|ext| ext != "rs") || relative == "morale.rs" {
+                continue;
+            }
+            let source = std::fs::read_to_string(&path).expect("a source file can be read");
+            for line in source.lines().map(str::trim) {
+                if line.contains(".morale = ") && line.contains("clamp(") {
+                    found.push((relative.clone(), line.to_string()));
+                }
+            }
+        }
+    }
+
+    /// Given every source file in ofm_core outside this one
+    /// When each line that sets a player's morale with a clamp of its own is listed
+    /// Then the list is exactly the three floor-0 knocks: every other morale change goes through
+    ///      apply_morale_change, so its floor is the one rule
+    #[test]
+    fn every_morale_change_with_a_floor_goes_through_apply_morale_change() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut found = Vec::new();
+        morale_clamps_under(&root, &root, &mut found);
+
+        let expected: Vec<(String, String)> = FLOOR_ZERO_CLAMPS
+            .iter()
+            .map(|(file, line)| (file.to_string(), line.to_string()))
+            .collect();
+        assert_eq!(found, expected);
     }
 }
