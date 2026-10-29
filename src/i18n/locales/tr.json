@@ -672,7 +672,6 @@
     "coverageNeedsAttention": "{{count}} rol grubunda takviye gerekli",
     "coverageBadge": "İlk 11 {{starters}}/{{required}} · Yedek {{bench}}",
     "bestRole": "En iyi rol",
-    "formationFit": "Mevki aşinalığı",
     "startingXi": "İlk 11",
     "starter": "As Oyuncu",
     "benchOption": "Yedek",
