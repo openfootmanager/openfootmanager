@@ -2,6 +2,7 @@ use ::engine::ai::{AiPersonality, AiProfile, ai_decide};
 use ::engine::*;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -207,16 +208,98 @@ fn snapshot_contains_valid_data() {
     assert_eq!(snap.max_subs, 5);
 }
 
+/// Given a live match thirty minutes in, When snapshotted, Then every player
+/// carries the rating a report of the match as it stands would give him, so the
+/// match screen can show live marks (#410).
+#[test]
+fn a_snapshot_taken_mid_match_carries_the_ratings_of_the_match_as_it_stands() {
+    // LiveMatchState is not Clone, so a second match on the same seed stands in
+    // for "this match, reported now"; the engine is deterministic per seed.
+    let thirty_minutes_in = || {
+        let mut state = make_live_match(false);
+        let mut rng = seeded_rng(9);
+        for _ in 0..30 {
+            state.step_minute(&mut rng);
+        }
+        state
+    };
+
+    let ratings = thirty_minutes_in().snapshot().player_ratings;
+    let report = thirty_minutes_in().into_report();
+    let rated: Vec<_> = report
+        .player_stats
+        .iter()
+        .filter(|(_, stats)| stats.rating > 0.0)
+        .collect();
+    assert!(rated.len() >= 22);
+    assert_eq!(ratings.len(), rated.len());
+    for (id, stats) in rated {
+        assert_eq!(ratings[id], stats.rating);
+    }
+}
+
+/// Given a live match in which an assisted goal has just been scored, When
+/// snapshotted, Then each player's goals and assists so far match what a report
+/// of the match as it stands credits him with (#410).
+#[test]
+fn a_live_snapshot_carries_each_players_goals_and_assists_so_far() {
+    let assisted_goal_scored =
+        |state: &LiveMatchState| {
+            state.snapshot().events.iter().any(|event| {
+                event.event_type == EventType::Goal && event.secondary_player_id.is_some()
+            })
+        };
+    let until_an_assisted_goal = || {
+        let mut state = make_live_match(false);
+        let mut rng = seeded_rng(9);
+        while !assisted_goal_scored(&state) {
+            assert!(
+                !state.step_minute(&mut rng).is_finished,
+                "seed 9 never sees an assisted goal"
+            );
+        }
+        state
+    };
+
+    let snapshot = until_an_assisted_goal().snapshot();
+    let report = until_an_assisted_goal().into_report();
+    let scored: HashMap<_, _> = report
+        .player_stats
+        .iter()
+        .filter(|(_, stats)| stats.goals > 0)
+        .map(|(id, stats)| (id.clone(), stats.goals))
+        .collect();
+    let assisted: HashMap<_, _> = report
+        .player_stats
+        .iter()
+        .filter(|(_, stats)| stats.assists > 0)
+        .map(|(id, stats)| (id.clone(), stats.assists))
+        .collect();
+    assert!(!scored.is_empty() && !assisted.is_empty());
+    assert_eq!(snapshot.player_goals, scored);
+    assert_eq!(snapshot.player_assists, assisted);
+}
+
+/// Given a live match five minutes in, shorter than anyone needs to be judged,
+/// When snapshotted, Then it carries no marks at all, so the match screen shows
+/// "not rated yet" rather than a 0.0 (#410).
+#[test]
+fn a_snapshot_before_anyone_can_be_judged_carries_no_marks() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(9);
+    for _ in 0..5 {
+        state.step_minute(&mut rng);
+    }
+
+    assert!(state.snapshot().player_ratings.is_empty());
+}
+
 /// Given a finished live match, When snapshotted, Then every starter has the
-/// rating the final report gives him; a snapshot taken mid-match carries none.
+/// rating the final report gives him.
 #[test]
 fn a_finished_snapshot_carries_the_ratings_of_the_final_report() {
     let mut state = make_live_match(false);
     let mut rng = seeded_rng(9);
-    for _ in 0..30 {
-        state.step_minute(&mut rng);
-    }
-    assert!(state.snapshot().player_ratings.is_empty());
     run_to_finish(&mut state, &mut rng);
 
     let ratings = state.snapshot().player_ratings;

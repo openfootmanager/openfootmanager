@@ -18,6 +18,7 @@ import { getEventDisplay, getPlayerName, makeTeamFallback, phaseLabel } from "./
 import { TeamLogo } from "../ui";
 import { useSettingsStore } from "../../store/settingsStore";
 import { EventFeed, MatchStats, Lineups } from "./MatchPanels";
+import { MatchMiniPitch } from "./MatchMiniPitch";
 import MatchScreenLayout from "./MatchScreenLayout";
 import { SubPanel } from "./SubPanel";
 import { applyRoleChange } from "./applyRoleChange";
@@ -29,6 +30,7 @@ import {
   Clock,
   Users,
   BarChart3,
+  LayoutGrid,
   MessageSquare,
   RefreshCw,
   Zap,
@@ -38,7 +40,7 @@ import {
   Flag,
 } from "lucide-react";
 
-type ActivePanel = "events" | "stats" | "lineups";
+type ActivePanel = "events" | "stats" | "lineups" | "pitch";
 
 interface MatchLiveProps {
   snapshot: MatchSnapshot;
@@ -113,6 +115,11 @@ export default function MatchLive({
     }
     return m;
   }, [gameState.players]);
+
+  const squadById = useMemo(
+    () => new Map(gameState.players.map((p) => [p.id, p])),
+    [gameState.players],
+  );
 
   const isFinished = snapshot.phase === "Finished";
 
@@ -397,6 +404,11 @@ export default function MatchLive({
                 label: t("match.lineups"),
                 icon: <Users className="w-4 h-4" />,
               },
+              {
+                id: "pitch" as ActivePanel,
+                label: t("match.pitch"),
+                icon: <LayoutGrid className="w-4 h-4" />,
+              },
             ].map((tab) => (
               <button
                 type="button"
@@ -425,6 +437,7 @@ export default function MatchLive({
             )}
             {activePanel === "stats" && <MatchStats snapshot={snapshot} />}
             {activePanel === "lineups" && <Lineups snapshot={snapshot} />}
+            {activePanel === "pitch" && <MatchMiniPitch snapshot={snapshot} squad={squadById} />}
           </div>
         </div>
 
