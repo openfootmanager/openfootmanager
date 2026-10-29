@@ -3658,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Haftalık Özet — {{weekStart}} Haftası",
         "bodyNoTopScorer": "En yeni haftalık özet burada. {{leader}} zirvede yer alıyor ve bu hafta {{storylineCount}} gelişme lige yön veriyor.",
-        "bodyWithTopScorer": "En yeni haftalık özet burada. {{leader}} zirvede yer alırken {{topScorer}}, {{topScorerGoals}} golle gol krallığında başı çekiyor. Bu hafta {{storylineCount}} gelişme lige yön veriyor."
+        "bodyWithTopScorer": "En yeni haftalık özet burada. {{leader}} zirvede yer alırken {{topScorer}}, {{topScorerGoals}} golle gol krallığında başı çekiyor. Bu hafta {{storylineCount}} gelişme lige yön veriyor.",
+        "bodyNoTopScorerNoStorylines": "En yeni haftalık özet burada. {{leader}} zirvede yer alıyor.",
+        "bodyWithTopScorerNoStorylines": "En yeni haftalık özet burada. {{leader}} zirvede yer alırken {{topScorer}}, {{topScorerGoals}} golle gol krallığında başı çekiyor."
       },
       "preseasonDigest": {
         "headline": "Sezon Öncesi Özeti — {{weekStart}} Haftası",

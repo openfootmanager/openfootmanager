@@ -3658,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "每周摘要——{{weekStart}}当周",
         "bodyNoTopScorer": "最新的每周摘要来了。{{leader}}领跑积分榜,本周有{{storylineCount}}条故事线影响着联赛格局。",
-        "bodyWithTopScorer": "最新的每周摘要来了。{{leader}}领跑积分榜,{{topScorer}}以{{topScorerGoals}}球位居射手榜首。本周有{{storylineCount}}条故事线影响着联赛格局。"
+        "bodyWithTopScorer": "最新的每周摘要来了。{{leader}}领跑积分榜,{{topScorer}}以{{topScorerGoals}}球位居射手榜首。本周有{{storylineCount}}条故事线影响着联赛格局。",
+        "bodyNoTopScorerNoStorylines": "最新的每周摘要来了。{{leader}}领跑积分榜。",
+        "bodyWithTopScorerNoStorylines": "最新的每周摘要来了。{{leader}}领跑积分榜,{{topScorer}}以{{topScorerGoals}}球位居射手榜首。"
       },
       "preseasonDigest": {
         "headline": "季前摘要——{{weekStart}}当周",
