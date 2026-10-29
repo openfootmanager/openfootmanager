@@ -25,7 +25,9 @@ use domain::player::PlayerSeasonStats;
 use ofm_core::end_of_season::{EndOfSeasonSummary, has_full_schedule, is_regenerated_at_rollover};
 use ofm_core::game::Game;
 use ofm_core::nations::is_split_season_country;
-use ofm_core::world::ladder::{division_sizes, domestic_tables_by_country, ladder_violations};
+use ofm_core::world::ladder::{
+    division_sizes, domestic_tables_by_country, is_ladder_table, ladder_violations,
+};
 use ofm_core::world_cup::{is_world_cup_competition, is_world_cup_qualifying};
 
 use crate::driver::SeasonObserver;
@@ -284,9 +286,7 @@ impl Before {
             }
         }
 
-        let managers = game
-            .managers
-            .iter()
+        let managers = managers_by_record(game)
             .filter_map(|manager| {
                 let team_id = manager.team_id.clone()?;
                 Some((
@@ -643,11 +643,10 @@ fn managers_take_their_league_season(before: &Before, after: &Game) -> Vec<Strin
         .get(before.archived_editions..)
         .unwrap_or_default();
     for edition in new_editions {
-        let is_league_table = after.competitions.iter().any(|competition| {
-            competition.id == edition.competition_id
-                && competition.rules.format == CompetitionFormat::LeagueTable
+        let is_division = after.competitions.iter().any(|competition| {
+            competition.id == edition.competition_id && is_ladder_table(competition)
         });
-        if !is_league_table {
+        if !is_division {
             continue;
         }
         for row in &edition.standings {
@@ -656,9 +655,7 @@ fn managers_take_their_league_season(before: &Before, after: &Game) -> Vec<Strin
         }
     }
 
-    after
-        .managers
-        .iter()
+    managers_by_record(after)
         .filter_map(|manager| {
             let was = before.managers.get(&manager.id)?;
             if manager.team_id.as_deref() != Some(was.team_id.as_str()) {
@@ -679,6 +676,15 @@ fn managers_take_their_league_season(before: &Before, after: &Game) -> Vec<Strin
             })
         })
         .collect()
+}
+
+/// Every manager, the user's read from `game.manager`, which is where his season is credited: the
+/// copy of him in `game.managers` is only synced on a hire, a sacking or a job offer.
+fn managers_by_record(game: &Game) -> impl Iterator<Item = &domain::manager::Manager> {
+    game.managers
+        .iter()
+        .filter(|manager| manager.id != game.manager_id)
+        .chain(std::iter::once(&game.manager))
 }
 
 /// Given a league table the rollover regenerated,
@@ -1143,16 +1149,21 @@ mod tests {
         let manager_id = manager.id.clone();
 
         let mut after = game.clone();
-        after
-            .edition_archive
+        archive_six_matches(&mut after, "eng-d1", &team_id);
+        (was, after, manager_id)
+    }
+
+    /// Archives an edition of `competition_id` in which `team_id` played 6: 3 W, 1 D, 2 L.
+    fn archive_six_matches(game: &mut Game, competition_id: &str, team_id: &str) {
+        game.edition_archive
             .push(domain::edition_archive::CompletedEdition {
-                competition_id: "eng-d1".to_string(),
+                competition_id: competition_id.to_string(),
                 season: 1,
                 completed_on: "2027-05-30".to_string(),
-                champion_id: team_id.clone(),
-                participant_ids: clubs,
+                champion_id: team_id.to_string(),
+                participant_ids: vec![team_id.to_string()],
                 standings: vec![domain::league::StandingEntry {
-                    team_id,
+                    team_id: team_id.to_string(),
                     played: 6,
                     won: 3,
                     drawn: 1,
@@ -1165,7 +1176,67 @@ mod tests {
                 knockout_rounds: Vec::new(),
                 fixtures: Vec::new(),
             });
-        (was, after, manager_id)
+    }
+
+    /// Given a league-format table off the domestic ladder (a World Cup qualifying group) archived
+    ///      at the rollover, 6 matches for a club whose manager kept his post
+    /// When his record is unchanged by it
+    /// Then nothing is reported: only a division is a league season, as `is_ladder_table` says
+    #[test]
+    fn a_league_format_table_off_the_ladder_expects_no_league_season() {
+        let game = world();
+        let was = before(&game);
+        let manager = game
+            .managers
+            .iter()
+            .find(|manager| manager.id != game.manager_id && manager.team_id.is_some())
+            .expect("a club has a manager");
+        let team_id = manager.team_id.clone().expect("he has a club");
+        let mut after = game.clone();
+        let mut qualifying = domain::league::League::new(
+            "qualifying".to_string(),
+            "Qualifying".to_string(),
+            1,
+            std::slice::from_ref(&team_id),
+        );
+        qualifying.kind = CompetitionType::InternationalNation;
+        qualifying.scope = domain::league::CompetitionScope::International;
+        after.competitions.push(qualifying);
+        archive_six_matches(&mut after, "qualifying", &team_id);
+
+        assert_eq!(
+            managers_take_their_league_season(&was, &after),
+            Vec::<String>::new()
+        );
+    }
+
+    /// Given the user's club's division archived at the rollover, 6 matches, and the user's copy in
+    ///      `game.managers` left as it was (it is synced only on a hire, a sacking or a job offer)
+    /// When the authoritative `game.manager` has the 6 matches added
+    /// Then nothing is reported: the rule reads the user's record where the season end writes it
+    #[test]
+    fn the_users_season_is_read_from_his_own_record_not_a_stale_copy() {
+        let mut game = world();
+        game.sync_user_manager_record();
+        let was = before(&game);
+        let club = game.manager.team_id.clone().expect("the user has a club");
+        let division = game
+            .competitions
+            .iter()
+            .find(|competition| {
+                is_ladder_table(competition) && competition.participant_ids.contains(&club)
+            })
+            .expect("the user's club has a division")
+            .id
+            .clone();
+        let mut after = game.clone();
+        archive_six_matches(&mut after, &division, &club);
+        after.manager.career_stats.matches_managed += 6;
+
+        assert_eq!(
+            managers_take_their_league_season(&was, &after),
+            Vec::<String>::new()
+        );
     }
 
     /// Given an `eng-d1` season archived at the rollover, 6 matches for one club,
