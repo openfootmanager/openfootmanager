@@ -21,10 +21,7 @@ use crate::game::Game;
 pub fn domestic_tables_by_country(game: &Game) -> BTreeMap<&str, Vec<&League>> {
     let mut tables_by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
     for competition in &game.competitions {
-        if competition.rules.format != CompetitionFormat::LeagueTable
-            || competition.kind != CompetitionType::League
-            || competition.scope != CompetitionScope::Domestic
-        {
+        if !is_ladder_table(competition) {
             continue;
         }
         if let Some(country) = competition.country_id.as_deref() {
@@ -35,6 +32,15 @@ pub fn domestic_tables_by_country(game: &Game) -> BTreeMap<&str, Vec<&League>> {
         }
     }
     tables_by_country
+}
+
+/// Whether `competition` is a domestic league table, a division of a country's ladder: a league
+/// season, where a cup, a continental competition or a World Cup qualifying group in the same
+/// format is not.
+pub fn is_ladder_table(competition: &League) -> bool {
+    competition.rules.format == CompetitionFormat::LeagueTable
+        && competition.kind == CompetitionType::League
+        && competition.scope == CompetitionScope::Domestic
 }
 
 /// Each ladder table's participant count, keyed by id: the "authored size" that

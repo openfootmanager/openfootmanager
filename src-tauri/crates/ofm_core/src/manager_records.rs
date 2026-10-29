@@ -1,11 +1,12 @@
 //! A manager's record: the one place a league season is added to it, for the user and for every
 //! other club's manager alike.
 
-use domain::league::{CompetitionFormat, League};
+use domain::league::League;
 use domain::manager::{Manager, ManagerCareerEntry};
 use domain::team::Team;
 
 use crate::game::Game;
+use crate::world::ladder::is_ladder_table;
 
 /// One club's finished league season, as a manager's record takes it.
 pub(crate) struct LeagueSeason<'a> {
@@ -66,9 +67,11 @@ pub(crate) fn credit_league_season(manager: &mut Manager, season: &LeagueSeason)
     }
 }
 
-/// Credits every club's manager, other than the user's, with his club's season in each league-table
-/// edition archived from `game.edition_archive[first_new..]`. An edition is archived once, at the
-/// first rollover after it finished, so no season is credited twice and none is credited half-played.
+/// Credits every club's manager, other than the user's, with his club's season in each division
+/// (`is_ladder_table`) edition archived from `game.edition_archive[first_new..]`. An edition is
+/// archived once, at the first rollover after it finished, so no season is credited twice and none
+/// is credited half-played. The manager in charge at the rollover takes the club's whole season,
+/// as the user's manager does: a record does not split a season by the matches each manager took.
 /// The user's manager is credited from his own division at his season's end
 /// (`process_end_of_season`), so he is left out here.
 pub(crate) fn credit_managers_of_newly_archived_leagues(game: &mut Game, first_new: usize) {
@@ -112,10 +115,9 @@ pub(crate) fn credit_managers_of_newly_archived_leagues(game: &mut Game, first_n
 }
 
 fn is_league_table(competitions: &[League], competition_id: &str) -> bool {
-    competitions.iter().any(|competition| {
-        competition.id == competition_id
-            && competition.rules.format == CompetitionFormat::LeagueTable
-    })
+    competitions
+        .iter()
+        .any(|competition| competition.id == competition_id && is_ladder_table(competition))
 }
 
 fn team_name<'a>(teams: &'a [Team], team_id: &str) -> &'a str {
@@ -132,7 +134,7 @@ mod tests {
     use crate::clock::GameClock;
     use chrono::{TimeZone, Utc};
     use domain::edition_archive::CompletedEdition;
-    use domain::league::StandingEntry;
+    use domain::league::{CompetitionFormat, StandingEntry};
 
     fn standing(team_id: &str, won: u32, drawn: u32, lost: u32) -> StandingEntry {
         StandingEntry {
@@ -296,6 +298,30 @@ mod tests {
         let mut game = world();
         game.edition_archive
             .push(edition("cup", vec![standing("rival", 4, 0, 0)]));
+
+        credit_managers_of_newly_archived_leagues(&mut game, 0);
+
+        assert_eq!(boss(&game, "rival-boss").career_stats.matches_managed, 0);
+        assert_eq!(boss(&game, "rival-boss").career_stats.trophies, 0);
+    }
+
+    /// Given a league-format table off the domestic ladder (a World Cup qualifying group, say)
+    ///      archived with "rival" on top
+    /// When the managers are credited
+    /// Then nobody's league record moves and nobody gets a trophy: only a division is a league
+    ///      season
+    #[test]
+    fn a_league_format_table_off_the_ladder_credits_no_league_record() {
+        let mut game = world();
+        let ids = vec!["rival".to_string(), "third".to_string()];
+        let mut qualifying = League::new("qualifying".into(), "Qualifying".into(), 2026, &ids);
+        qualifying.kind = domain::league::CompetitionType::InternationalNation;
+        qualifying.scope = domain::league::CompetitionScope::International;
+        game.competitions.push(qualifying);
+        game.edition_archive.push(edition(
+            "qualifying",
+            vec![standing("rival", 6, 0, 0), standing("third", 0, 0, 6)],
+        ));
 
         credit_managers_of_newly_archived_leagues(&mut game, 0);
 
