@@ -19,6 +19,28 @@ pub fn project_free_agent_contract_impact(
         .iter()
         .find(|candidate| candidate.id == manager_team_id)
         .ok_or(ERR_MANAGED_TEAM_NOT_FOUND.to_string())?;
+    let player = free_agent(game, player_id)?;
+
+    Ok(project_contract_offer_financial_impact(
+        game,
+        team,
+        player,
+        offered_wage,
+    ))
+}
+
+/// The terms the manager's first offer to a free agent starts from: his reference wage, for the
+/// years a player his age expects. The same two rules the player judges the offer by, so the
+/// screen never works out a wage or a length of its own.
+pub fn free_agent_opening_offer(game: &Game, player_id: &str) -> Result<RenewalOffer, String> {
+    let player = free_agent(game, player_id)?;
+    Ok(RenewalOffer {
+        weekly_wage: reference_player_wage(player),
+        contract_years: expected_contract_years(player, game.clock.current_date.date_naive()),
+    })
+}
+
+fn free_agent<'game>(game: &'game Game, player_id: &str) -> Result<&'game Player, String> {
     let player = game
         .players
         .iter()
@@ -29,12 +51,7 @@ pub fn project_free_agent_contract_impact(
         return Err(ERR_PLAYER_NOT_FREE_AGENT.to_string());
     }
 
-    Ok(project_contract_offer_financial_impact(
-        game,
-        team,
-        player,
-        offered_wage,
-    ))
+    Ok(player)
 }
 
 pub fn offer_free_agent_contract(
