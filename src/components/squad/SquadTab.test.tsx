@@ -61,6 +61,7 @@ vi.mock("react-i18next", () => ({
     },
     i18n: { language: "en" },
   }),
+  initReactI18next: { type: "3rdParty", init: () => {} },
 }));
 
 // Squad fixtures rate every player 60 across the board — keepers' handling and reflexes included —
@@ -639,6 +640,21 @@ describe("SquadTab", () => {
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
       expect(screen.getByText("GK1").closest("tr")).toHaveTextContent("Loan");
     });
+  });
+
+  /**
+   * Given the backend refusing to transfer-list a player
+   * When the manager lists him from the roster menu
+   * Then the refusal is shown under the roster, not swallowed with the menu closing on nothing.
+   */
+  it("shows why a listing from the roster menu failed", async () => {
+    renderSquadTab(makeGameState());
+    mockedInvoke.mockRejectedValue("Listing failed");
+
+    fireEvent.contextMenu(screen.getByText("GK1").closest("tr") as HTMLTableRowElement);
+    fireEvent.click(await screen.findByRole("menuitem", { name: /transfer/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Listing failed");
   });
 
   it("reopens talks from context menu for planned-expiry players", async () => {

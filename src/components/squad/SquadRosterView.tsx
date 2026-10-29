@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
 import { clearContractExitIntent, setContractExitIntent } from "../../services/contractService";
 import { setStartingXi } from "../../services/squadService";
+import { resolveBackendError } from "../../utils/backendI18n";
 import {
   buildActivePositionMap,
   buildRoleCoverageSummary,
@@ -299,7 +300,7 @@ export default function SquadRosterView({
         : await clearContractExitIntent(playerId);
       onMutationComplete?.(result.game);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveBackendError(error));
     } finally {
       setContractActionPlayerId(null);
     }
@@ -321,7 +322,7 @@ export default function SquadRosterView({
     try {
       await persistStartingXi(nextXiIds);
     } catch (error) {
-      setContractActionError(String(error));
+      setContractActionError(resolveBackendError(error));
     }
   };
 
@@ -363,6 +364,7 @@ export default function SquadRosterView({
     onMutationComplete,
     updateSquadPlanning,
     updateContractExitIntent,
+    onActionError: (error: unknown) => setContractActionError(resolveBackendError(error)),
   });
 
   return (
@@ -595,7 +597,10 @@ export default function SquadRosterView({
       </Card>
 
       {contractActionError ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+        <div
+          role="alert"
+          className="rounded-lg border border-danger bg-danger-tint px-4 py-3 text-body text-danger"
+        >
           {contractActionError}
         </div>
       ) : null}

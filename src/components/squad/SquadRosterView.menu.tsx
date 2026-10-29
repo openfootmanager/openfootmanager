@@ -28,6 +28,8 @@ interface SquadRowMenuContext {
   onMutationComplete?: (game: GameStateData) => void;
   updateSquadPlanning: (playerId: string, action: "promote" | "demote") => Promise<void>;
   updateContractExitIntent: (playerId: string, shouldLetExpire: boolean) => Promise<void>;
+  /** A market or squad-role action failed: the backend's error, shown under the roster. */
+  onActionError: (error: unknown) => void;
 }
 
 /** What a roster row's menu offers: the injury, the profile, the XI, the contract, the market. */
@@ -104,16 +106,16 @@ export function squadRowMenuItems(
       try {
         const updated = await toggleTransferList(player.id);
         onMutationComplete?.(updated);
-      } catch {
-        return;
+      } catch (error) {
+        context.onActionError(error);
       }
     }),
     buildToggleLoanListMenuItem(t, player.loan_listed, async () => {
       try {
         const updated = await toggleLoanList(player.id);
         onMutationComplete?.(updated);
-      } catch {
-        return;
+      } catch (error) {
+        context.onActionError(error);
       }
     }),
     ...(canDelegateToYouthAcademy(player)
@@ -122,8 +124,8 @@ export function squadRowMenuItems(
             try {
               const updated = await setPlayerSquadRole(player.id, "Youth");
               onMutationComplete?.(updated);
-            } catch {
-              return;
+            } catch (error) {
+              context.onActionError(error);
             }
           }),
         ]

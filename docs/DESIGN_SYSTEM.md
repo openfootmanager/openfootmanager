@@ -160,15 +160,16 @@ A tone never stands alone: there is always a letter, a word or the number next t
 the game doesn't know (an unscouted attribute, a match not yet rated) shows "–" in `fg-subtle`,
 never a grey number that could read as a low value.
 
-Condition will have words as well as tones, from one rule in `ofm_core` that will also drive the
-staff warnings and the squad's fitness counts, so the words, the tones and the counts always
-agree. The maintainer chose these bands; the rule doesn't exist yet (today's fitness status splits
-only at 40 and 25), and this section is updated when it lands:
+Condition has words as well as tones, from one rule in `ofm_core`
+(`training::fitness_warnings::fitness_status`) that also drives the staff warnings and the
+squad's fitness counts, so the words, the tones and the counts always agree. The backend sends
+each player's band as `condition_status`; `ConditionMeter` draws it. The maintainer chose these
+bands:
 
 | Condition | Word | Tone |
 |---|---|---|
 | 75 and over | Fresh | `good` |
-| 40–74 | Tiring | `neutral` |
+| 40–74 | Tiring | `fair` |
 | 25–39 | Exhausted | `low` |
 | under 25 | Critical | `bad` |
 
