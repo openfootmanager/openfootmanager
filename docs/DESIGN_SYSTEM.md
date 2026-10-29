@@ -63,7 +63,9 @@ the selected navigation item, a logo strip. The raw Tailwind palette (`gray-500`
 `white`, …) isn't used in a finished folder (§7).
 
 A control that is on or chosen uses the `selected` role, not the brand green: one place to change
-how "chosen" looks (maintainer, 22 Oct). In light it is the same green as `primary-700`. In dark
+how "chosen" looks (maintainer, 22 Oct). It covers controls inside pages; the sidebar's selected
+item stays a brand moment. A chosen state is never `positive` either: `positive` means good news
+(maintainer, 28 Oct). In light it is the same green as `primary-700`. In dark
 the fill is a lighter green (3.1:1 against the panel, where `primary-700` was 2.8:1), still dark
 enough for white text at 4.9:1. A list's keyboard-active option is marked with `ring-focus`, since
 it is where focus is, not what is chosen.
