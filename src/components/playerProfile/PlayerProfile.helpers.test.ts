@@ -37,6 +37,17 @@ describe("knowledgeRevision", () => {
    * When the key is taken twice
    * Then it is the same, so nothing is asked again for no reason
    */
+  /**
+   * Given a player at club "a|b" under a manager at "c"
+   * When he moves to "a" and the manager to "b|c" (ids from a package may hold any character)
+   * Then the key moves: the fields are kept apart, not run together with a separator
+   */
+  it("moves when two club ids trade characters across a separator", () => {
+    expect(knowledgeRevision({ ...inputs, playerClubId: "a", managerClubId: "b|c" })).not.toBe(
+      knowledgeRevision({ ...inputs, playerClubId: "a|b", managerClubId: "c" }),
+    );
+  });
+
   it("stays put while nothing it depends on changes", () => {
     expect(knowledgeRevision({ ...inputs })).toBe(knowledgeRevision(inputs));
   });

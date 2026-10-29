@@ -34,7 +34,14 @@ export interface KnowledgeRevisionInputs {
 
 /** The key the profile's knowledge and wage answers are asked again on when it changes. */
 export function knowledgeRevision(inputs: KnowledgeRevisionInputs): string {
-  return `${inputs.careerToken ?? 0}|${inputs.date}|${inputs.playerClubId ?? ""}|${inputs.managerClubId ?? ""}|${inputs.wage}`;
+  // JSON keeps the fields apart: a package's club ids may hold any character, a separator too.
+  return JSON.stringify([
+    inputs.careerToken ?? 0,
+    inputs.date,
+    inputs.playerClubId ?? "",
+    inputs.managerClubId ?? "",
+    inputs.wage,
+  ]);
 }
 
 interface PlayerAdvancedMetric {

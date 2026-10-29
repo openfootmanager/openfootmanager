@@ -56,7 +56,7 @@ const wages = vi.hoisted(() => ({
 vi.mock("../../hooks/useVisibleWage", () => ({
   useVisibleWage: (playerId: string, revision: string) =>
     wages.current[playerId] ??
-    ({ kind: "exact", weekly: Number(revision.split("|").pop()) } as const),
+    ({ kind: "exact", weekly: Number(JSON.parse(revision).at(-1)) } as const),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
