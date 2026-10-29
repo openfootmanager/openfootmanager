@@ -16,6 +16,7 @@ import {
   formatPlayerWage,
   formatPlayerWageCompact,
   getPlayerTeamName,
+  knowledgeRevision,
   visibleWageText,
 } from "./PlayerProfile.helpers";
 import { useVisibleWage } from "../../hooks/useVisibleWage";
@@ -80,9 +81,15 @@ export default function PlayerProfile({
   });
   const ovr = getPlayerOvr(player);
   const age = calcAgeOnDate(player.date_of_birth, gameState.clock.current_date);
-  const knowledgeRevision = `${gameState.clock.current_date}|${player.team_id ?? ""}|${gameState.manager.team_id ?? ""}|${player.wage}`;
-  const knowledge = usePlayerKnowledge([player.id], knowledgeRevision)(player.id);
-  const visibleWage = useVisibleWage(player.id, knowledgeRevision);
+  const revision = knowledgeRevision({
+    careerToken: gameState.career_token,
+    date: gameState.clock.current_date,
+    playerClubId: player.team_id,
+    managerClubId: gameState.manager.team_id,
+    wage: player.wage,
+  });
+  const knowledge = usePlayerKnowledge([player.id], revision)(player.id);
+  const visibleWage = useVisibleWage(player.id, revision);
   const showsPrivateState = knowsPrivateState(knowledge);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
