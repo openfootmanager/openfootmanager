@@ -124,6 +124,64 @@ fn apply_pyramid_excludes_berth_targets_and_leaves_plain_leagues_alone() {
     assert!(!eng2.contains(&"s1".to_string()));
 }
 
+fn sorted_roster(competitions: &[League], id: &str) -> Vec<String> {
+    let mut roster = competitions
+        .iter()
+        .find(|competition| competition.id == id)
+        .expect(id)
+        .participant_ids
+        .clone();
+    roster.sort();
+    roster
+}
+
+/// Given a country with three finished divisions of six clubs, priorities 0, 1 and 2, and no
+///       berths: the default 50-club world's 20/20/10 layout has three tiers like this
+/// When the season's promotion and relegation are applied
+/// Then both boundaries swap one club each way: the second tier's champion goes up and the top
+///      flight's bottom club comes down, and the same between the second and third tiers
+#[test]
+fn a_three_division_ladder_promotes_and_relegates_at_both_boundaries() {
+    fn table(prefix: &str) -> Vec<(String, u32)> {
+        (1..=6u32)
+            .map(|place| (format!("{prefix}{place}"), 70 - place * 10))
+            .collect()
+    }
+    fn rows(table: &[(String, u32)]) -> Vec<(&str, u32)> {
+        table
+            .iter()
+            .map(|(id, points)| (id.as_str(), *points))
+            .collect()
+    }
+    let (top, second, third) = (table("a"), table("b"), table("c"));
+    let mut competitions = vec![
+        division("top", 0, "ENG", &rows(&top)),
+        division("second", 1, "ENG", &rows(&second)),
+        division("third", 2, "ENG", &rows(&third)),
+    ];
+
+    apply_pyramid_promotion_relegation(&mut competitions);
+
+    assert_eq!(
+        [
+            sorted_roster(&competitions, "top"),
+            sorted_roster(&competitions, "second"),
+            sorted_roster(&competitions, "third"),
+        ],
+        [
+            ["a1", "a2", "a3", "a4", "a5", "b1"]
+                .map(String::from)
+                .to_vec(),
+            ["a6", "b2", "b3", "b4", "b5", "c1"]
+                .map(String::from)
+                .to_vec(),
+            ["b6", "c2", "c3", "c4", "c5", "c6"]
+                .map(String::from)
+                .to_vec(),
+        ]
+    );
+}
+
 /// A tier that leaves the ladder leaves a gap in it. A berth-fed division
 /// exchanges clubs through its berths, so the tiers above and below it are
 /// two divisions apart — closing that gap promoted a fourth-division
