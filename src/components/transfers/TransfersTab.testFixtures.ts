@@ -407,7 +407,7 @@ export function marketPageOf(
       team_id: player.team_id,
       team_name: null,
       market_value: player.market_value,
-      ovr: 70,
+      ovr: player.ovr ?? 70,
       transfer_listed: player.transfer_listed,
       loan_listed: player.loan_listed,
       injured: false,

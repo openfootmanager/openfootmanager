@@ -60,6 +60,12 @@ Brand palettes (`primary-*`, `accent-*`, `navy-*`) stay for brand moments: the C
 the selected navigation item, a logo strip. The raw Tailwind palette (`gray-500`, `red-400`,
 `white`, …) isn't used in a finished folder (§7).
 
+A control that is on or chosen (a switch that is on, a segmented option filled with `strong`, a
+checked box, a count badge, the highlighted option in `Select` and the chosen day in
+`DatePicker`) is getting its own `selected` role, with a dark pair, in place of the brand green:
+one place to change how "chosen" looks (maintainer, 22 Oct). Until that PR lands they use the
+`primary-*` greens.
+
 **Readability is tested, not hoped for.** `src/designTokens.test.ts` checks that every text role
 reaches 4.5:1 on every surface it sits on, and that the focus ring reaches 3:1, in light, dark,
 high-contrast light and high-contrast dark. It composites a translucent tint over the panel
@@ -97,8 +103,12 @@ Two rules follow from what those numbers allow:
 | `h-row` / `min-h-row` | 40px, 32px when compact | list and table rows |
 | `h-panel-header` | 40px, 36px when compact | a panel's header |
 | `h-toolbar` | 48px, 40px when compact | the page toolbar |
+| `w-sidebar-rail` | 3.5rem | the sidebar's icon rail |
+| `w-sidebar-compact` / `w-sidebar-standard` / `w-sidebar-wide` | 13 / 16 / 17.75rem | the open sidebar, by Settings › Sidebar width; `sidebarLayout.ts` reckons with the same values |
 | `max-w-page` | 80rem | the page width, applied once by the workspace |
 | `@split` | 36rem | the container breakpoint for two panels |
+
+Rows are `h-row`, 40px, or 32px when compact; there is no taller row token (maintainer, 22 Oct).
 
 A container breakpoint is in rem, so it moves with the UI scale. In a 960×640 window at normal
 scale `@split` is 576px and fits the 655px workspace, so two panels show; at extra large it is
@@ -114,6 +124,7 @@ drawn in the style guide.
 |---|---|
 | a page's sections, filters and one primary action | `PageToolbar`, with `Tabs` in its `start` slot and the action at its right end |
 | sections of a page, or a two- or three-way switch in a panel | `Tabs` (`look="underline"` or `"segmented"`) with a `TabPanel` each, all mounted and all but one `hidden`; the arrow keys, Home and End move between tabs. Tabs that don't fit scroll inside the tablist, and the selected one is scrolled into view |
+| a choice of one value from a few (a match's speed, a density) | `SegmentedControl`, a radio group with Tabs' segmented look: `emphasis="strong"` fills the chosen option for a setting the player watches, `layout="stacked"` puts an icon over each label in a 52px target |
 | a card or panel | `Card`, `CardHeader`, `CardBody` |
 | a button | `Button` |
 | a chip or label | `Badge` |
@@ -124,11 +135,13 @@ drawn in the style guide.
 | a progress or condition bar | `ProgressBar` |
 | a player, club or country | `PlayerAvatar`, `TeamLogo`, `CountryFlag`, `TeamLocation` |
 | an injury | `InjuryBadge` |
+| an unread count or a mark on a nav item (a circle for one digit, 99+ at most) | `UnreadBadge` |
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
+| a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
 More primitives arrive as the migration goes on: empty and loading states,
-stat tile, data table, search field, toggle, the rated-value chip, and player, match and club
+stat tile, data table, search field, toggle, and player, match and club
 cards. Each one gets a row here and a place in the style guide in the PR that adds it.
 
 ## 4. Rated values
@@ -137,6 +150,10 @@ Any value the game rates (OVR and potential, an attribute, condition, morale, a 
 form) is coloured by **tone**: `top`, `good`, `fair`, `neutral` (no colour), `low`, `bad`. **The backend
 decides the tone**, the way `ofm_core::player_tier` decides S, A and B, and the frontend only
 paints it. A TypeScript file never compares a number against a threshold to pick a colour.
+
+**The game rates; it doesn't advise.** There is no style-fit verdict and no "best position for
+this formation" badge on a player who isn't starting (maintainer, 22 Oct): picking the team is the
+manager's job. A position badge says where a player can play, not where they should.
 
 A tone never stands alone: there is always a letter, a word or the number next to it. A value
 the game doesn't know (an unscouted attribute, a match not yet rated) shows "–" in `fg-subtle`,

@@ -4,10 +4,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 import { useSettingsStore, type AppSettings } from "../store/settingsStore";
 import { useTheme } from "../context/ThemeContext";
-import { ThemeToggle, Select } from "../components/ui";
+import { SegmentedControl, ThemeToggle, Select } from "../components/ui";
 import { SUPPORTED_LANGUAGES, changeAppLanguage } from "../i18n";
 import { formatAppVersion } from "../lib/appVersion";
-import { SegmentedControl, Section, SettingRow, Toggle } from "./Settings.components";
+import { Section, SettingRow, Toggle } from "./Settings.components";
 import { ReportBugModal } from "../components/diagnostics/ReportBugModal";
 import { SubmittedReports } from "../components/diagnostics/SubmittedReports";
 import {
@@ -37,6 +37,8 @@ const THEME_OPTION_KEYS = ["light", "dark", "system"] as const;
 const MATCH_MODE_KEYS = ["live", "spectator", "delegate"] as const;
 const MATCH_SPEED_KEYS = ["slow", "normal", "fast"] as const;
 const UI_SCALE_KEYS = ["small", "normal", "large", "xlarge"] as const;
+const SIDEBAR_WIDTH_KEYS = ["compact", "standard", "wide"] as const;
+const SIDEBAR_BEHAVIOUR_KEYS = ["normal", "hover", "click", "icons"] as const;
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -159,22 +161,18 @@ export default function Settings() {
         {/* ─── Display ─── */}
         <Section title={t("settings.display")} icon={<Monitor className="w-5 h-5" />}>
           <SettingRow label={t("settings.theme")} description={t("settings.themeDesc")}>
-            <SegmentedControl
-              options={THEME_OPTION_KEYS.map((key) => ({
-                value: key,
-                label: t(`settings.themeOptions.${key}`),
-                icon:
-                  key === "light" ? (
-                    <Sun className="w-4 h-4" />
-                  ) : key === "dark" ? (
-                    <Moon className="w-4 h-4" />
-                  ) : (
-                    <Monitor className="w-4 h-4" />
-                  ),
-              }))}
-              value={settings.theme}
-              onChange={(v) => handleUpdate({ theme: v as AppSettings["theme"] })}
-            />
+            {(labelId) => (
+              <SegmentedControl
+                labelledBy={labelId}
+                options={THEME_OPTION_KEYS.map((key) => ({
+                  value: key,
+                  label: t(`settings.themeOptions.${key}`),
+                  icon: key === "light" ? <Sun /> : key === "dark" ? <Moon /> : <Monitor />,
+                }))}
+                value={settings.theme}
+                onChange={(theme) => handleUpdate({ theme })}
+              />
+            )}
           </SettingRow>
 
           <SettingRow label={t("settings.language")} description={t("settings.languageDesc")}>
@@ -211,17 +209,54 @@ export default function Settings() {
           </SettingRow>
 
           <SettingRow label={t("settings.uiScale")} description={t("settings.uiScaleDesc")}>
-            <div className="flex items-center gap-2">
-              <Type className="w-4 h-4 text-gray-400" />
+            {(labelId) => (
+              <div className="flex max-w-full items-center gap-2">
+                <Type aria-hidden="true" className="w-4 h-4 shrink-0 text-fg-subtle" />
+                <SegmentedControl
+                  labelledBy={labelId}
+                  options={UI_SCALE_KEYS.map((key) => ({
+                    value: key,
+                    label: t(`settings.uiScaleOptions.${key}`),
+                  }))}
+                  value={settings.ui_scale}
+                  onChange={(ui_scale) => handleUpdate({ ui_scale })}
+                />
+              </div>
+            )}
+          </SettingRow>
+
+          <SettingRow
+            label={t("settings.sidebarWidth")}
+            description={t("settings.sidebarWidthDesc")}
+          >
+            {(labelId) => (
               <SegmentedControl
-                options={UI_SCALE_KEYS.map((key) => ({
+                labelledBy={labelId}
+                options={SIDEBAR_WIDTH_KEYS.map((key) => ({
                   value: key,
-                  label: t(`settings.uiScaleOptions.${key}`),
+                  label: t(`settings.sidebarWidthOptions.${key}`),
                 }))}
-                value={settings.ui_scale}
-                onChange={(v) => handleUpdate({ ui_scale: v as AppSettings["ui_scale"] })}
+                value={settings.sidebar_width}
+                onChange={(sidebar_width) => handleUpdate({ sidebar_width })}
               />
-            </div>
+            )}
+          </SettingRow>
+
+          <SettingRow
+            label={t("settings.sidebarBehaviour")}
+            description={t("settings.sidebarBehaviourDesc")}
+          >
+            {(labelId) => (
+              <SegmentedControl
+                labelledBy={labelId}
+                options={SIDEBAR_BEHAVIOUR_KEYS.map((key) => ({
+                  value: key,
+                  label: t(`settings.sidebarBehaviourOptions.${key}`),
+                }))}
+                value={settings.sidebar_behaviour}
+                onChange={(sidebar_behaviour) => handleUpdate({ sidebar_behaviour })}
+              />
+            )}
           </SettingRow>
 
           <SettingRow
@@ -270,14 +305,17 @@ export default function Settings() {
           </SettingRow>
 
           <SettingRow label={t("settings.matchSpeed")} description={t("settings.matchSpeedDesc")}>
-            <SegmentedControl
-              options={MATCH_SPEED_KEYS.map((k) => ({
-                value: k,
-                label: t(`settings.speeds.${k}`),
-              }))}
-              value={settings.match_speed}
-              onChange={(v) => handleUpdate({ match_speed: v as AppSettings["match_speed"] })}
-            />
+            {(labelId) => (
+              <SegmentedControl
+                labelledBy={labelId}
+                options={MATCH_SPEED_KEYS.map((k) => ({
+                  value: k,
+                  label: t(`settings.speeds.${k}`),
+                }))}
+                value={settings.match_speed}
+                onChange={(match_speed) => handleUpdate({ match_speed })}
+              />
+            )}
           </SettingRow>
 
           <SettingRow

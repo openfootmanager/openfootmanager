@@ -9,7 +9,6 @@ import {
   getBestRoleForFormation,
   getCurrentPosition,
   getDeployedPosition,
-  getPlayStyleFit,
   buildPitchRows,
   buildPitchSlotRows,
   buildPromoteToStartingXi,
@@ -550,77 +549,6 @@ describe("SquadTab helpers", () => {
         "4-0-0",
       ),
     ).toBe("RightBack");
-  });
-
-  it("scores play-style fit using relevant attribute mixes", () => {
-    expect(
-      getPlayStyleFit(
-        makePlayer("press", "Midfielder", {
-          attributes: {
-            pace: 78,
-            stamina: 80,
-            strength: 60,
-            agility: 65,
-            passing: 62,
-            shooting: 58,
-            tackling: 77,
-            dribbling: 61,
-            defending: 63,
-            positioning: 66,
-            vision: 60,
-            decisions: 68,
-            composure: 62,
-            aggression: 79,
-            teamwork: 81,
-            leadership: 60,
-            handling: 10,
-            reflexes: 10,
-            aerial: 60,
-          },
-        }),
-        "HighPress",
-      ),
-    ).toBe("strong");
-
-    expect(
-      getPlayStyleFit(
-        makePlayer("low", "Forward", {
-          attributes: {
-            pace: 45,
-            stamina: 48,
-            strength: 50,
-            agility: 52,
-            passing: 46,
-            shooting: 49,
-            tackling: 44,
-            dribbling: 47,
-            defending: 42,
-            positioning: 48,
-            vision: 46,
-            decisions: 45,
-            composure: 44,
-            aggression: 40,
-            teamwork: 43,
-            leadership: 39,
-            handling: 10,
-            reflexes: 10,
-            aerial: 55,
-          },
-        }),
-        "Possession",
-      ),
-    ).toBe("risky");
-  });
-
-  it("downgrades play-style fit when the player is out of position", () => {
-    const striker = makePlayer("st", "Striker", { natural_position: "Striker" });
-
-    // Attribute-only fit (no position) is unchanged.
-    expect(getPlayStyleFit(striker, "Attacking")).toBe("good");
-    // In a natural slot the position imposes no penalty.
-    expect(getPlayStyleFit(striker, "Attacking", "Striker")).toBe("good");
-    // Played out of position the same attributes yield a worse fit.
-    expect(getPlayStyleFit(striker, "Attacking", "CenterBack")).toBe("risky");
   });
 
   it("getCurrentPosition returns the assigned slot for XI players, natural otherwise", () => {

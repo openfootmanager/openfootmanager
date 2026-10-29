@@ -170,6 +170,7 @@
     "digestSimulating": "模拟中...",
     "digestMatchDay": "比赛日",
     "digestMatchDayDesc": "您的球队今天有一场比赛。",
+    "matchModeMenu": "选择比赛模式",
     "digestReturnHome": "返回主页",
     "digestBlocked": "需要操作",
     "digestBlockedDesc": "在继续之前，有些问题需要您的关注。",
@@ -394,14 +395,14 @@
     "traits": "特质",
     "condition": "状态",
     "delegateToYouthAcademy": "下放至青训营",
-    "promoteToSeniorSquad": "提拔至一线队",
-    "potWorldClass": "世界级",
-    "potExcellent": "优秀",
-    "potPromising": "有前途",
-    "potDecent": "尚可",
-    "potLimited": "有限"
+    "promoteToSeniorSquad": "提拔至一线队"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "第{{n}}",
       "two": "第{{n}}",
@@ -411,6 +412,8 @@
     "currentWage": "当前工资",
     "loading": "加载中……",
     "loadingGameState": "加载游戏状态中……",
+    "overallRating": "综合实力 {{value}}",
+    "overallRatingTier": "综合实力 {{value}}，等级 {{tier}}",
     "noResults": "未找到结果。",
     "place": {
       "1": "第1",
@@ -696,21 +699,15 @@
     "coverageNeedsAttention": "{{count}} 个角色组需要补强",
     "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
     "bestRole": "最佳角色",
-    "formationFit": "阵型适配",
+    "formationFit": "位置熟悉度",
     "startingXi": "首发阵容",
-    "styleFit": "风格适配",
     "starter": "首发",
     "benchOption": "替补",
-    "naturalFit": "自然适配",
-    "adaptedFit": "适应角色",
+    "naturalFit": "惯用位置",
+    "adaptedFit": "可胜任",
     "needsCover": "需要轮换",
     "makeStarter": "设为首发",
-    "sendToBench": "放到替补席",
-    "styleFitValues": {
-      "strong": "风格适配：强",
-      "good": "风格适配：良好",
-      "risky": "风格适配：有风险"
-    }
+    "sendToBench": "放到替补席"
   },
   "tactics": {
     "formationStyle": "阵型与风格",
@@ -861,8 +858,8 @@
     "setCornerTaker": "指定角球手",
     "inspector": "检视面板",
     "inspectorEmptyTitle": "未选择任何内容",
-    "naturalFit": "自然适配",
-    "adaptedFit": "适应角色",
+    "naturalFit": "惯用位置",
+    "adaptedFit": "可胜任",
     "tokenStates": {
       "ready": "就绪",
       "adjusted": "调整中",
@@ -878,7 +875,7 @@
     "clearSelection": "清除选择",
     "compareWithSelected": "与已选球员比较",
     "selectForSwap": "选择用于交换",
-    "assignBestFit": "分配到最佳位置",
+    "assignBestFit": "分配最佳位置",
     "moveToBench": "移到替补席",
     "promoteToLineup": "提入首发",
     "tableView": "表格视图",
@@ -893,7 +890,6 @@
     "positionSelector": "战术位置",
     "playablePositions": "可踢位置",
     "slotFit": "位置适配",
-    "styleFit": "风格适配",
     "responsibilities": "职责",
     "noSpecialRoles": "没有特殊角色",
     "moraleLevels": {
@@ -909,11 +905,6 @@
       "sharp": "状态上佳",
       "managing": "需要管理",
       "risk": "风险"
-    },
-    "styleFitLevels": {
-      "strong": "高度适配",
-      "good": "适配良好",
-      "risky": "适配风险高"
     }
   },
   "training": {
@@ -1846,6 +1837,21 @@
     },
     "uiScale": "界面缩放",
     "uiScaleDesc": "调整字号与间距以提升可读性",
+    "sidebarWidth": "侧边栏宽度",
+    "sidebarWidthDesc": "展开时侧边栏的宽度。“宽”可让每个菜单名称显示在一行内。",
+    "sidebarWidthOptions": {
+      "compact": "紧凑",
+      "standard": "标准",
+      "wide": "宽"
+    },
+    "sidebarBehaviour": "侧边栏",
+    "sidebarBehaviourDesc": "侧边栏的打开方式。窗口太窄时，它会在页面上方打开。",
+    "sidebarBehaviourOptions": {
+      "normal": "常规",
+      "hover": "悬停时展开",
+      "click": "点击时展开",
+      "icons": "仅图标"
+    },
     "uiScaleOptions": {
       "small": "小",
       "normal": "标准",
@@ -2002,7 +2008,6 @@
     "alreadyQueued": "已排队等待换人",
     "substitutionsPartlyMade": "已完成 {{applied}}/{{total}} 次换人",
     "substitutionRefused": "换人被拒绝：{{off}} 换 {{on}}。{{reason}}",
-    "playerRoles": "球员角色",
     "roleFor": "{{player}}的角色",
     "roleChangeRefused": "无法更改{{player}}的角色。{{reason}}",
     "noBenchAvailable": "没有可用的替补球员",
@@ -2266,7 +2271,7 @@
     "preMatchPrep": "赛前准备",
     "startingLineup": "首发阵容",
     "setPiecesCaptain": "定位球与队长",
-    "formationFit": "阵型契合度",
+    "formationFit": "阵型",
     "selecting": "选择中……",
     "autoSelectXI": "自动选择最佳首发11人",
     "startingXI": "首发11人",
@@ -2597,7 +2602,11 @@
     "pts": "分",
     "cupPenalties": "（点球 {{home}}–{{away}}）",
     "cupAdvances": "{{team}} 晋级",
-    "cupTiesPending": "部分对阵尚未进行"
+    "cupTiesPending": "部分对阵尚未进行",
+    "resume": "继续",
+    "pausedResumesAt": "已暂停 · 将以{{speed}}继续",
+    "playingAt": "正在以{{speed}}进行",
+    "spaceKey": "空格"
   },
   "endOfSeason": {
     "seasonComplete": "赛季结束",
@@ -2638,6 +2647,12 @@
     "compare": "比较"
   },
   "be": {
+    "condition": {
+      "fresh": "精力充沛",
+      "tiring": "体力下降",
+      "exhausted": "筋疲力尽",
+      "critical": "体能危急"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "该球员无法离队：阵容将低于俱乐部必须保留的最低人数。涉及位置：{{group}}。",

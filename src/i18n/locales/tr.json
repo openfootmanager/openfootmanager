@@ -170,6 +170,7 @@
     "digestSimulating": "İşleniyor...",
     "digestMatchDay": "Maç Günü",
     "digestMatchDayDesc": "Maçınız oynanmaya hazır.",
+    "matchModeMenu": "Maç modunu seç",
     "digestReturnHome": "Panele Dön",
     "digestBlocked": "İşlem Gerekli",
     "digestBlockedDesc": "İlerlemeden önce bazı sorunlarla ilgilenmeniz gerekiyor.",
@@ -394,14 +395,14 @@
     "traits": "Özellikler",
     "condition": "Kondisyon",
     "delegateToYouthAcademy": "Altyapı akademisine devret",
-    "promoteToSeniorSquad": "A takıma yükselt",
-    "potWorldClass": "Dünya Klasiği",
-    "potExcellent": "Mükemmel",
-    "potPromising": "Umut vadeden",
-    "potDecent": "İyi",
-    "potLimited": "Sınırlı"
+    "promoteToSeniorSquad": "A takıma yükselt"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -411,6 +412,8 @@
     "currentWage": "Mevcut maaş",
     "loading": "Yükleniyor...",
     "loadingGameState": "Oyun durumu yükleniyor...",
+    "overallRating": "Genel {{value}}",
+    "overallRatingTier": "Genel {{value}}, seviye {{tier}}",
     "noResults": "Sonuç bulunamadı.",
     "place": {
       "1": "1.",
@@ -669,21 +672,15 @@
     "coverageNeedsAttention": "{{count}} rol grubunda takviye gerekli",
     "coverageBadge": "İlk 11 {{starters}}/{{required}} · Yedek {{bench}}",
     "bestRole": "En iyi rol",
-    "formationFit": "Dizilişe uyum",
+    "formationFit": "Mevki aşinalığı",
     "startingXi": "İlk 11",
-    "styleFit": "Stil uyumu",
     "starter": "As Oyuncu",
     "benchOption": "Yedek",
-    "naturalFit": "Doğal uyum",
-    "adaptedFit": "Uyarlanmış uyum",
+    "naturalFit": "Doğal mevki",
+    "adaptedFit": "Orada oynayabilir",
     "needsCover": "Takviye gerekli",
     "makeStarter": "İlk 11'e al",
     "sendToBench": "Yedeğe çek",
-    "styleFitValues": {
-      "strong": "Stil uyumu: Güçlü",
-      "good": "Stil uyumu: İyi",
-      "risky": "Stil uyumu: Riskli"
-    },
     "noBench": "Yedek oyuncu yok.",
     "viewProfile": "Profili görüntüle",
     "swapPlayer": "Oyuncuyu değiştir",
@@ -857,7 +854,7 @@
     "clearSelection": "Seçimi temizle",
     "compareWithSelected": "Seçiliyle karşılaştır",
     "selectForSwap": "Takas için seç",
-    "assignBestFit": "En uygun mevkiye ata",
+    "assignBestFit": "En iyi mevkiye ata",
     "moveToBench": "Yedeğe gönder",
     "promoteToLineup": "İlk 11'e yükselt",
     "makeCaptain": "Kaptan yap",
@@ -886,11 +883,10 @@
     "positionSelector": "Taktik mevki",
     "playablePositions": "Pozisyonlar",
     "slotFit": "Mevki uyumu",
-    "styleFit": "Stil uyumu",
     "responsibilities": "Sorumluluklar",
     "noSpecialRoles": "Özel rol yok",
-    "naturalFit": "Doğal uyum",
-    "adaptedFit": "Uyarlanmış rol",
+    "naturalFit": "Doğal mevki",
+    "adaptedFit": "Orada oynayabilir",
     "moraleLevels": {
       "superb": "Muhteşem",
       "veryGood": "Çok İyi",
@@ -904,11 +900,6 @@
       "sharp": "Formda",
       "managing": "İdare Ediyor",
       "risk": "Riskli"
-    },
-    "styleFitLevels": {
-      "strong": "Güçlü uyum",
-      "good": "İyi uyum",
-      "risky": "Riskli uyum"
     },
     "tokenStates": {
       "ready": "Hazır",
@@ -1846,6 +1837,21 @@
     },
     "uiScale": "Arayüz Ölçeği",
     "uiScaleDesc": "Okunabilirlik için yazı ve aralık boyutlarını ayarla",
+    "sidebarWidth": "Kenar çubuğu genişliği",
+    "sidebarWidthDesc": "Açık kenar çubuğunun genişliği. “Geniş” her menü adını tek satırda gösterir.",
+    "sidebarWidthOptions": {
+      "compact": "Kompakt",
+      "standard": "Standart",
+      "wide": "Geniş"
+    },
+    "sidebarBehaviour": "Kenar çubuğu",
+    "sidebarBehaviourDesc": "Kenar çubuğunun nasıl açılacağı. Pencere çok darsa sayfanın üzerinde açılır.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Üzerine gelince aç",
+      "click": "Tıklayınca aç",
+      "icons": "Yalnızca simgeler"
+    },
     "uiScaleOptions": {
       "small": "Küçük",
       "normal": "Normal",
@@ -2006,7 +2012,6 @@
     "alreadyQueued": "Zaten bir oyuncu değişikliği için sırada",
     "substitutionsPartlyMade": "{{total}} değişiklikten {{applied}} tanesi yapıldı",
     "substitutionRefused": "Oyuncu değişikliği reddedildi: {{off}} yerine {{on}}. {{reason}}",
-    "playerRoles": "Oyuncu rolleri",
     "roleFor": "{{player}} oyuncusunun rolü",
     "roleChangeRefused": "{{player}} oyuncusunun rolü değiştirilemedi. {{reason}}",
     "noBenchAvailable": "Uygun yedek oyuncu yok",
@@ -2300,7 +2305,7 @@
     "preMatchPrep": "Maç Öncesi Hazırlık",
     "startingLineup": "Başlangıç Dizilişi",
     "setPiecesCaptain": "Duran Toplar ve Kaptan",
-    "formationFit": "Diziliş Uyumu",
+    "formationFit": "Diziliş",
     "selecting": "Seçiliyor...",
     "autoSelectXI": "En İyi İlk 11'i Otomatik Seç",
     "startingXI": "İlk 11",
@@ -2597,7 +2602,11 @@
     "pts": "P",
     "cupPenalties": "(penaltılarla {{home}}–{{away}})",
     "cupAdvances": "{{team}} bir üst tura çıktı",
-    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı"
+    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı",
+    "resume": "Devam et",
+    "pausedResumesAt": "Duraklatıldı · {{speed}} hızında sürecek",
+    "playingAt": "{{speed}} hızında oynanıyor",
+    "spaceKey": "Boşluk"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",
@@ -2638,6 +2647,12 @@
     "compare": "Karşılaştır"
   },
   "be": {
+    "condition": {
+      "fresh": "Dinç",
+      "tiring": "Yoruluyor",
+      "exhausted": "Bitkin",
+      "critical": "Kritik"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Bu oyuncu ayrılamaz: kadro, bir kulübün koruması gereken asgari sayının altına düşer. Etkilenen bölge: {{group}}.",

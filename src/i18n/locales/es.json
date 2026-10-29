@@ -170,6 +170,7 @@
     "digestSimulating": "Simulando...",
     "digestMatchDay": "Día de partido",
     "digestMatchDayDesc": "Tu equipo tiene un partido programado hoy.",
+    "matchModeMenu": "Elegir modo de partido",
     "digestReturnHome": "Volver al inicio",
     "digestBlocked": "Acción requerida",
     "digestBlockedDesc": "Hay problemas que necesitan tu atención antes de continuar.",
@@ -393,15 +394,15 @@
     "growth": "Crecimiento",
     "traits": "Rasgos",
     "condition": "Condición",
-    "potWorldClass": "Clase Mundial",
-    "potExcellent": "Excelente",
-    "potPromising": "Prometedor",
-    "potDecent": "Decente",
-    "potLimited": "Limitado",
     "delegateToYouthAcademy": "Delegar a la cantera",
     "promoteToSeniorSquad": "Ascender al primer equipo"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.º",
       "two": "{{n}}.º",
@@ -411,6 +412,8 @@
     "currentWage": "Salario actual",
     "loading": "Cargando...",
     "loadingGameState": "Cargando estado del juego...",
+    "overallRating": "Nivel general {{value}}",
+    "overallRatingTier": "Nivel general {{value}}, categoría {{tier}}",
     "noResults": "No se encontraron resultados.",
     "place": {
       "1": "1º",
@@ -696,21 +699,15 @@
     "coverageNeedsAttention": "{{count}} grupos de roles necesitan cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banquillo {{bench}}",
     "bestRole": "Mejor rol",
-    "formationFit": "Encaje en la formación",
+    "formationFit": "Familiaridad",
     "startingXi": "Once titular",
-    "styleFit": "Encaje con el estilo",
     "starter": "Titular",
     "benchOption": "Banquillo",
-    "naturalFit": "Encaje natural",
-    "adaptedFit": "Rol adaptado",
+    "naturalFit": "Posición natural",
+    "adaptedFit": "Puede jugar ahí",
     "needsCover": "Necesita recambio",
     "makeStarter": "Poner de titular",
-    "sendToBench": "Enviar al banquillo",
-    "styleFitValues": {
-      "strong": "Encaje de estilo: Fuerte",
-      "good": "Encaje de estilo: Bueno",
-      "risky": "Encaje de estilo: Arriesgado"
-    }
+    "sendToBench": "Enviar al banquillo"
   },
   "tactics": {
     "formationStyle": "Formación y Estilo",
@@ -861,8 +858,8 @@
     "setCornerTaker": "Asignar córners",
     "inspector": "Inspector",
     "inspectorEmptyTitle": "Nada seleccionado",
-    "naturalFit": "Encaje natural",
-    "adaptedFit": "Rol adaptado",
+    "naturalFit": "Posición natural",
+    "adaptedFit": "Puede jugar ahí",
     "tokenStates": {
       "ready": "Listo",
       "adjusted": "Ajustado",
@@ -878,7 +875,7 @@
     "clearSelection": "Limpiar selección",
     "compareWithSelected": "Comparar con seleccionado",
     "selectForSwap": "Seleccionar para cambio",
-    "assignBestFit": "Asignar al mejor hueco",
+    "assignBestFit": "Asignar mejor posición",
     "moveToBench": "Enviar al banquillo",
     "promoteToLineup": "Pasar al once inicial",
     "tableView": "Vista de tabla",
@@ -893,7 +890,6 @@
     "positionSelector": "Hueco táctico",
     "playablePositions": "Posiciones",
     "slotFit": "Encaje del puesto",
-    "styleFit": "Encaje con el estilo",
     "responsibilities": "Responsabilidades",
     "noSpecialRoles": "Sin roles especiales",
     "moraleLevels": {
@@ -909,11 +905,6 @@
       "sharp": "Afinado",
       "managing": "Controlado",
       "risk": "Riesgo"
-    },
-    "styleFitLevels": {
-      "strong": "Encaje fuerte",
-      "good": "Buen encaje",
-      "risky": "Encaje arriesgado"
     }
   },
   "training": {
@@ -1846,6 +1837,21 @@
     },
     "uiScale": "Escala de UI",
     "uiScaleDesc": "Ajustar tamaño de fuente y espaciado para legibilidad",
+    "sidebarWidth": "Ancho de la barra lateral",
+    "sidebarWidthDesc": "Qué tan ancha es la barra lateral abierta. «Ancha» muestra cada nombre del menú en una línea.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Estándar",
+      "wide": "Ancha"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Cómo se abre la barra lateral. Si la ventana es demasiado estrecha, se abre sobre la página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir al pasar el ratón",
+      "click": "Abrir con un clic",
+      "icons": "Solo iconos"
+    },
     "uiScaleOptions": {
       "small": "Pequeña",
       "normal": "Normal",
@@ -2002,7 +2008,6 @@
     "alreadyQueued": "Ya está en cola para un cambio",
     "substitutionsPartlyMade": "{{applied}} de {{total}} cambios realizados",
     "substitutionRefused": "Cambio rechazado: {{off}} por {{on}}. {{reason}}",
-    "playerRoles": "Roles de los jugadores",
     "roleFor": "Rol de {{player}}",
     "roleChangeRefused": "No se pudo cambiar el rol de {{player}}. {{reason}}",
     "noBenchAvailable": "No hay jugadores en el banquillo",
@@ -2266,7 +2271,7 @@
     "preMatchPrep": "Preparación Pre-Partido",
     "startingLineup": "Alineación Titular",
     "setPiecesCaptain": "Balón Parado y Capitán",
-    "formationFit": "Ajuste de Formación",
+    "formationFit": "Formación",
     "selecting": "Seleccionando...",
     "autoSelectXI": "Auto-Seleccionar Mejor XI",
     "startingXI": "XI Titular",
@@ -2597,7 +2602,11 @@
     "pts": "pts.",
     "cupPenalties": "({{home}}–{{away}} en penaltis)",
     "cupAdvances": "{{team}} pasa de ronda",
-    "cupTiesPending": "Aún quedan eliminatorias por jugar"
+    "cupTiesPending": "Aún quedan eliminatorias por jugar",
+    "resume": "Reanudar",
+    "pausedResumesAt": "En pausa · se reanuda a {{speed}}",
+    "playingAt": "Jugando a {{speed}}",
+    "spaceKey": "Espacio"
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Completa",
@@ -2638,6 +2647,12 @@
     "compare": "Comparar"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresco",
+      "tiring": "Cansándose",
+      "exhausted": "Agotado",
+      "critical": "Crítico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}.",

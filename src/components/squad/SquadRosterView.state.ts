@@ -3,7 +3,6 @@ export type SquadListSortKey =
   | "name"
   | "pos"
   | "fit"
-  | "style"
   | "age"
   | "condition"
   | "morale"
