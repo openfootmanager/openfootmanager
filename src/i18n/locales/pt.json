@@ -412,6 +412,8 @@
     "currentWage": "Salário atual",
     "loading": "A carregar...",
     "loadingGameState": "A carregar estado do jogo...",
+    "overallRating": "Geral {{value}}",
+    "overallRatingTier": "Geral {{value}}, nível {{tier}}",
     "noResults": "Nenhum resultado encontrado.",
     "place": {
       "1": "1º",
@@ -697,7 +699,6 @@
     "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banco {{bench}}",
     "bestRole": "Melhor função",
-    "formationFit": "Familiaridade",
     "startingXi": "Onze inicial",
     "starter": "Titular",
     "benchOption": "Banco",
@@ -1835,6 +1836,21 @@
     },
     "uiScale": "Escala da UI",
     "uiScaleDesc": "Ajustar tamanho da fonte e espaçamento para legibilidade",
+    "sidebarWidth": "Largura da barra lateral",
+    "sidebarWidthDesc": "A largura da barra lateral aberta. «Larga» mostra cada nome do menu numa linha.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Padrão",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Como a barra lateral abre. Se a janela for demasiado estreita, abre sobre a página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir ao passar o rato",
+      "click": "Abrir com um clique",
+      "icons": "Só ícones"
+    },
     "uiScaleOptions": {
       "small": "Pequena",
       "normal": "Normal",
@@ -2630,6 +2646,12 @@
     "compare": "Comparar"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresco",
+      "tiring": "A cansar-se",
+      "exhausted": "Exausto",
+      "critical": "Crítico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Este jogador não pode sair: o plantel ficaria abaixo do mínimo que um clube tem de manter. Setor afetado: {{group}}.",

@@ -1,7 +1,8 @@
 mod fitness_warnings;
 mod focus_attributes;
 pub use fitness_warnings::{
-    FitnessStatus, SquadFitness, check_squad_fitness_warnings, fitness_status, squad_fitness,
+    ConditionStatus, FitnessStatus, SquadFitness, check_squad_fitness_warnings, condition_status,
+    fitness_status, squad_fitness,
 };
 
 use crate::game::Game;
@@ -154,14 +155,14 @@ fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
 /// just played ninety minutes as free to train, and they would recover on the
 /// very day they were emptied.
 ///
-/// Only competitions in the active scope count. A dormant competition is
-/// resolved by a scoreline-only model that charges nobody any condition, so its
-/// clubs have not had a match in any physical sense — closing the training
-/// ground on them would cost them the day's recovery for nothing.
+/// Every competition counts, whether or not the player follows it: one calendar rule for every club
+/// (#869), ahead of the dormant tier's removal (every match will be played for real). Today a dormant
+/// match is still settled by scoreline and costs no condition, so closing the ground for it is
+/// the rule, not a recovery model. The taper before a match ([`tapering_teams`]) reads every
+/// competition the same way.
 pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
     game.competitions_in_play()
         .iter()
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.date == date)
         .flat_map(|fixture| [fixture.home_team_id.clone(), fixture.away_team_id.clone()])
@@ -175,8 +176,8 @@ pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::Has
 /// fixture list rather than a per-club scan — this runs for every club, every
 /// day, and a populated world holds tens of thousands of fixtures.
 ///
-/// Only competitions in the active scope count, as in [`teams_playing_on`]: a
-/// dormant match charges nobody any condition, so it is nothing to taper for.
+/// Every competition counts, as in [`teams_playing_on`]: one calendar rule for every club, whether or
+/// not its fixtures are played out by the engine today.
 fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     use chrono::NaiveDate;
     use domain::league::FixtureStatus;
@@ -191,7 +192,6 @@ fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     for fixture in game
         .competitions_in_play()
         .iter()
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
     {

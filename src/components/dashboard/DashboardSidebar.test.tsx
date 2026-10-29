@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import DashboardSidebar from "./DashboardSidebar";
@@ -22,6 +22,8 @@ function renderSidebar(overrides: Partial<React.ComponentProps<typeof DashboardS
       onNavigateSettings={vi.fn()}
       onExitClick={vi.fn()}
       isUnemployed={false}
+      width="standard"
+      behaviour="normal"
       {...overrides}
     />,
   );
@@ -91,5 +93,131 @@ describe("DashboardSidebar", () => {
     expect(badge).toHaveClass("h-5", "min-w-5", "px-1", "rounded-full");
     expect(badge).not.toHaveClass("px-2");
     expect(badge).not.toHaveClass("py-0.5");
+  });
+
+  /**
+   * Given each sidebar width in a window with room
+   * When the sidebar opens
+   * Then it is drawn at that width and takes that width from the page.
+   */
+  it.each([
+    ["compact", "w-sidebar-compact"],
+    ["standard", "w-sidebar-standard"],
+    ["wide", "w-sidebar-wide"],
+  ] as const)("draws the open sidebar %s", (width, widthClass) => {
+    const { container } = renderSidebar({ width });
+    expect(screen.getByRole("navigation").closest("aside")).toHaveClass(widthClass);
+    expect(container.querySelector("[data-sidebar-slot]")).toHaveClass(widthClass);
+  });
+
+  /**
+   * Given Expand on click
+   * When the player presses the expand button, and then Esc
+   * Then the sidebar opens over the page (the page keeps the rail's width) with the focus on the
+   * page it is on; Esc closes it and gives the focus back to the button.
+   */
+  it("opens as a drawer from its button, takes the focus in and gives it back on Esc", () => {
+    const { container } = renderSidebar({ behaviour: "click" });
+    const aside = screen.getByRole("navigation").closest("aside");
+    expect(aside).toHaveClass("w-sidebar-rail");
+
+    fireEvent.click(screen.getByRole("button", { name: "dashboard.expandSidebar" }));
+
+    expect(aside).toHaveClass("w-sidebar-standard");
+    expect(container.querySelector("[data-sidebar-slot]")).toHaveClass("w-sidebar-rail");
+    expect(screen.getByRole("button", { name: "dashboard.home" })).toHaveFocus();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(aside).toHaveClass("w-sidebar-rail");
+    expect(screen.getByRole("button", { name: "dashboard.expandSidebar" })).toHaveFocus();
+  });
+
+  /**
+   * Given Expand on click, the drawer open with the focus on the current page's item
+   * When the player Tabs out of the drawer to a control on the page (the header's search)
+   * Then the drawer closes, so it doesn't cover the control that now has the focus.
+   */
+  it("closes the drawer when the focus Tabs out to the page", () => {
+    renderSidebar({ behaviour: "click" });
+    const aside = screen.getByRole("navigation").closest("aside");
+    const search = document.body.appendChild(document.createElement("input"));
+
+    fireEvent.click(screen.getByRole("button", { name: "dashboard.expandSidebar" }));
+    const current = screen.getByRole("button", { name: "dashboard.home" });
+    fireEvent.focusOut(current, {
+      relatedTarget: screen.getByRole("button", { name: "dashboard.squad" }),
+    });
+    expect(aside).toHaveClass("w-sidebar-standard");
+
+    fireEvent.focusOut(current, { relatedTarget: search });
+    expect(aside).toHaveClass("w-sidebar-rail");
+    search.remove();
+  });
+
+  /**
+   * Given a sidebar with a button that folds it or opens it as a drawer
+   * When a screen reader reaches the button
+   * Then the button says which element it controls: the sidebar.
+   */
+  it.each(["normal", "click"] as const)("names the sidebar its %s button controls", (behaviour) => {
+    renderSidebar({ behaviour });
+    const aside = screen.getByRole("navigation").closest("aside");
+    const button = screen.getByRole("button", {
+      name: behaviour === "click" ? "dashboard.expandSidebar" : "dashboard.collapseSidebar",
+    });
+    expect(aside?.id).toBeTruthy();
+    expect(button).toHaveAttribute("aria-controls", aside?.id);
+  });
+
+  /**
+   * Given the drawer open
+   * When the player chooses a page, or presses outside the sidebar
+   * Then it closes; a page choice says it came from the drawer (the dashboard then moves the focus
+   * to the page's heading). A press inside the sidebar leaves it open.
+   */
+  it("closes on a page choice or a click outside", () => {
+    const onNavClick = vi.fn();
+    renderSidebar({ behaviour: "click", onNavClick });
+    const aside = screen.getByRole("navigation").closest("aside");
+
+    fireEvent.click(screen.getByRole("button", { name: "dashboard.expandSidebar" }));
+    fireEvent.click(screen.getByRole("button", { name: "dashboard.squad" }));
+    expect(onNavClick).toHaveBeenCalledWith("Squad", { fromDrawer: true });
+    expect(aside).toHaveClass("w-sidebar-rail");
+
+    fireEvent.click(screen.getByRole("button", { name: "dashboard.expandSidebar" }));
+    fireEvent.pointerDown(screen.getByRole("navigation"));
+    expect(aside).toHaveClass("w-sidebar-standard");
+    fireEvent.pointerDown(document.body);
+    expect(aside).toHaveClass("w-sidebar-rail");
+  });
+
+  /**
+   * Given Icons only, and Expand on hover
+   * When the sidebar is drawn
+   * Then it is a rail with no expand button (Icons only never opens; hover opens without one), and
+   * every destination is a named button with its name as a tooltip.
+   */
+  it.each(["icons", "hover"] as const)("is a rail with no button for %s", (behaviour) => {
+    renderSidebar({ behaviour });
+    expect(screen.getByRole("navigation").closest("aside")).toHaveClass("w-sidebar-rail");
+    expect(screen.queryByRole("button", { name: "dashboard.expandSidebar" })).toBeNull();
+    expect(screen.getByRole("button", { name: "dashboard.squad" })).toHaveAttribute(
+      "title",
+      "dashboard.squad",
+    );
+  });
+
+  /**
+   * Given a player who has asked for reduced motion
+   * When the sidebar changes width
+   * Then it doesn't slide.
+   */
+  it("doesn't slide for reduced motion", () => {
+    renderSidebar();
+    expect(screen.getByRole("navigation").closest("aside")).toHaveClass(
+      "motion-reduce:transition-none",
+    );
   });
 });

@@ -431,6 +431,8 @@
     "currentWage": "Stipendio attuale",
     "loading": "Caricamento...",
     "loadingGameState": "Caricamento stato di gioco...",
+    "overallRating": "Valutazione generale {{value}}",
+    "overallRatingTier": "Valutazione generale {{value}}, fascia {{tier}}",
     "noResults": "Nessun risultato trovato.",
     "place": {
       "1": "1°",
@@ -716,7 +718,6 @@
     "coverageNeedsAttention": "{{count}} gruppi di ruoli hanno bisogno di copertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Panchina {{bench}}",
     "bestRole": "Ruolo migliore",
-    "formationFit": "Familiarità",
     "startingXi": "Undici titolare",
     "starter": "Titolare",
     "benchOption": "Panchina",
@@ -1854,6 +1855,21 @@
     },
     "uiScale": "Scala interfaccia",
     "uiScaleDesc": "Regola dimensione del testo e spaziatura per migliorare la leggibilità",
+    "sidebarWidth": "Larghezza della barra laterale",
+    "sidebarWidthDesc": "Quanto è larga la barra laterale aperta. «Larga» mostra ogni voce del menu su una riga.",
+    "sidebarWidthOptions": {
+      "compact": "Compatta",
+      "standard": "Standard",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra laterale",
+    "sidebarBehaviourDesc": "Come si apre la barra laterale. Se la finestra è troppo stretta, si apre sopra la pagina.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normale",
+      "hover": "Apri al passaggio del mouse",
+      "click": "Apri con un clic",
+      "icons": "Solo icone"
+    },
     "uiScaleOptions": {
       "small": "Piccola",
       "normal": "Normale",
@@ -2630,6 +2646,12 @@
     "compare": "Confronta"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresco",
+      "tiring": "Affaticato",
+      "exhausted": "Esausto",
+      "critical": "Critico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Questo giocatore non può partire: la rosa scenderebbe sotto il minimo che un club deve mantenere. Reparto interessato: {{group}}.",

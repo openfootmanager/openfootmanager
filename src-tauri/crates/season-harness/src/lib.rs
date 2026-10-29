@@ -18,6 +18,8 @@
 //! * [`distribution`] reports how many of the world's players are S and A tier, season by season.
 //! * [`driver`] is the loop, and the only place that advances the game.
 //! * [`fingerprint`] reduces a world to what a replay must reproduce.
+//! * [`pyramid`] reports the age bands of the world's players.
+//! * [`reputation`] reports where the S and A players play, by the club's reputation.
 //! * [`invariants`] are the rules, held to after every day and every rollover.
 
 pub mod ageing;
@@ -26,4 +28,6 @@ pub mod distribution;
 pub mod driver;
 pub mod fingerprint;
 pub mod invariants;
+pub mod pyramid;
+pub mod reputation;
 pub mod worlds;

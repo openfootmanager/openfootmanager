@@ -6,7 +6,6 @@ import en from "./locales/en.json";
 const POSITION_FAMILIARITY_KEYS = [
   ["squad", "naturalFit", "Natural position"],
   ["squad", "adaptedFit", "Can play there"],
-  ["squad", "formationFit", "Familiarity"],
   ["tactics", "naturalFit", "Natural position"],
   ["tactics", "adaptedFit", "Can play there"],
   ["tactics", "assignBestFit", "Assign best position"],
