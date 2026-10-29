@@ -413,6 +413,8 @@
     "loading": "Cargando...",
     "loadingGameState": "Cargando estado del juego...",
     "detailsFor": "Detalles de {{name}}",
+    "overallRating": "Nivel general {{value}}",
+    "overallRatingTier": "Nivel general {{value}}, categoría {{tier}}",
     "noResults": "No se encontraron resultados.",
     "place": {
       "1": "1º",
@@ -698,7 +700,6 @@
     "coverageNeedsAttention": "{{count}} grupos de roles necesitan cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banquillo {{bench}}",
     "bestRole": "Mejor rol",
-    "formationFit": "Familiaridad",
     "startingXi": "Once titular",
     "starter": "Titular",
     "benchOption": "Banquillo",
@@ -1836,6 +1837,21 @@
     },
     "uiScale": "Escala de UI",
     "uiScaleDesc": "Ajustar tamaño de fuente y espaciado para legibilidad",
+    "sidebarWidth": "Ancho de la barra lateral",
+    "sidebarWidthDesc": "Qué tan ancha es la barra lateral abierta. «Ancha» muestra cada nombre del menú en una línea.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Estándar",
+      "wide": "Ancha"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Cómo se abre la barra lateral. Si la ventana es demasiado estrecha, se abre sobre la página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir al pasar el ratón",
+      "click": "Abrir con un clic",
+      "icons": "Solo iconos"
+    },
     "uiScaleOptions": {
       "small": "Pequeña",
       "normal": "Normal",
@@ -2631,6 +2647,12 @@
     "compare": "Comparar"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresco",
+      "tiring": "Cansándose",
+      "exhausted": "Agotado",
+      "critical": "Crítico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}.",

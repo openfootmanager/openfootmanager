@@ -132,6 +132,29 @@ pub enum Position {
 }
 
 impl Position {
+    /// Every position, so a table over positions cannot miss one. A new variant breaks the
+    /// exhaustive match in `position_all_lists_every_variant_once`; add it to that match, to its
+    /// `VARIANTS` constant and to this list.
+    pub const ALL: [Position; 17] = [
+        Position::Goalkeeper,
+        Position::Defender,
+        Position::Midfielder,
+        Position::Forward,
+        Position::RightBack,
+        Position::CenterBack,
+        Position::LeftBack,
+        Position::RightWingBack,
+        Position::LeftWingBack,
+        Position::DefensiveMidfielder,
+        Position::CentralMidfielder,
+        Position::AttackingMidfielder,
+        Position::RightMidfielder,
+        Position::LeftMidfielder,
+        Position::RightWinger,
+        Position::LeftWinger,
+        Position::Striker,
+    ];
+
     /// Every role a player in this position may be given, `Standard` first.
     ///
     /// This is the canonical backend table. It lived in the Tauri command layer,
@@ -859,6 +882,41 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given the list of every position and an exhaustive numbering of the enum's variants,
+    /// When the list is checked against it,
+    /// Then the list has one entry per number: a variant added to the enum breaks the numbering
+    ///      until it gets one, and the list is short until it is added to it too.
+    #[test]
+    fn position_all_lists_every_variant_once() {
+        const VARIANTS: usize = 17;
+        fn number(position: &Position) -> usize {
+            match position {
+                Position::Goalkeeper => 0,
+                Position::Defender => 1,
+                Position::Midfielder => 2,
+                Position::Forward => 3,
+                Position::RightBack => 4,
+                Position::CenterBack => 5,
+                Position::LeftBack => 6,
+                Position::RightWingBack => 7,
+                Position::LeftWingBack => 8,
+                Position::DefensiveMidfielder => 9,
+                Position::CentralMidfielder => 10,
+                Position::AttackingMidfielder => 11,
+                Position::RightMidfielder => 12,
+                Position::LeftMidfielder => 13,
+                Position::RightWinger => 14,
+                Position::LeftWinger => 15,
+                Position::Striker => 16,
+            }
+        }
+
+        let mut numbers: Vec<usize> = Position::ALL.iter().map(number).collect();
+        numbers.sort_unstable();
+
+        assert_eq!(numbers, (0..VARIANTS).collect::<Vec<_>>());
+    }
 
     fn sample_attributes() -> PlayerAttributes {
         PlayerAttributes {

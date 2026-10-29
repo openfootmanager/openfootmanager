@@ -413,6 +413,8 @@
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
     "detailsFor": "Подробности: {{name}}",
+    "overallRating": "Общий уровень {{value}}",
+    "overallRatingTier": "Общий уровень {{value}}, категория {{tier}}",
     "noResults": "Ничего не найдено.",
     "place": {
       "1": "1-е",
@@ -698,7 +700,6 @@
     "coverageNeedsAttention": "{{count}} группам ролей нужна подстраховка",
     "coverageBadge": "XI {{starters}}/{{required}} · Запас {{bench}}",
     "bestRole": "Лучшая роль",
-    "formationFit": "Знакомство с позицией",
     "startingXi": "Стартовый состав",
     "starter": "Основа",
     "benchOption": "Запас",
@@ -1836,6 +1837,21 @@
     },
     "uiScale": "Масштаб интерфейса",
     "uiScaleDesc": "Изменить размер шрифта и отступы для удобства чтения",
+    "sidebarWidth": "Ширина боковой панели",
+    "sidebarWidthDesc": "Насколько широка открытая боковая панель. «Широкая» показывает каждый пункт меню в одну строку.",
+    "sidebarWidthOptions": {
+      "compact": "Компактная",
+      "standard": "Стандартная",
+      "wide": "Широкая"
+    },
+    "sidebarBehaviour": "Боковая панель",
+    "sidebarBehaviourDesc": "Как открывается боковая панель. Если окно слишком узкое, она открывается поверх страницы.",
+    "sidebarBehaviourOptions": {
+      "normal": "Обычная",
+      "hover": "Раскрывать при наведении",
+      "click": "Раскрывать по щелчку",
+      "icons": "Только значки"
+    },
     "uiScaleOptions": {
       "small": "Маленький",
       "normal": "Нормальный",
@@ -2631,6 +2647,12 @@
     "compare": "Сравнение"
   },
   "be": {
+    "condition": {
+      "fresh": "Свежий",
+      "tiring": "Устаёт",
+      "exhausted": "Измотан",
+      "critical": "Критично"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Этот игрок не может уйти: состав опустится ниже минимума, который обязан держать клуб. Линия: {{group}}.",

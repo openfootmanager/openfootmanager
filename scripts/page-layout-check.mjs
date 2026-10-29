@@ -24,8 +24,11 @@ const WINDOWS = [
   { width: 960, height: 640, scale: "xlarge", lang: "de" },
 ];
 
+/** The harness's pages (HARNESS_PAGES in src/dev/pageHarness/harnessPage.ts; a test holds them equal). */
+const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
+
 /** Every page at every window; `page: undefined` is the style guide itself. */
-export const CASES = [undefined, "home", "squad"].flatMap((page) =>
+export const CASES = [undefined, ...PAGES].flatMap((page) =>
   WINDOWS.map((window) => ({ page, ...window })),
 );
 

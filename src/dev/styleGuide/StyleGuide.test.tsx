@@ -27,10 +27,13 @@ function themeTokens(): string[] {
 /** The components index.ts exports: hooks and types are not drawn, so they are left out. */
 function exportedComponents(): string[] {
   const index = SOURCES["../../components/ui/index.ts"];
-  return [...index.matchAll(/^export \{([^}]+)\}/gm)]
-    .flatMap((match) => match[1].split(","))
-    .map((name) => name.trim().replace(/^default as /, ""))
-    .filter((name) => /^[A-Z]/.test(name));
+  return (
+    [...index.matchAll(/^export \{([^}]+)\}/gm)]
+      .flatMap((match) => match[1].split(","))
+      .map((name) => name.trim().replace(/^default as /, ""))
+      // Components are PascalCase; an exported constant (TONE_TEXT) is drawn through one, not as one.
+      .filter((name) => /^[A-Z][a-z]/.test(name))
+  );
 }
 
 describe("style guide", () => {

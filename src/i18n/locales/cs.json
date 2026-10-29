@@ -413,6 +413,8 @@
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
     "detailsFor": "Podrobnosti: {{name}}",
+    "overallRating": "Hodnocení {{value}}",
+    "overallRatingTier": "Hodnocení {{value}}, úroveň {{tier}}",
     "noResults": "Výsledky nenalezeny.",
     "place": {
       "1": "1.",
@@ -671,7 +673,6 @@
     "coverageNeedsAttention": "Počet skupin rolí vyžadujících pokrytí: {{count}}",
     "coverageBadge": "Základ {{starters}}/{{required}} · Lavička {{bench}}",
     "bestRole": "Nejlepší role",
-    "formationFit": "Zvyklost na pozici",
     "startingXi": "Základní sestava",
     "starter": "Člen základu",
     "benchOption": "Lavička",
@@ -1836,6 +1837,21 @@
     },
     "uiScale": "Měřítko rozhraní",
     "uiScaleDesc": "Upravit velikost písma a mezery pro lepší čitelnost",
+    "sidebarWidth": "Šířka postranního panelu",
+    "sidebarWidthDesc": "Jak široký je otevřený postranní panel. „Široký“ zobrazí každou položku nabídky na jednom řádku.",
+    "sidebarWidthOptions": {
+      "compact": "Kompaktní",
+      "standard": "Standardní",
+      "wide": "Široký"
+    },
+    "sidebarBehaviour": "Postranní panel",
+    "sidebarBehaviourDesc": "Jak se postranní panel otevírá. Je-li okno příliš úzké, otevře se přes stránku.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normální",
+      "hover": "Rozbalit při najetí",
+      "click": "Rozbalit kliknutím",
+      "icons": "Jen ikony"
+    },
     "uiScaleOptions": {
       "small": "Malé",
       "normal": "Normální",
@@ -2631,6 +2647,12 @@
     "compare": "Porovnat"
   },
   "be": {
+    "condition": {
+      "fresh": "Odpočatý",
+      "tiring": "Unavuje se",
+      "exhausted": "Vyčerpaný",
+      "critical": "Kritický"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}.",

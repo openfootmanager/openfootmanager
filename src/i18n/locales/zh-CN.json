@@ -413,6 +413,8 @@
     "loading": "加载中……",
     "loadingGameState": "加载游戏状态中……",
     "detailsFor": "{{name}} 的详情",
+    "overallRating": "综合实力 {{value}}",
+    "overallRatingTier": "综合实力 {{value}}，等级 {{tier}}",
     "noResults": "未找到结果。",
     "place": {
       "1": "第1",
@@ -698,7 +700,6 @@
     "coverageNeedsAttention": "{{count}} 个角色组需要补强",
     "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
     "bestRole": "最佳角色",
-    "formationFit": "位置熟悉度",
     "startingXi": "首发阵容",
     "starter": "首发",
     "benchOption": "替补",
@@ -1836,6 +1837,21 @@
     },
     "uiScale": "界面缩放",
     "uiScaleDesc": "调整字号与间距以提升可读性",
+    "sidebarWidth": "侧边栏宽度",
+    "sidebarWidthDesc": "展开时侧边栏的宽度。“宽”可让每个菜单名称显示在一行内。",
+    "sidebarWidthOptions": {
+      "compact": "紧凑",
+      "standard": "标准",
+      "wide": "宽"
+    },
+    "sidebarBehaviour": "侧边栏",
+    "sidebarBehaviourDesc": "侧边栏的打开方式。窗口太窄时，它会在页面上方打开。",
+    "sidebarBehaviourOptions": {
+      "normal": "常规",
+      "hover": "悬停时展开",
+      "click": "点击时展开",
+      "icons": "仅图标"
+    },
     "uiScaleOptions": {
       "small": "小",
       "normal": "标准",
@@ -2631,6 +2647,12 @@
     "compare": "比较"
   },
   "be": {
+    "condition": {
+      "fresh": "精力充沛",
+      "tiring": "体力下降",
+      "exhausted": "筋疲力尽",
+      "critical": "体能危急"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "该球员无法离队：阵容将低于俱乐部必须保留的最低人数。涉及位置：{{group}}。",

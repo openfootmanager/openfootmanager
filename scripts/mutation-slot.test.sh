@@ -277,6 +277,30 @@ else
         "$(diff <(printf '%s\n' "$want_golden") <(printf '%s\n' "$got_golden"))"
 fi
 
+# Real `cargo mutants --list` output for the same twelve `domain` mutants, once as CI produces
+# it and once plain. `dtolnay/rust-toolchain` exports CARGO_TERM_COLOR=always for every later
+# step, and cargo-mutants 25.3.1 then colours the function and the replacement even into a file.
+# Patterns built from those bytes matched nothing: the 25 Oct 2026 run failed in every slot with
+# "patterns match 0". A coloured listing must select what a plain one does.
+fixtures="$here/tests/mutation-slot"
+coloured_patterns="$(select_bucket domain 0/1 "$fixtures/list-coloured.txt")"
+plain_patterns="$(select_bucket domain 0/1 "$fixtures/list-plain.txt")"
+if [ -n "$plain_patterns" ] && [ "$coloured_patterns" = "$plain_patterns" ] &&
+    [ "$(printf '%s\n' "$coloured_patterns" | unescape)" = "$(cat "$fixtures/list-plain.txt")" ]; then
+    record 1 "a coloured listing selects the plain names cargo-mutants matches against" ""
+else
+    record 0 "a coloured listing selects the plain names cargo-mutants matches against" \
+        "$(printf '%s\n' "$coloured_patterns" | head -n 2 | cat -v)"
+fi
+if [ "$(bucket_of_each ofm_core 44 "$fixtures/list-coloured.txt")" = \
+    "$(bucket_of_each ofm_core 44 "$fixtures/list-plain.txt")" ]; then
+    record 1 "colour does not move a mutant to another bucket" ""
+else
+    record 0 "colour does not move a mutant to another bucket" \
+        "$(diff <(bucket_of_each ofm_core 44 "$fixtures/list-coloured.txt" | cat -v) \
+            <(bucket_of_each ofm_core 44 "$fixtures/list-plain.txt"))"
+fi
+
 echo "mutation-slot.test: selections that cannot be trusted"
 
 empty="$scratch/empty.txt"

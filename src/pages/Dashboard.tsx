@@ -112,7 +112,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     markClean,
   } = useGameStore();
   const { t } = useTranslation();
-  const { settings, loaded: settingsLoaded, loadSettings } = useSettingsStore();
+  const { settings, loaded: settingsLoaded, loadSettings, updateSettings } = useSettingsStore();
   const latestGameStateRef = useRef<GameStateData | null>(null);
   latestGameStateRef.current = gameState ?? null;
 
@@ -123,7 +123,11 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
   const [isSaving, setIsSaving] = useState(false);
   const [saveFlash, setSaveFlash] = useState(false);
   const [saveError, setSaveError] = useState<unknown>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Counts the pages chosen from the sidebar's drawer: the drawer closes, and the page's heading
+  // takes the focus so a keyboard player lands on the page, not back on the sidebar. A count, not a
+  // flag, so choosing the page already open asks again, and nothing is left owed to a later
+  // navigation that didn't come from the drawer.
+  const [drawerChoices, setDrawerChoices] = useState(0);
   const [profileNavigation, setProfileNavigation] = useState(() =>
     createDashboardProfileNavigationState(initialTab),
   );
@@ -421,9 +425,16 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
 
   const currentModeMeta = MODE_META[matchMode];
 
-  function handleNavClick(tab: string): void {
+  function handleNavClick(tab: string, options?: { fromDrawer: boolean }): void {
+    if (options?.fromDrawer) setDrawerChoices((count) => count + 1);
     setProfileNavigation((currentState) => navigateDashboardProfiles(currentState, tab));
   }
+
+  // After the render that shows the chosen page, so its heading is the one focused.
+  useEffect(() => {
+    if (drawerChoices === 0) return;
+    document.querySelector<HTMLElement>("[data-page-title]")?.focus();
+  }, [drawerChoices]);
 
   function handleNavigate(tab: string, context?: DashboardNavigateContext): void {
     setProfileNavigation((currentState) => navigateDashboardProfiles(currentState, tab, context));
@@ -556,10 +567,12 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     <div className="flex min-h-screen bg-page">
       <DashboardSidebar
         activeTab={profileNavigation.activeTab}
-        collapsed={isSidebarCollapsed}
+        width={settings.sidebar_width}
+        behaviour={settings.sidebar_behaviour}
+        collapsed={settings.sidebar_collapsed}
         onNavClick={handleNavClick}
         onToggleCollapse={() => {
-          setIsSidebarCollapsed((currentValue) => !currentValue);
+          void updateSettings({ sidebar_collapsed: !settings.sidebar_collapsed });
         }}
         unreadMessagesCount={unreadMessagesCount}
         todayHasMatch={hasMatchToday}
