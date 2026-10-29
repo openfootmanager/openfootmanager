@@ -229,13 +229,13 @@ mod tests {
         NaiveDate::from_ymd_opt(2026, 8, 1).unwrap()
     }
 
-    /// Given a 33-year-old on 100,000 a week, valued 400,000, content, 100 days from the end of
+    /// Given a player just 32 on 100,000 a week, valued 400,000, content, 100 days from the end of
     ///       his contract at a club of some standing
     /// When his expected wage is worked out
-    /// Then it is 105,000: his age takes 5% off the tenth his expiring contract adds
+    /// Then it is 105,000: from 32 his age takes 5% off the tenth his expiring contract adds
     #[test]
     fn a_player_of_thirty_two_or_more_expects_five_percent_less() {
-        let veteran = on_the_books("1993-01-01", 100_000, 400_000);
+        let veteran = on_the_books("1994-01-01", 100_000, 400_000);
 
         assert_eq!(
             expected_wage(&veteran, &club_of_standing(), first_of_august()),
