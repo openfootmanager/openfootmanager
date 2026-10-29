@@ -2278,6 +2278,47 @@ fn manager_trophy_awarded_for_first_place() {
     assert_eq!(game.manager.career_stats.trophies, 1);
 }
 
+/// Given the user's manager also listed in `game.managers` (the managers list and a live match's
+///      AI profile read him there), in step with `game.manager`
+/// When his season is credited at the season's end
+/// Then the listed copy carries the same record and satisfaction, not last season's until the
+///      next day's sync
+#[test]
+fn the_users_listed_record_takes_his_season_too() {
+    let mut game = make_completed_season_game();
+    game.sync_user_manager_record();
+
+    process_end_of_season(&mut game);
+
+    // The record as the managers list shows it: totals, then each stint's club, end and matches.
+    let record = |manager: &Manager| {
+        let stats = &manager.career_stats;
+        (
+            (
+                stats.matches_managed,
+                stats.wins,
+                stats.draws,
+                stats.losses,
+                stats.trophies,
+                stats.best_finish,
+            ),
+            manager
+                .career_history
+                .iter()
+                .map(|stint| (stint.team_id.clone(), stint.end_date.clone(), stint.matches))
+                .collect::<Vec<_>>(),
+            manager.satisfaction,
+        )
+    };
+    let listed = game
+        .managers
+        .iter()
+        .find(|manager| manager.id == game.manager_id)
+        .expect("the user's manager is listed");
+    assert_eq!(record(listed), record(&game.manager));
+    assert_eq!(listed.career_stats.trophies, 1);
+}
+
 #[test]
 fn manager_no_trophy_for_non_first() {
     let mut game = make_completed_season_game();
