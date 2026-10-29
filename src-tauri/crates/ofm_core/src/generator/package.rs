@@ -3320,6 +3320,44 @@ mod tests {
         std::fs::remove_dir_all(&dest).ok();
     }
 
+    /// Given a package zipped by hand with no compression (Store), by a tool other than ours
+    /// When it is extracted, listed and loaded
+    /// Then every file comes back unchanged and the package loads without errors.
+    #[test]
+    fn a_hand_made_package_with_stored_entries_installs() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let archive = testdata("stored-by-hand.ofm");
+        let manifest = r#"{"schema":"world","id":"stored-by-hand","name":"Stored By Hand","logo":"assets/logo.png"}"#;
+        let teams = r##"{"schema":"team","items":[{"id":"store","name":"Störe FC","city":"Störe","country":"BR","colors":{"primary":"#0f0","secondary":"#fff"}}]}"##;
+        let logo: Vec<u8> = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+            .into_iter()
+            .chain(0..=255u8)
+            .collect();
+        let expected = std::collections::BTreeMap::from([
+            ("assets/logo.png".to_string(), logo.clone()),
+            ("package.json".to_string(), manifest.as_bytes().to_vec()),
+            ("teams/teams.json".to_string(), teams.as_bytes().to_vec()),
+        ]);
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+        let listed = read_package_manifest_from_ofm(&archive).expect("manifest");
+        let listed_logo = read_logo_from_ofm(&archive, "assets/logo.png").expect("logo");
+        let (package, load_errors) = load_world_package_from_ofm(&archive);
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(files_under(&dest), expected);
+        assert_eq!(listed.id, "stored-by-hand");
+        assert_eq!(
+            listed_logo,
+            format!("data:image/png;base64,{}", STANDARD.encode(&logo))
+        );
+        assert!(load_errors.is_empty(), "unexpected errors: {load_errors:?}");
+        let team_names: Vec<&str> = package.teams.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(team_names, ["Störe FC"]);
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
     #[test]
     fn player_def_deserializes_footedness_from_frontend_key() {
         // The package-editor frontend sends the chosen foot under the camelCase
