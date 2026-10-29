@@ -26,40 +26,103 @@ pub enum PlayerKnowledge {
 /// `Known` (live), not `Scouted` (a snapshot). An unemployed manager has no club and no division, so
 /// he knows only the players his scouts reported on.
 pub fn player_knowledge(game: &Game, player: &Player) -> PlayerKnowledge {
-    knowledge_from(game, &Viewer::of(game), player)
+    KnowledgeView::of(game).knowledge(player)
 }
 
-/// The manager's club and the league table it plays in, worked out once per request rather than
-/// once per player.
-struct Viewer<'a> {
+/// What the manager's club can see, worked out once per request rather than once per player: the
+/// club, the clubs in its division, and the clubs it meets today. A list asks it about every row.
+pub struct KnowledgeView<'a> {
+    game: &'a Game,
     club: Option<&'a str>,
-    division: Option<&'a str>,
+    known_clubs: HashSet<&'a str>,
+    opponents_today: HashSet<&'a str>,
 }
 
-impl<'a> Viewer<'a> {
-    fn of(game: &'a Game) -> Self {
+impl<'a> KnowledgeView<'a> {
+    pub fn of(game: &'a Game) -> Self {
         let club = game.manager.team_id.as_deref();
         Self {
+            game,
             club,
-            division: club.and_then(|club| division_of(game, club)),
+            known_clubs: club.map_or_else(HashSet::new, |club| clubs_in_division_of(game, club)),
+            opponents_today: club.map_or_else(HashSet::new, |club| opponents_today(game, club)),
         }
+    }
+
+    /// The strongest thing the club knows about the player (see [`player_knowledge`]).
+    pub fn knowledge(&self, player: &Player) -> PlayerKnowledge {
+        if self
+            .club
+            .is_some_and(|club| is_at_or_owned_by(player, club))
+        {
+            return PlayerKnowledge::Own;
+        }
+        if player
+            .team_id
+            .as_deref()
+            .is_some_and(|club| self.known_clubs.contains(club))
+        {
+            return PlayerKnowledge::Known;
+        }
+        scouted_or_unknown(self.game, player)
+    }
+
+    fn wage_for(&self, knowledge: &PlayerKnowledge, player: &Player) -> VisibleWage {
+        match knowledge {
+            PlayerKnowledge::Own => VisibleWage::Exact {
+                weekly: player.wage(),
+            },
+            PlayerKnowledge::Scouted { .. } => VisibleWage::Approximate {
+                weekly: two_significant_figures(player.wage()),
+            },
+            PlayerKnowledge::Known | PlayerKnowledge::Unknown => VisibleWage::Hidden,
+        }
+    }
+
+    fn condition_for(&self, knowledge: &PlayerKnowledge, player: &Player) -> Option<u8> {
+        let meets_today = player
+            .team_id
+            .as_deref()
+            .is_some_and(|club| self.opponents_today.contains(club));
+        (*knowledge == PlayerKnowledge::Own || meets_today).then_some(player.condition)
     }
 }
 
-fn knowledge_from(game: &Game, viewer: &Viewer, player: &Player) -> PlayerKnowledge {
-    if viewer
-        .club
-        .is_some_and(|club| is_at_or_owned_by(player, club))
-    {
-        return PlayerKnowledge::Own;
-    }
-    if viewer
-        .division
-        .is_some_and(|division| plays_in(game, player, division))
-    {
-        return PlayerKnowledge::Known;
-    }
-    scouted_or_unknown(game, player)
+/// Every club whose division is the same table as `club`'s. A club's division is the table
+/// `club_league_table` picks for it, so only that table's own clubs can share it.
+fn clubs_in_division_of<'a>(game: &'a Game, club: &str) -> HashSet<&'a str> {
+    let Some(division) = division_of(game, club) else {
+        return HashSet::new();
+    };
+    let Some(table) = game.competitions.iter().find(|table| table.id == division) else {
+        return HashSet::new();
+    };
+    table
+        .participant_ids
+        .iter()
+        .map(String::as_str)
+        .chain(table.standings.iter().map(|row| row.team_id.as_str()))
+        .filter(|candidate| division_of(game, candidate) == Some(division))
+        .collect()
+}
+
+/// The clubs `club` meets today, in any competition.
+fn opponents_today<'a>(game: &'a Game, club: &str) -> HashSet<&'a str> {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    game.competitions
+        .iter()
+        .flat_map(|competition| &competition.fixtures)
+        .filter(|fixture| fixture.date == today)
+        .filter_map(|fixture| {
+            if fixture.home_team_id == club {
+                Some(fixture.away_team_id.as_str())
+            } else if fixture.away_team_id == club {
+                Some(fixture.home_team_id.as_str())
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// The club holds his contract (a loaned-out player's `team_id` is the borrower) or he plays for it
@@ -75,13 +138,6 @@ fn is_at_or_owned_by(player: &Player, club_id: &str) -> bool {
 /// The league table a club contests. The legacy `game.league` never stands in for one.
 fn division_of<'a>(game: &'a Game, club: &str) -> Option<&'a str> {
     crate::end_of_season::club_league_table(game, club).map(|league| league.id.as_str())
-}
-
-fn plays_in(game: &Game, player: &Player, division: &str) -> bool {
-    player
-        .team_id
-        .as_deref()
-        .is_some_and(|club| division_of(game, club) == Some(division))
 }
 
 fn scouted_or_unknown(game: &Game, player: &Player) -> PlayerKnowledge {
@@ -110,42 +166,17 @@ pub enum VisibleWage {
 }
 
 pub fn visible_wage(game: &Game, player: &Player) -> VisibleWage {
-    match player_knowledge(game, player) {
-        PlayerKnowledge::Own => VisibleWage::Exact {
-            weekly: player.wage(),
-        },
-        PlayerKnowledge::Scouted { .. } => VisibleWage::Approximate {
-            weekly: two_significant_figures(player.wage()),
-        },
-        PlayerKnowledge::Known | PlayerKnowledge::Unknown => VisibleWage::Hidden,
-    }
+    let view = KnowledgeView::of(game);
+    view.wage_for(&view.knowledge(player), player)
 }
 
 /// The player's condition as the club may see it. Its own player's always; an opponent's on the
-/// day the two clubs meet, as the team sheet and the warm-up show it (maintainer, 29 Oct); nobody
-/// else's, a rival in the club's own division included.
+/// day the two clubs meet, in any competition, as the team sheet and the warm-up show it
+/// (maintainer, 29 Oct), a loanee counting for the club he plays for; nobody else's, a rival in
+/// the club's own division included.
 pub fn visible_condition(game: &Game, player: &Player) -> Option<u8> {
-    let shown = player_knowledge(game, player) == PlayerKnowledge::Own
-        || plays_the_club_today(game, player);
-    shown.then_some(player.condition)
-}
-
-/// Whether the player's club meets the manager's club today, in any competition. A loanee counts
-/// for the club he plays for, whose team sheet he is on.
-fn plays_the_club_today(game: &Game, player: &Player) -> bool {
-    let (Some(club), Some(opponent)) = (game.manager.team_id.as_deref(), player.team_id.as_deref())
-    else {
-        return false;
-    };
-    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
-    game.competitions
-        .iter()
-        .flat_map(|competition| &competition.fixtures)
-        .any(|fixture| {
-            fixture.date == today
-                && ((fixture.home_team_id == club && fixture.away_team_id == opponent)
-                    || (fixture.away_team_id == club && fixture.home_team_id == opponent))
-        })
+    let view = KnowledgeView::of(game);
+    view.condition_for(&view.knowledge(player), player)
 }
 
 fn two_significant_figures(value: u32) -> u32 {
@@ -160,11 +191,11 @@ fn two_significant_figures(value: u32) -> u32 {
 /// The knowledge of each requested player. An id no player has is left out of the answer.
 pub fn players_knowledge(game: &Game, player_ids: &[String]) -> HashMap<String, PlayerKnowledge> {
     let wanted: HashSet<&str> = player_ids.iter().map(String::as_str).collect();
-    let viewer = Viewer::of(game);
+    let view = KnowledgeView::of(game);
     game.players
         .iter()
         .filter(|player| wanted.contains(player.id.as_str()))
-        .map(|player| (player.id.clone(), knowledge_from(game, &viewer, player)))
+        .map(|player| (player.id.clone(), view.knowledge(player)))
         .collect()
 }
 
