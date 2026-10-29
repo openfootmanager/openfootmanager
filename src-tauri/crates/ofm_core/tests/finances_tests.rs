@@ -1,3 +1,6 @@
+#[path = "finances_tests/levers.rs"]
+mod levers;
+
 use chrono::{TimeZone, Utc};
 use domain::league::{
     Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
