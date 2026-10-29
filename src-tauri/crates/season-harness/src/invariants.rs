@@ -679,7 +679,8 @@ fn managers_take_their_league_season(before: &Before, after: &Game) -> Vec<Strin
 }
 
 /// Every manager, the user's read from `game.manager`, which is where his season is credited: the
-/// copy of him in `game.managers` is only synced on a hire, a sacking or a job offer.
+/// copy of him in `game.managers` is a mirror, synced at points (the daily firing check, a hire, a
+/// job offer, the season's end) and so able to lag between them.
 fn managers_by_record(game: &Game) -> impl Iterator<Item = &domain::manager::Manager> {
     game.managers
         .iter()
@@ -1211,7 +1212,7 @@ mod tests {
     }
 
     /// Given the user's club's division archived at the rollover, 6 matches, and the user's copy in
-    ///      `game.managers` left as it was (it is synced only on a hire, a sacking or a job offer)
+    ///      `game.managers` left as it was (a mirror, synced at points, that can lag between them)
     /// When the authoritative `game.manager` has the 6 matches added
     /// Then nothing is reported: the rule reads the user's record where the season end writes it
     #[test]
