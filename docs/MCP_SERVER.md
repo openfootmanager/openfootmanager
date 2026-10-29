@@ -116,7 +116,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `info_fixtures` | Upcoming fixtures and recent results for your team |
 | `info_match_preview` | Next opponent details, form, and standings comparison |
 | `info_season_context` | Current season phase and transfer window status |
-| `info_player_profile` | Detailed player card: attributes, contract, morale (own team) or limited info (other teams) |
+| `info_player_profile` | Player card, limited to what the club knows (`ofm_core::player_knowledge`): own players in full; a player at a club in the manager's own division by rating and attributes; a scouted player by the scout's report (attributes and date); anyone else by identity only. Condition, morale, fitness, injury and contract are shown for own players only; potential never |
 | `info_player_stats` | Season and career statistics for a player |
 | `info_player_match_history` | Match-by-match performance for a player |
 | `info_team_profile` | Team details: squad size, standings position, recent form, finances |

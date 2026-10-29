@@ -261,7 +261,9 @@ pub struct Attribute {
     pub value: u8,
 }
 
-/// What the profile shows depends on whose player it is.
+/// What the profile shows depends on what the club knows about the player
+/// (`ofm_core::player_knowledge`): the whole player, a rival's rating and attributes, a scout's
+/// report as it was, or nothing beyond who he is.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "visibility", rename_all = "snake_case")]
 pub enum PlayerDetail {
@@ -275,11 +277,34 @@ pub enum PlayerDetail {
         injury: Option<String>,
         attributes: Vec<Attribute>,
     },
-    Other {
-        ovr: u8,
-        /// Shown to the agent as "Form".
-        condition: u8,
+    /// A player at a club in the manager's own division.
+    Known { ovr: u8, attributes: Vec<Attribute> },
+    /// A player a scout reported on: the attributes are the report's, as of `scouted_on`.
+    Scouted {
+        scouted_on: String,
+        /// Whether the report still describes him (it is out of date once a season has started
+        /// since it was made).
+        current: bool,
+        attributes: Vec<Attribute>,
     },
+    /// Nothing beyond what is public: the identity fields of the profile.
+    Unknown,
+}
+
+fn write_attributes(f: &mut fmt::Formatter<'_>, attributes: &[Attribute]) -> fmt::Result {
+    write!(
+        f,
+        "\n### Attributes\n\n| Attr | Val | Attr | Val | Attr | Val |\n|------|-----|------|-----|------|-----|\n"
+    )?;
+    // Three attributes a row; a short last row is left out, as it always was.
+    for row in attributes.chunks_exact(3) {
+        let cells: Vec<String> = row
+            .iter()
+            .flat_map(|a| [a.name.clone(), a.value.to_string()])
+            .collect();
+        writeln!(f, "| {} |", cells.join(" | "))?;
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -334,23 +359,24 @@ impl fmt::Display for PlayerProfile {
                 if let Some(injury) = injury {
                     writeln!(f, "| Injury | ⚠️ {injury} |")?;
                 }
-                write!(
-                    f,
-                    "\n### Attributes\n\n| Attr | Val | Attr | Val | Attr | Val |\n|------|-----|------|-----|------|-----|\n"
-                )?;
-                // Three attributes a row; a short last row is left out, as it always was.
-                for row in attributes.chunks_exact(3) {
-                    let cells: Vec<String> = row
-                        .iter()
-                        .flat_map(|a| [a.name.clone(), a.value.to_string()])
-                        .collect();
-                    writeln!(f, "| {} |", cells.join(" | "))?;
-                }
-                Ok(())
+                write_attributes(f, attributes)
             }
-            PlayerDetail::Other { ovr, condition } => write!(
+            PlayerDetail::Known { ovr, attributes } => {
+                writeln!(f, "| OVR | {ovr} |")?;
+                write_attributes(f, attributes)
+            }
+            PlayerDetail::Scouted {
+                scouted_on,
+                current,
+                attributes,
+            } => {
+                let note = if *current { "" } else { " (out of date)" };
+                writeln!(f, "| Scouted On | {scouted_on}{note} |")?;
+                write_attributes(f, attributes)
+            }
+            PlayerDetail::Unknown => write!(
                 f,
-                "| OVR | {ovr} |\n| Form | {condition} |\n\n*Use `scout_send` for detailed attributes.*"
+                "\n*Nothing is known about this player beyond who he is. Use `scout_send` to find out more.*"
             ),
         }
     }
