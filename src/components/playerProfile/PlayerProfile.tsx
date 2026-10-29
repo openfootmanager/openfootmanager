@@ -387,7 +387,11 @@ export default function PlayerProfile({
 
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
 
-        <PlayerProfileMovementHistoryCard movementHistory={player.movement_history ?? []} t={t} />
+        <PlayerProfileMovementHistoryCard
+          movementHistory={player.movement_history ?? []}
+          showsWages={visibleWage.kind === "exact"}
+          t={t}
+        />
 
         <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </div>

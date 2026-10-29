@@ -1920,8 +1920,9 @@ describe("PlayerProfile shows only what the club knows", () => {
     vi.mocked(invoke).mockImplementation(async (command: string) => defaultInvokeResponse(command));
   });
 
-  // Condition 80, morale 75, a weekly wage of 12K and the potential-derived Wonderkid tag: each one
-  // something a club only knows about its own player, or (the tag) about one it has scouted.
+  // Condition 80, morale 75, a weekly wage of 12K (also on his contract in the movement history)
+  // and the potential-derived Wonderkid tag: each one something a club only knows about its own
+  // player, or (the tag) about one it has scouted.
   function rival(): PlayerData {
     return createPlayer({
       team_id: "team-2",
@@ -1929,8 +1930,25 @@ describe("PlayerProfile shows only what the club knows", () => {
       condition: 80,
       morale: 75,
       traits: ["Wonderkid"],
+      movement_history: [
+        {
+          date: "2025-07-01",
+          kind: "initial_contract",
+          to_team_id: "team-2",
+          to_team_name: "Rival FC",
+          contract: {
+            start: "2025-07-01",
+            end: "2028-06-30",
+            weekly_wage: 12_000,
+            source: "initial",
+          },
+        },
+      ],
     });
   }
+
+  // The movement history's wage on a contract, which only the club's own player shows.
+  const showsMovementWage = () => screen.queryByText("playerProfile.movementWage") !== null;
 
   function renderProfile(player: PlayerData) {
     render(
@@ -1969,6 +1987,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
     expect(showsWage()).toBe(false);
     expect(contractWageValue()).toBe("–");
+    expect(showsMovementWage()).toBe(false);
     expect(screen.queryByText("77")).not.toBeInTheDocument();
     expect(screen.queryByText(/Wonderkid/)).not.toBeInTheDocument();
     expect(screen.getAllByText("€350K").length).toBeGreaterThan(0);
@@ -1995,6 +2014,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(screen.queryByText("75%")).not.toBeInTheDocument();
     expect(showsWage()).toBe(false);
     expect(contractWageValue()).toBe("–");
+    expect(showsMovementWage()).toBe(false);
   });
 
   /**
@@ -2031,6 +2051,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(screen.queryByText("77")).not.toBeInTheDocument();
     expect(contractWageValue()).toBe("about €16,000/wk");
     expect(screen.getAllByText("about €16K/wk").length).toBeGreaterThan(0);
+    expect(showsMovementWage()).toBe(false);
   });
 
   /**
@@ -2039,7 +2060,13 @@ describe("PlayerProfile shows only what the club knows", () => {
    * Then everything shows: condition, morale, exact wage and the Wonderkid tag
    */
   it("shows everything about the club's own player", () => {
-    const player = createPlayer({ ovr: 77, condition: 80, morale: 75, traits: ["Wonderkid"] });
+    const player = createPlayer({
+      ovr: 77,
+      condition: 80,
+      morale: 75,
+      traits: ["Wonderkid"],
+      movement_history: rival().movement_history,
+    });
     knowledge.current = { [player.id]: { kind: "own" } };
 
     render(<PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />);
@@ -2048,6 +2075,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(screen.getAllByText("75%").length).toBeGreaterThan(0);
     expect(showsWage()).toBe(true);
     expect(contractWageValue()).not.toBe("–");
+    expect(showsMovementWage()).toBe(true);
     expect(screen.getByText("77")).toBeInTheDocument();
     expect(screen.getByText(/Wonderkid/)).toBeInTheDocument();
   });
