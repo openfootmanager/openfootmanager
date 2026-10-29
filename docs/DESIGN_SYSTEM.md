@@ -139,6 +139,7 @@ drawn in the style guide.
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
 | a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a `positive` or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details. It draws no panel: put it in a `Card` |
+| a player's condition | `ConditionMeter`: the backend's band word (`condition_status`) in its tone, a bar in the same tone and the percentage; without the band, a neutral bar and no word |
 | a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
 More primitives arrive as the migration goes on: empty and loading states outside a table, stat

@@ -8,6 +8,7 @@ import {
   CardBody,
   CardHeader,
   Checkbox,
+  ConditionMeter,
   CountryFlag,
   DataTable,
   type DataTableColumn,
@@ -27,7 +28,6 @@ import {
   SegmentedControl,
   Select,
   type SortDirection,
-  TONE_TEXT,
   TabPanel,
   Tabs,
   TeamLocation,
@@ -313,7 +313,7 @@ function DisplaySection() {
           ),
         )}
       </div>
-      {/* The good-to-bad scale the backend rates values on: a tone fills the bar, its word says it. */}
+      {/* Condition on the backend's bands: the band's word and bar in its tone; none sent, neutral. */}
       <div className="grid max-w-md gap-2">
         {(
           [
@@ -322,12 +322,14 @@ function DisplaySection() {
             ["low", "Exhausted", 32],
             ["bad", "Critical", 15],
           ] as const
-        ).map(([tone, word, value]) => (
-          <div key={tone} className="flex items-center gap-3">
-            <span className={`w-20 text-caption font-semibold ${TONE_TEXT[tone]}`}>{word}</span>
-            <ProgressBar value={value} tone={tone} showLabel className="flex-1" />
-          </div>
+        ).map(([tone, band, value]) => (
+          <ConditionMeter
+            key={band}
+            value={value}
+            status={{ band, label_key: `be.condition.${band.toLowerCase()}`, tone }}
+          />
         ))}
+        <ConditionMeter value={50} status={null} />
       </div>
       <Row>
         <CountryFlag code="BE" />

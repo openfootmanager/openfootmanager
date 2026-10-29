@@ -24,3 +24,4 @@ export { TabPanel, Tabs } from "./Tabs";
 export { DataTable } from "./DataTable";
 export type { DataTableColumn, SortDirection } from "./DataTable";
 export { RatingChip } from "./RatingChip";
+export { ConditionMeter } from "./ConditionMeter";
