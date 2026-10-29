@@ -940,6 +940,32 @@ mod tests {
         );
     }
 
+    /// Given an AI club with three senior keepers, one of whose contracts ends 184 days away, a day
+    ///       past the renewal horizon, and an 18-year-old academy keeper
+    /// When its review day comes
+    /// Then the academy keeper stays in the academy: that keeper still counts toward planned depth
+    #[test]
+    fn a_senior_whose_contract_ends_a_day_past_the_horizon_counts_toward_planned_depth() {
+        let mut game = world();
+        let past_horizon = (today() + Duration::days(RENEWAL_HORIZON_DAYS + 1))
+            .format("%Y-%m-%d")
+            .to_string();
+        game.players
+            .iter_mut()
+            .find(|p| p.id == "ai_Goalkeeper2")
+            .unwrap()
+            .stage_contract_end(Some(past_horizon));
+        game.players
+            .push(academy("young_keeper", "ai", Position::Goalkeeper, 18));
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(
+            role(&game, "young_keeper"),
+            domain::player::SquadRole::Youth
+        );
+    }
+
     /// Given an AI club with three keepers on long contracts, and a fourth, 34 and rated 50, whose
     ///       contract ends in 90 days
     /// When its review day comes

@@ -1899,6 +1899,11 @@ fn a_renewal_the_board_will_not_fund_is_stalled_by_the_wage_policy() {
             Some("be.msg.delegatedRenewals.notes.boardWagePolicy")
         )
     );
+    assert_eq!(
+        (game.players[0].wage(), game.players[0].contract_end()),
+        (12_000, Some("2026-10-15")),
+        "a stalled renewal leaves the contract as it was"
+    );
 }
 
 /// Given an assistant rated 20 throughout, so player-1 scores him 87 (20 + 16 + 37 + 14)
