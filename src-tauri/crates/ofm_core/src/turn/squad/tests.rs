@@ -571,11 +571,15 @@ fn a_competition_moved_out_for_simulation_still_counts() {
     assert_eq!(fixture_load(&game, "club"), FixtureLoad::Congested);
 }
 
-/// A competition outside the active scope is resolved by a scoreline-only model
-/// that charges nobody any condition, so its next fixture is no reason to rest
-/// anyone for this one.
+/// A club's calendar is the same whichever competition a fixture is in: one rule for every club
+/// (#869), as training's matchday and taper already read it. A fixture in a competition outside the
+/// active scope is still a next match, so it makes a congested run.
+///
+/// Given a club with a fixture today and another three days on, in a competition nobody follows,
+/// When its fixture load is read,
+/// Then the run is congested.
 #[test]
-fn a_fixture_in_a_dormant_competition_is_not_a_congested_run() {
+fn a_fixture_in_a_dormant_competition_is_a_congested_run() {
     let mut game = game_with_fixtures_on(&[0]);
     let active = game.league.clone().expect("the active league");
     let mut dormant = game_with_fixtures_on(&[3])
@@ -585,7 +589,7 @@ fn a_fixture_in_a_dormant_competition_is_not_a_congested_run() {
     game.active_competition_ids = vec![active.id.clone()];
     game.competitions = vec![active, dormant];
 
-    assert_eq!(fixture_load(&game, "club"), FixtureLoad::Normal);
+    assert_eq!(fixture_load(&game, "club"), FixtureLoad::Congested);
 }
 
 /// Ten fit outfielders and a goalkeeper in the treatment room — a club that

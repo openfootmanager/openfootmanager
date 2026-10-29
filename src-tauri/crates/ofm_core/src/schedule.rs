@@ -1288,6 +1288,38 @@ mod tests {
         );
     }
 
+    /// Given a four-team group playing each other once, two matches a matchday, one match a day
+    /// When its fixtures are spread from 1 June
+    /// Then each matchday takes two days and the next starts after a free day: 1–2, 4–5 and
+    ///      7–8 June, so no side plays on consecutive days
+    #[test]
+    fn spread_fixture_dates_leaves_a_rest_day_between_matchdays() {
+        let start = Utc.with_ymd_and_hms(2026, 6, 1, 0, 0, 0).unwrap();
+        let teams: Vec<String> = (0..4).map(|i| format!("t{i}")).collect();
+        let mut fixtures =
+            build_round_robin_fixtures_with("c", &teams, start, FixtureCompetition::Cup, 1, 2);
+
+        spread_fixture_dates(&mut fixtures, start, 1);
+
+        let dates_of = |matchday: u32| -> Vec<String> {
+            let mut dates: Vec<String> = fixtures
+                .iter()
+                .filter(|fixture| fixture.matchday == matchday)
+                .map(|fixture| fixture.date.clone())
+                .collect();
+            dates.sort();
+            dates
+        };
+        assert_eq!(
+            [dates_of(1), dates_of(2), dates_of(3)],
+            [
+                ["2026-06-01", "2026-06-02"].map(String::from).to_vec(),
+                ["2026-06-04", "2026-06-05"].map(String::from).to_vec(),
+                ["2026-06-07", "2026-06-08"].map(String::from).to_vec(),
+            ]
+        );
+    }
+
     #[test]
     fn seed_knockout_round_groups_matches_per_day() {
         // Round of 32 (16 matches) with mpd=4 should span exactly 4 days.

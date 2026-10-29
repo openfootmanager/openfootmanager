@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { readStyleGuideOptions } from "../styleGuide/styleGuideOptions";
 import { fixtureHandlers } from "./fixtureAnswers";
-import { gameState, squad, squadFitness } from "./fixture.generated";
+import {
+  gameState,
+  playersPage,
+  playersPageQuery,
+  ratingTiers,
+  squad,
+  squadFitness,
+  staff,
+  teamsDirectory,
+} from "./fixture.generated";
 import { UNANSWERED } from "./harnessIpc";
 
 const handlers = fixtureHandlers(readStyleGuideOptions(""), "en");
@@ -28,6 +37,19 @@ describe("fixture answers", () => {
   });
 
   /**
+   * Given Squad colouring its ratings (RatingChip, #952), when it asks for the rating tiers, then
+   * the harness gives the backend's table, generated from the ofm_core function the command
+   * returns: one tier for every rating from 0 to 99, Rest at the bottom and S at the top.
+   */
+  it("answers the rating tiers with the backend's table", () => {
+    expect(handlers.get_rating_tiers({})).toBe(ratingTiers);
+    expect(ratingTiers).toHaveLength(100);
+    expect(ratingTiers[0]).toBe("Rest");
+    expect(ratingTiers[99]).toBe("S");
+    expect(new Set(ratingTiers)).toEqual(new Set(["S", "A", "B", "Rest"]));
+  });
+
+  /**
    * Given another club, when its squad, standing or finances are asked for, then the fixture
    * declines: it only holds the user's club, and must not pass it off as another's.
    */
@@ -50,5 +72,71 @@ describe("fixture answers", () => {
     const [first] = squad;
     const stages = handlers.get_contract_warning_stages({ playerIds: [first.id, "nobody"] });
     expect(Object.keys(stages as object)).toEqual([first.id]);
+  });
+});
+
+describe("world list answers", () => {
+  /**
+   * Given the Players page opening, when it asks for its first page with the query it opens with,
+   * then the fixture's page comes back: a full page of the world's players, best first, from more
+   * clubs than the user's.
+   */
+  it("answers the Players page's opening query", () => {
+    const answer = handlers.get_players_page({ query: { ...playersPageQuery } });
+    expect(answer).toBe(playersPage);
+    expect(playersPage.items).toHaveLength(playersPageQuery.page_size);
+    expect(playersPage.total).toBeGreaterThan(playersPageQuery.page_size);
+    const ratings = playersPage.items.map((player) => player.ovr);
+    expect(ratings).toEqual([...ratings].sort((a, b) => b - a));
+    expect(new Set(playersPage.items.map((player) => player.team_id)).size).toBeGreaterThan(1);
+  });
+
+  /**
+   * Given the opening query with its keys in another order (the page declares them in its own
+   * order; the fixture's come out of Rust sorted)
+   * When the Players page asks
+   * Then it is still the same query, and answered.
+   */
+  it("answers the opening query whatever the order of its keys", () => {
+    const reordered = Object.fromEntries(Object.entries(playersPageQuery).reverse());
+    expect(Object.keys(reordered)).not.toEqual(Object.keys(playersPageQuery));
+    expect(handlers.get_players_page({ query: reordered })).toBe(playersPage);
+  });
+
+  /**
+   * Given any other query (a search, another page), when the Players page asks, then the harness
+   * declines rather than answer it with the opening page.
+   */
+  it("declines a Players query the fixture wasn't generated for", () => {
+    expect(handlers.get_players_page({ query: { ...playersPageQuery, search: "Smith" } })).toBe(
+      UNANSWERED,
+    );
+    expect(handlers.get_players_page({ query: { ...playersPageQuery, page: 2 } })).toBe(UNANSWERED);
+  });
+
+  /** Given the Teams page with no search, then the directory holds every club in the world. */
+  it("answers the Teams directory", () => {
+    expect(handlers.get_teams_directory({ query: { search: null } })).toBe(teamsDirectory);
+    const listed = teamsDirectory.regions.flatMap((region) =>
+      region.leagues.flatMap((league) => league.teams.map((card) => card.team.id)),
+    );
+    expect(listed.sort()).toEqual(gameState.teams.map((team) => team.id).sort());
+  });
+
+  /** Given a search on the Teams page, then the harness declines rather than ignore the search. */
+  it("declines a Teams search", () => {
+    expect(handlers.get_teams_directory({ query: { search: "Celtic" } })).toBe(UNANSWERED);
+  });
+
+  /**
+   * Given the Staff page for the user's club, then its staff and the hiring market come back;
+   * for another club, the harness declines.
+   */
+  it("answers the user's club's staff only", () => {
+    expect(handlers.get_staff({ teamId: club })).toBe(staff);
+    expect(staff.team_staff.length).toBeGreaterThan(0);
+    expect(staff.team_staff.every((member) => member.team_id === club)).toBe(true);
+    expect(staff.available_staff.length).toBeGreaterThan(0);
+    expect(handlers.get_staff({ teamId: "another-club" })).toBe(UNANSWERED);
   });
 });

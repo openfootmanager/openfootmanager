@@ -72,7 +72,7 @@ Rules:
   state, table, tile or modal uses the primitive, never a copy.
 - `src/designSystem.test.ts` enforces these rules in every folder listed in its `FINISHED_FOLDERS`;
   a folder joins the list in the PR that brings it up to standard.
-- The font stacks include CJK fallbacks for `zh-CN`. Don't strip them when editing `@theme`.
+- The font stacks include CJK fallbacks for `zh-CN` and a Cyrillic condensed face (Fira Sans Extra Condensed) behind Barlow Condensed for `ru`. Don't strip them when editing `@theme`.
 
 ---
 

@@ -278,6 +278,7 @@ pub fn run() {
             set_team_match_roles,
             set_training,
             get_squad_fitness,
+            get_position_groups,
             set_training_schedule,
             get_training_focus_attributes,
             get_rating_tiers,

@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.2.8",
+    "@fontsource/fira-sans-extra-condensed": "^5.3.0",
     "@fontsource/inter": "^5.2.8",
     "@tauri-apps/api": "2.11",
     "@tauri-apps/plugin-dialog": "^2.7.1",
