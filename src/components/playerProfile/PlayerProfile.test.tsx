@@ -1836,6 +1836,9 @@ describe("PlayerProfile free agent signing", () => {
     const onGameUpdate = vi.fn();
 
     vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_free_agent_opening_offer") {
+        return { weekly_wage: 3000, contract_years: 3 };
+      }
       if (command === "offer_free_agent_contract") {
         return {
           outcome: "accepted",
@@ -1864,6 +1867,9 @@ describe("PlayerProfile free agent signing", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("dialog", { name: "Offer Contract" })).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Submit Offer" })).toBeEnabled();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Submit Offer" }));

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   getRenewalStatusClassName,
@@ -8,12 +8,12 @@ import {
 } from "../playerProfile/PlayerProfile.renewal";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import {
+  getFreeAgentOpeningOffer,
   offerFreeAgentContract,
   previewFreeAgentContractImpact,
   type FreeAgentContractProjection,
   type FreeAgentContractResponseData,
 } from "../../services/freeAgentService";
-import { calcAgeOnDate } from "../../lib/valueFormatting";
 import { resolveBackendError } from "../../utils/backendI18n";
 
 interface UseFreeAgentContractFlowArgs {
@@ -21,8 +21,6 @@ interface UseFreeAgentContractFlowArgs {
   onGameUpdate?: (game: GameStateData) => void;
 }
 
-const MARKET_VALUE_TO_WAGE_RATIO = 200;
-const MINIMUM_DEFAULT_WAGE = 500;
 const MAX_CONTRACT_YEARS = 5;
 
 interface UseFreeAgentContractFlowResult {
@@ -46,25 +44,6 @@ interface UseFreeAgentContractFlowResult {
 }
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
-
-function defaultContractYears(dateOfBirth: string, asOfDate: string): string {
-  const age = calcAgeOnDate(dateOfBirth, asOfDate);
-
-  if (age <= 28) return "3";
-  if (age <= 32) return "2";
-  return "1";
-}
-
-function defaultContractWage(player: PlayerData): string {
-  const baseline =
-    player.wage > 0
-      ? player.wage
-      : Math.max(
-          Math.round(player.market_value / MARKET_VALUE_TO_WAGE_RATIO),
-          MINIMUM_DEFAULT_WAGE,
-        );
-  return String(Math.ceil(baseline / 1000) * 1000);
-}
 
 export function useFreeAgentContractFlow({
   gameState,
@@ -92,6 +71,8 @@ export function useFreeAgentContractFlow({
   const [contractSuggestedWage, setContractSuggestedWage] = useState<number | null>(null);
   const [contractSuggestedYears, setContractSuggestedYears] = useState<number | null>(null);
   const [contractIsTerminal, setContractIsTerminal] = useState(false);
+  // An opening offer that arrives after talks moved to another player, or closed, is not shown.
+  const talksOpenWith = useRef<string | null>(null);
 
   const offeredWage = Number(contractWage);
   const offeredYears = Number(contractLength);
@@ -130,10 +111,24 @@ export function useFreeAgentContractFlow({
     };
   }, [freeAgentTarget, isContractWageValid, offeredWage]);
 
+  const loadOpeningOffer = async (playerId: string): Promise<void> => {
+    try {
+      const offer = await getFreeAgentOpeningOffer(playerId);
+      if (talksOpenWith.current !== playerId) return;
+      setContractWage(String(offer.weekly_wage));
+      setContractLength(String(offer.contract_years));
+    } catch (error) {
+      if (talksOpenWith.current !== playerId) return;
+      setContractStatus("error");
+      setContractError(resolveBackendError(error));
+    }
+  };
+
   const openFreeAgentContract = (player: PlayerData): void => {
+    talksOpenWith.current = player.id;
     setFreeAgentTargetId(player.id);
-    setContractWage(defaultContractWage(player));
-    setContractLength(defaultContractYears(player.date_of_birth, gameState.clock.current_date));
+    setContractWage("");
+    setContractLength("");
     setContractStatus("idle");
     setContractError(null);
     setContractFeedback(null);
@@ -142,6 +137,7 @@ export function useFreeAgentContractFlow({
     setContractSuggestedWage(null);
     setContractSuggestedYears(null);
     setContractIsTerminal(false);
+    void loadOpeningOffer(player.id);
   };
 
   const closeFreeAgentContract = (): void => {
@@ -149,6 +145,7 @@ export function useFreeAgentContractFlow({
       return;
     }
 
+    talksOpenWith.current = null;
     setFreeAgentTargetId(null);
     setContractWage("");
     setContractLength("");

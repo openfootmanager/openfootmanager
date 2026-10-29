@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { JSX } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import {
+  getFreeAgentOpeningOffer,
   offerFreeAgentContract,
   previewFreeAgentContractImpact,
 } from "../../services/freeAgentService";
@@ -12,6 +13,7 @@ import { useFreeAgentContractFlow } from "./useFreeAgentContractFlow";
 import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("../../services/freeAgentService", () => ({
+  getFreeAgentOpeningOffer: vi.fn(),
   offerFreeAgentContract: vi.fn(),
   previewFreeAgentContractImpact: vi.fn(),
 }));
@@ -22,6 +24,7 @@ vi.mock("../../utils/backendI18n", () => ({
   ),
 }));
 
+const mockedGetFreeAgentOpeningOffer = vi.mocked(getFreeAgentOpeningOffer);
 const mockedOfferFreeAgentContract = vi.mocked(offerFreeAgentContract);
 const mockedPreviewFreeAgentContractImpact = vi.mocked(previewFreeAgentContractImpact);
 const mockedResolveBackendError = vi.mocked(resolveBackendError);
@@ -171,11 +174,14 @@ function createGameState(players: PlayerData[] = [createPlayer()]): GameStateDat
 function HookHarness({
   gameState,
   target,
+  otherTarget,
 }: {
   gameState: GameStateData;
   target: PlayerData;
+  otherTarget?: PlayerData;
 }): JSX.Element {
   const {
+    contractError,
     contractWage,
     setContractWage,
     contractLength,
@@ -189,6 +195,10 @@ function HookHarness({
       <button type="button" onClick={() => openFreeAgentContract(target)}>
         Open
       </button>
+      <button type="button" onClick={() => openFreeAgentContract(otherTarget ?? target)}>
+        Open other
+      </button>
+      <output aria-label="Error">{contractError ?? ""}</output>
       <label htmlFor="wage">Wage</label>
       <input
         id="wage"
@@ -210,6 +220,8 @@ function HookHarness({
 
 describe("useFreeAgentContractFlow", () => {
   beforeEach(() => {
+    mockedGetFreeAgentOpeningOffer.mockReset();
+    mockedGetFreeAgentOpeningOffer.mockResolvedValue({ weekly_wage: 3000, contract_years: 3 });
     mockedOfferFreeAgentContract.mockReset();
     mockedPreviewFreeAgentContractImpact.mockReset();
     mockedResolveBackendError.mockClear();
@@ -297,20 +309,79 @@ describe("useFreeAgentContractFlow", () => {
     });
   });
 
-  it("derives default contract years from the current in-game date", async () => {
-    const target = createPlayer({
-      id: "veteran-free-agent",
-      date_of_birth: "1994-12-15",
-    });
+  // Given a free agent the backend opens talks with at 7,000 a week for four years (terms no
+  // formula over his value and age would give: 600,000 and 26 make 3,000 for three)
+  // When the manager opens talks
+  // Then the form starts from the backend's terms
+  it("opens talks on the backend's opening offer", async () => {
+    const target = createPlayer();
     const gameState = createGameState([target]);
+    mockedGetFreeAgentOpeningOffer.mockResolvedValue({ weekly_wage: 7000, contract_years: 4 });
 
     render(<HookHarness gameState={gameState} target={target} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Years")).toHaveValue("2");
+      expect(screen.getByLabelText("Wage")).toHaveValue("7000");
     });
+    expect(screen.getByLabelText("Years")).toHaveValue("4");
+    expect(mockedGetFreeAgentOpeningOffer).toHaveBeenCalledWith(target.id);
+  });
+
+  // Given a player the backend will not open talks with
+  // When the manager opens talks
+  // Then the backend's reason is shown, and there is no offer to submit
+  it("shows why the backend has no opening offer", async () => {
+    const target = createPlayer();
+    const gameState = createGameState([target]);
+    mockedGetFreeAgentOpeningOffer.mockRejectedValue(
+      new Error("be.error.contracts.playerNotFreeAgent"),
+    );
+    mockedResolveBackendError.mockReturnValue("Not a free agent");
+
+    render(<HookHarness gameState={gameState} target={target} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("status", { name: "Error" })).toHaveTextContent("Not a free agent");
+    });
+    expect(screen.getByLabelText("Wage")).toHaveValue("");
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
+    expect(mockedOfferFreeAgentContract).not.toHaveBeenCalled();
+  });
+
+  // Given the manager opens talks with one player, then with another before the first answer
+  // arrives
+  // When the first player's opening offer arrives last
+  // Then the form keeps the second player's terms
+  it("ignores an opening offer for a player no longer in talks", async () => {
+    const first = createPlayer({ id: "first" });
+    const second = createPlayer({ id: "second" });
+    const gameState = createGameState([first, second]);
+    let answerFirst: (offer: { weekly_wage: number; contract_years: number }) => void = () => {};
+    mockedGetFreeAgentOpeningOffer.mockImplementation((playerId) =>
+      playerId === "first"
+        ? new Promise((resolve) => {
+            answerFirst = resolve;
+          })
+        : Promise.resolve({ weekly_wage: 5000, contract_years: 2 }),
+    );
+
+    render(<HookHarness gameState={gameState} target={first} otherTarget={second} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open other" }));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Wage")).toHaveValue("5000");
+    });
+    await act(async () => {
+      answerFirst({ weekly_wage: 9000, contract_years: 5 });
+    });
+
+    expect(screen.getByLabelText("Wage")).toHaveValue("5000");
+    expect(screen.getByLabelText("Years")).toHaveValue("2");
   });
 
   it("resolves backend errors before storing them", async () => {
@@ -324,6 +395,9 @@ describe("useFreeAgentContractFlow", () => {
     render(<HookHarness gameState={gameState} target={target} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    await waitFor(() => {
+      expect(screen.getByLabelText("Wage")).toHaveValue("3000");
+    });
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
 
     await waitFor(() => {
