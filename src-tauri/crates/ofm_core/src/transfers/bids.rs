@@ -95,15 +95,65 @@ pub(crate) fn latest_negotiation_with_club<'a>(
         })
 }
 
+/// What the bid panel shows of the user's negotiation over a player, from the same rule the next
+/// bid is judged by ([`latest_negotiation_with_club`], [`talks_are_broken_off`]): the screen presents
+/// this and holds no copy of the cooldown.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct BidNegotiationStatus {
+    /// The offer the next bid continues, or the broken-off talks; none when the next bid starts
+    /// over at round one.
+    pub offer_id: Option<String>,
+    /// Whether the next bid continues that negotiation. False for broken-off talks (the owner
+    /// refuses to talk) and when there is no negotiation.
+    pub continues_talks: bool,
+    /// For broken-off talks: the day the owner will talk again.
+    #[serde(default)]
+    pub talks_resume_on: Option<String>,
+}
+
+pub fn bid_negotiation_status(
+    game: &Game,
+    player_id: &str,
+) -> Result<BidNegotiationStatus, String> {
+    let user_team_id = game
+        .manager
+        .team_id
+        .as_deref()
+        .ok_or_else(|| "be.error.noTeamAssigned".to_string())?;
+    let player = game
+        .players
+        .iter()
+        .find(|player| player.id == player_id)
+        .ok_or_else(|| "be.error.playerNotFound".to_string())?;
+    let today = game.clock.current_date.date_naive();
+
+    let offer = latest_negotiation_with_club(player, user_team_id, today);
+    let broken_off = talks_are_broken_off(offer);
+    let talks_resume_on = offer.filter(|_| broken_off).and_then(|offer| {
+        let closed = offer.closed_on.as_deref().unwrap_or(&offer.date);
+        NaiveDate::parse_from_str(closed, "%Y-%m-%d")
+            .ok()
+            .map(|day| {
+                (day + Duration::days(REBID_COOLDOWN_DAYS))
+                    .format("%Y-%m-%d")
+                    .to_string()
+            })
+    });
+
+    Ok(BidNegotiationStatus {
+        offer_id: offer.map(|offer| offer.id.clone()),
+        continues_talks: offer.is_some() && !broken_off,
+        talks_resume_on,
+    })
+}
+
 fn closed_within_cooldown(
     player: &domain::player::Player,
     offer: &domain::player::TransferOffer,
     today: NaiveDate,
 ) -> bool {
-    let stamp = offer.closed_on.as_deref().unwrap_or(&offer.date);
-    NaiveDate::parse_from_str(stamp, "%Y-%m-%d")
-        .is_ok_and(|closed| (today - closed).num_days() < REBID_COOLDOWN_DAYS)
-        && heard_by_current_owner(player, stamp)
+    within_rebid_cooldown(offer.closed_on.as_deref(), &offer.date, today)
+        && heard_by_current_owner(player, offer.closed_on.as_deref().unwrap_or(&offer.date))
 }
 
 /// Whether the owner has walked away from this buyer and the cooldown still holds.
@@ -321,8 +371,13 @@ pub fn project_transfer_bid_financial_impact(
     // What he would be paid at this club: the contract the transfer would give him, not
     // the one he is on. Falls back to his current wage only if the terms cannot be worked
     // out, since the preview is informational.
-    let incoming_wage = buyers_standard_terms(game, player, &team.id)
-        .map_or_else(|_| i64::from(player.wage()), |(_, wage, _)| i64::from(wage));
+    let standard_terms = buyers_standard_terms(game, player, &team.id).ok();
+    let incoming_wage = standard_terms
+        .as_ref()
+        .map_or_else(|| i64::from(player.wage()), |(_, wage, _)| i64::from(*wage));
+    let blocked_by_wage_policy = standard_terms.as_ref().is_some_and(|(buyer, wage, _)| {
+        !purchase_wage_policy_verdict(game, buyer, player, *wage).permits()
+    });
     let annual_wage_bill_before = calc_wages(game, &team.id);
     let annual_wage_bill_after = annual_wage_bill_before + incoming_wage;
     let projected_wage_budget_usage_pct = if team.wage_budget > 0 {
@@ -361,6 +416,7 @@ pub fn project_transfer_bid_financial_impact(
         projected_wage_budget_usage_pct,
         exceeds_transfer_budget: transfer_budget_after < 0,
         exceeds_finance: finance_after < 0,
+        blocked_by_wage_policy,
         pending_registration_date,
     })
 }

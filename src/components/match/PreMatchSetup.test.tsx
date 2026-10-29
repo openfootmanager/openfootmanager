@@ -2,11 +2,16 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PreMatchSetup from "./PreMatchSetup";
+import { ratingTierClass } from "../../lib/ratingTier";
 import type { FixtureData, GameStateData, LeagueData } from "../../store/gameStore";
 import type { MatchSnapshot } from "./types";
 
 // Mock the few external dependencies PreMatchSetup pulls in at render time so we
 // can exercise the real component tree (the opponent scout panel in particular).
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -74,7 +79,7 @@ const emptySetPieces = {
   captain: null,
 };
 
-function snapshot(): Record<string, unknown> {
+function snapshot(awayRoster: Record<string, unknown>[] = awayPlayers): Record<string, unknown> {
   return {
     home_team: {
       id: "home1",
@@ -88,7 +93,7 @@ function snapshot(): Record<string, unknown> {
       name: "Away FC",
       formation: "4-3-3", // distinct from home, so it only appears in the opponent panel
       play_style: "Counter",
-      players: awayPlayers,
+      players: awayRoster,
     },
     home_bench: [],
     away_bench: [],
@@ -118,7 +123,11 @@ function gameState(): Record<string, unknown> {
   };
 }
 
-function renderSetup(currentFixture?: FixtureData, competitions?: LeagueData[]) {
+function renderSetup(
+  currentFixture?: FixtureData,
+  competitions?: LeagueData[],
+  awayRoster?: Record<string, unknown>[],
+) {
   const state = gameState();
   if (competitions) state.competitions = competitions;
   return render(
@@ -127,7 +136,7 @@ function renderSetup(currentFixture?: FixtureData, competitions?: LeagueData[]) 
       // screen, not the full match snapshot — so the cast is the honest spelling of "stands in
       // for". It goes through `unknown` because the shapes genuinely do not overlap, and the
       // two `eslint-disable` lines it used to carry were decorative: there is no ESLint here.
-      snapshot={snapshot() as unknown as MatchSnapshot}
+      snapshot={snapshot(awayRoster) as unknown as MatchSnapshot}
       gameState={state as unknown as GameStateData}
       currentFixture={currentFixture}
       userSide="Home"
@@ -193,8 +202,41 @@ describe("PreMatchSetup opponent scout panel", () => {
     expect(screen.getByText("Away Fwd")).toBeTruthy();
   });
 
+  /**
+   * Given opponent players rated 76 and 77 (and key stats of 76 and 77), either side of the A-tier
+   *       cut-off
+   * When the opponent scout panel lists them
+   * Then each rating and key stat takes the colour of its backend tier (B and A).
+   */
+  it("colours the opponent's ratings and key stats by their backend tier", () => {
+    renderSetup(undefined, undefined, [
+      enginePlayer({ id: "a-b", name: "Away B", position: "Forward", ovr: 76, shooting: 76 }),
+      enginePlayer({ id: "a-a", name: "Away A", position: "Forward", ovr: 77, shooting: 77 }),
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: /Away FC/ }));
+
+    const statsOf = (name: string, rating: string) =>
+      within(screen.getByText(name).closest("div.flex") as HTMLElement)
+        .getAllByText(rating)
+        .filter((element) => element.className.includes("tabular-nums"));
+    // The rating and the shooting stat of each player: an empty list must not pass the loops below.
+    const aTier = statsOf("Away A", "77");
+    const bTier = statsOf("Away B", "76");
+    expect(aTier.length).toBeGreaterThanOrEqual(2);
+    expect(bTier.length).toBeGreaterThanOrEqual(2);
+    for (const element of aTier) {
+      expect(element).toHaveClass(...ratingTierClass("A", "text").split(" "));
+    }
+    for (const element of bTier) {
+      expect(element).toHaveClass(...ratingTierClass("B", "text").split(" "));
+    }
+  });
+
   it("shows the translated competition name for the current named cup fixture", () => {
     const fixture: FixtureData = {
+      competitive: true,
+      advancing_team_id: null,
       id: "cup-match",
       competition_id: "cup-2026",
       competition: "Cup",

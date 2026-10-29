@@ -40,24 +40,39 @@ Use `/add-ui-string` — it is the whole procedure, in order.
 ## 2. Design tokens and the "Matchday" language
 
 Tailwind v4 keeps its config **in CSS**: the `@theme` block in `src/App.css`. That block is the
-only place colours and fonts are defined.
+only place colours, type sizes and layout sizes are defined. The full reference is
+[`docs/DESIGN_SYSTEM.md`](../docs/DESIGN_SYSTEM.md); every primitive is drawn, in every theme
+and scale, at `/style-guide.html` on the dev server.
 
 | Token family | Meaning |
 |---|---|
-| `primary-50…900` | Emerald green — primary actions, positive state |
-| `accent-50…900` | Gold (`accent-400` = `#ffd60a`) — highlights, awards, emphasis |
-| `success-400/500/600` | Success-specific green |
-| `navy-900/800/700/600` | Dark-mode surfaces, darkest to lightest |
-| `font-heading` | Barlow Condensed — headings, uppercase, tracked |
-| `font-sans` | Inter — body text |
+| `page`, `panel`, `sunken`, `hover`, `chrome`, `overlay` | Surfaces: the workspace, cards and tables, insets, a hovered row, the always-dark sidebar and match band, a modal backdrop |
+| `fg`, `fg-muted`, `fg-subtle`, `line`, `line-strong`, `focus`, `on-brand` | Text in three strengths, borders, the focus ring, text on the brand fill, chrome or turf (never on a `-solid`) |
+| `positive`, `warning`, `danger`, `info` (+ `-tint`, `-solid`) | Status: text, background tint, bar or dot |
+| `tone-top`, `tone-good`, `tone-fair`, `tone-low`, `tone-bad` (+ `-tint`, `-solid`) | The one good-to-bad scale for rated values; the backend picks the tone |
+| `text-caption` 12 · `text-body` 14 · `text-lead` 16 · `text-heading` 18 · `text-title` 24 · `text-display` 32 | Type sizes by role, in rem |
+| `h-row`, `h-panel-header`, `h-toolbar`, `max-w-page`, `@split` | Row, header and toolbar heights (smaller under `.density-compact`), the page width, the two-panel container breakpoint |
+| `primary-*`, `accent-*`, `navy-*` | Brand: the Continue button, the selected nav item, logo strips |
+| `font-heading` / `font-sans` | Barlow Condensed for headings / Inter for everything else |
 
 Rules:
 
-- **Use token classes** (`bg-primary-700`, `text-navy-900`). Never a hex literal in a component,
-  never an arbitrary value like `bg-[#10b981]`.
-- **Every colour class needs its `dark:` partner.** Both themes ship; neither is an afterthought.
-- Headings use `font-heading` with `uppercase tracking-wider`, matching `Button.tsx`.
-- The font stacks include CJK fallbacks for `zh-CN`. Don't strip them when editing `@theme`.
+- **Use role tokens** (`bg-panel`, `text-fg-muted`, `border-line`, `text-positive`,
+  `bg-tone-good-tint`). They change value in dark mode, high contrast and compact density by
+  themselves, so **a role token never needs a `dark:` partner**. The raw Tailwind palette
+  (`red-500`, `gray-400`, `white`, …) is not used in a finished folder; brand colours (`primary-*`,
+  `accent-*`) only for brand moments. Never a hex literal in a component, never an arbitrary value
+  like `bg-[#10b981]`. A club's or player's own colours are data: pass them as a CSS variable.
+- **Type uses role sizes only.** Never below 12px, never a px literal or inline `fontSize`:
+  `ui_scale` must move every size. Uppercase only for headings, buttons, badges and tabs, with
+  `tracking-label`; labels and table headers are sentence case.
+- **A rated value is painted, not judged.** The backend returns its tone; never compare a number
+  against a threshold in TypeScript to pick a colour.
+- **Reuse the catalogue** in `src/components/ui/index.ts`. A screen that needs a tab bar, empty
+  state, table, tile or modal uses the primitive, never a copy.
+- `src/designSystem.test.ts` enforces these rules in every folder listed in its `FINISHED_FOLDERS`;
+  a folder joins the list in the PR that brings it up to standard.
+- The font stacks include CJK fallbacks for `zh-CN` and a Cyrillic condensed face (Fira Sans Extra Condensed) behind Barlow Condensed for `ru`. Don't strip them when editing `@theme`.
 
 ---
 
@@ -81,8 +96,10 @@ Otherwise keep it next to its feature.
 
 `Button.tsx` is the reference implementation. Match it.
 
-- Visible focus on every interactive element: `focus:outline-none focus:ring-2 focus:ring-offset-2`
-  plus a `dark:focus:ring-offset-navy-800`. Removing an outline without replacing it is a bug.
+- Visible focus on every interactive element: `focus:outline-none focus-visible:ring-2
+  focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page`. The ring is
+  drawn on `focus-visible`, so a click doesn't light it, and it is always `ring-focus`
+  (`designSystem.test.ts` rule 6). Removing an outline without replacing it is a bug.
 - Semantic elements. A clickable `div` is not a button; a `<button>` is.
 - Every icon-only control gets an accessible name — `aria-label` with a **translated** string.
   (`aria-label` is in the `audit-i18n` attribute allowlist precisely because it is user-facing.)

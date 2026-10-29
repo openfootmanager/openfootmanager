@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import type { ClubLeagueStanding } from "./TeamProfile.types";
 import { buildTeamProfileViewModel } from "./TeamProfile.viewModel";
+import { createSeasonContext } from "../../test-utils/factories";
 
 function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -96,6 +97,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createGameState(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",

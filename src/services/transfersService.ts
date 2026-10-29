@@ -37,6 +37,8 @@ export interface TransferBidProjectionData {
     projected_wage_budget_usage_pct: number;
     exceeds_transfer_budget: boolean;
     exceeds_finance: boolean;
+    /** The board would refuse his standard wage at this club, the same verdict the bid is held to. */
+    blocked_by_wage_policy: boolean;
     /** Debit fires on this date (window closed → PendingRegistration). Absent when the deal would execute immediately. */
     pending_registration_date?: string | null;
   };
@@ -132,6 +134,19 @@ export async function counterOffer(
     offerId,
     requestedFee,
   });
+}
+
+/** The user's negotiation over a player as the backend's own rule reads it. */
+export interface BidNegotiationStatusData {
+  /** The offer the next bid continues, or the broken-off talks; null when the next bid starts over. */
+  offer_id: string | null;
+  continues_talks: boolean;
+  /** For broken-off talks: the day the owner will talk again (YYYY-MM-DD). */
+  talks_resume_on?: string | null;
+}
+
+export async function getBidNegotiationStatus(playerId: string): Promise<BidNegotiationStatusData> {
+  return invoke<BidNegotiationStatusData>("get_bid_negotiation_status", { playerId });
 }
 
 export async function previewTransferBidFinancialImpact(

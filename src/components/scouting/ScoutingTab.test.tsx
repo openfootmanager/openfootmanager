@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
@@ -9,7 +9,9 @@ import type {
   TeamData,
   YouthScoutingAssignment,
 } from "../../store/gameStore";
+import { marketPageOf } from "../transfers/TransfersTab.testFixtures";
 import ScoutingTab from "./ScoutingTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 const invokeMock = vi.fn();
 
@@ -226,6 +228,7 @@ function createGameState(options?: {
   players?: PlayerData[];
 }): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-10T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
@@ -267,8 +270,21 @@ function createGameState(options?: {
 }
 
 describe("ScoutingTab", () => {
+  // What the backend answers `get_players_page` with, and the other commands' canned answers; each
+  // test that shows rows or calls a command says so. Nothing here filters players.
+  let marketPlayers: PlayerData[] = [];
+  let answers: Map<string, unknown>;
+  const answer = (command: string, value: unknown) => answers.set(command, value);
   beforeEach(() => {
     invokeMock.mockReset();
+    marketPlayers = [];
+    answers = new Map();
+    invokeMock.mockImplementation(async (command: string) => {
+      const canned = answers.get(command);
+      if (canned instanceof Error) throw canned;
+      if (canned !== undefined) return canned;
+      return command === "get_players_page" ? marketPageOf(marketPlayers) : undefined;
+    });
   });
 
   it("renders the no-scouts empty state", () => {
@@ -293,16 +309,13 @@ describe("ScoutingTab", () => {
   it("sends a scout assignment and forwards the updated state", async () => {
     const updatedState = createGameState();
     const onGameUpdate = vi.fn();
-    invokeMock.mockResolvedValue(updatedState);
+    answer("send_scout", updatedState);
+    const state = createGameState({ scouts: [createScout()] });
+    marketPlayers = state.players;
 
-    render(
-      <ScoutingTab
-        gameState={createGameState({ scouts: [createScout()] })}
-        onGameUpdate={onGameUpdate}
-      />,
-    );
+    render(<ScoutingTab gameState={state} onGameUpdate={onGameUpdate} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Scout/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Scout/i }));
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("send_scout", {
@@ -313,20 +326,34 @@ describe("ScoutingTab", () => {
     });
   });
 
+  /**
+   * Given a player a scout is already watching, whom the backend still lists
+   * When the search shows him
+   * Then his row says scouting is in progress instead of offering another scout.
+   */
+  it("lists a player already being scouted, marked as in progress", async () => {
+    const state = createGameState({
+      scouts: [createScout()],
+      assignments: [{ id: "a1", scout_id: "staff-1", player_id: "player-1", days_remaining: 3 }],
+    });
+    marketPlayers = state.players;
+
+    render(<ScoutingTab gameState={state} onGameUpdate={vi.fn()} />);
+
+    const table = within(await screen.findByRole("table"));
+    expect(table.getByText("Scouting in progress")).toBeInTheDocument();
+    expect(table.queryByRole("button", { name: "Scout" })).not.toBeInTheDocument();
+  });
+
   it("shows scout assignment errors inline in the player search card", async () => {
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    invokeMock.mockRejectedValueOnce(
-      new Error("Scout is already assigned to another scouting task."),
-    );
+    const state = createGameState({ scouts: [createScout()] });
+    marketPlayers = state.players;
+    answer("send_scout", new Error("Scout is already assigned to another scouting task."));
     try {
-      render(
-        <ScoutingTab
-          gameState={createGameState({ scouts: [createScout()] })}
-          onGameUpdate={vi.fn()}
-        />,
-      );
+      render(<ScoutingTab gameState={state} onGameUpdate={vi.fn()} />);
 
-      fireEvent.click(screen.getByRole("button", { name: /Scout/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /Scout/i }));
 
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent(
@@ -336,6 +363,61 @@ describe("ScoutingTab", () => {
     } finally {
       consoleErrorSpy.mockRestore();
     }
+  });
+
+  /**
+   * Given a club with a scout and the search card open
+   * When a minimum age is typed
+   * Then the backend is asked for the scoutable scope with that bound, on the first page: the card
+   *      holds no filtering rule of its own.
+   */
+  it("asks the backend for the scoutable scope with the typed filters", async () => {
+    render(
+      <ScoutingTab
+        gameState={createGameState({ scouts: [createScout()] })}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenCalledWith(
+        "get_players_page",
+        expect.objectContaining({
+          query: expect.objectContaining({ scope: "scoutable", sort_key: "ovr", page_size: 20 }),
+        }),
+      );
+    });
+
+    fireEvent.change(screen.getByLabelText("players.filterAgeMin"), { target: { value: "19" } });
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenLastCalledWith(
+        "get_players_page",
+        expect.objectContaining({
+          query: expect.objectContaining({ scope: "scoutable", age_min: 19, page: 1 }),
+        }),
+      );
+    });
+  });
+
+  /**
+   * Given the backend reports more scoutable players than one page holds
+   * When the next page is pressed
+   * Then the backend is asked for page 2.
+   */
+  it("asks the backend for the next page", async () => {
+    const state = createGameState({ scouts: [createScout()] });
+    marketPlayers = state.players;
+    answer("get_players_page", { ...marketPageOf(state.players), total: 45 });
+
+    render(<ScoutingTab gameState={state} onGameUpdate={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: /next/i }));
+
+    await waitFor(() => {
+      expect(invokeMock).toHaveBeenLastCalledWith(
+        "get_players_page",
+        expect.objectContaining({ query: expect.objectContaining({ page: 2 }) }),
+      );
+    });
   });
 
   it("starts a youth scouting search and forwards the updated state", async () => {
@@ -353,7 +435,7 @@ describe("ScoutingTab", () => {
       ],
     });
     const onGameUpdate = vi.fn();
-    invokeMock.mockResolvedValue(updatedState);
+    answer("start_youth_scouting", updatedState);
 
     render(
       <ScoutingTab
@@ -393,7 +475,7 @@ describe("ScoutingTab", () => {
       ],
     });
     const onGameUpdate = vi.fn();
-    invokeMock.mockResolvedValue(updatedState);
+    answer("cancel_youth_scouting", updatedState);
 
     render(
       <ScoutingTab
@@ -461,6 +543,9 @@ describe("ScoutingTab", () => {
     const onGameUpdate = vi.fn();
 
     invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_players_page") {
+        return marketPageOf(marketPlayers);
+      }
       if (command === "preview_transfer_bid_financial_impact") {
         return {
           projection: {
@@ -498,16 +583,19 @@ describe("ScoutingTab", () => {
       return updatedState;
     });
 
+    const state = createGameState({ scouts: [createScout()] });
+    marketPlayers = state.players;
+
     render(
       <ScoutingTab
-        gameState={createGameState({ scouts: [createScout()] })}
+        gameState={state}
         onGameUpdate={onGameUpdate}
         onSelectPlayer={vi.fn()}
         onSelectTeam={vi.fn()}
       />,
     );
 
-    const playerRow = screen.getByText("John Smith").closest("tr");
+    const playerRow = (await screen.findByText("John Smith")).closest("tr");
     expect(playerRow).not.toBeNull();
 
     fireEvent.contextMenu(playerRow as HTMLTableRowElement);

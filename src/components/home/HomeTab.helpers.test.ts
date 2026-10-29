@@ -18,6 +18,7 @@ import {
   loadVisitedOnboardingTabs,
   saveVisitedOnboardingTabs,
 } from "./HomeTab.helpers";
+import { createSeasonContext } from "../../test-utils/factories";
 
 beforeEach((): void => {
   localStorage.clear();
@@ -58,6 +59,8 @@ function createTeam(overrides: Partial<TeamData> = {}): TeamData {
 
 function createFixture(overrides: Partial<FixtureData> = {}): FixtureData {
   return {
+    competitive: true,
+    advancing_team_id: null,
     id: "fixture-1",
     matchday: 1,
     date: "2025-01-10",
@@ -169,6 +172,7 @@ function createMessage(overrides: Partial<MessageData> = {}): MessageData {
 
 function createGameState(overrides: Partial<GameStateData> = {}): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2025-01-03T00:00:00Z",
       start_date: "2025-01-01T00:00:00Z",
@@ -212,9 +216,25 @@ function createGameState(overrides: Partial<GameStateData> = {}): GameStateData 
   };
 }
 
+// What the backend sends on 3 January 2025 for a season that started on the 1st: in season, and the
+// window (30 days either side of the start) still open.
+const inSeasonOnThe3rdOfJanuary = createSeasonContext({
+  phase: "InSeason",
+  season_start: "2025-01-01",
+  season_end: "2025-05-01",
+  transfer_window: {
+    status: "Open",
+    opens_on: "2024-12-02",
+    closes_on: "2025-01-31",
+    days_until_opens: null,
+    days_remaining: 28,
+  },
+});
+
 describe("HomeTab.helpers", (): void => {
   it("derives the next opponent widget data from the next scheduled fixture", (): void => {
     const gameState = createGameState({
+      season_context: inSeasonOnThe3rdOfJanuary,
       teams: [
         createTeam(),
         createTeam({
@@ -286,19 +306,7 @@ describe("HomeTab.helpers", (): void => {
 
   it("derives the next opponent from the user's competition when game.league is a stale all-teams league", (): void => {
     const gameState = createGameState({
-      season_context: {
-        phase: "InSeason",
-        season_start: "2025-01-01",
-        season_end: "2025-05-01",
-        days_until_season_start: null,
-        transfer_window: {
-          status: "Closed",
-          opens_on: null,
-          closes_on: null,
-          days_until_opens: null,
-          days_remaining: null,
-        },
-      },
+      season_context: inSeasonOnThe3rdOfJanuary,
       teams: [
         createTeam(),
         createTeam({
@@ -492,9 +500,7 @@ describe("HomeTab.helpers", (): void => {
 
     const result = getHomeRosterOverview(roster);
 
-    expect(result.avgCondition).toBe(61);
     expect(result.avgOvr).toBe(65);
-    expect(result.exhaustedCount).toBe(1);
     expect(result.unavailablePlayers.map((player) => player.id)).toEqual(["player-injured"]);
     expect(result.hotPlayers.map((player) => player.id)).toEqual(["player-hot"]);
     expect(result.coldPlayers.map((player) => player.id)).toEqual(["player-cold"]);

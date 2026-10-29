@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} ist erforderlich",
     "maxLength": "{{field}} darf maximal {{max}} Zeichen lang sein",
-    "minStartYear": "Das Startjahr muss {{min}} oder später sein",
-    "minAge": "Der Trainer muss mindestens {{min}} Jahre alt sein — passe das Geburtsdatum an.",
-    "invalidDate": "Ungültiges Datum",
-    "invalidDob": "Ungültiges Geburtsdatum"
+    "minStartYear": "Das Startjahr muss {{min}} oder später sein"
   },
   "worldSelect": {
     "title": "Welt Wählen",
@@ -173,6 +170,7 @@
     "digestSimulating": "Simuliere...",
     "digestMatchDay": "Spieltag",
     "digestMatchDayDesc": "Ihr Team hat heute ein Spiel.",
+    "matchModeMenu": "Spielmodus wählen",
     "digestReturnHome": "Zurück zum Dashboard",
     "digestBlocked": "Aktion erforderlich",
     "digestBlockedDesc": "Es gibt Probleme, die Ihre Aufmerksamkeit erfordern.",
@@ -396,15 +394,15 @@
     "growth": "Wachstum",
     "traits": "Eigenschaften",
     "condition": "Zustand",
-    "potWorldClass": "Weltklasse",
-    "potExcellent": "Hervorragend",
-    "potPromising": "Vielversprechend",
-    "potDecent": "Ordentlich",
-    "potLimited": "Begrenzt",
     "delegateToYouthAcademy": "An die Jugendakademie delegieren",
     "promoteToSeniorSquad": "In den Profikader befördern"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -414,6 +412,8 @@
     "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",
+    "overallRating": "Gesamtstärke {{value}}",
+    "overallRatingTier": "Gesamtstärke {{value}}, Stufe {{tier}}",
     "noResults": "Keine Ergebnisse gefunden.",
     "place": {
       "1": "1.",
@@ -699,21 +699,15 @@
     "coverageNeedsAttention": "{{count}} Rollengruppen brauchen Verstärkung",
     "coverageBadge": "XI {{starters}}/{{required}} · Bank {{bench}}",
     "bestRole": "Beste Rolle",
-    "formationFit": "Formations-Eignung",
+    "formationFit": "Vertrautheit",
     "startingXi": "Startelf",
-    "styleFit": "Stileignung",
     "starter": "Startelf",
     "benchOption": "Bank",
-    "naturalFit": "Natürliche Rolle",
-    "adaptedFit": "Angepasste Rolle",
+    "naturalFit": "Natürliche Position",
+    "adaptedFit": "Kann dort spielen",
     "needsCover": "Benötigt Ersatz",
     "makeStarter": "In die Startelf",
-    "sendToBench": "Auf die Bank",
-    "styleFitValues": {
-      "strong": "Stileignung: Stark",
-      "good": "Stileignung: Gut",
-      "risky": "Stileignung: Riskant"
-    }
+    "sendToBench": "Auf die Bank"
   },
   "tactics": {
     "formationStyle": "Formation & Stil",
@@ -776,6 +770,10 @@
     "myTactics": "Meine Taktiken",
     "newTactic": "Neue Taktik",
     "duplicateTactic": "Duplizieren",
+    "deleteTactic": "Löschen",
+    "deleteTacticTitle": "Diese Taktik löschen?",
+    "deleteTacticBody": "„{{name}}“ wird aus der Bibliothek entfernt. Das Team behält seine aktuelle Formation und seinen Spielstil.",
+    "deleteTacticConfirm": "Löschen",
     "resetTactic": "Auf Standard zurücksetzen",
     "saveAsTactic": "Als Taktik speichern",
     "updateTactic": "Taktik aktualisieren",
@@ -860,8 +858,8 @@
     "setCornerTaker": "Ecken festlegen",
     "inspector": "Inspektor",
     "inspectorEmptyTitle": "Nichts ausgewählt",
-    "naturalFit": "Natürliche Rolle",
-    "adaptedFit": "Angepasste Rolle",
+    "naturalFit": "Natürliche Position",
+    "adaptedFit": "Kann dort spielen",
     "tokenStates": {
       "ready": "Bereit",
       "adjusted": "Angepasst",
@@ -877,7 +875,7 @@
     "clearSelection": "Auswahl aufheben",
     "compareWithSelected": "Mit Auswahl vergleichen",
     "selectForSwap": "Für Tausch auswählen",
-    "assignBestFit": "Bestpassenden Platz zuweisen",
+    "assignBestFit": "Beste Position zuweisen",
     "moveToBench": "Auf die Bank setzen",
     "promoteToLineup": "In die Startelf befördern",
     "tableView": "Tabellenansicht",
@@ -892,7 +890,6 @@
     "positionSelector": "Taktik-Slot",
     "playablePositions": "Positionen",
     "slotFit": "Slot-Eignung",
-    "styleFit": "Stileignung",
     "responsibilities": "Verantwortlichkeiten",
     "noSpecialRoles": "Keine Sonderrollen",
     "moraleLevels": {
@@ -908,11 +905,6 @@
       "sharp": "Scharf",
       "managing": "Verwaltet",
       "risk": "Risiko"
-    },
-    "styleFitLevels": {
-      "strong": "Starke Übereinstimmung",
-      "good": "Gute Übereinstimmung",
-      "risky": "Riskante Passung"
     }
   },
   "training": {
@@ -1157,6 +1149,15 @@
   },
   "inbox": {
     "title": "Posteingang",
+    "archive": {
+      "heading": "Ältere Nachrichten",
+      "load": "Ältere Nachrichten laden",
+      "loadMore": "Weitere ältere Nachrichten laden",
+      "loading": "Ältere Nachrichten werden geladen…",
+      "empty": "Keine älteren Nachrichten.",
+      "end": "Keine weiteren älteren Nachrichten.",
+      "error": "Ältere Nachrichten konnten nicht geladen werden."
+    },
     "nMessages": "{{count}} Nachricht(en)",
     "noMessages": "Keine Nachrichten",
     "noMessagesInCategory": "Keine Nachrichten in dieser Kategorie",
@@ -1348,6 +1349,7 @@
     "bidImpactWagePressure": "Prognostizierte Nutzung des Lohnbudgets {{percent}}%",
     "bidImpactOverTransferBudget": "Dieses Angebot überschreitet dein Transferbudget",
     "bidImpactOverBalance": "Dieses Angebot würde den Verein in die Schulden bringen",
+    "bidImpactOverWagePolicy": "Der Vorstand würde sein Gehalt ablehnen: Es verstößt gegen die Gehaltspolitik des Vereins",
     "bidAccepted": "Angebot angenommen! Spieler verpflichtet.",
     "bidCountered": "Sie kommen mit geänderten Bedingungen zurück.",
     "bidRejected": "Angebot abgelehnt — Summe zu niedrig.",
@@ -1420,6 +1422,9 @@
     "resumeNegotiationHint": "Die Gespräche mit diesem Klub laufen noch.",
     "resumeNegotiationHeadline": "Der andere Klub wartet auf deinen nächsten Schritt.",
     "resumeNegotiationDetail": "Ihr letztes Signal deutete auf {{fee}} hin.",
+    "resumeRefusedHeadline": "Sie haben dein letztes Angebot abgelehnt.",
+    "resumeRefusedDetail": "Ein neues Angebot führt die Gespräche von hier aus fort. Ihr letztes Signal lag bei etwa {{fee}}.",
+    "talksResumeOn": "Die Gespräche können am {{date}} wieder aufgenommen werden.",
     "transferFeedbackAcceptedHeadline": "Der andere Klub ist bereit, Geschäfte zu machen.",
     "transferFeedbackAcceptedDetail": "Deine Zahl lag in ihrer Wohlfühlzone, deshalb ging das Gespräch schnell voran.",
     "transferFeedbackScheduledHeadline": "Deal für das nächste Registrierungsfenster vereinbart.",
@@ -1832,6 +1837,21 @@
     },
     "uiScale": "UI-Skalierung",
     "uiScaleDesc": "Schriftgröße und Abstand für bessere Lesbarkeit anpassen",
+    "sidebarWidth": "Breite der Seitenleiste",
+    "sidebarWidthDesc": "Wie breit die geöffnete Seitenleiste ist. „Breit“ zeigt jeden Menünamen in einer Zeile.",
+    "sidebarWidthOptions": {
+      "compact": "Kompakt",
+      "standard": "Standard",
+      "wide": "Breit"
+    },
+    "sidebarBehaviour": "Seitenleiste",
+    "sidebarBehaviourDesc": "Wie sich die Seitenleiste öffnet. Ist das Fenster zu schmal, öffnet sie sich über der Seite.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Beim Darüberfahren ausklappen",
+      "click": "Per Klick ausklappen",
+      "icons": "Nur Symbole"
+    },
     "uiScaleOptions": {
       "small": "Klein",
       "normal": "Normal",
@@ -1941,6 +1961,10 @@
     "events": "Ereignisse",
     "stats": "Statistiken",
     "lineups": "Aufstellungen",
+    "pitch": "Spielfeld",
+    "liveRating": "Note {{rating}}",
+    "liveGoals": "Tore: {{count}}",
+    "liveAssists": "Vorlagen: {{count}}",
     "simSpeed": "Simulationsgeschwindigkeit",
     "pause": "Pause",
     "slow": "Langsam",
@@ -1988,7 +2012,6 @@
     "alreadyQueued": "Bereits für einen Wechsel vorgemerkt",
     "substitutionsPartlyMade": "{{applied}} von {{total}} Wechseln durchgeführt",
     "substitutionRefused": "Wechsel abgelehnt: {{off}} für {{on}}. {{reason}}",
-    "playerRoles": "Spielerrollen",
     "roleFor": "Rolle von {{player}}",
     "roleChangeRefused": "Die Rolle von {{player}} konnte nicht geändert werden. {{reason}}",
     "noBenchAvailable": "Keine Bankspieler verfügbar",
@@ -2063,6 +2086,7 @@
     "roundSummaryUnavailable": "Spieltagsübersicht nicht verfügbar.",
     "otherMatches": "Andere Spiele",
     "otherMatchesToday": "Andere Spiele heute",
+    "elsewhereInYourLeague": "Anderswo in deiner Liga",
     "otherMatchesUnavailable": "Zusätzlicher Spielkontext ist für dieses Spiel noch nicht verfügbar.",
     "viewDetails": "Details ansehen",
     "matchDetails": "Spieldetails",
@@ -2251,7 +2275,7 @@
     "preMatchPrep": "Vorbereitung vor dem Spiel",
     "startingLineup": "Startaufstellung",
     "setPiecesCaptain": "Standards & Kapitän",
-    "formationFit": "Formationsanpassung",
+    "formationFit": "Formation",
     "selecting": "Auswahl...",
     "autoSelectXI": "Beste XI auswählen",
     "startingXI": "Start-XI",
@@ -2582,7 +2606,11 @@
     "pts": "Pkt.",
     "cupPenalties": "({{home}}–{{away}} im Elfmeterschießen)",
     "cupAdvances": "{{team}} kommt weiter",
-    "cupTiesPending": "Einige Partien stehen noch aus"
+    "cupTiesPending": "Einige Partien stehen noch aus",
+    "resume": "Fortsetzen",
+    "pausedResumesAt": "Pausiert · weiter mit {{speed}}",
+    "playingAt": "Läuft mit {{speed}}",
+    "spaceKey": "Leertaste"
   },
   "endOfSeason": {
     "seasonComplete": "Saison beendet",
@@ -2623,12 +2651,19 @@
     "compare": "Vergleichen"
   },
   "be": {
+    "condition": {
+      "fresh": "Frisch",
+      "tiring": "Ermüdet",
+      "exhausted": "Erschöpft",
+      "critical": "Kritisch"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Dieser Spieler kann nicht gehen: Der Kader würde unter das Minimum fallen, das ein Verein halten muss. Betroffener Mannschaftsteil: {{group}}.",
         "wouldLeaveSeniorsShort": "Dieser Spieler kann nicht gehen: Der Verein hätte dann weniger als {{floor}} Spieler im Profikader, das Minimum, das ein Verein halten muss."
       },
       "noActiveGameSession": "Keine aktive Spielsitzung",
+      "careerChanged": "Die Karriere hat gewechselt, bevor dies gespeichert werden konnte.",
       "noActiveSaveSession": "Keine aktive Speicherstandsitzung",
       "saveNotFound": "Speicherstand '{{saveId}}' wurde nicht gefunden.",
       "teamNotFound": "Team nicht gefunden",
@@ -2684,7 +2719,8 @@
         "worldExportNotPackage": "Dieser Ordner ist eine exportierte Weltspeicherung, kein Paketprojekt. Exportierte Welten verwenden ein anderes Format und können hier nicht bearbeitet werden.",
         "notAProjectDirectory": "Dies ist kein Paketprojekt-Ordner. Wähle den Ordner, der die package.json des Pakets enthält — oder nutze für ein installiertes .ofm-Paket „.ofm-Datei öffnen“.",
         "unknownSchema": "Unbekanntes Schema \"{{schema}}\".",
-        "invalidEntity": "Ein \"{{schema}}\"-Eintrag ist ungültig.",
+        "invalidEntity": "Ein \"{{schema}}\"-Eintrag ist ungültig: {{detail}}",
+        "duplicateWorld": "Das Paket hat bereits ein Manifest in „{{first}}“; ein Paket kann nur eine „world“-Datei haben.",
         "missingId": "Einem {{kind}}-Eintrag fehlt die id.",
         "missingMetadata": "Im Paketmanifest fehlt das erforderliche Feld „{{field}}“.",
         "duplicateId": "Doppelte {{kind}}-id \"{{id}}\".",
@@ -3549,6 +3585,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Vorbereitungsturnier-Bericht",
           "body": "Im Vorbereitungsturnier endete die Partie mit {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Beide Teams nutzten das Spiel, um vor dem Pflichtspielbetrieb Rhythmus aufzubauen.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Spielbericht ({{competition}})",
+          "body": "{{competition}}: Die Partie endete {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3688,7 +3728,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Dieses Paket definiert das Land „{{name}}“ ({{code}}) außerhalb der Länderliste des Spiels und ordnet es keinem Verband zu, daher werden seine Vereine unter Europa geführt. Weise ihm einen Verband zu.",
-        "freeAgentFieldIgnored": "Der Spieler „{{id}}“ hat keinen Verein und ist daher ein Free Agent ohne Vertrag: „{{field}}“ wird ignoriert. Gib ihm einen Verein, um das Feld zu nutzen, oder entferne es."
+        "freeAgentFieldIgnored": "Der Spieler „{{id}}“ hat keinen Verein und ist daher ein Free Agent ohne Vertrag: „{{field}}“ wird ignoriert. Gib ihm einen Verein, um das Feld zu nutzen, oder entferne es.",
+        "repeatedNamePool": "Der Namenspool für {{country}} wurde bereits in {{first}} angegeben; der Pool dieser Datei ersetzt ihn. Behalte nur einen oder ordne sie verschiedenen Ländern zu."
       }
     }
   },
@@ -4288,6 +4329,7 @@
     "saveAndOpenInstead": "Stattdessen Datei speichern und GitHub nutzen",
     "nothingSentYetUpload": "Nichts verlässt diesen Rechner, bevor du auf Senden drückst. Lieber GitHub? Speichere die Datei und hänge sie selbst an das Formular an — dafür brauchst du ein GitHub-Konto.",
     "uploadFailedFallback": "Du kannst ihn trotzdem über GitHub senden: Speichere die Datei und hänge sie an das Formular an.",
+    "technicalDetails": "Technische Details",
     "tooLargeUntickSave": "Wenn du den Haken beim Spielstand entfernst, wird der Bericht viel kleiner.",
     "sentTitle": "Bericht gesendet",
     "sentIntro": "Danke. Dein Bericht ist beim OpenFoot-Manager-Team angekommen und wird aufbewahrt, bis er bearbeitet wurde.",

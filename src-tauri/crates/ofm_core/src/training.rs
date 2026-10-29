@@ -1,6 +1,9 @@
 mod fitness_warnings;
 mod focus_attributes;
-pub use fitness_warnings::check_squad_fitness_warnings;
+pub use fitness_warnings::{
+    ConditionStatus, FitnessStatus, SquadFitness, check_squad_fitness_warnings, condition_status,
+    fitness_status, squad_fitness,
+};
 
 use crate::game::Game;
 use crate::player_rating::refresh_player_derived;
@@ -92,6 +95,8 @@ fn compute_coaching_bonus(game: &Game, team_id: &str, focus: &TrainingFocus) -> 
 struct TrainingDay {
     weekday_num: u32,
     date: chrono::NaiveDate,
+    /// The game's seed, which a player's development traits are drawn from.
+    world_seed: u64,
 }
 
 /// Below this individual condition a player is automatically rested in training
@@ -150,14 +155,14 @@ fn downgrade_intensity(intensity: &TrainingIntensity) -> TrainingIntensity {
 /// just played ninety minutes as free to train, and they would recover on the
 /// very day they were emptied.
 ///
-/// Only competitions in the active scope count. A dormant competition is
-/// resolved by a scoreline-only model that charges nobody any condition, so its
-/// clubs have not had a match in any physical sense — closing the training
-/// ground on them would cost them the day's recovery for nothing.
+/// Every competition counts, whether or not the player follows it: one calendar rule for every club
+/// (#869), ahead of the dormant tier's removal (every match will be played for real). Today a dormant
+/// match is still settled by scoreline and costs no condition, so closing the ground for it is
+/// the rule, not a recovery model. The taper before a match ([`tapering_teams`]) reads every
+/// competition the same way.
 pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::HashSet<String> {
     game.competitions_in_play()
         .iter()
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.date == date)
         .flat_map(|fixture| [fixture.home_team_id.clone(), fixture.away_team_id.clone()])
@@ -171,8 +176,8 @@ pub(crate) fn teams_playing_on(game: &Game, date: &str) -> std::collections::Has
 /// fixture list rather than a per-club scan — this runs for every club, every
 /// day, and a populated world holds tens of thousands of fixtures.
 ///
-/// Only competitions in the active scope count, as in [`teams_playing_on`]: a
-/// dormant match charges nobody any condition, so it is nothing to taper for.
+/// Every competition counts, as in [`teams_playing_on`]: one calendar rule for every club, whether or
+/// not its fixtures are played out by the engine today.
 fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     use chrono::NaiveDate;
     use domain::league::FixtureStatus;
@@ -187,7 +192,6 @@ fn tapering_teams(game: &Game) -> std::collections::HashMap<String, Taper> {
     for fixture in game
         .competitions_in_play()
         .iter()
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         .filter(|fixture| fixture.status == FixtureStatus::Scheduled)
     {
@@ -282,6 +286,7 @@ pub fn process_training(game: &mut Game, weekday_num: u32) {
     let day = TrainingDay {
         weekday_num,
         date: current_date,
+        world_seed: game.seed,
     };
     // One stream for the day's session: players are visited in the order of `game.players`,
     // which is stable, and `process_training` runs once a day.
@@ -427,18 +432,13 @@ fn train_player(
         return;
     }
 
-    // Age factor for attribute gains: younger players grow faster, older players slower
-    let age_factor = if age <= 21 {
-        1.5
-    } else if age <= 25 {
-        1.2
-    } else if age <= 29 {
-        1.0
-    } else if age <= 33 {
-        0.6
-    } else {
-        0.3
-    };
+    // Younger players grow faster and older ones slower, smoothly: by where the player is on his own
+    // development curve (late bloomers and goalkeepers read later) and how far he is from his
+    // ceiling. There is no step by age and no gate at the ceiling.
+    let traits = crate::development::traits_of(day.world_seed, &player.id);
+    let curve = crate::development::curve_age(player, age as i32, &traits);
+    let gap = player.potential.saturating_sub(player.ovr);
+    let age_factor = crate::development::training_factor(curve, gap);
 
     // Base gain per attribute per session, boosted by coaching staff
     let gain = 0.15
@@ -447,20 +447,14 @@ fn train_player(
         * plan.bonus.coaching_mult
         * plan.bonus.specialization_mult;
 
-    // Peaked players (ovr == potential) get no attribute gains. Without this
-    // gate, attribute drift lifts ovr, and `refresh_player_derived`'s
-    // `potential = max(potential, ovr)` invariant silently raises the career
-    // ceiling in lockstep — the ceiling stops being a ceiling.
-    if player.potential > player.ovr {
-        let is_goalkeeper = player.natural_position.to_group_position() == Position::Goalkeeper;
-        apply_focus_gains(
-            &mut player.attributes,
-            &session.focus,
-            is_goalkeeper,
-            gain,
-            rng,
-        );
-    }
+    let is_goalkeeper = player.natural_position.to_group_position() == Position::Goalkeeper;
+    apply_focus_gains(
+        &mut player.attributes,
+        &session.focus,
+        is_goalkeeper,
+        gain,
+        rng,
+    );
     apply_fitness_change(
         &mut player.fitness,
         &session.focus,
@@ -631,20 +625,21 @@ mod tests {
         }
     }
 
-    /// One sixth succeeds at the primary 0.225 rate and fails at the secondary 0.1125 rate.
+    /// One thirty-second succeeds at the primary rate (about 0.05 for a young player far from his
+    /// ceiling, after training's share of development) and fails at the secondary (about 0.025).
     struct BetweenGainRates;
 
     impl rand::TryRng for BetweenGainRates {
         type Error = std::convert::Infallible;
         fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            Ok(u32::MAX / 6)
+            Ok(u32::MAX / 32)
         }
         fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(u64::MAX / 6)
+            Ok(u64::MAX / 32)
         }
         fn try_fill_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Self::Error> {
             for chunk in bytes.chunks_mut(8) {
-                chunk.copy_from_slice(&(u64::MAX / 6).to_le_bytes()[..chunk.len()]);
+                chunk.copy_from_slice(&(u64::MAX / 32).to_le_bytes()[..chunk.len()]);
             }
             Ok(())
         }
@@ -688,6 +683,7 @@ mod tests {
             &TrainingDay {
                 weekday_num,
                 date: domain::age::season_midpoint(2026),
+                world_seed: 1,
             },
             &mut LowestRoll,
         );
@@ -764,6 +760,7 @@ mod tests {
             &TrainingDay {
                 weekday_num: 0,
                 date: domain::age::season_midpoint(2026),
+                world_seed: 1,
             },
             &mut BetweenGainRates,
         );
@@ -915,6 +912,7 @@ mod tests {
                 &TrainingDay {
                     weekday_num: 2,
                     date: chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap(),
+                    world_seed: 1,
                 },
                 &mut LowestRoll,
             );

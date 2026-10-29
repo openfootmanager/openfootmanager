@@ -113,6 +113,9 @@ pub fn build_game_from_world_data(
     } = world;
 
     let mut game = Game::new(clock, manager, teams, players, staff, vec![]);
+    // A career begun by this build owns no browser library of tactics; unmarked, it would copy in
+    // the library of another career begun the same year (same manager id and start date).
+    game.legacy_tactics_imported = true;
     // Stored on the game, which is the one place the day's dice come from.
     game.seed = seed;
     // In place before `generate_past_world_history` below, which seeds a roster-baseline world's
@@ -120,6 +123,11 @@ pub fn build_game_from_world_data(
     // in bootstrap, from this same field.
     game.retired_managers = retired_managers;
     game.retired_players = retired_players;
+    // A world exported before retirees had an archive still carries them among its players. Every
+    // route from a world to a game goes through here, so this is where they leave the roster:
+    // after the world's own archive is in (one it already holds is not archived twice), and before
+    // the squad floor, the national squads or the awards can take them for live players.
+    crate::retirees::archive_legacy_retirees(&mut game);
     if game
         .staff
         .iter()
@@ -223,6 +231,86 @@ mod tests {
         assert!(game.teams.iter().all(|team| team.history.len() == 2));
     }
 
+    /// Given a saved world that already carries its past seasons (a historical snapshot),
+    /// When a game is built from it with a history depth (the default a new career asks for),
+    /// Then every club keeps exactly the history it was stored with: only a new world is given a
+    ///      generated past, and an old save is never rewritten.
+    #[test]
+    fn a_world_that_already_has_a_past_keeps_it() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        world.metadata.kind = crate::generator::WorldDataKind::HistoricalSnapshot;
+        for (index, team) in world.teams.iter_mut().enumerate() {
+            team.history = vec![domain::team::TeamSeasonRecord {
+                season: 2031,
+                league_position: (index % 7 + 1) as u32,
+                played: 38,
+                won: 10 + index as u32 % 5,
+                drawn: 8,
+                lost: 20 - index as u32 % 5,
+                goals_for: 40 + index as u32,
+                goals_against: 50,
+            }];
+        }
+        let stored: Vec<String> = world
+            .teams
+            .iter()
+            .map(|team| format!("{:?}", team.history))
+            .collect();
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 12,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        let kept: Vec<String> = game
+            .teams
+            .iter()
+            .map(|team| format!("{:?}", team.history))
+            .collect();
+        assert_eq!(kept, stored);
+    }
+
+    /// Given any world, generated or imported
+    /// When a career is built from it
+    /// Then the career is marked as having imported the browser tactics already: a career begun by
+    ///      this build cannot own a browser library, and an unmarked one would copy in the library
+    ///      of another career begun the same year (same manager id and start date).
+    #[test]
+    fn a_career_built_from_a_world_never_imports_browser_tactics() {
+        let sources = DefinitionSources::embedded_only();
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 0,
+        };
+        for imported in [false, true] {
+            let world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+            let (game, _) = if imported {
+                build_game_from_imported_world(
+                    clock.clone(),
+                    manager(),
+                    history,
+                    world,
+                    ReputationBasis::Stored,
+                )
+            } else {
+                build_game_from_world_data(
+                    clock.clone(),
+                    manager(),
+                    history,
+                    world,
+                    ReputationBasis::Stored,
+                )
+            };
+
+            assert!(game.legacy_tactics_imported, "imported world: {imported}");
+        }
+    }
+
     /// Given a world that carries archived managers and retired players
     /// When a game is built from it
     /// Then the game holds both archives, so an imported career remembers a club's past managers.
@@ -255,6 +343,72 @@ mod tests {
         assert_eq!(game.retired_managers[0].id, "retired-boss");
         assert_eq!(game.retired_players.len(), 1);
         assert_eq!(game.retired_players[0].id, "retired-veteran");
+    }
+
+    /// Given a world exported before retirees had an archive, with a player flagged as retired
+    ///       still in its players,
+    /// When a game is built from it,
+    /// Then the retiree is in the archive and on no roster: no squad, free-agent pool or
+    ///      national selection sees him as live.
+    #[test]
+    fn a_retiree_in_an_older_exported_world_is_archived_as_the_game_is_built() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        let retiree_id = world.players[0].id.clone();
+        world.players[0].retired = true;
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 2,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        assert!(game.players.iter().all(|player| !player.retired));
+        assert!(game.players.iter().all(|player| player.id != retiree_id));
+        assert!(
+            game.retired_players
+                .iter()
+                .any(|record| record.id == retiree_id),
+            "the retiree is in no archive"
+        );
+    }
+
+    /// Given a world whose archive already holds a player who is also still flagged retired among
+    ///       its players,
+    /// When a game is built from it,
+    /// Then he is on no roster and in the archive exactly once, with the record the world brought.
+    #[test]
+    fn a_retiree_the_world_already_archived_is_not_archived_twice() {
+        let sources = DefinitionSources::embedded_only();
+        let mut world = generate_world_data_seeded_with(5, &WorldGenConfig::compact(), &sources);
+        let retiree_id = world.players[0].id.clone();
+        world.players[0].retired = true;
+        world
+            .retired_players
+            .push(domain::retired_player::RetiredPlayer::from_player(
+                &world.players[0],
+                "2030-06-30",
+                2030,
+            ));
+        let clock = GameClock::new(start_date_for_year(2033).unwrap());
+        let history = PastHistory {
+            start_year: 2033,
+            depth_years: 0,
+        };
+
+        let (game, _) =
+            build_game_from_world_data(clock, manager(), history, world, ReputationBasis::Stored);
+
+        assert!(game.players.iter().all(|player| player.id != retiree_id));
+        let records: Vec<_> = game
+            .retired_players
+            .iter()
+            .filter(|record| record.id == retiree_id)
+            .collect();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].retired_on, "2030-06-30");
     }
 
     /// Given an imported world whose author gave no staff and whose clubs have no cash,

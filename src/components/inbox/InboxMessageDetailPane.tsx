@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass, ratingTierLetterKey } from "../../lib/ratingTier";
 import { ArrowLeft, CheckCircle2, MailOpen, MessageCircle, Trash2 } from "lucide-react";
 import type { TFunction } from "i18next";
 import type { JSX } from "react";
@@ -7,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { calcAge, formatDateFull, formatVal, formatWeeklyWage } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { positionBadgeVariant } from "../../lib/playerRating";
+import { naturalPositionOf } from "../../lib/positions";
 import type { MessageData } from "../../store/gameStore";
 import ScoutPlayerCard from "../ScoutPlayerCard";
 import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
@@ -52,6 +55,7 @@ export default function InboxMessageDetailPane({
   onRequestDelete,
   onScoutPlayerClick,
 }: InboxMessageDetailPaneProps): JSX.Element {
+  const tierOf = useRatingTiers();
   const { t } = useTranslation();
   const [pendingSwitch, setPendingSwitch] = useState<PendingSwitch | null>(null);
 
@@ -232,9 +236,11 @@ export default function InboxMessageDetailPane({
                     const options = chooseOptionActionType
                       ? chooseOptionActionType.ChooseOption.options
                       : [];
+                    const prospectPosition = naturalPositionOf(prospect);
                     const signedToAcademy = prospect.team_id === currentTeamId;
                     const potential = prospect.potential ?? 0;
-                    const potentialLabel = getProspectPotentialLabel(potential, t);
+                    const potentialTier = tierOf(potential);
+                    const potentialLetterKey = ratingTierLetterKey(potentialTier);
                     const growthRoom = Math.max(0, potential - (prospect.ovr ?? 0));
 
                     return (
@@ -246,8 +252,8 @@ export default function InboxMessageDetailPane({
                                 <p className="font-heading font-bold text-base text-gray-900 dark:text-gray-100">
                                   {prospect.full_name}
                                 </p>
-                                <Badge variant={positionBadgeVariant(prospect.position)} size="sm">
-                                  {translatePositionAbbreviation(t, prospect.position)}
+                                <Badge variant={positionBadgeVariant(prospectPosition)} size="sm">
+                                  {translatePositionAbbreviation(t, prospectPosition)}
                                 </Badge>
                                 {signedToAcademy ? (
                                   <Badge variant="success" size="sm">
@@ -256,7 +262,7 @@ export default function InboxMessageDetailPane({
                                 ) : null}
                               </div>
                               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
-                                <span>{t(`common.positions.${prospect.position}`)}</span>
+                                <span>{t(`common.positions.${prospectPosition}`)}</span>
                                 <span>
                                   {t("common.age")} {calcAge(prospect.date_of_birth)}
                                 </span>
@@ -301,11 +307,13 @@ export default function InboxMessageDetailPane({
                                   +{growthRoom}
                                 </span>
                               </div>
-                              <p
-                                className={`mt-1 text-[10px] font-heading uppercase tracking-wider ${potentialLabel.color}`}
-                              >
-                                {potentialLabel.label}
-                              </p>
+                              {potentialLetterKey && (
+                                <p
+                                  className={`mt-1 text-caption font-heading uppercase tracking-wider ${ratingTierClass(potentialTier, "text")}`}
+                                >
+                                  {t(potentialLetterKey)}
+                                </p>
+                              )}
                             </div>
 
                             <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-navy-600 dark:bg-navy-700/40">
@@ -498,24 +506,4 @@ function translateYouthSearchObjective(t: TFunction, value: string): string {
   }
 
   return t("scouting.objectiveBalanced");
-}
-
-function getProspectPotentialLabel(
-  potential: number,
-  t: TFunction,
-): { label: string; color: string } {
-  if (potential >= 85) {
-    return { label: t("youthAcademy.potWorldClass"), color: "text-accent-400" };
-  }
-  if (potential >= 75) {
-    return { label: t("youthAcademy.potExcellent"), color: "text-green-400" };
-  }
-  if (potential >= 65) {
-    return { label: t("youthAcademy.potPromising"), color: "text-primary-400" };
-  }
-  if (potential >= 55) {
-    return { label: t("youthAcademy.potDecent"), color: "text-gray-400" };
-  }
-
-  return { label: t("youthAcademy.potLimited"), color: "text-gray-500" };
 }

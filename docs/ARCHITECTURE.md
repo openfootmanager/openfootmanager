@@ -184,6 +184,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 |---------|-----------|---------|-------------|
 | `list_world_databases` | — | `Vec<WorldDatabaseInfo>` | Scan for available world databases |
 | `start_new_game` | first_name, last_name, dob, nationality, world_source? | — | Create game, generate or load world |
+| `validate_manager_dob` | dob, start_year, start_phase | `Option<String>` | The translation key of what is wrong with a manager's date of birth on the day a generated-world career opens (1 June in a World Cup summer, else 1 July, plus 120 days mid-season), or null. The one age rule `start_new_game` applies; the create-manager form shows the answer. A historical package can set its own opening date, so `start_new_game` still has the last word |
 | `choose_team` | team_id | `Game` | Assign manager to a team |
 | `get_active_game` | — | `GameStateData` | Get current game state |
 | `get_career_stage` | — | `awaitingClub` \| `unemployed` \| `employed` | Decided in Rust (`career_stage`): a manager with no club who has never held one is awaiting a club, so the menu and dashboard send them to team selection; a sacked manager stays on the dashboard |
@@ -210,17 +211,21 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 |---------|-----------|---------|-------------|
 | `get_club_league_standing` | team_id | The club's league table, position and standing, or null | Any club, not only the manager's; in a split season the half the year is on; cups have no table |
 | `get_scouted_report` | player_id | The scout's dated attribute snapshot with `out_of_date`, or null | Out of date means scouted before the current season started; decided in Rust |
+| `get_player_knowledge` | player_ids | Per player: `own`, `known` (a club in the manager's division), `scouted` (with `scouted_on` and `current`) or `unknown` (a player the club has not scouted); an id that matches no player is omitted from the answer | The one rule for what the manager's club knows about a player (`ofm_core::player_knowledge`); screens hide what it does not know. The serialized `Game` still carries every value |
 | `get_squad` | team_id | Player rows with `match_day_eligible` | Complete club roster with computed match-day eligibility; youth call-ups retain their academy role |
 | `set_formation` | formation | `Game` | Change team formation |
 | `set_play_style` | play_style | `Game` | Change play style |
 | `apply_tactic_preset` | formation, play_style | `Game` | Pick a tactic preset: formation + play style, and reset the phase blueprint to that style's default |
 | `list_custom_tactics` | - | `CustomTactic[]` | The tactics the player saved (career-scoped, in the save) |
-| `save_custom_tactic` | tactic | `CustomTactic[]` | Add a saved tactic, or replace the one with the same id; returns the library |
-| `delete_custom_tactic` | id | `CustomTactic[]` | Remove a saved tactic; returns what is left |
+| `save_custom_tactic` | tactic, careerToken | `CustomTactic[]` | Add a saved tactic, or replace the one with the same id; returns the library |
+| `delete_custom_tactic` | id, careerToken | `CustomTactic[]` | Remove a saved tactic; returns what is left. All three writes are refused with `be.error.careerChanged` when `careerToken` (`Game.career_token`, stamped by `install_career`) is not the active career's |
+| `legacy_tactics_import_pending` | - | `bool` | Whether the old browser library still has to be copied into this career |
+| `mark_legacy_tactics_imported` | careerToken | - | Record that it has been copied in; it never is again |
 | `get_tactics_blueprint_status` | — | `{ modified }` | Whether the user's phase dials differ from the blueprint their play style implies (`blueprint_for`); feeds the Tactics unsaved-changes badge |
 | `set_training` | focus, intensity | `Game` | Set training focus and intensity |
 | `set_training_schedule` | schedule | `Game` | Set weekly training schedule |
 | `get_training_focus_attributes` | - | `TrainingFocusAttributes[]` | Which attributes each training focus trains, for outfield players and for goalkeepers; the same table the daily gains use |
+| `get_rating_tiers` | - | `PlayerTier[]` (100 entries) | The tier (`S` 81+, `A` 77-80, `B` 70-76, `Rest`) of every rating from 0 to 99, from `ofm_core::player_tier`, the one rule. Needs no game, so the package editor reads it too; the frontend colours a rating by looking it up (`useRatingTiers`) |
 | `hire_staff` | staff_id | `Game` | Hire an unattached staff member |
 | `release_staff` | staff_id | `Game` | Release a staff member |
 
@@ -349,7 +354,7 @@ The UI follows a **"Matchday" broadcast-quality** design language:
 
 - **Colors**: Emerald green primary (#10b981), gold accent (#ffd60a), dark navy backgrounds
 - **Typography**: Barlow Condensed (headings, uppercase tracking) + Inter (body)
-- **Fonts**: Bundled locally via `@fontsource` packages (no CDN)
+- **Fonts**: Bundled locally via `@fontsource` packages (no CDN). Inter covers Latin, Latin-ext and Cyrillic; Barlow Condensed has no Cyrillic, so headings fall back to Fira Sans Extra Condensed for Russian, which `src/i18n/fontCoverage.test.ts` pins. Chinese is not bundled: it falls through to the system CJK face.
 - **Dark/Light**: Full theme support with system detection
 
 ---

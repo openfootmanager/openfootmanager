@@ -6,6 +6,7 @@ import i18n from "../../i18n";
 import type { GameStateData, MessageAction, MessageData } from "../../store/gameStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import InboxTab from "./InboxTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 const mockTranslationState = vi.hoisted(() => ({
   language: "en",
@@ -30,6 +31,7 @@ const mockTranslationState = vi.hoisted(() => ({
       "scouting.youthAnyPosition": "Any position",
       "scouting.regionDomestic": "Domestic",
       "scouting.objectiveBalanced": "Balanced",
+      "common.positions.LeftBack": "Left Back",
       "common.positions.Defender": "Defender",
       "common.positions.Forward": "Forward",
       "common.positions.Midfielder": "Midfielder",
@@ -43,13 +45,20 @@ const mockTranslationState = vi.hoisted(() => ({
       "youthAcademy.growth": "Growth",
       "youthAcademy.ovr": "OVR",
       "youthAcademy.potential": "Potential",
-      "youthAcademy.potPromising": "Promising",
+      "common.ratingTier.S": "S",
+      "common.ratingTier.A": "A",
+      "common.ratingTier.B": "B",
     },
     "pt-BR": {
       "inbox.effectOutcomeLabel": "Desfecho",
     },
   } as Record<string, Record<string, string>>,
 }));
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -194,6 +203,7 @@ function createMessage(overrides: Partial<MessageData> = {}): MessageData {
 
 function createGameState(messages: MessageData[]): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2025-01-01",
       start_date: "2025-01-01",
@@ -1303,6 +1313,78 @@ describe("InboxTab", (): void => {
 
     expect(screen.getByText("Youth target")).toBeInTheDocument();
     expect(screen.getByText("Defender")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a youth prospect whose position is the coarse Defender group but who is a left back
+   * When the youth recruitment report is read
+   * Then the card names the left back beside the badge, not the group.
+   */
+  it("shows a youth prospect's natural position, not the coarse group", async (): Promise<void> => {
+    await renderInboxTab({
+      gameState: createGameState([
+        createMessage({
+          id: "youth-natural",
+          category: "ScoutReport",
+          read: true,
+          subject: "Youth prospect found",
+          body: "Scout report body",
+          context: {
+            team_id: "t1",
+            player_id: null,
+            fixture_id: null,
+            youth_target_position: "Defender",
+            youth_prospects: [
+              createProspect({
+                id: "prospect-lb",
+                full_name: "Lucas Flank",
+                team_id: null,
+                position: "Defender",
+                natural_position: "LeftBack",
+              }),
+            ],
+            match_result: null,
+          },
+        }),
+      ]),
+      initialMessageId: "youth-natural",
+    });
+
+    expect(screen.getByText("Lucas Flank")).toBeInTheDocument();
+    expect(screen.getByText("Left Back")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a youth recruitment report with prospects whose ceilings are 77 (A), 76 (B) and 60 (the rest)
+   * When the report is read
+   * Then each ceiling is captioned with its backend tier's letter, and the rest has no caption.
+   */
+  it("captions a youth prospect's ceiling with its backend tier", async (): Promise<void> => {
+    const prospect = (id: string, potential: number) =>
+      createProspect({ id, full_name: `Prospect ${potential}`, team_id: null, potential });
+    await renderInboxTab({
+      gameState: createGameState([
+        createMessage({
+          id: "youth-tiers",
+          category: "ScoutReport",
+          read: true,
+          subject: "Youth prospects found",
+          body: "Scout report body",
+          context: {
+            team_id: "t1",
+            player_id: null,
+            fixture_id: null,
+            youth_prospects: [prospect("p-a", 77), prospect("p-b", 76), prospect("p-r", 60)],
+            match_result: null,
+          },
+        }),
+      ]),
+      initialMessageId: "youth-tiers",
+    });
+
+    expect(screen.getByText("A", { selector: "p" })).toBeInTheDocument();
+    expect(screen.getByText("B", { selector: "p" })).toBeInTheDocument();
+    expect(screen.queryByText("S", { selector: "p" })).not.toBeInTheDocument();
   });
 
   it("renders without crashing when gameState is null", async (): Promise<void> => {

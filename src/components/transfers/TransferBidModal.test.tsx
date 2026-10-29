@@ -6,6 +6,9 @@ import type { TransferBidProjectionData } from "../../services/transfersService"
 import { formatExactMoney } from "../../lib/helpers";
 import TransferBidModal from "./TransferBidModal";
 
+// The language the mocked translation reports; a test sets it to read a date in another one.
+const testLanguage = vi.hoisted(() => ({ current: "en" }));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {
@@ -35,6 +38,12 @@ vi.mock("react-i18next", () => ({
       if (key === "transfers.bidImpactOverTransferBudget") {
         return "This bid exceeds your transfer budget";
       }
+      if (key === "transfers.talksResumeOn") {
+        return `Talks can resume on ${params?.date}`;
+      }
+      if (key === "transfers.bidImpactOverWagePolicy") {
+        return "The board would refuse his wage";
+      }
       if (key === "transfers.bidImpactOverBalance") {
         return "This bid would push the club into debt";
       }
@@ -56,6 +65,7 @@ vi.mock("react-i18next", () => ({
       }
       return key;
     },
+    i18n: { language: testLanguage.current },
   }),
 }));
 
@@ -196,6 +206,7 @@ function createProjection(
     projected_wage_budget_usage_pct: 4,
     exceeds_transfer_budget: false,
     exceeds_finance: false,
+    blocked_by_wage_policy: false,
     ...overrides,
   };
 }
@@ -275,6 +286,108 @@ describe("TransferBidModal", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(`Weekly wage budget ${formatExactMoney(5000)}`)).toBeInTheDocument();
     expect(screen.getByText(`Incoming wage ${formatExactMoney(1000)}`)).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend says the board would refuse the player's wage
+   * When the bid panel shows the projection
+   * Then the warning is there before anything is sent, and not when the wage is fine.
+   */
+  it("warns before sending when the board would refuse the wage", () => {
+    const props = {
+      bidTarget: createPlayer(),
+      teams: [createTeam(), createTeam({ id: "team-2", name: "Seller FC" })],
+      bidAmount: "1.5",
+      onBidAmountChange: vi.fn(),
+      myTeam: createTeam(),
+      bidFee: 1500000,
+      bidFeedback: null,
+      activeBidOffer: null,
+      hasExistingOffer: false,
+      bidResult: null,
+      bidLoading: false,
+      bidSubmitDisabled: false,
+      onSubmit: vi.fn(),
+      onClose: vi.fn(),
+    };
+    const { rerender } = render(<TransferBidModal {...props} bidProjection={createProjection()} />);
+    expect(screen.queryByText("The board would refuse his wage")).not.toBeInTheDocument();
+
+    rerender(
+      <TransferBidModal
+        {...props}
+        bidProjection={createProjection({ blocked_by_wage_policy: true })}
+      />,
+    );
+
+    expect(screen.getByText("The board would refuse his wage")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend says talks are broken off until 28 August
+   * When the bid panel shows
+   * Then it says when talks can resume and offers no amount to bid and no submit.
+   */
+  /**
+   * Given the player reads the game in German
+   * When the bid panel names the day talks can resume
+   * Then the date is in German ("Freitag, 28. August 2026"), not the English default.
+   */
+  it("writes the day talks can resume in the player's language", () => {
+    testLanguage.current = "de";
+    try {
+      render(
+        <TransferBidModal
+          bidTarget={createPlayer()}
+          teams={[createTeam(), createTeam({ id: "team-2", name: "Seller FC" })]}
+          bidAmount="1.5"
+          onBidAmountChange={vi.fn()}
+          myTeam={createTeam()}
+          bidFee={1500000}
+          bidProjection={createProjection()}
+          bidFeedback={null}
+          activeBidOffer={null}
+          hasExistingOffer={false}
+          talksResumeOn="2026-08-28"
+          bidResult={null}
+          bidLoading={false}
+          bidSubmitDisabled={true}
+          onSubmit={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByRole("status")).toHaveTextContent("Freitag, 28. August 2026");
+    } finally {
+      testLanguage.current = "en";
+    }
+  });
+
+  it("replaces the form with the day talks can resume when they are broken off", () => {
+    render(
+      <TransferBidModal
+        bidTarget={createPlayer()}
+        teams={[createTeam(), createTeam({ id: "team-2", name: "Seller FC" })]}
+        bidAmount="1.5"
+        onBidAmountChange={vi.fn()}
+        myTeam={createTeam()}
+        bidFee={1500000}
+        bidProjection={createProjection()}
+        bidFeedback={null}
+        activeBidOffer={null}
+        hasExistingOffer={false}
+        talksResumeOn="2026-08-28"
+        bidResult={null}
+        bidLoading={false}
+        bidSubmitDisabled={true}
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(/Talks can resume on .*2026/);
+    expect(screen.queryByLabelText(/bid amount/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /submit/i })).not.toBeInTheDocument();
   });
 
   it("wires input, submit, and close interactions through props", () => {

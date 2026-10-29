@@ -66,12 +66,12 @@ describe("PitchToken condition bar", () => {
    * When the token renders
    * Then hovering (tooltip) and screen readers (description) get both signals in words
    */
-  it("spells out condition and fit in words", () => {
+  it("spells out condition and position familiarity in words", () => {
     renderToken(74, "adapted");
 
-    expect(screen.getByText("Condition 74% · Adapted fit")).toHaveClass("sr-only");
+    expect(screen.getByText("Condition 74% · Can play there")).toHaveClass("sr-only");
     fireEvent.mouseEnter(screen.getByText("Rossi"));
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Condition 74% · Adapted fit");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Condition 74% · Can play there");
   });
 
   /**
@@ -96,7 +96,7 @@ describe("PitchToken condition bar", () => {
       <PitchToken name="A" positionAbbr="GK" ovr={70} condition={90} fitTone="out" hidePortrait />,
     );
 
-    expect(container.innerHTML).toContain("ring-red-400");
+    expect(container.innerHTML).toContain("ring-danger-solid");
   });
 });
 

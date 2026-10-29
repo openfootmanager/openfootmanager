@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { GameStateData } from "../../store/gameStore";
 import { createDashboardTabContentModel } from "./dashboardTabContentModel";
+import { createSeasonContext } from "../../test-utils/factories";
 
 function createGameState(): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-07-10T12:00:00Z",
       start_date: "2026-07-01T12:00:00Z",

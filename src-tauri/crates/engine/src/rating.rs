@@ -1,4 +1,4 @@
-//! Marks out of ten for a finished match.
+//! Marks out of ten for a match, finished or as it stands.
 
 use std::collections::HashMap;
 

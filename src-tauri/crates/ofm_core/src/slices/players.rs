@@ -1,3 +1,4 @@
+use super::search_text::{contains_folded, fold_needle};
 use crate::game::Game;
 use crate::transfers::{
     can_afford_fee, has_pending_transfer_registration, player_has_active_or_pending_loan,
@@ -8,7 +9,7 @@ use domain::player::{Player, Position};
 use domain::team::Team;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -43,8 +44,8 @@ pub enum PlayerScope {
     /// Players the user's club could still approach: not retired, not on loan, not already agreed
     /// to move, and not in the user's own club.
     Market,
-    /// Players a scout can still be sent to watch: not in the user's own club and not already
-    /// being scouted.
+    /// Players a scout can be sent to watch: not retired and not in the user's own club. One
+    /// already being scouted stays listed, so the screen can say so; `send_scout` refuses a second.
     Scoutable,
     /// The user's own players put up for transfer or loan and still free to move.
     UserListed,
@@ -180,13 +181,13 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .map(str::to_ascii_lowercase);
+        .map(fold_needle);
 
     let context = ListContext::new(game);
     let candidates: Vec<&Player> = game
         .players
         .iter()
-        .filter(|player| matches_all_but_status(player, query, needle.as_deref(), &context))
+        .filter(|player| matches_all_but_status(player, query, needle.as_deref(), &context, &teams))
         .collect();
     let status_counts = StatusCounts::of(&candidates);
     let mut matches: Vec<&Player> = candidates
@@ -220,7 +221,6 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
 struct ListContext<'a> {
     today: NaiveDate,
     user_team: Option<&'a Team>,
-    scouted: HashSet<&'a str>,
 }
 
 impl<'a> ListContext<'a> {
@@ -233,11 +233,6 @@ impl<'a> ListContext<'a> {
         Self {
             today: game.clock.current_date.date_naive(),
             user_team,
-            scouted: game
-                .scouting_assignments
-                .iter()
-                .map(|assignment| assignment.player_id.as_str())
-                .collect(),
         }
     }
 
@@ -256,9 +251,7 @@ fn matches_scope(player: &Player, scope: PlayerScope, context: &ListContext) -> 
                 && !player_has_active_or_pending_loan(player)
                 && !has_pending_transfer_registration(player)
         }
-        PlayerScope::Scoutable => {
-            !context.is_users_own(player) && !context.scouted.contains(player.id.as_str())
-        }
+        PlayerScope::Scoutable => !player.retired && !context.is_users_own(player),
         PlayerScope::UserListed => {
             context.is_users_own(player)
                 && (player.transfer_listed || player.loan_listed)
@@ -311,9 +304,10 @@ fn matches_all_but_status(
     query: &PlayersPageQuery,
     needle: Option<&str>,
     context: &ListContext,
+    teams: &TeamLookup,
 ) -> bool {
     if let Some(needle) = needle
-        && !matches_search(player, needle)
+        && !matches_search(player, needle, teams)
     {
         return false;
     }
@@ -365,10 +359,18 @@ fn matches_status(player: &Player, status: PlayerStatusFilter) -> bool {
     }
 }
 
-fn matches_search(player: &Player, needle: &str) -> bool {
-    [&player.full_name, &player.match_name, &player.nationality]
-        .iter()
-        .any(|haystack| haystack.to_ascii_lowercase().contains(needle))
+/// A name, a nationality or the player's club: the scouting search has always found by club, and
+/// every list shares the one rule.
+fn matches_search(player: &Player, needle: &str, teams: &TeamLookup) -> bool {
+    let club = team_name_for(player, teams);
+    [
+        player.full_name.as_str(),
+        player.match_name.as_str(),
+        player.nationality.as_str(),
+        club,
+    ]
+    .iter()
+    .any(|haystack| contains_folded(haystack, needle))
 }
 
 fn sort_matches(

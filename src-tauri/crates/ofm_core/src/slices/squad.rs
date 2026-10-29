@@ -1,5 +1,6 @@
 use crate::game::Game;
 use crate::match_day_eligibility::match_day_eligible_players;
+use crate::training::{ConditionStatus, condition_status};
 use domain::player::Player;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -11,6 +12,8 @@ pub struct SquadPlayer {
     pub player: Player,
     #[serde(default)]
     pub match_day_eligible: bool,
+    /// The band the player's condition is in, with the word and tone the screens show it in.
+    pub condition_status: ConditionStatus,
 }
 
 /// Returns the complete academy and senior roster, with the same match-day
@@ -26,6 +29,7 @@ pub fn query_squad(game: &Game, team_id: &str) -> Vec<SquadPlayer> {
         .map(|p| SquadPlayer {
             player: p.clone(),
             match_day_eligible: eligible.contains(p.id.as_str()),
+            condition_status: condition_status(p.condition),
         })
         .collect()
 }
@@ -48,6 +52,33 @@ mod tests {
         assert_eq!(row("youth-02")["squad_role"], "Youth");
         assert_eq!(rows.len(), 20);
     }
+    /// Given a player on 74 and one on 75, either side of the fresh line,
+    /// when the squad is projected for the screens,
+    /// then each row carries its condition band with the word key and the tone to paint it in,
+    /// so the squad list never applies a threshold of its own.
+    #[test]
+    fn the_squad_projection_carries_each_players_condition_band() {
+        let mut game = match_day_game(true, 17, 3);
+        game.players[0].condition = 74;
+        game.players[1].condition = 75;
+        let tiring_id = game.players[0].id.clone();
+        let fresh_id = game.players[1].id.clone();
+
+        let value = serde_json::to_value(query_squad(&game, "club")).unwrap();
+        let rows = value.as_array().unwrap();
+        let status =
+            |id: &str| rows.iter().find(|p| p["id"] == id).unwrap()["condition_status"].clone();
+
+        assert_eq!(
+            status(&tiring_id),
+            serde_json::json!({ "band": "Tiring", "label_key": "be.condition.tiring", "tone": "fair" })
+        );
+        assert_eq!(
+            status(&fresh_id),
+            serde_json::json!({ "band": "Fresh", "label_key": "be.condition.fresh", "tone": "good" })
+        );
+    }
+
     /// Given an injury crisis and injured academy players, when the squad view is
     /// projected, then treatment-room call-ups remain visible to their manager.
     #[test]

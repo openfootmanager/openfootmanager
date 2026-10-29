@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import en from "../../i18n/locales/en.json";
-import type { PlayerData, TransferOfferData } from "../../store/gameStore";
+import type { TransferOfferData } from "../../store/gameStore";
 import {
   buildLoanPeriodOptions,
   buildResumedBidFeedback,
@@ -9,7 +9,6 @@ import {
   formatTransferFeeInput,
   getDefaultLoanPeriodId,
   getLoanPeriodIdForEndDate,
-  getOutgoingNegotiationOffer,
   getTransferOfferBadgeVariant,
   getTransferOfferStatusLabel,
   mapTransferNegotiationError,
@@ -28,65 +27,6 @@ function createOffer(overrides: Partial<TransferOfferData> = {}): TransferOfferD
     suggested_counter_fee: null,
     status: "Pending",
     date: "2026-08-01",
-    ...overrides,
-  };
-}
-
-function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
-  return {
-    id: "player-1",
-    match_name: "J. Smith",
-    full_name: "John Smith",
-    date_of_birth: "2000-01-01",
-    nationality: "England",
-    position: "Forward",
-    natural_position: "Forward",
-    alternate_positions: [],
-    training_focus: null,
-    attributes: {
-      pace: 60,
-      stamina: 60,
-      strength: 60,
-      agility: 60,
-      passing: 60,
-      shooting: 60,
-      tackling: 60,
-      dribbling: 60,
-      defending: 60,
-      positioning: 60,
-      vision: 60,
-      decisions: 60,
-      composure: 60,
-      aggression: 60,
-      teamwork: 60,
-      leadership: 60,
-      handling: 30,
-      reflexes: 30,
-      aerial: 60,
-    },
-    condition: 90,
-    morale: 70,
-    injury: null,
-    team_id: "team-1",
-    retired: false,
-    contract_end: "2028-06-30",
-    wage: 1000,
-    market_value: 1000000,
-    stats: {
-      appearances: 0,
-      goals: 0,
-      assists: 0,
-      clean_sheets: 0,
-      yellow_cards: 0,
-      red_cards: 0,
-      avg_rating: 0,
-      minutes_played: 0,
-    },
-    career: [],
-    transfer_listed: false,
-    loan_listed: false,
-    transfer_offers: [createOffer()],
-    traits: [],
     ...overrides,
   };
 }
@@ -148,16 +88,21 @@ describe("TransfersTab.helpers", () => {
     ).toBe("Registration blocked");
   });
 
-  it("returns the pending outgoing offer for the user team", () => {
-    const player = createPlayer({
-      transfer_offers: [
-        createOffer({ id: "offer-1", from_team_id: "team-3", status: "Rejected" }),
-        createOffer({ id: "offer-2", from_team_id: "team-1", status: "Pending" }),
-      ],
-    });
+  /**
+   * Given a negotiation the club refused (a rejected offer, round 2)
+   * When the panel resumes it
+   * Then the feedback says the club turned the bid down rather than that it is waiting for the next
+   *      move; a live offer keeps the waiting copy.
+   */
+  it("words a refused negotiation as refused, not as waiting", () => {
+    const refused = buildResumedBidFeedback(
+      createOffer({ status: "Rejected", negotiation_round: 2 }),
+    );
+    const live = buildResumedBidFeedback(createOffer({ status: "Pending", negotiation_round: 2 }));
 
-    expect(getOutgoingNegotiationOffer(player, "team-1")?.id).toBe("offer-2");
-    expect(getOutgoingNegotiationOffer(player, null)).toBeNull();
+    expect(refused?.headline_key).toBe("transfers.resumeRefusedHeadline");
+    expect(refused?.detail_key).toBe("transfers.resumeRefusedDetail");
+    expect(live?.headline_key).toBe("transfers.resumeNegotiationHeadline");
   });
 
   it("builds resumed bid feedback from the latest club signal", () => {

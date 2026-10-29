@@ -14,6 +14,7 @@ import {
   resolveMessageAction,
 } from "../../services/inboxService";
 import { resolveBackendText, resolveMessage } from "../../utils/backendI18n";
+import ArchivedMessages from "./ArchivedMessages";
 import InboxDeleteConfirmModal from "./InboxDeleteConfirmModal";
 import InboxMessageDetailPane from "./InboxMessageDetailPane";
 import InboxMessageListPane from "./InboxMessageListPane";
@@ -411,6 +412,8 @@ export default function InboxTab({
           />
         </div>
       </div>
+
+      <ArchivedMessages />
 
       <InboxDeleteConfirmModal
         deleteModalState={deleteModalState}

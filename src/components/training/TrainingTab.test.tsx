@@ -1,8 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TrainingTab from "./TrainingTab";
+import {
+  createConditionStatus,
+  createSeasonContext,
+  createSquadFitness,
+} from "../../test-utils/factories";
 
 const invokeMock = vi.fn();
 
@@ -23,6 +28,8 @@ vi.mock("react-i18next", () => ({
       if (key === "training.staffAdvice.warn")
         return `Warning advice ${params?.avgCondition} ${params?.exhaustedCount} ${params?.scheduleAdvice}`;
       if (key === "training.staffAdvice.ok") return "Squad is in a good place";
+      if (key === "training.criticalCondition") return `Critical players ${params?.count}`;
+      if (key === "training.exhaustedPlayers") return `Exhausted players ${params?.count}`;
       if (key === "training.weeklySchedule") return "Weekly Schedule";
       if (key === "training.trainingFocus") return "Training Focus";
       if (key === "training.intensity") return "Intensity";
@@ -141,6 +148,7 @@ function createPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
 
 function createGameState(withTeam: boolean): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2026-08-11T00:00:00Z",
       start_date: "2026-07-01T00:00:00Z",
@@ -185,6 +193,7 @@ describe("TrainingTab", () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad") return defaultRoster;
       if (command === "get_training_focus_attributes") return [];
+      if (command === "get_squad_fitness") return createSquadFitness();
       return defaultState;
     });
   });
@@ -207,6 +216,7 @@ describe("TrainingTab", () => {
           { focus: "Technical", outfield: ["passing", "shooting"], goalkeeper: ["handling"] },
         ];
       }
+      if (command === "get_squad_fitness") return createSquadFitness();
       return state;
     });
 
@@ -222,6 +232,7 @@ describe("TrainingTab", () => {
     const onGameUpdate = vi.fn();
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad") return defaultRoster;
+      if (command === "get_squad_fitness") return createSquadFitness();
       return updatedState;
     });
 
@@ -248,6 +259,9 @@ describe("TrainingTab", () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad")
         return exhaustedState.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({ average_condition: 29, exhausted_count: 3, critical_count: 3 });
+      }
       return exhaustedState;
     });
 
@@ -267,14 +281,18 @@ describe("TrainingTab", () => {
     ];
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({ players: 1, average_condition: 80 });
+      }
       return state;
     });
 
     render(<TrainingTab gameState={state} />);
 
     await waitFor(() => {
-      expect(screen.queryByText(/Critical advice/)).not.toBeInTheDocument();
+      expect(invokeMock).toHaveBeenCalledWith("get_squad_fitness");
     });
+    expect(screen.queryByText(/Critical advice/)).not.toBeInTheDocument();
   });
   // Given backend-selected youth, when Training opens, then the called-up row
   // and his fatigue contribute to first-team training; excluded youth stay hidden.
@@ -301,12 +319,162 @@ describe("TrainingTab", () => {
         match_day_eligible: false,
       }),
     ];
-    invokeMock.mockImplementation(async (command: string) =>
-      command === "get_squad" ? state.players : state,
-    );
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({ average_condition: 45, exhausted_count: 1, critical_count: 1 });
+      }
+      return command === "get_squad" ? state.players : state;
+    });
     render(<TrainingTab gameState={state} />);
     expect(await screen.findByRole("row", { name: /Called Youth/ })).toBeInTheDocument();
     expect(screen.queryByRole("row", { name: /Excluded Youth/ })).not.toBeInTheDocument();
     expect(screen.getByText(/Warning advice 45/)).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend counts three players below 40 of whom one is below 25
+   * When Training shows the squad fitness
+   * Then it shows one critical and three exhausted: the two counts are not swapped.
+   */
+  it("shows the exhausted and critical counts the backend gives, apart", async () => {
+    const state = createGameState(true);
+    state.players = [createPlayer({ id: "p1", condition: 80 })];
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({ average_condition: 60, exhausted_count: 3, critical_count: 1 });
+      }
+      return command === "get_squad" ? state.players : state;
+    });
+
+    render(<TrainingTab gameState={state} />);
+
+    expect(await screen.findByText("Critical players 1")).toBeInTheDocument();
+    expect(screen.getByText("Exhausted players 3")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the backend has not answered yet, and then answers that no healthy first-team player can
+   *       be averaged
+   * When Training shows the squad fitness
+   * Then the average is a dash and there is no staff advice: an unanswered 0% is not "tired".
+   */
+  it("shows no average and no staff advice without an average from the backend", async () => {
+    const state = createGameState(true);
+    state.players = [createPlayer({ id: "p1", condition: 80 })];
+    let answer: (value: unknown) => void = () => {};
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_squad_fitness") {
+        return new Promise((resolve) => {
+          answer = resolve;
+        });
+      }
+      return Promise.resolve(command === "get_squad" ? state.players : state);
+    });
+
+    render(<TrainingTab gameState={state} />);
+
+    expect(await screen.findByText("—")).toBeInTheDocument();
+    expect(screen.queryByText(/advice/i)).not.toBeInTheDocument();
+    answer(createSquadFitness({ players: 0, average_condition: null }));
+    await waitFor(() => expect(invokeMock).toHaveBeenCalledWith("get_squad_fitness"));
+    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.queryByText(/advice/i)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a player on 90 whom the backend marks critical (he is injured, on 90 in the list but the
+   *       band is the backend's) and one on 10 whom it marks fresh
+   * When Training lists the players
+   * Then each row shows the backend's word for the band and paints it, and the bar, in the
+   *      backend's tone, not in a colour picked from his condition.
+   */
+  it("shows each player's band in the backend's word and tone, not from his condition", async () => {
+    const state = createGameState(true);
+    state.players = [
+      createPlayer({ id: "p-critical", match_name: "Flagged Critical", condition: 90 }),
+      createPlayer({ id: "p-fresh", match_name: "Flagged Fresh", condition: 10 }),
+    ];
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({
+          statuses: {
+            "p-critical": createConditionStatus("Critical"),
+            "p-fresh": createConditionStatus("Fresh"),
+          },
+        });
+      }
+      return command === "get_squad" ? state.players : state;
+    });
+
+    render(<TrainingTab gameState={state} />);
+
+    const critical = await screen.findByRole("listitem", { name: /Flagged Critical/ });
+    expect(within(critical).getByText("be.condition.critical")).toHaveClass("text-tone-bad");
+    const criticalBar = within(critical).getByRole("progressbar", { name: "common.condition" });
+    expect(criticalBar.firstElementChild).toHaveClass("bg-tone-bad-solid");
+    const fresh = screen.getByRole("listitem", { name: /Flagged Fresh/ });
+    expect(within(fresh).getByText("be.condition.fresh")).toHaveClass("text-tone-good");
+    const freshBar = within(fresh).getByRole("progressbar", { name: "common.condition" });
+    expect(freshBar.firstElementChild).toHaveClass("bg-tone-good-solid");
+  });
+
+  /**
+   * Given an average of 90 that the backend's band rule paints bad (the fixture contradicts the
+   *       number on purpose)
+   * When Training draws the squad's average condition
+   * Then its bar is filled in the backend's tone, not the green a 70-up threshold picked.
+   */
+  it("paints the average condition bar in the backend's tone", async () => {
+    const state = createGameState(true);
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({
+          average_condition: 90,
+          average_status: createConditionStatus("Critical"),
+        });
+      }
+      return command === "get_squad" ? state.players : state;
+    });
+
+    render(<TrainingTab gameState={state} />);
+
+    const average = await screen.findByRole("progressbar", { name: "training.avgCondition" });
+    await waitFor(() => expect(average.firstElementChild).toHaveClass("bg-tone-bad-solid"));
+    expect(average.firstElementChild).not.toHaveClass("bg-positive-solid");
+  });
+
+  /**
+   * Given a squad whose only player is injured, so the backend has no healthy first-team player to
+   *       average (its average is null) but still a band for him
+   * When Training has the backend's answer (his band is on the list)
+   * Then the average's bar is no progress bar: "Avg Condition 0%" would read out a number that
+   * doesn't exist.
+   */
+  it("exposes no average progress bar while there is no average", async () => {
+    const state = createGameState(true);
+    state.players = [
+      createPlayer({
+        id: "p-injured",
+        match_name: "Sidelined",
+        condition: 30,
+        injury: { name: "hamstring_strain", days_remaining: 9 },
+      }),
+    ];
+    invokeMock.mockImplementation(async (command: string) => {
+      if (command === "get_squad_fitness") {
+        return createSquadFitness({
+          players: 0,
+          average_condition: null,
+          statuses: { "p-injured": createConditionStatus("Exhausted") },
+        });
+      }
+      return command === "get_squad" ? state.players : state;
+    });
+
+    render(<TrainingTab gameState={state} />);
+
+    const injured = await screen.findByRole("listitem", { name: /Sidelined/ });
+    expect(await within(injured).findByText("be.condition.exhausted")).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar", { name: "training.avgCondition" })).toBeNull();
   });
 });

@@ -1,10 +1,43 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData } from "../store/gameStore";
-import type { PlayerRole, PlayerSquadRole, TacticsPhaseSettings } from "../store/types";
+import type {
+  ConditionStatus,
+  PlayerRole,
+  PlayerSquadRole,
+  TacticsPhaseSettings,
+} from "../store/types";
+
+/** The backend's tier names, in the order a rating climbs through them. */
+export type RatingTier = "S" | "A" | "B" | "Rest";
+
+/** The tier of every rating from 0 to 99, indexed by rating: the backend's one rule, no game needed. */
+export async function getRatingTiers(): Promise<RatingTier[]> {
+  return invoke<RatingTier[]>("get_rating_tiers");
+}
 
 export async function getSquad(teamId: string): Promise<PlayerData[]> {
   return invoke<PlayerData[]>("get_squad", { teamId });
+}
+
+/** How fit the squad is, as the staff's warnings read it: healthy first-team players only. */
+export interface SquadFitness {
+  players: number;
+  /** Null when there is no healthy first-team player to average. */
+  average_condition: number | null;
+  /** The band of the rounded average, to paint it with; null with no average. */
+  average_status: ConditionStatus | null;
+  /** Players below 40, the critical ones among them. */
+  exhausted_count: number;
+  /** Players below 25. */
+  critical_count: number;
+  /** Every player of the club by id, the injured and the academy included. */
+  statuses: Record<string, ConditionStatus>;
+}
+
+/** The user's squad fitness; null when the user has no club. */
+export async function getSquadFitness(): Promise<SquadFitness | null> {
+  return invoke<SquadFitness | null>("get_squad_fitness");
 }
 
 /** The takers the match would use for these players when none are assigned, as the backend picks them. */

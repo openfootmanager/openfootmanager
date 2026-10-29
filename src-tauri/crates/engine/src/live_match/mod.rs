@@ -159,10 +159,17 @@ pub struct MatchSnapshot {
     pub away_yellows: HashMap<String, u8>,
     pub sent_off: HashSet<String>,
     pub penalty_shootout: Option<PenaltyShootoutSnapshot>,
-    /// Marks out of ten for everyone who played, filled once the match is over;
-    /// empty while it is live so a snapshot stays cheap to build every minute.
+    /// Marks out of ten for everyone who has played long enough to be judged,
+    /// as the match stands at this snapshot; final once the match is over.
     #[serde(default)]
     pub player_ratings: HashMap<String, f32>,
+    /// Goals so far by player id, for everyone who has scored; shootout kicks
+    /// do not count.
+    #[serde(default)]
+    pub player_goals: HashMap<String, u8>,
+    /// Assists so far by player id, for everyone who has set up a goal.
+    #[serde(default)]
+    pub player_assists: HashMap<String, u8>,
 }
 
 // ---------------------------------------------------------------------------

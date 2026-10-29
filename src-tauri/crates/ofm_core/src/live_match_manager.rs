@@ -3,8 +3,9 @@
 // of `domain`, and `ofm_core/turn/` is the single bridge between the two. The
 // live path and the instant path both build their sides from there, so there is
 // one answer to "who is playing" rather than one per code path.
+use crate::turn::matchday_lookups::MatchdayLookups;
 pub use crate::turn::squad::auto_select_set_pieces;
-use crate::turn::squad::build_team_with_bench;
+use crate::turn::squad::{build_team_with_bench_from, set_piece_takers_among};
 
 use rand_chacha::ChaCha12Rng;
 use serde::{Deserialize, Serialize};
@@ -14,11 +15,12 @@ use crate::game::Game;
 
 use domain::league::{FixtureStatus, StandingEntry};
 use domain::manager::Manager;
+use domain::player::Player;
 use domain::team::MatchRoles;
 use engine::ai::{self, AiPersonality, AiProfile};
 use engine::{
     LiveMatchState, MatchCommand, MatchConfig, MatchPhase, MatchReport, MatchSnapshot,
-    MinuteResult, Side,
+    MinuteResult, Side, TeamData,
 };
 
 const LIVE_MATCH_NO_LEAGUE_ERROR: &str = "be.error.liveMatch.noLeague";
@@ -249,7 +251,11 @@ impl LiveMatchSession {
 /// fixture goes through this before building the teams — the unwatched path
 /// directly, the player's own matches through [`kick_off_live_match`] — so no
 /// match starts with a side that cannot be fielded.
-pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
+pub(crate) fn prepare_kick_off(
+    game: &mut Game,
+    fixture_index: usize,
+    lookups: Option<&mut MatchdayLookups>,
+) {
     let Some((home_team_id, away_team_id)) = game.league.as_ref().and_then(|league| {
         league
             .fixtures
@@ -258,8 +264,29 @@ pub(crate) fn prepare_kick_off(game: &mut Game, fixture_index: usize) {
     }) else {
         return;
     };
-    crate::squad_floor::ready_for_kick_off(game, &home_team_id);
-    crate::squad_floor::ready_for_kick_off(game, &away_team_id);
+    // Counted together before either club is topped up: a top-up draws on the free agents and on
+    // that club's own academy, so it cannot change the other club's seniors.
+    let (home_seniors, away_seniors) = match lookups.as_deref() {
+        Some(lookups) => (
+            crate::squad_floor::senior_counts_among(
+                game,
+                &home_team_id,
+                lookups.club(game, &home_team_id),
+            ),
+            crate::squad_floor::senior_counts_among(
+                game,
+                &away_team_id,
+                lookups.club(game, &away_team_id),
+            ),
+        ),
+        None => crate::squad_floor::senior_counts_of_two(game, &home_team_id, &away_team_id),
+    };
+    let brought_in = crate::squad_floor::ready_for_kick_off(game, &home_team_id, home_seniors);
+    let brought_in =
+        crate::squad_floor::ready_for_kick_off(game, &away_team_id, away_seniors) || brought_in;
+    if brought_in && let Some(lookups) = lookups {
+        lookups.players_moved(game);
+    }
     crate::turn::squad::reconcile_user_starting_xi(game, &home_team_id);
     crate::turn::squad::reconcile_user_starting_xi(game, &away_team_id);
 }
@@ -276,8 +303,39 @@ pub fn kick_off_live_match(
     mode: MatchMode,
     allows_extra_time: bool,
 ) -> Result<LiveMatchSession, String> {
-    prepare_kick_off(game, fixture_index);
-    create_live_match(game, fixture_index, mode, allows_extra_time)
+    kick_off_live_match_with(game, fixture_index, mode, allows_extra_time, None)
+}
+
+fn kick_off_live_match_with(
+    game: &mut Game,
+    fixture_index: usize,
+    mode: MatchMode,
+    allows_extra_time: bool,
+    mut lookups: Option<&mut MatchdayLookups>,
+) -> Result<LiveMatchSession, String> {
+    prepare_kick_off(game, fixture_index, lookups.as_deref_mut());
+    create_live_match_with(
+        game,
+        fixture_index,
+        mode,
+        allows_extra_time,
+        lookups.as_deref(),
+    )
+}
+
+fn starter_ids(team: &TeamData) -> Vec<String> {
+    team.players
+        .iter()
+        .map(|player| player.id.clone())
+        .collect()
+}
+
+/// The domain players of `team`'s starting eleven, in the team's order, found among the club's.
+fn starters_among<'a>(team: &TeamData, club: &[&'a Player]) -> Vec<&'a Player> {
+    team.players
+        .iter()
+        .filter_map(|starter| club.iter().find(|player| player.id == starter.id).copied())
+        .collect()
 }
 
 /// Create a live match session for a specific fixture.
@@ -286,6 +344,18 @@ pub fn create_live_match(
     fixture_index: usize,
     mode: MatchMode,
     allows_extra_time: bool,
+) -> Result<LiveMatchSession, String> {
+    create_live_match_with(game, fixture_index, mode, allows_extra_time, None)
+}
+
+/// [`create_live_match`] for a matchday that has already found the clubs with a match soon
+/// (`lookups`: where each club's players stand, and who plays again soon).
+fn create_live_match_with(
+    game: &Game,
+    fixture_index: usize,
+    mode: MatchMode,
+    allows_extra_time: bool,
+    lookups: Option<&MatchdayLookups>,
 ) -> Result<LiveMatchSession, String> {
     let league = game.league.as_ref().ok_or(LIVE_MATCH_NO_LEAGUE_ERROR)?;
     let fixture = league
@@ -299,19 +369,24 @@ pub fn create_live_match(
     let home_team_id = fixture.home_team_id.clone();
     let away_team_id = fixture.away_team_id.clone();
 
-    // Build engine TeamData (starting XI = first 11 players by position)
-    let (home_xi, home_bench) = build_team_with_bench(game, &home_team_id);
-    let (away_xi, away_bench) = build_team_with_bench(game, &away_team_id);
-    let home_starter_ids = home_xi
-        .players
-        .iter()
-        .map(|player| player.id.clone())
-        .collect::<Vec<_>>();
-    let away_starter_ids = away_xi
-        .players
-        .iter()
-        .map(|player| player.id.clone())
-        .collect::<Vec<_>>();
+    // Each club's players are found once and serve its team, its bench and its set-piece takers.
+    let club_of = |team_id: &str| -> Vec<&Player> {
+        match lookups {
+            Some(lookups) => lookups
+                .club(game, team_id)
+                .iter()
+                .map(|&position| &game.players[position])
+                .collect(),
+            None => crate::match_day_eligibility::club_players(&game.players, team_id),
+        }
+    };
+    let (home_club, away_club) = (club_of(&home_team_id), club_of(&away_team_id));
+    let (home_xi, home_bench) =
+        build_team_with_bench_from(game, &home_team_id, &home_club, lookups);
+    let (away_xi, away_bench) =
+        build_team_with_bench_from(game, &away_team_id, &away_club, lookups);
+    let home_starter_ids = starter_ids(&home_xi);
+    let away_starter_ids = starter_ids(&away_xi);
     let home_match_roles = game
         .teams
         .iter()
@@ -324,8 +399,8 @@ pub fn create_live_match(
         .find(|team| team.id == away_team_id)
         .map(|team| team.match_roles.clone())
         .unwrap_or_default();
-    let home_auto_selection = auto_select_set_pieces(game, &home_starter_ids);
-    let away_auto_selection = auto_select_set_pieces(game, &away_starter_ids);
+    let home_auto_selection = set_piece_takers_among(&starters_among(&home_xi, &home_club));
+    let away_auto_selection = set_piece_takers_among(&starters_among(&away_xi, &away_club));
 
     if home_xi.players.is_empty() || away_xi.players.is_empty() {
         return Err(LIVE_MATCH_EMPTY_SQUAD_ERROR.to_string());
@@ -443,9 +518,23 @@ pub fn play_unwatched_fixture(
     game: &mut Game,
     fixture_index: usize,
 ) -> Result<UnwatchedFixture, String> {
+    play_unwatched_fixture_with(game, fixture_index, None)
+}
+
+/// [`play_unwatched_fixture`] for a matchday that has already found the clubs with a match soon.
+pub(crate) fn play_unwatched_fixture_with(
+    game: &mut Game,
+    fixture_index: usize,
+    lookups: Option<&mut MatchdayLookups>,
+) -> Result<UnwatchedFixture, String> {
     let allows_extra_time = crate::matchday::fixture_allows_extra_time(game, fixture_index);
-    let mut session =
-        kick_off_live_match(game, fixture_index, MatchMode::Instant, allows_extra_time)?;
+    let mut session = kick_off_live_match_with(
+        game,
+        fixture_index,
+        MatchMode::Instant,
+        allows_extra_time,
+        lookups,
+    )?;
     session.user_side = None;
     let league_round_context = session.league_round_context.clone();
     session.run_to_completion();

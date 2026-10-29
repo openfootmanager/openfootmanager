@@ -44,7 +44,7 @@ fn encode_error_param(value: &str) -> String {
 pub(super) fn map_save_manager_lock_error<T>(
     result: std::sync::LockResult<T>,
 ) -> Result<T, String> {
-    result.map_err(|_| "be.error.saveManagerUnavailable".to_string())
+    result.map_err(|_| crate::SAVE_MANAGER_UNAVAILABLE_ERROR.to_string())
 }
 
 #[cfg(test)]
@@ -122,6 +122,6 @@ mod tests {
 
         let result = map_save_manager_lock_error(mutex.lock());
 
-        assert_eq!(result.unwrap_err(), "be.error.saveManagerUnavailable");
+        assert_eq!(result.unwrap_err(), crate::SAVE_MANAGER_UNAVAILABLE_ERROR);
     }
 }

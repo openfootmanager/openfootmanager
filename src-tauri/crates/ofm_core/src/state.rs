@@ -2,6 +2,7 @@ use crate::game::Game;
 use crate::live_match_manager::LiveMatchSession;
 use domain::stats::StatsState;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 fn set_option<T>(mutex: &Mutex<Option<T>>, value: T) {
     let mut lock = mutex.lock().unwrap();
@@ -51,6 +52,8 @@ pub struct StateManager {
     active_stats: Mutex<Option<StatsState>>,
     live_match: Mutex<Option<LiveMatchSession>>,
     active_save_id: Mutex<Option<String>>,
+    /// Last career token handed out (`next_career_token`); 0 is never issued.
+    last_career_token: AtomicU64,
 }
 
 impl Default for StateManager {
@@ -66,6 +69,7 @@ impl StateManager {
             active_stats: Mutex::new(None),
             live_match: Mutex::new(None),
             active_save_id: Mutex::new(None),
+            last_career_token: AtomicU64::new(0),
         }
     }
 
@@ -124,6 +128,14 @@ impl StateManager {
             Some(current) => current.append(stats),
             None => *lock = Some(stats),
         }
+    }
+
+    /// A token naming one installed career, never repeated within this process and never 0 (the
+    /// value a game that was never installed carries). A command that writes into the active game
+    /// on behalf of a screen checks the token the screen was given against the game's own, inside
+    /// the write, so a request sent for career A cannot land in career B.
+    pub fn next_career_token(&self) -> u64 {
+        self.last_career_token.fetch_add(1, Ordering::Relaxed) + 1
     }
 
     pub fn set_save_id(&self, id: String) {
@@ -334,6 +346,18 @@ mod tests {
         state.clear_game();
 
         assert_eq!(state.get_game(|game| game.teams.len()), None);
+    }
+
+    /// Given a state that has issued career tokens
+    /// When more are asked for
+    /// Then each is new and none is 0, the value an uninstalled game carries.
+    #[test]
+    fn career_tokens_are_never_repeated_and_never_zero() {
+        let state = StateManager::new();
+
+        let tokens: Vec<u64> = (0..3).map(|_| state.next_career_token()).collect();
+
+        assert_eq!(tokens, [1, 2, 3]);
     }
 
     #[test]

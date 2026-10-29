@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData } from "../../store/gameStore";
-import { listCustomTactics, saveCustomTactic } from "../../services/customTacticsService";
+import { type GameStateData, useGameStore } from "../../store/gameStore";
+import {
+  type CustomTactic,
+  deleteCustomTactic,
+  legacyTacticsImportPending,
+  listCustomTactics,
+  markLegacyTacticsImported,
+  saveCustomTactic,
+} from "../../services/customTacticsService";
 import { getTacticsBlueprintStatus } from "../../services/squadService";
 import {
   TACTICS_PRESETS,
@@ -49,6 +56,8 @@ export function useTacticsLibrary({
   );
   const [presetAnchorId, setPresetAnchorId] = useState<string | null>(initialPreset?.id ?? null);
   const managerId = gameState?.manager.id ?? null;
+  // Handed back with every write so the backend can refuse one meant for another career.
+  const careerToken = gameState?.career_token ?? 0;
   const careerStartDate = gameState?.clock.start_date ?? null;
 
   // Whether the phase dials still equal the style's blueprint is the backend's rule (`blueprint_for`);
@@ -86,52 +95,57 @@ export function useTacticsLibrary({
   // last step to finish is the library as the save has it.
   const savesInOrder = useRef<Promise<void>>(Promise.resolve());
   // The commands act on whichever game is active, and carry no career with them. A step still
-  // waiting in the queue when the career changes (another game loaded, the screen left) would
-  // write one career's tactic into the next, so each step remembers the career it was asked in and
-  // does nothing once that is no longer the current one.
-  const career = useRef(0);
+  // waiting in the queue when the career changes (another game loaded or the game left) would
+  // write one career's tactic into the next, so each step remembers the store's career epoch it
+  // was asked in and does nothing once that is no longer the current one. Leaving this screen
+  // while the same career stays open changes nothing: the step is still that career's.
+  const careerEpoch = useGameStore((state) => state.careerEpoch);
 
   useEffect(() => {
     if (!managerId || !careerStartDate) return;
 
-    career.current += 1;
-    const askedIn = career.current;
-    const stale = () => askedIn !== career.current;
+    const askedIn = useGameStore.getState().careerEpoch;
+    const stale = () => useGameStore.getState().careerEpoch !== askedIn;
     savesInOrder.current = savesInOrder.current
       .then(async () => {
         if (stale()) return;
-        const saved = await listCustomTactics();
-        const tactics = await importLegacyTactics(
-          managerId,
-          careerStartDate,
-          saved,
-          async (tactic) => {
-            if (stale()) throw new Error("the career changed");
-            return saveCustomTactic(tactic);
-          },
-        );
+        let tactics = await listCustomTactics();
+        // Once per career: the save records that the old browser library was copied in, so a
+        // tactic the player has since deleted is not copied back from the browser's key.
+        if (await legacyTacticsImportPending()) {
+          const imported = await importLegacyTactics(
+            managerId,
+            careerStartDate,
+            tactics,
+            async (tactic) => {
+              if (stale()) throw new Error("the career changed");
+              return saveCustomTactic(tactic, careerToken);
+            },
+          );
+          tactics = imported.tactics;
+          if (imported.complete && !stale()) await markLegacyTacticsImported(careerToken);
+        }
         if (!stale()) setCustomTactics(toLibraryEntries(tactics));
       })
       .catch(() => {});
-    return () => {
-      career.current += 1;
-    };
-  }, [managerId, careerStartDate]);
+  }, [managerId, careerStartDate, careerEpoch, careerToken]);
 
   // The screen answers at once; the save's own list then replaces it, or, if the save refused the
-  // tactic (a shape the game cannot lay out), puts the library back as the save has it.
-  function persistTactic(tactic: TacticsLibraryEntry): void {
-    const askedIn = career.current;
+  // change (a shape the game cannot lay out, an id that is already gone), puts the library back as
+  // the save has it.
+  function changeSave(change: () => Promise<CustomTactic[]>): void {
+    const askedIn = useGameStore.getState().careerEpoch;
+    const stale = () => useGameStore.getState().careerEpoch !== askedIn;
     savesInOrder.current = savesInOrder.current
-      .then(() =>
-        askedIn !== career.current
-          ? null
-          : saveCustomTactic(toCustomTactic(tactic)).catch(() => listCustomTactics()),
-      )
+      .then(() => (stale() ? null : change().catch(() => listCustomTactics())))
       .then((saved) => {
-        if (saved && askedIn === career.current) setCustomTactics(toLibraryEntries(saved));
+        if (saved && !stale()) setCustomTactics(toLibraryEntries(saved));
       })
       .catch(() => {});
+  }
+
+  function persistTactic(tactic: TacticsLibraryEntry): void {
+    changeSave(() => saveCustomTactic(toCustomTactic(tactic), careerToken));
   }
 
   const matchedPreset = findTacticsPresetBySetup(formation, activePlayStyle);
@@ -294,6 +308,21 @@ export function useTacticsLibrary({
     setDraftTacticName(nextTactic.name);
   }
 
+  // Only a tactic the save holds can be deleted: not a preset, and not the unsaved setup that
+  // stands in when nothing else matches.
+  const canDeleteTactic =
+    isActiveCustomTactic && customTactics.some((entry) => entry.id === activeTactic.id);
+
+  // The team keeps the formation and play style it has. With the tactic gone from the library the
+  // setup shown falls back to the preset it matches, or to the current setup, applying nothing.
+  function handleDeleteTactic(): void {
+    if (!canDeleteTactic) return;
+
+    const { id } = activeTactic;
+    setCustomTactics((current) => current.filter((entry) => entry.id !== id));
+    changeSave(() => deleteCustomTactic(id.trim(), careerToken));
+  }
+
   function handleSaveTactic(): void {
     const nextName = draftTacticName.trim() || t("tactics.customTactic");
 
@@ -363,5 +392,7 @@ export function useTacticsLibrary({
     handleCreateCustomTactic,
     handleDuplicateTactic,
     handleSaveTactic,
+    canDeleteTactic,
+    handleDeleteTactic,
   };
 }

@@ -6,16 +6,10 @@ import type { FixtureData, GameStateData, TeamData } from "../../store/gameStore
 import type { MatchdayGroup, ScheduleSlice } from "../../services/scheduleService";
 import { formatMatchDate } from "../../lib/dateFormatting";
 import ScheduleTab from "./ScheduleTab";
+import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
-}));
-
-vi.mock("../../lib/seasonContext", () => ({
-  resolveSeasonContext: () => ({
-    phase: "RegularSeason",
-    season_start: "2026-08-01",
-  }),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -96,6 +90,8 @@ function makeTeam(overrides: Partial<TeamData> = {}): TeamData {
 
 function makeFixture(overrides: Partial<FixtureData> = {}): FixtureData {
   return {
+    competitive: true,
+    advancing_team_id: null,
     id: "fixture-1",
     matchday: 1,
     date: "2026-08-01",
@@ -182,6 +178,8 @@ function makeGameState(withCompetition: boolean): GameStateData {
     : [];
 
   return {
+    // The season is under way, so the standings are live.
+    season_context: createSeasonContext({ phase: "InSeason", season_start: "2026-08-01" }),
     clock: { current_date: "2026-08-10T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
     manager: {
       display_name: "Jane Doe",

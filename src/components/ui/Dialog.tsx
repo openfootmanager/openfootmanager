@@ -14,9 +14,15 @@ interface Labelled {
   labelledBy?: never;
 }
 
+/** Escape's request for a dialog that has no `onClose`: stable, so the keyboard hook doesn't re-bind. */
+const STAYS_OPEN = () => {};
+
 type DialogProps = (NamedBy | Labelled) & {
-  /** Escape, and a backdrop click when `dismissOnBackdrop`, ask for this. A refusal is the caller's. */
-  onClose: () => void;
+  /**
+   * Escape, and a backdrop click when `dismissOnBackdrop`, ask for this. A refusal is the caller's.
+   * Left out for a dialog that can't be closed yet (a save in flight, with `busy`): nothing to ask.
+   */
+  onClose?: () => void;
   dismissOnBackdrop?: boolean;
   /** Set while the dialog refuses to close, so the refusal is not silent to a screen reader. */
   busy?: boolean;
@@ -44,9 +50,9 @@ export function Dialog({
   onClose,
   dismissOnBackdrop = false,
   busy,
-  overlayClassName = "bg-black/50 p-4",
+  overlayClassName = "bg-overlay p-4",
   className = "",
-  surfaceClassName = "bg-white dark:bg-navy-800",
+  surfaceClassName = "bg-panel",
   children,
 }: DialogProps) {
   // A press that starts inside the panel (selecting text in a field) and ends on the backdrop is
@@ -54,7 +60,7 @@ export function Dialog({
   const pressStartedOnBackdrop = useRef(false);
   const ownPanelRef = useRef<HTMLDivElement>(null);
   const panelRef = callerPanelRef ?? ownPanelRef;
-  useDialogKeyboard(panelRef, onClose);
+  useDialogKeyboard(panelRef, onClose ?? STAYS_OPEN);
 
   // A child that asked for focus (an amount field, a step heading) keeps it.
   useEffect(() => {
@@ -75,7 +81,7 @@ export function Dialog({
           event.target === event.currentTarget &&
           pressStartedOnBackdrop.current
         )
-          onClose();
+          onClose?.();
       }}
     >
       <div
@@ -87,7 +93,7 @@ export function Dialog({
         aria-describedby={describedBy}
         aria-busy={busy}
         tabIndex={-1}
-        className={`${surfaceClassName} border border-gray-200 dark:border-navy-600 shadow-2xl focus:outline-none ${className}`}
+        className={`${surfaceClassName} border border-line shadow-2xl focus:outline-none ${className}`}
       >
         {children}
       </div>
@@ -109,9 +115,9 @@ export function DialogCloseButton({
       onClick={onClose}
       disabled={disabled}
       aria-label={t("common.close")}
-      className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-navy-600 dark:hover:text-white"
+      className="rounded-lg p-1.5 text-fg-muted transition-colors hover:bg-hover hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page disabled:opacity-50"
     >
-      <span aria-hidden="true" className="font-heading text-sm">
+      <span aria-hidden="true" className="font-heading text-body">
         ✕
       </span>
     </button>

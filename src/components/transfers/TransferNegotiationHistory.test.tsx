@@ -17,6 +17,22 @@ const offer = {
 
 describe("TransferNegotiationHistory", () => {
   /**
+   * Given a negotiation still in its first round, whose bid was turned down
+   * When the exchange is shown
+   * Then the history is there from the first round, so a rejection streak is not invisible.
+   */
+  it("shows the exchange from the first round", () => {
+    render(
+      <TransferNegotiationHistory
+        offer={{ ...offer, negotiation_round: 1 } as unknown as TransferOfferData}
+        mode="outgoing"
+      />,
+    );
+
+    expect(screen.getByText("€941,250")).toBeInTheDocument();
+  });
+
+  /**
    * Given a negotiation in its second round, with a bid of €941,250 and an offer of €960,500
    * When the exchange is shown
    * Then both fees are exact: a counter is decided on the digits, which "€941K" and "€961K" hide.

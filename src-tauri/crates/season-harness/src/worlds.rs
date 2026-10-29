@@ -179,15 +179,8 @@ impl WorldSpec {
     }
 
     fn strongest_club(&self, game: &Game) -> Result<String, String> {
-        game.teams
-            .iter()
-            .filter(|team| team.football_nation == self.user_nation)
-            .max_by(|a, b| {
-                a.reputation
-                    .cmp(&b.reputation)
-                    .then_with(|| b.id.cmp(&a.id))
-            })
-            .map(|team| team.id.clone())
+        ofm_core::world::strongest_club(&game.teams, self.user_nation)
+            .map(str::to_string)
             .ok_or_else(|| format!("the world has no {} club", self.user_nation))
     }
 }

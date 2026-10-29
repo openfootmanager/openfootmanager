@@ -5,6 +5,17 @@ import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData, MessageData, PlayerData, TeamData } from "../../store/gameStore";
 import { resolveBackendError } from "../../utils/backendI18n";
 import FinancesTab from "./FinancesTab";
+import { createSeasonContext } from "../../test-utils/factories";
+
+// What the backend's contract warning stages read as on a badge, by player id; a test says which
+// players are at risk. The hook that asks for them has its own test.
+const riskLevels = vi.hoisted(() => ({
+  current: {} as Record<string, "critical" | "warning" | "stable">,
+}));
+
+vi.mock("../../hooks/useContractWarningStages", () => ({
+  useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
+}));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -323,6 +334,7 @@ function createGameState(
   players: PlayerData[] = [createPlayer()],
 ): GameStateData {
   return {
+    season_context: createSeasonContext(),
     clock: {
       current_date: "2025-01-20T00:00:00Z",
       start_date: "2025-01-01T00:00:00Z",
@@ -367,6 +379,7 @@ function createGameState(
 
 describe("FinancesTab facilities", () => {
   beforeEach(() => {
+    riskLevels.current = { "player-critical": "critical", "player-warning": "warning" };
     mockedInvoke.mockReset();
     mockedInvoke.mockImplementation((command) => {
       if (command === "get_finance_snapshot") {
@@ -889,8 +902,8 @@ describe("FinancesTab facilities", () => {
     expect(screen.getAllByText("Ben Warning").length).toBeGreaterThan(0);
     expect(screen.getByText("Critical")).toBeInTheDocument();
     expect(screen.getByText("Warning")).toBeInTheDocument();
-    expect(screen.getByText("Expires 2025-04-30")).toBeInTheDocument();
-    expect(screen.getByText("Expires 2025-10-15")).toBeInTheDocument();
+    expect(screen.getByText("Expires April 30, 2025")).toBeInTheDocument();
+    expect(screen.getByText("Expires October 15, 2025")).toBeInTheDocument();
     expect(screen.getByText("€60,000/wk at risk")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Renew Contract" })).toHaveLength(2);
 

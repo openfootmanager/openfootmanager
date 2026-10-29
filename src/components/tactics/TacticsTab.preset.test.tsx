@@ -6,6 +6,7 @@ import { i18nReady } from "../../i18n";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import TacticsTab from "./TacticsTab";
 import type { CustomTactic } from "../../services/customTacticsService";
+import { createSeasonContext } from "../../test-utils/factories";
 
 /**
  * #365 — picking a tactic preset asks the backend for the whole preset
@@ -103,6 +104,7 @@ const makeTeam = (): TeamData => ({
 });
 
 const makeGame = (): GameStateData => ({
+  season_context: createSeasonContext(),
   clock: { current_date: "2026-08-01", start_date: "2026-08-01" },
   manager: {
     display_name: "Test Manager",

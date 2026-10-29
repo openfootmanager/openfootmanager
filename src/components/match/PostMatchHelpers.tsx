@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { MatchSnapshot, MatchEvent } from "./types";
 import { getPlayerName } from "./helpers";
+import { ratingColour } from "./ratingColour";
 import { Badge } from "../ui";
 import { Circle, Star } from "lucide-react";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
@@ -89,15 +90,6 @@ export function renderScorers(
 // ---------------------------------------------------------------------------
 // Player Ratings panel for one side
 // ---------------------------------------------------------------------------
-
-function ratingColour(rating: number | null): string {
-  if (rating === null) return "text-gray-400 dark:text-gray-500";
-  if (rating >= 8) return "text-accent-700 dark:text-accent-400";
-  if (rating >= 7) return "text-green-700 dark:text-green-400";
-  if (rating >= 6) return "text-gray-600 dark:text-gray-300";
-  if (rating >= 5) return "text-yellow-700 dark:text-yellow-400";
-  return "text-red-700 dark:text-red-400";
-}
 
 export function PlayerRatingsPanel({
   snapshot,

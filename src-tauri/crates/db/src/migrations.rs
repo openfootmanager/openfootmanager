@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 57;
+const EXPECTED_MIGRATION_COUNT: usize = 59;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -161,6 +161,13 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("v056_custom_tactics.sql", include_str!("sql/v056_custom_tactics.sql")),
     // V57: What a manager is called
     ("v057_manager_known_as.sql", include_str!("sql/v057_manager_known_as.sql")),
+    // V58: Archived (old, read) inbox mail
+    ("v058_archived_messages.sql", include_str!("sql/v058_archived_messages.sql")),
+    // V59: Whether the old browser library of tactics has been copied in
+    (
+        "v059_legacy_tactics_imported.sql",
+        include_str!("sql/v059_legacy_tactics_imported.sql"),
+    ),
 ];
 
 /// All migrations for a per-save game database.
@@ -628,6 +635,45 @@ mod tests {
         }
     }
 
+    /// Given a real v058 save (written before the old-tactics import was recorded)
+    /// When it is migrated, twice
+    /// Then its game_meta row reads "not imported yet", so the import runs once more and is then
+    ///      marked, and the rest of the row is untouched.
+    #[test]
+    fn legacy_tactics_v059_upgrades_a_v058_save_as_not_imported_yet() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(58)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT legacy_tactics_imported FROM game_meta")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, i64) = conn
+                .query_row(
+                    "SELECT save_name, legacy_tactics_imported FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("v059 must add the column to a real v058 save");
+            assert_eq!(row, ("Old career".to_string(), 0));
+        }
+    }
+
     /// Given a real v048 save, when migrated twice, then the archive table exists and is empty.
     #[test]
     fn edition_archive_v049_upgrades_a_v048_save_without_touching_competitions() {
@@ -927,6 +973,8 @@ mod tests {
     ("v055_staff_known_as.sql", 0x19c8bd47a3686f10),
     ("v056_custom_tactics.sql", 0x59e3007d9e1c4a9b),
     ("v057_manager_known_as.sql", 0x1a62f523b6d15799),
+    ("v058_archived_messages.sql", 0x853776cba0dffed1),
+    ("v059_legacy_tactics_imported.sql", 0xf2fdbc95bf5fdc99),
     ];
 
     /// Given the migrations already shipped

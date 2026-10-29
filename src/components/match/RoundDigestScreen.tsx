@@ -14,18 +14,22 @@ interface RoundDigestScreenProps {
   gameState: GameStateData;
   currentFixture: FixtureData | null;
   userSide: "Home" | "Away" | null;
-  isLeagueFixture: boolean;
   roundSummary: RoundSummary | null;
   cupRoundSummaries?: CupRoundSummary[];
   onPressConference: () => void;
   onFinish: () => void;
 }
+interface OtherMatchEntry {
+  fixture: FixtureData;
+  homeTeamName: string;
+  awayTeamName: string;
+}
+
 export default function RoundDigestScreen({
   snapshot,
   gameState,
   currentFixture,
   userSide,
-  isLeagueFixture,
   roundSummary,
   cupRoundSummaries = [],
   onPressConference,
@@ -89,27 +93,23 @@ export default function RoundDigestScreen({
     }
   };
 
-  const otherMatchEntries = isLeagueFixture
-    ? (roundSummary?.completed_results || [])
-        .filter((r) => r.fixture_id !== currentFixture?.id)
-        .map((r) => {
-          const fixture = gameState.league?.fixtures.find((f) => f.id === r.fixture_id);
-          if (!fixture?.result) return null;
-          return {
-            fixture,
-            homeTeamName: r.home_team_name,
-            awayTeamName: r.away_team_name,
-          };
-        })
-        .filter(
-          (
-            e,
-          ): e is {
-            fixture: FixtureData;
-            homeTeamName: string;
-            awayTeamName: string;
-          } => e !== null,
-        )
+  // Two facts, not one flag: whether the league played a round the backend summarised, and
+  // whether the user's own match was in it (it is when the summary lists the fixture the user
+  // played). A cup tie on a day the league also played is the second without the first.
+  const userPlayedInLeagueRound =
+    roundSummary?.completed_results.some((r) => r.fixture_id === currentFixture?.id) ?? false;
+
+  const leagueRoundEntries: OtherMatchEntry[] = (roundSummary?.completed_results ?? [])
+    .filter((r) => r.fixture_id !== currentFixture?.id)
+    .flatMap((r) => {
+      const fixture = gameState.league?.fixtures.find((f) => f.id === r.fixture_id);
+      return fixture?.result
+        ? [{ fixture, homeTeamName: r.home_team_name, awayTeamName: r.away_team_name }]
+        : [];
+    });
+
+  const competitionEntries: OtherMatchEntry[] = userPlayedInLeagueRound
+    ? []
     : (gameState.league?.fixtures || [])
         .filter(
           (f) =>
@@ -126,7 +126,9 @@ export default function RoundDigestScreen({
         }));
 
   const selectedOtherFixture = selectedOtherFixtureId
-    ? otherMatchEntries.find((e) => e.fixture.id === selectedOtherFixtureId)?.fixture || null
+    ? [...leagueRoundEntries, ...competitionEntries].find(
+        (e) => e.fixture.id === selectedOtherFixtureId,
+      )?.fixture || null
     : null;
   const selectedOtherFixtureReport = getFixtureReport(selectedOtherFixture);
 
@@ -163,6 +165,124 @@ export default function RoundDigestScreen({
     : null;
   const headingParts = [matchdayLabel, leagueName].filter(Boolean).join(" — ");
 
+  const renderMatchCards = (entries: OtherMatchEntry[], unavailableKey: string) => (
+    <>
+      {entries.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3">
+          {entries.map((entry) => {
+            const scorerSummary = formatOtherMatchScorers(entry.fixture);
+            const statSummary = formatOtherMatchStats(entry.fixture);
+            return (
+              <div
+                key={entry.fixture.id}
+                className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm px-4 py-3 transition-colors duration-300"
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-200 truncate">
+                    {entry.homeTeamName} {entry.fixture.result?.home_goals} –{" "}
+                    {entry.fixture.result?.away_goals} {entry.awayTeamName}
+                  </span>
+                  {entry.fixture.result?.report && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedOtherFixtureId(entry.fixture.id)}
+                      className="shrink-0 text-[10px] font-heading font-bold uppercase tracking-widest text-accent-400 hover:text-accent-300 transition-colors"
+                    >
+                      {t("match.viewDetails")}
+                    </button>
+                  )}
+                </div>
+                {scorerSummary && (
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">{scorerSummary}</p>
+                )}
+                {statSummary && (
+                  <p className="mt-0.5 text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                    {statSummary}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500 dark:text-gray-400">{t(unavailableKey)}</p>
+      )}
+    </>
+  );
+
+  const leagueSideColumn = roundSummary ? (
+    <div className="flex flex-col gap-4">
+      {/* Standings */}
+      <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+        <h3 className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+          {t("tournaments.leagueTable")}
+        </h3>
+        <div className="flex flex-col gap-1.5">
+          {roundSummary.standings_delta.slice(0, 6).map((entry) => {
+            const change = entry.previous_position - entry.current_position;
+            const isUserTeam = entry.team_id === userTeamId;
+            return (
+              <div
+                key={entry.team_id}
+                className={`flex items-center gap-2 text-xs rounded-md px-2 py-1 ${
+                  isUserTeam ? "bg-primary-50 dark:bg-primary-500/10 font-bold" : ""
+                }`}
+              >
+                <span className="w-4 text-right tabular-nums text-gray-500 dark:text-gray-400 font-heading">
+                  {entry.current_position}
+                </span>
+                {change > 0 ? (
+                  <ArrowUp className="w-3 h-3 text-green-500 shrink-0" />
+                ) : change < 0 ? (
+                  <ArrowDown className="w-3 h-3 text-red-400 shrink-0" />
+                ) : (
+                  <span className="w-3 shrink-0" />
+                )}
+                <span
+                  className={`truncate flex-1 ${isUserTeam ? "text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-300"}`}
+                >
+                  {entry.team_name}
+                </span>
+                <span className="font-heading font-bold tabular-nums text-gray-500 dark:text-gray-400">
+                  {entry.points}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Top Scorers */}
+      {roundSummary.top_scorer_delta.length > 0 && (
+        <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
+          <h3 className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
+            {t("tournaments.topScorers")}
+          </h3>
+          <div className="flex flex-col gap-1.5">
+            {roundSummary.top_scorer_delta.slice(0, 5).map((entry) => {
+              const isUserTeamScorer = entry.team_id === userTeamId;
+              return (
+                <div key={entry.player_id} className="flex items-center gap-2 text-xs">
+                  <span className="w-4 text-right tabular-nums text-gray-500 dark:text-gray-400 font-heading">
+                    {entry.current_rank}.
+                  </span>
+                  <span
+                    className={`truncate flex-1 ${isUserTeamScorer ? "font-bold text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-300"}`}
+                  >
+                    {entry.player_name}
+                  </span>
+                  <span className="font-heading font-bold tabular-nums text-accent-400">
+                    {entry.current_goals}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className="min-h-screen bg-gray-100 text-gray-900 dark:bg-navy-900 dark:text-white flex flex-col transition-colors duration-300">
       {/* Header */}
@@ -175,7 +295,7 @@ export default function RoundDigestScreen({
               </p>
             )}
             <h1 className="text-lg font-heading font-bold text-gray-900 dark:text-white">
-              {isLeagueFixture ? t("match.roundSummary") : t("match.otherMatches")}
+              {userPlayedInLeagueRound ? t("match.roundSummary") : t("match.otherMatches")}
             </h1>
           </div>
           <div className="flex items-center gap-3">
@@ -286,7 +406,7 @@ export default function RoundDigestScreen({
             </div>
 
             {/* Position context */}
-            {isLeagueFixture && userStanding && (
+            {userPlayedInLeagueRound && userStanding && (
               <div className="mt-4 flex items-center justify-center gap-2">
                 {positionChange > 0 ? (
                   <ArrowUp className="w-4 h-4 text-green-500" />
@@ -305,130 +425,23 @@ export default function RoundDigestScreen({
 
           {/* Main content grid */}
           <div className="grid grid-cols-3 gap-6">
-            {/* Other Results — 2 cols for league (leaves room for table), full width for friendly */}
-            <div className={`flex flex-col gap-3 ${isLeagueFixture ? "col-span-2" : "col-span-3"}`}>
-              <h2 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
-                {isLeagueFixture ? t("match.otherMatchesToday") : t("match.otherMatches")}
-              </h2>
-              {otherMatchEntries.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {otherMatchEntries.map((entry) => {
-                    const scorerSummary = formatOtherMatchScorers(entry.fixture);
-                    const statSummary = formatOtherMatchStats(entry.fixture);
-                    return (
-                      <div
-                        key={entry.fixture.id}
-                        className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm px-4 py-3 transition-colors duration-300"
-                      >
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="font-heading font-bold text-sm text-gray-800 dark:text-gray-200 truncate">
-                            {entry.homeTeamName} {entry.fixture.result?.home_goals} –{" "}
-                            {entry.fixture.result?.away_goals} {entry.awayTeamName}
-                          </span>
-                          {entry.fixture.result?.report && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedOtherFixtureId(entry.fixture.id)}
-                              className="shrink-0 text-[10px] font-heading font-bold uppercase tracking-widest text-accent-400 hover:text-accent-300 transition-colors"
-                            >
-                              {t("match.viewDetails")}
-                            </button>
-                          )}
-                        </div>
-                        {scorerSummary && (
-                          <p className="text-[11px] text-gray-500 dark:text-gray-400">
-                            {scorerSummary}
-                          </p>
-                        )}
-                        {statSummary && (
-                          <p className="mt-0.5 text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                            {statSummary}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+            {userPlayedInLeagueRound ? (
+              <>
+                {/* The league round the user played in: its other results, with the table beside them */}
+                <div className="flex flex-col gap-3 col-span-2">
+                  <h2 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                    {t("match.otherMatchesToday")}
+                  </h2>
+                  {renderMatchCards(leagueRoundEntries, "match.roundSummaryUnavailable")}
                 </div>
-              ) : (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {isLeagueFixture
-                    ? t("match.roundSummaryUnavailable")
-                    : t("match.otherMatchesUnavailable")}
-                </p>
-              )}
-            </div>
-
-            {/* League Table + Top Scorers (1 col) — league only */}
-            {isLeagueFixture && roundSummary && (
-              <div className="flex flex-col gap-4">
-                {/* Standings */}
-                <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
-                  <h3 className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
-                    {t("tournaments.leagueTable")}
-                  </h3>
-                  <div className="flex flex-col gap-1.5">
-                    {roundSummary.standings_delta.slice(0, 6).map((entry) => {
-                      const change = entry.previous_position - entry.current_position;
-                      const isUserTeam = entry.team_id === userTeamId;
-                      return (
-                        <div
-                          key={entry.team_id}
-                          className={`flex items-center gap-2 text-xs rounded-md px-2 py-1 ${
-                            isUserTeam ? "bg-primary-50 dark:bg-primary-500/10 font-bold" : ""
-                          }`}
-                        >
-                          <span className="w-4 text-right tabular-nums text-gray-500 dark:text-gray-400 font-heading">
-                            {entry.current_position}
-                          </span>
-                          {change > 0 ? (
-                            <ArrowUp className="w-3 h-3 text-green-500 shrink-0" />
-                          ) : change < 0 ? (
-                            <ArrowDown className="w-3 h-3 text-red-400 shrink-0" />
-                          ) : (
-                            <span className="w-3 shrink-0" />
-                          )}
-                          <span
-                            className={`truncate flex-1 ${isUserTeam ? "text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-300"}`}
-                          >
-                            {entry.team_name}
-                          </span>
-                          <span className="font-heading font-bold tabular-nums text-gray-500 dark:text-gray-400">
-                            {entry.points}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Top Scorers */}
-                {roundSummary.top_scorer_delta.length > 0 && (
-                  <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 transition-colors duration-300">
-                    <h3 className="text-[10px] font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">
-                      {t("tournaments.topScorers")}
-                    </h3>
-                    <div className="flex flex-col gap-1.5">
-                      {roundSummary.top_scorer_delta.slice(0, 5).map((entry) => {
-                        const isUserTeamScorer = entry.team_id === userTeamId;
-                        return (
-                          <div key={entry.player_id} className="flex items-center gap-2 text-xs">
-                            <span className="w-4 text-right tabular-nums text-gray-500 dark:text-gray-400 font-heading">
-                              {entry.current_rank}.
-                            </span>
-                            <span
-                              className={`truncate flex-1 ${isUserTeamScorer ? "font-bold text-primary-600 dark:text-primary-400" : "text-gray-700 dark:text-gray-300"}`}
-                            >
-                              {entry.player_name}
-                            </span>
-                            <span className="font-heading font-bold tabular-nums text-accent-400">
-                              {entry.current_goals}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+                {leagueSideColumn}
+              </>
+            ) : (
+              <div className="flex flex-col gap-3 col-span-3">
+                <h2 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                  {t("match.otherMatches")}
+                </h2>
+                {renderMatchCards(competitionEntries, "match.otherMatchesUnavailable")}
               </div>
             )}
           </div>
@@ -437,8 +450,22 @@ export default function RoundDigestScreen({
             <CupRoundSection key={summary.competition_id} summary={summary} />
           ))}
 
+          {/* The user's match was not in the league round (a cup tie, say) but the league played
+              too: the round and the table, beneath the match the user played */}
+          {roundSummary && !userPlayedInLeagueRound && (
+            <div className="grid grid-cols-3 gap-6">
+              <div className="flex flex-col gap-3 col-span-2">
+                <h2 className="text-xs font-heading font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">
+                  {t("match.elsewhereInYourLeague")}
+                </h2>
+                {renderMatchCards(leagueRoundEntries, "match.roundSummaryUnavailable")}
+              </div>
+              {leagueSideColumn}
+            </div>
+          )}
+
           {/* Notable Upset */}
-          {isLeagueFixture && roundSummary?.notable_upset && (
+          {roundSummary?.notable_upset && (
             <div className="bg-white dark:bg-navy-800 rounded-xl border border-gray-200 dark:border-navy-700 shadow-sm p-4 flex items-center gap-4 transition-colors duration-300">
               <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center shrink-0">
                 <Flame className="w-4 h-4 text-orange-500 dark:text-orange-400" />

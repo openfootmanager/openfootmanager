@@ -57,6 +57,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 | `--mcp-port <PORT>` | **Yes** | — | Port for the MCP SSE server. Without this flag, no MCP server starts. |
 | `--mcp-mode <MODE>` | No | `sandbox` | `sandbox` = all tools available. `competition` = restricted tool set (see below). |
 | `--mcp-auto-start <WORLD[,TEAM]>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json"` or `"/path/to/world.json,team_id"`. Team ID is optional for HistoricalSnapshot worlds where the manager already has a team assigned. \*\*Required in competition mode\*\* (enforced after CLI parsing, at startup). |
+| `--build-revision` | No | — | Print the version and the source revision the binary was built from (`0.3.0+<revision>`) and exit. Needs no display and answers before the app starts, so it works in any build, with or without the `mcp` feature. A Windows release build is a GUI-subsystem program and prints nothing to an interactive console: redirect its output to a file. The E2E fixture uses it to refuse a stale binary. |
 | `--no-gui` | No | off | Hide the GUI window (headless). Saves ~150MB RAM per instance. |
 | `--mcp-seed <N>`, `--mcp-start-year <YEAR>`, `--mcp-start-phase <PHASE>` | No | — | Same as `game_new`'s `seed`, `start_year` and `start_phase`. Use `random` as the world to generate one: one seed gives the same team ids, so a sandbox run with the seed tells you which `team_id` to pass. |
 | `--manager-name <NAME>` | No | `Agent` | Manager first name for auto-start. |
@@ -90,7 +91,7 @@ setup tools above; `--mcp-disable-tools` can still disable individual tools expl
 
 ## Tool Reference
 
-89 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
+90 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
 > **Adding a new tool?** Follow the checklist in `src-tauri/src/mcp_server/tools.rs` at `tool_catalog()` — register the route, add to the catalog, add the implementation, emit `game-state-changed` if it mutates state, update competition-mode disabled list if needed, and update this document.
 
@@ -181,11 +182,12 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `contract_preview_termination` | Preview cost of terminating a contract |
 | `contract_terminate` | Terminate a contract immediately (costs compensation) |
 
-### Inbox (6 tools)
+### Inbox (7 tools)
 
 | Tool | Description |
 |------|-------------|
 | `inbox_get_messages` | List messages with optional category and read-status filters |
+| `inbox_get_archived` | Read mail older than 180 days, newest first, a page at a time (`before_date`/`before_id` continue) |
 | `inbox_mark_read` | Mark a message as read |
 | `inbox_mark_all_read` | Mark all messages as read |
 | `inbox_delete` | Delete a message |

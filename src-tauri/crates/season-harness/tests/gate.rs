@@ -6,8 +6,9 @@
 //! release. Keep the whole file under two minutes, and change `SEASONS` or
 //! `SEEDS` only with a measurement beside the change.
 
-use season_harness::driver::{DayPath, HarnessError, RunOptions, run_seasons};
-use season_harness::fingerprint::{fingerprint, first_difference};
+use ofm_core::game::Game;
+use season_harness::driver::{DayPath, HarnessError, RunOptions, SeasonObserver, run_seasons};
+use season_harness::fingerprint::{StatsLog, fingerprint, first_difference};
 use season_harness::invariants::Invariants;
 use season_harness::worlds::WorldSpec;
 
@@ -39,24 +40,38 @@ fn a_generated_world_holds_every_invariant_across_consecutive_seasons() {
 ///      (`ofm_core::matchday`) instead of the batch,
 /// Then every invariant still holds — a fixture stranded `Scheduled` by the
 ///      live day (#608) would end the season never completing or fail
-///      `no-stranded-fixture` — and the run says the live path was really taken.
+///      `no-stranded-fixture` — the run says the live path was really taken, and the stats
+///      store was handed every engine match, the player's own included: a live path that
+///      dropped its capture would hand over one match fewer on each of those days.
 #[test]
 fn a_season_played_through_the_live_path_holds_every_invariant() {
     let mut game = WorldSpec::gate(1).build().expect("the world builds");
     let mut invariants = Invariants::new(&game);
+    let mut stats = StatsLog::default();
+    let mut played = PlayedMatches::default();
     let options = RunOptions {
         day_path: DayPath::UserMatchLive,
         ..RunOptions::seasons(1)
     };
 
-    let summary = run_seasons(&mut game, options, &mut invariants)
-        .unwrap_or_else(|error| panic!("the live path: {error}"));
+    let summary = run_seasons(
+        &mut game,
+        options,
+        &mut ((&mut invariants, &mut stats), &mut played),
+    )
+    .unwrap_or_else(|error| panic!("the live path: {error}"));
 
     assert!(
         summary.live_days > 20,
         "the player's club plays dozens of matches a season, so the live path \
          must have been taken on dozens of days; it was taken on {}",
         summary.live_days
+    );
+    assert!(
+        stats.captures() >= played.0,
+        "{} captures for {} engine matches: the live path is not handing over the player's own",
+        stats.captures(),
+        played.0
     );
     assert!(
         invariants.is_clean(),
@@ -224,19 +239,55 @@ fn a_season_that_will_not_finish_stops_the_run_and_names_what_is_unfinished() {
     }
 }
 
+/// Counts the club matches that were played with the engine, just before the rollover replaces them.
+#[derive(Default)]
+struct PlayedMatches(usize);
+
+impl SeasonObserver for PlayedMatches {
+    fn on_before_rollover(&mut self, game: &Game, _season: u32) {
+        self.0 += game
+            .competitions
+            .iter()
+            .flat_map(|competition| &competition.fixtures)
+            .filter(|fixture| {
+                fixture
+                    .result
+                    .as_ref()
+                    .is_some_and(|result| result.report.is_some())
+            })
+            .count();
+    }
+}
+
 /// Given a generated world and a seed,
 /// When it is built twice and played through a season and its rollover, once on each copy,
 /// Then the two end in the same world — results, tables, ids, bodies, money, staff and
-///      managers — so a draw that escapes the game's seed fails the gate on the day it is added.
+///      managers — and hand the stats store the same records, so a draw that escapes the game's
+///      seed fails the gate on the day it is added. The records were handed over at all: two runs
+///      that logged nothing would agree, so the log must hold a capture for every engine match.
 #[test]
 fn the_same_seed_plays_the_same_seasons() {
     let play = || {
         let mut game = WorldSpec::gate(1).build().expect("the world builds");
         let mut invariants = Invariants::new(&game);
+        let mut stats = StatsLog::default();
+        let mut played = PlayedMatches::default();
         // The invariants are not under test here, only that the two runs agree; but a run that
         // stopped early would agree with itself without having played the season.
-        run_seasons(&mut game, RunOptions::seasons(1), &mut invariants).expect("the season plays");
-        fingerprint(&game)
+        run_seasons(
+            &mut game,
+            RunOptions::seasons(1),
+            &mut ((&mut invariants, &mut stats), &mut played),
+        )
+        .expect("the season plays");
+        assert!(played.0 > 0, "the season played no engine match");
+        assert!(
+            stats.captures() >= played.0,
+            "{} captures for {} engine matches: the driver is not forwarding them",
+            stats.captures(),
+            played.0
+        );
+        format!("{}\n{}", fingerprint(&game), stats.fingerprint())
     };
 
     let first = play();

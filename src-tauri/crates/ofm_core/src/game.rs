@@ -157,10 +157,27 @@ pub struct Game {
     /// IPC serde like the other archives. Persistence is the `retired_managers` table.
     #[serde(skip)]
     pub retired_managers: Vec<Manager>,
+    /// Read mail older than half a year, moved out of `messages` so the daily response stays small
+    /// (`inbox_archive`). Skipped on IPC serde like the other archives; the UI pages it through
+    /// `get_archived_messages`. Persistence is the `archived_messages` table.
+    #[serde(skip)]
+    pub archived_messages: Vec<InboxMessage>,
     /// Tactics the player saved, in the order they made them. Career-scoped, not club-scoped.
     /// Persistence is the `custom_tactics` table.
     #[serde(default)]
     pub custom_tactics: Vec<domain::custom_tactic::CustomTactic>,
+    /// True once the player's old browser library of custom tactics has been copied into this
+    /// career. The copy runs once: without the mark, a tactic the player deleted would be copied
+    /// back from the browser key on the next load. A save from before this existed reads false and
+    /// is copied in once more, then marked. Persistence is `game_meta.legacy_tactics_imported`.
+    #[serde(default)]
+    pub legacy_tactics_imported: bool,
+    /// Names the career this game was installed as (`StateManager::next_career_token`). It travels
+    /// to the screen with the game, and a command that writes on the screen's behalf hands it back
+    /// to be checked against the active game inside the write. Not saved: a loaded game is
+    /// installed again and gets a fresh one. 0 for a game that was never installed (tests).
+    #[serde(default)]
+    pub career_token: u64,
     /// Keys of events that have already been announced to the player.
     ///
     /// This is the sent-ledger. It exists because `messages` cannot serve as
@@ -250,6 +267,9 @@ impl Game {
             day_start: None,
             retired_managers: Vec::new(),
             custom_tactics: Vec::new(),
+            legacy_tactics_imported: false,
+            career_token: 0,
+            archived_messages: Vec::new(),
             emitted_events: BTreeSet::new(),
             extra_translations: std::collections::HashMap::new(),
             package_lockfile: vec![],

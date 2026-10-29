@@ -14,12 +14,105 @@
 @import "@fontsource/barlow-condensed/latin-ext-600.css";
 @import "@fontsource/barlow-condensed/latin-ext-700.css";
 
+/* Cyrillic faces are declared here, not imported, because @fontsource's per-subset CSS carries no
+   unicode-range: a Fira face without one would claim every character, Latin headings included. The
+   ranges are the ones in @fontsource's combined CSS. woff2 only (the webview supports it). */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-400-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-500-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-500-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-600-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-700-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-700-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Fira Sans Extra Condensed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../node_modules/@fontsource/fira-sans-extra-condensed/files/fira-sans-extra-condensed-cyrillic-600-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Fira Sans Extra Condensed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../node_modules/@fontsource/fira-sans-extra-condensed/files/fira-sans-extra-condensed-cyrillic-700-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   /* Typography — CJK fallbacks (PingFang SC/Microsoft YaHei/Noto Sans CJK SC) kick in on Chinese characters via the font-family fallback chain */
   --font-sans: "Inter", "Avenir", "Helvetica", "Arial", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
-  --font-heading: "Barlow Condensed", "Inter", "Arial Narrow", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --font-heading: "Barlow Condensed", "Fira Sans Extra Condensed", "Inter", "Arial Narrow", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
 
   /* Primary: Emerald Green */
   --color-primary-50: #ecfdf5;
@@ -55,6 +148,162 @@
   --color-navy-800: #131b33;
   --color-navy-700: #1a2340;
   --color-navy-600: #243054;
+
+  /* Type: role-named sizes, in rem so ui_scale moves every one of them. Nothing goes below 12px. */
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.25rem;
+  --text-lead: 1rem;
+  --text-lead--line-height: 1.5rem;
+  --text-heading: 1.125rem;
+  --text-heading--line-height: 1.5rem;
+  --text-title: 1.5rem;
+  --text-title--line-height: 2rem;
+  --text-display: 2rem;
+  --text-display--line-height: 2.25rem;
+  --tracking-label: 0.05em;
+
+  /* Surfaces and text by role. Light values here; .dark and .high-contrast.dark redefine them
+     below, so a component that uses a role colour needs no dark: partner. */
+  --color-page: #f3f4f6;
+  --color-panel: #ffffff;
+  --color-sunken: #f9fafb;
+  --color-chrome: #131b33;
+  --color-chrome-fg: #e5e7eb;
+  --color-chrome-fg-muted: #9ca3af;
+  --color-overlay: rgb(10 17 40 / 0.6);
+  --color-fg: #0a1128;
+  --color-fg-muted: #4b5563;
+  /* A shade darker than gray-500, so it reaches 4.5:1 on the page as well as on a panel. */
+  --color-fg-subtle: #646d7b;
+  --color-line: #e5e7eb;
+  --color-line-strong: #d1d5db;
+  /* The focus ring. Themed so it reaches WCAG 1.4.11's 3:1 against the page and a panel in both themes. */
+  --color-focus: #047857;
+  /* Text and icons on the brand fill (primary-700), on chrome, on the turf or a dark hero. Never
+     on a -solid colour: those are for bars, dots and fills that carry no text, and white on them
+     falls under 4.5:1. */
+  --color-on-brand: #ffffff;
+  /* The surface under the pointer: a hovered row, menu item or ghost button. */
+  --color-hover: #e5e7eb;
+  /* Chart series, in order. Charts read these through var(), which SVG attributes resolve in
+     WebKitGTK and Chromium alike, so a chart follows the theme with no colours in TypeScript. */
+  --color-series-1: #059669;
+  --color-series-2: #4f46e5;
+
+  /* Status: text, tint (backgrounds) and solid (bars and dots only; they carry no text). */
+  --color-positive: #047857;
+  --color-positive-tint: #d1fae5;
+  --color-positive-solid: #10b981;
+  --color-warning: #92400e;
+  --color-warning-tint: #fef3c7;
+  --color-warning-solid: #f59e0b;
+  --color-danger: #b91c1c;
+  --color-danger-tint: #fee2e2;
+  --color-danger-solid: #ef4444;
+  --color-info: #0369a1;
+  --color-info-tint: #e0f2fe;
+  --color-info-solid: #0ea5e9;
+
+  /* Tones: the one good-to-bad scale for rated values. The backend picks the tone. */
+  --color-tone-top: #854d0e;
+  --color-tone-top-tint: #fef3c7;
+  --color-tone-top-solid: #eab308;
+  --color-tone-good: #047857;
+  --color-tone-good-tint: #d1fae5;
+  --color-tone-good-solid: #10b981;
+  --color-tone-fair: #0369a1;
+  --color-tone-fair-tint: #e0f2fe;
+  --color-tone-fair-solid: #0ea5e9;
+  --color-tone-low: #92400e;
+  --color-tone-low-tint: #fef3c7;
+  --color-tone-low-solid: #f59e0b;
+  --color-tone-bad: #b91c1c;
+  --color-tone-bad-tint: #fee2e2;
+  --color-tone-bad-solid: #ef4444;
+
+  /* Match. Kit colours come from the backend; these are only the fallbacks. Turf has no dark mode. */
+  --color-kit-home-fallback: #10b981;
+  --color-kit-away-fallback: #6366f1;
+  --color-turf-near: #116b40;
+  --color-turf-far: #0d5733;
+  --color-pitch-line: rgb(255 255 255 / 0.35);
+  --color-pitch-press: #ffdc64;
+  --color-pitch-defensive-line: #ff5050;
+
+  /* Layout */
+  --spacing-row: 2.5rem;
+  --spacing-panel-header: 2.5rem;
+  --spacing-toolbar: 3rem;
+  /* The sidebar's widths: the icon rail and the three open widths (Settings > Sidebar width). Wide
+     is the narrowest that puts every nav label on one line in all 12 locales, measured on the OS
+     fallback font; it is re-measured once the game bundles its Cyrillic fonts. sidebarLayout.ts
+     reckons with the same values, and a test holds them together. */
+  --spacing-sidebar-rail: 3.5rem;
+  --spacing-sidebar-compact: 13rem;
+  --spacing-sidebar-standard: 16rem;
+  --spacing-sidebar-wide: 17.75rem;
+  --container-page: 80rem;
+  /* Two-panel breakpoint for container queries. A container query's rem follows ui_scale, so in a
+     960px window: at normal scale (16px root) 36rem = 576px fits the 655px workspace and two
+     panels show; at xlarge (20px root) 36rem = 720px exceeds the 579px workspace and they stack. */
+  --container-split: 36rem;
+}
+
+@layer base {
+  .dark {
+    --color-page: #0a1128;
+    --color-panel: #1a2340;
+    --color-sunken: #131b33;
+    --color-fg: #f3f4f6;
+    --color-fg-muted: #a0aec0;
+    --color-fg-subtle: #8d99ae;
+    --color-line: #243054;
+    --color-line-strong: #2f3d66;
+    --color-focus: #34d399;
+    --color-hover: #243054;
+    --color-series-1: #10b981;
+    --color-series-2: #6366f1;
+    --color-positive: #34d399;
+    --color-positive-tint: rgb(6 78 59 / 0.55);
+    --color-warning: #fbbf24;
+    --color-warning-tint: rgb(120 53 15 / 0.45);
+    --color-danger: #f87171;
+    --color-danger-tint: rgb(127 29 29 / 0.45);
+    --color-info: #7dd3fc;
+    --color-info-tint: rgb(12 74 110 / 0.5);
+    --color-tone-top: #fcd34d;
+    --color-tone-top-tint: rgb(113 63 18 / 0.45);
+    --color-tone-good: #34d399;
+    --color-tone-good-tint: rgb(6 78 59 / 0.55);
+    --color-tone-fair: #7dd3fc;
+    --color-tone-fair-tint: rgb(12 74 110 / 0.5);
+    --color-tone-low: #fbbf24;
+    --color-tone-low-tint: rgb(120 53 15 / 0.45);
+    --color-tone-bad: #f87171;
+    --color-tone-bad-tint: rgb(127 29 29 / 0.45);
+  }
+
+  /* App.tsx toggles .high-contrast in either theme; .high-contrast.dark is more specific and wins
+     in dark. */
+  .high-contrast {
+    --color-fg-muted: #1f2937;
+    --color-fg-subtle: #374151;
+    --color-line: #9ca3af;
+  }
+
+  .high-contrast.dark {
+    --color-fg-muted: #cfd8dc;
+    --color-fg-subtle: #b0bec5;
+    --color-line: #4a5a8c;
+  }
+
+  .density-compact {
+    --spacing-row: 2rem;
+    --spacing-panel-header: 2.25rem;
+    --spacing-toolbar: 2.5rem;
+  }
 }
 
 @layer base {

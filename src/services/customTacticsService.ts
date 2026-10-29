@@ -16,12 +16,34 @@ export async function listCustomTactics(): Promise<CustomTactic[]> {
   return Array.isArray(tactics) ? (tactics as CustomTactic[]) : [];
 }
 
+/**
+ * The writes below carry the career token the screen was given with the game. The backend refuses
+ * them if another career is active by the time they arrive, so a request sent just before a career
+ * switch cannot land in the new career.
+ */
+
 /** Adds the tactic or replaces the one with the same id; returns the whole list. */
-export async function saveCustomTactic(tactic: CustomTactic): Promise<CustomTactic[]> {
-  return invoke<CustomTactic[]>("save_custom_tactic", { tactic });
+export async function saveCustomTactic(
+  tactic: CustomTactic,
+  careerToken: number,
+): Promise<CustomTactic[]> {
+  return invoke<CustomTactic[]>("save_custom_tactic", { tactic, careerToken });
 }
 
 /** Removes the tactic with `id`; returns the list that is left. */
-export async function deleteCustomTactic(id: string): Promise<CustomTactic[]> {
-  return invoke<CustomTactic[]>("delete_custom_tactic", { id });
+export async function deleteCustomTactic(id: string, careerToken: number): Promise<CustomTactic[]> {
+  return invoke<CustomTactic[]>("delete_custom_tactic", { id, careerToken });
+}
+
+/**
+ * Whether the old browser library still has to be copied into this career. It is copied once, so a
+ * tactic the player deletes afterwards is not copied back on the next load.
+ */
+export async function legacyTacticsImportPending(): Promise<boolean> {
+  return invoke<boolean>("legacy_tactics_import_pending");
+}
+
+/** Records that the old browser library has been copied in, for good. */
+export async function markLegacyTacticsImported(careerToken: number): Promise<void> {
+  await invoke("mark_legacy_tactics_imported", { careerToken });
 }

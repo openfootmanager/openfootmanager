@@ -20,6 +20,7 @@ export function useTransfersTabController({
   const { myTeam, closeBidNegotiation, openBidNegotiation, bidLoading } = transferBidFlow;
   const transferMarket = useTransferMarket({ gameState, userTeamId, t, myTeam });
   const loanOfferFlow = useLoanOfferFlow({
+    gameState,
     loanRegistrationDate,
     onGameUpdate,
     t,

@@ -11,7 +11,8 @@ use ofm_core::game::Game;
 use ofm_core::generator;
 use ofm_core::player_identity;
 use ofm_core::player_rating::{
-    effective_rating_for_assignment, formation_slots, refresh_player_derived,
+    effective_rating_for_assignment, formation_slots, reconcile_wonderkid_trait,
+    refresh_player_derived,
 };
 
 use crate::game_database::GameDatabase;
@@ -27,7 +28,9 @@ pub struct SaveManager {
     save_index: SaveIndexManager,
 }
 
-const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
+/// The key the UI shows when the save-manager mutex is poisoned, or the saves
+/// directory cannot be created. One definition: the app crate re-exports it.
+pub const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
 const SAVE_DELETE_ERROR: &str = "be.error.saveDeleteFailed";
 
 fn backend_error_with_param(key: &str, param_name: &str, param_value: &str) -> String {
@@ -527,6 +530,12 @@ impl SaveManager {
             }
             needs_resave = true;
         }
+        // Retirees used to stay on the roster flagged retired (saves below format 9). Whatever the
+        // version, one found there is archived, so the roster only ever holds people who play;
+        // the resave deletes the old active rows.
+        if ofm_core::retirees::archive_legacy_retirees(&mut game) > 0 {
+            needs_resave = true;
+        }
         let manager_count_before = game.managers.len();
         let assigned_manager_count_before = game
             .teams
@@ -580,6 +589,22 @@ impl SaveManager {
             info!(
                 "[save_manager] backfilled OVR/potential for {} players in save {}",
                 backfill_count, save_id
+            );
+            needs_resave = true;
+        }
+
+        // The wonderkid tag is a rule, not a stored fact: apply the current rule to every player,
+        // so a save written under an older one is judged by this one.
+        let retagged = game
+            .players
+            .iter_mut()
+            .map(|player| reconcile_wonderkid_trait(player, today))
+            .filter(|changed| *changed)
+            .count();
+        if retagged > 0 {
+            info!(
+                "[save_manager] re-judged the wonderkid tag for {} players in save {}",
+                retagged, save_id
             );
             needs_resave = true;
         }
@@ -694,6 +719,8 @@ impl SaveManager {
 
         // Strip session-specific data
         game.messages.clear();
+        // The archive is inbox history too: a new career must not show the old career's mail.
+        game.archived_messages.clear();
         // The sent-ledger records what *this career* has been told, so it is
         // session state like the inbox it guards. Carried over, the new career
         // would silently never receive anything the old one already saw — its
@@ -709,6 +736,9 @@ impl SaveManager {
         // A new career is a new game: its World Cups are drawn from its own seed, whatever the
         // save it began from did.
         game.legacy_world_cup_draw = false;
+        // It keeps the save's tactics library and owns no browser one, so the old browser library
+        // is never copied into it.
+        game.legacy_tactics_imported = true;
 
         // Reset clock to start date
         game.clock.current_date = game.clock.start_date;
@@ -1300,13 +1330,59 @@ mod tests {
         Game::new(clock, manager, vec![team], players, vec![], vec![])
     }
 
-    /// Removing someone from `game.staff` has to survive the save.
-    ///
-    /// Staff were written with `INSERT OR REPLACE` and read back whole, with no
-    /// delete anywhere in `db/`, so anyone removed in memory was resurrected by
-    /// the next load. The free-agent market is where that showed: it is cleared
-    /// and redrawn every 30 days, but the clear never reached disk, so a loaded
-    /// save listed every candidate ever generated and the list only ever grew.
+    /// Given a saved career whose young prospect has an S-tier ceiling but no wonderkid tag, and
+    /// whose other young player carries the tag with a ceiling below the S tier,
+    /// When the save is loaded,
+    /// Then the rule is applied on load: the first gets the tag and the second loses it.
+    #[test]
+    fn loading_a_save_applies_the_wonderkid_rule() {
+        use chrono::Datelike;
+        use domain::player::PlayerTrait;
+
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let mut second = game.players[0].clone();
+        second.id = "p-002".to_string();
+        game.players.push(second);
+        let today = game.clock.current_date.date_naive();
+        let born = format!("{}-01-01", today.year() - 19);
+        let ids: Vec<String> = game.players.iter().take(2).map(|p| p.id.clone()).collect();
+        for (n, player) in game.players.iter_mut().take(2).enumerate() {
+            player.date_of_birth = born.clone();
+            player.traits.retain(|t| *t != PlayerTrait::Wonderkid);
+            if n == 0 {
+                player.ovr = 65;
+                player.potential = 85;
+            } else {
+                player.ovr = 60;
+                player.potential = 75;
+                player.traits.push(PlayerTrait::Wonderkid);
+            }
+        }
+        let save_id = sm.create_save(&game, "Career").unwrap();
+
+        let loaded = SaveManager::init(&dir.path().join("saves"))
+            .unwrap()
+            .load_game(&save_id)
+            .unwrap();
+
+        let has_tag = |id: &str| {
+            loaded
+                .players
+                .iter()
+                .find(|p| p.id == id)
+                .unwrap()
+                .traits
+                .contains(&PlayerTrait::Wonderkid)
+        };
+        assert!(
+            has_tag(&ids[0]),
+            "the S-tier prospect was not tagged on load"
+        );
+        assert!(!has_tag(&ids[1]), "the stale tag was kept on load");
+    }
+
     /// Given a career saved after each of three days, each day adding a match and an article
     /// (and reading the previous one)
     /// When a second manager, with no memory of those saves, loads the file
@@ -1409,6 +1485,13 @@ mod tests {
         assert_eq!(loaded.team_matches.len(), 2);
     }
 
+    /// Removing someone from `game.staff` has to survive the save.
+    ///
+    /// Staff were written with `INSERT OR REPLACE` and read back whole, with no
+    /// delete anywhere in `db/`, so anyone removed in memory was resurrected by
+    /// the next load. The free-agent market is where that showed: it is cleared
+    /// and redrawn every 30 days, but the clear never reached disk, so a loaded
+    /// save listed every candidate ever generated and the list only ever grew.
     #[test]
     fn a_staff_member_removed_from_the_game_stays_removed_after_a_reload() {
         use domain::staff::{Staff, StaffAttributes, StaffRole};
@@ -2204,7 +2287,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_and_load_game_preserves_retired_player_state() {
+    fn test_create_and_load_game_archives_a_retired_player() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
 
@@ -2216,8 +2299,11 @@ mod tests {
         let save_id = sm.create_save(&game, "Retired Career").unwrap();
         let loaded = sm.load_game(&save_id).unwrap();
 
-        assert!(loaded.players[0].retired);
-        assert_eq!(loaded.players[0].team_id, None);
+        assert!(loaded.players.is_empty(), "a retiree is not on the roster");
+        assert_eq!(loaded.retired_players.len(), 1);
+        let retired = loaded.retired_players[0].to_player();
+        assert!(retired.retired);
+        assert_eq!(retired.team_id, None);
     }
 
     #[test]
@@ -2636,6 +2722,24 @@ mod tests {
         let fresh = sm.new_game_from_save(&save_id).unwrap();
 
         assert!(!fresh.legacy_world_cup_draw);
+    }
+
+    /// Given an old career that never had its browser tactics copied in (its save is unmarked)
+    /// When a new game is begun from that save
+    /// Then the new career is marked as already imported: it keeps the save's own tactics library
+    ///      (#883) and must not pull in a browser library that belongs to some other career.
+    #[test]
+    fn a_new_game_from_a_save_never_imports_the_browser_tactics() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut old = sample_game();
+        old.legacy_tactics_imported = false;
+        let save_id = sm.create_save(&old, "Old").unwrap();
+
+        let fresh = sm.new_game_from_save(&save_id).unwrap();
+
+        assert!(fresh.legacy_tactics_imported);
     }
 
     /// Given a save written after World Cups were seeded from the game,
@@ -4096,6 +4200,96 @@ mod tests {
         assert_eq!(fresh.custom_tactics, game.custom_tactics);
     }
 
+    /// Given a career with mail old enough to archive, read and unread
+    /// When it is archived, saved and loaded
+    /// Then the archive survives in its own table, nothing is left behind in `messages`, and the
+    ///      live inbox keeps what stayed.
+    #[test]
+    fn archived_mail_survives_save_and_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        let mail = |id: &str, date: &str, read: bool| {
+            let mut m = domain::message::InboxMessage::new(
+                id.to_string(),
+                "S".to_string(),
+                "B".to_string(),
+                "Board".to_string(),
+                date.to_string(),
+            );
+            m.read = read;
+            m
+        };
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        game.messages = vec![
+            mail("old-read", "1990-01-01", true),
+            mail("old-unread", "1990-01-02", false),
+            mail("fresh", &today, true),
+        ];
+        ofm_core::inbox_archive::archive_old_mail(&mut game);
+        let id = manager.create_save(&game, "Archive").unwrap();
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        let ids = |messages: &[domain::message::InboxMessage]| {
+            let mut ids: Vec<String> = messages.iter().map(|m| m.id.clone()).collect();
+            ids.sort();
+            ids
+        };
+        assert_eq!(ids(&loaded.archived_messages), ["old-read"]);
+        // Loading may add its own mail (the squad-floor warnings), so look for ours by id.
+        let live = ids(&loaded.messages);
+        assert!(live.contains(&"fresh".to_string()) && live.contains(&"old-unread".to_string()));
+        assert!(!live.contains(&"old-read".to_string()));
+
+        let conn =
+            rusqlite::Connection::open(dir.path().join("saves").join(format!("{id}.db"))).unwrap();
+        let archived_rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM archived_messages", [], |r| r.get(0))
+            .unwrap();
+        let live_copy: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM messages WHERE id = 'old-read'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!((archived_rows, live_copy), (1, 0));
+    }
+
+    /// Given a save whose career has archived mail
+    /// When a new career is started from it, and saved
+    /// Then the new career has no archived mail, in memory and in its own database, and the source
+    ///      save still has its own.
+    #[test]
+    fn a_career_started_from_a_save_starts_with_an_empty_archive() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.archived_messages
+            .push(domain::message::InboxMessage::new(
+                "old-1".to_string(),
+                "S".to_string(),
+                "B".to_string(),
+                "Board".to_string(),
+                "1990-01-01".to_string(),
+            ));
+        let source = manager.create_save(&game, "Source").unwrap();
+
+        let fresh = manager.new_game_from_save(&source).unwrap();
+        let new_save = manager.create_save(&fresh, "New").unwrap();
+
+        assert!(fresh.archived_messages.is_empty());
+        let archived_in = |id: &str| -> i64 {
+            rusqlite::Connection::open(dir.path().join("saves").join(format!("{id}.db")))
+                .unwrap()
+                .query_row("SELECT COUNT(*) FROM archived_messages", [], |r| r.get(0))
+                .unwrap()
+        };
+        assert_eq!(archived_in(&new_save), 0);
+        assert_eq!(archived_in(&source), 1);
+    }
+
     /// Given a retiree archived in a transaction that is then abandoned, when the database is
     /// read, then the person is still active and no archive row exists: neither half committed.
     #[test]
@@ -4136,6 +4330,132 @@ mod tests {
             ),
             1
         );
+    }
+
+    fn game_with_a_retiree_on_the_roster() -> (Game, String) {
+        let mut game = sample_game();
+        let mut retiree = game.players[0].clone();
+        retiree.id = "p-legacy-retiree".into();
+        retiree.full_name = "Ada Old".into();
+        retiree.retired = true;
+        retiree.team_id = None;
+        let id = retiree.id.clone();
+        game.players.push(retiree);
+        (game, id)
+    }
+
+    fn stamp_format(manager: &SaveManager, save_id: &str, version: u32) {
+        let connection =
+            rusqlite::Connection::open(manager.save_db_path(save_id).unwrap()).unwrap();
+        connection
+            .execute("UPDATE game_meta SET save_format_version = ?1", [version])
+            .unwrap();
+    }
+
+    /// Given a save written before the archive (format 8) whose roster still holds a retiree,
+    /// when it is loaded, then he is in the archive and off the roster, once.
+    #[test]
+    fn a_save_from_before_the_archive_partitions_its_retirees_on_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let (game, retiree_id) = game_with_a_retiree_on_the_roster();
+        let id = manager.create_save(&game, "Old career").unwrap();
+        stamp_format(&manager, &id, 8);
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert!(loaded.players.iter().all(|player| player.id != retiree_id));
+        assert_eq!(loaded.retired_players.len(), 1);
+        assert_eq!(loaded.retired_players[0].id, retiree_id);
+    }
+
+    /// Given a career that has been loaded once (so every other backfill has already been written
+    ///       back) and then saved with a retiree on its roster,
+    /// When it is only loaded again (nothing saves it afterwards),
+    /// Then a second connection already finds him archived and off the active roster: the archive
+    ///      move is what makes the load write itself back.
+    #[test]
+    fn loading_a_save_with_a_retiree_on_its_roster_writes_the_move_back() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let id = manager.create_save(&sample_game(), "Career").unwrap();
+        let mut settled = manager.load_game(&id).unwrap();
+        let mut retiree = settled.players[0].clone();
+        retiree.id = "p-late-retiree".into();
+        retiree.retired = true;
+        retiree.team_id = None;
+        settled.players.push(retiree);
+        manager.save_game(&settled, &id).unwrap();
+
+        manager.load_game(&id).unwrap();
+
+        let reader = rusqlite::Connection::open(manager.save_db_path(&id).unwrap()).unwrap();
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM retired_players WHERE player_id = ?1",
+                "p-late-retiree"
+            ),
+            1
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM players WHERE id = ?1",
+                "p-late-retiree"
+            ),
+            0
+        );
+    }
+
+    /// Given that old save loaded and saved again, when the `.db` is read through a second
+    /// connection, then the retiree has an archive row and no active row, and a further load
+    /// finds him in the archive once.
+    #[test]
+    fn the_next_save_moves_the_legacy_retiree_in_the_database() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let (game, retiree_id) = game_with_a_retiree_on_the_roster();
+        let id = manager.create_save(&game, "Old career").unwrap();
+        stamp_format(&manager, &id, 8);
+        let loaded = manager.load_game(&id).unwrap();
+
+        manager.save_game(&loaded, &id).unwrap();
+
+        let reader = rusqlite::Connection::open(manager.save_db_path(&id).unwrap()).unwrap();
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM retired_players WHERE player_id = ?1",
+                &retiree_id
+            ),
+            1
+        );
+        assert_eq!(
+            rows(
+                &reader,
+                "SELECT COUNT(*) FROM players WHERE id = ?1",
+                &retiree_id
+            ),
+            0
+        );
+        let reloaded = manager.load_game(&id).unwrap();
+        assert_eq!(reloaded.retired_players.len(), 1);
+    }
+
+    /// Given a save at the current format whose roster somehow still holds a retiree, when it is
+    /// loaded, then he is archived too: the roster never plays a retiree, whatever the version.
+    #[test]
+    fn a_retiree_on_the_roster_of_a_current_save_is_archived_on_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut manager = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let (game, retiree_id) = game_with_a_retiree_on_the_roster();
+        let id = manager.create_save(&game, "New career").unwrap();
+
+        let loaded = manager.load_game(&id).unwrap();
+
+        assert!(loaded.players.iter().all(|player| player.id != retiree_id));
+        assert_eq!(loaded.retired_players.len(), 1);
     }
 
     fn world_cup_game() -> Game {

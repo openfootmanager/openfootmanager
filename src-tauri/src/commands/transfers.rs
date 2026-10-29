@@ -8,7 +8,7 @@ use ofm_core::game::Game;
 use ofm_core::game::{YouthScoutingObjective, YouthScoutingRegion};
 use ofm_core::state::StateManager;
 use ofm_core::transfers::{
-    LoanOfferDecision, LoanOfferOutcome, TransferBidFinancialProjection,
+    BidNegotiationStatus, LoanOfferDecision, LoanOfferOutcome, TransferBidFinancialProjection,
     TransferNegotiationDecision, TransferNegotiationOutcome,
 };
 
@@ -130,6 +130,24 @@ pub fn preview_transfer_bid_financial_impact(
     fee: u64,
 ) -> Result<TransferBidFinancialProjectionCommandResponse, String> {
     preview_transfer_bid_financial_impact_internal(&state, &player_id, fee)
+}
+
+#[tauri::command]
+pub fn get_bid_negotiation_status(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<BidNegotiationStatus, String> {
+    get_bid_negotiation_status_internal(&state, &player_id)
+}
+
+pub fn get_bid_negotiation_status_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<BidNegotiationStatus, String> {
+    info!("[cmd] get_bid_negotiation_status: player_id={}", player_id);
+    state
+        .get_game(|game| ofm_core::transfers::bid_negotiation_status(game, player_id))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
 }
 
 pub fn make_transfer_bid_internal(

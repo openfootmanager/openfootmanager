@@ -3,10 +3,13 @@ use domain::staff::{Staff, StaffAttributes, StaffRole};
 use domain::team::PlayStyle;
 use rand::{Rng, RngExt};
 
-use super::authored_player::resolve_authored_contract;
+use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
 use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
-use crate::player_rating::{generate_potential, refresh_player_derived};
+use crate::player_rating::{
+    generate_potential, move_attributes_to, natural_ovr, ovr_from_attributes,
+    refresh_player_derived, roll_growth_headroom,
+};
 
 pub(super) fn standard_available_staff_roles() -> [StaffRole; 12] {
     [
@@ -470,6 +473,35 @@ pub(super) fn senior_slot(slot: usize) -> usize {
     }
 }
 
+/// The mean rating of the attributes the generator rolls.
+const ROLLED_RATING_MEAN: f64 = 67.6;
+/// Where the generated ceilings centre. Young players open below their ceiling, so the ceilings
+/// sit above the mean rating a world should open at (about 68).
+const CEILING_MEAN: f64 = 69.6;
+/// How much of the rolled spread the ceilings keep. Lifting the centre alone would push the S tier
+/// past its 1 to 3% target, so the bell is narrowed as it is lifted.
+const CEILING_SPREAD: f64 = 0.80;
+
+/// The spread (standard deviation) of the ceilings a world holds at 25, once every ceiling has
+/// stopped drifting.
+const CEILING_SD: f64 = 5.0;
+
+/// The ceiling a rolled rating becomes for a player of `age`: the same ranking, on the bell the
+/// world is meant to have at 25. A young player's ceiling will still drift (`development`), so he
+/// is drawn from a bell narrower by the variance that drift will add; by 25 everyone's ceiling
+/// follows one bell, and a teenager's ceiling stays a good guide to where he ends up.
+///
+/// The centre is not raised for the drift's small pull down: a player closes the gap to his
+/// ceiling by 19 to 21, after which his rating holds the ceiling up, so the pull is mostly absorbed
+/// (measured on the shipped world: ceilings of 72.2 at 16 are 72.4 at 25).
+fn shaped_ceiling(rolled: f64, age: u32) -> u8 {
+    let (_, drift_variance) = crate::development::ceiling_drift_still_to_come(age);
+    let narrowing = (1.0 - drift_variance / CEILING_SD.powi(2)).max(0.0).sqrt();
+    (CEILING_MEAN + narrowing * CEILING_SPREAD * (rolled - ROLLED_RATING_MEAN))
+        .round()
+        .clamp(1.0, 99.0) as u8
+}
+
 /// A generated player for squad slot `index`. `age` fixes his age; `None`
 /// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
 /// exactly as before the parameter existed, so every seeded world — all of
@@ -512,7 +544,7 @@ pub(super) fn generate_random_player_from_def(
     let is_def = matches!(group, Position::Defender);
     let is_fwd = matches!(group, Position::Forward);
 
-    let attributes = PlayerAttributes {
+    let mut attributes = PlayerAttributes {
         pace: rng.random_range(40..95),
         stamina: rng.random_range(40..95),
         strength: rng.random_range(40..95),
@@ -566,12 +598,18 @@ pub(super) fn generate_random_player_from_def(
         },
     };
 
+    // The attributes just rolled are the player at his best: they set his ceiling, and a player
+    // who has years of growth left is lowered from it by the headroom for his age. Ceiling
+    // first, rating second, so the whole world's ceilings follow one bell and a teenager is an
+    // earlier version of a prime-age player rather than a better one.
+    let ceiling = shaped_ceiling(ovr_from_attributes(&attributes, &position), age);
+    let headroom = roll_growth_headroom(age, rng);
+    move_attributes_to(&mut attributes, &position, ceiling.saturating_sub(headroom));
     // Size market value and wage from the same position-weighted rating the
     // player will be shown with, so a keeper is priced on keeping.
     let current_year: u32 = opening_year;
 
-    let approx_ovr =
-        crate::player_rating::ovr_from_attributes(&attributes, &position).round() as u32;
+    let approx_ovr = ovr_from_attributes(&attributes, &position).round() as u32;
 
     let age_factor = if age <= 23 {
         1.5
@@ -622,14 +660,10 @@ pub(super) fn generate_random_player_from_def(
         }
     }
 
-    // Set position-weighted OVR, potential, and traits (Wonderkid included if applicable)
-    let player_age = current_year.saturating_sub(birth_year);
-    // Pre-generate a potential so Wonderkid trait is assigned correctly on first refresh
-    let temp_ovr = {
-        use crate::player_rating::natural_ovr;
-        natural_ovr(&player).round() as u8
-    };
-    player.potential = generate_potential(temp_ovr, player_age, rng);
+    // Set position-weighted OVR and traits (Wonderkid included if applicable) around the ceiling.
+    player.potential = (natural_ovr(&player).round() as u8)
+        .saturating_add(headroom)
+        .min(99);
     refresh_player_derived(
         &mut player,
         domain::age::season_midpoint(current_year as i32),
@@ -781,19 +815,21 @@ pub(super) fn generate_staff_from_authored_def(
     };
 
     let current_year: u32 = opening_year;
-    let birth_year = if let Some(dob) = &def.date_of_birth {
-        dob.split('-')
-            .next()
-            .and_then(|y| y.parse::<u32>().ok())
-            .unwrap_or(current_year.saturating_sub(40))
+    // Validation refuses an unreadable date of birth; one that reaches here anyway counts as
+    // not written, never as a guessed year.
+    let authored_dob = def
+        .date_of_birth
+        .as_deref()
+        .filter(|dob| is_valid_date_of_birth(dob));
+    let birth_year = if let Some(year) = authored_dob.and_then(birth_year_of) {
+        year
     } else if let Some(age) = def.age {
         current_year.saturating_sub(age)
     } else {
         current_year.saturating_sub(rng.random_range(30..55))
     };
-    let dob = def
-        .date_of_birth
-        .clone()
+    let dob = authored_dob
+        .map(str::to_string)
         .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
 
     let attributes = def.attributes.clone().unwrap_or_else(|| {
@@ -825,8 +861,52 @@ pub(super) fn generate_staff_from_authored_def(
 // Authored players (world packages)
 // ---------------------------------------------------------------------------
 
+/// `base` plus or minus `spread`, kept within `lo..=hi`. The floor gives way to a base so low
+/// that the spread reaches under it, but never below 1: an attribute of 0 reads as missing.
 fn jitter(base: i32, spread: i32, lo: u8, hi: u8, rng: &mut impl Rng) -> u8 {
-    (base + rng.random_range(-spread..=spread)).clamp(lo as i32, hi as i32) as u8
+    let lo = i32::from(lo).min((base - spread).max(1));
+    (base + rng.random_range(-spread..=spread)).clamp(lo, i32::from(hi)) as u8
+}
+
+/// How many times the attribute centre is corrected against the real rating.
+const OVERALL_CORRECTION_STEPS: usize = 8;
+
+/// Attributes whose rating, as `player_rating::ovr_from_attributes` computes it, lands on
+/// `overall`.
+///
+/// Jittering every attribute around `overall` does not give an `ovr` of `overall`: the rating
+/// subtracts a penalty for a weak critical attribute, so a low target came out far from itself.
+/// Rather than invert that formula here (a second copy of the rating rule), the centre is
+/// moved by the remaining difference, computed with the real rating, until it lands within one
+/// point. The same seed is replayed each time so only the centre moves, and the result is
+/// deterministic for a seeded `rng`.
+fn attributes_matching_overall(
+    overall: u8,
+    position: &Position,
+    rng: &mut impl Rng,
+) -> PlayerAttributes {
+    let seed: u64 = rng.random();
+    let target = i32::from(overall);
+    let mut centre = target;
+    let mut closest: Option<(i32, PlayerAttributes)> = None;
+    for _ in 0..OVERALL_CORRECTION_STEPS {
+        let mut replay = crate::seed::rng_from_u64(seed);
+        let attributes = attributes_for_overall(centre.clamp(1, 99) as u8, position, &mut replay);
+        let rated = crate::player_rating::ovr_from_attributes(&attributes, position).round() as i32;
+        let off = target - rated;
+        if closest.as_ref().is_none_or(|(best, _)| off.abs() < *best) {
+            closest = Some((off.abs(), attributes));
+        }
+        if off.abs() <= 1 {
+            break;
+        }
+        centre += off;
+    }
+    closest
+        .map(|(_, attributes)| attributes)
+        .unwrap_or_else(|| {
+            attributes_for_overall(overall, position, &mut crate::seed::rng_from_u64(seed))
+        })
 }
 
 /// Build a realistic attribute spread centred on a target `overall`, shaped by
@@ -917,20 +997,31 @@ fn resolve_def_name(
     }
 }
 
-fn resolve_birth_year(
+/// The year of a `YYYY-MM-DD` date of birth.
+fn birth_year_of(dob: &str) -> Option<u32> {
+    dob.get(0..4)?.parse().ok()
+}
+
+/// The year an authored player was born and the date of birth to store: the authored date when
+/// it is a real one, else the authored age, else a rolled one. An unreadable date is refused by
+/// package validation; one that reaches here anyway counts as not written, never as a guess.
+fn resolve_birth(
     def: &super::package::PlayerDef,
     opening_year: u32,
     rng: &mut impl Rng,
-) -> u32 {
-    if let Some(dob) = &def.date_of_birth {
-        dob.get(0..4)
-            .and_then(|year| year.parse::<u32>().ok())
-            .unwrap_or(opening_year.saturating_sub(24))
-    } else if let Some(age) = def.age {
-        opening_year.saturating_sub(age)
-    } else {
-        opening_year.saturating_sub(rng.random_range(18..34))
+) -> (u32, String) {
+    let authored = def
+        .date_of_birth
+        .as_deref()
+        .filter(|dob| is_valid_date_of_birth(dob));
+    if let Some((dob, year)) = authored.and_then(|dob| Some((dob, birth_year_of(dob)?))) {
+        return (year, dob.to_string());
     }
+    let year = match def.age {
+        Some(age) => opening_year.saturating_sub(age),
+        None => opening_year.saturating_sub(rng.random_range(18..34)),
+    };
+    (year, format!("{year:04}-01-01"))
 }
 
 /// Convert a hand-authored [`PlayerDef`](super::package::PlayerDef) into a full
@@ -1043,15 +1134,11 @@ pub(super) fn generate_player_from_def(
     let match_name = authored_match_name(&def.name, &first_name, &last_name, &full_name);
 
     let current_year: u32 = opening_year;
-    let birth_year = resolve_birth_year(def, opening_year, rng);
-    let dob = def
-        .date_of_birth
-        .clone()
-        .unwrap_or_else(|| format!("{birth_year:04}-01-01"));
+    let (birth_year, dob) = resolve_birth(def, opening_year, rng);
     let age = current_year.saturating_sub(birth_year);
 
     let mut attributes = def.attributes.clone().unwrap_or_else(|| {
-        attributes_for_overall(
+        attributes_matching_overall(
             def.overall.unwrap_or(DEFAULT_AUTHORED_OVERALL),
             &def.position,
             rng,
@@ -1240,6 +1327,204 @@ mod tests {
         )
     }
 
+    /// A fixed-seed league's worth of generated players, 23 slots a club, with the age each was
+    /// generated at (the opening year less the year of birth, which is what the generator sets
+    /// its headroom by).
+    fn generated_players(clubs: usize) -> Vec<(Player, i32)> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(869);
+        (0..clubs * 23)
+            .map(|n| {
+                let player = generate_random_player_from_def(
+                    "club-id",
+                    n % 23,
+                    "ENG",
+                    2026,
+                    None,
+                    &names_def,
+                    &mut rng,
+                );
+                let birth_year: i32 = player.date_of_birth[..4].parse().unwrap();
+                (player, 2026 - birth_year)
+            })
+            .collect()
+    }
+
+    /// Given rolled ratings at, above and below the rolled mean,
+    /// When they are shaped onto the ceiling bell,
+    /// Then the mean maps to the bell's centre and a distance from it is kept at the spread.
+    #[test]
+    fn a_rolled_rating_is_shaped_onto_the_ceiling_bell() {
+        assert_eq!(
+            shaped_ceiling(ROLLED_RATING_MEAN, 25),
+            CEILING_MEAN.round() as u8
+        );
+        let above = shaped_ceiling(ROLLED_RATING_MEAN + 10.0, 25);
+        let below = shaped_ceiling(ROLLED_RATING_MEAN - 10.0, 25);
+        let centre = CEILING_MEAN.round() as u8;
+        assert_eq!(above - centre, (10.0 * CEILING_SPREAD).round() as u8);
+        assert_eq!(centre - below, (10.0 * CEILING_SPREAD).round() as u8);
+    }
+
+    /// Given the same rolled rating far above the mean for a teenager and for a prime-age player,
+    /// When it is shaped onto the ceiling bell,
+    /// Then the teenager's ceiling is closer to the centre (his bell is narrower) and the centre
+    /// itself is the same.
+    #[test]
+    fn a_teenagers_ceiling_bell_is_narrower_than_a_prime_players() {
+        let prime = shaped_ceiling(ROLLED_RATING_MEAN + 20.0, 25);
+        let teenager = shaped_ceiling(ROLLED_RATING_MEAN + 20.0, 16);
+        assert!(teenager < prime, "{teenager} vs {prime}");
+        assert_eq!(
+            shaped_ceiling(ROLLED_RATING_MEAN, 16),
+            shaped_ceiling(ROLLED_RATING_MEAN, 25)
+        );
+    }
+
+    /// Given generated teenagers (18 or younger),
+    /// When their rating is compared with their ceiling,
+    /// Then the ceiling is the headroom for their age above the rating: they are an earlier self.
+    #[test]
+    fn a_generated_teenager_is_an_earlier_version_of_his_ceiling() {
+        let teenagers: Vec<_> = generated_players(120)
+            .into_iter()
+            .filter(|(_, age)| *age <= 18)
+            .collect();
+        assert!(teenagers.len() > 200, "the fixture has too few teenagers");
+        for (player, age) in teenagers {
+            let room = player.potential - player.ovr;
+            assert!(
+                (13..=32).contains(&room),
+                "a {age}-year-old rated {} has a ceiling of {}, {room} above",
+                player.ovr,
+                player.potential
+            );
+        }
+    }
+
+    /// Given generated players of 26 or older,
+    /// When their rating is compared with their ceiling,
+    /// Then they are at it: a prime-age player has nothing left to grow into.
+    #[test]
+    fn a_generated_veteran_is_at_his_ceiling() {
+        let veterans: Vec<_> = generated_players(120)
+            .into_iter()
+            .filter(|(_, age)| *age >= 26)
+            .collect();
+        assert!(veterans.len() > 500, "the fixture has too few veterans");
+        for (player, age) in veterans {
+            assert!(
+                player.potential - player.ovr <= 1,
+                "a {age}-year-old rated {} has a ceiling of {}",
+                player.ovr,
+                player.potential
+            );
+        }
+    }
+
+    /// Given the same generated world,
+    /// When the average ceiling of its teenagers is compared with the average rating of its veterans,
+    /// Then they match: a teenager's ceiling is where a veteran's rating ends up, not that plus his
+    /// headroom.
+    #[test]
+    fn a_teenagers_ceiling_is_where_a_veterans_rating_ends_up() {
+        let world = generated_players(360);
+        let mean = |values: Vec<u8>| {
+            values.iter().map(|v| f64::from(*v)).sum::<f64>() / values.len() as f64
+        };
+        let teenage_ceiling = mean(
+            world
+                .iter()
+                .filter(|(_, age)| *age <= 18)
+                .map(|(p, _)| p.potential)
+                .collect(),
+        );
+        let veteran_rating = mean(
+            world
+                .iter()
+                .filter(|(_, age)| *age >= 26)
+                .map(|(p, _)| p.ovr)
+                .collect(),
+        );
+
+        assert!(
+            (teenage_ceiling - veteran_rating).abs() < 1.5,
+            "teenagers' ceilings average {teenage_ceiling:.1}, veterans' ratings {veteran_rating:.1}"
+        );
+    }
+
+    /// Given a generated world of 360 clubs,
+    /// When its senior players are averaged,
+    /// Then the world opens near the mean the maintainer asked to keep (about 68).
+    #[test]
+    fn a_new_world_opens_near_the_intended_mean_rating() {
+        let seniors: Vec<f64> = generated_players(360)
+            .into_iter()
+            .filter(|(_, age)| *age >= 21)
+            .map(|(player, _)| f64::from(player.ovr))
+            .collect();
+        let mean = seniors.iter().sum::<f64>() / seniors.len() as f64;
+
+        assert!((67.0..=68.5).contains(&mean), "seniors average {mean:.2}");
+    }
+
+    /// Given the same world,
+    /// When the players the game tags as wonderkids are counted,
+    /// Then they are rare: between 0.2% and 1.2% of everyone.
+    #[test]
+    fn a_new_worlds_wonderkids_are_rare() {
+        let world = generated_players(360);
+        let wonderkids = world
+            .iter()
+            .filter(|(player, _)| {
+                player
+                    .traits
+                    .contains(&domain::player::PlayerTrait::Wonderkid)
+            })
+            .count();
+        let share = wonderkids as f64 / world.len() as f64;
+
+        assert!(
+            (0.002..=0.012).contains(&share),
+            "{wonderkids} of {} are wonderkids ({:.2}%)",
+            world.len(),
+            share * 100.0
+        );
+    }
+
+    /// Given a generated world of 360 clubs,
+    /// When the ceilings of its senior players are tiered,
+    /// Then S is 1 to 3.5% and A is 4.5 to 9%, the maintainer's targets.
+    #[test]
+    fn the_ceilings_of_senior_players_follow_the_tier_targets() {
+        use crate::player_tier::{PlayerTier, player_tier};
+        let seniors: Vec<_> = generated_players(360)
+            .into_iter()
+            .filter(|(_, age)| *age >= 21)
+            .collect();
+        let share = |tier: PlayerTier| {
+            seniors
+                .iter()
+                .filter(|(player, _)| player_tier(player.potential) == tier)
+                .count() as f64
+                / seniors.len() as f64
+        };
+
+        let (s, a) = (share(PlayerTier::S), share(PlayerTier::A));
+
+        assert!(
+            (0.01..=0.035).contains(&s),
+            "S ceilings are {:.1}%",
+            s * 100.0
+        );
+        assert!(
+            (0.045..=0.09).contains(&a),
+            "A ceilings are {:.1}%",
+            a * 100.0
+        );
+    }
+
     /// Given staff authored with and without a `knownAs` name (#557)
     /// When they are generated
     /// Then the one with it is displayed by it, keeping the real name, and the other by first and last.
@@ -1353,6 +1638,112 @@ mod tests {
         }
     }
 
+    /// Given a date of birth that validation would have refused, reaching generation anyway (#594).
+    ///       "1990" is chosen because its first four characters read as a year: only the date check
+    ///       keeps it from being stored as the date
+    /// When the player is generated
+    /// Then it is treated as if none were written (here, the authored age decides), not read as
+    ///      a year or as "24 years before the opening", the invented value it used to become.
+    #[test]
+    fn an_unreadable_date_of_birth_is_not_replaced_by_an_invented_age() {
+        let player = generate_from_json(
+            serde_json::json!({
+                "id": "p", "firstName": "A", "lastName": "B", "club": "club-id",
+                "nationality": "ENG", "position": "Striker",
+                "dateOfBirth": "1990", "age": 31, "overall": 60,
+            }),
+            2026,
+        );
+
+        assert_eq!(
+            player.date_of_birth, "1995-01-01",
+            "{:?}",
+            player.date_of_birth
+        );
+    }
+
+    /// Given staff authored with a date of birth validation would have refused ("1990" reads as a
+    ///       year but is not a date), and an age
+    /// When they are generated
+    /// Then the age decides and the stored date is a real one, as for a player.
+    #[test]
+    fn an_unreadable_staff_date_of_birth_is_not_replaced_by_an_invented_age() {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let def: super::super::package::StaffDef = serde_json::from_value(serde_json::json!({
+            "id": "coach-1", "firstName": "A", "lastName": "B", "role": "Coach",
+            "dateOfBirth": "1990", "age": 31,
+        }))
+        .unwrap();
+
+        let staff = generate_staff_from_authored_def(
+            &def,
+            Some("club-id"),
+            2026,
+            &names_def,
+            &mut rand::rngs::StdRng::seed_from_u64(7),
+        );
+
+        assert_eq!(staff.date_of_birth, "1995-01-01");
+    }
+
+    /// The rating of 100 players authored at `overall`, one per seed.
+    fn ovrs_of_authored(overall: u8, position: &str) -> Vec<u8> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let def = player_def_from_json(serde_json::json!({
+            "id": "p", "firstName": "A", "lastName": "B", "club": "club-id",
+            "nationality": "ENG", "position": position,
+            "dateOfBirth": "1995-01-01", "overall": overall,
+        }));
+        (0..100u64)
+            .map(|seed| {
+                let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+                generate_player_from_def(&def, "club-id", 2026, &names_def, &mut rng).ovr
+            })
+            .collect()
+    }
+
+    /// Given players authored at a low, middling and high `overall` (#495)
+    /// When many are generated
+    /// Then the mean rating of each lands within 3 of what was written, for any position.
+    #[test]
+    fn an_authored_overall_comes_out_near_itself() {
+        for position in ["Striker", "CenterBack", "Goalkeeper"] {
+            for overall in [10u8, 20, 30, 40, 50, 70, 90] {
+                let ovrs = ovrs_of_authored(overall, position);
+
+                // The balance: no lean to one side.
+                let mean = ovrs.iter().map(|ovr| f64::from(*ovr)).sum::<f64>() / ovrs.len() as f64;
+                assert!(
+                    (mean - f64::from(overall)).abs() <= 3.0,
+                    "{position} authored {overall} averaged {mean}"
+                );
+                // The spread: a mean can hide ratings too high and too low cancelling out, so
+                // every player is bounded too. Measured over these seeds the worst is 2 (1 at 70
+                // and 90); 3 leaves a point of room. ±1 does not hold: the attributes are whole
+                // numbers and the position weights round.
+                for ovr in &ovrs {
+                    assert!(
+                        (i32::from(*ovr) - i32::from(overall)).abs() <= 3,
+                        "{position} authored {overall} produced a player rated {ovr}"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Given a base so low the spread would reach below zero
+    /// When attributes are jittered around it
+    /// Then none is ever below 1: the floor is pinned, since 0 reads as "missing" elsewhere.
+    #[test]
+    fn jittered_attributes_never_fall_below_one() {
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+        let draws: Vec<u8> = (0..2000).map(|_| jitter(1, 8, 30, 97, &mut rng)).collect();
+        assert_eq!(draws.iter().copied().min(), Some(1));
+    }
+
     /// An authored ceiling is the author's to set.
     ///
     /// A package could set a player's current ability but never their ceiling —
@@ -1425,10 +1816,11 @@ mod tests {
             2026,
         );
 
-        // `generate_potential` gives an under-18 a 15..=30 bonus over ovr,
-        // capped at 99.
-        let floor = player.ovr.saturating_add(15).min(99);
-        let ceiling = player.ovr.saturating_add(30).min(99);
+        // The inverse of the ceiling-first roll: an authored rating gets the headroom for his
+        // age above it, from the same range a generated player's ceiling is lowered by.
+        let headroom = crate::player_rating::growth_headroom_range(17);
+        let floor = player.ovr.saturating_add(*headroom.start()).min(99);
+        let ceiling = player.ovr.saturating_add(*headroom.end()).min(99);
         assert!(
             (floor..=ceiling).contains(&player.potential),
             "a 17-year-old's rolled ceiling should sit {floor}..={ceiling}, got {}",

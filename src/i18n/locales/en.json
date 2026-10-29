@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} is required",
     "maxLength": "{{field}} must not exceed {{max}} characters",
-    "minStartYear": "Start year must be {{min}} or later",
-    "minAge": "Manager must be at least {{min}} years old — change the date of birth to continue.",
-    "invalidDate": "Invalid date",
-    "invalidDob": "Invalid date of birth"
+    "minStartYear": "Start year must be {{min}} or later"
   },
   "worldSelect": {
     "title": "Choose World",
@@ -173,6 +170,7 @@
     "digestSimulating": "Processing...",
     "digestMatchDay": "Match Day",
     "digestMatchDayDesc": "Your fixture is ready to play.",
+    "matchModeMenu": "Choose match mode",
     "digestReturnHome": "Back to Dashboard",
     "digestBlocked": "Action Required",
     "digestBlockedDesc": "Some issues need your attention before advancing.",
@@ -397,14 +395,14 @@
     "traits": "Traits",
     "condition": "Condition",
     "delegateToYouthAcademy": "Delegate to youth academy",
-    "promoteToSeniorSquad": "Promote to senior squad",
-    "potWorldClass": "World Class",
-    "potExcellent": "Excellent",
-    "potPromising": "Promising",
-    "potDecent": "Decent",
-    "potLimited": "Limited"
+    "promoteToSeniorSquad": "Promote to senior squad"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}st",
       "two": "{{n}}nd",
@@ -414,6 +412,8 @@
     "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",
+    "overallRating": "Overall {{value}}",
+    "overallRatingTier": "Overall {{value}}, tier {{tier}}",
     "noResults": "No results found.",
     "place": {
       "1": "1st",
@@ -672,21 +672,15 @@
     "coverageNeedsAttention": "{{count}} role groups need cover",
     "coverageBadge": "XI {{starters}}/{{required}} · Bench {{bench}}",
     "bestRole": "Best role",
-    "formationFit": "Formation fit",
+    "formationFit": "Familiarity",
     "startingXi": "Starting XI",
-    "styleFit": "Style fit",
     "starter": "Starter",
     "benchOption": "Bench",
-    "naturalFit": "Natural fit",
-    "adaptedFit": "Adapted fit",
+    "naturalFit": "Natural position",
+    "adaptedFit": "Can play there",
     "needsCover": "Needs cover",
     "makeStarter": "Make starter",
     "sendToBench": "Send to bench",
-    "styleFitValues": {
-      "strong": "Style fit: Strong",
-      "good": "Style fit: Good",
-      "risky": "Style fit: Risky"
-    },
     "noBench": "No bench players.",
     "viewProfile": "View profile",
     "swapPlayer": "Swap player",
@@ -728,6 +722,10 @@
     "myTactics": "My tactics",
     "newTactic": "New tactic",
     "duplicateTactic": "Duplicate",
+    "deleteTactic": "Delete",
+    "deleteTacticTitle": "Delete this tactic?",
+    "deleteTacticBody": "“{{name}}” will be removed from the library. The team keeps its current formation and play style.",
+    "deleteTacticConfirm": "Delete",
     "resetTactic": "Reset to defaults",
     "saveAsTactic": "Save as tactic",
     "updateTactic": "Update tactic",
@@ -856,7 +854,7 @@
     "clearSelection": "Clear selection",
     "compareWithSelected": "Compare with selected",
     "selectForSwap": "Select for swap",
-    "assignBestFit": "Assign best-fit slot",
+    "assignBestFit": "Assign best position",
     "moveToBench": "Move to bench",
     "promoteToLineup": "Promote to starting XI",
     "makeCaptain": "Make captain",
@@ -885,11 +883,10 @@
     "positionSelector": "Tactical slot",
     "playablePositions": "Positions",
     "slotFit": "Slot fit",
-    "styleFit": "Style fit",
     "responsibilities": "Responsibilities",
     "noSpecialRoles": "No special roles",
-    "naturalFit": "Natural fit",
-    "adaptedFit": "Adapted role",
+    "naturalFit": "Natural position",
+    "adaptedFit": "Can play there",
     "moraleLevels": {
       "superb": "Superb",
       "veryGood": "Very Good",
@@ -903,11 +900,6 @@
       "sharp": "Sharp",
       "managing": "Managing",
       "risk": "Risk"
-    },
-    "styleFitLevels": {
-      "strong": "Strong match",
-      "good": "Good match",
-      "risky": "Risky fit"
     },
     "tokenStates": {
       "ready": "Ready",
@@ -1157,6 +1149,15 @@
   },
   "inbox": {
     "title": "Inbox",
+    "archive": {
+      "heading": "Older messages",
+      "load": "Load older messages",
+      "loadMore": "Load more older messages",
+      "loading": "Loading older messages…",
+      "empty": "No older messages.",
+      "end": "That is all the older messages.",
+      "error": "Could not load older messages."
+    },
     "nMessages": "{{count}} message(s)",
     "noMessages": "No messages",
     "noMessagesInCategory": "No messages in this category",
@@ -1348,6 +1349,7 @@
     "bidImpactWagePressure": "Projected wage budget usage {{percent}}%",
     "bidImpactOverTransferBudget": "This bid exceeds your transfer budget",
     "bidImpactOverBalance": "This bid would push the club into debt",
+    "bidImpactOverWagePolicy": "The board would refuse his wage: it breaks the club's wage policy",
     "bidAccepted": "Bid accepted! Player signed.",
     "bidCountered": "They came back with revised terms.",
     "bidRejected": "Bid rejected — offer too low.",
@@ -1420,6 +1422,9 @@
     "resumeNegotiationHint": "Talks are still live with this club.",
     "resumeNegotiationHeadline": "The other club are waiting for your next move.",
     "resumeNegotiationDetail": "Their last signal pointed toward {{fee}}.",
+    "resumeRefusedHeadline": "They turned your last bid down.",
+    "resumeRefusedDetail": "A new bid carries the talks on from here. Their last signal pointed toward {{fee}}.",
+    "talksResumeOn": "Talks can resume on {{date}}.",
     "transferFeedbackAcceptedHeadline": "The other club are ready to do business.",
     "transferFeedbackAcceptedDetail": "Your number landed inside their comfort zone, so the conversation moved quickly.",
     "transferFeedbackScheduledHeadline": "Deal agreed for the next registration window.",
@@ -1832,6 +1837,21 @@
     },
     "uiScale": "UI Scale",
     "uiScaleDesc": "Adjust font size and spacing for readability",
+    "sidebarWidth": "Sidebar width",
+    "sidebarWidthDesc": "How wide the open sidebar is. Wide fits every menu name on one line.",
+    "sidebarWidthOptions": {
+      "compact": "Compact",
+      "standard": "Standard",
+      "wide": "Wide"
+    },
+    "sidebarBehaviour": "Sidebar",
+    "sidebarBehaviourDesc": "How the sidebar opens. In a window too narrow for it, it opens over the page.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Expand on hover",
+      "click": "Expand on click",
+      "icons": "Icons only"
+    },
     "uiScaleOptions": {
       "small": "Small",
       "normal": "Normal",
@@ -1941,6 +1961,10 @@
     "events": "Events",
     "stats": "Stats",
     "lineups": "Lineups",
+    "pitch": "Pitch",
+    "liveRating": "Rating {{rating}}",
+    "liveGoals": "Goals: {{count}}",
+    "liveAssists": "Assists: {{count}}",
     "simSpeed": "Simulation Speed",
     "pause": "Pause",
     "slow": "Slow",
@@ -1992,7 +2016,6 @@
     "alreadyQueued": "Already queued for a substitution",
     "substitutionsPartlyMade": "{{applied}} of {{total}} substitutions made",
     "substitutionRefused": "Substitution refused: {{off}} for {{on}}. {{reason}}",
-    "playerRoles": "Player roles",
     "roleFor": "Role for {{player}}",
     "roleChangeRefused": "Could not change {{player}}'s role. {{reason}}",
     "noBenchAvailable": "No bench players available",
@@ -2097,6 +2120,7 @@
     "roundSummaryUnavailable": "Round summary unavailable.",
     "otherMatches": "Other Matches",
     "otherMatchesToday": "Other Matches Today",
+    "elsewhereInYourLeague": "Elsewhere in your league",
     "otherMatchesUnavailable": "Other match context unavailable for this fixture yet.",
     "viewDetails": "View details",
     "matchDetails": "Match Details",
@@ -2285,7 +2309,7 @@
     "preMatchPrep": "Pre-Match Preparation",
     "startingLineup": "Starting Lineup",
     "setPiecesCaptain": "Set Pieces & Captain",
-    "formationFit": "Formation Fit",
+    "formationFit": "Formation",
     "selecting": "Selecting...",
     "autoSelectXI": "Auto-Select Best XI",
     "startingXI": "Starting XI",
@@ -2582,7 +2606,11 @@
     "pts": "pts",
     "cupPenalties": "({{home}}–{{away}} on penalties)",
     "cupAdvances": "{{team}} go through",
-    "cupTiesPending": "Some ties are still to be played"
+    "cupTiesPending": "Some ties are still to be played",
+    "resume": "Resume",
+    "pausedResumesAt": "Paused · resumes at {{speed}}",
+    "playingAt": "Playing at {{speed}}",
+    "spaceKey": "Space"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",
@@ -2623,12 +2651,19 @@
     "compare": "Compare"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresh",
+      "tiring": "Tiring",
+      "exhausted": "Exhausted",
+      "critical": "Critical"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",
         "wouldLeaveSeniorsShort": "This player cannot leave: the club would be left with fewer than {{floor}} senior players, the minimum a club must keep."
       },
       "noActiveGameSession": "No active game session",
+      "careerChanged": "The career changed before this could be saved.",
       "noActiveSaveSession": "No active save session",
       "saveNotFound": "Save '{{saveId}}' not found.",
       "saveManagerUnavailable": "Save data is temporarily unavailable.",
@@ -2719,7 +2754,8 @@
         "worldExportNotPackage": "This folder is an exported world save, not a package project. Exported worlds use a different format and cannot be edited here.",
         "notAProjectDirectory": "This is not a package project folder. Pick the folder that contains the package's package.json — or, for an installed .ofm package, use \"Open .ofm File\".",
         "unknownSchema": "Unknown schema \"{{schema}}\".",
-        "invalidEntity": "A \"{{schema}}\" entry is invalid.",
+        "invalidEntity": "A \"{{schema}}\" entry is invalid: {{detail}}",
+        "duplicateWorld": "The package already has a manifest in \"{{first}}\"; a package can have only one \"world\" file.",
         "missingId": "A {{kind}} entry is missing its id.",
         "missingMetadata": "The package manifest is missing the required field \"{{field}}\".",
         "duplicateId": "Duplicate {{kind}} id \"{{id}}\".",
@@ -3549,6 +3585,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Preseason tournament report",
           "body": "In preseason tournament action, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Both sides used the fixture to build sharpness before the competitive campaign.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Match report ({{competition}})",
+          "body": "{{competition}}: the match ended {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3688,7 +3728,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "This package defines the country \"{{name}}\" ({{code}}) outside the game's nation list and puts it in no confederation, so its clubs are filed under Europe. Give it a confederation to place it.",
-        "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field."
+        "freeAgentFieldIgnored": "Player \"{{id}}\" has no club, so is a free agent with no contract: \"{{field}}\" is ignored. Give the player a club to use it, or remove the field.",
+        "repeatedNamePool": "The name pool for {{country}} was already given in {{first}}; this file's pool replaces it. Keep one of them, or give them different countries."
       }
     }
   },
@@ -4288,6 +4329,7 @@
     "saveAndOpenInstead": "Save the file and use GitHub instead",
     "nothingSentYetUpload": "Nothing leaves this machine until you press Send. Prefer GitHub? Save the file and attach it to the form yourself — that needs a GitHub account.",
     "uploadFailedFallback": "You can still send it through GitHub: save the file and attach it to the form.",
+    "technicalDetails": "Technical details",
     "tooLargeUntickSave": "Unticking your save file will make the report much smaller.",
     "sentTitle": "Report sent",
     "sentIntro": "Thank you. Your report has reached the OpenFoot Manager team and is kept until it has been handled.",

@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} es obligatorio",
     "maxLength": "{{field}} no debe exceder de {{max}} caracteres",
-    "minStartYear": "El año de inicio debe ser {{min}} o posterior",
-    "minAge": "El entrenador debe tener al menos {{min}} años — cambia la fecha de nacimiento para continuar.",
-    "invalidDate": "Fecha inválida",
-    "invalidDob": "Fecha de nacimiento inválida"
+    "minStartYear": "El año de inicio debe ser {{min}} o posterior"
   },
   "worldSelect": {
     "title": "Elegir Mundo",
@@ -173,6 +170,7 @@
     "digestSimulating": "Simulando...",
     "digestMatchDay": "Día de partido",
     "digestMatchDayDesc": "Tu equipo tiene un partido programado hoy.",
+    "matchModeMenu": "Elegir modo de partido",
     "digestReturnHome": "Volver al inicio",
     "digestBlocked": "Acción requerida",
     "digestBlockedDesc": "Hay problemas que necesitan tu atención antes de continuar.",
@@ -396,15 +394,15 @@
     "growth": "Crecimiento",
     "traits": "Rasgos",
     "condition": "Condición",
-    "potWorldClass": "Clase Mundial",
-    "potExcellent": "Excelente",
-    "potPromising": "Prometedor",
-    "potDecent": "Decente",
-    "potLimited": "Limitado",
     "delegateToYouthAcademy": "Delegar a la cantera",
     "promoteToSeniorSquad": "Ascender al primer equipo"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.º",
       "two": "{{n}}.º",
@@ -414,6 +412,8 @@
     "currentWage": "Salario actual",
     "loading": "Cargando...",
     "loadingGameState": "Cargando estado del juego...",
+    "overallRating": "Nivel general {{value}}",
+    "overallRatingTier": "Nivel general {{value}}, categoría {{tier}}",
     "noResults": "No se encontraron resultados.",
     "place": {
       "1": "1º",
@@ -699,21 +699,15 @@
     "coverageNeedsAttention": "{{count}} grupos de roles necesitan cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banquillo {{bench}}",
     "bestRole": "Mejor rol",
-    "formationFit": "Encaje en la formación",
+    "formationFit": "Familiaridad",
     "startingXi": "Once titular",
-    "styleFit": "Encaje con el estilo",
     "starter": "Titular",
     "benchOption": "Banquillo",
-    "naturalFit": "Encaje natural",
-    "adaptedFit": "Rol adaptado",
+    "naturalFit": "Posición natural",
+    "adaptedFit": "Puede jugar ahí",
     "needsCover": "Necesita recambio",
     "makeStarter": "Poner de titular",
-    "sendToBench": "Enviar al banquillo",
-    "styleFitValues": {
-      "strong": "Encaje de estilo: Fuerte",
-      "good": "Encaje de estilo: Bueno",
-      "risky": "Encaje de estilo: Arriesgado"
-    }
+    "sendToBench": "Enviar al banquillo"
   },
   "tactics": {
     "formationStyle": "Formación y Estilo",
@@ -776,6 +770,10 @@
     "myTactics": "Mis tácticas",
     "newTactic": "Nueva táctica",
     "duplicateTactic": "Duplicar",
+    "deleteTactic": "Eliminar",
+    "deleteTacticTitle": "¿Eliminar esta táctica?",
+    "deleteTacticBody": "«{{name}}» se quitará de la biblioteca. El equipo conserva su formación y su estilo de juego actuales.",
+    "deleteTacticConfirm": "Eliminar",
     "resetTactic": "Restablecer valores",
     "saveAsTactic": "Guardar como táctica",
     "updateTactic": "Actualizar táctica",
@@ -860,8 +858,8 @@
     "setCornerTaker": "Asignar córners",
     "inspector": "Inspector",
     "inspectorEmptyTitle": "Nada seleccionado",
-    "naturalFit": "Encaje natural",
-    "adaptedFit": "Rol adaptado",
+    "naturalFit": "Posición natural",
+    "adaptedFit": "Puede jugar ahí",
     "tokenStates": {
       "ready": "Listo",
       "adjusted": "Ajustado",
@@ -877,7 +875,7 @@
     "clearSelection": "Limpiar selección",
     "compareWithSelected": "Comparar con seleccionado",
     "selectForSwap": "Seleccionar para cambio",
-    "assignBestFit": "Asignar al mejor hueco",
+    "assignBestFit": "Asignar mejor posición",
     "moveToBench": "Enviar al banquillo",
     "promoteToLineup": "Pasar al once inicial",
     "tableView": "Vista de tabla",
@@ -892,7 +890,6 @@
     "positionSelector": "Hueco táctico",
     "playablePositions": "Posiciones",
     "slotFit": "Encaje del puesto",
-    "styleFit": "Encaje con el estilo",
     "responsibilities": "Responsabilidades",
     "noSpecialRoles": "Sin roles especiales",
     "moraleLevels": {
@@ -908,11 +905,6 @@
       "sharp": "Afinado",
       "managing": "Controlado",
       "risk": "Riesgo"
-    },
-    "styleFitLevels": {
-      "strong": "Encaje fuerte",
-      "good": "Buen encaje",
-      "risky": "Encaje arriesgado"
     }
   },
   "training": {
@@ -1157,6 +1149,15 @@
   },
   "inbox": {
     "title": "Bandeja de Entrada",
+    "archive": {
+      "heading": "Mensajes antiguos",
+      "load": "Cargar mensajes antiguos",
+      "loadMore": "Cargar más mensajes antiguos",
+      "loading": "Cargando mensajes antiguos…",
+      "empty": "No hay mensajes antiguos.",
+      "end": "No hay más mensajes antiguos.",
+      "error": "No se pudieron cargar los mensajes antiguos."
+    },
     "nMessages": "{{count}} mensaje(s)",
     "noMessages": "Sin mensajes",
     "noMessagesInCategory": "Sin mensajes en esta categoría",
@@ -1348,6 +1349,7 @@
     "bidImpactWagePressure": "Uso previsto del presupuesto salarial {{percent}}%",
     "bidImpactOverTransferBudget": "Esta oferta supera tu presupuesto de fichajes",
     "bidImpactOverBalance": "Esta oferta dejaría al club en deuda",
+    "bidImpactOverWagePolicy": "La directiva rechazaría su salario: supera la política salarial del club",
     "bidAccepted": "¡Oferta aceptada! Jugador fichado.",
     "bidCountered": "Han respondido con nuevas condiciones.",
     "bidRejected": "Oferta rechazada — cantidad demasiado baja.",
@@ -1420,6 +1422,9 @@
     "resumeNegotiationHint": "Las conversaciones con este club siguen vivas.",
     "resumeNegotiationHeadline": "El otro club está esperando tu siguiente movimiento.",
     "resumeNegotiationDetail": "Su última señal apuntaba a {{fee}}.",
+    "resumeRefusedHeadline": "Rechazaron tu última oferta.",
+    "resumeRefusedDetail": "Una nueva oferta continúa las negociaciones desde aquí. Su última señal apuntaba a {{fee}}.",
+    "talksResumeOn": "Las negociaciones pueden reanudarse el {{date}}.",
     "transferFeedbackAcceptedHeadline": "El otro club está listo para hacer negocios.",
     "transferFeedbackAcceptedDetail": "Tu cifra cayó dentro de su zona cómoda, así que la conversación avanzó rápido.",
     "transferFeedbackScheduledHeadline": "Acuerdo cerrado para la próxima ventana de inscripción.",
@@ -1832,6 +1837,21 @@
     },
     "uiScale": "Escala de UI",
     "uiScaleDesc": "Ajustar tamaño de fuente y espaciado para legibilidad",
+    "sidebarWidth": "Ancho de la barra lateral",
+    "sidebarWidthDesc": "Qué tan ancha es la barra lateral abierta. «Ancha» muestra cada nombre del menú en una línea.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Estándar",
+      "wide": "Ancha"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Cómo se abre la barra lateral. Si la ventana es demasiado estrecha, se abre sobre la página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir al pasar el ratón",
+      "click": "Abrir con un clic",
+      "icons": "Solo iconos"
+    },
     "uiScaleOptions": {
       "small": "Pequeña",
       "normal": "Normal",
@@ -1941,6 +1961,10 @@
     "events": "Eventos",
     "stats": "Estadísticas",
     "lineups": "Alineaciones",
+    "pitch": "Campo",
+    "liveRating": "Nota {{rating}}",
+    "liveGoals": "Goles: {{count}}",
+    "liveAssists": "Asistencias: {{count}}",
     "simSpeed": "Velocidad de Simulación",
     "pause": "Pausa",
     "slow": "Lento",
@@ -1988,7 +2012,6 @@
     "alreadyQueued": "Ya está en cola para un cambio",
     "substitutionsPartlyMade": "{{applied}} de {{total}} cambios realizados",
     "substitutionRefused": "Cambio rechazado: {{off}} por {{on}}. {{reason}}",
-    "playerRoles": "Roles de los jugadores",
     "roleFor": "Rol de {{player}}",
     "roleChangeRefused": "No se pudo cambiar el rol de {{player}}. {{reason}}",
     "noBenchAvailable": "No hay jugadores en el banquillo",
@@ -2063,6 +2086,7 @@
     "roundSummaryUnavailable": "No hay resumen de la jornada disponible.",
     "otherMatches": "Otros Partidos",
     "otherMatchesToday": "Otros Partidos de Hoy",
+    "elsewhereInYourLeague": "En el resto de tu liga",
     "otherMatchesUnavailable": "El contexto de otros partidos aún no está disponible para este encuentro.",
     "viewDetails": "Ver detalles",
     "matchDetails": "Detalles del Partido",
@@ -2251,7 +2275,7 @@
     "preMatchPrep": "Preparación Pre-Partido",
     "startingLineup": "Alineación Titular",
     "setPiecesCaptain": "Balón Parado y Capitán",
-    "formationFit": "Ajuste de Formación",
+    "formationFit": "Formación",
     "selecting": "Seleccionando...",
     "autoSelectXI": "Auto-Seleccionar Mejor XI",
     "startingXI": "XI Titular",
@@ -2582,7 +2606,11 @@
     "pts": "pts.",
     "cupPenalties": "({{home}}–{{away}} en penaltis)",
     "cupAdvances": "{{team}} pasa de ronda",
-    "cupTiesPending": "Aún quedan eliminatorias por jugar"
+    "cupTiesPending": "Aún quedan eliminatorias por jugar",
+    "resume": "Reanudar",
+    "pausedResumesAt": "En pausa · se reanuda a {{speed}}",
+    "playingAt": "Jugando a {{speed}}",
+    "spaceKey": "Espacio"
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Completa",
@@ -2623,12 +2651,19 @@
     "compare": "Comparar"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresco",
+      "tiring": "Cansándose",
+      "exhausted": "Agotado",
+      "critical": "Crítico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Este jugador no puede salir: la plantilla quedaría por debajo del mínimo que un club debe mantener. Línea afectada: {{group}}.",
         "wouldLeaveSeniorsShort": "Este jugador no puede salir: el club se quedaría con menos de {{floor}} jugadores en la primera plantilla, el mínimo que un club debe mantener."
       },
       "noActiveGameSession": "No hay una sesión de juego activa",
+      "careerChanged": "La carrera cambió antes de poder guardar esto.",
       "noActiveSaveSession": "No hay una sesión de guardado activa",
       "saveNotFound": "No se encontró la partida guardada '{{saveId}}'.",
       "teamNotFound": "Equipo no encontrado",
@@ -2684,7 +2719,8 @@
         "worldExportNotPackage": "Esta carpeta es una partida de mundo exportada, no un proyecto de paquete. Los mundos exportados usan otro formato y no se pueden editar aquí.",
         "notAProjectDirectory": "Esta no es una carpeta de proyecto de paquete. Elige la carpeta que contiene el package.json del paquete; si es un paquete .ofm instalado, usa «Abrir archivo .ofm».",
         "unknownSchema": "Esquema desconocido \"{{schema}}\".",
-        "invalidEntity": "Una entrada \"{{schema}}\" no es válida.",
+        "invalidEntity": "Una entrada \"{{schema}}\" no es válida: {{detail}}",
+        "duplicateWorld": "El paquete ya tiene un manifiesto en «{{first}}»; un paquete solo puede tener un archivo «world».",
         "missingId": "A una entrada {{kind}} le falta el id.",
         "missingMetadata": "Al manifiesto del paquete le falta el campo obligatorio \"{{field}}\".",
         "duplicateId": "Id {{kind}} duplicado \"{{id}}\".",
@@ -3549,6 +3585,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Informe del torneo de pretemporada",
           "body": "En el torneo de pretemporada, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Ambos equipos aprovecharon el encuentro para afilarse antes del inicio de la temporada competitiva.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Crónica del partido ({{competition}})",
+          "body": "{{competition}}: el partido terminó {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3688,7 +3728,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Este paquete define el país «{{name}}» ({{code}}) fuera de la lista de países del juego y no lo sitúa en ninguna confederación, así que sus clubes se archivan en Europa. Asígnale una confederación.",
-        "freeAgentFieldIgnored": "El jugador «{{id}}» no tiene club, así que es agente libre y no tiene contrato: «{{field}}» se ignora. Asígnale un club para usarlo, o quita el campo."
+        "freeAgentFieldIgnored": "El jugador «{{id}}» no tiene club, así que es agente libre y no tiene contrato: «{{field}}» se ignora. Asígnale un club para usarlo, o quita el campo.",
+        "repeatedNamePool": "El grupo de nombres de {{country}} ya se dio en {{first}}; el de este archivo lo sustituye. Deja solo uno, o asígnalos a países distintos."
       }
     }
   },
@@ -4288,6 +4329,7 @@
     "saveAndOpenInstead": "Guardar el archivo y usar GitHub",
     "nothingSentYetUpload": "Nada sale de este ordenador hasta que pulses Enviar. ¿Prefieres GitHub? Guarda el archivo y adjúntalo tú al formulario; para eso necesitas una cuenta de GitHub.",
     "uploadFailedFallback": "Aún puedes enviarlo a través de GitHub: guarda el archivo y adjúntalo al formulario.",
+    "technicalDetails": "Detalles técnicos",
     "tooLargeUntickSave": "Si desmarcas tu partida guardada, el informe será mucho más pequeño.",
     "sentTitle": "Informe enviado",
     "sentIntro": "Gracias. Tu informe ha llegado al equipo de OpenFoot Manager y se conserva hasta que se haya tratado.",

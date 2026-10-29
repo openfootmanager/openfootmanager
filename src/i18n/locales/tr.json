@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} zorunludur",
     "maxLength": "{{field}} {{max}} karakteri geçmemelidir",
-    "minStartYear": "Başlangıç yılı {{min}} veya sonrası olmalıdır",
-    "minAge": "Menajer en az {{min}} yaşında olmalıdır — devam etmek için doğum tarihini değiştirin.",
-    "invalidDate": "Geçersiz tarih",
-    "invalidDob": "Geçersiz doğum tarihi"
+    "minStartYear": "Başlangıç yılı {{min}} veya sonrası olmalıdır"
   },
   "worldSelect": {
     "title": "Dünya Seç",
@@ -173,6 +170,7 @@
     "digestSimulating": "İşleniyor...",
     "digestMatchDay": "Maç Günü",
     "digestMatchDayDesc": "Maçınız oynanmaya hazır.",
+    "matchModeMenu": "Maç modunu seç",
     "digestReturnHome": "Panele Dön",
     "digestBlocked": "İşlem Gerekli",
     "digestBlockedDesc": "İlerlemeden önce bazı sorunlarla ilgilenmeniz gerekiyor.",
@@ -397,14 +395,14 @@
     "traits": "Özellikler",
     "condition": "Kondisyon",
     "delegateToYouthAcademy": "Altyapı akademisine devret",
-    "promoteToSeniorSquad": "A takıma yükselt",
-    "potWorldClass": "Dünya Klasiği",
-    "potExcellent": "Mükemmel",
-    "potPromising": "Umut vadeden",
-    "potDecent": "İyi",
-    "potLimited": "Sınırlı"
+    "promoteToSeniorSquad": "A takıma yükselt"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -414,6 +412,8 @@
     "currentWage": "Mevcut maaş",
     "loading": "Yükleniyor...",
     "loadingGameState": "Oyun durumu yükleniyor...",
+    "overallRating": "Genel {{value}}",
+    "overallRatingTier": "Genel {{value}}, seviye {{tier}}",
     "noResults": "Sonuç bulunamadı.",
     "place": {
       "1": "1.",
@@ -672,21 +672,15 @@
     "coverageNeedsAttention": "{{count}} rol grubunda takviye gerekli",
     "coverageBadge": "İlk 11 {{starters}}/{{required}} · Yedek {{bench}}",
     "bestRole": "En iyi rol",
-    "formationFit": "Dizilişe uyum",
+    "formationFit": "Mevki aşinalığı",
     "startingXi": "İlk 11",
-    "styleFit": "Stil uyumu",
     "starter": "As Oyuncu",
     "benchOption": "Yedek",
-    "naturalFit": "Doğal uyum",
-    "adaptedFit": "Uyarlanmış uyum",
+    "naturalFit": "Doğal mevki",
+    "adaptedFit": "Orada oynayabilir",
     "needsCover": "Takviye gerekli",
     "makeStarter": "İlk 11'e al",
     "sendToBench": "Yedeğe çek",
-    "styleFitValues": {
-      "strong": "Stil uyumu: Güçlü",
-      "good": "Stil uyumu: İyi",
-      "risky": "Stil uyumu: Riskli"
-    },
     "noBench": "Yedek oyuncu yok.",
     "viewProfile": "Profili görüntüle",
     "swapPlayer": "Oyuncuyu değiştir",
@@ -728,6 +722,10 @@
     "myTactics": "Taktiklerim",
     "newTactic": "Yeni taktik",
     "duplicateTactic": "Çoğalt",
+    "deleteTactic": "Sil",
+    "deleteTacticTitle": "Bu taktik silinsin mi?",
+    "deleteTacticBody": "“{{name}}” kütüphaneden kaldırılacak. Takım mevcut diziliş ve oyun stilini korur.",
+    "deleteTacticConfirm": "Sil",
     "resetTactic": "Varsayılana sıfırla",
     "saveAsTactic": "Taktik olarak kaydet",
     "updateTactic": "Taktiği güncelle",
@@ -856,7 +854,7 @@
     "clearSelection": "Seçimi temizle",
     "compareWithSelected": "Seçiliyle karşılaştır",
     "selectForSwap": "Takas için seç",
-    "assignBestFit": "En uygun mevkiye ata",
+    "assignBestFit": "En iyi mevkiye ata",
     "moveToBench": "Yedeğe gönder",
     "promoteToLineup": "İlk 11'e yükselt",
     "makeCaptain": "Kaptan yap",
@@ -885,11 +883,10 @@
     "positionSelector": "Taktik mevki",
     "playablePositions": "Pozisyonlar",
     "slotFit": "Mevki uyumu",
-    "styleFit": "Stil uyumu",
     "responsibilities": "Sorumluluklar",
     "noSpecialRoles": "Özel rol yok",
-    "naturalFit": "Doğal uyum",
-    "adaptedFit": "Uyarlanmış rol",
+    "naturalFit": "Doğal mevki",
+    "adaptedFit": "Orada oynayabilir",
     "moraleLevels": {
       "superb": "Muhteşem",
       "veryGood": "Çok İyi",
@@ -903,11 +900,6 @@
       "sharp": "Formda",
       "managing": "İdare Ediyor",
       "risk": "Riskli"
-    },
-    "styleFitLevels": {
-      "strong": "Güçlü uyum",
-      "good": "İyi uyum",
-      "risky": "Riskli uyum"
     },
     "tokenStates": {
       "ready": "Hazır",
@@ -1157,6 +1149,15 @@
   },
   "inbox": {
     "title": "Gelen Kutusu",
+    "archive": {
+      "heading": "Eski mesajlar",
+      "load": "Eski mesajları yükle",
+      "loadMore": "Daha fazla eski mesaj yükle",
+      "loading": "Eski mesajlar yükleniyor…",
+      "empty": "Eski mesaj yok.",
+      "end": "Başka eski mesaj yok.",
+      "error": "Eski mesajlar yüklenemedi."
+    },
     "nMessages": "{{count}} mesaj",
     "noMessages": "Mesaj yok",
     "noMessagesInCategory": "Bu kategoride mesaj yok",
@@ -1348,6 +1349,7 @@
     "bidImpactWagePressure": "Öngörülen maaş bütçesi kullanımı %{{percent}}",
     "bidImpactOverTransferBudget": "Bu teklif transfer bütçenizi aşıyor",
     "bidImpactOverBalance": "Bu teklif kulübü borca sokar",
+    "bidImpactOverWagePolicy": "Yönetim kurulu maaşını reddeder: kulübün maaş politikasını aşıyor",
     "bidAccepted": "Teklif kabul edildi! Oyuncu imzaladı.",
     "bidCountered": "Gözden geçirilmiş şartlarla geri döndüler.",
     "bidRejected": "Teklif reddedildi — teklif çok düşük.",
@@ -1420,6 +1422,9 @@
     "resumeNegotiationHint": "Bu kulüple görüşmeler hâlâ sürüyor.",
     "resumeNegotiationHeadline": "Karşı kulüp bir sonraki hamlenizi bekliyor.",
     "resumeNegotiationDetail": "Son sinyalleri {{fee}} civarını işaret ediyordu.",
+    "resumeRefusedHeadline": "Son teklifinizi reddettiler.",
+    "resumeRefusedDetail": "Yeni bir teklif görüşmeleri buradan sürdürür. Son işaretleri {{fee}} civarındaydı.",
+    "talksResumeOn": "Görüşmeler {{date}} tarihinde yeniden başlayabilir.",
     "transferFeedbackAcceptedHeadline": "Karşı kulüp anlaşmaya hazır.",
     "transferFeedbackAcceptedDetail": "Rakamınız onların kabul aralığına denk geldi, bu yüzden görüşme hızla ilerledi.",
     "transferFeedbackScheduledHeadline": "Bir sonraki tescil dönemi için anlaşma sağlandı.",
@@ -1832,6 +1837,21 @@
     },
     "uiScale": "Arayüz Ölçeği",
     "uiScaleDesc": "Okunabilirlik için yazı ve aralık boyutlarını ayarla",
+    "sidebarWidth": "Kenar çubuğu genişliği",
+    "sidebarWidthDesc": "Açık kenar çubuğunun genişliği. “Geniş” her menü adını tek satırda gösterir.",
+    "sidebarWidthOptions": {
+      "compact": "Kompakt",
+      "standard": "Standart",
+      "wide": "Geniş"
+    },
+    "sidebarBehaviour": "Kenar çubuğu",
+    "sidebarBehaviourDesc": "Kenar çubuğunun nasıl açılacağı. Pencere çok darsa sayfanın üzerinde açılır.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Üzerine gelince aç",
+      "click": "Tıklayınca aç",
+      "icons": "Yalnızca simgeler"
+    },
     "uiScaleOptions": {
       "small": "Küçük",
       "normal": "Normal",
@@ -1941,6 +1961,10 @@
     "events": "Olaylar",
     "stats": "İstatistikler",
     "lineups": "Dizilişler",
+    "pitch": "Saha",
+    "liveRating": "Puan {{rating}}",
+    "liveGoals": "Gol: {{count}}",
+    "liveAssists": "Asist: {{count}}",
     "simSpeed": "Simülasyon Hızı",
     "pause": "Duraklat",
     "slow": "Yavaş",
@@ -1992,7 +2016,6 @@
     "alreadyQueued": "Zaten bir oyuncu değişikliği için sırada",
     "substitutionsPartlyMade": "{{total}} değişiklikten {{applied}} tanesi yapıldı",
     "substitutionRefused": "Oyuncu değişikliği reddedildi: {{off}} yerine {{on}}. {{reason}}",
-    "playerRoles": "Oyuncu rolleri",
     "roleFor": "{{player}} oyuncusunun rolü",
     "roleChangeRefused": "{{player}} oyuncusunun rolü değiştirilemedi. {{reason}}",
     "noBenchAvailable": "Uygun yedek oyuncu yok",
@@ -2097,6 +2120,7 @@
     "roundSummaryUnavailable": "Hafta özeti mevcut değil.",
     "otherMatches": "Diğer Maçlar",
     "otherMatchesToday": "Bugünkü Diğer Maçlar",
+    "elsewhereInYourLeague": "Ligin diğer maçları",
     "otherMatchesUnavailable": "Bu maç için diğer maç bilgileri henüz mevcut değil.",
     "viewDetails": "Ayrıntıları görüntüle",
     "matchDetails": "Maç Ayrıntıları",
@@ -2285,7 +2309,7 @@
     "preMatchPrep": "Maç Öncesi Hazırlık",
     "startingLineup": "Başlangıç Dizilişi",
     "setPiecesCaptain": "Duran Toplar ve Kaptan",
-    "formationFit": "Diziliş Uyumu",
+    "formationFit": "Diziliş",
     "selecting": "Seçiliyor...",
     "autoSelectXI": "En İyi İlk 11'i Otomatik Seç",
     "startingXI": "İlk 11",
@@ -2582,7 +2606,11 @@
     "pts": "P",
     "cupPenalties": "(penaltılarla {{home}}–{{away}})",
     "cupAdvances": "{{team}} bir üst tura çıktı",
-    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı"
+    "cupTiesPending": "Bazı eşleşmeler henüz oynanmadı",
+    "resume": "Devam et",
+    "pausedResumesAt": "Duraklatıldı · {{speed}} hızında sürecek",
+    "playingAt": "{{speed}} hızında oynanıyor",
+    "spaceKey": "Boşluk"
   },
   "endOfSeason": {
     "seasonComplete": "Sezon Tamamlandı",
@@ -2623,12 +2651,19 @@
     "compare": "Karşılaştır"
   },
   "be": {
+    "condition": {
+      "fresh": "Dinç",
+      "tiring": "Yoruluyor",
+      "exhausted": "Bitkin",
+      "critical": "Kritik"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Bu oyuncu ayrılamaz: kadro, bir kulübün koruması gereken asgari sayının altına düşer. Etkilenen bölge: {{group}}.",
         "wouldLeaveSeniorsShort": "Bu oyuncu ayrılamaz: kulübün A takımında {{floor}} oyuncudan az kalır, bu da bir kulübün koruması gereken asgari sayıdır."
       },
       "noActiveGameSession": "Aktif oyun oturumu yok",
+      "careerChanged": "Bu kaydedilemeden önce kariyer değişti.",
       "noActiveSaveSession": "Aktif kayıt oturumu yok",
       "saveNotFound": "'{{saveId}}' kaydı bulunamadı.",
       "saveManagerUnavailable": "Kayıt verileri geçici olarak kullanılamıyor.",
@@ -2719,7 +2754,8 @@
         "worldExportNotPackage": "Bu klasör dışa aktarılmış bir dünya kaydı, paket projesi değil. Dışa aktarılan dünyalar farklı bir biçim kullanır ve burada düzenlenemez.",
         "notAProjectDirectory": "Bu bir paket proje klasörü değil. Paketin package.json dosyasını içeren klasörü seçin; kurulu bir .ofm paketi için \".ofm dosyası aç\" seçeneğini kullanın.",
         "unknownSchema": "Bilinmeyen şema \"{{schema}}\".",
-        "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz.",
+        "invalidEntity": "Bir \"{{schema}}\" kaydı geçersiz: {{detail}}",
+        "duplicateWorld": "Paketin zaten \"{{first}}\" içinde bir manifestosu var; bir paketin yalnızca bir \"world\" dosyası olabilir.",
         "missingId": "Bir {{kind}} kaydında id eksik.",
         "missingMetadata": "Paket bildiriminde zorunlu \"{{field}}\" alanı eksik.",
         "duplicateId": "Yinelenen {{kind}} id'si \"{{id}}\".",
@@ -3549,6 +3585,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Sezon öncesi turnuva raporu",
           "body": "Sezon öncesi turnuva mücadelesinde {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. İki taraf da resmi maçlar öncesinde form tutmak için bu karşılaşmadan yararlandı.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Maç raporu ({{competition}})",
+          "body": "{{competition}}: Maç {{home}} {{homeGoals}} - {{awayGoals}} {{away}} skoruyla sona erdi.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3688,7 +3728,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Bu paket, oyunun ülke listesinde olmayan \"{{name}}\" ({{code}}) ülkesini tanımlıyor ve hiçbir konfederasyona yerleştirmiyor; bu yüzden kulüpleri Avrupa altında toplanıyor. Ona bir konfederasyon verin.",
-        "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın."
+        "freeAgentFieldIgnored": "\"{{id}}\" oyuncusunun kulübü yok, bu yüzden sözleşmesiz bir serbest oyuncu: \"{{field}}\" yok sayılıyor. Kullanılması için ona bir kulüp verin ya da alanı kaldırın.",
+        "repeatedNamePool": "{{country}} için isim havuzu daha önce {{first}} dosyasında verilmişti; bu dosyadaki havuz onun yerine geçer. Yalnızca birini bırakın ya da farklı ülkelere atayın."
       }
     }
   },
@@ -4288,6 +4329,7 @@
     "saveAndOpenInstead": "Bunun yerine dosyayı kaydet ve GitHub'ı kullan",
     "nothingSentYetUpload": "Gönder'e basana kadar hiçbir şey bu bilgisayardan çıkmaz. GitHub'ı mı tercih edersin? Dosyayı kaydet ve forma kendin ekle — bunun için bir GitHub hesabı gerekir.",
     "uploadFailedFallback": "Yine de GitHub üzerinden gönderebilirsin: dosyayı kaydet ve forma ekle.",
+    "technicalDetails": "Teknik ayrıntılar",
     "tooLargeUntickSave": "Kayıt dosyanın işaretini kaldırmak raporu çok küçültür.",
     "sentTitle": "Rapor gönderildi",
     "sentIntro": "Teşekkürler. Raporun OpenFoot Manager ekibine ulaştı ve ilgilenilene kadar saklanır.",

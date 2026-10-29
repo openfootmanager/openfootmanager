@@ -2,9 +2,7 @@
 //! The legacy rollover guard is not a proof that a cup reached its final.
 
 use chrono::NaiveDate;
-use domain::league::{
-    CompetitionFormat, Fixture, FixtureCompetition, FixtureStatus, League, StandingEntry,
-};
+use domain::league::{CompetitionFormat, Fixture, FixtureStatus, League, StandingEntry};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -48,10 +46,7 @@ pub fn verify_completed_edition(
             if table {
                 f.counts_for_league_standings()
             } else {
-                !matches!(
-                    f.competition,
-                    FixtureCompetition::Friendly | FixtureCompetition::PreseasonTournament
-                )
+                f.is_competitive()
             }
         })
         .collect();
@@ -331,6 +326,23 @@ mod tests {
         }
     }
 
+    /// Given a finished cup that also holds a friendly-cup tie nobody played
+    /// When completion is verified
+    /// Then the cup is complete: a friendly cup is not competitive, so its unplayed tie does not
+    ///      hold the edition open (a friendly cup was counted as competitive here).
+    #[test]
+    fn an_unplayed_friendly_cup_tie_does_not_hold_a_finished_cup_open() {
+        let mut competition = cup(4);
+        competition.fixtures.push(Fixture {
+            id: "friendly-cup-tie".into(),
+            competition: FixtureCompetition::FriendlyCup,
+            status: FixtureStatus::Scheduled,
+            ..Default::default()
+        });
+
+        assert!(verify_completed_edition(&competition, None).is_ok());
+    }
+
     /// Given completed three and four club tables of one and two legs, when completion is verified, then each full authored schedule has a proof with its actual final date.
     #[test]
     fn completed_tables_respect_authored_legs_and_odd_fields() {
@@ -375,6 +387,31 @@ mod tests {
         let mut c = table(4, 2);
         c.fixtures[1].home_team_id = c.fixtures[0].home_team_id.clone();
         c.fixtures[1].away_team_id = c.fixtures[0].away_team_id.clone();
+        blocked(&c, Some(2), CompletionFailure::InvalidTableShape);
+    }
+
+    /// Given a finished double round robin in which one pair's return leg was played at the same
+    ///       ground as the first, with its scoreline mirrored so every table row still adds up
+    /// When completion is verified
+    /// Then the invalid table shape blocks it: two meetings at one ground are not a home and an
+    ///      away game, however well the table balances
+    #[test]
+    fn a_pair_that_met_twice_at_one_ground_is_not_a_double_round_robin() {
+        let mut c = table(4, 2);
+        let (home, away) = (
+            c.fixtures[0].home_team_id.clone(),
+            c.fixtures[0].away_team_id.clone(),
+        );
+        let return_leg = c
+            .fixtures
+            .iter_mut()
+            .find(|fixture| fixture.home_team_id == away && fixture.away_team_id == home)
+            .expect("a double round robin has a return leg");
+        return_leg.home_team_id = home;
+        return_leg.away_team_id = away;
+        let result = return_leg.result.as_mut().expect("a played return leg");
+        std::mem::swap(&mut result.home_goals, &mut result.away_goals);
+
         blocked(&c, Some(2), CompletionFailure::InvalidTableShape);
     }
 

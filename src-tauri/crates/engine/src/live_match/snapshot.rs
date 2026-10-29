@@ -77,16 +77,7 @@ impl LiveMatchState {
             None
         };
 
-        let player_ratings = if self.phase == MatchPhase::Finished {
-            self.report_from(self.events.clone())
-                .player_stats
-                .into_iter()
-                .filter(|(_, stats)| stats.rating > 0.0)
-                .map(|(id, stats)| (id, stats.rating))
-                .collect()
-        } else {
-            HashMap::new()
-        };
+        let figures = self.player_figures();
 
         MatchSnapshot {
             phase: self.phase,
@@ -113,7 +104,39 @@ impl LiveMatchState {
             away_yellows,
             sent_off: self.sent_off.clone(),
             penalty_shootout,
-            player_ratings,
+            player_ratings: figures.ratings,
+            player_goals: figures.goals,
+            player_assists: figures.assists,
         }
     }
+
+    /// Ratings, goals and assists as the match stands, read off one report so
+    /// the three cannot disagree. Built on every snapshot, not just at full
+    /// time, so the match screen can show them live (#410). This stays off the
+    /// engine's per-minute path: snapshots are built only when the UI asks for
+    /// one, and the AI reads `observation.rs` instead.
+    fn player_figures(&self) -> PlayerFigures {
+        let mut figures = PlayerFigures::default();
+        for (id, stats) in self.report_from(self.events.clone()).player_stats {
+            if stats.rating > 0.0 {
+                figures.ratings.insert(id.clone(), stats.rating);
+            }
+            if stats.goals > 0 {
+                figures.goals.insert(id.clone(), stats.goals);
+            }
+            if stats.assists > 0 {
+                figures.assists.insert(id, stats.assists);
+            }
+        }
+        figures
+    }
+}
+
+/// Per-player figures for a snapshot, keyed by player id; a player with none of
+/// a figure is absent from that map.
+#[derive(Default)]
+struct PlayerFigures {
+    ratings: HashMap<String, f32>,
+    goals: HashMap<String, u8>,
+    assists: HashMap<String, u8>,
 }

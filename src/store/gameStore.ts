@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { GameStateData, MessageData, SeasonContextData } from "./types";
+import type { GameStateData, MessageData } from "./types";
 import type { SessionState, UserCompetitionSummary, StandingRow } from "../services/sessionService";
 import { isMessageVisible, isNewsArticleVisible } from "../utils/newsVisibility";
 
@@ -55,20 +55,6 @@ function normalizeGameStateNationalities(state: GameStateData): GameStateData {
   };
 }
 
-const DEFAULT_SEASON_CONTEXT: SeasonContextData = {
-  phase: "Preseason",
-  season_start: null,
-  season_end: null,
-  days_until_season_start: null,
-  transfer_window: {
-    status: "Closed",
-    opens_on: null,
-    closes_on: null,
-    days_until_opens: null,
-    days_remaining: null,
-  },
-};
-
 function deriveSessionState(state: GameStateData): SessionState {
   const teamId = state.manager.team_id;
   const team = teamId ? (state.teams.find((t) => t.id === teamId) ?? null) : null;
@@ -112,7 +98,7 @@ function deriveSessionState(state: GameStateData): SessionState {
     clock: state.clock,
     manager: state.manager,
     team,
-    season_context: state.season_context ?? DEFAULT_SEASON_CONTEXT,
+    season_context: state.season_context,
     board_objectives: state.board_objectives ?? [],
     scouting_assignments: state.scouting_assignments ?? [],
     youth_scouting_assignments: state.youth_scouting_assignments ?? [],
@@ -155,9 +141,6 @@ export type {
   LeagueData,
   NationalTeamData,
   WorldRegionData,
-  SeasonPhase,
-  TransferWindowStatus,
-  TransferWindowContextData,
   SeasonContextData,
   SeasonAwardEntryData,
   SeasonManagerAwardEntryData,
@@ -172,6 +155,12 @@ export type {
 
 interface GameStore {
   hasActiveGame: boolean;
+  /**
+   * Counts the careers this window has opened (a game started or a save loaded) and closed. Calls
+   * that act on "the active game" carry no career with them, so anything slow that was asked in
+   * one career compares this before it shows its answer in the next.
+   */
+  careerEpoch: number;
   managerName: string | null;
   gameState: GameStateData | null;
   sessionState: SessionState | null;
@@ -188,16 +177,18 @@ interface GameStore {
 
 export const useGameStore = create<GameStore>((set, get) => ({
   hasActiveGame: false,
+  careerEpoch: 0,
   managerName: null,
   gameState: null,
   sessionState: null,
   isDirty: false,
   showFiredModal: false,
   setGameActive: (active, managerName) =>
-    set({
+    set((state) => ({
       hasActiveGame: active,
       managerName: managerName || null,
-    }),
+      careerEpoch: active ? state.careerEpoch + 1 : state.careerEpoch,
+    })),
   setGameState: (state) => {
     const normalized = normalizeGameStateNationalities(state);
     set({ gameState: normalized, sessionState: deriveSessionState(normalized), isDirty: true });
@@ -216,12 +207,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   markClean: () => set({ isDirty: false }),
   setShowFiredModal: (show) => set({ showFiredModal: show }),
   clearGame: () =>
-    set({
+    set((state) => ({
+      careerEpoch: state.careerEpoch + 1,
       hasActiveGame: false,
       managerName: null,
       gameState: null,
       sessionState: null,
       isDirty: false,
       showFiredModal: false,
-    }),
+    })),
 }));

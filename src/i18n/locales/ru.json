@@ -58,10 +58,7 @@
   "validation": {
     "required": "Поле «{{field}}» обязательно",
     "maxLength": "Поле «{{field}}» не должно превышать {{max}} символов",
-    "minStartYear": "Год старта должен быть не раньше {{min}}",
-    "minAge": "Менеджер должен быть не моложе {{min}} лет — измените дату рождения, чтобы продолжить.",
-    "invalidDate": "Недопустимая дата",
-    "invalidDob": "Недопустимая дата рождения"
+    "minStartYear": "Год старта должен быть не раньше {{min}}"
   },
   "worldSelect": {
     "title": "Выберите мир",
@@ -173,6 +170,7 @@
     "digestSimulating": "Симуляция...",
     "digestMatchDay": "Игровой день",
     "digestMatchDayDesc": "Сегодня у вашей команды запланирован матч.",
+    "matchModeMenu": "Выбрать режим матча",
     "digestReturnHome": "Вернуться на главную",
     "digestBlocked": "Требуется действие",
     "digestBlockedDesc": "Есть проблемы, требующие вашего внимания перед продолжением.",
@@ -397,14 +395,14 @@
     "traits": "Черты",
     "condition": "Состояние",
     "delegateToYouthAcademy": "Передать в академию",
-    "promoteToSeniorSquad": "Перевести в основную команду",
-    "potWorldClass": "Мировой класс",
-    "potExcellent": "Отличный",
-    "potPromising": "Многообещающий",
-    "potDecent": "Приличный",
-    "potLimited": "Ограниченный"
+    "promoteToSeniorSquad": "Перевести в основную команду"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}-й",
       "two": "{{n}}-й",
@@ -414,6 +412,8 @@
     "currentWage": "Текущая зарплата",
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
+    "overallRating": "Общий уровень {{value}}",
+    "overallRatingTier": "Общий уровень {{value}}, категория {{tier}}",
     "noResults": "Ничего не найдено.",
     "place": {
       "1": "1-е",
@@ -699,21 +699,15 @@
     "coverageNeedsAttention": "{{count}} группам ролей нужна подстраховка",
     "coverageBadge": "XI {{starters}}/{{required}} · Запас {{bench}}",
     "bestRole": "Лучшая роль",
-    "formationFit": "Соответствие схеме",
+    "formationFit": "Знакомство с позицией",
     "startingXi": "Стартовый состав",
-    "styleFit": "Соответствие стилю",
     "starter": "Основа",
     "benchOption": "Запас",
-    "naturalFit": "Естественная роль",
-    "adaptedFit": "Адаптированная роль",
+    "naturalFit": "Естественная позиция",
+    "adaptedFit": "Может сыграть там",
     "needsCover": "Нужна подмена",
     "makeStarter": "Сделать игроком основы",
-    "sendToBench": "Отправить в запас",
-    "styleFitValues": {
-      "strong": "Соответствие стилю: Сильное",
-      "good": "Соответствие стилю: Хорошее",
-      "risky": "Соответствие стилю: Рискованное"
-    }
+    "sendToBench": "Отправить в запас"
   },
   "tactics": {
     "formationStyle": "Схема и стиль",
@@ -776,6 +770,10 @@
     "myTactics": "Мои тактики",
     "newTactic": "Новая тактика",
     "duplicateTactic": "Дублировать",
+    "deleteTactic": "Удалить",
+    "deleteTacticTitle": "Удалить эту тактику?",
+    "deleteTacticBody": "Тактика «{{name}}» будет удалена из библиотеки. Команда сохранит текущую схему и стиль игры.",
+    "deleteTacticConfirm": "Удалить",
     "resetTactic": "Сбросить к исходным",
     "saveAsTactic": "Сохранить как тактику",
     "updateTactic": "Обновить тактику",
@@ -860,8 +858,8 @@
     "setCornerTaker": "Назначить исполнителя угловых",
     "inspector": "Инспектор",
     "inspectorEmptyTitle": "Ничего не выбрано",
-    "naturalFit": "Естественная роль",
-    "adaptedFit": "Адаптированная роль",
+    "naturalFit": "Естественная позиция",
+    "adaptedFit": "Может сыграть там",
     "tokenStates": {
       "ready": "Готов",
       "adjusted": "Адаптирован",
@@ -877,7 +875,7 @@
     "clearSelection": "Сбросить выбор",
     "compareWithSelected": "Сравнить с выбранным",
     "selectForSwap": "Выбрать для обмена",
-    "assignBestFit": "Назначить в лучший слот",
+    "assignBestFit": "Назначить лучшую позицию",
     "moveToBench": "Отправить в запас",
     "promoteToLineup": "Вернуть в основу",
     "tableView": "Табличный вид",
@@ -892,7 +890,6 @@
     "positionSelector": "Тактический слот",
     "playablePositions": "Позиции",
     "slotFit": "Соответствие слоту",
-    "styleFit": "Соответствие стилю",
     "responsibilities": "Обязанности",
     "noSpecialRoles": "Нет особых ролей",
     "moraleLevels": {
@@ -908,11 +905,6 @@
       "sharp": "В тонусе",
       "managing": "Под нагрузкой",
       "risk": "Риск"
-    },
-    "styleFitLevels": {
-      "strong": "Сильное соответствие",
-      "good": "Хорошее соответствие",
-      "risky": "Рискованное соответствие"
     }
   },
   "training": {
@@ -1157,6 +1149,15 @@
   },
   "inbox": {
     "title": "Входящие",
+    "archive": {
+      "heading": "Старые сообщения",
+      "load": "Загрузить старые сообщения",
+      "loadMore": "Загрузить ещё старые сообщения",
+      "loading": "Загрузка старых сообщений…",
+      "empty": "Старых сообщений нет.",
+      "end": "Больше старых сообщений нет.",
+      "error": "Не удалось загрузить старые сообщения."
+    },
     "nMessages": "Сообщений: {{count}}",
     "noMessages": "Сообщений нет",
     "noMessagesInCategory": "В этой категории сообщений нет",
@@ -1348,6 +1349,7 @@
     "bidImpactWagePressure": "Прогноз загрузки зарплатного бюджета: {{percent}}%",
     "bidImpactOverTransferBudget": "Это предложение превышает Ваш трансферный бюджет",
     "bidImpactOverBalance": "Это предложение уведёт клуб в минус",
+    "bidImpactOverWagePolicy": "Совет директоров отклонит его зарплату: она нарушает зарплатную политику клуба",
     "bidAccepted": "Предложение принято! Игрок подписан.",
     "bidCountered": "Вам прислали встречные условия.",
     "bidRejected": "Предложение отклонено — сумма слишком низкая.",
@@ -1420,6 +1422,9 @@
     "resumeNegotiationHint": "С этим клубом переговоры всё ещё идут.",
     "resumeNegotiationHeadline": "Другой клуб ждёт вашего следующего шага.",
     "resumeNegotiationDetail": "Их последний сигнал указывал на {{fee}}.",
+    "resumeRefusedHeadline": "Они отклонили вашу последнюю ставку.",
+    "resumeRefusedDetail": "Новое предложение продолжит переговоры отсюда. Их последний сигнал указывал на {{fee}}.",
+    "talksResumeOn": "Переговоры можно возобновить {{date}}.",
     "transferFeedbackAcceptedHeadline": "Другой клуб готов вести дела.",
     "transferFeedbackAcceptedDetail": "Ваша сумма попала в их комфортный диапазон, поэтому разговор пошёл быстро.",
     "transferFeedbackScheduledHeadline": "Сделка согласована для следующего регистрационного окна.",
@@ -1832,6 +1837,21 @@
     },
     "uiScale": "Масштаб интерфейса",
     "uiScaleDesc": "Изменить размер шрифта и отступы для удобства чтения",
+    "sidebarWidth": "Ширина боковой панели",
+    "sidebarWidthDesc": "Насколько широка открытая боковая панель. «Широкая» показывает каждый пункт меню в одну строку.",
+    "sidebarWidthOptions": {
+      "compact": "Компактная",
+      "standard": "Стандартная",
+      "wide": "Широкая"
+    },
+    "sidebarBehaviour": "Боковая панель",
+    "sidebarBehaviourDesc": "Как открывается боковая панель. Если окно слишком узкое, она открывается поверх страницы.",
+    "sidebarBehaviourOptions": {
+      "normal": "Обычная",
+      "hover": "Раскрывать при наведении",
+      "click": "Раскрывать по щелчку",
+      "icons": "Только значки"
+    },
     "uiScaleOptions": {
       "small": "Маленький",
       "normal": "Нормальный",
@@ -1941,6 +1961,10 @@
     "events": "События",
     "stats": "Статистика",
     "lineups": "Составы",
+    "pitch": "Поле",
+    "liveRating": "Рейтинг {{rating}}",
+    "liveGoals": "Голы: {{count}}",
+    "liveAssists": "Ассисты: {{count}}",
     "simSpeed": "Скорость симуляции",
     "pause": "Пауза",
     "slow": "Медленно",
@@ -1988,7 +2012,6 @@
     "alreadyQueued": "Уже в очереди на замену",
     "substitutionsPartlyMade": "Выполнено замен: {{applied}} из {{total}}",
     "substitutionRefused": "Замена отклонена: {{off}} на {{on}}. {{reason}}",
-    "playerRoles": "Роли игроков",
     "roleFor": "Роль игрока {{player}}",
     "roleChangeRefused": "Не удалось сменить роль игрока {{player}}. {{reason}}",
     "noBenchAvailable": "На скамейке нет игроков",
@@ -2063,6 +2086,7 @@
     "roundSummaryUnavailable": "Итоги тура недоступны.",
     "otherMatches": "Другие матчи",
     "otherMatchesToday": "Другие матчи дня",
+    "elsewhereInYourLeague": "В остальной части вашей лиги",
     "otherMatchesUnavailable": "Контекст по другим матчам для этой игры пока недоступен.",
     "viewDetails": "Подробнее",
     "matchDetails": "Детали матча",
@@ -2251,7 +2275,7 @@
     "preMatchPrep": "Подготовка к матчу",
     "startingLineup": "Стартовый состав",
     "setPiecesCaptain": "Стандарты и капитан",
-    "formationFit": "Соответствие схеме",
+    "formationFit": "Схема",
     "selecting": "Подбираем...",
     "autoSelectXI": "Автоподбор лучшего состава",
     "startingXI": "Стартовый состав",
@@ -2582,7 +2606,11 @@
     "pts": "очк.",
     "cupPenalties": "({{home}}–{{away}} по пенальти)",
     "cupAdvances": "{{team}} проходит дальше",
-    "cupTiesPending": "Некоторые матчи ещё не сыграны"
+    "cupTiesPending": "Некоторые матчи ещё не сыграны",
+    "resume": "Продолжить",
+    "pausedResumesAt": "Пауза · продолжится: {{speed}}",
+    "playingAt": "Идёт: {{speed}}",
+    "spaceKey": "Пробел"
   },
   "endOfSeason": {
     "seasonComplete": "Сезон завершён",
@@ -2623,12 +2651,19 @@
     "compare": "Сравнение"
   },
   "be": {
+    "condition": {
+      "fresh": "Свежий",
+      "tiring": "Устаёт",
+      "exhausted": "Измотан",
+      "critical": "Критично"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Этот игрок не может уйти: состав опустится ниже минимума, который обязан держать клуб. Линия: {{group}}.",
         "wouldLeaveSeniorsShort": "Этот игрок не может уйти: в основном составе клуба останется меньше {{floor}} игроков — минимума, который обязан держать клуб."
       },
       "noActiveGameSession": "Нет активной игровой сессии",
+      "careerChanged": "Карьера сменилась до того, как это удалось сохранить.",
       "noActiveSaveSession": "Нет активной сессии сохранения",
       "saveNotFound": "Сохранение «{{saveId}}» не найдено.",
       "saveManagerUnavailable": "Менеджер сохранений временно недоступен.",
@@ -2719,7 +2754,8 @@
         "worldExportNotPackage": "Эта папка — экспортированный мир, а не проект пакета. Экспортированные миры используют другой формат и не могут быть отредактированы здесь.",
         "notAProjectDirectory": "Это не папка проекта пакета. Выберите папку, содержащую package.json пакета, — а для установленного пакета .ofm используйте «Открыть файл .ofm».",
         "unknownSchema": "Неизвестная схема «{{schema}}».",
-        "invalidEntity": "Запись «{{schema}}» недействительна.",
+        "invalidEntity": "Запись «{{schema}}» недействительна: {{detail}}",
+        "duplicateWorld": "В пакете уже есть манифест в «{{first}}»; в пакете может быть только один файл «world».",
         "missingId": "У записи {{kind}} отсутствует id.",
         "missingMetadata": "В манифесте пакета отсутствует обязательное поле «{{field}}».",
         "duplicateId": "Повторяющийся id {{kind}} «{{id}}».",
@@ -3549,6 +3585,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: отчёт о предсезонном матче",
           "body": "В предсезонном матче {{home}} сыграл с {{away}} со счётом {{homeGoals}}-{{awayGoals}}. Обе команды использовали эту игру, чтобы набрать форму перед официальными матчами.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Отчёт о матче ({{competition}})",
+          "body": "{{competition}}: матч завершился со счётом {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3688,7 +3728,8 @@
     "warning": {
       "package": {
         "countryWithoutRegion": "Этот пакет определяет страну «{{name}}» ({{code}}), которой нет в списке стран игры, и не относит её ни к одной конфедерации, поэтому её клубы попадают в Европу. Назначьте ей конфедерацию.",
-        "freeAgentFieldIgnored": "У игрока «{{id}}» нет клуба, поэтому он свободный агент без контракта: поле «{{field}}» игнорируется. Назначьте ему клуб, чтобы оно действовало, или удалите поле."
+        "freeAgentFieldIgnored": "У игрока «{{id}}» нет клуба, поэтому он свободный агент без контракта: поле «{{field}}» игнорируется. Назначьте ему клуб, чтобы оно действовало, или удалите поле.",
+        "repeatedNamePool": "Набор имён для {{country}} уже был задан в {{first}}; набор из этого файла заменяет его. Оставьте один или задайте их для разных стран."
       }
     }
   },
@@ -4288,6 +4329,7 @@
     "saveAndOpenInstead": "Сохранить файл и использовать GitHub",
     "nothingSentYetUpload": "Ничего не покидает этот компьютер, пока вы не нажмёте «Отправить». Предпочитаете GitHub? Сохраните файл и сами прикрепите его к форме — для этого нужен аккаунт GitHub.",
     "uploadFailedFallback": "Вы всё ещё можете отправить его через GitHub: сохраните файл и прикрепите его к форме.",
+    "technicalDetails": "Технические подробности",
     "tooLargeUntickSave": "Если снять отметку с сохранения, отчёт станет намного меньше.",
     "sentTitle": "Отчёт отправлен",
     "sentIntro": "Спасибо. Ваш отчёт получен командой OpenFoot Manager и хранится, пока его не обработают.",

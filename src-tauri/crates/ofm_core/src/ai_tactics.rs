@@ -523,6 +523,9 @@ pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
     // One pass over the world's fixtures for everybody, not one per club.
     let form = read_form(game);
 
+    // Every club's squad in one pass rather than one scan of the world per club reviewing.
+    let by_club = crate::match_day_eligibility::players_by_club(&game.players);
+
     for team_id in due {
         let Some(team_index) = game.teams.iter().position(|team| team.id == team_id) else {
             continue;
@@ -530,12 +533,8 @@ pub fn apply_ai_tactical_reviews(game: &mut Game, weekday_num: u32) {
 
         // Disjoint field borrows: the squad is read out of `game.players` while
         // the club is written through `game.teams`.
-        let squad: Vec<&Player> = game
-            .players
-            .iter()
-            .filter(|player| player.team_id.as_deref() == Some(team_id.as_str()))
-            .collect();
-        let reading = read_squad(&squad);
+        let squad = by_club.get(team_id.as_str()).map_or(&[][..], Vec::as_slice);
+        let reading = read_squad(squad);
 
         let team = &mut game.teams[team_index];
         team.tactics_phase = match_plan(&team.play_style, reading.as_ref(), form.get(&team_id));
@@ -857,6 +856,48 @@ mod tests {
         apply_ai_tactical_reviews(&mut game, review_weekday("home"));
         let home = game.teams.iter().find(|team| team.id == "home").unwrap();
         assert_eq!(home.tactics_phase.defensive_shape, DefensiveShape::Compact);
+    }
+
+    /// Given a high-pressing club whose players have no legs, and no results to react to,
+    /// When it reviews its tactics,
+    /// Then the review read its own squad: it is not asked to press aggressively.
+    #[test]
+    fn a_review_reads_the_clubs_own_squad() {
+        let mut game = form_game();
+        game.competitions.clear();
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "home")
+            .unwrap()
+            .play_style = PlayStyle::HighPress;
+        assert_eq!(
+            blueprint_for(&PlayStyle::HighPress).pressing_intensity,
+            PressingIntensity::Aggressive,
+            "the blueprint presses hard, so the cap below is what is under test"
+        );
+        for index in 0..14 {
+            let mut attributes = crate::test_support::uniform_attributes(60);
+            attributes.stamina = 30;
+            let mut player = Player::new(
+                format!("home-{index}"),
+                format!("home-{index}"),
+                format!("home-{index}"),
+                "1998-01-01".into(),
+                "England".into(),
+                Position::Midfielder,
+                attributes,
+            );
+            player.team_id = Some("home".into());
+            game.players.push(player);
+        }
+
+        apply_ai_tactical_reviews(&mut game, review_weekday("home"));
+
+        let home = game.teams.iter().find(|team| team.id == "home").unwrap();
+        assert_eq!(
+            home.tactics_phase.pressing_intensity,
+            PressingIntensity::Medium
+        );
     }
 
     #[test]

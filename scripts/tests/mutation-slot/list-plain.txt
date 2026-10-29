@@ -1,0 +1,13 @@
+crates/domain/src/age.rs:13:5: replace age_between -> i32 with 0
+crates/domain/src/age.rs:13:5: replace age_between -> i32 with 1
+crates/domain/src/age.rs:13:5: replace age_between -> i32 with -1
+crates/domain/src/age.rs:13:47: replace >= with < in age_between
+crates/domain/src/age.rs:14:29: replace - with + in age_between
+crates/domain/src/age.rs:14:29: replace - with / in age_between
+crates/domain/src/age.rs:14:15: replace - with + in age_between
+crates/domain/src/age.rs:14:15: replace - with / in age_between
+crates/domain/src/age.rs:14:41: delete ! in age_between
+crates/domain/src/age.rs:20:5: replace age_on -> Option<i32> with None
+crates/domain/src/age.rs:20:5: replace age_on -> Option<i32> with Some(0)
+crates/domain/src/age.rs:20:5: replace age_on -> Option<i32> with Some(1)
+crates/domain/src/age.rs:20:5: replace age_on -> Option<i32> with Some(-1)

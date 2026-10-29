@@ -1,4 +1,5 @@
 import type { Mock } from "vitest";
+import { createSeasonContext } from "../../test-utils/factories";
 import type { PlayersPage, PlayersPageQuery, StatusCounts } from "../../services/playersService";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
@@ -186,11 +187,10 @@ export function createGameState(players: PlayerData[] = [createPlayer()]): GameS
     },
     scouting_assignments: [],
     board_objectives: [],
-    season_context: {
+    season_context: createSeasonContext({
       phase: "InSeason",
       season_start: "2026-07-01",
       season_end: "2027-05-31",
-      days_until_season_start: null,
       transfer_window: {
         status: "Open",
         opens_on: "2026-06-01",
@@ -198,7 +198,7 @@ export function createGameState(players: PlayerData[] = [createPlayer()]): GameS
         days_until_opens: null,
         days_remaining: 30,
       },
-    },
+    }),
   };
 }
 export const transferTestTranslation = (key: string, params?: Record<string, string | number>) => {
@@ -407,7 +407,7 @@ export function marketPageOf(
       team_id: player.team_id,
       team_name: null,
       market_value: player.market_value,
-      ovr: 70,
+      ovr: player.ovr ?? 70,
       transfer_listed: player.transfer_listed,
       loan_listed: player.loan_listed,
       injured: false,

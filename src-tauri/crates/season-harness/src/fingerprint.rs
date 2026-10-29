@@ -2,8 +2,12 @@
 
 use domain::league::Fixture;
 use domain::message::InboxMessage;
+use domain::news::NewsArticle;
+use domain::stats::StatsState;
 use domain::team::Team;
 use ofm_core::game::Game;
+
+use crate::driver::SeasonObserver;
 
 /// Everything a day's dice and a rollover's people decide, one line per fact, in a fixed order.
 ///
@@ -78,6 +82,16 @@ pub fn fingerprint(game: &Game) -> String {
     for message in &game.messages {
         lines.push(inbox_line(message));
     }
+    for article in &game.news {
+        lines.push(news_line(article));
+    }
+    for top_up in &game.squad_floor_top_ups {
+        lines.push(format!("top_up {top_up:?}"));
+    }
+    lines.push(format!(
+        "user_manager satisfaction{} fan_approval{}",
+        game.manager.satisfaction, game.manager.fan_approval
+    ));
     for staff in &game.staff {
         lines.push(format!(
             "staff {} {:?} {:?}",
@@ -95,7 +109,7 @@ fn team_decisions(team: &Team) -> String {
     let mut roles: Vec<_> = team.player_roles.iter().collect();
     roles.sort_unstable_by_key(|(player_id, _)| player_id.as_str());
     format!(
-        "  decisions {} {} {:?} phase{:?} focus{:?} intensity{:?} schedule{:?} xi{:?} roles{:?}",
+        "  decisions {} {} {:?} phase{:?} focus{:?} intensity{:?} schedule{:?} xi{:?} roles{:?} form{:?}",
         team.id,
         team.formation,
         team.play_style,
@@ -104,8 +118,59 @@ fn team_decisions(team: &Team) -> String {
         team.training_intensity,
         team.training_schedule,
         team.starting_xi_ids,
-        roles
+        roles,
+        team.form
     )
+}
+
+/// An article without its id, which is minted at random: everything it says, and the order the
+/// articles are in, which is the order the day's matches were reported in.
+fn news_line(article: &NewsArticle) -> String {
+    let mut params: Vec<_> = article.i18n_params.iter().collect();
+    params.sort_unstable();
+    let mut without_id = article.clone();
+    without_id.id.clear();
+    // A `HashMap`: written in key order, like the inbox's.
+    without_id.i18n_params.clear();
+    format!("news {without_id:?} params{params:?}")
+}
+
+/// What the day's matches handed to the stats store (`on_capture`), which is not part of the game
+/// but is written by the same code. A match's records come from a `HashMap`, so within one capture
+/// they are put in player order; the order of the captures is the order the matches were applied
+/// in and is kept, so a change to it is a change to the run.
+#[derive(Debug, Default)]
+pub struct StatsLog {
+    lines: Vec<String>,
+    captures: usize,
+}
+
+impl StatsLog {
+    /// How many matches have been captured.
+    pub fn captures(&self) -> usize {
+        self.captures
+    }
+
+    /// Every capture seen, in the order the matches were applied: within a capture the player
+    /// records by player id, then the team records as they came.
+    pub fn fingerprint(&self) -> String {
+        self.lines.join("\n")
+    }
+}
+
+impl SeasonObserver for StatsLog {
+    fn on_stats_captured(&mut self, stats: &StatsState) {
+        let mut players: Vec<_> = stats.player_matches.iter().collect();
+        players.sort_unstable_by(|a, b| a.player_id.cmp(&b.player_id));
+        self.captures += 1;
+        self.lines.push("capture".to_string());
+        for record in players {
+            self.lines.push(format!("  player_match {record:?}"));
+        }
+        for record in &stats.team_matches {
+            self.lines.push(format!("  team_match {record:?}"));
+        }
+    }
 }
 
 /// A message without its id, which is minted at random: the day, who it is for and what it says.
@@ -158,7 +223,11 @@ pub fn first_difference(first: &str, second: &str) -> String {
 mod tests {
     use domain::league::MatchResult;
 
+    use domain::news::NewsArticle;
+    use domain::stats::StatsState;
+
     use super::fingerprint;
+    use crate::driver::SeasonObserver;
     use crate::worlds::WorldSpec;
 
     /// Given two worlds whose only difference is the penalty score of one drawn tie,
@@ -196,7 +265,12 @@ mod tests {
     ///      order or on a value minted at random.
     #[test]
     fn two_builds_of_one_world_have_one_fingerprint() {
-        assert_eq!(fingerprint(&built()), fingerprint(&built()));
+        let (first, second) = (fingerprint(&built()), fingerprint(&built()));
+        assert!(
+            first == second,
+            "{}",
+            super::first_difference(&first, &second)
+        );
     }
 
     /// Given a world, and the same world with one field of one player or club changed,
@@ -382,6 +456,192 @@ mod tests {
             other.teams[0].player_roles.insert(id.to_string(), role);
         }
         assert_eq!(fingerprint(&one), fingerprint(&other));
+    }
+
+    fn an_article(headline: &str) -> NewsArticle {
+        let mut article = NewsArticle::new(
+            "any-id".to_string(),
+            headline.to_string(),
+            "Body".to_string(),
+            "Source".to_string(),
+            "2033-07-02".to_string(),
+            domain::news::NewsCategory::MatchReport,
+        );
+        article.id = format!("id-{headline}");
+        article
+    }
+
+    #[test]
+    fn it_sees_the_news_and_the_order_it_is_in() {
+        assert_sees(|game| game.news.push(an_article("One")));
+        let in_order = |first: &str, second: &str| {
+            let mut game = built();
+            game.news.push(an_article(first));
+            game.news.push(an_article(second));
+            fingerprint(&game)
+        };
+        assert_ne!(in_order("One", "Two"), in_order("Two", "One"));
+    }
+
+    /// The id is minted at random, so two runs differ in it and agree on everything else.
+    #[test]
+    fn it_does_not_see_a_news_articles_id() {
+        let with_id = |id: &str| {
+            let mut game = built();
+            let mut article = an_article("One");
+            article.id = id.to_string();
+            game.news.push(article);
+            fingerprint(&game)
+        };
+        assert_eq!(with_id("a"), with_id("b"));
+    }
+
+    #[test]
+    fn it_sees_a_squad_floor_top_up() {
+        assert_sees(|game| {
+            game.squad_floor_top_ups
+                .push(ofm_core::squad_floor::SquadFloorTopUp {
+                    date: "2033-07-02".to_string(),
+                    team_id: "any".to_string(),
+                    short: vec![],
+                    unfilled: vec![],
+                })
+        });
+    }
+
+    #[test]
+    fn it_sees_the_users_satisfaction_and_fan_approval() {
+        assert_sees(|game| game.manager.satisfaction -= 1);
+        assert_sees(|game| game.manager.fan_approval -= 1);
+    }
+
+    #[test]
+    fn it_sees_a_teams_form() {
+        assert_sees(|game| game.teams[0].form.push("W".to_string()));
+    }
+
+    fn player_record(player_id: &str, goals: u8) -> domain::stats::PlayerMatchStatsRecord {
+        domain::stats::PlayerMatchStatsRecord {
+            fixture_id: "fixture".to_string(),
+            season: 2033,
+            matchday: 1,
+            date: "2033-08-01".to_string(),
+            competition: domain::league::FixtureCompetition::League,
+            player_id: player_id.to_string(),
+            team_id: "home".to_string(),
+            opponent_team_id: "away".to_string(),
+            home_team_id: "home".to_string(),
+            away_team_id: "away".to_string(),
+            home_goals: 1,
+            away_goals: 0,
+            minutes_played: 90,
+            goals,
+            assists: 0,
+            shots: 0,
+            shots_on_target: 0,
+            passes_completed: 0,
+            passes_attempted: 0,
+            tackles_won: 0,
+            interceptions: 0,
+            fouls_committed: 0,
+            yellow_cards: 0,
+            red_cards: 0,
+            rating: 6.0,
+        }
+    }
+
+    fn logged(captures: &[Vec<domain::stats::PlayerMatchStatsRecord>]) -> String {
+        let mut log = super::StatsLog::default();
+        for records in captures {
+            log.on_stats_captured(&StatsState {
+                player_matches: records.clone(),
+                team_matches: vec![],
+            });
+        }
+        log.fingerprint()
+    }
+
+    /// A report's player stats come out of a `HashMap`, in no particular order.
+    #[test]
+    fn the_stats_log_ignores_the_order_inside_one_capture() {
+        let (a, b) = (player_record("a", 1), player_record("b", 0));
+        assert_eq!(logged(&[vec![a.clone(), b.clone()]]), logged(&[vec![b, a]]));
+    }
+
+    #[test]
+    fn the_stats_log_sees_a_record_and_the_order_of_the_captures() {
+        let (a, b) = (player_record("a", 1), player_record("b", 0));
+        assert_ne!(
+            logged(&[vec![a.clone()]]),
+            logged(&[vec![player_record("a", 2)]])
+        );
+        assert_ne!(
+            logged(&[vec![a.clone()], vec![b.clone()]]),
+            logged(&[vec![b], vec![a]])
+        );
+    }
+
+    fn team_record(team_id: &str, goals_for: u8) -> domain::stats::TeamMatchStatsRecord {
+        domain::stats::TeamMatchStatsRecord {
+            fixture_id: "fixture".to_string(),
+            season: 2033,
+            matchday: 1,
+            date: "2033-08-01".to_string(),
+            competition: domain::league::FixtureCompetition::League,
+            team_id: team_id.to_string(),
+            opponent_team_id: "away".to_string(),
+            home_team_id: "home".to_string(),
+            away_team_id: "away".to_string(),
+            goals_for,
+            goals_against: 0,
+            possession_pct: 50,
+            shots: 0,
+            shots_on_target: 0,
+            passes_completed: 0,
+            passes_attempted: 0,
+            tackles_won: 0,
+            interceptions: 0,
+            fouls_committed: 0,
+            yellow_cards: 0,
+            red_cards: 0,
+        }
+    }
+
+    fn logged_teams(teams: Vec<domain::stats::TeamMatchStatsRecord>) -> String {
+        let mut log = super::StatsLog::default();
+        log.on_stats_captured(&StatsState {
+            player_matches: vec![],
+            team_matches: teams,
+        });
+        log.fingerprint()
+    }
+
+    /// The team records are part of what the stats store is handed, as the players' are.
+    #[test]
+    fn the_stats_log_sees_a_team_record_and_the_order_of_them() {
+        assert_ne!(
+            logged_teams(vec![team_record("home", 1)]),
+            logged_teams(vec![team_record("home", 2)])
+        );
+        assert_ne!(
+            logged_teams(vec![team_record("home", 1), team_record("away", 0)]),
+            logged_teams(vec![team_record("away", 0), team_record("home", 1)])
+        );
+        assert_ne!(
+            logged_teams(vec![]),
+            logged_teams(vec![team_record("home", 1)])
+        );
+    }
+
+    /// Where one match's records end and the next's begin is part of the log: two matches that
+    /// handed over one record each are not one match that handed over two.
+    #[test]
+    fn the_stats_log_keeps_the_boundary_between_two_captures() {
+        let (a, b) = (player_record("a", 1), player_record("b", 0));
+        assert_ne!(
+            logged(&[vec![a.clone()], vec![b.clone()]]),
+            logged(&[vec![a, b]])
+        );
     }
 
     fn a_message(subject: &str, body: &str, sender: &str) -> domain::message::InboxMessage {
