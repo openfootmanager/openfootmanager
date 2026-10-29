@@ -126,6 +126,33 @@ function focusRingViolations(source: string): string[] {
   });
 }
 
+/**
+ * The files where the brand green is a brand moment, not a state: the primary button and the
+ * header's Continue, the selected navigation item, the brand's own badge, card and bar variants,
+ * and the dashboard's loading spinner. Rule 8 keeps `primary-*` to these.
+ */
+const BRAND_FILES: Record<string, string> = {
+  "./components/ui/Button.tsx": "the primary button is the brand fill",
+  "./components/ui/Badge.tsx": "the `primary` badge variant",
+  "./components/ui/Card.tsx": "the `primary` card's brand top border",
+  "./components/ui/ProgressBar.tsx": "the `primary` bar colour",
+  "./components/dashboard/DashboardHeader.tsx": "the header's Continue button",
+  "./components/dashboard/DashboardSidebar.tsx": "the selected navigation item",
+  "./pages/Dashboard.tsx": "the loading spinner",
+};
+
+const BRAND_CLASS =
+  /(?<![\w-])(?:bg|text|border(?:-[trblxy])?|ring|ring-offset|outline|fill|stroke|from|via|to|divide|placeholder|decoration|shadow|accent|caret)-primary-\d{2,3}(?:\/\d+)?/g;
+
+/**
+ * Rule 8: a control that is on or chosen is painted in the `selected` role (a switch's track, a
+ * checked box, a strong segmented option, a count badge, the chosen option in a list), so one
+ * token changes how "chosen" looks. The brand green stays for brand moments, in BRAND_FILES.
+ */
+function brandOutsideBrandFiles(path: string, source: string): string[] {
+  return path in BRAND_FILES ? [] : linesMatching(source, BRAND_CLASS);
+}
+
 function finishedFiles(): Array<[string, string]> {
   return Object.entries(SOURCES).filter(([path]) =>
     FINISHED_FOLDERS.some((folder) => path.startsWith(folder)),
@@ -201,6 +228,20 @@ describe("design system rules in finished folders", () => {
   /** Given the artwork list, then every file on it exists, so a rename can't leave a stale exemption. */
   it("lists only files that exist as artwork files", () => {
     expect(Object.keys(ARTWORK_FILES).filter((path) => !(path in SOURCES))).toEqual([]);
+  });
+
+  /**
+   * Given a finished folder,
+   * when its source is read,
+   * then the brand green appears only in a brand file; an on or chosen control uses `selected`.
+   */
+  it("keeps the brand green to brand moments", () => {
+    expect(report(brandOutsideBrandFiles)).toEqual([]);
+  });
+
+  /** Given the brand list, then every file on it exists, so a rename can't leave a stale exemption. */
+  it("lists only files that exist as brand files", () => {
+    expect(Object.keys(BRAND_FILES).filter((path) => !(path in SOURCES))).toEqual([]);
   });
 });
 
@@ -325,5 +366,27 @@ describe("the rule checks themselves", () => {
       "1: fixed inset-0",
     ]);
     expect(overlayViolations("./components/ui/Dialog.tsx", overlay)).toEqual([]);
+  });
+
+  /**
+   * Given brand-green classes, with variants, a side border and opacity, outside a brand file,
+   * then each is reported; in a brand file, and for the selected role, nothing is.
+   */
+  it("catches the brand green outside a brand file only", () => {
+    const chosen =
+      'className="peer-checked:bg-primary-600 dark:text-primary-400 border-t-primary-500 ring-primary-500/40"';
+    expect(brandOutsideBrandFiles("./components/ui/Checkbox.tsx", chosen)).toEqual([
+      "1: bg-primary-600",
+      "1: text-primary-400",
+      "1: border-t-primary-500",
+      "1: ring-primary-500/40",
+    ]);
+    expect(brandOutsideBrandFiles("./components/ui/Button.tsx", chosen)).toEqual([]);
+    expect(
+      brandOutsideBrandFiles(
+        "./components/ui/Checkbox.tsx",
+        'className="bg-selected-fill text-on-brand bg-selected-tint text-selected"',
+      ),
+    ).toEqual([]);
   });
 });

@@ -1,7 +1,7 @@
 /**
  * The segmented look, in one place: Tabs' segmented switch and SegmentedControl both draw from it.
  * A sunken track holds the items. The selected item is raised (`quiet`) when it switches what a
- * panel shows, or filled with the brand colour (`strong`) when it is a setting the player is
+ * panel shows, or filled with the selected fill (`strong`) when it is a setting the player is
  * watching, like a match's speed.
  */
 export const SEGMENTED = {
@@ -19,7 +19,7 @@ export const SEGMENTED = {
   idle: "text-fg-muted hover:text-fg",
   selected: {
     quiet: "bg-panel text-fg shadow-sm ring-1 ring-line-strong",
-    strong: "bg-primary-700 text-on-brand shadow-sm",
+    strong: "bg-selected-fill text-on-brand shadow-sm",
     /** Chosen but not running, like a paused match's speed: outlined, so it differs from both. */
     outlined: "bg-panel text-positive ring-2 ring-inset ring-positive-solid",
   },
