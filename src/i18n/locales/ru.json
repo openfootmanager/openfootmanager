@@ -412,6 +412,7 @@
     "currentWage": "Текущая зарплата",
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
+    "detailsFor": "Подробности: {{name}}",
     "overallRating": "Общий уровень {{value}}",
     "overallRatingTier": "Общий уровень {{value}}, категория {{tier}}",
     "noResults": "Ничего не найдено.",

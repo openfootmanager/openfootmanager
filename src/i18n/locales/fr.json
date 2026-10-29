@@ -412,6 +412,7 @@
     "currentWage": "Salaire actuel",
     "loading": "Chargement...",
     "loadingGameState": "Chargement de l'état du jeu...",
+    "detailsFor": "Détails de {{name}}",
     "overallRating": "Niveau général {{value}}",
     "overallRatingTier": "Niveau général {{value}}, catégorie {{tier}}",
     "noResults": "Aucun résultat trouvé.",
