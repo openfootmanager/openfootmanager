@@ -1,3 +1,8 @@
+#[path = "contracts_tests/renewal_feedback.rs"]
+mod renewal_feedback;
+#[path = "contracts_tests/renewal_terms.rs"]
+mod renewal_terms;
+
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
 use domain::player::{
