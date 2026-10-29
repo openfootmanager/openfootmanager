@@ -243,12 +243,12 @@ mod tests {
         );
     }
 
-    /// Given a 29-year-old on the same terms
+    /// Given a 31-year-old on the same terms, a year short of the veteran discount
     /// When his expected wage is worked out
     /// Then it is 110,000: between 28 and 31 age neither adds nor takes anything
     #[test]
     fn a_player_in_his_prime_expects_no_age_adjustment() {
-        let prime = on_the_books("1997-01-01", 100_000, 400_000);
+        let prime = on_the_books("1995-01-01", 100_000, 400_000);
 
         assert_eq!(
             expected_wage(&prime, &club_of_standing(), first_of_august()),
@@ -272,5 +272,15 @@ mod tests {
             ],
             [1.0, 1.0, 0.95]
         );
+    }
+
+    /// Given squad players valued 750,000 and 749,999
+    /// When their importance to the club is weighed for wage demands
+    /// Then the 750,000 player is an important one, asking 10% more, and the 749,999 one is not
+    #[test]
+    fn a_player_valued_750k_or_more_carries_a_ten_percent_importance_premium() {
+        let multiplier = |value| importance_wage_multiplier(&on_the_books("1997-01-01", 0, value));
+
+        assert_eq!([multiplier(750_000), multiplier(749_999)], [1.10, 1.0]);
     }
 }

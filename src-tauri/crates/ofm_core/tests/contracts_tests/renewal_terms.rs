@@ -51,6 +51,10 @@ fn a_free_agent_offered_just_below_his_minimum_turns_it_down_without_a_counter()
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
     assert_eq!(outcome.session_status, RenewalSessionStatus::Stalled);
     assert!(!outcome.is_terminal);
+    assert_eq!(
+        (outcome.suggested_wage, outcome.suggested_years),
+        (None, None)
+    );
     assert!(game.players[0].morale_core.renewal_state.is_none());
 }
 
