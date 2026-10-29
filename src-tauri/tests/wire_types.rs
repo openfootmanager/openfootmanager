@@ -158,12 +158,21 @@ fn scratch_dir() -> tempfile::TempDir {
         .expect("could not create a scratch directory")
 }
 
-/// Clears `target` first, so a file whose Rust type left the wire does not survive.
-fn regenerate(target: &Path) {
+/// Exports into a folder beside `target` and swaps it in whole: a file whose Rust type left the
+/// wire does not survive, and an export that fails leaves the checked-in files as they were.
+fn regenerate(target: &Path, export: impl Fn(&Path) -> Result<(), String>) -> Result<(), String> {
+    let parent = target
+        .parent()
+        .ok_or("the generated types have no parent folder")?;
+    let staging = tempfile::Builder::new()
+        .prefix(".wire-types-")
+        .tempdir_in(parent)
+        .map_err(|error| error.to_string())?;
+    export(staging.path())?;
     if target.exists() {
-        std::fs::remove_dir_all(target).expect("could not clear the generated types");
+        std::fs::remove_dir_all(target).map_err(|error| error.to_string())?;
     }
-    export_wire_types(target).expect("could not write the generated types");
+    std::fs::rename(staging.keep(), target).map_err(|error| error.to_string())
 }
 
 /// Given the Rust wire types as they stand, when they are generated afresh, then the result is
@@ -171,7 +180,8 @@ fn regenerate(target: &Path) {
 #[test]
 fn the_checked_in_typescript_matches_the_rust_wire_types() {
     if std::env::var_os(REGENERATE_VAR).is_some() {
-        regenerate(Path::new(GENERATED_DIR));
+        regenerate(Path::new(GENERATED_DIR), export_wire_types)
+            .expect("could not write the generated types");
     }
     let fresh = scratch_dir();
     export_wire_types(fresh.path()).expect("the wire types could not be generated");
@@ -347,10 +357,31 @@ fn regenerating_replaces_stale_and_orphaned_files() {
     let fresh = scratch_dir();
     export_wire_types(fresh.path()).expect("the wire types could not be generated");
 
-    regenerate(target.path());
+    regenerate(target.path(), export_wire_types).expect("could not regenerate");
 
     assert_eq!(
         differences(target.path(), fresh.path()),
         Vec::<String>::new()
     );
+}
+
+/// Given checked-in files, when an export fails partway through regenerating them, then the
+/// checked-in files are left exactly as they were, not deleted or half-written.
+#[test]
+fn a_failed_regeneration_leaves_the_checked_in_files_alone() {
+    let store = scratch_dir();
+    let target = store.path().join("generated");
+    std::fs::create_dir(&target).expect("could not create the target");
+    write(&target, "Game.ts", "export type Game = {};\n");
+    let before = scratch_dir();
+    write(before.path(), "Game.ts", "export type Game = {};\n");
+
+    let result = regenerate(&target, |out_dir| {
+        std::fs::create_dir_all(out_dir).map_err(|error| error.to_string())?;
+        write(out_dir, "Half.ts", "export type Half");
+        Err("disk full".to_string())
+    });
+
+    assert_eq!(result, Err("disk full".to_string()));
+    assert_eq!(differences(&target, before.path()), Vec::<String>::new());
 }
