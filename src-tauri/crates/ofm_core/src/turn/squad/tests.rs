@@ -838,3 +838,206 @@ fn a_team_built_from_the_clubs_players_is_the_team_built_by_scanning() {
         );
     }
 }
+
+/// A full, fit 4-4-2 squad for one club, managed by someone else.
+fn a_fit_four_four_two_club() -> Game {
+    let mut game = club_whose_only_keeper_is_injured(false);
+    for player in game.players.iter_mut() {
+        player.injury = None;
+    }
+    game
+}
+
+/// Given a club set to play each of the six styles in turn
+/// When its team is built for the engine
+/// Then the engine receives that style: none of them arrives as Balanced unless it is Balanced
+#[test]
+fn every_play_style_reaches_the_engine_as_itself() {
+    use domain::team::PlayStyle as DomainStyle;
+    let mut game = a_fit_four_four_two_club();
+    let styles: Vec<PlayStyle> = [
+        DomainStyle::Balanced,
+        DomainStyle::Attacking,
+        DomainStyle::Defensive,
+        DomainStyle::Possession,
+        DomainStyle::Counter,
+        DomainStyle::HighPress,
+    ]
+    .into_iter()
+    .map(|style| {
+        game.teams[0].play_style = style;
+        build_team_with_bench(&game, "club").0.play_style
+    })
+    .collect();
+
+    assert_eq!(
+        styles,
+        vec![
+            PlayStyle::Balanced,
+            PlayStyle::Attacking,
+            PlayStyle::Defensive,
+            PlayStyle::Possession,
+            PlayStyle::Counter,
+            PlayStyle::HighPress,
+        ]
+    );
+}
+
+/// Given a club with a fit goalkeeper, four centre-backs, four central midfielders and two
+///       strikers, set up 4-4-2
+/// When its team is built for the engine
+/// Then the engine fields one goalkeeper, four defenders, four midfielders and two forwards:
+///      the engine picks its shooters by position, so a forward must arrive as a forward
+#[test]
+fn a_four_four_two_reaches_the_engine_with_two_forwards() {
+    let game = a_fit_four_four_two_club();
+
+    let (team, _bench) = build_team_with_bench(&game, "club");
+
+    assert_eq!(
+        [
+            team.count_position(Position::Goalkeeper),
+            team.count_position(Position::Defender),
+            team.count_position(Position::Midfielder),
+            team.count_position(Position::Forward),
+        ],
+        [1, 4, 4, 2]
+    );
+    assert_eq!(who_keeps_goal(&game), vec!["keeper".to_string()]);
+}
+
+/// Given one club on two dates, and two clubs on one date
+/// When each is asked for its matchday selection seed
+/// Then every pair differs: a manager's judgement changes with the day and with the club
+#[test]
+fn the_selection_seed_differs_by_club_and_by_matchday() {
+    let seed = selection_seed("a", "2026-08-01");
+
+    assert_ne!(seed, selection_seed("a", "2026-08-02"));
+    assert_ne!(seed, selection_seed("b", "2026-08-01"));
+}
+
+/// Eleven 80-rated centre-backs in the given condition and one fresh deputy rated
+/// `deputy_rating`, as a starting eleven picked by a manager of `quality` under `load`.
+fn eleven_picked(
+    starter_condition: u8,
+    deputy_rating: u8,
+    quality: f64,
+    load: FixtureLoad,
+) -> Vec<String> {
+    let mut squad: Vec<Player> = (0..11)
+        .map(|i| mk(&format!("star{i}"), 80, starter_condition))
+        .collect();
+    squad.push(mk("deputy", deputy_rating, 100));
+    let refs: Vec<&Player> = squad.iter().collect();
+    ai_select_starting_xi(&refs, "4-4-2", quality, 1, load)
+        .into_iter()
+        .map(|player| player.id.clone())
+        .collect()
+}
+
+/// Whether the deputy is in a full eleven. A short eleven would hold no deputy whatever the
+/// rotation did, so it fails here rather than passing a "keeps his first eleven" test.
+fn rotates_in_the_deputy(eleven: &[String]) -> bool {
+    assert_eq!(eleven.len(), 11, "a full eleven: {eleven:?}");
+    eleven.iter().any(|id| id == "deputy")
+}
+
+/// Given the poorest manager, a first eleven at condition 60, and a fresh deputy four below them
+/// When he picks his eleven on a normal week
+/// Then he keeps his first eleven: 60 is above the condition at which he starts resting anyone
+#[test]
+fn a_poor_manager_keeps_a_starter_above_his_fatigue_threshold() {
+    assert!(!rotates_in_the_deputy(&eleven_picked(
+        60,
+        76,
+        0.0,
+        FixtureLoad::Normal
+    )));
+}
+
+/// Given the poorest manager, a first eleven at condition 48 (tired, not exhausted), and a
+///       fresh deputy ten below them
+/// When he picks his eleven on a normal week
+/// Then he keeps his first eleven: he accepts a drop of six at most to rest someone tired
+#[test]
+fn a_poor_manager_will_not_rest_a_tired_starter_for_a_deputy_ten_below() {
+    assert!(!rotates_in_the_deputy(&eleven_picked(
+        48,
+        70,
+        0.0,
+        FixtureLoad::Normal
+    )));
+}
+
+/// Given the best manager, a first eleven at condition 70, and a fresh deputy ten below them
+/// When he picks his eleven on a normal week
+/// Then he rests one starter for the deputy: he accepts a drop of up to twelve
+#[test]
+fn an_elite_manager_rests_a_tired_starter_for_a_deputy_ten_below() {
+    assert!(rotates_in_the_deputy(&eleven_picked(
+        70,
+        70,
+        1.0,
+        FixtureLoad::Normal
+    )));
+}
+
+/// Given the best manager, a first eleven at condition 70, and a fresh deputy twenty below them
+/// When he picks his eleven on a normal week
+/// Then he keeps his first eleven: twenty is past the twelve he accepts
+#[test]
+fn an_elite_manager_does_not_rest_a_tired_starter_for_a_deputy_twenty_below() {
+    assert!(!rotates_in_the_deputy(&eleven_picked(
+        70,
+        60,
+        1.0,
+        FixtureLoad::Normal
+    )));
+}
+
+/// Given the best manager on a congested run, a first eleven at condition 85, and a fresh deputy
+///       five below them
+/// When he picks his eleven
+/// Then he rests one starter: on a congested run he rests anyone below 100
+#[test]
+fn on_a_congested_run_an_elite_manager_rests_a_starter_at_85_condition() {
+    assert!(rotates_in_the_deputy(&eleven_picked(
+        85,
+        75,
+        1.0,
+        FixtureLoad::Congested
+    )));
+}
+
+/// Given the poorest manager on a congested run, a first eleven at condition 90, and a fresh
+///       deputy five below them
+/// When he picks his eleven
+/// Then he keeps his first eleven: on a congested run the poorest manager rests below 90
+#[test]
+fn on_a_congested_run_the_poorest_manager_keeps_a_starter_at_90_condition() {
+    assert!(!rotates_in_the_deputy(&eleven_picked(
+        90,
+        75,
+        0.0,
+        FixtureLoad::Congested
+    )));
+}
+
+/// Given the best manager, a first eleven at condition 70, and a deputy one point below them, well
+///       inside his tolerance, but only at condition 75
+/// When he picks his eleven on a normal week
+/// Then he keeps his first eleven: a deputy must be at least ten fresher to be worth the change
+#[test]
+fn an_elite_manager_does_not_rest_a_starter_for_a_deputy_barely_fresher() {
+    let mut squad: Vec<Player> = (0..11).map(|i| mk(&format!("star{i}"), 80, 70)).collect();
+    squad.push(mk("deputy", 79, 75));
+    let refs: Vec<&Player> = squad.iter().collect();
+
+    let eleven: Vec<String> = ai_select_starting_xi(&refs, "4-4-2", 1.0, 1, FixtureLoad::Normal)
+        .into_iter()
+        .map(|player| player.id.clone())
+        .collect();
+
+    assert!(!rotates_in_the_deputy(&eleven));
+}

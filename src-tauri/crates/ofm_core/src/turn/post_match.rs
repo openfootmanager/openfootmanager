@@ -1,5 +1,6 @@
 use crate::game::Game;
 use crate::messages;
+use crate::morale::apply_morale_change;
 use domain::league::{
     CompactMatchEvent, CompactMatchReport, CompactTeamMatchStats, FixtureStatus, GoalEvent,
     MatchResult,
@@ -602,7 +603,6 @@ fn update_post_match_morale(
     for &position in both_clubs {
         let player = &mut game.players[position];
         let is_home = player.team_id.as_deref() == Some(home_team_id);
-        let base_morale = player.morale as i16;
 
         // Team result effect — scale loss impact by goal difference
         let goal_diff = (report.home_goals as i16 - report.away_goals as i16).abs();
@@ -639,8 +639,7 @@ fn update_post_match_morale(
         }
 
         let total_delta = capped_positive_recovery(result_delta + individual_delta, player);
-        let new_morale = (base_morale + total_delta).clamp(10, 100) as u8;
-        player.morale = new_morale;
+        player.morale = apply_morale_change(player.morale, total_delta);
     }
 }
 
@@ -702,9 +701,8 @@ fn update_team_form(
             if streak_delta != 0 {
                 for &position in club {
                     let player = &mut game.players[position];
-                    let base = player.morale as i16;
                     let adjusted_delta = capped_positive_recovery(streak_delta, player);
-                    player.morale = (base + adjusted_delta).clamp(10, 100) as u8;
+                    player.morale = apply_morale_change(player.morale, adjusted_delta);
                 }
             }
         }

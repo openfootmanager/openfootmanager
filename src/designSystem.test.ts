@@ -126,6 +126,71 @@ function focusRingViolations(source: string): string[] {
   });
 }
 
+/**
+ * Rule 7 runs over these folders: one home per vocabulary. A folder joins when the round-4 PR that
+ * redraws it moves its positions, tiers and condition bands onto the ui primitives and the backend's
+ * tones (round-4 PR 1b adds components/squad). It never covers components/ui, the vocabulary's
+ * home, and it grows to all of src/ by round-4 PR 7.
+ */
+const VOCABULARY_FOLDERS: string[] = [];
+
+/**
+ * The words a colour may be keyed by only in its one home: the positions, the rating tiers' letters
+ * and the condition bands. A screen that keys a colour by one of them is a second copy of a rule.
+ */
+const VOCABULARY_KEYS = [
+  ...["Goalkeeper", "Defender", "Midfielder", "Forward", "RightBack", "CenterBack", "LeftBack"],
+  ...["RightWingBack", "LeftWingBack", "DefensiveMidfielder", "CentralMidfielder"],
+  ...["AttackingMidfielder", "RightMidfielder", "LeftMidfielder", "RightWinger", "LeftWinger"],
+  ...["Striker", "S", "A", "B", "Fresh", "Tiring", "Exhausted", "Critical"],
+];
+const VOCABULARY_COLOUR_MAP = new RegExp(
+  // A plain, quoted or computed key (`[Position.Goalkeeper]`), then a string holding a colour class.
+  `(?<![\\w-])(?:\\[[\\w.]*?\\.)?["']?(?:${VOCABULARY_KEYS.join("|")})["']?\\]?\\s*:\\s*["'\`][^"'\`\\n]*(?<![\\w-])(?:bg|text|border|ring)-[\\w-]+`,
+  "g",
+);
+
+/**
+ * A rated value judged against a number on a screen, in either order, by order or equality. Known
+ * to over-match a has-a-value guard (`potential > 0`, as in InboxMessageDetailPane): when that
+ * folder joins, the guard is rewritten as a presence check rather than exempted.
+ */
+const RATED_THRESHOLD =
+  /\b(?:condition|ovr|potential|morale|reputation)\s*(?:===|!==|==|!=|>=|<=|>|<)\s*\d+|\b\d+\s*(?:===|!==|==|!=|>=|<=|>|<)\s*[\w.?]*\b(?:condition|ovr|potential|morale|reputation)\b/g;
+
+/**
+ * Helpers whose primitive has landed: importing one is a way around it. Each round-4 PR adds the
+ * helper it retires and deletes it (knip then catches a stray copy). A dynamic `import("…")` (the
+ * dashboard lazy-loads its tabs that way) isn't matched; deleting the helper makes one fail to
+ * build anyway.
+ */
+const RETIRED_HELPERS: string[] = [];
+
+/**
+ * Rule 7: one home per vocabulary. No colour map keyed by a position, a tier letter or a condition
+ * band; no rated value compared with a number in a component (the backend picks the tone); no
+ * import of a retired helper.
+ */
+function vocabularyViolations(path: string, source: string, retired = RETIRED_HELPERS): string[] {
+  const retiredImport =
+    retired.length === 0
+      ? []
+      : // The module specifier, wherever it sits: an import spread over several lines ends on its
+        // `} from "…"` line, and a re-export names the module the same way.
+        linesMatching(
+          source,
+          new RegExp(
+            `\\b(?:from|import)\\s*["'][^"'\\n]*\\b(?:${retired.join("|")})\\b[^"'\\n]*["']`,
+            "g",
+          ),
+        );
+  return [
+    ...linesMatching(source, VOCABULARY_COLOUR_MAP),
+    ...(path.endsWith(".tsx") ? linesMatching(source, RATED_THRESHOLD) : []),
+    ...retiredImport,
+  ];
+}
+
 function finishedFiles(): Array<[string, string]> {
   return Object.entries(SOURCES).filter(([path]) =>
     FINISHED_FOLDERS.some((folder) => path.startsWith(folder)),
@@ -196,6 +261,21 @@ describe("design system rules in finished folders", () => {
    */
   it("draws every focus ring in the focus colour", () => {
     expect(report((_, source) => focusRingViolations(source))).toEqual([]);
+  });
+
+  /**
+   * Given a folder on rule 7's list,
+   * when its source is read,
+   * then it keys no colour by a position, tier or band, judges no rated value against a number,
+   * and imports no retired helper: each vocabulary has one home.
+   */
+  it("keeps each vocabulary in its one home", () => {
+    const hits = Object.entries(SOURCES)
+      .filter(([path]) => VOCABULARY_FOLDERS.some((folder) => path.startsWith(folder)))
+      .flatMap(([path, source]) =>
+        vocabularyViolations(path, source).map((hit) => `${path}:${hit}`),
+      );
+    expect(hits).toEqual([]);
   });
 
   /** Given the artwork list, then every file on it exists, so a rename can't leave a stale exemption. */
@@ -325,5 +405,98 @@ describe("the rule checks themselves", () => {
       "1: fixed inset-0",
     ]);
     expect(overlayViolations("./components/ui/Dialog.tsx", overlay)).toEqual([]);
+  });
+
+  /**
+   * Given a screen with its own colour per position, per tier letter or per condition band
+   * When rule 7 reads it
+   * Then each such entry is reported: those colours have one home, the ui primitive.
+   */
+  it("catches a colour map keyed by a position, a tier or a band", () => {
+    const source = [
+      "const POSITION_COLOR = {",
+      '  Goalkeeper: "bg-amber-500",',
+      "  CenterBack: 'text-tone-good',",
+      "};",
+      'const TIER = { S: "bg-tone-top-tint text-tone-top", A: "bg-tone-good-tint" };',
+      'const BAND = { "Tiring": "text-tone-fair" };',
+    ].join("\n");
+    expect(vocabularyViolations("./components/squad/X.tsx", source)).toEqual([
+      '2: Goalkeeper: "bg-amber-500',
+      "3: CenterBack: 'text-tone-good",
+      '5: S: "bg-tone-top-tint text-tone-top',
+      '5: A: "bg-tone-good-tint',
+      '6: "Tiring": "text-tone-fair',
+    ]);
+  });
+
+  /** Given a colour map keyed by a computed key (an enum member), then it is reported too. */
+  it("catches a colour map with computed keys", () => {
+    const source =
+      'const COLOUR = { [Position.Goalkeeper]: "bg-tone-top-tint", [Band.Critical]: "text-tone-bad" };';
+    expect(vocabularyViolations("./components/squad/X.tsx", source)).toEqual([
+      '1: [Position.Goalkeeper]: "bg-tone-top-tint',
+      '1: [Band.Critical]: "text-tone-bad',
+    ]);
+  });
+
+  /** Given a rated value tested for equality with a number, then it is reported like any comparison. */
+  it("catches a rated value compared for equality with a number", () => {
+    const source = [
+      "if (player.condition === 70) tone = good;",
+      "const capped = 99 !== player.ovr;",
+    ].join("\n");
+    expect(vocabularyViolations("./components/squad/X.tsx", source)).toEqual([
+      "1: condition === 70",
+      "2: 99 !== player.ovr",
+    ]);
+  });
+
+  /** Given a map keyed by those words whose values aren't colours, then it is left alone. */
+  it("leaves a vocabulary map that holds no colour alone", () => {
+    const source = 'const GROUPS = { Goalkeeper: "Goalkeeper", CenterBack: "Defender", S: 90 };';
+    expect(vocabularyViolations("./components/squad/X.tsx", source)).toEqual([]);
+  });
+
+  /**
+   * Given a component comparing a rated value with a number, in either order
+   * When rule 7 reads it
+   * Then it is reported (the backend picks a rated value's tone); in a .ts helper it isn't this
+   * rule's business, since a sort or a filter may compare numbers.
+   */
+  it("catches a rated value compared with a number in a component", () => {
+    const source = [
+      "const tone = player.condition >= 70 ? good : bad;",
+      "if (75 <= player?.ovr) return;",
+      "const old = player.age > 30;",
+    ].join("\n");
+    expect(vocabularyViolations("./components/squad/X.tsx", source)).toEqual([
+      "1: condition >= 70",
+      "2: 75 <= player?.ovr",
+    ]);
+    expect(vocabularyViolations("./lib/sort.ts", source)).toEqual([]);
+  });
+
+  /** Given a retired helper, then importing it is reported. */
+  it("catches an import of a retired helper", () => {
+    const source = 'import { getPositionColor } from "../../lib/positionColors";';
+    expect(vocabularyViolations("./components/squad/X.tsx", source, ["positionColors"])).toEqual([
+      '1: from "../../lib/positionColors"',
+    ]);
+    expect(vocabularyViolations("./components/squad/X.tsx", source, [])).toEqual([]);
+  });
+
+  /** Given a retired helper imported over several lines, or re-exported, then it is reported. */
+  it("catches a retired helper in a multi-line import and a re-export", () => {
+    const source = [
+      "import {",
+      "  getPositionColor,",
+      '} from "../../lib/positionColors";',
+      'export { POSITION_COLOR } from "../lib/positionColors";',
+    ].join("\n");
+    expect(vocabularyViolations("./components/squad/X.tsx", source, ["positionColors"])).toEqual([
+      '3: from "../../lib/positionColors"',
+      '4: from "../lib/positionColors"',
+    ]);
   });
 });

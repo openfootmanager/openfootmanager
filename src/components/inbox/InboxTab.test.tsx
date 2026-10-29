@@ -1351,7 +1351,9 @@ describe("InboxTab", (): void => {
     });
 
     expect(screen.getByText("Lucas Flank")).toBeInTheDocument();
-    expect(screen.getByText("Left Back")).toBeInTheDocument();
+    // The badge names his natural position (Left Back) in its tooltip, not the coarse group (Defender).
+    expect(screen.getByTitle("Left Back")).toBeInTheDocument();
+    expect(screen.queryByTitle("Defender")).not.toBeInTheDocument();
   });
 
   /**

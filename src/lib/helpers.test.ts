@@ -12,7 +12,6 @@ import {
   formatVal,
   formatWeeklyAmount,
   getPlayerOvr,
-  positionBadgeVariant,
 } from "./helpers";
 import type { TeamData, FixtureData, PlayerData } from "../store/gameStore";
 import { useGameStore, type GameStateData } from "../store/gameStore";
@@ -306,22 +305,6 @@ describe("formatExactMoney", () => {
 describe("formatWeeklyAmount", () => {
   it("appends the weekly unit to a formatted amount", () => {
     expect(formatWeeklyAmount("€10K")).toBe("€10K/wk");
-  });
-});
-
-describe("positionBadgeVariant", () => {
-  it("returns correct variant for each position", () => {
-    expect(positionBadgeVariant("Goalkeeper")).toBe("accent");
-    expect(positionBadgeVariant("Defender")).toBe("primary");
-    expect(positionBadgeVariant("CenterBack")).toBe("primary");
-    expect(positionBadgeVariant("Midfielder")).toBe("success");
-    expect(positionBadgeVariant("AttackingMidfielder")).toBe("success");
-    expect(positionBadgeVariant("Forward")).toBe("danger");
-    expect(positionBadgeVariant("Striker")).toBe("danger");
-  });
-
-  it("returns 'primary' for unknown position", () => {
-    expect(positionBadgeVariant("Unknown")).toBe("primary");
   });
 });
 

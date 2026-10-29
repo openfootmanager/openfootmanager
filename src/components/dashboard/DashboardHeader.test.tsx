@@ -1,9 +1,15 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
+import { resetPositionGroupsCache } from "../../hooks/usePositionGroups";
+import { getPositionGroups } from "../../services/positionService";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import DashboardHeader, { type DashboardMatchModeMeta } from "./DashboardHeader";
+
+vi.mock("../../services/positionService", () => ({
+  getPositionGroups: vi.fn(async () => []),
+}));
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -243,30 +249,31 @@ describe("DashboardHeader", () => {
   });
 
   // `position` is held at a legacy bucket that matches none of these rows, so only a read of
-  // `natural_position` can pass. Every position positionBadgeVariant names explicitly. The dashboard used to
-  // keep its own four-bucket copy, so each granular position rendered red here
-  // while the rest of the app rendered it blue or green.
+  // `natural_position` can pass. The badge is toned by the group the backend names for the
+  // position (the mocked table below), the same way every other badge in the app is.
   it.each([
-    ["Goalkeeper", "GK", "bg-accent-100"],
-    ["Defender", "DEF", "bg-primary-100"],
-    ["RightBack", "RB", "bg-primary-100"],
-    ["CenterBack", "CB", "bg-primary-100"],
-    ["LeftBack", "LB", "bg-primary-100"],
-    ["RightWingBack", "RWB", "bg-primary-100"],
-    ["LeftWingBack", "LWB", "bg-primary-100"],
-    ["Midfielder", "MID", "bg-positive-tint"],
-    ["DefensiveMidfielder", "DM", "bg-positive-tint"],
-    ["CentralMidfielder", "CM", "bg-positive-tint"],
-    ["AttackingMidfielder", "AM", "bg-positive-tint"],
-    ["RightMidfielder", "RM", "bg-positive-tint"],
-    ["LeftMidfielder", "LM", "bg-positive-tint"],
-    ["Forward", "FWD", "bg-danger-tint"],
-    ["RightWinger", "RW", "bg-danger-tint"],
-    ["LeftWinger", "LW", "bg-danger-tint"],
-    ["Striker", "ST", "bg-danger-tint"],
+    ["Goalkeeper", "GK", "bg-accent-100", "Goalkeeper"],
+    ["Defender", "DEF", "bg-primary-100", "Defender"],
+    ["RightBack", "RB", "bg-primary-100", "Defender"],
+    ["CenterBack", "CB", "bg-primary-100", "Defender"],
+    ["LeftBack", "LB", "bg-primary-100", "Defender"],
+    ["RightWingBack", "RWB", "bg-primary-100", "Defender"],
+    ["LeftWingBack", "LWB", "bg-primary-100", "Defender"],
+    ["Midfielder", "MID", "bg-positive-tint", "Midfielder"],
+    ["DefensiveMidfielder", "DM", "bg-positive-tint", "Midfielder"],
+    ["CentralMidfielder", "CM", "bg-positive-tint", "Midfielder"],
+    ["AttackingMidfielder", "AM", "bg-positive-tint", "Midfielder"],
+    ["RightMidfielder", "RM", "bg-positive-tint", "Midfielder"],
+    ["LeftMidfielder", "LM", "bg-positive-tint", "Midfielder"],
+    ["Forward", "FWD", "bg-danger-tint", "Forward"],
+    ["RightWinger", "RW", "bg-danger-tint", "Forward"],
+    ["LeftWinger", "LW", "bg-danger-tint", "Forward"],
+    ["Striker", "ST", "bg-danger-tint", "Forward"],
   ])(
     "badges a %s the same way the rest of the app does",
-    (position, abbreviation, expectedClass) => {
+    async (position, abbreviation, expectedClass, group) => {
+      resetPositionGroupsCache();
+      vi.mocked(getPositionGroups).mockResolvedValue([{ position, group }]);
       const teams = [createTeam()];
 
       render(
@@ -303,7 +310,9 @@ describe("DashboardHeader", () => {
         />,
       );
 
-      expect(screen.getByText(abbreviation)).toHaveClass(expectedClass);
+      await waitFor(() =>
+        expect(screen.getByText(abbreviation).parentElement).toHaveClass(expectedClass),
+      );
     },
   );
 });

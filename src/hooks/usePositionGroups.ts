@@ -11,7 +11,9 @@ const mounted = new Set<(table: PositionGroupEntry[]) => void>();
 
 function loadPositionGroups(): Promise<PositionGroupEntry[]> {
   pending ??= getPositionGroups()
-    .then((table) => {
+    .then((answer) => {
+      // A reply that is not a table names no group; a badge then reads as neutral.
+      const table = Array.isArray(answer) ? answer : [];
       resolved = table;
       for (const show of mounted) show(table);
       return table;

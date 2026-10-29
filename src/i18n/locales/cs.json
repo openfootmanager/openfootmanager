@@ -412,6 +412,7 @@
     "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
+    "detailsFor": "Podrobnosti: {{name}}",
     "overallRating": "Hodnocení {{value}}",
     "overallRatingTier": "Hodnocení {{value}}, úroveň {{tier}}",
     "noResults": "Výsledky nenalezeny.",
@@ -3658,7 +3659,9 @@
       "weeklyDigest": {
         "headline": "Týdenní přehled — Týden od {{weekStart}}",
         "bodyNoTopScorer": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}} a dění v divizi tento týden utváří {{storylineCount}} hlavních událostí.",
-        "bodyWithTopScorer": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}, zatímco střeleckým tabulkám vévodí {{topScorer}} s {{topScorerGoals}} góly. Dění v divizi tento týden utváří {{storylineCount}} hlavních událostí."
+        "bodyWithTopScorer": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}, zatímco střeleckým tabulkám vévodí {{topScorer}} s {{topScorerGoals}} góly. Dění v divizi tento týden utváří {{storylineCount}} hlavních událostí.",
+        "bodyNoTopScorerNoStorylines": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}.",
+        "bodyWithTopScorerNoStorylines": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}, zatímco střeleckým tabulkám vévodí {{topScorer}} s {{topScorerGoals}} góly."
       },
       "preseasonDigest": {
         "headline": "Předsezónní přehled — Týden od {{weekStart}}",

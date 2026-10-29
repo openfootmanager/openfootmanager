@@ -1605,6 +1605,83 @@ fn no_renewal_dressing_room_effect() {
     );
 }
 
+/// Given every teammate of a player at morale 3, below the floor of 10
+/// When the player is told his contract will not be renewed, which costs the dressing room 2 to 5
+/// Then each teammate stays at 3: the knock is no reason to lift anyone to 10
+#[test]
+fn refusing_to_renew_never_lifts_a_teammate_already_below_ten() {
+    let mut game = make_game();
+    for player in game
+        .players
+        .iter_mut()
+        .filter(|p| p.id != "p_fwd0" && p.team_id.as_deref() == Some("team1"))
+    {
+        player.morale = 3;
+    }
+    inject_player_message(&mut game, "contract_concern_p_fwd0", "p_fwd0", "respond");
+
+    player_events::apply_player_response(
+        &mut game,
+        "contract_concern_p_fwd0",
+        "respond",
+        "no_renewal",
+    )
+    .expect("the response applies");
+
+    let teammates: Vec<u8> = game
+        .players
+        .iter()
+        .filter(|p| p.id != "p_fwd0" && p.team_id.as_deref() == Some("team1"))
+        .map(|p| p.morale)
+        .collect();
+    assert!(!teammates.is_empty());
+    assert!(teammates.iter().all(|&morale| morale == 3), "{teammates:?}");
+}
+
+/// Given a player at morale 12
+/// When he is told his contract will not be renewed, a knock of well over 2
+/// Then his morale stops at 10, where every other knock stops, rather than at 5
+#[test]
+fn a_reply_that_upsets_a_player_stops_at_ten() {
+    let mut game = make_game();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .morale = 12;
+    inject_player_message(&mut game, "contract_concern_p_fwd0", "p_fwd0", "respond");
+
+    player_events::apply_player_response(
+        &mut game,
+        "contract_concern_p_fwd0",
+        "respond",
+        "no_renewal",
+    )
+    .expect("the response applies");
+
+    let player = game.players.iter().find(|p| p.id == "p_fwd0").unwrap();
+    assert_eq!(player.morale, 10);
+}
+
+/// Given a player at morale 12 whose contract ends in 20 days
+/// When the final-weeks contract warning lands, which costs him 9
+/// Then his morale stops at 10, where every other knock stops, rather than at 5
+#[test]
+fn final_weeks_contract_pressure_stops_at_ten() {
+    let mut game = make_game();
+    let end = (game.clock.current_date + chrono::Duration::days(20))
+        .format("%Y-%m-%d")
+        .to_string();
+    let player = game.players.iter_mut().find(|p| p.id == "p_fwd0").unwrap();
+    player.morale = 12;
+    player.stage_contract_end(Some(end));
+
+    player_events::check_player_events(&mut game);
+
+    let player = game.players.iter().find(|p| p.id == "p_fwd0").unwrap();
+    assert_eq!(player.morale, 10);
+}
+
 // ---------------------------------------------------------------------------
 // apply_player_response: edge cases
 // ---------------------------------------------------------------------------
