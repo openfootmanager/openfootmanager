@@ -1617,6 +1617,7 @@
     "dateOfBirth": "Datum narození",
     "noContract": "Bez smlouvy",
     "weeklyWage": "Týdenní plat",
+    "approximateWage": "přibližně {{wage}}",
     "annualWage": "Roční plat",
     "yearsRemaining": "Zbývá let",
     "contractRisk": "Riziko vypršení smlouvy",

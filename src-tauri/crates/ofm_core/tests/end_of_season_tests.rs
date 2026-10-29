@@ -1,3 +1,6 @@
+#[path = "end_of_season_tests/season_story.rs"]
+mod season_story;
+
 use chrono::{TimeZone, Utc};
 use domain::league::{
     Berth, BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, Fixture,
@@ -2304,6 +2307,7 @@ fn manager_career_history_entry_updated_on_second_season() {
     let entry = &game.manager.career_history[0];
     assert_eq!(entry.matches, 12); // 10 + 2
     assert_eq!(entry.wins, 7); // 5 + 2
+    assert_eq!((entry.draws, entry.losses), (3, 2)); // a season without either adds none
     assert_eq!(entry.best_league_position, Some(1)); // improved from 3 to 1
 }
 

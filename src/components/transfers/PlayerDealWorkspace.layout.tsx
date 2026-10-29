@@ -3,18 +3,11 @@ import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
-import {
-  calcAge,
-  formatVal,
-  formatWeeklyWage,
-  getPlayerOvr,
-  getTeamName,
-  positionBadgeVariant,
-} from "../../lib/helpers";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
-import { Badge, CountryFlag, PlayerAvatar } from "../ui";
+import { calcAge, formatVal, formatWeeklyWage, getPlayerOvr, getTeamName } from "../../lib/helpers";
+import { CountryFlag, PlayerAvatar } from "../ui";
 import type { DealKind } from "./PlayerDealWorkspace";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 export interface DealOption {
   kind: DealKind;
@@ -85,9 +78,7 @@ export function DealWorkspaceHeader({
               >
                 {player.full_name}
               </h2>
-              <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
-                {translatePositionAbbreviation(t, naturalPositionOf(player))}
-              </Badge>
+              <PlayerPositionBadge position={naturalPositionOf(player)} />
             </div>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-300">
               <span>{age}</span>

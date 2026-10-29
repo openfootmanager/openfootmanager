@@ -39,9 +39,26 @@ export function nodeProblem(webSocket, version) {
     : `page-layout-check needs Node 22 or later for the built-in WebSocket; you have ${version}`;
 }
 
+/**
+ * The faces the app bundles (App.css's @fontsource imports; a test holds the two equal). A width
+ * measured while one of them hadn't loaded is the width of whatever system font stood in, which is
+ * why two machines got different numbers: so every case first loads each of these, and fails if
+ * one doesn't.
+ */
+export const REQUIRED_FACES = [
+  ...[400, 500, 600, 700].map((weight) => ({ family: "Inter", weight })),
+  ...[600, 700].map((weight) => ({ family: "Barlow Condensed", weight })),
+];
+
 /** What is wrong with one measured case; empty when it passes. */
-export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered }) {
+export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered, faces }) {
   const problems = [];
+  // The weight asked for, not just any: the browser stands the nearest weight it has in for one it
+  // lacks, and a 600 drawn in place of a 700 has other widths.
+  for (const { family, weight, loadedWeights } of faces) {
+    if (!loadedWeights.includes(String(weight)))
+      problems.push(`font not loaded: ${family} ${weight} (a system fallback drew it)`);
+  }
   if (scrollWidth > innerWidth) {
     problems.push(`the page scrolls sideways (${scrollWidth} > ${innerWidth})`);
   }
@@ -51,10 +68,34 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered 
   return problems;
 }
 
+/**
+ * Loads each face and reports the weights it loaded at. Runs in the page (its source is sent
+ * there), on `document.fonts`. `load()` resolves to the faces it loaded: none means no bundled face
+ * matched, and a system font drew that text (`check()` can't tell: it answers true for a family it
+ * has never heard of). A request that errors (the dev server refusing the font file) is a face that
+ * didn't load, so the case names it instead of the error ending the run. The sample includes German
+ * letters, the check's longest labels.
+ */
+export async function loadFaces(fonts, faces) {
+  return Promise.all(
+    faces.map(async ({ family, weight }) => {
+      const loaded = await fonts.load(`${weight} 16px "${family}"`, "Aa ÄÖÜß").catch(() => []);
+      return { family, weight, loadedWeights: loaded.map((face) => face.weight) };
+    }),
+  );
+}
+
+// The first wait lets the harness mount and its answers land; the fonts are waited for after.
 const MEASURE = `(async () => {
   await new Promise((resolve) => setTimeout(resolve, 2500));
+  const faces = await (${loadFaces.toString()})(document.fonts, ${JSON.stringify(REQUIRED_FACES)});
+  await document.fonts.ready;
   const harness = window.__pageHarness;
   return JSON.stringify({
+    faces,
+    loadedFaces: [...new Set([...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family + " " + face.weight))],
+    userAgent: navigator.userAgent,
+    devicePixelRatio: window.devicePixelRatio,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
     unanswered: harness ? harness.unanswered : [],
@@ -147,6 +188,10 @@ async function main(base) {
       "--disable-gpu",
       "--no-sandbox",
       "--remote-debugging-port=0",
+      // Pinned so a width doesn't depend on the machine: no hinting (it rounds glyph advances to the
+      // pixel grid, and machines hint differently), and one device pixel per CSS pixel.
+      "--font-render-hinting=none",
+      "--force-device-scale-factor=1",
       `--user-data-dir=${profile}`,
       "about:blank",
     ],
@@ -161,8 +206,15 @@ async function main(base) {
   let failed = 0;
   try {
     const { socket, call } = await connect(await devtools(profile, chrome));
-    for (const testCase of CASES) {
-      const problems = judge(await measure(call, base, testCase));
+    for (const [index, testCase] of CASES.entries()) {
+      const measured = await measure(call, base, testCase);
+      if (index === 0) {
+        // What the numbers were measured with, so two runs can be compared.
+        console.log(`browser: ${measured.userAgent}`);
+        console.log(`device pixel ratio: ${measured.devicePixelRatio}`);
+        console.log(`fonts loaded: ${measured.loadedFaces.join(", ")}`);
+      }
+      const problems = judge(measured);
       const label = `${testCase.page ?? "style guide"} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
         `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,

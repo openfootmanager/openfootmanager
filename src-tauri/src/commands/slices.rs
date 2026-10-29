@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tauri::State;
 
 use domain::message::InboxMessage;
-use ofm_core::player_knowledge::{players_knowledge, PlayerKnowledge};
+use ofm_core::player_knowledge::{players_knowledge, visible_wage, PlayerKnowledge, VisibleWage};
 use ofm_core::slices::competitions::{query_competitions, CompetitionsQuery, CompetitionsView};
 use ofm_core::slices::inbox::{query_messages, MessagesQuery};
 use ofm_core::slices::news::{query_news_feed, NewsFeed, NewsFeedQuery};
@@ -127,6 +127,30 @@ fn get_player_knowledge_internal(
 ) -> Result<HashMap<String, PlayerKnowledge>, String> {
     state
         .get_game(|game| players_knowledge(game, player_ids))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+/// One player's weekly wage as the club may see it, for his profile. Lists never ask: it is not a
+/// bulk command on purpose.
+#[tauri::command]
+pub async fn get_visible_wage(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<Option<VisibleWage>, String> {
+    get_visible_wage_internal(&state, &player_id)
+}
+
+fn get_visible_wage_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<Option<VisibleWage>, String> {
+    state
+        .get_game(|game| {
+            game.players
+                .iter()
+                .find(|player| player.id == player_id)
+                .map(|player| visible_wage(game, player))
+        })
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
@@ -312,5 +336,75 @@ mod tests {
                 "free": { "kind": "scouted", "scouted_on": "2026-07-20", "current": true },
             })
         );
+    }
+
+    /// Given the manager's own player on 15,843 a week and a scouted free agent on the same
+    /// When the profile asks for each one's wage, and for an id no player has
+    /// Then it receives the exact figure, the rounded one, and nothing: the wire shape it reads
+    #[test]
+    fn the_wage_adapter_answers_exact_rounded_or_nothing() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        use domain::player::{Player, PlayerAttributes, Position};
+        let attrs: PlayerAttributes = serde_json::from_value(serde_json::json!({
+            "pace": 60, "stamina": 60, "strength": 60, "agility": 60, "passing": 60,
+            "shooting": 60, "tackling": 60, "dribbling": 60, "defending": 60,
+            "positioning": 60, "vision": 60, "decisions": 60, "composure": 60,
+            "aggression": 60, "teamwork": 60, "leadership": 60,
+            "handling": 60, "reflexes": 60, "aerial": 60
+        }))
+        .unwrap();
+        let paid = |id: &str, team: Option<&str>| {
+            let mut player = Player::new(
+                id.into(),
+                id.into(),
+                id.into(),
+                "2000-01-01".into(),
+                "GB".into(),
+                Position::Midfielder,
+                attrs.clone(),
+            );
+            player.team_id = team.map(Into::into);
+            player.stage_wage(15_843);
+            player
+        };
+        let mut manager = Manager::new(
+            "m".into(),
+            "M".into(),
+            "Gr".into(),
+            "1980-01-01".into(),
+            "GB".into(),
+        );
+        manager.team_id = Some("club".into());
+        let mut game = ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap(),
+            ),
+            manager,
+            vec![],
+            vec![paid("own", Some("club")), paid("free", None)],
+            vec![],
+            vec![],
+        );
+        game.scouted_players.push(ofm_core::game::ScoutedPlayer {
+            player_id: "free".into(),
+            scouted_on: "2026-07-20".into(),
+            attributes: attrs.clone(),
+        });
+        let state = StateManager::new();
+        state.set_game(game);
+        let wage_of = |id: &str| {
+            serde_json::to_value(get_visible_wage_internal(&state, id).unwrap()).unwrap()
+        };
+
+        assert_eq!(
+            wage_of("own"),
+            serde_json::json!({ "kind": "exact", "weekly": 15_843 })
+        );
+        assert_eq!(
+            wage_of("free"),
+            serde_json::json!({ "kind": "approximate", "weekly": 16_000 })
+        );
+        assert_eq!(wage_of("nobody"), serde_json::Value::Null);
     }
 }
