@@ -13,6 +13,7 @@ export { Checkbox } from "./Checkbox";
 export { PlayerAvatar } from "./PlayerAvatar";
 export { TeamLogo } from "./TeamLogo";
 export { InjuryBadge } from "./InjuryBadge";
+export { UnreadBadge } from "./UnreadBadge";
 export { default as JerseyIcon } from "./JerseyIcon";
 export { PitchToken, usePitchTokenFocus } from "./PitchToken";
 export type { PitchFitTone } from "./PitchToken";

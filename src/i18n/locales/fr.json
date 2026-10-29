@@ -1837,6 +1837,21 @@
     },
     "uiScale": "Échelle de l'UI",
     "uiScaleDesc": "Ajuster la taille de police et l'espacement pour la lisibilité",
+    "sidebarWidth": "Largeur de la barre latérale",
+    "sidebarWidthDesc": "La largeur de la barre latérale ouverte. « Large » affiche chaque nom du menu sur une ligne.",
+    "sidebarWidthOptions": {
+      "compact": "Compacte",
+      "standard": "Standard",
+      "wide": "Large"
+    },
+    "sidebarBehaviour": "Barre latérale",
+    "sidebarBehaviourDesc": "Comment la barre latérale s’ouvre. Si la fenêtre est trop étroite, elle s’ouvre par-dessus la page.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Ouvrir au survol",
+      "click": "Ouvrir d’un clic",
+      "icons": "Icônes seules"
+    },
     "uiScaleOptions": {
       "small": "Petite",
       "normal": "Normale",

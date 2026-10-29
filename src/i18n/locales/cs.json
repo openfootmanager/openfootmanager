@@ -1837,6 +1837,21 @@
     },
     "uiScale": "Měřítko rozhraní",
     "uiScaleDesc": "Upravit velikost písma a mezery pro lepší čitelnost",
+    "sidebarWidth": "Šířka postranního panelu",
+    "sidebarWidthDesc": "Jak široký je otevřený postranní panel. „Široký“ zobrazí každou položku nabídky na jednom řádku.",
+    "sidebarWidthOptions": {
+      "compact": "Kompaktní",
+      "standard": "Standardní",
+      "wide": "Široký"
+    },
+    "sidebarBehaviour": "Postranní panel",
+    "sidebarBehaviourDesc": "Jak se postranní panel otevírá. Je-li okno příliš úzké, otevře se přes stránku.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normální",
+      "hover": "Rozbalit při najetí",
+      "click": "Rozbalit kliknutím",
+      "icons": "Jen ikony"
+    },
     "uiScaleOptions": {
       "small": "Malé",
       "normal": "Normální",

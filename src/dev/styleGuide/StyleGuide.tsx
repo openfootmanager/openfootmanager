@@ -13,6 +13,7 @@ import {
   Dialog,
   DialogCloseButton,
   InjuryBadge,
+  UnreadBadge,
   JerseyIcon,
   PageToolbar,
   PitchToken,
@@ -108,6 +109,10 @@ const HEIGHTS = [
 ];
 const WIDTHS = [
   { token: "--container-page", use: "the page width (max-w-page)" },
+  { token: "--spacing-sidebar-rail", use: "the sidebar's icon rail (w-sidebar-rail)" },
+  { token: "--spacing-sidebar-compact", use: "the open sidebar, Compact (w-sidebar-compact)" },
+  { token: "--spacing-sidebar-standard", use: "the open sidebar, Standard (w-sidebar-standard)" },
+  { token: "--spacing-sidebar-wide", use: "the open sidebar, Wide (w-sidebar-wide)" },
   {
     token: "--container-split",
     use: "two panels side by side above this container width (@split)",
@@ -271,6 +276,9 @@ function DisplaySection() {
         <Badge size="md">medium</Badge>
         <InjuryBadge injury={{ name: "Hamstring strain", days_remaining: 4 }} />
         <InjuryBadge injury={{ name: "Metatarsal fracture", days_remaining: 42 }} />
+        <UnreadBadge count={3} />
+        <UnreadBadge count={42} />
+        <UnreadBadge count={120} />
       </Row>
       <Row>
         {/* The backend's tiers (S, A, B and the rest), at the row's size and a card's. */}

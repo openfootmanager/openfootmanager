@@ -1837,6 +1837,21 @@
     },
     "uiScale": "UI-Skalierung",
     "uiScaleDesc": "Schriftgröße und Abstand für bessere Lesbarkeit anpassen",
+    "sidebarWidth": "Breite der Seitenleiste",
+    "sidebarWidthDesc": "Wie breit die geöffnete Seitenleiste ist. „Breit“ zeigt jeden Menünamen in einer Zeile.",
+    "sidebarWidthOptions": {
+      "compact": "Kompakt",
+      "standard": "Standard",
+      "wide": "Breit"
+    },
+    "sidebarBehaviour": "Seitenleiste",
+    "sidebarBehaviourDesc": "Wie sich die Seitenleiste öffnet. Ist das Fenster zu schmal, öffnet sie sich über der Seite.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Beim Darüberfahren ausklappen",
+      "click": "Per Klick ausklappen",
+      "icons": "Nur Symbole"
+    },
     "uiScaleOptions": {
       "small": "Klein",
       "normal": "Normal",

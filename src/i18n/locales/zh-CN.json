@@ -1837,6 +1837,21 @@
     },
     "uiScale": "界面缩放",
     "uiScaleDesc": "调整字号与间距以提升可读性",
+    "sidebarWidth": "侧边栏宽度",
+    "sidebarWidthDesc": "展开时侧边栏的宽度。“宽”可让每个菜单名称显示在一行内。",
+    "sidebarWidthOptions": {
+      "compact": "紧凑",
+      "standard": "标准",
+      "wide": "宽"
+    },
+    "sidebarBehaviour": "侧边栏",
+    "sidebarBehaviourDesc": "侧边栏的打开方式。窗口太窄时，它会在页面上方打开。",
+    "sidebarBehaviourOptions": {
+      "normal": "常规",
+      "hover": "悬停时展开",
+      "click": "点击时展开",
+      "icons": "仅图标"
+    },
     "uiScaleOptions": {
       "small": "小",
       "normal": "标准",
