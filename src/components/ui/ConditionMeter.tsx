@@ -13,17 +13,18 @@ interface ConditionMeterProps {
 }
 
 /**
- * A player's condition as table C draws it: the backend's band word in its tone, a bar in the same
- * tone and the percentage. The band is never worked out here: without the backend's, the bar is
- * neutral and there is no word.
+ * A player's condition as table C draws it: the backend's band word in its tone, a short bar in the
+ * same tone and the number. The band is never worked out here: without the backend's, the bar is
+ * neutral and there is no word. The number is for the eye; the bar names the value to a screen
+ * reader, so it isn't read twice.
  */
 export function ConditionMeter({ value, status, className = "" }: ConditionMeterProps) {
   const { t } = useTranslation();
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div className={`flex items-center gap-1.5 text-caption ${className}`}>
       {status ? (
         <span
-          className={`min-w-16 shrink-0 whitespace-nowrap text-caption font-semibold ${TONE_TEXT[status.tone]}`}
+          className={`min-w-14 shrink-0 whitespace-nowrap font-semibold ${TONE_TEXT[status.tone]}`}
         >
           {t(status.label_key)}
         </span>
@@ -33,10 +34,12 @@ export function ConditionMeter({ value, status, className = "" }: ConditionMeter
         tone={status?.tone}
         variant={status ? undefined : "muted"}
         size="sm"
-        showLabel
         label={t("common.condition")}
-        className="w-24"
+        className="w-11"
       />
+      <span aria-hidden="true" className="w-6 text-right tabular-nums text-fg-muted">
+        {Math.round(value)}
+      </span>
     </div>
   );
 }

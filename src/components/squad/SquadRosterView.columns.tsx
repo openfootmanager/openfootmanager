@@ -6,8 +6,8 @@ import {
   type ContractRiskLevel,
   contractExpiryLabel,
   getContractRiskBadgeVariant,
-  getContractYearsRemaining,
 } from "../../lib/contractUtils";
+import { formatDate } from "../../lib/dateFormatting";
 import type { RatingTier } from "../../services/squadService";
 import type { PlayerData } from "../../store/gameStore";
 import { TraitList } from "../TraitBadge";
@@ -25,7 +25,6 @@ import type { SquadListSortKey } from "./SquadRosterView.state";
 interface SquadColumnContext {
   t: TFunction;
   language: string;
-  clockDate: string;
   tierOf: (rating: number) => RatingTier;
   riskLevelOf: (playerId: string) => ContractRiskLevel;
   /** The natural position and alternates, with where a starter is deployed: the roster's own. */
@@ -58,44 +57,43 @@ export function SquadNameAside({
   );
 }
 
+/**
+ * The contract's one chip, as table C has it: an expiring or critical contract first (it needs the
+ * manager), then a transfer or loan listing, then a stable contract.
+ */
+function contractChip(player: PlayerData, risk: ContractRiskLevel, t: TFunction) {
+  if (risk === "critical")
+    return {
+      variant: getContractRiskBadgeVariant(risk),
+      label: t("finances.contractRiskCritical"),
+    };
+  if (risk === "warning")
+    return { variant: getContractRiskBadgeVariant(risk), label: t("finances.contractRiskWarning") };
+  if (player.transfer_listed) return { variant: "accent" as const, label: t("transfers.transfer") };
+  if (player.loan_listed) return { variant: "primary" as const, label: t("transfers.loan") };
+  return { variant: getContractRiskBadgeVariant(risk), label: t("finances.contractRiskStable") };
+}
+
+/**
+ * Table C's contract column, on one line: the chip and the month the contract ends (the full date
+ * is its tooltip). The injury is beside the name.
+ */
 function ContractCell({ player, context }: { player: PlayerData; context: SquadColumnContext }) {
-  const { t, language, clockDate, riskLevelOf } = context;
-  const risk = riskLevelOf(player.id);
-  const riskLabel =
-    risk === "critical"
-      ? t("finances.contractRiskCritical")
-      : risk === "warning"
-        ? t("finances.contractRiskWarning")
-        : t("finances.contractRiskStable");
+  const { t, language, riskLevelOf } = context;
+  const chip = contractChip(player, riskLevelOf(player.id), t);
   return (
-    <div className="flex flex-col gap-1 text-caption text-fg-muted">
-      <div className="flex items-center gap-1.5">
-        <span className="font-medium text-fg">
-          {getContractYearsRemaining(player.contract_end, clockDate)}
+    <span className="flex items-center gap-1.5 text-caption text-fg-muted">
+      <Badge variant={chip.variant} size="sm">
+        {chip.label}
+      </Badge>
+      {player.contract_end ? (
+        <span title={contractExpiryLabel(player.contract_end, language, t)}>
+          {formatDate(player.contract_end, language, { month: "short", year: "numeric" })}
         </span>
-        <Badge variant={getContractRiskBadgeVariant(risk)} size="sm">
-          {riskLabel}
-        </Badge>
-      </div>
-      <span>
-        {player.contract_end ? contractExpiryLabel(player.contract_end, language, t) : "—"}
-      </span>
-      {player.transfer_listed || player.loan_listed || player.injury ? (
-        <div className="flex flex-wrap gap-1">
-          {player.transfer_listed ? (
-            <Badge variant="accent" size="sm">
-              {t("transfers.transfer")}
-            </Badge>
-          ) : null}
-          {player.loan_listed ? (
-            <Badge variant="primary" size="sm">
-              {t("transfers.loan")}
-            </Badge>
-          ) : null}
-          {player.injury ? <InjuryBadge injury={player.injury} /> : null}
-        </div>
-      ) : null}
-    </div>
+      ) : (
+        <span>—</span>
+      )}
+    </span>
   );
 }
 
@@ -131,7 +129,7 @@ export function squadRosterColumns(context: SquadColumnContext): SquadColumn[] {
       key: "traits",
       header: t("squad.traits"),
       drawer: true,
-      cell: (player) => <TraitList traits={player.traits || []} size="xs" max={2} />,
+      cell: (player) => <TraitList traits={player.traits || []} size="xs" max={2} oneLine />,
     },
     {
       key: "age",

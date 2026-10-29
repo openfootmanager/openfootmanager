@@ -355,6 +355,28 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given a transfer-listed player on a stable contract and a transfer-listed one whose contract
+   * is critical
+   * When the roster renders
+   * Then each contract shows one chip, as table C does: the listing for the first, the critical
+   * stage for the second (the more urgent of the two), never two chips side by side.
+   */
+  it("shows one contract chip, the urgent stage before a listing", async () => {
+    const state = makeGameState();
+    state.players[0].transfer_listed = true;
+    state.players[1].transfer_listed = true;
+    riskLevels.current = { d1: "critical" };
+    renderSquadTab(state);
+
+    const listed = await screen.findByRole("row", { name: /GK1/ });
+    expect(within(listed).getByText("Transfer")).toBeInTheDocument();
+    expect(within(listed).queryByText("finances.contractRiskStable")).toBeNull();
+    const urgent = screen.getByRole("row", { name: /D1/ });
+    expect(within(urgent).getByText("Critical")).toBeInTheDocument();
+    expect(within(urgent).queryByText("Transfer")).toBeNull();
+  });
+
+  /**
    * Given two senior players rated 76 and 77, either side of the A-tier cut-off
    * When the roster renders
    * Then each rating takes the colour of its backend tier (B and A).
@@ -485,7 +507,7 @@ describe("SquadTab", () => {
 
     // In the keeper's own row; its details repeat the folded columns for a narrow window.
     const keeperRow = screen.getByRole("row", { name: /GK1/ });
-    expect(within(keeperRow).getByText("Knee bruise")).toBeInTheDocument();
+    expect(within(keeperRow).getByRole("img", { name: /Knee bruise/ })).toBeInTheDocument();
     expect(within(keeperRow).getAllByText("10d").length).toBeGreaterThan(0);
   });
 
@@ -545,7 +567,9 @@ describe("SquadTab", () => {
 
     const keeperRow = screen.getByRole("row", { name: /GK1/ });
     expect(within(keeperRow).getByText("Critical")).toBeInTheDocument();
-    expect(within(keeperRow).getByText("Expires October 15, 2026")).toBeInTheDocument();
+    // Table C's contract column: the stage chip and the month the contract ends, on one line.
+    expect(within(keeperRow).getByText(/Oct 2026/)).toBeInTheDocument();
+    expect(within(keeperRow).queryByText("Expires October 15, 2026")).toBeNull();
 
     const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();

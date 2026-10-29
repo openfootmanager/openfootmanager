@@ -30,7 +30,9 @@ describe("ConditionMeter", () => {
     const bar = screen.getByRole("progressbar", { name: "Condition" });
     expect(bar).toHaveAttribute("aria-valuenow", "64");
     expect(bar.firstElementChild).toHaveClass("bg-tone-fair-solid");
-    expect(screen.getByText("64%")).toBeInTheDocument();
+    // The number as table C draws it, without "%"; the bar already gives it to a screen reader.
+    expect(screen.getByText("64")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByText("64%")).toBeNull();
   });
 
   /**
@@ -43,6 +45,6 @@ describe("ConditionMeter", () => {
     expect(screen.queryByText("Critical")).not.toBeInTheDocument();
     const bar = screen.getByRole("progressbar", { name: "Condition" });
     expect(bar.firstElementChild).toHaveClass("bg-fg-subtle");
-    expect(screen.getByText("30%")).toBeInTheDocument();
+    expect(screen.getByText("30")).toBeInTheDocument();
   });
 });

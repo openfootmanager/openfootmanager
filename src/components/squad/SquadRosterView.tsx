@@ -330,6 +330,9 @@ export default function SquadRosterView({
     const inXI = xiIds.has(player.id);
     return (
       <PositionBadges
+        // Table C: one line of up to three, the deployed position kept, the rest as "+n".
+        max={3}
+        oneLine
         natural={natural}
         alternates={alternates}
         deployed={inXI ? getCurrentPosition(player, xiActivePosition) : undefined}
@@ -345,7 +348,6 @@ export default function SquadRosterView({
   const columns = squadRosterColumns({
     t,
     language: i18n.language,
-    clockDate,
     tierOf,
     riskLevelOf,
     renderPositions: renderPreferredPositionMeta,
