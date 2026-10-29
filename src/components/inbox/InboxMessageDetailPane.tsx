@@ -8,13 +8,11 @@ import { useTranslation } from "react-i18next";
 
 import { calcAge, formatDateFull, formatVal, formatWeeklyWage } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
-import { positionBadgeVariant } from "../../lib/playerRating";
 import { naturalPositionOf } from "../../lib/positions";
 import type { MessageData } from "../../store/gameStore";
 import ScoutPlayerCard from "../ScoutPlayerCard";
 import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
 import { Badge, Button, Card, CardBody, CountryFlag, ProgressBar } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import InboxDelegatedRenewalReport from "./InboxDelegatedRenewalReport";
 import {
   getActionButtonClassName,
@@ -24,6 +22,7 @@ import {
   isPlayerEventMessage,
   renderMessageBodyLine,
 } from "./inboxHelpers";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface PendingSwitch {
   messageId: string;
@@ -252,9 +251,7 @@ export default function InboxMessageDetailPane({
                                 <p className="font-heading font-bold text-base text-gray-900 dark:text-gray-100">
                                   {prospect.full_name}
                                 </p>
-                                <Badge variant={positionBadgeVariant(prospectPosition)} size="sm">
-                                  {translatePositionAbbreviation(t, prospectPosition)}
-                                </Badge>
+                                <PlayerPositionBadge position={prospectPosition} />
                                 {signedToAcademy ? (
                                   <Badge variant="success" size="sm">
                                     {t("inbox.youthProspectSigned")}

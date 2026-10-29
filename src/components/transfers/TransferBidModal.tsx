@@ -2,13 +2,7 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
 import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
-import {
-  formatDateFull,
-  formatExactMoney,
-  formatVal,
-  getTeamName,
-  positionBadgeVariant,
-} from "../../lib/helpers";
+import { formatDateFull, formatExactMoney, formatVal, getTeamName } from "../../lib/helpers";
 import type {
   TransferBidProjectionData,
   TransferNegotiationResponseData,
@@ -16,11 +10,11 @@ import type {
 import NegotiationFeedbackPanel, {
   type NegotiationFeedbackPanelData,
 } from "../NegotiationFeedbackPanel";
-import { Badge, Dialog } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { Dialog } from "../ui";
 import { naturalPositionOf } from "../../lib/positions";
 import TransferNegotiationHistory from "./TransferNegotiationHistory";
 import { playerHasPendingRegistration } from "./TransfersTab.model";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 export interface TransferBidFormProps {
   bidTarget: PlayerData;
@@ -89,9 +83,7 @@ export function TransferBidForm({
 
       {showPlayerSummary ? (
         <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(naturalPositionOf(bidTarget))} size="sm">
-            {translatePositionAbbreviation(t, naturalPositionOf(bidTarget))}
-          </Badge>
+          <PlayerPositionBadge position={naturalPositionOf(bidTarget)} />
           <div>
             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
               {bidTarget.full_name}

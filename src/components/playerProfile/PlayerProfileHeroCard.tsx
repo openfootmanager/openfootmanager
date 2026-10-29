@@ -2,7 +2,6 @@ import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { Shield } from "lucide-react";
 import { countryName } from "../../lib/countries";
-import { positionBadgeVariant } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
@@ -13,6 +12,7 @@ import PlayerProfileScoutAction from "./PlayerProfileScoutAction";
 import { TraitList } from "../TraitBadge";
 import { Badge, Card, CountryFlag, JerseyIcon, PlayerAvatar } from "../ui";
 import type { TeamData } from "../../store/types";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
@@ -88,9 +88,7 @@ export default function PlayerProfileHeroCard({
               {player.full_name}
             </h2>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
-              <Badge variant={positionBadgeVariant(primaryPosition)}>
-                {translatePositionLabel(t, primaryPosition)}
-              </Badge>
+              <PlayerPositionBadge position={primaryPosition} long />
               {player.alternate_positions?.map((alternatePosition) => (
                 <Badge key={alternatePosition} variant="neutral">
                   {translatePositionLabel(t, alternatePosition)}
