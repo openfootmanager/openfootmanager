@@ -59,6 +59,8 @@ describe("Switch", () => {
     expect(screen.getByRole("switch")).toHaveClass(
       "focus-visible:ring-2",
       "focus-visible:ring-focus",
+      "focus-visible:ring-offset-2",
+      "focus-visible:ring-offset-page",
     );
   });
 });

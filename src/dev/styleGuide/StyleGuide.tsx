@@ -258,7 +258,7 @@ function ControlsSection() {
         <Checkbox checked onChange={() => undefined} disabled aria-label="Disabled" />
       </Row>
       <Row>
-        <Switch label="Switch, on" checked={checked} onChange={setChecked} />
+        <Switch label="Switch" checked={checked} onChange={setChecked} />
         <Switch label="Switch, off" checked={false} onChange={() => undefined} />
         <Switch label="Switch, disabled on" checked disabled onChange={() => undefined} />
         <Switch label="Switch, disabled off" checked={false} disabled onChange={() => undefined} />
