@@ -412,6 +412,7 @@
     "currentWage": "Gaji Saat Ini",
     "loading": "Memuat...",
     "loadingGameState": "Memuat status permainan...",
+    "detailsFor": "Detail {{name}}",
     "overallRating": "Keseluruhan {{value}}",
     "overallRatingTier": "Keseluruhan {{value}}, tingkat {{tier}}",
     "noResults": "Tidak ada hasil ditemukan.",
