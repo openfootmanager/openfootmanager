@@ -899,6 +899,7 @@ fn a_four_four_two_reaches_the_engine_with_two_forwards() {
         ],
         [1, 4, 4, 2]
     );
+    assert_eq!(who_keeps_goal(&game), vec!["keeper".to_string()]);
 }
 
 /// Given one club on two dates, and two clubs on one date
@@ -931,7 +932,10 @@ fn eleven_picked(
         .collect()
 }
 
+/// Whether the deputy is in a full eleven. A short eleven would hold no deputy whatever the
+/// rotation did, so it fails here rather than passing a "keeps his first eleven" test.
 fn rotates_in_the_deputy(eleven: &[String]) -> bool {
+    assert_eq!(eleven.len(), 11, "a full eleven: {eleven:?}");
     eleven.iter().any(|id| id == "deputy")
 }
 
