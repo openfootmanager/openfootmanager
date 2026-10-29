@@ -107,6 +107,18 @@ fn a_solvent_club_with_eight_weeks_of_cash_left_or_less_can_run_a_marketing_camp
     assert!(finances::request_marketing_campaign(&mut game, "team1").is_ok());
 }
 
+/// Given test FC solvent (10,000 in cash) and well within its wage budget, but with only about
+///       five weeks of cash left
+/// When it pitches for a sponsor
+/// Then it may: a short runway is enough on its own
+#[test]
+fn a_solvent_club_with_eight_weeks_of_cash_left_or_less_can_pitch_for_a_sponsor() {
+    let mut game = make_monday_game();
+    game.teams[0].finance = 10_000;
+
+    assert!(finances::request_sponsor_pitch(&mut game, "team1").is_ok());
+}
+
 /// Test FC with plenty of cash, its 1,700 bill 10 over a 1,690 budget: over budget, but at less
 /// than 1% over its status is only Watch.
 fn a_club_just_over_its_wage_budget() -> Game {
