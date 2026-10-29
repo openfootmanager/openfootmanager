@@ -117,14 +117,22 @@ const RING_ALLOWED = /^(?:\d+|inset|offset-(?:\d+|page|panel|sunken|chrome))$/;
  * its colour is ring-focus, the themed one that reaches 3:1 everywhere, and its offset is a surface.
  */
 function focusRingViolations(source: string): string[] {
-  return linesMatching(source, FOCUS_RING).filter((hit) => {
+  const focusState = linesMatching(source, FOCUS_RING).filter((hit) => {
     const [, variant, rest] = /: ((?:peer-|group-)?focus(?:-visible|-within)?):ring-(.+)$/.exec(
       hit,
     ) ?? ["", "", ""];
     const plainFocus = !variant.endsWith("-visible") && !variant.endsWith("-within");
     return plainFocus || !(rest === "focus" || RING_ALLOWED.test(rest));
   });
+  return [...focusState, ...linesMatching(source, TRANSLUCENT_FOCUS)];
 }
+
+/**
+ * ring-focus drawn without a focus variant marks a list's keyboard-active option, where real focus
+ * stays on the trigger (aria-activedescendant). It is then the only sign of where the arrow keys
+ * are, so it is drawn at full strength: at /40 it falls under 3:1 in every theme.
+ */
+const TRANSLUCENT_FOCUS = /(?<![\w:-])ring-focus\/\d+/g;
 
 /**
  * The files where the brand green is a brand moment, not a state: the primary button and the
@@ -304,6 +312,17 @@ describe("the rule checks themselves", () => {
         'className="focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page peer-focus-visible:ring-inset"',
       ),
     ).toEqual([]);
+  });
+
+  /**
+   * Given a list's keyboard-active option marked with a translucent ring-focus, then it is
+   * reported; at full strength it is not.
+   */
+  it("catches a translucent focus marker", () => {
+    expect(focusRingViolations('className="ring-2 ring-inset ring-focus/40"')).toEqual([
+      "1: ring-focus/40",
+    ]);
+    expect(focusRingViolations('className="ring-2 ring-inset ring-focus"')).toEqual([]);
   });
 
   /**

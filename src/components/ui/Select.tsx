@@ -420,7 +420,7 @@ export function Select({
     default: "bg-panel border-line text-fg",
     subtle: "bg-sunken border-line text-fg-muted",
     muted: "bg-sunken border-line text-fg",
-    highlighted: "bg-selected-tint border-selected/40 text-selected font-bold",
+    highlighted: "bg-selected-tint border-selected text-selected font-bold",
     placeholder: "bg-sunken border-line text-fg-subtle",
     // On chrome or the turf only: on-brand text is white, so on a light panel it can't be read.
     ghost: "bg-on-brand/10 border-on-brand/10 text-on-brand hover:bg-on-brand/20",
@@ -525,7 +525,7 @@ export function Select({
                         tabIndex={-1}
                         aria-selected={isSelected}
                         disabled={option.disabled}
-                        className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-selected-tint text-selected" : "text-fg hover:bg-hover"} ${isActive && !isSelected ? "bg-hover" : ""} ${isActive ? "ring-2 ring-inset ring-focus/40" : ""} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
+                        className={`${optionTextSize} flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors ${isSelected ? "bg-selected-tint text-selected" : "text-fg hover:bg-hover"} ${isActive && !isSelected ? "bg-hover" : ""} ${isActive ? "ring-2 ring-inset ring-focus" : ""} ${option.disabled ? "cursor-not-allowed opacity-50" : ""}`}
                         onMouseDown={(event) => event.preventDefault()}
                         onMouseEnter={() => {
                           if (!option.disabled) {

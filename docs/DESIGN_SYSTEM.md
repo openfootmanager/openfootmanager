@@ -54,7 +54,7 @@ and a dark value in the `.dark` block below it, so **a component that uses a rol
 | `focus` | the focus ring |
 | `on-brand` | text and icons on the brand fill (`primary-700`), the selected fill, chrome, the turf |
 | `selected-fill` | a control that is on or chosen: a switch that is on, a checked box, a `strong` segmented option, a count badge; it carries `on-brand` text |
-| `selected`, `selected-tint` | the text (and check mark) and background of the chosen option in a list: `Select`, `DatePicker`, the comboboxes |
+| `selected`, `selected-tint` | the text (and check mark) and background of the chosen option in a list: `Select`, `DatePicker`, the comboboxes; `selected` also draws the selected tab's underline and an `outlined` segmented option's ring |
 | `positive`, `warning`, `danger`, `info` | status text; each also has `-tint` (a background) and `-solid` (a bar or dot) |
 | `tone-top`, `tone-good`, `tone-fair`, `tone-low`, `tone-bad` | the scale for rated values (§4), with `-tint` and `-solid` |
 

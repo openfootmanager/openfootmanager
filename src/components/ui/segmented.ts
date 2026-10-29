@@ -21,6 +21,6 @@ export const SEGMENTED = {
     quiet: "bg-panel text-fg shadow-sm ring-1 ring-line-strong",
     strong: "bg-selected-fill text-on-brand shadow-sm",
     /** Chosen but not running, like a paused match's speed: outlined, so it differs from both. */
-    outlined: "bg-panel text-positive ring-2 ring-inset ring-positive-solid",
+    outlined: "bg-panel text-selected ring-2 ring-inset ring-selected",
   },
 } as const;

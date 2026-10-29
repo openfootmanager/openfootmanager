@@ -109,7 +109,7 @@ describe("SegmentedControl", () => {
   it("outlines the chosen option when outlined", () => {
     render(<Harness emphasis="outlined" />);
     const normal = screen.getByRole("radio", { name: "Normal" });
-    expect(normal).toHaveClass("ring-2", "ring-inset", "ring-positive-solid", "text-positive");
+    expect(normal).toHaveClass("ring-2", "ring-inset", "ring-selected", "text-selected");
     expect(normal).not.toHaveClass("bg-selected-fill");
   });
 
