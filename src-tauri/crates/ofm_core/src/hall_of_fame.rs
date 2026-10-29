@@ -8,7 +8,7 @@ use domain::retired_player::RetiredPlayer;
 use domain::team::TeamSeasonRecord;
 use serde::Serialize;
 
-use crate::end_of_season::ladder_rungs;
+use crate::end_of_season::ladder_tiers;
 use crate::game::Game;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -45,14 +45,6 @@ pub fn hall_of_fame_legends(game: &Game) -> Vec<HallOfFameLegend> {
             .then_with(|| left.full_name.cmp(&right.full_name))
     });
     legends
-}
-
-/// The tier of every competition on a country's league ladder, top flight 0.
-fn ladder_tiers(game: &Game) -> HashMap<&str, u32> {
-    ladder_rungs(game)
-        .into_iter()
-        .map(|(tier, league)| (league.id.as_str(), tier))
-        .collect()
 }
 
 /// Whether a club's season record is a league title: first place in the top flight of its country.
@@ -512,5 +504,37 @@ mod tests {
         english_ladder(&mut game);
 
         assert_eq!(hall_of_fame_legends(&game)[0].titles, 1);
+    }
+
+    /// Given a second division played twice over the same clubs (an Apertura and its Clausura, the
+    ///       second played later, so the ladder keeps it and collapses the first away)
+    /// When a club that won the first half is asked about
+    /// Then it is no champion: a collapsed half is still a second-division table, not an unknown one.
+    #[test]
+    fn a_collapsed_halfs_second_division_win_is_not_a_title() {
+        let mut first_half_winner = champion_team("ap", "Apertura FC", &[]);
+        won_in(&mut first_half_winner, 2038, "div-2-apertura", 30);
+        let mut game = game_with(vec![], vec![first_half_winner]);
+        english_ladder(&mut game);
+        for (id, priority, played_on) in [
+            ("div-2-apertura", 3, None),
+            ("div-2-clausura", 4, Some("2038-11-01")),
+        ] {
+            let mut half = League::new(id.into(), id.into(), 2038, &["x".into(), "y".into()]);
+            half.country_id = Some("ENG".into());
+            half.priority = priority;
+            if let Some(date) = played_on {
+                half.fixtures.push(domain::league::Fixture {
+                    date: date.into(),
+                    status: domain::league::FixtureStatus::Completed,
+                    ..Default::default()
+                });
+            }
+            game.competitions.push(half);
+        }
+        game.competitions
+            .retain(|competition| competition.id != "div-2");
+
+        assert_eq!(champions_of(&game), Vec::<(u32, String)>::new());
     }
 }

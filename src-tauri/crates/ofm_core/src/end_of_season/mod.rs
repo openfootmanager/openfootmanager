@@ -361,6 +361,37 @@ fn standalone_leagues(game: &Game) -> Vec<&League> {
         .collect()
 }
 
+/// The tier of every competition on a country's league ladder, top flight 0: the rungs
+/// `ladder_rungs` keeps, and also the older half of a repeated division (an Apertura the Clausura
+/// replaced), which sits on the same rung as the table that replaced it and still has season
+/// records that name it.
+pub(crate) fn ladder_tiers(game: &Game) -> std::collections::HashMap<&str, u32> {
+    let rungs = ladder_rungs(game);
+    let mut tiers: std::collections::HashMap<&str, u32> = rungs
+        .iter()
+        .map(|(tier, league)| (league.id.as_str(), *tier))
+        .collect();
+    for competition in game
+        .competitions
+        .iter()
+        .filter(|competition| berths::is_ladder_tier(competition))
+    {
+        if tiers.contains_key(competition.id.as_str()) {
+            continue;
+        }
+        let roster = division_roster(competition);
+        if roster.is_empty() {
+            continue;
+        }
+        if let Some((tier, _)) = rungs.iter().find(|(_, kept)| {
+            kept.country_id == competition.country_id && division_roster(kept) == roster
+        }) {
+            tiers.insert(competition.id.as_str(), *tier);
+        }
+    }
+    tiers
+}
+
 /// Every rung of every country's league ladder as (tier, competition), top flight 0, whether or not
 /// its season has been played. One ranking, shared by the payout and by what counts as a title.
 ///
