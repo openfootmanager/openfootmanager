@@ -3,10 +3,11 @@ use ofm_core::currency::{self, CurrencyDefinition};
 use std::sync::Arc;
 use tauri::Manager as TauriManager;
 
+use crate::SAVE_MANAGER_UNAVAILABLE_ERROR;
+
 const SETTINGS_LOAD_FAILED_ERROR: &str = "be.error.settings.loadFailed";
 const SETTINGS_PARSE_FAILED_ERROR: &str = "be.error.settings.parseFailed";
 const SETTINGS_SAVE_FAILED_ERROR: &str = "be.error.settings.saveFailed";
-const SAVE_MANAGER_UNAVAILABLE_ERROR: &str = "be.error.saveManagerUnavailable";
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AppSettings {
@@ -27,6 +28,15 @@ pub struct AppSettings {
     /// event (user match, blocker, transfer deadline, high-priority inbox).
     #[serde(default)]
     pub continue_to_next_event: bool,
+    /// The open sidebar's width: "compact" | "standard" | "wide".
+    #[serde(default = "default_sidebar_width")]
+    pub sidebar_width: String,
+    /// How the sidebar opens: "normal" | "hover" | "click" | "icons".
+    #[serde(default = "default_sidebar_behaviour")]
+    pub sidebar_behaviour: String,
+    /// Whether the player folded the sidebar to its icon rail, remembered across launches.
+    #[serde(default)]
+    pub sidebar_collapsed: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -43,6 +53,28 @@ fn default_ui_scale() -> String {
     "normal".to_string()
 }
 
+const SIDEBAR_WIDTHS: [&str; 3] = ["compact", "standard", "wide"];
+const SIDEBAR_BEHAVIOURS: [&str; 4] = ["normal", "hover", "click", "icons"];
+
+fn default_sidebar_width() -> String {
+    "standard".to_string()
+}
+fn default_sidebar_behaviour() -> String {
+    "normal".to_string()
+}
+
+/// A sidebar value this build doesn't know (one written by a newer build, or edited by hand)
+/// falls back to its default. The fields are strings, so such a value parses anyway; this keeps
+/// the frontend from ever receiving one outside its TypeScript union.
+fn normalize_sidebar(settings: &mut AppSettings) {
+    if !SIDEBAR_WIDTHS.contains(&settings.sidebar_width.as_str()) {
+        settings.sidebar_width = default_sidebar_width();
+    }
+    if !SIDEBAR_BEHAVIOURS.contains(&settings.sidebar_behaviour.as_str()) {
+        settings.sidebar_behaviour = default_sidebar_behaviour();
+    }
+}
+
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
@@ -57,6 +89,9 @@ impl Default for AppSettings {
             ui_scale: "normal".to_string(),
             high_contrast: false,
             continue_to_next_event: false,
+            sidebar_width: default_sidebar_width(),
+            sidebar_behaviour: default_sidebar_behaviour(),
+            sidebar_collapsed: false,
         }
     }
 }
@@ -76,6 +111,7 @@ fn normalize_loaded_settings(mut settings: AppSettings) -> AppSettings {
     settings.currency = currency::normalize_currency_code(&settings.currency)
         .unwrap_or(currency::DEFAULT_CURRENCY_CODE)
         .to_string();
+    normalize_sidebar(&mut settings);
     settings
 }
 
@@ -83,6 +119,7 @@ fn validate_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
     settings.currency = currency::normalize_currency_code(&settings.currency)
         .ok_or("be.error.settings.invalidCurrency".to_string())?
         .to_string();
+    normalize_sidebar(&mut settings);
     Ok(settings)
 }
 
@@ -171,6 +208,63 @@ mod tests {
         let result = validate_settings(make_settings("CAD"));
 
         assert_eq!(result.unwrap_err(), "be.error.settings.invalidCurrency");
+    }
+
+    /// Given a settings file written before the sidebar settings existed
+    /// When it is loaded
+    /// Then the sidebar is today's: standard width, normal behaviour, not folded.
+    #[test]
+    fn a_settings_file_from_before_the_sidebar_settings_opens_todays_sidebar() {
+        let json = r#"{"theme":"dark","language":"en","currency":"EUR","default_match_mode":"live",
+            "auto_save":true,"match_speed":"normal","show_match_commentary":true,
+            "confirm_advance":false,"ui_scale":"normal","high_contrast":false}"#;
+
+        let settings: AppSettings = serde_json::from_str(json).expect("an older settings file");
+
+        assert_eq!(settings.sidebar_width, "standard");
+        assert_eq!(settings.sidebar_behaviour, "normal");
+        assert!(!settings.sidebar_collapsed);
+    }
+
+    /// Given a settings file with sidebar values this build doesn't know (written by a newer build)
+    /// When it is loaded, or saved
+    /// Then each falls back to its default rather than failing the whole file.
+    #[test]
+    fn an_unknown_sidebar_value_falls_back_to_its_default() {
+        let unknown = AppSettings {
+            sidebar_width: "enormous".to_string(),
+            sidebar_behaviour: "teleport".to_string(),
+            ..AppSettings::default()
+        };
+
+        let loaded = normalize_loaded_settings(unknown.clone());
+        assert_eq!(loaded.sidebar_width, "standard");
+        assert_eq!(loaded.sidebar_behaviour, "normal");
+
+        let saved = validate_settings(unknown).expect("an unknown sidebar value is not an error");
+        assert_eq!(saved.sidebar_width, "standard");
+        assert_eq!(saved.sidebar_behaviour, "normal");
+    }
+
+    /// Given a compact sidebar that expands on click and that the player folded
+    /// When the settings are written and read back
+    /// Then all three survive, and a known value is left as it is.
+    #[test]
+    fn the_sidebar_settings_survive_a_save_and_a_load() {
+        let chosen = AppSettings {
+            sidebar_width: "compact".to_string(),
+            sidebar_behaviour: "click".to_string(),
+            sidebar_collapsed: true,
+            ..AppSettings::default()
+        };
+
+        let json = serde_json::to_string(&validate_settings(chosen).expect("valid")).expect("json");
+        let read: AppSettings = serde_json::from_str(&json).expect("read back");
+        let read = normalize_loaded_settings(read);
+
+        assert_eq!(read.sidebar_width, "compact");
+        assert_eq!(read.sidebar_behaviour, "click");
+        assert!(read.sidebar_collapsed);
     }
 
     #[test]

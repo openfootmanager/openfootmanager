@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} is required",
     "maxLength": "{{field}} must not exceed {{max}} characters",
-    "minStartYear": "Start year must be {{min}} or later",
-    "minAge": "Manager must be at least {{min}} years old — change the date of birth to continue.",
-    "invalidDate": "Invalid date",
-    "invalidDob": "Invalid date of birth"
+    "minStartYear": "Start year must be {{min}} or later"
   },
   "worldSelect": {
     "title": "Choose World",
@@ -173,6 +170,7 @@
     "digestSimulating": "Processing...",
     "digestMatchDay": "Match Day",
     "digestMatchDayDesc": "Your fixture is ready to play.",
+    "matchModeMenu": "Choose match mode",
     "digestReturnHome": "Back to Dashboard",
     "digestBlocked": "Action Required",
     "digestBlockedDesc": "Some issues need your attention before advancing.",
@@ -397,14 +395,14 @@
     "traits": "Traits",
     "condition": "Condition",
     "delegateToYouthAcademy": "Delegate to youth academy",
-    "promoteToSeniorSquad": "Promote to senior squad",
-    "potWorldClass": "World Class",
-    "potExcellent": "Excellent",
-    "potPromising": "Promising",
-    "potDecent": "Decent",
-    "potLimited": "Limited"
+    "promoteToSeniorSquad": "Promote to senior squad"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}st",
       "two": "{{n}}nd",
@@ -414,6 +412,8 @@
     "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",
+    "overallRating": "Overall {{value}}",
+    "overallRatingTier": "Overall {{value}}, tier {{tier}}",
     "noResults": "No results found.",
     "place": {
       "1": "1st",
@@ -672,21 +672,14 @@
     "coverageNeedsAttention": "{{count}} role groups need cover",
     "coverageBadge": "XI {{starters}}/{{required}} · Bench {{bench}}",
     "bestRole": "Best role",
-    "formationFit": "Formation fit",
     "startingXi": "Starting XI",
-    "styleFit": "Style fit",
     "starter": "Starter",
     "benchOption": "Bench",
-    "naturalFit": "Natural fit",
-    "adaptedFit": "Adapted fit",
+    "naturalFit": "Natural position",
+    "adaptedFit": "Can play there",
     "needsCover": "Needs cover",
     "makeStarter": "Make starter",
     "sendToBench": "Send to bench",
-    "styleFitValues": {
-      "strong": "Style fit: Strong",
-      "good": "Style fit: Good",
-      "risky": "Style fit: Risky"
-    },
     "noBench": "No bench players.",
     "viewProfile": "View profile",
     "swapPlayer": "Swap player",
@@ -860,7 +853,7 @@
     "clearSelection": "Clear selection",
     "compareWithSelected": "Compare with selected",
     "selectForSwap": "Select for swap",
-    "assignBestFit": "Assign best-fit slot",
+    "assignBestFit": "Assign best position",
     "moveToBench": "Move to bench",
     "promoteToLineup": "Promote to starting XI",
     "makeCaptain": "Make captain",
@@ -889,11 +882,10 @@
     "positionSelector": "Tactical slot",
     "playablePositions": "Positions",
     "slotFit": "Slot fit",
-    "styleFit": "Style fit",
     "responsibilities": "Responsibilities",
     "noSpecialRoles": "No special roles",
-    "naturalFit": "Natural fit",
-    "adaptedFit": "Adapted role",
+    "naturalFit": "Natural position",
+    "adaptedFit": "Can play there",
     "moraleLevels": {
       "superb": "Superb",
       "veryGood": "Very Good",
@@ -907,11 +899,6 @@
       "sharp": "Sharp",
       "managing": "Managing",
       "risk": "Risk"
-    },
-    "styleFitLevels": {
-      "strong": "Strong match",
-      "good": "Good match",
-      "risky": "Risky fit"
     },
     "tokenStates": {
       "ready": "Ready",
@@ -1630,6 +1617,7 @@
     "dateOfBirth": "Date of Birth",
     "noContract": "No contract",
     "weeklyWage": "Weekly Wage",
+    "approximateWage": "about {{wage}}",
     "annualWage": "Annual Wage",
     "yearsRemaining": "Years Remaining",
     "contractRisk": "Contract Risk",
@@ -1849,6 +1837,21 @@
     },
     "uiScale": "UI Scale",
     "uiScaleDesc": "Adjust font size and spacing for readability",
+    "sidebarWidth": "Sidebar width",
+    "sidebarWidthDesc": "How wide the open sidebar is. Wide fits every menu name on one line.",
+    "sidebarWidthOptions": {
+      "compact": "Compact",
+      "standard": "Standard",
+      "wide": "Wide"
+    },
+    "sidebarBehaviour": "Sidebar",
+    "sidebarBehaviourDesc": "How the sidebar opens. In a window too narrow for it, it opens over the page.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Expand on hover",
+      "click": "Expand on click",
+      "icons": "Icons only"
+    },
     "uiScaleOptions": {
       "small": "Small",
       "normal": "Normal",
@@ -2009,7 +2012,6 @@
     "alreadyQueued": "Already queued for a substitution",
     "substitutionsPartlyMade": "{{applied}} of {{total}} substitutions made",
     "substitutionRefused": "Substitution refused: {{off}} for {{on}}. {{reason}}",
-    "playerRoles": "Player roles",
     "roleFor": "Role for {{player}}",
     "roleChangeRefused": "Could not change {{player}}'s role. {{reason}}",
     "noBenchAvailable": "No bench players available",
@@ -2303,7 +2305,7 @@
     "preMatchPrep": "Pre-Match Preparation",
     "startingLineup": "Starting Lineup",
     "setPiecesCaptain": "Set Pieces & Captain",
-    "formationFit": "Formation Fit",
+    "formationFit": "Formation",
     "selecting": "Selecting...",
     "autoSelectXI": "Auto-Select Best XI",
     "startingXI": "Starting XI",
@@ -2600,7 +2602,11 @@
     "pts": "pts",
     "cupPenalties": "({{home}}–{{away}} on penalties)",
     "cupAdvances": "{{team}} go through",
-    "cupTiesPending": "Some ties are still to be played"
+    "cupTiesPending": "Some ties are still to be played",
+    "resume": "Resume",
+    "pausedResumesAt": "Paused · resumes at {{speed}}",
+    "playingAt": "Playing at {{speed}}",
+    "spaceKey": "Space"
   },
   "endOfSeason": {
     "seasonComplete": "Season Complete",
@@ -2641,6 +2647,12 @@
     "compare": "Compare"
   },
   "be": {
+    "condition": {
+      "fresh": "Fresh",
+      "tiring": "Tiring",
+      "exhausted": "Exhausted",
+      "critical": "Critical"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "This player cannot leave: the squad would fall below the minimum a club must keep. Position group affected: {{group}}.",
@@ -3569,6 +3581,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Preseason tournament report",
           "body": "In preseason tournament action, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Both sides used the fixture to build sharpness before the competitive campaign.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Match report ({{competition}})",
+          "body": "{{competition}}: the match ended {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3642,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Weekly Digest — Week of {{weekStart}}",
         "bodyNoTopScorer": "The latest weekly digest is here. {{leader}} lead the table, and {{storylineCount}} storyline(s) are shaping the division this week.",
-        "bodyWithTopScorer": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s). {{storylineCount}} storyline(s) are shaping the division this week."
+        "bodyWithTopScorer": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s). {{storylineCount}} storyline(s) are shaping the division this week.",
+        "bodyNoTopScorerNoStorylines": "The latest weekly digest is here. {{leader}} lead the table.",
+        "bodyWithTopScorerNoStorylines": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s)."
       },
       "preseasonDigest": {
         "headline": "Preseason Digest — Week of {{weekStart}}",

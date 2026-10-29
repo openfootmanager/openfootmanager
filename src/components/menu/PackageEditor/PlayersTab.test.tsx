@@ -57,7 +57,16 @@ function renderTab(props: Partial<React.ComponentProps<typeof PlayersTab>> = {})
 }
 
 function editButtons() {
-  return screen.queryAllByRole("button", { name: "worldEditor.editPlayer" });
+  // Each row's edit button is named by its `title`. Counting them by title matches the attribute
+  // directly; a role query with `name` computes the accessible name of every button in the list
+  // (the first such query on a fresh DOM took over a second), which is what made this file time
+  // out under load.
+  return screen.queryAllByTitle("worldEditor.editPlayer");
+}
+
+/** The load-more button, found by its text: a role query would compute the name of every row's buttons. */
+function loadMoreButton(): HTMLElement {
+  return screen.getByText("common.loadMore").closest("button") as HTMLElement;
 }
 
 /**
@@ -97,7 +106,7 @@ describe("PlayersTab", () => {
   it("reveals another page on request", () => {
     renderTab();
 
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
+    fireEvent.click(loadMoreButton());
 
     expect(editButtons()).toHaveLength(100);
   });
@@ -105,7 +114,7 @@ describe("PlayersTab", () => {
   it("offers nothing more to load once the whole list fits", () => {
     renderTab({ players: players(3) });
 
-    expect(screen.queryByRole("button", { name: "common.loadMore" })).not.toBeInTheDocument();
+    expect(screen.queryByText("common.loadMore")).not.toBeInTheDocument();
     expect(screen.getByText("common.nResults count=3")).toBeInTheDocument();
   });
 
@@ -114,7 +123,7 @@ describe("PlayersTab", () => {
     // only became visible after a reveal must not be renumbered.
     const { onEdit } = renderTab();
 
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
+    fireEvent.click(loadMoreButton());
     fireEvent.click(editButtons()[50]);
 
     expect(onEdit).toHaveBeenCalledWith(50);
@@ -134,7 +143,7 @@ describe("PlayersTab", () => {
   it("goes back to one page when the search changes", () => {
     renderTab();
 
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
+    fireEvent.click(loadMoreButton());
     fireEvent.change(screen.getByRole("textbox", { name: "worldEditor.searchPlayers" }), {
       target: { value: "Player" },
     });
@@ -190,22 +199,19 @@ describe("PlayersTab", () => {
     // drop focus to the top of the document, hundreds of rows above.
     renderTab({ players: players(60) });
 
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
+    fireEvent.click(loadMoreButton());
 
     expect(editButtons()).toHaveLength(60);
     // aria-disabled rather than disabled, so it keeps focus and its place in
     // the tab order instead of handing focus back to the document.
-    expect(screen.getByRole("button", { name: "common.loadMore" })).toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(loadMoreButton()).toHaveAttribute("aria-disabled", "true");
   });
 
   it("does nothing when the exhausted load-more button is pressed again", () => {
     renderTab({ players: players(60) });
 
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
+    fireEvent.click(loadMoreButton());
+    fireEvent.click(loadMoreButton());
 
     expect(editButtons()).toHaveLength(60);
   });
@@ -308,7 +314,7 @@ describe("PlayersTab position filter", () => {
   it("goes back to one page when the position changes", () => {
     renderTab({ players: players(500, () => ({ position: "Striker" as Position })) });
 
-    fireEvent.click(screen.getByRole("button", { name: "common.loadMore" }));
+    fireEvent.click(loadMoreButton());
     choosePosition("common.positions.Striker");
 
     expect(editButtons()).toHaveLength(50);

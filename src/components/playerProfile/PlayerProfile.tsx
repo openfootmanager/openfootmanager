@@ -1,6 +1,6 @@
-import { getContractRiskLevel, getPlayerOvr } from "../../lib/helpers";
+import { getPlayerOvr } from "../../lib/helpers";
+import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { PlayerData, GameStateData } from "../../store/gameStore";
-import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Select } from "../ui";
 import { getRoleOptions } from "../../lib/playerRoles";
@@ -12,7 +12,14 @@ import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
-import { getPlayerTeamName } from "./PlayerProfile.helpers";
+import {
+  formatPlayerWage,
+  formatPlayerWageCompact,
+  getPlayerTeamName,
+  knowledgeRevision,
+  visibleWageText,
+} from "./PlayerProfile.helpers";
+import { useVisibleWage } from "../../hooks/useVisibleWage";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
@@ -36,6 +43,8 @@ import { usePlayerProfileData } from "./usePlayerProfileData";
 import { useScoutPlayerFlow } from "./useScoutPlayerFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
 import { naturalPositionOf } from "../../lib/positions";
+import { knowsPlayerRating, knowsPrivateState, visibleTraits } from "../../lib/playerKnowledge";
+import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
 
 interface PlayerProfileProps {
   player: PlayerData;
@@ -43,7 +52,6 @@ interface PlayerProfileProps {
   isOwnClub: boolean;
   startWithRenewalModal?: boolean;
   startWithTerminationModal?: boolean;
-  onClose: () => void;
   onSelectTeam?: (id: string) => void;
   onGameUpdate?: (g: GameStateData) => void;
 }
@@ -54,7 +62,6 @@ export default function PlayerProfile({
   isOwnClub,
   startWithRenewalModal = false,
   startWithTerminationModal = false,
-  onClose,
   onSelectTeam,
   onGameUpdate,
 }: PlayerProfileProps) {
@@ -74,6 +81,17 @@ export default function PlayerProfile({
   });
   const ovr = getPlayerOvr(player);
   const age = calcAgeOnDate(player.date_of_birth, gameState.clock.current_date);
+  const revision = knowledgeRevision({
+    careerToken: gameState.career_token,
+    date: gameState.clock.current_date,
+    playerClubId: player.team_id,
+    managerClubId: gameState.manager.team_id,
+    seasonStart: gameState.season_context?.season_start,
+    wage: player.wage,
+  });
+  const knowledge = usePlayerKnowledge([player.id], revision)(player.id);
+  const visibleWage = useVisibleWage(player.id, revision);
+  const showsPrivateState = knowsPrivateState(knowledge);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
   // Offer roles for the deployed slot when the player is in the starting XI —
@@ -86,7 +104,10 @@ export default function PlayerProfile({
     freeAgent: t("common.freeAgent"),
     unknown: t("common.unknown"),
   });
-  const contractRiskLevel = getContractRiskLevel(player.contract_end, gameState.clock.current_date);
+  const contractRiskLevel = useContractRiskLevels(
+    [player],
+    gameState.clock.current_date,
+  )(player.id);
   const contractRiskLabel =
     contractRiskLevel === "critical"
       ? t("finances.contractRiskCritical")
@@ -220,18 +241,8 @@ export default function PlayerProfile({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="font-heading font-bold uppercase tracking-wider">
-            {t("common.back")}
-          </span>
-        </button>
-        {onGameUpdate ? (
+      {onGameUpdate ? (
+        <div className="mb-4 flex justify-end">
           <PlayerProfileActionsMenu
             player={player}
             gameState={gameState}
@@ -249,12 +260,13 @@ export default function PlayerProfile({
             onOpenFreeAgentContract={() => openFreeAgentContract(player)}
             onError={setContractActionError}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <PlayerProfileHeroCard
         player={player}
-        ovr={ovr}
+        ovr={knowsPlayerRating(knowledge) ? ovr : null}
+        wageText={visibleWageText(visibleWage, formatPlayerWageCompact, t)}
         primaryPosition={primaryPosition}
         age={age}
         teamName={teamName}
@@ -268,6 +280,8 @@ export default function PlayerProfile({
         onScout={sendScout}
         onSelectTeam={onSelectTeam}
         team={playerTeam}
+        traits={visibleTraits(player.traits ?? [], knowledge)}
+        showsPrivateState={showsPrivateState}
         t={t}
       />
 
@@ -312,10 +326,10 @@ export default function PlayerProfile({
           dateOfBirth={player.date_of_birth}
           contractEnd={player.contract_end}
           currentDate={gameState.clock.current_date}
-          condition={player.condition}
-          morale={player.morale}
+          condition={showsPrivateState ? player.condition : null}
+          morale={showsPrivateState ? player.morale : null}
           marketValue={player.market_value}
-          wage={player.wage}
+          wageText={visibleWageText(visibleWage, formatPlayerWage, t)}
           language={i18n.language}
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}
@@ -340,7 +354,7 @@ export default function PlayerProfile({
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
           player={attributesPlayer}
-          attributesVisible={isManagerSquadProfile || scoutedReport !== null}
+          attributesVisible={knowsPlayerRating(knowledge) || scoutedReport !== null}
           scoutNote={
             scoutedReport
               ? {
@@ -374,7 +388,11 @@ export default function PlayerProfile({
 
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
 
-        <PlayerProfileMovementHistoryCard movementHistory={player.movement_history ?? []} t={t} />
+        <PlayerProfileMovementHistoryCard
+          movementHistory={player.movement_history ?? []}
+          showsWages={visibleWage.kind === "exact"}
+          t={t}
+        />
 
         <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </div>

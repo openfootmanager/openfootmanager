@@ -492,7 +492,7 @@ pub(crate) fn clubs_with_a_match_soon(game: &Game) -> HashSet<String> {
         .collect()
 }
 
-/// The scheduled fixtures in the next [`CONGESTED_WITHIN_DAYS`] days, in the competitions being played.
+/// The scheduled fixtures in the next [`CONGESTED_WITHIN_DAYS`] days, in every competition in play.
 fn fixtures_due_soon(game: &Game) -> impl Iterator<Item = &domain::league::Fixture> {
     use domain::league::FixtureStatus;
 
@@ -514,13 +514,12 @@ fn fixtures_due_soon(game: &Game) -> impl Iterator<Item = &domain::league::Fixtu
     // Outside simulation the legacy slot mirrors one of the competitions, and a
     // fixture seen twice cannot change an `any`.
     //
-    // Only competitions in the active scope count: a dormant one is resolved by a
-    // scoreline-only model that charges nobody any condition, so its next round
-    // is no reason to rest a player for this one.
+    // Every competition counts, followed or not: one calendar rule for every club (#869), as
+    // in training's matchday and taper. A dormant match is still settled by scoreline and costs
+    // no condition today, but it is a match the club plays.
     game.competitions
         .iter()
         .chain(game.league.iter())
-        .filter(|competition| game.competition_in_active_scope(competition))
         .flat_map(|competition| competition.fixtures.iter())
         // The window test comes first and costs two string comparisons.
         .filter(move |fixture| fixture.date >= first_day && fixture.date <= last_day)

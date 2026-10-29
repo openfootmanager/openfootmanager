@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} wajib diisi",
     "maxLength": "{{field}} tidak boleh melebihi {{max}} karakter",
-    "minStartYear": "Tahun mulai harus {{min}} atau setelahnya",
-    "minAge": "Manajer minimal berusia {{min}} tahun — ubah tanggal lahir untuk melanjutkan.",
-    "invalidDate": "Tanggal tidak valid",
-    "invalidDob": "Tanggal lahir tidak valid"
+    "minStartYear": "Tahun mulai harus {{min}} atau setelahnya"
   },
   "worldSelect": {
     "title": "Pilih Dunia",
@@ -173,6 +170,7 @@
     "digestSimulating": "Memproses...",
     "digestMatchDay": "Hari Pertandingan",
     "digestMatchDayDesc": "Pertandingan siap dimainkan.",
+    "matchModeMenu": "Pilih mode pertandingan",
     "digestReturnHome": "Kembali ke Beranda",
     "digestBlocked": "Perlu Tindakan",
     "digestBlockedDesc": "Beberapa masalah memerlukan perhatian sebelum melanjutkan.",
@@ -397,14 +395,14 @@
     "traits": "Traits",
     "condition": "Kondisi",
     "delegateToYouthAcademy": "Delegasikan ke akademi",
-    "promoteToSeniorSquad": "Naikkan ke skuad senior",
-    "potWorldClass": "Kelas Dunia",
-    "potExcellent": "Luar Biasa",
-    "potPromising": "Menjanjikan",
-    "potDecent": "Cukup Baik",
-    "potLimited": "Terbatas"
+    "promoteToSeniorSquad": "Naikkan ke skuad senior"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "ke-{{n}}",
       "two": "ke-{{n}}",
@@ -414,6 +412,8 @@
     "currentWage": "Gaji Saat Ini",
     "loading": "Memuat...",
     "loadingGameState": "Memuat status permainan...",
+    "overallRating": "Keseluruhan {{value}}",
+    "overallRatingTier": "Keseluruhan {{value}}, tingkat {{tier}}",
     "noResults": "Tidak ada hasil ditemukan.",
     "place": {
       "1": "ke-1",
@@ -672,21 +672,14 @@
     "coverageNeedsAttention": "{{count}} kelompok peran perlu pengisi",
     "coverageBadge": "XI {{starters}}/{{required}} · Cadangan {{bench}}",
     "bestRole": "Peran terbaik",
-    "formationFit": "Kecocokan formasi",
     "startingXi": "Starting XI",
-    "styleFit": "Kecocokan gaya",
     "starter": "Starter",
     "benchOption": "Cadangan",
-    "naturalFit": "Kecocokan alami",
-    "adaptedFit": "Kecocokan adaptif",
+    "naturalFit": "Posisi alami",
+    "adaptedFit": "Bisa bermain di sana",
     "needsCover": "Perlu pengisi",
     "makeStarter": "Jadikan pemain utama",
     "sendToBench": "Kirim ke bangku cadangan",
-    "styleFitValues": {
-      "strong": "Kecocokan gaya: Kuat",
-      "good": "Kecocokan gaya: Baik",
-      "risky": "Kecocokan gaya: Berisiko"
-    },
     "noBench": "Tidak ada pemain cadangan.",
     "viewProfile": "Lihat profil",
     "swapPlayer": "Tukar pemain",
@@ -860,7 +853,7 @@
     "clearSelection": "Hapus pilihan",
     "compareWithSelected": "Bandingkan dengan yang dipilih",
     "selectForSwap": "Pilih untuk ditukar",
-    "assignBestFit": "Tetapkan ke slot paling cocok",
+    "assignBestFit": "Tetapkan posisi terbaik",
     "moveToBench": "Pindah ke bangku cadangan",
     "promoteToLineup": "Naikkan ke Starting XI",
     "makeCaptain": "Jadikan kapten",
@@ -889,11 +882,10 @@
     "positionSelector": "Slot taktis",
     "playablePositions": "Posisi",
     "slotFit": "Kecocokan slot",
-    "styleFit": "Kecocokan gaya",
     "responsibilities": "Tanggung jawab",
     "noSpecialRoles": "Tidak ada peran khusus",
-    "naturalFit": "Kecocokan alami",
-    "adaptedFit": "Peran adaptif",
+    "naturalFit": "Posisi alami",
+    "adaptedFit": "Bisa bermain di sana",
     "moraleLevels": {
       "superb": "Luar Biasa",
       "veryGood": "Sangat Baik",
@@ -907,11 +899,6 @@
       "sharp": "Prima",
       "managing": "Menjaga",
       "risk": "Berisiko"
-    },
-    "styleFitLevels": {
-      "strong": "Kecocokan kuat",
-      "good": "Kecocokan baik",
-      "risky": "Kecocokan berisiko"
     },
     "tokenStates": {
       "ready": "Siap",
@@ -1630,6 +1617,7 @@
     "dateOfBirth": "Tanggal Lahir",
     "noContract": "Tanpa kontrak",
     "weeklyWage": "Gaji Mingguan",
+    "approximateWage": "sekitar {{wage}}",
     "annualWage": "Gaji Tahunan",
     "yearsRemaining": "Sisa Tahun",
     "contractRisk": "Risiko Kontrak",
@@ -1849,6 +1837,21 @@
     },
     "uiScale": "Skala UI",
     "uiScaleDesc": "Sesuaikan ukuran huruf dan jarak agar mudah dibaca",
+    "sidebarWidth": "Lebar bilah sisi",
+    "sidebarWidthDesc": "Seberapa lebar bilah sisi saat terbuka. “Lebar” menampilkan setiap nama menu dalam satu baris.",
+    "sidebarWidthOptions": {
+      "compact": "Ringkas",
+      "standard": "Standar",
+      "wide": "Lebar"
+    },
+    "sidebarBehaviour": "Bilah sisi",
+    "sidebarBehaviourDesc": "Cara bilah sisi terbuka. Jika jendela terlalu sempit, bilah sisi terbuka di atas halaman.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Buka saat diarahkan",
+      "click": "Buka dengan klik",
+      "icons": "Hanya ikon"
+    },
     "uiScaleOptions": {
       "small": "Kecil",
       "normal": "Normal",
@@ -2009,7 +2012,6 @@
     "alreadyQueued": "Sudah masuk antrean pergantian",
     "substitutionsPartlyMade": "{{applied}} dari {{total}} pergantian dilakukan",
     "substitutionRefused": "Pergantian ditolak: {{off}} diganti {{on}}. {{reason}}",
-    "playerRoles": "Peran pemain",
     "roleFor": "Peran {{player}}",
     "roleChangeRefused": "Peran {{player}} tidak dapat diubah. {{reason}}",
     "noBenchAvailable": "Tidak ada pemain cadangan tersedia",
@@ -2303,7 +2305,7 @@
     "preMatchPrep": "Persiapan Sebelum Pertandingan",
     "startingLineup": "Susunan Awal",
     "setPiecesCaptain": "Bola Mati & Kapten",
-    "formationFit": "Kecocokan Formasi",
+    "formationFit": "Formasi",
     "selecting": "Memilih...",
     "autoSelectXI": "Pilih Otomatis XI Terbaik",
     "startingXI": "Starting XI",
@@ -2600,7 +2602,11 @@
     "pts": "poin",
     "cupPenalties": "({{home}}–{{away}} lewat adu penalti)",
     "cupAdvances": "{{team}} lolos ke babak berikutnya",
-    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan"
+    "cupTiesPending": "Beberapa pertandingan masih akan dimainkan",
+    "resume": "Lanjutkan",
+    "pausedResumesAt": "Dijeda · lanjut dengan {{speed}}",
+    "playingAt": "Berjalan dengan {{speed}}",
+    "spaceKey": "Spasi"
   },
   "endOfSeason": {
     "seasonComplete": "Musim Selesai",
@@ -2641,6 +2647,12 @@
     "compare": "Bandingkan"
   },
   "be": {
+    "condition": {
+      "fresh": "Bugar",
+      "tiring": "Mulai lelah",
+      "exhausted": "Kelelahan",
+      "critical": "Kritis"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Pemain ini tidak bisa pergi: skuad akan turun di bawah batas minimum yang harus dipertahankan klub. Lini terdampak: {{group}}.",
@@ -3569,6 +3581,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Laporan Turnamen Pramusim",
           "body": "Dalam laga turnamen pramusim, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Kedua tim menggunakan laga ini untuk mengasah ketajaman sebelum musim kompetitif dimulai.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Laporan Pertandingan ({{competition}})",
+          "body": "{{competition}}: pertandingan berakhir {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3642,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Ringkasan Mingguan — Pekan {{weekStart}}",
         "bodyNoTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, dan {{storylineCount}} alur cerita mewarnai divisi ini pekan ini.",
-        "bodyWithTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol. {{storylineCount}} alur cerita mewarnai divisi ini pekan ini."
+        "bodyWithTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol. {{storylineCount}} alur cerita mewarnai divisi ini pekan ini.",
+        "bodyNoTopScorerNoStorylines": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen.",
+        "bodyWithTopScorerNoStorylines": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol."
       },
       "preseasonDigest": {
         "headline": "Ringkasan Pramusim — Pekan {{weekStart}}",

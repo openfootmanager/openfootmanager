@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { useCallback, useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
@@ -13,9 +15,7 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { formatVal } from "../../lib/helpers";
-import { positionBadgeVariant } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { sendScout } from "../../services/scoutingService";
@@ -37,6 +37,7 @@ import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface PlayersListTabProps {
   gameState: GameStateData;
@@ -74,6 +75,7 @@ export default function PlayersListTab({
   onSelectTeam,
 }: PlayersListTabProps) {
   const { t } = useTranslation();
+  const tierOf = useRatingTiers();
   const {
     query,
     patchQuery,
@@ -366,9 +368,7 @@ export default function PlayersListTab({
                       className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer group"
                     >
                       <td className="py-2.5 px-4">
-                        <Badge variant={positionBadgeVariant(naturalPositionOf(summary))} size="sm">
-                          {translatePositionAbbreviation(t, naturalPositionOf(summary))}
-                        </Badge>
+                        <PlayerPositionBadge position={naturalPositionOf(summary)} />
                       </td>
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-3">
@@ -410,13 +410,7 @@ export default function PlayersListTab({
                       </td>
                       <td className="py-2.5 px-4">
                         <span
-                          className={`font-heading font-bold text-base tabular-nums ${
-                            ovr >= 75
-                              ? "text-primary-500"
-                              : ovr >= 55
-                                ? "text-accent-500"
-                                : "text-gray-400"
-                          }`}
+                          className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(tierOf(ovr), "text")}`}
                         >
                           {ovr}
                         </span>

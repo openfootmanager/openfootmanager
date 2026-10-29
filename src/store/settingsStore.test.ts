@@ -18,6 +18,9 @@ const DEFAULT_SETTINGS = {
   continue_to_next_event: false,
   ui_scale: "normal",
   high_contrast: false,
+  sidebar_width: "standard",
+  sidebar_behaviour: "normal",
+  sidebar_collapsed: false,
 } as const;
 
 const SUPPORTED_CURRENCIES = [

@@ -1,6 +1,7 @@
 use crate::contracts::RenewalFinancialProjection;
 use crate::finances::{
-    calc_cash_runway_weeks, calc_wages, player_weekly_wage_for_team, weekly_commitment_at_wage,
+    calc_cash_runway_weeks, calc_wages, player_weekly_wage_for_team, wage_bill_over_budget,
+    weekly_commitment_at_wage,
 };
 use crate::game::Game;
 use domain::team::Team;
@@ -44,7 +45,7 @@ pub fn project_contract_offer_financial_impact(
 ) -> RenewalFinancialProjection {
     let (current_bill, projected_bill) = projected_wage_bills(game, &team.id, player, offered_wage);
     let wage_budget = team.wage_budget;
-    let soft_cap = (wage_budget * WAGE_SOFT_CAP_PCT) / 100;
+    let soft_cap = wage_soft_cap(wage_budget);
 
     let current_cash_runway_weeks = calc_cash_runway_weeks(team.finance, -current_bill);
     let projected_cash_runway_weeks = calc_cash_runway_weeks(team.finance, -projected_bill);
@@ -58,16 +59,19 @@ pub fn project_contract_offer_financial_impact(
         projected_weekly_wage_spend: projected_bill,
         current_cash_runway_weeks,
         projected_cash_runway_weeks,
-        currently_over_budget: current_bill > wage_budget,
+        currently_over_budget: wage_bill_over_budget(current_bill, wage_budget),
         policy_allows: wage_policy_allows_projection(team, current_bill, projected_bill),
     }
 }
 
-pub fn wage_policy_allows_projection(team: &Team, current_bill: i64, projected_bill: i64) -> bool {
-    let soft_cap = (team.wage_budget * WAGE_SOFT_CAP_PCT) / 100;
+/// The wage bill a club within its budget may reach with a signing: 110% of the budget.
+fn wage_soft_cap(wage_budget: i64) -> i64 {
+    (wage_budget * WAGE_SOFT_CAP_PCT) / 100
+}
 
-    if current_bill <= team.wage_budget {
-        return projected_bill <= soft_cap;
+pub fn wage_policy_allows_projection(team: &Team, current_bill: i64, projected_bill: i64) -> bool {
+    if !wage_bill_over_budget(current_bill, team.wage_budget) {
+        return projected_bill <= wage_soft_cap(team.wage_budget);
     }
 
     if projected_bill <= current_bill {

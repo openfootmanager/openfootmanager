@@ -213,7 +213,7 @@ export interface MatchRoute {
  * looked up across every competition: a cup tie lives in its own competition and never in the
  * league mirror, and the backend's fixture index counts the user's competition, so indexing the
  * league would land on a match between other clubs. Without ids (a route that carries none) the
- * fixture is the one between the snapshot's two clubs.
+ * fixture is the one between the snapshot's two clubs, today's if they meet more than once.
  */
 export function resolveMatchFixture(
   gameState: GameStateData | null,
@@ -236,13 +236,14 @@ export function resolveMatchFixture(
     );
   }
 
-  return (
-    competitions
-      .flatMap((competition) => competition.fixtures)
-      .find(
-        (fixture) =>
-          fixture.home_team_id === snapshot.home_team.id &&
-          fixture.away_team_id === snapshot.away_team.id,
-      ) ?? null
-  );
+  // The two clubs may meet in more than one competition: the one played today is the match.
+  const today = gameState.clock?.current_date?.slice(0, 10);
+  const pairings = competitions
+    .flatMap((competition) => competition.fixtures)
+    .filter(
+      (fixture) =>
+        fixture.home_team_id === snapshot.home_team.id &&
+        fixture.away_team_id === snapshot.away_team.id,
+    );
+  return pairings.find((fixture) => fixture.date === today) ?? pairings[0] ?? null;
 }

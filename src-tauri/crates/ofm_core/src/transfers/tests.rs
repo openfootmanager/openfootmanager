@@ -1,7 +1,7 @@
 use super::evaluate_transfer_market;
 use crate::clock::GameClock;
 use crate::game::Game;
-use chrono::{TimeZone, Utc};
+use chrono::{NaiveDate, TimeZone, Utc};
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position, TransferOfferStatus};
 use domain::season::TransferWindowStatus;
@@ -416,4 +416,70 @@ fn a_buyer_moves_on_from_a_target_its_board_would_refuse() {
     };
     assert_eq!(club_of("dear").as_deref(), Some("c"));
     assert_eq!(club_of("modest").as_deref(), Some("a"));
+}
+
+/// A forward at "owner" with no contract end, so only morale, playing time, the clubs'
+/// reputations and the list decide how open he is to a move.
+fn mover(morale: u8, appearances: u32) -> Player {
+    let mut player = squad_player("mover", "owner", Position::Forward, 100);
+    player.stage_contract_end(None);
+    player.morale = morale;
+    player.stats.appearances = appearances;
+    player
+}
+
+fn openness_towards(player: &Player, buyer_reputation: u32) -> i32 {
+    super::player_move_openness_score(
+        NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
+        player,
+        &make_team("owner", "Owner FC", 500),
+        &make_team("buyer", "Buyer FC", buyer_reputation),
+    )
+}
+
+/// Given an unlisted player with ten appearances, on morale 50 and with no contract end, and a
+///       buyer 100 above his club in reputation
+/// When his openness to the move is scored
+/// Then it is 25: 10 for middling morale and 15 for the step up, each counted once.
+#[test]
+fn a_middling_morale_and_a_step_up_make_a_player_somewhat_open_to_a_move() {
+    assert_eq!(openness_towards(&mover(50, 10), 600), 25);
+}
+
+/// Given a contented player (morale 70) with one appearance, and a buyer of his club's standing
+/// When his openness to the move is scored
+/// Then it is 15, all of it for the lack of playing time.
+#[test]
+fn a_player_without_games_is_open_to_a_move_for_that_alone() {
+    assert_eq!(openness_towards(&mover(70, 1), 500), 15);
+}
+
+/// Given a contented regular starter (morale 70, ten appearances), and a buyer 250 above his
+///       club in reputation
+/// When his openness to the move is scored
+/// Then it is 25, all of it for the big step up.
+#[test]
+fn a_big_step_up_makes_a_contented_player_open_to_a_move() {
+    assert_eq!(openness_towards(&mover(70, 10), 750), 25);
+}
+
+/// Given an unlisted fringe player valued 1,000,000 on a long contract, contented, with no
+///       games (15) and a buyer 250 above his club in reputation (25): openness exactly 40
+/// When his club sets its asking price
+/// Then it is 1,100,000: the 120% an unlisted player costs, less a tenth for his openness.
+#[test]
+fn an_open_player_lowers_the_asking_price_by_a_tenth() {
+    let mut player = mover(70, 0);
+    player.stage_contract_end(Some("2028-06-30".to_string()));
+    player.market_value = 1_000_000;
+    assert_eq!(openness_towards(&player, 750), 40);
+
+    let asking = super::minimum_acceptable_fee(
+        NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
+        &player,
+        &make_team("owner", "Owner FC", 500),
+        &make_team("buyer", "Buyer FC", 750),
+    );
+
+    assert_eq!(asking, 1_100_000);
 }

@@ -1,4 +1,6 @@
 import type { PlayerData, SeasonContextData, TeamData } from "../store/gameStore";
+import type { SquadFitness } from "../services/squadService";
+import type { ConditionBand, ConditionStatus, RatedTone } from "../store/types";
 
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
@@ -108,6 +110,47 @@ export function createSeasonContext(overrides: Partial<SeasonContextData> = {}):
       days_until_opens: null,
       days_remaining: null,
     },
+    ...overrides,
+  };
+}
+
+/** A condition status as the backend sends it, for the band a test names. */
+export function createConditionStatus(band: ConditionBand): ConditionStatus {
+  const steps: Record<ConditionBand, RatedTone> = {
+    Fresh: "good",
+    Tiring: "fair",
+    Exhausted: "low",
+    Critical: "bad",
+  };
+  return { band, label_key: `be.condition.${band.toLowerCase()}`, tone: steps[band] };
+}
+
+/**
+ * The band the backend gives a figure, for test data only: a fixture's average must carry the
+ * band its number would get, or a test passes on a pairing the game never sends. The rule itself
+ * is `fitness_status` in ofm_core's training/fitness_warnings.rs; the screens never compute it.
+ */
+function backendBandOf(condition: number): ConditionBand {
+  const shown = Math.round(condition);
+  if (shown < 25) return "Critical";
+  if (shown < 40) return "Exhausted";
+  if (shown < 75) return "Tiring";
+  return "Fresh";
+}
+
+/** The backend's squad fitness answer; a test sets what it is about and leaves the rest quiet. */
+export function createSquadFitness(overrides: Partial<SquadFitness> = {}): SquadFitness {
+  const averageCondition =
+    overrides.average_condition === undefined ? 70 : overrides.average_condition;
+  return {
+    players: 11,
+    average_condition: averageCondition,
+    // As the backend has it: the band of the average, and none without an average.
+    average_status:
+      averageCondition === null ? null : createConditionStatus(backendBandOf(averageCondition)),
+    exhausted_count: 0,
+    critical_count: 0,
+    statuses: {},
     ...overrides,
   };
 }

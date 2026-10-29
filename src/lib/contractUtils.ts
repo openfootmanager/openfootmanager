@@ -1,4 +1,15 @@
-import { CONTRACT_RISK_DAYS } from "./domainConstants";
+import type { ContractWarningStage } from "../services/contractService";
+import { formatDate } from "./dateFormatting";
+
+type ExpiryTranslate = (key: string, options: { date: string }) => string;
+
+export function contractExpiryLabel(
+  contractEnd: string,
+  language: string,
+  t: ExpiryTranslate,
+): string {
+  return t("finances.contractExpiresOn", { date: formatDate(contractEnd, language) });
+}
 
 export type ContractRiskLevel = "critical" | "warning" | "stable";
 
@@ -9,23 +20,18 @@ export function getDaysUntil(targetDate: string, currentDate: string): number {
   );
 }
 
-export function getContractRiskLevel(
-  contractEnd: string | null,
-  currentDate: string,
+/**
+ * How a warning stage reads on a badge: the last six months (and nearer) are critical, the year
+ * before that is a warning, anything else is stable. Which stage a contract is in is the
+ * backend's (`get_contract_warning_stages`); this only picks the colour.
+ */
+export function contractRiskLevelOf(
+  stage: ContractWarningStage | null | undefined,
 ): ContractRiskLevel {
-  if (!contractEnd) {
-    return "stable";
-  }
-
-  const daysUntilExpiry = getDaysUntil(contractEnd, currentDate);
-
-  if (daysUntilExpiry <= CONTRACT_RISK_DAYS.critical) {
+  if (stage === "six_months" || stage === "three_months" || stage === "final_weeks") {
     return "critical";
   }
-  if (daysUntilExpiry <= CONTRACT_RISK_DAYS.warning) {
-    return "warning";
-  }
-  return "stable";
+  return stage === "twelve_months" ? "warning" : "stable";
 }
 
 export function getContractRiskBadgeVariant(

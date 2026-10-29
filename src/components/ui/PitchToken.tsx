@@ -14,6 +14,7 @@ import { condBgColor } from "../../lib/playerConditionDisplay";
 import { getPositionColor } from "../../lib/positionColors";
 import { PlayerAvatar } from "./PlayerAvatar";
 import JerseyIcon from "./JerseyIcon";
+import { FamiliarityDot, type PositionFamiliarity } from "./PositionBadge";
 
 /** How well a player fits the slot they occupy — drives the avatar ring colour. */
 export type PitchFitTone = "exact" | "adapted" | "out" | "empty";
@@ -84,16 +85,20 @@ export function usePitchTokenFocus() {
   };
 }
 
+/** Only a slot he should not be in rings the disc; a natural or adapted one stays quiet. */
 function fitRingClass(fitTone: PitchFitTone): string {
+  return fitTone === "out" ? "ring-2 ring-warning-solid" : "ring-1 ring-on-brand/25";
+}
+
+/** What the badge's dot says; `empty` has no verdict, so no dot. */
+function dotFamiliarity(fitTone: PitchFitTone): PositionFamiliarity {
   switch (fitTone) {
-    case "exact":
-      return "ring-2 ring-success-400";
     case "adapted":
-      return "ring-2 ring-accent-400";
+      return "adapted";
     case "out":
-      return "ring-2 ring-red-400";
+      return "out";
     default:
-      return "ring-1 ring-white/25";
+      return "natural";
   }
 }
 
@@ -239,7 +244,7 @@ export function PitchToken({
             {markers.slice(0, 3).map((marker) => (
               <span
                 key={marker.key}
-                className={`rounded-full border px-1.5 py-0.5 text-[10px] font-heading font-bold leading-4 ${marker.toneClassName}`}
+                className={`rounded-full border px-1.5 py-0.5 text-caption font-heading font-bold leading-4 ${marker.toneClassName}`}
               >
                 {marker.shortLabel}
               </span>
@@ -247,14 +252,17 @@ export function PitchToken({
           </div>
         )}
         <div className="absolute -right-1.5 -top-1.5 z-10">
-          <span
-            className={`rounded-full ${position ? getPositionColor(position) : "bg-gray-900"} px-2 py-0.5 text-xs font-heading font-bold uppercase leading-4 text-white ring-1 ring-white/40`}
-          >
-            {positionAbbr}
+          <span className="relative">
+            <span
+              className={`rounded-full ${position ? getPositionColor(position) : "bg-chrome"} px-2 py-0.5 text-caption font-heading font-bold uppercase leading-4 text-on-brand ring-1 ring-on-brand/40`}
+            >
+              {positionAbbr}
+            </span>
+            <FamiliarityDot familiarity={dotFamiliarity(fitTone)} />
           </span>
         </div>
         {hidePortrait ? (
-          <div className={`h-11 w-11 rounded-full bg-gray-800/60 ${fitRingClass(fitTone)}`} />
+          <div className={`h-11 w-11 rounded-full bg-chrome/60 ${fitRingClass(fitTone)}`} />
         ) : (
           <PlayerAvatar
             player={avatar ?? { full_name: name, match_name: name }}
@@ -262,7 +270,7 @@ export function PitchToken({
           />
         )}
         <div className="absolute -bottom-1 -right-1.5 z-10">
-          <span className="rounded-full bg-gray-900 px-2 py-0.5 text-xs font-heading font-bold leading-4 text-white ring-1 ring-white/30">
+          <span className="rounded-full bg-chrome px-2 py-0.5 text-caption font-heading font-bold leading-4 text-on-brand ring-1 ring-on-brand/30">
             {ovr}
           </span>
         </div>
@@ -278,10 +286,12 @@ export function PitchToken({
             number={jersey.number}
           />
         ) : jerseyNumber != null ? (
-          <span className="text-[10px] font-heading font-bold text-white/80">#{jerseyNumber}</span>
+          <span className="text-caption font-heading font-bold text-on-brand/80">
+            #{jerseyNumber}
+          </span>
         ) : null)}
 
-      <div className="max-w-full truncate text-xs font-heading font-bold uppercase tracking-[0.12em] text-white drop-shadow-sm">
+      <div className="max-w-full truncate text-caption font-heading font-bold uppercase tracking-label text-on-brand drop-shadow-sm">
         {name}
       </div>
 
@@ -297,7 +307,7 @@ export function PitchToken({
             {summary}
           </span>
         )}
-        <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+        <div className="h-1.5 overflow-hidden rounded-full bg-on-brand/10">
           <div
             data-testid="pitch-token-condition-fill"
             className={`h-full rounded-full ${condBgColor(condition)}`}
@@ -311,7 +321,7 @@ export function PitchToken({
             id={descriptionId}
             ref={tooltipRef}
             role="tooltip"
-            className={`fixed z-50 w-max max-w-64 rounded-md border border-gray-200 bg-white px-3 py-2 font-sans text-xs font-medium normal-case tracking-normal text-gray-900 shadow-lg dark:border-navy-600 dark:bg-navy-800 dark:text-gray-100 ${tooltipPosition ? "" : "invisible"}`}
+            className={`fixed z-50 w-max max-w-64 rounded-md border border-line bg-panel px-3 py-2 font-sans text-caption font-medium normal-case tracking-normal text-fg shadow-lg ${tooltipPosition ? "" : "invisible"}`}
             style={tooltipPosition ?? { left: 0, top: 0 }}
           >
             {summary}

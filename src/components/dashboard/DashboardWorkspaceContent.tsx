@@ -15,7 +15,6 @@ interface DashboardWorkspaceContentProps {
   gameState: GameStateData;
   profileNavigation: DashboardProfileNavigationState;
   dashboardTabContentModel: DashboardTabContentModel;
-  onBack: () => void;
   onNavigate: (tab: string) => void;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
   onSelectTeam: (id: string) => void;
@@ -28,7 +27,6 @@ export default function DashboardWorkspaceContent({
   gameState,
   profileNavigation,
   dashboardTabContentModel,
-  onBack,
   onNavigate,
   onSelectPlayer,
   onSelectTeam,
@@ -48,13 +46,13 @@ export default function DashboardWorkspaceContent({
     : null;
 
   return (
-    <div className="flex-1 overflow-auto p-6 bg-gray-100 dark:bg-navy-900">
+    // The workspace owns the page's scroll (layout rule L1); min-h-0 lets it shrink inside the column
+    // so it scrolls rather than growing past the window.
+    <div className="min-h-0 flex-1 overflow-auto bg-page p-6">
       {isUnemployed && (
-        <div className="mx-6 mt-4 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-          <ShieldX className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-500" />
-          <p className="text-sm text-amber-800 dark:text-amber-300">
-            {t("dashboard.unemployedBanner")}
-          </p>
+        <div className="mb-4 flex items-center gap-3 rounded-lg border border-line bg-warning-tint px-4 py-3">
+          <ShieldX className="h-5 w-5 shrink-0 text-warning" />
+          <p className="text-body text-warning">{t("dashboard.unemployedBanner")}</p>
         </div>
       )}
 
@@ -71,7 +69,6 @@ export default function DashboardWorkspaceContent({
           startWithTerminationModal={
             profileNavigation.selectedPlayerOptions?.openTermination === true
           }
-          onClose={onBack}
           onSelectTeam={onSelectTeam}
           onGameUpdate={onGameUpdate}
         />
@@ -82,7 +79,6 @@ export default function DashboardWorkspaceContent({
           team={selectedTeam}
           gameState={gameState}
           isOwnTeam={selectedTeam.id === gameState.manager.team_id}
-          onClose={onBack}
           onSelectPlayer={onSelectPlayer}
         />
       ) : null}

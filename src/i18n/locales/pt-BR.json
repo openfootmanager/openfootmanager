@@ -58,10 +58,7 @@
   "validation": {
     "required": "{{field}} é obrigatório",
     "maxLength": "{{field}} não deve exceder {{max}} caracteres",
-    "minStartYear": "O ano de início deve ser {{min}} ou posterior",
-    "minAge": "O treinador deve ter pelo menos {{min}} anos — altere a data de nascimento para continuar.",
-    "invalidDate": "Data inválida",
-    "invalidDob": "Data de nascimento inválida"
+    "minStartYear": "O ano de início deve ser {{min}} ou posterior"
   },
   "worldSelect": {
     "title": "Escolher Mundo",
@@ -173,6 +170,7 @@
     "digestSimulating": "Simulando...",
     "digestMatchDay": "Dia de jogo",
     "digestMatchDayDesc": "Seu time tem uma partida programada para hoje.",
+    "matchModeMenu": "Escolher modo de partida",
     "digestReturnHome": "Voltar ao início",
     "digestBlocked": "Ação necessária",
     "digestBlockedDesc": "Há problemas que precisam da sua atenção antes de avançar.",
@@ -396,15 +394,15 @@
     "growth": "Crescimento",
     "traits": "Características",
     "condition": "Condição",
-    "potWorldClass": "Classe Mundial",
-    "potExcellent": "Excelente",
-    "potPromising": "Promissor",
-    "potDecent": "Razoável",
-    "potLimited": "Limitado",
     "delegateToYouthAcademy": "Delegar para a base",
     "promoteToSeniorSquad": "Promover ao elenco principal"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}º",
       "two": "{{n}}º",
@@ -414,6 +412,8 @@
     "currentWage": "Salário atual",
     "loading": "Carregando...",
     "loadingGameState": "Carregando estado do jogo...",
+    "overallRating": "Geral {{value}}",
+    "overallRatingTier": "Geral {{value}}, nível {{tier}}",
     "noResults": "Nenhum resultado encontrado.",
     "place": {
       "1": "1º",
@@ -699,21 +699,14 @@
     "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banco {{bench}}",
     "bestRole": "Melhor função",
-    "formationFit": "Encaixe na formação",
     "startingXi": "Onze inicial",
-    "styleFit": "Encaixe com o estilo",
     "starter": "Titular",
     "benchOption": "Banco",
-    "naturalFit": "Encaixe natural",
-    "adaptedFit": "Função adaptada",
+    "naturalFit": "Posição natural",
+    "adaptedFit": "Pode jogar lá",
     "needsCover": "Precisa de cobertura",
     "makeStarter": "Colocar como titular",
-    "sendToBench": "Mandar para o banco",
-    "styleFitValues": {
-      "strong": "Encaixe com o estilo: Forte",
-      "good": "Encaixe com o estilo: Bom",
-      "risky": "Encaixe com o estilo: Arriscado"
-    }
+    "sendToBench": "Mandar para o banco"
   },
   "tactics": {
     "formationStyle": "Formação & Estilo",
@@ -864,8 +857,8 @@
     "setCornerTaker": "Definir escanteios",
     "inspector": "Inspetor",
     "inspectorEmptyTitle": "Nada selecionado",
-    "naturalFit": "Encaixe natural",
-    "adaptedFit": "Função adaptada",
+    "naturalFit": "Posição natural",
+    "adaptedFit": "Pode jogar lá",
     "tokenStates": {
       "ready": "Pronto",
       "adjusted": "Ajustado",
@@ -881,7 +874,7 @@
     "clearSelection": "Limpar seleção",
     "compareWithSelected": "Comparar com selecionado",
     "selectForSwap": "Selecionar para troca",
-    "assignBestFit": "Atribuir ao melhor encaixe",
+    "assignBestFit": "Atribuir melhor posição",
     "moveToBench": "Mover para o banco",
     "promoteToLineup": "Promover para o time titular",
     "tableView": "Visão de tabela",
@@ -896,7 +889,6 @@
     "positionSelector": "Slot tático",
     "playablePositions": "Posições",
     "slotFit": "Encaixe no slot",
-    "styleFit": "Encaixe com o estilo",
     "responsibilities": "Responsabilidades",
     "noSpecialRoles": "Sem funções especiais",
     "moraleLevels": {
@@ -912,11 +904,6 @@
       "sharp": "Afiado",
       "managing": "Gerenciando",
       "risk": "Risco"
-    },
-    "styleFitLevels": {
-      "strong": "Ótimo encaixe",
-      "good": "Bom encaixe",
-      "risky": "Encaixe arriscado"
     }
   },
   "training": {
@@ -1630,6 +1617,7 @@
     "dateOfBirth": "Data de Nascimento",
     "noContract": "Sem contrato",
     "weeklyWage": "Salário Semanal",
+    "approximateWage": "cerca de {{wage}}",
     "annualWage": "Salário Anual",
     "yearsRemaining": "Anos restantes",
     "contractRisk": "Risco contratual",
@@ -1849,6 +1837,21 @@
     },
     "uiScale": "Escala da Interface",
     "uiScaleDesc": "Ajuste o tamanho da fonte e espaçamento para melhor leitura",
+    "sidebarWidth": "Largura da barra lateral",
+    "sidebarWidthDesc": "A largura da barra lateral aberta. “Larga” mostra cada nome do menu em uma linha.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Padrão",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Como a barra lateral abre. Se a janela for estreita demais, ela abre sobre a página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir ao passar o mouse",
+      "click": "Abrir com um clique",
+      "icons": "Só ícones"
+    },
     "uiScaleOptions": {
       "small": "Pequena",
       "normal": "Normal",
@@ -1948,7 +1951,6 @@
     "alreadyQueued": "Já está na fila para uma substituição",
     "substitutionsPartlyMade": "{{applied}} de {{total}} substituições feitas",
     "substitutionRefused": "Substituição recusada: {{off}} por {{on}}. {{reason}}",
-    "playerRoles": "Funções dos jogadores",
     "roleFor": "Função de {{player}}",
     "roleChangeRefused": "Não foi possível mudar a função de {{player}}. {{reason}}",
     "noBenchAvailable": "Nenhum jogador no banco disponível",
@@ -2212,7 +2214,7 @@
     "preMatchPrep": "Preparação Pré-Jogo",
     "startingLineup": "Escalação Titular",
     "setPiecesCaptain": "Bola Parada e Capitão",
-    "formationFit": "Ajuste da Formação",
+    "formationFit": "Formação",
     "selecting": "Selecionando...",
     "autoSelectXI": "Selecionar Melhores Titulares",
     "startingXI": "Titulares",
@@ -2543,7 +2545,11 @@
     "pts": "pts",
     "cupPenalties": "({{home}}–{{away}} nos pênaltis)",
     "cupAdvances": "{{team}} avança de fase",
-    "cupTiesPending": "Ainda faltam confrontos a serem disputados"
+    "cupTiesPending": "Ainda faltam confrontos a serem disputados",
+    "resume": "Retomar",
+    "pausedResumesAt": "Pausado · retoma em {{speed}}",
+    "playingAt": "Jogando em {{speed}}",
+    "spaceKey": "Espaço"
   },
   "endOfSeason": {
     "seasonComplete": "Temporada Encerrada",
@@ -2641,6 +2647,12 @@
     "confidence": "Confiança"
   },
   "be": {
+    "condition": {
+      "fresh": "Descansado",
+      "tiring": "Cansando",
+      "exhausted": "Exausto",
+      "critical": "Crítico"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Este jogador não pode sair: o elenco ficaria abaixo do mínimo que um clube precisa manter. Setor afetado: {{group}}.",
@@ -3569,6 +3581,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: resumo do torneio de pré-temporada",
           "body": "No torneio de pré-temporada, {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Os dois times usaram o jogo para ganhar ritmo antes do início oficial da temporada.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Resumo da partida ({{competition}})",
+          "body": "{{competition}}: a partida terminou {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3642,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Resumo Semanal — Semana de {{weekStart}}",
         "bodyNoTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela e {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana.",
-        "bodyWithTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s). {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana."
+        "bodyWithTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s). {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana.",
+        "bodyNoTopScorerNoStorylines": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela.",
+        "bodyWithTopScorerNoStorylines": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s)."
       },
       "preseasonDigest": {
         "headline": "Resumo da pré-temporada — Semana de {{weekStart}}",

@@ -7,10 +7,10 @@ import {
   Save,
   Search,
 } from "lucide-react";
-import type { JSX, ReactNode } from "react";
+import { type JSX, type MouseEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import { getTeamName } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
@@ -19,20 +19,21 @@ import {
   buildViewProfileMenuItem,
   buildViewTeamMenuItem,
 } from "../playerActions/playerContextMenuItems";
-import { Badge, PlayerAvatar, TeamLogo, ThemeToggle } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { PlayerAvatar, TeamLogo, ThemeToggle } from "../ui";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
+/** A match mode in the Continue menu. Its label and icon name it; it has no colour of its own. */
 export interface DashboardMatchModeMeta {
-  buttonColorClass: string;
   desc: string;
-  dropdownColorClass: string;
   icon: ReactNode;
   label: string;
 }
 
 interface DashboardHeaderProps {
-  activeTabLabel: string;
+  title: string;
   currentDate: string;
+  /** The date without its weekday, for a narrow header. */
+  currentDateShort: string;
   hasProfileHistory: boolean;
   hasMatchToday: boolean;
   isAdvancing: boolean;
@@ -61,21 +62,21 @@ interface DashboardHeaderProps {
   teams: TeamData[];
 }
 
+const FOCUS_RING =
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel";
+const ICON_BUTTON = `rounded-lg p-2 text-fg-muted transition-colors hover:bg-hover hover:text-fg ${FOCUS_RING}`;
+// Inside a menu the ring is inset: an offset ring would be clipped by the menu's edge.
+const MENU_FOCUS =
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus";
+const MENU_ROW = `flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-hover ${MENU_FOCUS}`;
+
 function getSaveButtonClassName(saveFlash: boolean, isSaving: boolean): string {
-  let className =
-    "flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-heading font-bold uppercase tracking-wider transition-all hover:cursor-pointer";
-
-  if (saveFlash) {
-    className = `${className} bg-green-500 text-white`;
-  } else {
-    className = `${className} bg-gray-200 text-gray-600 hover:bg-gray-300 dark:bg-navy-700 dark:text-gray-300 dark:hover:bg-navy-600`;
-  }
-
-  if (isSaving) {
-    className = `${className} cursor-wait opacity-70`;
-  }
-
-  return className;
+  const state = saveFlash
+    ? "bg-positive-tint text-positive"
+    : "bg-sunken text-fg-muted ring-1 ring-inset ring-line hover:bg-hover hover:text-fg";
+  return `flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2.5 font-heading text-body font-bold uppercase tracking-label transition-colors hover:cursor-pointer ${FOCUS_RING} ${state} ${
+    isSaving ? "cursor-wait opacity-70" : ""
+  }`;
 }
 
 function getSaveButtonLabel(
@@ -102,42 +103,9 @@ function renderSaveButtonIcon(isSaving: boolean): JSX.Element {
   return <Save className="h-4 w-4" />;
 }
 
-function getContinueButtonClassName(
-  modeMeta: DashboardMatchModeMeta,
-  isAdvancing: boolean,
-  seasonComplete: boolean,
-): string {
-  let className = `bg-linear-to-r ${modeMeta.buttonColorClass} flex items-center gap-2 rounded-l-lg pl-4 pr-3 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white shadow-md transition-all hover:cursor-pointer hover:brightness-110 hover:shadow-lg`;
-
-  if (isAdvancing || seasonComplete) {
-    className = `${className} cursor-wait opacity-70`;
-  }
-
-  return className;
-}
-
-function getContinueDropdownButtonClassName(modeMeta: DashboardMatchModeMeta): string {
-  return `bg-linear-to-r ${modeMeta.dropdownColorClass} rounded-r-lg border-l border-white/20 px-2 py-2.5 text-white transition-colors hover:brightness-110`;
-}
-
-function getModeOptionClassName(isActive: boolean): string {
-  const baseClassName =
-    "flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-navy-600";
-
-  if (isActive) {
-    return `${baseClassName} bg-gray-50 dark:bg-navy-600`;
-  }
-
-  return baseClassName;
-}
-
-function getModeOptionIconClassName(isActive: boolean): string {
-  if (isActive) {
-    return "text-primary-500";
-  }
-
-  return "text-gray-400";
-}
+// The game's one forward action (layout rule L3): the brand fill whatever the match mode, which
+// its label and icon name.
+const FORWARD_ACTION = `flex items-center gap-2 bg-primary-700 py-2.5 font-heading text-body font-bold uppercase tracking-label text-on-brand transition-colors hover:cursor-pointer hover:bg-primary-800 ${FOCUS_RING}`;
 
 function renderContinueButtonContent(
   t: (key: string) => string,
@@ -157,9 +125,19 @@ function renderContinueButtonContent(
   return (
     <>
       {matchModeMeta.icon}
-      <span>{hasMatchToday ? matchModeMeta.label : t("dashboard.continue")}</span>
+      <span className="whitespace-nowrap">
+        {hasMatchToday ? matchModeMeta.label : t("dashboard.continue")}
+      </span>
     </>
   );
+}
+
+/**
+ * A mouse press on a result must not take the focus from the field: WebKit doesn't focus a pressed
+ * button, so the field would blur, the search would fold and the click would land on nothing.
+ */
+function keepFocusInSearch(event: MouseEvent): void {
+  event.preventDefault();
 }
 
 function renderSearchResults(props: {
@@ -174,16 +152,14 @@ function renderSearchResults(props: {
     props;
 
   if (matchedPlayers.length === 0 && matchedTeams.length === 0) {
-    return (
-      <p className="p-3 text-xs text-gray-400 dark:text-gray-500">{t("dashboard.noResults")}</p>
-    );
+    return <p className="p-3 text-caption text-fg-subtle">{t("dashboard.noResults")}</p>;
   }
 
   return (
     <>
       {matchedTeams.length > 0 && (
         <div>
-          <p className="px-3 pb-1 pt-2 text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <p className="px-3 pb-1 pt-2 text-caption font-semibold text-fg-muted">
             {t("dashboard.searchTeams")}
           </p>
           {matchedTeams.map((team) => {
@@ -193,21 +169,18 @@ function renderSearchResults(props: {
               <ContextMenu items={contextItems} key={team.id}>
                 <button
                   type="button"
-                  onMouseDown={() => onSelectSearchTeam(team.id)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
+                  onMouseDown={keepFocusInSearch}
+                  onClick={() => onSelectSearchTeam(team.id)}
+                  className={MENU_ROW}
                   data-testid={`dashboard-search-team-${team.id}`}
                 >
                   <TeamLogo
                     team={team}
-                    className="flex h-6 w-6 items-center justify-center overflow-hidden rounded text-xs font-bold text-white"
+                    className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md"
                     imageClassName="h-5 w-5 object-contain"
-                    fallback={<span>{team.short_name.charAt(0)}</span>}
-                    style={{ backgroundColor: team.colors.primary }}
                   />
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    {team.name}
-                  </span>
-                  <span className="ml-auto text-xs text-gray-400">{team.city}</span>
+                  <span className="text-body font-medium text-fg">{team.name}</span>
+                  <span className="ml-auto text-caption text-fg-subtle">{team.city}</span>
                 </button>
               </ContextMenu>
             );
@@ -216,7 +189,7 @@ function renderSearchResults(props: {
       )}
       {matchedPlayers.length > 0 && (
         <div>
-          <p className="px-3 pb-1 pt-2 text-xs font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <p className="px-3 pb-1 pt-2 text-caption font-semibold text-fg-muted">
             {t("dashboard.searchPlayers")}
           </p>
           {matchedPlayers.map((player) => {
@@ -234,21 +207,18 @@ function renderSearchResults(props: {
               <ContextMenu items={contextItems} key={player.id}>
                 <button
                   type="button"
-                  onMouseDown={() => onSelectSearchPlayer(player.id)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
+                  onMouseDown={keepFocusInSearch}
+                  onClick={() => onSelectSearchPlayer(player.id)}
+                  className={MENU_ROW}
                   data-testid={`dashboard-search-player-${player.id}`}
                 >
                   <PlayerAvatar
                     player={player}
-                    className="h-7 w-7 shrink-0 overflow-hidden rounded bg-gray-100 dark:bg-navy-700 flex items-center justify-center text-[10px] font-heading font-bold text-gray-500 dark:text-gray-300"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sunken font-heading text-caption font-bold text-fg-muted"
                   />
-                  <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
-                    {translatePositionAbbreviation(t, naturalPositionOf(player))}
-                  </Badge>
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                    {player.full_name}
-                  </span>
-                  <span className="ml-auto text-xs text-gray-400">
+                  <PlayerPositionBadge position={naturalPositionOf(player)} />
+                  <span className="text-body font-medium text-fg">{player.full_name}</span>
+                  <span className="ml-auto text-caption text-fg-subtle">
                     {getTeamName(teams, player.team_id ?? "")}
                   </span>
                 </button>
@@ -261,9 +231,15 @@ function renderSearchResults(props: {
   );
 }
 
+/**
+ * The global header: the page's only title, the date, search, save and the game's forward action.
+ * It is a container, and shrinks by layout rule L5's steps as it narrows: the search field folds
+ * to a button under 48rem, and the date drops its weekday under 42rem.
+ */
 export default function DashboardHeader({
-  activeTabLabel,
+  title,
   currentDate,
+  currentDateShort,
   hasProfileHistory,
   hasMatchToday,
   isAdvancing,
@@ -294,6 +270,13 @@ export default function DashboardHeader({
   const { t } = useTranslation();
   const currentModeMeta = modeMeta[matchMode];
   const showSearchResults = searchOpen && searchQuery.length >= 2;
+  // A narrow header shows search as a button; pressing it opens the field until it loses focus.
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (searchExpanded) searchInput.current?.focus();
+  }, [searchExpanded]);
 
   function handleContinueClick(): void {
     console.info("[DashboardHeader] continueClick", {
@@ -329,42 +312,62 @@ export default function DashboardHeader({
   }
 
   return (
-    <header className="z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-3 shadow-sm transition-colors duration-300 dark:border-navy-700 dark:bg-navy-800">
-      <div className="flex items-center gap-3">
+    <header className="@container/header z-10 flex items-center gap-3 border-b border-line bg-panel px-6 py-3">
+      <div className="flex min-w-0 items-center gap-3">
         {hasProfileHistory && (
           <button
             type="button"
             onClick={onBack}
-            className="-ml-2 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-navy-700 dark:hover:text-white"
+            className={`-ml-2 shrink-0 ${ICON_BUTTON}`}
             title={t("common.back")}
+            aria-label={t("common.back")}
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
-        <div>
-          <h2 className="text-xl font-heading font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100">
-            {activeTabLabel}
+        <div className="min-w-0">
+          {/* Focusable from script only: after a page is chosen from the sidebar's drawer, the
+              focus lands here, on the page, rather than going back to the sidebar. */}
+          <h2
+            data-page-title
+            tabIndex={-1}
+            className="max-w-64 truncate font-heading text-title font-bold uppercase tracking-label text-fg"
+            title={title}
+          >
+            {title}
           </h2>
-          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-            <CalendarIcon className="h-3.5 w-3.5" />
-            <span className="font-medium">{currentDate}</span>
+          <p className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-caption text-fg-muted">
+            <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden font-medium @2xl/header:inline">{currentDate}</span>
+            <span className="font-medium @2xl/header:hidden">{currentDateShort}</span>
           </p>
         </div>
       </div>
 
-      <div className="relative mx-auto flex-1 px-10">
-        <Search className="absolute left-13 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+      {/* The search folds when the focus leaves the field and its results, not when it moves from
+          the field into a result: a keyboard player tabs into the results to pick one. */}
+      <div
+        data-search-field
+        className={`relative min-w-0 flex-1 ${searchExpanded ? "" : "hidden @3xl/header:block"}`}
+        onBlur={(event) => {
+          if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+          setSearchExpanded(false);
+          onSearchBlur();
+        }}
+      >
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle" />
         <input
+          ref={searchInput}
           type="text"
           placeholder={t("dashboard.searchPlaceholder")}
+          aria-label={t("common.search")}
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
           onFocus={onSearchFocus}
-          onBlur={onSearchBlur}
-          className="w-full rounded-lg border border-gray-200 bg-gray-100 py-2 pl-9 pr-3 text-sm text-gray-800 transition-all placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/50 dark:border-navy-600 dark:bg-navy-700 dark:text-gray-200 dark:placeholder-gray-500"
+          className={`w-full rounded-lg border border-line bg-sunken py-2 pl-9 pr-3 text-body text-fg placeholder:text-fg-subtle ${FOCUS_RING}`}
         />
         {showSearchResults && (
-          <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-80 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl dark:border-navy-600 dark:bg-navy-700">
+          <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-80 overflow-y-auto rounded-lg border border-line bg-panel shadow-lg">
             {renderSearchResults({
               matchedPlayers,
               matchedTeams,
@@ -377,7 +380,18 @@ export default function DashboardHeader({
         )}
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="ml-auto flex shrink-0 items-center gap-3">
+        {searchExpanded ? null : (
+          <button
+            type="button"
+            onClick={() => setSearchExpanded(true)}
+            className={`${ICON_BUTTON} @3xl/header:hidden`}
+            aria-label={t("common.search")}
+            title={t("common.search")}
+          >
+            <Search className="h-5 w-5" />
+          </button>
+        )}
         <ThemeToggle />
         <button
           type="button"
@@ -394,7 +408,7 @@ export default function DashboardHeader({
             type="button"
             onClick={handleContinueClick}
             disabled={isAdvancing}
-            className="bg-linear-to-r from-gray-600 to-gray-700 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-heading font-bold uppercase tracking-wider text-white shadow-md transition-all hover:cursor-pointer hover:brightness-110 hover:shadow-lg disabled:cursor-wait disabled:opacity-70"
+            className={`${FORWARD_ACTION} rounded-lg px-4 disabled:cursor-wait disabled:opacity-70`}
           >
             <span>{isAdvancing ? t("dashboard.simulating") : t("dashboard.continue")}</span>
             <ChevronRight className={`h-4 w-4 ${isAdvancing ? "animate-pulse" : ""}`} />
@@ -406,7 +420,7 @@ export default function DashboardHeader({
                 type="button"
                 onClick={handleContinueClick}
                 disabled={isAdvancing || seasonComplete}
-                className={getContinueButtonClassName(currentModeMeta, isAdvancing, seasonComplete)}
+                className={`${FORWARD_ACTION} rounded-l-lg pl-4 pr-3 disabled:cursor-wait disabled:opacity-70`}
               >
                 {renderContinueButtonContent(
                   t,
@@ -420,14 +434,16 @@ export default function DashboardHeader({
               <button
                 type="button"
                 onClick={handleContinueMenuToggleClick}
-                className={getContinueDropdownButtonClassName(currentModeMeta)}
+                aria-label={t("dashboard.matchModeMenu")}
+                aria-expanded={showContinueMenu}
+                className={`${FORWARD_ACTION} rounded-r-lg border-l border-on-brand/30 px-2`}
               >
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-4 w-4" aria-hidden="true" />
               </button>
             </div>
 
             {showContinueMenu && (
-              <div className="absolute right-0 top-full z-20 mt-1 w-64 rounded-lg border border-gray-200 bg-white py-1 shadow-xl dark:border-navy-600 dark:bg-navy-700">
+              <div className="absolute right-0 top-full z-20 mt-1 w-64 rounded-lg border border-line bg-panel py-1 shadow-lg">
                 {(["live", "spectator", "delegate"] as const).map((mode) => {
                   const isActive = matchMode === mode;
                   const optionMeta = modeMeta[mode];
@@ -437,33 +453,33 @@ export default function DashboardHeader({
                       type="button"
                       key={mode}
                       onClick={() => onSelectMatchMode(mode)}
-                      className={getModeOptionClassName(isActive)}
+                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-hover ${MENU_FOCUS} ${
+                        isActive ? "bg-hover" : ""
+                      }`}
                     >
-                      <span className={getModeOptionIconClassName(isActive)}>
+                      <span className={isActive ? "text-positive" : "text-fg-subtle"}>
                         {optionMeta.icon}
                       </span>
                       <div className="flex-1">
-                        <span className="text-xs font-heading font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100">
+                        <span className="font-heading text-body font-bold uppercase tracking-label text-fg">
                           {optionMeta.label}
                         </span>
-                        <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                          {optionMeta.desc}
-                        </p>
+                        <p className="mt-0.5 text-caption text-fg-muted">{optionMeta.desc}</p>
                       </div>
-                      {isActive && <span className="text-xs font-bold text-primary-500">✓</span>}
+                      {isActive && <span className="text-caption font-bold text-positive">✓</span>}
                     </button>
                   );
                 })}
-                <div className="my-1 border-t border-gray-200 dark:border-navy-600" />
+                <div className="my-1 border-t border-line" />
                 <button
                   type="button"
                   onClick={handleSkipToMatchDayClick}
-                  className="w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-navy-600"
+                  className={`w-full px-4 py-2.5 text-left transition-colors hover:bg-hover ${MENU_FOCUS}`}
                 >
-                  <span className="text-xs font-heading font-bold uppercase tracking-wide text-gray-800 dark:text-gray-100">
+                  <span className="font-heading text-body font-bold uppercase tracking-label text-fg">
                     {t("continueMenu.skipToMatchDay")}
                   </span>
-                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  <p className="mt-0.5 text-caption text-fg-muted">
                     {t("continueMenu.skipToMatchDayDesc")}
                   </p>
                 </button>

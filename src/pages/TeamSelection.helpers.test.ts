@@ -6,7 +6,7 @@ import type { GameStateData } from "../store/gameStore";
 import { getPlayerOvr } from "../lib/helpers";
 import { createPlayer, createTeam } from "../test-utils/factories";
 import {
-  buildFallbackRegions,
+  regionsFromCompetitions,
   competitionKindLabel,
   competitionRequiredRegions,
   competitionScopeLabel,
@@ -136,7 +136,7 @@ describe("sortCompetitions", () => {
   });
 });
 
-describe("buildFallbackRegions", () => {
+describe("regionsFromCompetitions", () => {
   it("groups team countries by competition-declared region, with sorted country codes", () => {
     const gameState = {
       teams: [
@@ -152,7 +152,7 @@ describe("buildFallbackRegions", () => {
       league({ country_id: "BR", region_id: "south_america" }),
     ];
 
-    const regions = buildFallbackRegions(t, gameState, competitions);
+    const regions = regionsFromCompetitions(t, gameState, competitions);
     const byId = Object.fromEntries(regions.map((region) => [region.id, region.country_codes]));
 
     expect(byId.europe).toEqual(["ES", "FR"]);
@@ -170,7 +170,7 @@ describe("buildFallbackRegions", () => {
     } as unknown as GameStateData;
     const competitions = [league({ country_id: "ES", region_id: "europe" })];
 
-    const regions = buildFallbackRegions(t, gameState, competitions);
+    const regions = regionsFromCompetitions(t, gameState, competitions);
 
     expect(regions.map((region) => region.id)).toEqual(["europe"]);
     expect(regions.flatMap((region) => region.country_codes)).not.toContain("NG");

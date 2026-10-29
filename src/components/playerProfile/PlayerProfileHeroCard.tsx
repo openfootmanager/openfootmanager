@@ -1,22 +1,27 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { Shield } from "lucide-react";
 import { countryName } from "../../lib/countries";
-import { positionBadgeVariant } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
-import { formatPlayerWageCompact, formatPlayerMarketValue } from "./PlayerProfile.helpers";
+import { formatPlayerMarketValue } from "./PlayerProfile.helpers";
 import type { PlayerProfileScoutStatus, ScoutAvailability } from "./PlayerProfile.scouting";
 import PlayerProfileScoutAction from "./PlayerProfileScoutAction";
 import { TraitList } from "../TraitBadge";
 import { Badge, Card, CountryFlag, JerseyIcon, PlayerAvatar } from "../ui";
 import type { TeamData } from "../../store/types";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
+const NO_DATA = "–";
+
 interface PlayerProfileHeroCardProps {
   player: PlayerData;
-  ovr: number;
+  /** Null when the club does not know his rating: the tile reads "–" and takes no tier colour. */
+  ovr: number | null;
   primaryPosition: string;
   age: number;
   teamName: string;
@@ -30,6 +35,12 @@ interface PlayerProfileHeroCardProps {
   onScout: () => void;
   onSelectTeam?: (id: string) => void;
   team?: TeamData;
+  /** The traits the club may see (`visibleTraits`). */
+  traits: string[];
+  /** Condition, morale and the exact wage are shown only for the club's own player. */
+  showsPrivateState: boolean;
+  /** His weekly wage as the club may see it, already written: exact, approximate or "–". */
+  wageText: string;
   t: TranslateFn;
 }
 
@@ -49,8 +60,12 @@ export default function PlayerProfileHeroCard({
   onScout,
   onSelectTeam,
   team,
+  traits,
+  showsPrivateState,
+  wageText,
   t,
 }: PlayerProfileHeroCardProps) {
+  const tierOf = useRatingTiers();
   const teamContextItems =
     player.team_id && onSelectTeam
       ? [buildViewTeamMenuItem(t, () => onSelectTeam(player.team_id!))]
@@ -59,18 +74,17 @@ export default function PlayerProfileHeroCard({
   return (
     <Card accent="primary" className="mb-5">
       <div className="bg-linear-to-r from-navy-700 to-navy-800 p-8 rounded-t-xl">
-        <div className="flex items-start gap-6">
+        <div className="flex flex-wrap items-start gap-6">
           <PlayerAvatar
             player={player}
-            className={`w-24 h-24 rounded-2xl flex items-center justify-center font-heading font-bold text-4xl border-2 overflow-hidden ${
-              ovr >= 75
-                ? "bg-primary-500/20 text-primary-400 border-primary-500/30"
-                : ovr >= 55
-                  ? "bg-accent-500/20 text-accent-400 border-accent-500/30"
-                  : "bg-gray-500/20 text-gray-400 border-gray-500/30"
-            }`}
-            fallback={<span>{ovr}</span>}
+            className="w-24 h-24 shrink-0 rounded-2xl flex items-center justify-center font-heading font-bold text-3xl border-2 border-white/10 bg-white/5 text-gray-300 overflow-hidden"
           />
+          <div
+            className={`flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-2xl border-2 font-heading ${ovr === null ? "border-white/10 bg-white/5 text-chrome-fg-muted" : ratingTierClass(tierOf(ovr), "hero")}`}
+          >
+            <span className="text-xs font-bold uppercase tracking-wider">{t("common.ovr")}</span>
+            <span className="text-4xl font-bold leading-none">{ovr ?? NO_DATA}</span>
+          </div>
           {player.jersey_number != null && team != null && (
             <JerseyIcon
               primaryColor={team.colors.primary}
@@ -81,20 +95,18 @@ export default function PlayerProfileHeroCard({
               className="flex-shrink-0 self-center"
             />
           )}
-          <div className="flex-1">
-            <h2 className="text-3xl font-heading font-bold text-white uppercase tracking-wide">
+          <div className="min-w-0 flex-1 basis-64">
+            <h2 className="text-3xl font-heading font-bold text-white uppercase tracking-wide break-words">
               {player.full_name}
             </h2>
-            <div className="flex items-center gap-3 mt-2">
-              <Badge variant={positionBadgeVariant(primaryPosition)}>
-                {translatePositionLabel(t, primaryPosition)}
-              </Badge>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
+              <PlayerPositionBadge position={primaryPosition} long />
               {player.alternate_positions?.map((alternatePosition) => (
                 <Badge key={alternatePosition} variant="neutral">
                   {translatePositionLabel(t, alternatePosition)}
                 </Badge>
               ))}
-              <span className="text-gray-400 text-sm">
+              <span className="whitespace-nowrap text-gray-400 text-sm">
                 <CountryFlag
                   code={player.nationality}
                   locale={language}
@@ -103,15 +115,15 @@ export default function PlayerProfileHeroCard({
                 {countryName(player.nationality, language)}
               </span>
               <span className="text-gray-500">•</span>
-              <span className="text-gray-400 text-sm">
+              <span className="whitespace-nowrap text-gray-400 text-sm">
                 {t("common.age")} {age}
               </span>
               <span className="text-gray-500">•</span>
-              <span className="text-gray-400 text-sm">
+              <span className="whitespace-nowrap text-gray-400 text-sm">
                 {t("common.footednessLabel")}: {footednessLabel}
               </span>
               <span className="text-gray-500">•</span>
-              <span className="text-gray-400 text-sm">
+              <span className="whitespace-nowrap text-gray-400 text-sm">
                 {t("common.weakFoot")}: {weakFootValue}/5
               </span>
             </div>
@@ -132,9 +144,9 @@ export default function PlayerProfileHeroCard({
                 <span>{teamName}</span>
               )}
             </p>
-            {player.traits && player.traits.length > 0 ? (
+            {traits.length > 0 ? (
               <div className="mt-3">
-                <TraitList traits={player.traits} size="sm" />
+                <TraitList traits={traits} size="sm" />
               </div>
             ) : null}
           </div>
@@ -150,16 +162,28 @@ export default function PlayerProfileHeroCard({
             </div>
           ) : null}
 
-          <div className="hidden md:grid grid-cols-2 gap-3">
+          <div className="hidden md:grid grid-cols-2 gap-3 shrink-0">
             <QuickStat
               label={t("common.condition")}
-              value={`${player.condition}%`}
-              color={player.condition >= 70 ? "text-primary-400" : "text-red-400"}
+              value={showsPrivateState ? `${player.condition}%` : NO_DATA}
+              color={
+                !showsPrivateState
+                  ? "text-chrome-fg-muted"
+                  : player.condition >= 70
+                    ? "text-primary-400"
+                    : "text-red-400"
+              }
             />
             <QuickStat
               label={t("common.morale")}
-              value={`${player.morale}%`}
-              color={player.morale >= 70 ? "text-primary-400" : "text-accent-400"}
+              value={showsPrivateState ? `${player.morale}%` : NO_DATA}
+              color={
+                !showsPrivateState
+                  ? "text-chrome-fg-muted"
+                  : player.morale >= 70
+                    ? "text-primary-400"
+                    : "text-accent-400"
+              }
             />
             <QuickStat
               label={t("common.value")}
@@ -168,8 +192,8 @@ export default function PlayerProfileHeroCard({
             />
             <QuickStat
               label={t("common.wage")}
-              value={formatPlayerWageCompact(player.wage)}
-              color="text-white"
+              value={wageText}
+              color={wageText === NO_DATA ? "text-chrome-fg-muted" : "text-white"}
             />
           </div>
         </div>
@@ -178,13 +202,25 @@ export default function PlayerProfileHeroCard({
       <div className="grid grid-cols-4 gap-px bg-gray-200 dark:bg-navy-600 md:hidden">
         <MobileQuickStat
           label={t("common.condition")}
-          value={`${player.condition}%`}
-          color={player.condition >= 70 ? "text-primary-500" : "text-red-500"}
+          value={showsPrivateState ? `${player.condition}%` : NO_DATA}
+          color={
+            !showsPrivateState
+              ? "text-fg-muted"
+              : player.condition >= 70
+                ? "text-primary-500"
+                : "text-red-500"
+          }
         />
         <MobileQuickStat
           label={t("common.morale")}
-          value={`${player.morale}%`}
-          color={player.morale >= 70 ? "text-primary-500" : "text-accent-500"}
+          value={showsPrivateState ? `${player.morale}%` : NO_DATA}
+          color={
+            !showsPrivateState
+              ? "text-fg-muted"
+              : player.morale >= 70
+                ? "text-primary-500"
+                : "text-accent-500"
+          }
         />
         <MobileQuickStat
           label={t("common.value")}
@@ -193,8 +229,8 @@ export default function PlayerProfileHeroCard({
         />
         <MobileQuickStat
           label={t("common.wage")}
-          value={formatPlayerWageCompact(player.wage)}
-          color="text-gray-700 dark:text-gray-200"
+          value={wageText}
+          color={wageText === NO_DATA ? "text-fg-muted" : "text-gray-700 dark:text-gray-200"}
         />
       </div>
     </Card>

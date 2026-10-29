@@ -10,6 +10,9 @@ use chrono::{Datelike, Duration, Utc};
 use ofm_core::career::StartPhase;
 use ofm_core::world::{start_date_for_year, MIN_START_YEAR};
 
+/// A manager must be at least this old on the day the career opens.
+const MANAGER_MINIMUM_AGE: i32 = 30;
+const MANAGER_MAXIMUM_AGE: i32 = 99;
 pub(super) const DEFAULT_GENERATED_HISTORY_DEPTH_YEARS: u32 = 12;
 pub(super) const MAX_GENERATED_HISTORY_DEPTH_YEARS: u32 = 24;
 
@@ -59,6 +62,54 @@ pub(super) fn current_date_for_phase(
         StartPhase::SeasonStart => start_date,
         StartPhase::MidSeason => start_date + Duration::days(120),
     })
+}
+
+/// The translation key of what is wrong with a manager's date of birth on the day a career opens,
+/// or `None` when it will do. The one rule: `start_new_game` and the create-manager form both ask it.
+pub(super) fn manager_age_error(
+    birth_date: chrono::NaiveDate,
+    opening: chrono::NaiveDate,
+) -> Option<&'static str> {
+    let age = domain::age::age_between(birth_date, opening);
+    if age < MANAGER_MINIMUM_AGE {
+        Some("be.error.createManager.minAge")
+    } else if age > MANAGER_MAXIMUM_AGE {
+        Some("be.error.createManager.invalidDob")
+    } else {
+        None
+    }
+}
+
+/// Refuses a manager the age rule rejects on the day this world's career opens: the clock
+/// `start_new_game` builds, which a historical snapshot sets itself. This is the last word; the
+/// form can only check the generated-world date (`manager_dob_error`).
+pub(super) fn check_manager_age(
+    birth_date: chrono::NaiveDate,
+    clock: &ofm_core::clock::GameClock,
+) -> Result<(), String> {
+    match manager_age_error(birth_date, clock.current_date.date_naive()) {
+        Some(key) => Err(key.to_string()),
+        None => Ok(()),
+    }
+}
+
+/// What the create-manager form asks before a world has been chosen: the date of birth against the
+/// day a generated world's career opens on (`current_date_for_phase`: 1 June in a World Cup summer,
+/// 1 July otherwise, plus 120 days mid-season). A historical package can set its own opening date,
+/// so `start_new_game` still has the last word. `Err` is a bad year or phase, which is the caller's
+/// mistake; `Ok(Some(key))` is a finding about the date of birth.
+pub(super) fn manager_dob_error(
+    dob: &str,
+    start_year: i32,
+    start_phase: &str,
+) -> Result<Option<String>, String> {
+    let start_phase = StartPhase::parse(start_phase)
+        .ok_or_else(|| "be.error.createManager.invalidStartPhase".to_string())?;
+    let opening = current_date_for_phase(start_year, start_phase)?.date_naive();
+    let Ok(birth_date) = chrono::NaiveDate::parse_from_str(dob, "%Y-%m-%d") else {
+        return Ok(Some("be.error.createManager.invalidDobFormat".to_string()));
+    };
+    Ok(manager_age_error(birth_date, opening).map(str::to_string))
 }
 
 pub(super) fn normalize_startup_options(
@@ -389,6 +440,86 @@ mod tests {
         );
     }
 
+    /// Given a manager born on 15 June 1996 and a career opening in 2026, a World Cup summer
+    ///       (the clock starts on 1 June, not 1 July)
+    /// When the form asks whether the date of birth will do
+    /// Then he is 29 on the day the career opens, so he is too young; and in 2027, which opens on
+    ///      1 July, a manager born on 15 June 1997 is 30 and passes.
+    #[test]
+    fn manager_dob_is_checked_against_the_day_the_career_really_opens() {
+        assert_eq!(
+            manager_dob_error("1996-06-15", 2026, "seasonStart").unwrap(),
+            Some("be.error.createManager.minAge".to_string())
+        );
+        assert_eq!(
+            manager_dob_error("1997-06-15", 2027, "seasonStart").unwrap(),
+            None
+        );
+    }
+
+    /// Given a 2026 career, which opens on 1 June
+    /// When managers born on 1 June and on 2 June of the years that make them 30 and 99 are checked
+    /// Then exactly 30 and exactly 99 pass, and a day short of 30 or a day past 99 do not: the age
+    ///      limits are inclusive at 30 and at 99.
+    #[test]
+    fn manager_age_limits_are_inclusive_to_the_day() {
+        let age_30_today = manager_dob_error("1996-06-01", 2026, "seasonStart").unwrap();
+        let almost_30 = manager_dob_error("1996-06-02", 2026, "seasonStart").unwrap();
+        let age_99_today = manager_dob_error("1927-06-01", 2026, "seasonStart").unwrap();
+        let age_100_today = manager_dob_error("1926-06-01", 2026, "seasonStart").unwrap();
+
+        assert_eq!(age_30_today, None);
+        assert_eq!(almost_30, Some("be.error.createManager.minAge".to_string()));
+        assert_eq!(age_99_today, None);
+        assert_eq!(
+            age_100_today,
+            Some("be.error.createManager.invalidDob".to_string())
+        );
+    }
+
+    /// Given a manager born on 1 August 1996 and a 2026 career
+    /// When the career opens at the start of the season (1 June) and mid-season (29 September)
+    /// Then he is 29 at the start and 30 mid-season: he turns 30 in between, so the phase decides.
+    #[test]
+    fn manager_dob_follows_the_start_phase() {
+        assert_eq!(
+            manager_dob_error("1996-08-01", 2026, "seasonStart").unwrap(),
+            Some("be.error.createManager.minAge".to_string())
+        );
+        assert_eq!(
+            manager_dob_error("1996-08-01", 2026, "midSeason").unwrap(),
+            None
+        );
+    }
+
+    /// Given dates of birth that make a manager 100, that are not dates, and that are fine
+    /// When the form asks
+    /// Then they answer invalidDob, invalidDobFormat and nothing; an unknown start phase or year is
+    ///      the caller's error, not a finding about the date of birth.
+    #[test]
+    fn manager_dob_names_each_kind_of_problem() {
+        assert_eq!(
+            manager_dob_error("1900-01-01", 2026, "seasonStart").unwrap(),
+            Some("be.error.createManager.invalidDob".to_string())
+        );
+        assert_eq!(
+            manager_dob_error("not-a-date", 2026, "seasonStart").unwrap(),
+            Some("be.error.createManager.invalidDobFormat".to_string())
+        );
+        assert_eq!(
+            manager_dob_error("1980-01-01", 2026, "seasonStart").unwrap(),
+            None
+        );
+        assert_eq!(
+            manager_dob_error("1980-01-01", 2026, "nextWeek").unwrap_err(),
+            "be.error.createManager.invalidStartPhase"
+        );
+        assert_eq!(
+            manager_dob_error("1980-01-01", i32::MAX, "seasonStart").unwrap_err(),
+            "be.error.createManager.invalidStartYear"
+        );
+    }
+
     #[test]
     fn age_on_date_changes_between_season_start_and_midseason() {
         let birth_date = chrono::NaiveDate::from_ymd_opt(2008, 8, 1).unwrap();
@@ -428,6 +559,33 @@ mod tests {
             i64::from(domain::age::age_between(birth_date, reference_date)),
             29
         );
+    }
+
+    /// Given a historical-snapshot package whose career opens on 20 November 2031 whatever the start
+    ///       year says, and managers born on 15 December 2001 (29 that day) and on 20 November 2001
+    ///       (30 that day)
+    /// When `check_manager_age`, the check `start_new_game` makes, runs against the world's own clock
+    /// Then the first is refused with minAge and the second passes, although the form, which only
+    ///      knows a generated world's date, lets the first through for the same 2032 start: the
+    ///      backend has the last word.
+    #[test]
+    fn check_manager_age_refuses_a_manager_too_young_on_the_snapshot_date() {
+        let startup_options = StartupOptions {
+            start_year: 2032,
+            start_phase: StartPhase::MidSeason,
+            history_depth_years: DEFAULT_GENERATED_HISTORY_DEPTH_YEARS,
+        };
+        let world = make_historical_snapshot_world();
+        let clock = game_clock_for_world(&startup_options, &world.metadata).unwrap();
+        let too_young = chrono::NaiveDate::from_ymd_opt(2001, 12, 15).unwrap();
+        let just_old_enough = chrono::NaiveDate::from_ymd_opt(2001, 11, 20).unwrap();
+
+        assert_eq!(
+            check_manager_age(too_young, &clock),
+            Err("be.error.createManager.minAge".to_string())
+        );
+        assert_eq!(check_manager_age(just_old_enough, &clock), Ok(()));
+        assert_eq!(manager_dob_error("2001-12-15", 2032, "midSeason"), Ok(None));
     }
 
     #[test]
@@ -713,5 +871,110 @@ mod tests {
             .managers
             .iter()
             .any(|manager| !manager.career_history.is_empty()));
+    }
+
+    /// A new-game request for a world read from `world_file`, as the screens would send it: a 2032
+    /// mid-season start (which a historical snapshot overrides with its own date).
+    fn request_for_world(
+        dob: &str,
+        world_file: &std::path::Path,
+    ) -> crate::commands::game::NewGameRequest {
+        crate::commands::game::NewGameRequest {
+            first_name: "Alex".to_string(),
+            last_name: "Manager".to_string(),
+            dob: dob.to_string(),
+            nationality: "GB".to_string(),
+            startup_options: Some(
+                serde_json::from_str(r#"{"startYear":2032,"startPhase":"midSeason"}"#).unwrap(),
+            ),
+            world_source: Some(world_file.to_string_lossy().into_owned()),
+            competition_definitions_json: None,
+            package_ids: None,
+        }
+    }
+
+    /// A historical-snapshot world written to disk (its career opens on 20 November 2031, whatever
+    /// the start year says), the environment to read it with, and the directory to remove after.
+    fn snapshot_world_on_disk(
+        tag: &str,
+    ) -> (
+        std::path::PathBuf,
+        std::path::PathBuf,
+        crate::commands::game::StartEnvironment,
+    ) {
+        let dir = crate::commands::game::testkit::temp_pkg_dir(tag);
+        let world_file = dir.join("snapshot-world.json");
+        std::fs::write(
+            &world_file,
+            serde_json::to_string(&make_historical_snapshot_world()).unwrap(),
+        )
+        .unwrap();
+        let environment = crate::commands::game::StartEnvironment {
+            packages_dir: Err("no packages in this test".to_string()),
+            asset_root: None,
+            sources: ofm_core::generator::DefinitionSources::embedded_only(),
+        };
+        (dir, world_file, environment)
+    }
+
+    /// Given a historical-snapshot world whose career opens on 20 November 2031, and a manager born
+    ///       on 15 December 2001 (29 on that date, though 30 on the form's 2032 date)
+    /// When `start_new_game_internal` starts a career for him
+    /// Then it refuses with minAge and installs no game: the age refusal is the command's own,
+    ///      against the clock the world sets.
+    #[test]
+    fn start_new_game_internal_refuses_a_manager_too_young_on_the_snapshot_clock() {
+        let (dir, world_file, environment) = snapshot_world_on_disk("sng-too-young");
+        let state = ofm_core::state::StateManager::new();
+
+        let refused = crate::commands::game::start_new_game_internal(
+            &state,
+            request_for_world("2001-12-15", &world_file),
+            &environment,
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(
+            refused.err().as_deref(),
+            Some("be.error.createManager.minAge")
+        );
+        assert!(state.get_game(|_| ()).is_none());
+    }
+
+    /// Given the same snapshot world and a manager born on 20 November 2001 (30 on that date)
+    /// When `start_new_game_internal` starts a career for him
+    /// Then he gets his career, and it is installed as the active game.
+    #[test]
+    fn start_new_game_internal_accepts_a_manager_old_enough_on_the_snapshot_clock() {
+        let (dir, world_file, environment) = snapshot_world_on_disk("sng-old-enough");
+        let state = ofm_core::state::StateManager::new();
+
+        let accepted = crate::commands::game::start_new_game_internal(
+            &state,
+            request_for_world("2001-11-20", &world_file),
+            &environment,
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(accepted.unwrap().manager.date_of_birth, "2001-11-20");
+        assert!(state.get_game(|_| ()).is_some());
+    }
+
+    /// Given an empty list of package ids and a world file, with no packages directory at all
+    /// When `start_new_game_internal` starts a career
+    /// Then the empty list means "no packages": it reads the world file instead of failing on the
+    ///      missing packages directory.
+    #[test]
+    fn start_new_game_internal_treats_an_empty_package_list_as_no_packages() {
+        let (dir, world_file, environment) = snapshot_world_on_disk("sng-empty-packages");
+        let state = ofm_core::state::StateManager::new();
+        let mut request = request_for_world("2001-11-20", &world_file);
+        request.package_ids = Some(vec![]);
+
+        let started = crate::commands::game::start_new_game_internal(&state, request, &environment);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(started.is_ok(), "{:?}", started.err());
+        assert!(state.get_game(|_| ()).is_some());
     }
 }

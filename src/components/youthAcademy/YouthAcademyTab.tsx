@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { isEliteTier, ratingTierClass, ratingTierLetterKey } from "../../lib/ratingTier";
 import { useEffect, useRef, useState } from "react";
 import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
@@ -13,7 +15,7 @@ import {
   Button,
   PlayerAvatar,
 } from "../ui";
-import { calcAge, positionBadgeVariant } from "../../lib/helpers";
+import { calcAge } from "../../lib/helpers";
 import { canDelegateToYouthAcademy, isYouthAcademyPlayer } from "../../lib/playerSquad";
 import { TraitList } from "../TraitBadge";
 import { useTranslation } from "react-i18next";
@@ -44,6 +46,7 @@ import type { PlayerSquadRole } from "../../store/types";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import ScoutingYouthRecruitmentCard from "../scouting/ScoutingYouthRecruitmentCard";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface YouthAcademyTabProps {
   gameState: GameStateData | null;
@@ -52,23 +55,13 @@ interface YouthAcademyTabProps {
   onNavigate?: (tab: string, context?: DashboardNavigateContext) => void;
 }
 
-function getPotentialLabel(
-  potential: number,
-  t: (key: string) => string,
-): { label: string; color: string } {
-  if (potential >= 85) return { label: t("youthAcademy.potWorldClass"), color: "text-accent-400" };
-  if (potential >= 75) return { label: t("youthAcademy.potExcellent"), color: "text-green-400" };
-  if (potential >= 65) return { label: t("youthAcademy.potPromising"), color: "text-primary-400" };
-  if (potential >= 55) return { label: t("youthAcademy.potDecent"), color: "text-gray-400" };
-  return { label: t("youthAcademy.potLimited"), color: "text-gray-500" };
-}
-
 export default function YouthAcademyTab({
   gameState,
   onSelectPlayer,
   onGameUpdate,
   onNavigate,
 }: YouthAcademyTabProps) {
+  const tierOf = useRatingTiers();
   const { t, i18n } = useTranslation();
   const { sessionState } = useGameStore();
   const [fetchedStaff, setFetchedStaff] = useState<StaffSlice | null>(null);
@@ -148,7 +141,7 @@ export default function YouthAcademyTab({
     youthPlayers.length > 0
       ? Math.round(youthPlayers.reduce((s, p) => s + p.potential, 0) / youthPlayers.length)
       : 0;
-  const highPotential = youthPlayers.filter((p) => p.potential >= 75).length;
+  const highPotential = youthPlayers.filter((p) => isEliteTier(tierOf(p.potential))).length;
 
   // Youth development staff
   const youthCoach =
@@ -455,7 +448,8 @@ export default function YouthAcademyTab({
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
                 {youthPlayers.map((player) => {
-                  const potLabel = getPotentialLabel(player.potential, t);
+                  const potTier = tierOf(player.potential);
+                  const potLetterKey = ratingTierLetterKey(potTier);
                   const growthRoom = player.potential - player.ovr;
                   const contextItems = [
                     buildViewProfileMenuItem(t, () => onSelectPlayer?.(player.id)),
@@ -502,12 +496,7 @@ export default function YouthAcademyTab({
                           </div>
                         </td>
                         <td className="py-2.5 px-4">
-                          <Badge
-                            variant={positionBadgeVariant(naturalPositionOf(player))}
-                            size="sm"
-                          >
-                            {translatePositionAbbreviation(t, naturalPositionOf(player))}
-                          </Badge>
+                          <PlayerPositionBadge position={naturalPositionOf(player)} />
                         </td>
                         <td className="py-2.5 px-4 text-center">
                           <span className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300 tabular-nums">
@@ -521,15 +510,17 @@ export default function YouthAcademyTab({
                         </td>
                         <td className="py-2.5 px-4 text-center">
                           <span
-                            className={`text-sm font-heading font-bold tabular-nums ${potLabel.color}`}
+                            className={`text-sm font-heading font-bold tabular-nums ${ratingTierClass(potTier, "text")}`}
                           >
                             {player.potential}
                           </span>
-                          <p
-                            className={`text-[9px] font-heading uppercase tracking-wider ${potLabel.color}`}
-                          >
-                            {potLabel.label}
-                          </p>
+                          {potLetterKey && (
+                            <p
+                              className={`text-caption font-heading uppercase tracking-wider ${ratingTierClass(potTier, "text")}`}
+                            >
+                              {t(potLetterKey)}
+                            </p>
+                          )}
                         </td>
                         <td className="py-2.5 px-4">
                           <div className="flex items-center gap-2">

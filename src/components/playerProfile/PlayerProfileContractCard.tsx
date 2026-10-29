@@ -11,23 +11,28 @@ import {
   UserPlus,
 } from "lucide-react";
 import {
+  contractExpiryLabel,
   formatDate,
   getContractRiskBadgeVariant,
   getContractYearsRemaining,
 } from "../../lib/helpers";
-import { formatPlayerWage, formatPlayerMarketValue } from "./PlayerProfile.helpers";
+import { formatPlayerMarketValue } from "./PlayerProfile.helpers";
 import { Badge, Button, Card, CardBody, CardHeader } from "../ui";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
+
+const NO_DATA = "–";
 
 interface PlayerProfileContractCardProps {
   dateOfBirth: string;
   contractEnd: string | null;
   currentDate: string;
-  condition: number;
-  morale: number;
+  /** Null when the club may not see it: only its own player's condition, morale and wage show. */
+  condition: number | null;
+  morale: number | null;
   marketValue: number;
-  wage: number;
+  /** His weekly wage as the club may see it, already written: exact, approximate or "–". */
+  wageText: string;
   language: string;
   contractRiskLevel: "critical" | "warning" | "stable";
   contractRiskLabel: string;
@@ -50,7 +55,7 @@ export default function PlayerProfileContractCard({
   condition,
   morale,
   marketValue,
-  wage,
+  wageText,
   language,
   contractRiskLevel,
   contractRiskLabel,
@@ -80,7 +85,7 @@ export default function PlayerProfileContractCard({
             label={t("common.contract")}
             value={
               contractEnd
-                ? t("finances.contractExpiresOn", { date: contractEnd })
+                ? contractExpiryLabel(contractEnd, language, t)
                 : t("playerProfile.noContract")
             }
           />
@@ -106,17 +111,17 @@ export default function PlayerProfileContractCard({
           <InfoRow
             icon={<TrendingUp className="w-4 h-4" />}
             label={t("playerProfile.weeklyWage")}
-            value={formatPlayerWage(wage)}
+            value={wageText}
           />
           <InfoRow
             icon={<Heart className="w-4 h-4" />}
             label={t("common.condition")}
-            value={`${condition}%`}
+            value={condition === null ? NO_DATA : `${condition}%`}
           />
           <InfoRow
             icon={<Activity className="w-4 h-4" />}
             label={t("common.morale")}
-            value={`${morale}%`}
+            value={morale === null ? NO_DATA : `${morale}%`}
           />
         </div>
         {isOwnClub ? (
