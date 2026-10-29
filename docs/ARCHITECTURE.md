@@ -227,6 +227,9 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `get_training_focus_attributes` | - | `TrainingFocusAttributes[]` | Which attributes each training focus trains, for outfield players and for goalkeepers; the same table the daily gains use |
 | `get_position_groups` | - | `{ position, group }[]` (17 entries) | The group (`Goalkeeper`, `Defender`, `Midfielder`, `Forward`) of every position, from `ofm_core::position_group` over `Position::to_group_position`, the one rule. Needs no game; feeds `PositionBadge`'s tone through `usePositionGroups` |
 | `get_rating_tiers` | - | `PlayerTier[]` (100 entries) | The tier (`S` 81+, `A` 77-80, `B` 70-76, `Rest`) of every rating from 0 to 99, from `ofm_core::player_tier`, the one rule. Needs no game, so the package editor reads it too; the frontend colours a rating by looking it up (`useRatingTiers`) |
+| `get_hall_of_fame_legends` | - | `HallOfFameLegend[]` | The retired players of the world's archive, ranked by league titles, appearances, goals, then name. A title is a season at a club that won its country's top flight (`ofm_core::hall_of_fame`) |
+| `get_hall_of_fame_champions` | - | `PastChampion[]` | Every league title in the world's past, latest season first, then more wins, then club name. A title is first place in tier 0 of the country's ladder (`ofm_core::hall_of_fame`); a record with a blank or unresolvable `competition_id` keeps the old reading, first place |
+| `get_retired_player` | player_id | `Player` | A retiree's profile, read from the archive |
 | `hire_staff` | staff_id | `Game` | Hire an unattached staff member |
 | `release_staff` | staff_id | `Game` | Release a staff member |
 

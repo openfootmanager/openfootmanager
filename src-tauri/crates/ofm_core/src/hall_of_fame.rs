@@ -506,35 +506,52 @@ mod tests {
         assert_eq!(hall_of_fame_legends(&game)[0].titles, 1);
     }
 
-    /// Given a second division played twice over the same clubs (an Apertura and its Clausura, the
-    ///       second played later, so the ladder keeps it and collapses the first away)
-    /// When a club that won the first half is asked about
-    /// Then it is no champion: a collapsed half is still a second-division table, not an unknown one.
-    #[test]
-    fn a_collapsed_halfs_second_division_win_is_not_a_title() {
-        let mut first_half_winner = champion_team("ap", "Apertura FC", &[]);
-        won_in(&mut first_half_winner, 2038, "div-2-apertura", 30);
-        let mut game = game_with(vec![], vec![first_half_winner]);
+    /// A second division played twice over the same clubs (an Apertura and its Clausura) under the
+    /// top flight, where `later` is the half played last: the ladder keeps that one and collapses
+    /// the other away. A club that won `record_in` is asked about.
+    fn champions_of_a_split_second_division(later: &str, record_in: &str) -> Vec<(u32, String)> {
+        let mut winner = champion_team("half", "Half FC", &[]);
+        won_in(&mut winner, 2038, record_in, 30);
+        let mut game = game_with(vec![], vec![winner]);
         english_ladder(&mut game);
-        for (id, priority, played_on) in [
-            ("div-2-apertura", 3, None),
-            ("div-2-clausura", 4, Some("2038-11-01")),
-        ] {
+        game.competitions
+            .retain(|competition| competition.id != "div-2");
+        for (id, priority) in [("div-2-apertura", 3), ("div-2-clausura", 4)] {
             let mut half = League::new(id.into(), id.into(), 2038, &["x".into(), "y".into()]);
             half.country_id = Some("ENG".into());
             half.priority = priority;
-            if let Some(date) = played_on {
+            if id == later {
                 half.fixtures.push(domain::league::Fixture {
-                    date: date.into(),
+                    date: "2038-11-01".into(),
                     status: domain::league::FixtureStatus::Completed,
                     ..Default::default()
                 });
             }
             game.competitions.push(half);
         }
-        game.competitions
-            .retain(|competition| competition.id != "div-2");
+        champions_of(&game)
+    }
 
-        assert_eq!(champions_of(&game), Vec::<(u32, String)>::new());
+    /// Given a second division played twice, the Clausura last, so the ladder keeps it
+    /// When a club that won the Apertura (the half the ladder collapsed away) is asked about
+    /// Then it is no champion: a collapsed half is still a second-division table, not an unknown one.
+    #[test]
+    fn a_collapsed_apertura_win_is_not_a_title() {
+        assert_eq!(
+            champions_of_a_split_second_division("div-2-clausura", "div-2-apertura"),
+            Vec::<(u32, String)>::new()
+        );
+    }
+
+    /// Given a second division played twice, the Apertura last, so the ladder keeps it
+    /// When a club that won the Clausura (now the collapsed half) is asked about
+    /// Then it is no champion either: the half that survives changes at rollover, and neither
+    ///      half's win is a top-flight title.
+    #[test]
+    fn a_collapsed_clausura_win_is_not_a_title() {
+        assert_eq!(
+            champions_of_a_split_second_division("div-2-apertura", "div-2-clausura"),
+            Vec::<(u32, String)>::new()
+        );
     }
 }

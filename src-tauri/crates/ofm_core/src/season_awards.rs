@@ -1057,6 +1057,7 @@ mod tests {
             lost: 38 - won - drawn,
             goals_for: 50,
             goals_against: 40,
+            competition_id: String::new(),
         });
         team
     }
