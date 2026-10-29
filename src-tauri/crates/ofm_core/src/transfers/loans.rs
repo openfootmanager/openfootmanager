@@ -1665,6 +1665,51 @@ mod tests {
         assert_eq!(loan_development_gains(500, 360, 4), 3);
     }
 
+    /// Given loanees at a club of ordinary standing with 180 minutes and no appearance on record,
+    ///       with two appearances and no minutes, and with 179 minutes in one appearance
+    /// When their loan development is applied
+    /// Then the first two get a cycle each and the third none: either threshold alone is enough
+    #[test]
+    fn either_ordinary_threshold_alone_earns_a_development_cycle() {
+        assert_eq!(
+            [
+                loan_development_gains(500, 180, 0),
+                loan_development_gains(500, 0, 2),
+                loan_development_gains(500, 179, 1),
+            ],
+            [3, 3, 0]
+        );
+    }
+
+    /// Given loanees with exactly 900 minutes, and with 899, and no appearances on record
+    /// When their loan development is applied
+    /// Then 900 minutes earn two cycles and 899 one
+    #[test]
+    fn nine_hundred_loan_minutes_earn_two_development_cycles() {
+        assert_eq!(
+            [
+                loan_development_gains(500, 900, 0),
+                loan_development_gains(500, 899, 0)
+            ],
+            [6, 3]
+        );
+    }
+
+    /// Given loanees with one appearance and no minutes at clubs of reputation 650 and 649
+    /// When their loan development is applied
+    /// Then the first gets a cycle and the second none: a little football counts only at a
+    ///      reputable club, 650 and up
+    #[test]
+    fn a_little_loan_football_counts_from_a_reputation_of_650() {
+        assert_eq!(
+            [
+                loan_development_gains(650, 0, 1),
+                loan_development_gains(649, 0, 1)
+            ],
+            [3, 0]
+        );
+    }
+
     /// Given a loanee whose only football at a reputable club (700) is one appearance of 0 minutes
     /// When his loan development is applied
     /// Then he gets one cycle: an appearance is new football even without minutes.
@@ -1692,6 +1737,19 @@ mod tests {
 
         assert!(ai_should_exercise_loan_buy_option(
             &player, &club, 1_200_000, 1_000, 5
+        ));
+    }
+
+    /// Given a 1,260,000 buy option on a player valued 1,000,000, just over the 1,250,000 a
+    ///       heavily used loanee is worth
+    /// When the loanee played 1,000 minutes in eight appearances
+    /// Then the club does not exercise it
+    #[test]
+    fn a_buy_option_over_a_quarter_above_value_is_not_exercised_however_long_the_spell() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 1_260_000, 1_000, 8
         ));
     }
 

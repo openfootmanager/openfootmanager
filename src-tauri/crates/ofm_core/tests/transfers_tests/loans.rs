@@ -1952,12 +1952,17 @@ fn loan_bid_with_buy_option(
 
 /// Given a loan-listed fringe player valued 1,000,000 who has not played: his owner wants a buy
 ///       option of at least 900,000
-/// When the user bids for him on loan at full wage, with a buy option of 500,000 and then 900,000
-/// Then the first is rejected and the second accepted.
+/// When the user bids for him on loan at full wage, with a buy option of 500,000, 899,999 and
+///      then 900,000
+/// Then the first two are rejected and the third accepted.
 #[test]
 fn a_loan_bid_with_a_buy_option_below_a_fringe_players_price_is_rejected() {
     assert_eq!(
         loan_bid_with_buy_option(1_000_000, false, 500_000),
+        LoanOfferDecision::Rejected
+    );
+    assert_eq!(
+        loan_bid_with_buy_option(1_000_000, false, 899_999),
         LoanOfferDecision::Rejected
     );
     assert_eq!(
