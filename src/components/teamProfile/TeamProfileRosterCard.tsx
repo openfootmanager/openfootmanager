@@ -1,12 +1,14 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { countryName } from "../../lib/countries";
-import { calcAge, formatVal, getPlayerOvr, positionBadgeVariant } from "../../lib/helpers";
+import { calcAge, formatVal, getPlayerOvr } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewProfileMenuItem } from "../playerActions/playerContextMenuItems";
-import { Badge, Card, CardBody, CardHeader, CountryFlag, PlayerAvatar, ProgressBar } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { Card, CardBody, CardHeader, CountryFlag, PlayerAvatar, ProgressBar } from "../ui";
 import type { TeamProfileTranslate } from "./TeamProfile.types";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface TeamProfileRosterCardProps {
   roster: PlayerData[];
@@ -23,6 +25,7 @@ export default function TeamProfileRosterCard({
   t,
   onSelectPlayer,
 }: TeamProfileRosterCardProps) {
+  const tierOf = useRatingTiers();
   return (
     <Card className="lg:col-span-3">
       <CardHeader>
@@ -77,9 +80,7 @@ export default function TeamProfileRosterCard({
                     }`}
                   >
                     <td className="py-3 px-5">
-                      <Badge variant={positionBadgeVariant(naturalPositionOf(player))}>
-                        {translatePositionAbbreviation(t, naturalPositionOf(player))}
-                      </Badge>
+                      <PlayerPositionBadge position={naturalPositionOf(player)} />
                     </td>
                     <td className="py-3 px-5">
                       <div className="flex items-center gap-3 min-w-0">
@@ -118,15 +119,10 @@ export default function TeamProfileRosterCard({
                     )}
                     <td className="py-3 px-5">
                       <span
-                        className={`font-heading font-bold text-lg tabular-nums ${
-                          isOwnTeam
-                            ? ovr >= 75
-                              ? "text-primary-500"
-                              : ovr >= 55
-                                ? "text-accent-500"
-                                : "text-gray-400"
-                            : "text-gray-400"
-                        }`}
+                        className={`font-heading font-bold text-lg tabular-nums ${ratingTierClass(
+                          isOwnTeam ? tierOf(ovr) : "Rest",
+                          "text",
+                        )}`}
                       >
                         {isOwnTeam ? ovr : "??"}
                       </span>

@@ -405,6 +405,37 @@ mod tests {
         assert!(mean_change_after_a_season(35, 70, 200) < -1.0);
     }
 
+    /// Given a save written before ceilings followed decline, in which a 32-year-old rated 70
+    /// still carries a ceiling of 90,
+    /// When his next summer's ageing runs (no rewrite on load),
+    /// Then his ceiling has come down to his rating, and stays there the summer after.
+    #[test]
+    fn an_old_saves_veteran_loses_his_stale_ceiling_at_the_next_summer() {
+        let mut veteran = make_player("old-save", "1994-01-01");
+        veteran.stage_contract_end(Some("2031-06-30".to_string()));
+        veteran.potential = 90;
+        let mut game = make_game(vec![veteran]);
+        let date = game.clock.current_date.date_naive();
+        assert_eq!(
+            game.players[0].potential, 90,
+            "the save is loaded as it was"
+        );
+
+        apply_seasonal_aging(&mut game, date, 1);
+
+        let after = &game.players[0];
+        assert_eq!(
+            after.potential, after.ovr,
+            "ceiling came down with the rating"
+        );
+        let next = date + chrono::Months::new(12);
+        apply_seasonal_aging(&mut game, next, 2);
+        // He may retire in his second summer; if he plays on, his ceiling is still his rating.
+        if let Some(after) = game.players.first() {
+            assert_eq!(after.potential, after.ovr);
+        }
+    }
+
     /// Given a cohort of 26-year-olds rated 70 with a ceiling of 85,
     /// When a season of ageing is applied,
     /// Then they are still growing: development tapers, it does not stop at 26.

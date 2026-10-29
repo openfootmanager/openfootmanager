@@ -44,6 +44,8 @@ export function useFetchedSquad(
           ...player,
           match_day_eligible:
             player.match_day_eligible ?? previousById.get(player.id)?.match_day_eligible,
+          condition_status:
+            player.condition_status ?? previousById.get(player.id)?.condition_status,
         })) ?? null
       );
     });

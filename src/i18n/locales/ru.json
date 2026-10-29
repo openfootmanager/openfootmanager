@@ -170,6 +170,7 @@
     "digestSimulating": "Симуляция...",
     "digestMatchDay": "Игровой день",
     "digestMatchDayDesc": "Сегодня у вашей команды запланирован матч.",
+    "matchModeMenu": "Выбрать режим матча",
     "digestReturnHome": "Вернуться на главную",
     "digestBlocked": "Требуется действие",
     "digestBlockedDesc": "Есть проблемы, требующие вашего внимания перед продолжением.",
@@ -394,14 +395,14 @@
     "traits": "Черты",
     "condition": "Состояние",
     "delegateToYouthAcademy": "Передать в академию",
-    "promoteToSeniorSquad": "Перевести в основную команду",
-    "potWorldClass": "Мировой класс",
-    "potExcellent": "Отличный",
-    "potPromising": "Многообещающий",
-    "potDecent": "Приличный",
-    "potLimited": "Ограниченный"
+    "promoteToSeniorSquad": "Перевести в основную команду"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}-й",
       "two": "{{n}}-й",
@@ -411,6 +412,8 @@
     "currentWage": "Текущая зарплата",
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
+    "overallRating": "Общий уровень {{value}}",
+    "overallRatingTier": "Общий уровень {{value}}, категория {{tier}}",
     "noResults": "Ничего не найдено.",
     "place": {
       "1": "1-е",
@@ -696,21 +699,14 @@
     "coverageNeedsAttention": "{{count}} группам ролей нужна подстраховка",
     "coverageBadge": "XI {{starters}}/{{required}} · Запас {{bench}}",
     "bestRole": "Лучшая роль",
-    "formationFit": "Соответствие схеме",
     "startingXi": "Стартовый состав",
-    "styleFit": "Соответствие стилю",
     "starter": "Основа",
     "benchOption": "Запас",
-    "naturalFit": "Естественная роль",
-    "adaptedFit": "Адаптированная роль",
+    "naturalFit": "Естественная позиция",
+    "adaptedFit": "Может сыграть там",
     "needsCover": "Нужна подмена",
     "makeStarter": "Сделать игроком основы",
-    "sendToBench": "Отправить в запас",
-    "styleFitValues": {
-      "strong": "Соответствие стилю: Сильное",
-      "good": "Соответствие стилю: Хорошее",
-      "risky": "Соответствие стилю: Рискованное"
-    }
+    "sendToBench": "Отправить в запас"
   },
   "tactics": {
     "formationStyle": "Схема и стиль",
@@ -861,8 +857,8 @@
     "setCornerTaker": "Назначить исполнителя угловых",
     "inspector": "Инспектор",
     "inspectorEmptyTitle": "Ничего не выбрано",
-    "naturalFit": "Естественная роль",
-    "adaptedFit": "Адаптированная роль",
+    "naturalFit": "Естественная позиция",
+    "adaptedFit": "Может сыграть там",
     "tokenStates": {
       "ready": "Готов",
       "adjusted": "Адаптирован",
@@ -878,7 +874,7 @@
     "clearSelection": "Сбросить выбор",
     "compareWithSelected": "Сравнить с выбранным",
     "selectForSwap": "Выбрать для обмена",
-    "assignBestFit": "Назначить в лучший слот",
+    "assignBestFit": "Назначить лучшую позицию",
     "moveToBench": "Отправить в запас",
     "promoteToLineup": "Вернуть в основу",
     "tableView": "Табличный вид",
@@ -893,7 +889,6 @@
     "positionSelector": "Тактический слот",
     "playablePositions": "Позиции",
     "slotFit": "Соответствие слоту",
-    "styleFit": "Соответствие стилю",
     "responsibilities": "Обязанности",
     "noSpecialRoles": "Нет особых ролей",
     "moraleLevels": {
@@ -909,11 +904,6 @@
       "sharp": "В тонусе",
       "managing": "Под нагрузкой",
       "risk": "Риск"
-    },
-    "styleFitLevels": {
-      "strong": "Сильное соответствие",
-      "good": "Хорошее соответствие",
-      "risky": "Рискованное соответствие"
     }
   },
   "training": {
@@ -1627,6 +1617,7 @@
     "dateOfBirth": "Дата рождения",
     "noContract": "Без контракта",
     "weeklyWage": "Недельная зарплата",
+    "approximateWage": "около {{wage}}",
     "annualWage": "Годовая зарплата",
     "yearsRemaining": "Осталось лет",
     "contractRisk": "Риск по контракту",
@@ -1846,6 +1837,21 @@
     },
     "uiScale": "Масштаб интерфейса",
     "uiScaleDesc": "Изменить размер шрифта и отступы для удобства чтения",
+    "sidebarWidth": "Ширина боковой панели",
+    "sidebarWidthDesc": "Насколько широка открытая боковая панель. «Широкая» показывает каждый пункт меню в одну строку.",
+    "sidebarWidthOptions": {
+      "compact": "Компактная",
+      "standard": "Стандартная",
+      "wide": "Широкая"
+    },
+    "sidebarBehaviour": "Боковая панель",
+    "sidebarBehaviourDesc": "Как открывается боковая панель. Если окно слишком узкое, она открывается поверх страницы.",
+    "sidebarBehaviourOptions": {
+      "normal": "Обычная",
+      "hover": "Раскрывать при наведении",
+      "click": "Раскрывать по щелчку",
+      "icons": "Только значки"
+    },
     "uiScaleOptions": {
       "small": "Маленький",
       "normal": "Нормальный",
@@ -2002,7 +2008,6 @@
     "alreadyQueued": "Уже в очереди на замену",
     "substitutionsPartlyMade": "Выполнено замен: {{applied}} из {{total}}",
     "substitutionRefused": "Замена отклонена: {{off}} на {{on}}. {{reason}}",
-    "playerRoles": "Роли игроков",
     "roleFor": "Роль игрока {{player}}",
     "roleChangeRefused": "Не удалось сменить роль игрока {{player}}. {{reason}}",
     "noBenchAvailable": "На скамейке нет игроков",
@@ -2266,7 +2271,7 @@
     "preMatchPrep": "Подготовка к матчу",
     "startingLineup": "Стартовый состав",
     "setPiecesCaptain": "Стандарты и капитан",
-    "formationFit": "Соответствие схеме",
+    "formationFit": "Схема",
     "selecting": "Подбираем...",
     "autoSelectXI": "Автоподбор лучшего состава",
     "startingXI": "Стартовый состав",
@@ -2597,7 +2602,11 @@
     "pts": "очк.",
     "cupPenalties": "({{home}}–{{away}} по пенальти)",
     "cupAdvances": "{{team}} проходит дальше",
-    "cupTiesPending": "Некоторые матчи ещё не сыграны"
+    "cupTiesPending": "Некоторые матчи ещё не сыграны",
+    "resume": "Продолжить",
+    "pausedResumesAt": "Пауза · продолжится: {{speed}}",
+    "playingAt": "Идёт: {{speed}}",
+    "spaceKey": "Пробел"
   },
   "endOfSeason": {
     "seasonComplete": "Сезон завершён",
@@ -2638,6 +2647,12 @@
     "compare": "Сравнение"
   },
   "be": {
+    "condition": {
+      "fresh": "Свежий",
+      "tiring": "Устаёт",
+      "exhausted": "Измотан",
+      "critical": "Критично"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Этот игрок не может уйти: состав опустится ниже минимума, который обязан держать клуб. Линия: {{group}}.",
@@ -3643,7 +3658,9 @@
       "weeklyDigest": {
         "headline": "Еженедельный обзор — неделя от {{weekStart}}",
         "bodyNoTopScorer": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а на этой неделе в дивизионе разворачивается {{storylineCount}} важных сюжетов.",
-        "bodyWithTopScorer": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а {{topScorer}} возглавляет гонку бомбардиров с {{topScorerGoals}} голами. На этой неделе в дивизионе разворачивается {{storylineCount}} важных сюжетов."
+        "bodyWithTopScorer": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а {{topScorer}} возглавляет гонку бомбардиров с {{topScorerGoals}} голами. На этой неделе в дивизионе разворачивается {{storylineCount}} важных сюжетов.",
+        "bodyNoTopScorerNoStorylines": "Свежий недельный обзор готов. {{leader}} лидирует в таблице.",
+        "bodyWithTopScorerNoStorylines": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а {{topScorer}} возглавляет гонку бомбардиров с {{topScorerGoals}} голами."
       },
       "preseasonDigest": {
         "headline": "Предсезонный дайджест — неделя {{weekStart}}",

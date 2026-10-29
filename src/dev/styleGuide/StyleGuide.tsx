@@ -1,4 +1,4 @@
-import { Globe, Trophy } from "lucide-react";
+import { FastForward, Globe, Play, SkipForward, Snail, Trophy } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import {
@@ -13,12 +13,19 @@ import {
   Dialog,
   DialogCloseButton,
   InjuryBadge,
+  UnreadBadge,
   JerseyIcon,
   PageToolbar,
   PitchToken,
   PlayerAvatar,
+  PositionBadge,
+  PositionBadges,
   ProgressBar,
+  RatingChip,
+  SegmentedControl,
   Select,
+  Switch,
+  TONE_TEXT,
   TabPanel,
   Tabs,
   TeamLocation,
@@ -105,6 +112,10 @@ const HEIGHTS = [
 ];
 const WIDTHS = [
   { token: "--container-page", use: "the page width (max-w-page)" },
+  { token: "--spacing-sidebar-rail", use: "the sidebar's icon rail (w-sidebar-rail)" },
+  { token: "--spacing-sidebar-compact", use: "the open sidebar, Compact (w-sidebar-compact)" },
+  { token: "--spacing-sidebar-standard", use: "the open sidebar, Standard (w-sidebar-standard)" },
+  { token: "--spacing-sidebar-wide", use: "the open sidebar, Wide (w-sidebar-wide)" },
   {
     token: "--container-split",
     use: "two panels side by side above this container width (@split)",
@@ -248,6 +259,12 @@ function ControlsSection() {
         <Checkbox checked={false} indeterminate onChange={() => undefined} aria-label="Mixed" />
         <Checkbox checked onChange={() => undefined} disabled aria-label="Disabled" />
       </Row>
+      <Row>
+        <Switch label="Switch" checked={checked} onChange={setChecked} />
+        <Switch label="Switch, off" checked={false} onChange={() => undefined} />
+        <Switch label="Switch, disabled on" checked disabled onChange={() => undefined} />
+        <Switch label="Switch, disabled off" checked={false} disabled onChange={() => undefined} />
+      </Row>
       <div className="grid max-w-md gap-3">
         <DatePicker value={date} onChange={setDate} />
         <DatePicker value="" onChange={() => undefined} error />
@@ -268,6 +285,30 @@ function DisplaySection() {
         <Badge size="md">medium</Badge>
         <InjuryBadge injury={{ name: "Hamstring strain", days_remaining: 4 }} />
         <InjuryBadge injury={{ name: "Metatarsal fracture", days_remaining: 42 }} />
+        <UnreadBadge count={3} />
+        <UnreadBadge count={42} />
+        <UnreadBadge count={120} />
+      </Row>
+      <Row>
+        {/* The backend's tiers (S, A, B and the rest), at the row's size and a card's. */}
+        {(
+          [
+            [88, "S"],
+            [79, "A"],
+            [71, "B"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={tier} value={value} tier={tier} />
+        ))}
+        {(
+          [
+            [88, "S"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={`md-${tier}`} value={value} tier={tier} size="md" />
+        ))}
       </Row>
       <div className="grid max-w-md gap-2">
         {(["auto", "primary", "accent", "success", "danger", "muted"] as const).map(
@@ -275,6 +316,22 @@ function DisplaySection() {
             <ProgressBar key={variant} value={95 - i * 17} variant={variant} showLabel />
           ),
         )}
+      </div>
+      {/* The good-to-bad scale the backend rates values on: a tone fills the bar, its word says it. */}
+      <div className="grid max-w-md gap-2">
+        {(
+          [
+            ["good", "Fresh", 90],
+            ["fair", "Tiring", 60],
+            ["low", "Exhausted", 32],
+            ["bad", "Critical", 15],
+          ] as const
+        ).map(([tone, word, value]) => (
+          <div key={tone} className="flex items-center gap-3">
+            <span className={`w-20 text-caption font-semibold ${TONE_TEXT[tone]}`}>{word}</span>
+            <ProgressBar value={value} tone={tone} showLabel className="flex-1" />
+          </div>
+        ))}
       </div>
       <Row>
         <CountryFlag code="BE" />
@@ -352,6 +409,43 @@ const PITCH_FIXTURES = [
   { name: "DUPONT", abbr: "RB", position: "RightBack", ovr: 70, condition: 98, fit: "out" },
 ] as const;
 
+const BADGE_NAMES: Record<string, { label: string; name: string }> = {
+  Striker: { label: "ST", name: "Striker" },
+  RightWinger: { label: "RW", name: "Right Winger" },
+  LeftWinger: { label: "LW", name: "Left Winger" },
+  CenterBack: { label: "CB", name: "Center Back" },
+};
+
+function PositionBadgeSection() {
+  const describe = (position: string) => BADGE_NAMES[position];
+  return (
+    <Section title="Position badges">
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadge position="Striker" {...BADGE_NAMES.Striker} familiarity="natural" />
+        <PositionBadge position="RightWinger" {...BADGE_NAMES.RightWinger} familiarity="adapted" />
+        <PositionBadge position="CenterBack" {...BADGE_NAMES.CenterBack} familiarity="out" />
+        <PositionBadge position="LeftWinger" {...BADGE_NAMES.LeftWinger} kind="alternate" />
+      </div>
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger", "LeftWinger"]}
+          deployed="RightWinger"
+          familiarity="adapted"
+          describe={describe}
+        />
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger"]}
+          deployed="CenterBack"
+          familiarity="out"
+          describe={describe}
+        />
+      </div>
+    </Section>
+  );
+}
+
 function PitchSection() {
   return (
     <Section title="Pitch tokens">
@@ -396,6 +490,8 @@ function NavigationSection() {
   const [page, setPage] = useState("players");
   const [longPage, setLongPage] = useState("market");
   const [view, setView] = useState("list");
+  const [pace, setPace] = useState("normal");
+  const [density, setDensity] = useState("comfortable");
   return (
     <Section title="Navigation">
       <PageToolbar
@@ -462,6 +558,39 @@ function NavigationSection() {
       <TabPanel idPrefix="guide-view" tabId="radar" hidden={view !== "radar"}>
         <p className="text-body text-fg-muted">The attributes as a radar.</p>
       </TabPanel>
+      <p id="guide-pace" className="text-caption text-fg-muted">
+        Speed: a segmented control, strong and stacked
+      </p>
+      <div className="max-w-sm">
+        <SegmentedControl
+          labelledBy="guide-pace"
+          options={[
+            { value: "slow", label: "Slow", icon: <Snail /> },
+            { value: "normal", label: "Normal", icon: <Play /> },
+            { value: "fast", label: "Fast", icon: <FastForward /> },
+            { value: "max", label: "Max", icon: <SkipForward /> },
+          ]}
+          value={pace}
+          onChange={setPace}
+          emphasis="strong"
+          layout="stacked"
+          fill
+        />
+      </div>
+      <p id="guide-density" className="text-caption text-fg-muted">
+        Density: a segmented control, quiet and inline
+      </p>
+      <Row>
+        <SegmentedControl
+          labelledBy="guide-density"
+          options={[
+            { value: "comfortable", label: "Comfortable" },
+            { value: "compact", label: "Compact" },
+          ]}
+          value={density}
+          onChange={setDensity}
+        />
+      </Row>
       <PageToolbar action={<Button size="sm">Hire</Button>} />
     </Section>
   );
@@ -520,6 +649,7 @@ export function StyleGuide({ options }: { options: StyleGuideOptions }) {
         <ControlsSection />
         <DisplaySection />
         <CardsSection />
+        <PositionBadgeSection />
         <PitchSection />
         <DialogSection open={options.dialogOpen} />
       </div>

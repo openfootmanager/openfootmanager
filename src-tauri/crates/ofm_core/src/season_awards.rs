@@ -528,12 +528,14 @@ mod tests {
             "only the division's own scorer is eligible"
         );
         assert!(awards.golden_boot.iter().all(|e| e.team_id == "team1"));
-        assert!(
+        assert_eq!(
             awards
                 .manager_of_season
                 .iter()
-                .all(|e| e.team_id == "team1"),
-            "manager award is scoped to the division"
+                .map(|e| e.manager_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["m1"],
+            "manager award is scoped to the division, and its own manager is in it"
         );
 
         // The unscoped computation still sees the whole world.
@@ -1036,6 +1038,109 @@ mod tests {
 
         assert_eq!(awards.manager_of_season[0].manager_name, "Alex Winner");
         assert_eq!(awards.manager_of_season[0].team_name, "Alpha FC");
+        assert_eq!(
+            awards.manager_of_season[0].value, 83.0,
+            "25 wins and 8 draws"
+        );
+    }
+
+    fn team_with_season(id: &str, name: &str, place: u32, won: u32, drawn: u32) -> Team {
+        let mut team = make_team(id, name);
+        team.history.push(domain::team::TeamSeasonRecord {
+            season: 2025,
+            league_position: place,
+            played: 38,
+            won,
+            drawn,
+            lost: 38 - won - drawn,
+            goals_for: 50,
+            goals_against: 40,
+        });
+        team
+    }
+
+    fn manager_ids(awards: &super::SeasonAwards) -> Vec<&str> {
+        awards
+            .manager_of_season
+            .iter()
+            .map(|entry| entry.manager_id.as_str())
+            .collect()
+    }
+
+    /// Given two clubs with no table this season, read from their records: Alpha first on 60
+    ///       points, Beta second on 70 in another league
+    /// When the world's manager of the season is ranked
+    /// Then Alpha's manager comes first: finishing place outranks points
+    #[test]
+    fn world_manager_award_ranks_by_finishing_place_before_points() {
+        let mut game = make_game(
+            vec![],
+            vec![
+                team_with_season("alpha", "Alpha FC", 1, 18, 6),
+                team_with_season("beta", "Beta FC", 2, 22, 4),
+            ],
+        );
+        game.managers = vec![
+            make_manager("m-alpha", "Ann", "Alpha", Some("alpha")),
+            make_manager("m-beta", "Bo", "Beta", Some("beta")),
+        ];
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(manager_ids(&awards), vec!["m-alpha", "m-beta"]);
+    }
+
+    /// Given the league mirror's table, A first and B second, and a club C outside it whose
+    ///       record says it won its own league on fewer points than B
+    /// When the world's manager of the season is ranked
+    /// Then the two champions come first, A on more points ahead of C, and then B: a place in
+    ///      the mirror's table counts from 1, like every other league's
+    #[test]
+    fn a_mirror_league_champion_ties_with_other_leagues_champions_on_place() {
+        let mut game = make_game(
+            vec![],
+            vec![
+                make_team("a", "A FC"),
+                make_team("b", "B FC"),
+                team_with_season("c", "C FC", 1, 10, 0),
+            ],
+        );
+        let mut league = League::new(
+            "mirror".to_string(),
+            "Mirror League".to_string(),
+            2025,
+            &["a".to_string(), "b".to_string()],
+        );
+        league.standings = vec![
+            domain::league::StandingEntry {
+                team_id: "a".to_string(),
+                played: 20,
+                won: 16,
+                drawn: 2,
+                lost: 2,
+                points: 50,
+                ..domain::league::StandingEntry::new("a".to_string())
+            },
+            domain::league::StandingEntry {
+                team_id: "b".to_string(),
+                played: 20,
+                won: 13,
+                drawn: 1,
+                lost: 6,
+                points: 40,
+                ..domain::league::StandingEntry::new("b".to_string())
+            },
+        ];
+        game.league = Some(league);
+        game.managers = vec![
+            make_manager("m-a", "Ana", "A", Some("a")),
+            make_manager("m-b", "Ben", "B", Some("b")),
+            make_manager("m-c", "Cy", "C", Some("c")),
+        ];
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(manager_ids(&awards), vec!["m-a", "m-c", "m-b"]);
     }
 
     #[test]
@@ -1126,6 +1231,82 @@ mod tests {
                 .all(|entry| entry.player_id != "defender")
         );
     }
+    /// Given two forwards, one who scored four and one who played all season without scoring
+    /// When the golden boot and the assist king are ranked
+    /// Then only the scorer is in the golden boot, and only the forward with an assist is in the
+    ///      assist king: a season without one is no claim to either
+    #[test]
+    fn scoring_and_assist_awards_exclude_players_without_one() {
+        let forward = |id: &str, goals: u32, assists: u32| {
+            make_player(
+                id,
+                id,
+                Some("team1"),
+                Position::Forward,
+                "1998-01-01",
+                PlayerSeasonStats {
+                    appearances: 20,
+                    goals,
+                    assists,
+                    ..PlayerSeasonStats::default()
+                },
+            )
+        };
+        let game = make_game(
+            vec![forward("scorer", 4, 0), forward("provider", 0, 3)],
+            vec![make_team("team1", "Test FC")],
+        );
+
+        let awards = compute_season_awards(&game);
+
+        let ids = |entries: &[super::AwardEntry]| -> Vec<String> {
+            entries
+                .iter()
+                .map(|entry| entry.player_id.clone())
+                .collect()
+        };
+        assert_eq!(
+            (ids(&awards.golden_boot), ids(&awards.assist_king)),
+            (vec!["scorer".to_string()], vec!["provider".to_string()])
+        );
+    }
+
+    /// Given a regular goalkeeper who kept no clean sheet all season, and one who kept three
+    /// When the clean sheet king is ranked
+    /// Then only the keeper with a clean sheet is listed: none is no claim to the award
+    #[test]
+    fn clean_sheet_king_excludes_goalkeepers_without_a_clean_sheet() {
+        let keeper = |id: &str, clean_sheets: u32| {
+            make_player(
+                id,
+                id,
+                Some("team1"),
+                Position::Goalkeeper,
+                "1998-01-01",
+                PlayerSeasonStats {
+                    appearances: 20,
+                    clean_sheets,
+                    ..PlayerSeasonStats::default()
+                },
+            )
+        };
+        let game = make_game(
+            vec![keeper("blank", 0), keeper("three", 3)],
+            vec![make_team("team1", "Test FC")],
+        );
+
+        let awards = compute_season_awards(&game);
+
+        assert_eq!(
+            awards
+                .clean_sheet_king
+                .iter()
+                .map(|entry| entry.player_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["three"]
+        );
+    }
+
     /// Given unrated player seasons, when world and division awards are computed,
     /// then both rating awards are absent and counting awards survive.
     #[test]

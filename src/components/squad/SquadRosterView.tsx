@@ -1,3 +1,5 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import { useId, useMemo, useRef, useState } from "react";
 import type {
@@ -6,7 +8,16 @@ import type {
   PlayerSelectionOptions,
   TeamData,
 } from "../../store/gameStore";
-import { Badge, Card, ProgressBar, Select, CountryFlag, PlayerAvatar, InjuryBadge } from "../ui";
+import {
+  Badge,
+  Card,
+  ProgressBar,
+  Select,
+  CountryFlag,
+  PlayerAvatar,
+  InjuryBadge,
+  PositionBadges,
+} from "../ui";
 import {
   AlertTriangle,
   MoreVertical,
@@ -24,7 +35,6 @@ import {
   getPlayerOvr,
   getContractRiskBadgeVariant,
   getContractYearsRemaining,
-  positionBadgeVariant,
 } from "../../lib/helpers";
 import {
   canDelegateToYouthAcademy,
@@ -43,7 +53,6 @@ import {
   buildDemoteFromStartingXi,
   getBestRoleForFormation,
   getCurrentPosition,
-  getPlayStyleFit,
   buildPitchRows,
   buildPitchSlotRows,
   buildPromoteToStartingXi,
@@ -52,6 +61,7 @@ import {
   getSquadTacticalFit,
   isPlayerOutOfPosition,
   translatePositionAbbreviation,
+  translatePositionLabel,
 } from "./SquadTab.helpers";
 import {
   CORE_POSITIONS,
@@ -102,6 +112,7 @@ export default function SquadRosterView({
   sortState,
   onSortStateChange,
 }: SquadRosterViewProps) {
+  const tierOf = useRatingTiers();
   const { t, i18n } = useTranslation();
   const [playerSearch, setPlayerSearch] = useState("");
   // Ties each visible filter label to its control, so the control is announced by that label.
@@ -243,24 +254,6 @@ export default function SquadRosterView({
   const filteredRoster = useMemo(() => {
     const list = roster.filter((player) => matchesFilters(player));
 
-    // Fit-tier rank: lower is a better fit. Non-XI players sort as -1 so
-    // they cluster together separately from XI-tiered rows.
-    const fitRank = (player: PlayerData): number => {
-      if (!xiIds.has(player.id)) return -1;
-      const fit = getTacticalFit(player);
-      return fit === "natural" ? 0 : fit === "adapted" ? 1 : 2;
-    };
-
-    // Style-fit rank: lower is a better style match.
-    const styleRank = (player: PlayerData): number => {
-      const style = getPlayStyleFit(
-        player,
-        activePlayStyle,
-        getCurrentPosition(player, xiActivePosition),
-      );
-      return style === "strong" ? 0 : style === "good" ? 1 : 2;
-    };
-
     // Contract-remaining rank for sorting: sooner-expiring first when asc.
     // Missing contract_end sorts last.
     const contractRank = (player: PlayerData): string => player.contract_end ?? "9999-99-99";
@@ -285,10 +278,6 @@ export default function SquadRosterView({
 
           return getPlayerOvr(b) - getPlayerOvr(a);
         }
-        case "fit":
-          return fitRank(a) - fitRank(b);
-        case "style":
-          return styleRank(a) - styleRank(b);
         case "age":
           return calcAge(a.date_of_birth) - calcAge(b.date_of_birth);
         case "condition":
@@ -306,7 +295,6 @@ export default function SquadRosterView({
 
     return sortDir === "desc" ? sorted.reverse() : sorted;
   }, [
-    activePlayStyle,
     formation,
     playerSearch,
     positionFilter,
@@ -374,19 +362,22 @@ export default function SquadRosterView({
     }
   };
 
-  const renderPreferredPositionMeta = (player: PlayerData) => (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {getPreferredPositions(player).map((position, index) => (
-        <Badge
-          key={`${player.id}-${position}`}
-          variant={index === 0 ? positionBadgeVariant(position) : "neutral"}
-          size="sm"
-        >
-          {translatePositionAbbreviation(t, position)}
-        </Badge>
-      ))}
-    </div>
-  );
+  const renderPreferredPositionMeta = (player: PlayerData) => {
+    const [natural, ...alternates] = getPreferredPositions(player);
+    const inXI = xiIds.has(player.id);
+    return (
+      <PositionBadges
+        natural={natural}
+        alternates={alternates}
+        deployed={inXI ? getCurrentPosition(player, xiActivePosition) : undefined}
+        familiarity={inXI ? getTacticalFit(player) : undefined}
+        describe={(position) => ({
+          label: translatePositionAbbreviation(t, position),
+          name: translatePositionLabel(t, position),
+        })}
+      />
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -574,20 +565,6 @@ export default function SquadRosterView({
                   sortDir={sortDir}
                   onSort={toggleSort}
                 />
-                <SquadSortHeader
-                  col="fit"
-                  label={t("squad.formationFit")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
-                <SquadSortHeader
-                  col="style"
-                  label={t("squad.styleFit")}
-                  sortKey={sortKey}
-                  sortDir={sortDir}
-                  onSort={toggleSort}
-                />
                 <th className="py-2.5 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                   {t("squad.traits")}
                 </th>
@@ -634,12 +611,8 @@ export default function SquadRosterView({
             <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
               {filteredRoster.map((player) => {
                 const inXI = xiIds.has(player.id);
-                const currentPos = getCurrentPosition(player, xiActivePosition);
                 const ovr = getPlayerOvr(player);
                 const age = calcAge(player.date_of_birth);
-                const wrongPos = inXI && isOutOfPosition(player);
-                const tacticalFit = getTacticalFit(player);
-                const styleFit = getPlayStyleFit(player, activePlayStyle, currentPos);
                 const contractRiskLevel = riskLevelOf(player.id);
                 const contractRiskLabel =
                   contractRiskLevel === "critical"
@@ -824,56 +797,6 @@ export default function SquadRosterView({
                       </td>
                       {/* Position badges: natural + alternates */}
                       <td className="py-2.5 px-4">{renderPreferredPositionMeta(player)}</td>
-                      {/* Formation fit: colored badge for XI (green/amber/red),
-                          neutral badge showing best-role for non-XI. */}
-                      <td className="py-2.5 px-4">
-                        <div className="flex items-center gap-1.5">
-                          {inXI ? (
-                            <Badge
-                              variant={
-                                tacticalFit === "natural"
-                                  ? "success"
-                                  : tacticalFit === "adapted"
-                                    ? "accent"
-                                    : "danger"
-                              }
-                              size="sm"
-                            >
-                              {translatePositionAbbreviation(t, currentPos)}
-                            </Badge>
-                          ) : (
-                            <Badge variant="neutral" size="sm">
-                              {translatePositionAbbreviation(
-                                t,
-                                getBestRoleForFormation(player, formation),
-                              )}
-                            </Badge>
-                          )}
-                          {wrongPos ? (
-                            <span
-                              className="text-amber-500"
-                              title={t("squad.outOfPositionTooltip")}
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                            </span>
-                          ) : null}
-                        </div>
-                      </td>
-                      {/* Style fit */}
-                      <td className="py-2.5 px-4">
-                        <Badge
-                          variant={
-                            styleFit === "strong"
-                              ? "success"
-                              : styleFit === "good"
-                                ? "accent"
-                                : "danger"
-                          }
-                          size="sm"
-                        >
-                          {t(`squad.styleFitValues.${styleFit}`)}
-                        </Badge>
-                      </td>
                       {/* Traits — all of them, wraps as needed */}
                       <td className="py-2.5 px-4">
                         <TraitList traits={player.traits || []} size="xs" />
@@ -882,7 +805,15 @@ export default function SquadRosterView({
                         {age}
                       </td>
                       <td className="py-2.5 px-4 w-28">
-                        <ProgressBar value={player.condition} variant="auto" size="sm" showLabel />
+                        {/* The tone is the backend's band; a roster not yet fetched stays neutral. */}
+                        <ProgressBar
+                          value={player.condition}
+                          variant={player.condition_status ? undefined : "muted"}
+                          tone={player.condition_status?.tone}
+                          size="sm"
+                          showLabel
+                          label={t("common.condition")}
+                        />
                       </td>
                       <td className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400 tabular-nums">
                         {player.morale}
@@ -890,13 +821,7 @@ export default function SquadRosterView({
                       {/* OVR (moved next to identity block) */}
                       <td className="py-2.5 px-4">
                         <span
-                          className={`font-heading font-bold text-sm ${
-                            ovr >= 80
-                              ? "text-primary-500"
-                              : ovr >= 55
-                                ? "text-accent-600 dark:text-accent-400"
-                                : "text-gray-500 dark:text-gray-400"
-                          }`}
+                          className={`font-heading font-bold text-sm ${ratingTierClass(tierOf(ovr), "text")}`}
                         >
                           {ovr}
                         </span>

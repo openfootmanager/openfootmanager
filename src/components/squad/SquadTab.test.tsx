@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type {
@@ -8,6 +8,7 @@ import type {
   TeamData,
 } from "../../store/gameStore";
 import { createPlayer } from "../../test-utils/factories";
+import { ratingTierClass } from "../../lib/ratingTier";
 import SquadTab from "./SquadTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -20,6 +21,11 @@ const riskLevels = vi.hoisted(() => ({
 vi.mock("../../hooks/useContractWarningStages", () => ({
   useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
 }));
+
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -58,7 +64,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 // Squad fixtures rate every player 60 across the board — keepers' handling and reflexes included —
-// so formation and style fit differ only by position. The rest comes from the shared factory.
+// so formation fit differs only by position. The rest comes from the shared factory.
 const makePlayer = (
   id: string,
   position: string,
@@ -198,6 +204,49 @@ describe("SquadTab", () => {
     );
   }
 
+  /**
+   * Given a player on 30 whom the backend's squad projection rates fresh
+   * When Squad lists him
+   * Then his condition bar is painted in the backend's tone, not in a colour picked from 30.
+   */
+  it("paints each condition bar in the backend's tone", async () => {
+    const state = makeGameState();
+    state.players = [
+      makePlayer("p1", "Forward", {
+        full_name: "Rated Fresh",
+        match_name: "Rated Fresh",
+        condition: 30,
+        condition_status: { band: "Fresh", label_key: "be.condition.fresh", tone: "good" },
+      }),
+    ];
+    renderSquadTab(state);
+
+    const row = await screen.findByRole("row", { name: /Rated Fresh/ });
+    const bar = within(row).getByRole("progressbar", { name: "common.condition" });
+    expect(bar.firstElementChild).toHaveClass("bg-tone-good-solid");
+    expect(bar.firstElementChild).not.toHaveClass("bg-danger-solid");
+  });
+
+  /**
+   * Given two senior players rated 76 and 77, either side of the A-tier cut-off
+   * When the roster renders
+   * Then each rating takes the colour of its backend tier (B and A).
+   */
+  it("colours each rating in the roster by its backend tier", async () => {
+    const state = makeGameState();
+    state.players = [
+      makePlayer("gk1", "Goalkeeper", { ovr: 76, match_name: "Seventy Six" }),
+      makePlayer("f1", "Forward", { ovr: 77, match_name: "Seventy Seven" }),
+    ];
+    state.teams[0].starting_xi_ids = [];
+
+    renderSquadTab(state);
+
+    const aTier = await screen.findByText("77");
+    expect(aTier).toHaveClass(...ratingTierClass("A", "text").split(" "));
+    expect(screen.getByText("76")).toHaveClass(...ratingTierClass("B", "text").split(" "));
+  });
+
   // Given a backend-called-up youth, when Squad opens, then the manager can see him.
   it("shows called-up youth in the senior roster", async () => {
     const state = makeGameState();
@@ -229,13 +278,53 @@ describe("SquadTab", () => {
     expect(screen.queryByTestId("bench-player-d5")).not.toBeInTheDocument();
     expect(screen.queryByTestId("pitch-slot-1")).not.toBeInTheDocument();
     expect(screen.queryByText("squad.planStatus")).not.toBeInTheDocument();
-    expect(screen.getByText("squad.formationFit")).toBeInTheDocument();
-    expect(screen.getByText("squad.styleFit")).toBeInTheDocument();
+    // Familiarity rides on the Position column's badges: no column of its own.
+    expect(screen.getByRole("columnheader", { name: /squad\.pos/ })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "squad.formationFit" }),
+    ).not.toBeInTheDocument();
+    // The game does not tell the manager how well a player suits the play style: no column, no chip.
+    expect(screen.queryByText(/styleFit/)).not.toBeInTheDocument();
     expect(screen.getByText("squad.traits")).toBeInTheDocument();
     expect(screen.getByText(/squad.currentPlan/)).toBeInTheDocument();
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
     expect(screen.getAllByText(/squad.needsCover/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/squad.styleFitValues./).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/squad.styleFitValues./)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a starting XI in which the goalkeeper and a forward have swapped slots
+   * When the roster table renders
+   * Then both are read as out of position on their Position badges, with no column of their own
+   *      for it; and the unswapped XI states no such thing.
+   */
+  it("marks a player deployed out of position on his position badge", () => {
+    renderSquadTab(makeGameState());
+    expect(screen.queryAllByText(/, squad\.outOfPosition$/)).toHaveLength(0);
+
+    cleanup();
+    const swapped = makeGameState();
+    swapped.teams[0].starting_xi_ids = [
+      "f1",
+      "d1",
+      "d2",
+      "d3",
+      "d4",
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "gk1",
+      "f2",
+    ];
+    renderSquadTab(swapped);
+
+    expect(screen.getAllByText(/, squad\.outOfPosition$/)).toHaveLength(2);
+    // The fixture's coarse buckets read as adapted in granular slots; only the swapped pair is warned.
+    const warned = screen
+      .getAllByTestId("familiarity-dot")
+      .filter((dot) => dot.classList.contains("bg-warning-solid"));
+    expect(warned).toHaveLength(2);
   });
 
   it("shows progressive injury details in the roster", () => {
