@@ -15,12 +15,14 @@ export function usePlayerKnowledge(
   revision: string,
 ): (playerId: string) => PlayerKnowledge {
   const [knowledge, setKnowledge] = useState<Record<string, PlayerKnowledge>>({});
-  const key = playerIds.join(",");
+  // JSON, not a joined string: a package's ids may hold any character, a comma included.
+  const key = JSON.stringify(playerIds);
 
   useEffect(() => {
-    if (key === "") return;
+    const ids: string[] = JSON.parse(key);
+    if (ids.length === 0) return;
     let cancelled = false;
-    getPlayerKnowledge(key.split(","))
+    getPlayerKnowledge(ids)
       .then((answer) => {
         if (!cancelled) setKnowledge(answer);
       })

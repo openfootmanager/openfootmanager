@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { PlayerKnowledge } from "../services/scoutingService";
 import { usePlayerKnowledge } from "./usePlayerKnowledge";
 
 vi.mock("../services/scoutingService", () => ({ getPlayerKnowledge: vi.fn() }));
@@ -53,6 +54,24 @@ describe("usePlayerKnowledge", () => {
     rerender({ revision: "2026-09-16" });
 
     await waitFor(() => expect(mockedKnowledge).toHaveBeenCalledTimes(2));
+  });
+
+  /**
+   * Given the club's own player, from a package whose ids may hold a comma ("fc,united-9")
+   * When the hook asks about him
+   * Then the backend is asked about that one id, not two halves of it, and he reads as own
+   */
+  it("asks about an id with a comma in it as one id", async () => {
+    mockedKnowledge.mockImplementation(
+      async (ids): Promise<Record<string, PlayerKnowledge>> =>
+        ids.includes("fc,united-9") ? { "fc,united-9": { kind: "own" } } : {},
+    );
+
+    const { result } = renderHook(() => usePlayerKnowledge(["fc,united-9"], "2026-09-15"));
+
+    await waitFor(() => expect(mockedKnowledge).toHaveBeenCalled());
+    expect(mockedKnowledge).toHaveBeenCalledWith(["fc,united-9"]);
+    await waitFor(() => expect(result.current("fc,united-9")).toEqual({ kind: "own" }));
   });
 
   /**
