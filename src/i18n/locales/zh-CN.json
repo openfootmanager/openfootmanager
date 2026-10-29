@@ -1617,6 +1617,7 @@
     "dateOfBirth": "出生日期",
     "noContract": "无合同",
     "weeklyWage": "周薪",
+    "approximateWage": "约 {{wage}}",
     "annualWage": "年薪",
     "yearsRemaining": "剩余年限",
     "contractRisk": "合同风险",
