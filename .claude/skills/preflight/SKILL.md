@@ -149,9 +149,10 @@ run's missed and timed-out lists:
 
 ```bash
 out="$(git rev-parse --git-path mutants-in-diff)/mutants.out"
-cat "$out/missed.txt" "$out/timeout.txt" > /tmp/survivors.txt
+survivors="$(mktemp)"   # a file of your own: other agents re-check on this machine too
+cat "$out/missed.txt" "$out/timeout.txt" > "$survivors"
 # (copy them first: every run starts by clearing that directory)
-MUTANTS_IN_DIFF_ONLY=/tmp/survivors.txt scripts/mutants-in-diff.sh
+MUTANTS_IN_DIFF_ONLY="$survivors" scripts/mutants-in-diff.sh
 ```
 
 Each name is matched by its file and mutation, not its line, so a test or a fix above it does

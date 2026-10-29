@@ -206,6 +206,15 @@ pub fn promote_club_internal(state: &StateManager, name: &str) -> Result<(), Str
 }
 
 #[tauri::command]
+pub fn club_size(state: State<'_, Arc<StateManager>>) -> Result<usize, String> {
+    club_size_internal(&state).map(|players| players.len() + 1)
+}
+
+pub fn club_size_internal(state: &StateManager) -> Result<Vec<u32>, String> {
+    Ok(vec![])
+}
+
+#[tauri::command]
 pub fn club_count(state: State<'_, Arc<StateManager>>) -> usize {
     3
 }
@@ -219,6 +228,7 @@ if grep -q -F -- 'src/commands/club\.rs:[0-9]+:[0-9]+: (replace rename_club( ->|
     grep -q -F -- '(replace rebuild_club( ->| with )|.* in rebuild_club$)' "$scratch/cargo.log" &&
     ! grep -q -- 'club_count' "$scratch/cargo.log" &&
     ! grep -q -- 'promote_club' "$scratch/cargo.log" &&
+    ! grep -q -- 'club_size' "$scratch/cargo.log" &&
     ! grep -q -- 'in rename_club_internal' "$scratch/cargo.log"; then
     passed=$((passed + 1)); echo "  ok    and a command with logic of its own, even beside an _internal, and the _internal itself, are not"
 else
@@ -281,6 +291,10 @@ if ran_list && ! ran_mutants; then
 else
     failed=$((failed + 1)); echo "  FAIL  a mutation run started with a survivor unaccounted for"
 fi
+all_gone="$scratch/survivors-all-gone"
+echo 'crates/core/src/lib.rs:9:1: replace answer -> u32 with 1' > "$all_gone"
+expect 1 "a re-check whose survivors are all gone is refused, not reported as zero mutants" \
+    "replace answer -> u32 with 1" -- FAKE_LIST=0 MUTANTS_IN_DIFF_ONLY="$all_gone"
 : > "$scratch/no-survivors"
 expect 1 "a re-check with no survivors named is refused" "names no mutant" -- \
     FAKE_LIST=1 MUTANTS_IN_DIFF_ONLY="$scratch/no-survivors"

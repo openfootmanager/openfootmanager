@@ -78,12 +78,27 @@ collect_exclusions() {
             grep -Eq "fn ${name}_internal[<(]" "$file" &&
                 excluded+=(--exclude-re "$(function_pattern "${file#src-tauri/}" "$name")")
         done < <(awk '
-            function only_forwards(text, name) {
+            # What follows the parenthesis that closes the call whose `(` is at `open`; "?" when
+            # the parentheses never balance.
+            function after_call(text, open,   i, depth, c) {
+                depth = 0
+                for (i = open; i <= length(text); i++) {
+                    c = substr(text, i, 1)
+                    if (c == "(") depth++
+                    else if (c == ")" && --depth == 0) return substr(text, i + 1)
+                }
+                return "?"
+            }
+            function only_forwards(text, name,   call, wrapped) {
                 while (sub(/^(log::)?(trace|debug|info|warn|error)!\("([^"\\]|\\.)*"[^;]*\);/, "", text)) {}
                 sub(/^letstate=state\.inner\(\)\.clone\(\);/, "", text)
-                if (text ~ /[;{]/) return 0
-                return index(text, name "_internal(") == 1 ||
-                    index(text, "run_off_thread(move||" name "_internal(") == 1
+                call = name "_internal("
+                wrapped = "run_off_thread(move||" call
+                # The call is the whole body: nothing may follow it but the off-thread wrapper.
+                if (index(text, call) == 1) return after_call(text, length(call)) == ""
+                if (index(text, wrapped) == 1)
+                    return after_call(text, length(wrapped)) == ").await"
+                return 0
             }
             /#\[tauri::command\]/ { command = 1; name = ""; next }
             command && name == "" && match($0, /fn [A-Za-z_][A-Za-z0-9_]*/) {
@@ -173,11 +188,6 @@ fi
 
 listed="$(cd src-tauri && "${cargo[@]}" mutants --workspace --in-diff "$patch" \
     "${excluded[@]}" "${only[@]}" "${shard[@]}" --list)" || exit 1
-count="$(printf '%s' "$listed" | grep -c .)"
-if [ "$count" -eq 0 ]; then
-    echo "Mutants on the diff: 0 mutants (the branch changes no Rust production line)"
-    exit 0
-fi
 # A survivor whose function or mutation has changed since the first run matches nothing now. The
 # run would go ahead without it and its counts would read as the whole re-check, so name it and
 # stop. A shard lists only its share, so the check needs the whole listing.
@@ -193,6 +203,11 @@ if [ "${#wanted[@]}" -gt 0 ] && [ "${#shard[@]}" -eq 0 ]; then
         printf '  %s\n' "${unmatched[@]}" >&2
         exit 1
     fi
+fi
+count="$(printf '%s' "$listed" | grep -c .)"
+if [ "$count" -eq 0 ]; then
+    echo "Mutants on the diff: 0 mutants (the branch changes no Rust production line)"
+    exit 0
 fi
 # Measured in the trial: a 130-mutant diff never finished on the shared machine (two memory kills
 # in three attempts); three cloud shards did it in about 35 minutes each. A re-check is exempt, and
