@@ -206,6 +206,24 @@ pub fn promote_club_internal(state: &StateManager, name: &str) -> Result<(), Str
 }
 
 #[tauri::command]
+pub fn club_badge(state: State<'_, Arc<StateManager>>, name: Option<String>) -> Result<(), String> {
+    club_badge_internal(&state, name.as_deref())
+}
+
+pub fn club_badge_internal(state: &StateManager, name: Option<&str>) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
+pub fn club_rank(state: State<'_, Arc<StateManager>>, limit: Option<u32>) -> Result<(), String> {
+    club_rank_internal(&state, limit.unwrap_or(50))
+}
+
+pub fn club_rank_internal(state: &StateManager, limit: u32) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
 pub fn club_size(state: State<'_, Arc<StateManager>>) -> Result<usize, String> {
     club_size_internal(&state).map(|players| players.len() + 1)
 }
@@ -226,6 +244,8 @@ PREPARE=add_commands expect 0 "a command that only forwards to its _internal is 
 if grep -q -F -- 'src/commands/club\.rs:[0-9]+:[0-9]+: (replace (.*::)?rename_club( ->| with )|.* in (.*::)?rename_club$)' "$scratch/cargo.log" &&
     grep -q -F -- '(replace (.*::)?relocate_club( ->| with )|.* in (.*::)?relocate_club$)' "$scratch/cargo.log" &&
     grep -q -F -- '(replace (.*::)?rebuild_club( ->| with )|.* in (.*::)?rebuild_club$)' "$scratch/cargo.log" &&
+    grep -q -F -- '(replace (.*::)?club_badge( ->| with )|.* in (.*::)?club_badge$)' "$scratch/cargo.log" &&
+    ! grep -q -- 'club_rank' "$scratch/cargo.log" &&
     ! grep -q -- 'club_count' "$scratch/cargo.log" &&
     ! grep -q -- 'promote_club' "$scratch/cargo.log" &&
     ! grep -q -- 'club_size' "$scratch/cargo.log" &&

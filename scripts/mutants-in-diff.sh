@@ -80,16 +80,21 @@ collect_exclusions() {
             grep -Eq "fn ${name}_internal[<(]" "$file" &&
                 excluded+=(--exclude-re "$(function_pattern "${file#src-tauri/}" "$name")")
         done < <(awk '
-            # What follows the parenthesis that closes the call whose `(` is at `open`; "?" when
-            # the parentheses never balance.
-            function after_call(text, open,   i, depth, c) {
+            # Whether the call whose `(` is at `open` passes its arguments through untouched and
+            # is followed by exactly `tail`. An argument may be a name, a borrow or a field, or
+            # one of those converted (`.clone()`, `.as_deref()` and the like); anything else, or
+            # parentheses that never balance, is work the command does itself.
+            function forwards_call(text, open, tail,   i, depth, c, args) {
                 depth = 0
                 for (i = open; i <= length(text); i++) {
                     c = substr(text, i, 1)
                     if (c == "(") depth++
-                    else if (c == ")" && --depth == 0) return substr(text, i + 1)
+                    else if (c == ")" && --depth == 0) break
                 }
-                return "?"
+                if (depth != 0 || substr(text, i + 1) != tail) return 0
+                args = substr(text, open + 1, i - open - 1)
+                gsub(/\.(clone|inner|as_deref|as_str|as_ref)\(\)/, "", args)
+                return args ~ /^[&A-Za-z0-9_,.]*$/
             }
             function only_forwards(text, name,   call, wrapped) {
                 while (sub(/^(log::)?(trace|debug|info|warn|error)!\("([^"\\]|\\.)*"[^;]*\);/, "", text)) {}
@@ -97,9 +102,9 @@ collect_exclusions() {
                 call = name "_internal("
                 wrapped = "run_off_thread(move||" call
                 # The call is the whole body: nothing may follow it but the off-thread wrapper.
-                if (index(text, call) == 1) return after_call(text, length(call)) == ""
+                if (index(text, call) == 1) return forwards_call(text, length(call), "")
                 if (index(text, wrapped) == 1)
-                    return after_call(text, length(wrapped)) == ").await"
+                    return forwards_call(text, length(wrapped), ").await")
                 return 0
             }
             /#\[tauri::command\]/ { command = 1; name = ""; next }
