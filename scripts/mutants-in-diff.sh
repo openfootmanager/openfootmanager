@@ -60,7 +60,8 @@ collect_exclusions() {
     local list="${MUTANTS_IN_DIFF_EXCLUSIONS:-$here/mutants-in-diff.exclusions}"
     local path fn _why file name
     [ -f "$list" ] || { echo "mutants-in-diff: no glue list at $list" >&2; return 1; }
-    while read -r path fn _why; do
+    # `|| [ -n "$path" ]`: a last line with no newline after it is still an entry.
+    while read -r path fn _why || [ -n "$path" ]; do
         case "$path" in ''|'#'*) continue ;; esac
         if ! [[ "$fn" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || [ ! -f "src-tauri/$path" ] ||
             ! grep -Eq "fn $fn[<(]" "src-tauri/$path"; then
@@ -97,7 +98,7 @@ collect_exclusions() {
                 return args ~ /^[&A-Za-z0-9_,.]*$/
             }
             function only_forwards(text, name,   call, wrapped) {
-                while (sub(/^(log::)?(trace|debug|info|warn|error)!\("([^"\\]|\\.)*"[^;]*\);/, "", text)) {}
+                while (sub(/^(log::)?(trace|debug|info|warn|error)!\("([^"\\]|\\.)*"(,&?[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*(\(\))?)*)*\);/, "", text)) {}
                 sub(/^letstate=state\.inner\(\)\.clone\(\);/, "", text)
                 call = name "_internal("
                 wrapped = "run_off_thread(move||" call
@@ -161,7 +162,7 @@ collect_exclusions || exit 1
 only=()
 wanted=()
 if [ -n "${MUTANTS_IN_DIFF_ONLY:-}" ]; then
-    while IFS= read -r name; do
+    while IFS= read -r name || [ -n "$name" ]; do
         [[ "$name" =~ ^([^:]+):[0-9]+:[0-9]+:\ (.+)$ ]] || continue
         wanted+=("${BASH_REMATCH[1]}: ${BASH_REMATCH[2]}")
         only+=(--re "^$(regex_escape <<< "${BASH_REMATCH[1]}"):[0-9]+:[0-9]+: $(regex_escape <<< "${BASH_REMATCH[2]}")\$")
@@ -197,9 +198,14 @@ listed="$(cd src-tauri && "${cargo[@]}" mutants --workspace --in-diff "$patch" \
     "${excluded[@]}" "${only[@]}" "${shard[@]}" --list)" || exit 1
 # A survivor whose function or mutation has changed since the first run matches nothing now. The
 # run would go ahead without it and its counts would read as the whole re-check, so name it and
-# stop. A shard lists only its share, so the check needs the whole listing.
-if [ "${#wanted[@]}" -gt 0 ] && [ "${#shard[@]}" -eq 0 ]; then
-    present="$(printf '%s\n' "$listed" | sed -E 's/^([^:]+):[0-9]+:[0-9]+: /\1: /')"
+# stop. A shard lists only its share, so a shard checks against the whole listing.
+if [ "${#wanted[@]}" -gt 0 ]; then
+    whole="$listed"
+    if [ "${#shard[@]}" -gt 0 ]; then
+        whole="$(cd src-tauri && "${cargo[@]}" mutants --workspace --in-diff "$patch" \
+            "${excluded[@]}" "${only[@]}" --list)" || exit 1
+    fi
+    present="$(printf '%s\n' "$whole" | sed -E 's/^([^:]+):[0-9]+:[0-9]+: /\1: /')"
     unmatched=()
     for name in "${wanted[@]}"; do
         grep -Fxq -- "$name" <<< "$present" || unmatched+=("$name")

@@ -143,6 +143,16 @@ else
     failed=$((failed + 1)); echo "  FAIL  the glue pattern is missing from a call: $(cat "$scratch/cargo.log")"
 fi
 
+unterminated="$scratch/glue-unterminated"
+printf '%s' 'crates/core/src/lib.rs answer  the last line, with no newline after it' > "$unterminated"
+expect 0 "a glue list whose last entry has no newline still excludes it" "caught" -- \
+    FAKE_LIST=2 FAKE_TOTAL=2 FAKE_STATUS=0 MUTANTS_IN_DIFF_EXCLUSIONS="$unterminated"
+if grep -q -F -- '(replace (.*::)?answer( ->| with )|.* in (.*::)?answer$)' "$scratch/cargo.log"; then
+    passed=$((passed + 1)); echo "  ok    and its --exclude-re is passed"
+else
+    failed=$((failed + 1)); echo "  FAIL  the unterminated glue entry was dropped: $(cat "$scratch/cargo.log")"
+fi
+
 stale="$scratch/stale-glue"
 echo 'crates/core/src/lib.rs renamed_away  a function that was renamed' > "$stale"
 expect 1 "a glue entry that no longer names a function is refused before anything runs" \
@@ -179,6 +189,16 @@ pub fn relocate_club(
 }
 
 pub fn relocate_club_internal(state: &StateManager, city: &str) -> Result<(), String> {
+    Ok(())
+}
+
+#[tauri::command]
+pub fn audit_club(state: State<'_, Arc<StateManager>>) -> Result<(), String> {
+    info!("[cmd] audit_club: {}", bump_audit_count(&state));
+    audit_club_internal(&state)
+}
+
+pub fn audit_club_internal(state: &StateManager) -> Result<(), String> {
     Ok(())
 }
 
@@ -246,6 +266,7 @@ if grep -q -F -- 'src/commands/club\.rs:[0-9]+:[0-9]+: (replace (.*::)?rename_cl
     grep -q -F -- '(replace (.*::)?rebuild_club( ->| with )|.* in (.*::)?rebuild_club$)' "$scratch/cargo.log" &&
     grep -q -F -- '(replace (.*::)?club_badge( ->| with )|.* in (.*::)?club_badge$)' "$scratch/cargo.log" &&
     ! grep -q -- 'club_rank' "$scratch/cargo.log" &&
+    ! grep -q -- 'audit_club' "$scratch/cargo.log" &&
     ! grep -q -- 'club_count' "$scratch/cargo.log" &&
     ! grep -q -- 'promote_club' "$scratch/cargo.log" &&
     ! grep -q -- 'club_size' "$scratch/cargo.log" &&
@@ -343,6 +364,15 @@ if ran_list && ! ran_mutants; then
 else
     failed=$((failed + 1)); echo "  FAIL  a mutation run started with a survivor unaccounted for"
 fi
+unterminated_survivors="$scratch/survivors-unterminated"
+{ cat "$survivors"; printf '%s' 'crates/core/src/lib.rs:9:1: replace answer -> u32 with 1'; } > "$unterminated_survivors"
+expect 1 "a last survivor with no newline after it is read, and named when it is gone" \
+    "replace answer -> u32 with 1" -- \
+    FAKE_LIST=1 FAKE_LIST_NAME="replace answer -> u32 with 0" MUTANTS_IN_DIFF_ONLY="$unterminated_survivors"
+expect 1 "a shard's re-check still names a survivor that is gone from the whole diff" \
+    "replace answer -> u32 with 1" -- \
+    FAKE_LIST=1 FAKE_LIST_NAME="replace answer -> u32 with 0" MUTANTS_IN_DIFF_ONLY="$gone" \
+    MUTANTS_IN_DIFF_SHARD=0/2
 all_gone="$scratch/survivors-all-gone"
 echo 'crates/core/src/lib.rs:9:1: replace answer -> u32 with 1' > "$all_gone"
 expect 1 "a re-check whose survivors are all gone is refused, not reported as zero mutants" \
