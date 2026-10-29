@@ -165,6 +165,69 @@ pub enum VisibleWage {
     Hidden,
 }
 
+impl VisibleWage {
+    /// The figure the club may see, exact or rounded; none when the wage is hidden.
+    pub fn value(&self) -> Option<u32> {
+        match self {
+            VisibleWage::Exact { weekly } | VisibleWage::Approximate { weekly } => Some(*weekly),
+            VisibleWage::Hidden => None,
+        }
+    }
+}
+
+/// What a list row may show about a player: the club's knowledge of him, and his rating, wage and
+/// condition as that knowledge allows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PlayerVisibility {
+    pub knowledge: PlayerKnowledge,
+    /// His rating for the club's own player and a division rival; none for a scouted or unknown one
+    /// until a scout's estimate exists.
+    pub ovr: Option<u8>,
+    pub wage: VisibleWage,
+    pub condition: Option<u8>,
+}
+
+impl KnowledgeView<'_> {
+    pub fn of_player(&self, player: &Player) -> PlayerVisibility {
+        let knowledge = self.knowledge(player);
+        let knows_rating = matches!(knowledge, PlayerKnowledge::Own | PlayerKnowledge::Known);
+        PlayerVisibility {
+            ovr: knows_rating.then_some(player.ovr),
+            wage: self.wage_for(&knowledge, player),
+            condition: self.condition_for(&knowledge, player),
+            knowledge,
+        }
+    }
+}
+
+/// Whether a visible rating passes a min/max filter. An unknown rating fails any bound that is set
+/// (maintainer, 29 Oct): a filter on a rating the club does not know would tell it.
+pub fn passes_ovr_filter(ovr: Option<u8>, min: Option<u8>, max: Option<u8>) -> bool {
+    if min.is_none() && max.is_none() {
+        return true;
+    }
+    ovr.is_some_and(|ovr| min.is_none_or(|min| ovr >= min) && max.is_none_or(|max| ovr <= max))
+}
+
+/// Whether a visible wage passes a maximum. A hidden wage fails a set maximum, as an unknown rating
+/// fails a rating bound, so a price filter is never an oracle for a wage the club cannot see.
+pub fn passes_wage_filter(wage: &VisibleWage, max: Option<u32>) -> bool {
+    max.is_none_or(|max| wage.value().is_some_and(|weekly| weekly <= max))
+}
+
+/// Orders two visible ratings for a list sorted by rating, ascending or descending: an unknown
+/// rating sorts after every known one either way (maintainer, 29 Oct).
+pub fn compare_visible_ovr(a: Option<u8>, b: Option<u8>, ascending: bool) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    match (a, b) {
+        (Some(a), Some(b)) if ascending => a.cmp(&b),
+        (Some(a), Some(b)) => b.cmp(&a),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
+}
+
 pub fn visible_wage(game: &Game, player: &Player) -> VisibleWage {
     let view = KnowledgeView::of(game);
     view.wage_for(&view.knowledge(player), player)
@@ -621,5 +684,162 @@ mod tests {
         fixture_on(&mut game, "2026-09-15", "rival", "faraway");
 
         assert_eq!(condition_of(&game, "r"), None);
+    }
+
+    /// A player rated `ovr` on `weekly` a week and 64% condition.
+    fn rated(id: &str, team_id: Option<&str>, ovr: u8, weekly: u32) -> Player {
+        let mut player = tired(paid(player(id, team_id), weekly), 64);
+        player.ovr = ovr;
+        player
+    }
+
+    fn visibility_of(game: &Game, player_id: &str) -> PlayerVisibility {
+        let player = game.players.iter().find(|p| p.id == player_id).unwrap();
+        KnowledgeView::of(game).of_player(player)
+    }
+
+    /// Given the club's own player, rated 74 on 15,843 a week and 64% condition
+    /// When a list row asks what it may show
+    /// Then everything: his rating, his exact wage and his condition
+    #[test]
+    fn a_list_row_shows_everything_about_the_clubs_own_player() {
+        let game = world(Some(MY_CLUB), vec![rated("p", Some(MY_CLUB), 74, 15_843)]);
+
+        assert_eq!(
+            visibility_of(&game, "p"),
+            PlayerVisibility {
+                knowledge: PlayerKnowledge::Own,
+                ovr: Some(74),
+                wage: VisibleWage::Exact { weekly: 15_843 },
+                condition: Some(64),
+            }
+        );
+    }
+
+    /// Given a division rival rated 74
+    /// When a list row asks what it may show
+    /// Then his rating, but not his wage or condition
+    #[test]
+    fn a_list_row_shows_a_known_rivals_rating_only() {
+        let game = world(Some(MY_CLUB), vec![rated("r", Some("rival"), 74, 15_843)]);
+
+        assert_eq!(
+            visibility_of(&game, "r"),
+            PlayerVisibility {
+                knowledge: PlayerKnowledge::Known,
+                ovr: Some(74),
+                wage: VisibleWage::Hidden,
+                condition: None,
+            }
+        );
+    }
+
+    /// Given a player in another division whom a scout reported on
+    /// When a list row asks what it may show
+    /// Then his wage as about the figure, but no rating (until a scout's estimate exists) and no
+    ///      condition
+    #[test]
+    fn a_list_row_shows_a_scouted_players_approximate_wage_only() {
+        let mut game = world(Some(MY_CLUB), vec![rated("f", Some("faraway"), 74, 15_843)]);
+        scouted(&mut game, "f", "2026-09-01");
+
+        let visibility = visibility_of(&game, "f");
+
+        assert_eq!(visibility.ovr, None);
+        assert_eq!(visibility.wage, VisibleWage::Approximate { weekly: 16_000 });
+        assert_eq!(visibility.condition, None);
+    }
+
+    /// Given a player in another division, never scouted
+    /// When a list row asks what it may show
+    /// Then nothing beyond what is public
+    #[test]
+    fn a_list_row_shows_nothing_private_about_an_unknown_player() {
+        let game = world(Some(MY_CLUB), vec![rated("f", Some("faraway"), 74, 15_843)]);
+
+        assert_eq!(
+            visibility_of(&game, "f"),
+            PlayerVisibility {
+                knowledge: PlayerKnowledge::Unknown,
+                ovr: None,
+                wage: VisibleWage::Hidden,
+                condition: None,
+            }
+        );
+    }
+
+    /// Given the club meeting "faraway" today
+    /// When a list row asks what it may show about one of faraway's players
+    /// Then his condition, as the team sheet shows it, but still no rating or wage
+    #[test]
+    fn a_list_row_shows_an_opponents_condition_on_matchday() {
+        let mut game = world(Some(MY_CLUB), vec![rated("f", Some("faraway"), 74, 15_843)]);
+        game.competitions.push(cup("cup", &[MY_CLUB, "faraway"]));
+        fixture_in(&mut game, "cup", "2026-09-15", "faraway", MY_CLUB);
+
+        let visibility = visibility_of(&game, "f");
+
+        assert_eq!(visibility.condition, Some(64));
+        assert_eq!(visibility.ovr, None);
+        assert_eq!(visibility.wage, VisibleWage::Hidden);
+    }
+
+    /// Given an exact, an approximate and a hidden wage
+    /// When their figure is asked
+    /// Then the first two give theirs and the hidden one gives none
+    #[test]
+    fn a_visible_wage_gives_its_figure_unless_hidden() {
+        assert_eq!(VisibleWage::Exact { weekly: 15_843 }.value(), Some(15_843));
+        assert_eq!(
+            VisibleWage::Approximate { weekly: 16_000 }.value(),
+            Some(16_000)
+        );
+        assert_eq!(VisibleWage::Hidden.value(), None);
+    }
+
+    /// Given a min/max rating filter
+    /// When a known and an unknown rating are tested against it
+    /// Then the known one passes inside the bounds and fails outside; the unknown one fails any set
+    ///      bound and passes only when none is set
+    #[test]
+    fn an_unknown_rating_fails_any_set_rating_bound() {
+        assert!(passes_ovr_filter(Some(74), Some(70), Some(80)));
+        assert!(!passes_ovr_filter(Some(69), Some(70), None));
+        assert!(!passes_ovr_filter(Some(81), None, Some(80)));
+        assert!(!passes_ovr_filter(None, Some(1), None));
+        assert!(!passes_ovr_filter(None, None, Some(99)));
+        assert!(passes_ovr_filter(None, None, None));
+    }
+
+    /// Given a maximum wage filter
+    /// When exact, approximate and hidden wages are tested against it
+    /// Then a visible figure passes at or under the maximum; a hidden wage fails any set maximum
+    ///      and passes only when none is set
+    #[test]
+    fn a_hidden_wage_fails_a_set_wage_maximum() {
+        assert!(passes_wage_filter(
+            &VisibleWage::Exact { weekly: 15_000 },
+            Some(15_000)
+        ));
+        assert!(!passes_wage_filter(
+            &VisibleWage::Approximate { weekly: 16_000 },
+            Some(15_000)
+        ));
+        assert!(!passes_wage_filter(&VisibleWage::Hidden, Some(1_000_000)));
+        assert!(passes_wage_filter(&VisibleWage::Hidden, None));
+    }
+
+    /// Given ratings 80, unknown and 70
+    /// When they are sorted by rating, descending and then ascending
+    /// Then the known ones run in that direction and the unknown one comes last both times
+    #[test]
+    fn an_unknown_rating_sorts_after_every_known_one_either_way() {
+        let mut ratings = vec![Some(70), None, Some(80)];
+
+        ratings.sort_by(|a, b| compare_visible_ovr(*a, *b, false));
+        assert_eq!(ratings, vec![Some(80), Some(70), None]);
+
+        ratings.sort_by(|a, b| compare_visible_ovr(*a, *b, true));
+        assert_eq!(ratings, vec![Some(70), Some(80), None]);
     }
 }
