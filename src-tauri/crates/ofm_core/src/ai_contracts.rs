@@ -898,4 +898,61 @@ mod tests {
             "the club nobody renewed for kept its squad too, so this test proves nothing"
         );
     }
+
+    /// Given an AI club with a 21-year-old academy player, the oldest the academy takes
+    /// When its review day comes
+    /// Then he stays in the academy: only a player over 21 graduates
+    #[test]
+    fn an_ai_club_keeps_a_21_year_old_in_its_academy() {
+        let mut game = world();
+        game.players
+            .push(academy("twenty_one", "ai", Position::Midfielder, 21));
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(role(&game, "twenty_one"), domain::player::SquadRole::Youth);
+    }
+
+    /// Given an AI club with three senior keepers, one of whose contracts ends in exactly 183
+    ///       days (the renewal horizon), and an 18-year-old academy keeper
+    /// When its review day comes
+    /// Then the academy keeper is promoted: a keeper whose contract ends on the horizon is not
+    ///      counted toward the depth the club plans for
+    #[test]
+    fn a_senior_whose_contract_ends_on_the_renewal_horizon_does_not_count_toward_planned_depth() {
+        let mut game = world();
+        let horizon = (today() + Duration::days(RENEWAL_HORIZON_DAYS))
+            .format("%Y-%m-%d")
+            .to_string();
+        game.players
+            .iter_mut()
+            .find(|p| p.id == "ai_Goalkeeper2")
+            .unwrap()
+            .stage_contract_end(Some(horizon));
+        game.players
+            .push(academy("young_keeper", "ai", Position::Goalkeeper, 18));
+
+        apply_ai_squad_planning(&mut game, review_day());
+
+        assert_eq!(
+            role(&game, "young_keeper"),
+            domain::player::SquadRole::Senior
+        );
+    }
+
+    /// Given an AI club with three keepers on long contracts, and a fourth, 34 and rated 50, whose
+    ///       contract ends in 90 days
+    /// When its review day comes
+    /// Then his contract runs out: three other keepers already meet the planned depth of three
+    #[test]
+    fn a_fading_keeper_with_three_other_keepers_is_let_go() {
+        let mut game = world();
+        game.players
+            .push(player("old_keeper", "ai", Position::Goalkeeper, 50, 34, 90));
+        let before = contract_end(&game, "old_keeper");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        assert_eq!(contract_end(&game, "old_keeper"), before);
+    }
 }
