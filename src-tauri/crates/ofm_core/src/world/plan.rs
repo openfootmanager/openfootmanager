@@ -696,6 +696,8 @@ mod tests {
                 .count(),
             4
         );
+        let mut phase_names_by_tier =
+            std::collections::BTreeMap::<usize, std::collections::BTreeMap<&str, &str>>::new();
         for (definition, _) in plan.iter().filter(|(d, _)| {
             d.country_id.as_deref() == Some("AR") && d.r#type == CompetitionType::League
         }) {
@@ -705,9 +707,17 @@ mod tests {
             } else {
                 "closing"
             };
+            assert_eq!(definition.name_key, None);
+            let tier = if definition.id.contains("d1") { 1 } else { 2 };
+            assert!(
+                phase_names_by_tier
+                    .entry(tier)
+                    .or_default()
+                    .insert(phase, &definition.name)
+                    .is_none()
+            );
             assert_eq!(value["calendar"]["division"]["familyId"], "ar-league");
             assert_eq!(value["calendar"]["division"]["phase"], phase);
-            let tier = if definition.id.contains("d1") { 1 } else { 2 };
             assert_eq!(value["calendar"]["division"]["tier"], tier);
             assert_eq!(
                 value["calendar"]["windowEnd"],
@@ -721,6 +731,15 @@ mod tests {
             assert_eq!(
                 definition.season_start_month,
                 Some(if phase == "opening" { 2 } else { 7 })
+            );
+        }
+        assert_eq!(phase_names_by_tier.len(), 2);
+        for (tier, phase_names) in phase_names_by_tier {
+            let opening = phase_names.get("opening").expect("opening half");
+            let closing = phase_names.get("closing").expect("closing half");
+            assert_ne!(
+                opening, closing,
+                "tier {tier} must keep its phase in the name"
             );
         }
     }
