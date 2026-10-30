@@ -375,7 +375,8 @@ export function SubPanel({
                 </p>
               </div>
 
-              {/* Formation pitch */}
+              {/* Formation pitch: portrait like the pitch SVG (100x140), sized by height and
+                  centred, since a full-width box with a fixed height flattened the formation. */}
               <FormationPitch
                 formation={team.formation}
                 players={team.players}
@@ -384,7 +385,7 @@ export function SubPanel({
                 subbedOnIds={subbedOnIds}
                 queuedOffIds={queuedOffIds}
                 onPlayerClick={handleSelectOffPlayer}
-                className="mx-4 mt-3 h-[210px] shrink-0"
+                className="mx-auto mt-3 aspect-[5/7] h-80 max-h-[45vh] w-auto shrink-0"
               />
 
               {/* On-field player table */}

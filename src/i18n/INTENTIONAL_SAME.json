@@ -620,6 +620,7 @@
     "match.eventTypes.KickOff",
     "match.ft",
     "match.ht",
+    "match.liveRating",
     "match.normal",
     "match.pen",
     "match.shootout.suddenDeath",
