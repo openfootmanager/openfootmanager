@@ -261,6 +261,7 @@ pub fn run() {
             preview_renewal_financial_impact,
             offer_free_agent_contract,
             preview_free_agent_contract_impact,
+            get_free_agent_opening_offer,
             set_contract_exit_intent,
             clear_contract_exit_intent,
             preview_contract_termination,
