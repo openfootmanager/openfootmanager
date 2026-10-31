@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { PLAYERS_OPENING_QUERY } from "../../components/players/playersOpeningQuery";
 import { readStyleGuideOptions } from "../styleGuide/styleGuideOptions";
 import { fixtureHandlers } from "./fixtureAnswers";
 import {
@@ -92,6 +93,16 @@ describe("fixture answers", () => {
 });
 
 describe("world list answers", () => {
+  /**
+   * Given the query the Players page opens with, and the one page_fixture.rs builds by hand (Rust
+   * can't import the page's)
+   * When the fixture is read
+   * Then they are the same query, so a change to either fails here, not as an unanswered page.
+   */
+  it("was generated for the query the Players page opens with", () => {
+    expect(playersPageQuery).toEqual(PLAYERS_OPENING_QUERY);
+  });
+
   /**
    * Given the Players page opening, when it asks for its first page with the query it opens with,
    * then the fixture's page comes back: a full page of the world's players, best first, from more

@@ -20,7 +20,8 @@ import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { sendScout } from "../../services/scoutingService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
-import type { PlayerSortKey, PlayersPageQuery } from "../../services/playersService";
+import type { PlayerSortKey } from "../../services/playersService";
+import { PLAYERS_OPENING_QUERY } from "./playersOpeningQuery";
 import { usePlayersPage } from "../../hooks/usePlayersPage";
 import {
   buildDividerMenuItem,
@@ -46,28 +47,6 @@ interface PlayersListTabProps {
   onSelectTeam: (id: string) => void;
 }
 
-const PAGE_SIZE = 30;
-
-const DEFAULT_QUERY: PlayersPageQuery = {
-  search: null,
-  position: null,
-  positions: [],
-  age_min: null,
-  age_max: null,
-  ovr_min: null,
-  ovr_max: null,
-  value_min: null,
-  value_max: null,
-  in_budget: false,
-  scope: "all",
-  team_id: null,
-  status: "all",
-  sort_key: "ovr",
-  sort_asc: false,
-  page: 1,
-  page_size: PAGE_SIZE,
-};
-
 export default function PlayersListTab({
   gameState,
   onGameUpdate,
@@ -82,7 +61,7 @@ export default function PlayersListTab({
     slice,
     error: fetchError,
     refetch: refetchSlice,
-  } = usePlayersPage(DEFAULT_QUERY, t);
+  } = usePlayersPage(PLAYERS_OPENING_QUERY, t);
   const [sendingPlayerId, setSendingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
   const managerTeamId = gameState.manager.team_id ?? "";
