@@ -813,6 +813,10 @@ pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate,
 }
 
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
+    // Before any competition is regenerated: a home fixture played since the last Monday is paid
+    // now, while it is still in the calendar, and the Monday after the rollover pays nothing twice.
+    crate::finances::gate::settle_gate_income(game, game.clock.current_date.date_naive());
+
     // The summary, board review, and manager career must reflect the division
     // the user's club actually contests — not whichever competition happens to
     // be first in the list.
