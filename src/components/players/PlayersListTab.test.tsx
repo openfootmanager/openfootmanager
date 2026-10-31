@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -287,7 +287,7 @@ function summaryFrom(player: PlayerData, teams: TeamData[]): PlayerSummary {
     match_name: player.match_name,
     date_of_birth: player.date_of_birth,
     age: calcAge(player.date_of_birth),
-    wage: player.wage,
+    wage: { kind: "exact", weekly: player.wage },
     nationality: player.nationality,
     position: player.position,
     natural_position: player.natural_position ?? player.position,
@@ -699,5 +699,40 @@ describe("PlayersListTab rating tiers", () => {
 
     expect(await screen.findByText("77")).toHaveClass(...ratingTierClass("A", "text").split(" "));
     expect(screen.getByText("76")).toHaveClass(...ratingTierClass("B", "text").split(" "));
+  });
+
+  /**
+   * Given a player the club knows nothing private about (rated 88, but the backend sends no
+   *      rating for him)
+   * When the players list renders his row
+   * Then his rating reads "–" in the neutral colour, never a number
+   */
+  it("shows a dash for a rating the club does not know", async () => {
+    const stranger = createPlayer({
+      id: "p-far",
+      full_name: "Far Stranger",
+      match_name: "F. Stranger",
+      ovr: 88,
+    });
+    const gameState: GameStateData = { ...createGameState(), players: [stranger] };
+    setupSliceMock(gameState, {
+      get_players_page: (args) =>
+        applyQuery(
+          [{ ...summaryFrom(stranger, gameState.teams), ovr: null, wage: { kind: "hidden" } }],
+          (args as { query: PlayersPageQuery }).query,
+        ),
+    });
+
+    render(
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
+    );
+
+    const row = (await screen.findByText("F. Stranger")).closest("tr") as HTMLElement;
+    const headers = within(row.closest("table") as HTMLElement).getAllByRole("columnheader");
+    const ovrColumn = headers.findIndex((header) => header.textContent?.includes("OVR"));
+    const rating = within(row).getAllByRole("cell")[ovrColumn];
+    expect(rating).toHaveTextContent("–");
+    expect(rating).not.toHaveTextContent("88");
+    expect(rating.firstElementChild).toHaveClass(...ratingTierClass("Rest", "text").split(" "));
   });
 });

@@ -1,4 +1,5 @@
 import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { visibleRatingText } from "../../lib/playerKnowledge";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { useCallback, useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
@@ -410,9 +411,12 @@ export default function PlayersListTab({
                       </td>
                       <td className="py-2.5 px-4">
                         <span
-                          className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(tierOf(ovr), "text")}`}
+                          className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(
+                            ovr === null ? "Rest" : tierOf(ovr),
+                            "text",
+                          )}`}
                         >
-                          {ovr}
+                          {visibleRatingText(ovr)}
                         </span>
                       </td>
                       <td className="py-2.5 px-4">
