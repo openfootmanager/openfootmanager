@@ -1,3 +1,6 @@
+#[path = "random_events_tests/rates.rs"]
+mod rates;
+
 use chrono::{TimeZone, Utc};
 use domain::league::{
     Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
