@@ -2425,8 +2425,8 @@ mod tests {
             .unwrap();
         for tool in crate::mcp_server::config::McpMode::Competition.disabled_tools() {
             assert!(
-                competition_docs.contains(tool),
-                "the competition-mode docs miss the hidden tool {tool}"
+                competition_docs.contains(&format!("- `{tool}`")),
+                "the competition-mode docs list no bullet for the hidden tool {tool}"
             );
         }
         let info_source = include_str!("tools_impl/info.rs");
