@@ -415,6 +415,9 @@
     "detailsFor": "Detail {{name}}",
     "overallRating": "Keseluruhan {{value}}",
     "overallRatingTier": "Keseluruhan {{value}}, tingkat {{tier}}",
+    "listViewLabel": "Tampilkan sebagai",
+    "listViewTable": "Tabel",
+    "listViewCards": "Kartu",
     "noResults": "Tidak ada hasil ditemukan.",
     "place": {
       "1": "ke-1",
