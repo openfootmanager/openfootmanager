@@ -100,16 +100,35 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered,
  * letters, the check's longest labels.
  */
 export async function loadFaces(fonts, faces) {
+  // Whether a loaded face is the one scoped to the sample's script, and not an unscoped face of the
+  // same family that also covers it (a rangeless import claims every character, so `load()` returns
+  // it for Cyrillic text too and would vouch for a Cyrillic face that did not match). It lives in
+  // here because this function's source is what is sent to the page.
+  const scopedTo = (face, sample) => {
+    const range = String(face.unicodeRange ?? "")
+      .replace(/\s/g, "")
+      .toUpperCase();
+    if (range === "" || range === "U+0-10FFFF") return false;
+    const point = sample.codePointAt(0);
+    return range.split(",").some((part) => {
+      const [low, high = low] = part
+        .replace(/^U\+/, "")
+        .split("-")
+        .map((hex) => Number.parseInt(hex, 16));
+      return point >= low && point <= high;
+    });
+  };
   return Promise.all(
     faces.map(async ({ family, weight, script, sample }) => {
       const loaded = await fonts
         .load(`${weight} 16px "${family}"`, sample ?? "Aa ÄÖÜß")
         .catch(() => []);
+      const ofScript = script ? loaded.filter((face) => scopedTo(face, sample)) : loaded;
       return {
         family,
         weight,
         ...(script ? { script } : {}),
-        loadedWeights: loaded.map((face) => face.weight),
+        loadedWeights: ofScript.map((face) => face.weight),
       };
     }),
   );

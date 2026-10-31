@@ -141,6 +141,31 @@ describe("the fonts it measures with", () => {
     ]);
   });
 
+  /**
+   * Given a Cyrillic face whose range does not cover the sample, so that only an unscoped Inter face
+   * (one claiming every character) comes back from the load
+   * When the faces are loaded
+   * Then the Cyrillic face is reported as not loaded: the unscoped face's weight is not proof of it.
+   */
+  it("does not take an unscoped face of the same family for the scoped one", async () => {
+    const fallbackOnly = {
+      load: (font) => Promise.resolve([{ weight: font.split(" ")[0], unicodeRange: "U+0-10FFFF" }]),
+    };
+    const scoped = { family: "Inter", weight: 400, script: "cyrillic", sample: "Яё" };
+    expect(await loadFaces(fallbackOnly, [scoped])).toEqual([{ ...scoped, loadedWeights: [] }]);
+
+    const covering = {
+      load: (font) =>
+        Promise.resolve([
+          {
+            weight: font.split(" ")[0],
+            unicodeRange: "U+301,U+400-45F,U+490-491,U+4B0-4B1,U+2116",
+          },
+        ]),
+    };
+    expect(await loadFaces(covering, [scoped])).toEqual([{ ...scoped, loadedWeights: ["400"] }]);
+  });
+
   /** Given a Cyrillic face that did not load, then the case names its script. */
   it("names the script of a scoped face that did not load", () => {
     expect(
