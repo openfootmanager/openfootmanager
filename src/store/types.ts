@@ -910,6 +910,10 @@ export interface GameStateData {
   emitted_events?: string[];
   legacy_tactics_imported?: boolean;
   legacy_world_cup_draw?: boolean;
+  /** The day per-fixture gate income starts being paid from (an ISO date); null until the first settlement. */
+  gate_settled_from?: string | null;
+  /** The day the last season ended and the next began (an ISO date); null until the career's first season end. */
+  last_season_rollover_on?: string | null;
   /** Sent by the backend; the frontend reads these through their own commands. */
   custom_tactics?: unknown[];
   scouted_players?: unknown[];
