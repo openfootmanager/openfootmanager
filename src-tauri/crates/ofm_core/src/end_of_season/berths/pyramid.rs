@@ -5,7 +5,9 @@
 //! swap; the berth-fed routes in and out of a pyramid live in [`super::continental`] and
 //! [`super::domestic`].
 
-use domain::league::{BerthRule, CompetitionFormat, CompetitionScope, CompetitionType, League};
+use domain::league::{BerthRule, CompetitionFormat, League};
+
+use crate::world::ladder::is_ladder_table;
 
 /// Apply promotion/relegation within each domestic pyramid. A pyramid is the
 /// set of league-table competitions sharing a country, ordered by `priority`
@@ -53,7 +55,7 @@ pub(crate) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
     // into that target on its behalf.
     let promotion_destinations: HashSet<&str> = competitions
         .iter()
-        .filter(|competition| is_ladder_tier(competition))
+        .filter(|competition| is_ladder_table(competition))
         .map(|competition| competition.id.as_str())
         .collect();
 
@@ -87,7 +89,7 @@ pub(crate) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
     // tiers on either side close up and become neighbours.
     let mut tiers_by_country: BTreeMap<String, Vec<usize>> = BTreeMap::new();
     for (index, competition) in competitions.iter().enumerate() {
-        if !is_ladder_tier(competition) {
+        if !is_ladder_table(competition) {
             continue;
         }
         if let Some(country) = &competition.country_id {
@@ -163,17 +165,6 @@ pub(crate) fn apply_pyramid_promotion_relegation(competitions: &mut [League]) {
         }
         apply_linear_chain(competitions, &run);
     }
-}
-
-/// A rung of a domestic pyramid: the country's own league competition, played
-/// as a table. A cup is not a rung even when it draws from the same clubs, and
-/// neither is a regional side-competition — which is why Brazil's state cups
-/// (`Cup` / `Regional` / `GroupAndKnockout`) cannot reach the ladder and cannot
-/// trip the overlap check below.
-pub(crate) fn is_ladder_tier(competition: &League) -> bool {
-    competition.scope == CompetitionScope::Domestic
-        && competition.kind == CompetitionType::League
-        && competition.rules.format == CompetitionFormat::LeagueTable
 }
 
 /// True when every tier named by `indices` has played its season out.

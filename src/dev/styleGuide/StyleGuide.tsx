@@ -71,6 +71,7 @@ const STATUSES = [
   ["--color-danger", "--color-danger-tint", "--color-danger-solid"],
   ["--color-info", "--color-info-tint", "--color-info-solid"],
 ].flat();
+const SELECTED = ["--color-selected", "--color-selected-tint", "--color-selected-fill"];
 const TONES = [
   ["--color-tone-top", "--color-tone-top-tint", "--color-tone-top-solid"],
   ["--color-tone-good", "--color-tone-good-tint", "--color-tone-good-solid"],
@@ -167,6 +168,7 @@ function TokensSection() {
       <Swatches tokens={SURFACES} />
       <Swatches tokens={TEXT_AND_LINES} />
       <Swatches tokens={STATUSES} />
+      <Swatches tokens={SELECTED} />
       <Swatches tokens={TONES} />
       <Swatches tokens={BRAND} />
       <Swatches tokens={DATA_AND_PITCH} />

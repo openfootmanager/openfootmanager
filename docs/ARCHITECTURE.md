@@ -228,6 +228,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | `get_training_focus_attributes` | - | `TrainingFocusAttributes[]` | Which attributes each training focus trains, for outfield players and for goalkeepers; the same table the daily gains use |
 | `get_position_groups` | - | `{ position, group }[]` (17 entries) | The group (`Goalkeeper`, `Defender`, `Midfielder`, `Forward`) of every position, from `ofm_core::position_group` over `Position::to_group_position`, the one rule. Needs no game; feeds `PositionBadge`'s tone through `usePositionGroups` |
 | `get_rating_tiers` | - | `PlayerTier[]` (100 entries) | The tier (`S` 81+, `A` 77-80, `B` 70-76, `Rest`) of every rating from 0 to 99, from `ofm_core::player_tier`, the one rule. Needs no game, so the package editor reads it too; the frontend colours a rating by looking it up (`useRatingTiers`) |
+| `get_free_agent_opening_offer` | player_id | `{ weekly_wage, contract_years }` | The terms the contract form opens on for a free agent: his reference wage for the years a player his age expects (`reference_player_wage` and `expected_contract_years` in `ofm_core::contracts`), the same two rules the player judges the offer by. Rejects a player at a club, a retired one, or an unknown id |
 | `hire_staff` | staff_id | `Game` | Hire an unattached staff member |
 | `release_staff` | staff_id | `Game` | Release a staff member |
 

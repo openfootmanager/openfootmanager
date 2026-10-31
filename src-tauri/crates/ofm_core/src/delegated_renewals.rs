@@ -354,3 +354,72 @@ fn delegated_renewal_report_message(
         ..Default::default()
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::player::{PlayerAttributes, Position};
+    use domain::staff::{Staff, StaffAttributes};
+
+    /// Given an assistant rated 82 coaching, 76 and 74 judging (quality 77), and a player with
+    ///       trust 60 (20), morale 70 (35), 75 days left (14) and a value of 1,000,000 (less 10)
+    /// When the assistant weighs taking the renewal on
+    /// Then the score is 136: each part counted once, in its own weight
+    #[test]
+    fn the_delegation_score_adds_assistant_quality_trust_morale_and_urgency_less_penalties() {
+        let assistant = Staff::new(
+            "assistant".to_string(),
+            "A".to_string(),
+            "Assistant".to_string(),
+            "1985-01-01".to_string(),
+            StaffRole::AssistantManager,
+            StaffAttributes {
+                coaching: 82,
+                judging_ability: 76,
+                judging_potential: 74,
+                physiotherapy: 30,
+            },
+        );
+        let mut player = Player::new(
+            "p".to_string(),
+            "P".to_string(),
+            "P".to_string(),
+            "2000-01-01".to_string(),
+            "England".to_string(),
+            Position::Forward,
+            PlayerAttributes {
+                pace: 60,
+                stamina: 60,
+                strength: 60,
+                agility: 60,
+                passing: 60,
+                shooting: 60,
+                tackling: 60,
+                dribbling: 60,
+                defending: 60,
+                positioning: 60,
+                vision: 60,
+                decisions: 60,
+                composure: 60,
+                aggression: 60,
+                teamwork: 60,
+                leadership: 60,
+                handling: 30,
+                reflexes: 30,
+                aerial: 60,
+            },
+        );
+        player.morale_core.manager_trust = 60;
+        player.morale = 70;
+        player.market_value = 1_000_000;
+        player.stage_contract_end(Some("2026-10-15".to_string()));
+
+        let score = assistant_delegation_score(
+            &assistant,
+            &player,
+            NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
+        );
+
+        assert_eq!(score, 136);
+    }
+}

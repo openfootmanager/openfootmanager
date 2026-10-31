@@ -130,6 +130,14 @@ pub async fn offer_free_agent_contract(
 }
 
 #[tauri::command]
+pub async fn get_free_agent_opening_offer(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<RenewalOffer, String> {
+    get_free_agent_opening_offer_internal(&state, &player_id)
+}
+
+#[tauri::command]
 pub async fn preview_free_agent_contract_impact(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
@@ -312,6 +320,20 @@ pub fn preview_free_agent_contract_impact_internal(
     Ok(FreeAgentContractProjectionCommandResponse { projection })
 }
 
+pub fn get_free_agent_opening_offer_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<RenewalOffer, String> {
+    info!(
+        "[cmd] get_free_agent_opening_offer: player_id={}",
+        player_id
+    );
+
+    state
+        .get_game(|game| ofm_core::contracts::free_agent_opening_offer(game, player_id))
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
+}
+
 pub fn set_contract_exit_intent_internal(
     state: &StateManager,
     player_id: &str,
@@ -398,10 +420,11 @@ pub fn terminate_contract_now_internal(
 mod tests {
     use super::{
         clear_contract_exit_intent_internal, delegate_renewals_internal,
-        get_contract_warning_stages_internal, offer_free_agent_contract_internal,
-        preview_contract_termination_internal, preview_free_agent_contract_impact_internal,
-        preview_renewal_financial_impact_internal, propose_renewal_internal,
-        set_contract_exit_intent_internal, terminate_contract_now_internal,
+        get_contract_warning_stages_internal, get_free_agent_opening_offer_internal,
+        offer_free_agent_contract_internal, preview_contract_termination_internal,
+        preview_free_agent_contract_impact_internal, preview_renewal_financial_impact_internal,
+        propose_renewal_internal, set_contract_exit_intent_internal,
+        terminate_contract_now_internal,
     };
     use chrono::{TimeZone, Utc};
     use db::save_manager::SaveManager;
@@ -846,6 +869,35 @@ mod tests {
         assert_eq!(response.projection.current_annual_wage_bill, 0);
         assert_eq!(response.projection.projected_annual_wage_bill, 4_000);
         assert!(response.projection.policy_allows);
+    }
+
+    /// Given an active game with a free agent
+    /// When the screen asks for the opening offer to him
+    /// Then it gets exactly the terms `ofm_core` opens free-agent talks with
+    #[test]
+    fn get_free_agent_opening_offer_internal_returns_the_core_offer() {
+        let game = make_free_agent_game();
+        let expected = ofm_core::contracts::free_agent_opening_offer(&game, "player-1")
+            .expect("core opening offer");
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let offer = get_free_agent_opening_offer_internal(&state, "player-1").expect("offer");
+
+        assert_eq!(offer, expected);
+    }
+
+    /// Given no active game
+    /// When the screen asks for an opening offer
+    /// Then it is told there is no game session
+    #[test]
+    fn get_free_agent_opening_offer_internal_needs_an_active_game() {
+        let state = StateManager::new();
+
+        let error =
+            get_free_agent_opening_offer_internal(&state, "player-1").expect_err("no active game");
+
+        assert_eq!(error, "be.error.noActiveGameSession");
     }
 
     #[test]

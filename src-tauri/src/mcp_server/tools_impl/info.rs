@@ -724,10 +724,25 @@ pub fn info_finance_snapshot(
     ctx: Arc<McpContext>,
     team_id: Option<String>,
 ) -> Result<DetailedFinancialSnapshot, String> {
-    let response = crate::commands::finances::get_finance_snapshot_internal(
-        &ctx.state_manager,
-        team_id.as_deref(),
-    )?;
+    finance_snapshot_in(&ctx.state_manager, team_id.as_deref())
+}
+
+/// A club's money is its own business: only the manager's own club can be asked for, by leaving
+/// `team_id` out or naming it. Another club's figures are not public (maintainer ruling, 28 Oct).
+fn finance_snapshot_in(
+    state: &StateManager,
+    requested: Option<&str>,
+) -> Result<DetailedFinancialSnapshot, String> {
+    let own_club = state
+        .get_game(|game| game.manager.team_id.clone())
+        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?;
+    if requested.is_some_and(|team| own_club.as_deref() != Some(team)) {
+        return Err(
+            "Other clubs' finances are not public: ask for your own club (leave team_id out)."
+                .to_string(),
+        );
+    }
+    let response = crate::commands::finances::get_finance_snapshot_internal(state, None)?;
 
     Ok(DetailedFinancialSnapshot {
         figures: finance_figures(&response.snapshot),
@@ -773,5 +788,89 @@ mod info_news_tests {
         let rendered = recent_news(&news, "2026-02-15").to_string();
 
         assert!(rendered.contains("digest headline"));
+    }
+}
+
+#[cfg(test)]
+mod finance_snapshot_tests {
+    use super::finance_snapshot_in;
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::team::Team;
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
+    use ofm_core::state::StateManager;
+
+    fn team(id: &str, wage_budget: i64) -> Team {
+        let mut team = Team::new(
+            id.to_string(),
+            format!("{id} FC"),
+            "TMS".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            25_000,
+        );
+        team.wage_budget = wage_budget;
+        team
+    }
+
+    /// The manager's club has a 120 000 wage budget, a rival 77 000, so the figures say whose they are.
+    fn state(manager_club: Option<&str>) -> StateManager {
+        let mut manager = Manager::new(
+            "m1".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.team_id = manager_club.map(str::to_string);
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap());
+        let game = Game::new(
+            clock,
+            manager,
+            vec![team("mine", 120_000), team("rival", 77_000)],
+            vec![],
+            vec![],
+            vec![],
+        );
+        let state = StateManager::new();
+        state.set_game(game);
+        state
+    }
+
+    /// Given a manager asking for no team, or for their own club by id
+    /// When the finance snapshot is read
+    /// Then it is their club's figures.
+    #[test]
+    fn the_managers_own_club_is_available_by_omission_or_by_id() {
+        let state = state(Some("mine"));
+
+        for requested in [None, Some("mine")] {
+            let snapshot = finance_snapshot_in(&state, requested).expect("own club");
+            assert_eq!(snapshot.figures.weekly_wage_budget, 120_000);
+        }
+    }
+
+    /// Given a manager asking for another club's finances
+    /// When the finance snapshot is read
+    /// Then it is refused and no figure of that club leaves.
+    #[test]
+    fn another_clubs_finances_are_not_available() {
+        let state = state(Some("mine"));
+
+        let refused = finance_snapshot_in(&state, Some("rival"));
+
+        assert!(refused.is_err(), "the rival's figures were returned");
+    }
+
+    /// Given a manager without a club
+    /// When they ask for a club's finances by id
+    /// Then it is refused: they have no club of their own to match it against.
+    #[test]
+    fn a_manager_without_a_club_cannot_read_any_clubs_finances() {
+        let state = state(None);
+
+        assert!(finance_snapshot_in(&state, Some("rival")).is_err());
     }
 }

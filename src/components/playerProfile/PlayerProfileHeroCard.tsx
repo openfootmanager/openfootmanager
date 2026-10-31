@@ -6,6 +6,7 @@ import type { PlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
+import { visibleRatingText } from "../../lib/playerKnowledge";
 import { formatPlayerMarketValue } from "./PlayerProfile.helpers";
 import type { PlayerProfileScoutStatus, ScoutAvailability } from "./PlayerProfile.scouting";
 import PlayerProfileScoutAction from "./PlayerProfileScoutAction";
@@ -83,7 +84,7 @@ export default function PlayerProfileHeroCard({
             className={`flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-2xl border-2 font-heading ${ovr === null ? "border-white/10 bg-white/5 text-chrome-fg-muted" : ratingTierClass(tierOf(ovr), "hero")}`}
           >
             <span className="text-xs font-bold uppercase tracking-wider">{t("common.ovr")}</span>
-            <span className="text-4xl font-bold leading-none">{ovr ?? NO_DATA}</span>
+            <span className="text-4xl font-bold leading-none">{visibleRatingText(ovr)}</span>
           </div>
           {player.jersey_number != null && team != null && (
             <JerseyIcon
