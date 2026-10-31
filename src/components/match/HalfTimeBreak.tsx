@@ -338,7 +338,7 @@ export default function HalfTimeBreak({
                       </button>
                     )}
                     {talkError && (
-                      <p role="alert" className="text-sm text-red-500 mt-2">
+                      <p role="alert" className="text-sm text-danger mt-2">
                         {talkError}
                       </p>
                     )}

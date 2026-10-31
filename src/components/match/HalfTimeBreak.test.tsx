@@ -92,7 +92,7 @@ describe("HalfTimeBreak", () => {
     }
 
     async function chooseAndDeliverATalk() {
-      const choices = screen.getAllByText(/^match\.teamTalkOptions\..*\.label$/);
+      const choices = screen.getAllByRole("button", { name: /match\.teamTalkOptions\..*\.label/ });
       fireEvent.click(choices[0]);
       fireEvent.click(screen.getByRole("button", { name: "match.deliverTeamTalk" }));
     }
