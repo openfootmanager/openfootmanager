@@ -415,6 +415,9 @@
     "detailsFor": "Details for {{name}}",
     "overallRating": "Overall {{value}}",
     "overallRatingTier": "Overall {{value}}, tier {{tier}}",
+    "listViewLabel": "Show as",
+    "listViewTable": "Table",
+    "listViewCards": "Cards",
     "noResults": "No results found.",
     "place": {
       "1": "1st",

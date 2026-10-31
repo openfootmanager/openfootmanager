@@ -415,6 +415,9 @@
     "detailsFor": "Details zu {{name}}",
     "overallRating": "Gesamtstärke {{value}}",
     "overallRatingTier": "Gesamtstärke {{value}}, Stufe {{tier}}",
+    "listViewLabel": "Anzeigen als",
+    "listViewTable": "Tabelle",
+    "listViewCards": "Karten",
     "noResults": "Keine Ergebnisse gefunden.",
     "place": {
       "1": "1.",

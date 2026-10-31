@@ -415,6 +415,9 @@
     "detailsFor": "Détails de {{name}}",
     "overallRating": "Niveau général {{value}}",
     "overallRatingTier": "Niveau général {{value}}, catégorie {{tier}}",
+    "listViewLabel": "Afficher en",
+    "listViewTable": "Tableau",
+    "listViewCards": "Cartes",
     "noResults": "Aucun résultat trouvé.",
     "place": {
       "1": "1er",

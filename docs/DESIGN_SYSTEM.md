@@ -140,6 +140,7 @@ drawn in the style guide.
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
 | a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a `positive` or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details (never the first column, which keeps the accent and, failing a primary, the name). It draws no panel: put it in a `Card` |
+| a list shown as a table or as cards | `ViewSwitch`, at the end of the list's `PageToolbar`: a `SegmentedControl` of Table and Cards bound to the one global setting, `AppSettings.list_view` (`table` by default), so whatever the player picks on one list is how every list opens (maintainer, 21 Oct) |
 | a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
 More primitives arrive as the migration goes on: empty and loading states outside a table, stat

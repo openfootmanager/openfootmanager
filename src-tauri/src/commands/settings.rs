@@ -37,6 +37,10 @@ pub struct AppSettings {
     /// Whether the player folded the sidebar to its icon rail, remembered across launches.
     #[serde(default)]
     pub sidebar_collapsed: bool,
+    /// How every list (players, clubs, managers, staff) opens: "table" | "cards". One choice for
+    /// the whole game, not one per page (maintainer, 21 Oct).
+    #[serde(default = "default_list_view")]
+    pub list_view: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -61,6 +65,19 @@ fn default_sidebar_width() -> String {
 }
 fn default_sidebar_behaviour() -> String {
     "normal".to_string()
+}
+
+const LIST_VIEWS: [&str; 2] = ["table", "cards"];
+
+fn default_list_view() -> String {
+    "table".to_string()
+}
+
+/// Like the sidebar's, a list view this build doesn't know falls back to the table.
+fn normalize_list_view(settings: &mut AppSettings) {
+    if !LIST_VIEWS.contains(&settings.list_view.as_str()) {
+        settings.list_view = default_list_view();
+    }
 }
 
 /// A sidebar value this build doesn't know (one written by a newer build, or edited by hand)
@@ -92,6 +109,7 @@ impl Default for AppSettings {
             sidebar_width: default_sidebar_width(),
             sidebar_behaviour: default_sidebar_behaviour(),
             sidebar_collapsed: false,
+            list_view: default_list_view(),
         }
     }
 }
@@ -112,6 +130,7 @@ fn normalize_loaded_settings(mut settings: AppSettings) -> AppSettings {
         .unwrap_or(currency::DEFAULT_CURRENCY_CODE)
         .to_string();
     normalize_sidebar(&mut settings);
+    normalize_list_view(&mut settings);
     settings
 }
 
@@ -120,6 +139,7 @@ fn validate_settings(mut settings: AppSettings) -> Result<AppSettings, String> {
         .ok_or("be.error.settings.invalidCurrency".to_string())?
         .to_string();
     normalize_sidebar(&mut settings);
+    normalize_list_view(&mut settings);
     Ok(settings)
 }
 
@@ -265,6 +285,54 @@ mod tests {
         assert_eq!(read.sidebar_width, "compact");
         assert_eq!(read.sidebar_behaviour, "click");
         assert!(read.sidebar_collapsed);
+    }
+
+    /// Given a settings file written before lists could be shown as cards
+    /// When it is loaded
+    /// Then every list opens as a table, as it always has.
+    #[test]
+    fn a_settings_file_from_before_the_list_view_opens_lists_as_tables() {
+        let json = r#"{"theme":"dark","language":"en","currency":"EUR","default_match_mode":"live",
+            "auto_save":true,"match_speed":"normal","show_match_commentary":true,
+            "confirm_advance":false,"ui_scale":"normal","high_contrast":false}"#;
+
+        let settings: AppSettings = serde_json::from_str(json).expect("an older settings file");
+
+        assert_eq!(settings.list_view, "table");
+    }
+
+    /// Given a list view this build doesn't know (written by a newer build, or edited by hand)
+    /// When the settings are loaded, or saved
+    /// Then lists open as tables rather than the frontend receiving a value outside its union.
+    #[test]
+    fn an_unknown_list_view_falls_back_to_the_table() {
+        let unknown = AppSettings {
+            list_view: "carousel".to_string(),
+            ..AppSettings::default()
+        };
+
+        assert_eq!(
+            normalize_loaded_settings(unknown.clone()).list_view,
+            "table"
+        );
+        let saved = validate_settings(unknown).expect("an unknown list view is not an error");
+        assert_eq!(saved.list_view, "table");
+    }
+
+    /// Given a player who chose cards for every list
+    /// When the settings are written and read back
+    /// Then lists still open as cards.
+    #[test]
+    fn the_list_view_survives_a_save_and_a_load() {
+        let chosen = AppSettings {
+            list_view: "cards".to_string(),
+            ..AppSettings::default()
+        };
+
+        let json = serde_json::to_string(&validate_settings(chosen).expect("valid")).expect("json");
+        let read: AppSettings = serde_json::from_str(&json).expect("read back");
+
+        assert_eq!(normalize_loaded_settings(read).list_view, "cards");
     }
 
     #[test]

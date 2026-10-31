@@ -434,6 +434,9 @@
     "detailsFor": "Dettagli di {{name}}",
     "overallRating": "Valutazione generale {{value}}",
     "overallRatingTier": "Valutazione generale {{value}}, fascia {{tier}}",
+    "listViewLabel": "Mostra come",
+    "listViewTable": "Tabella",
+    "listViewCards": "Schede",
     "noResults": "Nessun risultato trovato.",
     "place": {
       "1": "1°",
