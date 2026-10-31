@@ -117,13 +117,51 @@ const RING_ALLOWED = /^(?:\d+|inset|offset-(?:\d+|page|panel|sunken|chrome))$/;
  * its colour is ring-focus, the themed one that reaches 3:1 everywhere, and its offset is a surface.
  */
 function focusRingViolations(source: string): string[] {
-  return linesMatching(source, FOCUS_RING).filter((hit) => {
+  const focusState = linesMatching(source, FOCUS_RING).filter((hit) => {
     const [, variant, rest] = /: ((?:peer-|group-)?focus(?:-visible|-within)?):ring-(.+)$/.exec(
       hit,
     ) ?? ["", "", ""];
     const plainFocus = !variant.endsWith("-visible") && !variant.endsWith("-within");
     return plainFocus || !(rest === "focus" || RING_ALLOWED.test(rest));
   });
+  return [...focusState, ...linesMatching(source, TRANSLUCENT_FOCUS)];
+}
+
+/**
+ * ring-focus drawn without a focus variant marks a list's keyboard-active option, where real focus
+ * stays on the trigger (aria-activedescendant). It is then the only sign of where the arrow keys
+ * are, so it is drawn at full strength: at /40 it falls under 3:1 in every theme. No prefix hides
+ * it: a theme or state (`dark:`, `hover:`), a data or aria value (`data-[active]:`, the likely way
+ * to mark that option), a child (`*:`) or an arbitrary variant (`[&>li]:`). A focus variant is
+ * FOCUS_RING's to report, so it is reported once. A class starts after a space, a quote or a brace.
+ */
+const TRANSLUCENT_FOCUS = /(?<=^|[\s"'`{(])(?:(?![^\s:"'`]*focus)[^\s:"'`]+:)*ring-focus\/\d+/g;
+
+/**
+ * The files where the brand green is a brand moment, not a state: the primary button and the
+ * header's Continue, the selected navigation item, the brand's own badge, card and bar variants,
+ * and the dashboard's loading spinner. Rule 8 keeps `primary-*` to these.
+ */
+const BRAND_FILES: Record<string, string> = {
+  "./components/ui/Button.tsx": "the primary button is the brand fill",
+  "./components/ui/Badge.tsx": "the `primary` badge variant",
+  "./components/ui/Card.tsx": "the `primary` card's brand top border",
+  "./components/ui/ProgressBar.tsx": "the `primary` bar colour",
+  "./components/dashboard/DashboardHeader.tsx": "the header's Continue button",
+  "./components/dashboard/DashboardSidebar.tsx": "the selected navigation item",
+  "./pages/Dashboard.tsx": "the loading spinner",
+};
+
+const BRAND_CLASS =
+  /(?<![\w-])(?:bg|text|border(?:-(?:[trblxyse]|bs|be))?|ring|inset-ring|ring-offset|outline|fill|stroke|from|via|to|divide|placeholder|decoration|shadow|drop-shadow|accent|caret)-primary-\d{2,3}(?:\/\d+)?/g;
+
+/**
+ * Rule 8: a control that is on or chosen is painted in the `selected` role (a switch's track, a
+ * checked box, a strong segmented option, a count badge, the chosen option in a list), so one
+ * token changes how "chosen" looks. The brand green stays for brand moments, in BRAND_FILES.
+ */
+function brandOutsideBrandFiles(path: string, source: string): string[] {
+  return path in BRAND_FILES ? [] : linesMatching(source, BRAND_CLASS);
 }
 
 /**
@@ -132,7 +170,7 @@ function focusRingViolations(source: string): string[] {
  * tones (round-4 PR 1b adds components/squad). It never covers components/ui, the vocabulary's
  * home, and it grows to all of src/ by round-4 PR 7.
  */
-const VOCABULARY_FOLDERS: string[] = [];
+const VOCABULARY_FOLDERS: string[] = ["./components/squad/"];
 
 /**
  * The words a colour may be keyed by only in its one home: the positions, the rating tiers' letters
@@ -282,6 +320,20 @@ describe("design system rules in finished folders", () => {
   it("lists only files that exist as artwork files", () => {
     expect(Object.keys(ARTWORK_FILES).filter((path) => !(path in SOURCES))).toEqual([]);
   });
+
+  /**
+   * Given a finished folder,
+   * when its source is read,
+   * then the brand green appears only in a brand file; an on or chosen control uses `selected`.
+   */
+  it("keeps the brand green to brand moments", () => {
+    expect(report(brandOutsideBrandFiles)).toEqual([]);
+  });
+
+  /** Given the brand list, then every file on it exists, so a rename can't leave a stale exemption. */
+  it("lists only files that exist as brand files", () => {
+    expect(Object.keys(BRAND_FILES).filter((path) => !(path in SOURCES))).toEqual([]);
+  });
 });
 
 /** Each check is proved against a fixture that breaks it and one that keeps it. */
@@ -346,6 +398,35 @@ describe("the rule checks themselves", () => {
   });
 
   /**
+   * Given a list's keyboard-active option marked with a translucent ring-focus, then it is
+   * reported; at full strength it is not.
+   */
+  it("catches a translucent focus marker", () => {
+    expect(focusRingViolations('className="ring-2 ring-inset ring-focus/40"')).toEqual([
+      "1: ring-focus/40",
+    ]);
+    expect(focusRingViolations('className="ring-2 ring-inset ring-focus"')).toEqual([]);
+    // A theme prefix doesn't hide it; a focus variant is reported once, by the focus-state check.
+    expect(focusRingViolations('className="dark:ring-focus/40"')).toEqual([
+      "1: dark:ring-focus/40",
+    ]);
+    expect(focusRingViolations('className="focus-visible:ring-focus/40"')).toEqual([
+      "1: focus-visible:ring-focus/40",
+    ]);
+    // Nor a data or aria value, a child variant or an arbitrary one.
+    expect(
+      focusRingViolations(
+        'className="data-[active]:ring-focus/40 aria-[selected=true]:ring-focus/40 *:ring-focus/40 [&>li]:ring-focus/40"',
+      ),
+    ).toEqual([
+      "1: data-[active]:ring-focus/40",
+      "1: aria-[selected=true]:ring-focus/40",
+      "1: *:ring-focus/40",
+      "1: [&>li]:ring-focus/40",
+    ]);
+  });
+
+  /**
    * Given a focus ring offset in a brand colour on focus-visible, then it is reported; given an
    * offset in the surface the control sits on (page, panel, sunken, chrome), then it is not.
    */
@@ -405,6 +486,32 @@ describe("the rule checks themselves", () => {
       "1: fixed inset-0",
     ]);
     expect(overlayViolations("./components/ui/Dialog.tsx", overlay)).toEqual([]);
+  });
+
+  /**
+   * Given brand-green classes, with variants, a side border and opacity, outside a brand file,
+   * then each is reported; in a brand file, and for the selected role, nothing is.
+   */
+  it("catches the brand green outside a brand file only", () => {
+    const chosen =
+      'className="peer-checked:bg-primary-600 dark:text-primary-400 border-t-primary-500 border-s-primary-500 border-be-primary-500 ring-primary-500/40 inset-ring-primary-400 drop-shadow-primary-500"';
+    expect(brandOutsideBrandFiles("./components/ui/Checkbox.tsx", chosen)).toEqual([
+      "1: bg-primary-600",
+      "1: text-primary-400",
+      "1: border-t-primary-500",
+      "1: border-s-primary-500",
+      "1: border-be-primary-500",
+      "1: ring-primary-500/40",
+      "1: inset-ring-primary-400",
+      "1: drop-shadow-primary-500",
+    ]);
+    expect(brandOutsideBrandFiles("./components/ui/Button.tsx", chosen)).toEqual([]);
+    expect(
+      brandOutsideBrandFiles(
+        "./components/ui/Checkbox.tsx",
+        'className="bg-selected-fill text-on-brand bg-selected-tint text-selected"',
+      ),
+    ).toEqual([]);
   });
 
   /**

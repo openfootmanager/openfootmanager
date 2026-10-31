@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { NegotiationFeedbackPanelData } from "../components/NegotiationFeedbackPanel";
 import type { GameStateData } from "../store/gameStore";
+import { invokeForCareer } from "./careerInvoke";
 
 export interface FreeAgentContractProjection {
   current_annual_wage_bill: number;
@@ -27,6 +28,12 @@ export interface FreeAgentContractResponseData {
   feedback?: NegotiationFeedbackPanelData | null;
 }
 
+/** The terms the backend opens free-agent talks with: `ofm_core::contracts::RenewalOffer`. */
+export interface FreeAgentOpeningOffer {
+  weekly_wage: number;
+  contract_years: number;
+}
+
 export interface FreeAgentContractProjectionResponseData {
   projection: FreeAgentContractProjection;
 }
@@ -36,7 +43,7 @@ export async function offerFreeAgentContract(
   weeklyWage: number,
   contractYears: number,
 ): Promise<FreeAgentContractResponseData> {
-  return invoke<FreeAgentContractResponseData>("offer_free_agent_contract", {
+  return invokeForCareer<FreeAgentContractResponseData>("offer_free_agent_contract", {
     playerId,
     weeklyWage,
     contractYears,
@@ -51,4 +58,8 @@ export async function previewFreeAgentContractImpact(
     playerId,
     weeklyWage,
   });
+}
+
+export async function getFreeAgentOpeningOffer(playerId: string): Promise<FreeAgentOpeningOffer> {
+  return invoke<FreeAgentOpeningOffer>("get_free_agent_opening_offer", { playerId });
 }

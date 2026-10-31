@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { PlayerKnowledge } from "../../services/scoutingService";
 import { ratingTierClass } from "../../lib/ratingTier";
 import TeamProfile from "./TeamProfile";
 import { createSeasonContext } from "../../test-utils/factories";
@@ -14,6 +15,17 @@ vi.mock("../../hooks/useRatingTiers", async () => {
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+}));
+
+// What the club knows about each player, as the backend's `player_knowledge` would answer, by id.
+// Everyone not named reads as the club's own, which most of these tests render.
+const knowledge = vi.hoisted(() => ({
+  current: {} as Record<string, PlayerKnowledge>,
+}));
+
+vi.mock("../../hooks/usePlayerKnowledge", () => ({
+  usePlayerKnowledge: () => (playerId: string) =>
+    knowledge.current[playerId] ?? ({ kind: "own" } as const),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -237,6 +249,7 @@ function createGameState(team: TeamData): GameStateData {
 
 describe("TeamProfile", () => {
   beforeEach(() => {
+    knowledge.current = {};
     vi.mocked(invoke).mockReset();
     vi.mocked(invoke).mockResolvedValue(null);
   });
@@ -393,6 +406,73 @@ describe("TeamProfile", () => {
     expect(await ratingOf("Seventy Six", "76")).toHaveClass(
       ...ratingTierClass("B", "text").split(" "),
     );
+  });
+
+  // A rival club's profile opened from the user's club: one rival player rated 77.
+  function renderRivalWith(playerKnowledge: PlayerKnowledge) {
+    const mine = createTeam({ id: "mine", name: "Mine FC" });
+    const rival = createTeam({ id: "rival", name: "Rival FC" });
+    const state = createGameState(mine);
+    state.teams = [mine, rival];
+    state.players = [
+      createPlayer({
+        id: "r-77",
+        full_name: "Rival Seventy Seven",
+        match_name: "R. Seven",
+        ovr: 77,
+        team_id: "rival",
+      }),
+    ];
+    knowledge.current = { "r-77": playerKnowledge };
+
+    render(<TeamProfile team={rival} gameState={state} isOwnTeam={false} />);
+    // His row's cell under the roster's OVR column, found by role and name, not by test id.
+    return async () => {
+      const row = (await screen.findByText("Rival Seventy Seven")).closest("tr") as HTMLElement;
+      const headers = within(row.closest("table") as HTMLElement).getAllByRole("columnheader");
+      const ovrColumn = headers.findIndex((header) => header.textContent === "OVR");
+      return within(row).getAllByRole("cell")[ovrColumn].firstElementChild as HTMLElement;
+    };
+  }
+
+  /**
+   * Given a rival club in the user's own division, its player rated 77
+   * When its roster renders
+   * Then his rating shows, in its backend tier's colour, as the staff see him every season
+   */
+  it("shows a known rival's rating on his club's roster", async () => {
+    const rating = await renderRivalWith({ kind: "known" })();
+
+    expect(rating).toHaveTextContent("77");
+    expect(rating).toHaveClass(...ratingTierClass("A", "text").split(" "));
+  });
+
+  /**
+   * Given a rival club in another division, its player never scouted
+   * When its roster renders
+   * Then his rating reads "–", as on his profile: nothing the club could not know
+   */
+  it("shows an unknown rival's rating as a dash on his club's roster", async () => {
+    const rating = await renderRivalWith({ kind: "unknown" })();
+
+    expect(rating).toHaveTextContent("–");
+    expect(rating).not.toHaveTextContent("77");
+  });
+
+  /**
+   * Given a rival club in another division, its player scouted (the report holds his attributes,
+   *      not a rating)
+   * When its roster renders
+   * Then his rating reads "–", as on his profile until a scout's estimate exists
+   */
+  it("shows a scouted rival's rating as a dash on his club's roster", async () => {
+    const rating = await renderRivalWith({
+      kind: "scouted",
+      scouted_on: "2026-07-20",
+      current: true,
+    })();
+
+    expect(rating).toHaveTextContent("–");
   });
 
   it("offers a roster context menu action to view the player profile", async () => {

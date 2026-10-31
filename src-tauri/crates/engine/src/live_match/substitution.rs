@@ -1,7 +1,7 @@
 use crate::event::{EventType, MatchEvent};
 use crate::types::{PlayerData, Position, Side, Zone};
 
-use super::{LiveMatchState, SubstitutionRecord};
+use super::{LiveMatchState, MatchPhase, SubstitutionRecord};
 
 // ---------------------------------------------------------------------------
 // Substitution mechanics
@@ -21,6 +21,15 @@ impl LiveMatchState {
 
         if *subs_made >= self.max_subs {
             return Err("be.error.liveMatch.maxSubstitutionsReached".into());
+        }
+
+        // A shootout is taken by the players on the pitch at the final whistle of extra time,
+        // and its kicking order is fixed from them, so nobody comes on or off after it.
+        if matches!(
+            self.phase,
+            MatchPhase::ExtraTimeEnd | MatchPhase::PenaltyShootout
+        ) {
+            return Err("be.error.liveMatch.noSubstitutionsForShootout".into());
         }
 
         // Cannot substitute a player who has been sent off
@@ -105,6 +114,7 @@ impl LiveMatchState {
         )
         .with_player(player_on_id)
         .with_secondary(player_off_id);
+        self.unreported_events.push(evt.clone());
         self.events.push(evt);
 
         self.substitutions.push(SubstitutionRecord {

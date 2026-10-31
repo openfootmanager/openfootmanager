@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import { PLAYERS_OPENING_QUERY } from "../../components/players/playersOpeningQuery";
 import { readStyleGuideOptions } from "../styleGuide/styleGuideOptions";
 import { fixtureHandlers } from "./fixtureAnswers";
 import {
   gameState,
   playersPage,
   playersPageQuery,
+  positionGroups,
   ratingTiers,
   squad,
   squadFitness,
@@ -50,6 +52,21 @@ describe("fixture answers", () => {
   });
 
   /**
+   * Given Squad's position badges (PositionBadge, #986) asking which group each position is in,
+   * when the harness answers, then it gives the backend's table, generated from the ofm_core
+   * function the command returns: every position, each in one of the four groups.
+   */
+  it("answers the position groups with the backend's table", () => {
+    expect(handlers.get_position_groups({})).toBe(positionGroups);
+    expect(positionGroups.find((entry) => entry.position === "Goalkeeper")?.group).toBe(
+      "Goalkeeper",
+    );
+    expect(new Set(positionGroups.map((entry) => entry.group))).toEqual(
+      new Set(["Goalkeeper", "Defender", "Midfielder", "Forward"]),
+    );
+  });
+
+  /**
    * Given another club, when its squad, standing or finances are asked for, then the fixture
    * declines: it only holds the user's club, and must not pass it off as another's.
    */
@@ -76,6 +93,16 @@ describe("fixture answers", () => {
 });
 
 describe("world list answers", () => {
+  /**
+   * Given the query the Players page opens with, and the one page_fixture.rs builds by hand (Rust
+   * can't import the page's)
+   * When the fixture is read
+   * Then they are the same query, so a change to either fails here, not as an unanswered page.
+   */
+  it("was generated for the query the Players page opens with", () => {
+    expect(playersPageQuery).toEqual(PLAYERS_OPENING_QUERY);
+  });
+
   /**
    * Given the Players page opening, when it asks for its first page with the query it opens with,
    * then the fixture's page comes back: a full page of the world's players, best first, from more

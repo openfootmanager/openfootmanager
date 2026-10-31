@@ -52,7 +52,9 @@ and a dark value in the `.dark` block below it, so **a component that uses a rol
 | `fg`, `fg-muted`, `fg-subtle` | text: strong, secondary, quiet (placeholders, disabled) |
 | `line`, `line-strong` | borders and dividers |
 | `focus` | the focus ring |
-| `on-brand` | text and icons on the brand fill (`primary-700`), on chrome, on the turf |
+| `on-brand` | text and icons on the brand fill (`primary-700`), the selected fill, chrome, the turf |
+| `selected-fill` | a control that is on or chosen: a switch that is on, a checked box, a `strong` segmented option, a count badge; it carries `on-brand` text |
+| `selected`, `selected-tint` | the text (and check mark) and background of the chosen option in a list: `Select`, `DatePicker`, the comboboxes; `selected` also draws the selected tab's underline and an `outlined` segmented option's ring |
 | `positive`, `warning`, `danger`, `info` | status text; each also has `-tint` (a background) and `-solid` (a bar or dot) |
 | `tone-top`, `tone-good`, `tone-fair`, `tone-low`, `tone-bad` | the scale for rated values (§4), with `-tint` and `-solid` |
 
@@ -60,11 +62,13 @@ Brand palettes (`primary-*`, `accent-*`, `navy-*`) stay for brand moments: the C
 the selected navigation item, a logo strip. The raw Tailwind palette (`gray-500`, `red-400`,
 `white`, …) isn't used in a finished folder (§7).
 
-A control that is on or chosen (a switch that is on, a segmented option filled with `strong`, a
-checked box, a count badge, the highlighted option in `Select` and the chosen day in
-`DatePicker`) is getting its own `selected` role, with a dark pair, in place of the brand green:
-one place to change how "chosen" looks (maintainer, 22 Oct). Until that PR lands they use the
-`primary-*` greens.
+A control that is on or chosen uses the `selected` role, not the brand green: one place to change
+how "chosen" looks (maintainer, 22 Oct). It covers controls inside pages; the sidebar's selected
+item stays a brand moment. A chosen state is never `positive` either: `positive` means good news
+(maintainer, 28 Oct). In light it is the same green as `primary-700`. In dark
+the fill is a lighter green (3.1:1 against the panel, where `primary-700` was 2.8:1), still dark
+enough for white text at 4.9:1. A list's keyboard-active option is marked with `ring-focus`, since
+it is where focus is, not what is chosen.
 
 **Readability is tested, not hoped for.** `src/designTokens.test.ts` checks that every text role
 reaches 4.5:1 on every surface it sits on, and that the focus ring reaches 3:1, in light, dark,
@@ -74,7 +78,7 @@ before measuring.
 Two rules follow from what those numbers allow:
 
 - **A `-solid` colour carries no text.** Solids are for bars, dots and fills; white on them falls
-  under 4.5:1. Text on a fill goes on `primary-700` or `chrome`, in `on-brand`.
+  under 4.5:1. Text on a fill goes on `primary-700`, `selected-fill` or `chrome`, in `on-brand`.
 - **A line is never the only signal.** `line` is decorative: in high contrast light it is 2.5:1
   against the page. A border may group or separate things, but whatever it marks (a selected
   row, an error, a highlighted team) also needs text, an icon, a weight or a tint.
@@ -139,8 +143,9 @@ drawn in the style guide.
 | an unread count or a mark on a nav item (a circle for one digit, 99+ at most) | `UnreadBadge` |
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
-| a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a `positive` or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details (never the first column, which keeps the accent and, failing a primary, the name). It draws no panel: put it in a `Card` |
+| a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a row's menu on right-click (`onRowContextMenu`) as well as on its action button; a `positive` or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details (never the first column, which keeps the accent and, failing a primary, the name). It draws no panel: put it in a `Card` |
 | a list shown as a table or as cards | `ViewSwitch`, at the end of the list's `PageToolbar`: a `SegmentedControl` of Table and Cards bound to the one global setting, `AppSettings.list_view` (`table` by default), so whatever the player picks on one list is how every list opens (maintainer, 21 Oct) |
+| a player's condition | `ConditionMeter`: the backend's band word (`condition_status`) in its tone, a bar in the same tone and the percentage; without the band, a neutral bar and no word |
 | a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
 More primitives arrive as the migration goes on: empty and loading states outside a table, stat
@@ -161,15 +166,16 @@ A tone never stands alone: there is always a letter, a word or the number next t
 the game doesn't know (an unscouted attribute, a match not yet rated) shows "–" in `fg-subtle`,
 never a grey number that could read as a low value.
 
-Condition will have words as well as tones, from one rule in `ofm_core` that will also drive the
-staff warnings and the squad's fitness counts, so the words, the tones and the counts always
-agree. The maintainer chose these bands; the rule doesn't exist yet (today's fitness status splits
-only at 40 and 25), and this section is updated when it lands:
+Condition has words as well as tones, from one rule in `ofm_core`
+(`training::fitness_warnings::fitness_status`) that also drives the staff warnings and the
+squad's fitness counts, so the words, the tones and the counts always agree. The backend sends
+each player's band as `condition_status`; `ConditionMeter` draws it. The maintainer chose these
+bands:
 
 | Condition | Word | Tone |
 |---|---|---|
 | 75 and over | Fresh | `good` |
-| 40–74 | Tiring | `neutral` |
+| 40–74 | Tiring | `fair` |
 | 25–39 | Exhausted | `low` |
 | under 25 | Critical | `bad` |
 
@@ -197,11 +203,12 @@ only at 40 and 25), and this section is updated when it lands:
 
 ## 7. Enforcement
 
-`src/designSystem.test.ts` checks six rules in every folder listed in its `FINISHED_FOLDERS`:
+`src/designSystem.test.ts` checks seven rules (1 to 6, and 8) in every folder listed in its `FINISHED_FOLDERS`:
 role type sizes only, no colour literal (except SVG artwork whose colours are data), no raw palette
-class, a full-screen overlay only through `Dialog`, no `on-brand` text on a `-solid` fill, and one
+class, a full-screen overlay only through `Dialog`, no `on-brand` text on a `-solid` fill, one
 focus ring (`ring-focus`, on `focus-visible`, never plain `focus` or another colour, offset in the
-surface behind the control: `page`, `panel`, `sunken` or `chrome`). Each
+surface behind the control: `page`, `panel`, `sunken` or `chrome`), and the brand green
+(`primary-*`) only in the brand files its `BRAND_FILES` lists, each with its reason. Each
 rule has a fixture that breaks it. A folder joins the list in the PR that brings it up to
 standard, so the list only ever names finished work, never a known violation; when every folder
 is in, the list goes.

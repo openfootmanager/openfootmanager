@@ -16,8 +16,6 @@ import {
   formatPlayerWage,
   formatPlayerWageCompact,
   getPlayerTeamName,
-  knowledgeRevision,
-  visibleWageText,
 } from "./PlayerProfile.helpers";
 import { useVisibleWage } from "../../hooks/useVisibleWage";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
@@ -43,7 +41,13 @@ import { usePlayerProfileData } from "./usePlayerProfileData";
 import { useScoutPlayerFlow } from "./useScoutPlayerFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
 import { naturalPositionOf } from "../../lib/positions";
-import { knowsPlayerRating, knowsPrivateState, visibleTraits } from "../../lib/playerKnowledge";
+import {
+  knowledgeRevision,
+  knowsPlayerRating,
+  knowsPrivateState,
+  visibleTraits,
+  visibleWageText,
+} from "../../lib/playerKnowledge";
 import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
 
 interface PlayerProfileProps {

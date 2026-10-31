@@ -202,7 +202,7 @@ impl LiveMatchState {
         let def_mod = play_style_modifier(
             self.team_ref(def_side).play_style,
             PlayStylePhase::Defense,
-            false,
+            true,
         ) * role_modifier(Position::Defender, defender.role, PlayStylePhase::Defense);
         let att_eff = att_rating * att_mod * crate::shared::home_mod(att_side, &self.config);
         let def_eff = def_rating

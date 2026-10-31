@@ -87,6 +87,12 @@ pub enum MatchCommand {
         side: Side,
         dial: TacticalDial,
     },
+    /// Set the order a side takes its shootout kicks in: every eligible player, reordered.
+    /// Accepted only once the shootout has started and before its first kick.
+    SetShootoutOrder {
+        side: Side,
+        player_ids: Vec<String>,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -176,6 +182,21 @@ pub struct PenaltyShootoutSnapshot {
     pub home_scored: u8,
     pub away_scored: u8,
     pub sudden_death: bool,
+    /// A side's planned order, for the manager of that side only. The engine's own snapshot
+    /// never fills these: the live session fills in its user's side, so the opponent's order
+    /// stays hidden until each kick is taken.
+    #[serde(default)]
+    pub home_order: Option<ShootoutOrderSnapshot>,
+    #[serde(default)]
+    pub away_order: Option<ShootoutOrderSnapshot>,
+}
+
+/// One side's shootout order: everyone eligible to kick, in the order they will kick, and how
+/// many of them kick. The players after the first `kickers` sit out.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShootoutOrderSnapshot {
+    pub player_ids: Vec<String>,
+    pub kickers: u8,
 }
 
 // ---------------------------------------------------------------------------
@@ -191,6 +212,14 @@ struct PenaltyShootoutState {
     home_scored: u8,
     away_scored: u8,
     sudden_death: bool,
+    /// Each side's order: the ids of everyone on the pitch at the final whistle, in the order
+    /// they kick. A manager may reorder it before the first kick.
+    home_order: Vec<String>,
+    away_order: Vec<String>,
+    /// How many of each order kick: the length of the shorter one. Kick `n` of a side is taken
+    /// by entry `n % kickers`, so everyone kicks once before anyone kicks twice, and the
+    /// entries after `kickers` sit out.
+    kickers: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +246,9 @@ pub struct LiveMatchState {
 
     // Events log
     events: Vec<MatchEvent>,
+    /// Events a command created between minutes. The live feed is built from each minute's
+    /// results, so they are handed to the next minute's results, once, as well as logged.
+    unreported_events: Vec<MatchEvent>,
 
     // Possession tracking
     home_possession_ticks: u32,
@@ -291,6 +323,7 @@ impl LiveMatchState {
             ball_zone: Zone::Midfield,
             possession: Side::Home,
             events: Vec::with_capacity(300),
+            unreported_events: Vec::new(),
             home_possession_ticks: 0,
             away_possession_ticks: 0,
             yellows: HashMap::new(),
@@ -317,6 +350,16 @@ impl LiveMatchState {
 
     /// Step one minute forward. Returns the events that occurred.
     pub fn step_minute<R: Rng>(&mut self, rng: &mut R) -> MinuteResult {
+        let mut result = self.play_phase(rng);
+        if !self.unreported_events.is_empty() {
+            let mut events = std::mem::take(&mut self.unreported_events);
+            events.append(&mut result.events);
+            result.events = events;
+        }
+        result
+    }
+
+    fn play_phase<R: Rng>(&mut self, rng: &mut R) -> MinuteResult {
         match self.phase {
             MatchPhase::PreKickOff => self.start_match(rng),
             MatchPhase::FirstHalf => self.play_minute(rng),
@@ -377,6 +420,9 @@ impl LiveMatchState {
             MatchCommand::ChangeTacticalDial { side, dial } => {
                 dial.set_on(&mut self.team_mut(side).tactics);
                 Ok(())
+            }
+            MatchCommand::SetShootoutOrder { side, player_ids } => {
+                self.set_shootout_order(side, player_ids)
             }
             MatchCommand::ChangePlayerRole {
                 side,

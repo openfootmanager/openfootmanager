@@ -13,8 +13,9 @@ use domain::world_history::WorldHistoryArchive;
 
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap, HashSet};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum ObjectiveType {
     LeaguePosition,
     Wins,
@@ -22,7 +23,7 @@ pub enum ObjectiveType {
     FinancialStability,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct BoardObjective {
     pub id: String,
     pub description: String,
@@ -31,7 +32,7 @@ pub struct BoardObjective {
     pub met: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ScoutingAssignment {
     pub id: String,
     pub scout_id: String,
@@ -41,21 +42,21 @@ pub struct ScoutingAssignment {
 
 /// What a finished scouting job revealed about a player, as of `scouted_on`.
 /// The attributes are a snapshot: they do not follow the player's later changes.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ScoutedPlayer {
     pub player_id: String,
     pub scouted_on: String,
     pub attributes: PlayerAttributes,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum YouthScoutingRegion {
     #[default]
     Domestic,
     International,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
 pub enum YouthScoutingObjective {
     #[default]
     Balanced,
@@ -63,7 +64,7 @@ pub enum YouthScoutingObjective {
     ReadySoon,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct YouthScoutingAssignment {
     pub id: String,
     pub scout_id: String,
@@ -83,7 +84,7 @@ pub struct DayStart {
     pub bracket_fixtures: std::collections::HashSet<(String, String)>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Game {
     pub clock: GameClock,
     pub manager: Manager,
@@ -178,6 +179,13 @@ pub struct Game {
     /// `game_meta.gate_settled_from`.
     #[serde(default)]
     pub gate_settled_from: Option<String>,
+    /// The day the last season ended (ISO date): every player aged then, and the season's growth
+    /// applied. A scout's report taken before it no longer describes the player. `None` until this
+    /// career's first season end; a save from before the field takes it from its last league season
+    /// on load (`end_of_season::backfill_last_season_rollover`). Persistence is
+    /// `game_meta.last_season_rollover_on`.
+    #[serde(default)]
+    pub last_season_rollover_on: Option<String>,
     /// Names the career this game was installed as (`StateManager::next_career_token`). It travels
     /// to the screen with the game, and a command that writes on the screen's behalf hands it back
     /// to be checked against the active game inside the write. Not saved: a loaded game is
@@ -275,6 +283,7 @@ impl Game {
             custom_tactics: Vec::new(),
             legacy_tactics_imported: false,
             gate_settled_from: None,
+            last_season_rollover_on: None,
             career_token: 0,
             archived_messages: Vec::new(),
             emitted_events: BTreeSet::new(),

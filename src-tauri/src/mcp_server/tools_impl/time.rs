@@ -1,16 +1,23 @@
 //! MCP tool implementations: time
 
 use mcp_results::time::{
-    Blockers, DayAdvanced, Outcome, PlayedMatch, SkipToMatchDay, StandingsUpdate, YourMatch,
+    Blocker, Blockers, DayAdvanced, Outcome, PlayedMatch, SkipToMatchDay, StandingsUpdate,
+    YourMatch,
 };
 
+use crate::application::time_blockers::stopping_blockers;
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{require_game, require_league};
+use crate::SaveManagerState;
+use ofm_core::game::Game;
+use ofm_core::state::StateManager;
 use std::sync::{Arc, Mutex};
 
 // ─── time_advance ───────────────────────────────────────────────────────────
 
 pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
+    advance_gate(&require_game(&ctx.state_manager)?)?;
+
     // Rate limiting: enforce minimum delay between advances
     if ctx.config.min_tick_delay_ms > 0 {
         // Simple approach: sleep for the configured delay
@@ -23,6 +30,7 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
     // Use the delegate mode to force auto-simulation of matches
     let response = crate::application::time_advancement::advance_time_with_mode(
         &ctx.state_manager,
+        ofm_core::state::Career::Active,
         "delegate",
     )?;
 
@@ -61,7 +69,12 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
         results,
     };
 
-    let auto_saved = response.game.is_some() && auto_save_if_due(&ctx);
+    let auto_saved = response.game.is_some()
+        && auto_save_if_due(
+            &ctx.state_manager,
+            &ctx.save_manager_state,
+            ctx.config.auto_save_interval_days,
+        );
 
     // Notify GUI about state change
     {
@@ -70,6 +83,20 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
     }
 
     Ok(DayAdvanced { auto_saved, ..day })
+}
+
+/// Time does not advance while a blocker stands: the screen's Continue stops on exactly this list,
+/// and an agent resolves the squad, contract or other problem first, as a manager would.
+pub(crate) fn advance_gate(game: &Game) -> Result<(), String> {
+    let blockers = blockers_of(game, false).blockers;
+    if blockers.is_empty() {
+        return Ok(());
+    }
+    let list: Vec<String> = blockers.iter().map(|b| format!("- {b}")).collect();
+    Err(format!(
+        "Time cannot advance until these are resolved:\n{}\nUse time_check_blockers to see them again.",
+        list.join("\n")
+    ))
 }
 
 fn your_match_in(
@@ -113,13 +140,13 @@ fn standings_update(game: &ofm_core::game::Game) -> Option<StandingsUpdate> {
     })
 }
 
-/// Saves the game every `auto_save_interval_days` in-game days, counted per save.
+/// Saves the game every `interval_days` in-game days, counted per save; 0 turns it off.
 /// Returns whether it saved.
-fn auto_save_if_due(ctx: &McpContext) -> bool {
-    if ctx.config.auto_save_interval_days == 0 {
+fn auto_save_if_due(state: &StateManager, saves: &SaveManagerState, interval_days: u32) -> bool {
+    if interval_days == 0 {
         return false;
     }
-    let Some(save_id) = ctx.state_manager.get_save_id() else {
+    let Some(save_id) = state.get_save_id() else {
         return false;
     };
     use std::collections::HashMap;
@@ -132,13 +159,14 @@ fn auto_save_if_due(ctx: &McpContext) -> bool {
     };
     let days = counters.entry(save_id).or_insert(0);
     *days += 1;
-    if *days < ctx.config.auto_save_interval_days {
+    if *days < interval_days {
         return false;
     }
     *days = 0;
     drop(counters); // release lock before save
-    ctx.save_manager_state.0.lock().is_ok_and(|mut sm| {
-        crate::commands::util::persist_active_game(&ctx.state_manager, &mut sm).is_ok()
+    saves.0.lock().is_ok_and(|mut sm| {
+        crate::commands::util::persist_active_game(state, &mut sm, ofm_core::state::Career::Active)
+            .is_ok()
     })
 }
 
@@ -147,8 +175,33 @@ fn auto_save_if_due(ctx: &McpContext) -> bool {
 // ─── time_skip_to_match_day ─────────────────────────────────────────────────
 
 pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, String> {
-    crate::application::live_session::ensure_idle(&ctx.state_manager)?;
-    let game = require_game(&ctx.state_manager)?;
+    let outcome = skip_to_match_day_in(&ctx.state_manager)?;
+    if matches!(
+        outcome,
+        SkipToMatchDay::Skipped { .. }
+            | SkipToMatchDay::Blocked {
+                days_advanced: 1..,
+                ..
+            }
+    ) {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+    Ok(outcome)
+}
+
+/// Skips to the next match day, stopping where the screen's skip stops: before it starts if a
+/// blocker stands, and after any day that brings one.
+pub(crate) fn skip_to_match_day_in(state: &StateManager) -> Result<SkipToMatchDay, String> {
+    crate::application::live_session::ensure_idle(state)?;
+    let game = require_game(state)?;
+    let blockers = blockers_of(&game, false).blockers;
+    if !blockers.is_empty() {
+        return Ok(SkipToMatchDay::Blocked {
+            days_advanced: 0,
+            blockers,
+        });
+    }
     let league = require_league(&game)?;
     let team_id = game
         .manager
@@ -185,18 +238,28 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
     // Advance time day by day until we reach the match day
     let mut advanced = 0u32;
     loop {
-        let game = require_game(&ctx.state_manager)?;
+        let game = require_game(state)?;
         let current = game.clock.current_date.format("%Y-%m-%d").to_string();
         if current >= target_date {
             break;
         }
 
         crate::application::time_advancement::advance_time_with_mode(
-            &ctx.state_manager,
+            state,
+            ofm_core::state::Career::Active,
             "delegate",
         )?;
 
         advanced += 1;
+
+        let game = require_game(state)?;
+        let blockers = blockers_of(&game, false).blockers;
+        if !blockers.is_empty() {
+            return Ok(SkipToMatchDay::Blocked {
+                days_advanced: advanced,
+                blockers,
+            });
+        }
 
         // Safety limit
         if advanced > 365 {
@@ -204,11 +267,6 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
                 days_advanced: advanced,
             });
         }
-    }
-
-    {
-        use tauri::Emitter;
-        let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
     Ok(SkipToMatchDay::Skipped {
@@ -219,51 +277,43 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
 
 // ─── time_check_blockers ────────────────────────────────────────────────────
 
-// ─── time_check_blockers ────────────────────────────────────────────────────
-
 pub fn time_check_blockers(ctx: Arc<McpContext>) -> Result<Blockers, String> {
     let game = require_game(&ctx.state_manager)?;
+    let live_match_in_progress = ctx.state_manager.with_live_match(|_| true).unwrap_or(false);
+    Ok(blockers_of(&game, live_match_in_progress))
+}
 
-    let mut blockers = Vec::new();
-
-    // Check for live match in progress
-    if ctx.state_manager.with_live_match(|_| true).unwrap_or(false) {
-        blockers.push("Live match in progress — finish the match first".to_string());
+/// The blockers the UI's own check reports (`application::time_blockers::stopping_blockers`), so
+/// an agent and a player are stopped by the same list with the same severities.
+pub(crate) fn blockers_of(game: &Game, live_match_in_progress: bool) -> Blockers {
+    let text = |blocker: &serde_json::Value, field: &str| {
+        blocker
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let blockers = stopping_blockers(game)
+        .iter()
+        .map(|blocker| Blocker {
+            id: text(blocker, "id"),
+            severity: text(blocker, "severity"),
+            tab: text(blocker, "tab"),
+            params: blocker.get("text_params").filter(|p| !p.is_null()).cloned(),
+        })
+        .collect();
+    Blockers {
+        blockers,
+        live_match_in_progress,
     }
-
-    // Check for pending transfer offers requiring response
-    let team_id = game.manager.team_id.as_deref();
-    if let Some(tid) = team_id {
-        let pending_offers: Vec<_> = game
-            .players
-            .iter()
-            .filter(|p| p.team_id.as_deref() == Some(tid))
-            .flat_map(|p| p.transfer_offers.iter())
-            .filter(|o| o.status == domain::player::TransferOfferStatus::Pending)
-            .collect();
-
-        if !pending_offers.is_empty() {
-            blockers.push(format!(
-                "{} pending transfer offer(s) need response",
-                pending_offers.len()
-            ));
-        }
-    }
-
-    // Check for contract renewal deadlines
-    if let Some(_tid) = team_id {
-        // Note: exit_intent is nested in player.morale_core.renewal_state.exit_intent
-        // Skip this check for simplicity — agents can use info_player_profile to check
-    }
-
-    Ok(Blockers { blockers })
 }
 
 // ─── transfer_market_browse ─────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
-    use super::standings_update;
+    use super::{auto_save_if_due, standings_update};
+    use crate::commands::wrapper_testkit::WrapperApp;
     use chrono::TimeZone;
     use domain::league::{League, StandingEntry};
     use domain::manager::Manager;
@@ -311,5 +361,80 @@ mod tests {
 
         assert_eq!(update.position, 1);
         assert_eq!(update.goal_difference, 2);
+    }
+
+    fn game_to_autosave() -> Game {
+        let manager = Manager::new(
+            "mgr".to_string(),
+            "Original".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        let clock = GameClock::new(chrono::Utc.with_ymd_and_hms(2030, 9, 1, 12, 0, 0).unwrap());
+        Game::new(clock, manager, vec![], vec![], vec![], vec![])
+    }
+
+    /// Changes the live game after its save was made, so a save shows up as a different name on disk.
+    fn rename_in_memory(app: &WrapperApp) {
+        app.state()
+            .update_game(|game| game.manager.first_name = "Renamed".to_string())
+            .expect("game");
+    }
+
+    /// Given an interval of 0 (auto-save off) and a changed game
+    /// When a day passes
+    /// Then it reports no save and the file on disk is unchanged.
+    #[test]
+    fn an_interval_of_zero_never_saves() {
+        let app = WrapperApp::new(game_to_autosave(), true);
+        rename_in_memory(&app);
+
+        let saved = auto_save_if_due(&app.state(), &app.saves(), 0);
+
+        assert!(!saved);
+        assert_eq!(app.saved_game().manager.first_name, "Original");
+    }
+
+    /// Given a game that has no save behind it
+    /// When a day passes with auto-save on
+    /// Then it reports no save, rather than claiming one it cannot make.
+    #[test]
+    fn a_game_without_a_save_is_not_auto_saved() {
+        let app = WrapperApp::new(game_to_autosave(), false);
+
+        assert!(!auto_save_if_due(&app.state(), &app.saves(), 1));
+    }
+
+    /// Given an interval of 1 and a changed game
+    /// When a day passes
+    /// Then it reports a save and the file on disk holds the change.
+    #[test]
+    fn an_interval_of_one_saves_every_day() {
+        let app = WrapperApp::new(game_to_autosave(), true);
+        rename_in_memory(&app);
+
+        let saved = auto_save_if_due(&app.state(), &app.saves(), 1);
+
+        assert!(saved);
+        assert_eq!(app.saved_game().manager.first_name, "Renamed");
+    }
+
+    /// Given an interval of 2 and a changed game
+    /// When two days pass
+    /// Then the first day saves nothing and the second saves.
+    #[test]
+    fn an_interval_of_two_saves_on_the_second_day_only() {
+        let app = WrapperApp::new(game_to_autosave(), true);
+        rename_in_memory(&app);
+
+        let first = auto_save_if_due(&app.state(), &app.saves(), 2);
+        let on_disk_after_first = app.saved_game().manager.first_name;
+        let second = auto_save_if_due(&app.state(), &app.saves(), 2);
+
+        assert!(!first);
+        assert_eq!(on_disk_after_first, "Original");
+        assert!(second);
+        assert_eq!(app.saved_game().manager.first_name, "Renamed");
     }
 }

@@ -135,6 +135,12 @@ fn render_module(game: &Game) -> Result<String, String> {
     )?;
     export(
         &mut module,
+        "positionGroups",
+        "PositionGroupEntry[]",
+        &ofm_core::position_group::position_groups(),
+    )?;
+    export(
+        &mut module,
         "careerStage",
         "CareerStage",
         &ofm_core::career_stage::career_stage(game),
@@ -145,9 +151,9 @@ fn render_module(game: &Game) -> Result<String, String> {
 
 /// The world lists' answers: the Players page's first page, the Teams directory and the Staff page.
 fn export_world_lists(module: &mut String, game: &Game, club: &str) -> Result<(), String> {
-    // The query the Players page sends on opening (`DEFAULT_QUERY` in PlayersListTab.tsx). It is
-    // exported with the page, and the harness answers only this query, so a page that starts
-    // sending another one shows as unanswered rather than getting this page.
+    // The query the Players page sends on opening (`PLAYERS_OPENING_QUERY`, in
+    // src/components/players/playersOpeningQuery.ts). The harness answers only this query, and
+    // fixtureAnswers.test.ts holds this copy equal to the page's, so the two can't drift apart.
     let players_query = json!({
         "search": null, "position": null, "positions": [],
         "age_min": null, "age_max": null, "ovr_min": null, "ovr_max": null,
@@ -189,6 +195,7 @@ import type { ContractWarningStage } from \"../../services/contractService\";
 import type { BackendFinanceSnapshotResponseData } from \"../../services/financeService\";
 import type { JobOpportunity } from \"../../services/jobService\";
 import type { PlayersPage, PlayersPageQuery } from \"../../services/playersService\";
+import type { PositionGroupEntry } from \"../../services/positionService\";
 import type { RatingTier, SquadFitness } from \"../../services/squadService\";
 import type { StaffSlice } from \"../../services/staffService\";
 import type { TeamsDirectory } from \"../../services/teamsService\";

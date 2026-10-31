@@ -97,9 +97,31 @@ fn a_delegated_matchday_plays_everything_dated_today() {
     assert_eq!(today(&game), next_day, "the date should move one day");
 }
 
+/// Given a new career
+/// When `time_check_blockers` is called
+/// Then its reply has the game's own blocker shape: every blocker has an id, a screen and a severity
+/// that stops time (never an informational one), and no live match is flagged.
+#[test]
+#[ignore = "needs a built MCP binary and a display; run via --ignored by the nightly"]
+fn the_blocker_check_replies_in_the_games_own_shape() {
+    let app = App::launch(&AppConfig::default()).unwrap();
+    begin(&app, career::seed(), "seasonStart", "ENG").unwrap();
+
+    let reply = app.client().time_check_blockers().unwrap();
+
+    assert!(!reply.live_match_in_progress);
+    for blocker in &reply.blockers {
+        assert!(
+            !blocker.id.is_empty() && !blocker.tab.is_empty(),
+            "{blocker:?}"
+        );
+        assert_ne!(blocker.severity, "info", "{blocker:?}");
+    }
+}
+
 /// Given a saved game
 /// When the `.db` is opened with the `db` crate
-/// Then it equals `info_game_state` (catches a field with no column).
+/// Then it equals `dev_full_game_state` (catches a field with no column).
 #[test]
 #[ignore = "needs a built MCP binary and a display; run via --ignored by the nightly"]
 fn the_file_on_disk_holds_what_the_game_holds() {
@@ -302,6 +324,8 @@ hidden_in_competition_mode!(
     competition_omits_and_rejects_game_export_world => "game_export_world",
     competition_omits_and_rejects_game_exit => "game_exit",
     competition_omits_and_rejects_game_load_save => "game_load_save",
+    competition_omits_and_rejects_info_game_state => "info_game_state",
+    competition_omits_and_rejects_dev_full_game_state => "dev_full_game_state",
 );
 
 /// Given a live game carrying a career token (session identity) and a save that has none

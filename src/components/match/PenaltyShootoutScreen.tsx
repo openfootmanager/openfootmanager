@@ -11,6 +11,7 @@ import {
 } from "./types";
 import { Play, Pause, FastForward, SkipForward } from "lucide-react";
 import { TeamLogo } from "../ui";
+import { invokeForCareer } from "../../services/careerInvoke";
 
 interface PenaltyShootoutScreenProps {
   snapshot: MatchSnapshot;
@@ -50,7 +51,7 @@ export default function PenaltyShootoutScreen({
     try {
       // Always one at a time, never batched like the live match: here a "minute" is a single
       // penalty, and the whole point of the screen is watching each one.
-      const results = await invoke<MinuteResult[]>("step_live_match", {
+      const results = await invokeForCareer<MinuteResult[]>("step_live_match", {
         minutes: 1,
       });
       if (results.length > 0) {
@@ -148,14 +149,12 @@ export default function PenaltyShootoutScreen({
           <div className="mt-6 space-y-3">
             <KickRow
               label={snapshot.home_team.name}
-              taken={ps.home_taken}
-              scored={ps.home_scored}
+              kicks={sideKicks(shootoutEvents, "Home")}
               maxRounds={ps.sudden_death ? ps.home_taken + 1 : 5}
             />
             <KickRow
               label={snapshot.away_team.name}
-              taken={ps.away_taken}
-              scored={ps.away_scored}
+              kicks={sideKicks(shootoutEvents, "Away")}
               maxRounds={ps.sudden_death ? ps.away_taken + 1 : 5}
             />
           </div>
@@ -233,51 +232,68 @@ export default function PenaltyShootoutScreen({
   );
 }
 
+/**
+ * One side's kicks, in the order they were taken (true: scored), then the ones still to come.
+ * Each cell is named for a screen reader ("Kick 2, missed"), so the result is never only a symbol
+ * and a colour.
+ */
 export function KickRow({
   label,
-  taken,
-  scored,
+  kicks,
   maxRounds,
 }: {
   label: string;
-  taken: number;
-  scored: number;
+  kicks: readonly boolean[];
   maxRounds: number;
 }) {
-  const cells = Math.max(maxRounds, taken);
+  const { t } = useTranslation();
+  const cells = Math.max(maxRounds, kicks.length);
 
   return (
     <div className="flex items-center gap-3">
       <span className="text-xs text-gray-500 dark:text-gray-400 w-20 truncate text-right">
         {label}
       </span>
-      <div className="flex gap-1.5 flex-wrap">
+      {/* Named for its club, so "Kick 1, missed" is heard as that club's kick, not the other's. */}
+      <div role="group" aria-label={label} className="flex gap-1.5 flex-wrap">
         {Array.from({ length: cells }).map((_, i) => {
-          if (i >= taken) {
+          const n = i + 1;
+          if (i >= kicks.length) {
             return (
               <span
-                key={i}
+                key={n}
+                role="img"
+                aria-label={t("match.shootout.kickToCome", { n })}
                 className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center text-xs text-gray-300"
               >
-                ?
+                <span aria-hidden="true">?</span>
               </span>
             );
           }
-          const isGoal = i < scored;
+          const scored = kicks[i];
           return (
             <span
-              key={i}
+              key={n}
+              role="img"
+              aria-label={t(scored ? "match.shootout.kickScored" : "match.shootout.kickMissed", {
+                n,
+              })}
               className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
-                isGoal
+                scored
                   ? "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400"
                   : "bg-red-100 dark:bg-red-900/40 text-red-500 dark:text-red-400"
               }`}
             >
-              {isGoal ? "⚽" : "✗"}
+              <span aria-hidden="true">{scored ? "⚽" : "✗"}</span>
             </span>
           );
         })}
       </div>
     </div>
   );
+}
+
+/** One side's shootout kicks, in the order taken, from the kick events (true: scored). */
+function sideKicks(events: readonly MatchEvent[], side: "Home" | "Away"): boolean[] {
+  return events.filter((evt) => evt.side === side).map((evt) => evt.event_type === "ShootoutGoal");
 }

@@ -1411,7 +1411,7 @@ mod tests {
         let archive = fs::File::open(&out).expect("archive should open");
         let mut zip = zip::ZipArchive::new(archive).expect("archive should be a valid zip");
         let names: Vec<String> = (0..zip.len())
-            .map(|i| zip.by_index(i).unwrap().name().to_string())
+            .map(|i| zip.by_index(i).unwrap().name().unwrap().into_owned())
             .collect();
         assert!(names.contains(&"world.json".to_string()));
         // The nested file proves the recursive read_dir walk still descends after

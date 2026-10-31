@@ -607,6 +607,81 @@ fn substitution_recorded_in_events() {
     assert_eq!(snap.substitutions[0].player_on_id, on_id);
 }
 
+fn substitutions_in(result: &MinuteResult) -> usize {
+    result
+        .events
+        .iter()
+        .filter(|event| event.event_type == EventType::Substitution)
+        .count()
+}
+
+/// Given a match in its first half,
+/// When the manager makes a substitution between two minutes,
+/// Then the next minute's results report it, once, so the live feed that is built from those
+/// results shows it; the minute after does not report it again.
+#[test]
+fn a_substitution_is_reported_in_the_next_minutes_results() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+    state.step_minute(&mut rng);
+    let off_id = state.snapshot().home_team.players[5].id.clone();
+    let on_id = state.bench(Side::Home)[0].id.clone();
+
+    state
+        .apply_command(MatchCommand::Substitute {
+            side: Side::Home,
+            player_off_id: off_id.clone(),
+            player_on_id: on_id.clone(),
+        })
+        .unwrap();
+    let next = state.step_minute(&mut rng);
+    let after = state.step_minute(&mut rng);
+
+    assert_eq!(substitutions_in(&next), 1);
+    let reported = next
+        .events
+        .iter()
+        .find(|event| event.event_type == EventType::Substitution)
+        .unwrap();
+    assert_eq!(reported.player_id.as_deref(), Some(on_id.as_str()));
+    assert_eq!(
+        reported.secondary_player_id.as_deref(),
+        Some(off_id.as_str())
+    );
+    assert_eq!(substitutions_in(&after), 0);
+}
+
+/// Given a match whose substitution has been reported in a minute's results,
+/// When the match is read back as a whole,
+/// Then its event log holds that substitution once: reporting it in the minute does not log it
+/// twice.
+#[test]
+fn a_reported_substitution_is_logged_once() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+    let off_id = state.snapshot().home_team.players[5].id.clone();
+    let on_id = state.bench(Side::Home)[0].id.clone();
+    state
+        .apply_command(MatchCommand::Substitute {
+            side: Side::Home,
+            player_off_id: off_id,
+            player_on_id: on_id,
+        })
+        .unwrap();
+
+    state.step_minute(&mut rng);
+
+    let logged = state
+        .snapshot()
+        .events
+        .iter()
+        .filter(|event| event.event_type == EventType::Substitution)
+        .count();
+    assert_eq!(logged, 1);
+}
+
 // ===========================================================================
 // Tests: Tactical commands
 // ===========================================================================
@@ -2254,4 +2329,158 @@ fn the_eleven_is_listed_back_to_front_after_a_formation_change() {
     expected.extend([Position::Forward; 3]);
     assert_eq!(lines, expected);
     assert_eq!(home_line_of(&state, "home_mid2"), Position::Forward);
+}
+
+// ===========================================================================
+// Tests: Who takes an in-match penalty
+// ===========================================================================
+
+const PENALTY_SEEDS: u64 = 400;
+
+fn designate_home_fwd1(state: &mut LiveMatchState) {
+    state
+        .apply_command(MatchCommand::SetPenaltyTaker {
+            side: Side::Home,
+            player_id: "home_fwd1".to_string(),
+        })
+        .expect("home_fwd1 is on the pitch");
+}
+
+/// The takers of every home penalty over many seeds, with `prepare` applied before kick-off.
+/// Seeds in which the referee sent anyone off are left out, since `prepare` decides who is off
+/// the pitch; `sent_off_by_prepare` names the players it sends off itself.
+fn home_penalty_takers(
+    prepare: &dyn Fn(&mut LiveMatchState),
+    sent_off_by_prepare: &[&str],
+) -> Vec<String> {
+    let mut takers = Vec::new();
+    for seed in 0..PENALTY_SEEDS {
+        let mut state = make_live_match(false);
+        prepare(&mut state);
+        let mut rng = seeded_rng(seed);
+        let results = run_to_finish(&mut state, &mut rng);
+        let referee_sent_someone_off = state
+            .snapshot()
+            .sent_off
+            .iter()
+            .any(|id| !sent_off_by_prepare.contains(&id.as_str()));
+        if referee_sent_someone_off {
+            continue;
+        }
+        takers.extend(
+            results
+                .iter()
+                .flat_map(|result| &result.events)
+                .filter(|event| {
+                    event.side == Side::Home
+                        && matches!(
+                            event.event_type,
+                            EventType::PenaltyGoal | EventType::PenaltyMiss
+                        )
+                })
+                .map(|event| event.player_id.clone().unwrap_or_default()),
+        );
+    }
+    takers
+}
+
+/// Given a side whose designated penalty taker is on the pitch,
+/// When it is awarded penalties,
+/// Then the designated taker takes every one.
+#[test]
+fn a_designated_penalty_taker_on_the_pitch_takes_every_penalty() {
+    let takers = home_penalty_takers(&designate_home_fwd1, &[]);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker == "home_fwd1"),
+        "{takers:?}"
+    );
+}
+
+/// Given a side whose designated penalty taker has been sent off,
+/// When it is awarded penalties,
+/// Then the sent-off player never takes one.
+#[test]
+fn a_sent_off_designated_penalty_taker_never_takes_a_penalty() {
+    let designate_then_send_off = |state: &mut LiveMatchState| {
+        designate_home_fwd1(state);
+        state.test_send_off("home_fwd1");
+    };
+    let takers = home_penalty_takers(&designate_then_send_off, &["home_fwd1"]);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        !takers.iter().any(|taker| taker == "home_fwd1"),
+        "the sent-off taker took a penalty: {takers:?}"
+    );
+}
+
+/// Given a side whose designated penalty taker has been substituted off,
+/// When it is awarded penalties,
+/// Then one of the forwards still on the pitch takes each one, as with no designated taker,
+/// never the substituted player and never the goalkeeper.
+#[test]
+fn a_substituted_designated_penalty_taker_leaves_the_penalty_to_a_forward() {
+    let designate_then_substitute = |state: &mut LiveMatchState| {
+        designate_home_fwd1(state);
+        state
+            .apply_command(MatchCommand::Substitute {
+                side: Side::Home,
+                player_off_id: "home_fwd1".to_string(),
+                player_on_id: "home_sub_fwd1".to_string(),
+            })
+            .expect("a substitution before kick-off");
+    };
+    let takers = home_penalty_takers(&designate_then_substitute, &[]);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers
+            .iter()
+            .all(|taker| taker == "home_fwd2" || taker == "home_sub_fwd1"),
+        "{takers:?}"
+    );
+}
+
+/// Given a side with no designated penalty taker and both its forwards sent off,
+/// When it is awarded penalties,
+/// Then a midfielder takes each one, never a defender and never the goalkeeper.
+#[test]
+fn with_no_forward_on_the_pitch_a_midfielder_takes_the_penalty() {
+    let forwards = ["home_fwd1", "home_fwd2"];
+    let forwards_off = |state: &mut LiveMatchState| {
+        for forward in forwards {
+            state.test_send_off(forward);
+        }
+    };
+    let takers = home_penalty_takers(&forwards_off, &forwards);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker.starts_with("home_mid")),
+        "{takers:?}"
+    );
+}
+
+/// Given a side with only its goalkeeper and defenders left on the pitch,
+/// When it is awarded penalties,
+/// Then a defender takes each one, never the goalkeeper.
+#[test]
+fn with_only_defenders_and_the_keeper_left_a_defender_takes_the_penalty() {
+    let gone = [
+        "home_fwd1",
+        "home_fwd2",
+        "home_mid1",
+        "home_mid2",
+        "home_mid3",
+        "home_mid4",
+    ];
+    let attackers_off = |state: &mut LiveMatchState| {
+        for player in gone {
+            state.test_send_off(player);
+        }
+    };
+    let takers = home_penalty_takers(&attackers_off, &gone);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker.starts_with("home_def")),
+        "{takers:?}"
+    );
 }
