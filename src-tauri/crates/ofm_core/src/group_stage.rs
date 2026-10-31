@@ -340,7 +340,7 @@ fn maybe_seed_knockout_from_groups(league: &mut League) {
         return;
     }
 
-    let qualifiers = knockout_qualifiers(league);
+    let qualifiers = knockout_bracket_order(league);
     if qualifiers.len() < 2 {
         return;
     }
@@ -411,6 +411,229 @@ pub(crate) fn knockout_qualifiers(league: &League) -> Vec<String> {
         );
     }
     qualifiers
+}
+
+/// The group-stage qualifiers in first-round bracket order, as [`crate::schedule::seed_knockout_round`]
+/// reads them: the byes first (the strongest group winners), then the ties two entrants at a time,
+/// in the order they sit in the bracket. A round's winners meet their neighbour next.
+///
+/// - A group winner plays the lowest-placed qualifier from another group, so group winners meet
+///   runners-up (and best thirds), not each other: A1 v B2 and B1 v A2 for a plain four-team
+///   knockout, and the lowest qualifiers available when best thirds are in the field.
+/// - Two teams of one group never meet in this round while a draw without such a tie exists (a
+///   search, not a single greedy pass, so it holds for any field shape).
+/// - The ties are placed so a group's teams sit in opposite halves of the bracket where they can:
+///   in a plain four-team-per-group field A1 and A2 can only meet in the final. Teams that have a
+///   bye are not part of that arrangement (they are listed first, in rank order), so among the
+///   first-round ties is where the guarantee holds.
+///
+/// The set of entrants is exactly [`knockout_qualifiers`]'s; only their order differs, so a bracket
+/// drawn the old way (winner against winner) still verifies in the strict archive check, which
+/// reads the entrants as a set.
+pub(crate) fn knockout_bracket_order(league: &League) -> Vec<String> {
+    let ranked = knockout_qualifiers(league);
+    let Some(byes) = crate::schedule::knockout_bye_count(ranked.len()) else {
+        return ranked;
+    };
+    let group_of = |team: &str| {
+        league
+            .groups
+            .iter()
+            .position(|group| group.team_ids.iter().any(|id| id == team))
+    };
+    let (bye_teams, playing) = ranked.split_at(byes);
+    let paired = if byes == 0 && is_two_per_group_without_thirds(league) {
+        paired_groups_ties(league)
+    } else {
+        Vec::new()
+    };
+    let ties = if paired.len() * 2 == playing.len() {
+        paired
+    } else {
+        lowest_available_ties(playing, group_of)
+    };
+    let ties = arrange_halves(ties, &group_of);
+    bye_teams
+        .iter()
+        .cloned()
+        .chain(ties.into_iter().flat_map(|(home, away)| [home, away]))
+        .collect()
+}
+
+type Tie = (String, String);
+
+/// A tie with its index in the order it was drawn.
+type NumberedTie = (usize, Tie);
+
+fn is_two_per_group_without_thirds(league: &League) -> bool {
+    league.rules.group_qualifiers_per_group == 2
+        && league.rules.group_best_third_qualifiers == 0
+        && league.groups.len() >= 2
+        && league.groups.len().is_multiple_of(2)
+}
+
+/// A1 v B2, B1 v A2, C1 v D2, D1 v C2, ...: each winner against the runner-up of the group it is
+/// paired with, the groups paired in the order they were drawn.
+fn paired_groups_ties(league: &League) -> Vec<Tie> {
+    let placed = |group: &GroupState, place: usize| {
+        sorted_group_standings(group)
+            .into_iter()
+            .nth(place)
+            .map(|entry| entry.team_id)
+    };
+    let mut ties = Vec::new();
+    for pair in league.groups.chunks(2) {
+        let [first, second] = pair else { continue };
+        for (winner_group, runner_up_group) in [(first, second), (second, first)] {
+            if let (Some(winner), Some(runner_up)) =
+                (placed(winner_group, 0), placed(runner_up_group, 1))
+            {
+                ties.push((winner, runner_up));
+            }
+        }
+    }
+    ties
+}
+
+/// The most tries one search for a draw may make. A field of up to 64 entrants finds its draw in
+/// far fewer; the limit only stops a pathological one from running away.
+const DRAW_SEARCH_BUDGET: u32 = 200_000;
+
+/// The best remaining qualifier plays the lowest-placed remaining qualifier of another group.
+/// `ranked` is best first.
+///
+/// Searches for a draw with no tie inside one group, trying the lowest opponent first, so the
+/// preference "best plays lowest" holds wherever a clash-free draw allows it. When none exists
+/// (one group supplies more than half the field), it allows the fewest clashes that do.
+fn lowest_available_ties(ranked: &[String], group_of: impl Fn(&str) -> Option<usize>) -> Vec<Tie> {
+    let groups: Vec<Option<usize>> = ranked.iter().map(|team| group_of(team.as_str())).collect();
+    if ranked.len().is_multiple_of(2) {
+        for allowed_clashes in 0..=ranked.len() / 2 {
+            let mut search = DrawSearch {
+                groups: &groups,
+                used: vec![false; ranked.len()],
+                picked: Vec::new(),
+                budget: DRAW_SEARCH_BUDGET,
+            };
+            if search.complete(allowed_clashes) {
+                return search
+                    .picked
+                    .into_iter()
+                    .map(|(first, second)| (ranked[first].clone(), ranked[second].clone()))
+                    .collect();
+            }
+        }
+    }
+    // An odd field, or a search that ran out of budget: pair what can be paired, best against
+    // lowest, preferring another group.
+    let mut pool: Vec<String> = ranked.to_vec();
+    let mut ties = Vec::new();
+    while pool.len() > 1 {
+        let best = pool.remove(0);
+        let best_group = group_of(best.as_str());
+        let opponent = pool
+            .iter()
+            .rposition(|team| group_of(team.as_str()) != best_group)
+            .unwrap_or(pool.len() - 1);
+        ties.push((best, pool.remove(opponent)));
+    }
+    ties
+}
+
+/// A depth-first search for a full pairing of `groups`' entrants (indices, best first).
+struct DrawSearch<'a> {
+    groups: &'a [Option<usize>],
+    used: Vec<bool>,
+    picked: Vec<(usize, usize)>,
+    budget: u32,
+}
+
+impl DrawSearch<'_> {
+    /// Pairs every entrant, with at most `clashes_left` ties inside one group.
+    fn complete(&mut self, clashes_left: usize) -> bool {
+        let Some(best) = self.used.iter().position(|used| !used) else {
+            return true;
+        };
+        if self.budget == 0 {
+            return false;
+        }
+        self.budget -= 1;
+        self.used[best] = true;
+        for lowest_first in (best + 1..self.groups.len()).rev() {
+            if self.used[lowest_first] {
+                continue;
+            }
+            let clash =
+                self.groups[best].is_some() && self.groups[best] == self.groups[lowest_first];
+            if clash && clashes_left == 0 {
+                continue;
+            }
+            self.used[lowest_first] = true;
+            self.picked.push((best, lowest_first));
+            if self.complete(clashes_left - usize::from(clash)) {
+                return true;
+            }
+            self.picked.pop();
+            self.used[lowest_first] = false;
+        }
+        self.used[best] = false;
+        false
+    }
+}
+
+/// The ties in bracket order: split into two halves with as few same-group pairs inside a half as
+/// possible, then each half the same way. Searches every split for fields up to
+/// [`MAX_ARRANGED_TIES`] ties (a 64-team round) and keeps the order given beyond that. The first
+/// split with the fewest clashes wins, so the result is the same on every run.
+fn arrange_halves(ties: Vec<Tie>, group_of: &impl Fn(&str) -> Option<usize>) -> Vec<Tie> {
+    const MAX_ARRANGED_TIES: usize = 20;
+    if ties.len() <= 2 || ties.len() > MAX_ARRANGED_TIES {
+        return ties;
+    }
+    let half = ties.len() / 2;
+    let clashes = |members: &[&Tie]| {
+        let mut per_group = std::collections::BTreeMap::<usize, usize>::new();
+        for tie in members {
+            for team in [&tie.0, &tie.1] {
+                if let Some(group) = group_of(team.as_str()) {
+                    *per_group.entry(group).or_default() += 1;
+                }
+            }
+        }
+        per_group
+            .values()
+            .map(|count| count * (count - 1) / 2)
+            .sum::<usize>()
+    };
+    let mut best: Option<(usize, u32)> = None;
+    for mask in 0..(1u32 << ties.len()) {
+        // The first tie stays in the first half: swapping the halves is the same bracket.
+        if mask & 1 == 0 || mask.count_ones() as usize != half {
+            continue;
+        }
+        let side = |first: bool| -> Vec<&Tie> {
+            ties.iter()
+                .enumerate()
+                .filter(|(index, _)| (mask & (1u32 << *index) != 0) == first)
+                .map(|(_, tie)| tie)
+                .collect()
+        };
+        let cost = clashes(&side(true)) + clashes(&side(false));
+        if best.is_none_or(|(lowest, _)| cost < lowest) {
+            best = Some((cost, mask));
+        }
+    }
+    let Some((_, mask)) = best else {
+        return ties;
+    };
+    let (first, second): (Vec<NumberedTie>, Vec<NumberedTie>) = ties
+        .into_iter()
+        .enumerate()
+        .partition(|(index, _)| mask & (1u32 << *index) != 0);
+    let strip = |side: Vec<NumberedTie>| side.into_iter().map(|(_, tie)| tie).collect::<Vec<_>>();
+    let mut arranged = arrange_halves(strip(first), group_of);
+    arranged.extend(arrange_halves(strip(second), group_of));
+    arranged
 }
 
 /// Reset a group-and-knockout competition for a new season in place: fresh
@@ -719,6 +942,281 @@ mod tests {
             cup.knockout_rounds.is_empty(),
             "groups are not finished yet"
         );
+    }
+
+    /// Plays every group fixture as a home win, so each group ranks in its drawn order, and
+    /// returns the cup with its first knockout round seeded.
+    fn after_the_group_stage(mut cup: League) -> League {
+        for index in 0..cup.fixtures.len() {
+            if cup.fixtures[index].status == FixtureStatus::Scheduled
+                && !is_knockout_fixture(&cup, &cup.fixtures[index].id.clone())
+            {
+                complete_fixture(&mut cup, index, 1, 0);
+            }
+        }
+        cup
+    }
+
+    /// The first knockout round's ties in bracket order.
+    fn first_round_ties(cup: &League) -> Vec<(String, String)> {
+        cup.knockout_rounds[0]
+            .fixture_ids
+            .iter()
+            .map(|id| {
+                let fixture = cup.fixtures.iter().find(|f| &f.id == id).unwrap();
+                (fixture.home_team_id.clone(), fixture.away_team_id.clone())
+            })
+            .collect()
+    }
+
+    /// Where a team finished in its group, 1 for the winner.
+    fn place_of(cup: &League, team: &str) -> usize {
+        let group = cup
+            .groups
+            .iter()
+            .find(|group| group.team_ids.iter().any(|id| id == team))
+            .unwrap();
+        sorted_group_standings(group)
+            .iter()
+            .position(|entry| entry.team_id == team)
+            .unwrap()
+            + 1
+    }
+
+    fn group_index_of(cup: &League, team: &str) -> usize {
+        cup.groups
+            .iter()
+            .position(|group| group.team_ids.iter().any(|id| id == team))
+            .unwrap()
+    }
+
+    /// The team that finished `place` in group `group`.
+    fn finisher(cup: &League, group: usize, place: usize) -> String {
+        sorted_group_standings(&cup.groups[group])[place - 1]
+            .team_id
+            .clone()
+    }
+
+    /// Given two groups of four that each send two teams through,
+    /// When the knockout is drawn,
+    /// Then each group winner plays the other group's runner-up: A1 v B2 and B1 v A2.
+    #[test]
+    fn two_groups_cross_over_winner_against_the_other_runner_up() {
+        let cup = after_the_group_stage(make_cup(8));
+
+        assert_eq!(
+            first_round_ties(&cup),
+            vec![
+                (finisher(&cup, 0, 1), finisher(&cup, 1, 2)),
+                (finisher(&cup, 1, 1), finisher(&cup, 0, 2)),
+            ]
+        );
+    }
+
+    /// Given four groups that each send two teams through,
+    /// When the knockout is drawn,
+    /// Then the winners meet runners-up of the paired group, nobody meets a team of their own
+    ///      group, and a group's two teams sit in opposite halves of the bracket.
+    #[test]
+    fn four_groups_pair_winners_with_runners_up_in_opposite_halves() {
+        let cup = after_the_group_stage(make_cup(16));
+        let ties = first_round_ties(&cup);
+
+        assert_eq!(
+            ties,
+            vec![
+                (finisher(&cup, 0, 1), finisher(&cup, 1, 2)),
+                (finisher(&cup, 2, 1), finisher(&cup, 3, 2)),
+                (finisher(&cup, 1, 1), finisher(&cup, 0, 2)),
+                (finisher(&cup, 3, 1), finisher(&cup, 2, 2)),
+            ]
+        );
+        for group in 0..4 {
+            let tie_of = |team: String| {
+                ties.iter()
+                    .position(|(home, away)| *home == team || *away == team)
+                    .unwrap()
+            };
+            let (winner, runner_up) = (
+                tie_of(finisher(&cup, group, 1)),
+                tie_of(finisher(&cup, group, 2)),
+            );
+            assert!(
+                (winner < 2) != (runner_up < 2),
+                "group {group}: ties {winner} and {runner_up} are in the same half"
+            );
+        }
+    }
+
+    /// Given six groups that each send two teams through, and the four best third-placed teams,
+    /// When the knockout is drawn,
+    /// Then every group winner plays one of the six lowest qualifiers, and no tie pairs two teams
+    ///      of one group.
+    #[test]
+    fn with_best_thirds_the_winners_meet_the_lowest_qualifiers() {
+        let cup = after_the_group_stage(generate_group_knockout_cup_with(
+            "World Cup",
+            2026,
+            &clubs(24),
+            start(),
+            CompetitionType::InternationalNation,
+            CompetitionScope::International,
+            &GroupStageConfig {
+                legs: 1,
+                matchday_gap_days: 3,
+                qualifiers_per_group: 2,
+                best_third_qualifiers: 4,
+                ..Default::default()
+            },
+        ));
+        let ranked = knockout_qualifiers(&cup);
+        let lowest_six: Vec<&String> = ranked[ranked.len() - 6..].iter().collect();
+
+        let ties = first_round_ties(&cup);
+
+        assert_eq!(ties.len(), 8);
+        for (home, away) in &ties {
+            assert_ne!(
+                group_index_of(&cup, home),
+                group_index_of(&cup, away),
+                "{home} v {away} are from one group"
+            );
+        }
+        for group in 0..6 {
+            let winner = finisher(&cup, group, 1);
+            let tie = ties
+                .iter()
+                .find(|(home, away)| *home == winner || *away == winner)
+                .unwrap();
+            let opponent = if tie.0 == winner { &tie.1 } else { &tie.0 };
+            assert!(
+                lowest_six.contains(&opponent),
+                "{winner} (group {group}) plays {opponent}, who is not among the six lowest qualifiers"
+            );
+            assert!(place_of(&cup, opponent) >= 2);
+        }
+    }
+
+    /// Given three groups that each send two teams through (six qualifiers, so two byes),
+    /// When the knockout is drawn,
+    /// Then the byes go to the two strongest group winners, and the other four play off with no
+    ///      tie inside one group.
+    #[test]
+    fn byes_go_to_the_strongest_winners_and_no_tie_is_inside_a_group() {
+        let cup = after_the_group_stage(make_cup(12));
+        let ranked = knockout_qualifiers(&cup);
+
+        let round = &cup.knockout_rounds[0];
+        assert_eq!(round.bye_team_ids, ranked[..2].to_vec());
+        for team in &round.bye_team_ids {
+            assert_eq!(place_of(&cup, team), 1, "{team} has a bye but did not win");
+        }
+        let ties = first_round_ties(&cup);
+        assert_eq!(ties.len(), 2);
+        for (home, away) in &ties {
+            assert_ne!(group_index_of(&cup, home), group_index_of(&cup, away));
+        }
+        // The one winner without a bye plays the lowest-placed qualifier of another group.
+        let winner = ranked[2].clone();
+        let lowest_other = ranked
+            .iter()
+            .rev()
+            .find(|team| group_index_of(&cup, team) != group_index_of(&cup, &winner))
+            .unwrap();
+        let tie = ties
+            .iter()
+            .find(|(home, away)| *home == winner || *away == winner)
+            .unwrap();
+        let opponent = if tie.0 == winner { &tie.1 } else { &tie.0 };
+        assert_eq!(opponent, lowest_other);
+    }
+
+    /// Plays every group fixture with a pseudo-random score drawn from `seed`, so group tables
+    /// are not simply ordered by the draw.
+    fn play_group_stage_at_random(cup: &mut League, seed: u64) {
+        let mut state = seed.wrapping_add(17);
+        let mut next = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) as u8 % 5
+        };
+        for index in 0..cup.fixtures.len() {
+            let id = cup.fixtures[index].id.clone();
+            if cup.fixtures[index].status == FixtureStatus::Scheduled
+                && !is_knockout_fixture(cup, &id)
+            {
+                let (home, away) = (next(), next());
+                complete_fixture(cup, index, home, away);
+            }
+        }
+    }
+
+    /// Given group-and-knockout fields of every shape a package can describe (2 to 8 groups of 3
+    ///       to 5, one to three qualifiers per group, no best thirds to as many as groups), with
+    ///       six pseudo-random sets of group results each,
+    /// When the group stage ends and the first knockout round is drawn,
+    /// Then no tie pairs two teams of one group whenever a draw without such a tie exists: the
+    ///      teams in play are an even number and no group supplies more than half of them.
+    #[test]
+    fn no_first_round_tie_is_inside_a_group_when_a_clean_draw_exists() {
+        let mut checked = 0;
+        for group_count in 2usize..=8 {
+            for group_size in 3usize..=5 {
+                for qualifiers in 1u32..=3 {
+                    if qualifiers as usize >= group_size {
+                        continue;
+                    }
+                    for best_thirds in [0, 1, group_count as u32 / 2, group_count as u32] {
+                        for seed in 0..6u64 {
+                            let mut cup = generate_group_knockout_cup_with(
+                                "Cup",
+                                2026,
+                                &clubs(group_count * group_size),
+                                start(),
+                                CompetitionType::Cup,
+                                CompetitionScope::Domestic,
+                                &GroupStageConfig {
+                                    group_size: group_size as u32,
+                                    legs: 1,
+                                    matchday_gap_days: 3,
+                                    qualifiers_per_group: qualifiers,
+                                    best_third_qualifiers: best_thirds,
+                                    ..Default::default()
+                                },
+                            );
+                            play_group_stage_at_random(&mut cup, seed);
+                            let Some(round) = cup.knockout_rounds.first() else {
+                                continue;
+                            };
+                            let playing: Vec<String> = first_round_ties(&cup)
+                                .into_iter()
+                                .flat_map(|(home, away)| [home, away])
+                                .collect();
+                            let mut per_group = std::collections::BTreeMap::<usize, usize>::new();
+                            for team in &playing {
+                                *per_group.entry(group_index_of(&cup, team)).or_default() += 1;
+                            }
+                            let largest = per_group.values().copied().max().unwrap_or(0);
+                            if largest * 2 > playing.len() {
+                                continue;
+                            }
+                            checked += 1;
+                            for (home, away) in first_round_ties(&cup) {
+                                assert_ne!(
+                                    group_index_of(&cup, &home),
+                                    group_index_of(&cup, &away),
+                                    "{home} v {away}: groups={group_count} size={group_size} \
+                                 qualifiers={qualifiers} thirds={best_thirds} seed={seed} ({} byes)",
+                                    round.bye_team_ids.len()
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(checked > 100, "only {checked} field shapes were checked");
     }
 
     #[test]
