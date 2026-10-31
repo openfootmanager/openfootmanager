@@ -6,13 +6,13 @@ use tauri::State;
 
 use ofm_core::game::Game;
 use ofm_core::game::{YouthScoutingObjective, YouthScoutingRegion};
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 use ofm_core::transfers::{
     BidNegotiationStatus, LoanOfferDecision, LoanOfferOutcome, TransferBidFinancialProjection,
     TransferNegotiationDecision, TransferNegotiationOutcome,
 };
 
-use crate::commands::util::mutate_active_game;
+use crate::commands::util::mutate_active_game_for;
 
 const INVALID_YOUTH_SCOUTING_REGION_ERROR: &str = "be.error.transfers.invalidYouthScoutingRegion";
 const INVALID_YOUTH_SCOUTING_OBJECTIVE_ERROR: &str =
@@ -60,16 +60,18 @@ pub struct LoanOfferCommandResponse {
 pub fn toggle_transfer_list(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
+    career_token: u64,
 ) -> Result<Game, String> {
-    toggle_transfer_list_internal(&state, &player_id)
+    toggle_transfer_list_internal(&state, Career::Token(career_token), &player_id)
 }
 
 pub fn toggle_transfer_list_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
 ) -> Result<Game, String> {
     info!("[cmd] toggle_transfer_list: player_id={}", player_id);
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         if let Some(p) = game.players.iter_mut().find(|p| p.id == player_id) {
             p.transfer_listed = !p.transfer_listed;
             Ok(())
@@ -83,13 +85,18 @@ pub fn toggle_transfer_list_internal(
 pub fn toggle_loan_list(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
+    career_token: u64,
 ) -> Result<Game, String> {
-    toggle_loan_list_internal(&state, &player_id)
+    toggle_loan_list_internal(&state, Career::Token(career_token), &player_id)
 }
 
-pub fn toggle_loan_list_internal(state: &StateManager, player_id: &str) -> Result<Game, String> {
+pub fn toggle_loan_list_internal(
+    state: &StateManager,
+    career: Career,
+    player_id: &str,
+) -> Result<Game, String> {
     info!("[cmd] toggle_loan_list: player_id={}", player_id);
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let user_team_id = game
             .manager
             .team_id
@@ -119,8 +126,9 @@ pub fn make_transfer_bid(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     fee: u64,
+    career_token: u64,
 ) -> Result<TransferNegotiationCommandResponse, String> {
-    make_transfer_bid_internal(&state, &player_id, fee)
+    make_transfer_bid_internal(&state, Career::Token(career_token), &player_id, fee)
 }
 
 #[tauri::command]
@@ -152,6 +160,7 @@ pub fn get_bid_negotiation_status_internal(
 
 pub fn make_transfer_bid_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     fee: u64,
 ) -> Result<TransferNegotiationCommandResponse, String> {
@@ -163,11 +172,11 @@ pub fn make_transfer_bid_internal(
     // only post-mutation error path (player-not-found in execute_transfer) is
     // unreachable here, so in-place mutation is safe.
     state
-        .update_game(|game| {
+        .update_game_for(career, |game| {
             let result = ofm_core::transfers::make_transfer_bid(game, player_id, fee)?;
             Ok(map_transfer_negotiation_response(result, game.clone()))
         })
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+        .and_then(|response| response)
 }
 
 #[tauri::command]
@@ -177,9 +186,11 @@ pub fn make_loan_offer(
     end_date: String,
     wage_contribution_pct: u8,
     buy_option_fee: Option<u64>,
+    career_token: u64,
 ) -> Result<LoanOfferCommandResponse, String> {
     make_loan_offer_internal(
         &state,
+        Career::Token(career_token),
         &player_id,
         &end_date,
         wage_contribution_pct,
@@ -189,6 +200,7 @@ pub fn make_loan_offer(
 
 pub fn make_loan_offer_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     end_date: &str,
     wage_contribution_pct: u8,
@@ -198,42 +210,48 @@ pub fn make_loan_offer_internal(
         "[cmd] make_loan_offer: player_id={}, end_date={}, wage_contribution_pct={}, buy_option_fee={:?}",
         player_id, end_date, wage_contribution_pct, buy_option_fee
     );
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    let result = ofm_core::transfers::make_loan_offer(
-        &mut game,
-        player_id,
-        end_date,
-        wage_contribution_pct,
-        buy_option_fee,
-    )?;
-    state.set_game(game.clone());
-
-    Ok(map_loan_offer_response(result, game))
+    // Worked on a copy and swapped in whole, under the lock and after the career check, so a
+    // refusal part way through leaves the live game as it was.
+    state
+        .update_game_for(career, |live| {
+            let mut game = live.clone();
+            let result = ofm_core::transfers::make_loan_offer(
+                &mut game,
+                player_id,
+                end_date,
+                wage_contribution_pct,
+                buy_option_fee,
+            )?;
+            *live = game.clone();
+            Ok(map_loan_offer_response(result, game))
+        })
+        .and_then(|response| response)
 }
 
 #[tauri::command]
 pub fn exercise_loan_buy_option(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
+    career_token: u64,
 ) -> Result<Game, String> {
-    exercise_loan_buy_option_internal(&state, &player_id)
+    exercise_loan_buy_option_internal(&state, Career::Token(career_token), &player_id)
 }
 
 pub fn exercise_loan_buy_option_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
 ) -> Result<Game, String> {
     info!("[cmd] exercise_loan_buy_option: player_id={}", player_id);
-    let mut game = state
-        .get_game(|g| g.clone())
-        .ok_or("be.error.noActiveGameSession".to_string())?;
-
-    ofm_core::transfers::exercise_loan_buy_option(&mut game, player_id)?;
-    state.set_game(game.clone());
-    Ok(game)
+    // Worked on a copy and swapped in whole, under the lock and after the career check.
+    state
+        .update_game_for(career, |live| {
+            let mut game = live.clone();
+            ofm_core::transfers::exercise_loan_buy_option(&mut game, player_id)?;
+            *live = game.clone();
+            Ok(game)
+        })
+        .and_then(|response| response)
 }
 
 pub fn preview_transfer_bid_financial_impact_internal(
@@ -261,12 +279,20 @@ pub fn respond_to_offer(
     player_id: String,
     offer_id: String,
     accept: bool,
+    career_token: u64,
 ) -> Result<Game, String> {
-    respond_to_offer_internal(&state, &player_id, &offer_id, accept)
+    respond_to_offer_internal(
+        &state,
+        Career::Token(career_token),
+        &player_id,
+        &offer_id,
+        accept,
+    )
 }
 
 pub fn respond_to_offer_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     offer_id: &str,
     accept: bool,
@@ -277,7 +303,7 @@ pub fn respond_to_offer_internal(
     );
     // Validates (player owned / offer pending) before mutating; the post-accept
     // execute_transfer error is unreachable once the player is validated.
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         ofm_core::transfers::respond_to_offer(game, player_id, offer_id, accept)
     })
 }
@@ -288,12 +314,20 @@ pub fn respond_to_loan_offer(
     player_id: String,
     offer_id: String,
     accept: bool,
+    career_token: u64,
 ) -> Result<Game, String> {
-    respond_to_loan_offer_internal(&state, &player_id, &offer_id, accept)
+    respond_to_loan_offer_internal(
+        &state,
+        Career::Token(career_token),
+        &player_id,
+        &offer_id,
+        accept,
+    )
 }
 
 pub fn respond_to_loan_offer_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     offer_id: &str,
     accept: bool,
@@ -302,7 +336,7 @@ pub fn respond_to_loan_offer_internal(
         "[cmd] respond_to_loan_offer: player_id={}, offer_id={}, accept={}",
         player_id, offer_id, accept
     );
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         ofm_core::transfers::respond_to_loan_offer(game, player_id, offer_id, accept)
     })
 }
@@ -315,9 +349,11 @@ pub fn counter_loan_offer(
     end_date: String,
     wage_contribution_pct: u8,
     buy_option_fee: Option<u64>,
+    career_token: u64,
 ) -> Result<LoanOfferCommandResponse, String> {
     counter_loan_offer_internal(
         &state,
+        Career::Token(career_token),
         &player_id,
         &offer_id,
         &end_date,
@@ -328,6 +364,7 @@ pub fn counter_loan_offer(
 
 pub fn counter_loan_offer_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     offer_id: &str,
     end_date: &str,
@@ -339,7 +376,7 @@ pub fn counter_loan_offer_internal(
         player_id, offer_id, end_date, wage_contribution_pct, buy_option_fee
     );
     let mut outcome = None;
-    let game = mutate_active_game(state, |game| {
+    let game = mutate_active_game_for(state, career, |game| {
         outcome = Some(ofm_core::transfers::counter_loan_offer(
             game,
             player_id,
@@ -361,12 +398,20 @@ pub fn counter_offer(
     player_id: String,
     offer_id: String,
     requested_fee: u64,
+    career_token: u64,
 ) -> Result<TransferNegotiationCommandResponse, String> {
-    counter_offer_internal(&state, &player_id, &offer_id, requested_fee)
+    counter_offer_internal(
+        &state,
+        Career::Token(career_token),
+        &player_id,
+        &offer_id,
+        requested_fee,
+    )
 }
 
 pub fn counter_offer_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     offer_id: &str,
     requested_fee: u64,
@@ -377,12 +422,12 @@ pub fn counter_offer_internal(
     );
     // Same shape as make_transfer_bid: full validation precedes mutation.
     state
-        .update_game(|game| {
+        .update_game_for(career, |game| {
             let result =
                 ofm_core::transfers::counter_offer(game, player_id, offer_id, requested_fee)?;
             Ok(map_transfer_negotiation_response(result, game.clone()))
         })
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+        .and_then(|response| response)
 }
 
 fn map_transfer_negotiation_response(
@@ -416,12 +461,13 @@ pub fn send_scout(
     state: State<'_, Arc<StateManager>>,
     scout_id: String,
     player_id: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!(
         "[cmd] send_scout: scout_id={}, player_id={}",
         scout_id, player_id
     );
-    mutate_active_game(&state, |game| {
+    mutate_active_game_for(&state, Career::Token(career_token), |game| {
         ofm_core::scouting::send_scout(game, &scout_id, &player_id)
     })
 }
@@ -433,6 +479,7 @@ pub fn start_youth_scouting(
     region: Option<String>,
     objective: Option<String>,
     target_position: Option<String>,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!(
         "[cmd] start_youth_scouting: scout_id={}, region={:?}, objective={:?}, target_position={:?}",
@@ -442,7 +489,7 @@ pub fn start_youth_scouting(
     let objective = parse_youth_objective(objective.as_deref())?;
     let target_position = parse_youth_target_position(target_position.as_deref())?;
 
-    mutate_active_game(&state, |game| {
+    mutate_active_game_for(&state, Career::Token(career_token), |game| {
         ofm_core::scouting::start_youth_scouting(
             game,
             &scout_id,
@@ -457,12 +504,13 @@ pub fn start_youth_scouting(
 pub fn cancel_youth_scouting(
     state: State<'_, Arc<StateManager>>,
     assignment_id: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!(
         "[cmd] cancel_youth_scouting: assignment_id={}",
         assignment_id
     );
-    mutate_active_game(&state, |game| {
+    mutate_active_game_for(&state, Career::Token(career_token), |game| {
         ofm_core::scouting::cancel_youth_scouting(game, &assignment_id)
     })
 }
@@ -472,12 +520,13 @@ pub fn reassign_youth_scouting(
     state: State<'_, Arc<StateManager>>,
     assignment_id: String,
     scout_id: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!(
         "[cmd] reassign_youth_scouting: assignment_id={}, scout_id={}",
         assignment_id, scout_id
     );
-    mutate_active_game(&state, |game| {
+    mutate_active_game_for(&state, Career::Token(career_token), |game| {
         ofm_core::scouting::reassign_youth_scouting(game, &assignment_id, &scout_id)
     })
 }
@@ -528,6 +577,7 @@ mod tests {
     use domain::team::Team;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
+    use ofm_core::state::Career;
     use ofm_core::state::StateManager;
     use ofm_core::transfers::{LoanOfferDecision, TransferNegotiationDecision};
 
@@ -715,13 +765,48 @@ mod tests {
         game
     }
 
+    /// Given career B is active (token 2) and a screen still holds career A's token (1)
+    /// When a bid, a counter, a loan offer, a loan buy option and a transfer-list toggle arrive
+    ///      with A's token
+    /// Then each is refused with the career-changed key and career B's players and clubs are
+    ///      untouched; the same bid with B's own token goes through.
+    #[test]
+    fn transfer_writes_for_a_replaced_career_are_refused_and_change_nothing() {
+        let state = StateManager::new();
+        let mut game = make_bid_game();
+        game.career_token = 2;
+        state.set_game(game);
+        let before = state.get_game(|game| game.clone()).unwrap();
+        let stale = Career::Token(1);
+
+        let refusals = [
+            make_transfer_bid_internal(&state, stale, "player-2", 900_000).map(|_| ()),
+            counter_offer_internal(&state, stale, "player-2", "offer-1", 900_000).map(|_| ()),
+            make_loan_offer_internal(&state, stale, "player-2", "2027-01-01", 100, None)
+                .map(|_| ()),
+            exercise_loan_buy_option_internal(&state, stale, "player-2").map(|_| ()),
+            toggle_transfer_list_internal(&state, stale, "player-1").map(|_| ()),
+        ];
+
+        for refusal in refusals {
+            assert_eq!(refusal, Err("be.error.careerChanged".to_string()));
+        }
+        let after = state.get_game(|game| game.clone()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&after).unwrap(),
+            serde_json::to_value(&before).unwrap()
+        );
+        assert!(make_transfer_bid_internal(&state, Career::Token(2), "player-2", 900_000).is_ok());
+    }
+
     #[test]
     fn counter_offer_internal_returns_payload_and_updates_state() {
         let state = StateManager::new();
         state.set_game(make_game());
 
         let response =
-            counter_offer_internal(&state, "player-1", "offer-1", 1_050_000).expect("response");
+            counter_offer_internal(&state, Career::Active, "player-1", "offer-1", 1_050_000)
+                .expect("response");
 
         assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
         assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-2"));
@@ -747,7 +832,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_bid_game());
 
-        let response = make_transfer_bid_internal(&state, "player-2", 1_050_000).expect("response");
+        let response = make_transfer_bid_internal(&state, Career::Active, "player-2", 1_050_000)
+            .expect("response");
 
         assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
         assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
@@ -777,7 +863,8 @@ mod tests {
         game.season_context.transfer_window.opens_on = Some("2027-01-01".to_string());
         state.set_game(game);
 
-        let response = make_transfer_bid_internal(&state, "player-2", 1_050_000).expect("response");
+        let response = make_transfer_bid_internal(&state, Career::Active, "player-2", 1_050_000)
+            .expect("response");
 
         assert_eq!(response.decision, TransferNegotiationDecision::Accepted);
         assert_eq!(response.registration_date.as_deref(), Some("2027-01-01"));
@@ -801,8 +888,9 @@ mod tests {
         game.players[0].loan_listed = true;
         state.set_game(game);
 
-        let response = make_loan_offer_internal(&state, "player-2", "2027-01-01", 100, None)
-            .expect("response");
+        let response =
+            make_loan_offer_internal(&state, Career::Active, "player-2", "2027-01-01", 100, None)
+                .expect("response");
 
         assert_eq!(response.decision, LoanOfferDecision::Accepted);
         assert_eq!(response.game.players[0].team_id.as_deref(), Some("team-1"));
@@ -831,10 +919,17 @@ mod tests {
         game.players[0].loan_listed = true;
         state.set_game(game);
 
-        make_loan_offer_internal(&state, "player-2", "2027-01-01", 100, Some(1_000_000))
-            .expect("loan-to-buy offer");
-        let response =
-            exercise_loan_buy_option_internal(&state, "player-2").expect("exercise option");
+        make_loan_offer_internal(
+            &state,
+            Career::Active,
+            "player-2",
+            "2027-01-01",
+            100,
+            Some(1_000_000),
+        )
+        .expect("loan-to-buy offer");
+        let response = exercise_loan_buy_option_internal(&state, Career::Active, "player-2")
+            .expect("exercise option");
 
         let player = response
             .players
@@ -860,7 +955,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_bid_game());
 
-        let response = make_transfer_bid_internal(&state, "player-2", 900_000).expect("response");
+        let response = make_transfer_bid_internal(&state, Career::Active, "player-2", 900_000)
+            .expect("response");
 
         assert_eq!(response.decision, TransferNegotiationDecision::CounterOffer);
         assert_eq!(response.suggested_fee, Some(950_000));
@@ -884,11 +980,13 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_bid_game());
 
-        let first = make_transfer_bid_internal(&state, "player-2", 900_000).expect("first bid");
+        let first = make_transfer_bid_internal(&state, Career::Active, "player-2", 900_000)
+            .expect("first bid");
         assert_eq!(first.decision, TransferNegotiationDecision::CounterOffer);
         assert_eq!(first.feedback.round, 1);
 
-        let second = make_transfer_bid_internal(&state, "player-2", 950_000).expect("second bid");
+        let second = make_transfer_bid_internal(&state, Career::Active, "player-2", 950_000)
+            .expect("second bid");
 
         assert_eq!(second.decision, TransferNegotiationDecision::Accepted);
         assert_eq!(second.feedback.round, 2);
@@ -901,7 +999,8 @@ mod tests {
         state.set_game(make_game());
 
         let response =
-            respond_to_offer_internal(&state, "player-1", "offer-1", false).expect("response");
+            respond_to_offer_internal(&state, Career::Active, "player-1", "offer-1", false)
+                .expect("response");
 
         let player = response
             .players
@@ -953,8 +1052,14 @@ mod tests {
         });
         state.set_game(game);
 
-        let response = respond_to_loan_offer_internal(&state, "player-1", "loan-offer-1", true)
-            .expect("response");
+        let response = respond_to_loan_offer_internal(
+            &state,
+            Career::Active,
+            "player-1",
+            "loan-offer-1",
+            true,
+        )
+        .expect("response");
 
         let player = response
             .players
@@ -1009,6 +1114,7 @@ mod tests {
 
         let response = counter_loan_offer_internal(
             &state,
+            Career::Active,
             "player-1",
             "loan-offer-counter",
             "2027-01-01",
@@ -1039,7 +1145,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response = toggle_transfer_list_internal(&state, "player-1").expect("response");
+        let response =
+            toggle_transfer_list_internal(&state, Career::Active, "player-1").expect("response");
 
         let player = response
             .players
@@ -1062,7 +1169,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response = toggle_loan_list_internal(&state, "player-1").expect("response");
+        let response =
+            toggle_loan_list_internal(&state, Career::Active, "player-1").expect("response");
 
         let player = response
             .players
@@ -1085,7 +1193,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_bid_game());
 
-        let error = toggle_loan_list_internal(&state, "player-2")
+        let error = toggle_loan_list_internal(&state, Career::Active, "player-2")
             .expect_err("loan listing another club's player should fail");
 
         assert_eq!(error, "be.error.transfers.playerNotOwnedByUser");
@@ -1116,7 +1224,7 @@ mod tests {
         });
         state.set_game(game);
 
-        let error = toggle_loan_list_internal(&state, "player-1")
+        let error = toggle_loan_list_internal(&state, Career::Active, "player-1")
             .expect_err("active loan player should not be loan-listed");
 
         assert_eq!(error, "be.error.transfers.playerAlreadyLoaned");
@@ -1154,7 +1262,7 @@ mod tests {
         });
         state.set_game(game);
 
-        let error = toggle_loan_list_internal(&state, "player-1")
+        let error = toggle_loan_list_internal(&state, Career::Active, "player-1")
             .expect_err("pending loan registration player should not be loan-listed");
 
         assert_eq!(error, "be.error.transfers.playerAlreadyLoaned");

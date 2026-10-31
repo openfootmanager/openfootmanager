@@ -3,19 +3,23 @@
 //! player match stats, morale, stamina, or news. This keeps the wider world
 //! moving cheaply while the player's region is simulated in full.
 
-use crate::game::Game;
-use domain::league::FixtureStatus;
+use std::collections::HashMap;
 
-/// Resolve every fixture due `today` in the dormant competition at
-/// `competition_index` with a scoreline-only model: update the fixture result
-/// and league standings, and advance any group/knockout progression — but skip
-/// the expensive per-player post-match work that the full engine path does.
+use domain::league::{FixtureStatus, League};
+use domain::player::Player;
+
+/// Resolve every fixture due `today` in the dormant `competition` with a scoreline-only model:
+/// update the fixture result and league standings, and advance any group/knockout progression —
+/// but skip the expensive per-player post-match work that the full engine path does.
+/// `players_by_club` is every club's players, as `match_day_eligibility::players_by_club` finds
+/// them.
 pub(super) fn simulate_dormant_competition_day(
-    game: &mut Game,
-    competition_index: usize,
+    competition: &mut League,
+    seed: u64,
+    players_by_club: &HashMap<&str, Vec<&Player>>,
     today: &str,
 ) {
-    let due: Vec<usize> = game.competitions[competition_index]
+    let due: Vec<usize> = competition
         .fixtures
         .iter()
         .enumerate()
@@ -26,16 +30,20 @@ pub(super) fn simulate_dormant_competition_day(
     for fixture_index in due {
         // A stream per fixture, keyed by the competition and the two clubs: fixtures are not
         // played in any order a save is bound to keep.
-        let fixture = &game.competitions[competition_index].fixtures[fixture_index];
+        let fixture = &competition.fixtures[fixture_index];
         let tag = format!(
             "dormant/{}/{}/{}",
-            game.competitions[competition_index].id, fixture.home_team_id, fixture.away_team_id
+            competition.id, fixture.home_team_id, fixture.away_team_id
         );
-        let mut rng = game.rng_for(&tag, today);
-        crate::catchup::resolve_fixture_by_scoreline(
-            &game.players,
-            &mut game.competitions[competition_index],
+        let mut rng = crate::seed::rng_for_seed(seed, &tag, today);
+        crate::catchup::resolve_fixture_with_strengths(
+            competition,
             fixture_index,
+            |team_id| {
+                crate::catchup::club_strength_among(
+                    players_by_club.get(team_id).map_or(&[][..], Vec::as_slice),
+                )
+            },
             &mut rng,
         );
     }
@@ -51,6 +59,7 @@ mod tests {
         Fixture, FixtureCompetition, FixtureStatus, KnockoutRoundState, League, StandingEntry,
     };
     use domain::manager::Manager;
+    use domain::player::{Player, PlayerAttributes, Position};
     use domain::team::Team;
 
     fn make_team(id: &str) -> Team {
@@ -107,12 +116,136 @@ mod tests {
         game
     }
 
+    fn play_day(game: &mut Game, today: &str) {
+        let clubs = crate::match_day_eligibility::players_by_club(&game.players);
+        simulate_dormant_competition_day(&mut game.competitions[0], game.seed, &clubs, today);
+    }
+
+    fn player(id: &str, team_id: &str, ovr: u8) -> Player {
+        let level = 60;
+        let mut player = Player::new(
+            id.to_string(),
+            id.to_string(),
+            id.to_string(),
+            "2000-01-01".to_string(),
+            "England".to_string(),
+            Position::Midfielder,
+            PlayerAttributes {
+                pace: level,
+                stamina: level,
+                strength: level,
+                agility: level,
+                passing: level,
+                shooting: level,
+                tackling: level,
+                dribbling: level,
+                defending: level,
+                positioning: level,
+                vision: level,
+                decisions: level,
+                composure: level,
+                aggression: level,
+                teamwork: level,
+                leadership: level,
+                handling: level,
+                reflexes: level,
+                aerial: level,
+            },
+        );
+        player.team_id = Some(team_id.to_string());
+        player.ovr = ovr;
+        player
+    }
+
+    /// Two fixtures on one dormant day: a strong home side against a weak one that has a player
+    /// on loan from it, and a club with nobody on its books against a mid-table side.
+    fn two_fixture_dormant_game(today: &str) -> Game {
+        let mut game = make_dormant_game(today);
+        game.teams.push(make_team("empty"));
+        game.teams.push(make_team("middle"));
+        for i in 0..14 {
+            game.players.push(player(&format!("home{i}"), "home", 80));
+            game.players
+                .push(player(&format!("middle{i}"), "middle", 65));
+        }
+        for i in 0..6 {
+            game.players.push(player(&format!("away{i}"), "away", 45));
+        }
+        let mut loanee = player("loanee", "away", 90);
+        loanee.active_loan = Some(domain::player::ActiveLoan {
+            parent_team_id: "home".to_string(),
+            loan_team_id: "away".to_string(),
+            start_date: "2030-07-01".to_string(),
+            end_date: "2031-06-30".to_string(),
+            wage_contribution_pct: 100,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        game.players.push(loanee);
+        let competition = &mut game.competitions[0];
+        let mut second = competition.fixtures[0].clone();
+        second.id = "fix-2".to_string();
+        second.home_team_id = "empty".to_string();
+        second.away_team_id = "middle".to_string();
+        competition.fixtures.push(second);
+        competition
+            .standings
+            .push(StandingEntry::new("empty".to_string()));
+        competition
+            .standings
+            .push(StandingEntry::new("middle".to_string()));
+        game
+    }
+
+    /// Given a dormant day whose clubs have players (one of them on loan) and one club with nobody
+    /// on its books, when the day is played from the players grouped once, then every fixture and
+    /// table entry is what settling each fixture by scanning the players gives, seed after seed.
+    #[test]
+    fn a_dormant_day_from_grouped_players_settles_as_the_player_scan_does() {
+        let today = "2030-08-10";
+        for seed in 0..40 {
+            let mut grouped = two_fixture_dormant_game(today);
+            grouped.seed = seed;
+            let mut scanned = grouped.clone();
+
+            play_day(&mut grouped, today);
+            for fixture_index in 0..2 {
+                let fixture = &scanned.competitions[0].fixtures[fixture_index];
+                let tag = format!(
+                    "dormant/{}/{}/{}",
+                    scanned.competitions[0].id, fixture.home_team_id, fixture.away_team_id
+                );
+                let mut rng = scanned.rng_for(&tag, today);
+                crate::catchup::resolve_fixture_by_scoreline(
+                    &scanned.players,
+                    &mut scanned.competitions[0],
+                    fixture_index,
+                    &mut rng,
+                );
+            }
+
+            assert_eq!(
+                format!("{:?}", grouped.competitions[0].fixtures),
+                format!("{:?}", scanned.competitions[0].fixtures),
+                "seed {seed}"
+            );
+            assert_eq!(
+                format!("{:?}", grouped.competitions[0].standings),
+                format!("{:?}", scanned.competitions[0].standings),
+                "seed {seed}"
+            );
+        }
+    }
+
     #[test]
     fn dormant_competition_day_plays_due_fixtures_and_updates_standings() {
         let today = "2030-08-10";
         let mut game = make_dormant_game(today);
 
-        simulate_dormant_competition_day(&mut game, 0, today);
+        play_day(&mut game, today);
 
         let competition = &game.competitions[0];
         let fixture = &competition.fixtures[0];
@@ -151,7 +284,7 @@ mod tests {
             }];
             game.seed = seed;
 
-            simulate_dormant_competition_day(&mut game, 0, today);
+            play_day(&mut game, today);
 
             let result = game.competitions[0].fixtures[0]
                 .result
@@ -182,7 +315,7 @@ mod tests {
     fn dormant_competition_day_ignores_fixtures_on_other_dates() {
         let mut game = make_dormant_game("2030-08-10");
 
-        simulate_dormant_competition_day(&mut game, 0, "2030-08-11");
+        play_day(&mut game, "2030-08-11");
 
         assert_eq!(
             game.competitions[0].fixtures[0].status,

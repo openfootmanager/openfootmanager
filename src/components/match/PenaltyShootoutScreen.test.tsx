@@ -260,7 +260,7 @@ describe("PenaltyShootoutScreen", (): void => {
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("match.shootout.stepFailed");
     expect(mockedInvoke).toHaveBeenCalledTimes(1);
-    expect(mockedInvoke).toHaveBeenCalledWith("step_live_match", { minutes: 1 });
+    expect(mockedInvoke).toHaveBeenCalledWith("step_live_match", { minutes: 1, careerToken: 0 });
 
     await act(async () => {
       fireEvent.click(within(alert).getByRole("button", { name: "common.retry" }));

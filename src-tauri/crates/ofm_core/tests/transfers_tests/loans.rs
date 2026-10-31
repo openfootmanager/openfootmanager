@@ -2164,3 +2164,41 @@ fn a_buy_option_can_be_exercised_with_exactly_the_fee_left_in_the_transfer_budge
     );
     assert_eq!(game.teams[0].transfer_budget, 0);
 }
+
+/// Given the user has a player on loan at 40% of his 520,000 wage (about 208,000 a week on the
+///       bill), and a wage budget 400,000 above the current bill
+/// When the user exercises the buy option, putting him on the buyer's whole wage (about 570,000)
+/// Then the purchase goes through: the bill rises by the whole wage less the loan share it already
+///      carries, about 362,000, within the board's 10% over budget. Counting the loan share twice
+///      would put it about 778,000 up and refuse it.
+#[test]
+fn a_loan_to_buy_within_the_whole_wage_budget_is_not_charged_the_loan_share_twice() {
+    let mut player = make_player("player-buy-within-policy");
+    player.loan_listed = true;
+    player.ovr = 62;
+    player.potential = 74;
+    player.stats.appearances = 0;
+    player.stage_wage(520_000);
+    let mut game = make_game_with_player(player, vec![], 5_000_000, 2_000_000);
+    attach_transfer_log_league(&mut game);
+    give_depth(&mut game, "team-1");
+    make_loan_offer(
+        &mut game,
+        "player-buy-within-policy",
+        "2027-01-01",
+        40,
+        Some(1_250_000),
+    )
+    .expect("the loan fits the budget it was agreed under");
+    game.teams[0].wage_budget = calc_wages(&game, "team-1") + 400_000;
+
+    exercise_loan_buy_option(&mut game, "player-buy-within-policy")
+        .expect("the whole wage, less the share already paid, is within the board's policy");
+
+    assert_eq!(
+        find_player(&game, "player-buy-within-policy")
+            .team_id
+            .as_deref(),
+        Some("team-1")
+    );
+}

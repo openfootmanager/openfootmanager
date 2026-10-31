@@ -2712,6 +2712,7 @@
         "maxSubstitutionsReached": "Raggiunto il numero massimo di sostituzioni",
         "preMatchSwapTooLate": "Gli scambi pre-partita sono consentiti solo prima del calcio d'inizio",
         "cannotSubstituteSentOffPlayer": "Non puoi sostituire un giocatore espulso",
+        "noSubstitutionsForShootout": "Nessuna sostituzione dopo i tempi supplementari: i rigori li calciano i giocatori in campo al fischio finale.",
         "playerNotOnPitch": "Il giocatore non è in campo",
         "playerAlreadySubstitutedOff": "Quel giocatore è già stato sostituito",
         "playerNotOnBench": "Il giocatore non è in panchina",

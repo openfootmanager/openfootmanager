@@ -79,12 +79,23 @@ fn finance_figures(snapshot: &ofm_core::finances::TeamFinanceSnapshot) -> Financ
 
 // ─── info_game_state ────────────────────────────────────────────────────────
 
-/// Return the full game state as JSON. This gives agents access to the raw
-/// structured data rather than formatted text. It is available in competition mode
-/// by maintainer decision. Only game_new, game_select_team, game_export_world,
-/// game_exit and game_load_save are restricted by that mode.
+/// Return the full game state as JSON, for agents that want the raw structured data.
+/// It is not available in competition mode (`McpMode::disabled_tools`): the dump holds every
+/// club's players and finances, and competition agents follow the same knowledge rule as players.
+/// A projection of it through `ofm_core::player_knowledge` for sandbox mode is the next change.
 pub fn info_game_state(ctx: Arc<McpContext>) -> Result<GameState, String> {
-    let game = require_game(&ctx.state_manager)?;
+    full_game_state(&ctx.state_manager)
+}
+
+/// The same dump for the end-to-end harness, which compares live state with the saved database and
+/// checks that a refusal changed nothing. Registered only with `--dev-full-state`, never in
+/// competition mode (`McpConfig::hidden_tools`, `parse_mcp_config_from_iter`).
+pub fn dev_full_game_state(ctx: Arc<McpContext>) -> Result<GameState, String> {
+    full_game_state(&ctx.state_manager)
+}
+
+fn full_game_state(state: &StateManager) -> Result<GameState, String> {
+    let game = require_game(state)?;
     let game = serde_json::to_value(&game)
         .map_err(|e| format!("Failed to serialize game state: {}", e))?;
     Ok(GameState { game })

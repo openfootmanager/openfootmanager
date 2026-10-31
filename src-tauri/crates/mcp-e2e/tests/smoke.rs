@@ -99,7 +99,7 @@ fn a_delegated_matchday_plays_everything_dated_today() {
 
 /// Given a saved game
 /// When the `.db` is opened with the `db` crate
-/// Then it equals `info_game_state` (catches a field with no column).
+/// Then it equals `dev_full_game_state` (catches a field with no column).
 #[test]
 #[ignore = "needs a built MCP binary and a display; run via --ignored by the nightly"]
 fn the_file_on_disk_holds_what_the_game_holds() {
@@ -302,6 +302,8 @@ hidden_in_competition_mode!(
     competition_omits_and_rejects_game_export_world => "game_export_world",
     competition_omits_and_rejects_game_exit => "game_exit",
     competition_omits_and_rejects_game_load_save => "game_load_save",
+    competition_omits_and_rejects_info_game_state => "info_game_state",
+    competition_omits_and_rejects_dev_full_game_state => "dev_full_game_state",
 );
 
 /// Given a live game carrying a career token (session identity) and a save that has none

@@ -240,8 +240,15 @@ where
     // scoreline only, keeping the dormant world moving without the full engine.
     let dormant_competitions = dormant_competition_indices_due_today(game, today);
     if !dormant_competitions.is_empty() {
+        // Found once for the whole dormant tier: a scoreline moves no player.
+        let players_by_club = crate::match_day_eligibility::players_by_club(&game.players);
         for competition_index in dormant_competitions {
-            dormant::simulate_dormant_competition_day(game, competition_index, today);
+            dormant::simulate_dormant_competition_day(
+                &mut game.competitions[competition_index],
+                game.seed,
+                &players_by_club,
+                today,
+            );
         }
     }
 

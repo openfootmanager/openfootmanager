@@ -6,7 +6,7 @@ use tauri::State;
 
 use domain::message::InboxMessage;
 use ofm_core::inbox_archive::{ArchiveCursor, ArchivedMessagesPage};
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
 // These commands only ever touch the inbox, so they mutate the game in place
 // (no upfront whole-world clone) and return just the updated message list. The
@@ -40,129 +40,131 @@ pub fn get_archived_messages(
 pub fn mark_message_read(
     state: State<'_, Arc<StateManager>>,
     message_id: String,
+    career_token: u64,
 ) -> Result<Vec<InboxMessage>, String> {
-    mark_message_read_internal(&state, &message_id)
+    mark_message_read_internal(&state, Career::Token(career_token), &message_id)
 }
 
 pub fn mark_message_read_internal(
     state: &StateManager,
+    career: Career,
     message_id: &str,
 ) -> Result<Vec<InboxMessage>, String> {
     log::debug!("[cmd] mark_message_read: {}", message_id);
-    state
-        .update_game(|game| {
-            if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
-                msg.read = true;
-            }
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+    state.update_game_for(career, |game| {
+        if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
+            msg.read = true;
+        }
+        game.messages.clone()
+    })
 }
 
 #[tauri::command]
 pub fn delete_message(
     state: State<'_, Arc<StateManager>>,
     message_id: String,
+    career_token: u64,
 ) -> Result<Vec<InboxMessage>, String> {
-    delete_message_internal(&state, &message_id)
+    delete_message_internal(&state, Career::Token(career_token), &message_id)
 }
 
 pub fn delete_message_internal(
     state: &StateManager,
+    career: Career,
     message_id: &str,
 ) -> Result<Vec<InboxMessage>, String> {
     log::debug!("[cmd] delete_message: {}", message_id);
-    state
-        .update_game(|game| {
-            game.messages.retain(|message| message.id != message_id);
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+    state.update_game_for(career, |game| {
+        game.messages.retain(|message| message.id != message_id);
+        game.messages.clone()
+    })
 }
 
 #[tauri::command]
 pub fn delete_messages(
     state: State<'_, Arc<StateManager>>,
     message_ids: Vec<String>,
+    career_token: u64,
 ) -> Result<Vec<InboxMessage>, String> {
-    delete_messages_internal(&state, message_ids)
+    delete_messages_internal(&state, Career::Token(career_token), message_ids)
 }
 
 pub fn delete_messages_internal(
     state: &StateManager,
+    career: Career,
     message_ids: Vec<String>,
 ) -> Result<Vec<InboxMessage>, String> {
     log::debug!("[cmd] delete_messages: {}", message_ids.len());
     let message_ids: HashSet<String> = message_ids.into_iter().collect();
-    state
-        .update_game(|game| {
-            game.messages
-                .retain(|message| !message_ids.contains(&message.id));
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+    state.update_game_for(career, |game| {
+        game.messages
+            .retain(|message| !message_ids.contains(&message.id));
+        game.messages.clone()
+    })
 }
 
 #[tauri::command]
 pub fn mark_all_messages_read(
     state: State<'_, Arc<StateManager>>,
+    career_token: u64,
 ) -> Result<Vec<InboxMessage>, String> {
-    mark_all_messages_read_internal(&state)
+    mark_all_messages_read_internal(&state, Career::Token(career_token))
 }
 
-pub fn mark_all_messages_read_internal(state: &StateManager) -> Result<Vec<InboxMessage>, String> {
+pub fn mark_all_messages_read_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<Vec<InboxMessage>, String> {
     log::debug!("[cmd] mark_all_messages_read");
-    state
-        .update_game(|game| {
-            for msg in game.messages.iter_mut() {
-                msg.read = true;
-            }
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+    state.update_game_for(career, |game| {
+        for msg in game.messages.iter_mut() {
+            msg.read = true;
+        }
+        game.messages.clone()
+    })
 }
 
 #[tauri::command]
 pub fn clear_old_messages(
     state: State<'_, Arc<StateManager>>,
+    career_token: u64,
 ) -> Result<Vec<InboxMessage>, String> {
-    clear_old_messages_internal(&state)
+    clear_old_messages_internal(&state, Career::Token(career_token))
 }
 
-pub fn clear_old_messages_internal(state: &StateManager) -> Result<Vec<InboxMessage>, String> {
+pub fn clear_old_messages_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<Vec<InboxMessage>, String> {
     log::debug!("[cmd] clear_old_messages");
-    state
-        .update_game(|game| {
-            let current_date = game.clock.current_date.format("%Y-%m-%d").to_string();
-            // Keep only: unread messages, messages with unresolved actions, and messages from recent 14 days
-            game.messages.retain(|m| {
-                if !m.read {
-                    return true;
+    state.update_game_for(career, |game| {
+        let current_date = game.clock.current_date.format("%Y-%m-%d").to_string();
+        // Keep only: unread messages, messages with unresolved actions, and messages from recent 14 days
+        game.messages.retain(|m| {
+            if !m.read {
+                return true;
+            }
+            if m.actions.iter().any(|a| !a.resolved) {
+                return true;
+            }
+            // Keep recent messages (within 14 days).
+            //
+            // Compare on the day prefix: message dates come in two shapes, a
+            // bare `YYYY-MM-DD` and an RFC3339 timestamp. `parse_from_str`
+            // with "%Y-%m-%d" errors on the trailing time, so parsing the
+            // whole string sent every timestamped message — match reports,
+            // pre-match previews, fitness warnings, the weekly digest — to
+            // the `false` branch and purged it however recent it was.
+            let message_day = ofm_core::slices::news::article_day(&m.date);
+            if let Ok(msg_date) = chrono::NaiveDate::parse_from_str(message_day, "%Y-%m-%d") {
+                if let Ok(cur_date) = chrono::NaiveDate::parse_from_str(&current_date, "%Y-%m-%d") {
+                    return (cur_date - msg_date).num_days() <= 14;
                 }
-                if m.actions.iter().any(|a| !a.resolved) {
-                    return true;
-                }
-                // Keep recent messages (within 14 days).
-                //
-                // Compare on the day prefix: message dates come in two shapes, a
-                // bare `YYYY-MM-DD` and an RFC3339 timestamp. `parse_from_str`
-                // with "%Y-%m-%d" errors on the trailing time, so parsing the
-                // whole string sent every timestamped message — match reports,
-                // pre-match previews, fitness warnings, the weekly digest — to
-                // the `false` branch and purged it however recent it was.
-                let message_day = ofm_core::slices::news::article_day(&m.date);
-                if let Ok(msg_date) = chrono::NaiveDate::parse_from_str(message_day, "%Y-%m-%d") {
-                    if let Ok(cur_date) =
-                        chrono::NaiveDate::parse_from_str(&current_date, "%Y-%m-%d")
-                    {
-                        return (cur_date - msg_date).num_days() <= 14;
-                    }
-                }
-                false
-            });
-            game.messages.clone()
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())
+            }
+            false
+        });
+        game.messages.clone()
+    })
 }
 
 #[tauri::command]
@@ -171,12 +173,20 @@ pub fn resolve_message_action(
     message_id: String,
     action_id: String,
     option_id: Option<String>,
+    career_token: u64,
 ) -> Result<serde_json::Value, String> {
-    resolve_message_action_internal(&state, &message_id, &action_id, option_id.as_deref())
+    resolve_message_action_internal(
+        &state,
+        Career::Token(career_token),
+        &message_id,
+        &action_id,
+        option_id.as_deref(),
+    )
 }
 
 pub fn resolve_message_action_internal(
     state: &StateManager,
+    career: Career,
     message_id: &str,
     action_id: &str,
     option_id: Option<&str>,
@@ -187,8 +197,8 @@ pub fn resolve_message_action_internal(
     );
     // Mutate under the game lock (update_game) so a concurrent GUI/MCP write
     // between read and write-back is not silently discarded.
-    let (game, effect, effect_i18n_key, effect_i18n_params) = state
-        .update_game(|game| {
+    let (game, effect, effect_i18n_key, effect_i18n_params) =
+        state.update_game_for(career, |game| {
             // A message the player cannot see yet cannot be acted on. The inbox
             // list already hides future-dated mail, but this takes an id from the
             // caller — an MCP agent can name one the list never showed it. The
@@ -260,8 +270,7 @@ pub fn resolve_message_action_internal(
                 (None, None, None)
             };
             (game.clone(), effect, effect_i18n_key, effect_i18n_params)
-        })
-        .ok_or("be.error.noActiveGameSession".to_string())?;
+        })?;
 
     Ok(serde_json::json!({
         "game": game,
@@ -284,6 +293,7 @@ mod tests {
     use domain::team::Team;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
+    use ofm_core::state::Career;
     use ofm_core::state::StateManager;
 
     fn make_team() -> Team {
@@ -380,6 +390,65 @@ mod tests {
         game
     }
 
+    /// Given career B is active and a screen still holds career A's token
+    /// When the screen's delete arrives through the command
+    /// Then it is refused with the career-changed key and the message is still in the inbox.
+    #[test]
+    fn the_delete_command_for_a_replaced_career_is_refused_and_keeps_the_message() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::new(make_game(), false);
+        let inbox = |app: &WrapperApp| app.state().get_game(|g| g.messages.len()).unwrap();
+        let before = inbox(&app);
+
+        let refused = super::delete_message(app.state(), "remove-stale".to_string(), app.token + 1);
+
+        assert_eq!(
+            refused.map(|_| ()),
+            Err("be.error.careerChanged".to_string())
+        );
+        assert_eq!(inbox(&app), before);
+    }
+
+    /// Given career B is active (token 2) and a screen holds career A's token (1)
+    /// When mark-read, mark-all, delete, clear and resolve arrive with A's token
+    /// Then each is refused with the career-changed key and career B's inbox is untouched.
+    #[test]
+    fn inbox_writes_for_a_replaced_career_are_refused() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.career_token = 2;
+        state.set_game(game);
+        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let stale = Career::Token(1);
+        let key = Err("be.error.careerChanged".to_string());
+
+        assert_eq!(
+            mark_message_read_internal(&state, stale, "keep-unread").map(|_| ()),
+            key
+        );
+        assert_eq!(
+            mark_all_messages_read_internal(&state, stale).map(|_| ()),
+            key
+        );
+        assert_eq!(
+            delete_message_internal(&state, stale, "remove-stale").map(|_| ()),
+            key
+        );
+        assert_eq!(
+            delete_messages_internal(&state, stale, vec!["remove-stale".to_string()]).map(|_| ()),
+            key
+        );
+        assert_eq!(clear_old_messages_internal(&state, stale).map(|_| ()), key);
+        assert_eq!(
+            resolve_message_action_internal(&state, stale, "msg-1", "action-msg-1", None)
+                .map(|_| ()),
+            key
+        );
+
+        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        assert_eq!(after, before);
+    }
+
     #[test]
     fn resolve_message_action_internal_ignores_a_message_dated_ahead_of_the_clock() {
         // The inbox list hides future-dated mail, but this takes an id from the
@@ -390,7 +459,7 @@ mod tests {
         game.messages = vec![unresolved_action_message("future", "2026-09-01")];
         state.set_game(game);
 
-        resolve_message_action_internal(&state, "future", "action-future", None)
+        resolve_message_action_internal(&state, Career::Active, "future", "action-future", None)
             .expect("the call itself succeeds");
 
         let stored = state.get_game(|game| game.clone()).expect("stored game");
@@ -415,7 +484,7 @@ mod tests {
         )];
         state.set_game(game);
 
-        let response = clear_old_messages_internal(&state).expect("response");
+        let response = clear_old_messages_internal(&state, Career::Active).expect("response");
 
         let message_ids: Vec<&str> = response.iter().map(|message| message.id.as_str()).collect();
         assert_eq!(message_ids, vec!["keep-timestamped"]);
@@ -431,7 +500,7 @@ mod tests {
         )];
         state.set_game(game);
 
-        let response = clear_old_messages_internal(&state).expect("response");
+        let response = clear_old_messages_internal(&state, Career::Active).expect("response");
 
         assert!(response.is_empty());
     }
@@ -441,7 +510,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response = clear_old_messages_internal(&state).expect("response");
+        let response = clear_old_messages_internal(&state, Career::Active).expect("response");
         let message_ids: Vec<&str> = response.iter().map(|message| message.id.as_str()).collect();
 
         assert_eq!(message_ids.len(), 3);
@@ -485,6 +554,7 @@ mod tests {
                     barrier.wait();
                     resolve_message_action_internal(
                         &state,
+                        Career::Active,
                         &format!("concurrent-{index}"),
                         &format!("action-concurrent-{index}"),
                         None,
@@ -519,8 +589,9 @@ mod tests {
         game.messages = vec![actionable_message("msg-1", "2026-08-20")];
         state.set_game(game);
 
-        let response = resolve_message_action_internal(&state, "msg-1", "action-msg-1", None)
-            .expect("response");
+        let response =
+            resolve_message_action_internal(&state, Career::Active, "msg-1", "action-msg-1", None)
+                .expect("response");
 
         assert!(response["effect"].is_null());
         assert!(response["effect_i18n_key"].is_null());
@@ -559,6 +630,7 @@ mod tests {
 
         let response = resolve_message_action_internal(
             &state,
+            Career::Active,
             "job_offer_team-2_2026-08-20",
             "action-job_offer_team-2_2026-08-20",
             Some("decline"),
@@ -581,7 +653,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response = mark_message_read_internal(&state, "keep-unread").expect("response");
+        let response =
+            mark_message_read_internal(&state, Career::Active, "keep-unread").expect("response");
 
         let message = response
             .iter()
@@ -605,7 +678,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response = mark_all_messages_read_internal(&state).expect("response");
+        let response = mark_all_messages_read_internal(&state, Career::Active).expect("response");
 
         assert!(response.iter().all(|message| message.read));
 
@@ -618,7 +691,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response = delete_message_internal(&state, "remove-stale").expect("response");
+        let response =
+            delete_message_internal(&state, Career::Active, "remove-stale").expect("response");
 
         assert!(!response.iter().any(|message| message.id == "remove-stale"));
 
@@ -636,6 +710,7 @@ mod tests {
 
         let response = delete_messages_internal(
             &state,
+            Career::Active,
             vec!["keep-unread".to_string(), "remove-stale".to_string()],
         )
         .expect("response");

@@ -23,6 +23,7 @@ use ofm_core::contracts::{
 };
 use ofm_core::finances::calc_wages;
 use ofm_core::game::Game;
+use proptest::prelude::*;
 
 fn default_attrs() -> PlayerAttributes {
     PlayerAttributes {
@@ -763,12 +764,14 @@ fn free_agent_offer_rejects_contracts_longer_than_five_years() {
     assert_eq!(game.players[0].contract_end(), None);
 }
 
-/// Given a 26-year-old free agent valued at 1,210,000
+/// Given a 26-year-old free agent valued at 1,210,000, content (morale 75), with no contract left,
+///       and a manager at a club of reputation 50
 /// When the manager opens contract talks with him
-/// Then the opening offer is his reference wage, 6,050 a week rounded up to 7,000, for the three
-///      years a player his age expects
+/// Then the opening offer is the wage he expects from that club: his 7,000 reference wage raised
+///      for his age, his value and his having no contract (7,000 x 1.05 x 1.10 x 1.10, rounded
+///      up to 9,000), for the three years a player his age expects
 #[test]
-fn a_free_agents_opening_offer_is_his_reference_wage_for_the_years_his_age_expects() {
+fn a_free_agents_opening_offer_is_the_wage_he_expects_from_the_managers_club() {
     let mut game = make_free_agent_game();
     game.players[0].market_value = 1_210_000;
 
@@ -777,10 +780,79 @@ fn a_free_agents_opening_offer_is_his_reference_wage_for_the_years_his_age_expec
     assert_eq!(
         offer,
         RenewalOffer {
-            weekly_wage: 7_000,
+            weekly_wage: 9_000,
             contract_years: 3,
         }
     );
+}
+
+/// A free agent whose demands stack: young, valued at 2,000,000, unhappy, out of contract, and
+/// approached by a small club. His reference wage is 10,000; what he expects there is 16,000, so
+/// anything under 10,400 (65% of that) insults him.
+fn demanding_free_agent_game() -> Game {
+    let mut game = make_free_agent_game();
+    game.players[0].market_value = 2_000_000;
+    game.players[0].morale = 50;
+    game.teams[0].reputation = 39;
+    game
+}
+
+/// Given a free agent who expects 16,000 a week from the manager's club, and is insulted below
+///       10,400 (the maintainer's ruling, 29 Oct 2026: the opener is what he expects, never under
+///       the insult floor)
+/// When the manager opens contract talks with him
+/// Then the opening offer is the 16,000 he expects, not his 10,000 reference wage
+#[test]
+fn a_free_agents_opening_offer_is_never_below_the_wage_that_would_insult_him() {
+    let game = demanding_free_agent_game();
+
+    let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+    assert_eq!(offer.weekly_wage, 16_000);
+}
+
+/// Given the same demanding free agent
+/// When the manager sends the opening offer as it stands
+/// Then the player does not break off talks at the insult
+#[test]
+fn sending_the_opening_offer_does_not_block_talks() {
+    let mut game = demanding_free_agent_game();
+    let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+    let outcome = offer_free_agent_contract(&mut game, "free-agent-1", offer).expect("an answer");
+
+    assert_ne!(outcome.session_status, RenewalSessionStatus::Blocked);
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+
+    /// Given any free agent (age 16 to 40, any morale, valued anywhere up to 80,000,000) and a
+    ///       manager at a club of any reputation
+    /// When the manager sends the opening offer as it stands
+    /// Then the player never breaks off talks at the insult; the board may still refuse the wage
+    #[test]
+    fn the_opening_offer_never_insults_any_free_agent(
+        birth_year in 1986..=2010_i32,
+        morale in 0..=100_u8,
+        market_value in 0..=80_000_000_u64,
+        club_reputation in 0..=1000_u32,
+    ) {
+        let mut game = make_free_agent_game();
+        game.players[0].date_of_birth = format!("{birth_year}-03-15");
+        game.players[0].morale = morale;
+        game.players[0].market_value = market_value;
+        game.teams[0].reputation = club_reputation;
+        let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+        match offer_free_agent_contract(&mut game, "free-agent-1", offer) {
+            Ok(outcome) => prop_assert_ne!(outcome.session_status, RenewalSessionStatus::Blocked),
+            Err(error) => prop_assert!(
+                error.starts_with("be.error.contracts.boardWagePolicy"),
+                "only the board's wage policy may refuse the opening offer, not: {error}"
+            ),
+        }
+    }
 }
 
 /// Given a 34-year-old free agent valued at 50,000, whose value is worth less than the floor wage

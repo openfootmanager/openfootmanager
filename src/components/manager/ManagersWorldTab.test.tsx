@@ -126,6 +126,7 @@ function createGameState(): GameStateData {
             lost: 13,
             goals_for: 40,
             goals_against: 44,
+            competition_id: "",
           },
           {
             season: 2025,
@@ -136,6 +137,7 @@ function createGameState(): GameStateData {
             lost: 16,
             goals_for: 58,
             goals_against: 52,
+            competition_id: "",
           },
         ],
       }),

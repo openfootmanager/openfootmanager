@@ -191,6 +191,11 @@ struct PenaltyShootoutState {
     home_scored: u8,
     away_scored: u8,
     sudden_death: bool,
+    /// Each side's kickers, fixed when the shootout starts: ids of players on the pitch at
+    /// the final whistle, both lists cut to the shorter one's length. Kick `n` of a side is
+    /// taken by entry `n % len`, so everyone kicks once before anyone kicks twice.
+    home_order: Vec<String>,
+    away_order: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------

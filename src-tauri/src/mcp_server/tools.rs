@@ -1699,11 +1699,20 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
 
     // ─── New tools: game state, saves, worlds ────────────────────────────────
 
-    // info_game_state — raw JSON game state dump (available in competition mode)
+    // info_game_state — raw JSON game state dump (hidden in competition mode, see
+    // McpMode::disabled_tools)
     real_tool!(
         "info_game_state",
-        "Full game state as JSON (useful for programmatic access; available in competition mode)",
+        "Full game state as JSON (useful for programmatic access; not available in competition mode)",
         tools_impl::info::info_game_state
+    );
+
+    // dev_full_game_state — the same dump for the end-to-end harness: only registered with
+    // --dev-full-state, never in competition mode (McpConfig::hidden_tools, parse_mcp_config)
+    real_tool!(
+        "dev_full_game_state",
+        "Test infrastructure: the whole game as JSON, every club's players at their exact ratings. Only with --dev-full-state, never in competition mode",
+        tools_impl::info::dev_full_game_state
     );
 
     // game_list_saves
@@ -1913,7 +1922,12 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ),
         (
             "info_game_state",
-            "Full game state as JSON (programmatic access)",
+            "Full game state as JSON (programmatic access); not in competition mode",
+            "Information",
+        ),
+        (
+            "dev_full_game_state",
+            "Test infrastructure: the whole game as JSON; only with --dev-full-state",
             "Information",
         ),
         (
@@ -2396,9 +2410,9 @@ mod tests {
 
     use std::collections::BTreeSet;
 
-    /// Given the MCP docs, implementation comment and registered tool description,
-    /// when an agent reads them, then they agree that the state dump is available
-    /// in competition mode and name the five restricted setup tools.
+    /// Given the competition-mode decision (the raw dump is not available to a competition agent)
+    /// When the docs and the registration are read
+    /// Then both say so, and every tool the mode hides is named in the docs.
     #[test]
     fn the_docs_match_the_competition_mode_decision() {
         let docs = include_str!("../../../docs/MCP_SERVER.md");
@@ -2409,17 +2423,18 @@ mod tests {
             .split("\n---")
             .next()
             .unwrap();
+        for tool in crate::mcp_server::config::McpMode::Competition.disabled_tools() {
+            assert!(
+                competition_docs.contains(&format!("- `{tool}`")),
+                "the competition-mode docs list no bullet for the hidden tool {tool}"
+            );
+        }
         let info_source = include_str!("tools_impl/info.rs");
         let info_comment = info_source.split("pub fn info_game_state").next().unwrap();
-        for document in [competition_docs, info_comment] {
-            assert!(
-                document.contains("available in competition mode"),
-                "the docs and implementation comment must state the availability decision"
-            );
-            for tool in crate::mcp_server::config::McpMode::Competition.disabled_tools() {
-                assert!(document.contains(tool), "missing restricted tool {tool}");
-            }
-        }
+        assert!(
+            info_comment.contains("not available in competition mode"),
+            "the implementation comment must state the decision"
+        );
         let registration = source()
             .split("// info_game_state")
             .nth(1)
@@ -2427,14 +2442,13 @@ mod tests {
             .split("tools_impl::info::info_game_state")
             .next()
             .unwrap();
-        assert!(registration.contains("available in competition mode"));
-        assert!(!registration.contains("disabled"));
+        assert!(registration.contains("hidden in competition mode"));
         let description = registration
             .lines()
             .filter_map(first_string_literal)
             .nth(1)
             .expect("registered tool description");
-        assert!(description.contains("available in competition mode"));
+        assert!(description.contains("not available in competition mode"));
     }
 
     /// Given exact fixture identity without an index, when parsed for match_start,
