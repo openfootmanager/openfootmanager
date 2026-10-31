@@ -2058,7 +2058,10 @@
       "suddenDeath": "Náhlá smrt",
       "shootoutScore": "Penalty: {{h}} – {{a}}",
       "homeKick": "Domácí se chystá na penaltu...",
-      "awayKick": "Hosté se chystají na penaltu..."
+      "awayKick": "Hosté se chystají na penaltu...",
+      "kickScored": "Penalta {{n}}, proměněná",
+      "kickMissed": "Penalta {{n}}, neproměněná",
+      "kickToCome": "Penalta {{n}}, ještě se kope"
     },
     "fullTime": "Konec zápasu",
     "ft": "KZ",

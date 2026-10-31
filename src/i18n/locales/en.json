@@ -2058,7 +2058,10 @@
       "suddenDeath": "Sudden Death",
       "shootoutScore": "Penalties: {{h}} – {{a}}",
       "homeKick": "Home kick coming...",
-      "awayKick": "Away kick coming..."
+      "awayKick": "Away kick coming...",
+      "kickScored": "Kick {{n}}, scored",
+      "kickMissed": "Kick {{n}}, missed",
+      "kickToCome": "Kick {{n}}, still to take"
     },
     "fullTime": "Full Time",
     "ft": "FT",

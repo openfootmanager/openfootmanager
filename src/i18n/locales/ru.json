@@ -2024,7 +2024,10 @@
       "suddenDeath": "Золотой гол",
       "shootoutScore": "Пенальти: {{h}} – {{a}}",
       "homeKick": "Удар хозяев...",
-      "awayKick": "Удар гостей..."
+      "awayKick": "Удар гостей...",
+      "kickScored": "Удар {{n}}, забит",
+      "kickMissed": "Удар {{n}}, не забит",
+      "kickToCome": "Удар {{n}}, ещё впереди"
     },
     "fullTime": "Конец матча",
     "ft": "ФТ",

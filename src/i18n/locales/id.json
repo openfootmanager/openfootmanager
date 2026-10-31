@@ -2058,7 +2058,10 @@
       "suddenDeath": "Sudden Death",
       "shootoutScore": "Penalti: {{h}} – {{a}}",
       "homeKick": "Tendangan tim kandang menyusul...",
-      "awayKick": "Tendangan tim tandang menyusul..."
+      "awayKick": "Tendangan tim tandang menyusul...",
+      "kickScored": "Tendangan {{n}}, gol",
+      "kickMissed": "Tendangan {{n}}, gagal",
+      "kickToCome": "Tendangan {{n}}, belum diambil"
     },
     "fullTime": "Waktu Penuh",
     "ft": "FT",
