@@ -66,3 +66,35 @@ fn an_award_leaderboard_player_is_not_bought_on_the_bonus_alone() {
 
     assert_eq!(club.as_deref(), Some("team-3"));
 }
+
+/// Given a listed player at team-3 valued 1,200,000 with 300 days left: interest score exactly
+///       60 (30 listed, 10 contract, 20 value)
+/// When the AI market runs for a day
+/// Then he stays at team-3: an AI-to-AI deal needs more than 60
+#[test]
+fn an_ai_club_does_not_buy_a_player_scoring_exactly_sixty() {
+    let mut player = make_player("player-sixty");
+    player.stage_contract_end(Some("2027-05-28".to_string()));
+    player.market_value = 1_200_000;
+    player.transfer_listed = true;
+
+    let club = club_after_a_market_day(ai_market_game(player), "player-sixty");
+
+    assert_eq!(club.as_deref(), Some("team-3"));
+}
+
+/// Given a listed player at team-3 valued 600,000 with four months left: interest score 65
+///       (30 listed, 25 contract, 10 value)
+/// When the AI market runs for a day
+/// Then team-2 buys him: 65 is over the bar
+#[test]
+fn an_ai_club_buys_a_player_scoring_sixty_five() {
+    let mut player = make_player("player-sixty-five");
+    player.stage_contract_end(Some("2026-12-01".to_string()));
+    player.market_value = 600_000;
+    player.transfer_listed = true;
+
+    let club = club_after_a_market_day(ai_market_game(player), "player-sixty-five");
+
+    assert_eq!(club.as_deref(), Some("team-2"));
+}
