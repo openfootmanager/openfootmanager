@@ -330,7 +330,7 @@ jobs:
       # reports.
       - name: Disk after the tests
         if: always()
-        run: df -h / | tail -n 1 && du -sh src-tauri/target
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
 
       # `mod mcp_server` is behind a Cargo feature, so the step above never
       # compiles it — nine tests under src/mcp_server/ (167 vs 176 in the lib
@@ -348,14 +348,14 @@ jobs:
 
       - name: Disk after the mcp tests
         if: always()
-        run: df -h / | tail -n 1 && du -sh src-tauri/target
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
 
       - name: Check backend compilation
         run: cargo check --locked --manifest-path src-tauri/Cargo.toml --workspace
 
       - name: Disk after the check
         if: always()
-        run: df -h / | tail -n 1 && du -sh src-tauri/target
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
 
       # Clippy is a hard gate: any warning fails the build. Run the same command
       # locally before pushing (or use the /preflight skill).
@@ -364,7 +364,7 @@ jobs:
 
       - name: Disk after clippy
         if: always()
-        run: df -h / | tail -n 1 && du -sh src-tauri/target
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
 
       # The MCP server sits behind a Cargo feature, so the step above never
       # compiles it. Without this, ~90 tools' worth of code is unlinted.
@@ -373,7 +373,7 @@ jobs:
 
       - name: Disk after clippy with mcp
         if: always()
-        run: df -h / | tail -n 1 && du -sh src-tauri/target
+        run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
 
 # ── Gates deliberately NOT enabled yet ───────────────────────────────────────
 #
