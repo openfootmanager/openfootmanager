@@ -119,17 +119,22 @@ fn kick_off(home_bench: Vec<PlayerData>) -> LiveMatchState {
 /// the tests choose who is off the pitch.
 fn to_the_final_whistle(seed: u64, mut state: LiveMatchState) -> Option<(LiveMatchState, StdRng)> {
     let mut rng = StdRng::seed_from_u64(seed);
-    while state.phase() != MatchPhase::ExtraTimeEnd {
-        if state.phase() == MatchPhase::FullTime {
-            state.test_set_score(0, 0);
-        }
-        state.step_minute(&mut rng);
-    }
+    step_until(&mut state, &mut rng, MatchPhase::ExtraTimeEnd);
     if !state.snapshot().sent_off.is_empty() {
         return None;
     }
     state.test_set_score(0, 0);
     Some((state, rng))
+}
+
+/// Steps `state` until it reaches `phase`, level at full time so that extra time is played.
+fn step_until(state: &mut LiveMatchState, rng: &mut StdRng, phase: MatchPhase) {
+    while state.phase() != phase {
+        if state.phase() == MatchPhase::FullTime {
+            state.test_set_score(0, 0);
+        }
+        state.step_minute(rng);
+    }
 }
 
 /// Plays a match that is level at the final whistle of extra time through its shootout.
@@ -412,4 +417,33 @@ fn a_side_still_kicks_in_order_when_the_other_has_nobody_left() {
     for kickers in shootouts {
         assert_follows(&kickers.home, &home_order);
     }
+}
+
+/// Given a level match at half-time of extra time, with a substitute on the bench,
+/// When a manager brings the substitute on for h7,
+/// Then it is accepted, and at the shootout the substitute, the best penalty taker on the
+/// pitch, kicks first while h7 never kicks.
+#[test]
+fn a_substitution_before_the_final_whistle_of_extra_time_still_counts() {
+    let substitute = player("h_sub", Position::Forward, (99, 99));
+    let order_with_the_substitute = ids(&[
+        "h_sub", "h4", "h6", "h2", "h1", "h5", "h3", "h8", "h10", "h9", "h_gk",
+    ]);
+    for seed in 0..SEEDS {
+        let mut state = kick_off(vec![substitute.clone()]);
+        let mut rng = StdRng::seed_from_u64(seed);
+        step_until(&mut state, &mut rng, MatchPhase::ExtraTimeHalfTime);
+        if !state.snapshot().sent_off.is_empty() {
+            continue;
+        }
+        bring_on_h_sub_for_h7(&mut state).expect("a substitution at half-time of extra time");
+        step_until(&mut state, &mut rng, MatchPhase::ExtraTimeEnd);
+        if !state.snapshot().sent_off.is_empty() {
+            continue;
+        }
+        state.test_set_score(0, 0);
+        assert_follows(&play_out(state, rng).home, &order_with_the_substitute);
+        return;
+    }
+    panic!("no seed reached the final whistle of extra time without a red card");
 }
