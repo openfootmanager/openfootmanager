@@ -910,6 +910,8 @@ export interface GameStateData {
   emitted_events?: string[];
   legacy_tactics_imported?: boolean;
   legacy_world_cup_draw?: boolean;
+  /** The first date a completed home fixture is paid a gate for (`YYYY-MM-DD`); null until then. */
+  gate_settled_from?: string | null;
   /** Sent by the backend; the frontend reads these through their own commands. */
   custom_tactics?: unknown[];
   scouted_players?: unknown[];
