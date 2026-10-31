@@ -46,7 +46,7 @@ fn an_unresolved_issue_of_middling_severity_halves_a_morale_gain_rounding_up() {
 
         assert_eq!(
             morale_after_promised_chance(seed, 60) - 40,
-            (gain + 1) / 2,
+            gain.div_ceil(2),
             "seed {seed}"
         );
         assert_eq!(

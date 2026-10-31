@@ -151,3 +151,79 @@ fn two_player_messages_already_today_hold_back_every_other_player_message() {
 
     assert_eq!(days_with_a_third, 0);
 }
+
+/// Given two player messages already sent today and the whole squad in crisis (morale 10)
+/// When 200 days of player events go by
+/// Then no crisis talk is asked for on any of them: two a day is the cap for crisis talks too
+#[test]
+fn two_player_messages_already_today_hold_back_crisis_talks() {
+    let mut game = make_game();
+    for player in game.players.iter_mut() {
+        player.morale = 10;
+    }
+    inject_player_message(&mut game, "happy_player_x", "p_def0", "respond");
+    inject_player_message(&mut game, "bench_complaint_y", "p_def1", "respond");
+
+    assert_eq!(days_with(&game, "morale_talk_"), 0);
+}
+
+/// Given p_fwd0 in crisis (morale 20) and the rest of the squad content
+/// When 200 days of player events go by
+/// Then he asks for a talk on between 15 and 70 of them: about one day in five
+#[test]
+fn a_player_in_crisis_asks_for_a_talk_about_one_day_in_five() {
+    let mut game = make_game();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .morale = 20;
+
+    let days = days_with(&game, "morale_talk_");
+
+    assert!((15..=70).contains(&days), "{days} days of 200");
+}
+
+/// Given p_fwd0 delighted (morale 95) and the rest of the squad content
+/// When 200 days of player events go by
+/// Then he tells the manager so on at most 12 of them: about one day in a hundred
+#[test]
+fn a_delighted_player_says_so_about_one_day_in_a_hundred() {
+    let mut game = make_game();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .morale = 95;
+
+    let days = days_with(&game, "happy_player_");
+
+    assert!(days <= 12, "{days} days of 200");
+}
+
+/// Given the benched forward at morale exactly 50, five completed matches in
+/// When 200 days of player events go by
+/// Then he never complains: only a player below 50 morale does
+#[test]
+fn a_benched_player_at_exactly_fifty_morale_does_not_complain() {
+    let mut game = benched_forward_with(completed(5, "team1", "team2"), 0);
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p_fwd0")
+        .unwrap()
+        .morale = 50;
+
+    assert_eq!(days_with(&game, "bench_complaint_"), 0);
+}
+
+/// Given two player messages already sent today and the benched forward due a complaint
+/// When 200 days of player events go by
+/// Then he never complains on any of them: two a day is the cap for bench complaints too
+#[test]
+fn two_player_messages_already_today_hold_back_bench_complaints() {
+    let mut game = benched_forward_with(completed(5, "team1", "team2"), 0);
+    inject_player_message(&mut game, "happy_player_x", "p_def0", "respond");
+    inject_player_message(&mut game, "morale_talk_y", "p_def1", "respond");
+
+    assert_eq!(days_with(&game, "bench_complaint_p_fwd0"), 0);
+}

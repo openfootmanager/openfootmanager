@@ -1,3 +1,5 @@
+#[path = "player_events_tests/answers.rs"]
+mod answers;
 #[path = "player_events_tests/bench.rs"]
 mod bench;
 #[path = "player_events_tests/consequences.rs"]
