@@ -2058,7 +2058,10 @@
       "suddenDeath": "Ani Ölüm",
       "shootoutScore": "Penaltılar: {{h}} – {{a}}",
       "homeKick": "Ev sahibi vuruşa geliyor...",
-      "awayKick": "Deplasman vuruşa geliyor..."
+      "awayKick": "Deplasman vuruşa geliyor...",
+      "kickScored": "{{n}}. vuruş, gol",
+      "kickMissed": "{{n}}. vuruş, kaçtı",
+      "kickToCome": "{{n}}. vuruş, henüz atılmadı"
     },
     "fullTime": "Maç Sonu",
     "ft": "MS",

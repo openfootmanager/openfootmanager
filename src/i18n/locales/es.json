@@ -2024,7 +2024,10 @@
       "suddenDeath": "Muerte Súbita",
       "shootoutScore": "Penaltis: {{h}} – {{a}}",
       "homeKick": "Disparo del equipo local...",
-      "awayKick": "Disparo del equipo visitante..."
+      "awayKick": "Disparo del equipo visitante...",
+      "kickScored": "Penalti {{n}}, marcado",
+      "kickMissed": "Penalti {{n}}, fallado",
+      "kickToCome": "Penalti {{n}}, por lanzar"
     },
     "fullTime": "Tiempo Completo",
     "ft": "TC",

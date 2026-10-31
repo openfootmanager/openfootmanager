@@ -2024,7 +2024,10 @@
       "suddenDeath": "Plötzlicher Tod",
       "shootoutScore": "Elfmeter: {{h}} – {{a}}",
       "homeKick": "Heimmannschaft schießt...",
-      "awayKick": "Gastmannschaft schießt..."
+      "awayKick": "Gastmannschaft schießt...",
+      "kickScored": "Schuss {{n}}, verwandelt",
+      "kickMissed": "Schuss {{n}}, verschossen",
+      "kickToCome": "Schuss {{n}}, steht noch aus"
     },
     "fullTime": "Vollzeit",
     "ft": "VZ",
