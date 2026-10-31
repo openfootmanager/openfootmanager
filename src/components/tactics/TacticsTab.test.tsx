@@ -337,6 +337,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "3-4-3",
         playStyle: "HighPress",
       });
@@ -418,6 +419,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
@@ -618,6 +620,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "3-4-3",
         playStyle: "HighPress",
       });
@@ -660,6 +663,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d1", "d5", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
@@ -692,6 +696,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d2", "d1", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
@@ -890,6 +895,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
@@ -905,6 +911,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
@@ -932,6 +939,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
+        careerToken: 0,
         matchRoles: {
           captain: "d1",
           vice_captain: null,
@@ -965,6 +973,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
+        careerToken: 0,
         matchRoles: {
           captain: "d1",
           vice_captain: null,
@@ -999,6 +1008,7 @@ describe("TacticsTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_team_match_roles", {
+        careerToken: 0,
         matchRoles: {
           captain: "m2",
           vice_captain: null,
@@ -1049,6 +1059,7 @@ describe("TacticsTab", () => {
       expect(rolesSaved()).toHaveLength(1);
     });
     expect(rolesSaved()[0][1]).toEqual({
+      careerToken: 0,
       matchRoles: {
         captain: "m2",
         vice_captain: null,

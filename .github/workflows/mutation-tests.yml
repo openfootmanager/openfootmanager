@@ -144,14 +144,17 @@ jobs:
 
           listing="$RUNNER_TEMP/mutants-listing.txt"
           examine="$RUNNER_TEMP/mutants-examine.txt"
-          cargo mutants --manifest-path src-tauri/Cargo.toml --package "$crate" --list > "$listing"
+          # `--colors never`: rust-toolchain exports CARGO_TERM_COLOR=always for every step, and
+          # a coloured listing put escape codes into each `--re` pattern (25 Oct 2026).
+          cargo mutants --manifest-path src-tauri/Cargo.toml --package "$crate" --list \
+            --colors never > "$listing"
           # `select` validates the bucket, including one typed into a manual dispatch.
           ./scripts/mutation-slot.sh select "$crate" "$bucket" < "$listing" > "$examine"
           planned="$(wc -l < "$examine")"
           re_args=()
           while IFS= read -r pattern; do re_args+=(--re "$pattern"); done < "$examine"
           matched="$(cargo mutants --manifest-path src-tauri/Cargo.toml --package "$crate" \
-            --list "${re_args[@]}" | wc -l)"
+            --list --colors never "${re_args[@]}" | wc -l)"
           if [ "$matched" -ne "$planned" ]; then
             echo "Bucket $bucket of $crate has $planned mutants, but its patterns match $matched" >&2
             exit 1

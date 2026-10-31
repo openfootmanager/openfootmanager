@@ -8,20 +8,27 @@ import {
   CardBody,
   CardHeader,
   Checkbox,
+  ConditionMeter,
   CountryFlag,
+  DataTable,
+  type DataTableColumn,
   DatePicker,
   Dialog,
   DialogCloseButton,
   InjuryBadge,
+  UnreadBadge,
   JerseyIcon,
   PageToolbar,
   PitchToken,
   PlayerAvatar,
+  PositionBadge,
+  PositionBadges,
   ProgressBar,
   RatingChip,
   SegmentedControl,
   Select,
-  TONE_TEXT,
+  type SortDirection,
+  Switch,
   TabPanel,
   Tabs,
   TeamLocation,
@@ -64,6 +71,7 @@ const STATUSES = [
   ["--color-danger", "--color-danger-tint", "--color-danger-solid"],
   ["--color-info", "--color-info-tint", "--color-info-solid"],
 ].flat();
+const SELECTED = ["--color-selected", "--color-selected-tint", "--color-selected-fill"];
 const TONES = [
   ["--color-tone-top", "--color-tone-top-tint", "--color-tone-top-solid"],
   ["--color-tone-good", "--color-tone-good-tint", "--color-tone-good-solid"],
@@ -108,6 +116,10 @@ const HEIGHTS = [
 ];
 const WIDTHS = [
   { token: "--container-page", use: "the page width (max-w-page)" },
+  { token: "--spacing-sidebar-rail", use: "the sidebar's icon rail (w-sidebar-rail)" },
+  { token: "--spacing-sidebar-compact", use: "the open sidebar, Compact (w-sidebar-compact)" },
+  { token: "--spacing-sidebar-standard", use: "the open sidebar, Standard (w-sidebar-standard)" },
+  { token: "--spacing-sidebar-wide", use: "the open sidebar, Wide (w-sidebar-wide)" },
   {
     token: "--container-split",
     use: "two panels side by side above this container width (@split)",
@@ -156,6 +168,7 @@ function TokensSection() {
       <Swatches tokens={SURFACES} />
       <Swatches tokens={TEXT_AND_LINES} />
       <Swatches tokens={STATUSES} />
+      <Swatches tokens={SELECTED} />
       <Swatches tokens={TONES} />
       <Swatches tokens={BRAND} />
       <Swatches tokens={DATA_AND_PITCH} />
@@ -251,6 +264,12 @@ function ControlsSection() {
         <Checkbox checked={false} indeterminate onChange={() => undefined} aria-label="Mixed" />
         <Checkbox checked onChange={() => undefined} disabled aria-label="Disabled" />
       </Row>
+      <Row>
+        <Switch label="Switch" checked={checked} onChange={setChecked} />
+        <Switch label="Switch, off" checked={false} onChange={() => undefined} />
+        <Switch label="Switch, disabled on" checked disabled onChange={() => undefined} />
+        <Switch label="Switch, disabled off" checked={false} disabled onChange={() => undefined} />
+      </Row>
       <div className="grid max-w-md gap-3">
         <DatePicker value={date} onChange={setDate} />
         <DatePicker value="" onChange={() => undefined} error />
@@ -271,6 +290,9 @@ function DisplaySection() {
         <Badge size="md">medium</Badge>
         <InjuryBadge injury={{ name: "Hamstring strain", days_remaining: 4 }} />
         <InjuryBadge injury={{ name: "Metatarsal fracture", days_remaining: 42 }} />
+        <UnreadBadge count={3} />
+        <UnreadBadge count={42} />
+        <UnreadBadge count={120} />
       </Row>
       <Row>
         {/* The backend's tiers (S, A, B and the rest), at the row's size and a card's. */}
@@ -300,7 +322,7 @@ function DisplaySection() {
           ),
         )}
       </div>
-      {/* The good-to-bad scale the backend rates values on: a tone fills the bar, its word says it. */}
+      {/* Condition on the backend's bands: the band's word and bar in its tone; none sent, neutral. */}
       <div className="grid max-w-md gap-2">
         {(
           [
@@ -309,12 +331,14 @@ function DisplaySection() {
             ["low", "Exhausted", 32],
             ["bad", "Critical", 15],
           ] as const
-        ).map(([tone, word, value]) => (
-          <div key={tone} className="flex items-center gap-3">
-            <span className={`w-20 text-caption font-semibold ${TONE_TEXT[tone]}`}>{word}</span>
-            <ProgressBar value={value} tone={tone} showLabel className="flex-1" />
-          </div>
+        ).map(([tone, band, value]) => (
+          <ConditionMeter
+            key={band}
+            value={value}
+            status={{ band, label_key: `be.condition.${band.toLowerCase()}`, tone }}
+          />
         ))}
+        <ConditionMeter value={50} status={null} />
       </div>
       <Row>
         <CountryFlag code="BE" />
@@ -379,6 +403,100 @@ function CardsSection() {
   );
 }
 
+const TABLE_FIXTURES = [
+  { id: "t1", name: "Anderson", age: 31, morale: 72, starter: true, injured: false },
+  { id: "t2", name: "Navarro", age: 33, morale: 55, starter: true, injured: false },
+  { id: "t3", name: "Johnston", age: 29, morale: 61, starter: false, injured: true },
+  { id: "t4", name: "Graham", age: 34, morale: 80, starter: false, injured: false },
+];
+type TableFixture = (typeof TABLE_FIXTURES)[number];
+
+const TABLE_COLUMNS: DataTableColumn<TableFixture>[] = [
+  { key: "name", header: "Name", cell: (row) => row.name, primary: true, sortable: true },
+  { key: "age", header: "Age", cell: (row) => row.age, numeric: true, sortable: true },
+  // Folds into the row's details in a table narrower than 48rem.
+  { key: "morale", header: "Morale", cell: (row) => row.morale, numeric: true, drawer: true },
+];
+
+/** The panel a page puts its table in: DataTable draws none of its own. */
+function TablePanel({ children }: { children: ReactNode }) {
+  return <div className="overflow-hidden rounded-lg border border-line bg-panel">{children}</div>;
+}
+
+function TablesSection() {
+  const [sort, setSort] = useState<{ key: string; direction: SortDirection }>({
+    key: "age",
+    direction: "desc",
+  });
+  const sorted = [...TABLE_FIXTURES].sort((a, b) => {
+    const order = sort.key === "name" ? a.name.localeCompare(b.name) : a.age - b.age;
+    return sort.direction === "asc" ? order : -order;
+  });
+  return (
+    <Section title="Tables">
+      <div className="grid gap-4">
+        <TablePanel>
+          <DataTable
+            label="Squad (sortable; starters and an injury accented; morale folds when narrow)"
+            columns={TABLE_COLUMNS}
+            rows={sorted}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            sort={sort}
+            onSortChange={(key) =>
+              setSort((current) => ({
+                key,
+                direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+              }))
+            }
+            onOpen={() => undefined}
+            rowAccent={(row) => (row.injured ? "danger" : row.starter ? "positive" : null)}
+            rowAction={{
+              header: "Actions",
+              cell: (row) => (
+                <Button size="sm" variant="ghost" aria-label={`Menu for ${row.name}`}>
+                  ⋯
+                </Button>
+              ),
+            }}
+          />
+        </TablePanel>
+        <div className="max-w-md">
+          <TablePanel>
+            <DataTable
+              label="Narrow (morale in the row's details)"
+              columns={TABLE_COLUMNS}
+              rows={TABLE_FIXTURES.slice(0, 2)}
+              rowKey={(row) => row.id}
+              rowName={(row) => row.name}
+            />
+          </TablePanel>
+        </div>
+        <TablePanel>
+          <DataTable
+            label="Empty"
+            columns={TABLE_COLUMNS}
+            rows={[]}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            empty="No players match these filters."
+          />
+        </TablePanel>
+        <TablePanel>
+          <DataTable
+            label="Loading"
+            columns={TABLE_COLUMNS}
+            rows={[]}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            loading
+          />
+        </TablePanel>
+      </div>
+    </Section>
+  );
+}
+
 const PITCH_FIXTURES = [
   { name: "WOUTERS", abbr: "GK", position: "Goalkeeper", ovr: 74, condition: 45, fit: "exact" },
   {
@@ -391,6 +509,43 @@ const PITCH_FIXTURES = [
   },
   { name: "DUPONT", abbr: "RB", position: "RightBack", ovr: 70, condition: 98, fit: "out" },
 ] as const;
+
+const BADGE_NAMES: Record<string, { label: string; name: string }> = {
+  Striker: { label: "ST", name: "Striker" },
+  RightWinger: { label: "RW", name: "Right Winger" },
+  LeftWinger: { label: "LW", name: "Left Winger" },
+  CenterBack: { label: "CB", name: "Center Back" },
+};
+
+function PositionBadgeSection() {
+  const describe = (position: string) => BADGE_NAMES[position];
+  return (
+    <Section title="Position badges">
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadge position="Striker" {...BADGE_NAMES.Striker} familiarity="natural" />
+        <PositionBadge position="RightWinger" {...BADGE_NAMES.RightWinger} familiarity="adapted" />
+        <PositionBadge position="CenterBack" {...BADGE_NAMES.CenterBack} familiarity="out" />
+        <PositionBadge position="LeftWinger" {...BADGE_NAMES.LeftWinger} kind="alternate" />
+      </div>
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger", "LeftWinger"]}
+          deployed="RightWinger"
+          familiarity="adapted"
+          describe={describe}
+        />
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger"]}
+          deployed="CenterBack"
+          familiarity="out"
+          describe={describe}
+        />
+      </div>
+    </Section>
+  );
+}
 
 function PitchSection() {
   return (
@@ -595,6 +750,8 @@ export function StyleGuide({ options }: { options: StyleGuideOptions }) {
         <ControlsSection />
         <DisplaySection />
         <CardsSection />
+        <PositionBadgeSection />
+        <TablesSection />
         <PitchSection />
         <DialogSection open={options.dialogOpen} />
       </div>

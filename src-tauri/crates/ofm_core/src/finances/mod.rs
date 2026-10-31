@@ -1,3 +1,4 @@
+pub mod gate;
 pub mod journal;
 
 pub use domain::finance::{CashJournal, CashKind};
@@ -15,7 +16,6 @@ use domain::message::*;
 use domain::team::{
     FinancialTransaction, FinancialTransactionKind, Sponsorship, SponsorshipBonusCriterion, Team,
 };
-use rand::RngExt;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -137,15 +137,54 @@ pub struct MarketingCampaignResult {
     pub cooldown_days: u32,
 }
 
-fn wage_budget_status(usage_percent: u32) -> FinanceHealthLevel {
-    if usage_percent > 110 {
+/// A wage bill more than this share of the budget puts a club's wages at Critical.
+const WAGE_CRITICAL_PERCENT: u32 = 110;
+
+/// A wage bill of at least this share of the budget puts a club's wages at Warning.
+///
+/// 101, not 100: a bill up to 1% over budget stays at Watch, with no satisfaction penalty and no
+/// board message. That is where the rounded-down percentage put the line, and the maintainer
+/// ruled (on #978) that fixing how the bill is compared must not change the balance. The club
+/// is still over budget for every other purpose: the snapshot's flag, the finance director's
+/// warning and the board's wage policy all read `wage_bill_over_budget`.
+const WAGE_WARNING_PERCENT: u32 = 101;
+
+/// How a club's wage bill compares with `percent` of its wage budget, exactly.
+///
+/// Every wage threshold reads this rather than `wage_budget_usage_percent`. That percentage is a
+/// whole number rounded down, so a bill up to 1% past a line read as on it: a club 0.5% over
+/// budget was Watch, 110.5% was Warning rather than Critical, and met "wages within budget".
+pub(crate) fn wage_bill_against_percent(
+    wage_bill: i64,
+    wage_budget: i64,
+    percent: u32,
+) -> std::cmp::Ordering {
+    (i128::from(wage_bill) * 100).cmp(&(i128::from(wage_budget) * i128::from(percent)))
+}
+
+/// Whether a club's wage bill is over its wage budget: the one definition behind the finance
+/// snapshot's flag, its wage status, the finance director's warning and the board's wage policy.
+pub(crate) fn wage_bill_over_budget(wage_bill: i64, wage_budget: i64) -> bool {
+    wage_bill_against_percent(wage_bill, wage_budget, 100) == std::cmp::Ordering::Greater
+}
+
+fn wage_budget_status(wage_bill: i64, wage_budget: i64, usage_percent: u32) -> FinanceHealthLevel {
+    // A budget of 0 is read as 1, as the usage percentage reads it: otherwise no wages against
+    // no budget sit exactly on the Warning line.
+    let wage_budget = wage_budget.max(1);
+    if wage_bill_against_percent(wage_bill, wage_budget, WAGE_CRITICAL_PERCENT)
+        == std::cmp::Ordering::Greater
+    {
         return FinanceHealthLevel::Critical;
     }
 
-    if usage_percent > 100 {
+    if wage_bill_against_percent(wage_bill, wage_budget, WAGE_WARNING_PERCENT)
+        != std::cmp::Ordering::Less
+    {
         return FinanceHealthLevel::Warning;
     }
 
+    // Exact as it stands: a whole number rounded down reaches 85 exactly when the bill does.
     if usage_percent >= 85 {
         return FinanceHealthLevel::Watch;
     }
@@ -334,28 +373,8 @@ pub fn calc_cash_runway_weeks(balance: i64, projected_weekly_net: i64) -> Option
     Some(std::cmp::max(0, balance / projected_weekly_net.abs()))
 }
 
-pub fn calc_matchday(
-    stadium_capacity: u32,
-    home_match_count: i64,
-    attendance_pct: f64,
-    avg_ticket: f64,
-) -> i64 {
-    let revenue_per_match = (stadium_capacity as f64 * attendance_pct * avg_ticket) as i64;
-
-    revenue_per_match * home_match_count
-}
-
 pub fn calc_upkeep(_team: &Team) -> i64 {
     0
-}
-
-fn estimated_weekly_matchday_income(game: &Game, team: &Team) -> i64 {
-    let recent_home_match_count = count_recent_home_matches(game, &team.id);
-    if recent_home_match_count == 0 {
-        return 0;
-    }
-
-    calc_matchday(team.stadium_capacity, recent_home_match_count, 0.76, 20.0)
 }
 
 pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSnapshot> {
@@ -372,13 +391,19 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
                 + evaluate_sponsorship_bonus(current_position, &team.form, sponsorship)
         })
         .unwrap_or(0);
-    let weekly_matchday_income = estimated_weekly_matchday_income(game, team);
+    let weekly_matchday_income =
+        gate::expected_gate_next_week(game, &team.id, team.stadium_capacity);
     let weekly_recurring_income = weekly_sponsor_income + weekly_matchday_income;
     let projected_weekly_net = weekly_recurring_income - weekly_wage_spend;
     let cash_runway_weeks = calc_cash_runway_weeks(team.finance, projected_weekly_net);
     let wage_budget_usage_percent = ((annual_wage_bill * 100) / std::cmp::max(1, team.wage_budget))
         .clamp(0, u32::MAX as i64) as u32;
-    let wage_budget_status = wage_budget_status(wage_budget_usage_percent);
+    let currently_over_budget = wage_bill_over_budget(annual_wage_bill, team.wage_budget);
+    let wage_budget_status = wage_budget_status(
+        annual_wage_bill,
+        team.wage_budget,
+        wage_budget_usage_percent,
+    );
     let runway_status = runway_status(team.finance, cash_runway_weeks);
 
     Some(TeamFinanceSnapshot {
@@ -391,7 +416,7 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
         cash_runway_weeks,
         wage_budget_usage_percent,
         currently_in_debt: team.finance < 0,
-        currently_over_budget: annual_wage_bill > team.wage_budget,
+        currently_over_budget,
         wage_budget_status,
         runway_status,
         overall_status: most_severe_level(wage_budget_status, runway_status),
@@ -1097,32 +1122,6 @@ fn current_league_position(game: &Game, team_id: &str) -> Option<u32> {
         .map(|index| index as u32 + 1)
 }
 
-fn count_recent_home_matches(game: &Game, team_id: &str) -> i64 {
-    let Some(league) = &game.league else {
-        return 0;
-    };
-
-    let current = game.clock.current_date.date_naive();
-    let week_ago = current - chrono::Duration::days(7);
-
-    league
-        .fixtures
-        .iter()
-        .filter(|fixture| {
-            fixture.status == domain::league::FixtureStatus::Completed
-                && fixture.home_team_id == team_id
-                && fixture.result.is_some()
-        })
-        .filter(|fixture| {
-            if let Ok(date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") {
-                date > week_ago && date <= current
-            } else {
-                false
-            }
-        })
-        .count() as i64
-}
-
 fn add_weekly_wage(map: &mut std::collections::HashMap<String, i64>, team_id: &str, amount: i64) {
     if amount == 0 {
         return;
@@ -1276,29 +1275,7 @@ pub fn process_weekly_finances(game: &mut Game) {
         }
     }
 
-    if game.league.is_some() {
-        let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
-        for team_id in team_ids {
-            let home_count = count_recent_home_matches(game, &team_id);
-            if home_count == 0 {
-                continue;
-            }
-            let stadium_capacity = game
-                .teams
-                .iter()
-                .find(|team| team.id == team_id)
-                .map(|team| team.stadium_capacity)
-                .unwrap_or(0);
-            // One gate per club per week, drawn from that club's own stream.
-            let mut rng = game.rng_today(&format!("finances/matchday/{team_id}"));
-            let attendance_pct = rng.random_range(60..=92) as f64 / 100.0;
-            let avg_ticket = rng.random_range(15..=25) as f64;
-            let total_revenue =
-                calc_matchday(stadium_capacity, home_count, attendance_pct, avg_ticket);
-            let req = PostRequest::new(&team_id, total_revenue, CashKind::Matchday, post_date);
-            let _ = commit_weekly_posts(game, std::slice::from_ref(&req));
-        }
-    }
+    gate::settle_gate_income(game, post_date);
 
     // --- Financial health warnings for user's team ---
     generate_financial_warnings(game, &today);
@@ -1412,7 +1389,7 @@ fn generate_financial_warnings(game: &mut Game, today: &str) {
         }
     }
     // Over budget warning: wages exceed budget
-    else if weekly_wages > team.wage_budget {
+    else if wage_bill_over_budget(weekly_wages, team.wage_budget) {
         let msg_id = format!("wage_over_budget_{}", today);
         if !existing_ids.contains(&msg_id) {
             new_messages.push(

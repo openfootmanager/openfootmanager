@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use ofm_core::morale::apply_morale_change;
+
 use crate::application::press_conference::{
     first_player_outside_squad, last_completed_match, todays_article_id,
 };
@@ -40,6 +42,7 @@ pub fn match_start(
 
     let snapshot = crate::commands::live_match::start_live_match_internal(
         &ctx.state_manager,
+        ofm_core::state::Career::Active,
         fixture_idx,
         &mode,
         allows_et,
@@ -68,7 +71,11 @@ pub fn match_start(
 
 /// Step the live match forward by N minutes.
 pub fn match_step(ctx: Arc<McpContext>, minutes: u16) -> Result<MatchAdvanced, String> {
-    let results = crate::application::live_match::step_live_match(&ctx.state_manager, minutes)?;
+    let results = crate::application::live_match::step_live_match(
+        &ctx.state_manager,
+        ofm_core::state::Career::Active,
+        minutes,
+    )?;
 
     let events: Vec<MatchEventLine> = results
         .iter()
@@ -105,8 +112,11 @@ pub fn match_command(ctx: Arc<McpContext>, command_json: String) -> Result<Comma
     let command: engine::MatchCommand = serde_json::from_str(&command_json)
         .map_err(|e| format!("Invalid match command JSON: {}", e))?;
 
-    let snapshot =
-        crate::application::live_match::apply_match_command(&ctx.state_manager, command)?;
+    let snapshot = crate::application::live_match::apply_match_command(
+        &ctx.state_manager,
+        ofm_core::state::Career::Active,
+        command,
+    )?;
 
     {
         use tauri::Emitter;
@@ -136,7 +146,10 @@ pub fn match_snapshot(ctx: Arc<McpContext>) -> Result<MatchSnapshot, String> {
 
 /// Finish the live match: generate report, update game state, clean up.
 pub fn match_finish(ctx: Arc<McpContext>) -> Result<MatchFinished, String> {
-    let response = crate::application::live_match::finish_live_match(&ctx.state_manager)?;
+    let response = crate::application::live_match::finish_live_match(
+        &ctx.state_manager,
+        ofm_core::state::Career::Active,
+    )?;
 
     {
         use tauri::Emitter;
@@ -175,15 +188,12 @@ pub fn match_team_talk(
 ) -> Result<TeamTalkApplied, String> {
     // Resolves the manager's team before the loop that adjusts morale, so an
     // error path never leaves a half-applied team talk behind.
-    let phase = crate::commands::live_match::live_phase_tag(&ctx.state_manager);
-    let results = ctx
-        .state_manager
-        .update_game(|game| {
-            let seed =
-                crate::commands::live_match::team_talk_seed_in_phase(game, &tone, &context, &phase);
-            crate::commands::live_match::apply_team_talk_internal(game, &tone, &context, seed)
-        })
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())??;
+    let results = crate::commands::live_match::apply_team_talk_on(
+        &ctx.state_manager,
+        ofm_core::state::Career::Active,
+        &tone,
+        &context,
+    )?;
 
     {
         use tauri::Emitter;
@@ -335,7 +345,7 @@ fn apply_press_conference(
                 _ => 2,
             };
             if let Some(p) = game.players.iter_mut().find(|p| p.id == answer.player_id) {
-                p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, player_delta);
             }
         }
     }
@@ -344,7 +354,7 @@ fn apply_press_conference(
     if morale_delta != 0 {
         for p in game.players.iter_mut() {
             if p.team_id.as_deref() == Some(&user_team_id) {
-                p.morale = ((p.morale as i16) + morale_delta).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, morale_delta);
             }
         }
     }
@@ -443,9 +453,9 @@ fn press_conference_on(
     state: &ofm_core::state::StateManager,
     answers: &[PressAnswer],
 ) -> Result<PressConferenceComplete, String> {
-    state
-        .update_game(|game| apply_press_conference(game, answers))
-        .ok_or_else(|| "be.error.noActiveGameSession".to_string())?
+    state.update_game_for(ofm_core::state::Career::Active, |game| {
+        apply_press_conference(game, answers)
+    })?
 }
 
 /// Submit press conference answers after a match.
@@ -638,6 +648,51 @@ mod tests {
         let unnamed = game.players.iter().find(|p| p.id == "p2").unwrap();
         assert_eq!(named.morale, 59, "50 + 5 individual + 4 squad-wide");
         assert_eq!(unnamed.morale, 54, "50 + 4 squad-wide");
+    }
+
+    /// Given the user's squad at morale 3, below the floor of 10 that bad news stops at
+    /// When a confident answer lifts the squad by 3
+    /// Then each player ends at 6, not at 10
+    #[test]
+    fn good_press_lifts_a_very_unhappy_squad_by_what_it_is_worth() {
+        let mut game = game_after_a_match();
+        for player in game
+            .players
+            .iter_mut()
+            .filter(|p| p.team_id.as_deref() == Some("team1"))
+        {
+            player.morale = 3;
+        }
+
+        apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        let squad: Vec<u8> = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("team1"))
+            .map(|p| p.morale)
+            .collect();
+        assert_eq!(squad, vec![6, 6]);
+    }
+
+    /// Given a player at morale 3
+    /// When the manager deflects a question about him, which costs him 1 and the squad nothing
+    /// Then he stays at 3: the knock is no reason to lift him to 10
+    #[test]
+    fn deflecting_a_question_about_a_very_unhappy_player_never_lifts_him() {
+        let mut game = game_after_a_match();
+        game.players
+            .iter_mut()
+            .find(|p| p.id == "p1")
+            .unwrap()
+            .morale = 3;
+
+        apply_press_conference(&mut game, &[answer("player_focus", "deflect", "p1")]).unwrap();
+
+        assert_eq!(
+            game.players.iter().find(|p| p.id == "p1").unwrap().morale,
+            3
+        );
     }
 
     #[test]

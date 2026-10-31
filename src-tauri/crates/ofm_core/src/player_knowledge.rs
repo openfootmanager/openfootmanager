@@ -94,6 +94,69 @@ fn scouted_or_unknown(game: &Game, player: &Player) -> PlayerKnowledge {
     }
 }
 
+/// The weekly wage the club may see: exact for its own player, rounded for one its scout reported
+/// on, and nothing for anyone else. A known rival's wage is his club's business, like his condition.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum VisibleWage {
+    Exact {
+        weekly: u32,
+    },
+    /// Rounded to two significant figures: what a scout would hear, not the contract's figure.
+    Approximate {
+        weekly: u32,
+    },
+    Hidden,
+}
+
+pub fn visible_wage(game: &Game, player: &Player) -> VisibleWage {
+    match player_knowledge(game, player) {
+        PlayerKnowledge::Own => VisibleWage::Exact {
+            weekly: player.wage(),
+        },
+        PlayerKnowledge::Scouted { .. } => VisibleWage::Approximate {
+            weekly: two_significant_figures(player.wage()),
+        },
+        PlayerKnowledge::Known | PlayerKnowledge::Unknown => VisibleWage::Hidden,
+    }
+}
+
+/// The player's condition as the club may see it. Its own player's always; an opponent's on the
+/// day the two clubs meet, as the team sheet and the warm-up show it (maintainer, 29 Oct); nobody
+/// else's, a rival in the club's own division included.
+pub fn visible_condition(game: &Game, player: &Player) -> Option<u8> {
+    let shown = player_knowledge(game, player) == PlayerKnowledge::Own
+        || plays_the_club_today(game, player);
+    shown.then_some(player.condition)
+}
+
+/// Whether the player's club meets the manager's club today, in any competition. A loanee counts
+/// for the club he plays for, whose team sheet he is on.
+fn plays_the_club_today(game: &Game, player: &Player) -> bool {
+    let (Some(club), Some(opponent)) = (game.manager.team_id.as_deref(), player.team_id.as_deref())
+    else {
+        return false;
+    };
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    game.competitions
+        .iter()
+        .flat_map(|competition| &competition.fixtures)
+        .any(|fixture| {
+            fixture.date == today
+                && ((fixture.home_team_id == club && fixture.away_team_id == opponent)
+                    || (fixture.away_team_id == club && fixture.home_team_id == opponent))
+        })
+}
+
+fn two_significant_figures(value: u32) -> u32 {
+    let mut step = 1;
+    while value / step >= 100 {
+        step *= 10;
+    }
+    // Round half up to the step: 1,250 → 1,300, 15,843 → 16,000.
+    value.saturating_add(step / 2) / step * step
+}
+
 /// The knowledge of each requested player. An id no player has is left out of the answer.
 pub fn players_knowledge(game: &Game, player_ids: &[String]) -> HashMap<String, PlayerKnowledge> {
     let wanted: HashSet<&str> = player_ids.iter().map(String::as_str).collect();
@@ -150,6 +213,14 @@ mod tests {
     fn division(id: &str, clubs: &[&str]) -> League {
         let clubs: Vec<String> = clubs.iter().map(|club| club.to_string()).collect();
         League::new(id.to_string(), id.to_string(), 2026, &clubs)
+    }
+
+    /// A knockout cup: a competition that is not anyone's division.
+    fn cup(id: &str, clubs: &[&str]) -> League {
+        let mut cup = division(id, clubs);
+        cup.kind = domain::league::CompetitionType::Cup;
+        cup.rules.format = domain::league::CompetitionFormat::Knockout;
+        cup
     }
 
     /// My club and "rival" play in division one; "faraway" plays in division two.
@@ -309,6 +380,80 @@ mod tests {
         assert_eq!(knowledge_of(&game, "p"), PlayerKnowledge::Unknown);
     }
 
+    fn paid(mut player: Player, weekly: u32) -> Player {
+        player.stage_wage(weekly);
+        player
+    }
+
+    /// Given the club's own player on 15,843 a week
+    /// When the wage it may see is asked
+    /// Then it is the exact figure
+    #[test]
+    fn the_clubs_own_player_shows_his_exact_wage() {
+        let game = world(
+            Some(MY_CLUB),
+            vec![paid(player("p", Some(MY_CLUB)), 15_843)],
+        );
+        let player = &game.players[0];
+
+        assert_eq!(
+            visible_wage(&game, player),
+            VisibleWage::Exact { weekly: 15_843 }
+        );
+    }
+
+    /// Given a player in another division on 15,843 a week, whom a scout reported on
+    /// When the wage the club may see is asked
+    /// Then it is about 16,000: two significant figures, never the contract's figure
+    #[test]
+    fn a_scouted_player_shows_an_approximate_wage() {
+        let mut game = world(
+            Some(MY_CLUB),
+            vec![paid(player("p", Some("faraway")), 15_843)],
+        );
+        scouted(&mut game, "p", "2026-09-01");
+        let player = &game.players[0];
+
+        assert_eq!(
+            visible_wage(&game, player),
+            VisibleWage::Approximate { weekly: 16_000 }
+        );
+    }
+
+    /// Given a rival in the manager's own division, and a player elsewhere nobody scouted
+    /// When the wage the club may see is asked
+    /// Then neither shows one: a known rival's wage is his club's business
+    #[test]
+    fn a_known_or_unknown_players_wage_is_hidden() {
+        let game = world(
+            Some(MY_CLUB),
+            vec![
+                paid(player("known", Some("rival")), 15_843),
+                paid(player("unknown", Some("faraway")), 15_843),
+            ],
+        );
+
+        assert_eq!(visible_wage(&game, &game.players[0]), VisibleWage::Hidden);
+        assert_eq!(visible_wage(&game, &game.players[1]), VisibleWage::Hidden);
+    }
+
+    /// Given wages of 999, 1,250, 12,345 and 7 a week
+    /// When they are rounded for a scout's ear
+    /// Then they keep two significant figures: 1,000, 1,300, 12,000 and 7
+    #[test]
+    fn an_approximate_wage_keeps_two_significant_figures() {
+        let rounded = |weekly| {
+            let mut game = world(Some(MY_CLUB), vec![paid(player("p", None), weekly)]);
+            scouted(&mut game, "p", "2026-09-01");
+            visible_wage(&game, &game.players[0])
+        };
+
+        assert_eq!(rounded(999), VisibleWage::Approximate { weekly: 1_000 });
+        assert_eq!(rounded(1_250), VisibleWage::Approximate { weekly: 1_300 });
+        assert_eq!(rounded(12_345), VisibleWage::Approximate { weekly: 12_000 });
+        assert_eq!(rounded(7), VisibleWage::Approximate { weekly: 7 });
+    }
+
     /// Given a request for several players, one of them an id no player has
     /// When their knowledge is asked in one go
     /// Then each real player is answered and the unknown id is left out
@@ -328,5 +473,122 @@ mod tests {
         assert_eq!(answer.len(), 2);
         assert_eq!(answer["own"], PlayerKnowledge::Own);
         assert_eq!(answer["rival-player"], PlayerKnowledge::Known);
+    }
+
+    /// A player on `condition`.
+    fn tired(mut player: Player, condition: u8) -> Player {
+        player.condition = condition;
+        player
+    }
+
+    /// Schedules `home` against `away` in division one on `date`.
+    fn fixture_on(game: &mut Game, date: &str, home: &str, away: &str) {
+        fixture_in(game, "division-one", date, home, away);
+    }
+
+    /// Schedules `home` against `away` in `competition_id` on `date`.
+    fn fixture_in(game: &mut Game, competition_id: &str, date: &str, home: &str, away: &str) {
+        let competition = game
+            .competitions
+            .iter_mut()
+            .find(|competition| competition.id == competition_id)
+            .unwrap();
+        competition.fixtures.push(domain::league::Fixture {
+            id: format!("{home}-{away}-{date}"),
+            competition_id: competition_id.to_string(),
+            matchday: 1,
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            competition: domain::league::FixtureCompetition::League,
+            status: domain::league::FixtureStatus::Scheduled,
+            result: None,
+            postponement: None,
+        });
+    }
+
+    fn condition_of(game: &Game, player_id: &str) -> Option<u8> {
+        let player = game.players.iter().find(|p| p.id == player_id).unwrap();
+        visible_condition(game, player)
+    }
+
+    /// Given the club's own player on 64% condition, with no match today
+    /// When his condition is asked
+    /// Then it shows: the club's own player's condition is always the club's to see
+    #[test]
+    fn the_clubs_own_players_condition_always_shows() {
+        let game = world(Some(MY_CLUB), vec![tired(player("p", Some(MY_CLUB)), 64)]);
+
+        assert_eq!(condition_of(&game, "p"), Some(64));
+    }
+
+    /// Given "rival" playing the club today (15 Sep, away), and one of rival's players on 71%
+    /// When his condition is asked
+    /// Then it shows, as the team sheet and the warm-up would show it
+    #[test]
+    fn an_opponents_condition_shows_on_the_day_they_meet() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("r", Some("rival")), 71)]);
+        fixture_on(&mut game, "2026-09-15", "rival", MY_CLUB);
+
+        assert_eq!(condition_of(&game, "r"), Some(71));
+    }
+
+    /// Given the club drawn at home today against "faraway", a club from another division, in a
+    ///      cup (a competition other than the club's division), and one of faraway's players on 58%
+    /// When his condition is asked
+    /// Then it shows: any competition's matchday hands over the team sheet, not the league's alone
+    #[test]
+    fn an_opponents_condition_shows_on_a_cup_tie_too() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("f", Some("faraway")), 58)]);
+        game.competitions
+            .push(cup("cup", &[MY_CLUB, "rival", "faraway", "other"]));
+        fixture_in(&mut game, "cup", "2026-09-15", MY_CLUB, "faraway");
+
+        assert_eq!(condition_of(&game, "f"), Some(58));
+    }
+
+    /// Given "rival" playing the club tomorrow, not today
+    /// When one of rival's players' condition is asked today
+    /// Then it does not show: a division rival is known, but his condition is his club's business
+    #[test]
+    fn an_opponents_condition_is_hidden_before_matchday() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("r", Some("rival")), 71)]);
+        fixture_on(&mut game, "2026-09-16", MY_CLUB, "rival");
+
+        assert_eq!(condition_of(&game, "r"), None);
+    }
+
+    /// Given the club meeting "rival" today
+    /// When a player of "faraway", which the club does not meet, is asked about
+    /// Then his condition stays hidden: a matchday hands over the opponent's team sheet only, not
+    ///      every club's
+    #[test]
+    fn a_matchday_shows_only_the_opponents_condition() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("f", Some("faraway")), 71)]);
+        fixture_on(&mut game, "2026-09-15", MY_CLUB, "rival");
+
+        assert_eq!(condition_of(&game, "f"), None);
+    }
+
+    /// Given "rival" and "faraway" meeting each other today, the club not playing them
+    /// When a "faraway" player's condition is asked
+    /// Then it does not show: only the club's own opponent's team sheet is in its hands
+    #[test]
+    fn a_matchday_between_two_other_clubs_shows_nothing() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("f", Some("faraway")), 71)]);
+        fixture_on(&mut game, "2026-09-15", "rival", "faraway");
+
+        assert_eq!(condition_of(&game, "f"), None);
+    }
+
+    /// Given a manager with no club, and "rival" playing "faraway" today
+    /// When a rival player's condition is asked
+    /// Then it does not show: a manager without a club has no opponent
+    #[test]
+    fn an_unemployed_manager_sees_no_opponents_condition() {
+        let mut game = world(None, vec![tired(player("r", Some("rival")), 71)]);
+        fixture_on(&mut game, "2026-09-15", "rival", "faraway");
+
+        assert_eq!(condition_of(&game, "r"), None);
     }
 }

@@ -29,6 +29,7 @@ describe("transfersService", () => {
 
     await expect(makeTransferBid("player-1", 1500000)).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("make_transfer_bid", {
+      careerToken: 0,
       playerId: "player-1",
       fee: 1500000,
     });
@@ -40,6 +41,7 @@ describe("transfersService", () => {
 
     await expect(respondToOffer("player-1", "offer-1", true)).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("respond_to_offer", {
+      careerToken: 0,
       playerId: "player-1",
       offerId: "offer-1",
       accept: true,
@@ -52,6 +54,7 @@ describe("transfersService", () => {
 
     await expect(makeLoanOffer("player-1", "2027-01-01", 75)).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
+      careerToken: 0,
       playerId: "player-1",
       endDate: "2027-01-01",
       wageContributionPct: 75,
@@ -65,6 +68,7 @@ describe("transfersService", () => {
 
     await expect(exerciseLoanBuyOption("player-1")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("exercise_loan_buy_option", {
+      careerToken: 0,
       playerId: "player-1",
     });
   });
@@ -75,6 +79,7 @@ describe("transfersService", () => {
 
     await expect(respondToLoanOffer("player-1", "loan-offer-1", true)).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("respond_to_loan_offer", {
+      careerToken: 0,
       playerId: "player-1",
       offerId: "loan-offer-1",
       accept: true,
@@ -89,6 +94,7 @@ describe("transfersService", () => {
       counterLoanOffer("player-1", "loan-offer-1", "2027-01-01", 85, 1200000),
     ).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("counter_loan_offer", {
+      careerToken: 0,
       playerId: "player-1",
       offerId: "loan-offer-1",
       endDate: "2027-01-01",
@@ -103,6 +109,7 @@ describe("transfersService", () => {
 
     await expect(counterOffer("player-1", "offer-1", 1800000)).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("counter_offer", {
+      careerToken: 0,
       playerId: "player-1",
       offerId: "offer-1",
       requestedFee: 1800000,

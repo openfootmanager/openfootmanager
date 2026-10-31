@@ -15,14 +15,13 @@ import {
   ChevronsRight,
 } from "lucide-react";
 import { formatVal } from "../../lib/helpers";
-import { positionBadgeVariant } from "../../lib/helpers";
 import { useTranslation } from "react-i18next";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { buildAlreadyScoutingIds } from "../scouting/ScoutingTab.model";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import { sendScout } from "../../services/scoutingService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
-import type { PlayerSortKey, PlayersPageQuery } from "../../services/playersService";
+import type { PlayerSortKey } from "../../services/playersService";
+import { PLAYERS_OPENING_QUERY } from "./playersOpeningQuery";
 import { usePlayersPage } from "../../hooks/usePlayersPage";
 import {
   buildDividerMenuItem,
@@ -39,6 +38,7 @@ import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface PlayersListTabProps {
   gameState: GameStateData;
@@ -46,28 +46,6 @@ interface PlayersListTabProps {
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
   onSelectTeam: (id: string) => void;
 }
-
-const PAGE_SIZE = 30;
-
-const DEFAULT_QUERY: PlayersPageQuery = {
-  search: null,
-  position: null,
-  positions: [],
-  age_min: null,
-  age_max: null,
-  ovr_min: null,
-  ovr_max: null,
-  value_min: null,
-  value_max: null,
-  in_budget: false,
-  scope: "all",
-  team_id: null,
-  status: "all",
-  sort_key: "ovr",
-  sort_asc: false,
-  page: 1,
-  page_size: PAGE_SIZE,
-};
 
 export default function PlayersListTab({
   gameState,
@@ -83,7 +61,7 @@ export default function PlayersListTab({
     slice,
     error: fetchError,
     refetch: refetchSlice,
-  } = usePlayersPage(DEFAULT_QUERY, t);
+  } = usePlayersPage(PLAYERS_OPENING_QUERY, t);
   const [sendingPlayerId, setSendingPlayerId] = useState<string | null>(null);
   const [scoutError, setScoutError] = useState<string | null>(null);
   const managerTeamId = gameState.manager.team_id ?? "";
@@ -369,9 +347,7 @@ export default function PlayersListTab({
                       className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer group"
                     >
                       <td className="py-2.5 px-4">
-                        <Badge variant={positionBadgeVariant(naturalPositionOf(summary))} size="sm">
-                          {translatePositionAbbreviation(t, naturalPositionOf(summary))}
-                        </Badge>
+                        <PlayerPositionBadge position={naturalPositionOf(summary)} />
                       </td>
                       <td className="py-2.5 px-4">
                         <div className="flex items-center gap-3">

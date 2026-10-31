@@ -37,11 +37,17 @@ describe("applySubstitutions", () => {
     expect(mockedInvoke.mock.calls).toEqual([
       [
         "apply_match_command",
-        { command: { Substitute: { side: "Home", player_off_id: "a", player_on_id: "b" } } },
+        {
+          careerToken: 0,
+          command: { Substitute: { side: "Home", player_off_id: "a", player_on_id: "b" } },
+        },
       ],
       [
         "apply_match_command",
-        { command: { Substitute: { side: "Home", player_off_id: "c", player_on_id: "d" } } },
+        {
+          careerToken: 0,
+          command: { Substitute: { side: "Home", player_off_id: "c", player_on_id: "d" } },
+        },
       ],
     ]);
     expect(onSnapshot.mock.calls.map(([snapshot]) => snapshot.home_subs_made)).toEqual([1, 2]);

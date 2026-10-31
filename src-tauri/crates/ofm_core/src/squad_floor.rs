@@ -745,7 +745,9 @@ fn free_agents_best_first(game: &Game, group: &Position) -> Vec<usize> {
         .players
         .iter()
         .enumerate()
-        .filter(|(_, player)| player.team_id.is_none())
+        // Retiring archives a player at once, so none should be here; the filter keeps this
+        // list honest if one ever is (the same check free-agent signing makes).
+        .filter(|(_, player)| player.team_id.is_none() && !player.retired)
         .filter(|(_, player)| player.position.to_group_position() == *group)
         .map(|(index, _)| index)
         .collect();
@@ -1107,6 +1109,25 @@ mod tests {
         assert!(top_up.brought_in().is_empty());
         assert_eq!(top_up.unfilled, vec![(GK, 1)]);
         assert!(game.players.iter().all(|p| p.id != "retired_keeper"));
+    }
+
+    /// Given a club a keeper short, and a retired keeper left on the roster with no club (no path
+    ///       leaves him there today: retiring archives him at once, and every load and world build
+    ///       archives any it finds)
+    /// When the club tops up its squad
+    /// Then he is not signed: a retiree is never a free agent, wherever he is kept
+    #[test]
+    fn a_retiree_left_on_the_roster_is_never_signed() {
+        let mut game = club_with([1, 5, 5, 4]);
+        let mut retired = free_agent("retired_keeper", Position::Goalkeeper, 90);
+        retired.retired = true;
+        game.players.push(retired);
+
+        let top_up = restore_minimum_squad(&mut game, "club");
+
+        assert!(top_up.brought_in().is_empty());
+        assert_eq!(top_up.unfilled, vec![(GK, 1)]);
+        assert_eq!(team_of(&game, "retired_keeper"), None);
     }
 
     /// Given a club of nobody, no academy and no free agents, nobody is

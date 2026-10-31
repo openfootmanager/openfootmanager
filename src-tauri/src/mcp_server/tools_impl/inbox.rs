@@ -8,6 +8,7 @@ use mcp_results::inbox::{
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::require_game;
 use ofm_core::inbox_archive::{ArchiveCursor, ArchivedMessagesPage};
+use ofm_core::state::Career;
 use std::sync::Arc;
 
 /// Archive messages per page when the agent does not say.
@@ -107,7 +108,11 @@ pub fn inbox_mark_read(
     ctx: Arc<McpContext>,
     message_id: String,
 ) -> Result<MessageMarkedRead, String> {
-    crate::commands::messages::mark_message_read_internal(&ctx.state_manager, &message_id)?;
+    crate::commands::messages::mark_message_read_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &message_id,
+    )?;
 
     {
         use tauri::Emitter;
@@ -122,7 +127,7 @@ pub fn inbox_mark_read(
 // ─── inbox_mark_all_read ────────────────────────────────────────────────────
 
 pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<AllMessagesMarkedRead, String> {
-    crate::commands::messages::mark_all_messages_read_internal(&ctx.state_manager)?;
+    crate::commands::messages::mark_all_messages_read_internal(&ctx.state_manager, Career::Active)?;
 
     {
         use tauri::Emitter;
@@ -137,7 +142,11 @@ pub fn inbox_mark_all_read(ctx: Arc<McpContext>) -> Result<AllMessagesMarkedRead
 // ─── inbox_delete ───────────────────────────────────────────────────────────
 
 pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<MessageDeleted, String> {
-    crate::commands::messages::delete_message_internal(&ctx.state_manager, &message_id)?;
+    crate::commands::messages::delete_message_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &message_id,
+    )?;
 
     {
         use tauri::Emitter;
@@ -152,7 +161,7 @@ pub fn inbox_delete(ctx: Arc<McpContext>, message_id: String) -> Result<MessageD
 // ─── inbox_clear_old ────────────────────────────────────────────────────────
 
 pub fn inbox_clear_old(ctx: Arc<McpContext>) -> Result<OldMessagesCleared, String> {
-    crate::commands::messages::clear_old_messages_internal(&ctx.state_manager)?;
+    crate::commands::messages::clear_old_messages_internal(&ctx.state_manager, Career::Active)?;
 
     {
         use tauri::Emitter;
@@ -174,6 +183,7 @@ pub fn inbox_resolve_action(
 ) -> Result<ActionResolved, String> {
     crate::commands::messages::resolve_message_action_internal(
         &ctx.state_manager,
+        Career::Active,
         &message_id,
         &action_id,
         option_id.as_deref(),
