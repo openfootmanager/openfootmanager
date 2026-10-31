@@ -1,7 +1,8 @@
 use crate::league::Fixture;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[serde(default)]
 pub struct NationalTeam {
     pub id: String,
