@@ -375,6 +375,17 @@ jobs:
         if: always()
         run: df -h / | tail -n 1 && (du -sh src-tauri/target 2>/dev/null || echo "no target/ present")
 
+      # Only when the job fails: where the disk went. Every runner image measured on 31 Oct
+      # (ubuntu-latest, 24.04 and 26.04) starts with 86 to 88 GB free, and the build's `target/`
+      # peaks at 8.5 GB, so a "No space left on device" means something else wrote tens of GB in
+      # minutes. This names it. `-x` stays on the root filesystem; `|| true` because a full disk
+      # can make even `du` complain, and this step must never be the one that fails.
+      - name: Disk usage by directory (on failure)
+        if: failure()
+        run: |
+          df -h
+          sudo du -xh --max-depth=3 / 2>/dev/null | sort -rh | head -n 30 || true
+
 # ── Gates deliberately NOT enabled yet ───────────────────────────────────────
 #
 # `biome lint`  — a first run reports 724 findings under `recommended`, plus a
