@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { NOTHING_VISIBLE, type VisibleFigures } from "../../lib/playerKnowledge";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import type { PlayersPageQuery } from "../../services/playersService";
 import { usePlayersPage } from "../../hooks/usePlayersPage";
@@ -108,6 +109,22 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     [marketSlice, playersById],
   );
   const filteredList = listedPlayers;
+  // The rating and wage the club may see of each listed player, as the page's projection sends
+  // them; a player the page did not list shows nothing private.
+  const visibilityById = useMemo(
+    () =>
+      new Map<string, VisibleFigures>(
+        (marketSlice?.items ?? []).map((summary) => [
+          summary.id,
+          { ovr: summary.ovr, wage: summary.wage },
+        ]),
+      ),
+    [marketSlice],
+  );
+  const visibleOf = useCallback(
+    (playerId: string): VisibleFigures => visibilityById.get(playerId) ?? NOTHING_VISIBLE,
+    [visibilityById],
+  );
 
   const marketTotal = marketSlice?.total ?? 0;
   const marketTotalPages = Math.max(1, Math.ceil(marketTotal / TRANSFER_MARKET_PAGE_SIZE));
@@ -156,6 +173,7 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     marketTotalPages,
     safeMarketPage,
     visibleList: filteredList,
+    visibleOf,
     showMarketPagination,
     marketRangeFrom,
     marketRangeTo,

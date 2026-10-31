@@ -4,6 +4,15 @@ import type { PlayerKnowledge, VisibleWage } from "../services/scoutingService";
 
 type TranslateFn = (key: string, options?: TOptions) => string;
 
+/** A player's rating and wage as the club may see them, from the backend's projection of a list. */
+export interface VisibleFigures {
+  ovr: number | null;
+  wage: VisibleWage;
+}
+
+/** What a screen shows of a player it has no projection for: nothing private. */
+export const NOTHING_VISIBLE: VisibleFigures = { ovr: null, wage: { kind: "hidden" } };
+
 /**
  * A wage the club may see, written with `format`: as it is, as "about …", or "–". The one place a
  * visible wage is spelled, so every screen hides and rounds it alike.
