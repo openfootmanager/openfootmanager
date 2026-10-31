@@ -14,6 +14,8 @@
 //! paid under the same `wage_policy_verdict` — there is no AI-only copy of the
 //! wage, contract-length or wage-policy rules.
 
+use std::collections::HashMap;
+
 use chrono::NaiveDate;
 use domain::player::Player;
 use domain::team::Team;
@@ -43,11 +45,16 @@ const PROSPECT_AGE_LIMIT: i32 = 23;
 /// Run every AI club's contract review that falls on this weekday.
 pub(crate) fn apply_ai_contract_decisions(game: &mut Game, weekday_num: u32) {
     let current_date = game.clock.current_date.date_naive();
+    // Found once for every club reviewing today: a renewal changes a player's terms, never the
+    // club that holds his contract, so no club's group goes stale during the reviews.
+    let contracts = contracts_by_club(&game.players);
     for team_id in crate::ai_tactics::ai_clubs_reviewing_on(game, weekday_num) {
         let Some(team) = game.teams.iter().find(|team| team.id == team_id).cloned() else {
             continue;
         };
-        for player_index in contracts_running_down(game, &team_id, current_date) {
+        let held = contracts.get(&team_id).map_or(&[][..], Vec::as_slice);
+        debug_assert_contracts_are_current(&game.players, &team_id, held);
+        for player_index in contracts_running_down(&game.players, held, current_date) {
             if keeps(game, &team, &game.players[player_index], current_date) {
                 renew(game, &team, player_index, current_date);
             }
@@ -154,16 +161,51 @@ fn seniors_in(game: &Game, club: &[usize], group: Option<&domain::player::Positi
         .count()
 }
 
-/// The club's own players (its loaned-out ones included) whose contracts end
-/// within the horizon.
-fn contracts_running_down(game: &Game, team_id: &str, current_date: NaiveDate) -> Vec<usize> {
-    game.players
-        .iter()
-        .enumerate()
-        .filter(|(_, player)| player.contract_end().is_some())
-        .filter(|(_, player)| player.contract_club_id() == Some(team_id))
-        .filter(|(_, player)| remaining_contract_days(player, current_date) <= RENEWAL_HORIZON_DAYS)
-        .map(|(index, _)| index)
+/// Where each club's contracted players (its loaned-out ones included) stand in `players`, found
+/// in one pass, each club's in the order of `players`. Looked up by club, never iterated.
+fn contracts_by_club(players: &[Player]) -> HashMap<String, Vec<usize>> {
+    let mut by_club: HashMap<String, Vec<usize>> = HashMap::new();
+    for (position, player) in players.iter().enumerate() {
+        let Some(club) = player.contract_club_id() else {
+            continue;
+        };
+        match by_club.get_mut(club) {
+            Some(held) => held.push(position),
+            None => {
+                by_club.insert(club.to_string(), vec![position]);
+            }
+        }
+    }
+    by_club
+}
+
+/// In a debug build, panics unless `held` is where the players whose contracts `team_id` holds
+/// stand in `players` now. A release build checks nothing.
+fn debug_assert_contracts_are_current(players: &[Player], team_id: &str, held: &[usize]) {
+    debug_assert_eq!(
+        held,
+        players
+            .iter()
+            .enumerate()
+            .filter(|(_, player)| player.contract_club_id() == Some(team_id))
+            .map(|(position, _)| position)
+            .collect::<Vec<_>>()
+            .as_slice(),
+        "the contracts kept for {team_id} are stale: a contract changed club and was not found again"
+    );
+}
+
+fn contracts_running_down(
+    players: &[Player],
+    held: &[usize],
+    current_date: NaiveDate,
+) -> Vec<usize> {
+    held.iter()
+        .copied()
+        .filter(|&position| players[position].contract_end().is_some())
+        .filter(|&position| {
+            remaining_contract_days(&players[position], current_date) <= RENEWAL_HORIZON_DAYS
+        })
         .collect()
 }
 
@@ -335,26 +377,7 @@ mod tests {
             "England".to_string(),
         );
         manager.hire("user".to_string());
-        let mut players = Vec::new();
-        for club in ["user", "ai"] {
-            for (group, count) in [
-                (Position::Goalkeeper, 3),
-                (Position::Defender, 6),
-                (Position::Midfielder, 6),
-                (Position::Forward, 4),
-            ] {
-                for i in 0..count {
-                    players.push(player(
-                        &format!("{club}_{group:?}{i}"),
-                        club,
-                        group.clone(),
-                        60,
-                        26,
-                        1_000,
-                    ));
-                }
-            }
-        }
+        let players = ["user", "ai"].into_iter().flat_map(squad).collect();
         Game::new(
             clock,
             manager,
@@ -365,8 +388,58 @@ mod tests {
         )
     }
 
+    /// Nineteen seniors of `club`, rated 60, aged 26, with long contracts.
+    fn squad(club: &str) -> Vec<Player> {
+        let mut players = Vec::new();
+        for (group, count) in [
+            (Position::Goalkeeper, 3),
+            (Position::Defender, 6),
+            (Position::Midfielder, 6),
+            (Position::Forward, 4),
+        ] {
+            for i in 0..count {
+                players.push(player(
+                    &format!("{club}_{group:?}{i}"),
+                    club,
+                    group.clone(),
+                    60,
+                    26,
+                    1_000,
+                ));
+            }
+        }
+        players
+    }
+
     fn review_day() -> u32 {
         crate::ai_tactics::review_weekday("ai")
+    }
+
+    /// A second AI club, with the same squad as "ai", that reviews on the same day.
+    fn add_club_reviewing_with_ai(game: &mut Game) -> String {
+        let id = (0..)
+            .map(|n| format!("ai{n}"))
+            .find(|id| crate::ai_tactics::review_weekday(id) == review_day())
+            .unwrap();
+        game.teams.push(team(&id));
+        game.players.extend(squad(&id));
+        id
+    }
+
+    fn loan_out(player: &mut Player, parent: &str, borrower: &str) {
+        player.team_id = Some(borrower.to_string());
+        player.active_loan = Some(domain::player::ActiveLoan {
+            parent_team_id: parent.to_string(),
+            loan_team_id: borrower.to_string(),
+            start_date: "2026-07-01".to_string(),
+            end_date: "2027-06-30".to_string(),
+            wage_contribution_pct: 100,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
     }
 
     fn contract_end(game: &Game, id: &str) -> String {
@@ -615,19 +688,7 @@ mod tests {
             .iter_mut()
             .find(|p| p.id == "ai_Goalkeeper2")
             .unwrap();
-        loaned.team_id = Some("user".to_string());
-        loaned.active_loan = Some(domain::player::ActiveLoan {
-            parent_team_id: "ai".to_string(),
-            loan_team_id: "user".to_string(),
-            start_date: "2026-07-01".to_string(),
-            end_date: "2027-06-30".to_string(),
-            wage_contribution_pct: 100,
-            buy_option_fee: None,
-            loan_start_minutes: 0,
-            loan_start_appearances: 0,
-            development_reported_minutes: 0,
-            development_reported_appearances: 0,
-        });
+        loan_out(loaned, "ai", "user");
         game.players
             .push(player("old_keeper", "ai", Position::Goalkeeper, 50, 34, 90));
         let before = contract_end(&game, "old_keeper");
@@ -661,6 +722,67 @@ mod tests {
             star.contract_end() > Some(day.format("%Y-%m-%d").to_string().as_str()),
             "his contract was not renewed"
         );
+    }
+
+    /// Given two AI clubs that review on the same day, each with a wanted player running down his
+    /// contract, when the day's reviews run, then both are renewed: the first club's renewal
+    /// leaves the second club's contracts where the review found them.
+    #[test]
+    fn two_clubs_reviewing_on_one_day_each_renew_their_own_player() {
+        let mut game = world();
+        let other = add_club_reviewing_with_ai(&mut game);
+        game.players
+            .push(player("ai_star", "ai", Position::Midfielder, 75, 27, 90));
+        game.players.push(player(
+            "other_star",
+            &other,
+            Position::Midfielder,
+            75,
+            27,
+            90,
+        ));
+        let ai_before = contract_end(&game, "ai_star");
+        let other_before = contract_end(&game, "other_star");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        assert!(contract_end(&game, "ai_star") > ai_before);
+        assert!(contract_end(&game, "other_star") > other_before);
+    }
+
+    /// Given a wanted player on loan from one AI club to another, both reviewing on the same day,
+    /// when the reviews run, then the club that holds his contract renews him; the borrower does
+    /// not decide on a contract it does not hold.
+    #[test]
+    fn a_player_out_on_loan_is_renewed_by_the_club_that_holds_his_contract() {
+        let mut game = world();
+        let borrower = add_club_reviewing_with_ai(&mut game);
+        let mut star = player("star", "ai", Position::Midfielder, 75, 27, 90);
+        loan_out(&mut star, "ai", &borrower);
+        game.players.push(star);
+        let before = contract_end(&game, "star");
+
+        apply_ai_contract_decisions(&mut game, review_day());
+
+        let star = game.players.iter().find(|p| p.id == "star").unwrap();
+        assert!(star.contract_end().unwrap() > before.as_str());
+        let renewal = star.movement_history.last().unwrap();
+        assert_eq!(renewal.kind, domain::player::PlayerMovementKind::Renewal);
+        assert_eq!(renewal.to_team_id.as_deref(), Some("ai"));
+    }
+
+    /// Given each club's contracts found once, when a player's contract moves to another club and
+    /// the old group is used again, then a debug build refuses it.
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "the contracts kept for ai are stale")]
+    fn a_stale_contract_group_is_refused() {
+        let mut game = world();
+        let groups = contracts_by_club(&game.players);
+        let held = groups.get("ai").unwrap();
+        game.players[held[0]].team_id = Some("user".to_string());
+
+        debug_assert_contracts_are_current(&game.players, "ai", held);
     }
 
     // --- Ordinary squad planning ------------------------------------------------

@@ -28,6 +28,12 @@ export interface FreeAgentContractResponseData {
   feedback?: NegotiationFeedbackPanelData | null;
 }
 
+/** The terms the backend opens free-agent talks with: `ofm_core::contracts::RenewalOffer`. */
+export interface FreeAgentOpeningOffer {
+  weekly_wage: number;
+  contract_years: number;
+}
+
 export interface FreeAgentContractProjectionResponseData {
   projection: FreeAgentContractProjection;
 }
@@ -52,4 +58,8 @@ export async function previewFreeAgentContractImpact(
     playerId,
     weeklyWage,
   });
+}
+
+export async function getFreeAgentOpeningOffer(playerId: string): Promise<FreeAgentOpeningOffer> {
+  return invoke<FreeAgentOpeningOffer>("get_free_agent_opening_offer", { playerId });
 }

@@ -101,6 +101,10 @@ describe("TransfersTab", (): void => {
         };
       }
 
+      if (command === "get_free_agent_opening_offer") {
+        return { weekly_wage: 3000, contract_years: 3 };
+      }
+
       if (command === "preview_free_agent_contract_impact") {
         const wage = Number(args?.weeklyWage ?? 0);
         return {

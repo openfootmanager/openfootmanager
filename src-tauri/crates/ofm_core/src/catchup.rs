@@ -13,14 +13,20 @@ use rand::Rng;
 
 const CATCHUP_XI: usize = 11;
 
-/// Average OVR of a club's best XI, used as scoreline strength. Falls back to a
-/// neutral rating when the club has no players on the books.
+/// [`club_strength_among`] for the club `club_id`, found by scanning `players`.
 pub(crate) fn club_strength(players: &[Player], club_id: &str) -> f64 {
-    let mut ovrs: Vec<u8> =
-        crate::match_day_eligibility::match_day_eligible_players(players, club_id)
-            .into_iter()
-            .map(|p| p.ovr)
-            .collect();
+    club_strength_among(&crate::match_day_eligibility::club_players(
+        players, club_id,
+    ))
+}
+
+/// Average OVR of the best XI among one club's players (`club`), used as scoreline strength.
+/// Falls back to a neutral rating when the club has no players on the books.
+pub(crate) fn club_strength_among(club: &[&Player]) -> f64 {
+    let mut ovrs: Vec<u8> = crate::match_day_eligibility::eligible_among(club)
+        .into_iter()
+        .map(|p| p.ovr)
+        .collect();
     if ovrs.is_empty() {
         return 50.0;
     }
@@ -52,7 +58,7 @@ pub(crate) fn resolve_fixture_by_scoreline(
 /// [`resolve_fixture_by_scoreline`], with each club's strength read from
 /// `strength_of` rather than recounted from the players: the one resolver,
 /// for a caller that settles many fixtures and has the strengths to hand.
-fn resolve_fixture_with_strengths(
+pub(crate) fn resolve_fixture_with_strengths(
     competition: &mut League,
     fixture_index: usize,
     strength_of: impl Fn(&str) -> f64,

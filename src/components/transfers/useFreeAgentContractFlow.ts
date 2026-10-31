@@ -8,12 +8,12 @@ import {
 } from "../playerProfile/PlayerProfile.renewal";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import {
+  getFreeAgentOpeningOffer,
   offerFreeAgentContract,
   previewFreeAgentContractImpact,
   type FreeAgentContractProjection,
   type FreeAgentContractResponseData,
 } from "../../services/freeAgentService";
-import { calcAgeOnDate } from "../../lib/valueFormatting";
 import { resolveBackendError } from "../../utils/backendI18n";
 
 interface UseFreeAgentContractFlowArgs {
@@ -21,8 +21,6 @@ interface UseFreeAgentContractFlowArgs {
   onGameUpdate?: (game: GameStateData) => void;
 }
 
-const MARKET_VALUE_TO_WAGE_RATIO = 200;
-const MINIMUM_DEFAULT_WAGE = 500;
 const MAX_CONTRACT_YEARS = 5;
 
 interface UseFreeAgentContractFlowResult {
@@ -46,25 +44,6 @@ interface UseFreeAgentContractFlowResult {
 }
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
-
-function defaultContractYears(dateOfBirth: string, asOfDate: string): string {
-  const age = calcAgeOnDate(dateOfBirth, asOfDate);
-
-  if (age <= 28) return "3";
-  if (age <= 32) return "2";
-  return "1";
-}
-
-function defaultContractWage(player: PlayerData): string {
-  const baseline =
-    player.wage > 0
-      ? player.wage
-      : Math.max(
-          Math.round(player.market_value / MARKET_VALUE_TO_WAGE_RATIO),
-          MINIMUM_DEFAULT_WAGE,
-        );
-  return String(Math.ceil(baseline / 1000) * 1000);
-}
 
 export function useFreeAgentContractFlow({
   gameState,
@@ -130,10 +109,41 @@ export function useFreeAgentContractFlow({
     };
   }, [freeAgentTarget, isContractWageValid, offeredWage]);
 
+  useEffect(() => {
+    if (freeAgentTargetId === null) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadOpeningOffer = async (): Promise<void> => {
+      try {
+        const offer = await getFreeAgentOpeningOffer(freeAgentTargetId);
+
+        if (!cancelled) {
+          // Only a field still empty takes the offer: the manager may have typed while it loaded.
+          setContractWage((typed) => typed || String(offer.weekly_wage));
+          setContractLength((typed) => typed || String(offer.contract_years));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setContractStatus("error");
+          setContractError(resolveBackendError(error));
+        }
+      }
+    };
+
+    void loadOpeningOffer();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [freeAgentTargetId]);
+
   const openFreeAgentContract = (player: PlayerData): void => {
     setFreeAgentTargetId(player.id);
-    setContractWage(defaultContractWage(player));
-    setContractLength(defaultContractYears(player.date_of_birth, gameState.clock.current_date));
+    setContractWage("");
+    setContractLength("");
     setContractStatus("idle");
     setContractError(null);
     setContractFeedback(null);
