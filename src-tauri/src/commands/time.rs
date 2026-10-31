@@ -964,6 +964,54 @@ mod tests {
         }
     }
 
+    /// Given a game with an injured pair of starters and unread urgent mail
+    /// When the UI's blocker check and the MCP blocker tool read it
+    /// Then both list the same blockers with the same severities and tabs (the injured XI, and no
+    ///      informational mail), and the MCP flags a live match on its own.
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_blockers_are_the_ones_the_ui_gets() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        use crate::mcp_server::tools_impl::time::blockers_of;
+        let mut game = make_game(11);
+        for player_id in ["p2", "p5"] {
+            let player = game.players.iter_mut().find(|p| p.id == player_id).unwrap();
+            player.injury = Some(Injury {
+                name: "Hamstring".to_string(),
+                days_remaining: 7,
+            });
+        }
+        game.messages = vec![make_message("urgent-1", MessagePriority::Urgent, false)];
+        let app = WrapperApp::new(game.clone(), false);
+        let ui = super::check_blocking_actions(app.state()).expect("the check answers");
+        let ui: Vec<(String, String, String)> = ui
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|b| {
+                let field = |name: &str| b[name].as_str().unwrap().to_string();
+                (field("id"), field("severity"), field("tab"))
+            })
+            .collect();
+
+        let mcp = blockers_of(&game, false);
+        let mcp_list: Vec<(String, String, String)> = mcp
+            .blockers
+            .iter()
+            .map(|b| (b.id.clone(), b.severity.clone(), b.tab.clone()))
+            .collect();
+
+        assert!(!ui.is_empty(), "the fixture should have a real blocker");
+        assert!(ui.iter().any(|(id, ..)| id == "injured_xi"), "{ui:?}");
+        assert!(
+            ui.iter().all(|(_, severity, _)| severity != "info"),
+            "{ui:?}"
+        );
+        assert_eq!(mcp_list, ui);
+        assert!(!mcp.live_match_in_progress);
+        assert!(blockers_of(&game, true).live_match_in_progress);
+    }
+
     /// Given career B is active (token 2) and a screen still holds career A's token (1)
     /// When each way of advancing time arrives with A's token
     /// Then each is refused with the career-changed key and career B's clock, messages and stats
