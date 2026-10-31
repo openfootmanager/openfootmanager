@@ -145,7 +145,7 @@ pub fn is_season_complete(game: &Game) -> bool {
                 .collect();
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
             let countrymen_still_playing = game.competitions.iter().any(|competition| {
-                berths::is_ladder_tier(competition)
+                crate::world::ladder::is_ladder_table(competition)
                     && competition
                         .country_id
                         .as_deref()
@@ -338,7 +338,7 @@ fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
     for league in game
         .competitions
         .iter()
-        .filter(|competition| berths::is_ladder_tier(competition))
+        .filter(|competition| crate::world::ladder::is_ladder_table(competition))
     {
         match league.country_id.as_deref() {
             Some(country) => by_country.entry(country).or_default().push(league),
@@ -396,10 +396,12 @@ fn regenerate_competitions_for_new_season(
     if game.competitions.is_empty() {
         return;
     }
+    let first_new_edition = game.edition_archive.len();
     crate::edition_archive::archive_finished_editions(
         &mut game.edition_archive,
         &game.competitions,
     );
+    crate::manager_records::credit_managers_of_newly_archived_leagues(game, first_new_edition);
 
     // Read the World Cup field from this cycle's qualifying before competitions
     // are retired below.
@@ -1022,64 +1024,38 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     crate::manager_retirement::retire_unemployed_managers(game);
     crate::generator::replenish_manager_and_scout_market(game);
 
-    // 6. Update manager career stats
+    // 6. Credit the user's manager with his division's season. Every other club's manager is
+    //    credited from the archived editions at the rollover (step 7).
     if let Some(standing) = &user_standing {
-        let total_matches = standing.won + standing.drawn + standing.lost;
-        game.manager.career_stats.matches_managed += total_matches;
-        game.manager.career_stats.wins += standing.won;
-        game.manager.career_stats.draws += standing.drawn;
-        game.manager.career_stats.losses += standing.lost;
-        if user_position == 1 {
-            game.manager.career_stats.trophies += 1;
-        }
-        let best = game.manager.career_stats.best_finish;
-        if best.is_none() || best.unwrap() > user_position {
-            game.manager.career_stats.best_finish = Some(user_position);
-        }
-        // Update or create career history entry for current team
         let team_name = game
             .teams
             .iter()
             .find(|t| t.id == user_team_id)
             .map(|t| t.name.clone())
             .unwrap_or_default();
-        let today_str = game.clock.current_date.format("%Y-%m-%d").to_string();
-        // Check if there's an existing open entry for this team
-        let existing = game
-            .manager
-            .career_history
-            .iter_mut()
-            .find(|e| e.team_id == user_team_id && e.end_date.is_none());
-        if let Some(entry) = existing {
-            entry.matches += total_matches;
-            entry.wins += standing.won;
-            entry.draws += standing.drawn;
-            entry.losses += standing.lost;
-            let prev_best = entry.best_league_position;
-            if prev_best.is_none() || prev_best.unwrap() > user_position {
-                entry.best_league_position = Some(user_position);
-            }
-        } else {
-            game.manager
-                .career_history
-                .push(domain::manager::ManagerCareerEntry {
-                    team_id: user_team_id.clone(),
-                    team_name,
-                    start_date: today_str,
-                    end_date: None,
-                    matches: total_matches,
-                    wins: standing.won,
-                    draws: standing.drawn,
-                    losses: standing.lost,
-                    best_league_position: Some(user_position),
-                });
-        }
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        crate::manager_records::credit_league_season(
+            &mut game.manager,
+            &crate::manager_records::LeagueSeason {
+                team_id: &user_team_id,
+                team_name: &team_name,
+                won: standing.won,
+                drawn: standing.drawn,
+                lost: standing.lost,
+                position: user_position,
+                on: &today,
+            },
+        );
     }
 
     // 6b. Evaluate board objectives and adjust satisfaction
     let obj_delta = crate::board_objectives::evaluate_objectives(game);
     let new_sat = (game.manager.satisfaction as i16 + obj_delta as i16).clamp(0, 100) as u8;
     game.manager.satisfaction = new_sat;
+    // The user's manager is also listed in `game.managers`, where the managers list and a live
+    // match's AI profile read him; bring that copy up to the season just credited now, not at the
+    // next day's sync.
+    game.sync_user_manager_record();
     // Clear objectives for next season (will be regenerated on first process_day)
     game.board_objectives.clear();
 
