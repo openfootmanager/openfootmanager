@@ -31,7 +31,6 @@ export type LeagueStanding = ClubLeagueStanding["standing"];
 
 export interface TeamProfileViewModel {
   roster: PlayerData[];
-  avgOvr: number;
   totalWages: number;
   totalValue: number;
   manager: GameStateData["manager"] | null;

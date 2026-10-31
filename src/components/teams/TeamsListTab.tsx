@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Search, Trophy, Users } from "lucide-react";
 
 import { formatVal } from "../../lib/helpers";
+import { visibleRatingText } from "../../lib/playerKnowledge";
 import { buildRegionLabel } from "../../lib/teamRegions";
 import { competitionDisplayName } from "../../lib/competitionName";
 import type { GameStateData } from "../../store/gameStore";
@@ -278,7 +279,9 @@ function TeamCardView({
 
         <div className="grid grid-cols-5 gap-px bg-gray-200 dark:bg-navy-600">
           <StatCell label={t("teams.squad")} value={String(rosterSize)} />
-          <StatCell label={t("teams.avgOvr")} value={String(avgOvr)} />
+          {/* Withheld ("–") for a club outside the manager's division; its reputation sits
+              beside it. */}
+          <StatCell label={t("teams.avgOvr")} value={visibleRatingText(avgOvr)} />
           <StatCell label={t("teams.rep")} value={String(team.reputation)} />
           <StatCell label={t("common.value")} value={formatVal(totalValue)} />
           <StatCell label={t("common.pts")} value={standing ? String(standing.points) : "—"} />

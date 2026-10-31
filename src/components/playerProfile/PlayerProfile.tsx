@@ -42,7 +42,7 @@ import { useScoutPlayerFlow } from "./useScoutPlayerFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
 import { naturalPositionOf } from "../../lib/positions";
 import {
-  knowledgeRevision,
+  gameKnowledgeRevision,
   knowsPlayerRating,
   knowsPrivateState,
   visibleTraits,
@@ -85,12 +85,8 @@ export default function PlayerProfile({
   });
   const ovr = getPlayerOvr(player);
   const age = calcAgeOnDate(player.date_of_birth, gameState.clock.current_date);
-  const revision = knowledgeRevision({
-    careerToken: gameState.career_token,
-    date: gameState.clock.current_date,
+  const revision = gameKnowledgeRevision(gameState, {
     playerClubId: player.team_id,
-    managerClubId: gameState.manager.team_id,
-    seasonStart: gameState.season_context?.season_start,
     wage: player.wage,
   });
   const knowledge = usePlayerKnowledge([player.id], revision)(player.id);
