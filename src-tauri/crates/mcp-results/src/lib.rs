@@ -228,6 +228,10 @@ mod tests {
 
         assert!(text.contains("| A0 | 0 | A1 | 1 | A2 | 2 |"));
         assert!(text.contains("| A15 | 15 | A16 | 16 | A17 | 17 |"));
+        assert!(
+            text.contains("| A18 | 18 |"),
+            "the 19th attribute fills a short last row and must not be dropped: {text}"
+        );
         assert!(text.contains("| Contract End | - |"));
         round_trips(profile);
     }

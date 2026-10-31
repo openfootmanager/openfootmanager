@@ -296,8 +296,8 @@ fn write_attributes(f: &mut fmt::Formatter<'_>, attributes: &[Attribute]) -> fmt
         f,
         "\n### Attributes\n\n| Attr | Val | Attr | Val | Attr | Val |\n|------|-----|------|-----|------|-----|\n"
     )?;
-    // Three attributes a row; a short last row is left out, as it always was.
-    for row in attributes.chunks_exact(3) {
+    // Three attributes a row; 19 leave a short last row (Aerial), which is written too.
+    for row in attributes.chunks(3) {
         let cells: Vec<String> = row
             .iter()
             .flat_map(|a| [a.name.clone(), a.value.to_string()])
