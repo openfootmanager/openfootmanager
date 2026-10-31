@@ -346,13 +346,47 @@ describe("SquadTab", () => {
     renderSquadTab(makeGameState());
     const [button] = await screen.findAllByRole("button", { name: /common\.playerActions/ });
     button.focus();
+    expect(button).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(button);
     expect(await screen.findByRole("menuitem", { name: "Renew Contract" })).toBeInTheDocument();
+    // The button says its menu is open while it is, and closed again after Escape.
+    expect(button).toHaveAttribute("aria-expanded", "true");
     fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
     await waitFor(() =>
       expect(screen.queryByRole("menuitem", { name: "Renew Contract" })).toBeNull(),
     );
     expect(button).toHaveFocus();
+    expect(button).toHaveAttribute("aria-expanded", "false");
+  });
+
+  /**
+   * Given a row right-clicked with the mouse
+   * When its menu opens
+   * Then it opens where the pointer is.
+   */
+  it("opens a row's menu at the pointer on a mouse right-click", async () => {
+    renderSquadTab(makeGameState());
+    const row = (await screen.findByText("GK1")).closest("tr") as HTMLTableRowElement;
+    fireEvent.contextMenu(row, { clientX: 50, clientY: 60 });
+    const menu = await screen.findByRole("menu");
+    expect(menu).toHaveStyle({ left: "50px", top: "60px" });
+  });
+
+  /**
+   * Given a row's menu asked for from the keyboard (the Menu key or Shift+F10 send a right-click
+   * at 0,0)
+   * When it opens
+   * Then it opens at the row, under its left edge, not in the window's top-left corner.
+   */
+  it("opens a row's menu at the row on a keyboard right-click", async () => {
+    renderSquadTab(makeGameState());
+    const row = (await screen.findByText("GK1")).closest("tr") as HTMLTableRowElement;
+    vi.spyOn(row, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 120, y: 260, width: 600, height: 40 }),
+    );
+    fireEvent.contextMenu(row, { clientX: 0, clientY: 0 });
+    const menu = await screen.findByRole("menu");
+    expect(menu).toHaveStyle({ left: "120px", top: "300px" });
   });
 
   /**
@@ -649,12 +683,15 @@ describe("SquadTab", () => {
    */
   it("shows why a listing from the roster menu failed", async () => {
     renderSquadTab(makeGameState());
-    mockedInvoke.mockRejectedValue("Listing failed");
+    // A backend error is a translation key: the player reads its words, never the key.
+    mockedInvoke.mockRejectedValue("be.error.careerChanged");
 
     fireEvent.contextMenu(screen.getByText("GK1").closest("tr") as HTMLTableRowElement);
     fireEvent.click(await screen.findByRole("menuitem", { name: /transfer/i }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("Listing failed");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("The career changed before this could be saved.");
+    expect(alert).not.toHaveTextContent("be.error");
   });
 
   /**
