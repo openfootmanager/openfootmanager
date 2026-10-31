@@ -130,9 +130,10 @@ function focusRingViolations(source: string): string[] {
 /**
  * ring-focus drawn without a focus variant marks a list's keyboard-active option, where real focus
  * stays on the trigger (aria-activedescendant). It is then the only sign of where the arrow keys
- * are, so it is drawn at full strength: at /40 it falls under 3:1 in every theme.
+ * are, so it is drawn at full strength: at /40 it falls under 3:1 in every theme. A theme or
+ * state prefix (`dark:`, `hover:`) doesn't hide it; a focus variant is FOCUS_RING's to report.
  */
-const TRANSLUCENT_FOCUS = /(?<![\w:-])ring-focus\/\d+/g;
+const TRANSLUCENT_FOCUS = /(?<![\w:-])(?:(?![\w-]*focus)[\w-]+:)*ring-focus\/\d+/g;
 
 /**
  * The files where the brand green is a brand moment, not a state: the primary button and the
@@ -150,7 +151,7 @@ const BRAND_FILES: Record<string, string> = {
 };
 
 const BRAND_CLASS =
-  /(?<![\w-])(?:bg|text|border(?:-[trblxy])?|ring|ring-offset|outline|fill|stroke|from|via|to|divide|placeholder|decoration|shadow|accent|caret)-primary-\d{2,3}(?:\/\d+)?/g;
+  /(?<![\w-])(?:bg|text|border(?:-(?:[trblxyse]|bs|be))?|ring|ring-offset|outline|fill|stroke|from|via|to|divide|placeholder|decoration|shadow|accent|caret)-primary-\d{2,3}(?:\/\d+)?/g;
 
 /**
  * Rule 8: a control that is on or chosen is painted in the `selected` role (a switch's track, a
@@ -403,6 +404,13 @@ describe("the rule checks themselves", () => {
       "1: ring-focus/40",
     ]);
     expect(focusRingViolations('className="ring-2 ring-inset ring-focus"')).toEqual([]);
+    // A theme prefix doesn't hide it; a focus variant is reported once, by the focus-state check.
+    expect(focusRingViolations('className="dark:ring-focus/40"')).toEqual([
+      "1: dark:ring-focus/40",
+    ]);
+    expect(focusRingViolations('className="focus-visible:ring-focus/40"')).toEqual([
+      "1: focus-visible:ring-focus/40",
+    ]);
   });
 
   /**
@@ -473,11 +481,13 @@ describe("the rule checks themselves", () => {
    */
   it("catches the brand green outside a brand file only", () => {
     const chosen =
-      'className="peer-checked:bg-primary-600 dark:text-primary-400 border-t-primary-500 ring-primary-500/40"';
+      'className="peer-checked:bg-primary-600 dark:text-primary-400 border-t-primary-500 border-s-primary-500 border-be-primary-500 ring-primary-500/40"';
     expect(brandOutsideBrandFiles("./components/ui/Checkbox.tsx", chosen)).toEqual([
       "1: bg-primary-600",
       "1: text-primary-400",
       "1: border-t-primary-500",
+      "1: border-s-primary-500",
+      "1: border-be-primary-500",
       "1: ring-primary-500/40",
     ]);
     expect(brandOutsideBrandFiles("./components/ui/Button.tsx", chosen)).toEqual([]);
