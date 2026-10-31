@@ -1216,17 +1216,26 @@ mod tests {
         );
     }
 
-    /// Given a good scout (ability 80) and a player from an old save with no overall on record, his
-    ///       attributes between 57 and 72, over twenty assignments
+    /// Given a good scout (ability 80) and a player from an old save with no overall on record,
+    ///       over twenty assignments
     /// When the scout reports
-    /// Then the overall he gives is between 55 and 74: the average of the attributes he saw, within
-    ///      his noise of 2, not a figure built on an overall of 0
+    /// Then the overall he gives is the average of the attribute figures he revealed, not a figure
+    ///      built on an overall of 0
     #[test]
     fn a_player_with_no_overall_on_record_is_rated_on_the_attributes_seen() {
         for n in 0..20 {
             let report = scouted(&format!("no-overall-{n}"), 80, 50, 0, 0);
-            let rating = report.avg_rating.expect("a scout rates every player");
-            assert!((55..=74).contains(&rating), "assignment {n}: {rating}");
+            let seen: Vec<u32> = revealed_pairs(&report)
+                .into_iter()
+                .map(|(reported, _)| u32::from(reported))
+                .collect();
+            let average = seen.iter().sum::<u32>() / seen.len() as u32;
+
+            assert_eq!(
+                report.avg_rating,
+                Some(average),
+                "assignment {n}: saw {seen:?}"
+            );
         }
     }
 
@@ -1271,11 +1280,11 @@ mod tests {
         assert!(pairs.iter().any(|(reported, actual)| reported > actual));
     }
 
-    /// Given a youth prospect rated 45 with a ceiling of 90
+    /// Given a youth prospect rated 40 with a ceiling of 90
     /// When he is ranked for each kind of search
-    /// Then a balanced search ranks him by ability plus half his ceiling (90, then 90); a search
-    ///      for potential by ceiling then ability (90, 45); one for readiness by ability then
-    ///      ceiling (45, 90)
+    /// Then a balanced search ranks him by ability plus half his ceiling (85, then 90); a search
+    ///      for potential by ceiling then ability (90, 40); one for readiness by ability then
+    ///      ceiling (40, 90)
     #[test]
     fn a_balanced_search_ranks_a_prospect_by_ability_plus_half_his_ceiling() {
         use crate::game::YouthScoutingObjective::{Balanced, HighPotential, ReadySoon};
@@ -1288,7 +1297,7 @@ mod tests {
             domain::player::Position::Midfielder,
             sample_attrs(),
         );
-        prospect.ovr = 45;
+        prospect.ovr = 40;
         prospect.potential = 90;
 
         assert_eq!(
@@ -1297,7 +1306,7 @@ mod tests {
                 super::prospect_score(&prospect, HighPotential),
                 super::prospect_score(&prospect, ReadySoon)
             ),
-            ((90, 90), (90, 45), (45, 90))
+            ((85, 90), (90, 40), (40, 90))
         );
     }
 }
