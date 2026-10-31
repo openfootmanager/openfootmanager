@@ -143,6 +143,11 @@ pub fn translate_error(key: &str) -> String {
              (see `match_snapshot`)."
                 .to_string()
         }
+        "be.error.liveMatch.noSubstitutionsForShootout" => {
+            "No substitutions once extra time is over: the shootout is taken by the players on \
+             the pitch at the final whistle."
+                .to_string()
+        }
         _ => format!("Error: {}", key),
     }
 }
@@ -167,9 +172,9 @@ mod tests {
         assert!(!translate_error(key).contains(key));
     }
 
-    /// Given the refusals an agent can meet when it sets its shootout order, or acts with no
-    /// live match, when rendered for the agent, then each is a readable message rather than a
-    /// raw key.
+    /// Given the refusals an agent can meet when it sets its shootout order, substitutes after
+    /// extra time, or acts with no live match, when rendered for the agent, then each is a readable
+    /// message rather than a raw key.
     #[test]
     fn the_shootout_order_refusals_are_renderable() {
         for key in [
@@ -177,6 +182,7 @@ mod tests {
             "be.error.liveMatch.shootoutOrderNotNow",
             "be.error.liveMatch.shootoutOrderNotYourSide",
             "be.error.liveMatch.shootoutOrderNotEligible",
+            "be.error.liveMatch.noSubstitutionsForShootout",
         ] {
             let rendered = translate_error(key);
             assert!(!rendered.contains(key), "{key} renders as {rendered:?}");
