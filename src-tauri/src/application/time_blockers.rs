@@ -17,6 +17,10 @@ fn user_team_context(game: &Game) -> Option<(&domain::team::Team, Vec<&domain::p
     Some((team, roster))
 }
 
+/// The severity of a blocker that only informs, such as unread urgent mail: it waits in the inbox
+/// with its badge and never stops time (maintainer ruling, 31 Oct). Every other severity does.
+pub const INFORMATIONAL_SEVERITY: &str = "info";
+
 fn build_blocker(
     id: &str,
     severity: &str,
@@ -233,7 +237,7 @@ fn urgent_unread_messages_blocker(game: &Game) -> Option<serde_json::Value> {
         let unread_count = urgent_unread.to_string();
         build_blocker(
             "urgent_messages",
-            "info",
+            INFORMATIONAL_SEVERITY,
             "Inbox",
             Some("notifications.blockers.urgentMessages"),
             Some(serde_json::json!({
@@ -316,6 +320,20 @@ fn contract_wage_risk_blocker(
             })),
         )
     })
+}
+
+/// The blockers that stop time: every blocker but the informational ones. Skip to match day,
+/// Continue and the blocker check all stop on exactly these.
+pub fn stopping_blockers(game: &Game) -> Vec<serde_json::Value> {
+    compute_blocking_actions(game)
+        .into_iter()
+        .filter(|blocker| {
+            blocker
+                .get("severity")
+                .and_then(|severity| severity.as_str())
+                != Some(INFORMATIONAL_SEVERITY)
+        })
+        .collect()
 }
 
 pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
