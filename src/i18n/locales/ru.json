@@ -412,6 +412,7 @@
     "currentWage": "Текущая зарплата",
     "loading": "Загрузка...",
     "loadingGameState": "Загрузка состояния игры...",
+    "detailsFor": "Подробности: {{name}}",
     "overallRating": "Общий уровень {{value}}",
     "overallRatingTier": "Общий уровень {{value}}, категория {{tier}}",
     "noResults": "Ничего не найдено.",
@@ -3658,7 +3659,9 @@
       "weeklyDigest": {
         "headline": "Еженедельный обзор — неделя от {{weekStart}}",
         "bodyNoTopScorer": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а на этой неделе в дивизионе разворачивается {{storylineCount}} важных сюжетов.",
-        "bodyWithTopScorer": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а {{topScorer}} возглавляет гонку бомбардиров с {{topScorerGoals}} голами. На этой неделе в дивизионе разворачивается {{storylineCount}} важных сюжетов."
+        "bodyWithTopScorer": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а {{topScorer}} возглавляет гонку бомбардиров с {{topScorerGoals}} голами. На этой неделе в дивизионе разворачивается {{storylineCount}} важных сюжетов.",
+        "bodyNoTopScorerNoStorylines": "Свежий недельный обзор готов. {{leader}} лидирует в таблице.",
+        "bodyWithTopScorerNoStorylines": "Свежий недельный обзор готов. {{leader}} лидирует в таблице, а {{topScorer}} возглавляет гонку бомбардиров с {{topScorerGoals}} голами."
       },
       "preseasonDigest": {
         "headline": "Предсезонный дайджест — неделя {{weekStart}}",

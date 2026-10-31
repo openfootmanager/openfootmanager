@@ -412,6 +412,7 @@
     "currentWage": "Salário atual",
     "loading": "Carregando...",
     "loadingGameState": "Carregando estado do jogo...",
+    "detailsFor": "Detalhes de {{name}}",
     "overallRating": "Geral {{value}}",
     "overallRatingTier": "Geral {{value}}, nível {{tier}}",
     "noResults": "Nenhum resultado encontrado.",
@@ -3658,7 +3659,9 @@
       "weeklyDigest": {
         "headline": "Resumo Semanal — Semana de {{weekStart}}",
         "bodyNoTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela e {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana.",
-        "bodyWithTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s). {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana."
+        "bodyWithTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s). {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana.",
+        "bodyNoTopScorerNoStorylines": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela.",
+        "bodyWithTopScorerNoStorylines": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s)."
       },
       "preseasonDigest": {
         "headline": "Resumo da pré-temporada — Semana de {{weekStart}}",

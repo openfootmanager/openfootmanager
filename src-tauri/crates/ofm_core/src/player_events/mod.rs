@@ -8,6 +8,7 @@ pub use responses::{
 
 use crate::contracts::{contract_warning_stage, has_let_expire_intent};
 use crate::game::Game;
+use crate::morale::apply_morale_change;
 use domain::message::InboxMessage;
 use rand::RngExt;
 
@@ -137,7 +138,7 @@ pub fn generate_contract_concern_messages(game: &mut Game, apply_morale_pressure
         // to be applied before the message was built, so a player who deleted
         // the message took the hit again every time it regenerated.
         if apply_morale_pressure {
-            player.morale = (player.morale as i16 - stage.morale_pressure()).clamp(5, 100) as u8;
+            player.morale = apply_morale_change(player.morale, -stage.morale_pressure());
         }
 
         let days_remaining = (end_date - current_date).num_days();

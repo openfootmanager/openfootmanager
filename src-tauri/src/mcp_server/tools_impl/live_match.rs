@@ -2,6 +2,8 @@
 
 use std::sync::Arc;
 
+use ofm_core::morale::apply_morale_change;
+
 use crate::application::press_conference::{
     first_player_outside_squad, last_completed_match, todays_article_id,
 };
@@ -335,7 +337,7 @@ fn apply_press_conference(
                 _ => 2,
             };
             if let Some(p) = game.players.iter_mut().find(|p| p.id == answer.player_id) {
-                p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, player_delta);
             }
         }
     }
@@ -344,7 +346,7 @@ fn apply_press_conference(
     if morale_delta != 0 {
         for p in game.players.iter_mut() {
             if p.team_id.as_deref() == Some(&user_team_id) {
-                p.morale = ((p.morale as i16) + morale_delta).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, morale_delta);
             }
         }
     }
@@ -638,6 +640,51 @@ mod tests {
         let unnamed = game.players.iter().find(|p| p.id == "p2").unwrap();
         assert_eq!(named.morale, 59, "50 + 5 individual + 4 squad-wide");
         assert_eq!(unnamed.morale, 54, "50 + 4 squad-wide");
+    }
+
+    /// Given the user's squad at morale 3, below the floor of 10 that bad news stops at
+    /// When a confident answer lifts the squad by 3
+    /// Then each player ends at 6, not at 10
+    #[test]
+    fn good_press_lifts_a_very_unhappy_squad_by_what_it_is_worth() {
+        let mut game = game_after_a_match();
+        for player in game
+            .players
+            .iter_mut()
+            .filter(|p| p.team_id.as_deref() == Some("team1"))
+        {
+            player.morale = 3;
+        }
+
+        apply_press_conference(&mut game, &[answer("mood", "confident", "")]).unwrap();
+
+        let squad: Vec<u8> = game
+            .players
+            .iter()
+            .filter(|p| p.team_id.as_deref() == Some("team1"))
+            .map(|p| p.morale)
+            .collect();
+        assert_eq!(squad, vec![6, 6]);
+    }
+
+    /// Given a player at morale 3
+    /// When the manager deflects a question about him, which costs him 1 and the squad nothing
+    /// Then he stays at 3: the knock is no reason to lift him to 10
+    #[test]
+    fn deflecting_a_question_about_a_very_unhappy_player_never_lifts_him() {
+        let mut game = game_after_a_match();
+        game.players
+            .iter_mut()
+            .find(|p| p.id == "p1")
+            .unwrap()
+            .morale = 3;
+
+        apply_press_conference(&mut game, &[answer("player_focus", "deflect", "p1")]).unwrap();
+
+        assert_eq!(
+            game.players.iter().find(|p| p.id == "p1").unwrap().morale,
+            3
+        );
     }
 
     #[test]

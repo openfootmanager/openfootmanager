@@ -172,6 +172,12 @@ pub struct Game {
     /// is copied in once more, then marked. Persistence is `game_meta.legacy_tactics_imported`.
     #[serde(default)]
     pub legacy_tactics_imported: bool,
+    /// The first date a completed home fixture is paid a gate for (`YYYY-MM-DD`). Fixed by the
+    /// first settlement (`finances::gate`), so a save from before per-fixture gates is not paid for
+    /// the fixtures it had already played. `None` until then. Persistence is
+    /// `game_meta.gate_settled_from`.
+    #[serde(default)]
+    pub gate_settled_from: Option<String>,
     /// Names the career this game was installed as (`StateManager::next_career_token`). It travels
     /// to the screen with the game, and a command that writes on the screen's behalf hands it back
     /// to be checked against the active game inside the write. Not saved: a loaded game is
@@ -268,6 +274,7 @@ impl Game {
             retired_managers: Vec::new(),
             custom_tactics: Vec::new(),
             legacy_tactics_imported: false,
+            gate_settled_from: None,
             career_token: 0,
             archived_messages: Vec::new(),
             emitted_events: BTreeSet::new(),

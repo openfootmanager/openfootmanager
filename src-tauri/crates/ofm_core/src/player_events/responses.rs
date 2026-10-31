@@ -1,4 +1,5 @@
 use crate::game::Game;
+use crate::morale::apply_morale_change;
 use chrono::Days;
 use domain::player::{
     ContractExitIntent, ContractRenewalState, Player, PlayerPromise, PlayerPromiseKind,
@@ -589,8 +590,7 @@ pub fn apply_player_response(
             .i18n_params
             .insert("delta".to_string(), signed_delta(outcome.delta));
 
-        let base = player.morale as i16;
-        player.morale = (base + outcome.delta as i16).clamp(5, 100) as u8;
+        player.morale = apply_morale_change(player.morale, outcome.delta as i16);
 
         let trust = (i16::from(player.morale_core.manager_trust) + trust_delta).clamp(0, 100) as u8;
         player.morale_core.manager_trust = trust;
@@ -647,7 +647,7 @@ pub fn apply_player_response(
         for p in game.players.iter_mut() {
             if p.id != player_id && p.team_id.as_deref() == Some(&user_team_id) {
                 let loss = rng.random_range(2..=5);
-                p.morale = (p.morale as i16 - loss as i16).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, -(loss as i16));
                 affected += 1;
             }
         }

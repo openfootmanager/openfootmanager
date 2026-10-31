@@ -1617,6 +1617,184 @@ mod tests {
         assert_eq!(game.players[0].loan_offers[0].end_date, "2026-04-01");
         assert!(game.players[0].active_loan.is_none());
     }
+    /// A 19-year-old midfielder with every attribute short of the top and room to grow, so each
+    /// development cycle raises three attributes.
+    fn loanee() -> Player {
+        let mut player = Player::new(
+            "loanee".to_string(),
+            "Loanee".to_string(),
+            "Loanee".to_string(),
+            "2007-01-01".to_string(),
+            "England".to_string(),
+            Position::Midfielder,
+            sample_attributes(),
+        );
+        player.potential = 99;
+        player
+    }
+
+    fn loan_development_gains(
+        loan_team_reputation: u32,
+        loan_minutes: u32,
+        loan_appearances: u32,
+    ) -> u8 {
+        let on = chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
+        let (_, _, gains) = apply_loan_development(
+            &mut loanee(),
+            loan_team_reputation,
+            on,
+            loan_minutes,
+            loan_appearances,
+        );
+        gains
+    }
+
+    /// Given a loanee with eight appearances but only 400 minutes since his last report
+    /// When his loan development is applied
+    /// Then he gets two cycles (six attributes): eight appearances alone is a full spell.
+    #[test]
+    fn eight_loan_appearances_earn_two_development_cycles_whatever_the_minutes() {
+        assert_eq!(loan_development_gains(500, 400, 8), 6);
+    }
+
+    /// Given a loanee with 360 minutes at a club of ordinary standing (reputation 500)
+    /// When his loan development is applied
+    /// Then he gets one cycle: 180 minutes are enough, whatever the loan club's standing.
+    #[test]
+    fn regular_loan_minutes_earn_a_development_cycle_at_an_ordinary_club() {
+        assert_eq!(loan_development_gains(500, 360, 4), 3);
+    }
+
+    /// Given loanees at a club of ordinary standing with 180 minutes and no appearance on record,
+    ///       with two appearances and no minutes, and with 179 minutes in one appearance
+    /// When their loan development is applied
+    /// Then the first two get a cycle each and the third none: either threshold alone is enough
+    #[test]
+    fn either_ordinary_threshold_alone_earns_a_development_cycle() {
+        assert_eq!(
+            [
+                loan_development_gains(500, 180, 0),
+                loan_development_gains(500, 0, 2),
+                loan_development_gains(500, 179, 1),
+            ],
+            [3, 3, 0]
+        );
+    }
+
+    /// Given loanees with exactly 900 minutes, and with 899, and no appearances on record
+    /// When their loan development is applied
+    /// Then 900 minutes earn two cycles and 899 one
+    #[test]
+    fn nine_hundred_loan_minutes_earn_two_development_cycles() {
+        assert_eq!(
+            [
+                loan_development_gains(500, 900, 0),
+                loan_development_gains(500, 899, 0)
+            ],
+            [6, 3]
+        );
+    }
+
+    /// Given loanees with one appearance and no minutes at clubs of reputation 650 and 649
+    /// When their loan development is applied
+    /// Then the first gets a cycle and the second none: a little football counts only at a
+    ///      reputable club, 650 and up
+    #[test]
+    fn a_little_loan_football_counts_from_a_reputation_of_650() {
+        assert_eq!(
+            [
+                loan_development_gains(650, 0, 1),
+                loan_development_gains(649, 0, 1)
+            ],
+            [3, 0]
+        );
+    }
+
+    /// Given a loanee whose only football at a reputable club (700) is one appearance of 0 minutes
+    /// When his loan development is applied
+    /// Then he gets one cycle: an appearance is new football even without minutes.
+    #[test]
+    fn a_single_appearance_at_a_reputable_club_earns_a_development_cycle() {
+        assert_eq!(loan_development_gains(700, 0, 1), 3);
+    }
+
+    /// Given a loanee whose only football at a reputable club (700) is 90 minutes without an
+    ///       appearance on record
+    /// When his loan development is applied
+    /// Then he gets one cycle: minutes are new football even without an appearance.
+    #[test]
+    fn minutes_without_an_appearance_at_a_reputable_club_earn_a_development_cycle() {
+        assert_eq!(loan_development_gains(700, 90, 0), 3);
+    }
+
+    /// Given an AI loan club that can pay a 1,200,000 buy option on a player valued 1,000,000,
+    ///       over the fair 1,100,000 but within the 1,250,000 a heavily used loanee is worth
+    /// When the loanee played 1,000 minutes in five appearances
+    /// Then the club exercises the option: 900 minutes alone make a meaningful spell.
+    #[test]
+    fn a_buy_option_up_to_a_quarter_over_value_is_exercised_after_a_long_spell_in_minutes() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(ai_should_exercise_loan_buy_option(
+            &player, &club, 1_200_000, 1_000, 5
+        ));
+    }
+
+    /// Given a 1,260,000 buy option on a player valued 1,000,000, just over the 1,250,000 a
+    ///       heavily used loanee is worth
+    /// When the loanee played 1,000 minutes in eight appearances
+    /// Then the club does not exercise it
+    #[test]
+    fn a_buy_option_over_a_quarter_above_value_is_not_exercised_however_long_the_spell() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(!ai_should_exercise_loan_buy_option(
+            &player, &club, 1_260_000, 1_000, 8
+        ));
+    }
+
+    /// Given the same 1,200,000 buy option on a player valued 1,000,000
+    /// When the loanee played eight appearances in 300 minutes
+    /// Then the club exercises the option: eight appearances alone make a meaningful spell.
+    #[test]
+    fn a_buy_option_up_to_a_quarter_over_value_is_exercised_after_a_long_spell_in_appearances() {
+        let (player, club) = buy_option_candidate(1_000_000);
+
+        assert!(ai_should_exercise_loan_buy_option(
+            &player, &club, 1_200_000, 300, 8
+        ));
+    }
+
+    fn listed_for_loan(ovr: u8, potential: u8, appearances: u32) -> Player {
+        let (mut player, _) = buy_option_candidate(1_000_000);
+        player.loan_listed = true;
+        player.ovr = ovr;
+        player.potential = potential;
+        player.stats.appearances = appearances;
+        player
+    }
+
+    /// Given a loan-listed prospect valued 1,000,000, rated 60 with potential 72, three appearances
+    /// When an AI club makes its loan offer
+    /// Then it offers no buy option: an unproven prospect is not worth committing to.
+    #[test]
+    fn a_loan_offer_for_an_unproven_prospect_carries_no_buy_option() {
+        assert_eq!(
+            suggested_loan_buy_option_fee(&listed_for_loan(60, 72, 3)),
+            None
+        );
+    }
+
+    /// Given a loan-listed player valued 1,000,000, rated 60 with potential 60, ten appearances
+    /// When an AI club makes its loan offer
+    /// Then it carries a buy option ten percent over his value, 1,100,000.
+    #[test]
+    fn a_loan_offer_carries_a_buy_option_ten_percent_over_value() {
+        assert_eq!(
+            suggested_loan_buy_option_fee(&listed_for_loan(60, 60, 10)),
+            Some(1_100_000)
+        );
+    }
 }
 
 #[cfg(test)]

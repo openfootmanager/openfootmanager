@@ -412,6 +412,7 @@
     "currentWage": "Gaji Saat Ini",
     "loading": "Memuat...",
     "loadingGameState": "Memuat status permainan...",
+    "detailsFor": "Detail {{name}}",
     "overallRating": "Keseluruhan {{value}}",
     "overallRatingTier": "Keseluruhan {{value}}, tingkat {{tier}}",
     "noResults": "Tidak ada hasil ditemukan.",
@@ -3658,7 +3659,9 @@
       "weeklyDigest": {
         "headline": "Ringkasan Mingguan — Pekan {{weekStart}}",
         "bodyNoTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, dan {{storylineCount}} alur cerita mewarnai divisi ini pekan ini.",
-        "bodyWithTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol. {{storylineCount}} alur cerita mewarnai divisi ini pekan ini."
+        "bodyWithTopScorer": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol. {{storylineCount}} alur cerita mewarnai divisi ini pekan ini.",
+        "bodyNoTopScorerNoStorylines": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen.",
+        "bodyWithTopScorerNoStorylines": "Ringkasan mingguan terbaru telah hadir. {{leader}} memimpin klasemen, sementara {{topScorer}} memuncaki daftar pencetak gol dengan {{topScorerGoals}} gol."
       },
       "preseasonDigest": {
         "headline": "Ringkasan Pramusim — Pekan {{weekStart}}",
