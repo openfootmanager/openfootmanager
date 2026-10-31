@@ -38,9 +38,9 @@ pub fn create_world(app: &App, seed: u64, start_phase: &str) -> Result<Value, Ca
     game_state(app)
 }
 
-/// The whole game, as `info_game_state` reports it.
+/// The whole game, as `dev_full_game_state` reports it (a sandbox app started by the harness).
 pub fn game_state(app: &App) -> Result<Value, CallError> {
-    Ok(app.client().call_value("info_game_state", json!({}))?["game"].clone())
+    Ok(app.client().call_value("dev_full_game_state", json!({}))?["game"].clone())
 }
 
 /// The highest-reputation club of `country` (a country code such as "ENG"). Targets are chosen by

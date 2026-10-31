@@ -2024,7 +2024,10 @@
       "suddenDeath": "突然死亡法",
       "shootoutScore": "点球：{{h}} – {{a}}",
       "homeKick": "主队主罚...",
-      "awayKick": "客队主罚..."
+      "awayKick": "客队主罚...",
+      "kickScored": "第 {{n}} 罚，罚进",
+      "kickMissed": "第 {{n}} 罚，罚失",
+      "kickToCome": "第 {{n}} 罚，尚未主罚"
     },
     "fullTime": "全场结束",
     "ft": "全场",

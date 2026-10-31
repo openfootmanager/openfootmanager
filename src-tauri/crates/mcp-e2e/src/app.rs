@@ -126,6 +126,7 @@ pub struct App {
     dir: Option<TempDir>,
     log: PathBuf,
     client: Option<Client>,
+    mode: Mode,
 }
 
 impl App {
@@ -167,6 +168,11 @@ impl App {
             "--auto-save-interval-days".to_string(),
             "0".to_string(),
         ];
+        // The harness reads the whole game through `dev_full_game_state`, which only a sandbox
+        // server may offer: the app refuses the flag in competition mode.
+        if config.mode == Mode::Sandbox {
+            args.push("--dev-full-state".to_string());
+        }
         args.extend(config.extra_args.iter().cloned());
 
         let child = app_command(&binary, &args, dir.path())
@@ -188,6 +194,7 @@ impl App {
             dir: Some(dir),
             log,
             client: None,
+            mode: config.mode,
         };
         match app.wait_until_ready() {
             Ok(client) => {
@@ -200,6 +207,11 @@ impl App {
                 Err(LaunchError::NotReady(bundle))
             }
         }
+    }
+
+    /// The mode the app was started in. A competition server has no state oracle by design.
+    pub fn mode(&self) -> Mode {
+        self.mode
     }
 
     /// The binary this app was started from.
@@ -304,7 +316,7 @@ impl App {
         // A fresh short-lived session: the scenario's own client may be the one that hung.
         let state_file = dir.join("game-state.json");
         let state = Client::connect(&self.url(), STATE_CAPTURE_TIMEOUT)
-            .and_then(|probe| probe.call_value("info_game_state", serde_json::json!({})));
+            .and_then(|probe| probe.call_value("dev_full_game_state", serde_json::json!({})));
         let state_note = match state {
             Ok(state) => match fs::write(&state_file, state.to_string()) {
                 Ok(()) => state_file.display().to_string(),
