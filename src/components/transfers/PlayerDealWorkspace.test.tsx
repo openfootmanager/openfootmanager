@@ -167,15 +167,16 @@ describe("PlayerDealWorkspace", () => {
   });
 
   /**
-   * Given a scouted player: his scout saw a 68, and the club puts his wage at about €12,000 a week
+   * Given a scouted player, whose wage the club puts at about €12,000 a week and whose rating the
+   *       page does not send (a report carries no rating until a scout's estimate exists)
    * When his deal workspace shows his figures
-   * Then it shows the 68 and "about €12,000/wk".
+   * Then it shows "about €12,000/wk", and "–" for his rating.
    */
-  it("shows a scouted player's rating and his wage as about", () => {
+  it("shows a scouted player's wage as about and no rating", () => {
     render(
       <PlayerDealWorkspace
         player={createPlayer({ wage: 12345 })}
-        figures={{ ovr: 68, wage: { kind: "approximate", weekly: 12000 } }}
+        figures={{ ovr: null, wage: { kind: "approximate", weekly: 12000 } }}
         teams={[createTeam()]}
         myTeam={createTeam()}
         transferWindowBlocksRegistration={false}
@@ -188,10 +189,37 @@ describe("PlayerDealWorkspace", () => {
       />,
     );
 
-    expect(screen.getByText("OVR").nextElementSibling).toHaveTextContent(/^68$/);
+    expect(screen.getByText("OVR").nextElementSibling).toHaveTextContent(/^–$/);
     expect(screen.getByText("Current Wage").nextElementSibling).toHaveTextContent(
       /^about €12,000\/wk$/,
     );
+  });
+
+  /**
+   * Given a player at a club in the manager's division, whose rating of 71 the page sends and
+   *       whose wage it hides
+   * When his deal workspace shows his figures
+   * Then it shows the 71, and "–" for his current wage.
+   */
+  it("shows a division rival's rating and a dash for his wage", () => {
+    render(
+      <PlayerDealWorkspace
+        player={createPlayer({ wage: 12345 })}
+        figures={{ ovr: 71, wage: { kind: "hidden" } }}
+        teams={[createTeam()]}
+        myTeam={createTeam()}
+        transferWindowBlocksRegistration={false}
+        transferWindowSummary="Window open"
+        loanNoticeDetail={null}
+        selectedKind="transfer"
+        onSelectKind={vi.fn()}
+        onClose={vi.fn()}
+        renderDealPanel={() => <div>Deal panel</div>}
+      />,
+    );
+
+    expect(screen.getByText("OVR").nextElementSibling).toHaveTextContent(/^71$/);
+    expect(screen.getByText("Current Wage").nextElementSibling).toHaveTextContent(/^–$/);
   });
 
   it("uses a page-style back affordance instead of a close icon", () => {
