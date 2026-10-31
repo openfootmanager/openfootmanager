@@ -88,8 +88,9 @@ function shootoutSnapshot(
   events: MatchEvent[],
   overrides: Partial<MatchSnapshot> = {},
 ): MatchSnapshot {
-  const homeKicks = events.filter((e) => e.side === "Home");
-  const awayKicks = events.filter((e) => e.side === "Away");
+  const kicks = events.filter((e) => e.event_type.startsWith("Shootout"));
+  const homeKicks = kicks.filter((e) => e.side === "Home");
+  const awayKicks = kicks.filter((e) => e.side === "Away");
   return {
     ...makeSnapshot(),
     phase: "PenaltyShootout",
@@ -134,13 +135,19 @@ describe("PenaltyShootoutScreen", (): void => {
   });
 
   /**
-   * Given a shootout where the home side missed its first kick and scored its second
+   * Given a home goal in extra time, then a shootout where the home side missed its first kick
+   * and scored its second
    * When the screen draws the score band
-   * Then the home club's row reads miss, then goal, as the kick events happened.
+   * Then the home club's row reads miss, then goal, as the kick events happened, without the
+   * extra-time goal, which shares the event log but is no kick.
    */
   it("draws the home row from that side's kick events in order", (): void => {
     renderScreen(
-      shootoutSnapshot([kick("Home", "ShootoutMiss", "p1"), kick("Home", "ShootoutGoal", "p1")]),
+      shootoutSnapshot([
+        { ...kick("Home", "ShootoutGoal", "p1"), minute: 112, event_type: "Goal" },
+        kick("Home", "ShootoutMiss", "p1"),
+        kick("Home", "ShootoutGoal", "p1"),
+      ]),
     );
 
     const homeRow = screen.getByRole("group", { name: "Alpha FC" });
