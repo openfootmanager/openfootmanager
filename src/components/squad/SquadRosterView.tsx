@@ -282,9 +282,15 @@ export default function SquadRosterView({
   const injuredCount = roster.filter((player) => player.injury).length;
   const thinCoverageCount = roleCoverage.filter((coverage) => coverage.status !== "covered").length;
 
+  // Every roster action that succeeds clears the last one's error: it no longer stands.
+  const completeMutation = (game: GameStateData) => {
+    setContractActionError(null);
+    onMutationComplete?.(game);
+  };
+
   const persistStartingXi = async (playerIds: string[]): Promise<void> => {
     const updated = await setStartingXi(playerIds);
-    onMutationComplete?.(updated);
+    completeMutation(updated);
   };
 
   const updateContractExitIntent = async (
@@ -298,7 +304,7 @@ export default function SquadRosterView({
       const result = shouldLetExpire
         ? await setContractExitIntent(playerId, "manager_squad_action")
         : await clearContractExitIntent(playerId);
-      onMutationComplete?.(result.game);
+      completeMutation(result.game);
     } catch (error) {
       setContractActionError(resolveBackendError(error));
     } finally {
@@ -361,7 +367,7 @@ export default function SquadRosterView({
     contractRisk: riskLevelOf(player.id),
     contractActionPending: contractActionPlayerId === player.id,
     onSelectPlayer,
-    onMutationComplete,
+    onMutationComplete: completeMutation,
     updateSquadPlanning,
     updateContractExitIntent,
     onActionError: (error: unknown) => setContractActionError(resolveBackendError(error)),

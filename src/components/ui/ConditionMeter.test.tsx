@@ -41,8 +41,9 @@ describe("ConditionMeter", () => {
    * Then the bar is neutral and no word is guessed from the number.
    */
   it("draws a neutral bar and no word without the backend's band", () => {
-    render(<ConditionMeter value={30} status={null} />);
-    expect(screen.queryByText("Critical")).not.toBeInTheDocument();
+    const { container } = render(<ConditionMeter value={30} status={null} />);
+    // No band word at all, not just not "Critical": only the number is drawn as text.
+    expect(container.textContent).toBe("30");
     const bar = screen.getByRole("progressbar", { name: "Condition" });
     expect(bar.firstElementChild).toHaveClass("bg-fg-subtle");
     expect(screen.getByText("30")).toBeInTheDocument();

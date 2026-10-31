@@ -657,6 +657,25 @@ describe("SquadTab", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Listing failed");
   });
 
+  /**
+   * Given a roster showing why an earlier listing failed
+   * When the manager's next action from the menu succeeds
+   * Then the old error goes, so the roster never shows a failure that no longer stands.
+   */
+  it("clears an earlier failure once a menu action succeeds", async () => {
+    const gameState = makeGameState();
+    renderSquadTab(gameState);
+    mockedInvoke.mockRejectedValueOnce("Listing failed");
+    fireEvent.contextMenu(screen.getByText("GK1").closest("tr") as HTMLTableRowElement);
+    fireEvent.click(await screen.findByRole("menuitem", { name: /transfer/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Listing failed");
+
+    mockedInvoke.mockResolvedValueOnce(gameState);
+    fireEvent.contextMenu(screen.getByText("GK1").closest("tr") as HTMLTableRowElement);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Add to Loan List" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  });
+
   it("reopens talks from context menu for planned-expiry players", async () => {
     const gameState = makeGameState();
     gameState.players[0].morale_core = {
