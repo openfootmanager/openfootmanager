@@ -115,13 +115,13 @@ describe("HalfTimeBreak", () => {
     });
 
     /**
-     * Given the manager at half time whose first talk was refused
+     * Given the manager at half time whose first talk failed for a passing reason
      * When they deliver a talk a second time and the backend applies it
      * Then it is marked delivered with the morale change, and the earlier failure is gone.
      */
     it("lets a failed talk be delivered on a second try", async () => {
       invokeMock
-        .mockRejectedValueOnce("be.error.careerChanged")
+        .mockRejectedValueOnce(new Error("backend unavailable"))
         .mockResolvedValueOnce([
           { player_id: "p1", player_name: "Pat Player", old_morale: 50, new_morale: 58, delta: 8 },
         ]);
@@ -156,7 +156,7 @@ describe("HalfTimeBreak", () => {
       expect(screen.getByText("58")).toBeInTheDocument();
       expect(invokeMock).toHaveBeenCalledWith(
         "apply_team_talk",
-        expect.objectContaining({ tone: expect.any(String), context: expect.any(String) }),
+        expect.objectContaining({ tone: "calm", context: "winning" }),
       );
       expect(screen.queryByRole("alert")).toBeNull();
       expect(screen.queryByRole("button", { name: "match.deliverTeamTalk" })).toBeNull();
