@@ -1060,6 +1060,48 @@ mod tests {
         assert_eq!(state.get_game(|g| g.clock.current_date), Some(date));
     }
 
+    /// Given a clean game whose next match is thirty days away
+    /// When the MCP skip runs
+    /// Then it stops after the first day that brings a real blocker, with that blocker listed,
+    ///      having advanced exactly that many days: the screen's skip loop stops there too.
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_skip_stops_after_the_day_that_brings_a_blocker() {
+        use crate::application::time_blockers::stopping_blockers;
+        use crate::mcp_server::tools_impl::time::skip_to_match_day_in;
+        use mcp_results::time::SkipToMatchDay;
+        let mut game = make_game_with_matchday();
+        let start = game.clock.current_date;
+        let far = (start + chrono::Duration::days(30))
+            .format("%Y-%m-%d")
+            .to_string();
+        game.league.as_mut().unwrap().fixtures[0].date = far;
+        assert!(
+            stopping_blockers(&game).is_empty(),
+            "the game should start clean"
+        );
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let outcome = skip_to_match_day_in(&state).expect("the skip answers");
+
+        let SkipToMatchDay::Blocked {
+            days_advanced,
+            blockers,
+        } = outcome
+        else {
+            panic!("a blocker should have stopped the skip, got {outcome:?}");
+        };
+        assert!((1..30).contains(&days_advanced), "{days_advanced}");
+        assert!(!blockers.is_empty());
+        assert!(
+            blockers.iter().all(|b| b.severity != "info"),
+            "{blockers:?}"
+        );
+        let moved = state.get_game(|g| g.clock.current_date - start).unwrap();
+        assert_eq!(moved.num_days(), i64::from(days_advanced));
+    }
+
     /// Given career B is active (token 2) and a screen still holds career A's token (1)
     /// When each way of advancing time arrives with A's token
     /// Then each is refused with the career-changed key and career B's clock, messages and stats
