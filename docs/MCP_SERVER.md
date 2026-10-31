@@ -123,7 +123,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `info_team_stats` | Season statistics for a team |
 | `info_team_match_history` | Match-by-match results for a team |
 | `info_finances` | Financial overview: wage spend, budget, projected net, debt status |
-| `info_finance_snapshot` | Detailed financial snapshot with all health metrics |
+| `info_finance_snapshot` | Detailed financial snapshot with all health metrics, for the manager's own club only (`team_id` may be left out or name the own club; another club's finances are refused) |
 | `info_news` | Recent news articles |
 
 ### Time (3 tools)
