@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { GameStateData } from "../store/gameStore";
+import { invokeForCareer } from "./careerInvoke";
 
 export interface JobOpportunity {
   team_id: string;
@@ -25,5 +26,5 @@ export async function getAvailableJobs(): Promise<JobOpportunity[]> {
 }
 
 export async function applyForJob(teamId: string): Promise<JobApplicationResponse> {
-  return invoke<JobApplicationResponse>("apply_for_job", { teamId });
+  return invokeForCareer<JobApplicationResponse>("apply_for_job", { teamId });
 }

@@ -859,8 +859,38 @@ fn notify_user_division_change(
 /// rating, and nothing else would stop a fifteen-year-old being picked.
 pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate, season: u32) {
     crate::aging::apply_seasonal_aging(game, date, season);
+    game.last_season_rollover_on = Some(date.format("%Y-%m-%d").to_string());
     crate::ai_contracts::plan_every_ai_squad(game);
     crate::youth_intake::apply_youth_intake(game, date, season);
+}
+
+/// For a save from before the rollover day was kept: take it from the latest finished edition of a
+/// league table the manager's club played in, so a report from an earlier season in that save still
+/// reads as out of date. True when it filled the day in. A new career has no such edition and stays
+/// without one.
+pub fn backfill_last_season_rollover(game: &mut Game) -> bool {
+    if game.last_season_rollover_on.is_some() {
+        return false;
+    }
+    let Some(manager_club) = game.manager.team_id.as_deref() else {
+        return false;
+    };
+    let is_league_table = |competition_id: &str| {
+        game.competitions.iter().any(|competition| {
+            competition.id == competition_id
+                && competition.rules.format == CompetitionFormat::LeagueTable
+        })
+    };
+    let last_league_season_end = game
+        .edition_archive
+        .iter()
+        .filter(|edition| edition.participant_ids.iter().any(|id| id == manager_club))
+        .filter(|edition| is_league_table(&edition.competition_id))
+        .map(|edition| edition.completed_on.as_str())
+        .max()
+        .map(str::to_string);
+    game.last_season_rollover_on = last_league_season_end;
+    game.last_season_rollover_on.is_some()
 }
 
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
@@ -2029,5 +2059,221 @@ mod tests {
             at(2035, 7, 1),
             4,
         );
+    }
+
+    /// Given a season that ends on 30 May 2027
+    /// When its squad turnover runs, and every player ages and develops
+    /// Then the game keeps that day as its last rollover, so a scout's report from before it reads
+    ///      as out of date
+    #[test]
+    fn a_season_end_records_the_day_players_developed() {
+        let mut game = calendar_game(at(2027, 5, 30));
+        game.last_season_rollover_on = Some("2026-05-28".to_string());
+
+        apply_season_end_squad_turnover(
+            &mut game,
+            chrono::NaiveDate::from_ymd_opt(2027, 5, 30).unwrap(),
+            2026,
+        );
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-30"));
+    }
+
+    const MY_CLUB: &str = "mine";
+
+    /// A career in its second season, saved before the rollover day was kept: the manager's club
+    /// plays in "division-one", and `archived` lists (competition, format, completed_on) editions.
+    fn career_saved_before_the_rollover_was_kept(
+        archived: &[(&str, CompetitionFormat, &str)],
+    ) -> Game {
+        let mut game = calendar_game(at(2027, 9, 15));
+        game.manager.team_id = Some(MY_CLUB.to_string());
+        let clubs = [MY_CLUB.to_string(), "rival".to_string()];
+        for (id, format, completed_on) in archived {
+            let mut competition = League::new(id.to_string(), id.to_string(), 2027, &clubs);
+            competition.rules.format = format.clone();
+            game.competitions.push(competition);
+            game.edition_archive
+                .push(domain::edition_archive::CompletedEdition {
+                    competition_id: id.to_string(),
+                    season: 2026,
+                    completed_on: completed_on.to_string(),
+                    champion_id: MY_CLUB.to_string(),
+                    participant_ids: clubs.to_vec(),
+                    standings: vec![],
+                    groups: vec![],
+                    knockout_rounds: vec![],
+                    fixtures: vec![],
+                });
+        }
+        game.scouted_players.push(crate::game::ScoutedPlayer {
+            player_id: "scouted".to_string(),
+            scouted_on: "2027-03-10".to_string(),
+            attributes: crate::test_support::uniform_attributes(60),
+        });
+        game
+    }
+
+    fn report_is_out_of_date(game: &Game) -> bool {
+        crate::slices::scouted_report::query_scouted_report(game, "scouted")
+            .unwrap()
+            .out_of_date
+    }
+
+    /// Given a second-season career saved before the rollover day was kept, whose league season
+    ///      finished on 22 May 2027, and a report taken on 10 March 2027
+    /// When it is loaded
+    /// Then the rollover day is taken from that league season, and the March report reads as out
+    ///      of date, as it did before the day was kept
+    #[test]
+    fn an_old_career_takes_its_rollover_from_its_last_league_season() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[
+            ("division-one", CompetitionFormat::LeagueTable, "2027-05-22"),
+            (
+                "division-one-2026",
+                CompetitionFormat::LeagueTable,
+                "2026-05-20",
+            ),
+        ]);
+
+        assert!(backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-22"));
+        assert!(report_is_out_of_date(&game));
+    }
+
+    /// Given an old career whose only finished edition is a cup (cups finish on their own dates)
+    /// When it is loaded
+    /// Then the cup does not stand in for a season's end: no rollover day is set
+    #[test]
+    fn a_finished_cup_does_not_set_the_rollover() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "cup",
+            CompetitionFormat::Knockout,
+            "2027-05-22",
+        )]);
+
+        assert!(!backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on, None);
+    }
+
+    /// Given an old career whose own league season finished on 22 May 2027, and another
+    ///      country's league, which the club does not play in, that finished later, on 30 June
+    /// When it is loaded
+    /// Then only the club's own league counts: the rollover is 22 May
+    #[test]
+    fn a_league_the_club_did_not_play_in_does_not_set_the_rollover() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        game.competitions.push(League::new(
+            "abroad".to_string(),
+            "abroad".to_string(),
+            2027,
+            &["far-1".to_string(), "far-2".to_string()],
+        ));
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: "abroad".to_string(),
+                season: 2026,
+                completed_on: "2027-06-30".to_string(),
+                champion_id: "far-1".to_string(),
+                participant_ids: vec!["far-1".to_string(), "far-2".to_string()],
+                standings: vec![],
+                groups: vec![],
+                knockout_rounds: vec![],
+                fixtures: vec![],
+            });
+
+        assert!(backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-22"));
+    }
+
+    /// Given an old career whose manager moved from "mine" (league season finished 22 May) to
+    ///      "newclub", whose league season finished on 25 May
+    /// When it is loaded
+    /// Then the day comes from the club he manages now: 25 May
+    #[test]
+    fn a_manager_who_changed_club_takes_the_rollover_from_his_new_league() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        let new_clubs = ["newclub".to_string(), "other".to_string()];
+        game.competitions.push(League::new(
+            "division-two".to_string(),
+            "division-two".to_string(),
+            2027,
+            &new_clubs,
+        ));
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: "division-two".to_string(),
+                season: 2026,
+                completed_on: "2027-05-25".to_string(),
+                champion_id: "other".to_string(),
+                participant_ids: new_clubs.to_vec(),
+                standings: vec![],
+                groups: vec![],
+                knockout_rounds: vec![],
+                fixtures: vec![],
+            });
+        game.manager.team_id = Some("newclub".to_string());
+
+        assert!(backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-25"));
+    }
+
+    /// Given an old career whose manager is out of work
+    /// When it is loaded
+    /// Then no club's league gives a day: none is set
+    #[test]
+    fn an_unemployed_manager_gets_no_backfilled_rollover() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        game.manager.team_id = None;
+
+        assert!(!backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on, None);
+    }
+
+    /// Given a career in its first season, with nothing archived yet
+    /// When it is loaded
+    /// Then there is no rollover day, and no report is out of date
+    #[test]
+    fn a_first_season_career_has_no_rollover_to_backfill() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[]);
+
+        assert!(!backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on, None);
+        assert!(!report_is_out_of_date(&game));
+    }
+
+    /// Given a career that already keeps its rollover day
+    /// When it is loaded
+    /// Then the kept day is left as it is
+    #[test]
+    fn a_kept_rollover_day_is_not_replaced() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        game.last_season_rollover_on = Some("2027-05-30".to_string());
+
+        assert!(!backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-30"));
     }
 }

@@ -120,6 +120,7 @@ fn write_game_to_connection(
             legacy_world_cup_draw: game.legacy_world_cup_draw,
             legacy_tactics_imported: game.legacy_tactics_imported,
             gate_settled_from: game.gate_settled_from.clone(),
+            last_season_rollover_on: game.last_season_rollover_on.clone(),
             available_staff_market_last_activity_date: game
                 .available_staff_market_last_activity_date
                 .clone(),
@@ -358,6 +359,7 @@ impl GamePersistenceReader {
             legacy_world_cup_draw: meta.legacy_world_cup_draw,
             legacy_tactics_imported: meta.legacy_tactics_imported,
             gate_settled_from: meta.gate_settled_from.clone(),
+            last_season_rollover_on: meta.last_season_rollover_on.clone(),
             career_token: 0,
             clock,
             manager_id: meta.manager_id.clone(),
@@ -541,6 +543,7 @@ mod tests {
             legacy_world_cup_draw: false,
             legacy_tactics_imported: false,
             gate_settled_from: None,
+            last_season_rollover_on: None,
         }
     }
 
@@ -659,6 +662,32 @@ mod tests {
 
             assert_eq!(stored, imported);
             assert_eq!(loaded.legacy_tactics_imported, imported);
+        }
+    }
+
+    /// Given a career whose last season ended on 25 May 2027, and one that has not reached a season
+    ///      end yet
+    /// When each is saved
+    /// Then the .db itself holds the date, or NULL (read back with plain SQL, not through the
+    ///      loader), and each loads as it was saved.
+    #[test]
+    fn the_last_season_rollover_is_written_to_the_save() {
+        for rollover in [Some("2027-05-25"), None] {
+            let db = GameDatabase::open_in_memory().unwrap();
+            let mut game = sample_game_with_clock(2027, 6);
+            game.last_season_rollover_on = rollover.map(str::to_string);
+            GamePersistenceWriter::write_game(&db, &game, "save-1", "Career").unwrap();
+
+            let stored: Option<String> = db
+                .conn()
+                .query_row("SELECT last_season_rollover_on FROM game_meta", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            let loaded = GamePersistenceReader::read_game(&db).unwrap();
+
+            assert_eq!(stored.as_deref(), rollover);
+            assert_eq!(loaded.last_season_rollover_on.as_deref(), rollover);
         }
     }
 

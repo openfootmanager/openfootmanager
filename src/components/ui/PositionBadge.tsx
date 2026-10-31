@@ -104,6 +104,8 @@ interface PositionBadgesProps {
   familiarity?: PositionFamiliarity;
   /** How many badges to draw before the rest collapse into a "+n" count. */
   max?: number;
+  /** Keep the badges on one line, as a table row does. */
+  oneLine?: boolean;
   /** The translated label and full name of a position. */
   describe: (position: string) => { label: string; name: string };
 }
@@ -143,12 +145,12 @@ function visibleEntries(entries: BadgeEntry[], max: number): BadgeEntry[] {
 
 /** A player's positions as badges: natural filled, the others outlined, the deployed slot marked. */
 export function PositionBadges(props: PositionBadgesProps) {
-  const { max, describe } = props;
+  const { max, oneLine = false, describe } = props;
   const entries = badgeEntries(props);
   const shown = max === undefined ? entries : visibleEntries(entries, max);
   const hidden = entries.length - shown.length;
   return (
-    <span className="inline-flex flex-wrap items-center gap-1">
+    <span className={`inline-flex items-center gap-1 ${oneLine ? "flex-nowrap" : "flex-wrap"}`}>
       {shown.map((entry) => (
         <span key={entry.position} data-testid="position-badge-item" className="inline-flex">
           <PositionBadge

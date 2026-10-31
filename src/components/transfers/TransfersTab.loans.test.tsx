@@ -187,6 +187,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("make_loan_offer", {
+        careerToken: 0,
         playerId: "loan-buy-target",
         endDate: "2027-06-30",
         wageContributionPct: 75,
@@ -241,6 +242,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("respond_to_loan_offer", {
+        careerToken: 0,
         playerId: "loan-owned",
         offerId: "loan-offer-1",
         accept: true,
@@ -396,6 +398,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("counter_loan_offer", {
+        careerToken: 0,
         playerId: "loan-counter-owned",
         offerId: "loan-offer-counter",
         endDate: "2027-01-28",
@@ -461,6 +464,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("exercise_loan_buy_option", {
+        careerToken: 0,
         playerId: "loan-buy-player",
       });
     });
@@ -492,6 +496,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("toggle_transfer_list", {
+        careerToken: 0,
         playerId: "player-1",
       });
       expect(onGameUpdate).toHaveBeenCalledWith(gameState);

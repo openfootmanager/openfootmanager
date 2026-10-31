@@ -1091,6 +1091,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("propose_renewal", {
+        careerToken: 0,
         playerId: "player-1",
         weeklyWage: 15000,
         contractYears: 3,
@@ -1279,6 +1280,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("delegate_renewals", {
+        careerToken: 0,
         playerIds: ["player-1"],
         maxWageIncreasePct: 35,
         maxContractYears: 3,
@@ -1494,6 +1496,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("set_contract_exit_intent", {
+        careerToken: 0,
         playerId: "player-1",
         reason: "manager_profile_action",
       });
@@ -1504,6 +1507,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("clear_contract_exit_intent", {
+        careerToken: 0,
         playerId: "player-1",
       });
       expect(screen.getByRole("button", { name: "Let Expire" })).toBeInTheDocument();
@@ -1586,6 +1590,7 @@ describe("PlayerProfile contract surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("set_contract_exit_intent", {
+        careerToken: 0,
         playerId: "player-1",
         reason: "manager_profile_action",
       });
@@ -1665,6 +1670,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("terminate_contract_now", {
+        careerToken: 0,
         playerId: "player-1",
       });
       expect(screen.getByText("No Contract")).toBeInTheDocument();
@@ -1703,6 +1709,7 @@ describe("PlayerProfile switching between players", () => {
     fireEvent.click(screen.getByRole("button", { name: "Scout" }));
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("send_scout", {
+        careerToken: 0,
         scoutId: "scout-1",
         playerId: "player-1",
       });
@@ -1877,6 +1884,9 @@ describe("PlayerProfile free agent signing", () => {
     const onGameUpdate = vi.fn();
 
     vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_free_agent_opening_offer") {
+        return { weekly_wage: 3000, contract_years: 3 };
+      }
       if (command === "offer_free_agent_contract") {
         return {
           outcome: "accepted",
@@ -1906,11 +1916,15 @@ describe("PlayerProfile free agent signing", () => {
     await waitFor(() => {
       expect(screen.getByRole("dialog", { name: "Offer Contract" })).toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Submit Offer" })).toBeEnabled();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Submit Offer" }));
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("offer_free_agent_contract", {
+        careerToken: 0,
         playerId: "player-1",
         weeklyWage: 3000,
         contractYears: 3,

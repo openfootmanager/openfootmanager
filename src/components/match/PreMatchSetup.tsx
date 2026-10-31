@@ -28,6 +28,7 @@ import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import { PitchToken, Select, TeamLogo, ThemeToggle, type PitchFitTone } from "../ui";
 import { ChevronRight, Crown, Footprints, CornerDownRight, CircleDot, Wand2 } from "lucide-react";
 import { naturalPositionOf } from "../../lib/positions";
+import { currentCareerToken, invokeForCareer } from "../../services/careerInvoke";
 
 interface PreMatchSetupProps {
   snapshot: MatchSnapshot;
@@ -239,7 +240,7 @@ export default function PreMatchSetup({
 
   const handleFormationChange = async (formation: string) => {
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
+      const snap = await invokeForCareer<MatchSnapshot>("apply_match_command", {
         command: { ChangeFormation: { side: userSide, formation } },
       });
       onUpdateSnapshot(snap);
@@ -250,7 +251,7 @@ export default function PreMatchSetup({
 
   const handlePlayStyleChange = async (playStyle: string) => {
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
+      const snap = await invokeForCareer<MatchSnapshot>("apply_match_command", {
         command: { ChangePlayStyle: { side: userSide, play_style: playStyle } },
       });
       onUpdateSnapshot(snap);
@@ -262,7 +263,7 @@ export default function PreMatchSetup({
   const handleSwap = async (benchPlayerId: string) => {
     if (!selectedStarterId) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
+      const snap = await invokeForCareer<MatchSnapshot>("apply_match_command", {
         command: {
           PreMatchSwap: {
             side: userSide,
@@ -288,7 +289,7 @@ export default function PreMatchSetup({
     const cmdKey = commandMap[role];
     if (!cmdKey) return;
     try {
-      const snap = await invoke<MatchSnapshot>("apply_match_command", {
+      const snap = await invokeForCareer<MatchSnapshot>("apply_match_command", {
         command: { [cmdKey]: { side: userSide, player_id: playerId } },
       });
       onUpdateSnapshot(snap);
@@ -328,16 +329,22 @@ export default function PreMatchSetup({
       const toRemove = [...currentIds].filter((id) => !idealIds.has(id));
 
       let snap: MatchSnapshot | null = null;
+      // Every swap belongs to the career the manager asked in; read it once, not per swap.
+      const careerToken = currentCareerToken();
       for (let i = 0; i < Math.min(toAdd.length, toRemove.length); i++) {
-        snap = await invoke<MatchSnapshot>("apply_match_command", {
-          command: {
-            PreMatchSwap: {
-              side: userSide,
-              player_off_id: toRemove[i],
-              player_on_id: toAdd[i],
+        snap = await invokeForCareer<MatchSnapshot>(
+          "apply_match_command",
+          {
+            command: {
+              PreMatchSwap: {
+                side: userSide,
+                player_off_id: toRemove[i],
+                player_on_id: toAdd[i],
+              },
             },
           },
-        });
+          careerToken,
+        );
       }
       if (snap) onUpdateSnapshot(snap);
     } catch (err) {

@@ -71,6 +71,7 @@ export function fixtureHandlers(
     get_squad_fitness: () => fixture.squadFitness,
     get_available_jobs: () => fixture.availableJobs,
     get_rating_tiers: () => fixture.ratingTiers,
+    get_position_groups: () => fixture.positionGroups,
     // Only the players asked about; Rust leaves out an id no player has.
     get_contract_warning_stages: ({ playerIds }) => {
       const asked = new Set(Array.isArray(playerIds) ? playerIds : []);
