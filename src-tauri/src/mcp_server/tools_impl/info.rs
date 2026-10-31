@@ -79,10 +79,10 @@ fn finance_figures(snapshot: &ofm_core::finances::TeamFinanceSnapshot) -> Financ
 
 // ─── info_game_state ────────────────────────────────────────────────────────
 
-/// Return the full game state as JSON, for agents that want the raw structured data. It is not
-/// available in competition mode (`McpMode::disabled_tools`): the dump holds every club's players
-/// and finances, and competition agents follow the same knowledge rule as players. A projection of
-/// it through `ofm_core::player_knowledge` for sandbox mode is the next change.
+/// Return the full game state as JSON, for agents that want the raw structured data.
+/// It is not available in competition mode (`McpMode::disabled_tools`): the dump holds every
+/// club's players and finances, and competition agents follow the same knowledge rule as players.
+/// A projection of it through `ofm_core::player_knowledge` for sandbox mode is the next change.
 pub fn info_game_state(ctx: Arc<McpContext>) -> Result<GameState, String> {
     full_game_state(&ctx.state_manager)
 }
