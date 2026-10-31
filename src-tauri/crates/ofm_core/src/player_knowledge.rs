@@ -403,6 +403,35 @@ mod tests {
         assert_eq!(knowledge_of(&game, "p"), PlayerKnowledge::Unknown);
     }
 
+    /// Given "mover", still in division one's standings but now playing division two (its table
+    ///      with the later finished fixture, which is the one a club's division is read from)
+    /// When the club's knowledge of a mover player is asked
+    /// Then he is unknown: a club is known by the division it plays in now, not by a table it
+    ///      still appears in
+    #[test]
+    fn a_club_listed_in_the_division_but_playing_another_is_not_known() {
+        let mut game = world(Some(MY_CLUB), vec![player("m", Some("mover"))]);
+        game.competitions[0]
+            .standings
+            .push(domain::league::StandingEntry {
+                team_id: "mover".to_string(),
+                played: 0,
+                won: 0,
+                drawn: 0,
+                lost: 0,
+                goals_for: 0,
+                goals_against: 0,
+                points: 0,
+            });
+        game.competitions[1]
+            .participant_ids
+            .push("mover".to_string());
+        fixture_in(&mut game, "division-two", "2026-09-01", "mover", "faraway");
+        game.competitions[1].fixtures[0].status = domain::league::FixtureStatus::Completed;
+
+        assert_eq!(knowledge_of(&game, "m"), PlayerKnowledge::Unknown);
+    }
+
     /// Given a player in another division whom a scout reported on
     /// When the club's knowledge of him is asked
     /// Then it is the scout's report, dated, current or not exactly as the report itself says
