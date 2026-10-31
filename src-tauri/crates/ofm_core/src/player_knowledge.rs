@@ -3,10 +3,12 @@
 
 use std::collections::{HashMap, HashSet};
 
-use domain::player::Player;
+use chrono::NaiveDate;
+use domain::player::{Player, PlayerMovementKind};
 use serde::Serialize;
 
 use crate::game::{Game, ScoutedPlayer};
+use crate::potential_opinion::{OpinionSource, PotentialOpinion, judged_range};
 use crate::slices::scouted_report::is_out_of_date;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -279,6 +281,93 @@ pub fn players_knowledge(game: &Game, player_ids: &[String]) -> HashMap<String, 
         .collect()
 }
 
+/// Six weeks of daily sessions: how long the club's staff watch one of its players train before
+/// they hold an opinion of his potential (maintainer, B3).
+pub const COACHES_OPINION_AFTER_DAYS: i64 = 42;
+
+/// What the club may read of a player's potential: an opinion, as a range, never the number.
+///
+/// The club's staff hold one about a player who has trained with the club for six weeks (judged by
+/// its best eye for potential, worked out from today's potential, so it follows his development).
+/// Otherwise it is the opinion a scout wrote into his report, as of the report's date. Nobody else
+/// is judged: knowing a division rival's rating is not knowing his potential. A player whose
+/// potential is not stored (0) has none.
+pub fn potential_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
+    if player.potential == 0 {
+        return None;
+    }
+    coaches_opinion(game, player).or_else(|| scouts_opinion(game, player))
+}
+
+fn coaches_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
+    let club = game.manager.team_id.as_deref()?;
+    let since = trains_with_club_since(player, club)?;
+    let since = NaiveDate::parse_from_str(since, "%Y-%m-%d").ok()?;
+    let today = game.clock.current_date.date_naive();
+    if (today - since).num_days() < COACHES_OPINION_AFTER_DAYS {
+        return None;
+    }
+    let judge = game
+        .staff
+        .iter()
+        .filter(|staff| staff.team_id.as_deref() == Some(club))
+        .max_by_key(|staff| staff.attributes.judging_potential)?;
+    let range = judged_range(
+        &player.id,
+        &judge.id,
+        player.potential,
+        judge.attributes.judging_potential,
+    );
+    Some(PotentialOpinion::of(range, OpinionSource::Coaches))
+}
+
+/// The day since which the player has trained with `club` every day: the day he arrived, or for a
+/// loanee the day his loan began.
+///
+/// A player the club has loaned out trains at the borrowing club, so its staff are not watching
+/// him: while he is away there is none, and on his return the count starts again from the day he
+/// came back (maintainer, B3-Q3).
+fn trains_with_club_since<'a>(player: &'a Player, club: &str) -> Option<&'a str> {
+    if player.team_id.as_deref() != Some(club) {
+        return None;
+    }
+    if let Some(loan) = player.active_loan.as_ref()
+        && loan.loan_team_id == club
+    {
+        return Some(&loan.start_date);
+    }
+    let last_return = player
+        .movement_history
+        .iter()
+        .filter(|entry| {
+            entry.kind == PlayerMovementKind::LoanReturn
+                && entry.to_team_id.as_deref() == Some(club)
+        })
+        .map(|entry| entry.date.as_str())
+        .max();
+    // ISO dates order like the days they name, so the later of the two is the larger string.
+    player
+        .joined_current_club_on()
+        .into_iter()
+        .chain(last_return)
+        .max()
+}
+
+fn scouts_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
+    let report = game
+        .scouted_players
+        .iter()
+        .find(|report| report.player_id == player.id)?;
+    let range = report.potential?;
+    Some(PotentialOpinion::of(
+        range,
+        OpinionSource::Scout {
+            scout_name: report.scout_name.clone(),
+            scouted_on: report.scouted_on.clone(),
+        },
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -287,7 +376,8 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use domain::league::League;
     use domain::manager::Manager;
-    use domain::player::{ActiveLoan, Position};
+    use domain::player::{ActiveLoan, PlayerMovementEntry, Position};
+    use domain::staff::{Staff, StaffAttributes, StaffRole};
 
     const MY_CLUB: &str = "mine";
 
@@ -357,6 +447,8 @@ mod tests {
             player_id: player_id.to_string(),
             scouted_on: scouted_on.to_string(),
             attributes: uniform_attributes(60),
+            potential: None,
+            scout_name: None,
         });
     }
 
@@ -962,5 +1054,279 @@ mod tests {
 
         ratings.sort_by(|a, b| compare_visible_ovr(*a, *b, true));
         assert_eq!(ratings, vec![Some(70), Some(80), None]);
+    }
+
+    // The world's date is 15 Sep 2026: 4 Aug is six weeks (42 days) before it, 5 Aug a day short.
+    const SIX_WEEKS_AGO: &str = "2026-08-04";
+    const A_DAY_SHORT_OF_SIX_WEEKS: &str = "2026-08-05";
+
+    /// `player`, his potential `potential`, after he arrived at `club` on `date`.
+    fn arrived(mut player: Player, club: &str, date: &str, potential: u8) -> Player {
+        player.potential = potential;
+        player
+            .record_movement(PlayerMovementEntry {
+                to_team_id: Some(club.to_string()),
+                ..PlayerMovementEntry::new(date, PlayerMovementKind::PermanentTransfer)
+            })
+            .unwrap();
+        player
+    }
+
+    /// A coach at `club` whose eye for potential is `judging_potential`.
+    fn staff_at(id: &str, club: &str, judging_potential: u8) -> Staff {
+        let mut staff = Staff::new(
+            id.to_string(),
+            id.to_string(),
+            id.to_string(),
+            "1970-01-01".to_string(),
+            StaffRole::Coach,
+            StaffAttributes {
+                coaching: 50,
+                judging_ability: 50,
+                judging_potential,
+                physiotherapy: 50,
+            },
+        );
+        staff.team_id = Some(club.to_string());
+        staff
+    }
+
+    fn opinion_of(game: &Game, player_id: &str) -> Option<PotentialOpinion> {
+        let player = game.players.iter().find(|p| p.id == player_id).unwrap();
+        potential_opinion(game, player)
+    }
+
+    fn width(opinion: &PotentialOpinion) -> u8 {
+        opinion.high - opinion.low
+    }
+
+    /// Given a player in another division whose scout, Ann Scout, wrote 76-84 on 1 Sep
+    /// When the club's opinion of his potential is asked
+    /// Then it is her range, with its band (the tier of 80, A), how sure she was, and her name
+    ///      and date
+    #[test]
+    fn a_scouted_player_shows_the_opinion_his_scout_wrote() {
+        let mut far = player("far", Some("faraway"));
+        far.potential = 80;
+        let mut game = world(Some(MY_CLUB), vec![far]);
+        game.scouted_players.push(ScoutedPlayer {
+            player_id: "far".to_string(),
+            scouted_on: "2026-09-01".to_string(),
+            attributes: uniform_attributes(60),
+            potential: Some(crate::game::PotentialRange { low: 76, high: 84 }),
+            scout_name: Some("Ann Scout".to_string()),
+        });
+
+        assert_eq!(
+            opinion_of(&game, "far"),
+            Some(PotentialOpinion {
+                low: 76,
+                high: 84,
+                band: crate::player_tier::PlayerTier::A,
+                certainty: crate::potential_opinion::Certainty::FairlySure,
+                source: OpinionSource::Scout {
+                    scout_name: Some("Ann Scout".to_string()),
+                    scouted_on: "2026-09-01".to_string(),
+                },
+            })
+        );
+    }
+
+    /// Given a player scouted before reports carried an opinion of his potential
+    /// When the club's opinion is asked
+    /// Then there is none, until he is scouted again
+    #[test]
+    fn a_report_written_before_opinions_shows_none() {
+        let mut far = player("far", Some("faraway"));
+        far.potential = 80;
+        let mut game = world(Some(MY_CLUB), vec![far]);
+        scouted(&mut game, "far", "2026-09-01");
+
+        assert_eq!(opinion_of(&game, "far"), None);
+    }
+
+    /// Given a rival in the manager's division and a player in another, neither scouted
+    /// When the club's opinion of each one's potential is asked
+    /// Then there is none: knowing a rival's rating is not knowing his potential
+    #[test]
+    fn a_known_rival_or_an_unscouted_player_shows_no_opinion() {
+        let mut rival = player("rival-player", Some("rival"));
+        rival.potential = 80;
+        let mut far = player("far", Some("faraway"));
+        far.potential = 80;
+        let mut game = world(Some(MY_CLUB), vec![rival, far]);
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+
+        assert_eq!(opinion_of(&game, "rival-player"), None);
+        assert_eq!(opinion_of(&game, "far"), None);
+    }
+
+    /// Given the club's own player who arrived a day short of six weeks ago, and a coach
+    /// When the club's opinion of his potential is asked
+    /// Then there is none yet: the staff have not watched him long enough
+    #[test]
+    fn the_clubs_own_player_has_no_opinion_before_six_weeks_with_it() {
+        let own = arrived(
+            player("own", Some(MY_CLUB)),
+            MY_CLUB,
+            A_DAY_SHORT_OF_SIX_WEEKS,
+            80,
+        );
+        let mut game = world(Some(MY_CLUB), vec![own]);
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+
+        assert_eq!(opinion_of(&game, "own"), None);
+    }
+
+    /// Given the club's own player who arrived six weeks ago, his true potential 80
+    /// When the club's opinion of his potential is asked
+    /// Then it is the coaches' opinion, and its range holds his true potential
+    #[test]
+    fn after_six_weeks_the_clubs_own_player_has_the_coaches_opinion() {
+        let own = arrived(player("own", Some(MY_CLUB)), MY_CLUB, SIX_WEEKS_AGO, 80);
+        let mut game = world(Some(MY_CLUB), vec![own]);
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+
+        let opinion = opinion_of(&game, "own").expect("six weeks of training");
+
+        assert_eq!(opinion.source, OpinionSource::Coaches);
+        assert!(opinion.low <= 80 && 80 <= opinion.high, "{opinion:?}");
+    }
+
+    /// Given the club's own player, its two coaches with eyes of 30 and 70, and a 95 at another club
+    /// When the club's opinion of his potential is asked
+    /// Then it is the 70's: 8 points wide, the club's best eye and nobody else's
+    #[test]
+    fn the_coaches_opinion_comes_from_the_clubs_best_eye() {
+        let own = arrived(player("own", Some(MY_CLUB)), MY_CLUB, SIX_WEEKS_AGO, 80);
+        let mut game = world(Some(MY_CLUB), vec![own]);
+        game.staff = vec![
+            staff_at("poor", MY_CLUB, 30),
+            staff_at("good", MY_CLUB, 70),
+            staff_at("elsewhere", "rival", 95),
+        ];
+
+        assert_eq!(width(&opinion_of(&game, "own").unwrap()), 8);
+    }
+
+    /// Given the club's own player of six weeks and more, scouted before he arrived
+    /// When the club's opinion of his potential is asked
+    /// Then it is the coaches', who see him every day, not the old report's
+    #[test]
+    fn the_coaches_opinion_wins_over_a_scouts_report_for_the_clubs_own_player() {
+        let own = arrived(player("own", Some(MY_CLUB)), MY_CLUB, SIX_WEEKS_AGO, 80);
+        let mut game = world(Some(MY_CLUB), vec![own]);
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+        game.scouted_players.push(ScoutedPlayer {
+            player_id: "own".to_string(),
+            scouted_on: "2026-01-10".to_string(),
+            attributes: uniform_attributes(60),
+            potential: Some(crate::game::PotentialRange { low: 70, high: 88 }),
+            scout_name: Some("Ann Scout".to_string()),
+        });
+
+        assert_eq!(
+            opinion_of(&game, "own").unwrap().source,
+            OpinionSource::Coaches
+        );
+    }
+
+    /// Given the club's own player of six weeks and more, at a club with no staff
+    /// When the club's opinion of his potential is asked
+    /// Then there is none: nobody at the club judges potential
+    #[test]
+    fn a_club_with_no_staff_holds_no_opinion() {
+        let own = arrived(player("own", Some(MY_CLUB)), MY_CLUB, SIX_WEEKS_AGO, 80);
+        let game = world(Some(MY_CLUB), vec![own]);
+
+        assert_eq!(opinion_of(&game, "own"), None);
+    }
+
+    /// Given a player scouted with a range, whose potential is not stored (0)
+    /// When the club's opinion of his potential is asked
+    /// Then there is none: there is nothing for the opinion to be about
+    #[test]
+    fn a_player_with_no_stored_potential_has_no_opinion() {
+        let far = player("far", Some("faraway"));
+        let mut game = world(Some(MY_CLUB), vec![far]);
+        game.scouted_players.push(ScoutedPlayer {
+            player_id: "far".to_string(),
+            scouted_on: "2026-09-01".to_string(),
+            attributes: uniform_attributes(60),
+            potential: Some(crate::game::PotentialRange { low: 76, high: 84 }),
+            scout_name: None,
+        });
+
+        assert_eq!(game.players[0].potential, 0);
+        assert_eq!(opinion_of(&game, "far"), None);
+    }
+
+    /// Given a player on loan at the club since 1 Jul, and one whose loan began on 1 Sep
+    /// When the club's opinion of each one's potential is asked
+    /// Then the first, past six weeks of his loan, has the coaches' opinion, and the second none
+    #[test]
+    fn a_player_on_loan_at_the_club_counts_six_weeks_from_his_loan_start() {
+        let mut settled = player("settled", Some(MY_CLUB));
+        settled.potential = 80;
+        settled.active_loan = Some(loan("rival", MY_CLUB));
+        let mut fresh = player("fresh", Some(MY_CLUB));
+        fresh.potential = 80;
+        fresh.active_loan = Some(ActiveLoan {
+            start_date: "2026-09-01".to_string(),
+            ..loan("rival", MY_CLUB)
+        });
+        let mut game = world(Some(MY_CLUB), vec![settled, fresh]);
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+
+        assert_eq!(
+            opinion_of(&game, "settled").map(|opinion| opinion.source),
+            Some(OpinionSource::Coaches)
+        );
+        assert_eq!(opinion_of(&game, "fresh"), None);
+    }
+
+    /// Given the club's own player, at the club for years, now out on loan at a rival
+    /// When the club's opinion of his potential is asked
+    /// Then there is none: he trains at the borrowing club, where the club's staff can't watch him
+    #[test]
+    fn a_player_the_club_has_loaned_out_has_no_coaches_opinion_while_away() {
+        let mut away = arrived(player("away", Some(MY_CLUB)), MY_CLUB, "2024-07-01", 80);
+        away.team_id = Some("rival".to_string());
+        away.active_loan = Some(loan(MY_CLUB, "rival"));
+        let mut game = world(Some(MY_CLUB), vec![away]);
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+
+        assert_eq!(opinion_of(&game, "away"), None);
+    }
+
+    /// Given two of the club's own players back from loan, one since 20 Aug and one since 1 Jul
+    /// When the club's opinion of each one's potential is asked
+    /// Then the six weeks count from his return: the first has none yet, the second the coaches'
+    #[test]
+    fn a_player_back_from_loan_counts_six_weeks_from_his_return() {
+        let back_from = |id: &str, returned_on: &str| {
+            let mut back = arrived(player(id, Some(MY_CLUB)), MY_CLUB, "2024-07-01", 80);
+            back.record_movement(PlayerMovementEntry {
+                from_team_id: Some("rival".to_string()),
+                to_team_id: Some(MY_CLUB.to_string()),
+                ..PlayerMovementEntry::new(returned_on, PlayerMovementKind::LoanReturn)
+            })
+            .unwrap();
+            back
+        };
+        let mut game = world(
+            Some(MY_CLUB),
+            vec![
+                back_from("recent", "2026-08-20"),
+                back_from("settled", "2026-07-01"),
+            ],
+        );
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+
+        assert_eq!(opinion_of(&game, "recent"), None);
+        assert_eq!(
+            opinion_of(&game, "settled").map(|opinion| opinion.source),
+            Some(OpinionSource::Coaches)
+        );
     }
 }

@@ -5,7 +5,7 @@ use rusqlite::Connection;
 
 use ofm_core::clock::GameClock;
 use ofm_core::game::{
-    BoardObjective, Game, ObjectiveType, ScoutedPlayer, ScoutingAssignment,
+    BoardObjective, Game, ObjectiveType, PotentialRange, ScoutedPlayer, ScoutingAssignment,
     YouthScoutingAssignment, YouthScoutingObjective, YouthScoutingRegion,
 };
 
@@ -199,6 +199,9 @@ fn write_game_to_connection(
                 scouted_on: scouted.scouted_on.clone(),
                 attributes_json: serde_json::to_string(&scouted.attributes)
                     .map_err(|_| game_persistence_write_error())?,
+                potential_low: scouted.potential.map(|range| range.low),
+                potential_high: scouted.potential.map(|range| range.high),
+                scout_name: scouted.scout_name.clone(),
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -333,6 +336,12 @@ impl GamePersistenceReader {
                     scouted_on: row.scouted_on,
                     attributes: serde_json::from_str(&row.attributes_json)
                         .map_err(|_| game_persistence_load_error())?,
+                    // Both ends or neither: a half-written range is no opinion.
+                    potential: row
+                        .potential_low
+                        .zip(row.potential_high)
+                        .map(|(low, high)| PotentialRange { low, high }),
+                    scout_name: row.scout_name,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;

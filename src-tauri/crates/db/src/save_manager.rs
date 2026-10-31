@@ -3596,9 +3596,9 @@ mod tests {
         assert_eq!(loaded.youth_scouting_assignments[0].days_remaining, 5);
     }
 
-    /// Given a game with a scouted player
+    /// Given a game with a scouted player, his scout Ann Scout's opinion of his potential 63-71
     /// When it is saved and loaded from the .db
-    /// Then the date and the full attribute snapshot come back
+    /// Then the date, the full attribute snapshot, the range and the scout's name come back
     #[test]
     fn scouted_players_survive_save_and_load() {
         let dir = tempfile::tempdir().unwrap();
@@ -3611,6 +3611,8 @@ mod tests {
             player_id: game.players[0].id.clone(),
             scouted_on: "2026-08-10".to_string(),
             attributes,
+            potential: Some(ofm_core::game::PotentialRange { low: 63, high: 71 }),
+            scout_name: Some("Ann Scout".to_string()),
         });
 
         let save_id = sm.create_save(&game, "Scouted").unwrap();
@@ -3620,6 +3622,37 @@ mod tests {
         assert_eq!(loaded.scouted_players[0].scouted_on, "2026-08-10");
         assert_eq!(loaded.scouted_players[0].attributes.pace, 91);
         assert_eq!(loaded.scouted_players[0].attributes.composure, 33);
+        assert_eq!(
+            loaded.scouted_players[0].potential,
+            Some(ofm_core::game::PotentialRange { low: 63, high: 71 })
+        );
+        assert_eq!(
+            loaded.scouted_players[0].scout_name.as_deref(),
+            Some("Ann Scout")
+        );
+    }
+
+    /// Given a game with a report written before reports carried an opinion of potential
+    /// When it is saved and loaded from the .db
+    /// Then it comes back with no opinion and no scout named, not an empty or zero range
+    #[test]
+    fn a_report_without_an_opinion_survives_save_and_load_without_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut sm = SaveManager::init(&dir.path().join("saves")).unwrap();
+        let mut game = sample_game();
+        game.scouted_players.push(ofm_core::game::ScoutedPlayer {
+            player_id: game.players[0].id.clone(),
+            scouted_on: "2026-08-10".to_string(),
+            attributes: game.players[0].attributes.clone(),
+            potential: None,
+            scout_name: None,
+        });
+
+        let save_id = sm.create_save(&game, "Scouted").unwrap();
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(loaded.scouted_players[0].potential, None);
+        assert_eq!(loaded.scouted_players[0].scout_name, None);
     }
 
     /// Given a save with scouted players
@@ -3634,6 +3667,8 @@ mod tests {
             player_id: game.players[0].id.clone(),
             scouted_on: "2026-08-10".to_string(),
             attributes: game.players[0].attributes.clone(),
+            potential: Some(ofm_core::game::PotentialRange { low: 63, high: 71 }),
+            scout_name: Some("Ann Scout".to_string()),
         });
         let save_id = sm.create_save(&game, "Scouted").unwrap();
 
