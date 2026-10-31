@@ -40,14 +40,35 @@ export function nodeProblem(webSocket, version) {
 }
 
 /**
- * The faces the app bundles (App.css's @fontsource imports; a test holds the two equal). A width
- * measured while one of them hadn't loaded is the width of whatever system font stood in, which is
- * why two machines got different numbers: so every case first loads each of these, and fails if
- * one doesn't.
+ * The faces the app bundles (App.css's @fontsource imports and its Cyrillic @font-face blocks; a
+ * test holds the two equal). A width measured while one of them hadn't loaded is the width of
+ * whatever system font stood in, which is why two machines got different numbers: so every case
+ * first loads each of these, and fails if one doesn't.
+ *
+ * A face scoped by `unicode-range` (the Cyrillic ones) only loads for text in its range, so its
+ * entry names a `script` and a `sample` in it; the Latin faces are loaded with the default sample.
  */
 export const REQUIRED_FACES = [
   ...[400, 500, 600, 700].map((weight) => ({ family: "Inter", weight })),
   ...[600, 700].map((weight) => ({ family: "Barlow Condensed", weight })),
+  ...[400, 500, 600, 700].map((weight) => ({
+    family: "Inter",
+    weight,
+    script: "cyrillic",
+    sample: "Яё",
+  })),
+  ...[400, 500, 600, 700].map((weight) => ({
+    family: "Inter",
+    weight,
+    script: "cyrillic-ext",
+    sample: "Ѡ",
+  })),
+  ...[600, 700].map((weight) => ({
+    family: "Fira Sans Extra Condensed",
+    weight,
+    script: "cyrillic",
+    sample: "Яё",
+  })),
 ];
 
 /** What is wrong with one measured case; empty when it passes. */
@@ -55,9 +76,11 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered,
   const problems = [];
   // The weight asked for, not just any: the browser stands the nearest weight it has in for one it
   // lacks, and a 600 drawn in place of a 700 has other widths.
-  for (const { family, weight, loadedWeights } of faces) {
+  for (const { family, weight, script, loadedWeights } of faces) {
     if (!loadedWeights.includes(String(weight)))
-      problems.push(`font not loaded: ${family} ${weight} (a system fallback drew it)`);
+      problems.push(
+        `font not loaded: ${family} ${weight}${script ? ` ${script}` : ""} (a system fallback drew it)`,
+      );
   }
   if (scrollWidth > innerWidth) {
     problems.push(`the page scrolls sideways (${scrollWidth} > ${innerWidth})`);
@@ -78,9 +101,16 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered,
  */
 export async function loadFaces(fonts, faces) {
   return Promise.all(
-    faces.map(async ({ family, weight }) => {
-      const loaded = await fonts.load(`${weight} 16px "${family}"`, "Aa ÄÖÜß").catch(() => []);
-      return { family, weight, loadedWeights: loaded.map((face) => face.weight) };
+    faces.map(async ({ family, weight, script, sample }) => {
+      const loaded = await fonts
+        .load(`${weight} 16px "${family}"`, sample ?? "Aa ÄÖÜß")
+        .catch(() => []);
+      return {
+        family,
+        weight,
+        ...(script ? { script } : {}),
+        loadedWeights: loaded.map((face) => face.weight),
+      };
     }),
   );
 }
