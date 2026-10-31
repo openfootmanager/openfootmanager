@@ -26,6 +26,7 @@ describe("trainingService", () => {
 
     await expect(setTraining("Physical", "High")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("set_training", {
+      careerToken: 0,
       focus: "Physical",
       intensity: "High",
     });
@@ -37,6 +38,7 @@ describe("trainingService", () => {
 
     await expect(setTrainingSchedule("Light")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("set_training_schedule", {
+      careerToken: 0,
       schedule: "Light",
     });
   });
@@ -47,9 +49,7 @@ describe("trainingService", () => {
     mockedInvoke.mockResolvedValueOnce(response);
 
     await expect(setTrainingGroups(groups)).resolves.toBe(response);
-    expect(mockedInvoke).toHaveBeenCalledWith("set_training_groups", {
-      groups,
-    });
+    expect(mockedInvoke).toHaveBeenCalledWith("set_training_groups", { careerToken: 0, groups });
   });
 
   it("calls the set player training focus backend command", async () => {
@@ -58,6 +58,7 @@ describe("trainingService", () => {
 
     await expect(setPlayerTrainingFocus("player-1", null)).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("set_player_training_focus", {
+      careerToken: 0,
       playerId: "player-1",
       focus: null,
     });

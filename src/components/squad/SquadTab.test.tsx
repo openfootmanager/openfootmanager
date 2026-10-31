@@ -61,6 +61,7 @@ vi.mock("react-i18next", () => ({
     },
     i18n: { language: "en" },
   }),
+  initReactI18next: { type: "3rdParty", init: () => {} },
 }));
 
 // Squad fixtures rate every player 60 across the board — keepers' handling and reflexes included —
@@ -228,6 +229,189 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given a player the backend rates tiring
+   * When Squad lists him
+   * Then his condition says the band's word beside the bar, so the colour isn't the only sign.
+   */
+  it("names each player's condition band beside the bar", async () => {
+    const state = makeGameState();
+    state.players = [
+      makePlayer("p1", "Forward", {
+        match_name: "Tiring Forward",
+        condition: 64,
+        condition_status: { band: "Tiring", label_key: "be.condition.tiring", tone: "fair" },
+      }),
+    ];
+    renderSquadTab(state);
+
+    const row = await screen.findByRole("row", { name: /Tiring Forward/ });
+    expect(within(row).getByText("be.condition.tiring")).toHaveClass("text-tone-fair");
+  });
+
+  /**
+   * Given the squad
+   * When the roster renders
+   * Then it is one table named for the squad, sorted by position by default, and its headers say
+   * so (aria-sort) and ask to sort by another column.
+   */
+  it("draws the roster as a named table whose headers say and change its sort", async () => {
+    const onSortStateChange = vi.fn();
+    render(
+      <SquadTab
+        gameState={makeGameState()}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "pos", sortDir: "asc" }}
+        onSortStateChange={onSortStateChange}
+      />,
+    );
+
+    expect(screen.getByRole("table", { name: "squad.title" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /squad\.pos/ })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "common.ovr" }));
+    expect(onSortStateChange).toHaveBeenCalledWith({ sortKey: "ovr", sortDir: "desc" });
+  });
+
+  /**
+   * Given a starter, an injured bench player and a fit bench player
+   * When the roster renders
+   * Then the starter's row carries the starter accent, the injured player's the can't-play one,
+   * and the fit bench player's none.
+   */
+  it("marks starters and players who can't play with the row accent", async () => {
+    const state = makeGameState();
+    state.players.push(
+      makePlayer("inj", "Forward", {
+        match_name: "Hurt Forward",
+        injury: { name: "Knee bruise", days_remaining: 10 },
+        match_day_eligible: false,
+      }),
+    );
+    renderSquadTab(state);
+
+    expect(await screen.findByRole("row", { name: /GK1/ })).toHaveAttribute(
+      "data-accent",
+      "positive",
+    );
+    expect(screen.getByRole("row", { name: /Hurt Forward/ })).toHaveAttribute(
+      "data-accent",
+      "danger",
+    );
+    expect(screen.getByRole("row", { name: /Bench DEF/ })).not.toHaveAttribute("data-accent");
+  });
+
+  /**
+   * Given a starter and an injured bench player
+   * When a screen reader reads their rows
+   * Then the starter's says he starts, the injured player's names his injury, and each names the
+   * player's nationality: none of it hidden inside the name's open button, and none of it only a
+   * colour.
+   */
+  it("says in words who starts, who is hurt and where each is from", async () => {
+    const state = makeGameState();
+    state.players.push(
+      makePlayer("inj", "Forward", {
+        match_name: "Hurt Forward",
+        nationality: "GB",
+        injury: { name: "Knee bruise", days_remaining: 10 },
+        match_day_eligible: false,
+      }),
+    );
+    renderSquadTab(state);
+
+    const starter = await screen.findByRole("row", { name: /GK1/ });
+    expect(within(starter).getByText("squad.startingXi")).toBeInTheDocument();
+    const hurt = screen.getByRole("row", { name: /Hurt Forward/ });
+    const injury = within(hurt).getAllByRole("img", { name: /Knee bruise/ });
+    expect(injury.some((badge) => badge.closest("button") === null)).toBe(true);
+    const flags = within(hurt)
+      .getAllByRole("img")
+      .filter((img) => img.closest("button") === null);
+    expect(flags.length).toBeGreaterThanOrEqual(2);
+    expect(
+      within(screen.getByRole("row", { name: /Bench DEF/ })).queryByText("squad.startingXi"),
+    ).toBeNull();
+  });
+
+  /**
+   * Given the roster
+   * When a keyboard user opens a player's menu from its button
+   * Then the menu opens with its items, and Escape closes it and returns focus to the button.
+   */
+  it("opens a player's menu from the keyboard and gives focus back on Escape", async () => {
+    renderSquadTab(makeGameState());
+    const [button] = await screen.findAllByRole("button", { name: /common\.playerActions/ });
+    button.focus();
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(button);
+    expect(await screen.findByRole("menuitem", { name: "Renew Contract" })).toBeInTheDocument();
+    // The button says its menu is open while it is, and closed again after Escape.
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitem", { name: "Renew Contract" })).toBeNull(),
+    );
+    expect(button).toHaveFocus();
+    expect(button).toHaveAttribute("aria-expanded", "false");
+  });
+
+  /**
+   * Given a row right-clicked with the mouse
+   * When its menu opens
+   * Then it opens where the pointer is.
+   */
+  it("opens a row's menu at the pointer on a mouse right-click", async () => {
+    renderSquadTab(makeGameState());
+    const row = (await screen.findByText("GK1")).closest("tr") as HTMLTableRowElement;
+    fireEvent.contextMenu(row, { clientX: 50, clientY: 60 });
+    const menu = await screen.findByRole("menu");
+    expect(menu).toHaveStyle({ left: "50px", top: "60px" });
+  });
+
+  /**
+   * Given a row's menu asked for from the keyboard (the Menu key or Shift+F10 send a right-click
+   * at 0,0)
+   * When it opens
+   * Then it opens at the row, under its left edge, not in the window's top-left corner.
+   */
+  it("opens a row's menu at the row on a keyboard right-click", async () => {
+    renderSquadTab(makeGameState());
+    const row = (await screen.findByText("GK1")).closest("tr") as HTMLTableRowElement;
+    vi.spyOn(row, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ x: 120, y: 260, width: 600, height: 40 }),
+    );
+    fireEvent.contextMenu(row, { clientX: 0, clientY: 0 });
+    const menu = await screen.findByRole("menu");
+    expect(menu).toHaveStyle({ left: "120px", top: "300px" });
+  });
+
+  /**
+   * Given a transfer-listed player on a stable contract and a transfer-listed one whose contract
+   * is critical
+   * When the roster renders
+   * Then each contract shows one chip, as table C does: the listing for the first, the critical
+   * stage for the second (the more urgent of the two), never two chips side by side.
+   */
+  it("shows one contract chip, the urgent stage before a listing", async () => {
+    const state = makeGameState();
+    state.players[0].transfer_listed = true;
+    state.players[1].transfer_listed = true;
+    riskLevels.current = { d1: "critical" };
+    renderSquadTab(state);
+
+    const listed = await screen.findByRole("row", { name: /GK1/ });
+    expect(within(listed).getByText("Transfer")).toBeInTheDocument();
+    expect(within(listed).queryByText("finances.contractRiskStable")).toBeNull();
+    const urgent = screen.getByRole("row", { name: /D1/ });
+    expect(within(urgent).getByText("Critical")).toBeInTheDocument();
+    expect(within(urgent).queryByText("Transfer")).toBeNull();
+  });
+
+  /**
    * Given two senior players rated 76 and 77, either side of the A-tier cut-off
    * When the roster renders
    * Then each rating takes the colour of its backend tier (B and A).
@@ -242,9 +426,17 @@ describe("SquadTab", () => {
 
     renderSquadTab(state);
 
-    const aTier = await screen.findByText("77");
-    expect(aTier).toHaveClass(...ratingTierClass("A", "text").split(" "));
-    expect(screen.getByText("76")).toHaveClass(...ratingTierClass("B", "text").split(" "));
+    // Each rating is a RatingChip: the number in its tier's tone, the tier in words.
+    const aTier = (await screen.findByText("77")).parentElement;
+    expect(aTier).toHaveClass(...ratingTierClass("A", "badge").split(" "));
+    expect(screen.getByText("76").parentElement).toHaveClass(
+      ...ratingTierClass("B", "badge").split(" "),
+    );
+    expect(
+      within(screen.getByRole("row", { name: /Seventy Seven/ })).getByText(
+        "common.overallRatingTier",
+      ),
+    ).toBeInTheDocument();
   });
 
   // Given a backend-called-up youth, when Squad opens, then the manager can see him.
@@ -285,7 +477,7 @@ describe("SquadTab", () => {
     ).not.toBeInTheDocument();
     // The game does not tell the manager how well a player suits the play style: no column, no chip.
     expect(screen.queryByText(/styleFit/)).not.toBeInTheDocument();
-    expect(screen.getByText("squad.traits")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "squad.traits" })).toBeInTheDocument();
     expect(screen.getByText(/squad.currentPlan/)).toBeInTheDocument();
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
     expect(screen.getAllByText(/squad.needsCover/).length).toBeGreaterThan(0);
@@ -348,8 +540,10 @@ describe("SquadTab", () => {
       />,
     );
 
-    expect(screen.getByText("Knee bruise")).toBeInTheDocument();
-    expect(screen.getByText("10d")).toBeInTheDocument();
+    // In the keeper's own row; its details repeat the folded columns for a narrow window.
+    const keeperRow = screen.getByRole("row", { name: /GK1/ });
+    expect(within(keeperRow).getByRole("img", { name: /Knee bruise/ })).toBeInTheDocument();
+    expect(within(keeperRow).getAllByText("10d").length).toBeGreaterThan(0);
   });
 
   it("honors a persisted OVR sort state from the dashboard", () => {
@@ -406,8 +600,11 @@ describe("SquadTab", () => {
 
     renderSquadTab(gameState, { onSelectPlayer });
 
-    expect(screen.getByText("Critical")).toBeInTheDocument();
-    expect(screen.getByText("Expires October 15, 2026")).toBeInTheDocument();
+    const keeperRow = screen.getByRole("row", { name: /GK1/ });
+    expect(within(keeperRow).getByText("Critical")).toBeInTheDocument();
+    // Table C's contract column: the stage chip and the month the contract ends, on one line.
+    expect(within(keeperRow).getByText(/Oct 2026/)).toBeInTheDocument();
+    expect(within(keeperRow).queryByText("Expires October 15, 2026")).toBeNull();
 
     const playerRow = screen.getByText("GK1").closest("tr");
     expect(playerRow).not.toBeNull();
@@ -439,6 +636,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_contract_exit_intent", {
+        careerToken: 0,
         playerId: "gk1",
         reason: "manager_squad_action",
       });
@@ -472,11 +670,49 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("toggle_loan_list", {
+        careerToken: 0,
         playerId: "gk1",
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
       expect(screen.getByText("GK1").closest("tr")).toHaveTextContent("Loan");
     });
+  });
+
+  /**
+   * Given the backend refusing to transfer-list a player
+   * When the manager lists him from the roster menu
+   * Then the refusal is shown under the roster, not swallowed with the menu closing on nothing.
+   */
+  it("shows why a listing from the roster menu failed", async () => {
+    renderSquadTab(makeGameState());
+    // A backend error is a translation key: the player reads its words, never the key.
+    mockedInvoke.mockRejectedValue("be.error.careerChanged");
+
+    fireEvent.contextMenu(screen.getByText("GK1").closest("tr") as HTMLTableRowElement);
+    fireEvent.click(await screen.findByRole("menuitem", { name: /transfer/i }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("The career changed before this could be saved.");
+    expect(alert).not.toHaveTextContent("be.error");
+  });
+
+  /**
+   * Given a roster showing why an earlier listing failed
+   * When the manager's next action from the menu succeeds
+   * Then the old error goes, so the roster never shows a failure that no longer stands.
+   */
+  it("clears an earlier failure once a menu action succeeds", async () => {
+    const gameState = makeGameState();
+    renderSquadTab(gameState);
+    mockedInvoke.mockRejectedValueOnce("Listing failed");
+    fireEvent.contextMenu(screen.getByText("GK1").closest("tr") as HTMLTableRowElement);
+    fireEvent.click(await screen.findByRole("menuitem", { name: /transfer/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Listing failed");
+
+    mockedInvoke.mockResolvedValueOnce(gameState);
+    fireEvent.contextMenu(screen.getByText("GK1").closest("tr") as HTMLTableRowElement);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Add to Loan List" }));
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
   });
 
   it("reopens talks from context menu for planned-expiry players", async () => {
@@ -507,6 +743,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("clear_contract_exit_intent", {
+        careerToken: 0,
         playerId: "gk1",
       });
     });
@@ -536,6 +773,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_player_squad_role", {
+        careerToken: 0,
         playerId: "gk1",
         squadRole: "Youth",
       });
@@ -563,6 +801,7 @@ describe("SquadTab", () => {
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
+        careerToken: 0,
         playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);

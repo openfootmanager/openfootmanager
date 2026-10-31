@@ -96,18 +96,94 @@ describe("the fonts it measures with", () => {
    */
   it("requires exactly the faces the app bundles", () => {
     const css = readFileSync(new URL("../src/App.css", import.meta.url), "utf-8");
-    const bundled = new Set(
-      [...css.matchAll(/@import "@fontsource\/([a-z-]+)\/[a-z-]+-(\d+)\.css";/g)].map(
-        ([, slug, weight]) => `${slug} ${weight}`,
-      ),
-    );
+    // The Latin faces are @fontsource imports (no script: latin and latin-ext load by the default
+    // sample); the Cyrillic ones are @font-face blocks, named by the file they load.
+    const imported = [
+      ...css.matchAll(/@import "@fontsource\/([a-z-]+)\/[a-z-]+-(\d+)\.css";/g),
+    ].map(([, slug, weight]) => `${slug} ${weight}`);
+    const declared = [...css.matchAll(/@font-face\s*\{[^}]*\}/g)].map(([block]) => {
+      const [, slug, script, weight] =
+        block.match(/files\/([a-z-]+?)-(cyrillic(?:-ext)?)-(\d+)-normal\.woff2/) ?? [];
+      return `${slug.replace(/-cyrillic$/, "")} ${weight} ${script}`;
+    });
+    const bundled = new Set([...imported, ...declared]);
     const required = new Set(
       REQUIRED_FACES.map(
-        ({ family, weight }) => `${family.toLowerCase().replaceAll(" ", "-")} ${weight}`,
+        ({ family, weight, script }) =>
+          `${family.toLowerCase().replaceAll(" ", "-")} ${weight}${script ? ` ${script}` : ""}`,
       ),
     );
     expect(bundled.size).toBeGreaterThan(0);
     expect(required).toEqual(bundled);
+  });
+
+  /**
+   * Given a face scoped by unicode-range (the Cyrillic ones)
+   * When the faces are loaded
+   * Then it is asked for with a sample in its range, because a face only loads for text it covers,
+   * and a Latin sample would report it unloaded.
+   */
+  it("loads a scoped face with a sample in its script", async () => {
+    const asked = [];
+    const recording = {
+      load: (font, text) => {
+        asked.push([font, text]);
+        return Promise.resolve([{ weight: font.split(" ")[0] }]);
+      },
+    };
+    await loadFaces(recording, [
+      { family: "Inter", weight: 400 },
+      { family: "Inter", weight: 400, script: "cyrillic", sample: "Яё" },
+    ]);
+    expect(asked).toEqual([
+      ['400 16px "Inter"', "Aa ÄÖÜß"],
+      ['400 16px "Inter"', "Яё"],
+    ]);
+  });
+
+  /**
+   * Given a Cyrillic face whose range does not cover the sample, so that only an unscoped Inter face
+   * (one claiming every character) comes back from the load
+   * When the faces are loaded
+   * Then the Cyrillic face is reported as not loaded: the unscoped face's weight is not proof of it.
+   */
+  it("does not take an unscoped face of the same family for the scoped one", async () => {
+    const fallbackOnly = {
+      load: (font) => Promise.resolve([{ weight: font.split(" ")[0], unicodeRange: "U+0-10FFFF" }]),
+    };
+    const scoped = { family: "Inter", weight: 400, script: "cyrillic", sample: "Яё" };
+    const reported = { family: "Inter", weight: 400, script: "cyrillic" };
+    expect(await loadFaces(fallbackOnly, [scoped])).toEqual([{ ...reported, loadedWeights: [] }]);
+
+    const covering = {
+      load: (font) =>
+        Promise.resolve([
+          {
+            weight: font.split(" ")[0],
+            unicodeRange: "U+301,U+400-45F,U+490-491,U+4B0-4B1,U+2116",
+          },
+        ]),
+    };
+    expect(await loadFaces(covering, [scoped])).toEqual([{ ...reported, loadedWeights: ["400"] }]);
+  });
+
+  /** Given a Cyrillic face that did not load, then the case names its script. */
+  it("names the script of a scoped face that did not load", () => {
+    expect(
+      judge({
+        ...clean,
+        faces: [
+          {
+            family: "Fira Sans Extra Condensed",
+            weight: 700,
+            script: "cyrillic",
+            loadedWeights: [],
+          },
+        ],
+      }),
+    ).toEqual([
+      "font not loaded: Fira Sans Extra Condensed 700 cyrillic (a system fallback drew it)",
+    ]);
   });
 });
 

@@ -64,7 +64,7 @@ describe("MatchSpeedControl", () => {
   it("outlines the pace a paused match resumes at, and Step is a row tall", () => {
     renderControl({ paused: true, pace: "fast" });
     const fast = screen.getByRole("radio", { name: "match.fast" });
-    expect(fast).toHaveClass("ring-positive-solid");
+    expect(fast).toHaveClass("ring-selected");
     expect(fast).not.toHaveClass("bg-primary-700");
     expect(screen.getByRole("button", { name: "match.step1Min" })).toHaveClass("h-row");
   });

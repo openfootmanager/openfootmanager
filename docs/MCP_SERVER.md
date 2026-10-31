@@ -59,6 +59,7 @@ All MCP-related arguments are only recognized when the `mcp` feature is compiled
 | `--mcp-auto-start <WORLD[,TEAM]>` | No* | — | Bootstrap a game before MCP starts. Format: `"/path/to/world.json"` or `"/path/to/world.json,team_id"`. Team ID is optional for HistoricalSnapshot worlds where the manager already has a team assigned. \*\*Required in competition mode\*\* (enforced after CLI parsing, at startup). |
 | `--build-revision` | No | — | Print the version and the source revision the binary was built from (`0.3.0+<revision>`) and exit. Needs no display and answers before the app starts, so it works in any build, with or without the `mcp` feature. A Windows release build is a GUI-subsystem program and prints nothing to an interactive console: redirect its output to a file. The E2E fixture uses it to refuse a stale binary. |
 | `--no-gui` | No | off | Hide the GUI window (headless). Saves ~150MB RAM per instance. |
+| `--dev-full-state` | No | off | Test infrastructure: registers `dev_full_game_state`, the whole game as JSON with every club's players at their exact ratings. The E2E harness passes it to every sandbox app (it compares live state with the saved database and checks that a refused call changed nothing). **Refused at startup with `--mcp-mode competition`**, so an agent cannot start its own server with it. |
 | `--mcp-seed <N>`, `--mcp-start-year <YEAR>`, `--mcp-start-phase <PHASE>` | No | — | Same as `game_new`'s `seed`, `start_year` and `start_phase`. Use `random` as the world to generate one: one seed gives the same team ids, so a sandbox run with the seed tells you which `team_id` to pass. |
 | `--manager-name <NAME>` | No | `Agent` | Manager first name for auto-start. |
 | `--manager-last-name <NAME>` | No | `Manager` | Manager last name for auto-start. |
@@ -80,18 +81,27 @@ In competition mode, the following tools are **completely omitted** from registr
 - `game_load_save` — agents cannot load arbitrary saves
 - `game_exit` — agents cannot quit to menu
 - `game_export_world` — agents cannot export the world
+- `info_game_state` — the raw game dump holds every club's players at their exact ratings and every club's finances; a competition agent follows the same knowledge rule as a player (an unscouted player is unknown)
+- `dev_full_game_state` — the dump's test-infrastructure twin (below); never registered in competition mode, and `--dev-full-state` together with `--mcp-mode competition` is a startup error
 
-This ensures all agents start from the same state and cannot manipulate the game setup.
+This ensures all agents start from the same state, cannot manipulate the game setup, and see only what their club knows. `--mcp-disable-tools` can still disable individual tools explicitly.
 
-`info_game_state` is available in competition mode by maintainer decision. It appears in `tools/list`
-and returns the full game as JSON, including other clubs' players. The mode restricts only the five
-setup tools above; `--mcp-disable-tools` can still disable individual tools explicitly.
+`dev_full_game_state` exists only when the app is launched with `--dev-full-state`, which the E2E harness does for every sandbox app. A competition app has no state oracle at all, the harness included: its snapshots compare the saves directory and the `info_game_summary` an agent can read.
+
+---
+
+## Career token
+
+The game's screen sends a career token with every command that changes the game, so a request
+meant for a replaced career is refused. MCP tools carry no token: an agent acts on whichever career
+is active, so an MCP tool that changes the active game writes with `Career::Active`. `game_select_team` and `game_load_save` install a career with a fresh token instead of checking one. See "Screen writes and the career check"
+in `docs/ARCHITECTURE.md`.
 
 ---
 
 ## Tool Reference
 
-90 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
+91 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
 > **Adding a new tool?** Follow the checklist in `src-tauri/src/mcp_server/tools.rs` at `tool_catalog()` — register the route, add to the catalog, add the implementation, emit `game-state-changed` if it mutates state, update competition-mode disabled list if needed, and update this document.
 
@@ -111,7 +121,8 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | Tool | Description |
 |------|-------------|
 | `info_game_summary` | High-level overview: date, league position, finances, next match, unread messages |
-| `info_game_state` | Full game state as JSON (programmatic access) |
+| `info_game_state` | Full game state as JSON (programmatic access); not available in competition mode |
+| `dev_full_game_state` | Test infrastructure: the whole game as JSON. Only with `--dev-full-state`; never in competition mode |
 | `info_standings` | Full league table with goal difference |
 | `info_fixtures` | Upcoming fixtures and recent results for your team |
 | `info_match_preview` | Next opponent details, form, and standings comparison |
@@ -123,7 +134,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `info_team_stats` | Season statistics for a team |
 | `info_team_match_history` | Match-by-match results for a team |
 | `info_finances` | Financial overview: wage spend, budget, projected net, debt status |
-| `info_finance_snapshot` | Detailed financial snapshot with all health metrics |
+| `info_finance_snapshot` | Detailed financial snapshot with all health metrics, for the manager's own club only (`team_id` may be left out or name the own club; another club's finances are refused) |
 | `info_news` | Recent news articles |
 
 ### Time (3 tools)
@@ -428,8 +439,8 @@ In competition mode, the formatted player tools limit information about other te
 - **Other teams**: OVR, position, age, and condition only
 - **Scouted players**: Full detail from scout reports (use `scout_send` → `scout_get_reports`)
 
-Scout reports provide the full details in these formatted tools. The raw `info_game_state` dump remains
-available as described under [Competition Mode](#competition-mode).
+Scout reports provide the full details in these formatted tools. The raw `info_game_state` dump is not
+available in competition mode, as described under [Competition Mode](#competition-mode).
 
 ---
 
