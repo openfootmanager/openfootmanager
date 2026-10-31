@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { knowledgeRevision } from "./playerKnowledge";
+import { knowledgeRevision, visibleRatingText } from "./playerKnowledge";
+
+describe("visibleRatingText", () => {
+  /**
+   * Given a rating the club knows, and one it does not
+   * When each is written for a list or a card
+   * Then the known one is its number and the unknown one is "–"
+   */
+  it("writes a known rating as its number and an unknown one as a dash", () => {
+    expect(visibleRatingText(77)).toBe("77");
+    expect(visibleRatingText(null)).toBe("–");
+  });
+});
 
 describe("knowledgeRevision", () => {
   const inputs = {
@@ -20,6 +32,27 @@ describe("knowledgeRevision", () => {
    */
   it("moves when another career replaces the one the profile was opened on", () => {
     expect(knowledgeRevision({ ...inputs, careerToken: 2 })).not.toBe(knowledgeRevision(inputs));
+  });
+
+  /**
+   * Given a profile open on one day
+   * When the game moves on a day, nothing else changing (a scout's report can land, a report can
+   *      go out of date)
+   * Then the key moves, so the club's knowledge is asked again
+   */
+  it("moves when the game moves on a day", () => {
+    expect(knowledgeRevision({ ...inputs, date: "2026-09-16" })).not.toBe(
+      knowledgeRevision(inputs),
+    );
+  });
+
+  /**
+   * Given a profile open on a player
+   * When his wage changes (a renewal), nothing else changing
+   * Then the key moves, so the wage the club may see is asked again
+   */
+  it("moves when the player's wage changes", () => {
+    expect(knowledgeRevision({ ...inputs, wage: 15_000 })).not.toBe(knowledgeRevision(inputs));
   });
 
   /**
