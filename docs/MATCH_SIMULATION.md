@@ -275,6 +275,10 @@ Users (and AI) can inject commands between minutes:
 
 In live mode, player condition depletes each minute based on `fatigue_per_minute`. A `condition_adjusted_skill()` function scales all attribute checks by the player's current condition, so fatigued players perform worse. This makes substitutions tactically meaningful.
 
+### In-match penalties
+
+A penalty awarded during play is taken by the side's designated penalty taker while that player is on the pitch. Otherwise, or when the taker has been sent off or substituted off, it goes to a forward. With no forward left it goes to a midfielder, then a defender, and the goalkeeper takes it only when nobody else is left.
+
 ### Penalty Shootout
 
 If a match is drawn after extra time (when allowed), a penalty shootout is resolved:

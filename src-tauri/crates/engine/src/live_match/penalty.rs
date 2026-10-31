@@ -143,7 +143,7 @@ impl LiveMatchState {
             .team_ref(side)
             .players
             .iter()
-            .filter(|player| !self.sent_off.contains(&player.id))
+            .filter(|player| self.is_on_the_pitch(side, &player.id))
             .collect();
         kickers.sort_by_key(|player| {
             let place = if Some(player.id.as_str()) == designated {
@@ -186,6 +186,21 @@ impl LiveMatchState {
         self.penalty_state.decided()
     }
 
+    /// The position a side picks its penalty taker from when it has no designated taker on
+    /// the pitch: a forward, else a midfielder, else a defender. Only a side with nobody but
+    /// its goalkeeper left asks for the goalkeeper; asking for a position nobody holds would
+    /// have picked from everyone, the goalkeeper included.
+    fn penalty_takers_position(&self, side: Side) -> Position {
+        [Position::Forward, Position::Midfielder, Position::Defender]
+            .into_iter()
+            .find(|position| {
+                self.team_ref(side).players.iter().any(|player| {
+                    player.position == *position && self.is_on_the_pitch(side, &player.id)
+                })
+            })
+            .unwrap_or(Position::Goalkeeper)
+    }
+
     pub(super) fn resolve_in_match_penalty<R: Rng>(
         &mut self,
         minute: u8,
@@ -195,20 +210,17 @@ impl LiveMatchState {
         let mut events = Vec::new();
 
         // The designated taker takes it only from the pitch. One who has been sent off or
-        // substituted off leaves it to the forward pick, as a side with no designated taker
+        // substituted off leaves it to the side's own pick, as a side with no designated taker
         // does. Looking the taker up by id would hand it to them anyway, or to the first
         // player in the squad, usually the goalkeeper.
         let designated = self
             .set_pieces_ref(att_side)
             .penalty_taker
             .clone()
-            .filter(|id| {
-                !self.sent_off.contains(id)
-                    && self.team_ref(att_side).players.iter().any(|p| p.id == *id)
-            });
+            .filter(|id| self.is_on_the_pitch(att_side, id));
         let taker = match designated {
             Some(id) => self.snap_player_by_id(&id, att_side),
-            None => self.snap_player(att_side, Position::Forward, rng),
+            None => self.snap_player(att_side, self.penalty_takers_position(att_side), rng),
         };
         let gk = self.snap_player(att_side.opposite(), Position::Goalkeeper, rng);
 
