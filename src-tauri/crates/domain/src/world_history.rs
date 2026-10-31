@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, TS)]
 pub struct WorldHistoryArchive {
     #[serde(default)]
     pub rivalries: Vec<WorldRivalry>,
@@ -19,7 +20,7 @@ pub struct WorldHistoryArchive {
 }
 
 /// The host nation awarded a future World Cup.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct WorldCupHostRecord {
     pub year: u32,
     pub nation_code: String,
@@ -27,21 +28,21 @@ pub struct WorldCupHostRecord {
 }
 
 /// One nation's place in the world ranking.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct NationRankingRecord {
     pub nation_code: String,
     pub points: f64,
 }
 
 /// A nation crowned at a World Cup — the game world's highest honour.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct WorldCupChampionRecord {
     pub year: u32,
     pub nation_code: String,
     pub nation_name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 pub struct WorldRivalry {
     pub team_a_id: String,
     pub team_b_id: String,
@@ -50,7 +51,7 @@ pub struct WorldRivalry {
     pub started_season: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct HistoricalSeasonAwardsRecord {
     pub season: u32,
     #[serde(default)]
@@ -69,7 +70,7 @@ pub struct HistoricalSeasonAwardsRecord {
     pub manager_of_season: Option<HistoricalManagerAwardWinner>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct HistoricalPlayerAwardWinner {
     pub player_id: String,
     pub player_name: String,
@@ -78,7 +79,7 @@ pub struct HistoricalPlayerAwardWinner {
     pub value: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub struct HistoricalManagerAwardWinner {
     pub manager_id: String,
     pub manager_name: String,

@@ -471,3 +471,114 @@ fn choose_rival_interest_target<'a, R: rand::Rng + ?Sized>(
 
     eligible.last().copied()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::player::{Player, PlayerAttributes, Position};
+    use rand::SeedableRng;
+
+    /// Given fitness at each side of every step: 29, 30, 40, 49, 50, 60, 69, 70, 80, 89 and 90
+    /// When the training-injury multiplier is read
+    /// Then it steps 3.0, 2.0, 1.5, 1.0 and 0.7 at 30, 50, 70 and 90
+    #[test]
+    fn injury_multiplier_steps_at_thirty_fifty_seventy_and_ninety() {
+        let multipliers: Vec<f64> = [29, 30, 40, 49, 50, 60, 69, 70, 80, 89, 90]
+            .into_iter()
+            .map(injury_probability_from_fitness)
+            .collect();
+
+        assert_eq!(
+            multipliers,
+            vec![3.0, 2.0, 2.0, 2.0, 1.5, 1.5, 1.5, 1.0, 1.0, 1.0, 0.7]
+        );
+    }
+
+    /// Given rival indices 3 and 8
+    /// When each is named
+    /// Then both are Real Progress: the five rivals repeat in turn
+    #[test]
+    fn rival_names_cycle_through_all_five_clubs() {
+        assert_eq!(
+            (rival_interest_name(3), rival_interest_name(8)),
+            ("Real Progress".to_string(), "Real Progress".to_string())
+        );
+    }
+
+    fn squad_player(id: &str, contract_end: Option<&str>, market_value: u64) -> Player {
+        let mut player = Player::new(
+            id.to_string(),
+            id.to_string(),
+            id.to_string(),
+            "1995-01-01".to_string(),
+            "England".to_string(),
+            Position::Midfielder,
+            PlayerAttributes {
+                pace: 60,
+                stamina: 60,
+                strength: 60,
+                agility: 60,
+                passing: 60,
+                shooting: 60,
+                tackling: 60,
+                dribbling: 60,
+                defending: 60,
+                positioning: 60,
+                vision: 60,
+                decisions: 60,
+                composure: 60,
+                aggression: 60,
+                teamwork: 60,
+                leadership: 60,
+                handling: 30,
+                reflexes: 30,
+                aerial: 60,
+            },
+        );
+        player.stage_contract_end(contract_end.map(str::to_string));
+        player.market_value = market_value;
+        player
+    }
+
+    fn mid_june() -> chrono::NaiveDate {
+        chrono::NaiveDate::from_ymd_opt(2025, 6, 15).unwrap()
+    }
+
+    /// Given a squad of one eligible player
+    /// When a rival picks a target
+    /// Then it is him: a lone player is always chosen
+    #[test]
+    fn a_lone_eligible_player_is_the_rivals_target() {
+        let only = squad_player("only", None, 0);
+        let eligible = [&only];
+        let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+
+        let target = choose_rival_interest_target(&eligible, mid_june(), &mut rng);
+
+        assert_eq!(target.map(|player| player.id.as_str()), Some("only"));
+    }
+
+    /// Given ten players on long contracts (weight 2 each) and one in the final weeks of his
+    ///       (weight 17)
+    /// When a rival picks a target 10,000 times
+    /// Then the expiring player is picked at least 30% of the time (17 in 37 is about 46%)
+    #[test]
+    fn rival_interest_falls_mostly_on_a_player_whose_contract_is_running_out() {
+        let secure: Vec<Player> = (0..10)
+            .map(|i| squad_player(&format!("secure{i}"), None, 0))
+            .collect();
+        let expiring = squad_player("expiring", Some("2025-07-05"), 0);
+        let mut eligible: Vec<&Player> = secure.iter().collect();
+        eligible.push(&expiring);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+
+        let picks = (0..10_000)
+            .filter(|_| {
+                choose_rival_interest_target(&eligible, mid_june(), &mut rng)
+                    .is_some_and(|player| player.id == "expiring")
+            })
+            .count();
+
+        assert!(picks >= 3_000, "{picks} of 10,000");
+    }
+}
