@@ -1,4 +1,5 @@
 use log::info;
+use ofm_core::morale::apply_morale_change;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -19,7 +20,7 @@ use crate::application::press_conference::{
 use crate::application::team_talk::apply_team_talk as apply_team_talk_service;
 use crate::commands::util::user_team_id;
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
 #[derive(Debug, Deserialize)]
 pub struct PressConferenceAnswer {
@@ -50,8 +51,11 @@ struct LocalizedPressQuote {
 // Live Match Commands
 // ---------------------------------------------------------------------------
 
-pub fn finish_live_match_internal(state: &StateManager) -> Result<FinishLiveMatchResponse, String> {
-    finish_live_match_service(state)
+pub fn finish_live_match_internal(
+    state: &StateManager,
+    career: Career,
+) -> Result<FinishLiveMatchResponse, String> {
+    finish_live_match_service(state, career)
 }
 
 /// The seed a team talk's morale swings are drawn from: the game's, for this tone and this
@@ -86,6 +90,7 @@ pub fn apply_team_talk_internal(
 /// `allows_extra_time` is retained only for existing callers' compatibility.
 pub fn start_live_match_internal(
     state: &StateManager,
+    career: Career,
     fixture_index: usize,
     mode: &str,
     allows_extra_time: bool,
@@ -94,6 +99,7 @@ pub fn start_live_match_internal(
 ) -> Result<engine::MatchSnapshot, String> {
     start_live_match_service(
         state,
+        career,
         fixture_index,
         mode,
         allows_extra_time,
@@ -112,12 +118,14 @@ pub fn start_live_match(
     allows_extra_time: bool,
     competition_id: Option<String>,
     fixture_id: Option<String>,
+    career_token: u64,
 ) -> Result<engine::MatchSnapshot, String> {
     if competition_id.is_none() || fixture_id.is_none() {
         return Err("be.error.liveMatch.fixtureNotFound".to_string());
     }
     start_live_match_internal(
         &state,
+        Career::Token(career_token),
         fixture_index,
         &mode,
         allows_extra_time,
@@ -131,8 +139,9 @@ pub fn start_live_match(
 pub fn step_live_match(
     state: State<'_, Arc<StateManager>>,
     minutes: u16,
+    career_token: u64,
 ) -> Result<Vec<engine::MinuteResult>, String> {
-    step_live_match_service(&state, minutes)
+    step_live_match_service(&state, Career::Token(career_token), minutes)
 }
 
 /// Apply a match command (substitution, tactic change, set piece taker, etc.)
@@ -140,8 +149,9 @@ pub fn step_live_match(
 pub fn apply_match_command(
     state: State<'_, Arc<StateManager>>,
     command: engine::MatchCommand,
+    career_token: u64,
 ) -> Result<engine::MatchSnapshot, String> {
-    apply_match_command_service(&state, command)
+    apply_match_command_service(&state, Career::Token(career_token), command)
 }
 
 /// Get current match snapshot without advancing time.
@@ -156,8 +166,9 @@ pub fn get_match_snapshot(
 #[tauri::command]
 pub fn finish_live_match(
     state: State<'_, Arc<StateManager>>,
+    career_token: u64,
 ) -> Result<FinishLiveMatchResponse, String> {
-    finish_live_match_internal(&state)
+    finish_live_match_internal(&state, Career::Token(career_token))
 }
 
 /// Apply a team talk and return per-player morale changes.
@@ -168,16 +179,28 @@ pub fn apply_team_talk(
     state: State<'_, Arc<StateManager>>,
     tone: String,
     context: String,
+    career_token: u64,
 ) -> Result<Vec<serde_json::Value>, String> {
     info!("[cmd] apply_team_talk: tone={}, context={}", tone, context);
+    apply_team_talk_on(&state, Career::Token(career_token), &tone, &context)
+}
+
+/// Applies a team talk to the career `career` names and returns the morale changes; refused if
+/// another career is active. The command and the MCP tool share it.
+pub fn apply_team_talk_on(
+    state: &StateManager,
+    career: Career,
+    tone: &str,
+    context: &str,
+) -> Result<Vec<serde_json::Value>, String> {
     // apply_team_talk validates (team assigned) before mutating morale.
-    let phase = live_phase_tag(&state);
+    let phase = live_phase_tag(state);
     state
-        .update_game(|game| {
-            let seed = team_talk_seed_in_phase(game, &tone, &context, &phase);
-            apply_team_talk_internal(game, &tone, &context, seed)
+        .update_game_for(career, |game| {
+            let seed = team_talk_seed_in_phase(game, tone, context, &phase);
+            apply_team_talk_internal(game, tone, context, seed)
         })
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+        .and_then(|talk| talk)
 }
 
 /// Process press conference answers: generate news article, affect squad morale.
@@ -185,11 +208,22 @@ pub fn apply_team_talk(
 pub fn submit_press_conference(
     state: State<'_, Arc<StateManager>>,
     answers: Vec<PressConferenceAnswer>,
+    career_token: u64,
 ) -> Result<serde_json::Value, String> {
     info!("[cmd] submit_press_conference: {} answers", answers.len());
+    submit_press_conference_on(&state, Career::Token(career_token), &answers)
+}
+
+/// Applies press conference answers to the career `career` names; refused if another career is
+/// active.
+pub fn submit_press_conference_on(
+    state: &StateManager,
+    career: Career,
+    answers: &[PressConferenceAnswer],
+) -> Result<serde_json::Value, String> {
     state
-        .update_game(|game| apply_press_conference(game, &answers))
-        .unwrap_or_else(|| Err("be.error.noActiveGameSession".to_string()))
+        .update_game_for(career, |game| apply_press_conference(game, answers))
+        .and_then(|conference| conference)
 }
 
 /// Applies a press conference to the game: individual morale, squad morale, and the news article.
@@ -298,7 +332,7 @@ fn apply_press_conference(
                 _ => rng.random_range(0..=3),
             };
             if let Some(p) = game.players.iter_mut().find(|p| p.id == answer.player_id) {
-                p.morale = ((p.morale as i16) + player_delta).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, player_delta);
             }
         }
     }
@@ -308,7 +342,7 @@ fn apply_press_conference(
     if morale_delta != 0 {
         for p in game.players.iter_mut() {
             if p.team_id.as_deref() == Some(&user_team_id) {
-                p.morale = ((p.morale as i16) + morale_delta).clamp(10, 100) as u8;
+                p.morale = apply_morale_change(p.morale, morale_delta);
             }
         }
     }
@@ -620,6 +654,104 @@ mod tests {
         morale_snapshot(&game)
     }
 
+    /// The user's squad after a match, every player at one morale.
+    fn squad_at(morale: u8) -> Game {
+        let mut game = game_after_a_match();
+        for player in game
+            .players
+            .iter_mut()
+            .filter(|player| player.team_id.as_deref() == Some("team1"))
+        {
+            player.morale = morale;
+        }
+        game
+    }
+
+    /// Each user's player's morale, by id.
+    fn squad_morale(game: &Game) -> Vec<(String, u8)> {
+        game.players
+            .iter()
+            .filter(|player| player.team_id.as_deref() == Some("team1"))
+            .map(|player| (player.id.clone(), player.morale))
+            .collect()
+    }
+
+    /// Where each player at 0 should end, from where the same player went from 50: up by what
+    /// the news was worth, or nowhere if it was bad.
+    fn expected_from_zero(steady: &Game) -> Vec<(String, u8)> {
+        squad_morale(steady)
+            .into_iter()
+            .map(|(id, morale)| (id, morale.saturating_sub(50)))
+            .collect()
+    }
+
+    /// Given the user's squad at morale 50, and the same squad at morale 0
+    /// When the same team talk is given to both, from the same seed
+    /// Then each player at 0 rises by what the talk gave the same player at 50, or stays at 0 if
+    ///      the talk went badly: no talk lifts a player to 10 whatever he hears
+    #[test]
+    fn a_team_talk_moves_a_very_unhappy_player_by_what_it_is_worth_and_no_more() {
+        let mut steady = squad_at(50);
+        let mut unhappy = squad_at(0);
+
+        apply_team_talk_internal(&mut steady, "aggressive", "losing", 7).unwrap();
+        apply_team_talk_internal(&mut unhappy, "aggressive", "losing", 7).unwrap();
+
+        let expected = expected_from_zero(&steady);
+        assert!(
+            expected.iter().any(|(_, morale)| *morale < 10),
+            "the talk must move someone by less than 10 to tell the floor apart: {expected:?}"
+        );
+        assert_eq!(squad_morale(&unhappy), expected);
+    }
+
+    /// Given the user's squad at morale 50, and the same squad at morale 0
+    /// When the same upbeat press conference is held for both, from the same seed, praising one
+    ///      player by name
+    /// Then each player at 0 rises by exactly what the same player at 50 rose, not to 10
+    #[test]
+    fn good_press_moves_a_very_unhappy_squad_by_what_it_is_worth_and_no_more() {
+        let answers = [press_answer("player_focus", "praise", "t1_mid0")];
+        let mut steady = squad_at(50);
+        steady.seed = 11;
+        let mut unhappy = squad_at(0);
+        unhappy.seed = 11;
+
+        apply_press_conference(&mut steady, &answers).expect("press conference applied");
+        apply_press_conference(&mut unhappy, &answers).expect("press conference applied");
+
+        assert_eq!(squad_morale(&unhappy), expected_from_zero(&steady));
+    }
+
+    /// Given the user's squad at morale 50, and the same squad at morale 3
+    /// When the same curt press conference is held for both, from the same seed
+    /// Then the squad at 50 drops and the squad at 3 stays at 3: bad press lifts nobody to 10
+    #[test]
+    fn bad_press_never_lifts_a_squad_whose_morale_is_below_ten() {
+        let answers = [
+            press_answer("q1", "curt", ""),
+            press_answer("q2", "evasive", ""),
+        ];
+        let seed = (0..)
+            .find(|&seed| {
+                let mut probe = squad_at(50);
+                probe.seed = seed;
+                apply_press_conference(&mut probe, &answers).expect("press conference applied");
+                squad_morale(&probe).iter().all(|(_, morale)| *morale < 50)
+            })
+            .expect("some seed makes the answers cost morale");
+        let mut unhappy = squad_at(3);
+        unhappy.seed = seed;
+
+        apply_press_conference(&mut unhappy, &answers).expect("press conference applied");
+
+        let unhappy_morale = squad_morale(&unhappy);
+        assert!(
+            unhappy_morale.iter().all(|(_, morale)| *morale == 3),
+            "{unhappy_morale:?}"
+        );
+    }
+
     /// Given a club after a match,
     /// When the same press conference is held twice from the same seed,
     /// Then the squad's mood moves the same way both times, and the seed is what decides by
@@ -814,7 +946,8 @@ mod tests {
         state.set_game(game);
         state.set_live_match(session);
 
-        finish_live_match_internal(&state).expect("finish live match response");
+        finish_live_match_internal(&state, ofm_core::state::Career::Active)
+            .expect("finish live match response");
 
         // Assert against the persisted state — not just the cloned response.game
         // — so a missing state.set_game() call would surface here.
@@ -883,7 +1016,8 @@ mod tests {
         state.set_game(game);
         state.set_live_match(session);
 
-        let response = finish_live_match_internal(&state).expect("finish live match response");
+        let response = finish_live_match_internal(&state, ofm_core::state::Career::Active)
+            .expect("finish live match response");
 
         let round_summary = response.round_summary.expect("round summary response");
         assert!(round_summary.is_complete);
@@ -938,7 +1072,8 @@ mod tests {
         state.set_game(game);
         state.set_live_match(session);
 
-        finish_live_match_internal(&state).expect("finish live match");
+        finish_live_match_internal(&state, ofm_core::state::Career::Active)
+            .expect("finish live match");
 
         let fixture = state
             .get_game(|g| g.competitions[0].fixtures[0].clone())
@@ -966,6 +1101,7 @@ mod tests {
         state.set_game(game);
         super::start_live_match_internal(
             &state,
+            ofm_core::state::Career::Active,
             0,
             "spectator",
             true,
@@ -1015,6 +1151,7 @@ mod tests {
         state.set_game(game);
         super::start_live_match_internal(
             &state,
+            ofm_core::state::Career::Active,
             1,
             "spectator",
             false,
@@ -1071,6 +1208,7 @@ mod tests {
                     };
                     let snapshot = super::start_live_match_internal(
                         &state,
+                        ofm_core::state::Career::Active,
                         0,
                         mode,
                         !knockout,
@@ -1099,6 +1237,7 @@ mod tests {
         state.set_game(loaded);
         let snapshot = super::start_live_match_internal(
             &state,
+            ofm_core::state::Career::Active,
             0,
             "live",
             false,
@@ -1126,8 +1265,16 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_round());
 
-        super::start_live_match_internal(&state, 0, "spectator", false, None, None)
-            .expect("start live match");
+        super::start_live_match_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "spectator",
+            false,
+            None,
+            None,
+        )
+        .expect("start live match");
 
         let (user_fixture, other_fixture) = state
             .get_game(|g| {
@@ -1158,8 +1305,16 @@ mod tests {
         // Reconstructing a session requires that no live session exists.
         // Completed same-day fixtures must still not be re-simulated.
         state.take_live_match().expect("clear transient session");
-        super::start_live_match_internal(&state, 0, "spectator", false, None, None)
-            .expect("restore live match");
+        super::start_live_match_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "spectator",
+            false,
+            None,
+            None,
+        )
+        .expect("restore live match");
         let restored_result = state
             .get_game(|g| g.league.as_ref().unwrap().fixtures[1].result.clone())
             .unwrap()
@@ -1174,13 +1329,29 @@ mod tests {
         state.set_game(make_game_with_round());
 
         // MCP supplies only the raw fixture index, without team IDs.
-        super::start_live_match_internal(&state, 0, "instant", false, None, None)
-            .expect("first start");
-        finish_live_match_internal(&state).expect("first finish");
+        super::start_live_match_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "instant",
+            false,
+            None,
+            None,
+        )
+        .expect("first start");
+        finish_live_match_internal(&state, ofm_core::state::Career::Active).expect("first finish");
         let before = state.get_game(|game| game.clone()).unwrap();
 
-        let error =
-            super::start_live_match_internal(&state, 0, "instant", false, None, None).unwrap_err();
+        let error = super::start_live_match_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "instant",
+            false,
+            None,
+            None,
+        )
+        .unwrap_err();
         assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
         let after = state.get_game(|game| game.clone()).unwrap();
         assert_eq!(after.clock.current_date, before.clock.current_date);
@@ -1205,6 +1376,7 @@ mod tests {
         // Command callers supply stable fixture identity on restore.
         let error = crate::application::live_match::start_live_match_with_identity(
             &state,
+            ofm_core::state::Career::Active,
             0,
             "live",
             false,
@@ -1224,8 +1396,16 @@ mod tests {
         // must not be allowed to replay a fixture completed in the source of truth.
         state.set_game(game);
 
-        let error = super::start_live_match_internal(&state, 0, "instant", false, None, None)
-            .expect_err("completed authoritative fixture must be rejected");
+        let error = super::start_live_match_internal(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "instant",
+            false,
+            None,
+            None,
+        )
+        .expect_err("completed authoritative fixture must be rejected");
         assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
     }
 
@@ -1239,6 +1419,7 @@ mod tests {
 
         let error = super::start_live_match_internal(
             &state,
+            ofm_core::state::Career::Active,
             1,
             "live",
             false,
@@ -1264,6 +1445,7 @@ mod tests {
         // same clubs is still Scheduled. Team IDs alone cannot restore it.
         let result = super::start_live_match_internal(
             &state,
+            ofm_core::state::Career::Active,
             0,
             "live",
             false,
@@ -1287,6 +1469,7 @@ mod tests {
 
         crate::application::live_match::start_live_match_with_identity(
             &state,
+            ofm_core::state::Career::Active,
             0,
             "live",
             true,
@@ -1311,7 +1494,8 @@ mod tests {
         state.set_live_match(session);
         let before = state.get_game(|game| game.clone()).unwrap();
 
-        let error = finish_live_match_internal(&state).unwrap_err();
+        let error =
+            finish_live_match_internal(&state, ofm_core::state::Career::Active).unwrap_err();
         assert_eq!(error, "be.error.liveMatch.fixtureNotFound");
         let after = state.get_game(|game| game.clone()).unwrap();
         assert_eq!(after.clock.current_date, before.clock.current_date);
@@ -1335,7 +1519,8 @@ mod tests {
         state.set_live_match(session);
         let before = state.get_game(|game| game.clone()).unwrap();
 
-        let error = finish_live_match_internal(&state).unwrap_err();
+        let error =
+            finish_live_match_internal(&state, ofm_core::state::Career::Active).unwrap_err();
         assert_eq!(error, "be.error.liveMatch.fixtureNotFound");
         let after = state.get_game(|game| game.clone()).unwrap();
         assert_eq!(after.clock.current_date, before.clock.current_date);
@@ -1359,7 +1544,8 @@ mod tests {
         state.set_live_match(session);
         let before = state.get_game(|game| game.clone()).unwrap();
 
-        let error = finish_live_match_internal(&state).unwrap_err();
+        let error =
+            finish_live_match_internal(&state, ofm_core::state::Career::Active).unwrap_err();
         assert_eq!(error, "be.error.liveMatch.fixtureNotScheduled");
         let after = state.get_game(|game| game.clone()).unwrap();
         assert_eq!(after.clock.current_date, before.clock.current_date);
@@ -1437,7 +1623,8 @@ mod tests {
         state.set_game(game);
         state.set_live_match(session);
 
-        let response = finish_live_match_internal(&state).expect("finish live match");
+        let response = finish_live_match_internal(&state, ofm_core::state::Career::Active)
+            .expect("finish live match");
 
         let cup = response
             .game
@@ -1538,7 +1725,7 @@ mod tests {
         state.set_game(game);
         state.set_live_match(session);
 
-        let result = finish_live_match_internal(&state);
+        let result = finish_live_match_internal(&state, ofm_core::state::Career::Active);
         assert!(
             result.is_err(),
             "out-of-range fixture index must error, not panic"
@@ -1756,14 +1943,27 @@ mod live_session_tests {
     fn state_at_minute_thirty() -> StateManager {
         let state = StateManager::new();
         state.set_game(make_game_with_matchday());
-        live_match::start_live_match_with_identity(&state, 0, "spectator", false, None, None)
-            .unwrap();
-        live_match::step_live_match(&state, 30).unwrap();
+        live_match::start_live_match_with_identity(
+            &state,
+            ofm_core::state::Career::Active,
+            0,
+            "spectator",
+            false,
+            None,
+            None,
+        )
+        .unwrap();
+        live_match::step_live_match(&state, ofm_core::state::Career::Active, 30).unwrap();
         let minute = live_match::get_match_snapshot(&state)
             .unwrap()
             .current_minute;
         if minute < 30 {
-            live_match::step_live_match(&state, u16::from(30 - minute)).unwrap();
+            live_match::step_live_match(
+                &state,
+                ofm_core::state::Career::Active,
+                u16::from(30 - minute),
+            )
+            .unwrap();
         }
         assert_eq!(
             live_match::get_match_snapshot(&state)
@@ -1772,6 +1972,123 @@ mod live_session_tests {
             30
         );
         state
+    }
+
+    /// Given a live match at minute 30 and a screen holding another career's token
+    /// When the screen's step arrives through the command
+    /// Then it is refused with the career-changed key and the match is still at minute 30.
+    #[test]
+    fn the_step_command_for_a_replaced_career_is_refused_and_the_match_stays() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        let app = WrapperApp::around(state_at_minute_thirty(), 0);
+
+        let refused = super::step_live_match(app.state(), 10, 5);
+
+        assert_eq!(refused.err(), Some("be.error.careerChanged".to_string()));
+        assert_eq!(
+            live_match::get_match_snapshot(&app.state())
+                .unwrap()
+                .current_minute,
+            30
+        );
+    }
+
+    /// Given a live match at minute 30 and a screen holding a token that is not its career's (5)
+    /// When the screen's step, command and finish arrive
+    /// Then each is refused with the career-changed key, the match is still at minute 30 and
+    ///      still there to finish, and the game is untouched; the match's own career then
+    ///      finishes it.
+    #[test]
+    fn live_match_writes_for_a_replaced_career_are_refused_and_leave_the_match_alone() {
+        use ofm_core::state::Career;
+        let state = state_at_minute_thirty();
+        let before = checkpoint(&state);
+        let stale = Career::Token(5);
+        let key = Some("be.error.careerChanged".to_string());
+
+        assert_eq!(live_match::step_live_match(&state, stale, 10).err(), key);
+        assert_eq!(
+            live_match::apply_match_command(
+                &state,
+                stale,
+                engine::MatchCommand::ChangeFormation {
+                    side: engine::Side::Home,
+                    formation: "4-3-3".to_string(),
+                }
+            )
+            .err(),
+            key
+        );
+        assert_eq!(live_match::finish_live_match(&state, stale).err(), key);
+
+        assert_eq!(checkpoint(&state), before);
+        assert_eq!(
+            live_match::get_match_snapshot(&state)
+                .unwrap()
+                .current_minute,
+            30
+        );
+        assert!(live_match::finish_live_match(&state, Career::Active).is_ok());
+    }
+
+    /// Given a game in career 3 and a screen holding career 5's token
+    /// When a team talk and a press conference arrive
+    /// Then both are refused with the career-changed key and the game is untouched; the right
+    ///      token reaches the team talk and applies it.
+    #[test]
+    fn a_team_talk_and_a_press_conference_for_a_replaced_career_are_refused() {
+        use ofm_core::state::Career;
+        let state = StateManager::new();
+        let mut game = make_game_with_matchday();
+        game.career_token = 3;
+        state.set_game(game);
+        let game_json = |state: &StateManager| {
+            serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap()
+        };
+        let before = game_json(&state);
+        let key = Some("be.error.careerChanged".to_string());
+
+        assert_eq!(
+            super::apply_team_talk_on(&state, Career::Token(5), "calm", "drawing").err(),
+            key
+        );
+        assert_eq!(
+            super::submit_press_conference_on(&state, Career::Token(5), &[]).err(),
+            key
+        );
+
+        assert_eq!(game_json(&state), before);
+        assert!(super::apply_team_talk_on(&state, Career::Token(3), "calm", "drawing").is_ok());
+        assert_ne!(
+            super::submit_press_conference_on(&state, Career::Token(3), &[]).err(),
+            key,
+            "the right token reaches the press conference itself"
+        );
+    }
+
+    /// Given a game in career 3 with no match under way and a screen holding career 5's token
+    /// When the screen asks to start a match
+    /// Then it is refused with the career-changed key and no match begins.
+    #[test]
+    fn starting_a_match_for_a_replaced_career_is_refused() {
+        use ofm_core::state::Career;
+        let state = StateManager::new();
+        let mut game = make_game_with_matchday();
+        game.career_token = 3;
+        state.set_game(game);
+
+        let result = live_match::start_live_match_with_identity(
+            &state,
+            Career::Token(5),
+            0,
+            "spectator",
+            false,
+            None,
+            None,
+        );
+
+        assert_eq!(result.err(), Some("be.error.careerChanged".to_string()));
+        assert!(state.take_live_match().is_none());
     }
 
     fn checkpoint(state: &StateManager) -> Value {
@@ -1797,32 +2114,27 @@ mod live_session_tests {
             }
         };
     }
-    refused_advance!(
-        plain_advancing_during_a_live_match_is_refused,
-        time::advance_time_internal
-    );
+    refused_advance!(plain_advancing_during_a_live_match_is_refused, |s| {
+        time::advance_time_internal(s, ofm_core::state::Career::Active)
+    });
     refused_advance!(mode_advancing_during_a_live_match_is_refused, |s| {
-        time_advancement::advance_time_with_mode(s, "delegate")
+        time_advancement::advance_time_with_mode(s, ofm_core::state::Career::Active, "delegate")
     });
     refused_advance!(live_mode_advancing_during_a_live_match_is_refused, |s| {
-        time_advancement::advance_time_with_mode(s, "live")
+        time_advancement::advance_time_with_mode(s, ofm_core::state::Career::Active, "live")
     });
-    refused_advance!(
-        skipping_during_a_live_match_is_refused,
-        time::skip_to_match_day_internal
-    );
-    refused_advance!(
-        one_day_advancing_during_a_live_match_is_refused,
-        time::advance_one_day_internal
-    );
-    refused_advance!(
-        event_advancing_during_a_live_match_is_refused,
-        time::advance_to_next_event_internal
-    );
-    refused_advance!(
-        season_advancing_during_a_live_match_is_refused,
-        season::advance_to_next_season_internal
-    );
+    refused_advance!(skipping_during_a_live_match_is_refused, |s| {
+        time::skip_to_match_day_internal(s, ofm_core::state::Career::Active)
+    });
+    refused_advance!(one_day_advancing_during_a_live_match_is_refused, |s| {
+        time::advance_one_day_internal(s, ofm_core::state::Career::Active)
+    });
+    refused_advance!(event_advancing_during_a_live_match_is_refused, |s| {
+        time::advance_to_next_event_internal(s, ofm_core::state::Career::Active)
+    });
+    refused_advance!(season_advancing_during_a_live_match_is_refused, |s| {
+        season::advance_to_next_season_internal(s, ofm_core::state::Career::Active)
+    });
 
     /// Given a live session, when another match is started, then the first session is unchanged.
     #[test]
@@ -1830,9 +2142,17 @@ mod live_session_tests {
         let state = state_at_minute_thirty();
         let before = checkpoint(&state);
         assert_eq!(
-            live_match::start_live_match_with_identity(&state, 0, "live", false, None, None)
-                .err()
-                .as_deref(),
+            live_match::start_live_match_with_identity(
+                &state,
+                ofm_core::state::Career::Active,
+                0,
+                "live",
+                false,
+                None,
+                None
+            )
+            .err()
+            .as_deref(),
             Some(KEY)
         );
         assert_eq!(checkpoint(&state), before);
@@ -1874,11 +2194,11 @@ mod live_session_tests {
         state.update_game(|game| game.teams[0].finance += 1234);
         let before = checkpoint(&state);
         let files = file_bytes(path);
-        let result = util::persist_active_game(&state, &mut saves);
+        let result = util::persist_active_game(&state, &mut saves, ofm_core::state::Career::Active);
         assert_eq!(result.err().as_deref(), Some(KEY));
         assert_eq!(file_bytes(path), files);
         assert_eq!(checkpoint(&state), before);
-        assert!(live_match::step_live_match(&state, 1).is_ok());
+        assert!(live_match::step_live_match(&state, ofm_core::state::Career::Active, 1).is_ok());
         drop(saves);
     }
 
@@ -1893,13 +2213,13 @@ mod live_session_tests {
             .create_save(&state.get_game(Clone::clone).unwrap(), "Finished match")
             .unwrap();
         state.set_save_id(id.clone());
-        live_match::finish_live_match(&state).unwrap();
+        live_match::finish_live_match(&state, ofm_core::state::Career::Active).unwrap();
         let expected = state
             .get_game(|game| {
                 serde_json::to_value(&game.league.as_ref().unwrap().fixtures[0]).unwrap()
             })
             .unwrap();
-        util::persist_active_game(&state, &mut saves).unwrap();
+        util::persist_active_game(&state, &mut saves, ofm_core::state::Career::Active).unwrap();
         let game = saves.load_game(&id).unwrap();
         let fixture = &game.league.unwrap().fixtures[0];
         assert_eq!(fixture.status, FixtureStatus::Completed);
@@ -1971,12 +2291,14 @@ mod live_session_tests {
             Some(id.clone()),
         );
         state.update_game(|game| game.teams[0].finance += 1234);
-        util::persist_active_game(&state, &mut saves).unwrap();
+        util::persist_active_game(&state, &mut saves, ofm_core::state::Career::Active).unwrap();
         let expected = state
             .get_game(|game| serde_json::to_value(game).unwrap())
             .unwrap();
         assert_eq!(
-            live_match::finish_live_match(&state).err().as_deref(),
+            live_match::finish_live_match(&state, ofm_core::state::Career::Active)
+                .err()
+                .as_deref(),
             Some("be.error.noActiveLiveMatch")
         );
         assert_eq!(
@@ -2016,7 +2338,9 @@ mod live_session_tests {
         assert!(state.with_live_match(|_| ()).is_none());
         assert!(state.get_save_id().is_none());
         assert_eq!(
-            live_match::finish_live_match(&state).err().as_deref(),
+            live_match::finish_live_match(&state, ofm_core::state::Career::Active)
+                .err()
+                .as_deref(),
             Some("be.error.noActiveLiveMatch")
         );
     }
@@ -2158,6 +2482,7 @@ mod live_session_tests {
             started_tx.send(()).unwrap();
             let result = live_match::start_live_match_with_identity(
                 &start_state,
+                ofm_core::state::Career::Active,
                 0,
                 "spectator",
                 false,
@@ -2198,6 +2523,7 @@ mod live_session_tests {
                     barrier.wait();
                     live_match::start_live_match_with_identity(
                         &state,
+                        ofm_core::state::Career::Active,
                         0,
                         "spectator",
                         false,
@@ -2238,7 +2564,9 @@ mod live_session_tests {
             .unwrap();
         let before = checkpoint(&state);
         assert_eq!(
-            time::advance_time_internal(&state).err().as_deref(),
+            time::advance_time_internal(&state, ofm_core::state::Career::Active)
+                .err()
+                .as_deref(),
             Some(KEY)
         );
         assert_eq!(checkpoint(&state), before);

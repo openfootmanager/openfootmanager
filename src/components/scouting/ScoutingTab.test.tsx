@@ -319,6 +319,7 @@ describe("ScoutingTab", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("send_scout", {
+        careerToken: 0,
         scoutId: "staff-1",
         playerId: "player-1",
       });
@@ -451,6 +452,7 @@ describe("ScoutingTab", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("start_youth_scouting", {
+        careerToken: 0,
         scoutId: "staff-1",
         region: "Domestic",
         objective: "Balanced",
@@ -500,6 +502,7 @@ describe("ScoutingTab", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("cancel_youth_scouting", {
+        careerToken: 0,
         assignmentId: "ysa-1",
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
@@ -618,6 +621,7 @@ describe("ScoutingTab", () => {
 
     await waitFor(() => {
       expect(invokeMock).toHaveBeenCalledWith("make_transfer_bid", {
+        careerToken: 0,
         playerId: "player-1",
         fee: 300000,
       });

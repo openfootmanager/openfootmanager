@@ -412,6 +412,7 @@
     "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",
+    "detailsFor": "Details zu {{name}}",
     "overallRating": "Gesamtstärke {{value}}",
     "overallRatingTier": "Gesamtstärke {{value}}, Stufe {{tier}}",
     "noResults": "Keine Ergebnisse gefunden.",
@@ -699,7 +700,6 @@
     "coverageNeedsAttention": "{{count}} Rollengruppen brauchen Verstärkung",
     "coverageBadge": "XI {{starters}}/{{required}} · Bank {{bench}}",
     "bestRole": "Beste Rolle",
-    "formationFit": "Vertrautheit",
     "startingXi": "Startelf",
     "starter": "Startelf",
     "benchOption": "Bank",
@@ -1618,6 +1618,7 @@
     "dateOfBirth": "Geburtsdatum",
     "noContract": "Kein Vertrag",
     "weeklyWage": "Wochengehalt",
+    "approximateWage": "etwa {{wage}}",
     "annualWage": "Jahresgehalt",
     "yearsRemaining": "Verbleibende Jahre",
     "contractRisk": "Vertragsrisiko",
@@ -2023,7 +2024,10 @@
       "suddenDeath": "Plötzlicher Tod",
       "shootoutScore": "Elfmeter: {{h}} – {{a}}",
       "homeKick": "Heimmannschaft schießt...",
-      "awayKick": "Gastmannschaft schießt..."
+      "awayKick": "Gastmannschaft schießt...",
+      "kickScored": "Schuss {{n}}, verwandelt",
+      "kickMissed": "Schuss {{n}}, verschossen",
+      "kickToCome": "Schuss {{n}}, steht noch aus"
     },
     "fullTime": "Vollzeit",
     "ft": "VZ",
@@ -2696,6 +2700,7 @@
         "maxSubstitutionsReached": "Maximale Anzahl an Auswechslungen erreicht",
         "preMatchSwapTooLate": "Vorab-Wechsel sind nur vor dem Anstoß erlaubt",
         "cannotSubstituteSentOffPlayer": "Ein des Feldes verwiesener Spieler kann nicht ausgewechselt werden",
+        "noSubstitutionsForShootout": "Nach dem Ende der Verlängerung sind keine Wechsel mehr möglich: Das Elfmeterschießen bestreiten die Spieler, die beim Schlusspfiff auf dem Platz standen.",
         "playerNotOnPitch": "Spieler ist nicht auf dem Platz",
         "playerAlreadySubstitutedOff": "Dieser Spieler wurde bereits ausgewechselt",
         "playerNotOnBench": "Spieler ist nicht auf der Bank",
@@ -3658,7 +3663,9 @@
       "weeklyDigest": {
         "headline": "Wochendigest — Woche vom {{weekStart}}",
         "bodyNoTopScorer": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, und {{storylineCount}} Storyline(s) prägen die Liga in dieser Woche.",
-        "bodyWithTopScorer": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, während {{topScorer}} mit {{topScorerGoals}} Tor(en) die Torjägerliste anführt. {{storylineCount}} Storyline(s) prägen die Liga in dieser Woche."
+        "bodyWithTopScorer": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, während {{topScorer}} mit {{topScorerGoals}} Tor(en) die Torjägerliste anführt. {{storylineCount}} Storyline(s) prägen die Liga in dieser Woche.",
+        "bodyNoTopScorerNoStorylines": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an.",
+        "bodyWithTopScorerNoStorylines": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, während {{topScorer}} mit {{topScorerGoals}} Tor(en) die Torjägerliste anführt."
       },
       "preseasonDigest": {
         "headline": "Vorbereitungsspiegel — Woche vom {{weekStart}}",

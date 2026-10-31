@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type { InvokeArgs } from "@tauri-apps/api/core";
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
+import type { PlayerKnowledge, VisibleWage } from "../../services/scoutingService";
 import PlayerProfile from "./PlayerProfile";
 import { createSeasonContext } from "../../test-utils/factories";
 
@@ -31,6 +32,40 @@ const riskLevels = vi.hoisted(() => ({
 
 vi.mock("../../hooks/useContractWarningStages", () => ({
   useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
+}));
+
+// What the club knows about each player, by id, as the backend's knowledge rule would answer; a test
+// names the rivals it shows. Everyone else reads as the club's own, which most of these tests render.
+// The hook that asks for it has its own test.
+// Each revision the profile hands the hook is kept, so a test can see when it would ask again.
+const knowledge = vi.hoisted(() => ({
+  current: {} as Record<string, PlayerKnowledge>,
+  revisions: [] as string[],
+}));
+
+vi.mock("../../hooks/usePlayerKnowledge", () => ({
+  usePlayerKnowledge: (_playerIds: string[], revision: string) => {
+    knowledge.revisions.push(revision);
+    return (playerId: string) => knowledge.current[playerId] ?? ({ kind: "own" } as const);
+  },
+}));
+
+// The wage the club may see, by player id, as the backend's `visible_wage` would answer. Everyone
+// else reads as the club's own player on his current wage, which the profile's revision key ends
+// with, as the backend would answer after a renewal.
+const wages = vi.hoisted(() => ({
+  current: {} as Record<string, VisibleWage>,
+  revisions: [] as string[],
+}));
+
+vi.mock("../../hooks/useVisibleWage", () => ({
+  useVisibleWage: (playerId: string, revision: string) => {
+    wages.revisions.push(revision);
+    return (
+      wages.current[playerId] ??
+      ({ kind: "exact", weekly: Number(JSON.parse(revision).at(-1)) } as const)
+    );
+  },
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -72,6 +107,7 @@ vi.mock("react-i18next", () => ({
       if (key === "playerProfile.contractInfo") return "Contract Info";
       if (key === "playerProfile.dateOfBirth") return "Date of Birth";
       if (key === "playerProfile.weeklyWage") return "Weekly Wage";
+      if (key === "playerProfile.approximateWage") return `about ${params?.wage}`;
       if (key === "playerProfile.annualWage") return "Annual Wage";
       if (key === "playerProfile.noContract") return "No Contract";
       if (key === "playerProfile.yearsRemaining") return "Years Remaining";
@@ -408,6 +444,7 @@ function RenewalHarness({ initialPlayer }: { initialPlayer?: PlayerData }) {
 describe("PlayerProfile contract surfaces", () => {
   beforeEach(() => {
     riskLevels.current = {};
+    knowledge.current = {};
     vi.mocked(invoke).mockReset();
     vi.mocked(invoke).mockImplementation(async (command: string) => defaultInvokeResponse(command));
   });
@@ -510,6 +547,9 @@ describe("PlayerProfile contract surfaces", () => {
    */
   it("shows a scouted player's snapshot attributes with the backend's out-of-date verdict", async () => {
     const player = createPlayer({ team_id: "team-2" });
+    knowledge.current = {
+      [player.id]: { kind: "scouted", scouted_on: "2026-03-10", current: false },
+    };
     vi.mocked(invoke).mockImplementation(async (command: string, args?: InvokeArgs) => {
       if (command === "get_scouted_report") {
         expect(args).toEqual({ playerId: player.id });
@@ -544,6 +584,7 @@ describe("PlayerProfile contract surfaces", () => {
    */
   it("keeps the attributes hidden when the backend has no report", async () => {
     const player = createPlayer({ team_id: "team-2" });
+    knowledge.current = { [player.id]: { kind: "unknown" } };
     vi.mocked(invoke).mockImplementation(async (command: string) => {
       if (command === "get_scouted_report") return null;
       return defaultInvokeResponse(command);
@@ -1050,6 +1091,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("propose_renewal", {
+        careerToken: 0,
         playerId: "player-1",
         weeklyWage: 15000,
         contractYears: 3,
@@ -1238,6 +1280,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("delegate_renewals", {
+        careerToken: 0,
         playerIds: ["player-1"],
         maxWageIncreasePct: 35,
         maxContractYears: 3,
@@ -1453,6 +1496,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("set_contract_exit_intent", {
+        careerToken: 0,
         playerId: "player-1",
         reason: "manager_profile_action",
       });
@@ -1463,6 +1507,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("clear_contract_exit_intent", {
+        careerToken: 0,
         playerId: "player-1",
       });
       expect(screen.getByRole("button", { name: "Let Expire" })).toBeInTheDocument();
@@ -1545,6 +1590,7 @@ describe("PlayerProfile contract surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Let Expire" }));
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("set_contract_exit_intent", {
+        careerToken: 0,
         playerId: "player-1",
         reason: "manager_profile_action",
       });
@@ -1624,6 +1670,7 @@ describe("PlayerProfile contract surfaces", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("terminate_contract_now", {
+        careerToken: 0,
         playerId: "player-1",
       });
       expect(screen.getByText("No Contract")).toBeInTheDocument();
@@ -1662,6 +1709,7 @@ describe("PlayerProfile switching between players", () => {
     fireEvent.click(screen.getByRole("button", { name: "Scout" }));
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("send_scout", {
+        careerToken: 0,
         scoutId: "scout-1",
         playerId: "player-1",
       });
@@ -1876,11 +1924,238 @@ describe("PlayerProfile free agent signing", () => {
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("offer_free_agent_contract", {
+        careerToken: 0,
         playerId: "player-1",
         weeklyWage: 3000,
         contractYears: 3,
       });
       expect(onGameUpdate).toHaveBeenCalled();
     });
+  });
+});
+
+describe("PlayerProfile shows only what the club knows", () => {
+  beforeEach(() => {
+    riskLevels.current = {};
+    knowledge.current = {};
+    knowledge.revisions = [];
+    wages.current = {};
+    wages.revisions = [];
+    vi.mocked(invoke).mockReset();
+    vi.mocked(invoke).mockImplementation(async (command: string) => defaultInvokeResponse(command));
+  });
+
+  // Renders a rival's profile, then the same profile on `next`, and says whether the profile handed
+  // the knowledge and wage hooks a new revision for it: whether they would ask the backend again.
+  function asksAgainOn(next: (gameState: GameStateData) => GameStateData) {
+    const player = rival();
+    const gameState = createGameState(player);
+    const { rerender } = render(
+      <PlayerProfile
+        player={player}
+        gameState={gameState}
+        isOwnClub={false}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+    const last = (revisions: string[]) => revisions[revisions.length - 1];
+    const before = [last(knowledge.revisions), last(wages.revisions)];
+    rerender(
+      <PlayerProfile
+        player={player}
+        gameState={next(gameState)}
+        isOwnClub={false}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+    return [last(knowledge.revisions) !== before[0], last(wages.revisions) !== before[1]];
+  }
+
+  /**
+   * Given a rival's profile open on the last day of a season
+   * When the season rolls over on the same date (promotion and relegation change who is known)
+   * Then the profile asks again what the club knows and which wage it may see
+   */
+  it("asks again about a rival when the season rolls over on the same date", () => {
+    expect(
+      asksAgainOn((gameState) => ({
+        ...gameState,
+        season_context: { ...gameState.season_context, season_start: "2099-07-01" },
+      })),
+    ).toEqual([true, true]);
+  });
+
+  /**
+   * Given a rival's profile open
+   * When another career is installed under it, on the same date, with the same clubs
+   * Then the profile asks again what the club knows and which wage it may see
+   */
+  it("asks again about a rival when another career is installed under the profile", () => {
+    expect(
+      asksAgainOn((gameState) => ({
+        ...gameState,
+        career_token: (gameState.career_token ?? 0) + 1,
+      })),
+    ).toEqual([true, true]);
+  });
+
+  // Condition 80, morale 75, a weekly wage of 12K (also on his contract in the movement history)
+  // and the potential-derived Wonderkid tag: each one something a club only knows about its own
+  // player, or (the tag) about one it has scouted.
+  function rival(): PlayerData {
+    return createPlayer({
+      team_id: "team-2",
+      ovr: 77,
+      condition: 80,
+      morale: 75,
+      traits: ["Wonderkid"],
+      movement_history: [
+        {
+          date: "2025-07-01",
+          kind: "initial_contract",
+          to_team_id: "team-2",
+          to_team_name: "Rival FC",
+          contract: {
+            start: "2025-07-01",
+            end: "2028-06-30",
+            weekly_wage: 12_000,
+            source: "initial",
+          },
+        },
+      ],
+    });
+  }
+
+  // The movement history's wage on a contract, which only the club's own player shows.
+  const showsMovementWage = () => screen.queryByText("playerProfile.movementWage") !== null;
+
+  function renderProfile(player: PlayerData) {
+    render(
+      <PlayerProfile
+        player={player}
+        gameState={createGameState(player, [createStaff()])}
+        isOwnClub={false}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+  }
+
+  // The contract card's weekly wage row: its value, apart from its label.
+  const contractWageValue = () =>
+    screen.getByText("Weekly Wage").parentElement?.textContent?.replace("Weekly Wage", "").trim();
+
+  const showsWage = () =>
+    screen.queryAllByText((_, element) => hasWeeklyWage(element?.textContent ?? "", "12K")).length >
+    0;
+
+  /**
+   * Given a player at a club in another division, never scouted
+   * When his profile opens
+   * Then his OVR, condition, morale, wage, attributes and Wonderkid tag are not shown; his market
+   *      value, which is public, is
+   */
+  it("shows only public facts about a player the club does not know", async () => {
+    const player = rival();
+    knowledge.current = { [player.id]: { kind: "unknown" } };
+    wages.current = { [player.id]: { kind: "hidden" } };
+
+    renderProfile(player);
+
+    expect(await screen.findByText("playerProfile.attributesHidden")).toBeInTheDocument();
+    expect(screen.queryByText("80%")).not.toBeInTheDocument();
+    expect(screen.queryByText("75%")).not.toBeInTheDocument();
+    expect(showsWage()).toBe(false);
+    expect(contractWageValue()).toBe("–");
+    expect(showsMovementWage()).toBe(false);
+    expect(screen.queryByText("77")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Wonderkid/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("€350K").length).toBeGreaterThan(0);
+  });
+
+  /**
+   * Given a player at a club in the manager's own division, never scouted
+   * When his profile opens
+   * Then his OVR and attributes show, as the staff see him every season; the Wonderkid tag, which
+   *      tells his potential, waits for a scout; his condition, morale and wage stay his club's
+   *      business
+   */
+  it("shows a known rival's attributes but not his potential or his club's private state", async () => {
+    const player = rival();
+    knowledge.current = { [player.id]: { kind: "known" } };
+    wages.current = { [player.id]: { kind: "hidden" } };
+
+    renderProfile(player);
+
+    expect(await screen.findByText("77")).toBeInTheDocument();
+    expect(screen.queryByText(/Wonderkid/)).not.toBeInTheDocument();
+    expect(screen.queryByText("playerProfile.attributesHidden")).not.toBeInTheDocument();
+    expect(screen.queryByText("80%")).not.toBeInTheDocument();
+    expect(screen.queryByText("75%")).not.toBeInTheDocument();
+    expect(showsWage()).toBe(false);
+    expect(contractWageValue()).toBe("–");
+    expect(showsMovementWage()).toBe(false);
+  });
+
+  /**
+   * Given a player in another division whom a scout reported on this season
+   * When his profile opens
+   * Then the scout's attributes and the Wonderkid tag (his view of the potential) show and his wage
+   *      reads as about the figure, but not his OVR (no estimate yet), his condition or his morale
+   */
+  it("shows a scouted player's report but not what the scout could not see", async () => {
+    const player = rival();
+    knowledge.current = {
+      [player.id]: { kind: "scouted", scouted_on: "2026-09-01", current: true },
+    };
+    wages.current = { [player.id]: { kind: "approximate", weekly: 16_000 } };
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_scouted_report") {
+        return {
+          player_id: player.id,
+          scouted_on: "2026-09-01",
+          attributes: player.attributes,
+          out_of_date: false,
+        };
+      }
+      return defaultInvokeResponse(command);
+    });
+
+    renderProfile(player);
+
+    await waitFor(() => {
+      expect(screen.queryByText("playerProfile.attributesHidden")).not.toBeInTheDocument();
+    });
+    expect(await screen.findByText(/Wonderkid/)).toBeInTheDocument();
+    expect(screen.queryByText("80%")).not.toBeInTheDocument();
+    expect(screen.queryByText("77")).not.toBeInTheDocument();
+    expect(contractWageValue()).toBe("about €16,000/wk");
+    expect(screen.getAllByText("about €16K/wk").length).toBeGreaterThan(0);
+    expect(showsMovementWage()).toBe(false);
+  });
+
+  /**
+   * Given the club's own player
+   * When his profile opens
+   * Then everything shows: condition, morale, exact wage and the Wonderkid tag
+   */
+  it("shows everything about the club's own player", () => {
+    const player = createPlayer({
+      ovr: 77,
+      condition: 80,
+      morale: 75,
+      traits: ["Wonderkid"],
+      movement_history: rival().movement_history,
+    });
+    knowledge.current = { [player.id]: { kind: "own" } };
+
+    render(<PlayerProfile player={player} gameState={createGameState(player)} isOwnClub />);
+
+    expect(screen.getAllByText("80%").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("75%").length).toBeGreaterThan(0);
+    expect(showsWage()).toBe(true);
+    expect(contractWageValue()).not.toBe("–");
+    expect(showsMovementWage()).toBe(true);
+    expect(screen.getByText("77")).toBeInTheDocument();
+    expect(screen.getByText(/Wonderkid/)).toBeInTheDocument();
   });
 });

@@ -2,16 +2,15 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
 import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
-import { formatExactMoney, getTeamName, positionBadgeVariant } from "../../lib/helpers";
+import { formatExactMoney, getTeamName } from "../../lib/helpers";
 import type { TransferNegotiationResponseData } from "../../services/transfersService";
 import NegotiationFeedbackPanel, {
   type NegotiationFeedbackPanelData,
 } from "../NegotiationFeedbackPanel";
-import { Badge } from "../ui";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { naturalPositionOf } from "../../lib/positions";
 import TransferNegotiationHistory from "./TransferNegotiationHistory";
 import { parseTransferFeeInput } from "./TransfersTab.helpers";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface TransferCounterTarget {
   player: PlayerData;
@@ -69,9 +68,7 @@ export default function TransferCounterOfferModal({
           {t("transfers.counterOffer")}
         </h3>
         <div className="flex items-center gap-3 mb-4">
-          <Badge variant={positionBadgeVariant(naturalPositionOf(counterTarget.player))} size="sm">
-            {translatePositionAbbreviation(t, naturalPositionOf(counterTarget.player))}
-          </Badge>
+          <PlayerPositionBadge position={naturalPositionOf(counterTarget.player)} />
           <div>
             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
               {counterTarget.player.full_name}

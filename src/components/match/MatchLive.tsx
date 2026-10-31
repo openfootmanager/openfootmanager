@@ -37,6 +37,7 @@ import {
   Target,
   Flag,
 } from "lucide-react";
+import { invokeForCareer } from "../../services/careerInvoke";
 
 type ActivePanel = "events" | "stats" | "lineups";
 
@@ -124,7 +125,7 @@ export default function MatchLive({
     async (minutes: number) => {
       if (transitioningRef.current) return;
       try {
-        const results = await invoke<MinuteResult[]>("step_live_match", { minutes });
+        const results = await invokeForCareer<MinuteResult[]>("step_live_match", { minutes });
         if (results.length > 0) {
           const lastResult = results[results.length - 1];
 

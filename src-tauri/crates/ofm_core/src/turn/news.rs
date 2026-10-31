@@ -172,17 +172,27 @@ fn unbeaten_run_length(form: &[String]) -> u32 {
     streak
 }
 
-fn top_scorer_summary(game: &Game) -> Option<(String, u32)> {
+/// The division's leading scorer: the most goals among the players of its clubs, ties to the
+/// name. The digest speaks for one division, so a striker elsewhere in the world is not its
+/// top scorer however many goals they have.
+fn division_top_scorer<'a>(game: &'a Game, league: &League) -> Option<&'a domain::player::Player> {
     game.players
         .iter()
         .filter(|player| player.stats.goals > 0)
+        .filter(|player| {
+            player.team_id.as_deref().is_some_and(|team_id| {
+                league
+                    .standings
+                    .iter()
+                    .any(|entry| entry.team_id == team_id)
+            })
+        })
         .max_by(|a, b| {
             a.stats
                 .goals
                 .cmp(&b.stats.goals)
                 .then_with(|| a.match_name.cmp(&b.match_name))
         })
-        .map(|player| (player.match_name.clone(), player.stats.goals))
 }
 
 fn weekly_storyline_articles(
@@ -441,11 +451,8 @@ fn world_news_priority(game: &Game, article: &domain::news::NewsArticle) -> i64 
         * rivalry_multiplier
 }
 
-fn apply_daily_world_news_cap(
-    game: &Game,
-    date: &str,
-    candidates: Vec<domain::news::NewsArticle>,
-) -> Vec<domain::news::NewsArticle> {
+/// How many more non-match articles `date` can take under the daily cap.
+fn available_world_news_slots(game: &Game, date: &str) -> usize {
     let existing_non_match_count = game
         .news
         .iter()
@@ -453,8 +460,24 @@ fn apply_daily_world_news_cap(
             article.date == date && article.category != domain::news::NewsCategory::MatchReport
         })
         .count();
-    let available_slots = MAX_DAILY_WORLD_NEWS_ARTICLES.saturating_sub(existing_non_match_count);
+    MAX_DAILY_WORLD_NEWS_ARTICLES.saturating_sub(existing_non_match_count)
+}
 
+fn apply_daily_world_news_cap(
+    game: &Game,
+    date: &str,
+    candidates: Vec<domain::news::NewsArticle>,
+) -> Vec<domain::news::NewsArticle> {
+    let available_slots = available_world_news_slots(game, date);
+    keep_highest_priority(game, candidates, available_slots)
+}
+
+/// The `available_slots` highest-priority candidates, in their original order.
+fn keep_highest_priority(
+    game: &Game,
+    candidates: Vec<domain::news::NewsArticle>,
+    available_slots: usize,
+) -> Vec<domain::news::NewsArticle> {
     if candidates.len() <= available_slots {
         return candidates;
     }
@@ -663,32 +686,66 @@ pub(super) fn generate_weekly_digest_news(game: &mut Game, today: &str) {
     }
 
     let date = game.clock.current_date.to_rfc3339();
-    let sorted_standings = league.sorted_standings();
-    let leader = sorted_standings
+    let leader_team_id = league
+        .sorted_standings()
         .first()
-        .map(|entry| team_name(game, &entry.team_id))
-        .unwrap_or_else(|| "Unknown".to_string());
+        .map(|entry| entry.team_id.clone());
+    let top_scorer = division_top_scorer(game, league).map(|player| {
+        (
+            player.id.clone(),
+            player.match_name.clone(),
+            player.stats.goals,
+        )
+    });
     let storylines = weekly_storyline_articles(game, &suffix, &date);
+    // Rumours are drawn even on a full day: drawing them also retires stale ones.
     let rumours = weekly_rumour_articles(game, &suffix, &date);
-    let (top_scorer, top_scorer_goals) =
-        top_scorer_summary(game).unwrap_or_else(|| (String::new(), 0));
+    let mut coverage = Vec::new();
+    if let Some(roundup) = weekly_transfer_roundup_article(game, &suffix, today, &date) {
+        coverage.push(roundup);
+    }
+    coverage.extend(storylines);
+    coverage.extend(rumours);
 
-    let mut candidates = vec![news::weekly_digest_article(
+    // A division with no table has no digest ("Unknown leads the table" is not news), but the
+    // week's other coverage does not depend on the table.
+    let Some(leader_team_id) = leader_team_id else {
+        let coverage = apply_daily_world_news_cap(game, &date, coverage);
+        game.news.extend(coverage);
+        return;
+    };
+    let leader = team_name(game, &leader_team_id);
+
+    // The digest is published every week, outside the daily cap, as match reports are: on a busy
+    // Monday the transfer, loan, appointment and injury writers can fill the day before it runs,
+    // and the week's summary must not be what gives way. The rest of the week's coverage competes
+    // for the slots that are left, and the digest counts only the storylines that won one.
+    let available_slots = available_world_news_slots(game, &date);
+    let coverage = keep_highest_priority(game, coverage, available_slots);
+    // Counted after the cap, so the digest names only storylines that were published.
+    let storyline_count = coverage
+        .iter()
+        .filter(|article| article.id.starts_with("storyline_"))
+        .count();
+
+    let digest = news::weekly_digest_article(
         &digest_id,
         today,
+        &leader_team_id,
         &leader,
-        &top_scorer,
-        top_scorer_goals,
-        storylines.len(),
+        top_scorer
+            .as_ref()
+            .map(|(player_id, name, goals)| news::DigestTopScorer {
+                player_id,
+                name,
+                goals: *goals,
+            })
+            .as_ref(),
+        storyline_count,
         &date,
-    )];
-    if let Some(roundup) = weekly_transfer_roundup_article(game, &suffix, today, &date) {
-        candidates.push(roundup);
-    }
-    candidates.extend(storylines);
-    candidates.extend(rumours);
-    game.news
-        .extend(apply_daily_world_news_cap(game, &date, candidates));
+    );
+    game.news.push(digest);
+    game.news.extend(coverage);
 }
 
 /// Generate a match report news article for the completed fixture.
@@ -1953,12 +2010,19 @@ mod tests {
         fringe_player.market_value = 900_000;
         game.players.push(fringe_player);
 
+        // One article already out today leaves four slots for the five coverage candidates (the
+        // roundup, two storylines, two rumours), so the cap has to choose between the rumours.
+        publish_earlier_news_today(&mut game, 1);
         generate_weekly_digest_news(&mut game, "2025-08-11");
 
+        assert!(weekly_digest(&game).is_some());
         assert_eq!(
-            game.news.len(),
+            game.news
+                .iter()
+                .filter(|article| !article.id.starts_with("weekly_digest_"))
+                .count(),
             5,
-            "weekly world news should respect the hard cap"
+            "the week's other coverage respects the hard cap; only the digest stands outside it"
         );
         assert!(
             game.news
@@ -1971,6 +2035,186 @@ mod tests {
                 .iter()
                 .all(|article| !article.id.starts_with("rumour_ai-fringe_")),
             "The lower-priority rumour should be dropped when the cap is reached"
+        );
+    }
+
+    /// Two storylines this week: Alpha one point clear of Beta, and on a five-match unbeaten run.
+    fn set_up_a_week_with_two_storylines(game: &mut Game) {
+        for (team_id, points, goals_for, goals_against) in [
+            ("team1", 25, 18, 8),
+            ("team2", 24, 16, 9),
+            ("team3", 7, 6, 15),
+        ] {
+            let entry = standing_mut(game, team_id);
+            entry.played = 10;
+            entry.points = points;
+            entry.goals_for = goals_for;
+            entry.goals_against = goals_against;
+        }
+        team_mut(game, "team1").form = ["D", "W", "W", "W", "W"]
+            .iter()
+            .map(|result| result.to_string())
+            .collect();
+    }
+
+    /// Fill `count` of the day's world-news slots with articles already published today.
+    fn publish_earlier_news_today(game: &mut Game, count: usize) {
+        let today = game.clock.current_date.to_rfc3339();
+        for index in 0..count {
+            game.news.push(domain::news::NewsArticle::new(
+                format!("earlier_{index}"),
+                String::new(),
+                String::new(),
+                String::new(),
+                today.clone(),
+                NewsCategory::TransferRumour,
+            ));
+        }
+    }
+
+    fn weekly_digest(game: &Game) -> Option<&domain::news::NewsArticle> {
+        game.news
+            .iter()
+            .find(|article| article.id.starts_with("weekly_digest_"))
+    }
+
+    fn published_storylines(game: &Game) -> usize {
+        game.news
+            .iter()
+            .filter(|article| article.id.starts_with("storyline_"))
+            .count()
+    }
+
+    /// Given a week with two storylines and only one free news slot today,
+    /// when the weekly digest is written,
+    /// then it is published, and the number of storylines it announces is the number published.
+    #[test]
+    fn the_digest_counts_only_the_storylines_published_with_it() {
+        let mut game = make_game("2025-08-11", FixtureStatus::Completed);
+        set_current_date(&mut game, 2025, 8, 11);
+        set_up_a_week_with_two_storylines(&mut game);
+        publish_earlier_news_today(&mut game, 4);
+
+        generate_weekly_digest_news(&mut game, "2025-08-11");
+
+        let digest = weekly_digest(&game).expect("the digest is published outside the cap");
+        assert_eq!(
+            digest.i18n_params.get("storylineCount"),
+            Some(&published_storylines(&game).to_string()),
+            "the digest may only count storylines the reader can find"
+        );
+        assert_eq!(published_storylines(&game), 1);
+        assert_eq!(
+            digest.body_key.as_deref(),
+            Some("be.news.weeklyDigest.bodyNoTopScorer"),
+            "a published storyline is announced in the body"
+        );
+    }
+
+    /// Given a busy Monday whose world-news slots were all taken by earlier news,
+    /// when the weekly digest is written,
+    /// then the digest is still published, with none of the week's other coverage, and it says
+    /// nothing about storylines it could not publish.
+    #[test]
+    fn a_full_news_day_still_gets_its_digest_and_no_coverage() {
+        let mut game = make_game("2025-08-11", FixtureStatus::Completed);
+        set_current_date(&mut game, 2025, 8, 11);
+        set_up_a_week_with_two_storylines(&mut game);
+        publish_earlier_news_today(&mut game, 5);
+
+        generate_weekly_digest_news(&mut game, "2025-08-11");
+
+        let digest = weekly_digest(&game).expect("the digest is not subject to the daily cap");
+        assert_eq!(published_storylines(&game), 0);
+        assert_eq!(
+            digest.body_key.as_deref(),
+            Some("be.news.weeklyDigest.bodyNoTopScorerNoStorylines")
+        );
+        assert!(!digest.i18n_params.contains_key("storylineCount"));
+    }
+
+    /// Given a week with no storyline,
+    /// when the weekly digest is written,
+    /// then its body makes no claim about storylines.
+    #[test]
+    fn a_week_without_storylines_makes_no_storyline_claim() {
+        let mut game = make_game("2025-08-11", FixtureStatus::Completed);
+        set_current_date(&mut game, 2025, 8, 11);
+
+        generate_weekly_digest_news(&mut game, "2025-08-11");
+
+        let digest = weekly_digest(&game).expect("a digest still reports the leader");
+        assert_eq!(published_storylines(&game), 0);
+        assert_eq!(
+            digest.body_key.as_deref(),
+            Some("be.news.weeklyDigest.bodyNoTopScorerNoStorylines")
+        );
+        assert!(!digest.i18n_params.contains_key("storylineCount"));
+    }
+
+    /// Given a striker abroad with more goals than anyone in the division,
+    /// when the weekly digest is written,
+    /// then it names the division's top scorer, and links the leader and that scorer.
+    #[test]
+    fn the_digest_names_and_links_the_divisions_top_scorer_and_leader() {
+        let mut game = make_game("2025-08-11", FixtureStatus::Completed);
+        set_current_date(&mut game, 2025, 8, 11);
+        let mut home_striker = make_player("p-home", "Home Striker", "team2");
+        home_striker.stats.goals = 6;
+        let mut abroad = make_player("p-abroad", "Abroad Striker", "team-elsewhere");
+        abroad.stats.goals = 20;
+        game.players = vec![home_striker, abroad];
+
+        generate_weekly_digest_news(&mut game, "2025-08-11");
+
+        let digest = weekly_digest(&game).unwrap();
+        assert_eq!(
+            digest.i18n_params.get("topScorer").map(String::as_str),
+            Some("Home Striker")
+        );
+        assert_eq!(digest.team_ids, vec!["team1".to_string()]);
+        assert_eq!(digest.player_ids, vec!["p-home".to_string()]);
+    }
+
+    /// Given a division whose table is empty,
+    /// when the weekly digest would be written,
+    /// then none is written rather than one led by "Unknown".
+    #[test]
+    fn a_division_without_a_table_gets_no_digest() {
+        let mut game = make_game("2025-08-11", FixtureStatus::Completed);
+        set_current_date(&mut game, 2025, 8, 11);
+        game.league.as_mut().unwrap().standings.clear();
+
+        generate_weekly_digest_news(&mut game, "2025-08-11");
+
+        assert!(weekly_digest(&game).is_none());
+    }
+
+    /// Given a division with no table but a completed transfer this week,
+    /// when the week's news is written,
+    /// then the transfer roundup is still published: only the digest needs a table.
+    #[test]
+    fn a_division_without_a_table_still_gets_its_other_weekly_news() {
+        let mut game = make_game("2025-08-11", FixtureStatus::Completed);
+        set_current_date(&mut game, 2025, 8, 11);
+        game.league.as_mut().unwrap().standings.clear();
+        add_completed_transfer(
+            &mut game,
+            "2025-08-10",
+            "player-transfer-1",
+            "Rafa",
+            "team2",
+            "team3",
+            1_400_000,
+        );
+
+        generate_weekly_digest_news(&mut game, "2025-08-11");
+
+        assert!(weekly_digest(&game).is_none());
+        assert!(
+            game.news
+                .iter()
+                .any(|article| article.id.starts_with("weekly_transfer_roundup_"))
         );
     }
 

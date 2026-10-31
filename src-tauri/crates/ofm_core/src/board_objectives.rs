@@ -249,7 +249,11 @@ pub fn update_objective_progress(game: &mut Game) {
                 ObjectiveType::FinancialStability => {
                     finance_snapshot.as_ref().is_some_and(|snapshot| {
                         !snapshot.currently_in_debt
-                            && snapshot.wage_budget_usage_percent <= obj.target
+                            && finances::wage_bill_against_percent(
+                                snapshot.annual_wage_bill,
+                                snapshot.weekly_wage_budget,
+                                obj.target,
+                            ) != std::cmp::Ordering::Greater
                     })
                 }
             };
@@ -787,6 +791,115 @@ mod tests {
         assert!(objective_by_id(&game, "obj_finance").met);
     }
 
+    /// Plays out the two-club league `make_game(60, 1, 2)` builds: the user's club won it.
+    fn finish_the_league(game: &mut Game) {
+        let mut league = game.league.clone().unwrap();
+        league.standings = vec![
+            StandingEntry {
+                team_id: "team1".to_string(),
+                played: 2,
+                won: 2,
+                drawn: 0,
+                lost: 0,
+                goals_for: 3,
+                goals_against: 1,
+                points: 6,
+            },
+            StandingEntry {
+                team_id: "team2".to_string(),
+                played: 2,
+                won: 0,
+                drawn: 0,
+                lost: 2,
+                goals_for: 1,
+                goals_against: 3,
+                points: 0,
+            },
+        ];
+        league.fixtures = vec![
+            Fixture {
+                id: "f1".to_string(),
+                matchday: 1,
+                date: "2025-08-01".to_string(),
+                home_team_id: "team1".to_string(),
+                away_team_id: "team2".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals: 1,
+                    away_goals: 0,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                    home_penalties: None,
+                    away_penalties: None,
+                }),
+                ..Default::default()
+            },
+            Fixture {
+                id: "f2".to_string(),
+                matchday: 2,
+                date: "2025-08-08".to_string(),
+                home_team_id: "team2".to_string(),
+                away_team_id: "team1".to_string(),
+                competition: FixtureCompetition::League,
+                status: FixtureStatus::Completed,
+                result: Some(MatchResult {
+                    home_goals: 1,
+                    away_goals: 1,
+                    home_scorers: vec![],
+                    away_scorers: vec![],
+                    report: None,
+                    home_penalties: None,
+                    away_penalties: None,
+                }),
+                ..Default::default()
+            },
+        ];
+        game.league = Some(league);
+    }
+
+    /// The FinancialStability objective "wages within budget" at season end, for a club whose
+    /// budget is its wage bill plus `headroom`.
+    fn wages_within_budget_met_with(headroom: i64) -> bool {
+        let mut game = make_game(60, 1, 2);
+        game.board_objectives = vec![make_objective(
+            "obj_finance",
+            ObjectiveType::FinancialStability,
+            100,
+            false,
+        )];
+        game.players.push(make_player("player-1", "team1", 220_000));
+        finish_the_league(&mut game);
+        let bill = crate::finances::calc_wages(&game, "team1");
+        game.teams
+            .iter_mut()
+            .find(|team| team.id == "team1")
+            .unwrap()
+            .wage_budget = bill + headroom;
+
+        update_objective_progress(&mut game);
+
+        objective_by_id(&game, "obj_finance").met
+    }
+
+    /// Given a club whose wage bill is exactly its budget at season end
+    /// When the board's objectives are scored
+    /// Then "wages within budget" is met
+    #[test]
+    fn wages_exactly_on_budget_meet_the_financial_stability_objective() {
+        assert!(wages_within_budget_met_with(0));
+    }
+
+    /// Given a club whose wage bill is one over its budget at season end, a fraction of a percent
+    /// the whole-number usage percentage cannot show
+    /// When the board's objectives are scored
+    /// Then "wages within budget" is not met: the club is over budget, as its finances say
+    #[test]
+    fn wages_one_over_budget_miss_the_financial_stability_objective() {
+        assert!(!wages_within_budget_met_with(-1));
+    }
+
     #[test]
     fn update_objective_progress_only_marks_league_position_met_after_all_fixtures_finish() {
         let mut game = make_game(80, 1, 4);
@@ -1021,5 +1134,45 @@ mod tests {
             make_objective("c", ObjectiveType::GoalsScored, 1, false),
         ];
         assert_eq!(evaluate_objectives(&game), -15);
+    }
+
+    /// The objectives' wins and goals targets for a club of reputation 800 in a 20-club world
+    /// whose league holds `league_size` of those clubs.
+    fn wins_and_goals_in_a_league_of(league_size: usize) -> (u32, u32) {
+        let mut game = make_game(800, 1, 20);
+        let league_ids: Vec<String> = (1..=league_size).map(|idx| format!("team{idx}")).collect();
+        game.league = Some(League::new(
+            "league1".to_string(),
+            "Test League".to_string(),
+            1,
+            &league_ids,
+        ));
+
+        generate_objectives(&mut game);
+
+        (
+            objective_by_id(&game, "obj_wins").target,
+            objective_by_id(&game, "obj_goals").target,
+        )
+    }
+
+    /// Given a club of reputation 800 in a four-club league, in a world of twenty clubs
+    /// When the board sets its objectives
+    /// Then the targets come from the league's six matchdays (3 wins), not the world's 38
+    #[test]
+    fn generate_objectives_scales_targets_to_the_user_league_not_the_whole_world() {
+        assert_eq!(wins_and_goals_in_a_league_of(4).0, 3);
+    }
+
+    /// Given a club of reputation 800 whose league lists only itself, in a world of twenty clubs
+    /// When the board sets its objectives
+    /// Then a one-club league cannot set a season, so the targets fall back to the world's twenty
+    ///      clubs, the same as a twenty-club league: 22 wins and 57 goals from 38 matchdays
+    #[test]
+    fn a_one_club_league_falls_back_to_the_world_team_count() {
+        let twenty_clubs = wins_and_goals_in_a_league_of(20);
+
+        assert_eq!(twenty_clubs, (22, 57));
+        assert_eq!(wins_and_goals_in_a_league_of(1), twenty_clubs);
     }
 }

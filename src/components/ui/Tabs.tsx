@@ -43,7 +43,7 @@ const LOOKS = {
   underline: {
     list: "relative flex min-w-0 max-w-full items-stretch gap-1 self-stretch overflow-x-auto",
     tab: "flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 font-heading text-body font-bold uppercase tracking-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset",
-    selected: "border-positive text-positive",
+    selected: "border-selected text-selected",
     idle: "border-transparent text-fg-muted hover:text-fg",
   },
   segmented: {

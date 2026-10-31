@@ -412,6 +412,7 @@
     "currentWage": "Salaire actuel",
     "loading": "Chargement...",
     "loadingGameState": "Chargement de l'état du jeu...",
+    "detailsFor": "Détails de {{name}}",
     "overallRating": "Niveau général {{value}}",
     "overallRatingTier": "Niveau général {{value}}, catégorie {{tier}}",
     "noResults": "Aucun résultat trouvé.",
@@ -699,7 +700,6 @@
     "coverageNeedsAttention": "{{count}} groupes de rôles ont besoin de couverture",
     "coverageBadge": "XI {{starters}}/{{required}} · Banc {{bench}}",
     "bestRole": "Meilleur rôle",
-    "formationFit": "Familiarité",
     "startingXi": "Onze de départ",
     "starter": "Titulaire",
     "benchOption": "Banc",
@@ -1618,6 +1618,7 @@
     "dateOfBirth": "Date de Naissance",
     "noContract": "Sans contrat",
     "weeklyWage": "Salaire Hebdomadaire",
+    "approximateWage": "environ {{wage}}",
     "annualWage": "Salaire Annuel",
     "yearsRemaining": "Années restantes",
     "contractRisk": "Risque contractuel",
@@ -2023,7 +2024,10 @@
       "suddenDeath": "Mort Subite",
       "shootoutScore": "Tirs au but: {{h}} – {{a}}",
       "homeKick": "Tir de l'équipe à domicile...",
-      "awayKick": "Tir de l'équipe visiteuse..."
+      "awayKick": "Tir de l'équipe visiteuse...",
+      "kickScored": "Tir {{n}}, réussi",
+      "kickMissed": "Tir {{n}}, manqué",
+      "kickToCome": "Tir {{n}}, à venir"
     },
     "fullTime": "Temps Plein",
     "ft": "TP",
@@ -2696,6 +2700,7 @@
         "maxSubstitutionsReached": "Nombre maximal de remplacements atteint",
         "preMatchSwapTooLate": "Les permutations d'avant-match ne sont autorisées qu'avant le coup d'envoi",
         "cannotSubstituteSentOffPlayer": "Impossible de remplacer un joueur expulsé",
+        "noSubstitutionsForShootout": "Plus aucun remplacement après la prolongation : la séance de tirs au but est disputée par les joueurs présents sur le terrain au coup de sifflet final.",
         "playerNotOnPitch": "Le joueur n'est pas sur le terrain",
         "playerAlreadySubstitutedOff": "Ce joueur a déjà été remplacé",
         "playerNotOnBench": "Le joueur n'est pas sur le banc",
@@ -3658,7 +3663,9 @@
       "weeklyDigest": {
         "headline": "Digest Hebdomadaire — Semaine du {{weekStart}}",
         "bodyNoTopScorer": "Le dernier digest hebdomadaire est là. {{leader}} mène le classement et {{storylineCount}} intrigue(s) façonnent la division cette semaine.",
-        "bodyWithTopScorer": "Le dernier digest hebdomadaire est là. {{leader}} mène le classement, tandis que {{topScorer}} domine le classement des buteurs avec {{topScorerGoals}} but(s). {{storylineCount}} intrigue(s) façonnent la division cette semaine."
+        "bodyWithTopScorer": "Le dernier digest hebdomadaire est là. {{leader}} mène le classement, tandis que {{topScorer}} domine le classement des buteurs avec {{topScorerGoals}} but(s). {{storylineCount}} intrigue(s) façonnent la division cette semaine.",
+        "bodyNoTopScorerNoStorylines": "Le dernier digest hebdomadaire est là. {{leader}} mène le classement.",
+        "bodyWithTopScorerNoStorylines": "Le dernier digest hebdomadaire est là. {{leader}} mène le classement, tandis que {{topScorer}} domine le classement des buteurs avec {{topScorerGoals}} but(s)."
       },
       "preseasonDigest": {
         "headline": "Digest de présaison — Semaine du {{weekStart}}",

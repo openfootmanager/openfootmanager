@@ -1,3 +1,8 @@
+#[path = "contracts_tests/renewal_feedback.rs"]
+mod renewal_feedback;
+#[path = "contracts_tests/renewal_terms.rs"]
+mod renewal_terms;
+
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
 use domain::player::{
@@ -1907,5 +1912,205 @@ fn a_second_termination_on_the_same_day_is_reported_too() {
             "contract_terminated_player-1_2026-08-01_1",
             "contract_terminated_player-1_2026-08-01_2"
         ]
+    );
+}
+
+// --- Delegated renewals outside the routine success -------------------------------------------
+
+fn delegate(
+    game: &mut Game,
+    player_ids: Option<Vec<String>>,
+    max_wage_increase_pct: u32,
+) -> Result<ofm_core::contracts::DelegatedRenewalReport, String> {
+    delegate_renewals(
+        game,
+        DelegatedRenewalOptions {
+            player_ids,
+            max_wage_increase_pct,
+            max_contract_years: 3,
+        },
+    )
+}
+
+fn only_player_1() -> Option<Vec<String>> {
+    Some(vec!["player-1".to_string()])
+}
+
+fn assistant_rated(level: u8) -> Staff {
+    let mut assistant = make_assistant_manager();
+    assistant.attributes.coaching = level;
+    assistant.attributes.judging_ability = level;
+    assistant.attributes.judging_potential = level;
+    assistant
+}
+
+/// The counts (success, stalled, failure) and the one case's status and note.
+fn sole_case(
+    report: &ofm_core::contracts::DelegatedRenewalReport,
+) -> (u32, u32, u32, DelegatedRenewalResultStatus, Option<&str>) {
+    assert_eq!(report.cases.len(), 1, "one player, one case");
+    let case = &report.cases[0];
+    (
+        report.success_count,
+        report.stalled_count,
+        report.failure_count,
+        case.status.clone(),
+        case.note_key.as_deref(),
+    )
+}
+
+/// Given team-1's assistant, and a team-2 player whose contract also ends within the year
+/// When the manager delegates every renewal due
+/// Then only team-1's player-1 is handled; the other club's player is left as he was
+#[test]
+fn the_assistant_only_renews_his_own_clubs_players() {
+    let mut game = make_game();
+    game.staff.push(make_assistant_manager());
+    let mut theirs = make_player_with("theirs", 12_000, "2026-10-15");
+    theirs.team_id = Some("team-2".to_string());
+    game.players.push(theirs);
+
+    let report = delegate(&mut game, None, 35).expect("a report");
+
+    let handled: Vec<&str> = report
+        .cases
+        .iter()
+        .map(|case| case.player_id.as_str())
+        .collect();
+    assert_eq!(handled, vec!["player-1"]);
+    let theirs = game.players.iter().find(|p| p.id == "theirs").unwrap();
+    assert_eq!(
+        (theirs.wage(), theirs.contract_end()),
+        (12_000, Some("2026-10-15"))
+    );
+}
+
+/// Given team-1 has a coach but no assistant manager, and team-2 has an assistant manager
+/// When the manager delegates player-1's renewal
+/// Then it is refused: only the club's own assistant manager can take it on
+#[test]
+fn delegation_needs_the_clubs_own_assistant_manager() {
+    let mut game = make_game();
+    let mut coach = make_assistant_manager();
+    coach.id = "coach".to_string();
+    coach.role = StaffRole::Coach;
+    let mut elsewhere = make_assistant_manager();
+    elsewhere.id = "elsewhere".to_string();
+    elsewhere.team_id = Some("team-2".to_string());
+    game.staff = vec![coach, elsewhere];
+
+    let result = delegate(&mut game, only_player_1(), 35);
+
+    assert_eq!(
+        result.err().as_deref(),
+        Some("be.error.contracts.noAssistantManagerAssigned")
+    );
+}
+
+/// Given player-1 wants 14,000 a week, on 12,000, and the assistant may not raise his wage at all
+/// When the manager delegates his renewal
+/// Then it stalls beyond the assistant's limits, counted once
+#[test]
+fn a_renewal_beyond_the_assistants_limits_is_reported_as_stalled() {
+    let mut game = make_game();
+    game.staff.push(make_assistant_manager());
+
+    let report = delegate(&mut game, only_player_1(), 0).expect("a report");
+
+    assert_eq!(
+        sole_case(&report),
+        (
+            0,
+            1,
+            0,
+            DelegatedRenewalResultStatus::Stalled,
+            Some("be.msg.delegatedRenewals.notes.beyondLimits")
+        )
+    );
+}
+
+/// Given a club whose wage bill (player-1's 12,000) is exactly its budget, with squad depth to
+///       spare, and an assistant the player would sign for at 14,000
+/// When the manager delegates player-1's renewal
+/// Then it stalls on the board's wage policy, counted once: 14,000 is past the 13,200 the
+///      board allows a club within its budget
+#[test]
+fn a_renewal_the_board_will_not_fund_is_stalled_by_the_wage_policy() {
+    let mut game = make_game();
+    game.staff.push(make_assistant_manager());
+    give_squad_depth(&mut game);
+    game.teams[0].wage_budget = 12_000;
+
+    let report = delegate(&mut game, only_player_1(), 35).expect("a report");
+
+    assert_eq!(
+        sole_case(&report),
+        (
+            0,
+            1,
+            0,
+            DelegatedRenewalResultStatus::Stalled,
+            Some("be.msg.delegatedRenewals.notes.boardWagePolicy")
+        )
+    );
+    assert_eq!(
+        (game.players[0].wage(), game.players[0].contract_end()),
+        (12_000, Some("2026-10-15")),
+        "a stalled renewal leaves the contract as it was"
+    );
+}
+
+/// Given an assistant rated 20 throughout, so player-1 scores him 87 (20 + 16 + 37 + 14)
+/// When the manager delegates player-1's renewal
+/// Then the player would rather talk to the manager: the case stalls and talks stay open
+#[test]
+fn a_player_the_assistant_scores_between_72_and_94_is_left_for_the_manager() {
+    let mut game = make_game();
+    game.staff.push(assistant_rated(20));
+
+    let report = delegate(&mut game, only_player_1(), 35).expect("a report");
+
+    assert_eq!(
+        sole_case(&report),
+        (
+            0,
+            1,
+            0,
+            DelegatedRenewalResultStatus::Stalled,
+            Some("be.msg.delegatedRenewals.notes.prefersManager")
+        )
+    );
+    assert_eq!(
+        game.players[0]
+            .morale_core
+            .renewal_state
+            .as_ref()
+            .map(|state| state.status.clone()),
+        Some(RenewalSessionStatus::Open)
+    );
+}
+
+/// Given an assistant rated 10 throughout, and player-1 with no trust in the manager and morale
+///       20, so he scores the assistant 34
+/// When the manager delegates his renewal
+/// Then the player refuses: the case fails over the relationship, counted once
+#[test]
+fn a_player_the_assistant_scores_below_72_refuses_him() {
+    let mut game = make_game();
+    game.staff.push(assistant_rated(10));
+    game.players[0].morale_core.manager_trust = 0;
+    game.players[0].morale = 20;
+
+    let report = delegate(&mut game, only_player_1(), 35).expect("a report");
+
+    assert_eq!(
+        sole_case(&report),
+        (
+            0,
+            0,
+            1,
+            DelegatedRenewalResultStatus::Failed,
+            Some("be.msg.delegatedRenewals.notes.relationshipBlocked")
+        )
     );
 }

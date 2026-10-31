@@ -191,6 +191,11 @@ struct PenaltyShootoutState {
     home_scored: u8,
     away_scored: u8,
     sudden_death: bool,
+    /// Each side's kickers, fixed when the shootout starts: ids of players on the pitch at
+    /// the final whistle, both lists cut to the shorter one's length. Kick `n` of a side is
+    /// taken by entry `n % len`, so everyone kicks once before anyone kicks twice.
+    home_order: Vec<String>,
+    away_order: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +222,9 @@ pub struct LiveMatchState {
 
     // Events log
     events: Vec<MatchEvent>,
+    /// Events a command created between minutes. The live feed is built from each minute's
+    /// results, so they are handed to the next minute's results, once, as well as logged.
+    unreported_events: Vec<MatchEvent>,
 
     // Possession tracking
     home_possession_ticks: u32,
@@ -291,6 +299,7 @@ impl LiveMatchState {
             ball_zone: Zone::Midfield,
             possession: Side::Home,
             events: Vec::with_capacity(300),
+            unreported_events: Vec::new(),
             home_possession_ticks: 0,
             away_possession_ticks: 0,
             yellows: HashMap::new(),
@@ -317,6 +326,16 @@ impl LiveMatchState {
 
     /// Step one minute forward. Returns the events that occurred.
     pub fn step_minute<R: Rng>(&mut self, rng: &mut R) -> MinuteResult {
+        let mut result = self.play_phase(rng);
+        if !self.unreported_events.is_empty() {
+            let mut events = std::mem::take(&mut self.unreported_events);
+            events.append(&mut result.events);
+            result.events = events;
+        }
+        result
+    }
+
+    fn play_phase<R: Rng>(&mut self, rng: &mut R) -> MinuteResult {
         match self.phase {
             MatchPhase::PreKickOff => self.start_match(rng),
             MatchPhase::FirstHalf => self.play_minute(rng),

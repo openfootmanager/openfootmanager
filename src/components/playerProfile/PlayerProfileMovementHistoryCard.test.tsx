@@ -8,8 +8,14 @@ import PlayerProfileMovementHistoryCard from "./PlayerProfileMovementHistoryCard
 const t = (key: string, options?: Record<string, string | number>) =>
   options ? `${key} ${JSON.stringify(options)}` : key;
 
-function renderCard(movementHistory: PlayerMovementEntry[]) {
-  return render(<PlayerProfileMovementHistoryCard movementHistory={movementHistory} t={t} />);
+function renderCard(movementHistory: PlayerMovementEntry[], showsWages = true) {
+  return render(
+    <PlayerProfileMovementHistoryCard
+      movementHistory={movementHistory}
+      showsWages={showsWages}
+      t={t}
+    />,
+  );
 }
 
 const renewal: PlayerMovementEntry = {
@@ -36,6 +42,23 @@ describe("PlayerProfileMovementHistoryCard contract terms", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText(/playerProfile\.movementWage/)).toHaveTextContent("9,000");
+  });
+
+  /**
+   * Given a rival's renewal on 9,000 a week, and a club that may not see his wages
+   * When his movement history renders
+   * Then the entry keeps its contract dates but names no wage
+   */
+  it("leaves the wage off an entry when the club may not see his wages", () => {
+    renderCard([renewal], false);
+
+    expect(
+      screen.getByText(
+        'playerProfile.movementContractRange {"start":"2026-01-10","end":"2029-06-30"}',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/playerProfile\.movementWage/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/9,000/)).not.toBeInTheDocument();
   });
 
   it("shows an unknown start as an end alone, not as a blank or as today", () => {

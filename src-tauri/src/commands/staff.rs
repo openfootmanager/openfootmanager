@@ -3,18 +3,26 @@ use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
-use crate::commands::util::{mutate_active_game, user_team_id, user_team_mut};
+use crate::commands::util::{mutate_active_game_for, user_team_id, user_team_mut};
 
 #[tauri::command]
-pub fn hire_staff(state: State<'_, Arc<StateManager>>, staff_id: String) -> Result<Game, String> {
-    hire_staff_internal(&state, &staff_id)
+pub fn hire_staff(
+    state: State<'_, Arc<StateManager>>,
+    staff_id: String,
+    career_token: u64,
+) -> Result<Game, String> {
+    hire_staff_internal(&state, Career::Token(career_token), &staff_id)
 }
 
-pub fn hire_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
+pub fn hire_staff_internal(
+    state: &StateManager,
+    career: Career,
+    staff_id: &str,
+) -> Result<Game, String> {
     info!("[cmd] hire_staff: staff_id={}", staff_id);
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         // Read and validate before writing anything: mutate_active_game mutates
@@ -60,6 +68,7 @@ mod tests {
     use domain::team::Team;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
+    use ofm_core::state::Career;
     use ofm_core::state::StateManager;
 
     fn make_team() -> Team {
@@ -150,12 +159,33 @@ mod tests {
         game
     }
 
+    /// Given career B is active (token 2) and a screen holds career A's token (1)
+    /// When a hire and a release arrive with A's token
+    /// Then both are refused with the career-changed key and career B's staff are untouched.
+    #[test]
+    fn staff_writes_for_a_replaced_career_are_refused() {
+        let state = StateManager::new();
+        let mut game = make_game_with_employed_staff();
+        game.career_token = 2;
+        state.set_game(game);
+        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        let stale = Career::Token(1);
+
+        let hire = hire_staff_internal(&state, stale, "staff-1").err();
+        let release = release_staff_internal(&state, stale, "staff-1").err();
+
+        assert_eq!(hire, Some("be.error.careerChanged".to_string()));
+        assert_eq!(release, Some("be.error.careerChanged".to_string()));
+        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        assert_eq!(after, before);
+    }
+
     #[test]
     fn hire_staff_internal_reports_a_team_id_that_matches_no_club() {
         let state = StateManager::new();
         state.set_game(with_dangling_team_id(make_game()));
 
-        let result = hire_staff_internal(&state, "staff-1");
+        let result = hire_staff_internal(&state, Career::Active, "staff-1");
 
         assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
 
@@ -176,7 +206,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(with_dangling_team_id(make_game_with_employed_staff()));
 
-        let result = release_staff_internal(&state, "staff-1");
+        let result = release_staff_internal(&state, Career::Active, "staff-1");
 
         assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
 
@@ -196,7 +226,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response = hire_staff_internal(&state, "staff-1").expect("response");
+        let response = hire_staff_internal(&state, Career::Active, "staff-1").expect("response");
         let staff = response
             .staff
             .iter()
@@ -249,7 +279,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_employed_staff());
 
-        let response = release_staff_internal(&state, "staff-1").expect("response");
+        let response = release_staff_internal(&state, Career::Active, "staff-1").expect("response");
         let staff = response
             .staff
             .iter()
@@ -272,13 +302,18 @@ mod tests {
 pub fn release_staff(
     state: State<'_, Arc<StateManager>>,
     staff_id: String,
+    career_token: u64,
 ) -> Result<Game, String> {
-    release_staff_internal(&state, &staff_id)
+    release_staff_internal(&state, Career::Token(career_token), &staff_id)
 }
 
-pub fn release_staff_internal(state: &StateManager, staff_id: &str) -> Result<Game, String> {
+pub fn release_staff_internal(
+    state: &StateManager,
+    career: Career,
+    staff_id: &str,
+) -> Result<Game, String> {
     info!("[cmd] release_staff: staff_id={}", staff_id);
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         // Read and validate before writing anything: mutate_active_game mutates

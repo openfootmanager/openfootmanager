@@ -3,10 +3,10 @@ use std::sync::Arc;
 use tauri::State;
 
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 use ofm_core::training::SquadFitness;
 
-use crate::commands::util::{mutate_active_game, user_team_id, user_team_mut};
+use crate::commands::util::{mutate_active_game_for, user_team_id, user_team_mut};
 
 fn parse_squad_role(squad_role: &str) -> Option<domain::player::SquadRole> {
     match squad_role {
@@ -48,8 +48,12 @@ fn parse_play_style(play_style: &str) -> domain::team::PlayStyle {
     }
 }
 
-pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<Game, String> {
-    mutate_active_game(state, |game| apply_formation(game, formation))
+pub fn set_formation_internal(
+    state: &StateManager,
+    career: Career,
+    formation: &str,
+) -> Result<Game, String> {
+    mutate_active_game_for(state, career, |game| apply_formation(game, formation))
 }
 
 /// Picks a tactic preset: its formation and play style, and the phase blueprint
@@ -60,10 +64,11 @@ pub fn set_formation_internal(state: &StateManager, formation: &str) -> Result<G
 /// a request for that preset's setup (#365).
 pub fn apply_tactic_preset_internal(
     state: &StateManager,
+    career: Career,
     formation: &str,
     play_style: &str,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         apply_formation(game, formation)?;
 
         let style = parse_play_style(play_style);
@@ -80,9 +85,10 @@ pub fn apply_tactic_preset(
     state: State<'_, Arc<StateManager>>,
     formation: String,
     play_style: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] apply_tactic_preset: {} / {}", formation, play_style);
-    apply_tactic_preset_internal(&state, &formation, &play_style)
+    apply_tactic_preset_internal(&state, Career::Token(career_token), &formation, &play_style)
 }
 
 /// Whether the manager's phase dials differ from the blueprint their play style implies.
@@ -123,9 +129,10 @@ pub fn get_tactics_blueprint_status(
 
 pub fn set_starting_xi_internal(
     state: &StateManager,
+    career: Career,
     player_ids: Vec<String>,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         let team = user_team_mut(game)?;
@@ -141,31 +148,38 @@ pub fn set_starting_xi_internal(
 pub fn set_formation(
     state: State<'_, Arc<StateManager>>,
     formation: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_formation: {}", formation);
-    set_formation_internal(&state, &formation)
+    set_formation_internal(&state, Career::Token(career_token), &formation)
 }
 
 #[tauri::command]
 pub fn set_starting_xi(
     state: State<'_, Arc<StateManager>>,
     player_ids: Vec<String>,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_starting_xi: {} players", player_ids.len());
-    set_starting_xi_internal(&state, player_ids)
+    set_starting_xi_internal(&state, Career::Token(career_token), player_ids)
 }
 
 #[tauri::command]
 pub fn set_play_style(
     state: State<'_, Arc<StateManager>>,
     play_style: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_play_style: {}", play_style);
-    set_play_style_internal(&state, &play_style)
+    set_play_style_internal(&state, Career::Token(career_token), &play_style)
 }
 
-pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+pub fn set_play_style_internal(
+    state: &StateManager,
+    career: Career,
+    play_style: &str,
+) -> Result<Game, String> {
+    mutate_active_game_for(state, career, |game| {
         let team = user_team_mut(game)?;
         team.play_style = parse_play_style(play_style);
 
@@ -177,16 +191,18 @@ pub fn set_play_style_internal(state: &StateManager, play_style: &str) -> Result
 pub fn set_team_match_roles(
     state: State<'_, Arc<StateManager>>,
     match_roles: domain::team::MatchRoles,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_team_match_roles");
-    set_team_match_roles_internal(&state, match_roles)
+    set_team_match_roles_internal(&state, Career::Token(career_token), match_roles)
 }
 
 pub fn set_team_match_roles_internal(
     state: &StateManager,
+    career: Career,
     match_roles: domain::team::MatchRoles,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team = user_team_mut(game)?;
         team.match_roles = match_roles;
 
@@ -217,20 +233,22 @@ pub fn set_training(
     state: State<'_, Arc<StateManager>>,
     focus: String,
     intensity: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!(
         "[cmd] set_training: focus={}, intensity={}",
         focus, intensity
     );
-    set_training_internal(&state, &focus, &intensity)
+    set_training_internal(&state, Career::Token(career_token), &focus, &intensity)
 }
 
 pub fn set_training_internal(
     state: &StateManager,
+    career: Career,
     focus: &str,
     intensity: &str,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let training_focus = match focus {
             "Physical" => domain::team::TrainingFocus::Physical,
             "Technical" => domain::team::TrainingFocus::Technical,
@@ -272,16 +290,18 @@ pub fn get_training_focus_attributes() -> Vec<ofm_core::training::TrainingFocusA
 pub fn set_training_schedule(
     state: State<'_, Arc<StateManager>>,
     schedule: String,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_training_schedule: {}", schedule);
-    set_training_schedule_internal(&state, &schedule)
+    set_training_schedule_internal(&state, Career::Token(career_token), &schedule)
 }
 
 pub fn set_training_schedule_internal(
     state: &StateManager,
+    career: Career,
     schedule: &str,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let training_schedule = match schedule {
             "Intense" => domain::team::TrainingSchedule::Intense,
             "Balanced" => domain::team::TrainingSchedule::Balanced,
@@ -300,16 +320,18 @@ pub fn set_training_schedule_internal(
 pub fn set_training_groups(
     state: State<'_, Arc<StateManager>>,
     groups: Vec<domain::team::TrainingGroup>,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_training_groups: {} groups", groups.len());
-    set_training_groups_internal(&state, groups)
+    set_training_groups_internal(&state, Career::Token(career_token), groups)
 }
 
 pub fn set_training_groups_internal(
     state: &StateManager,
+    career: Career,
     groups: Vec<domain::team::TrainingGroup>,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team = user_team_mut(game)?;
         team.training_groups = groups;
 
@@ -322,12 +344,19 @@ pub fn set_player_training_focus(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     focus: Option<String>,
+    career_token: u64,
 ) -> Result<Game, String> {
-    set_player_training_focus_internal(&state, &player_id, focus.as_deref())
+    set_player_training_focus_internal(
+        &state,
+        Career::Token(career_token),
+        &player_id,
+        focus.as_deref(),
+    )
 }
 
 pub fn set_player_training_focus_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     focus: Option<&str>,
 ) -> Result<Game, String> {
@@ -335,7 +364,7 @@ pub fn set_player_training_focus_internal(
         "[cmd] set_player_training_focus: player={}, focus={:?}",
         player_id, focus
     );
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         let training_focus = focus.and_then(|f| match f {
@@ -367,12 +396,14 @@ pub fn set_player_squad_role(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     squad_role: String,
+    career_token: u64,
 ) -> Result<Game, String> {
-    set_player_squad_role_internal(&state, &player_id, &squad_role)
+    set_player_squad_role_internal(&state, Career::Token(career_token), &player_id, &squad_role)
 }
 
 pub fn set_player_squad_role_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     squad_role: &str,
 ) -> Result<Game, String> {
@@ -380,7 +411,7 @@ pub fn set_player_squad_role_internal(
         "[cmd] set_player_squad_role: player={}, squad_role={}",
         player_id, squad_role
     );
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
         let target_role =
             parse_squad_role(squad_role).ok_or("be.error.invalidSquadRole".to_string())?;
@@ -448,10 +479,11 @@ pub fn auto_select_set_pieces_internal(
 
 pub fn assign_jersey_number_internal(
     state: &StateManager,
+    career: Career,
     player_id: &str,
     jersey_number: Option<u8>,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         if let Some(n) = jersey_number {
@@ -484,19 +516,26 @@ pub fn assign_jersey_number(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     jersey_number: Option<u8>,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!(
         "[cmd] assign_jersey_number: player={}, number={:?}",
         player_id, jersey_number
     );
-    assign_jersey_number_internal(&state, &player_id, jersey_number)
+    assign_jersey_number_internal(
+        &state,
+        Career::Token(career_token),
+        &player_id,
+        jersey_number,
+    )
 }
 
 pub fn set_team_kit_pattern_internal(
     state: &StateManager,
+    career: Career,
     kit_pattern: domain::team::KitPattern,
 ) -> Result<Game, String> {
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         if game.season_context.phase != domain::season::SeasonPhase::Preseason {
             return Err("be.error.kitChangesLockedInSeason".to_string());
         }
@@ -518,9 +557,10 @@ pub fn set_team_kit_pattern_internal(
 pub fn set_team_kit_pattern(
     state: State<'_, Arc<StateManager>>,
     kit_pattern: domain::team::KitPattern,
+    career_token: u64,
 ) -> Result<Game, String> {
     info!("[cmd] set_team_kit_pattern: {:?}", kit_pattern);
-    set_team_kit_pattern_internal(&state, kit_pattern)
+    set_team_kit_pattern_internal(&state, Career::Token(career_token), kit_pattern)
 }
 
 /// Drop any assigned player function (role) that is no longer valid for the
@@ -593,12 +633,14 @@ pub fn set_player_role(
     state: State<'_, Arc<StateManager>>,
     player_id: String,
     role: Option<String>,
+    career_token: u64,
 ) -> Result<Game, String> {
-    set_player_role_internal(&state, player_id, role)
+    set_player_role_internal(&state, Career::Token(career_token), player_id, role)
 }
 
 pub fn set_player_role_internal(
     state: &StateManager,
+    career: Career,
     player_id: String,
     role: Option<String>,
 ) -> Result<Game, String> {
@@ -606,7 +648,7 @@ pub fn set_player_role_internal(
         "[cmd] set_player_role: player={} role={:?}",
         player_id, role
     );
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = user_team_id(game)?;
 
         // Validate the role against where the player is actually deployed (the
@@ -659,10 +701,11 @@ pub fn set_tactics_phase(
     marking_style: Option<String>,
     counter_press_duration: Option<String>,
     break_speed: Option<String>,
+    career_token: u64,
 ) -> Result<Game, String> {
     use domain::team::*;
     info!("[cmd] set_tactics_phase");
-    mutate_active_game(&state, |game| {
+    mutate_active_game_for(&state, Career::Token(career_token), |game| {
         let team = user_team_mut(game)?;
         let p = &mut team.tactics_phase;
         if let Some(v) = build_up_style {
@@ -751,6 +794,7 @@ mod tests {
     use ofm_core::ai_tactics::blueprint_for;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
+    use ofm_core::state::Career;
     use ofm_core::state::StateManager;
 
     fn default_attrs() -> PlayerAttributes {
@@ -893,12 +937,44 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_dangling_team_id(make_player("1998-01-01")));
 
-        let result = set_formation_internal(&state, "4-3-3");
+        let result = set_formation_internal(&state, Career::Active, "4-3-3");
 
         assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
 
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         assert_ne!(stored.teams[0].formation, "4-3-3");
+    }
+
+    /// Given career B is active (token 2) and a screen still holds career A's token (1)
+    /// When the lineup, formation, style, role and training writes arrive with A's token
+    /// Then each is refused with the career-changed key and career B's club is untouched.
+    #[test]
+    fn squad_writes_for_a_replaced_career_are_refused_and_change_nothing() {
+        use super::{set_starting_xi_internal, set_training_internal};
+        let state = StateManager::new();
+        let mut game = make_game(make_player("1998-01-01"));
+        game.career_token = 2;
+        state.set_game(game);
+        let before = state.get_game(|game| game.teams.clone()).unwrap();
+        let stale = Career::Token(1);
+        let careers_changed = "be.error.careerChanged".to_string();
+
+        let refusals = [
+            set_formation_internal(&state, stale, "4-3-3").map(|_| ()),
+            set_play_style_internal(&state, stale, "Attacking").map(|_| ()),
+            set_starting_xi_internal(&state, stale, vec!["player-1".to_string()]).map(|_| ()),
+            set_training_internal(&state, stale, "Physical", "High").map(|_| ()),
+        ];
+
+        for refusal in refusals {
+            assert_eq!(refusal, Err(careers_changed.clone()));
+        }
+        let after = state.get_game(|game| game.teams.clone()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&after).unwrap(),
+            serde_json::to_value(&before).unwrap()
+        );
+        assert!(set_formation_internal(&state, Career::Token(2), "4-3-3").is_ok());
     }
 
     /// A club whose manager has hand-tuned two dials away from its style's blueprint.
@@ -926,7 +1002,8 @@ mod tests {
     fn apply_tactic_preset_resets_the_blueprint_to_the_presets_style() {
         let state = state_with_custom_dials();
 
-        apply_tactic_preset_internal(&state, "3-4-3", "Defensive").expect("preset applies");
+        apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Defensive")
+            .expect("preset applies");
 
         let team = stored_team(&state);
         assert_eq!(team.formation, "3-4-3");
@@ -953,7 +1030,8 @@ mod tests {
     #[test]
     fn a_style_blueprint_left_alone_is_not_modified() {
         let state = state_with_custom_dials();
-        apply_tactic_preset_internal(&state, "4-4-2", "Defensive").expect("preset applies");
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Defensive")
+            .expect("preset applies");
 
         assert_eq!(
             get_tactics_blueprint_status_internal(&state),
@@ -967,8 +1045,9 @@ mod tests {
     #[test]
     fn changing_the_style_alone_leaves_the_old_blueprint_modified() {
         let state = state_with_custom_dials();
-        apply_tactic_preset_internal(&state, "4-4-2", "Balanced").expect("preset applies");
-        set_play_style_internal(&state, "Attacking").expect("style applies");
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Balanced")
+            .expect("preset applies");
+        set_play_style_internal(&state, Career::Active, "Attacking").expect("style applies");
 
         assert_eq!(
             get_tactics_blueprint_status_internal(&state),
@@ -994,7 +1073,7 @@ mod tests {
     fn changing_the_play_style_alone_keeps_the_custom_dials() {
         let state = state_with_custom_dials();
 
-        set_play_style_internal(&state, "Defensive").expect("style applies");
+        set_play_style_internal(&state, Career::Active, "Defensive").expect("style applies");
 
         let team = stored_team(&state);
         assert_eq!(team.play_style, PlayStyle::Defensive);
@@ -1009,7 +1088,8 @@ mod tests {
     fn re_picking_the_active_preset_restores_its_blueprint() {
         let state = state_with_custom_dials();
 
-        apply_tactic_preset_internal(&state, "4-4-2", "Balanced").expect("preset applies");
+        apply_tactic_preset_internal(&state, Career::Active, "4-4-2", "Balanced")
+            .expect("preset applies");
 
         assert_eq!(
             stored_team(&state).tactics_phase,
@@ -1025,7 +1105,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_dangling_team_id(make_player("1998-01-01")));
 
-        let result = apply_tactic_preset_internal(&state, "3-4-3", "Attacking");
+        let result = apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Attacking");
 
         assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
         let team = stored_team(&state);
@@ -1044,7 +1124,7 @@ mod tests {
         state.set_game(game);
 
         assert_eq!(
-            apply_tactic_preset_internal(&state, "3-4-3", "Attacking").err(),
+            apply_tactic_preset_internal(&state, Career::Active, "3-4-3", "Attacking").err(),
             Some("be.error.noTeamAssigned".into())
         );
     }
@@ -1057,7 +1137,7 @@ mod tests {
         let state = state_with_custom_dials();
         let before = stored_team(&state).formation;
 
-        let result = set_formation_internal(&state, "10-0-0");
+        let result = set_formation_internal(&state, Career::Active, "10-0-0");
 
         assert_eq!(
             result.err(),
@@ -1074,7 +1154,7 @@ mod tests {
         state.set_game(game);
 
         assert_eq!(
-            set_formation_internal(&state, "4-3-3").err(),
+            set_formation_internal(&state, Career::Active, "4-3-3").err(),
             Some("be.error.noTeamAssigned".into())
         );
     }
@@ -1084,7 +1164,7 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game_with_dangling_team_id(make_player("2008-01-01")));
 
-        let result = set_player_squad_role_internal(&state, "player-1", "Youth");
+        let result = set_player_squad_role_internal(&state, Career::Active, "player-1", "Youth");
 
         assert_eq!(result.err(), Some("be.error.teamNotFound".into()));
 
@@ -1099,8 +1179,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game(make_player("2008-01-01")));
 
-        let response =
-            set_player_squad_role_internal(&state, "player-1", "Youth").expect("response");
+        let response = set_player_squad_role_internal(&state, Career::Active, "player-1", "Youth")
+            .expect("response");
 
         assert_eq!(response.players[0].squad_role, SquadRole::Youth);
         assert!(response.teams[0].starting_xi_ids.is_empty());
@@ -1199,7 +1279,7 @@ mod tests {
         // player-1 is a Forward and the only outfield player on the team.
         state.set_game(make_game(make_player("1998-01-01")));
 
-        set_formation_internal(&state, "4-4-2").expect("formation set");
+        set_formation_internal(&state, Career::Active, "4-4-2").expect("formation set");
 
         let stored = state.get_game(|game| game.clone()).expect("stored game");
         // Previously set_formation stat-ranked this player into the Defender
@@ -1233,6 +1313,7 @@ mod tests {
         // natural position is Forward (the issue #257 repro).
         let result = set_player_role_internal(
             &state,
+            Career::Active,
             "player-1".to_string(),
             Some("DefensiveFB".to_string()),
         )
@@ -1243,9 +1324,13 @@ mod tests {
         );
 
         // A midfield role is not valid at the RB slot.
-        let error =
-            set_player_role_internal(&state, "player-1".to_string(), Some("BoxToBox".to_string()))
-                .expect_err("BoxToBox is not valid at the RB slot");
+        let error = set_player_role_internal(
+            &state,
+            Career::Active,
+            "player-1".to_string(),
+            Some("BoxToBox".to_string()),
+        )
+        .expect_err("BoxToBox is not valid at the RB slot");
         assert_eq!(error, "be.error.roleNotValidForPosition");
     }
 
@@ -1416,7 +1501,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game(make_player("1998-01-01")));
 
-        let error = set_player_squad_role_internal(&state, "player-1", "Youth").expect_err("error");
+        let error = set_player_squad_role_internal(&state, Career::Active, "player-1", "Youth")
+            .expect_err("error");
 
         assert_eq!(error, "be.error.youthAcademyOverage");
     }
@@ -1445,8 +1531,13 @@ mod tests {
         );
         state.set_game(game);
 
-        let error = set_player_training_focus_internal(&state, "player-2", Some("Technical"))
-            .expect_err("cross-team player should be rejected");
+        let error = set_player_training_focus_internal(
+            &state,
+            Career::Active,
+            "player-2",
+            Some("Technical"),
+        )
+        .expect_err("cross-team player should be rejected");
 
         assert_eq!(error, "be.error.playerNotFound");
 

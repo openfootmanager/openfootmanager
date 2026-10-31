@@ -477,7 +477,14 @@ pub(super) fn senior_slot(slot: usize) -> usize {
 const ROLLED_RATING_MEAN: f64 = 67.6;
 /// Where the generated ceilings centre. Young players open below their ceiling, so the ceilings
 /// sit above the mean rating a world should open at (about 68).
-const CEILING_MEAN: f64 = 69.6;
+///
+/// 70.1 since the ceiling follows a falling player's rating (#869): that rule takes the room
+/// veterans used to train into, and S by rating settled at 0.8 to 0.9% of seniors, under its 1%
+/// floor. +0.5 on the centre (it was 69.6) brings the shipped world back to S 1.0 to 1.8% and A 5.9
+/// to 8.2% in every one of 20 seasons on two seeds. At the opening of a new world that raises S by
+/// rating from 1.0% to 1.2%, A from 5.2% to 6.5% and the mean senior rating from 67.7 to 68.2;
+/// wonderkids stay at 0.3%.
+const CEILING_MEAN: f64 = 70.1;
 /// How much of the rolled spread the ceilings keep. Lifting the centre alone would push the S tier
 /// past its 1 to 3% target, so the bell is narrowed as it is lifted.
 const CEILING_SPREAD: f64 = 0.80;
