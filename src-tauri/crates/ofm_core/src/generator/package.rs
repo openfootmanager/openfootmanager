@@ -2034,6 +2034,16 @@ pub fn qualify_package_asset_paths(package: &mut WorldPackage, package_id: &str)
     }
 }
 
+fn entry_name_for_report<R: std::io::Read + std::io::Seek>(
+    archive: &zip::ZipArchive<R>,
+    index: usize,
+) -> String {
+    match archive.name_for_index(index) {
+        Some(Ok(name)) => name.into_owned(),
+        _ => format!("#{index}"),
+    }
+}
+
 /// Shared, hardened extraction. `keep` selects which entries are written; every
 /// entry is still checked for symlinks, zip-slip and decompressed size first, so
 /// a filtered extraction is no less safe than a full one.
@@ -2055,17 +2065,26 @@ fn extract_archive_entries(
     let mut errors = Vec::new();
     let mut total_uncompressed: u64 = 0;
     for i in 0..archive.len() {
+        // An entry zip cannot open, such as one compressed with a codec we do not build, is
+        // reported: skipping it would install the package as if that file had never existed.
         let Ok(mut entry) = archive.by_index(i) else {
+            let entry_name = entry_name_for_report(&archive, i);
+            if keep(&entry_name) {
+                errors.push(PackageError::new(READ_FAILED, &entry_name));
+            }
+            continue;
+        };
+        let Ok(entry_name) = entry.name().map(std::borrow::Cow::into_owned) else {
+            errors.push(PackageError::new(READ_FAILED, &format!("#{i}")));
             continue;
         };
         if entry.is_dir() {
             continue;
         }
         if entry.is_symlink() {
-            errors.push(PackageError::new(SYMLINK_ERROR, entry.name()));
+            errors.push(PackageError::new(SYMLINK_ERROR, &entry_name));
             continue;
         }
-        let entry_name = entry.name().to_string();
         let Some(dest) = safe_entry_path(dest_dir, &entry_name) else {
             errors.push(PackageError::new(ZIPSLIP_ERROR, &entry_name));
             continue;
@@ -2157,7 +2176,9 @@ pub fn read_package_manifest_from_ofm(path: &Path) -> Option<WorldMetaDef> {
         if entry.is_dir() {
             continue;
         }
-        let name = entry.name().to_string();
+        let Ok(name) = entry.name() else {
+            continue;
+        };
         let lower = name.to_ascii_lowercase();
         if !lower.ends_with(".json") && !lower.ends_with(".yaml") && !lower.ends_with(".yml") {
             continue;
@@ -2200,7 +2221,10 @@ pub fn read_logo_from_ofm(archive_path: &Path, logo_path: &str) -> Option<String
         if entry.is_dir() {
             continue;
         }
-        let entry_lower = entry.name().to_ascii_lowercase();
+        let Ok(name) = entry.name() else {
+            continue;
+        };
+        let entry_lower = name.to_ascii_lowercase();
         // Match the relative path or the file's trailing suffix.
         if entry_lower != logo_lower && !entry_lower.ends_with(&format!("/{logo_lower}")) {
             continue;
@@ -3245,6 +3269,93 @@ mod tests {
         assert!(read_package_manifest_from_ofm(&archive).is_none());
         assert!(read_logo_from_ofm(&archive, "assets/logo.png").is_none());
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// Archives written by an earlier build of the game, so a change of zip crate is tested
+    /// against bytes it did not write. Never regenerate them with the current writer.
+    fn testdata(name: &str) -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/generator/testdata")
+            .join(name)
+    }
+
+    /// Given a package that an earlier build exported with zip 2.4.2
+    /// When the current installer extracts it
+    /// Then every file comes back with the same path and the same bytes.
+    #[test]
+    fn a_package_exported_by_an_earlier_build_still_extracts_to_its_files() {
+        let source = packable_tree();
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&testdata("exported-by-zip-2.ofm"), &dest).unwrap();
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(files_under(&dest), files_under(&source));
+        std::fs::remove_dir_all(&source).ok();
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given a package whose team file is compressed with zstd, a method the game does not build
+    /// When it is extracted and when it is loaded
+    /// Then that entry is reported unreadable and never written, and the package is not loaded
+    /// as if the file had never been there.
+    #[test]
+    fn an_entry_compressed_with_an_unsupported_method_is_reported_unreadable() {
+        let archive = testdata("zstd-entry.ofm");
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+        let (_, load_errors) = load_world_package_from_ofm(&archive);
+
+        assert_eq!(
+            errors
+                .iter()
+                .map(|e| (e.code.as_str(), e.file.as_str()))
+                .collect::<Vec<_>>(),
+            [(READ_FAILED, "teams/teams.json")]
+        );
+        assert!(!dest.join("teams/teams.json").exists());
+        assert!(dest.join("package.json").exists());
+        assert!(load_errors.iter().any(|e| e.code == READ_FAILED));
+        std::fs::remove_dir_all(&dest).ok();
+    }
+
+    /// Given a package zipped by hand with no compression (Store), by a tool other than ours
+    /// When it is extracted, listed and loaded
+    /// Then every file comes back unchanged and the package loads without errors.
+    #[test]
+    fn a_hand_made_package_with_stored_entries_installs() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let archive = testdata("stored-by-hand.ofm");
+        let manifest = r#"{"schema":"world","id":"stored-by-hand","name":"Stored By Hand","logo":"assets/logo.png"}"#;
+        let teams = r##"{"schema":"team","items":[{"id":"store","name":"Störe FC","city":"Störe","country":"BR","colors":{"primary":"#0f0","secondary":"#fff"}}]}"##;
+        let logo: Vec<u8> = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+            .into_iter()
+            .chain(0..=255u8)
+            .collect();
+        let expected = std::collections::BTreeMap::from([
+            ("assets/logo.png".to_string(), logo.clone()),
+            ("package.json".to_string(), manifest.as_bytes().to_vec()),
+            ("teams/teams.json".to_string(), teams.as_bytes().to_vec()),
+        ]);
+        let dest = temp_package();
+
+        let errors = extract_archive_safely(&archive, &dest).unwrap();
+        let listed = read_package_manifest_from_ofm(&archive).expect("manifest");
+        let listed_logo = read_logo_from_ofm(&archive, "assets/logo.png").expect("logo");
+        let (package, load_errors) = load_world_package_from_ofm(&archive);
+
+        assert!(errors.is_empty(), "unexpected errors: {errors:?}");
+        assert_eq!(files_under(&dest), expected);
+        assert_eq!(listed.id, "stored-by-hand");
+        assert_eq!(
+            listed_logo,
+            format!("data:image/png;base64,{}", STANDARD.encode(&logo))
+        );
+        assert!(load_errors.is_empty(), "unexpected errors: {load_errors:?}");
+        let team_names: Vec<&str> = package.teams.iter().map(|t| t.name.as_str()).collect();
+        assert_eq!(team_names, ["Störe FC"]);
+        std::fs::remove_dir_all(&dest).ok();
     }
 
     #[test]
