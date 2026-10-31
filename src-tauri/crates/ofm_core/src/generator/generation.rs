@@ -7,7 +7,7 @@ use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
 use super::definitions::{NamePool, NamesDefinition};
 use crate::nations;
 use crate::player_rating::{
-    generate_potential, move_attributes_to, natural_ovr, ovr_from_attributes,
+    WONDERKID_MAX_AGE, generate_potential, move_attributes_to, natural_ovr, ovr_from_attributes,
     refresh_player_derived, roll_growth_headroom,
 };
 
@@ -493,6 +493,95 @@ const CEILING_SPREAD: f64 = 0.80;
 /// stopped drifting.
 const CEILING_SD: f64 = 5.0;
 
+/// How far apart the opening clubs' playing standards are, as the standard deviation (in rating
+/// points) of the shift each club's reputation gives its players' ceilings. The within-club spread
+/// is narrowed by the same variance, so the world as a whole keeps the bell it had (S and A shares,
+/// mean) while the stars gather at the big clubs.
+const BETWEEN_CLUB_SD: f64 = 2.25;
+/// How much tighter a club's own players are drawn than the variance split alone leaves them. A
+/// world made of clubs with different standards has fatter tails than one bell of the same
+/// variance, so without this the S tier and the wonderkids would come out more often than the
+/// maintainer's targets allow.
+const WITHIN_CLUB_TIGHTEN: f64 = 0.8;
+/// The reputation a club of average standing has, and the spread of reputations (measured on the
+/// shipped world's 440 clubs), which turn a reputation into a standard score.
+const REPUTATION_CENTRE: f64 = 500.0;
+const REPUTATION_SD: f64 = 150.0;
+/// A club's standard score is capped here, so one outlier reputation cannot buy a squad of stars.
+const REPUTATION_Z_CAP: f64 = 2.5;
+/// Lifts every club's players a little, to pay for the unattached pool sitting below them, so the
+/// world's mean rating stays where it was.
+const CLUB_LIFT: f64 = 1.1;
+/// Where the unattached pool's ceilings centre, below the world's: a player no club has signed is
+/// mostly one no club wanted.
+const FREE_AGENT_SHIFT: f64 = -3.0;
+/// A player young enough to be a wonderkid keeps this fraction of his club's spread, and
+/// [`YOUNG_SHIFT_KEPT`] of its shift: the stars gather at the big clubs among the grown players,
+/// but the young high-ceiling tail is the one the maintainer wants rare, and a mixture of club
+/// standards would otherwise fatten exactly that tail.
+const YOUNG_SPREAD_KEPT: f64 = 0.88;
+const YOUNG_SHIFT_KEPT: f64 = 1.0;
+
+/// The bell a player's ceiling is drawn from when it is not the single world-wide one.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct Standard {
+    /// Rating points the bell's centre sits above (or below) the world's.
+    shift: f64,
+    /// The fraction of the rolled spread the bell keeps.
+    spread_kept: f64,
+}
+
+impl Standard {
+    /// The share of the rolled spread left once the clubs' own spread has taken its variance.
+    fn within_club_spread() -> f64 {
+        (1.0 - (BETWEEN_CLUB_SD / CEILING_SD).powi(2)).sqrt() * WITHIN_CLUB_TIGHTEN
+    }
+}
+
+/// How a generated player is rolled besides his slot: the age to fix, and the bell his ceiling is
+/// drawn from.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub(super) struct PlayerRoll {
+    /// `None` draws the age from the slot (17 to 21 for a youth-reserved slot, 17 to 35 otherwise).
+    pub age: Option<u32>,
+    /// `None` is the single world-wide bell.
+    pub standard: Option<Standard>,
+}
+
+impl PlayerRoll {
+    /// A player on the world-wide bell, of `age` (or the slot's age).
+    pub(super) fn unscaled(age: Option<u32>) -> Self {
+        Self {
+            age,
+            standard: None,
+        }
+    }
+
+    /// A player of a club of `reputation`, at the slot's age.
+    pub(super) fn for_club(reputation: u32) -> Self {
+        let z = ((f64::from(reputation) - REPUTATION_CENTRE) / REPUTATION_SD)
+            .clamp(-REPUTATION_Z_CAP, REPUTATION_Z_CAP);
+        Self {
+            age: None,
+            standard: Some(Standard {
+                shift: CLUB_LIFT + BETWEEN_CLUB_SD * z,
+                spread_kept: Standard::within_club_spread(),
+            }),
+        }
+    }
+
+    /// A player no club has signed, at the slot's age.
+    pub(super) fn for_unattached() -> Self {
+        Self {
+            age: None,
+            standard: Some(Standard {
+                shift: FREE_AGENT_SHIFT,
+                spread_kept: Standard::within_club_spread(),
+            }),
+        }
+    }
+}
+
 /// The ceiling a rolled rating becomes for a player of `age`: the same ranking, on the bell the
 /// world is meant to have at 25. A young player's ceiling will still drift (`development`), so he
 /// is drawn from a bell narrower by the variance that drift will add; by 25 everyone's ceiling
@@ -502,23 +591,42 @@ const CEILING_SD: f64 = 5.0;
 /// ceiling by 19 to 21, after which his rating holds the ceiling up, so the pull is mostly absorbed
 /// (measured on the shipped world: ceilings of 72.2 at 16 are 72.4 at 25).
 fn shaped_ceiling(rolled: f64, age: u32) -> u8 {
+    ceiling_on_bell(rolled, age, 1.0, 0.0)
+}
+
+/// [`shaped_ceiling`] on a [`Standard`]'s bell.
+fn standard_ceiling(rolled: f64, age: u32, standard: Standard) -> u8 {
+    if age <= WONDERKID_MAX_AGE {
+        return ceiling_on_bell(
+            rolled,
+            age,
+            standard.spread_kept * YOUNG_SPREAD_KEPT,
+            standard.shift * YOUNG_SHIFT_KEPT,
+        );
+    }
+    ceiling_on_bell(rolled, age, standard.spread_kept, standard.shift)
+}
+
+fn ceiling_on_bell(rolled: f64, age: u32, spread_kept: f64, shift: f64) -> u8 {
     let (_, drift_variance) = crate::development::ceiling_drift_still_to_come(age);
     let narrowing = (1.0 - drift_variance / CEILING_SD.powi(2)).max(0.0).sqrt();
-    (CEILING_MEAN + narrowing * CEILING_SPREAD * (rolled - ROLLED_RATING_MEAN))
+    (CEILING_MEAN
+        + shift
+        + narrowing * CEILING_SPREAD * spread_kept * (rolled - ROLLED_RATING_MEAN))
         .round()
         .clamp(1.0, 99.0) as u8
 }
 
-/// A generated player for squad slot `index`. `age` fixes his age; `None`
-/// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
-/// exactly as before the parameter existed, so every seeded world — all of
-/// which pass `None` — is unchanged by it.
+/// A generated player for squad slot `index`. `roll` says how he is rolled beyond the slot: his
+/// age (`None` draws it from the slot, 17–21 for a youth-reserved slot and 17–35 otherwise) and
+/// the bell of his ceiling. `PlayerRoll::unscaled(None)` is the world-wide bell with the slot's
+/// age, as every player was rolled before clubs had a standard.
 pub(super) fn generate_random_player_from_def(
     team_id: &str,
     index: usize,
     nationality: &str,
     opening_year: u32,
-    age: Option<u32>,
+    roll: PlayerRoll,
     names_def: &NamesDefinition,
     rng: &mut impl Rng,
 ) -> Player {
@@ -534,7 +642,7 @@ pub(super) fn generate_random_player_from_def(
     // Reserve one slot per position group (GK + back line + midfield + attack) as
     // youth-aged so scouted youth recruits land at a consistent age across positions
     // and clubs can open with real academy prospects instead of an empty youth squad.
-    let age = age.unwrap_or_else(|| {
+    let age = roll.age.unwrap_or_else(|| {
         if is_youth_reserved_slot(index) {
             rng.random_range(17..22)
         } else {
@@ -609,7 +717,11 @@ pub(super) fn generate_random_player_from_def(
     // who has years of growth left is lowered from it by the headroom for his age. Ceiling
     // first, rating second, so the whole world's ceilings follow one bell and a teenager is an
     // earlier version of a prime-age player rather than a better one.
-    let ceiling = shaped_ceiling(ovr_from_attributes(&attributes, &position), age);
+    let rolled = ovr_from_attributes(&attributes, &position);
+    let ceiling = match roll.standard {
+        None => shaped_ceiling(rolled, age),
+        Some(standard) => standard_ceiling(rolled, age, standard),
+    };
     let headroom = roll_growth_headroom(age, rng);
     move_attributes_to(&mut attributes, &position, ceiling.saturating_sub(headroom));
     // Size market value and wage from the same position-weighted rating the
@@ -1348,7 +1460,7 @@ mod tests {
                     n % 23,
                     "ENG",
                     2026,
-                    None,
+                    PlayerRoll::unscaled(None),
                     &names_def,
                     &mut rng,
                 );
@@ -1530,6 +1642,73 @@ mod tests {
             "A ceilings are {:.1}%",
             a * 100.0
         );
+    }
+
+    /// Seniors rolled for one club standing: `count` players of the slot layout, at the reputation.
+    fn club_seniors(reputation: u32, count: usize, seed: u64) -> Vec<f64> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        (0..count)
+            .map(|n| {
+                generate_random_player_from_def(
+                    "club-id",
+                    senior_slot(n % 23),
+                    "ENG",
+                    2026,
+                    PlayerRoll {
+                        age: Some(27),
+                        ..PlayerRoll::for_club(reputation)
+                    },
+                    &names_def,
+                    &mut rng,
+                )
+            })
+            .map(|player| f64::from(player.ovr))
+            .collect()
+    }
+
+    fn mean(values: &[f64]) -> f64 {
+        values.iter().sum::<f64>() / values.len() as f64
+    }
+
+    /// Given the same slots rolled for a club of high reputation and one of low reputation,
+    /// When the players' ratings are averaged,
+    /// Then the bigger club's players are better, by about the gap between the clubs' standards.
+    #[test]
+    fn a_bigger_clubs_players_are_better() {
+        let big = mean(&club_seniors(800, 2000, 7));
+        let small = mean(&club_seniors(200, 2000, 7));
+
+        assert!(big - small > 6.0, "{big:.1} against {small:.1}");
+    }
+
+    /// Given two clubs of the same reputation,
+    /// When the same seed rolls their players,
+    /// Then they are the same players: the standard is a function of the reputation alone.
+    #[test]
+    fn a_clubs_standard_is_a_function_of_its_reputation() {
+        assert_eq!(club_seniors(640, 50, 3), club_seniors(640, 50, 3));
+    }
+
+    /// Given a club far above every other reputation,
+    /// When its standard is read,
+    /// Then it is the same as a club at the cap, so one outlier cannot buy a squad of stars.
+    #[test]
+    fn an_outlier_reputation_does_not_run_away() {
+        assert_eq!(
+            PlayerRoll::for_club(2000).standard,
+            PlayerRoll::for_club(1000).standard
+        );
+    }
+
+    /// Given a roll with no club standard,
+    /// When the player is generated,
+    /// Then his ceiling is the world-wide bell it always was.
+    #[test]
+    fn a_roll_without_a_club_standard_keeps_the_world_wide_bell() {
+        assert_eq!(PlayerRoll::unscaled(Some(30)).standard, None);
+        assert_eq!(PlayerRoll::default().age, None);
     }
 
     /// Given staff authored with and without a `knownAs` name (#557)

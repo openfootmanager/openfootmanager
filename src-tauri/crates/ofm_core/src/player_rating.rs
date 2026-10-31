@@ -4,7 +4,7 @@ use domain::player::{
 };
 use rand::RngExt;
 
-const WONDERKID_MAX_AGE: u32 = 20;
+pub(crate) const WONDERKID_MAX_AGE: u32 = 20;
 const WONDERKID_MIN_GROWTH_ROOM: u8 = 14;
 
 pub fn formation_slots(formation: &str) -> Vec<Position> {
