@@ -400,7 +400,8 @@ export function marketPageOf(
       match_name: player.match_name,
       date_of_birth: player.date_of_birth,
       age: 26,
-      wage: player.wage,
+      // The market's players are other clubs' and unscouted here, so the backend hides their wage.
+      wage: { kind: "hidden" },
       nationality: player.nationality,
       position: player.position,
       natural_position: player.natural_position ?? player.position,
