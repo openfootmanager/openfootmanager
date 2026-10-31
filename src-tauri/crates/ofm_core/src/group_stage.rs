@@ -340,7 +340,7 @@ fn maybe_seed_knockout_from_groups(league: &mut League) {
         return;
     }
 
-    let qualifiers = knockout_qualifiers(league);
+    let qualifiers = knockout_bracket_order(league);
     if qualifiers.len() < 2 {
         return;
     }
@@ -411,6 +411,157 @@ pub(crate) fn knockout_qualifiers(league: &League) -> Vec<String> {
         );
     }
     qualifiers
+}
+
+/// The group-stage qualifiers in first-round bracket order, as [`crate::schedule::seed_knockout_round`]
+/// reads them: the byes first (the strongest group winners), then the ties two entrants at a time,
+/// in the order they sit in the bracket. A round's winners meet their neighbour next.
+///
+/// - A group winner plays the lowest-placed qualifier from another group, so group winners meet
+///   runners-up (and best thirds), not each other: A1 v B2 and B1 v A2 for a plain four-team
+///   knockout, and the lowest qualifiers available when best thirds are in the field.
+/// - Two teams of one group never meet in this round while another opponent exists.
+/// - The ties are placed so a group's teams sit in opposite halves of the bracket where they can:
+///   A1 and A2 can only meet in the final.
+///
+/// The set of entrants is exactly [`knockout_qualifiers`]'s; only their order differs, so a bracket
+/// drawn the old way (winner against winner) still verifies in the strict archive check, which
+/// reads the entrants as a set.
+pub(crate) fn knockout_bracket_order(league: &League) -> Vec<String> {
+    let ranked = knockout_qualifiers(league);
+    let Some(byes) = crate::schedule::knockout_bye_count(ranked.len()) else {
+        return ranked;
+    };
+    let group_of = |team: &str| {
+        league
+            .groups
+            .iter()
+            .position(|group| group.team_ids.iter().any(|id| id == team))
+    };
+    let (bye_teams, playing) = ranked.split_at(byes);
+    let paired = if byes == 0 && is_two_per_group_without_thirds(league) {
+        paired_groups_ties(league)
+    } else {
+        Vec::new()
+    };
+    let ties = if paired.len() * 2 == playing.len() {
+        paired
+    } else {
+        lowest_available_ties(playing, group_of)
+    };
+    let ties = arrange_halves(ties, &group_of);
+    bye_teams
+        .iter()
+        .cloned()
+        .chain(ties.into_iter().flat_map(|(home, away)| [home, away]))
+        .collect()
+}
+
+type Tie = (String, String);
+
+fn is_two_per_group_without_thirds(league: &League) -> bool {
+    league.rules.group_qualifiers_per_group == 2
+        && league.rules.group_best_third_qualifiers == 0
+        && league.groups.len() >= 2
+        && league.groups.len() % 2 == 0
+}
+
+/// A1 v B2, B1 v A2, C1 v D2, D1 v C2, ...: each winner against the runner-up of the group it is
+/// paired with, the groups paired in the order they were drawn.
+fn paired_groups_ties(league: &League) -> Vec<Tie> {
+    let placed = |group: &GroupState, place: usize| {
+        sorted_group_standings(group)
+            .into_iter()
+            .nth(place)
+            .map(|entry| entry.team_id)
+    };
+    let mut ties = Vec::new();
+    for pair in league.groups.chunks(2) {
+        let [first, second] = pair else { continue };
+        for (winner_group, runner_up_group) in [(first, second), (second, first)] {
+            if let (Some(winner), Some(runner_up)) =
+                (placed(winner_group, 0), placed(runner_up_group, 1))
+            {
+                ties.push((winner, runner_up));
+            }
+        }
+    }
+    ties
+}
+
+/// The best remaining qualifier plays the lowest-placed remaining qualifier of another group (of
+/// its own group only when no other is left). `ranked` is best first.
+fn lowest_available_ties(ranked: &[String], group_of: impl Fn(&str) -> Option<usize>) -> Vec<Tie> {
+    let mut pool: Vec<String> = ranked.to_vec();
+    let mut ties = Vec::new();
+    while !pool.is_empty() {
+        let best = pool.remove(0);
+        if pool.is_empty() {
+            break;
+        }
+        let best_group = group_of(best.as_str());
+        let opponent = pool
+            .iter()
+            .rposition(|team| group_of(team.as_str()) != best_group)
+            .unwrap_or(pool.len() - 1);
+        ties.push((best, pool.remove(opponent)));
+    }
+    ties
+}
+
+/// The ties in bracket order: split into two halves with as few same-group pairs inside a half as
+/// possible, then each half the same way. Searches every split for fields up to
+/// [`MAX_ARRANGED_TIES`] ties (a 64-team round) and keeps the order given beyond that. The first
+/// split with the fewest clashes wins, so the result is the same on every run.
+fn arrange_halves(ties: Vec<Tie>, group_of: &impl Fn(&str) -> Option<usize>) -> Vec<Tie> {
+    const MAX_ARRANGED_TIES: usize = 20;
+    if ties.len() <= 2 || ties.len() > MAX_ARRANGED_TIES {
+        return ties;
+    }
+    let half = ties.len() / 2;
+    let clashes = |members: &[&Tie]| {
+        let mut per_group = std::collections::BTreeMap::<usize, usize>::new();
+        for tie in members {
+            for team in [&tie.0, &tie.1] {
+                if let Some(group) = group_of(team.as_str()) {
+                    *per_group.entry(group).or_default() += 1;
+                }
+            }
+        }
+        per_group
+            .values()
+            .map(|count| count * (count - 1) / 2)
+            .sum::<usize>()
+    };
+    let mut best: Option<(usize, u32)> = None;
+    for mask in 0..(1u32 << ties.len()) {
+        // The first tie stays in the first half: swapping the halves is the same bracket.
+        if mask & 1 == 0 || mask.count_ones() as usize != half {
+            continue;
+        }
+        let side = |first: bool| -> Vec<&Tie> {
+            ties.iter()
+                .enumerate()
+                .filter(|(index, _)| (mask & (1u32 << *index) != 0) == first)
+                .map(|(_, tie)| tie)
+                .collect()
+        };
+        let cost = clashes(&side(true)) + clashes(&side(false));
+        if best.is_none_or(|(lowest, _)| cost < lowest) {
+            best = Some((cost, mask));
+        }
+    }
+    let Some((_, mask)) = best else {
+        return ties;
+    };
+    let (first, second): (Vec<(usize, Tie)>, Vec<(usize, Tie)>) = ties
+        .into_iter()
+        .enumerate()
+        .partition(|(index, _)| mask & (1u32 << *index) != 0);
+    let strip = |side: Vec<(usize, Tie)>| side.into_iter().map(|(_, tie)| tie).collect::<Vec<_>>();
+    let mut arranged = arrange_halves(strip(first), group_of);
+    arranged.extend(arrange_halves(strip(second), group_of));
+    arranged
 }
 
 /// Reset a group-and-knockout competition for a new season in place: fresh
