@@ -13,7 +13,7 @@ export function UnreadBadge({ count, className = "" }: UnreadBadgeProps) {
   const text = typeof count === "number" && count > 99 ? "99+" : String(count);
   return (
     <span
-      className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary-700 px-1 text-caption font-bold leading-none text-on-brand tabular-nums ${className}`}
+      className={`inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-selected-fill px-1 text-caption font-bold leading-none text-on-brand tabular-nums ${className}`}
     >
       {text}
     </span>

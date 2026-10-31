@@ -28,6 +28,7 @@ describe("applyRoleChange", () => {
 
     expect(outcome).toEqual({ applied: true });
     expect(mockedInvoke).toHaveBeenCalledWith("apply_match_command", {
+      careerToken: 0,
       command: { ChangePlayerRole: { side: "Home", player_id: "p9", role: "Poacher" } },
     });
     expect(onSnapshot).toHaveBeenCalledWith(snapshot);

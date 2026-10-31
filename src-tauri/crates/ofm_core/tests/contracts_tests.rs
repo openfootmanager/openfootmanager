@@ -16,8 +16,8 @@ use ofm_core::clock::GameClock;
 use ofm_core::contracts::{
     ContractWarningStage, DelegatedRenewalOptions, DelegatedRenewalResultStatus, RenewalDecision,
     RenewalOffer, clear_contract_exit_intent, contract_warning_stages, delegate_renewals,
-    evaluate_renewal_offer, has_let_expire_intent, offer_free_agent_contract,
-    preview_contract_termination, project_free_agent_contract_impact,
+    evaluate_renewal_offer, free_agent_opening_offer, has_let_expire_intent,
+    offer_free_agent_contract, preview_contract_termination, project_free_agent_contract_impact,
     project_renewal_financial_impact, propose_renewal, set_contract_exit_intent,
     terminate_contract_now,
 };
@@ -761,6 +761,83 @@ fn free_agent_offer_rejects_contracts_longer_than_five_years() {
     assert!(matches!(outcome.decision, RenewalDecision::Rejected));
     assert_eq!(game.players[0].team_id, None);
     assert_eq!(game.players[0].contract_end(), None);
+}
+
+/// Given a 26-year-old free agent valued at 1,210,000
+/// When the manager opens contract talks with him
+/// Then the opening offer is his reference wage, 6,050 a week rounded up to 7,000, for the three
+///      years a player his age expects
+#[test]
+fn a_free_agents_opening_offer_is_his_reference_wage_for_the_years_his_age_expects() {
+    let mut game = make_free_agent_game();
+    game.players[0].market_value = 1_210_000;
+
+    let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+    assert_eq!(
+        offer,
+        RenewalOffer {
+            weekly_wage: 7_000,
+            contract_years: 3,
+        }
+    );
+}
+
+/// Given a 34-year-old free agent valued at 50,000, whose value is worth less than the floor wage
+/// When the manager opens contract talks with him
+/// Then the opening offer is the 500 floor rounded up to 1,000, for one year
+#[test]
+fn an_old_cheap_free_agents_opening_offer_is_the_floor_wage_for_one_year() {
+    let mut game = make_free_agent_game();
+    game.players[0].market_value = 50_000;
+    game.players[0].date_of_birth = "1992-01-01".to_string();
+
+    let offer = free_agent_opening_offer(&game, "free-agent-1").expect("opening offer");
+
+    assert_eq!(
+        offer,
+        RenewalOffer {
+            weekly_wage: 1_000,
+            contract_years: 1,
+        }
+    );
+}
+
+/// Given a player under contract at a club
+/// When an opening free-agent offer is asked for him
+/// Then there is none: he is not a free agent
+#[test]
+fn a_player_at_a_club_has_no_free_agent_opening_offer() {
+    let game = make_game();
+
+    let error = free_agent_opening_offer(&game, "player-1").expect_err("not a free agent");
+
+    assert_eq!(error, "be.error.contracts.playerNotFreeAgent");
+}
+
+/// Given a retired player without a club
+/// When an opening free-agent offer is asked for him
+/// Then there is none: a retired player signs for nobody
+#[test]
+fn a_retired_player_has_no_free_agent_opening_offer() {
+    let mut game = make_free_agent_game();
+    game.players[0].retired = true;
+
+    let error = free_agent_opening_offer(&game, "free-agent-1").expect_err("retired");
+
+    assert_eq!(error, "be.error.contracts.playerNotFreeAgent");
+}
+
+/// Given no player with the id asked for
+/// When an opening free-agent offer is asked for
+/// Then the player is reported not found
+#[test]
+fn an_unknown_player_has_no_free_agent_opening_offer() {
+    let game = make_free_agent_game();
+
+    let error = free_agent_opening_offer(&game, "nobody").expect_err("unknown player");
+
+    assert_eq!(error, "be.error.playerNotFound");
 }
 
 #[test]

@@ -9,6 +9,7 @@ use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{
     age_from_dob, format_position, require_game, serde_label, user_team,
 };
+use ofm_core::state::Career;
 use std::sync::Arc;
 
 // ─── squad_get ──────────────────────────────────────────────────────────────
@@ -75,7 +76,11 @@ pub fn squad_set_starting_xi(
     player_ids: Vec<String>,
 ) -> Result<StartingXiUpdated, String> {
     // Call the internal function from commands/squad.rs
-    crate::commands::squad::set_starting_xi_internal(&ctx.state_manager, player_ids.clone())?;
+    crate::commands::squad::set_starting_xi_internal(
+        &ctx.state_manager,
+        Career::Active,
+        player_ids.clone(),
+    )?;
 
     let game = require_game(&ctx.state_manager)?;
     let team = user_team(&game)?;
@@ -112,7 +117,7 @@ pub fn squad_set_formation(
     ctx: Arc<McpContext>,
     formation: String,
 ) -> Result<FormationChanged, String> {
-    crate::commands::squad::set_formation_internal(&ctx.state_manager, &formation)?;
+    crate::commands::squad::set_formation_internal(&ctx.state_manager, Career::Active, &formation)?;
 
     let game = require_game(&ctx.state_manager)?;
     let team = user_team(&game)?;
@@ -136,7 +141,11 @@ pub fn squad_set_play_style(
     ctx: Arc<McpContext>,
     play_style: String,
 ) -> Result<PlayStyleChanged, String> {
-    crate::commands::squad::set_play_style_internal(&ctx.state_manager, &play_style)?;
+    crate::commands::squad::set_play_style_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &play_style,
+    )?;
 
     let game = require_game(&ctx.state_manager)?;
     let team = user_team(&game)?;
@@ -171,7 +180,11 @@ pub fn squad_set_match_roles(
         corner_taker: corner_taker.clone(),
     };
 
-    crate::commands::squad::set_team_match_roles_internal(&ctx.state_manager, match_roles)?;
+    crate::commands::squad::set_team_match_roles_internal(
+        &ctx.state_manager,
+        Career::Active,
+        match_roles,
+    )?;
 
     {
         use tauri::Emitter;
@@ -221,7 +234,11 @@ pub fn squad_auto_set_pieces(ctx: Arc<McpContext>) -> Result<SetPiecesAssigned, 
             .map(|s| s.to_string()),
     };
 
-    crate::commands::squad::set_team_match_roles_internal(&ctx.state_manager, match_roles)?;
+    crate::commands::squad::set_team_match_roles_internal(
+        &ctx.state_manager,
+        Career::Active,
+        match_roles,
+    )?;
 
     let game = require_game(&ctx.state_manager)?;
 
@@ -260,6 +277,7 @@ pub fn squad_set_player_role(
 ) -> Result<PlayerRoleUpdated, String> {
     crate::commands::squad::set_player_squad_role_internal(
         &ctx.state_manager,
+        Career::Active,
         &player_id,
         &squad_role,
     )?;

@@ -11,6 +11,7 @@ import {
 } from "./types";
 import { Play, Pause, FastForward, SkipForward } from "lucide-react";
 import { TeamLogo } from "../ui";
+import { invokeForCareer } from "../../services/careerInvoke";
 
 interface PenaltyShootoutScreenProps {
   snapshot: MatchSnapshot;
@@ -50,7 +51,7 @@ export default function PenaltyShootoutScreen({
     try {
       // Always one at a time, never batched like the live match: here a "minute" is a single
       // penalty, and the whole point of the screen is watching each one.
-      const results = await invoke<MinuteResult[]>("step_live_match", {
+      const results = await invokeForCareer<MinuteResult[]>("step_live_match", {
         minutes: 1,
       });
       if (results.length > 0) {

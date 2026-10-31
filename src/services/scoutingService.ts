@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, ScoutedPlayerView } from "../store/gameStore";
+import { invokeForCareer } from "./careerInvoke";
 
 export interface StartYouthScoutingInput {
   scoutId: string;
@@ -37,14 +38,14 @@ export async function getScoutedReport(playerId: string): Promise<ScoutedPlayerV
 }
 
 export async function sendScout(scoutId: string, playerId: string): Promise<GameStateData> {
-  return invoke<GameStateData>("send_scout", {
+  return invokeForCareer<GameStateData>("send_scout", {
     scoutId,
     playerId,
   });
 }
 
 export async function startYouthScouting(input: StartYouthScoutingInput): Promise<GameStateData> {
-  return invoke<GameStateData>("start_youth_scouting", {
+  return invokeForCareer<GameStateData>("start_youth_scouting", {
     scoutId: input.scoutId,
     region: input.region ?? null,
     objective: input.objective ?? null,
@@ -53,7 +54,7 @@ export async function startYouthScouting(input: StartYouthScoutingInput): Promis
 }
 
 export async function cancelYouthScouting(assignmentId: string): Promise<GameStateData> {
-  return invoke<GameStateData>("cancel_youth_scouting", {
+  return invokeForCareer<GameStateData>("cancel_youth_scouting", {
     assignmentId,
   });
 }
@@ -62,7 +63,7 @@ export async function reassignYouthScouting(
   assignmentId: string,
   scoutId: string,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("reassign_youth_scouting", {
+  return invokeForCareer<GameStateData>("reassign_youth_scouting", {
     assignmentId,
     scoutId,
   });

@@ -4,23 +4,28 @@ use tauri::State;
 
 use ofm_core::finances;
 use ofm_core::game::Game;
-use ofm_core::state::StateManager;
+use ofm_core::state::{Career, StateManager};
 
-use crate::commands::util::mutate_active_game;
+use crate::commands::util::mutate_active_game_for;
 
 #[tauri::command]
 pub fn upgrade_facility(
     state: State<'_, Arc<StateManager>>,
     facility: String,
+    career_token: u64,
 ) -> Result<Game, String> {
-    upgrade_facility_internal(&state, &facility)
+    upgrade_facility_internal(&state, Career::Token(career_token), &facility)
 }
 
-pub fn upgrade_facility_internal(state: &StateManager, facility: &str) -> Result<Game, String> {
+pub fn upgrade_facility_internal(
+    state: &StateManager,
+    career: Career,
+    facility: &str,
+) -> Result<Game, String> {
     info!("[cmd] upgrade_facility: {}", facility);
     // All checks (team, facility type, finance health, ofm_core's funds check)
     // precede any mutation, so in-place mutation is safe.
-    mutate_active_game(state, |game| {
+    mutate_active_game_for(state, career, |game| {
         let team_id = game
             .manager
             .team_id
@@ -55,6 +60,7 @@ mod tests {
     use domain::team::Team;
     use ofm_core::clock::GameClock;
     use ofm_core::game::Game;
+    use ofm_core::state::Career;
     use ofm_core::state::StateManager;
 
     fn default_attrs() -> PlayerAttributes {
@@ -130,7 +136,8 @@ mod tests {
         let state = StateManager::new();
         state.set_game(make_game());
 
-        let response = upgrade_facility_internal(&state, "Medical").expect("response");
+        let response =
+            upgrade_facility_internal(&state, Career::Active, "Medical").expect("response");
         let team = response
             .teams
             .iter()
@@ -159,7 +166,8 @@ mod tests {
             .push(make_player("player-1", "team-1", 220_000));
         state.set_game(game);
 
-        let error = upgrade_facility_internal(&state, "Training").expect_err("should fail");
+        let error =
+            upgrade_facility_internal(&state, Career::Active, "Training").expect_err("should fail");
 
         assert_eq!(error, "be.error.finance.facilityUpgradeOverBudget");
 
@@ -185,8 +193,27 @@ mod tests {
             .push(make_player("player-1", "team-1", 260_000));
         state.set_game(game);
 
-        let error = upgrade_facility_internal(&state, "Medical").expect_err("should fail");
+        let error =
+            upgrade_facility_internal(&state, Career::Active, "Medical").expect_err("should fail");
 
         assert_eq!(error, "be.error.finance.facilityUpgradeCritical");
+    }
+
+    /// Given career B is active (token 2) and a screen holds career A's token (1)
+    /// When a facility upgrade arrives with A's token
+    /// Then it is refused with the career-changed key and career B's club is untouched.
+    #[test]
+    fn a_facility_upgrade_for_a_replaced_career_is_refused() {
+        let state = StateManager::new();
+        let mut game = make_game();
+        game.career_token = 2;
+        state.set_game(game);
+        let before = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+
+        let result = upgrade_facility_internal(&state, Career::Token(1), "Medical");
+
+        assert_eq!(result.err(), Some("be.error.careerChanged".to_string()));
+        let after = serde_json::to_value(state.get_game(|g| g.clone()).unwrap()).unwrap();
+        assert_eq!(after, before);
     }
 }
