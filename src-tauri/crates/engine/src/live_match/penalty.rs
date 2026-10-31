@@ -194,8 +194,19 @@ impl LiveMatchState {
     ) -> Vec<MatchEvent> {
         let mut events = Vec::new();
 
-        // Use designated penalty taker if set
-        let taker = match self.set_pieces_ref(att_side).penalty_taker.clone() {
+        // The designated taker takes it only from the pitch. One who has been sent off or
+        // substituted off leaves it to the forward pick, as a side with no designated taker
+        // does. Looking the taker up by id would hand it to them anyway, or to the first
+        // player in the squad, usually the goalkeeper.
+        let designated = self
+            .set_pieces_ref(att_side)
+            .penalty_taker
+            .clone()
+            .filter(|id| {
+                !self.sent_off.contains(id)
+                    && self.team_ref(att_side).players.iter().any(|p| p.id == *id)
+            });
+        let taker = match designated {
             Some(id) => self.snap_player_by_id(&id, att_side),
             None => self.snap_player(att_side, Position::Forward, rng),
         };
