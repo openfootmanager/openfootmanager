@@ -128,6 +128,9 @@ impl fmt::Display for MatchSnapshot {
 pub struct ShootoutOrder {
     pub players: Vec<ShootoutKicker>,
     pub kickers: u8,
+    /// Whether the order can still be changed: no kick has been taken yet.
+    #[serde(default)]
+    pub changeable: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -153,10 +156,13 @@ impl fmt::Display for ShootoutOrder {
                 kicker.player_id
             )?;
         }
-        write!(
-            f,
-            "Change it with match_set_shootout_order before the first kick."
-        )
+        if self.changeable {
+            write!(
+                f,
+                "Change it with match_set_shootout_order before the first kick."
+            )?;
+        }
+        Ok(())
     }
 }
 
@@ -307,6 +313,7 @@ mod shootout_order_tests {
         let order = ShootoutOrder {
             players: vec![kicker("p1", "Ana")],
             kickers: 1,
+            changeable: true,
         };
         let during = snapshot(Some(order)).to_string();
         assert!(during.contains("**Score**: 1 - 1"), "{during}");
@@ -334,10 +341,28 @@ mod shootout_order_tests {
         let order = ShootoutOrder {
             players: vec![kicker("p1", "Ana"), kicker("p2", "Bo"), kicker("p3", "Cy")],
             kickers: 2,
+            changeable: true,
         };
         let text = order.to_string();
         assert!(text.contains("1. Ana [p1]\n"), "{text}");
         assert!(text.contains("2. Bo [p2]\n"), "{text}");
         assert!(text.contains("3. Cy [p3] (sits out)\n"), "{text}");
+    }
+
+    /// Given an agent's order before the first kick and after it,
+    /// When the agent reads each,
+    /// Then only the first says it can be changed, since the engine refuses a change once a kick
+    /// has been taken.
+    #[test]
+    fn the_order_says_it_can_be_changed_only_before_the_first_kick() {
+        let order = |changeable| ShootoutOrder {
+            players: vec![kicker("p1", "Ana")],
+            kickers: 1,
+            changeable,
+        };
+        assert!(order(true).to_string().contains("match_set_shootout_order"));
+        let after = order(false).to_string();
+        assert!(!after.contains("match_set_shootout_order"), "{after}");
+        assert!(after.contains("1. Ana [p1]"), "{after}");
     }
 }

@@ -157,8 +157,9 @@ fn snapshot_view(snapshot: &engine::MatchSnapshot) -> MatchSnapshot {
         home_score: snapshot.home_score,
         away_score: snapshot.away_score,
         phase: format!("{:?}", snapshot.phase),
-        home_possession: snapshot.home_possession_pct,
-        away_possession: snapshot.away_possession_pct,
+        // The engine counts possession in percent; the agent's view, and its Display, in shares.
+        home_possession: snapshot.home_possession_pct / 100.0,
+        away_possession: snapshot.away_possession_pct / 100.0,
         shootout_order: own_shootout_order(snapshot),
     }
 }
@@ -188,6 +189,8 @@ fn own_shootout_order(snapshot: &engine::MatchSnapshot) -> Option<ShootoutOrder>
     Some(ShootoutOrder {
         players,
         kickers: order.kickers,
+        // The home side kicks first, so no home kick means no kick at all.
+        changeable: shootout.home_taken == 0,
     })
 }
 
@@ -1227,6 +1230,26 @@ mod tests {
             order.players
         );
         assert_eq!(order.kickers, engine_order.kickers);
+    }
+
+    /// Given the agent's club at the start of a shootout,
+    /// When the agent reads the match snapshot,
+    /// Then possession is given as shares that add up to one, and its order can still be
+    /// changed.
+    #[test]
+    fn an_agents_snapshot_gives_possession_as_shares_and_a_changeable_order() {
+        let view = snapshot_view(&snapshot_at_the_shootout(Some("team1")));
+        assert!(
+            (0.0..=1.0).contains(&view.home_possession),
+            "{}",
+            view.home_possession
+        );
+        assert!((view.home_possession + view.away_possession - 1.0).abs() < 1e-9);
+        assert!(
+            view.shootout_order
+                .expect("the agent's own order")
+                .changeable
+        );
     }
 
     /// Given a match between two clubs the agent does not manage, at the start of its shootout,
