@@ -72,6 +72,8 @@ impl LiveMatchState {
                 home_scored: self.penalty_state.home_scored,
                 away_scored: self.penalty_state.away_scored,
                 sudden_death: self.penalty_state.sudden_death,
+                home_order: None,
+                away_order: None,
             })
         } else {
             None
