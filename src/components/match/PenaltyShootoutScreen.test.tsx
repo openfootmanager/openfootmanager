@@ -85,10 +85,11 @@ describe("PenaltyShootoutScreen", (): void => {
   });
 
   /**
-   * Given a shootout where the home side missed its first kick and scored its second, and the
-   * away side has not kicked yet
+   * Given a home goal in extra time, then a shootout where the home side missed its first kick and
+   * scored its second, and the away side has not kicked yet
    * When the screen draws the kick grid
-   * Then the home row reads miss, then goal, as the kick events happened, not goals first.
+   * Then the home row reads miss, then goal, as the kick events happened: not goals first, and
+   * without the extra-time goal, which shares the event log but is no kick.
    */
   it("draws the home row from that side's kick events in order", (): void => {
     // The screen steps the shootout on a timer; held still, it draws only the snapshot it was given.
@@ -96,7 +97,11 @@ describe("PenaltyShootoutScreen", (): void => {
     const snapshot: MatchSnapshot = {
       ...makeSnapshot(),
       phase: "PenaltyShootout",
-      events: [kick("Home", "ShootoutMiss"), kick("Home", "ShootoutGoal")],
+      events: [
+        { ...kick("Home", "ShootoutGoal"), minute: 112, event_type: "Goal" },
+        kick("Home", "ShootoutMiss"),
+        kick("Home", "ShootoutGoal"),
+      ],
       penalty_shootout: {
         home_taken: 2,
         away_taken: 0,
