@@ -558,6 +558,18 @@ mod tests {
         assert_eq!(condition_of(&game, "r"), None);
     }
 
+    /// Given the club meeting "rival" today
+    /// When a player of "faraway", which the club does not meet, is asked about
+    /// Then his condition stays hidden: a matchday hands over the opponent's team sheet only, not
+    ///      every club's
+    #[test]
+    fn a_matchday_shows_only_the_opponents_condition() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("f", Some("faraway")), 71)]);
+        fixture_on(&mut game, "2026-09-15", MY_CLUB, "rival");
+
+        assert_eq!(condition_of(&game, "f"), None);
+    }
+
     /// Given "rival" and "faraway" meeting each other today, the club not playing them
     /// When a "faraway" player's condition is asked
     /// Then it does not show: only the club's own opponent's team sheet is in its hands
