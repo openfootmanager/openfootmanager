@@ -9,7 +9,8 @@ use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::slices::teams::{
-    TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_club_league_standing, query_directory,
+    TeamCard, TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_club_league_standing,
+    query_directory, query_team_card,
 };
 
 fn default_attrs() -> PlayerAttributes {
@@ -106,6 +107,94 @@ fn empty_query() -> TeamsDirectoryQuery {
     TeamsDirectoryQuery { search: None }
 }
 
+/// The game with the manager in charge of `club`: what the club knows decides which averages show.
+fn managing(mut game: Game, club: &str) -> Game {
+    game.manager.team_id = Some(club.to_string());
+    game
+}
+
+/// The card the directory shows for `club_id`.
+fn directory_card(game: &Game, club_id: &str) -> TeamCard {
+    query_directory(game, &empty_query())
+        .regions
+        .into_iter()
+        .flat_map(|region| region.leagues)
+        .flat_map(|league| league.teams)
+        .find(|card| card.team.id == club_id)
+        .expect("the directory lists every club")
+}
+
+/// Two divisions: "mine" and "rival" share one, "faraway" plays in the other. Each squad's players
+/// are rated so their average is known: mine 70, rival 80, faraway 60.
+fn two_divisions() -> Game {
+    let teams = vec![
+        make_team("mine", "Mine FC", "ENG", "A"),
+        make_team("rival", "Rival FC", "ENG", "B"),
+        make_team("faraway", "Faraway FC", "ENG", "C"),
+    ];
+    let players = vec![
+        make_player("m1", Some("mine"), 70, 1),
+        make_player("r1", Some("rival"), 80, 1),
+        make_player("f1", Some("faraway"), 60, 1),
+    ];
+    let leagues = vec![
+        make_domestic_league("one", "One", "ENG", Some("UEFA"), &["mine", "rival"]),
+        make_domestic_league("two", "Two", "ENG", Some("UEFA"), &["faraway"]),
+    ];
+    make_game(teams, players, leagues)
+}
+
+/// Given the manager's club and a rival in his division
+/// When the clubs directory shows their cards
+/// Then each card carries its squad's average rating: the club sees both squads every week
+#[test]
+fn a_card_shows_the_average_of_the_managers_club_and_his_division_rivals() {
+    let game = managing(two_divisions(), "mine");
+
+    assert_eq!(directory_card(&game, "mine").avg_ovr, Some(70));
+    assert_eq!(directory_card(&game, "rival").avg_ovr, Some(80));
+}
+
+/// Given a club in another division, whose players the manager's club does not know
+/// When the clubs directory shows its card
+/// Then the card carries no average rating, not even one made from the players it has scouted
+#[test]
+fn a_card_hides_the_average_of_a_club_outside_the_managers_division() {
+    let game = managing(two_divisions(), "mine");
+
+    assert_eq!(directory_card(&game, "faraway").avg_ovr, None);
+}
+
+/// Given a manager without a club
+/// When the clubs directory shows its cards
+/// Then no card carries an average rating: no division is his
+#[test]
+fn an_unemployed_manager_sees_no_clubs_average() {
+    let game = two_divisions();
+
+    for club in ["mine", "rival", "faraway"] {
+        assert_eq!(directory_card(&game, club).avg_ovr, None, "{club}");
+    }
+}
+
+/// Given the manager's club, a division rival and a club in another division
+/// When the team profile asks for one club's card
+/// Then it gets the same card the directory shows, average included or withheld alike, and an id
+///      no club has gets none
+#[test]
+fn a_team_card_is_the_directory_card_for_that_club() {
+    let game = managing(two_divisions(), "mine");
+
+    for club in ["mine", "rival", "faraway"] {
+        assert_eq!(
+            query_team_card(&game, club),
+            Some(directory_card(&game, club)),
+            "{club}"
+        );
+    }
+    assert_eq!(query_team_card(&game, "nobody"), None);
+}
+
 #[test]
 fn directory_groups_teams_under_their_domestic_league_and_region() {
     let teams = vec![
@@ -136,13 +225,14 @@ fn cards_include_roster_stats_and_league_position() {
         make_player("p1", Some("t1"), 80, 1_000_000),
         make_player("p2", Some("t1"), 70, 500_000),
     ];
-    let game = make_game(vec![team], players, vec![league]);
+    // The manager's own club, so the club may see its average.
+    let game = managing(make_game(vec![team], players, vec![league]), "t1");
 
     let dir = query_directory(&game, &empty_query());
 
     let card = &dir.regions[0].leagues[0].teams[0];
     assert_eq!(card.roster_size, 2);
-    assert_eq!(card.avg_ovr, 75);
+    assert_eq!(card.avg_ovr, Some(75));
     assert_eq!(card.total_value, 1_500_000);
     assert_eq!(card.league_pos, 1);
     let standing = card.standing.as_ref().expect("standing");
@@ -350,7 +440,8 @@ fn roster_stats_use_only_team_members() {
         make_player("bp2", Some("b"), 60, 200_000),
     ];
     let league = make_domestic_league("epl", "Premier", "ENG", Some("UEFA"), &["a", "b"]);
-    let game = make_game(vec![team_a, team_b], players, vec![league]);
+    // The manager runs "a", so both squads are his division's and both averages show.
+    let game = managing(make_game(vec![team_a, team_b], players, vec![league]), "a");
 
     let dir = query_directory(&game, &empty_query());
     let teams = &dir.regions[0].leagues[0].teams;
@@ -358,11 +449,11 @@ fn roster_stats_use_only_team_members() {
     let card_b = teams.iter().find(|c| c.team.id == "b").unwrap();
 
     assert_eq!(card_a.roster_size, 1);
-    assert_eq!(card_a.avg_ovr, 90);
+    assert_eq!(card_a.avg_ovr, Some(90));
     assert_eq!(card_a.total_value, 1_000_000);
 
     assert_eq!(card_b.roster_size, 2);
-    assert_eq!(card_b.avg_ovr, 55);
+    assert_eq!(card_b.avg_ovr, Some(55));
     assert_eq!(card_b.total_value, 300_000);
 }
 

@@ -42,7 +42,8 @@ export interface TeamStanding {
 export interface TeamCard {
   team: TeamCardTeam;
   roster_size: number;
-  avg_ovr: number;
+  /** Null for a club outside the manager's division: the club does not know that squad. */
+  avg_ovr: number | null;
   total_value: number;
   league_pos: number;
   standing: TeamStanding | null;
@@ -68,4 +69,9 @@ export interface TeamsDirectory {
 
 export function fetchTeamsDirectory(query: TeamsDirectoryQuery): Promise<TeamsDirectory> {
   return invoke<TeamsDirectory>("get_teams_directory", { query });
+}
+
+/** One club's card, as the directory shows it; null for an id no club has. */
+export function fetchTeamCard(teamId: string): Promise<TeamCard | null> {
+  return invoke<TeamCard | null>("get_team_card", { teamId });
 }
