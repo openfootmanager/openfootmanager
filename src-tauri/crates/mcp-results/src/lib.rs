@@ -316,6 +316,62 @@ mod tests {
         round_trips(known);
     }
 
+    /// Given no blockers, and then a live match with one real blocker
+    /// When the blockers are rendered
+    /// Then the first says time can advance, and the second lists the live match and the blocker
+    ///      with its severity, screen and counts; both survive a round trip.
+    #[test]
+    fn blockers_render_the_live_match_and_the_games_own_list() {
+        let none = time::Blockers {
+            blockers: Vec::new(),
+            live_match_in_progress: false,
+        };
+        let some = time::Blockers {
+            blockers: vec![time::Blocker {
+                id: "injured_xi".to_string(),
+                severity: "warn".to_string(),
+                tab: "Squad".to_string(),
+                params: Some(serde_json::json!({"count": "2"})),
+            }],
+            live_match_in_progress: true,
+        };
+
+        assert!(none.to_string().contains("Time can be advanced safely."));
+        let text = some.to_string();
+        assert!(text.contains("Live match in progress"), "{text}");
+        assert!(
+            text.contains("- [warn] injured_xi (resolve on the Squad screen) {\"count\":\"2\"}"),
+            "{text}"
+        );
+        round_trips(none);
+        round_trips(some);
+    }
+
+    /// Given a skip that a blocker stopped after one day
+    /// When it is rendered
+    /// Then the days advanced and the blocker are shown, and it survives a round trip.
+    #[test]
+    fn a_blocked_skip_names_its_blockers() {
+        let skip = time::SkipToMatchDay::Blocked {
+            days_advanced: 1,
+            blockers: vec![time::Blocker {
+                id: "injured_xi".to_string(),
+                severity: "warn".to_string(),
+                tab: "Squad".to_string(),
+                params: None,
+            }],
+        };
+
+        let text = skip.to_string();
+
+        assert!(text.contains("1 days advanced"), "{text}");
+        assert!(
+            text.contains("- [warn] injured_xi (resolve on the Squad screen)"),
+            "{text}"
+        );
+        round_trips(skip);
+    }
+
     /// Given a winner in a player award and in the manager award
     /// When the awards are rendered
     /// Then each table keeps its own header rule, as the text always had.

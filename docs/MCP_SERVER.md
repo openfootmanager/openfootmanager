@@ -141,9 +141,9 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 
 | Tool | Description |
 |------|-------------|
-| `time_advance` | Advance one day. Matches are auto-simulated in delegate mode. Returns round summary on match days. |
-| `time_skip_to_match_day` | Fast-forward day-by-day until next fixture. Use `time_advance` to then play the match. |
-| `time_check_blockers` | Check for live matches, pending transfer offers, or other blockers before advancing. |
+| `time_advance` | Advance one day. Matches are auto-simulated in delegate mode. Returns round summary on match days. Refused while a stopping blocker stands (see `time_check_blockers`): the reply lists them, and the squad, contract or other problem has to be resolved first, as on the screen. |
+| `time_skip_to_match_day` | Fast-forward day-by-day until next fixture. Use `time_advance` to then play the match. Stops with a `blocked` outcome, listing the blockers, before it starts if one stands and after any day that brings one. |
+| `time_check_blockers` | What stops time, from the game's own blocker check (`application::time_blockers`, the list and severities the UI uses; informational items such as unread urgent mail are left out): each blocker has an `id` (`injured_xi`, `incomplete_xi`, `squad_size_crisis`, `planned_contract_exit_crisis`, `key_contract_risk`, `contract_wage_risk`), a `severity`, the `tab` that resolves it and its `params`, plus `live_match_in_progress`. |
 
 ### Squad (7 tools)
 
