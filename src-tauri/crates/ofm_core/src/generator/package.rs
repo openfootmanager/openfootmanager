@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use ts_rs::TS;
 
 use domain::league::CompetitionScope;
 use domain::player::{PlayerAttributes, Position};
@@ -1848,7 +1849,7 @@ pub fn merge_world_packages(packages: Vec<WorldPackage>) -> (WorldPackage, Vec<P
 // ---------------------------------------------------------------------------
 
 /// Records which `.ofm` package was used to build a save, for reproducibility.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, TS)]
 pub struct PackageLock {
     pub id: String,
     pub version: String,
