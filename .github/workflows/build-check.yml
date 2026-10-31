@@ -265,12 +265,14 @@ jobs:
   backend:
     runs-on: ubuntu-latest
 
-    # Line tables instead of full debug info for every build and test binary here. Full debug
-    # info is most of what `target/` weighs, and this job builds the workspace three ways (tests,
-    # tests with `mcp`, clippy twice): on 31 Oct it ran the runner out of disk mid-test in two
-    # merge-group runs (41213539072, 41222195390). Line tables keep what a CI failure needs, the
-    # file and line in a panic's backtrace; what they drop is variable inspection in a debugger,
-    # which nobody does on a runner. Changing these changes the Rust cache key once.
+    # Line tables instead of full debug info for every build and test binary here. This job
+    # builds the workspace for tests, for tests with `mcp`, for check and for clippy twice, and on
+    # 31 Oct it ran the runner out of disk mid-test in two merge-group runs (41213539072,
+    # 41222195390). Measured from a cold cache, `target/` peaks at 17 GB with full debug info and
+    # 8.5 GB with line tables, and the cargo steps take 20 minutes instead of 27. Line tables keep
+    # what a CI failure needs, the file and line in a panic's backtrace; what they drop is
+    # variable inspection in a debugger, which nobody does on a runner. Changing these changes the
+    # Rust cache key once.
     env:
       CARGO_PROFILE_DEV_DEBUG: line-tables-only
       CARGO_PROFILE_TEST_DEBUG: line-tables-only
@@ -279,14 +281,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # The image ships SDKs this job never touches: .NET, Android, Haskell and the hosted tool
-      # cache (Python, Go, Node, CodeQL, ...; Rust comes from rustup below, not from there).
-      # Removing them is what gives the build its headroom. `df` before and after puts the
-      # numbers in the log, so the next "No space left on device" can be read rather than guessed.
+      # The image ships SDKs this job never touches. These six are the ones that are quick to
+      # delete: measured cold on ubuntu-24.04 (20261025) they free 16.7 GB in about 16 seconds
+      # (Swift 3.5 GB, GHCup 3.7, .NET 5.9, PowerShell 1.4, the JVMs 1.5, Chromium 0.7). The
+      # hosted tool cache (5.3 GB, 34 s) and the Android SDK (11.3 GB, 79 s) would free as much
+      # again for two minutes on every run, which the build does not need: with line tables its
+      # `target/` peaks at 8.5 GB. `df` before and after puts the numbers in the log, so the
+      # next "No space left on device" can be read rather than guessed.
       - name: Free disk space
         run: |
           df -h /
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache
+          sudo rm -rf /usr/share/swift /usr/local/.ghcup /usr/share/dotnet /usr/local/share/powershell /usr/lib/jvm /usr/local/share/chromium
           df -h /
 
       - name: Install Linux build dependencies
