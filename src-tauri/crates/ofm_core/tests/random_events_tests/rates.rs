@@ -59,36 +59,22 @@ fn rival_interest_comes_about_one_day_in_fifty() {
 
 /// Given a thousand days of the club's life
 /// When the random events roll each day
+/// Then a sponsor offers a deal on between 2 and 30 of them: about one day in a hundred
+#[test]
+fn sponsor_offers_come_about_one_day_in_a_hundred() {
+    let count = count_with(&message_ids_over(1000, |_| {}), "sponsor_");
+
+    assert!((2..=30).contains(&count), "{count} in 1000 days");
+}
+
+/// Given a thousand days of the club's life
+/// When the random events roll each day
 /// Then a community event comes on between 2 and 30 of them: about one day in a hundred
 #[test]
 fn community_events_come_about_one_day_in_a_hundred() {
     let count = count_with(&message_ids_over(1000, |_| {}), "community_");
 
     assert!((2..=30).contains(&count), "{count} in 1000 days");
-}
-
-/// The user's next match, three days from the game's current date.
-fn a_match_in_three_days(game: &mut Game) {
-    let date = (game.clock.current_date.date_naive() + chrono::Duration::days(3))
-        .format("%Y-%m-%d")
-        .to_string();
-    game.league = Some(League {
-        id: "league1".to_string(),
-        name: "Test League".to_string(),
-        season: 1,
-        fixtures: vec![Fixture {
-            id: "next".to_string(),
-            matchday: 1,
-            date,
-            home_team_id: "team1".to_string(),
-            away_team_id: "team2".to_string(),
-            competition: FixtureCompetition::League,
-            status: FixtureStatus::Scheduled,
-            ..Default::default()
-        }],
-        standings: vec![StandingEntry::new("team1".to_string())],
-        ..Default::default()
-    });
 }
 
 /// Given a thousand days, each with the user's next match three days away
@@ -265,6 +251,88 @@ fn not_for_sale_resolves_the_rival_message_and_no_other() {
     );
 }
 
+/// Answers `message` with `option`, after an unrelated actionable message, and says whether each
+/// is settled: (the one answered, the unrelated one).
+fn settled_after_answering(message: InboxMessage, option: &str) -> (bool, bool) {
+    let mut game = make_game();
+    let id = message.id.clone();
+    game.messages.push(an_unrelated_message());
+    game.messages.push(message);
+
+    apply_event_response(&mut game, &id, "respond", option).expect("the answer is applied");
+
+    (
+        resolved(&game, &id),
+        resolved(&game, "unrelated_2025-06-15"),
+    )
+}
+
+/// Given an unrelated actionable message, then the board's message
+/// When the manager accepts the pressure
+/// Then the board's message is settled and the other message is not
+#[test]
+fn accepting_the_boards_pressure_settles_its_message_and_no_other() {
+    assert_eq!(
+        settled_after_answering(board_message(), "accept_pressure"),
+        (true, false)
+    );
+}
+
+/// Given an unrelated actionable message, then the board's message
+/// When the manager blames the circumstances
+/// Then the board's message is settled and the other message is not
+#[test]
+fn blaming_circumstances_settles_the_boards_message_and_no_other() {
+    assert_eq!(
+        settled_after_answering(board_message(), "blame_circumstances"),
+        (true, false)
+    );
+}
+
+/// Given an unrelated actionable message, then a fan petition
+/// When the manager ignores the fans
+/// Then the petition is settled and the other message is not
+#[test]
+fn ignoring_the_fans_settles_the_petition_and_no_other_message() {
+    assert_eq!(
+        settled_after_answering(fan_petition_msg(), "ignore_fans"),
+        (true, false)
+    );
+}
+
+/// Given an unrelated actionable message, then a fan petition
+/// When the manager answers the fans in public
+/// Then the petition is settled and the other message is not
+#[test]
+fn answering_the_fans_in_public_settles_the_petition_and_no_other_message() {
+    assert_eq!(
+        settled_after_answering(fan_petition_msg(), "address_publicly"),
+        (true, false)
+    );
+}
+
+/// Given an unrelated actionable message, then a rival's interest in p0
+/// When the manager says he is open to offers
+/// Then the rival's message is settled and the other message is not
+#[test]
+fn open_to_offers_settles_the_rival_message_and_no_other() {
+    assert_eq!(
+        settled_after_answering(rival_interest_msg("p0"), "open_to_offers"),
+        (true, false)
+    );
+}
+
+/// Given an unrelated actionable message, then a rival's interest in p0
+/// When the manager declines to comment
+/// Then the rival's message is settled and the other message is not
+#[test]
+fn no_comment_settles_the_rival_message_and_no_other() {
+    assert_eq!(
+        settled_after_answering(rival_interest_msg("p0"), "no_comment"),
+        (true, false)
+    );
+}
+
 /// Given a player of ordinary value on a long contract, and a 2,000,000 player in the final weeks
 ///       of his
 /// When their weight as a rival's target is worked out
@@ -307,7 +375,7 @@ fn mood_report_arrives_only_on_mondays() {
 /// The club names a day's messages carry, for a world whose first team is not the user's.
 fn messages_with_another_club_listed_first() -> Vec<InboxMessage> {
     let mut all = Vec::new();
-    for seed in 0..400 {
+    for seed in 0..1000 {
         let mut game = make_game();
         game.seed = seed;
         game.teams.insert(0, make_team("team0", "Other Town"));
@@ -330,7 +398,7 @@ fn fan_petition_and_community_messages_name_the_users_club() {
 
     assert!(
         !named.is_empty(),
-        "no petition or community event in 400 seeds"
+        "no petition or community event in 1000 seeds"
     );
     for message in named {
         assert!(
@@ -338,6 +406,50 @@ fn fan_petition_and_community_messages_name_the_users_club() {
             "{}: {:?}",
             message.id,
             message.i18n_params
+        );
+    }
+}
+
+/// Given a world whose first club listed is not the user's, over many seeds of one day
+/// When a sponsor makes an offer
+/// Then the offer names the user's club, Test FC
+#[test]
+fn sponsor_offers_name_the_users_club() {
+    let messages = messages_with_another_club_listed_first();
+    let offers: Vec<&InboxMessage> = messages
+        .iter()
+        .filter(|m| m.id.starts_with("sponsor_"))
+        .collect();
+
+    assert!(!offers.is_empty(), "no sponsor offer in 1000 seeds");
+    for offer in offers {
+        assert_eq!(
+            offer.i18n_params.get("team").map(String::as_str),
+            Some("Test FC"),
+            "{}",
+            offer.id
+        );
+    }
+}
+
+/// Given a world whose first club listed is not the user's, over many seeds of one day
+/// When the press writes a story about a player
+/// Then the story names the user's club, Test FC
+#[test]
+fn media_stories_name_the_users_club() {
+    let messages = messages_with_another_club_listed_first();
+    let stories: Vec<&InboxMessage> = messages
+        .iter()
+        .filter(|m| m.id.starts_with("media_"))
+        .collect();
+
+    assert!(!stories.is_empty(), "no media story in 1000 seeds");
+    for story in stories {
+        assert_eq!(
+            story.i18n_params.get("team").map(String::as_str),
+            Some("Test FC"),
+            "{}",
+            story.id
         );
     }
 }
