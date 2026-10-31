@@ -1343,7 +1343,7 @@ mod tests {
         let mut rng = rand::rngs::StdRng::seed_from_u64(869);
         (0..clubs * 23)
             .map(|n| {
-                let player = generate_random_player_from_def(
+                let mut player = generate_random_player_from_def(
                     "club-id",
                     n % 23,
                     "ENG",
@@ -1352,6 +1352,8 @@ mod tests {
                     &names_def,
                     &mut rng,
                 );
+                // As a new game gives every player his specific position, and with it his rating.
+                crate::player_identity::upgrade_player_identity(&mut player, None);
                 let birth_year: i32 = player.date_of_birth[..4].parse().unwrap();
                 (player, 2026 - birth_year)
             })

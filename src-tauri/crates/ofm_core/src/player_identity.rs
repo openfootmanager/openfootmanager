@@ -1,5 +1,5 @@
 use crate::game::Game;
-use crate::player_rating::formation_slots;
+use crate::player_rating::{formation_slots, natural_ovr};
 use domain::player::{Footedness, Player, Position};
 use std::collections::HashMap;
 
@@ -35,6 +35,12 @@ pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Posit
     player.alternate_positions = alternate_positions;
     player.footedness = footedness;
     player.weak_foot = weak_foot;
+    // The rating is the one the formula gives at the natural position, which is what the daily
+    // refresh computes: a generated player was rated at his coarse slot position, and left so he
+    // would jump (about 1.4 points on average) the first time the game refreshed him.
+    let rated = natural_ovr(player).round() as u8;
+    player.ovr = rated;
+    player.potential = player.potential.max(rated);
 
     changed
 }
