@@ -6,7 +6,8 @@ use std::collections::{HashMap, HashSet};
 use domain::player::Player;
 use serde::Serialize;
 
-use crate::game::Game;
+use crate::game::{Game, ScoutedPlayer};
+use crate::slices::scouted_report::is_out_of_date;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -30,22 +31,25 @@ pub fn player_knowledge(game: &Game, player: &Player) -> PlayerKnowledge {
 }
 
 /// What the manager's club can see, worked out once per request rather than once per player: the
-/// club, the clubs in its division, and the clubs it meets today. A list asks it about every row.
+/// club, the clubs in its division, the clubs it meets today, and its scouts' reports by player. A
+/// list asks it about every row, so no row searches the reports.
 pub struct KnowledgeView<'a> {
-    game: &'a Game,
     club: Option<&'a str>,
     known_clubs: HashSet<&'a str>,
     opponents_today: HashSet<&'a str>,
+    reports: HashMap<&'a str, &'a ScoutedPlayer>,
+    last_rollover: Option<&'a str>,
 }
 
 impl<'a> KnowledgeView<'a> {
     pub fn of(game: &'a Game) -> Self {
         let club = game.manager.team_id.as_deref();
         Self {
-            game,
             club,
             known_clubs: club.map_or_else(HashSet::new, |club| clubs_in_division_of(game, club)),
             opponents_today: club.map_or_else(HashSet::new, |club| opponents_today(game, club)),
+            reports: reports_by_player(game),
+            last_rollover: game.last_season_rollover_on.as_deref(),
         }
     }
 
@@ -64,7 +68,13 @@ impl<'a> KnowledgeView<'a> {
         {
             return PlayerKnowledge::Known;
         }
-        scouted_or_unknown(self.game, player)
+        match self.reports.get(player.id.as_str()) {
+            Some(report) => PlayerKnowledge::Scouted {
+                scouted_on: report.scouted_on.clone(),
+                current: !is_out_of_date(report, self.last_rollover),
+            },
+            None => PlayerKnowledge::Unknown,
+        }
     }
 
     fn wage_for(&self, knowledge: &PlayerKnowledge, player: &Player) -> VisibleWage {
@@ -140,14 +150,14 @@ fn division_of<'a>(game: &'a Game, club: &str) -> Option<&'a str> {
     crate::end_of_season::club_league_table(game, club).map(|league| league.id.as_str())
 }
 
-fn scouted_or_unknown(game: &Game, player: &Player) -> PlayerKnowledge {
-    match crate::slices::scouted_report::query_scouted_report(game, &player.id) {
-        Some(view) => PlayerKnowledge::Scouted {
-            current: !view.out_of_date,
-            scouted_on: view.report.scouted_on,
-        },
-        None => PlayerKnowledge::Unknown,
+/// Each scouted player's report. The first report for a player is his, as
+/// `query_scouted_report` reads it; scouting a player again replaces his report anyway.
+fn reports_by_player(game: &Game) -> HashMap<&str, &ScoutedPlayer> {
+    let mut reports = HashMap::with_capacity(game.scouted_players.len());
+    for report in &game.scouted_players {
+        reports.entry(report.player_id.as_str()).or_insert(report);
     }
+    reports
 }
 
 /// The weekly wage the club may see: exact for its own player, rounded for one its scout reported
@@ -266,7 +276,6 @@ pub fn players_knowledge(game: &Game, player_ids: &[String]) -> HashMap<String, 
 mod tests {
     use super::*;
     use crate::clock::GameClock;
-    use crate::game::ScoutedPlayer;
     use crate::test_support::uniform_attributes;
     use chrono::{TimeZone, Utc};
     use domain::league::League;
@@ -454,6 +463,44 @@ mod tests {
                 }
             );
         }
+    }
+
+    /// Given three players in another division after the season ended on 25 May: one scouted in
+    ///       March, before it, one scouted in September, after it, and one never scouted
+    /// When one view is asked about each of them, as a list asks about every row
+    /// Then each is answered from his own report: out of date, current, and unknown
+    #[test]
+    fn one_view_answers_each_scouted_player_from_his_own_report() {
+        let mut game = world(
+            Some(MY_CLUB),
+            vec![
+                player("stale", Some("faraway")),
+                player("fresh", Some("faraway")),
+                player("never", Some("faraway")),
+            ],
+        );
+        game.last_season_rollover_on = Some("2026-05-25".to_string());
+        scouted(&mut game, "stale", "2026-03-10");
+        scouted(&mut game, "fresh", "2026-09-01");
+        let view = KnowledgeView::of(&game);
+        let knowledge_of =
+            |id: &str| view.knowledge(game.players.iter().find(|p| p.id == id).unwrap());
+
+        assert_eq!(
+            knowledge_of("stale"),
+            PlayerKnowledge::Scouted {
+                scouted_on: "2026-03-10".to_string(),
+                current: false,
+            }
+        );
+        assert_eq!(
+            knowledge_of("fresh"),
+            PlayerKnowledge::Scouted {
+                scouted_on: "2026-09-01".to_string(),
+                current: true,
+            }
+        );
+        assert_eq!(knowledge_of("never"), PlayerKnowledge::Unknown);
     }
 
     /// Given a free agent, never scouted, and one a scout reported on
