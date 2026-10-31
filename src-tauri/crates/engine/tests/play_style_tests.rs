@@ -3,7 +3,10 @@
 //!
 //! The duel is the one place the Defense entry of the play-style table applies, so it is what
 //! these tests count. The opponent's `Dribble` is a duel it won and its `DribbleTackled` one it
-//! lost; both engines emit those two events from that duel only.
+//! lost to a tackle; both engines emit those two events from that duel only. A lost duel ends in
+//! a tackle or a clearance at random, and that clearance is the same event as the one that
+//! clears a won duel's cross, so the tests count won duels against tackled ones: a rate that
+//! rises and falls with the duel win rate without equalling it.
 
 use engine::live_match::LiveMatchState;
 use engine::{
@@ -84,7 +87,7 @@ enum Engine {
 #[derive(Default)]
 struct Against {
     duels_won: usize,
-    duels_lost: usize,
+    duels_tackled: usize,
     shots: usize,
     goals: usize,
 }
@@ -93,15 +96,16 @@ impl Against {
     fn count(&mut self, events: &[MatchEvent]) {
         for event in events.iter().filter(|event| event.side == Side::Away) {
             self.duels_won += usize::from(event.event_type == EventType::Dribble);
-            self.duels_lost += usize::from(event.event_type == EventType::DribbleTackled);
+            self.duels_tackled += usize::from(event.event_type == EventType::DribbleTackled);
             self.shots += usize::from(SHOTS.contains(&event.event_type));
             self.goals += usize::from(event.event_type == EventType::Goal);
         }
     }
 
-    /// Share of the attacking-third duels the opponent won.
-    fn duel_win_rate(&self) -> f64 {
-        self.duels_won as f64 / (self.duels_won + self.duels_lost) as f64
+    /// The opponent's won attacking-third duels against those it won or lost to a tackle:
+    /// won / (won + tackled). Higher when its duels go better, though not their win share.
+    fn won_against_tackled(&self) -> f64 {
+        self.duels_won as f64 / (self.duels_won + self.duels_tackled) as f64
     }
 }
 
@@ -133,14 +137,15 @@ fn against(style: PlayStyle, engine: Engine) -> Against {
     against
 }
 
-/// How much the opponent's duel win rate moves when the home side plays `style` instead of
-/// Balanced, in share points (positive: the style defends worse).
+/// How much the opponent's won-against-tackled rate moves when the home side plays `style`
+/// instead of Balanced (positive: the style defends worse).
 fn duel_rate_shift(style: PlayStyle, engine: Engine) -> f64 {
-    against(style, engine).duel_win_rate() - against(PlayStyle::Balanced, engine).duel_win_rate()
+    against(style, engine).won_against_tackled()
+        - against(PlayStyle::Balanced, engine).won_against_tackled()
 }
 
 // Between identical sides at the default home advantage, the table entries should move the
-// opponent's duel win rate by about -0.024 (Defensive), +0.018 (Attacking) and +0.012
+// opponent's won-against-tackled rate by about -0.024 (Defensive), +0.018 (Attacking) and +0.012
 // (HighPress). Before the Defense entry applied, every shift was noise around zero (at most
 // 0.002). Defensive's margin is three quarters of its effect, so a ×1.12 that is added to the
 // role factor instead of multiplying it (a shift of about -0.014) fails too. The two costs keep
@@ -155,7 +160,7 @@ fn a_defensive_side_wins_more_attacking_third_duels_in_the_live_engine() {
     let shift = duel_rate_shift(PlayStyle::Defensive, Engine::Live);
     assert!(
         shift < DEFENSIVE_MARGIN,
-        "opponent duel win rate moved {shift:+.4} against Defensive"
+        "opponent won-against-tackled rate moved {shift:+.4} against Defensive"
     );
 }
 
@@ -166,7 +171,7 @@ fn a_defensive_side_wins_more_attacking_third_duels_in_the_instant_engine() {
     let shift = duel_rate_shift(PlayStyle::Defensive, Engine::Instant);
     assert!(
         shift < DEFENSIVE_MARGIN,
-        "opponent duel win rate moved {shift:+.4} against Defensive"
+        "opponent won-against-tackled rate moved {shift:+.4} against Defensive"
     );
 }
 
@@ -178,7 +183,7 @@ fn an_attacking_side_pays_for_its_attack_in_attacking_third_duels() {
     let shift = duel_rate_shift(PlayStyle::Attacking, Engine::Live);
     assert!(
         shift > 0.008,
-        "opponent duel win rate moved {shift:+.4} against Attacking"
+        "opponent won-against-tackled rate moved {shift:+.4} against Attacking"
     );
 }
 
@@ -190,7 +195,7 @@ fn a_high_pressing_side_pays_for_its_press_in_attacking_third_duels() {
     let shift = duel_rate_shift(PlayStyle::HighPress, Engine::Live);
     assert!(
         shift > 0.006,
-        "opponent duel win rate moved {shift:+.4} against HighPress"
+        "opponent won-against-tackled rate moved {shift:+.4} against HighPress"
     );
 }
 
@@ -212,10 +217,10 @@ fn print_what_each_style_concedes() {
                 Engine::Instant => "instant",
             };
             println!(
-                "CONCEDED {engine_name} {style:?}: duels won {} lost {} rate {:.4} shots {} goals {}",
+                "CONCEDED {engine_name} {style:?}: duels won {} tackled {} rate {:.4} shots {} goals {}",
                 against.duels_won,
-                against.duels_lost,
-                against.duel_win_rate(),
+                against.duels_tackled,
+                against.won_against_tackled(),
                 against.shots,
                 against.goals
             );
