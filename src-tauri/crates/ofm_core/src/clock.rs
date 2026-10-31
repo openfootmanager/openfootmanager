@@ -1,7 +1,8 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct GameClock {
     pub current_date: DateTime<Utc>,
     pub start_date: DateTime<Utc>,

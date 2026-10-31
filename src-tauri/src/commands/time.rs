@@ -4,7 +4,7 @@ use tauri::State;
 
 use crate::application::time_advancement::advance_time_with_mode as advance_time_with_mode_service;
 pub use crate::application::time_advancement::AdvanceTimeWithModeResponse;
-use crate::application::time_blockers::compute_blocking_actions as compute_blocking_actions_service;
+use crate::application::time_blockers::stopping_blockers;
 use ofm_core::advance_results::collect_advance_results;
 use ofm_core::game::Game;
 use ofm_core::state::{Career, StateManager};
@@ -81,10 +81,6 @@ where
         .map_err(|err| format!("be.error.taskJoinFailed: {err}"))?
 }
 
-pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
-    compute_blocking_actions_service(game)
-}
-
 #[tauri::command]
 pub fn check_blocking_actions(
     state: State<'_, Arc<StateManager>>,
@@ -94,7 +90,7 @@ pub fn check_blocking_actions(
         .get_game(|g| g.clone())
         .ok_or("be.error.noActiveGameSession")?;
 
-    let blockers = compute_blocking_actions(&game);
+    let blockers = stopping_blockers(&game);
     info!(
         "[cmd] check_blocking_actions: date={}, blocker_count={}",
         game.clock.current_date.format("%Y-%m-%d"),
@@ -195,7 +191,7 @@ pub fn skip_to_match_day_internal(
             }
 
             // After processing, check if blocking actions arose
-            let blockers = compute_blocking_actions(game);
+            let blockers = stopping_blockers(game);
             if !blockers.is_empty() {
                 info!(
                     "[cmd] skip_to_match_day: blocked_after_days={}, date={}, blocker_count={}",
@@ -275,7 +271,7 @@ pub fn advance_one_day_internal(
             });
         }
 
-        let blockers = compute_blocking_actions(game);
+        let blockers = stopping_blockers(game);
         if !blockers.is_empty() {
             info!(
                 "[cmd] advance_one_day: blocked date={} count={}",
@@ -438,7 +434,7 @@ pub fn advance_to_next_event_internal(
                 }));
             }
 
-            let blockers = compute_blocking_actions(game);
+            let blockers = stopping_blockers(game);
             if !blockers.is_empty() {
                 let results = collect_advance_results(game, &start_date);
                 return Step::Terminal(serde_json::json!({
@@ -497,9 +493,8 @@ pub fn advance_to_next_event_internal(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        advance_time_with_mode_internal, compute_blocking_actions, continue_reached_attention_event,
-    };
+    use super::{advance_time_with_mode_internal, continue_reached_attention_event};
+    use crate::application::time_blockers::compute_blocking_actions;
     use chrono::{TimeZone, Utc};
     use domain::league::{Fixture, FixtureCompetition, FixtureStatus};
     use domain::manager::Manager;
@@ -866,8 +861,8 @@ mod tests {
     /// Given a game with nobody injured, and one where two starters are injured
     /// When the user skips to their next match day, and when they continue to the next event
     /// Then the injured game stops after a day with the injured-XI blocker listed (days_skipped 1),
-    ///      and the healthy game is stopped, if at all, only by the informational unread-urgent-mail
-    ///      blocker a day's post brings: no injury, squad or contract blocker appears from nowhere.
+    ///      and whatever stops the healthy game over the days, it is never an informational blocker:
+    ///      the unread-urgent-mail blocker does not stop time.
     #[test]
     fn skipping_and_continuing_stop_on_a_blocker_and_only_then() {
         use ofm_core::state::Career;
@@ -881,6 +876,14 @@ mod tests {
                         .collect()
                 })
                 .unwrap_or_default()
+        };
+        let blocker_severities = |outcome: &Value| -> Vec<String> {
+            outcome["blockers"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .map(|blocker| blocker["severity"].as_str().unwrap().to_string())
+                .collect()
         };
         let blocked_game = || {
             let mut game = make_game(11);
@@ -911,13 +914,53 @@ mod tests {
                 "{blocked}"
             );
 
+            // The healthy game meets real blockers within days (injuries, a thin XI); whatever
+            // stops it, it is never the informational mail.
             let healthy = run(make_game(11), advance);
             assert!(
-                blocker_ids(&healthy)
-                    .iter()
-                    .all(|id| id == "urgent_messages"),
-                "a healthy squad was stopped for something other than mail: {healthy}"
+                blocker_severities(&healthy).iter().all(|s| s != "info"),
+                "an informational blocker stopped time: {healthy}"
             );
+        }
+    }
+
+    /// Given a healthy game whose only blocker is unread urgent mail, which is informational
+    /// When the blocker check runs, the user continues one day, skips, or continues to the next event
+    /// Then the check lists nothing, the single day is advanced, and neither multi-day advance is
+    ///      ever stopped by the mail (a real blocker may stop them later, but never an "info" one).
+    #[test]
+    fn unread_urgent_mail_alone_never_stops_time() {
+        use crate::commands::wrapper_testkit::WrapperApp;
+        use ofm_core::state::Career;
+        let mail_only = || {
+            let mut game = make_game(11);
+            game.messages = vec![make_message("urgent-1", MessagePriority::Urgent, false)];
+            game
+        };
+        assert!(
+            blocker_by_id(&compute_blocking_actions(&mail_only()), "urgent_messages").is_some(),
+            "the fixture should have the informational blocker"
+        );
+
+        let app = WrapperApp::new(mail_only(), false);
+        let listed = super::check_blocking_actions(app.state()).expect("the check answers");
+        assert_eq!(listed, serde_json::json!([]), "{listed}");
+
+        let state = StateManager::new();
+        state.set_game(mail_only());
+        let one_day = super::advance_one_day_internal(&state, Career::Active).expect("one day");
+        assert_eq!(one_day["action"], "advanced", "{one_day}");
+
+        for advance in [
+            super::skip_to_match_day_internal as fn(&StateManager, Career) -> Result<Value, String>,
+            super::advance_to_next_event_internal,
+        ] {
+            let state = StateManager::new();
+            state.set_game(mail_only());
+            let outcome = advance(&state, Career::Active).expect("the advance answers");
+            for blocker in outcome["blockers"].as_array().into_iter().flatten() {
+                assert_ne!(blocker["severity"], "info", "{outcome}");
+            }
         }
     }
 
