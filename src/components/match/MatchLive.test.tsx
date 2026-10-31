@@ -173,7 +173,9 @@ describe("MatchLive", () => {
     const subs = screen.getByRole("button", { name: /match\.subs/ });
 
     expect(subs).toBeDisabled();
-    expect(subs).toHaveAttribute("title", "match.subsClosed");
+    // The reason is on the screen, not only in a tooltip a keyboard or touch user cannot reach.
+    expect(subs).toHaveAccessibleDescription("match.subsClosed");
+    expect(screen.getByText("match.subsClosed")).toBeVisible();
     fireEvent.click(subs);
     expect(screen.queryByRole("dialog", { hidden: true })).toBeNull();
   });
@@ -189,6 +191,7 @@ describe("MatchLive", () => {
     const subs = screen.getByRole("button", { name: /match\.subs/ });
 
     expect(subs).toBeEnabled();
-    expect(subs).not.toHaveAttribute("title");
+    expect(subs).not.toHaveAccessibleDescription();
+    expect(screen.queryByText("match.subsClosed")).toBeNull();
   });
 });

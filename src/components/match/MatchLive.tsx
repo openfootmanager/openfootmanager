@@ -457,7 +457,7 @@ export default function MatchLive({
                 type="button"
                 onClick={() => setShowSubPanel(!showSubPanel)}
                 disabled={subsClosed}
-                title={subsClosed ? t("match.subsClosed") : undefined}
+                aria-describedby={subsClosed ? "subs-closed-reason" : undefined}
                 className="flex items-center gap-2 px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg text-sm font-heading uppercase tracking-wider text-gray-700 dark:text-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -465,6 +465,11 @@ export default function MatchLive({
                 {userSide === "Home" ? snapshot.home_subs_made : snapshot.away_subs_made}/
                 {snapshot.max_subs})
               </button>
+              {subsClosed && (
+                <p id="subs-closed-reason" className="text-caption text-fg-muted">
+                  {t("match.subsClosed")}
+                </p>
+              )}
               <div>
                 <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">
                   {t("match.formation")}
