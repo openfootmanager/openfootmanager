@@ -378,32 +378,32 @@ describe("useFreeAgentContractFlow", () => {
     expect(mockedOfferFreeAgentContract).not.toHaveBeenCalled();
   });
 
-  // Given the manager opens talks with one player, then with another before the first answer
+  // Given the manager opens talks with one player, then with another, before either answer
   // arrives
-  // When the first player's opening offer arrives last
-  // Then the form keeps the second player's terms
+  // When the first player's opening offer arrives while the form is still empty, then the second's
+  // Then the form shows the second player's terms: the first answer, stale, never filled it
   it("ignores an opening offer for a player no longer in talks", async () => {
     const first = createPlayer({ id: "first" });
     const second = createPlayer({ id: "second" });
     const gameState = createGameState([first, second]);
-    let answerFirst: (offer: { weekly_wage: number; contract_years: number }) => void = () => {};
-    mockedGetFreeAgentOpeningOffer.mockImplementation((playerId) =>
-      playerId === "first"
-        ? new Promise((resolve) => {
-            answerFirst = resolve;
-          })
-        : Promise.resolve({ weekly_wage: 5000, contract_years: 2 }),
+    type Answer = (offer: { weekly_wage: number; contract_years: number }) => void;
+    const answers = new Map<string, Answer>();
+    mockedGetFreeAgentOpeningOffer.mockImplementation(
+      (playerId) =>
+        new Promise((resolve) => {
+          answers.set(playerId, resolve);
+        }),
     );
 
     render(<HookHarness gameState={gameState} target={first} otherTarget={second} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
     fireEvent.click(screen.getByRole("button", { name: "Open other" }));
-    await waitFor(() => {
-      expect(screen.getByLabelText("Wage")).toHaveValue("5000");
+    await act(async () => {
+      answers.get("first")?.({ weekly_wage: 9000, contract_years: 5 });
     });
     await act(async () => {
-      answerFirst({ weekly_wage: 9000, contract_years: 5 });
+      answers.get("second")?.({ weekly_wage: 5000, contract_years: 2 });
     });
 
     expect(screen.getByLabelText("Wage")).toHaveValue("5000");

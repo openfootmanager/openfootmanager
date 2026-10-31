@@ -2058,7 +2058,10 @@
       "suddenDeath": "Sudden Death",
       "shootoutScore": "Penalti: {{h}} – {{a}}",
       "homeKick": "Tendangan tim kandang menyusul...",
-      "awayKick": "Tendangan tim tandang menyusul..."
+      "awayKick": "Tendangan tim tandang menyusul...",
+      "kickScored": "Tendangan {{n}}, gol",
+      "kickMissed": "Tendangan {{n}}, gagal",
+      "kickToCome": "Tendangan {{n}}, belum diambil"
     },
     "fullTime": "Waktu Penuh",
     "ft": "FT",
@@ -2732,6 +2735,7 @@
         "maxSubstitutionsReached": "Pergantian pemain maksimum tercapai",
         "preMatchSwapTooLate": "Pergantian pra-pertandingan hanya diizinkan sebelum kick-off",
         "cannotSubstituteSentOffPlayer": "Tidak dapat mengganti pemain yang dikeluarkan",
+        "noSubstitutionsForShootout": "Tidak ada pergantian pemain setelah babak tambahan selesai: adu penalti diambil oleh pemain yang ada di lapangan saat peluit akhir.",
         "playerNotOnPitch": "Pemain tidak berada di lapangan",
         "playerAlreadySubstitutedOff": "Pemain sudah diganti",
         "playerNotOnBench": "Pemain tidak berada di bangku cadangan",

@@ -379,7 +379,7 @@ pub enum PlayStyle {
     HighPress,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TeamSeasonRecord {
     pub season: u32,
     pub league_position: u32,
@@ -389,6 +389,10 @@ pub struct TeamSeasonRecord {
     pub lost: u32,
     pub goals_for: u32,
     pub goals_against: u32,
+    /// The league this record's table belongs to; blank on a record saved before it was kept,
+    /// which reads as "unknown" (see `ofm_core::hall_of_fame` for what a title is).
+    #[serde(default)]
+    pub competition_id: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]

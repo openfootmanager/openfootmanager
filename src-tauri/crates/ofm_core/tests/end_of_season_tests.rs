@@ -1007,6 +1007,9 @@ fn process_end_of_season_records_history_and_prizes_for_every_division() {
         .expect("second-division history recorded");
     assert_eq!(team3_record.league_position, 1);
     assert_eq!(team3_record.season, 1);
+    // Each record names the division it was won in, so a second-division win is not a title.
+    assert_eq!(team3_record.competition_id, "eng-2");
+    assert_eq!(team1.history.last().unwrap().competition_id, "eng-1");
 
     // The second-division champion earns half the top-flight champion's prize.
     assert!(prize_money_total(team1) > 0);

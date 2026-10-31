@@ -155,18 +155,7 @@ pub fn propose_renewal(
     player_id: &str,
     offer: RenewalOffer,
 ) -> Result<RenewalOutcome, String> {
-    let manager_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or(ERR_NO_TEAM_ASSIGNED.to_string())?;
-
-    let team = game
-        .teams
-        .iter()
-        .find(|candidate| candidate.id == manager_team_id)
-        .ok_or(ERR_MANAGED_TEAM_NOT_FOUND.to_string())?
-        .clone();
+    let team = managed_team(game)?.clone();
 
     let player_index = game
         .players
