@@ -116,6 +116,9 @@ export default function MatchLive({
   }, [gameState.players]);
 
   const isFinished = snapshot.phase === "Finished";
+  // The engine refuses substitutions from the final whistle of extra time on (#1043), so the control
+  // closes with it rather than opening a panel whose every change comes back refused.
+  const subsClosed = snapshot.phase === "ExtraTimeEnd" || snapshot.phase === "PenaltyShootout";
 
   // Reads only `lastResult` for phase transitions, which is sound because step_many stops on
   // entering any phase that needs the manager — so a half time, shootout or finish is always the
@@ -453,7 +456,9 @@ export default function MatchLive({
               <button
                 type="button"
                 onClick={() => setShowSubPanel(!showSubPanel)}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg text-sm font-heading uppercase tracking-wider text-gray-700 dark:text-gray-300 transition-colors"
+                disabled={subsClosed}
+                title={subsClosed ? t("match.subsClosed") : undefined}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-navy-700 dark:hover:bg-navy-600 rounded-lg text-sm font-heading uppercase tracking-wider text-gray-700 dark:text-gray-300 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCw className="w-4 h-4" />
                 {t("match.subs")} (
@@ -566,7 +571,7 @@ export default function MatchLive({
       </div>
 
       {/* Substitution Modal */}
-      {showSubPanel && userSide && (
+      {showSubPanel && userSide && !subsClosed && (
         <SubPanel
           snapshot={snapshot}
           side={userSide}
