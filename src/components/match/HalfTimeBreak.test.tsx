@@ -115,6 +115,29 @@ describe("HalfTimeBreak", () => {
     });
 
     /**
+     * Given the manager at half time whose first talk was refused
+     * When they deliver a talk a second time and the backend applies it
+     * Then it is marked delivered with the morale change, and the earlier failure is gone.
+     */
+    it("lets a failed talk be delivered on a second try", async () => {
+      invokeMock
+        .mockRejectedValueOnce("be.error.careerChanged")
+        .mockResolvedValueOnce([
+          { player_id: "p1", player_name: "Pat Player", old_morale: 50, new_morale: 58, delta: 8 },
+        ]);
+      renderAsManager();
+
+      await chooseAndDeliverATalk();
+      expect(await screen.findByRole("alert")).toHaveTextContent("match.teamTalkFailed");
+      fireEvent.click(screen.getByRole("button", { name: "match.deliverTeamTalk" }));
+
+      await waitFor(() => expect(screen.getByText("match.delivered")).toBeInTheDocument());
+      expect(screen.getByText("Pat Player")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).toBeNull();
+      expect(invokeMock).toHaveBeenCalledTimes(2);
+    });
+
+    /**
      * Given the manager at half time and a backend that applies the talk
      * When they deliver a talk
      * Then it is marked delivered with each player's morale change, and no failure is shown.
@@ -129,6 +152,12 @@ describe("HalfTimeBreak", () => {
 
       await waitFor(() => expect(screen.getByText("match.delivered")).toBeInTheDocument());
       expect(screen.getByText("Pat Player")).toBeInTheDocument();
+      expect(screen.getByText("+8")).toBeInTheDocument();
+      expect(screen.getByText("58")).toBeInTheDocument();
+      expect(invokeMock).toHaveBeenCalledWith(
+        "apply_team_talk",
+        expect.objectContaining({ tone: expect.any(String), context: expect.any(String) }),
+      );
       expect(screen.queryByRole("alert")).toBeNull();
       expect(screen.queryByRole("button", { name: "match.deliverTeamTalk" })).toBeNull();
     });
