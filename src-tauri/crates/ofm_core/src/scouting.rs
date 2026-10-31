@@ -1124,4 +1124,155 @@ mod tests {
         assert_eq!(report.player_name, "Jamie Prospect");
         assert_eq!(report.team_name.as_deref(), Some("London FC"));
     }
+
+    fn scouted(
+        assignment: &str,
+        judging_ability: u8,
+        judging_potential: u8,
+        ovr: u8,
+        potential: u8,
+    ) -> domain::message::ScoutReportData {
+        build_scout_report(
+            assignment,
+            "Alex Scout",
+            "player-1",
+            "Jamie Prospect",
+            "ENG",
+            "2004-03-12",
+            "Midfielder",
+            &sample_attrs(),
+            74,
+            89,
+            ovr,
+            potential,
+            judging_ability,
+            judging_potential,
+            Some("London FC"),
+            "2026-08-01",
+        )
+        .context
+        .scout_report
+        .expect("a scout report carries its data")
+    }
+
+    /// The scout's reported figures beside the real ones, for each attribute he revealed.
+    fn revealed_pairs(report: &domain::message::ScoutReportData) -> Vec<(u8, u8)> {
+        let real = sample_attrs();
+        [
+            (report.pace, real.pace),
+            (report.shooting, real.shooting),
+            (report.passing, real.passing),
+            (report.dribbling, real.dribbling),
+            (report.defending, real.defending),
+            (report.physical, real.strength),
+        ]
+        .into_iter()
+        .filter_map(|(reported, actual)| reported.map(|value| (value, actual)))
+        .collect()
+    }
+
+    /// Given a good judge (ability 80, within 2 of the truth) and players rated 85, 75, 65, 55
+    ///       and 40, each at least 3 from a band's edge
+    /// When he reports on each
+    /// Then he calls them excellent, very good, good, average and below average
+    #[test]
+    fn a_scouts_rating_band_follows_the_players_overall() {
+        let bands: Vec<String> = [85, 75, 65, 55, 40]
+            .into_iter()
+            .map(|ovr| scouted("band", 80, 50, ovr, 0).rating_key)
+            .collect();
+
+        assert_eq!(
+            bands,
+            [
+                "common.scoutRatings.excellent",
+                "common.scoutRatings.veryGood",
+                "common.scoutRatings.good",
+                "common.scoutRatings.average",
+                "common.scoutRatings.belowAverage"
+            ]
+        );
+    }
+
+    /// Given a good judge of potential (75) and a player rated 55 with a ceiling of 90
+    /// When he reports
+    /// Then he calls the potential world class: he reports the ceiling, not the current rating
+    #[test]
+    fn a_good_judge_of_potential_reports_the_ceiling_not_the_current_rating() {
+        assert_eq!(
+            scouted("ceiling", 80, 75, 55, 90).potential_key,
+            "common.scoutPotential.worldClass"
+        );
+    }
+
+    /// Given a middling scout (ability 45) and two hundred assignments
+    /// When he reports each time
+    /// Then every figure he reveals is within 8 of the truth
+    #[test]
+    fn a_middling_scouts_figures_stay_within_eight_of_the_truth() {
+        for n in 0..200 {
+            for (reported, actual) in revealed_pairs(&scouted(&format!("mid-{n}"), 45, 50, 60, 0)) {
+                assert!(
+                    (i16::from(reported) - i16::from(actual)).abs() <= 8,
+                    "assignment {n}: {reported} for {actual}"
+                );
+            }
+        }
+    }
+
+    /// Given a poor scout (ability 25) and two hundred assignments
+    /// When he reports each time
+    /// Then at least one figure he reveals is more than 8 from the truth
+    #[test]
+    fn a_poor_scouts_figures_stray_beyond_eight() {
+        let strays = (0..200)
+            .flat_map(|n| revealed_pairs(&scouted(&format!("poor-{n}"), 25, 50, 60, 0)))
+            .filter(|(reported, actual)| (i16::from(*reported) - i16::from(*actual)).abs() > 8)
+            .count();
+
+        assert!(strays > 0);
+    }
+
+    /// Given a good scout (ability 80) and fifty assignments
+    /// When he reports each time
+    /// Then some figures he reveals are below the truth and some above: the noise goes both ways
+    #[test]
+    fn a_scouts_figures_fall_on_both_sides_of_the_truth() {
+        let pairs: Vec<(u8, u8)> = (0..50)
+            .flat_map(|n| revealed_pairs(&scouted(&format!("both-{n}"), 80, 50, 60, 0)))
+            .collect();
+
+        assert!(pairs.iter().any(|(reported, actual)| reported < actual));
+        assert!(pairs.iter().any(|(reported, actual)| reported > actual));
+    }
+
+    /// Given a youth prospect rated 45 with a ceiling of 90
+    /// When he is ranked for each kind of search
+    /// Then a balanced search ranks him by ability plus half his ceiling (90, then 90); a search
+    ///      for potential by ceiling then ability (90, 45); one for readiness by ability then
+    ///      ceiling (45, 90)
+    #[test]
+    fn a_balanced_search_ranks_a_prospect_by_ability_plus_half_his_ceiling() {
+        use crate::game::YouthScoutingObjective::{Balanced, HighPotential, ReadySoon};
+        let mut prospect = domain::player::Player::new(
+            "prospect".to_string(),
+            "Prospect".to_string(),
+            "Prospect".to_string(),
+            "2010-01-01".to_string(),
+            "England".to_string(),
+            domain::player::Position::Midfielder,
+            sample_attrs(),
+        );
+        prospect.ovr = 45;
+        prospect.potential = 90;
+
+        assert_eq!(
+            (
+                super::prospect_score(&prospect, Balanced),
+                super::prospect_score(&prospect, HighPotential),
+                super::prospect_score(&prospect, ReadySoon)
+            ),
+            ((90, 90), (90, 45), (45, 90))
+        );
+    }
 }
