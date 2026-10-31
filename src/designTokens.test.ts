@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { gameState } from "./dev/pageHarness/fixture.generated";
+
 // Paths are relative to the Vitest root (the repository root); `new URL(..., import.meta.url)`
 // throws under jsdom.
 const appCss = readFileSync("src/App.css", "utf-8");
@@ -102,6 +104,7 @@ const THEMED_COLOURS = [
   "line",
   "line-strong",
   "hover",
+  "card-band",
   "focus",
   "series-1",
   "series-2",
@@ -114,6 +117,9 @@ const READABLE_PAIRS: Array<[string, string[]]> = [
   ["fg", ["page", "panel", "sunken"]],
   ["fg-muted", ["page", "panel", "sunken"]],
   ["fg-subtle", ["page", "panel", "sunken"]],
+  // An entity card's status band: its labels are fg-muted, its values fg.
+  ["fg", ["card-band"]],
+  ["fg-muted", ["card-band"]],
   ...["positive", "warning", "danger", "info"].map((status): [string, string[]] => [
     status,
     ["panel", `${status}-tint`],
@@ -155,6 +161,28 @@ describe("design tokens", () => {
         if (ratio < 4.5) failures.push(`${text} on ${surface}: ${ratio.toFixed(2)}`);
       }
     }
+    expect(failures).toEqual([]);
+  });
+
+  /**
+   * Given every club in the page harness's career, each card header washed in its kit colour
+   * (--kit-wash-mix of the kit over the panel, as the kit-wash token mixes it)
+   * When the header's name (fg) and meta line (fg-muted) sit on that wash in any mode
+   * Then both reach 4.5:1, so the mix is safe for real clubs' colours, not only for the mock's.
+   */
+  it.each(MODES)("keeps a card header readable on every fixture club's kit wash in %s", (mode) => {
+    const share = Number.parseFloat(tokenIn(mode, "--kit-wash-mix")) / 100;
+    const panel = parseColour(tokenIn(mode, "--color-panel"));
+    const failures: string[] = [];
+    for (const team of gameState.teams) {
+      const kit = parseColour(team.colors.primary);
+      const wash = [0, 1, 2].map((i) => kit[i] * share + panel[i] * (1 - share)).concat(1) as Rgba;
+      for (const text of ["fg", "fg-muted"]) {
+        const ratio = contrast(rendered(mode, `--color-${text}`), wash);
+        if (ratio < 4.5) failures.push(`${text} on ${team.name}: ${ratio.toFixed(2)}`);
+      }
+    }
+    expect(gameState.teams.length).toBeGreaterThan(0);
     expect(failures).toEqual([]);
   });
 

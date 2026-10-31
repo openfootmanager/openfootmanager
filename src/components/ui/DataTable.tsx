@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { Fragment, type MouseEvent, type ReactNode, useId, useState } from "react";
+import { Fragment, type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { isOnControl } from "./clickTarget";
 
 export type SortDirection = "asc" | "desc";
 
@@ -65,11 +66,6 @@ const ACCENT: Record<RowAccent | "none", string> = {
   positive: "border-l-positive-solid",
   danger: "border-l-danger-solid",
 };
-
-/** A click on one of the row's own controls is that control's, not a request to open the row. */
-function isOnControl(event: MouseEvent<HTMLElement>): boolean {
-  return (event.target as Element).closest("button, a, input, select, textarea") !== null;
-}
 
 function SortableHeader({
   column,

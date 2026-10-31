@@ -187,6 +187,12 @@
   --color-on-brand: #ffffff;
   /* The surface under the pointer: a hovered row, menu item or ghost button. */
   --color-hover: #e5e7eb;
+  /* An entity card's band of status rows, a step off the panel, and the card's lift. */
+  --color-card-band: #f6f8fb;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 20px -10px rgb(15 23 42 / 0.28);
+  /* How much of a club's kit colour a card's header takes (the `kit-wash` token below). Dark takes
+     more, and stays low enough that fg-muted keeps 4.5:1 on every fixture club's wash. */
+  --kit-wash-mix: 14%;
   /* Chart series, in order. Charts read these through var(), which SVG attributes resolve in
      WebKitGTK and Chromium alike, so a chart follows the theme with no colours in TypeScript. */
   --color-series-1: #059669;
@@ -251,6 +257,27 @@
   --container-split: 36rem;
 }
 
+/* A club's kit on an entity card, from the --kit and --kit-2 variables kitStyle() sets on the card.
+   Inline, so each card resolves its own colours; without them, the neutral line colour and no
+   wash. The mix is the one place a card's colours are worked out. */
+@theme inline {
+  --color-kit: var(--kit, var(--color-line-strong));
+  --color-kit-wash: color-mix(
+    in srgb,
+    var(--kit, var(--color-panel)) var(--kit-wash-mix),
+    var(--color-panel)
+  );
+}
+
+/* A card header's hairline diagonal, in the club's second colour, faint. */
+@utility kit-hairline {
+  background-image: repeating-linear-gradient(
+    115deg,
+    transparent 0 14px,
+    color-mix(in srgb, var(--kit-2, transparent) 13%, transparent) 14px 15px
+  );
+}
+
 @layer base {
   .dark {
     --color-page: #0a1128;
@@ -263,6 +290,9 @@
     --color-line-strong: #2f3d66;
     --color-focus: #34d399;
     --color-hover: #243054;
+    --color-card-band: #212c4e;
+    --shadow-card: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 10px 24px -12px rgb(0 0 0 / 0.75);
+    --kit-wash-mix: 26%;
     --color-series-1: #10b981;
     --color-series-2: #6366f1;
     --color-positive: #34d399;
