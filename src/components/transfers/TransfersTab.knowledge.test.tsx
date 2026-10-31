@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createInstance } from "i18next";
 import en from "../../i18n/locales/en.json";
@@ -132,4 +132,61 @@ it("lists a division rival with his rating and a dash for his wage", async () =>
   expect(within(row).getByText("71")).toBeInTheDocument();
   expect(within(row).getAllByText("–")).toHaveLength(1);
   expect(within(row).queryByText(formatWeeklyWage(REAL_WAGE, "compact"))).not.toBeInTheDocument();
+});
+
+/** The row holding `name` as the screen shows it now. */
+function rowNow(name: string): HTMLElement {
+  const row = screen.getByText(name).closest("tr");
+  if (row === null) throw new Error(`no row holds ${name}`);
+  return row;
+}
+
+/** The centre, shown for one game and then for the same career after the manager took a job at
+ *  another club, the new club's page answered by `nextPage` (pending or failed in these tests). */
+async function changeClubWithTheCentreOpen(nextPage: () => Promise<unknown>) {
+  const before = createGameState(MARKET);
+  const { rerender } = render(
+    <TransfersTab
+      gameState={before}
+      onSelectPlayer={vi.fn()}
+      onSelectTeam={vi.fn()}
+      onGameUpdate={vi.fn()}
+    />,
+  );
+  expect(within(await rowOf("Division Rival")).getByText("71")).toBeInTheDocument();
+  vi.mocked(invoke).mockImplementation(async (command: string) =>
+    command === "get_players_page" ? nextPage() : {},
+  );
+  rerender(
+    <TransfersTab
+      gameState={{ ...before, manager: { ...before.manager, team_id: "team-3" } }}
+      onSelectPlayer={vi.fn()}
+      onSelectTeam={vi.fn()}
+      onGameUpdate={vi.fn()}
+    />,
+  );
+}
+
+/**
+ * Given the centre open on a division rival whose rating, 71, the manager's club could see
+ * When the manager takes a job at another club and the new club's page is still on its way
+ * Then the rival's row shows "–" for his rating: the old club's answer is not the new club's.
+ */
+it("hides the old club's figures while the new club's page is on its way", async () => {
+  await changeClubWithTheCentreOpen(() => new Promise(() => {}));
+
+  await waitFor(() => expect(within(rowNow("Division Rival")).queryByText("71")).toBeNull());
+  expect(within(rowNow("Division Rival")).getAllByText("–")).toHaveLength(2);
+});
+
+/**
+ * Given the centre open on a division rival whose rating, 71, the manager's club could see
+ * When the manager takes a job at another club and the new club's page fails to load
+ * Then the rival's row keeps showing "–" for his rating, not the old club's answer.
+ */
+it("keeps the old club's figures hidden when the new club's page fails", async () => {
+  await changeClubWithTheCentreOpen(() => Promise.reject(new Error("backend unavailable")));
+
+  await waitFor(() => expect(within(rowNow("Division Rival")).queryByText("71")).toBeNull());
+  expect(within(rowNow("Division Rival")).getAllByText("–")).toHaveLength(2);
 });
