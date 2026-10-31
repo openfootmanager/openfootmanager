@@ -5,7 +5,7 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::app::App;
+use crate::app::{App, Mode};
 use crate::client::{CallError, Refusal};
 
 /// Everything a refused call must leave alone: the live game, and every byte on disk under the
@@ -20,17 +20,23 @@ pub struct Snapshot {
 
 impl Snapshot {
     pub fn take(app: &App) -> Result<Self, CallError> {
-        let game = match app
-            .client()
-            .call_value("info_game_state", serde_json::json!({}))
-        {
-            Ok(state) => Some(state["game"].clone()),
-            Err(CallError::Refused(refusal))
-                if refusal.key.as_deref() == Some("be.error.noActiveGameSession") =>
+        // A competition server offers no state dump to anyone, the harness included, so its
+        // snapshots hold the files alone.
+        let game = if app.mode() == Mode::Competition {
+            None
+        } else {
+            match app
+                .client()
+                .call_value("dev_full_game_state", serde_json::json!({}))
             {
-                None
+                Ok(state) => Some(state["game"].clone()),
+                Err(CallError::Refused(refusal))
+                    if refusal.key.as_deref() == Some("be.error.noActiveGameSession") =>
+                {
+                    None
+                }
+                Err(other) => return Err(other),
             }
-            Err(other) => return Err(other),
         };
         let files = app
             .saves_dir()
