@@ -1967,7 +1967,10 @@
       "suddenDeath": "Morte Súbita",
       "shootoutScore": "Pênaltis: {{h}} – {{a}}",
       "homeKick": "Cobrança do time da casa...",
-      "awayKick": "Cobrança do time visitante..."
+      "awayKick": "Cobrança do time visitante...",
+      "kickScored": "Cobrança {{n}}, convertida",
+      "kickMissed": "Cobrança {{n}}, perdida",
+      "kickToCome": "Cobrança {{n}}, ainda por cobrar"
     },
     "fullTime": "Fim de Jogo",
     "ft": "FJ",

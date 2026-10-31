@@ -504,6 +504,7 @@ mod tests {
             lost: 5,
             goals_for: 55,
             goals_against: 30,
+            competition_id: String::new(),
         });
 
         upsert_team(db.conn(), &team).unwrap();
@@ -512,6 +513,57 @@ mod tests {
         assert_eq!(loaded.history.len(), 1);
         assert_eq!(loaded.history[0].season, 2025);
         assert_eq!(loaded.history[0].league_position, 3);
+    }
+
+    /// Given a season record that names its league,
+    /// When the team is saved and read back from the database,
+    /// Then the record still names that league.
+    #[test]
+    fn a_season_record_keeps_its_competition_through_the_database() {
+        let db = test_db();
+        let mut team = sample_team("team-001", "History FC");
+        team.history.push(TeamSeasonRecord {
+            season: 2025,
+            league_position: 1,
+            played: 30,
+            won: 20,
+            drawn: 5,
+            lost: 5,
+            goals_for: 60,
+            goals_against: 25,
+            competition_id: "eng-div-2".to_string(),
+        });
+
+        upsert_team(db.conn(), &team).unwrap();
+        let loaded = load_team(db.conn(), "team-001").unwrap().unwrap();
+
+        assert_eq!(loaded.history[0].competition_id, "eng-div-2");
+    }
+
+    /// Given a save made before season records named their league: the stored history JSON has no
+    ///       `competition_id`
+    /// When the team is read from that database
+    /// Then its history is all still there, with a blank competition, and not silently emptied
+    ///      (history is read with `unwrap_or_default`, so a record that failed to parse would erase
+    ///      the whole history).
+    #[test]
+    fn a_save_from_before_records_named_their_league_keeps_its_history() {
+        let db = test_db();
+        upsert_team(db.conn(), &sample_team("team-001", "Old Save FC")).unwrap();
+        let old_history = r#"[{"season":2030,"league_position":1,"played":38,"won":28,"drawn":5,"lost":5,"goals_for":80,"goals_against":30}]"#;
+        db.conn()
+            .execute(
+                "UPDATE teams SET history = ?1 WHERE id = ?2",
+                rusqlite::params![old_history, "team-001"],
+            )
+            .unwrap();
+
+        let loaded = load_team(db.conn(), "team-001").unwrap().unwrap();
+
+        assert_eq!(loaded.history.len(), 1);
+        assert_eq!(loaded.history[0].season, 2030);
+        assert_eq!(loaded.history[0].won, 28);
+        assert_eq!(loaded.history[0].competition_id, "");
     }
 
     #[test]

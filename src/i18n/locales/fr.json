@@ -2024,7 +2024,10 @@
       "suddenDeath": "Mort Subite",
       "shootoutScore": "Tirs au but: {{h}} – {{a}}",
       "homeKick": "Tir de l'équipe à domicile...",
-      "awayKick": "Tir de l'équipe visiteuse..."
+      "awayKick": "Tir de l'équipe visiteuse...",
+      "kickScored": "Tir {{n}}, réussi",
+      "kickMissed": "Tir {{n}}, manqué",
+      "kickToCome": "Tir {{n}}, à venir"
     },
     "fullTime": "Temps Plein",
     "ft": "TP",
