@@ -420,9 +420,12 @@ pub(crate) fn knockout_qualifiers(league: &League) -> Vec<String> {
 /// - A group winner plays the lowest-placed qualifier from another group, so group winners meet
 ///   runners-up (and best thirds), not each other: A1 v B2 and B1 v A2 for a plain four-team
 ///   knockout, and the lowest qualifiers available when best thirds are in the field.
-/// - Two teams of one group never meet in this round while another opponent exists.
+/// - Two teams of one group never meet in this round while a draw without such a tie exists (a
+///   search, not a single greedy pass, so it holds for any field shape).
 /// - The ties are placed so a group's teams sit in opposite halves of the bracket where they can:
-///   A1 and A2 can only meet in the final.
+///   in a plain four-team-per-group field A1 and A2 can only meet in the final. Teams that have a
+///   bye are not part of that arrangement (they are listed first, in rank order), so among the
+///   first-round ties is where the guarantee holds.
 ///
 /// The set of entrants is exactly [`knockout_qualifiers`]'s; only their order differs, so a bracket
 /// drawn the old way (winner against winner) still verifies in the strict archive check, which
@@ -492,16 +495,41 @@ fn paired_groups_ties(league: &League) -> Vec<Tie> {
     ties
 }
 
-/// The best remaining qualifier plays the lowest-placed remaining qualifier of another group (of
-/// its own group only when no other is left). `ranked` is best first.
+/// The most tries one search for a draw may make. A field of up to 64 entrants finds its draw in
+/// far fewer; the limit only stops a pathological one from running away.
+const DRAW_SEARCH_BUDGET: u32 = 200_000;
+
+/// The best remaining qualifier plays the lowest-placed remaining qualifier of another group.
+/// `ranked` is best first.
+///
+/// Searches for a draw with no tie inside one group, trying the lowest opponent first, so the
+/// preference "best plays lowest" holds wherever a clash-free draw allows it. When none exists
+/// (one group supplies more than half the field), it allows the fewest clashes that do.
 fn lowest_available_ties(ranked: &[String], group_of: impl Fn(&str) -> Option<usize>) -> Vec<Tie> {
+    let groups: Vec<Option<usize>> = ranked.iter().map(|team| group_of(team.as_str())).collect();
+    if ranked.len().is_multiple_of(2) {
+        for allowed_clashes in 0..=ranked.len() / 2 {
+            let mut search = DrawSearch {
+                groups: &groups,
+                used: vec![false; ranked.len()],
+                picked: Vec::new(),
+                budget: DRAW_SEARCH_BUDGET,
+            };
+            if search.complete(allowed_clashes) {
+                return search
+                    .picked
+                    .into_iter()
+                    .map(|(first, second)| (ranked[first].clone(), ranked[second].clone()))
+                    .collect();
+            }
+        }
+    }
+    // An odd field, or a search that ran out of budget: pair what can be paired, best against
+    // lowest, preferring another group.
     let mut pool: Vec<String> = ranked.to_vec();
     let mut ties = Vec::new();
-    while !pool.is_empty() {
+    while pool.len() > 1 {
         let best = pool.remove(0);
-        if pool.is_empty() {
-            break;
-        }
         let best_group = group_of(best.as_str());
         let opponent = pool
             .iter()
@@ -510,6 +538,47 @@ fn lowest_available_ties(ranked: &[String], group_of: impl Fn(&str) -> Option<us
         ties.push((best, pool.remove(opponent)));
     }
     ties
+}
+
+/// A depth-first search for a full pairing of `groups`' entrants (indices, best first).
+struct DrawSearch<'a> {
+    groups: &'a [Option<usize>],
+    used: Vec<bool>,
+    picked: Vec<(usize, usize)>,
+    budget: u32,
+}
+
+impl DrawSearch<'_> {
+    /// Pairs every entrant, with at most `clashes_left` ties inside one group.
+    fn complete(&mut self, clashes_left: usize) -> bool {
+        let Some(best) = self.used.iter().position(|used| !used) else {
+            return true;
+        };
+        if self.budget == 0 {
+            return false;
+        }
+        self.budget -= 1;
+        self.used[best] = true;
+        for lowest_first in (best + 1..self.groups.len()).rev() {
+            if self.used[lowest_first] {
+                continue;
+            }
+            let clash =
+                self.groups[best].is_some() && self.groups[best] == self.groups[lowest_first];
+            if clash && clashes_left == 0 {
+                continue;
+            }
+            self.used[lowest_first] = true;
+            self.picked.push((best, lowest_first));
+            if self.complete(clashes_left - usize::from(clash)) {
+                return true;
+            }
+            self.picked.pop();
+            self.used[lowest_first] = false;
+        }
+        self.used[best] = false;
+        false
+    }
 }
 
 /// The ties in bracket order: split into two halves with as few same-group pairs inside a half as
