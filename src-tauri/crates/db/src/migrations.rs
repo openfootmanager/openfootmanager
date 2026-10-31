@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 59;
+const EXPECTED_MIGRATION_COUNT: usize = 60;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -167,6 +167,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "v059_legacy_tactics_imported.sql",
         include_str!("sql/v059_legacy_tactics_imported.sql"),
+    ),
+    // V60: The first date a completed home fixture is paid a gate for
+    (
+        "v060_gate_settled_from.sql",
+        include_str!("sql/v060_gate_settled_from.sql"),
     ),
 ];
 
@@ -674,6 +679,45 @@ mod tests {
         }
     }
 
+    /// Given a real v059 save (written before per-fixture gates)
+    /// When it is migrated, twice
+    /// Then its game_meta row has no gate cutover yet, so the first settlement fixes one, and the
+    ///      rest of the row is untouched.
+    #[test]
+    fn gate_settled_from_v060_upgrades_a_v059_save_with_no_cutover_yet() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(59)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO game_meta (save_id, save_name, manager_id, start_date, game_date) VALUES ('save', 'Old career', 'manager', '2033-02-01', '2033-06-30')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT gate_settled_from FROM game_meta")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, Option<String>) = conn
+                .query_row(
+                    "SELECT save_name, gate_settled_from FROM game_meta",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("v060 must add the column to a real v059 save");
+            assert_eq!(row, ("Old career".to_string(), None));
+        }
+    }
+
     /// Given a real v048 save, when migrated twice, then the archive table exists and is empty.
     #[test]
     fn edition_archive_v049_upgrades_a_v048_save_without_touching_competitions() {
@@ -975,6 +1019,7 @@ mod tests {
     ("v057_manager_known_as.sql", 0x1a62f523b6d15799),
     ("v058_archived_messages.sql", 0x853776cba0dffed1),
     ("v059_legacy_tactics_imported.sql", 0xf2fdbc95bf5fdc99),
+    ("v060_gate_settled_from.sql", 0x8040d9e0256352d4),
     ];
 
     /// Given the migrations already shipped

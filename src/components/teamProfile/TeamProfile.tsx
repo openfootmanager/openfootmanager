@@ -1,5 +1,8 @@
 import { useTranslation } from "react-i18next";
 
+import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
+import { knowledgeRevision } from "../../lib/playerKnowledge";
+
 import type { TeamProfileProps } from "./TeamProfile.types";
 import TeamProfileAdvancedStatsCard from "./TeamProfileAdvancedStatsCard";
 import TeamProfileClubDetailsCard from "./TeamProfileClubDetailsCard";
@@ -23,6 +26,16 @@ export default function TeamProfile({
   const { standing: leagueStanding } = useClubLeagueStanding(team.id, gameState.clock.current_date);
   const viewModel = buildTeamProfileViewModel(team, gameState, leagueStanding);
   const { teamStatsOverview, recentMatches } = useTeamProfileStats(team.id);
+  const knowledgeOf = usePlayerKnowledge(
+    viewModel.roster.map((player) => player.id),
+    knowledgeRevision({
+      careerToken: gameState.career_token,
+      date: gameState.clock.current_date,
+      playerClubId: team.id,
+      managerClubId: gameState.manager.team_id,
+      seasonStart: gameState.season_context?.season_start,
+    }),
+  );
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -39,6 +52,7 @@ export default function TeamProfile({
 
         <TeamProfileRosterCard
           roster={viewModel.roster}
+          knowledgeOf={knowledgeOf}
           isOwnTeam={isOwnTeam}
           locale={i18n.language}
           t={t}
