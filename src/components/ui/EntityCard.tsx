@@ -4,7 +4,7 @@ import { kitStyle } from "../../lib/kitStyle";
 import type { TeamColors } from "../../store/types";
 import { isOnControl } from "./clickTarget";
 
-export interface EntityFact {
+interface EntityFact {
   /** What the fact is, translated: "Value", "Morale". */
   label: string;
   value: ReactNode;
