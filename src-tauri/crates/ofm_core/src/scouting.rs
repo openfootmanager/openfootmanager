@@ -1216,6 +1216,20 @@ mod tests {
         );
     }
 
+    /// Given a good scout (ability 80) and a player from an old save with no overall on record, his
+    ///       attributes between 57 and 72, over twenty assignments
+    /// When the scout reports
+    /// Then the overall he gives is between 55 and 74: the average of the attributes he saw, within
+    ///      his noise of 2, not a figure built on an overall of 0
+    #[test]
+    fn a_player_with_no_overall_on_record_is_rated_on_the_attributes_seen() {
+        for n in 0..20 {
+            let report = scouted(&format!("no-overall-{n}"), 80, 50, 0, 0);
+            let rating = report.avg_rating.expect("a scout rates every player");
+            assert!((55..=74).contains(&rating), "assignment {n}: {rating}");
+        }
+    }
+
     /// Given a middling scout (ability 45) and two hundred assignments
     /// When he reports each time
     /// Then every figure he reveals is within 8 of the truth
