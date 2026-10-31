@@ -1205,6 +1205,17 @@ mod tests {
         );
     }
 
+    /// Given a good judge of potential (75) and a player rated 92 with no ceiling on record
+    /// When he reports
+    /// Then he calls the potential world class from the rating he saw, not from a ceiling of 0
+    #[test]
+    fn a_player_with_no_ceiling_on_record_is_judged_on_his_rating() {
+        assert_eq!(
+            scouted("no-ceiling", 80, 75, 92, 0).potential_key,
+            "common.scoutPotential.worldClass"
+        );
+    }
+
     /// Given a middling scout (ability 45) and two hundred assignments
     /// When he reports each time
     /// Then every figure he reveals is within 8 of the truth

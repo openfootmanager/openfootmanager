@@ -161,19 +161,29 @@ fn target_label_of_search_for(position: Position) -> Option<String> {
         .and_then(|m| m.i18n_params.get("targetLabel").cloned())
 }
 
-/// Given youth searches targeted at a defender and at a goalkeeper
+/// Given youth searches targeted at a goalkeeper, a defender, a midfielder and a forward
 /// When each report arrives
 /// Then it names the position searched for
 #[test]
 fn a_targeted_youth_report_names_the_position_searched_for() {
+    let labels: Vec<Option<String>> = [
+        Position::Goalkeeper,
+        Position::Defender,
+        Position::Midfielder,
+        Position::Forward,
+    ]
+    .into_iter()
+    .map(target_label_of_search_for)
+    .collect();
+
     assert_eq!(
-        (
-            target_label_of_search_for(Position::Defender),
-            target_label_of_search_for(Position::Goalkeeper)
-        ),
-        (
-            Some("common.positions.Defender".to_string()),
-            Some("common.positions.Goalkeeper".to_string())
-        )
+        labels,
+        [
+            "common.positions.Goalkeeper",
+            "common.positions.Defender",
+            "common.positions.Midfielder",
+            "common.positions.Forward",
+        ]
+        .map(|key| Some(key.to_string()))
     );
 }
