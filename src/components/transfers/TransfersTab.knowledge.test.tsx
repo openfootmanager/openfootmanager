@@ -6,7 +6,7 @@ import TransfersTab from "./TransfersTab";
 import { invoke } from "@tauri-apps/api/core";
 import { formatWeeklyWage } from "../../lib/helpers";
 import type { VisibleFigures } from "../../lib/playerKnowledge";
-import type { PlayerData } from "../../store/gameStore";
+import type { GameStateData, PlayerData } from "../../store/gameStore";
 import { createGameState, createPlayer, marketPageOf } from "./TransfersTab.testFixtures";
 
 const translations = createInstance();
@@ -49,7 +49,15 @@ const rival = createPlayer({
   transfer_listed: true,
   wage: REAL_WAGE,
 });
-const MARKET = [unscouted, scouted, rival];
+// The manager's own player, listed for transfer.
+const ownListed = createPlayer({
+  id: "own-listed",
+  full_name: "Own Listed",
+  team_id: "team-1",
+  transfer_listed: true,
+  wage: REAL_WAGE,
+});
+const MARKET = [unscouted, scouted, rival, ownListed];
 
 // What the backend's projection lets the club see of each of them (`KnowledgeView::of_player`):
 // a rating only for its own player and a division rival, so a scouted player's is unknown until a
@@ -58,6 +66,7 @@ const FIGURES: Record<string, VisibleFigures> = {
   unscouted: { ovr: null, wage: { kind: "hidden" } },
   scouted: { ovr: null, wage: { kind: "approximate", weekly: 12000 } },
   rival: { ovr: 71, wage: { kind: "hidden" } },
+  "own-listed": { ovr: 72, wage: { kind: "exact", weekly: REAL_WAGE } },
 };
 
 function pageWithFigures(players: PlayerData[]) {
@@ -120,6 +129,19 @@ it("lists a scouted player with his wage as about and no rating", async () => {
 });
 
 /**
+ * Given the manager's own listed player, whose rating (72) and exact wage the page sends
+ * When the transfer centre lists him
+ * Then his row shows both.
+ */
+it("lists the club's own player with his rating and exact wage", async () => {
+  renderCentre();
+  const row = await rowOf("Own Listed");
+
+  expect(within(row).getByText("72")).toBeInTheDocument();
+  expect(within(row).getByText(formatWeeklyWage(REAL_WAGE, "compact"))).toBeInTheDocument();
+});
+
+/**
  * Given a listed player at a club in the manager's division, whose rating of 71 the page sends and
  *       whose wage it hides
  * When the transfer centre lists him
@@ -141,9 +163,12 @@ function rowNow(name: string): HTMLElement {
   return row;
 }
 
-/** The centre, shown for one game and then for the same career after the manager took a job at
- *  another club, the new club's page answered by `nextPage` (pending or failed in these tests). */
-async function changeClubWithTheCentreOpen(nextPage: () => Promise<unknown>) {
+/** The centre, shown for one game and then for the game `change` makes of it, the next page
+ *  answered by `nextPage` (pending or failed in these tests). */
+async function changeGameWithTheCentreOpen(
+  change: (before: GameStateData) => GameStateData,
+  nextPage: () => Promise<unknown>,
+) {
   const before = createGameState(MARKET);
   const { rerender } = render(
     <TransfersTab
@@ -159,13 +184,23 @@ async function changeClubWithTheCentreOpen(nextPage: () => Promise<unknown>) {
   );
   rerender(
     <TransfersTab
-      gameState={{ ...before, manager: { ...before.manager, team_id: "team-3" } }}
+      gameState={change(before)}
       onSelectPlayer={vi.fn()}
       onSelectTeam={vi.fn()}
       onGameUpdate={vi.fn()}
     />,
   );
 }
+
+/** The same career after the manager took a job at another club. */
+const tookAnotherJob = (before: GameStateData): GameStateData => ({
+  ...before,
+  manager: { ...before.manager, team_id: "team-3" },
+});
+
+/** The centre after the manager took a job at another club. */
+const changeClubWithTheCentreOpen = (nextPage: () => Promise<unknown>) =>
+  changeGameWithTheCentreOpen(tookAnotherJob, nextPage);
 
 /**
  * Given the centre open on a division rival whose rating, 71, the manager's club could see
@@ -189,4 +224,39 @@ it("keeps the old club's figures hidden when the new club's page fails", async (
 
   await waitFor(() => expect(within(rowNow("Division Rival")).queryByText("71")).toBeNull());
   expect(within(rowNow("Division Rival")).getAllByText("–")).toHaveLength(2);
+});
+
+/** The same day, after the manager's own listed player was sold to another club. */
+const soldOwnListed = (before: GameStateData): GameStateData => ({
+  ...before,
+  players: before.players.map((player) =>
+    player.id === ownListed.id ? { ...player, team_id: "team-2" } : player,
+  ),
+});
+
+/**
+ * Given the centre open on the club's own listed player, his rating (72) and exact wage showing
+ * When he is sold to another club that same day, and the page after the sale is still on its way
+ * Then his row shows "–" for both: they were his old club's to see, and the career, the date and
+ *      the manager's club have not moved, so only his club tells the old answer is not his now.
+ */
+it("hides a sold player's figures while the page after the sale is on its way", async () => {
+  await changeGameWithTheCentreOpen(soldOwnListed, () => new Promise(() => {}));
+
+  await waitFor(() => expect(within(rowNow("Own Listed")).queryByText("72")).toBeNull());
+  expect(within(rowNow("Own Listed")).getAllByText("–")).toHaveLength(2);
+});
+
+/**
+ * Given the centre open on the club's own listed player, his rating (72) and exact wage showing
+ * When he is sold to another club that same day, and the page after the sale fails to load
+ * Then his row keeps showing "–" for both, not his old club's answer.
+ */
+it("keeps a sold player's figures hidden when the page after the sale fails", async () => {
+  await changeGameWithTheCentreOpen(soldOwnListed, () =>
+    Promise.reject(new Error("backend unavailable")),
+  );
+
+  await waitFor(() => expect(within(rowNow("Own Listed")).queryByText("72")).toBeNull());
+  expect(within(rowNow("Own Listed")).getAllByText("–")).toHaveLength(2);
 });
