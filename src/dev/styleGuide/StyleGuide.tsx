@@ -1,4 +1,4 @@
-import { Globe, Trophy } from "lucide-react";
+import { FastForward, Globe, Play, SkipForward, Snail, Trophy } from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import {
@@ -9,15 +9,28 @@ import {
   CardHeader,
   Checkbox,
   CountryFlag,
+  DataTable,
+  type DataTableColumn,
   DatePicker,
   Dialog,
   DialogCloseButton,
   InjuryBadge,
+  UnreadBadge,
   JerseyIcon,
+  PageToolbar,
   PitchToken,
   PlayerAvatar,
+  PositionBadge,
+  PositionBadges,
   ProgressBar,
+  RatingChip,
+  SegmentedControl,
   Select,
+  type SortDirection,
+  Switch,
+  TONE_TEXT,
+  TabPanel,
+  Tabs,
   TeamLocation,
   TeamLogo,
   ThemeToggle,
@@ -102,6 +115,10 @@ const HEIGHTS = [
 ];
 const WIDTHS = [
   { token: "--container-page", use: "the page width (max-w-page)" },
+  { token: "--spacing-sidebar-rail", use: "the sidebar's icon rail (w-sidebar-rail)" },
+  { token: "--spacing-sidebar-compact", use: "the open sidebar, Compact (w-sidebar-compact)" },
+  { token: "--spacing-sidebar-standard", use: "the open sidebar, Standard (w-sidebar-standard)" },
+  { token: "--spacing-sidebar-wide", use: "the open sidebar, Wide (w-sidebar-wide)" },
   {
     token: "--container-split",
     use: "two panels side by side above this container width (@split)",
@@ -245,6 +262,12 @@ function ControlsSection() {
         <Checkbox checked={false} indeterminate onChange={() => undefined} aria-label="Mixed" />
         <Checkbox checked onChange={() => undefined} disabled aria-label="Disabled" />
       </Row>
+      <Row>
+        <Switch label="Switch" checked={checked} onChange={setChecked} />
+        <Switch label="Switch, off" checked={false} onChange={() => undefined} />
+        <Switch label="Switch, disabled on" checked disabled onChange={() => undefined} />
+        <Switch label="Switch, disabled off" checked={false} disabled onChange={() => undefined} />
+      </Row>
       <div className="grid max-w-md gap-3">
         <DatePicker value={date} onChange={setDate} />
         <DatePicker value="" onChange={() => undefined} error />
@@ -265,6 +288,30 @@ function DisplaySection() {
         <Badge size="md">medium</Badge>
         <InjuryBadge injury={{ name: "Hamstring strain", days_remaining: 4 }} />
         <InjuryBadge injury={{ name: "Metatarsal fracture", days_remaining: 42 }} />
+        <UnreadBadge count={3} />
+        <UnreadBadge count={42} />
+        <UnreadBadge count={120} />
+      </Row>
+      <Row>
+        {/* The backend's tiers (S, A, B and the rest), at the row's size and a card's. */}
+        {(
+          [
+            [88, "S"],
+            [79, "A"],
+            [71, "B"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={tier} value={value} tier={tier} />
+        ))}
+        {(
+          [
+            [88, "S"],
+            [58, "Rest"],
+          ] as const
+        ).map(([value, tier]) => (
+          <RatingChip key={`md-${tier}`} value={value} tier={tier} size="md" />
+        ))}
       </Row>
       <div className="grid max-w-md gap-2">
         {(["auto", "primary", "accent", "success", "danger", "muted"] as const).map(
@@ -272,6 +319,22 @@ function DisplaySection() {
             <ProgressBar key={variant} value={95 - i * 17} variant={variant} showLabel />
           ),
         )}
+      </div>
+      {/* The good-to-bad scale the backend rates values on: a tone fills the bar, its word says it. */}
+      <div className="grid max-w-md gap-2">
+        {(
+          [
+            ["good", "Fresh", 90],
+            ["fair", "Tiring", 60],
+            ["low", "Exhausted", 32],
+            ["bad", "Critical", 15],
+          ] as const
+        ).map(([tone, word, value]) => (
+          <div key={tone} className="flex items-center gap-3">
+            <span className={`w-20 text-caption font-semibold ${TONE_TEXT[tone]}`}>{word}</span>
+            <ProgressBar value={value} tone={tone} showLabel className="flex-1" />
+          </div>
+        ))}
       </div>
       <Row>
         <CountryFlag code="BE" />
@@ -336,6 +399,100 @@ function CardsSection() {
   );
 }
 
+const TABLE_FIXTURES = [
+  { id: "t1", name: "Anderson", age: 31, morale: 72, starter: true, injured: false },
+  { id: "t2", name: "Navarro", age: 33, morale: 55, starter: true, injured: false },
+  { id: "t3", name: "Johnston", age: 29, morale: 61, starter: false, injured: true },
+  { id: "t4", name: "Graham", age: 34, morale: 80, starter: false, injured: false },
+];
+type TableFixture = (typeof TABLE_FIXTURES)[number];
+
+const TABLE_COLUMNS: DataTableColumn<TableFixture>[] = [
+  { key: "name", header: "Name", cell: (row) => row.name, primary: true, sortable: true },
+  { key: "age", header: "Age", cell: (row) => row.age, numeric: true, sortable: true },
+  // Folds into the row's details in a table narrower than 48rem.
+  { key: "morale", header: "Morale", cell: (row) => row.morale, numeric: true, drawer: true },
+];
+
+/** The panel a page puts its table in: DataTable draws none of its own. */
+function TablePanel({ children }: { children: ReactNode }) {
+  return <div className="overflow-hidden rounded-lg border border-line bg-panel">{children}</div>;
+}
+
+function TablesSection() {
+  const [sort, setSort] = useState<{ key: string; direction: SortDirection }>({
+    key: "age",
+    direction: "desc",
+  });
+  const sorted = [...TABLE_FIXTURES].sort((a, b) => {
+    const order = sort.key === "name" ? a.name.localeCompare(b.name) : a.age - b.age;
+    return sort.direction === "asc" ? order : -order;
+  });
+  return (
+    <Section title="Tables">
+      <div className="grid gap-4">
+        <TablePanel>
+          <DataTable
+            label="Squad (sortable; starters and an injury accented; morale folds when narrow)"
+            columns={TABLE_COLUMNS}
+            rows={sorted}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            sort={sort}
+            onSortChange={(key) =>
+              setSort((current) => ({
+                key,
+                direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+              }))
+            }
+            onOpen={() => undefined}
+            rowAccent={(row) => (row.injured ? "danger" : row.starter ? "positive" : null)}
+            rowAction={{
+              header: "Actions",
+              cell: (row) => (
+                <Button size="sm" variant="ghost" aria-label={`Menu for ${row.name}`}>
+                  ⋯
+                </Button>
+              ),
+            }}
+          />
+        </TablePanel>
+        <div className="max-w-md">
+          <TablePanel>
+            <DataTable
+              label="Narrow (morale in the row's details)"
+              columns={TABLE_COLUMNS}
+              rows={TABLE_FIXTURES.slice(0, 2)}
+              rowKey={(row) => row.id}
+              rowName={(row) => row.name}
+            />
+          </TablePanel>
+        </div>
+        <TablePanel>
+          <DataTable
+            label="Empty"
+            columns={TABLE_COLUMNS}
+            rows={[]}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            empty="No players match these filters."
+          />
+        </TablePanel>
+        <TablePanel>
+          <DataTable
+            label="Loading"
+            columns={TABLE_COLUMNS}
+            rows={[]}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            loading
+          />
+        </TablePanel>
+      </div>
+    </Section>
+  );
+}
+
 const PITCH_FIXTURES = [
   { name: "WOUTERS", abbr: "GK", position: "Goalkeeper", ovr: 74, condition: 45, fit: "exact" },
   {
@@ -348,6 +505,43 @@ const PITCH_FIXTURES = [
   },
   { name: "DUPONT", abbr: "RB", position: "RightBack", ovr: 70, condition: 98, fit: "out" },
 ] as const;
+
+const BADGE_NAMES: Record<string, { label: string; name: string }> = {
+  Striker: { label: "ST", name: "Striker" },
+  RightWinger: { label: "RW", name: "Right Winger" },
+  LeftWinger: { label: "LW", name: "Left Winger" },
+  CenterBack: { label: "CB", name: "Center Back" },
+};
+
+function PositionBadgeSection() {
+  const describe = (position: string) => BADGE_NAMES[position];
+  return (
+    <Section title="Position badges">
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadge position="Striker" {...BADGE_NAMES.Striker} familiarity="natural" />
+        <PositionBadge position="RightWinger" {...BADGE_NAMES.RightWinger} familiarity="adapted" />
+        <PositionBadge position="CenterBack" {...BADGE_NAMES.CenterBack} familiarity="out" />
+        <PositionBadge position="LeftWinger" {...BADGE_NAMES.LeftWinger} kind="alternate" />
+      </div>
+      <div className="flex flex-wrap items-center gap-6">
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger", "LeftWinger"]}
+          deployed="RightWinger"
+          familiarity="adapted"
+          describe={describe}
+        />
+        <PositionBadges
+          natural="Striker"
+          alternates={["RightWinger"]}
+          deployed="CenterBack"
+          familiarity="out"
+          describe={describe}
+        />
+      </div>
+    </Section>
+  );
+}
 
 function PitchSection() {
   return (
@@ -369,6 +563,132 @@ function PitchSection() {
           </div>
         ))}
       </div>
+    </Section>
+  );
+}
+
+const MARKET_TABS = [
+  { id: "players", label: "Players", count: 3915 },
+  { id: "list", label: "My list", count: 8 },
+  { id: "offers", label: "Offers", count: 5 },
+];
+
+// The longest real toolbar: the Transfers centre in German. At 960 wide and extra-large scale its
+// tabs don't fit, so they scroll inside the tablist (the page harness measures this).
+const LONG_TABS = [
+  { id: "list", label: "Meine Transferliste", count: 8 },
+  { id: "market", label: "Transfermarkt", count: 3915 },
+  { id: "free", label: "Ablösefreie", count: 214 },
+  { id: "loans", label: "Leihmarkt", count: 96 },
+  { id: "offers", label: "Angebote", count: 5 },
+];
+
+function NavigationSection() {
+  const [page, setPage] = useState("players");
+  const [longPage, setLongPage] = useState("market");
+  const [view, setView] = useState("list");
+  const [pace, setPace] = useState("normal");
+  const [density, setDensity] = useState("comfortable");
+  return (
+    <Section title="Navigation">
+      <PageToolbar
+        start={
+          <Tabs
+            idPrefix="guide-market"
+            label="Transfer market"
+            tabs={MARKET_TABS}
+            selectedId={page}
+            onSelect={setPage}
+          />
+        }
+        filters={
+          <Select selectSize="sm" aria-label="Position" defaultValue="all">
+            <option value="all">All positions</option>
+            <option value="def">Defenders</option>
+          </Select>
+        }
+        action={<Button size="sm">Make bid</Button>}
+      />
+      {MARKET_TABS.map((tab) => (
+        <TabPanel key={tab.id} idPrefix="guide-market" tabId={tab.id} hidden={tab.id !== page}>
+          <p className="text-body text-fg-muted">The {tab.label.toLowerCase()} view.</p>
+        </TabPanel>
+      ))}
+      <PageToolbar
+        start={
+          <Tabs
+            idPrefix="guide-long"
+            label="Transfers, long labels"
+            tabs={LONG_TABS}
+            selectedId={longPage}
+            onSelect={setLongPage}
+          />
+        }
+        filters={
+          <Select selectSize="sm" aria-label="Position" defaultValue="all">
+            <option value="all">Alle Positionen</option>
+          </Select>
+        }
+        action={<Button size="sm">Transferangebot abgeben</Button>}
+      />
+      {LONG_TABS.map((tab) => (
+        <TabPanel key={tab.id} idPrefix="guide-long" tabId={tab.id} hidden={tab.id !== longPage}>
+          <p className="text-body text-fg-muted">{tab.label}</p>
+        </TabPanel>
+      ))}
+      <Row>
+        <Tabs
+          idPrefix="guide-view"
+          label="Attributes view"
+          look="segmented"
+          tabs={[
+            { id: "list", label: "List" },
+            { id: "radar", label: "Radar" },
+          ]}
+          selectedId={view}
+          onSelect={setView}
+        />
+      </Row>
+      <TabPanel idPrefix="guide-view" tabId="list" hidden={view !== "list"}>
+        <p className="text-body text-fg-muted">The attributes as a list.</p>
+      </TabPanel>
+      <TabPanel idPrefix="guide-view" tabId="radar" hidden={view !== "radar"}>
+        <p className="text-body text-fg-muted">The attributes as a radar.</p>
+      </TabPanel>
+      <p id="guide-pace" className="text-caption text-fg-muted">
+        Speed: a segmented control, strong and stacked
+      </p>
+      <div className="max-w-sm">
+        <SegmentedControl
+          labelledBy="guide-pace"
+          options={[
+            { value: "slow", label: "Slow", icon: <Snail /> },
+            { value: "normal", label: "Normal", icon: <Play /> },
+            { value: "fast", label: "Fast", icon: <FastForward /> },
+            { value: "max", label: "Max", icon: <SkipForward /> },
+          ]}
+          value={pace}
+          onChange={setPace}
+          emphasis="strong"
+          layout="stacked"
+          fill
+        />
+      </div>
+      <p id="guide-density" className="text-caption text-fg-muted">
+        Density: a segmented control, quiet and inline
+      </p>
+      <Row>
+        <SegmentedControl
+          labelledBy="guide-density"
+          options={[
+            { value: "comfortable", label: "Comfortable" },
+            { value: "compact", label: "Compact" },
+          ]}
+          value={density}
+          onChange={setDensity}
+        />
+      </Row>
+      <PageToolbar action={<Button size="sm">Hire</Button>} />
     </Section>
   );
 }
@@ -422,9 +742,12 @@ export function StyleGuide({ options }: { options: StyleGuideOptions }) {
           </p>
         </header>
         <TokensSection />
+        <NavigationSection />
         <ControlsSection />
         <DisplaySection />
         <CardsSection />
+        <PositionBadgeSection />
+        <TablesSection />
         <PitchSection />
         <DialogSection open={options.dialogOpen} />
       </div>

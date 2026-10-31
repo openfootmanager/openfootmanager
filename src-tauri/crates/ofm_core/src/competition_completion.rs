@@ -390,6 +390,31 @@ mod tests {
         blocked(&c, Some(2), CompletionFailure::InvalidTableShape);
     }
 
+    /// Given a finished double round robin in which one pair's return leg was played at the same
+    ///       ground as the first, with its scoreline mirrored so every table row still adds up
+    /// When completion is verified
+    /// Then the invalid table shape blocks it: two meetings at one ground are not a home and an
+    ///      away game, however well the table balances
+    #[test]
+    fn a_pair_that_met_twice_at_one_ground_is_not_a_double_round_robin() {
+        let mut c = table(4, 2);
+        let (home, away) = (
+            c.fixtures[0].home_team_id.clone(),
+            c.fixtures[0].away_team_id.clone(),
+        );
+        let return_leg = c
+            .fixtures
+            .iter_mut()
+            .find(|fixture| fixture.home_team_id == away && fixture.away_team_id == home)
+            .expect("a double round robin has a return leg");
+        return_leg.home_team_id = home;
+        return_leg.away_team_id = away;
+        let result = return_leg.result.as_mut().expect("a played return leg");
+        std::mem::swap(&mut result.home_goals, &mut result.away_goals);
+
+        blocked(&c, Some(2), CompletionFailure::InvalidTableShape);
+    }
+
     /// Given completed fixtures with a missing result, bad date, duplicate id, wrong competition, self-pairing or unknown club, when completion is verified, then each blocks it.
     #[test]
     fn malformed_fixture_cannot_supply_completion_proof() {

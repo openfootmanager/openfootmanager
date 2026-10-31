@@ -1,3 +1,4 @@
+import { useSquadFitness } from "../../hooks/useSquadFitness";
 import type { GameStateData } from "../../store/gameStore";
 import { Card, CardHeader, CardBody, Badge } from "../ui";
 import { formatDateShort, getUserCompetition } from "../../lib/helpers";
@@ -77,8 +78,13 @@ export default function HomeTab({
         (p) => p.team_id === myTeam.id && isFirstTeamSquadPlayer(p),
       )
     : [];
-  const { avgCondition, avgOvr, coldPlayers, exhaustedCount, hotPlayers, unavailablePlayers } =
-    getHomeRosterOverview(roster);
+  const { avgOvr, coldPlayers, hotPlayers, unavailablePlayers } = getHomeRosterOverview(roster);
+  // Fitness is the backend's: injured players are not in the squad that can play.
+  const fitness = useSquadFitness(gameState);
+  const avgCondition =
+    fitness?.average_condition != null ? Math.round(fitness.average_condition) : null;
+  const avgConditionTone = fitness?.average_status?.tone ?? null;
+  const exhaustedCount = fitness?.exhausted_count ?? 0;
   const resolveInjuryName = (injuryName: string): string => {
     if (injuryName.includes(".")) {
       return t(injuryName, { defaultValue: injuryName });
@@ -255,6 +261,7 @@ export default function HomeTab({
             <HomeNextOpponentCard nextOpponent={nextOpponent} lang={lang} onNavigate={onNavigate} />
             <HomeSquadOverviewCard
               avgCondition={avgCondition}
+              avgConditionTone={avgConditionTone}
               avgOvr={avgOvr}
               exhaustedCount={exhaustedCount}
               scheduleIcon={schedIcons.icon}

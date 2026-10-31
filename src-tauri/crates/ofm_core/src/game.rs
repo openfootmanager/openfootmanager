@@ -172,6 +172,12 @@ pub struct Game {
     /// is copied in once more, then marked. Persistence is `game_meta.legacy_tactics_imported`.
     #[serde(default)]
     pub legacy_tactics_imported: bool,
+    /// The first date a completed home fixture is paid a gate for (`YYYY-MM-DD`). Fixed by the
+    /// first settlement (`finances::gate`), so a save from before per-fixture gates is not paid for
+    /// the fixtures it had already played. `None` until then. Persistence is
+    /// `game_meta.gate_settled_from`.
+    #[serde(default)]
+    pub gate_settled_from: Option<String>,
     /// The day the last season ended (ISO date): every player aged then, and the season's growth
     /// applied. A scout's report taken before it no longer describes the player. `None` until this
     /// career's first season end; a save from before the field takes it from its last league season
@@ -275,6 +281,7 @@ impl Game {
             retired_managers: Vec::new(),
             custom_tactics: Vec::new(),
             legacy_tactics_imported: false,
+            gate_settled_from: None,
             last_season_rollover_on: None,
             career_token: 0,
             archived_messages: Vec::new(),

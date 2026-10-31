@@ -89,7 +89,9 @@ pub fn ageing_report(previous: &Snapshot, players: &[Player], on: NaiveDate) -> 
         aged_33_plus_a_or_s_share: share(
             aged.iter()
                 .filter(|(_, age)| *age >= 33)
-                .filter(|(player, _)| player_tier(player.ovr) != PlayerTier::Rest)
+                .filter(|(player, _)| {
+                    matches!(player_tier(player.ovr), PlayerTier::S | PlayerTier::A)
+                })
                 .count(),
             aged.iter().filter(|(_, age)| *age >= 33).count(),
         ),
@@ -318,9 +320,10 @@ mod tests {
         assert!(report.bands.iter().all(|b| b.players == 0));
     }
 
-    /// Given four players aged 33 or more, one rated S and three ordinary (and a star of 25),
+    /// Given four players aged 33 or more, one rated S, one a B-tier 74 and two ordinary (and two
+    ///       stars under 33),
     /// When the season is reported,
-    /// Then a quarter of the 33+ are still A or S: not the three quarters who are not.
+    /// Then a quarter of the 33+ are still A or S: the B tier does not count.
     #[test]
     fn the_share_of_the_old_who_are_still_a_or_s_is_reported() {
         let players = [
@@ -329,12 +332,33 @@ mod tests {
             aged("x", 33, 65, Position::Forward),
             aged("y", 35, 60, Position::Forward),
             aged("young", 25, 90, Position::Forward),
+            aged("young2", 27, 85, Position::Forward),
         ];
 
         let report = ageing_report(&Snapshot::new(), &players, on());
 
         assert_eq!(report.aged_33_plus, 4);
         assert_eq!(report.aged_33_plus_a_or_s_share, 0.25);
+    }
+
+    /// Given stars rated A or S at 32, 33 and 34, and ordinary players at 33 and 34,
+    /// When the season is reported,
+    /// Then the 33+ share counts the stars of 33 and 34 over the four players aged 33 or more,
+    ///      a half: the star of 32 is too young to count.
+    #[test]
+    fn only_players_aged_33_or_more_count_toward_the_old_stars_share() {
+        let players = [
+            aged("star32", 32, 85, Position::Forward),
+            aged("star33", 33, 85, Position::Forward),
+            aged("star34", 34, 78, Position::Forward),
+            aged("plain33", 33, 60, Position::Forward),
+            aged("plain34", 34, 60, Position::Forward),
+        ];
+
+        let report = ageing_report(&Snapshot::new(), &players, on());
+
+        assert_eq!(report.aged_33_plus, 4);
+        assert_eq!(report.aged_33_plus_a_or_s_share, 0.5);
     }
 
     /// Given players of different ratings and ages,

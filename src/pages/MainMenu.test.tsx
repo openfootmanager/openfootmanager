@@ -7,6 +7,7 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { countryName } from "../lib/countries";
 import { resetCountryResourcesCache } from "../components/menu/CreateManagerNationalityField";
 import type { ManagerProfile } from "../components/menu/types";
+import { resolveBackendError } from "../utils/backendI18n";
 import MainMenu from "./MainMenu";
 
 const navigateMock = vi.fn();
@@ -70,7 +71,11 @@ vi.mock("../store/gameStore", () => ({
     }),
 }));
 
-vi.mock("../components/ui", () => ({
+vi.mock("../components/ui", async () => ({
+  // The real shell: the profile confirmation is a dialog, and its focus and Escape are under test.
+  Dialog: (
+    await vi.importActual<typeof import("../components/ui/Dialog")>("../components/ui/Dialog")
+  ).Dialog,
   Button: ({
     children,
     iconRight: _iconRight,
@@ -200,6 +205,11 @@ vi.mock("../components/menu/WorldSelect", () => ({
 
 const mockedInvoke = vi.mocked(invoke);
 
+/** What the mocked backend says about a manager's date of birth; a test sets it, as Rust would decide. */
+let dobVerdict: (args: { dob: string; startYear: number; startPhase: string }) => string | null =
+  () => null;
+const MIN_AGE_KEY = "be.error.createManager.minAge";
+
 // The packages step sits between the create form and the generation/world-select
 // step. Its internals (installed-package list, stack validation) are covered by
 // their own tests; here we shim it to a simple "advance" control so the manager-
@@ -287,9 +297,14 @@ describe("MainMenu", () => {
     latestDatePickerOnChange = null;
     translationState.language = "en";
     mockedInvoke.mockReset();
-    mockedInvoke.mockImplementation(async (command: string) => {
+    dobVerdict = () => null;
+    mockedInvoke.mockImplementation(async (command: string, args?: unknown) => {
       if (command === "list_installed_packages") {
         return [];
+      }
+
+      if (command === "validate_manager_dob") {
+        return dobVerdict(args as { dob: string; startYear: number; startPhase: string });
       }
 
       if (command === "start_new_game") {
@@ -515,11 +530,18 @@ describe("MainMenu", () => {
     fireEvent.change(screen.getByPlaceholderText("createManager.placeholderLast"), {
       target: { value: "Lovelace" },
     });
+    fillCareerStartDetails("2026", "seasonStart");
+    dobVerdict = () => MIN_AGE_KEY;
     fireEvent.change(screen.getByLabelText("manager-date-of-birth"), {
       target: { value: "2010-06-15" },
     });
 
-    expect(screen.getByText("validation.minAge")).toBeInTheDocument();
+    expect(await screen.findByText(resolveBackendError(MIN_AGE_KEY))).toBeInTheDocument();
+    expect(mockedInvoke).toHaveBeenCalledWith("validate_manager_dob", {
+      dob: "2010-06-15",
+      startYear: 2026,
+      startPhase: "seasonStart",
+    });
 
     await selectNationality("en", "ES");
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
@@ -547,7 +569,7 @@ describe("MainMenu", () => {
     fillCareerStartDetails("2038", "seasonStart");
     await selectNationality("en", "ES");
 
-    expect(screen.queryByText("validation.minAge")).not.toBeInTheDocument();
+    expect(screen.queryByText(resolveBackendError(MIN_AGE_KEY))).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText("createManager.chooseWorld"));
 
@@ -565,19 +587,26 @@ describe("MainMenu", () => {
     fireEvent.change(screen.getByPlaceholderText("createManager.placeholderLast"), {
       target: { value: "Lovelace" },
     });
+    // Rust decides: this manager turns 30 between the start of the season and mid-season.
+    dobVerdict = ({ startPhase }) => (startPhase === "seasonStart" ? MIN_AGE_KEY : null);
     fireEvent.change(screen.getByLabelText("manager-date-of-birth"), {
       target: { value: "2008-08-01" },
     });
     fillCareerStartDetails("2038", "seasonStart");
 
-    expect(screen.getByText("validation.minAge")).toBeInTheDocument();
+    expect(await screen.findByText(resolveBackendError(MIN_AGE_KEY))).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("createManager.startPhase"), {
       target: { value: "midSeason" },
     });
 
     await waitFor(() => {
-      expect(screen.queryByText("validation.minAge")).not.toBeInTheDocument();
+      expect(screen.queryByText(resolveBackendError(MIN_AGE_KEY))).not.toBeInTheDocument();
+    });
+    expect(mockedInvoke).toHaveBeenCalledWith("validate_manager_dob", {
+      dob: "2008-08-01",
+      startYear: 2038,
+      startPhase: "midSeason",
     });
   });
 

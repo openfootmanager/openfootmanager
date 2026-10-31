@@ -244,6 +244,292 @@ describe("Dialog", () => {
 
     expect(screen.getByRole("dialog")).toHaveAttribute("aria-busy", "true");
   });
+
+  /**
+   * Given two dialogs open at once, the later one on top (the window's close confirmation over an
+   * advance)
+   * When the player presses Escape
+   * Then only the top one is asked to close; the one under it stays as it is. And a busy dialog on
+   * top, which can't close, doesn't let Escape through to close the one beneath.
+   */
+  it.each([
+    ["a closable dialog", true],
+    ["a busy dialog", false],
+  ])("gives Escape to the top dialog only, when it is %s", (_top, topCloses) => {
+    const under = vi.fn();
+    const top = vi.fn();
+    render(
+      <>
+        <Dialog labelledBy="under" onClose={under}>
+          <h2 id="under">Under</h2>
+          <button type="button">Under's button</button>
+        </Dialog>
+        {topCloses ? (
+          <Dialog labelledBy="top" onClose={top}>
+            <h2 id="top">Top</h2>
+          </Dialog>
+        ) : (
+          <Dialog labelledBy="top" busy>
+            <h2 id="top">Top</h2>
+          </Dialog>
+        )}
+      </>,
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(under).not.toHaveBeenCalled();
+    if (topCloses) expect(top).toHaveBeenCalledOnce();
+  });
+
+  /**
+   * Given a dialog with nothing to focus in it (a "Saving…" spinner), the focus on its panel
+   * When the player presses Tab, or Shift+Tab
+   * Then the key is kept from the browser and the focus stays on the panel, rather than moving to
+   * the page behind the overlay.
+   */
+  /**
+   * Given a dialog nested inside another's content (opened from within it)
+   * When the player presses Escape
+   * Then the inner one, drawn on top, is asked to close, not the one around it.
+   */
+  it("gives Escape to a dialog nested inside another", () => {
+    const outer = vi.fn();
+    const inner = vi.fn();
+    render(
+      <Dialog labelledBy="outer" onClose={outer}>
+        <h2 id="outer">Outer</h2>
+        <Dialog labelledBy="inner" onClose={inner}>
+          <h2 id="inner">Inner</h2>
+        </Dialog>
+      </Dialog>,
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(inner).toHaveBeenCalledOnce();
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given two dialogs, the lower one closing first (an advance finishing under the window's close
+   * confirmation), and then the lower one opening again
+   * When the player presses Escape each time
+   * Then the one still open answers it, and the reopened one, on top again, answers the next.
+   */
+  it("hands Escape to whichever dialog is on top as dialogs close and open", () => {
+    const lower = vi.fn();
+    const upper = vi.fn();
+    function Stack({ lowerOpen, upperOpen }: { lowerOpen: boolean; upperOpen: boolean }) {
+      return (
+        <>
+          {lowerOpen && (
+            <Dialog labelledBy="lower" onClose={lower}>
+              <h2 id="lower">Lower</h2>
+            </Dialog>
+          )}
+          {upperOpen && (
+            <Dialog labelledBy="upper" onClose={upper}>
+              <h2 id="upper">Upper</h2>
+            </Dialog>
+          )}
+        </>
+      );
+    }
+    const { rerender } = render(<Stack lowerOpen upperOpen />);
+
+    rerender(<Stack lowerOpen={false} upperOpen />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(upper).toHaveBeenCalledTimes(1);
+
+    rerender(<Stack lowerOpen={false} upperOpen={false} />);
+    rerender(<Stack lowerOpen upperOpen={false} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(lower).toHaveBeenCalledTimes(1);
+    expect(upper).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Given the focus on a button, a busy dialog opened from it, and a second dialog opened over that
+   * When the lower dialog closes first (the advance finishes under the close confirmation)
+   * Then the focus stays in the dialog still on top, not pulled back to the button behind it.
+   */
+  it("doesn't pull the focus out of the top dialog when the one beneath closes", () => {
+    function Stack({ lowerOpen, upperOpen }: { lowerOpen: boolean; upperOpen: boolean }) {
+      return (
+        <>
+          <button type="button">Continue</button>
+          {lowerOpen && (
+            <Dialog labelledBy="advance" busy>
+              <h2 id="advance">Advancing</h2>
+            </Dialog>
+          )}
+          {upperOpen && (
+            <Dialog labelledBy="confirm" onClose={vi.fn()}>
+              <h2 id="confirm">Quit?</h2>
+              <button type="button">Cancel</button>
+            </Dialog>
+          )}
+        </>
+      );
+    }
+    const { rerender } = render(<Stack lowerOpen={false} upperOpen={false} />);
+    screen.getByRole("button", { name: "Continue" }).focus();
+    rerender(<Stack lowerOpen upperOpen={false} />);
+    rerender(<Stack lowerOpen upperOpen />);
+    const top = screen.getByRole("dialog", { name: "Quit?" });
+    expect(top).toContainElement(document.activeElement as HTMLElement);
+
+    rerender(<Stack lowerOpen={false} upperOpen />);
+
+    expect(top).toContainElement(document.activeElement as HTMLElement);
+    expect(screen.getByRole("button", { name: "Continue" })).not.toHaveFocus();
+  });
+
+  /**
+   * Given the focus on a button, and two dialogs opened from it in the same render (both remember
+   * that button as their opener)
+   * When the upper one closes
+   * Then the focus moves into the dialog still open, not to the button behind it.
+   */
+  it("returns the focus to its opener inside the dialog beneath when the top one closes", () => {
+    function Stack({ confirmOpen }: { confirmOpen: boolean }) {
+      return (
+        <Dialog labelledBy="renewal" onClose={vi.fn()}>
+          <h2 id="renewal">Renewal</h2>
+          <button type="button">Submit</button>
+          {confirmOpen && (
+            <Dialog labelledBy="confirm" onClose={vi.fn()}>
+              <h2 id="confirm">Sure?</h2>
+              <button type="button">Yes</button>
+            </Dialog>
+          )}
+        </Dialog>
+      );
+    }
+    const { rerender } = render(<Stack confirmOpen={false} />);
+    const submit = screen.getByRole("button", { name: "Submit" });
+    submit.focus();
+    rerender(<Stack confirmOpen />);
+    expect(submit).not.toHaveFocus();
+
+    rerender(<Stack confirmOpen={false} />);
+
+    expect(submit).toHaveFocus();
+  });
+
+  /**
+   * Given a confirmation opened from a button inside another dialog, the button disabled by the
+   * time the confirmation closes (its action now running)
+   * When the confirmation closes
+   * Then the focus still lands inside the dialog beneath (its panel), not outside every dialog.
+   */
+  it("keeps the focus in the dialog beneath when its opener can't take it back", () => {
+    function Stack({ confirmOpen, submitting }: { confirmOpen: boolean; submitting: boolean }) {
+      return (
+        <>
+          <button type="button">Behind</button>
+          <Dialog labelledBy="renewal" onClose={vi.fn()}>
+            <h2 id="renewal">Renewal</h2>
+            <button type="button" disabled={submitting}>
+              Submit
+            </button>
+            {confirmOpen && (
+              <Dialog labelledBy="confirm" onClose={vi.fn()}>
+                <h2 id="confirm">Sure?</h2>
+                <button type="button">Yes</button>
+              </Dialog>
+            )}
+          </Dialog>
+        </>
+      );
+    }
+    const { rerender } = render(<Stack confirmOpen={false} submitting={false} />);
+    screen.getByRole("button", { name: "Submit" }).focus();
+    rerender(<Stack confirmOpen submitting={false} />);
+
+    rerender(<Stack confirmOpen={false} submitting />);
+
+    expect(screen.getByRole("dialog", { name: "Renewal" })).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+  });
+
+  it("keeps the focus in the dialog still open when the top one closes", () => {
+    function Stack({ open, upperOpen }: { open: boolean; upperOpen: boolean }) {
+      return (
+        <>
+          <button type="button">Continue</button>
+          {open && (
+            <Dialog labelledBy="advance" busy>
+              <h2 id="advance">Advancing</h2>
+            </Dialog>
+          )}
+          {open && upperOpen && (
+            <Dialog labelledBy="confirm" onClose={vi.fn()}>
+              <h2 id="confirm">Quit?</h2>
+              <button type="button">Cancel</button>
+            </Dialog>
+          )}
+        </>
+      );
+    }
+    const { rerender } = render(<Stack open={false} upperOpen={false} />);
+    screen.getByRole("button", { name: "Continue" }).focus();
+    rerender(<Stack open upperOpen />);
+    expect(screen.getByRole("dialog", { name: "Quit?" })).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+
+    rerender(<Stack open upperOpen={false} />);
+
+    expect(screen.getByRole("dialog", { name: "Advancing" })).toContainElement(
+      document.activeElement as HTMLElement,
+    );
+    expect(screen.getByRole("button", { name: "Continue" })).not.toHaveFocus();
+  });
+
+  it.each([false, true])("keeps Tab on a dialog with nothing to focus (shift: %s)", (shiftKey) => {
+    render(
+      <>
+        <button type="button">Behind</button>
+        <Dialog labelledBy="saving" busy>
+          <h2 id="saving">Saving</h2>
+        </Dialog>
+      </>,
+    );
+    const panel = screen.getByRole("dialog", { name: "Saving" });
+    expect(panel).toHaveFocus();
+
+    const notPrevented = fireEvent.keyDown(window, { key: "Tab", shiftKey });
+
+    expect(notPrevented).toBe(false);
+    expect(panel).toHaveFocus();
+  });
+
+  /**
+   * Given a dialog that can't be closed yet (a save in flight), drawn with no onClose
+   * When the player presses Escape, or clicks the backdrop
+   * Then nothing happens and it stays: there is nothing to ask, and no error.
+   */
+  it("stays open with no onClose, whatever is pressed", () => {
+    const onError = vi.fn();
+    window.addEventListener("error", onError);
+    render(
+      <Dialog labelledBy="saving" busy dismissOnBackdrop>
+        <h2 id="saving">Saving</h2>
+      </Dialog>,
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    const backdrop = screen.getByTestId("dialog-backdrop");
+    fireEvent.mouseDown(backdrop);
+    fireEvent.click(backdrop);
+
+    window.removeEventListener("error", onError);
+    expect(onError).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "Saving" })).toBeInTheDocument();
+  });
 });
 
 describe("DialogCloseButton", () => {

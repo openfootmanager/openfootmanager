@@ -1,18 +1,12 @@
+import { useRatingTiers } from "../../hooks/useRatingTiers";
+import { ratingTierClass } from "../../lib/ratingTier";
 import { History } from "lucide-react";
 import type { MouseEventHandler } from "react";
 import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
 import { Badge, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
-import {
-  getTeamName,
-  calcAge,
-  formatVal,
-  formatWeeklyWage,
-  getPlayerOvr,
-  positionBadgeVariant,
-} from "../../lib/helpers";
+import { getTeamName, calcAge, formatVal, formatWeeklyWage, getPlayerOvr } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
-import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import {
   buildDividerMenuItem,
   buildScoutPlayerMenuItem,
@@ -25,6 +19,7 @@ import type { TransfersTabController } from "./useTransfersTabController";
 import { getRelevantTransferOffers, getRelevantLoanOffers } from "./TransfersTab.model";
 import { PlayerOffersCell } from "./TransfersPlayerOffers";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 type PlayerRowDetailsProps = {
   state: Pick<
     TransfersTabController,
@@ -94,6 +89,7 @@ export function PlayerRowDetails({
   transferOffersForThisPlayer,
   loanOffersForThisPlayer,
 }: PlayerRowDetailsProps) {
+  const tierOf = useRatingTiers();
   const {
     view,
     onSelectPlayer,
@@ -115,9 +111,7 @@ export function PlayerRowDetails({
       onClick={() => onSelectPlayer(player.id)}
     >
       <td className="py-2.5 px-4">
-        <Badge variant={positionBadgeVariant(naturalPositionOf(player))} size="sm">
-          {translatePositionAbbreviation(t, naturalPositionOf(player))}
-        </Badge>
+        <PlayerPositionBadge position={naturalPositionOf(player)} />
       </td>
       <td className="py-2.5 px-4">
         <div className="flex items-center gap-3">
@@ -162,7 +156,7 @@ export function PlayerRowDetails({
       </td>
       <td className="py-2.5 px-4">
         <span
-          className={`font-heading font-bold text-base tabular-nums ${ovr >= 75 ? "text-primary-700 dark:text-primary-400" : ovr >= 55 ? "text-accent-700 dark:text-accent-400" : "text-gray-500 dark:text-gray-300"}`}
+          className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(tierOf(ovr), "text")}`}
         >
           {ovr}
         </span>

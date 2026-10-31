@@ -58,10 +58,7 @@
   "validation": {
     "required": "Pole {{field}} je povinné",
     "maxLength": "Pole {{field}} nesmí překročit {{max}} znaků",
-    "minStartYear": "Výchozí rok musí být {{min}} nebo novější",
-    "minAge": "Manažer musí mít alespoň {{min}} let — pro pokračování změňte datum narození.",
-    "invalidDate": "Neplatné datum",
-    "invalidDob": "Neplatné datum narození"
+    "minStartYear": "Výchozí rok musí být {{min}} nebo novější"
   },
   "worldSelect": {
     "title": "Vybrat svět",
@@ -173,6 +170,7 @@
     "digestSimulating": "Zpracování...",
     "digestMatchDay": "Zápasový den",
     "digestMatchDayDesc": "Vaše utkání je připraveno k odehrání.",
+    "matchModeMenu": "Vybrat režim zápasu",
     "digestReturnHome": "Zpět na hlavní panel",
     "digestBlocked": "Vyžadována akce",
     "digestBlockedDesc": "Před pokračováním musíte vyřešit některé záležitosti.",
@@ -397,14 +395,14 @@
     "traits": "Vlastnosti",
     "condition": "Kondice",
     "delegateToYouthAcademy": "Přeřadit do akademie",
-    "promoteToSeniorSquad": "Povýšit do A-týmu",
-    "potWorldClass": "Světová třída",
-    "potExcellent": "Excelentní",
-    "potPromising": "Nadějný",
-    "potDecent": "Slušný",
-    "potLimited": "Omezený"
+    "promoteToSeniorSquad": "Povýšit do A-týmu"
   },
   "common": {
+    "ratingTier": {
+      "S": "S",
+      "A": "A",
+      "B": "B"
+    },
     "ordinal": {
       "one": "{{n}}.",
       "two": "{{n}}.",
@@ -414,6 +412,9 @@
     "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
+    "detailsFor": "Podrobnosti: {{name}}",
+    "overallRating": "Hodnocení {{value}}",
+    "overallRatingTier": "Hodnocení {{value}}, úroveň {{tier}}",
     "noResults": "Výsledky nenalezeny.",
     "place": {
       "1": "1.",
@@ -672,21 +673,14 @@
     "coverageNeedsAttention": "Počet skupin rolí vyžadujících pokrytí: {{count}}",
     "coverageBadge": "Základ {{starters}}/{{required}} · Lavička {{bench}}",
     "bestRole": "Nejlepší role",
-    "formationFit": "Vhodnost do sestavy",
     "startingXi": "Základní sestava",
-    "styleFit": "Vhodnost stylu",
     "starter": "Člen základu",
     "benchOption": "Lavička",
     "naturalFit": "Přirozená pozice",
-    "adaptedFit": "Přizpůsobená pozice",
+    "adaptedFit": "Může tam hrát",
     "needsCover": "Vyžaduje pokrytí",
     "makeStarter": "Dát do základu",
     "sendToBench": "Posadit na lavičku",
-    "styleFitValues": {
-      "strong": "Vhodnost stylu: Silná",
-      "good": "Vhodnost stylu: Dobrá",
-      "risky": "Vhodnost stylu: Riziková"
-    },
     "noBench": "Žádní hráči na lavičce.",
     "viewProfile": "Zobrazit profil",
     "swapPlayer": "Prohodit hráče",
@@ -860,7 +854,7 @@
     "clearSelection": "Zrušit výběr",
     "compareWithSelected": "Porovnat s vybraným",
     "selectForSwap": "Vybrat pro výměnu",
-    "assignBestFit": "Přiřadit nejvhodnější pozici",
+    "assignBestFit": "Přiřadit nejlepší pozici",
     "moveToBench": "Přesunout na lavičku",
     "promoteToLineup": "Zařadit do základní sestavy",
     "makeCaptain": "Jmenovat kapitánem",
@@ -889,11 +883,10 @@
     "positionSelector": "Taktická pozice",
     "playablePositions": "Pozice",
     "slotFit": "Vhodnost pozice",
-    "styleFit": "Vhodnost stylu",
     "responsibilities": "Povinnosti",
     "noSpecialRoles": "Žádné speciální role",
     "naturalFit": "Přirozená pozice",
-    "adaptedFit": "Přizpůsobená role",
+    "adaptedFit": "Může tam hrát",
     "moraleLevels": {
       "superb": "Vynikající",
       "veryGood": "Velmi dobrá",
@@ -907,11 +900,6 @@
       "sharp": "V plné formě",
       "managing": "Zvládá zátěž",
       "risk": "Riziko zranění"
-    },
-    "styleFitLevels": {
-      "strong": "Skvělá shoda",
-      "good": "Dobrá shoda",
-      "risky": "Riziková shoda"
     },
     "tokenStates": {
       "ready": "Připraven",
@@ -1630,6 +1618,7 @@
     "dateOfBirth": "Datum narození",
     "noContract": "Bez smlouvy",
     "weeklyWage": "Týdenní plat",
+    "approximateWage": "přibližně {{wage}}",
     "annualWage": "Roční plat",
     "yearsRemaining": "Zbývá let",
     "contractRisk": "Riziko vypršení smlouvy",
@@ -1849,6 +1838,21 @@
     },
     "uiScale": "Měřítko rozhraní",
     "uiScaleDesc": "Upravit velikost písma a mezery pro lepší čitelnost",
+    "sidebarWidth": "Šířka postranního panelu",
+    "sidebarWidthDesc": "Jak široký je otevřený postranní panel. „Široký“ zobrazí každou položku nabídky na jednom řádku.",
+    "sidebarWidthOptions": {
+      "compact": "Kompaktní",
+      "standard": "Standardní",
+      "wide": "Široký"
+    },
+    "sidebarBehaviour": "Postranní panel",
+    "sidebarBehaviourDesc": "Jak se postranní panel otevírá. Je-li okno příliš úzké, otevře se přes stránku.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normální",
+      "hover": "Rozbalit při najetí",
+      "click": "Rozbalit kliknutím",
+      "icons": "Jen ikony"
+    },
     "uiScaleOptions": {
       "small": "Malé",
       "normal": "Normální",
@@ -2009,7 +2013,6 @@
     "alreadyQueued": "Už čeká ve frontě na střídání",
     "substitutionsPartlyMade": "Provedeno střídání: {{applied}} z {{total}}",
     "substitutionRefused": "Střídání zamítnuto: {{off}} za {{on}}. {{reason}}",
-    "playerRoles": "Role hráčů",
     "roleFor": "Role hráče {{player}}",
     "roleChangeRefused": "Roli hráče {{player}} se nepodařilo změnit. {{reason}}",
     "noBenchAvailable": "Na lavičce nejsou k dispozici žádní hráči",
@@ -2303,7 +2306,7 @@
     "preMatchPrep": "Předzápasová příprava",
     "startingLineup": "Základní sestava",
     "setPiecesCaptain": "Standardní situace a kapitán",
-    "formationFit": "Vhodnost pro rozestavení",
+    "formationFit": "Formace",
     "selecting": "Vybírání...",
     "autoSelectXI": "Automaticky vybrat nejlepší XI",
     "startingXI": "Základní jedenáctka",
@@ -2600,7 +2603,11 @@
     "pts": "b.",
     "cupPenalties": "({{home}}–{{away}} na penalty)",
     "cupAdvances": "{{team}} postupuje dál",
-    "cupTiesPending": "Některá utkání se ještě odehrají"
+    "cupTiesPending": "Některá utkání se ještě odehrají",
+    "resume": "Pokračovat",
+    "pausedResumesAt": "Pozastaveno · pokračuje: {{speed}}",
+    "playingAt": "Běží: {{speed}}",
+    "spaceKey": "Mezerník"
   },
   "endOfSeason": {
     "seasonComplete": "Sezóna dokončena",
@@ -2641,6 +2648,12 @@
     "compare": "Porovnat"
   },
   "be": {
+    "condition": {
+      "fresh": "Odpočatý",
+      "tiring": "Unavuje se",
+      "exhausted": "Vyčerpaný",
+      "critical": "Kritický"
+    },
     "error": {
       "squadFloor": {
         "wouldLeaveShort": "Tento hráč nemůže odejít: kádr by klesl pod minimum, které musí klub udržet. Dotčená řada: {{group}}.",
@@ -3569,6 +3582,10 @@
         "reportPreseason": {
           "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Zpráva z předsezónního turnaje",
           "body": "V předsezónním turnaji {{home}} {{homeGoals}} - {{awayGoals}} {{away}}. Obě strany využily toto střetnutí k nabrání ostrosti před soutěžní kampaní.{{scorersSection}}"
+        },
+        "reportCompetition": {
+          "title": "{{home}} {{homeGoals}} - {{awayGoals}} {{away}}: Zpráva ze zápasu ({{competition}})",
+          "body": "{{competition}}: zápas skončil {{home}} {{homeGoals}} - {{awayGoals}} {{away}}.{{scorersSection}}"
         }
       },
       "roundup": {
@@ -3642,7 +3659,9 @@
       "weeklyDigest": {
         "headline": "Týdenní přehled — Týden od {{weekStart}}",
         "bodyNoTopScorer": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}} a dění v divizi tento týden utváří {{storylineCount}} hlavních událostí.",
-        "bodyWithTopScorer": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}, zatímco střeleckým tabulkám vévodí {{topScorer}} s {{topScorerGoals}} góly. Dění v divizi tento týden utváří {{storylineCount}} hlavních událostí."
+        "bodyWithTopScorer": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}, zatímco střeleckým tabulkám vévodí {{topScorer}} s {{topScorerGoals}} góly. Dění v divizi tento týden utváří {{storylineCount}} hlavních událostí.",
+        "bodyNoTopScorerNoStorylines": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}.",
+        "bodyWithTopScorerNoStorylines": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}, zatímco střeleckým tabulkám vévodí {{topScorer}} s {{topScorerGoals}} góly."
       },
       "preseasonDigest": {
         "headline": "Předsezónní přehled — Týden od {{weekStart}}",
