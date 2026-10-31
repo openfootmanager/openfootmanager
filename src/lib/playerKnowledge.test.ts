@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { knowledgeRevision, visibleRatingText } from "./playerKnowledge";
+import { knowledgeRevision, visibleRatingText, visibleWageText } from "./playerKnowledge";
+
+describe("visibleWageText", () => {
+  const format = (weekly: number) => `€${weekly}/wk`;
+  const t = (key: string, options?: Record<string, unknown>) => `${key} ${JSON.stringify(options)}`;
+
+  /**
+   * Given an exact, an approximate and a hidden wage
+   * When each is written
+   * Then the exact one is its figure, the approximate one is "about" its figure, and the hidden
+   *      one is "–"
+   */
+  it("writes a wage as exact, about the figure, or a dash", () => {
+    expect(visibleWageText({ kind: "exact", weekly: 15_843 }, format, t)).toBe("€15843/wk");
+    expect(visibleWageText({ kind: "approximate", weekly: 16_000 }, format, t)).toBe(
+      'playerProfile.approximateWage {"wage":"€16000/wk"}',
+    );
+    expect(visibleWageText({ kind: "hidden" }, format, t)).toBe("–");
+  });
+});
 
 describe("visibleRatingText", () => {
   /**

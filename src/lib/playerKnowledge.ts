@@ -1,4 +1,24 @@
-import type { PlayerKnowledge } from "../services/scoutingService";
+import type { TOptions } from "i18next";
+
+import type { PlayerKnowledge, VisibleWage } from "../services/scoutingService";
+
+type TranslateFn = (key: string, options?: TOptions) => string;
+
+/**
+ * A wage the club may see, written with `format`: as it is, as "about …", or "–". The one place a
+ * visible wage is spelled, so every screen hides and rounds it alike.
+ */
+export function visibleWageText(
+  wage: VisibleWage,
+  format: (weeklyWage: number) => string,
+  t: TranslateFn,
+): string {
+  if (wage.kind === "exact") return format(wage.weekly);
+  if (wage.kind === "approximate") {
+    return t("playerProfile.approximateWage", { wage: format(wage.weekly) });
+  }
+  return "–";
+}
 
 /** What the club's knowledge of players, and the wages it may see, are asked again on. */
 export interface KnowledgeRevisionInputs {

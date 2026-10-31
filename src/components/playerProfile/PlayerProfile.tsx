@@ -16,7 +16,6 @@ import {
   formatPlayerWage,
   formatPlayerWageCompact,
   getPlayerTeamName,
-  visibleWageText,
 } from "./PlayerProfile.helpers";
 import { useVisibleWage } from "../../hooks/useVisibleWage";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
@@ -47,6 +46,7 @@ import {
   knowsPlayerRating,
   knowsPrivateState,
   visibleTraits,
+  visibleWageText,
 } from "../../lib/playerKnowledge";
 import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
 
