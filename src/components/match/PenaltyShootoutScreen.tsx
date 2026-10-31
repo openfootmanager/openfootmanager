@@ -253,7 +253,8 @@ export function KickRow({
       <span className="text-xs text-gray-500 dark:text-gray-400 w-20 truncate text-right">
         {label}
       </span>
-      <div className="flex gap-1.5 flex-wrap">
+      {/* Named for its club, so "Kick 1, missed" is heard as that club's kick, not the other's. */}
+      <div role="group" aria-label={label} className="flex gap-1.5 flex-wrap">
         {Array.from({ length: cells }).map((_, i) => {
           const n = i + 1;
           if (i >= kicks.length) {

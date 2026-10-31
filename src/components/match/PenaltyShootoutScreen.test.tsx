@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import PenaltyShootoutScreen, { KickRow } from "./PenaltyShootoutScreen";
 import { makeGameState, makeSnapshot } from "./matchScreenFixtures";
@@ -43,13 +43,21 @@ describe("KickRow", (): void => {
   /**
    * Given kicks taken and to come
    * When a screen reader reads the row
-   * Then each cell says which kick it is and how it went, not only a symbol and a colour.
+   * Then the row is named for its club, and each cell says which kick it is and how it went, not
+   * only a symbol and a colour.
    */
   it("names each kick for a screen reader", (): void => {
-    render(<KickRow label="Away" kicks={[true, false, true]} maxRounds={5} />);
-    expect(screen.getByRole("img", { name: "match.shootout.kickScored:1" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "match.shootout.kickMissed:2" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "match.shootout.kickToCome:4" })).toBeInTheDocument();
+    render(<KickRow label="Away FC" kicks={[true, false, true]} maxRounds={5} />);
+    const row = screen.getByRole("group", { name: "Away FC" });
+    expect(
+      within(row).getByRole("img", { name: "match.shootout.kickScored:1" }),
+    ).toBeInTheDocument();
+    expect(
+      within(row).getByRole("img", { name: "match.shootout.kickMissed:2" }),
+    ).toBeInTheDocument();
+    expect(
+      within(row).getByRole("img", { name: "match.shootout.kickToCome:4" }),
+    ).toBeInTheDocument();
   });
 
   it("expands cells beyond maxRounds when more kicks were taken (sudden death)", (): void => {
