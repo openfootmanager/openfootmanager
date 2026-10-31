@@ -65,7 +65,7 @@ export default function PenaltyShootoutScreen({
         }
       }
       onSnapshotUpdate(await getMatchSnapshot());
-      if (results.at(-1)?.is_finished) {
+      if (results[results.length - 1]?.is_finished) {
         finishedRef.current = true;
         setFinished(true);
         pause();
@@ -254,7 +254,8 @@ function ScoreBand({
 /** Reads each kick out once, as it lands: "Kick 6, Beta FC: Bob missed." */
 function LastKickAnnouncement({ snapshot, sheet }: { snapshot: MatchSnapshot; sheet: Sheet }) {
   const { t } = useTranslation();
-  const last = snapshot.events.filter(isShootoutKick).at(-1);
+  const kicks = snapshot.events.filter(isShootoutKick);
+  const last = kicks[kicks.length - 1];
   let message = "";
   if (last) {
     const n = sideKicks(snapshot.events, last.side).length;
