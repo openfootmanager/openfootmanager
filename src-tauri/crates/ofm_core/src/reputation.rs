@@ -2,9 +2,12 @@ use crate::game::Game;
 use domain::league::StandingEntry;
 use std::collections::HashMap;
 
+/// What a place in the table was worth when clubs were scored against their expected finishing
+/// place.
+const REPUTATION_PER_PLACE: i32 = 12;
 /// Reputation per point per game above or below what a club's reputation predicted. A place in a
-/// 20-club table is worth about 0.08 points per game, so a place stays worth about 12, as it was
-/// when clubs were scored against their expected finishing place.
+/// 20-club table is worth about 0.08 points per game, so a place stays worth about
+/// [`REPUTATION_PER_PLACE`].
 const POINTS_PER_GAME_WEIGHT: f64 = 150.0;
 const CHAMPION_BONUS: i32 = 12;
 const BOTTOM_FINISH_PENALTY: i32 = 8;
@@ -83,8 +86,14 @@ fn next_reputation(
     final_position: usize,
     team_count: usize,
 ) -> u32 {
-    let performance_delta =
-        (points_per_game_above_expectation * POINTS_PER_GAME_WEIGHT).round() as i32;
+    // A season moves a reputation at most as far as the old place-based rule could: in a tiny
+    // or short division a few results swing points per game far more than in a full table.
+    let most_a_season_can_move = i32::try_from(team_count.saturating_sub(1))
+        .unwrap_or(i32::MAX)
+        .saturating_mul(REPUTATION_PER_PLACE);
+    let performance_delta = ((points_per_game_above_expectation * POINTS_PER_GAME_WEIGHT).round()
+        as i32)
+        .clamp(-most_a_season_can_move, most_a_season_can_move);
     let champion_bonus = if final_position == 1 {
         CHAMPION_BONUS
     } else {
@@ -294,22 +303,65 @@ mod tests {
         assert!(reputation_of(&game, "big") < 800);
     }
 
-    /// Given a two-club division where the smaller club out-scores the bigger one
+    /// Given a four-club division where the smaller the club, the more it scored
     /// When reputations are updated at the season's end
-    /// Then both are measured against the division's mean points per game: a bigger reputation
-    ///      is never expected to do worse, so the small club rises and the big one falls by the
-    ///      same amount, before the champion's bonus and the last club's penalty
+    /// Then every club is measured against the division's mean points per game: a bigger
+    ///      reputation is never expected to do worse, so the smallest club rises and the biggest
+    ///      falls by the same amount, before the champion's bonus and the last club's penalty
     #[test]
     fn a_division_where_small_clubs_do_better_is_not_fitted_with_a_downward_line() {
-        let mut game = make_game_with_reputations(&[("big", 800), ("small", 400)]);
+        let mut game =
+            make_game_with_reputations(&[("big", 800), ("b", 600), ("c", 400), ("small", 200)]);
 
         update_team_reputation(
             &mut game,
-            &final_table(&[("small", 30, 60), ("big", 30, 30)]),
+            &final_table(&[
+                ("small", 20, 29),
+                ("c", 20, 27),
+                ("b", 20, 23),
+                ("big", 20, 21),
+            ]),
         );
 
-        assert_eq!(reputation_of(&game, "small"), 400 + 75 + 12);
-        assert_eq!(reputation_of(&game, "big"), 800 - 75 - 8);
+        assert_eq!(reputation_of(&game, "small"), 200 + 30 + 12);
+        assert_eq!(reputation_of(&game, "big"), 800 - 30 - 8);
+    }
+
+    /// Given a two-club division where the small club takes every point from the big one
+    /// When reputations are updated at the season's end
+    /// Then neither moves further than a place's worth: a division of two decides one place, so
+    ///      a season there can move a reputation no more than the old place-based rule allowed
+    #[test]
+    fn an_upset_in_a_two_club_division_moves_reputation_no_more_than_a_place() {
+        let mut game = make_game_with_reputations(&[("big", 700), ("small", 300)]);
+
+        update_team_reputation(&mut game, &final_table(&[("small", 2, 6), ("big", 2, 0)]));
+
+        assert_eq!(reputation_of(&game, "small"), 300 + 12 + 12);
+        assert_eq!(reputation_of(&game, "big"), 700 - 12 - 8);
+    }
+
+    /// Given a full 20-club division of equal reputations where the champion took a point per
+    ///       game more than the rest and the last club a point per game fewer
+    /// When reputations are updated at the season's end
+    /// Then both move by the full 150 a point per game is worth: the cap on a season's movement
+    ///      leaves a normal table alone
+    #[test]
+    fn a_full_division_is_not_held_back_by_the_cap() {
+        let mut clubs: Vec<(String, u32)> = vec![("top".to_string(), 500)];
+        clubs.extend((0..18).map(|i| (format!("mid{i}"), 500)));
+        clubs.push(("bottom".to_string(), 500));
+        let reputations: Vec<(&str, u32)> = clubs.iter().map(|(id, r)| (id.as_str(), *r)).collect();
+        let mut game = make_game_with_reputations(&reputations);
+        let mut table: Vec<(&str, u32, u32)> = vec![("top", 38, 76)];
+        table.extend(clubs[1..19].iter().map(|(id, _)| (id.as_str(), 38, 38)));
+        table.push(("bottom", 38, 0));
+
+        update_team_reputation(&mut game, &final_table(&table));
+
+        assert_eq!(reputation_of(&game, "top"), 500 + 150 + 12);
+        assert_eq!(reputation_of(&game, "mid0"), 500);
+        assert_eq!(reputation_of(&game, "bottom"), 500 - 150 - 8);
     }
 
     #[test]
