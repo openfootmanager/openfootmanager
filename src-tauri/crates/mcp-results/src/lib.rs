@@ -301,6 +301,13 @@ mod tests {
         assert!(!scouted.to_string().contains("OVR"));
         assert!(known.to_string().contains("| OVR | 71 |"));
         assert!(!known.to_string().contains("Condition"));
+        for text in [scouted.to_string(), known.to_string()] {
+            assert!(text.contains("### Attributes"), "{text}");
+            assert!(
+                text.contains("| Pace | 55 | Shooting | 56 | Passing | 57 |"),
+                "{text}"
+            );
+        }
         round_trips(scouted);
         round_trips(known);
     }

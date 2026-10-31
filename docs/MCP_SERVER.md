@@ -433,16 +433,19 @@ The `mcp` feature adds `rmcp`, `axum`, `tower`, `tokio` (with `net`), and `tokio
 
 ## Information Visibility
 
-The formatted player tools show a player only as much as the club knows about him
-(`ofm_core::player_knowledge`, the same rule the game's own screens follow), in every mode:
+`info_player_profile` shows a player only as much as the club knows about him
+(`ofm_core::player_knowledge`, the same rule the game's own screens follow), in every mode.
+`info_player_stats` and `info_player_match_history` do not apply this limit: match and
+performance statistics are public, and they return those of any player in the game.
 
 - **Your team** (including players loaned in or out): full detail (all attributes, condition, morale, wage, contract end, injury status)
 - **A club in your own division**: rating and the 19 attributes; no condition, morale, injury, wage or contract
 - **Scouted players**: the scout report's attributes and its date (use `scout_send` → `scout_get_reports`); not the live rating or condition
 - **Anyone else**: who he is (name, age, position, nationality, team) and nothing more
 
-Scout reports provide the full details in these formatted tools. The raw `info_game_state` dump is not
-available in competition mode, as described under [Competition Mode](#competition-mode).
+A scouted player's profile carries only the report's attributes and its date, never his condition or
+morale. The raw `info_game_state` dump is not available in competition mode, as described under
+[Competition Mode](#competition-mode).
 
 ---
 

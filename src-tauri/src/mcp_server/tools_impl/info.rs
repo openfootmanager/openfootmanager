@@ -871,6 +871,7 @@ mod player_profile_tests {
         player.condition = 31;
         player.morale = 22;
         player.fitness = 13;
+        player.stage_contract(None, Some("2028-06-30".to_string()), 4_200);
         player.injury = Some(Injury {
             name: "Hamstring".to_string(),
             days_remaining: 9,
@@ -920,11 +921,37 @@ mod player_profile_tests {
         detail.get(field).is_some()
     }
 
-    /// The profile lists all 19 attributes, each at `value`: a list that is empty, short, or
-    /// someone else's numbers would not pass.
+    /// The profile lists all 19 attributes by name in the profile's order, each at `value`: a list
+    /// that is empty, short, repeats a name, or carries someone else's numbers would not pass.
     fn shows_all_attributes_at(detail: &Value, value: u64) {
+        const NAMES: [&str; 19] = [
+            "Pace",
+            "Shooting",
+            "Passing",
+            "Dribbling",
+            "Defending",
+            "Tackling",
+            "Strength",
+            "Stamina",
+            "Agility",
+            "Vision",
+            "Decisions",
+            "Composure",
+            "Positioning",
+            "Aggression",
+            "Teamwork",
+            "Leadership",
+            "Handling",
+            "Reflexes",
+            "Aerial",
+        ];
         let attributes = detail["attributes"].as_array().expect("an attributes list");
         assert_eq!(attributes.len(), 19, "{detail}");
+        let names: Vec<&str> = attributes
+            .iter()
+            .map(|attribute| attribute["name"].as_str().expect("a name"))
+            .collect();
+        assert_eq!(names, NAMES, "{detail}");
         assert!(
             attributes
                 .iter()
@@ -954,6 +981,16 @@ mod player_profile_tests {
             assert!(shows(&detail, field), "{field} missing: {detail}");
         }
         assert_eq!(detail["condition"], 31);
+        assert_eq!(detail["morale"], 22);
+        assert_eq!(detail["fitness"], 13);
+        assert!(
+            detail["injury"]
+                .as_str()
+                .is_some_and(|injury| injury.contains("Hamstring")),
+            "{detail}"
+        );
+        assert_eq!(detail["wage"], 4_200);
+        assert_eq!(detail["contract_end"], "2028-06-30");
         shows_all_attributes_at(&detail, 77);
     }
 
