@@ -91,7 +91,7 @@ setup tools above; `--mcp-disable-tools` can still disable individual tools expl
 
 ## Tool Reference
 
-90 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
+91 tools are available across 15 categories. Use the built-in `help_list_categories` and `help_find_tool` tools to discover tools at runtime.
 
 > **Adding a new tool?** Follow the checklist in `src-tauri/src/mcp_server/tools.rs` at `tool_catalog()` — register the route, add to the catalog, add the implementation, emit `game-state-changed` if it mutates state, update competition-mode disabled list if needed, and update this document.
 
@@ -241,7 +241,7 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 | `game_list_world_databases` | List available world databases (built-in random + user JSON files) |
 | `game_is_finished` | Check if the current game/season is finished |
 
-### Live Match (7 tools)
+### Live Match (8 tools)
 
 These tools allow agents to play matches interactively instead of delegating them.
 
@@ -250,7 +250,8 @@ These tools allow agents to play matches interactively instead of delegating the
 | `match_start` | Start a live match (live, spectator, instant). Paired `competition_id` + `fixture_id` select an exact fixture, including a cup, without requiring an index; otherwise `fixture_index` is required and selects the current league mirror. Extra time follows fixture rules; `allows_extra_time` is ignored. |
 | `match_step` | Advance the live match by N minutes |
 | `match_command` | Apply a tactical command (substitution, formation change, etc.) |
-| `match_snapshot` | Get current match state without advancing time |
+| `match_snapshot` | Get current match state without advancing time; during a shootout, your own side's kicking order (never the opponent's) |
+| `match_set_shootout_order` | Set your side's penalty shootout order: all your eligible players, reordered, once the shootout has started and before its first kick. A multi-minute `match_step` stops when the shootout starts, so there is always a chance to set it |
 | `match_finish` | Finish the match, apply results, and clean up |
 | `match_team_talk` | Apply a team talk (half-time or full-time) affecting player morale |
 | `match_press_conference` | Submit press conference answers affecting squad morale |

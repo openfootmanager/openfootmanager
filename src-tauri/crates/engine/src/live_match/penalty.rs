@@ -6,7 +6,9 @@ use crate::event::{EventType, MatchEvent};
 use crate::shared::PlayerSnap;
 use crate::types::{PlayerData, Position, Side, Zone};
 
-use super::{LiveMatchState, MinuteResult, PenaltyShootoutState};
+use super::{
+    LiveMatchState, MatchPhase, MinuteResult, PenaltyShootoutState, ShootoutOrderSnapshot,
+};
 
 /// Where a player stands in the automatic shootout order, before penalty skill decides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -113,22 +115,65 @@ impl LiveMatchState {
 
     /// Fixes both sides' kicking orders for the shootout that is starting now.
     pub(super) fn begin_penalty_shootout(&mut self) {
-        let mut home_order = self.automatic_shootout_order(Side::Home);
-        let mut away_order = self.automatic_shootout_order(Side::Away);
-        // A side may use only as many kickers as the side with fewer players on the pitch.
-        // The side with more drops the end of its order. A side with nobody left does not hold
-        // the other to nobody: the other then kicks in its full order.
+        let home_order = self.automatic_shootout_order(Side::Home);
+        let away_order = self.automatic_shootout_order(Side::Away);
+        // A side may use only as many kickers as the side with fewer players on the pitch. The
+        // side with more keeps everyone in its order, so its manager can choose who sits out. A
+        // side with nobody left does not hold the other to nobody: the other then kicks in its
+        // full order.
         let kickers = match home_order.len().min(away_order.len()) {
             0 => home_order.len().max(away_order.len()),
             fewer => fewer,
         };
-        home_order.truncate(kickers);
-        away_order.truncate(kickers);
         self.penalty_state = PenaltyShootoutState {
             home_order,
             away_order,
+            kickers,
             ..PenaltyShootoutState::default()
         };
+    }
+
+    /// `side`'s shootout order, while a shootout is on.
+    pub fn shootout_order(&self, side: Side) -> Option<ShootoutOrderSnapshot> {
+        if self.phase != MatchPhase::PenaltyShootout {
+            return None;
+        }
+        let order = match side {
+            Side::Home => &self.penalty_state.home_order,
+            Side::Away => &self.penalty_state.away_order,
+        };
+        Some(ShootoutOrderSnapshot {
+            player_ids: order.clone(),
+            kickers: u8::try_from(self.penalty_state.kickers).unwrap_or(u8::MAX),
+        })
+    }
+
+    /// Replaces `side`'s order with a manager's: the same players, reordered, before the first
+    /// kick of the shootout.
+    pub(super) fn set_shootout_order(
+        &mut self,
+        side: Side,
+        player_ids: Vec<String>,
+    ) -> Result<(), String> {
+        let ps = &mut self.penalty_state;
+        // The home side kicks first, so its count is the shootout's: one home kick taken means
+        // the first kick has been taken.
+        if self.phase != MatchPhase::PenaltyShootout || ps.home_taken > 0 {
+            return Err("be.error.liveMatch.shootoutOrderNotNow".into());
+        }
+        let order = match side {
+            Side::Home => &mut ps.home_order,
+            Side::Away => &mut ps.away_order,
+        };
+        let mut proposed: Vec<&String> = player_ids.iter().collect();
+        let mut eligible: Vec<&String> = order.iter().collect();
+        proposed.sort();
+        eligible.sort();
+        if proposed != eligible {
+            return Err("be.error.liveMatch.shootoutOrderNotEligible".into());
+        }
+        *order = player_ids;
+        Ok(())
     }
 
     /// Everyone on the pitch at the final whistle who was not sent off: the designated penalty
@@ -174,11 +219,14 @@ impl LiveMatchState {
                 self.penalty_state.away_taken,
             ),
         };
-        // Empty only when a side has nobody left on the pitch. A blank kicker is then the
+        // No kickers only when a side has nobody left on the pitch. A blank kicker is then the
         // honest answer, as it is for the goalkeeper in `pick_goalkeeper`.
-        match order.len() {
+        match self.penalty_state.kickers {
             0 => PlayerSnap::nobody(),
-            len => self.snap_player_by_id(&order[usize::from(taken) % len], side),
+            kickers => order
+                .get(usize::from(taken) % kickers)
+                .map(|id| self.snap_player_by_id(id, side))
+                .unwrap_or_else(PlayerSnap::nobody),
         }
     }
 

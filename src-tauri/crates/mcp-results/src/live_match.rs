@@ -98,6 +98,9 @@ pub struct MatchSnapshot {
     /// Shares of possession, 0.0 to 1.0.
     pub home_possession: f64,
     pub away_possession: f64,
+    /// The agent's own side's order during a shootout. The opponent's is never shown.
+    #[serde(default)]
+    pub shootout_order: Option<ShootoutOrder>,
 }
 
 impl fmt::Display for MatchSnapshot {
@@ -111,6 +114,48 @@ impl fmt::Display for MatchSnapshot {
             self.phase,
             self.home_possession * 100.0,
             self.away_possession * 100.0,
+        )?;
+        match &self.shootout_order {
+            Some(order) => write!(f, "\n\n{order}"),
+            None => Ok(()),
+        }
+    }
+}
+
+/// A side's shootout order: everyone eligible, in the order they kick. Only the first `kickers`
+/// kick; the rest sit out.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShootoutOrder {
+    pub players: Vec<ShootoutKicker>,
+    pub kickers: u8,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShootoutKicker {
+    pub player_id: String,
+    pub name: String,
+}
+
+impl fmt::Display for ShootoutOrder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "### Your Shootout Order")?;
+        for (place, kicker) in self.players.iter().enumerate() {
+            let sits_out = if place >= usize::from(self.kickers) {
+                " (sits out)"
+            } else {
+                ""
+            };
+            writeln!(
+                f,
+                "{}. {} [{}]{sits_out}",
+                place + 1,
+                kicker.name,
+                kicker.player_id
+            )?;
+        }
+        write!(
+            f,
+            "Change it with match_set_shootout_order before the first kick."
         )
     }
 }
@@ -236,3 +281,63 @@ tool_results!(
     TeamTalkApplied,
     PressConferenceComplete,
 );
+
+#[cfg(test)]
+mod shootout_order_tests {
+    use super::{MatchSnapshot, ShootoutKicker, ShootoutOrder};
+
+    fn snapshot(shootout_order: Option<ShootoutOrder>) -> MatchSnapshot {
+        MatchSnapshot {
+            minute: 120,
+            home_score: 1,
+            away_score: 1,
+            phase: "PenaltyShootout".to_string(),
+            home_possession: 0.5,
+            away_possession: 0.5,
+            shootout_order,
+        }
+    }
+
+    /// Given a match snapshot during a shootout and one outside it,
+    /// When an agent reads each,
+    /// Then the first shows the score and the agent's order, and the second shows the score
+    /// with no order section.
+    #[test]
+    fn a_snapshot_shows_the_shootout_order_only_when_there_is_one() {
+        let order = ShootoutOrder {
+            players: vec![kicker("p1", "Ana")],
+            kickers: 1,
+        };
+        let during = snapshot(Some(order)).to_string();
+        assert!(during.contains("**Score**: 1 - 1"), "{during}");
+        assert!(
+            during.contains("### Your Shootout Order\n1. Ana [p1]\n"),
+            "{during}"
+        );
+        let outside = snapshot(None).to_string();
+        assert!(outside.contains("**Score**: 1 - 1"), "{outside}");
+        assert!(!outside.contains("Shootout Order"), "{outside}");
+    }
+
+    fn kicker(player_id: &str, name: &str) -> ShootoutKicker {
+        ShootoutKicker {
+            player_id: player_id.to_string(),
+            name: name.to_string(),
+        }
+    }
+
+    /// Given an order of three players of whom two kick,
+    /// When an agent reads it,
+    /// Then the first two are listed to kick and the third is shown sitting out.
+    #[test]
+    fn the_players_past_the_kicker_count_are_shown_sitting_out() {
+        let order = ShootoutOrder {
+            players: vec![kicker("p1", "Ana"), kicker("p2", "Bo"), kicker("p3", "Cy")],
+            kickers: 2,
+        };
+        let text = order.to_string();
+        assert!(text.contains("1. Ana [p1]\n"), "{text}");
+        assert!(text.contains("2. Bo [p2]\n"), "{text}");
+        assert!(text.contains("3. Cy [p3] (sits out)\n"), "{text}");
+    }
+}

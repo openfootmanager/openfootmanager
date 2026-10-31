@@ -9,7 +9,8 @@ use crate::application::press_conference::{
 };
 use mcp_results::live_match::{
     CommandApplied, LiveMatchStarted, MatchAdvanced, MatchEventLine, MatchFinished, MatchSnapshot,
-    MoraleChange, PressConferenceComplete, RoundScore, TeamTalkApplied,
+    MoraleChange, PressConferenceComplete, RoundScore, ShootoutKicker, ShootoutOrder,
+    TeamTalkApplied,
 };
 
 use crate::mcp_server::context::McpContext;
@@ -125,14 +126,68 @@ pub fn match_command(ctx: Arc<McpContext>, command_json: String) -> Result<Comma
 /// Get current match snapshot without advancing time.
 pub fn match_snapshot(ctx: Arc<McpContext>) -> Result<MatchSnapshot, String> {
     let snapshot = crate::application::live_match::get_match_snapshot(&ctx.state_manager)?;
+    Ok(snapshot_view(&snapshot))
+}
 
-    Ok(MatchSnapshot {
+/// Set the order the agent's own side takes its shootout kicks in. The agent never names a
+/// side, so it can only ever set its own.
+pub fn match_set_shootout_order(
+    ctx: Arc<McpContext>,
+    player_ids: Vec<String>,
+) -> Result<MatchSnapshot, String> {
+    let snapshot = ctx
+        .state_manager
+        .with_live_match(|session| {
+            session.set_own_shootout_order(player_ids)?;
+            Ok::<engine::MatchSnapshot, String>(session.snapshot())
+        })
+        .ok_or_else(|| "be.error.noActiveLiveMatch".to_string())??;
+
+    {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+
+    Ok(snapshot_view(&snapshot))
+}
+
+fn snapshot_view(snapshot: &engine::MatchSnapshot) -> MatchSnapshot {
+    MatchSnapshot {
         minute: snapshot.current_minute,
         home_score: snapshot.home_score,
         away_score: snapshot.away_score,
         phase: format!("{:?}", snapshot.phase),
         home_possession: snapshot.home_possession_pct,
         away_possession: snapshot.away_possession_pct,
+        shootout_order: own_shootout_order(snapshot),
+    }
+}
+
+/// The agent's own shootout order, with names. The session fills in only the user's side, so
+/// whichever side carries an order is the agent's.
+fn own_shootout_order(snapshot: &engine::MatchSnapshot) -> Option<ShootoutOrder> {
+    let shootout = snapshot.penalty_shootout.as_ref()?;
+    let (order, team) = match (&shootout.home_order, &shootout.away_order) {
+        (Some(order), _) => (order, &snapshot.home_team),
+        (None, Some(order)) => (order, &snapshot.away_team),
+        (None, None) => return None,
+    };
+    let players = order
+        .player_ids
+        .iter()
+        .map(|id| ShootoutKicker {
+            player_id: id.clone(),
+            name: team
+                .players
+                .iter()
+                .find(|player| player.id == *id)
+                .map(|player| player.name.clone())
+                .unwrap_or_default(),
+        })
+        .collect();
+    Some(ShootoutOrder {
+        players,
+        kickers: order.kickers,
     })
 }
 
@@ -1062,5 +1117,124 @@ mod tests {
         assert!(outcome_with(0, 1)
             .to_string()
             .contains("➡️ Squad morale +0: 1 of 24"));
+    }
+
+    /// A league fixture today between team1 (home) and team2, sixteen a side, with the user
+    /// managing `user_team` if it names one.
+    fn game_before_a_match(user_team: Option<&str>) -> ofm_core::game::Game {
+        let clock = ofm_core::clock::GameClock::new(
+            chrono::Utc.with_ymd_and_hms(2026, 3, 14, 12, 0, 0).unwrap(),
+        );
+        let mut manager = domain::manager::Manager::new(
+            "mgr1".to_string(),
+            "Test".to_string(),
+            "Manager".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        if let Some(team_id) = user_team {
+            manager.hire(team_id.to_string());
+        }
+        let players = ["team1", "team2"]
+            .into_iter()
+            .flat_map(|team_id| {
+                (0..16).map(move |index| player(&format!("{team_id}_p{index}"), team_id))
+            })
+            .collect();
+        let fixture = domain::league::Fixture {
+            id: "fix1".to_string(),
+            matchday: 1,
+            date: "2026-03-14".to_string(),
+            home_team_id: "team1".to_string(),
+            away_team_id: "team2".to_string(),
+            competition: domain::league::FixtureCompetition::League,
+            status: domain::league::FixtureStatus::Scheduled,
+            ..Default::default()
+        };
+        let league = domain::league::League {
+            id: "league1".to_string(),
+            name: "Test League".to_string(),
+            season: 1,
+            fixtures: vec![fixture],
+            ..Default::default()
+        };
+        let mut game = ofm_core::game::Game::new(
+            clock,
+            manager,
+            vec![team("team1", "Test FC"), team("team2", "Rival FC")],
+            players,
+            vec![],
+            vec![],
+        );
+        game.competitions.push(league);
+        game.promote_legacy_league();
+        game
+    }
+
+    /// The match as the user sees it at the start of its shootout, before the first kick.
+    fn snapshot_at_the_shootout(user_team: Option<&str>) -> engine::MatchSnapshot {
+        let game = game_before_a_match(user_team);
+        let mut session = ofm_core::live_match_manager::create_live_match(
+            &game,
+            0,
+            ofm_core::live_match_manager::MatchMode::Live,
+            true,
+        )
+        .expect("the fixture starts");
+        while session.match_state.phase() != engine::MatchPhase::PenaltyShootout {
+            if matches!(
+                session.match_state.phase(),
+                engine::MatchPhase::FullTime | engine::MatchPhase::ExtraTimeEnd
+            ) {
+                session.match_state.test_set_score(0, 0);
+            }
+            session.step();
+        }
+        session.snapshot()
+    }
+
+    /// Given the agent's club at the start of a shootout,
+    /// When the agent reads the match snapshot,
+    /// Then it lists the agent's own players in their kicking order, by name, and how many
+    /// of them kick.
+    #[test]
+    fn an_agents_snapshot_lists_its_own_shootout_order() {
+        let snapshot = snapshot_at_the_shootout(Some("team1"));
+        let engine_order = snapshot
+            .penalty_shootout
+            .as_ref()
+            .and_then(|shootout| shootout.home_order.clone())
+            .expect("the session shows the user's own order");
+
+        let order = snapshot_view(&snapshot)
+            .shootout_order
+            .expect("the agent sees its own order");
+
+        let listed: Vec<&str> = order
+            .players
+            .iter()
+            .map(|kicker| kicker.player_id.as_str())
+            .collect();
+        let expected: Vec<&str> = engine_order.player_ids.iter().map(String::as_str).collect();
+        assert_eq!(listed, expected);
+        assert!(
+            order
+                .players
+                .iter()
+                .all(|kicker| kicker.player_id.starts_with("team1_")
+                    && kicker.name == kicker.player_id),
+            "only the agent's own players, each by name: {:?}",
+            order.players
+        );
+        assert_eq!(order.kickers, engine_order.kickers);
+    }
+
+    /// Given a match between two clubs the agent does not manage, at the start of its shootout,
+    /// When the agent reads the match snapshot,
+    /// Then it shows no shootout order at all.
+    #[test]
+    fn an_agent_watching_two_other_clubs_sees_no_shootout_order() {
+        let snapshot = snapshot_at_the_shootout(None);
+        assert_eq!(snapshot_view(&snapshot).shootout_order, None);
     }
 }

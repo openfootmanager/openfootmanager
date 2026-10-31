@@ -120,6 +120,9 @@ pub enum MatchMode {
 // LiveMatchSession — wraps LiveMatchState + metadata for Tauri layer
 // ---------------------------------------------------------------------------
 
+/// A shootout order for a side the user does not manage, or from a user who manages neither.
+const SHOOTOUT_ORDER_NOT_YOUR_SIDE: &str = "be.error.liveMatch.shootoutOrderNotYourSide";
+
 pub struct LiveMatchSession {
     pub match_state: LiveMatchState,
     pub rng: ChaCha12Rng,
@@ -210,12 +213,36 @@ impl LiveMatchSession {
         results
     }
 
+    /// The match as the user may see it. Of the shootout orders, only the user's own side's is
+    /// filled in: the opponent's stays hidden until each kick is taken, and a match between two
+    /// other clubs shows neither.
     pub fn snapshot(&self) -> MatchSnapshot {
-        self.match_state.snapshot()
+        let mut snapshot = self.match_state.snapshot();
+        if let (Some(shootout), Some(side)) = (snapshot.penalty_shootout.as_mut(), self.user_side) {
+            let own_order = self.match_state.shootout_order(side);
+            match side {
+                Side::Home => shootout.home_order = own_order,
+                Side::Away => shootout.away_order = own_order,
+            }
+        }
+        snapshot
     }
 
     pub fn apply_command(&mut self, cmd: MatchCommand) -> Result<(), String> {
+        if let MatchCommand::SetShootoutOrder { side, .. } = &cmd
+            && self.user_side != Some(*side)
+        {
+            return Err(SHOOTOUT_ORDER_NOT_YOUR_SIDE.into());
+        }
         self.match_state.apply_command(cmd)
+    }
+
+    /// Sets the user's own side's shootout order, for a caller that does not name the side.
+    pub fn set_own_shootout_order(&mut self, player_ids: Vec<String>) -> Result<(), String> {
+        let side = self
+            .user_side
+            .ok_or_else(|| SHOOTOUT_ORDER_NOT_YOUR_SIDE.to_string())?;
+        self.apply_command(MatchCommand::SetShootoutOrder { side, player_ids })
     }
 
     pub fn is_finished(&self) -> bool {
