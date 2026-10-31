@@ -7,7 +7,7 @@ use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::team::Team;
 use ofm_core::clock::GameClock;
-use ofm_core::game::Game;
+use ofm_core::game::{Game, ScoutedPlayer};
 use ofm_core::slices::teams::{
     TeamCard, TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_club_league_standing,
     query_directory, query_team_card,
@@ -163,6 +163,39 @@ fn a_card_hides_the_average_of_a_club_outside_the_managers_division() {
     let game = managing(two_divisions(), "mine");
 
     assert_eq!(directory_card(&game, "faraway").avg_ovr, None);
+}
+
+/// Given a club in another division, every one of whose players the manager's scouts have
+///       reported on
+/// When the clubs directory and the team profile show its card
+/// Then neither carries an average: a squad average is never made from scouted players, however
+///      many there are (maintainer's ruling for L2c), so the club's card reads "–" as before
+#[test]
+fn scouting_a_clubs_players_never_reveals_its_average() {
+    let mut game = managing(two_divisions(), "mine");
+    let faraway_players: Vec<String> = game
+        .players
+        .iter()
+        .filter(|player| player.team_id.as_deref() == Some("faraway"))
+        .map(|player| player.id.clone())
+        .collect();
+    assert!(
+        !faraway_players.is_empty(),
+        "the fixture gives faraway players"
+    );
+    for player_id in faraway_players {
+        game.scouted_players.push(ScoutedPlayer {
+            player_id,
+            scouted_on: "2026-06-20".to_string(),
+            attributes: default_attrs(),
+        });
+    }
+
+    assert_eq!(directory_card(&game, "faraway").avg_ovr, None);
+    assert_eq!(
+        query_team_card(&game, "faraway").and_then(|card| card.avg_ovr),
+        None
+    );
 }
 
 /// Given a manager without a club
