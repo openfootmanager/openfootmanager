@@ -1,9 +1,20 @@
+use std::cmp::Reverse;
+
 use rand::{Rng, RngExt};
 
 use crate::event::{EventType, MatchEvent};
-use crate::types::{Position, Side, Zone};
+use crate::shared::PlayerSnap;
+use crate::types::{PlayerData, Position, Side, Zone};
 
 use super::{LiveMatchState, MinuteResult, PenaltyShootoutState};
+
+/// Where a player stands in the automatic shootout order, before penalty skill decides.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ShootoutPlace {
+    First,
+    BySkill,
+    Last,
+}
 
 // ---------------------------------------------------------------------------
 // Penalty shootout
@@ -21,8 +32,7 @@ impl LiveMatchState {
             Side::Away
         };
 
-        // Pick taker and goalkeeper (needs &self)
-        let taker = self.pick_penalty_taker(kicking_side, rng);
+        let taker = self.next_shootout_kicker(kicking_side);
         let gk = self.pick_goalkeeper(kicking_side.opposite());
 
         let shoot_skill = (taker.shooting as f64 + taker.composure as f64) / 2.0;
@@ -101,6 +111,77 @@ impl LiveMatchState {
         }
     }
 
+    /// Fixes both sides' kicking orders for the shootout that is starting now.
+    pub(super) fn begin_penalty_shootout(&mut self) {
+        let mut home_order = self.automatic_shootout_order(Side::Home);
+        let mut away_order = self.automatic_shootout_order(Side::Away);
+        // A side may use only as many kickers as the side with fewer players on the pitch.
+        // The side with more drops the end of its order. A side with nobody left does not hold
+        // the other to nobody: the other then kicks in its full order.
+        let kickers = match home_order.len().min(away_order.len()) {
+            0 => home_order.len().max(away_order.len()),
+            fewer => fewer,
+        };
+        home_order.truncate(kickers);
+        away_order.truncate(kickers);
+        self.penalty_state = PenaltyShootoutState {
+            home_order,
+            away_order,
+            ..PenaltyShootoutState::default()
+        };
+    }
+
+    /// Everyone on the pitch at the final whistle who was not sent off: the designated penalty
+    /// taker first, the goalkeeper last, and the rest by the skill the kick uses, best first.
+    /// Ties keep the squad's order, so the order is the same every time.
+    fn automatic_shootout_order(&self, side: Side) -> Vec<String> {
+        let designated = self.set_pieces_ref(side).penalty_taker.as_deref();
+        let keeper = self
+            .keeper_on_the_pitch(side)
+            .map(|keeper| keeper.id.as_str());
+        let mut kickers: Vec<&PlayerData> = self
+            .team_ref(side)
+            .players
+            .iter()
+            .filter(|player| !self.sent_off.contains(&player.id))
+            .collect();
+        kickers.sort_by_key(|player| {
+            let place = if Some(player.id.as_str()) == designated {
+                ShootoutPlace::First
+            } else if Some(player.id.as_str()) == keeper {
+                ShootoutPlace::Last
+            } else {
+                ShootoutPlace::BySkill
+            };
+            let penalty_skill = u16::from(player.shooting) + u16::from(player.composure);
+            (place, Reverse(penalty_skill))
+        });
+        kickers
+            .into_iter()
+            .map(|player| player.id.clone())
+            .collect()
+    }
+
+    /// The next kicker in `side`'s order, starting again from the top once everyone has kicked.
+    fn next_shootout_kicker(&self, side: Side) -> PlayerSnap {
+        let (order, taken) = match side {
+            Side::Home => (
+                &self.penalty_state.home_order,
+                self.penalty_state.home_taken,
+            ),
+            Side::Away => (
+                &self.penalty_state.away_order,
+                self.penalty_state.away_taken,
+            ),
+        };
+        // Empty only when a side has nobody left on the pitch. A blank kicker is then the
+        // honest answer, as it is for the goalkeeper in `pick_goalkeeper`.
+        match order.len() {
+            0 => PlayerSnap::nobody(),
+            len => self.snap_player_by_id(&order[usize::from(taken) % len], side),
+        }
+    }
+
     pub(super) fn check_penalty_decided(&self) -> bool {
         self.penalty_state.decided()
     }
@@ -113,8 +194,19 @@ impl LiveMatchState {
     ) -> Vec<MatchEvent> {
         let mut events = Vec::new();
 
-        // Use designated penalty taker if set
-        let taker = match self.set_pieces_ref(att_side).penalty_taker.clone() {
+        // The designated taker takes it only from the pitch. One who has been sent off or
+        // substituted off leaves it to the forward pick, as a side with no designated taker
+        // does. Looking the taker up by id would hand it to them anyway, or to the first
+        // player in the squad, usually the goalkeeper.
+        let designated = self
+            .set_pieces_ref(att_side)
+            .penalty_taker
+            .clone()
+            .filter(|id| {
+                !self.sent_off.contains(id)
+                    && self.team_ref(att_side).players.iter().any(|p| p.id == *id)
+            });
+        let taker = match designated {
             Some(id) => self.snap_player_by_id(&id, att_side),
             None => self.snap_player(att_side, Position::Forward, rng),
         };
@@ -196,6 +288,7 @@ mod tests {
             home_scored,
             away_scored,
             sudden_death: false,
+            ..PenaltyShootoutState::default()
         }
     }
 

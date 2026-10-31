@@ -40,14 +40,35 @@ export function nodeProblem(webSocket, version) {
 }
 
 /**
- * The faces the app bundles (App.css's @fontsource imports; a test holds the two equal). A width
- * measured while one of them hadn't loaded is the width of whatever system font stood in, which is
- * why two machines got different numbers: so every case first loads each of these, and fails if
- * one doesn't.
+ * The faces the app bundles (App.css's @fontsource imports and its Cyrillic @font-face blocks; a
+ * test holds the two equal). A width measured while one of them hadn't loaded is the width of
+ * whatever system font stood in, which is why two machines got different numbers: so every case
+ * first loads each of these, and fails if one doesn't.
+ *
+ * A face scoped by `unicode-range` (the Cyrillic ones) only loads for text in its range, so its
+ * entry names a `script` and a `sample` in it; the Latin faces are loaded with the default sample.
  */
 export const REQUIRED_FACES = [
   ...[400, 500, 600, 700].map((weight) => ({ family: "Inter", weight })),
   ...[600, 700].map((weight) => ({ family: "Barlow Condensed", weight })),
+  ...[400, 500, 600, 700].map((weight) => ({
+    family: "Inter",
+    weight,
+    script: "cyrillic",
+    sample: "Яё",
+  })),
+  ...[400, 500, 600, 700].map((weight) => ({
+    family: "Inter",
+    weight,
+    script: "cyrillic-ext",
+    sample: "Ѡ",
+  })),
+  ...[600, 700].map((weight) => ({
+    family: "Fira Sans Extra Condensed",
+    weight,
+    script: "cyrillic",
+    sample: "Яё",
+  })),
 ];
 
 /** What is wrong with one measured case; empty when it passes. */
@@ -55,9 +76,11 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered,
   const problems = [];
   // The weight asked for, not just any: the browser stands the nearest weight it has in for one it
   // lacks, and a 600 drawn in place of a 700 has other widths.
-  for (const { family, weight, loadedWeights } of faces) {
+  for (const { family, weight, script, loadedWeights } of faces) {
     if (!loadedWeights.includes(String(weight)))
-      problems.push(`font not loaded: ${family} ${weight} (a system fallback drew it)`);
+      problems.push(
+        `font not loaded: ${family} ${weight}${script ? ` ${script}` : ""} (a system fallback drew it)`,
+      );
   }
   if (scrollWidth > innerWidth) {
     problems.push(`the page scrolls sideways (${scrollWidth} > ${innerWidth})`);
@@ -77,10 +100,36 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered,
  * letters, the check's longest labels.
  */
 export async function loadFaces(fonts, faces) {
+  // Whether a loaded face is the one scoped to the sample's script, and not an unscoped face of the
+  // same family that also covers it (a rangeless import claims every character, so `load()` returns
+  // it for Cyrillic text too and would vouch for a Cyrillic face that did not match). It lives in
+  // here because this function's source is what is sent to the page.
+  const scopedTo = (face, sample) => {
+    const range = String(face.unicodeRange ?? "")
+      .replace(/\s/g, "")
+      .toUpperCase();
+    if (range === "" || range === "U+0-10FFFF") return false;
+    const point = sample.codePointAt(0);
+    return range.split(",").some((part) => {
+      const [low, high = low] = part
+        .replace(/^U\+/, "")
+        .split("-")
+        .map((hex) => Number.parseInt(hex, 16));
+      return point >= low && point <= high;
+    });
+  };
   return Promise.all(
-    faces.map(async ({ family, weight }) => {
-      const loaded = await fonts.load(`${weight} 16px "${family}"`, "Aa ÄÖÜß").catch(() => []);
-      return { family, weight, loadedWeights: loaded.map((face) => face.weight) };
+    faces.map(async ({ family, weight, script, sample }) => {
+      const loaded = await fonts
+        .load(`${weight} 16px "${family}"`, sample ?? "Aa ÄÖÜß")
+        .catch(() => []);
+      const ofScript = script ? loaded.filter((face) => scopedTo(face, sample)) : loaded;
+      return {
+        family,
+        weight,
+        ...(script ? { script } : {}),
+        loadedWeights: ofScript.map((face) => face.weight),
+      };
     }),
   );
 }
