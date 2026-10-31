@@ -2439,3 +2439,48 @@ fn a_substituted_designated_penalty_taker_leaves_the_penalty_to_a_forward() {
         "{takers:?}"
     );
 }
+
+/// Given a side with no designated penalty taker and both its forwards sent off,
+/// When it is awarded penalties,
+/// Then a midfielder takes each one, never a defender and never the goalkeeper.
+#[test]
+fn with_no_forward_on_the_pitch_a_midfielder_takes_the_penalty() {
+    let forwards = ["home_fwd1", "home_fwd2"];
+    let forwards_off = |state: &mut LiveMatchState| {
+        for forward in forwards {
+            state.test_send_off(forward);
+        }
+    };
+    let takers = home_penalty_takers(&forwards_off, &forwards);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker.starts_with("home_mid")),
+        "{takers:?}"
+    );
+}
+
+/// Given a side with only its goalkeeper and defenders left on the pitch,
+/// When it is awarded penalties,
+/// Then a defender takes each one, never the goalkeeper.
+#[test]
+fn with_only_defenders_and_the_keeper_left_a_defender_takes_the_penalty() {
+    let gone = [
+        "home_fwd1",
+        "home_fwd2",
+        "home_mid1",
+        "home_mid2",
+        "home_mid3",
+        "home_mid4",
+    ];
+    let attackers_off = |state: &mut LiveMatchState| {
+        for player in gone {
+            state.test_send_off(player);
+        }
+    };
+    let takers = home_penalty_takers(&attackers_off, &gone);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker.starts_with("home_def")),
+        "{takers:?}"
+    );
+}
