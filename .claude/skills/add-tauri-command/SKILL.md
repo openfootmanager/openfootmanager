@@ -87,7 +87,8 @@ If the command returns a type the screens receive that `Game` or `SquadPlayer` a
 TypeScript is generated: derive `TS` on any new Rust type, regenerate with
 `OFM_UPDATE_TS_TYPES=1 cargo test --manifest-path src-tauri/Cargo.toml --test wire_types`, and
 commit `src/store/generated/`. Never edit those files by hand (`src-tauri/CLAUDE.md`, "Wire types
-are generated").
+are generated"). A response type outside those roots generates nothing until it is added to
+`visit_wire_roots` in `src-tauri/tests/wire_types.rs`: regenerating alone writes no file for it.
 
 ## 4. Update the store
 
@@ -134,7 +135,7 @@ If the command should also be available to AI agents, continue with `/add-mcp-to
 - [ ] Registered in `generate_handler![…]` in `src-tauri/src/lib.rs`
 - [ ] New modules re-exported from `commands/mod.rs`
 - [ ] Typed wrapper in `src/services/`, camelCase args, no `any`
-- [ ] A changed or new wire type: `TS` derived, `src/store/generated/` regenerated and committed
+- [ ] A changed or new wire type reached from `Game` or `SquadPlayer`: `TS` derived, `src/store/generated/` regenerated and committed. A response type outside those roots is added to `visit_wire_roots` in `src-tauri/tests/wire_types.rs`.
 - [ ] Store updated without in-place mutation
 - [ ] Backend test on the `_internal` fn (`cargo test --lib`), written first
 - [ ] Frontend service test including the error path

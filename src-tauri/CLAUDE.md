@@ -125,6 +125,9 @@ what the Rust types generate today, so CI fails when the two disagree.
 - **A new type on such a struct** needs `#[derive(TS)]` beside its `Serialize`, or it will not
   compile. If its Rust name clashes with another wire type, give one a `#[ts(rename = "…")]`;
   the same test fails on a clash, because `ts-rs` would silently keep only one.
+- **A response type outside those roots**, returned only by its own command, is reached from
+  neither `Game` nor `SquadPlayer`, so regenerating writes nothing for it. Add it to
+  `visit_wire_roots` in `src-tauri/tests/wire_types.rs`, then regenerate.
 - **Never edit `src/store/generated/` by hand.** The next regeneration overwrites it, and the test
   fails until then.
 
