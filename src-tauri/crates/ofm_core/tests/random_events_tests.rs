@@ -1,3 +1,10 @@
+#[path = "random_events_tests/injuries.rs"]
+mod injuries;
+#[path = "random_events_tests/rates.rs"]
+mod rates;
+#[path = "random_events_tests/targets.rs"]
+mod targets;
+
 use chrono::{TimeZone, Utc};
 use domain::league::{
     Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
@@ -112,6 +119,49 @@ fn make_game_with_league() -> Game {
         ..Default::default()
     });
     game
+}
+
+/// The game's date `days` from now, as fixtures store it.
+fn date_in(game: &Game, days: i64) -> String {
+    (game.clock.current_date.date_naive() + chrono::Duration::days(days))
+        .format("%Y-%m-%d")
+        .to_string()
+}
+
+/// A league holding these fixtures and nothing else.
+fn league_of(fixtures: Vec<Fixture>) -> League {
+    League {
+        id: "league1".to_string(),
+        name: "Test League".to_string(),
+        season: 1,
+        fixtures,
+        ..Default::default()
+    }
+}
+
+fn fixture(id: &str, date: String, home: &str, away: &str, status: FixtureStatus) -> Fixture {
+    Fixture {
+        id: id.to_string(),
+        matchday: 1,
+        date,
+        home_team_id: home.to_string(),
+        away_team_id: away.to_string(),
+        competition: FixtureCompetition::League,
+        status,
+        ..Default::default()
+    }
+}
+
+/// The user's next match, three days from the game's current date.
+fn a_match_in_three_days(game: &mut Game) {
+    let date = date_in(game, 3);
+    game.league = Some(league_of(vec![fixture(
+        "next",
+        date,
+        "team1",
+        "team2",
+        FixtureStatus::Scheduled,
+    )]));
 }
 
 fn assert_choose_option_keys(message: &InboxMessage) {
@@ -1227,25 +1277,6 @@ fn apply_unknown_message_type_returns_none() {
 // ---------------------------------------------------------------------------
 // Edge cases for check_random_events
 // ---------------------------------------------------------------------------
-
-#[test]
-fn training_injury_skipped_on_match_day() {
-    let mut game = make_game_with_league();
-    // Today has a scheduled match, so training injuries should not occur
-    let initial_injuries = game.players.iter().filter(|p| p.injury.is_some()).count();
-    // Run 100 times on the same match day
-    for _ in 0..100 {
-        // Reset messages to allow re-check
-        game.messages
-            .retain(|m| !m.id.starts_with("training_injury_"));
-        check_random_events(&mut game);
-    }
-    let final_injuries = game.players.iter().filter(|p| p.injury.is_some()).count();
-    assert_eq!(
-        initial_injuries, final_injuries,
-        "No training injuries on match day"
-    );
-}
 
 #[test]
 fn already_injured_players_excluded_from_training_injury() {
