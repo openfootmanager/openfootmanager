@@ -5,6 +5,7 @@ import {
   getUserCompetitions,
   getUserNextFixture,
 } from "../../lib/helpers";
+import { averageRating } from "../../lib/playerOvr";
 import type { TFunction } from "i18next";
 import { hasCompetitiveStandings } from "../../lib/seasonContext";
 import type {
@@ -139,12 +140,8 @@ export function getLeagueDigestArticles(gameState: GameStateData): NewsArticle[]
 }
 
 export function getHomeRosterOverview(roster: PlayerData[]): HomeRosterOverview {
-  const avgOvr =
-    roster.length > 0
-      ? Math.round(
-          roster.reduce((total, player) => total + getPlayerOvr(player), 0) / roster.length,
-        )
-      : 0;
+  // The first team's average, rounded as the backend's team card rounds the whole club's.
+  const avgOvr = averageRating(roster.map(getPlayerOvr));
   const unavailablePlayers = roster
     .filter((player) => player.injury != null)
     .sort((leftPlayer, rightPlayer) => {
