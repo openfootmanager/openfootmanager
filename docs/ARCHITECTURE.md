@@ -210,7 +210,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | Command | Parameters | Returns | Description |
 |---------|-----------|---------|-------------|
 | `get_club_league_standing` | team_id | The club's league table, position and standing, or null | Any club, not only the manager's; in a split season the half the year is on; cups have no table |
-| `get_scouted_report` | player_id | The scout's dated attribute snapshot with `out_of_date`, or null | Out of date means scouted before the current season started; decided in Rust |
+| `get_scouted_report` | player_id | The scout's dated attribute snapshot with `out_of_date`, or null | Out of date means scouted before the last season rollover (`Game::last_season_rollover_on`), when every player aged and the season's growth applied; decided in Rust |
 | `get_player_knowledge` | player_ids | Per player: `own`, `known` (a club in the manager's division), `scouted` (with `scouted_on` and `current`) or `unknown` (a player the club has not scouted); an id that matches no player is omitted from the answer | The one rule for what the manager's club knows about a player (`ofm_core::player_knowledge`); screens hide what it does not know. The serialized `Game` still carries every value |
 | `get_visible_wage` | player_id | `exact` (the club's own player), `approximate` (a scouted player: two significant figures) or `hidden`, each with `weekly` where shown; null for an id no player has | `ofm_core::player_knowledge::visible_wage`; for one player's profile only, never a list |
 | `get_squad` | team_id | Player rows with `match_day_eligible` | Complete club roster with computed match-day eligibility; youth call-ups retain their academy role |
