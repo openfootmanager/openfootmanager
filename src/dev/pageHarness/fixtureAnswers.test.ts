@@ -6,6 +6,7 @@ import {
   gameState,
   playersPage,
   playersPageQuery,
+  positionGroups,
   ratingTiers,
   squad,
   squadFitness,
@@ -47,6 +48,21 @@ describe("fixture answers", () => {
     expect(ratingTiers[0]).toBe("Rest");
     expect(ratingTiers[99]).toBe("S");
     expect(new Set(ratingTiers)).toEqual(new Set(["S", "A", "B", "Rest"]));
+  });
+
+  /**
+   * Given Squad's position badges (PositionBadge, #986) asking which group each position is in,
+   * when the harness answers, then it gives the backend's table, generated from the ofm_core
+   * function the command returns: every position, each in one of the four groups.
+   */
+  it("answers the position groups with the backend's table", () => {
+    expect(handlers.get_position_groups({})).toBe(positionGroups);
+    expect(positionGroups.find((entry) => entry.position === "Goalkeeper")?.group).toBe(
+      "Goalkeeper",
+    );
+    expect(new Set(positionGroups.map((entry) => entry.group))).toEqual(
+      new Set(["Goalkeeper", "Defender", "Midfielder", "Forward"]),
+    );
   });
 
   /**

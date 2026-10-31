@@ -153,6 +153,24 @@ describe("PositionBadges", () => {
   });
 
   /**
+   * Given badges drawn in a table row
+   * When they are asked to keep to one line
+   * Then they never wrap, so the row stays a row's height; elsewhere they wrap as before.
+   */
+  it("keeps to one line when asked, and wraps otherwise", () => {
+    const props = {
+      natural: "Striker",
+      alternates: ["RightWinger", "CenterBack"],
+      describe: describePosition,
+    };
+    const { container, rerender } = render(<PositionBadges {...props} oneLine />);
+    const list = () => badges(container)[0].parentElement;
+    expect(list()).toHaveClass("flex-nowrap");
+    rerender(<PositionBadges {...props} />);
+    expect(list()).toHaveClass("flex-wrap");
+  });
+
+  /**
    * Given a player deployed in one of his alternates
    * When the badges render
    * Then that alternate carries the hollow dot, and the natural position carries none.

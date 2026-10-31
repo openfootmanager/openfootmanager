@@ -19,8 +19,8 @@ interface CheckboxProps {
  * Custom styled checkbox that replaces the native browser element.
  *
  * Renders a visually-hidden native input (for keyboard and screen-reader
- * support) alongside a Tailwind-styled indicator that shows the game's
- * primary colour when checked. Avoids OS-native appearance on Linux/WebKit.
+ * support) alongside a Tailwind-styled indicator that shows the selected
+ * fill when checked. Avoids OS-native appearance on Linux/WebKit.
  */
 export function Checkbox({
   checked,
@@ -59,8 +59,8 @@ export function Checkbox({
         className="peer sr-only"
       />
       <div
-        className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors peer-checked:bg-primary-600 peer-checked:border-primary-600 peer-focus-visible:ring-2 peer-focus-visible:ring-focus peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-page peer-focus:outline-none ${
-          indeterminate ? "bg-primary-600 border-primary-600" : "border-line-strong bg-panel"
+        className={`h-4 w-4 rounded border-2 flex items-center justify-center transition-colors peer-checked:bg-selected-fill peer-checked:border-selected-fill peer-focus-visible:ring-2 peer-focus-visible:ring-focus peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-page peer-focus:outline-none ${
+          indeterminate ? "bg-selected-fill border-selected-fill" : "border-line-strong bg-panel"
         }`}
         aria-hidden="true"
       >
