@@ -55,6 +55,8 @@ export default function HalfTimeBreak({
   const [selectedTalk, setSelectedTalk] = useState<TeamTalkTone | null>(null);
   const [showSubPanel, setShowSubPanel] = useState(false);
   const [talkDelivered, setTalkDelivered] = useState(false);
+  const [talkPending, setTalkPending] = useState(false);
+  const [talkError, setTalkError] = useState<string | null>(null);
   const [talkResults, setTalkResults] = useState<
     {
       player_id: string;
@@ -119,10 +121,12 @@ export default function HalfTimeBreak({
   };
 
   const handleDeliverTalk = async () => {
-    if (!selectedTalk) return;
+    if (!selectedTalk || talkPending) return;
     const userScore = userSide === "Home" ? snapshot.home_score : snapshot.away_score;
     const oppScore = userSide === "Home" ? snapshot.away_score : snapshot.home_score;
     const context = userScore > oppScore ? "winning" : userScore < oppScore ? "losing" : "drawing";
+    setTalkPending(true);
+    setTalkError(null);
     try {
       const results = await invokeForCareer<
         {
@@ -134,10 +138,15 @@ export default function HalfTimeBreak({
         }[]
       >("apply_team_talk", { tone: selectedTalk, context });
       setTalkResults(results);
+      // Delivered only once the backend applied it: a refused talk (the career changed, say)
+      // moved no morale, so the choices must stay for another try.
+      setTalkDelivered(true);
     } catch (err) {
       console.error("Team talk failed:", err);
+      setTalkError(t("match.teamTalkFailed"));
+    } finally {
+      setTalkPending(false);
     }
-    setTalkDelivered(true);
   };
 
   return (
@@ -322,10 +331,16 @@ export default function HalfTimeBreak({
                       <button
                         type="button"
                         onClick={handleDeliverTalk}
-                        className="w-full mt-3 py-2.5 bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors"
+                        disabled={talkPending}
+                        className="w-full mt-3 py-2.5 bg-primary-500/20 hover:bg-primary-500/30 text-primary-400 rounded-lg font-heading font-bold text-sm uppercase tracking-wider transition-colors disabled:opacity-50"
                       >
                         {t("match.deliverTeamTalk")}
                       </button>
+                    )}
+                    {talkError && (
+                      <p role="alert" className="text-sm text-red-500 mt-2">
+                        {talkError}
+                      </p>
                     )}
                   </>
                 ) : (
