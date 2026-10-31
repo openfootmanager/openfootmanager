@@ -167,6 +167,7 @@ pub struct Blockers {
     /// severities the UI uses, informational items (unread urgent mail) left out.
     pub blockers: Vec<Blocker>,
     /// A live match is in progress: finish it first.
+    #[serde(default)]
     pub live_match_in_progress: bool,
 }
 
