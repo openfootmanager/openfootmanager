@@ -16,6 +16,7 @@ use domain::league::{FixtureStatus, League};
 use domain::player::PlayerAttributes;
 use ofm_core::game::Game;
 use ofm_core::player_knowledge::{player_knowledge, PlayerKnowledge};
+use ofm_core::slices::scouted_report::query_scouted_report;
 use std::sync::Arc;
 
 fn result_letter(our_goals: u8, their_goals: u8) -> &'static str {
@@ -396,10 +397,8 @@ fn attribute_rows(a: &PlayerAttributes) -> Vec<Attribute> {
 
 /// The attributes a scout's report holds for `player_id`: a snapshot, never the live player's.
 fn scouted_attributes(game: &Game, player_id: &str) -> Vec<Attribute> {
-    game.scouted_players
-        .iter()
-        .find(|report| report.player_id == player_id)
-        .map(|report| attribute_rows(&report.attributes))
+    query_scouted_report(game, player_id)
+        .map(|view| attribute_rows(&view.report.attributes))
         .unwrap_or_default()
 }
 
@@ -894,6 +893,19 @@ mod player_profile_tests {
         detail.get(field).is_some()
     }
 
+    /// The profile lists all 19 attributes, each at `value`: a list that is empty, short, or
+    /// someone else's numbers would not pass.
+    fn shows_all_attributes_at(detail: &Value, value: u64) {
+        let attributes = detail["attributes"].as_array().expect("an attributes list");
+        assert_eq!(attributes.len(), 19, "{detail}");
+        assert!(
+            attributes
+                .iter()
+                .all(|attribute| attribute["value"] == value),
+            "every attribute should be {value}: {detail}"
+        );
+    }
+
     /// Given a player at the manager's club
     /// When the profile is read
     /// Then everything shows: rating, condition, morale, fitness, injury and the attributes.
@@ -915,6 +927,7 @@ mod player_profile_tests {
             assert!(shows(&detail, field), "{field} missing: {detail}");
         }
         assert_eq!(detail["condition"], 31);
+        shows_all_attributes_at(&detail, 77);
     }
 
     /// Given a player at a rival in the manager's own division
@@ -928,7 +941,7 @@ mod player_profile_tests {
 
         assert_eq!(detail["visibility"], "known");
         assert_eq!(detail["ovr"], 77);
-        assert!(shows(&detail, "attributes"), "{detail}");
+        shows_all_attributes_at(&detail, 77);
         for field in OWN_ONLY {
             assert!(!shows(&detail, field), "{field} leaked: {detail}");
         }
@@ -951,15 +964,7 @@ mod player_profile_tests {
         assert_eq!(detail["visibility"], "scouted");
         assert_eq!(detail["scouted_on"], "2026-09-01");
         assert_eq!(detail["current"], true);
-        assert_eq!(detail["attributes"].as_array().unwrap().len(), 19);
-        assert!(
-            detail["attributes"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .all(|attribute| attribute["value"] == 55),
-            "the report's 55s, not the live 77s: {detail}"
-        );
+        shows_all_attributes_at(&detail, 55);
         assert!(!shows(&detail, "ovr"), "the live rating leaked: {detail}");
         for field in OWN_ONLY {
             assert!(!shows(&detail, field), "{field} leaked: {detail}");
