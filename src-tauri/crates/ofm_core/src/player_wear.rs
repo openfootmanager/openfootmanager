@@ -310,6 +310,23 @@ mod tests {
         assert!((60..=140).contains(&injured), "{injured} of 4,000");
     }
 
+    /// Given 4,000 fresh players at fitness 20, each in one match
+    /// When each rolls for a match injury
+    /// Then between 5.5% and 9.5% are hurt: three times the fit player's one in forty
+    #[test]
+    fn an_exhausted_player_is_injured_three_times_as_often() {
+        let mut rng = StdRng::seed_from_u64(11);
+        let injured = (0..4_000)
+            .filter(|_| {
+                let mut player = make_player(70);
+                player.fitness = 20;
+                roll_match_injury(&mut player, &mut rng)
+            })
+            .count();
+
+        assert!((220..=380).contains(&injured), "{injured} of 4,000");
+    }
+
     /// Given match fitness either side of each step: 29, 30, 49, 50, 69, 70, 89 and 90
     /// When the injury-risk multiplier is read
     /// Then it steps from 3.0 to 2.0 at 30, to 1.5 at 50, to 1.0 at 70 and to 0.7 at 90
