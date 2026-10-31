@@ -292,4 +292,51 @@ mod tests {
             "a low-fitness player should be injured within 500 rolls"
         );
     }
+
+    /// Given 4,000 fresh players at fitness 75, each in one match
+    /// When each rolls for a match injury
+    /// Then between 1.5% and 3.5% are hurt: about one in forty
+    #[test]
+    fn a_fit_player_is_injured_in_about_one_match_in_forty() {
+        let mut rng = StdRng::seed_from_u64(11);
+        let injured = (0..4_000)
+            .filter(|_| {
+                let mut player = make_player(70);
+                player.fitness = 75;
+                roll_match_injury(&mut player, &mut rng)
+            })
+            .count();
+
+        assert!((60..=140).contains(&injured), "{injured} of 4,000");
+    }
+
+    /// Given 4,000 fresh players at fitness 20, each in one match
+    /// When each rolls for a match injury
+    /// Then between 5.5% and 9.5% are hurt: three times the fit player's one in forty
+    #[test]
+    fn an_exhausted_player_is_injured_three_times_as_often() {
+        let mut rng = StdRng::seed_from_u64(11);
+        let injured = (0..4_000)
+            .filter(|_| {
+                let mut player = make_player(70);
+                player.fitness = 20;
+                roll_match_injury(&mut player, &mut rng)
+            })
+            .count();
+
+        assert!((220..=380).contains(&injured), "{injured} of 4,000");
+    }
+
+    /// Given match fitness either side of each step: 29, 30, 49, 50, 69, 70, 89 and 90
+    /// When the injury-risk multiplier is read
+    /// Then it steps from 3.0 to 2.0 at 30, to 1.5 at 50, to 1.0 at 70 and to 0.7 at 90
+    #[test]
+    fn the_injury_risk_multiplier_steps_at_thirty_fifty_seventy_and_ninety() {
+        let multipliers: Vec<f64> = [29, 30, 49, 50, 69, 70, 89, 90]
+            .into_iter()
+            .map(injury_multiplier_from_fitness)
+            .collect();
+
+        assert_eq!(multipliers, vec![3.0, 2.0, 2.0, 1.5, 1.5, 1.0, 1.0, 0.7]);
+    }
 }
