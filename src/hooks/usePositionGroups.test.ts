@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PositionGroupEntry } from "../services/positionService";
@@ -67,5 +67,21 @@ describe("usePositionGroups", () => {
     await waitFor(() => expect(first.result.current("Striker")).toBe("Forward"));
     expect(mockedGroups).toHaveBeenCalledTimes(2);
     quiet.mockRestore();
+  });
+
+  /**
+   * Given a backend answer that is not a table (a screen test's stand-in, or a broken reply)
+   * When the hook reads a position
+   * Then it names no group instead of throwing, so a badge still draws.
+   */
+  it("names no group when the answer is not a table", async () => {
+    mockedGroups.mockResolvedValue({ unexpected: true } as unknown as PositionGroupEntry[]);
+
+    const { result } = renderHook(() => usePositionGroups());
+    await act(async () => {
+      await mockedGroups.mock.results[0]?.value;
+    });
+
+    expect(result.current("Striker")).toBeNull();
   });
 });

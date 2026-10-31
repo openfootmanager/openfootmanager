@@ -75,8 +75,15 @@ export function PositionBadge({
       className={`relative inline-flex rounded-md ${familiarity ? OUTLINE_CLASS[familiarity] : ""}`}
     >
       <Badge variant={kind === "alternate" ? "outline" : variant}>
-        <span aria-hidden="true">{label}</span>
-        <span className="sr-only">{words}</span>
+        {label === words ? (
+          // The label already is the position's name: say it once, to everyone.
+          <span>{label}</span>
+        ) : (
+          <>
+            <span aria-hidden="true">{label}</span>
+            <span className="sr-only">{words}</span>
+          </>
+        )}
       </Badge>
       {familiarity ? <FamiliarityDot familiarity={familiarity} /> : null}
     </span>

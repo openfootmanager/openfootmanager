@@ -12,7 +12,13 @@ import TransferBidModal from "../transfers/TransferBidModal";
 import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow";
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
-import { getPlayerTeamName } from "./PlayerProfile.helpers";
+import {
+  formatPlayerWage,
+  formatPlayerWageCompact,
+  getPlayerTeamName,
+  visibleWageText,
+} from "./PlayerProfile.helpers";
+import { useVisibleWage } from "../../hooks/useVisibleWage";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
@@ -36,6 +42,13 @@ import { usePlayerProfileData } from "./usePlayerProfileData";
 import { useScoutPlayerFlow } from "./useScoutPlayerFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
 import { naturalPositionOf } from "../../lib/positions";
+import {
+  knowledgeRevision,
+  knowsPlayerRating,
+  knowsPrivateState,
+  visibleTraits,
+} from "../../lib/playerKnowledge";
+import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
 
 interface PlayerProfileProps {
   player: PlayerData;
@@ -72,6 +85,17 @@ export default function PlayerProfile({
   });
   const ovr = getPlayerOvr(player);
   const age = calcAgeOnDate(player.date_of_birth, gameState.clock.current_date);
+  const revision = knowledgeRevision({
+    careerToken: gameState.career_token,
+    date: gameState.clock.current_date,
+    playerClubId: player.team_id,
+    managerClubId: gameState.manager.team_id,
+    seasonStart: gameState.season_context?.season_start,
+    wage: player.wage,
+  });
+  const knowledge = usePlayerKnowledge([player.id], revision)(player.id);
+  const visibleWage = useVisibleWage(player.id, revision);
+  const showsPrivateState = knowsPrivateState(knowledge);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
   // Offer roles for the deployed slot when the player is in the starting XI —
@@ -245,7 +269,8 @@ export default function PlayerProfile({
 
       <PlayerProfileHeroCard
         player={player}
-        ovr={ovr}
+        ovr={knowsPlayerRating(knowledge) ? ovr : null}
+        wageText={visibleWageText(visibleWage, formatPlayerWageCompact, t)}
         primaryPosition={primaryPosition}
         age={age}
         teamName={teamName}
@@ -259,6 +284,8 @@ export default function PlayerProfile({
         onScout={sendScout}
         onSelectTeam={onSelectTeam}
         team={playerTeam}
+        traits={visibleTraits(player.traits ?? [], knowledge)}
+        showsPrivateState={showsPrivateState}
         t={t}
       />
 
@@ -303,10 +330,10 @@ export default function PlayerProfile({
           dateOfBirth={player.date_of_birth}
           contractEnd={player.contract_end}
           currentDate={gameState.clock.current_date}
-          condition={player.condition}
-          morale={player.morale}
+          condition={showsPrivateState ? player.condition : null}
+          morale={showsPrivateState ? player.morale : null}
           marketValue={player.market_value}
-          wage={player.wage}
+          wageText={visibleWageText(visibleWage, formatPlayerWage, t)}
           language={i18n.language}
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}
@@ -331,7 +358,7 @@ export default function PlayerProfile({
         <PlayerProfileAttributesCard
           attrGroups={attrGroups}
           player={attributesPlayer}
-          attributesVisible={isManagerSquadProfile || scoutedReport !== null}
+          attributesVisible={knowsPlayerRating(knowledge) || scoutedReport !== null}
           scoutNote={
             scoutedReport
               ? {
@@ -365,7 +392,11 @@ export default function PlayerProfile({
 
         <PlayerProfileCareerHistoryCard career={player.career} t={t} />
 
-        <PlayerProfileMovementHistoryCard movementHistory={player.movement_history ?? []} t={t} />
+        <PlayerProfileMovementHistoryCard
+          movementHistory={player.movement_history ?? []}
+          showsWages={visibleWage.kind === "exact"}
+          t={t}
+        />
 
         <PlayerProfileRecentMatchesCard matches={recentMatches} t={t} />
       </div>

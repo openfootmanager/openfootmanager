@@ -139,11 +139,11 @@ drawn in the style guide.
 | an unread count or a mark on a nav item (a circle for one digit, 99+ at most) | `UnreadBadge` |
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
+| a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a `positive` or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details (never the first column, which keeps the accent and, failing a primary, the name). It draws no panel: put it in a `Card` |
 | a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
-More primitives arrive as the migration goes on: empty and loading states,
-stat tile, data table, search field, toggle, and player, match and club
-cards. Each one gets a row here and a place in the style guide in the PR that adds it.
+More primitives arrive as the migration goes on: empty and loading states outside a table, stat
+tile, search field, toggle, and player, match and club cards. Each one gets a row here and a place in the style guide in the PR that adds it.
 
 ## 4. Rated values
 
@@ -203,7 +203,16 @@ focus ring (`ring-focus`, on `focus-visible`, never plain `focus` or another col
 surface behind the control: `page`, `panel`, `sunken` or `chrome`). Each
 rule has a fixture that breaks it. A folder joins the list in the PR that brings it up to
 standard, so the list only ever names finished work, never a known violation; when every folder
-is in, the list goes. What a test can't see (uppercase, one primary action per page, colour as
+is in, the list goes.
+
+Rule 7, one home per vocabulary, runs over its own list, `VOCABULARY_FOLDERS`, which grows as each
+round-4 page moves onto the primitives:
+- no colour map keyed by a position, a tier letter or a condition band;
+- no rated value (`condition`, `ovr`, `potential`, `morale`, `reputation`) compared with a number in
+  a component, because the backend picks a rated value's tone;
+- no import of a helper whose primitive has landed (`RETIRED_HELPERS`).
+
+What a test can't see (uppercase, one primary action per page, colour as
 the only signal) is for review: the `ui-accessibility-reviewer` agent checks it.
 
 ## 8. Screenshots for a PR

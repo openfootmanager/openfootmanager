@@ -15,7 +15,7 @@ import {
   Button,
   PlayerAvatar,
 } from "../ui";
-import { calcAge, positionBadgeVariant } from "../../lib/helpers";
+import { calcAge } from "../../lib/helpers";
 import { canDelegateToYouthAcademy, isYouthAcademyPlayer } from "../../lib/playerSquad";
 import { TraitList } from "../TraitBadge";
 import { useTranslation } from "react-i18next";
@@ -46,6 +46,7 @@ import type { PlayerSquadRole } from "../../store/types";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import ScoutingYouthRecruitmentCard from "../scouting/ScoutingYouthRecruitmentCard";
 import { naturalPositionOf } from "../../lib/positions";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface YouthAcademyTabProps {
   gameState: GameStateData | null;
@@ -495,12 +496,7 @@ export default function YouthAcademyTab({
                           </div>
                         </td>
                         <td className="py-2.5 px-4">
-                          <Badge
-                            variant={positionBadgeVariant(naturalPositionOf(player))}
-                            size="sm"
-                          >
-                            {translatePositionAbbreviation(t, naturalPositionOf(player))}
-                          </Badge>
+                          <PlayerPositionBadge position={naturalPositionOf(player)} />
                         </td>
                         <td className="py-2.5 px-4 text-center">
                           <span className="text-sm font-heading font-bold text-gray-700 dark:text-gray-300 tabular-nums">

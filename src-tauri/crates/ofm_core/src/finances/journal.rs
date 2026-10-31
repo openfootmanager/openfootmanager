@@ -15,6 +15,9 @@ pub struct PostRequest {
     pub amount: i64,
     pub kind: CashKind,
     pub date: NaiveDate,
+    /// The post's id when the movement is keyed on what caused it (a gate is keyed on its
+    /// fixture), so the journal itself answers "was this already posted?". `None` draws a UUID.
+    pub id: Option<String>,
 }
 
 impl PostRequest {
@@ -24,7 +27,13 @@ impl PostRequest {
             amount,
             kind,
             date,
+            id: None,
         }
+    }
+
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.id = Some(id.into());
+        self
     }
 }
 
@@ -104,7 +113,7 @@ fn prepare_posts(game: &Game, reqs: &[PostRequest]) -> Result<Vec<PreparedPost>,
 
         prepared.push(PreparedPost {
             team_index: index,
-            post: build_post(&team.id, req.amount, req.kind, req.date),
+            post: build_keyed_post(&team.id, req.amount, req.kind, req.date, req.id.clone()),
         });
     }
 
@@ -158,8 +167,18 @@ fn commit_posts(game: &mut Game, prepared: Vec<PreparedPost>) -> Vec<String> {
 }
 
 fn build_post(club_id: &str, amount: i64, kind: CashKind, date: NaiveDate) -> CashPost {
+    build_keyed_post(club_id, amount, kind, date, None)
+}
+
+fn build_keyed_post(
+    club_id: &str,
+    amount: i64,
+    kind: CashKind,
+    date: NaiveDate,
+    id: Option<String>,
+) -> CashPost {
     CashPost {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
         club_id: club_id.to_string(),
         amount,
         kind,
