@@ -152,7 +152,8 @@ describe("the fonts it measures with", () => {
       load: (font) => Promise.resolve([{ weight: font.split(" ")[0], unicodeRange: "U+0-10FFFF" }]),
     };
     const scoped = { family: "Inter", weight: 400, script: "cyrillic", sample: "Яё" };
-    expect(await loadFaces(fallbackOnly, [scoped])).toEqual([{ ...scoped, loadedWeights: [] }]);
+    const reported = { family: "Inter", weight: 400, script: "cyrillic" };
+    expect(await loadFaces(fallbackOnly, [scoped])).toEqual([{ ...reported, loadedWeights: [] }]);
 
     const covering = {
       load: (font) =>
@@ -163,7 +164,7 @@ describe("the fonts it measures with", () => {
           },
         ]),
     };
-    expect(await loadFaces(covering, [scoped])).toEqual([{ ...scoped, loadedWeights: ["400"] }]);
+    expect(await loadFaces(covering, [scoped])).toEqual([{ ...reported, loadedWeights: ["400"] }]);
   });
 
   /** Given a Cyrillic face that did not load, then the case names its script. */
