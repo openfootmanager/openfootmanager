@@ -123,18 +123,19 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
   // the page answers another revision: after the manager changes club, the old club's answer stays
   // on screen until the new one lands (or for good, if it fails), and must not show what the old
   // club knew. The rows themselves stay, so the table does not empty during the refetch.
+  // Nor does a player who has changed clubs since the page answered: a same-day sale moves him
+  // without moving the revision, and his old club's figures are not his new club's to show.
   const figuresAreCurrent = answeredRevision === revision;
   const visibilityById = useMemo(
     () =>
       new Map<string, VisibleFigures>(
         figuresAreCurrent
-          ? (marketSlice?.items ?? []).map((summary) => [
-              summary.id,
-              { ovr: summary.ovr, wage: summary.wage },
-            ])
+          ? (marketSlice?.items ?? [])
+              .filter((summary) => playersById.get(summary.id)?.team_id === summary.team_id)
+              .map((summary) => [summary.id, { ovr: summary.ovr, wage: summary.wage }])
           : [],
       ),
-    [marketSlice, figuresAreCurrent],
+    [marketSlice, figuresAreCurrent, playersById],
   );
   const visibleOf = useCallback(
     (playerId: string): VisibleFigures => visibilityById.get(playerId) ?? NOTHING_VISIBLE,
