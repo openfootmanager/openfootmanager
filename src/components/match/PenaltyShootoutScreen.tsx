@@ -234,7 +234,7 @@ export default function PenaltyShootoutScreen({
       <LastKickAnnouncement snapshot={snapshot} sheet={sheet} />
 
       {picking && userSide && autoOrder ? (
-        <div className="mx-auto grid w-full max-w-page flex-1 items-start gap-4 p-4 lg:grid-cols-2">
+        <div className="mx-auto grid w-full max-w-page flex-1 items-start gap-4 p-4 md:grid-cols-[minmax(0,1fr)_18rem] lg:grid-cols-[minmax(0,1fr)_22rem]">
           <ShootoutOrderPicker
             order={order}
             autoOrder={autoOrder.player_ids}

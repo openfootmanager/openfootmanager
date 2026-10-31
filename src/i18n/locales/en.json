@@ -2101,7 +2101,7 @@
       "autoOrderRestored": "Back to the auto order.",
       "columnShooting": "Shoot",
       "columnComposure": "Comp",
-      "opponentOrderHidden": "{{team}}'s order stays hidden until each of their players steps up.",
+      "opponentOrderHidden": "The order of {{team}} stays hidden until each of their players steps up.",
       "orderFailed": "Your order couldn't be set. Try again."
     },
     "fullTime": "Full Time",

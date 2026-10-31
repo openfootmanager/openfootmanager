@@ -522,6 +522,7 @@ describe("PenaltyShootoutScreen: starting the shootout", () => {
       }),
       { userSide: "Away" },
     );
+    expect(screen.getByText("match.shootout.opponentOrderHidden:Alpha FC")).toBeInTheDocument();
     gripOf("Gus").focus();
     fireEvent.keyDown(gripOf("Gus"), { key: " " });
     fireEvent.keyDown(gripOf("Gus"), { key: "ArrowUp" });
@@ -535,7 +536,6 @@ describe("PenaltyShootoutScreen: starting the shootout", () => {
       command: { SetShootoutOrder: { side: "Away", player_ids: ["p7", "p2", "p6"] } },
       careerToken: 0,
     });
-    expect(screen.getByText("match.shootout.opponentOrderHidden:Alpha FC")).toBeInTheDocument();
   });
 
   /**

@@ -432,7 +432,7 @@ export function ShootoutOrderPicker({
           </ol>
         </div>
       </div>
-      <footer className="flex flex-wrap items-center gap-3 border-t border-line px-4 py-3">
+      <footer className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-line bg-panel px-4 py-3">
         <p role="status" className="min-w-0 flex-1 text-caption text-fg-muted">
           {moves.message}
         </p>
