@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS = {
   sidebar_width: "standard",
   sidebar_behaviour: "normal",
   sidebar_collapsed: false,
+  skip_shootout_picker: false,
 } as const;
 
 const SUPPORTED_CURRENCIES = [

@@ -8,6 +8,7 @@ import type { MatchEvent, MatchSnapshot } from "./types";
 const mockedInvoke = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mockedInvoke }));
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
     t: (k: string, params?: Record<string, unknown>) =>
       params && Object.keys(params).length > 0 ? `${k}:${Object.values(params).join(",")}` : k,

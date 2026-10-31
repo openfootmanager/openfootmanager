@@ -19,6 +19,8 @@ export interface AppSettings {
   sidebar_behaviour: "normal" | "hover" | "click" | "icons";
   /** Whether the player folded the sidebar to its icon rail. */
   sidebar_collapsed: boolean;
+  /** Whether a shootout starts in the automatic penalty order, without the order picker. */
+  skip_shootout_picker: boolean;
 }
 
 export interface CurrencyDefinition {
@@ -48,6 +50,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   sidebar_width: "standard",
   sidebar_behaviour: "normal",
   sidebar_collapsed: false,
+  skip_shootout_picker: false,
 };
 
 const DEFAULT_CURRENCY: CurrencyDefinition = {

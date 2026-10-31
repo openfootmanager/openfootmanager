@@ -1,11 +1,24 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { getMatchSnapshot, stepLiveMatch } from "../../services/liveMatchService";
 import type { GameStateData } from "../../store/gameStore";
+import { useSettingsStore } from "../../store/settingsStore";
+import { resolveBackendError } from "../../utils/backendI18n";
 import { Button, TeamLogo } from "../ui";
 import { KickSheet } from "./KickSheet";
+import { sendMatchCommand } from "./matchCommands";
 import { MatchSpeedControl } from "./MatchSpeedControl";
+import { ShootoutOrderPicker } from "./ShootoutOrderPicker";
+import { isOrderChanged } from "./shootoutOrder";
 import {
   buildKickSheet,
   isShootoutKick,
@@ -13,7 +26,13 @@ import {
   REGULAR_ROUNDS,
   sideKicks,
 } from "./shootoutSheet";
-import { type MatchEvent, type MatchSnapshot, SPEED_MS } from "./types";
+import {
+  type EnginePlayerData,
+  type MatchEvent,
+  type MatchSnapshot,
+  type ShootoutOrder,
+  SPEED_MS,
+} from "./types";
 import { useMatchPace } from "./useMatchPace";
 
 interface PenaltyShootoutScreenProps {
@@ -27,20 +46,99 @@ interface PenaltyShootoutScreenProps {
   onFullTime: () => void;
 }
 
+/** The order the snapshot gives the user's own side; the opponent's is never sent. */
+function ownOrder(snapshot: MatchSnapshot, userSide: "Home" | "Away" | null): ShootoutOrder | null {
+  const shootout = snapshot.penalty_shootout;
+  if (!userSide || !shootout) return null;
+  return (userSide === "Home" ? shootout.home_order : shootout.away_order) ?? null;
+}
+
+/**
+ * Step 1, the order picker, and what it needs: the order the engine first gave, the one being set,
+ * and sending it when the shootout starts. The picker shows only before the first kick, for a side
+ * the user manages, unless the player chose in Settings to skip it.
+ */
+function useShootoutOrderStep(
+  snapshot: MatchSnapshot,
+  userSide: "Home" | "Away" | null,
+  onSnapshotUpdate: (snap: MatchSnapshot) => void,
+) {
+  const { t } = useTranslation();
+  const { settings } = useSettingsStore();
+  const skipPicker = settings.skip_shootout_picker;
+  const [autoOrder] = useState(() => ownOrder(snapshot, userSide));
+  // Held, not derived: between Start and the first kick the snapshot still shows no kick taken.
+  const [step, setStep] = useState<"pick" | "kicks">(() =>
+    autoOrder &&
+    !skipPicker &&
+    snapshot.phase === "PenaltyShootout" &&
+    !snapshot.events.some(isShootoutKick)
+      ? "pick"
+      : "kicks",
+  );
+  const [order, setOrder] = useState<readonly string[]>(() => autoOrder?.player_ids ?? []);
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const sheetHeadingRef = useRef<HTMLHeadingElement>(null);
+  const focusSheet = useRef(false);
+
+  useEffect(() => {
+    if (step !== "kicks" || !focusSheet.current) return;
+    focusSheet.current = false;
+    sheetHeadingRef.current?.focus();
+  }, [step]);
+
+  const start = useCallback(async () => {
+    if (!userSide || !autoOrder) return;
+    // The engine holds the auto order already; only a changed one is sent.
+    if (isOrderChanged(autoOrder.player_ids, order)) {
+      setStarting(true);
+      try {
+        const command = { SetShootoutOrder: { side: userSide, player_ids: [...order] } };
+        onSnapshotUpdate(await sendMatchCommand(command));
+      } catch (refusal) {
+        setError(resolveBackendError(refusal) || t("match.shootout.orderFailed"));
+        return;
+      } finally {
+        setStarting(false);
+      }
+    }
+    setError(null);
+    focusSheet.current = true;
+    setStep("kicks");
+  }, [userSide, autoOrder, order, onSnapshotUpdate, t]);
+
+  return { step, autoOrder, order, setOrder, starting, error, start, sheetHeadingRef };
+}
+
+/** The user's players the shootout can name, on the pitch first, then the bench. */
+function ownPlayers(snapshot: MatchSnapshot, userSide: "Home" | "Away" | null) {
+  const players = new Map<string, EnginePlayerData>();
+  if (!userSide) return players;
+  const team = userSide === "Home" ? snapshot.home_team : snapshot.away_team;
+  const bench = userSide === "Home" ? snapshot.home_bench : snapshot.away_bench;
+  for (const player of [...bench, ...team.players]) players.set(player.id, player);
+  return players;
+}
+
 /**
  * The penalty shootout, as a kick sheet: the score band with each side's kicks at a glance, the
  * sheet with every kicker and result round by round, and the live match's own speed control. It
- * steps one kick at a time, never batched, because watching each one is the point.
+ * steps one kick at a time, never batched, because watching each one is the point. Before the
+ * first kick, the manager may set his side's order (step 1), with the sheet previewing it.
  */
 export default function PenaltyShootoutScreen({
   snapshot,
   gameState,
+  userSide,
   onSnapshotUpdate,
   onImportantEvent,
   onFullTime,
 }: PenaltyShootoutScreenProps) {
   const { t } = useTranslation();
   const { pace, isRunning, pause, togglePause, selectPace } = useMatchPace("normal");
+  const picker = useShootoutOrderStep(snapshot, userSide, onSnapshotUpdate);
+  const picking = picker.step === "pick";
   const [stepFailed, setStepFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishedRef = useRef(false);
@@ -51,7 +149,17 @@ export default function PenaltyShootoutScreen({
   const homeName = snapshot.home_team.name;
   const awayName = snapshot.away_team.name;
   const ps = snapshot.penalty_shootout;
-  const sheet = useMemo(() => buildKickSheet(snapshot), [snapshot]);
+  const { autoOrder, order } = picker;
+  const sheet = useMemo(
+    () =>
+      buildKickSheet(
+        snapshot,
+        picking && userSide && autoOrder
+          ? { side: userSide, order, kickers: autoOrder.kickers }
+          : undefined,
+      ),
+    [snapshot, picking, userSide, autoOrder, order],
+  );
 
   const stepMatch = useCallback(async () => {
     if (finishedRef.current) return;
@@ -91,12 +199,14 @@ export default function PenaltyShootoutScreen({
   }, [stepMatch]);
 
   useEffect(() => {
-    if (!isRunning || stepFailed || finished) return;
+    // The engine does not wait for the order: no kick is taken while the picker shows.
+    if (picking || !isRunning || stepFailed || finished) return;
     timerRef.current = setTimeout(() => void stepMatch(), SPEED_MS[pace]);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [
+    picking,
     isRunning,
     stepFailed,
     finished,
@@ -123,43 +233,99 @@ export default function PenaltyShootoutScreen({
       />
       <LastKickAnnouncement snapshot={snapshot} sheet={sheet} />
 
-      <div className="mx-auto grid w-full max-w-page flex-1 items-start gap-4 p-4 md:grid-cols-[minmax(0,1fr)_18rem] lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <section
-          aria-labelledby="kick-sheet-heading"
-          className="overflow-hidden rounded-xl bg-panel shadow-sm"
-        >
-          <h2
-            id="kick-sheet-heading"
-            className="flex h-panel-header items-center border-b border-line px-4 font-heading text-heading font-bold text-fg"
-          >
-            {t("match.shootout.kickSheet")}
-          </h2>
-          <KickSheet sheet={sheet} homeName={homeName} awayName={awayName} />
-        </section>
-
-        <aside className="flex flex-col gap-4 rounded-xl bg-panel p-4 shadow-sm">
-          {stepFailed && (
-            <div role="alert" className="flex flex-col gap-2 rounded-lg bg-danger-tint p-3">
-              <p className="text-body font-semibold text-danger">
-                {t("match.shootout.stepFailed")}
-              </p>
-              <Button variant="outline" size="sm" onClick={retry} className="self-start">
-                {t("common.retry")}
-              </Button>
-            </div>
-          )}
-          <MatchSpeedControl
-            paused={!isRunning}
-            pace={pace}
-            onTogglePause={resumeOrPause}
-            onSelectPace={selectPace}
-            onStep={() => void stepMatch()}
-            stepLabel={t("match.shootout.nextKick")}
-            enabled={!finished}
+      {picking && userSide && autoOrder ? (
+        <div className="mx-auto grid w-full max-w-page flex-1 items-start gap-4 p-4 lg:grid-cols-2">
+          <ShootoutOrderPicker
+            order={order}
+            autoOrder={autoOrder.player_ids}
+            kickers={autoOrder.kickers}
+            players={ownPlayers(snapshot, userSide)}
+            penaltyTakerId={
+              (userSide === "Home" ? snapshot.home_set_pieces : snapshot.away_set_pieces)
+                .penalty_taker
+            }
+            starting={picker.starting}
+            error={picker.error}
+            onOrderChange={picker.setOrder}
+            onStart={() => void picker.start()}
           />
-        </aside>
-      </div>
+          <KickSheetPanel
+            sheet={sheet}
+            homeName={homeName}
+            awayName={awayName}
+            headingRef={picker.sheetHeadingRef}
+            note={t("match.shootout.opponentOrderHidden", {
+              team: userSide === "Home" ? awayName : homeName,
+            })}
+          />
+        </div>
+      ) : (
+        <div className="mx-auto grid w-full max-w-page flex-1 items-start gap-4 p-4 md:grid-cols-[minmax(0,1fr)_18rem] lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <KickSheetPanel
+            sheet={sheet}
+            homeName={homeName}
+            awayName={awayName}
+            headingRef={picker.sheetHeadingRef}
+          />
+
+          <aside className="flex flex-col gap-4 rounded-xl bg-panel p-4 shadow-sm">
+            {stepFailed && (
+              <div role="alert" className="flex flex-col gap-2 rounded-lg bg-danger-tint p-3">
+                <p className="text-body font-semibold text-danger">
+                  {t("match.shootout.stepFailed")}
+                </p>
+                <Button variant="outline" size="sm" onClick={retry} className="self-start">
+                  {t("common.retry")}
+                </Button>
+              </div>
+            )}
+            <MatchSpeedControl
+              paused={!isRunning}
+              pace={pace}
+              onTogglePause={resumeOrPause}
+              onSelectPace={selectPace}
+              onStep={() => void stepMatch()}
+              stepLabel={t("match.shootout.nextKick")}
+              enabled={!finished}
+            />
+          </aside>
+        </div>
+      )}
     </div>
+  );
+}
+
+/** The kick sheet under its heading, which takes the focus when the kicks begin. */
+function KickSheetPanel({
+  sheet,
+  homeName,
+  awayName,
+  headingRef,
+  note,
+}: {
+  sheet: Sheet;
+  homeName: string;
+  awayName: string;
+  headingRef: RefObject<HTMLHeadingElement | null>;
+  note?: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <section
+      aria-labelledby="kick-sheet-heading"
+      className="overflow-hidden rounded-xl bg-panel shadow-sm"
+    >
+      <h2
+        id="kick-sheet-heading"
+        ref={headingRef}
+        tabIndex={-1}
+        className="flex h-panel-header items-center border-b border-line px-4 font-heading text-heading font-bold text-fg focus:outline-none"
+      >
+        {t("match.shootout.kickSheet")}
+      </h2>
+      <KickSheet sheet={sheet} homeName={homeName} awayName={awayName} />
+      {note ? <p className="px-4 py-3 text-caption text-fg-muted">{note}</p> : null}
+    </section>
   );
 }
 

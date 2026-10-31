@@ -37,6 +37,9 @@ pub struct AppSettings {
     /// Whether the player folded the sidebar to its icon rail, remembered across launches.
     #[serde(default)]
     pub sidebar_collapsed: bool,
+    /// When true, a shootout starts in the automatic penalty order without showing the picker.
+    #[serde(default)]
+    pub skip_shootout_picker: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -92,6 +95,7 @@ impl Default for AppSettings {
             sidebar_width: default_sidebar_width(),
             sidebar_behaviour: default_sidebar_behaviour(),
             sidebar_collapsed: false,
+            skip_shootout_picker: false,
         }
     }
 }
@@ -265,6 +269,39 @@ mod tests {
         assert_eq!(read.sidebar_width, "compact");
         assert_eq!(read.sidebar_behaviour, "click");
         assert!(read.sidebar_collapsed);
+    }
+
+    /// Given a settings file written before the shootout picker setting existed
+    /// When it is loaded
+    /// Then the picker is not skipped: a shootout asks for the penalty order, as it does by default.
+    #[test]
+    fn a_settings_file_from_before_the_shootout_picker_setting_shows_the_picker() {
+        let json = r#"{"theme":"dark","language":"en","currency":"EUR","default_match_mode":"live",
+            "auto_save":true,"match_speed":"normal","show_match_commentary":true,
+            "confirm_advance":false,"ui_scale":"normal","high_contrast":false,
+            "continue_to_next_event":false,"sidebar_width":"standard",
+            "sidebar_behaviour":"normal","sidebar_collapsed":false}"#;
+
+        let settings: AppSettings = serde_json::from_str(json).expect("an older settings file");
+
+        assert!(!settings.skip_shootout_picker);
+    }
+
+    /// Given a player who chose to skip the shootout picker
+    /// When the settings are written and read back
+    /// Then the choice survives, so the next shootout uses the automatic order without asking.
+    #[test]
+    fn skipping_the_shootout_picker_survives_a_save_and_a_load() {
+        let chosen = AppSettings {
+            skip_shootout_picker: true,
+            ..AppSettings::default()
+        };
+
+        let json = serde_json::to_string(&validate_settings(chosen).expect("valid")).expect("json");
+        let read: AppSettings = serde_json::from_str(&json).expect("read back");
+        let read = normalize_loaded_settings(read);
+
+        assert!(read.skip_shootout_picker);
     }
 
     #[test]

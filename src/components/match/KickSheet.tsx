@@ -46,12 +46,18 @@ function KickMark({ cell, round }: { cell: KickCell; round: number }) {
 
 function KickSheetCell({ cell, round }: { cell: KickCell; round: number }) {
   const { t } = useTranslation();
-  const named = cell.state === "scored" || cell.state === "missed";
+  const taken = cell.state === "scored" || cell.state === "missed";
+  // A kick to come names its kicker only while the manager previews his own order.
+  const name = taken
+    ? (cell.kickerName ?? "")
+    : cell.state === "toCome"
+      ? (cell.plannedKickerName ?? "")
+      : "";
   return (
     <td className="h-row border-b border-line px-3">
       <span className="flex min-w-0 items-center gap-2">
         <KickMark cell={cell} round={round} />
-        <span className="min-w-0 truncate text-fg">{named ? (cell.kickerName ?? "") : ""}</span>
+        <span className={`min-w-0 truncate ${taken ? "text-fg" : "text-fg-muted"}`}>{name}</span>
         {/* The word stays for a screen reader where a narrow sheet folds it into the mark. */}
         <span
           className={`ml-auto shrink-0 text-caption font-semibold ${RESULT_TONE[cell.state]} sr-only @md:not-sr-only`}
