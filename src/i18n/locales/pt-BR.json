@@ -2697,6 +2697,7 @@
         "maxSubstitutionsReached": "O limite máximo de substituições foi atingido",
         "preMatchSwapTooLate": "As trocas pré-jogo só são permitidas antes do pontapé inicial",
         "cannotSubstituteSentOffPlayer": "Não é possível substituir um jogador expulso",
+        "noSubstitutionsForShootout": "Não há substituições depois da prorrogação: a disputa de pênaltis é feita pelos jogadores em campo no apito final.",
         "playerNotOnPitch": "O jogador não está em campo",
         "playerAlreadySubstitutedOff": "Esse jogador já foi substituído",
         "playerNotOnBench": "O jogador não está no banco",

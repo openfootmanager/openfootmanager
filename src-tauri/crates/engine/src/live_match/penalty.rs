@@ -116,8 +116,12 @@ impl LiveMatchState {
         let mut home_order = self.automatic_shootout_order(Side::Home);
         let mut away_order = self.automatic_shootout_order(Side::Away);
         // A side may use only as many kickers as the side with fewer players on the pitch.
-        // The side with more drops the end of its order.
-        let kickers = home_order.len().min(away_order.len());
+        // The side with more drops the end of its order. A side with nobody left does not hold
+        // the other to nobody: the other then kicks in its full order.
+        let kickers = match home_order.len().min(away_order.len()) {
+            0 => home_order.len().max(away_order.len()),
+            fewer => fewer,
+        };
         home_order.truncate(kickers);
         away_order.truncate(kickers);
         self.penalty_state = PenaltyShootoutState {

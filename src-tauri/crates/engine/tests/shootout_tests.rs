@@ -103,23 +103,21 @@ struct Kickers {
     away: Vec<String>,
 }
 
-/// Plays seed `seed` to a shootout and through it. `before_kick_off` runs before the first
-/// minute, `at_the_final_whistle` once extra time is over and before the shootout starts.
-/// `None` when the referee sent anyone off, since the tests choose who is off the pitch.
-fn shootout(
-    seed: u64,
-    before_kick_off: &dyn Fn(&mut LiveMatchState),
-    at_the_final_whistle: &dyn Fn(&mut LiveMatchState),
-) -> Option<Kickers> {
-    let mut state = LiveMatchState::new(
+fn kick_off(home_bench: Vec<PlayerData>) -> LiveMatchState {
+    LiveMatchState::new(
         side("h"),
         side("a"),
         MatchConfig::default(),
-        vec![],
+        home_bench,
         vec![],
         true,
-    );
-    before_kick_off(&mut state);
+    )
+}
+
+/// Plays `state` with seed `seed` to the final whistle of extra time, level: the phase is
+/// `ExtraTimeEnd` and the shootout has not begun. `None` when the referee sent anyone off, since
+/// the tests choose who is off the pitch.
+fn to_the_final_whistle(seed: u64, mut state: LiveMatchState) -> Option<(LiveMatchState, StdRng)> {
     let mut rng = StdRng::seed_from_u64(seed);
     while state.phase() != MatchPhase::ExtraTimeEnd {
         if state.phase() == MatchPhase::FullTime {
@@ -130,8 +128,12 @@ fn shootout(
     if !state.snapshot().sent_off.is_empty() {
         return None;
     }
-    at_the_final_whistle(&mut state);
     state.test_set_score(0, 0);
+    Some((state, rng))
+}
+
+/// Plays a match that is level at the final whistle of extra time through its shootout.
+fn play_out(mut state: LiveMatchState, mut rng: StdRng) -> Kickers {
     let mut kickers = Kickers {
         home: vec![],
         away: vec![],
@@ -151,9 +153,24 @@ fn shootout(
             }
         }
         if minute.is_finished {
-            return Some(kickers);
+            return kickers;
         }
     }
+}
+
+/// Plays seed `seed` to a shootout and through it. `before_kick_off` runs before the first
+/// minute, `at_the_final_whistle` once extra time is over and before the shootout starts.
+/// `None` when the referee sent anyone off.
+fn shootout(
+    seed: u64,
+    before_kick_off: &dyn Fn(&mut LiveMatchState),
+    at_the_final_whistle: &dyn Fn(&mut LiveMatchState),
+) -> Option<Kickers> {
+    let mut state = kick_off(vec![]);
+    before_kick_off(&mut state);
+    let (mut state, rng) = to_the_final_whistle(seed, state)?;
+    at_the_final_whistle(&mut state);
+    Some(play_out(state, rng))
 }
 
 fn shootouts(
@@ -321,4 +338,78 @@ fn both_sides_use_only_as_many_kickers_as_the_side_with_fewer() {
         wrapped > 2,
         "only {wrapped} shootouts went past seven kicks"
     );
+}
+
+const NO_SUBSTITUTIONS: &str = "be.error.liveMatch.noSubstitutionsForShootout";
+
+/// The first seed that reaches the final whistle of extra time with nobody sent off, with
+/// `h_sub` on the home bench.
+fn final_whistle_with_a_substitute() -> (LiveMatchState, StdRng) {
+    let substitute = player("h_sub", Position::Forward, (99, 99));
+    (0..SEEDS)
+        .find_map(|seed| to_the_final_whistle(seed, kick_off(vec![substitute.clone()])))
+        .expect("some seed reaches the final whistle without a red card")
+}
+
+fn bring_on_h_sub_for_h7(state: &mut LiveMatchState) -> Result<(), String> {
+    state.apply_command(MatchCommand::Substitute {
+        side: Side::Home,
+        player_off_id: "h7".to_string(),
+        player_on_id: "h_sub".to_string(),
+    })
+}
+
+/// Given a level match at the final whistle of extra time, with a substitute on the bench,
+/// When a manager tries to bring the substitute on before the shootout,
+/// Then it is refused: the shootout is taken by the players on the pitch at the final whistle,
+/// and the substitute never kicks.
+#[test]
+fn a_substitution_after_the_final_whistle_of_extra_time_is_refused() {
+    let (mut state, rng) = final_whistle_with_a_substitute();
+    assert_eq!(
+        bring_on_h_sub_for_h7(&mut state),
+        Err(NO_SUBSTITUTIONS.to_string())
+    );
+    let kicked = play_out(state, rng).home;
+    assert!(
+        !kicked.iter().any(|kicker| kicker == "h_sub"),
+        "the substitute kicked: {kicked:?}"
+    );
+}
+
+/// Given a shootout under way, with a substitute on the bench,
+/// When a manager tries to bring the substitute on,
+/// Then it is refused, and the side keeps kicking in its order.
+#[test]
+fn a_substitution_during_the_shootout_is_refused() {
+    let (mut state, mut rng) = final_whistle_with_a_substitute();
+    state.step_minute(&mut rng);
+    assert_eq!(state.phase(), MatchPhase::PenaltyShootout);
+    assert_eq!(
+        bring_on_h_sub_for_h7(&mut state),
+        Err(NO_SUBSTITUTIONS.to_string())
+    );
+    let home_order = ids(&[
+        "h4", "h6", "h2", "h1", "h5", "h3", "h8", "h10", "h9", "h7", "h_gk",
+    ]);
+    assert_follows(&play_out(state, rng).home, &home_order);
+}
+
+/// Given a side with nobody left on the pitch at the final whistle,
+/// When the shootout comes,
+/// Then the other side still kicks in its order: a side with nobody cannot hold the other to
+/// nobody.
+#[test]
+fn a_side_still_kicks_in_order_when_the_other_has_nobody_left() {
+    let whole_away_side_off = send_off(&[
+        "a_gk", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9", "a10",
+    ]);
+    let home_order = ids(&[
+        "h4", "h6", "h2", "h1", "h5", "h3", "h8", "h10", "h9", "h7", "h_gk",
+    ]);
+    let shootouts = shootouts(&nothing, &whole_away_side_off);
+    assert!(!shootouts.is_empty(), "some seed reaches a shootout");
+    for kickers in shootouts {
+        assert_follows(&kickers.home, &home_order);
+    }
 }
