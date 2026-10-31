@@ -402,7 +402,7 @@ export function ShootoutOrderPicker({
   return (
     <section
       aria-labelledby="shootout-order-heading"
-      className="flex flex-col overflow-hidden rounded-xl bg-panel shadow-sm"
+      className="flex flex-col overflow-clip rounded-xl bg-panel shadow-sm"
     >
       <header className="flex min-h-panel-header flex-wrap items-center gap-3 border-b border-line px-4 py-2">
         <h2 id="shootout-order-heading" className="font-heading text-heading font-bold text-fg">
