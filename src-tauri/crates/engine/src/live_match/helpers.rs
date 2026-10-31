@@ -79,33 +79,6 @@ impl LiveMatchState {
             .unwrap_or_else(PlayerSnap::nobody)
     }
 
-    pub(super) fn pick_penalty_taker<R: Rng>(&self, side: Side, rng: &mut R) -> PlayerSnap {
-        // Use designated taker if set
-        if let Some(ref id) = self.set_pieces_ref(side).penalty_taker {
-            let team = self.team_ref(side);
-            if let Some(p) = team
-                .players
-                .iter()
-                .find(|p| p.id == *id && !self.sent_off.contains(&p.id))
-            {
-                return PlayerSnap::from(p);
-            }
-        }
-        // Fallback: pick the forward with highest shooting
-        let team = self.team_ref(side);
-        let mut candidates: Vec<&PlayerData> = team
-            .players
-            .iter()
-            .filter(|p| !self.sent_off.contains(&p.id))
-            .collect();
-        candidates.sort_by_key(|p| std::cmp::Reverse(p.shooting));
-        if let Some(p) = candidates.first() {
-            PlayerSnap::from(p)
-        } else {
-            self.snap_player(side, Position::Forward, rng)
-        }
-    }
-
     pub(super) fn pick_goalkeeper(&self, side: Side) -> PlayerSnap {
         if let Some(keeper) = self.keeper_on_the_pitch(side) {
             return PlayerSnap::from(keeper);
@@ -191,6 +164,17 @@ impl LiveMatchState {
             Side::Home => (self.home_score, self.away_score),
             Side::Away => (self.away_score, self.home_score),
         }
+    }
+
+    /// Whether `player_id` is on `side`'s pitch: in the side's players and not sent off. A
+    /// substituted-off player is no longer in the side's players.
+    pub(super) fn is_on_the_pitch(&self, side: Side, player_id: &str) -> bool {
+        !self.sent_off.contains(player_id)
+            && self
+                .team_ref(side)
+                .players
+                .iter()
+                .any(|player| player.id == player_id)
     }
 
     /// The goalkeeper this side still has on the pitch: one who has not been

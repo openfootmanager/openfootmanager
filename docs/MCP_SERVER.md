@@ -141,9 +141,9 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 
 | Tool | Description |
 |------|-------------|
-| `time_advance` | Advance one day. Matches are auto-simulated in delegate mode. Returns round summary on match days. |
-| `time_skip_to_match_day` | Fast-forward day-by-day until next fixture. Use `time_advance` to then play the match. |
-| `time_check_blockers` | Check for live matches, pending transfer offers, or other blockers before advancing. |
+| `time_advance` | Advance one day. Matches are auto-simulated in delegate mode. Returns round summary on match days. Refused while a stopping blocker stands (see `time_check_blockers`): the reply lists them, and the squad, contract or other problem has to be resolved first, as on the screen. |
+| `time_skip_to_match_day` | Fast-forward day-by-day until next fixture. Use `time_advance` to then play the match. Stops with a `blocked` outcome, listing the blockers, before it starts if one stands and after any day that brings one. |
+| `time_check_blockers` | What stops time, from the game's own blocker check (`application::time_blockers`, the list and severities the UI uses; informational items such as unread urgent mail are left out): each blocker has an `id` (`injured_xi`, `incomplete_xi`, `squad_size_crisis`, `planned_contract_exit_crisis`, `key_contract_risk`, `contract_wage_risk`), a `severity`, the `tab` that resolves it and its `params`, plus `live_match_in_progress`. |
 
 ### Squad (7 tools)
 
@@ -252,7 +252,7 @@ Most of these are **disabled in competition mode** — agents use `--mcp-auto-st
 | `game_list_world_databases` | List available world databases (built-in random + user JSON files) |
 | `game_is_finished` | Check if the current game/season is finished |
 
-### Live Match (7 tools)
+### Live Match (8 tools)
 
 These tools allow agents to play matches interactively instead of delegating them.
 
@@ -261,7 +261,8 @@ These tools allow agents to play matches interactively instead of delegating the
 | `match_start` | Start a live match (live, spectator, instant). Paired `competition_id` + `fixture_id` select an exact fixture, including a cup, without requiring an index; otherwise `fixture_index` is required and selects the current league mirror. Extra time follows fixture rules; `allows_extra_time` is ignored. |
 | `match_step` | Advance the live match by N minutes |
 | `match_command` | Apply a tactical command (substitution, formation change, etc.) |
-| `match_snapshot` | Get current match state without advancing time |
+| `match_snapshot` | Get current match state without advancing time; during a shootout, your own side's kicking order (never the opponent's) |
+| `match_set_shootout_order` | Set your side's penalty shootout order: all your eligible players, reordered, once the shootout has started and before its first kick. A multi-minute `match_step` stops when the shootout starts, so there is always a chance to set it |
 | `match_finish` | Finish the match, apply results, and clean up |
 | `match_team_talk` | Apply a team talk (half-time or full-time) affecting player morale |
 | `match_press_conference` | Submit press conference answers affecting squad morale |

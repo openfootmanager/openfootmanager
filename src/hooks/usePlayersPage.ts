@@ -14,10 +14,22 @@ type Translate = Parameters<typeof resolveTranslatedErrorMessage>[1];
  * lists them. The query is state; `patchQuery` changes it and goes back to page 1 unless the
  * change is the page itself; `refetch` asks again for the same query after the game changed.
  * An answer to an older query is dropped, so a slow response never overwrites a newer page.
+ *
+ * `revision` names the state of the game the page is asked about (see `knowledgeRevision`): the
+ * hook asks again when it moves, and `answeredRevision` says which one the page it holds answers,
+ * so a screen can refuse an answer about another club or career while the next is on its way.
  */
-export function usePlayersPage(initialQuery: PlayersPageQuery, translate: Translate) {
+export function usePlayersPage(
+  initialQuery: PlayersPageQuery,
+  translate: Translate,
+  revision = "",
+) {
   const [query, setQuery] = useState<PlayersPageQuery>(initialQuery);
-  const [answer, setAnswer] = useState<{ query: PlayersPageQuery; page: PlayersPage } | null>(null);
+  const [answer, setAnswer] = useState<{
+    query: PlayersPageQuery;
+    revision: string;
+    page: PlayersPage;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refetchKey, setRefetchKey] = useState(0);
 
@@ -32,7 +44,8 @@ export function usePlayersPage(initialQuery: PlayersPageQuery, translate: Transl
     fetchPlayersPage(query)
       .then((result) => {
         if (cancelled) return;
-        setAnswer({ query, page: result });
+        // The revision the request was made under, not the one current when it lands.
+        setAnswer({ query, revision, page: result });
         setError(null);
       })
       .catch((failure) => {
@@ -42,7 +55,7 @@ export function usePlayersPage(initialQuery: PlayersPageQuery, translate: Transl
     return () => {
       cancelled = true;
     };
-  }, [query, refetchKey, translate]);
+  }, [query, refetchKey, translate, revision]);
 
   // A game update can leave fewer players than the page the user is on (a day passes, a scout is
   // sent): the backend then answers that page empty, and pagination hides once one page is left.
@@ -62,6 +75,7 @@ export function usePlayersPage(initialQuery: PlayersPageQuery, translate: Transl
     patchQuery,
     slice: answer?.page ?? null,
     answeredQuery: answer?.query ?? null,
+    answeredRevision: answer?.revision ?? null,
     error,
     refetch,
   };
