@@ -2,17 +2,18 @@ import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { Shield } from "lucide-react";
 import { countryName } from "../../lib/countries";
-import { positionBadgeVariant } from "../../lib/helpers";
 import type { PlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
+import { visibleRatingText } from "../../lib/playerKnowledge";
 import { formatPlayerMarketValue } from "./PlayerProfile.helpers";
 import type { PlayerProfileScoutStatus, ScoutAvailability } from "./PlayerProfile.scouting";
 import PlayerProfileScoutAction from "./PlayerProfileScoutAction";
 import { TraitList } from "../TraitBadge";
 import { Badge, Card, CountryFlag, JerseyIcon, PlayerAvatar } from "../ui";
 import type { TeamData } from "../../store/types";
+import PlayerPositionBadge from "../PlayerPositionBadge";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
@@ -83,7 +84,7 @@ export default function PlayerProfileHeroCard({
             className={`flex h-24 w-20 shrink-0 flex-col items-center justify-center rounded-2xl border-2 font-heading ${ovr === null ? "border-white/10 bg-white/5 text-chrome-fg-muted" : ratingTierClass(tierOf(ovr), "hero")}`}
           >
             <span className="text-xs font-bold uppercase tracking-wider">{t("common.ovr")}</span>
-            <span className="text-4xl font-bold leading-none">{ovr ?? NO_DATA}</span>
+            <span className="text-4xl font-bold leading-none">{visibleRatingText(ovr)}</span>
           </div>
           {player.jersey_number != null && team != null && (
             <JerseyIcon
@@ -100,9 +101,7 @@ export default function PlayerProfileHeroCard({
               {player.full_name}
             </h2>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
-              <Badge variant={positionBadgeVariant(primaryPosition)}>
-                {translatePositionLabel(t, primaryPosition)}
-              </Badge>
+              <PlayerPositionBadge position={primaryPosition} long />
               {player.alternate_positions?.map((alternatePosition) => (
                 <Badge key={alternatePosition} variant="neutral">
                   {translatePositionLabel(t, alternatePosition)}

@@ -412,6 +412,7 @@
     "currentWage": "Aktuelles Gehalt",
     "loading": "Lädt...",
     "loadingGameState": "Spielstand wird geladen...",
+    "detailsFor": "Details zu {{name}}",
     "overallRating": "Gesamtstärke {{value}}",
     "overallRatingTier": "Gesamtstärke {{value}}, Stufe {{tier}}",
     "noResults": "Keine Ergebnisse gefunden.",
@@ -3658,7 +3659,9 @@
       "weeklyDigest": {
         "headline": "Wochendigest — Woche vom {{weekStart}}",
         "bodyNoTopScorer": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, und {{storylineCount}} Storyline(s) prägen die Liga in dieser Woche.",
-        "bodyWithTopScorer": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, während {{topScorer}} mit {{topScorerGoals}} Tor(en) die Torjägerliste anführt. {{storylineCount}} Storyline(s) prägen die Liga in dieser Woche."
+        "bodyWithTopScorer": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, während {{topScorer}} mit {{topScorerGoals}} Tor(en) die Torjägerliste anführt. {{storylineCount}} Storyline(s) prägen die Liga in dieser Woche.",
+        "bodyNoTopScorerNoStorylines": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an.",
+        "bodyWithTopScorerNoStorylines": "Der aktuelle Wochendigest ist da. {{leader}} führen die Tabelle an, während {{topScorer}} mit {{topScorerGoals}} Tor(en) die Torjägerliste anführt."
       },
       "preseasonDigest": {
         "headline": "Vorbereitungsspiegel — Woche vom {{weekStart}}",

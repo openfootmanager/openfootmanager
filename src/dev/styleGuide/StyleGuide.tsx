@@ -9,6 +9,8 @@ import {
   CardHeader,
   Checkbox,
   CountryFlag,
+  DataTable,
+  type DataTableColumn,
   DatePicker,
   Dialog,
   DialogCloseButton,
@@ -24,6 +26,7 @@ import {
   RatingChip,
   SegmentedControl,
   Select,
+  type SortDirection,
   Switch,
   TONE_TEXT,
   TabPanel,
@@ -396,6 +399,100 @@ function CardsSection() {
   );
 }
 
+const TABLE_FIXTURES = [
+  { id: "t1", name: "Anderson", age: 31, morale: 72, starter: true, injured: false },
+  { id: "t2", name: "Navarro", age: 33, morale: 55, starter: true, injured: false },
+  { id: "t3", name: "Johnston", age: 29, morale: 61, starter: false, injured: true },
+  { id: "t4", name: "Graham", age: 34, morale: 80, starter: false, injured: false },
+];
+type TableFixture = (typeof TABLE_FIXTURES)[number];
+
+const TABLE_COLUMNS: DataTableColumn<TableFixture>[] = [
+  { key: "name", header: "Name", cell: (row) => row.name, primary: true, sortable: true },
+  { key: "age", header: "Age", cell: (row) => row.age, numeric: true, sortable: true },
+  // Folds into the row's details in a table narrower than 48rem.
+  { key: "morale", header: "Morale", cell: (row) => row.morale, numeric: true, drawer: true },
+];
+
+/** The panel a page puts its table in: DataTable draws none of its own. */
+function TablePanel({ children }: { children: ReactNode }) {
+  return <div className="overflow-hidden rounded-lg border border-line bg-panel">{children}</div>;
+}
+
+function TablesSection() {
+  const [sort, setSort] = useState<{ key: string; direction: SortDirection }>({
+    key: "age",
+    direction: "desc",
+  });
+  const sorted = [...TABLE_FIXTURES].sort((a, b) => {
+    const order = sort.key === "name" ? a.name.localeCompare(b.name) : a.age - b.age;
+    return sort.direction === "asc" ? order : -order;
+  });
+  return (
+    <Section title="Tables">
+      <div className="grid gap-4">
+        <TablePanel>
+          <DataTable
+            label="Squad (sortable; starters and an injury accented; morale folds when narrow)"
+            columns={TABLE_COLUMNS}
+            rows={sorted}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            sort={sort}
+            onSortChange={(key) =>
+              setSort((current) => ({
+                key,
+                direction: current.key === key && current.direction === "desc" ? "asc" : "desc",
+              }))
+            }
+            onOpen={() => undefined}
+            rowAccent={(row) => (row.injured ? "danger" : row.starter ? "positive" : null)}
+            rowAction={{
+              header: "Actions",
+              cell: (row) => (
+                <Button size="sm" variant="ghost" aria-label={`Menu for ${row.name}`}>
+                  ⋯
+                </Button>
+              ),
+            }}
+          />
+        </TablePanel>
+        <div className="max-w-md">
+          <TablePanel>
+            <DataTable
+              label="Narrow (morale in the row's details)"
+              columns={TABLE_COLUMNS}
+              rows={TABLE_FIXTURES.slice(0, 2)}
+              rowKey={(row) => row.id}
+              rowName={(row) => row.name}
+            />
+          </TablePanel>
+        </div>
+        <TablePanel>
+          <DataTable
+            label="Empty"
+            columns={TABLE_COLUMNS}
+            rows={[]}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            empty="No players match these filters."
+          />
+        </TablePanel>
+        <TablePanel>
+          <DataTable
+            label="Loading"
+            columns={TABLE_COLUMNS}
+            rows={[]}
+            rowKey={(row) => row.id}
+            rowName={(row) => row.name}
+            loading
+          />
+        </TablePanel>
+      </div>
+    </Section>
+  );
+}
+
 const PITCH_FIXTURES = [
   { name: "WOUTERS", abbr: "GK", position: "Goalkeeper", ovr: 74, condition: 45, fit: "exact" },
   {
@@ -650,6 +747,7 @@ export function StyleGuide({ options }: { options: StyleGuideOptions }) {
         <DisplaySection />
         <CardsSection />
         <PositionBadgeSection />
+        <TablesSection />
         <PitchSection />
         <DialogSection open={options.dialogOpen} />
       </div>

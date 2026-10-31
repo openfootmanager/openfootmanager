@@ -412,6 +412,7 @@
     "currentWage": "Current Wage",
     "loading": "Loading...",
     "loadingGameState": "Loading game state...",
+    "detailsFor": "Details for {{name}}",
     "overallRating": "Overall {{value}}",
     "overallRatingTier": "Overall {{value}}, tier {{tier}}",
     "noResults": "No results found.",
@@ -3658,7 +3659,9 @@
       "weeklyDigest": {
         "headline": "Weekly Digest — Week of {{weekStart}}",
         "bodyNoTopScorer": "The latest weekly digest is here. {{leader}} lead the table, and {{storylineCount}} storyline(s) are shaping the division this week.",
-        "bodyWithTopScorer": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s). {{storylineCount}} storyline(s) are shaping the division this week."
+        "bodyWithTopScorer": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s). {{storylineCount}} storyline(s) are shaping the division this week.",
+        "bodyNoTopScorerNoStorylines": "The latest weekly digest is here. {{leader}} lead the table.",
+        "bodyWithTopScorerNoStorylines": "The latest weekly digest is here. {{leader}} lead the table, while {{topScorer}} heads the scoring charts with {{topScorerGoals}} goal(s)."
       },
       "preseasonDigest": {
         "headline": "Preseason Digest — Week of {{weekStart}}",
