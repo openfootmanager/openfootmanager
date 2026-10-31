@@ -12,8 +12,12 @@ use crate::client::{CallError, Refusal};
 /// saves directory.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Snapshot {
-    /// `None` before any game exists.
+    /// `None` before any game exists, and always `None` in a competition app (no state oracle).
     pub game: Option<Value>,
+    /// What an agent in a competition app can read of its own state, `info_game_summary`, so a
+    /// refusal that changed the live game without writing a save is still seen. `None` in a sandbox
+    /// app (the whole game is compared instead) and before any game exists.
+    pub summary: Option<Value>,
     /// Saves-relative path → content hash of every file the app wrote.
     pub files: BTreeMap<String, u64>,
 }
@@ -21,28 +25,36 @@ pub struct Snapshot {
 impl Snapshot {
     pub fn take(app: &App) -> Result<Self, CallError> {
         // A competition server offers no state dump to anyone, the harness included, so its
-        // snapshots hold the files alone.
-        let game = if app.mode() == Mode::Competition {
-            None
+        // snapshots compare the agent-visible summary instead of the whole game.
+        let competition = app.mode() == Mode::Competition;
+        let (tool, field) = if competition {
+            ("info_game_summary", None)
         } else {
-            match app
-                .client()
-                .call_value("dev_full_game_state", serde_json::json!({}))
+            ("dev_full_game_state", Some("game"))
+        };
+        let state = match app.client().call_value(tool, serde_json::json!({})) {
+            Ok(state) => Some(field.map_or(state.clone(), |field| state[field].clone())),
+            Err(CallError::Refused(refusal))
+                if refusal.key.as_deref() == Some("be.error.noActiveGameSession") =>
             {
-                Ok(state) => Some(state["game"].clone()),
-                Err(CallError::Refused(refusal))
-                    if refusal.key.as_deref() == Some("be.error.noActiveGameSession") =>
-                {
-                    None
-                }
-                Err(other) => return Err(other),
+                None
             }
+            Err(other) => return Err(other),
+        };
+        let (game, summary) = if competition {
+            (None, state)
+        } else {
+            (state, None)
         };
         let files = app
             .saves_dir()
             .map(|dir| hash_files(&dir))
             .unwrap_or_default();
-        Ok(Self { game, files })
+        Ok(Self {
+            game,
+            summary,
+            files,
+        })
     }
 
     /// What differs from `other`, one line each; empty when they are the same.
@@ -52,6 +64,13 @@ impl Snapshot {
             (Some(a), Some(b)) => found.extend(object_differences(a, b)),
             (None, None) => {}
             _ => found.push("a game appeared or disappeared".to_string()),
+        }
+        match (&self.summary, &other.summary) {
+            (Some(a), Some(b)) if a != b => {
+                found.push("the agent-visible summary changed".to_string())
+            }
+            (Some(_), Some(_)) | (None, None) => {}
+            _ => found.push("a summary appeared or disappeared".to_string()),
         }
         for (path, hash) in &self.files {
             match other.files.get(path) {
@@ -146,6 +165,7 @@ mod tests {
     fn snapshot(game: Value, files: &[(&str, u64)]) -> Snapshot {
         Snapshot {
             game: Some(game),
+            summary: None,
             files: files.iter().map(|(p, h)| (p.to_string(), *h)).collect(),
         }
     }
@@ -187,5 +207,26 @@ mod tests {
             before.differences(&file_removed),
             vec!["file removed: s.db"]
         );
+    }
+
+    /// Given two competition-style snapshots that differ only in what an agent can read
+    /// When they are compared
+    /// Then the change is reported, though neither holds the whole game nor any file.
+    #[test]
+    fn a_change_in_the_agent_visible_summary_is_reported() {
+        let competition = |summary: Value| Snapshot {
+            game: None,
+            summary: Some(summary),
+            files: BTreeMap::new(),
+        };
+        let before = competition(json!({"date": "2026-08-01"}));
+
+        let after = competition(json!({"date": "2026-08-02"}));
+
+        assert_eq!(
+            before.differences(&after),
+            vec!["the agent-visible summary changed"]
+        );
+        assert!(before.differences(&before.clone()).is_empty());
     }
 }

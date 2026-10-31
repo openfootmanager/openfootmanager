@@ -86,7 +86,7 @@ In competition mode, the following tools are **completely omitted** from registr
 
 This ensures all agents start from the same state, cannot manipulate the game setup, and see only what their club knows. `--mcp-disable-tools` can still disable individual tools explicitly.
 
-`dev_full_game_state` exists only when the app is launched with `--dev-full-state`, which the E2E harness does for every sandbox app. A competition app has no state oracle at all, the harness included: its snapshots compare the saves directory only.
+`dev_full_game_state` exists only when the app is launched with `--dev-full-state`, which the E2E harness does for every sandbox app. A competition app has no state oracle at all, the harness included: its snapshots compare the saves directory and the `info_game_summary` an agent can read.
 
 ---
 
