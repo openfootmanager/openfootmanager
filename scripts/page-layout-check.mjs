@@ -24,8 +24,11 @@ const WINDOWS = [
   { width: 960, height: 640, scale: "xlarge", lang: "de" },
 ];
 
+/** The harness's pages (HARNESS_PAGES in src/dev/pageHarness/harnessPage.ts; a test holds them equal). */
+const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
+
 /** Every page at every window; `page: undefined` is the style guide itself. */
-export const CASES = [undefined, "home", "squad"].flatMap((page) =>
+export const CASES = [undefined, ...PAGES].flatMap((page) =>
   WINDOWS.map((window) => ({ page, ...window })),
 );
 
@@ -36,9 +39,49 @@ export function nodeProblem(webSocket, version) {
     : `page-layout-check needs Node 22 or later for the built-in WebSocket; you have ${version}`;
 }
 
+/**
+ * The faces the app bundles (App.css's @fontsource imports and its Cyrillic @font-face blocks; a
+ * test holds the two equal). A width measured while one of them hadn't loaded is the width of
+ * whatever system font stood in, which is why two machines got different numbers: so every case
+ * first loads each of these, and fails if one doesn't.
+ *
+ * A face scoped by `unicode-range` (the Cyrillic ones) only loads for text in its range, so its
+ * entry names a `script` and a `sample` in it; the Latin faces are loaded with the default sample.
+ */
+export const REQUIRED_FACES = [
+  ...[400, 500, 600, 700].map((weight) => ({ family: "Inter", weight })),
+  ...[600, 700].map((weight) => ({ family: "Barlow Condensed", weight })),
+  ...[400, 500, 600, 700].map((weight) => ({
+    family: "Inter",
+    weight,
+    script: "cyrillic",
+    sample: "Яё",
+  })),
+  ...[400, 500, 600, 700].map((weight) => ({
+    family: "Inter",
+    weight,
+    script: "cyrillic-ext",
+    sample: "Ѡ",
+  })),
+  ...[600, 700].map((weight) => ({
+    family: "Fira Sans Extra Condensed",
+    weight,
+    script: "cyrillic",
+    sample: "Яё",
+  })),
+];
+
 /** What is wrong with one measured case; empty when it passes. */
-export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered }) {
+export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered, faces }) {
   const problems = [];
+  // The weight asked for, not just any: the browser stands the nearest weight it has in for one it
+  // lacks, and a 600 drawn in place of a 700 has other widths.
+  for (const { family, weight, script, loadedWeights } of faces) {
+    if (!loadedWeights.includes(String(weight)))
+      problems.push(
+        `font not loaded: ${family} ${weight}${script ? ` ${script}` : ""} (a system fallback drew it)`,
+      );
+  }
   if (scrollWidth > innerWidth) {
     problems.push(`the page scrolls sideways (${scrollWidth} > ${innerWidth})`);
   }
@@ -48,10 +91,60 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered 
   return problems;
 }
 
+/**
+ * Loads each face and reports the weights it loaded at. Runs in the page (its source is sent
+ * there), on `document.fonts`. `load()` resolves to the faces it loaded: none means no bundled face
+ * matched, and a system font drew that text (`check()` can't tell: it answers true for a family it
+ * has never heard of). A request that errors (the dev server refusing the font file) is a face that
+ * didn't load, so the case names it instead of the error ending the run. The sample includes German
+ * letters, the check's longest labels.
+ */
+export async function loadFaces(fonts, faces) {
+  // Whether a loaded face is the one scoped to the sample's script, and not an unscoped face of the
+  // same family that also covers it (a rangeless import claims every character, so `load()` returns
+  // it for Cyrillic text too and would vouch for a Cyrillic face that did not match). It lives in
+  // here because this function's source is what is sent to the page.
+  const scopedTo = (face, sample) => {
+    const range = String(face.unicodeRange ?? "")
+      .replace(/\s/g, "")
+      .toUpperCase();
+    if (range === "" || range === "U+0-10FFFF") return false;
+    const point = sample.codePointAt(0);
+    return range.split(",").some((part) => {
+      const [low, high = low] = part
+        .replace(/^U\+/, "")
+        .split("-")
+        .map((hex) => Number.parseInt(hex, 16));
+      return point >= low && point <= high;
+    });
+  };
+  return Promise.all(
+    faces.map(async ({ family, weight, script, sample }) => {
+      const loaded = await fonts
+        .load(`${weight} 16px "${family}"`, sample ?? "Aa ÄÖÜß")
+        .catch(() => []);
+      const ofScript = script ? loaded.filter((face) => scopedTo(face, sample)) : loaded;
+      return {
+        family,
+        weight,
+        ...(script ? { script } : {}),
+        loadedWeights: ofScript.map((face) => face.weight),
+      };
+    }),
+  );
+}
+
+// The first wait lets the harness mount and its answers land; the fonts are waited for after.
 const MEASURE = `(async () => {
   await new Promise((resolve) => setTimeout(resolve, 2500));
+  const faces = await (${loadFaces.toString()})(document.fonts, ${JSON.stringify(REQUIRED_FACES)});
+  await document.fonts.ready;
   const harness = window.__pageHarness;
   return JSON.stringify({
+    faces,
+    loadedFaces: [...new Set([...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family + " " + face.weight))],
+    userAgent: navigator.userAgent,
+    devicePixelRatio: window.devicePixelRatio,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
     unanswered: harness ? harness.unanswered : [],
@@ -144,6 +237,10 @@ async function main(base) {
       "--disable-gpu",
       "--no-sandbox",
       "--remote-debugging-port=0",
+      // Pinned so a width doesn't depend on the machine: no hinting (it rounds glyph advances to the
+      // pixel grid, and machines hint differently), and one device pixel per CSS pixel.
+      "--font-render-hinting=none",
+      "--force-device-scale-factor=1",
       `--user-data-dir=${profile}`,
       "about:blank",
     ],
@@ -158,8 +255,15 @@ async function main(base) {
   let failed = 0;
   try {
     const { socket, call } = await connect(await devtools(profile, chrome));
-    for (const testCase of CASES) {
-      const problems = judge(await measure(call, base, testCase));
+    for (const [index, testCase] of CASES.entries()) {
+      const measured = await measure(call, base, testCase);
+      if (index === 0) {
+        // What the numbers were measured with, so two runs can be compared.
+        console.log(`browser: ${measured.userAgent}`);
+        console.log(`device pixel ratio: ${measured.devicePixelRatio}`);
+        console.log(`fonts loaded: ${measured.loadedFaces.join(", ")}`);
+      }
+      const problems = judge(measured);
       const label = `${testCase.page ?? "style guide"} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
         `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,

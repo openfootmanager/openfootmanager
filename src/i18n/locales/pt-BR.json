@@ -412,6 +412,7 @@
     "currentWage": "Salário atual",
     "loading": "Carregando...",
     "loadingGameState": "Carregando estado do jogo...",
+    "detailsFor": "Detalhes de {{name}}",
     "overallRating": "Geral {{value}}",
     "overallRatingTier": "Geral {{value}}, nível {{tier}}",
     "noResults": "Nenhum resultado encontrado.",
@@ -699,7 +700,6 @@
     "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banco {{bench}}",
     "bestRole": "Melhor função",
-    "formationFit": "Familiaridade",
     "startingXi": "Onze inicial",
     "starter": "Titular",
     "benchOption": "Banco",
@@ -1618,6 +1618,7 @@
     "dateOfBirth": "Data de Nascimento",
     "noContract": "Sem contrato",
     "weeklyWage": "Salário Semanal",
+    "approximateWage": "cerca de {{wage}}",
     "annualWage": "Salário Anual",
     "yearsRemaining": "Anos restantes",
     "contractRisk": "Risco contratual",
@@ -1837,6 +1838,21 @@
     },
     "uiScale": "Escala da Interface",
     "uiScaleDesc": "Ajuste o tamanho da fonte e espaçamento para melhor leitura",
+    "sidebarWidth": "Largura da barra lateral",
+    "sidebarWidthDesc": "A largura da barra lateral aberta. “Larga” mostra cada nome do menu em uma linha.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Padrão",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Como a barra lateral abre. Se a janela for estreita demais, ela abre sobre a página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir ao passar o mouse",
+      "click": "Abrir com um clique",
+      "icons": "Só ícones"
+    },
     "uiScaleOptions": {
       "small": "Pequena",
       "normal": "Normal",
@@ -1951,7 +1967,10 @@
       "suddenDeath": "Morte Súbita",
       "shootoutScore": "Pênaltis: {{h}} – {{a}}",
       "homeKick": "Cobrança do time da casa...",
-      "awayKick": "Cobrança do time visitante..."
+      "awayKick": "Cobrança do time visitante...",
+      "kickScored": "Cobrança {{n}}, convertida",
+      "kickMissed": "Cobrança {{n}}, perdida",
+      "kickToCome": "Cobrança {{n}}, ainda por cobrar"
     },
     "fullTime": "Fim de Jogo",
     "ft": "FJ",
@@ -2681,6 +2700,7 @@
         "maxSubstitutionsReached": "O limite máximo de substituições foi atingido",
         "preMatchSwapTooLate": "As trocas pré-jogo só são permitidas antes do pontapé inicial",
         "cannotSubstituteSentOffPlayer": "Não é possível substituir um jogador expulso",
+        "noSubstitutionsForShootout": "Não há substituições depois da prorrogação: a disputa de pênaltis é feita pelos jogadores em campo no apito final.",
         "playerNotOnPitch": "O jogador não está em campo",
         "playerAlreadySubstitutedOff": "Esse jogador já foi substituído",
         "playerNotOnBench": "O jogador não está no banco",
@@ -3643,7 +3663,9 @@
       "weeklyDigest": {
         "headline": "Resumo Semanal — Semana de {{weekStart}}",
         "bodyNoTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela e {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana.",
-        "bodyWithTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s). {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana."
+        "bodyWithTopScorer": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s). {{storylineCount}} narrativa(s) estão moldando a divisão nesta semana.",
+        "bodyNoTopScorerNoStorylines": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela.",
+        "bodyWithTopScorerNoStorylines": "O mais recente resumo semanal chegou. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a artilharia com {{topScorerGoals}} gol(s)."
       },
       "preseasonDigest": {
         "headline": "Resumo da pré-temporada — Semana de {{weekStart}}",

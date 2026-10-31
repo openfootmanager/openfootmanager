@@ -206,6 +206,8 @@ This validates first, then creates `my-first-league.ofm` in your current directo
 ofm-cli pack my-first-league --output ~/Downloads/my-first-league.ofm
 ```
 
+Build packages with `ofm-cli pack` or the World Editor's **Build .ofm** button. If you zip one by hand, use standard (Deflate) compression or none (Store); the game refuses entries compressed any other way.
+
 ---
 
 ## Step 6 — Install In-Game

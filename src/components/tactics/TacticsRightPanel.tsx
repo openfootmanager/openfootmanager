@@ -1,6 +1,5 @@
 import type { JSX } from "react";
 import { useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Award, ChevronDown, CircleDot, CornerDownRight, Crown, Footprints } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { GameStateData, PlayerData, TeamMatchRolesData } from "../../store/gameStore";
@@ -11,7 +10,11 @@ import {
   buildUpdatedMatchRolesForAssignment,
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
-import { type AutoSetPieces, autoSelectSetPieces } from "../../services/squadService";
+import {
+  type AutoSetPieces,
+  autoSelectSetPieces,
+  setTeamMatchRoles,
+} from "../../services/squadService";
 
 interface TacticsRightPanelProps {
   allSquad: PlayerData[];
@@ -52,9 +55,7 @@ export default function TacticsRightPanel({
 
   async function persistMatchRoles(nextRoles: TeamMatchRolesData): Promise<void> {
     try {
-      const updated = await invoke<GameStateData>("set_team_match_roles", {
-        matchRoles: nextRoles,
-      });
+      const updated = await setTeamMatchRoles(nextRoles);
       onGameUpdate(updated);
     } catch (error) {
       console.error("Failed to set team match roles:", error);

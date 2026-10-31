@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData } from "../store/gameStore";
+import { invokeForCareer } from "./careerInvoke";
 
 export interface TransferNegotiationFeedbackData {
   mood: "calm" | "firm" | "tense" | "positive" | "guarded";
@@ -58,7 +59,7 @@ export async function makeTransferBid(
   playerId: string,
   fee: number,
 ): Promise<TransferNegotiationResponseData> {
-  return invoke<TransferNegotiationResponseData>("make_transfer_bid", {
+  return invokeForCareer<TransferNegotiationResponseData>("make_transfer_bid", {
     playerId,
     fee,
   });
@@ -70,7 +71,7 @@ export async function makeLoanOffer(
   wageContributionPct: number,
   buyOptionFee: number | null = null,
 ): Promise<LoanOfferResponseData> {
-  return invoke<LoanOfferResponseData>("make_loan_offer", {
+  return invokeForCareer<LoanOfferResponseData>("make_loan_offer", {
     playerId,
     endDate,
     wageContributionPct,
@@ -79,7 +80,7 @@ export async function makeLoanOffer(
 }
 
 export async function exerciseLoanBuyOption(playerId: string): Promise<GameStateData> {
-  return invoke<GameStateData>("exercise_loan_buy_option", {
+  return invokeForCareer<GameStateData>("exercise_loan_buy_option", {
     playerId,
   });
 }
@@ -89,7 +90,7 @@ export async function respondToOffer(
   offerId: string,
   accept: boolean,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("respond_to_offer", {
+  return invokeForCareer<GameStateData>("respond_to_offer", {
     playerId,
     offerId,
     accept,
@@ -101,7 +102,7 @@ export async function respondToLoanOffer(
   offerId: string,
   accept: boolean,
 ): Promise<GameStateData> {
-  return invoke<GameStateData>("respond_to_loan_offer", {
+  return invokeForCareer<GameStateData>("respond_to_loan_offer", {
     playerId,
     offerId,
     accept,
@@ -115,7 +116,7 @@ export async function counterLoanOffer(
   wageContributionPct: number,
   buyOptionFee: number | null = null,
 ): Promise<LoanOfferResponseData> {
-  return invoke<LoanOfferResponseData>("counter_loan_offer", {
+  return invokeForCareer<LoanOfferResponseData>("counter_loan_offer", {
     playerId,
     offerId,
     endDate,
@@ -129,7 +130,7 @@ export async function counterOffer(
   offerId: string,
   requestedFee: number,
 ): Promise<TransferNegotiationResponseData> {
-  return invoke<TransferNegotiationResponseData>("counter_offer", {
+  return invokeForCareer<TransferNegotiationResponseData>("counter_offer", {
     playerId,
     offerId,
     requestedFee,
@@ -160,13 +161,13 @@ export async function previewTransferBidFinancialImpact(
 }
 
 export async function toggleTransferList(playerId: string): Promise<GameStateData> {
-  return invoke<GameStateData>("toggle_transfer_list", {
+  return invokeForCareer<GameStateData>("toggle_transfer_list", {
     playerId,
   });
 }
 
 export async function toggleLoanList(playerId: string): Promise<GameStateData> {
-  return invoke<GameStateData>("toggle_loan_list", {
+  return invokeForCareer<GameStateData>("toggle_loan_list", {
     playerId,
   });
 }

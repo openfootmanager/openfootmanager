@@ -10,7 +10,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use season_harness::driver::{RunOptions, run_seasons};
 use season_harness::fingerprint::{StatsLog, fingerprint};
 use season_harness::invariants::Invariants;
-use season_harness::worlds::WorldSpec;
+use season_harness::worlds::{Scope, WorldSpec};
 
 fn hash_of(text: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
@@ -47,5 +47,14 @@ fn the_fingerprint_hash_of_fixed_runs() {
     eprintln!(
         "FINGERPRINT shipped seed {shipped_seed} one season {:016x}",
         play(&WorldSpec::shipped(shipped_seed), 1)
+    );
+    // A followed season settles most of the world by scoreline, so the full day every other club
+    // plays is only covered by a run with every competition active.
+    eprintln!(
+        "FINGERPRINT shipped seed {shipped_seed} one season every match real {:016x}",
+        play(
+            &WorldSpec::shipped(shipped_seed).with_scope(Scope::Everything),
+            1
+        )
     );
 }

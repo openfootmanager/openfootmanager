@@ -1,7 +1,7 @@
 use super::evaluate_transfer_market;
 use crate::clock::GameClock;
 use crate::game::Game;
-use chrono::{TimeZone, Utc};
+use chrono::{NaiveDate, TimeZone, Utc};
 use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position, TransferOfferStatus};
 use domain::season::TransferWindowStatus;
@@ -344,4 +344,142 @@ fn a_club_that_just_sold_is_held_to_the_wage_bill_it_has_after_the_sale() {
         "the first sale did not happen"
     );
     assert_eq!(club_of("sold-by-c").as_deref(), Some("a"));
+}
+
+/// Given a buyer whose wage bill leaves room for a modest player but not for the dearest one,
+/// and two bargains at one club, the dearer listed first and so the top-scored,
+/// When the sweep reaches the buyer,
+/// Then it signs the modest one: the board's refusal of the dear one is seen when the buyer picks,
+///      not after it has spent its one approach on him. Read as an empty bill, the dear one
+///      would pass that check, be picked, and be refused at the signing.
+#[test]
+fn a_buyer_moves_on_from_a_target_its_board_would_refuse() {
+    let mut game = make_game();
+    game.players.clear();
+    game.teams = vec![
+        make_team("team1", "Alpha FC", 700),
+        make_team("a", "Atlas FC", 700),
+        make_team("c", "Cobra FC", 700),
+    ];
+    for club in ["a", "c"] {
+        game.players.extend(full_squad(club));
+    }
+    let mut dear = bargain("dear", "c", 20_000);
+    dear.market_value = 3_000_000;
+    let modest = bargain("modest", "c", 20_000);
+    let wage_for_a = |game: &Game, player: &Player| {
+        i64::from(
+            super::execution::buyers_standard_terms(game, player, "a")
+                .expect("the buyer can be given a standard contract")
+                .1,
+        )
+    };
+    let (dear_wage, modest_wage) = (wage_for_a(&game, &dear), wage_for_a(&game, &modest));
+    assert!(
+        dear_wage > modest_wage,
+        "the dear target must cost more to pay"
+    );
+
+    // The budget puts the soft cap (110%) just above the dear wage, so on an empty bill he passes;
+    // the bill is then set so exactly the modest wage still fits under the cap and the dear one
+    // does not.
+    let budget = dear_wage * 100 / 110 + 1;
+    let cap = budget * 110 / 100;
+    let bill = cap - modest_wage;
+    assert!(
+        bill <= budget && bill + dear_wage > cap,
+        "the numbers must separate the two"
+    );
+    game.teams[1].wage_budget = budget;
+    game.teams[1].transfer_budget = 50_000_000;
+    game.teams[1].finance = 50_000_000;
+    let squad_bill = crate::finances::calc_wages(&game, "a");
+    let anchor_wage = u32::try_from(bill - squad_bill)
+        .expect("the squad alone must not already cost more than the bill the test sets");
+    game.players.push(squad_player(
+        "anchor",
+        "a",
+        Position::Midfielder,
+        anchor_wage,
+    ));
+    game.players.push(dear);
+    game.players.push(modest);
+    assert_eq!(crate::finances::calc_wages(&game, "a"), bill);
+
+    evaluate_transfer_market(&mut game);
+
+    let club_of = |id: &str| {
+        game.players
+            .iter()
+            .find(|player| player.id == id)
+            .and_then(|player| player.team_id.clone())
+    };
+    assert_eq!(club_of("dear").as_deref(), Some("c"));
+    assert_eq!(club_of("modest").as_deref(), Some("a"));
+}
+
+/// A forward at "owner" with no contract end, so only morale, playing time, the clubs'
+/// reputations and the list decide how open he is to a move.
+fn mover(morale: u8, appearances: u32) -> Player {
+    let mut player = squad_player("mover", "owner", Position::Forward, 100);
+    player.stage_contract_end(None);
+    player.morale = morale;
+    player.stats.appearances = appearances;
+    player
+}
+
+fn openness_towards(player: &Player, buyer_reputation: u32) -> i32 {
+    super::player_move_openness_score(
+        NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
+        player,
+        &make_team("owner", "Owner FC", 500),
+        &make_team("buyer", "Buyer FC", buyer_reputation),
+    )
+}
+
+/// Given an unlisted player with ten appearances, on morale 50 and with no contract end, and a
+///       buyer 100 above his club in reputation
+/// When his openness to the move is scored
+/// Then it is 25: 10 for middling morale and 15 for the step up, each counted once.
+#[test]
+fn a_middling_morale_and_a_step_up_make_a_player_somewhat_open_to_a_move() {
+    assert_eq!(openness_towards(&mover(50, 10), 600), 25);
+}
+
+/// Given a contented player (morale 70) with one appearance, and a buyer of his club's standing
+/// When his openness to the move is scored
+/// Then it is 15, all of it for the lack of playing time.
+#[test]
+fn a_player_without_games_is_open_to_a_move_for_that_alone() {
+    assert_eq!(openness_towards(&mover(70, 1), 500), 15);
+}
+
+/// Given a contented regular starter (morale 70, ten appearances), and a buyer 250 above his
+///       club in reputation
+/// When his openness to the move is scored
+/// Then it is 25, all of it for the big step up.
+#[test]
+fn a_big_step_up_makes_a_contented_player_open_to_a_move() {
+    assert_eq!(openness_towards(&mover(70, 10), 750), 25);
+}
+
+/// Given an unlisted fringe player valued 1,000,000 on a long contract, contented, with no
+///       games (15) and a buyer 250 above his club in reputation (25): openness exactly 40
+/// When his club sets its asking price
+/// Then it is 1,100,000: the 120% an unlisted player costs, less a tenth for his openness.
+#[test]
+fn an_open_player_lowers_the_asking_price_by_a_tenth() {
+    let mut player = mover(70, 0);
+    player.stage_contract_end(Some("2028-06-30".to_string()));
+    player.market_value = 1_000_000;
+    assert_eq!(openness_towards(&player, 750), 40);
+
+    let asking = super::minimum_acceptable_fee(
+        NaiveDate::from_ymd_opt(2026, 8, 1).unwrap(),
+        &player,
+        &make_team("owner", "Owner FC", 500),
+        &make_team("buyer", "Buyer FC", 750),
+    );
+
+    assert_eq!(asking, 1_100_000);
 }

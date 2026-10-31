@@ -412,6 +412,7 @@
     "currentWage": "Salario actual",
     "loading": "Cargando...",
     "loadingGameState": "Cargando estado del juego...",
+    "detailsFor": "Detalles de {{name}}",
     "overallRating": "Nivel general {{value}}",
     "overallRatingTier": "Nivel general {{value}}, categoría {{tier}}",
     "noResults": "No se encontraron resultados.",
@@ -699,7 +700,6 @@
     "coverageNeedsAttention": "{{count}} grupos de roles necesitan cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banquillo {{bench}}",
     "bestRole": "Mejor rol",
-    "formationFit": "Familiaridad",
     "startingXi": "Once titular",
     "starter": "Titular",
     "benchOption": "Banquillo",
@@ -1618,6 +1618,7 @@
     "dateOfBirth": "Fecha de Nacimiento",
     "noContract": "Sin contrato",
     "weeklyWage": "Salario Semanal",
+    "approximateWage": "aprox. {{wage}}",
     "annualWage": "Salario Anual",
     "yearsRemaining": "Años restantes",
     "contractRisk": "Riesgo contractual",
@@ -1837,6 +1838,21 @@
     },
     "uiScale": "Escala de UI",
     "uiScaleDesc": "Ajustar tamaño de fuente y espaciado para legibilidad",
+    "sidebarWidth": "Ancho de la barra lateral",
+    "sidebarWidthDesc": "Qué tan ancha es la barra lateral abierta. «Ancha» muestra cada nombre del menú en una línea.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Estándar",
+      "wide": "Ancha"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Cómo se abre la barra lateral. Si la ventana es demasiado estrecha, se abre sobre la página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir al pasar el ratón",
+      "click": "Abrir con un clic",
+      "icons": "Solo iconos"
+    },
     "uiScaleOptions": {
       "small": "Pequeña",
       "normal": "Normal",
@@ -2008,7 +2024,10 @@
       "suddenDeath": "Muerte Súbita",
       "shootoutScore": "Penaltis: {{h}} – {{a}}",
       "homeKick": "Disparo del equipo local...",
-      "awayKick": "Disparo del equipo visitante..."
+      "awayKick": "Disparo del equipo visitante...",
+      "kickScored": "Penalti {{n}}, marcado",
+      "kickMissed": "Penalti {{n}}, fallado",
+      "kickToCome": "Penalti {{n}}, por lanzar"
     },
     "fullTime": "Tiempo Completo",
     "ft": "TC",
@@ -2681,6 +2700,7 @@
         "maxSubstitutionsReached": "Se alcanzó el máximo de sustituciones",
         "preMatchSwapTooLate": "Los cambios previos al partido solo se permiten antes del saque inicial",
         "cannotSubstituteSentOffPlayer": "No se puede sustituir a un jugador expulsado",
+        "noSubstitutionsForShootout": "No se permiten cambios una vez terminada la prórroga: la tanda la lanzan los jugadores que estaban en el campo al pitido final.",
         "playerNotOnPitch": "El jugador no está en el campo",
         "playerAlreadySubstitutedOff": "Ese jugador ya fue sustituido",
         "playerNotOnBench": "El jugador no está en el banquillo",
@@ -3643,7 +3663,9 @@
       "weeklyDigest": {
         "headline": "Resumen Semanal — Semana del {{weekStart}}",
         "bodyNoTopScorer": "Ya está aquí el último resumen semanal. {{leader}} lidera la tabla y {{storylineCount}} historia(s) marcan la división esta semana.",
-        "bodyWithTopScorer": "Ya está aquí el último resumen semanal. {{leader}} lidera la tabla, mientras {{topScorer}} encabeza la clasificación de goleadores con {{topScorerGoals}} gol(es). {{storylineCount}} historia(s) marcan la división esta semana."
+        "bodyWithTopScorer": "Ya está aquí el último resumen semanal. {{leader}} lidera la tabla, mientras {{topScorer}} encabeza la clasificación de goleadores con {{topScorerGoals}} gol(es). {{storylineCount}} historia(s) marcan la división esta semana.",
+        "bodyNoTopScorerNoStorylines": "Ya está aquí el último resumen semanal. {{leader}} lidera la tabla.",
+        "bodyWithTopScorerNoStorylines": "Ya está aquí el último resumen semanal. {{leader}} lidera la tabla, mientras {{topScorer}} encabeza la clasificación de goleadores con {{topScorerGoals}} gol(es)."
       },
       "preseasonDigest": {
         "headline": "Resumen de pretemporada — Semana del {{weekStart}}",

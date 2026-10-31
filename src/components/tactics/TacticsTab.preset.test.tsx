@@ -244,6 +244,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "3-4-3",
         playStyle: "HighPress",
       });
@@ -264,6 +265,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fireEvent.click(screen.getByRole("option", { name: /Balanced Control/ }));
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "4-4-2",
         playStyle: "Balanced",
       }),
@@ -290,9 +292,15 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
       fireEvent.click(screen.getByRole("button", { name: "Choose tactic" }));
       fireEvent.click(await screen.findByRole("option", { name: /Saved custom/ }));
       await waitFor(() =>
-        expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", { playStyle: "HighPress" }),
+        expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
+          careerToken: 0,
+          playStyle: "HighPress",
+        }),
       );
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", { formation: "3-4-3" });
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+        careerToken: 0,
+        formation: "3-4-3",
+      });
       expect(commandsCalled()).not.toContain("apply_tactic_preset");
       await waitFor(() =>
         expect(screen.getByRole("button", { name: "Choose tactic" })).toHaveTextContent(
@@ -325,7 +333,10 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fireEvent.click(screen.getByRole("option", { name: /Defensive/ }));
 
     await waitFor(() => {
-      expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", { playStyle: "Defensive" });
+      expect(mockedInvoke).toHaveBeenCalledWith("set_play_style", {
+        careerToken: 0,
+        playStyle: "Defensive",
+      });
     });
     expect(commandsCalled()).not.toContain("apply_tactic_preset");
   });
@@ -363,7 +374,10 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fireEvent.click(screen.getByRole("combobox", { name: "Formation" }));
     fireEvent.click(screen.getByRole("option", { name: "5-3-2" }));
     await waitFor(() =>
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", { formation: "5-3-2" }),
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+        careerToken: 0,
+        formation: "5-3-2",
+      }),
     );
     mockedInvoke.mockClear();
 
@@ -371,6 +385,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "4-4-2",
         playStyle: "Balanced",
       }),
@@ -414,6 +429,7 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
 
     await waitFor(() =>
       expect(mockedInvoke).toHaveBeenCalledWith("apply_tactic_preset", {
+        careerToken: 0,
         formation: "4-4-2",
         playStyle: "Balanced",
       }),
@@ -449,14 +465,20 @@ describe("TacticsTab preset selection", { timeout: TACTICS_TAB_CASE_TIMEOUT_MS }
     fireEvent.click(screen.getByRole("combobox", { name: "Formation" }));
     fireEvent.click(screen.getByRole("option", { name: "5-3-2" }));
     await waitFor(() =>
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", { formation: "5-3-2" }),
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+        careerToken: 0,
+        formation: "5-3-2",
+      }),
     );
     mockedInvoke.mockClear();
 
     fireEvent.click(screen.getByRole("button", { name: "Reset to defaults" }));
 
     await waitFor(() =>
-      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", { formation: "4-4-2" }),
+      expect(mockedInvoke).toHaveBeenCalledWith("set_formation", {
+        careerToken: 0,
+        formation: "4-4-2",
+      }),
     );
     expect(commandsCalled()).not.toContain("apply_tactic_preset");
   });

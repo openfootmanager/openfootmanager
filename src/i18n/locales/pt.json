@@ -412,6 +412,7 @@
     "currentWage": "Salário atual",
     "loading": "A carregar...",
     "loadingGameState": "A carregar estado do jogo...",
+    "detailsFor": "Detalhes de {{name}}",
     "overallRating": "Geral {{value}}",
     "overallRatingTier": "Geral {{value}}, nível {{tier}}",
     "noResults": "Nenhum resultado encontrado.",
@@ -699,7 +700,6 @@
     "coverageNeedsAttention": "{{count}} grupos de funções precisam de cobertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Banco {{bench}}",
     "bestRole": "Melhor função",
-    "formationFit": "Familiaridade",
     "startingXi": "Onze inicial",
     "starter": "Titular",
     "benchOption": "Banco",
@@ -1618,6 +1618,7 @@
     "dateOfBirth": "Data de Nascimento",
     "noContract": "Sem contrato",
     "weeklyWage": "Salário Semanal",
+    "approximateWage": "cerca de {{wage}}",
     "annualWage": "Salário Anual",
     "yearsRemaining": "Anos restantes",
     "contractRisk": "Risco contratual",
@@ -1837,6 +1838,21 @@
     },
     "uiScale": "Escala da UI",
     "uiScaleDesc": "Ajustar tamanho da fonte e espaçamento para legibilidade",
+    "sidebarWidth": "Largura da barra lateral",
+    "sidebarWidthDesc": "A largura da barra lateral aberta. «Larga» mostra cada nome do menu numa linha.",
+    "sidebarWidthOptions": {
+      "compact": "Compacta",
+      "standard": "Padrão",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra lateral",
+    "sidebarBehaviourDesc": "Como a barra lateral abre. Se a janela for demasiado estreita, abre sobre a página.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normal",
+      "hover": "Abrir ao passar o rato",
+      "click": "Abrir com um clique",
+      "icons": "Só ícones"
+    },
     "uiScaleOptions": {
       "small": "Pequena",
       "normal": "Normal",
@@ -2008,7 +2024,10 @@
       "suddenDeath": "Morte Súbita",
       "shootoutScore": "Penáltis: {{h}} – {{a}}",
       "homeKick": "Pontapé da equipa da casa...",
-      "awayKick": "Pontapé da equipa visitante..."
+      "awayKick": "Pontapé da equipa visitante...",
+      "kickScored": "Penálti {{n}}, marcado",
+      "kickMissed": "Penálti {{n}}, falhado",
+      "kickToCome": "Penálti {{n}}, por marcar"
     },
     "fullTime": "Tempo Completo",
     "ft": "TC",
@@ -2681,6 +2700,7 @@
         "maxSubstitutionsReached": "Foi atingido o limite máximo de substituições",
         "preMatchSwapTooLate": "As trocas pré-jogo só são permitidas antes do pontapé de saída",
         "cannotSubstituteSentOffPlayer": "Não podes substituir um jogador expulso",
+        "noSubstitutionsForShootout": "Não há substituições depois do prolongamento: o desempate por penáltis é feito pelos jogadores em campo no apito final.",
         "playerNotOnPitch": "O jogador não está em campo",
         "playerAlreadySubstitutedOff": "Esse jogador já foi substituído",
         "playerNotOnBench": "O jogador não está no banco",
@@ -3643,7 +3663,9 @@
       "weeklyDigest": {
         "headline": "Resumo Semanal — Semana de {{weekStart}}",
         "bodyNoTopScorer": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela e {{storylineCount}} narrativa(s) estão a marcar a divisão esta semana.",
-        "bodyWithTopScorer": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a lista de marcadores com {{topScorerGoals}} golo(s). {{storylineCount}} narrativa(s) estão a marcar a divisão esta semana."
+        "bodyWithTopScorer": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a lista de marcadores com {{topScorerGoals}} golo(s). {{storylineCount}} narrativa(s) estão a marcar a divisão esta semana.",
+        "bodyNoTopScorerNoStorylines": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela.",
+        "bodyWithTopScorerNoStorylines": "Já chegou o mais recente resumo semanal. {{leader}} lidera a tabela, enquanto {{topScorer}} comanda a lista de marcadores com {{topScorerGoals}} golo(s)."
       },
       "preseasonDigest": {
         "headline": "Resumo da pré-época — Semana de {{weekStart}}",

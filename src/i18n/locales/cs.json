@@ -412,6 +412,7 @@
     "currentWage": "Současný plat",
     "loading": "Nahrávání...",
     "loadingGameState": "Nahrávání stavu...",
+    "detailsFor": "Podrobnosti: {{name}}",
     "overallRating": "Hodnocení {{value}}",
     "overallRatingTier": "Hodnocení {{value}}, úroveň {{tier}}",
     "noResults": "Výsledky nenalezeny.",
@@ -672,7 +673,6 @@
     "coverageNeedsAttention": "Počet skupin rolí vyžadujících pokrytí: {{count}}",
     "coverageBadge": "Základ {{starters}}/{{required}} · Lavička {{bench}}",
     "bestRole": "Nejlepší role",
-    "formationFit": "Zvyklost na pozici",
     "startingXi": "Základní sestava",
     "starter": "Člen základu",
     "benchOption": "Lavička",
@@ -1618,6 +1618,7 @@
     "dateOfBirth": "Datum narození",
     "noContract": "Bez smlouvy",
     "weeklyWage": "Týdenní plat",
+    "approximateWage": "přibližně {{wage}}",
     "annualWage": "Roční plat",
     "yearsRemaining": "Zbývá let",
     "contractRisk": "Riziko vypršení smlouvy",
@@ -1837,6 +1838,21 @@
     },
     "uiScale": "Měřítko rozhraní",
     "uiScaleDesc": "Upravit velikost písma a mezery pro lepší čitelnost",
+    "sidebarWidth": "Šířka postranního panelu",
+    "sidebarWidthDesc": "Jak široký je otevřený postranní panel. „Široký“ zobrazí každou položku nabídky na jednom řádku.",
+    "sidebarWidthOptions": {
+      "compact": "Kompaktní",
+      "standard": "Standardní",
+      "wide": "Široký"
+    },
+    "sidebarBehaviour": "Postranní panel",
+    "sidebarBehaviourDesc": "Jak se postranní panel otevírá. Je-li okno příliš úzké, otevře se přes stránku.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normální",
+      "hover": "Rozbalit při najetí",
+      "click": "Rozbalit kliknutím",
+      "icons": "Jen ikony"
+    },
     "uiScaleOptions": {
       "small": "Malé",
       "normal": "Normální",
@@ -2042,7 +2058,10 @@
       "suddenDeath": "Náhlá smrt",
       "shootoutScore": "Penalty: {{h}} – {{a}}",
       "homeKick": "Domácí se chystá na penaltu...",
-      "awayKick": "Hosté se chystají na penaltu..."
+      "awayKick": "Hosté se chystají na penaltu...",
+      "kickScored": "Penalta {{n}}, proměněná",
+      "kickMissed": "Penalta {{n}}, neproměněná",
+      "kickToCome": "Penalta {{n}}, ještě se kope"
     },
     "fullTime": "Konec zápasu",
     "ft": "KZ",
@@ -2716,6 +2735,7 @@
         "maxSubstitutionsReached": "Bylo dosaženo maximálního počtu střídání",
         "preMatchSwapTooLate": "Předzápasové změny v sestavě jsou povoleny pouze před výkopem",
         "cannotSubstituteSentOffPlayer": "Nelze střídat vyloučeného hráče",
+        "noSubstitutionsForShootout": "Po skončení prodloužení už nelze střídat: penaltový rozstřel kopou hráči, kteří byli na hřišti při závěrečném hvizdu.",
         "playerNotOnPitch": "Hráč není na hřišti",
         "playerAlreadySubstitutedOff": "Hráč již byl vystřídán",
         "playerNotOnBench": "Hráč není na lavički",
@@ -3643,7 +3663,9 @@
       "weeklyDigest": {
         "headline": "Týdenní přehled — Týden od {{weekStart}}",
         "bodyNoTopScorer": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}} a dění v divizi tento týden utváří {{storylineCount}} hlavních událostí.",
-        "bodyWithTopScorer": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}, zatímco střeleckým tabulkám vévodí {{topScorer}} s {{topScorerGoals}} góly. Dění v divizi tento týden utváří {{storylineCount}} hlavních událostí."
+        "bodyWithTopScorer": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}, zatímco střeleckým tabulkám vévodí {{topScorer}} s {{topScorerGoals}} góly. Dění v divizi tento týden utváří {{storylineCount}} hlavních událostí.",
+        "bodyNoTopScorerNoStorylines": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}.",
+        "bodyWithTopScorerNoStorylines": "Nejnovější týdenní přehled je tady. Tabulku vede {{leader}}, zatímco střeleckým tabulkám vévodí {{topScorer}} s {{topScorerGoals}} góly."
       },
       "preseasonDigest": {
         "headline": "Předsezónní přehled — Týden od {{weekStart}}",

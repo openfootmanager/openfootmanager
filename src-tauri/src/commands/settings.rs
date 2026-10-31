@@ -63,8 +63,9 @@ fn default_sidebar_behaviour() -> String {
     "normal".to_string()
 }
 
-/// A sidebar value this build doesn't know (one written by a newer build) falls back to its
-/// default, so the setting is lost rather than the whole settings file failing to load.
+/// A sidebar value this build doesn't know (one written by a newer build, or edited by hand)
+/// falls back to its default. The fields are strings, so such a value parses anyway; this keeps
+/// the frontend from ever receiving one outside its TypeScript union.
 fn normalize_sidebar(settings: &mut AppSettings) {
     if !SIDEBAR_WIDTHS.contains(&settings.sidebar_width.as_str()) {
         settings.sidebar_width = default_sidebar_width();

@@ -15,10 +15,13 @@ use ofm_core::game::Game;
 use ofm_core::generator::{
     DefinitionSources, ReputationBasis, WorldGenConfig, generate_world_data_seeded_with,
 };
+use ofm_core::slices::players::{PlayersPageQuery, query_page};
+use ofm_core::slices::staff::query_staff;
+use ofm_core::slices::teams::{TeamsDirectoryQuery, query_directory};
 use ofm_core::world::build::{PastHistory, build_game_from_world_data};
 use ofm_core::world::start_date_for_year;
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 const SEED: u64 = 20_261_018;
 /// A single-division nation, so the fixture is one league.
@@ -126,11 +129,59 @@ fn render_module(game: &Game) -> Result<String, String> {
     )?;
     export(
         &mut module,
+        "ratingTiers",
+        "RatingTier[]",
+        &ofm_core::player_tier::rating_tiers(),
+    )?;
+    export(
+        &mut module,
+        "positionGroups",
+        "PositionGroupEntry[]",
+        &ofm_core::position_group::position_groups(),
+    )?;
+    export(
+        &mut module,
         "careerStage",
         "CareerStage",
         &ofm_core::career_stage::career_stage(game),
     )?;
+    export_world_lists(&mut module, game, &club)?;
     Ok(module)
+}
+
+/// The world lists' answers: the Players page's first page, the Teams directory and the Staff page.
+fn export_world_lists(module: &mut String, game: &Game, club: &str) -> Result<(), String> {
+    // The query the Players page sends on opening (`PLAYERS_OPENING_QUERY`, in
+    // src/components/players/playersOpeningQuery.ts). The harness answers only this query, and
+    // fixtureAnswers.test.ts holds this copy equal to the page's, so the two can't drift apart.
+    let players_query = json!({
+        "search": null, "position": null, "positions": [],
+        "age_min": null, "age_max": null, "ovr_min": null, "ovr_max": null,
+        "value_min": null, "value_max": null, "in_budget": false,
+        "scope": "all", "team_id": null, "status": "all",
+        "sort_key": "ovr", "sort_asc": false, "page": 1, "page_size": 30,
+    });
+    let parsed: PlayersPageQuery =
+        serde_json::from_value(players_query.clone()).map_err(|error| error.to_string())?;
+    export(
+        module,
+        "playersPageQuery",
+        "PlayersPageQuery",
+        &players_query,
+    )?;
+    export(
+        module,
+        "playersPage",
+        "PlayersPage",
+        &query_page(game, &parsed),
+    )?;
+    export(
+        module,
+        "teamsDirectory",
+        "TeamsDirectory",
+        &query_directory(game, &TeamsDirectoryQuery { search: None }),
+    )?;
+    export(module, "staff", "StaffSlice", &query_staff(game, club))
 }
 
 const HEADER: &str = "\
@@ -143,7 +194,11 @@ import type { CareerStage } from \"../../services/careerService\";
 import type { ContractWarningStage } from \"../../services/contractService\";
 import type { BackendFinanceSnapshotResponseData } from \"../../services/financeService\";
 import type { JobOpportunity } from \"../../services/jobService\";
-import type { SquadFitness } from \"../../services/squadService\";
+import type { PlayersPage, PlayersPageQuery } from \"../../services/playersService\";
+import type { PositionGroupEntry } from \"../../services/positionService\";
+import type { RatingTier, SquadFitness } from \"../../services/squadService\";
+import type { StaffSlice } from \"../../services/staffService\";
+import type { TeamsDirectory } from \"../../services/teamsService\";
 import type { GameStateData, PlayerData } from \"../../store/types\";
 ";
 

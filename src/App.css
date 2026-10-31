@@ -14,12 +14,105 @@
 @import "@fontsource/barlow-condensed/latin-ext-600.css";
 @import "@fontsource/barlow-condensed/latin-ext-700.css";
 
+/* Cyrillic faces are declared here, not imported, because @fontsource's per-subset CSS carries no
+   unicode-range: a Fira face without one would claim every character, Latin headings included. The
+   ranges are the ones in @fontsource's combined CSS. woff2 only (the webview supports it). */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-400-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-500-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-500-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-600-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-700-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../node_modules/@fontsource/inter/files/inter-cyrillic-ext-700-normal.woff2") format("woff2");
+  unicode-range: U+0460-052F,U+1C80-1C8A,U+20B4,U+2DE0-2DFF,U+A640-A69F,U+FE2E-FE2F;
+}
+
+@font-face {
+  font-family: "Fira Sans Extra Condensed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("../node_modules/@fontsource/fira-sans-extra-condensed/files/fira-sans-extra-condensed-cyrillic-600-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
+@font-face {
+  font-family: "Fira Sans Extra Condensed";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 700;
+  src: url("../node_modules/@fontsource/fira-sans-extra-condensed/files/fira-sans-extra-condensed-cyrillic-700-normal.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   /* Typography — CJK fallbacks (PingFang SC/Microsoft YaHei/Noto Sans CJK SC) kick in on Chinese characters via the font-family fallback chain */
   --font-sans: "Inter", "Avenir", "Helvetica", "Arial", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
-  --font-heading: "Barlow Condensed", "Inter", "Arial Narrow", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  --font-heading: "Barlow Condensed", "Fira Sans Extra Condensed", "Inter", "Arial Narrow", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
 
   /* Primary: Emerald Green */
   --color-primary-50: #ecfdf5;
@@ -88,12 +181,18 @@
   --color-line-strong: #d1d5db;
   /* The focus ring. Themed so it reaches WCAG 1.4.11's 3:1 against the page and a panel in both themes. */
   --color-focus: #047857;
-  /* Text and icons on the brand fill (primary-700), on chrome, on the turf or a dark hero. Never
+  /* Text and icons on the brand fill (primary-700), the selected fill, chrome, the turf or a dark hero. Never
      on a -solid colour: those are for bars, dots and fills that carry no text, and white on them
      falls under 4.5:1. */
   --color-on-brand: #ffffff;
   /* The surface under the pointer: a hovered row, menu item or ghost button. */
   --color-hover: #e5e7eb;
+  /* A control that is on or chosen, in one place (maintainer, 22 Oct). selected-fill is a switch
+     that is on, a checked box, a strong segmented option or a count badge, and carries on-brand
+     text; selected and selected-tint are the text and background of the chosen option in a list. */
+  --color-selected: #047857;
+  --color-selected-tint: #ecfdf5;
+  --color-selected-fill: #047857;
   /* Chart series, in order. Charts read these through var(), which SVG attributes resolve in
      WebKitGTK and Chromium alike, so a chart follows the theme with no colours in TypeScript. */
   --color-series-1: #059669;
@@ -143,6 +242,14 @@
   --spacing-row: 2.5rem;
   --spacing-panel-header: 2.5rem;
   --spacing-toolbar: 3rem;
+  /* The sidebar's widths: the icon rail and the three open widths (Settings > Sidebar width). Wide
+     is the narrowest that puts every nav label on one line in all 12 locales, measured on the OS
+     fallback font; it is re-measured once the game bundles its Cyrillic fonts. sidebarLayout.ts
+     reckons with the same values, and a test holds them together. */
+  --spacing-sidebar-rail: 3.5rem;
+  --spacing-sidebar-compact: 13rem;
+  --spacing-sidebar-standard: 16rem;
+  --spacing-sidebar-wide: 17.75rem;
   --container-page: 80rem;
   /* Two-panel breakpoint for container queries. A container query's rem follows ui_scale, so in a
      960px window: at normal scale (16px root) 36rem = 576px fits the 655px workspace and two
@@ -162,6 +269,11 @@
     --color-line-strong: #2f3d66;
     --color-focus: #34d399;
     --color-hover: #243054;
+    /* Lighter than primary-700, which is 2.8:1 against the panel here, so "on" reads; still dark
+       enough for white text at 4.5:1. */
+    --color-selected: #34d399;
+    --color-selected-tint: rgb(16 185 129 / 0.1);
+    --color-selected-fill: #05805c;
     --color-series-1: #10b981;
     --color-series-2: #6366f1;
     --color-positive: #34d399;

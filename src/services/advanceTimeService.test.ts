@@ -22,6 +22,7 @@ describe("advanceTimeService", () => {
 
     expect(mockedInvoke).toHaveBeenCalledWith("advance_time_with_mode", {
       mode: "delegate",
+      careerToken: 0,
     });
   });
 
@@ -56,6 +57,6 @@ describe("advanceTimeService", () => {
     mockedInvoke.mockResolvedValueOnce(response);
 
     await expect(skipToMatchDay()).resolves.toBe(response);
-    expect(mockedInvoke).toHaveBeenCalledWith("skip_to_match_day");
+    expect(mockedInvoke).toHaveBeenCalledWith("skip_to_match_day", { careerToken: 0 });
   });
 });

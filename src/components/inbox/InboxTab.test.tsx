@@ -357,6 +357,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("mark_message_read", {
+        careerToken: 0,
         messageId: "m1",
       });
     });
@@ -424,6 +425,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("delete_message", {
+        careerToken: 0,
         messageId: "m1",
       });
     });
@@ -470,6 +472,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
+        careerToken: 0,
         messageIds: ["m1", "m2"],
       });
     });
@@ -500,6 +503,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
+        careerToken: 0,
         messageIds: ["m3", "m2", "m1"],
       });
     });
@@ -632,7 +636,10 @@ describe("InboxTab", (): void => {
     fireEvent.click(screen.getByTestId("inbox-confirm-delete"));
 
     await waitFor((): void => {
-      expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", { messageIds: ["m1"] });
+      expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
+        careerToken: 0,
+        messageIds: ["m1"],
+      });
     });
   });
 
@@ -724,6 +731,7 @@ describe("InboxTab", (): void => {
     await waitFor((): void => {
       expect(onNavigate).toHaveBeenCalledWith("Squad", undefined);
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "m1",
         actionId: "action-1",
         optionId: null,
@@ -1108,6 +1116,7 @@ describe("InboxTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "job_offer_team2_2025-01-01",
         actionId: "respond_team2",
         optionId: "accept",
@@ -1146,6 +1155,7 @@ describe("InboxTab", (): void => {
     expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "job_offer_team2_2025-01-01",
         actionId: "respond_team2",
         optionId: "decline",
@@ -1184,6 +1194,7 @@ describe("InboxTab", (): void => {
     expect(screen.queryByTestId("switch-club-confirm-modal")).not.toBeInTheDocument();
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+        careerToken: 0,
         messageId: "job_offer_team2_2025-01-01",
         actionId: "respond_team2",
         optionId: "accept",
@@ -1351,7 +1362,9 @@ describe("InboxTab", (): void => {
     });
 
     expect(screen.getByText("Lucas Flank")).toBeInTheDocument();
-    expect(screen.getByText("Left Back")).toBeInTheDocument();
+    // The badge names his natural position (Left Back) in its tooltip, not the coarse group (Defender).
+    expect(screen.getByTitle("Left Back")).toBeInTheDocument();
+    expect(screen.queryByTitle("Defender")).not.toBeInTheDocument();
   });
 
   /**

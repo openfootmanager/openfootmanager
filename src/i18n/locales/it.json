@@ -431,6 +431,7 @@
     "currentWage": "Stipendio attuale",
     "loading": "Caricamento...",
     "loadingGameState": "Caricamento stato di gioco...",
+    "detailsFor": "Dettagli di {{name}}",
     "overallRating": "Valutazione generale {{value}}",
     "overallRatingTier": "Valutazione generale {{value}}, fascia {{tier}}",
     "noResults": "Nessun risultato trovato.",
@@ -718,7 +719,6 @@
     "coverageNeedsAttention": "{{count}} gruppi di ruoli hanno bisogno di copertura",
     "coverageBadge": "XI {{starters}}/{{required}} · Panchina {{bench}}",
     "bestRole": "Ruolo migliore",
-    "formationFit": "Familiarità",
     "startingXi": "Undici titolare",
     "starter": "Titolare",
     "benchOption": "Panchina",
@@ -1637,6 +1637,7 @@
     "dateOfBirth": "Data di nascita",
     "noContract": "Nessun contratto",
     "weeklyWage": "Stipendio settimanale",
+    "approximateWage": "circa {{wage}}",
     "annualWage": "Stipendio annuale",
     "yearsRemaining": "Anni rimanenti",
     "contractRisk": "Rischio contrattuale",
@@ -1856,6 +1857,21 @@
     },
     "uiScale": "Scala interfaccia",
     "uiScaleDesc": "Regola dimensione del testo e spaziatura per migliorare la leggibilità",
+    "sidebarWidth": "Larghezza della barra laterale",
+    "sidebarWidthDesc": "Quanto è larga la barra laterale aperta. «Larga» mostra ogni voce del menu su una riga.",
+    "sidebarWidthOptions": {
+      "compact": "Compatta",
+      "standard": "Standard",
+      "wide": "Larga"
+    },
+    "sidebarBehaviour": "Barra laterale",
+    "sidebarBehaviourDesc": "Come si apre la barra laterale. Se la finestra è troppo stretta, si apre sopra la pagina.",
+    "sidebarBehaviourOptions": {
+      "normal": "Normale",
+      "hover": "Apri al passaggio del mouse",
+      "click": "Apri con un clic",
+      "icons": "Solo icone"
+    },
     "uiScaleOptions": {
       "small": "Piccola",
       "normal": "Normale",
@@ -2027,7 +2043,10 @@
       "suddenDeath": "Morte Improvvisa",
       "shootoutScore": "Rigori: {{h}} – {{a}}",
       "homeKick": "Calcio della squadra di casa...",
-      "awayKick": "Calcio della squadra ospite..."
+      "awayKick": "Calcio della squadra ospite...",
+      "kickScored": "Rigore {{n}}, segnato",
+      "kickMissed": "Rigore {{n}}, sbagliato",
+      "kickToCome": "Rigore {{n}}, ancora da calciare"
     },
     "fullTime": "Fine partita",
     "ft": "FIN",
@@ -2681,6 +2700,7 @@
         "maxSubstitutionsReached": "Raggiunto il numero massimo di sostituzioni",
         "preMatchSwapTooLate": "Gli scambi pre-partita sono consentiti solo prima del calcio d'inizio",
         "cannotSubstituteSentOffPlayer": "Non puoi sostituire un giocatore espulso",
+        "noSubstitutionsForShootout": "Nessuna sostituzione dopo i tempi supplementari: i rigori li calciano i giocatori in campo al fischio finale.",
         "playerNotOnPitch": "Il giocatore non è in campo",
         "playerAlreadySubstitutedOff": "Quel giocatore è già stato sostituito",
         "playerNotOnBench": "Il giocatore non è in panchina",
@@ -3643,7 +3663,9 @@
       "weeklyDigest": {
         "headline": "Digest Settimanale — Settimana del {{weekStart}}",
         "bodyNoTopScorer": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica e {{storylineCount}} trama/e stanno plasmando la divisione questa settimana.",
-        "bodyWithTopScorer": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica, mentre {{topScorer}} comanda la classifica marcatori con {{topScorerGoals}} gol. {{storylineCount}} trama/e stanno plasmando la divisione questa settimana."
+        "bodyWithTopScorer": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica, mentre {{topScorer}} comanda la classifica marcatori con {{topScorerGoals}} gol. {{storylineCount}} trama/e stanno plasmando la divisione questa settimana.",
+        "bodyNoTopScorerNoStorylines": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica.",
+        "bodyWithTopScorerNoStorylines": "È arrivato l'ultimo digest settimanale. {{leader}} guida la classifica, mentre {{topScorer}} comanda la classifica marcatori con {{topScorerGoals}} gol."
       },
       "preseasonDigest": {
         "headline": "Digest precampionato — Settimana del {{weekStart}}",

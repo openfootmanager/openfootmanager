@@ -412,6 +412,7 @@
     "currentWage": "当前工资",
     "loading": "加载中……",
     "loadingGameState": "加载游戏状态中……",
+    "detailsFor": "{{name}} 的详情",
     "overallRating": "综合实力 {{value}}",
     "overallRatingTier": "综合实力 {{value}}，等级 {{tier}}",
     "noResults": "未找到结果。",
@@ -699,7 +700,6 @@
     "coverageNeedsAttention": "{{count}} 个角色组需要补强",
     "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
     "bestRole": "最佳角色",
-    "formationFit": "位置熟悉度",
     "startingXi": "首发阵容",
     "starter": "首发",
     "benchOption": "替补",
@@ -1618,6 +1618,7 @@
     "dateOfBirth": "出生日期",
     "noContract": "无合同",
     "weeklyWage": "周薪",
+    "approximateWage": "约 {{wage}}",
     "annualWage": "年薪",
     "yearsRemaining": "剩余年限",
     "contractRisk": "合同风险",
@@ -1837,6 +1838,21 @@
     },
     "uiScale": "界面缩放",
     "uiScaleDesc": "调整字号与间距以提升可读性",
+    "sidebarWidth": "侧边栏宽度",
+    "sidebarWidthDesc": "展开时侧边栏的宽度。“宽”可让每个菜单名称显示在一行内。",
+    "sidebarWidthOptions": {
+      "compact": "紧凑",
+      "standard": "标准",
+      "wide": "宽"
+    },
+    "sidebarBehaviour": "侧边栏",
+    "sidebarBehaviourDesc": "侧边栏的打开方式。窗口太窄时，它会在页面上方打开。",
+    "sidebarBehaviourOptions": {
+      "normal": "常规",
+      "hover": "悬停时展开",
+      "click": "点击时展开",
+      "icons": "仅图标"
+    },
     "uiScaleOptions": {
       "small": "小",
       "normal": "标准",
@@ -2008,7 +2024,10 @@
       "suddenDeath": "突然死亡法",
       "shootoutScore": "点球：{{h}} – {{a}}",
       "homeKick": "主队主罚...",
-      "awayKick": "客队主罚..."
+      "awayKick": "客队主罚...",
+      "kickScored": "第 {{n}} 罚，罚进",
+      "kickMissed": "第 {{n}} 罚，罚失",
+      "kickToCome": "第 {{n}} 罚，尚未主罚"
     },
     "fullTime": "全场结束",
     "ft": "全场",
@@ -2681,6 +2700,7 @@
         "maxSubstitutionsReached": "已达到最大换人次数",
         "preMatchSwapTooLate": "赛前对调只能在开球前进行",
         "cannotSubstituteSentOffPlayer": "不能换下被罚下的球员",
+        "noSubstitutionsForShootout": "加时赛结束后不能再换人：点球大战由终场哨响时在场上的球员主罚。",
         "playerNotOnPitch": "球员不在场上",
         "playerAlreadySubstitutedOff": "该球员已经被换下",
         "playerNotOnBench": "球员不在替补席上",
@@ -3643,7 +3663,9 @@
       "weeklyDigest": {
         "headline": "每周摘要——{{weekStart}}当周",
         "bodyNoTopScorer": "最新的每周摘要来了。{{leader}}领跑积分榜,本周有{{storylineCount}}条故事线影响着联赛格局。",
-        "bodyWithTopScorer": "最新的每周摘要来了。{{leader}}领跑积分榜,{{topScorer}}以{{topScorerGoals}}球位居射手榜首。本周有{{storylineCount}}条故事线影响着联赛格局。"
+        "bodyWithTopScorer": "最新的每周摘要来了。{{leader}}领跑积分榜,{{topScorer}}以{{topScorerGoals}}球位居射手榜首。本周有{{storylineCount}}条故事线影响着联赛格局。",
+        "bodyNoTopScorerNoStorylines": "最新的每周摘要来了。{{leader}}领跑积分榜。",
+        "bodyWithTopScorerNoStorylines": "最新的每周摘要来了。{{leader}}领跑积分榜,{{topScorer}}以{{topScorerGoals}}球位居射手榜首。"
       },
       "preseasonDigest": {
         "headline": "季前摘要——{{weekStart}}当周",
