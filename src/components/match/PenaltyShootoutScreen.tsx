@@ -44,6 +44,9 @@ export default function PenaltyShootoutScreen({
   const [stepFailed, setStepFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finishedRef = useRef(false);
+  // Set while a step is awaiting the engine. A second step then (a double-click on Next kick, or
+  // Retry over the timer's step) would take two kicks at once, or ask for a kick after the last.
+  const stepInFlightRef = useRef(false);
   const [finished, setFinished] = useState(false);
 
   const homeFullTeam = gameState.teams.find((tm) => tm.id === snapshot.home_team.id);
@@ -54,7 +57,8 @@ export default function PenaltyShootoutScreen({
   const sheet = useMemo(() => buildKickSheet(snapshot), [snapshot]);
 
   const stepMatch = useCallback(async () => {
-    if (finishedRef.current) return;
+    if (finishedRef.current || stepInFlightRef.current) return;
+    stepInFlightRef.current = true;
     try {
       const results = await stepLiveMatch(1);
       for (const result of results) {
@@ -76,6 +80,8 @@ export default function PenaltyShootoutScreen({
       // than stopping with nothing on screen.
       setStepFailed(true);
       pause();
+    } finally {
+      stepInFlightRef.current = false;
     }
   }, [onSnapshotUpdate, onImportantEvent, onFullTime, pause]);
 

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { MatchSnapshot, MinuteResult } from "../components/match/types";
+import type { MatchSnapshot, MinuteResult } from "../store/liveMatchTypes";
 import { invokeForCareer } from "./careerInvoke";
 
 /**
