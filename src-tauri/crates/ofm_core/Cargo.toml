@@ -29,5 +29,11 @@ base64 = "0.22"
 [lints]
 workspace = true
 
+# Runs the page fixture's freshness test under `cargo test --workspace` (CI's backend job): an
+# example's tests run only when it opts in.
+[[example]]
+name = "page_fixture"
+test = true
+
 [dev-dependencies]
 proptest = "=1.12.0"

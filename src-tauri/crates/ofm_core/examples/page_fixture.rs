@@ -246,3 +246,77 @@ fn write_layout(out: &mut String, value: &Value, depth: usize) -> Result<(), Str
         }
     }
 }
+
+/// The first line where two texts part, 1-based, with each side's line ("" past its end); `None`
+/// when they are the same.
+#[cfg(test)]
+fn first_difference<'a>(checked_in: &'a str, fresh: &'a str) -> Option<(usize, &'a str, &'a str)> {
+    let mut checked_in_lines = checked_in.split('\n');
+    let mut fresh_lines = fresh.split('\n');
+    let mut number = 0;
+    loop {
+        number += 1;
+        match (checked_in_lines.next(), fresh_lines.next()) {
+            (None, None) => return None,
+            (old, new) if old != new => {
+                return Some((number, old.unwrap_or(""), new.unwrap_or("")));
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The checked-in module, where `npm run fixture:pages` writes it from the repository root.
+    const CHECKED_IN: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/dev/pageHarness/fixture.generated.ts"
+    );
+
+    /// Given page_fixture.rs, the world generator and the commands' answers as they stand
+    /// When the page harness's career is generated afresh
+    /// Then it is byte for byte the checked-in fixture.generated.ts, so a change on the Rust side
+    /// can't land without the regenerated file the frontend's pages are mounted on.
+    #[test]
+    fn the_checked_in_fixture_matches_a_fresh_generation() {
+        let checked_in = std::fs::read_to_string(CHECKED_IN).expect("read fixture.generated.ts");
+        let game = build_career().expect("build the page harness career");
+        let fresh = render_module(&game).expect("render the fixture module");
+
+        if let Some((line, old, new)) = first_difference(&checked_in, &fresh) {
+            panic!(
+                "src/dev/pageHarness/fixture.generated.ts is stale: run `npm run fixture:pages` \
+                 and commit it.\nFirst difference, line {line}:\n  checked in: {}\n  fresh:      {}",
+                old.chars().take(200).collect::<String>(),
+                new.chars().take(200).collect::<String>(),
+            );
+        }
+    }
+
+    /// Given two texts that part on their second line
+    /// When they are compared
+    /// Then the second line is reported, with each side's text.
+    #[test]
+    fn the_first_differing_line_is_reported() {
+        assert_eq!(first_difference("a\nb\nc", "a\nB\nc"), Some((2, "b", "B")));
+    }
+
+    /// Given one text that is the other with a line added at its end
+    /// When they are compared
+    /// Then the added line is reported against an empty one.
+    #[test]
+    fn a_line_added_at_the_end_is_reported() {
+        assert_eq!(first_difference("a\n", "a\nb\n"), Some((2, "", "b")));
+    }
+
+    /// Given two identical texts
+    /// When they are compared
+    /// Then no difference is reported.
+    #[test]
+    fn identical_texts_have_no_difference() {
+        assert_eq!(first_difference("a\nb\n", "a\nb\n"), None);
+    }
+}
