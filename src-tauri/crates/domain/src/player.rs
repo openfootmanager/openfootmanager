@@ -928,7 +928,10 @@ mod tests {
             );
         }
         assert_eq!(Position::Goalkeeper.sort_rank(), 10);
-        assert_eq!(Position::ALL.iter().map(Position::sort_rank).max(), Some(43));
+        assert_eq!(
+            Position::ALL.iter().map(Position::sort_rank).max(),
+            Some(43)
+        );
         assert!(Position::Defender.sort_rank() < Position::Midfielder.sort_rank());
         assert!(Position::Midfielder.sort_rank() < Position::Forward.sort_rank());
     }

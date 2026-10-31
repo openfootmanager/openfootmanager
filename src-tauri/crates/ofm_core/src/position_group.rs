@@ -108,13 +108,24 @@ mod tests {
     fn the_table_carries_the_sort_rank_of_every_position() {
         let mut table = position_groups();
         for entry in &table {
-            assert_eq!(entry.rank, entry.position.sort_rank(), "{:?}", entry.position);
+            assert_eq!(
+                entry.rank,
+                entry.position.sort_rank(),
+                "{:?}",
+                entry.position
+            );
         }
 
         table.sort_by_key(|entry| entry.rank);
 
-        assert_eq!(table.first().map(|entry| entry.position.clone()), Some(Position::Goalkeeper));
-        assert_eq!(table.last().map(|entry| entry.position.clone()), Some(Position::Striker));
+        assert_eq!(
+            table.first().map(|entry| entry.position.clone()),
+            Some(Position::Goalkeeper)
+        );
+        assert_eq!(
+            table.last().map(|entry| entry.position.clone()),
+            Some(Position::Striker)
+        );
         let last_defender = table.iter().rposition(|e| e.group == Position::Defender);
         let first_midfielder = table.iter().position(|e| e.group == Position::Midfielder);
         assert!(last_defender < first_midfielder);
