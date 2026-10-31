@@ -10,8 +10,11 @@ use crate::mcp_server::tools_impl::helpers::{
     age_from_dob, format_position, require_game, serde_label,
 };
 use ofm_core::game::Game;
-use ofm_core::player_knowledge::{passes_wage_filter, KnowledgeView, PlayerKnowledge, VisibleWage};
+use ofm_core::player_knowledge::{
+    passes_wage_filter, player_knowledge, KnowledgeView, PlayerKnowledge, VisibleWage,
+};
 use ofm_core::state::Career;
+use ofm_core::transfers::TransferBidFinancialProjection;
 use std::sync::Arc;
 
 // ─── transfer_toggle_listed ────────────────────────────────────────────────
@@ -106,12 +109,10 @@ pub fn transfer_make_bid(
     fee: u64,
 ) -> Result<BidMade, String> {
     let game = require_game(&ctx.state_manager)?;
-    let player_name = game
-        .players
-        .iter()
-        .find(|p| p.id == player_id)
-        .map(|p| p.match_name.clone())
-        .unwrap_or_default();
+    let player = game.players.iter().find(|p| p.id == player_id);
+    let player_name = player.map(|p| p.match_name.clone()).unwrap_or_default();
+    // Read before the bid: an accepted one moves the player.
+    let knowledge = player.map(|p| player_knowledge(&game, p));
 
     let response = crate::commands::transfers::make_transfer_bid_internal(
         &ctx.state_manager,
@@ -124,7 +125,7 @@ pub fn transfer_make_bid(
         player_name,
         fee,
         decision: serde_label(&response.decision),
-        suggested_fee: response.suggested_fee,
+        suggested_fee: suggested_fee_the_club_may_see(knowledge.as_ref(), response.suggested_fee),
         is_terminal: response.is_terminal,
         mood: serde_label(&response.feedback.mood),
         tension: response.feedback.tension,
@@ -150,21 +151,49 @@ pub fn transfer_preview_bid(
     fee: u64,
 ) -> Result<BidPreview, String> {
     let game = require_game(&ctx.state_manager)?;
-    let player_name = game
-        .players
-        .iter()
-        .find(|p| p.id == player_id)
-        .map(|p| p.match_name.clone())
-        .unwrap_or_default();
+    let player = game.players.iter().find(|p| p.id == player_id);
+    let player_name = player.map(|p| p.match_name.clone()).unwrap_or_default();
+    let wage = player.map_or(VisibleWage::Hidden, |p| {
+        KnowledgeView::of(&game).of_player(p).wage
+    });
 
     let response = crate::commands::transfers::preview_transfer_bid_financial_impact_internal(
         &ctx.state_manager,
         &player_id,
         fee,
     )?;
-    let p = &response.projection;
+    Ok(bid_preview_of(
+        player_name,
+        fee,
+        &response.projection,
+        &wage,
+    ))
+}
 
-    Ok(BidPreview {
+/// The seller's counter-offer is the seller's valuation, which a club that does not know the
+/// player has no business reading: it is withheld for an unknown player (maintainer ruling, 28 Oct:
+/// hidden, not blurred). Anyone the club knows, scouted or in its division, keeps his answer.
+fn suggested_fee_the_club_may_see(
+    knowledge: Option<&PlayerKnowledge>,
+    suggested_fee: Option<u64>,
+) -> Option<u64> {
+    match knowledge {
+        Some(PlayerKnowledge::Unknown) | None => None,
+        Some(_) => suggested_fee,
+    }
+}
+
+/// The preview with its wage-derived figures only when the club may see the exact wage; the
+/// difference between the wage bill before and after, and the board's verdict on it, are the
+/// player's wage by another name.
+fn bid_preview_of(
+    player_name: String,
+    fee: u64,
+    p: &TransferBidFinancialProjection,
+    wage: &VisibleWage,
+) -> BidPreview {
+    let exact = matches!(wage, VisibleWage::Exact { .. });
+    BidPreview {
         player_name,
         fee,
         transfer_budget_before: p.transfer_budget_before,
@@ -172,13 +201,15 @@ pub fn transfer_preview_bid(
         finance_before: p.finance_before,
         finance_after: p.finance_after,
         current_weekly_wage_spend: p.current_weekly_wage_spend,
-        projected_weekly_wage_spend: p.projected_weekly_wage_spend,
+        projected_weekly_wage_spend: exact.then_some(p.projected_weekly_wage_spend),
         weekly_wage_budget: p.weekly_wage_budget,
-        projected_wage_budget_usage_pct: p.projected_wage_budget_usage_pct,
+        projected_wage_budget_usage_pct: exact.then_some(p.projected_wage_budget_usage_pct),
         exceeds_transfer_budget: p.exceeds_transfer_budget,
         exceeds_finance: p.exceeds_finance,
-        blocked_by_wage_policy: p.blocked_by_wage_policy,
-    })
+        blocked_by_wage_policy: exact.then_some(p.blocked_by_wage_policy),
+        incoming_weekly_wage: wage.value(),
+        incoming_wage_is_approximate: matches!(wage, VisibleWage::Approximate { .. }),
+    }
 }
 
 // ─── transfer_respond_to_offer ──────────────────────────────────────────────
@@ -559,5 +590,134 @@ mod market_tests {
         let refused = market_in(&world(None), None, None, None);
 
         assert_eq!(refused.err().as_deref(), Some("be.error.noTeamAssigned"));
+    }
+}
+
+#[cfg(test)]
+mod bid_answer_tests {
+    use super::{bid_preview_of, suggested_fee_the_club_may_see};
+    use ofm_core::player_knowledge::{PlayerKnowledge, VisibleWage};
+    use ofm_core::transfers::TransferBidFinancialProjection;
+
+    fn projection() -> TransferBidFinancialProjection {
+        TransferBidFinancialProjection {
+            transfer_budget_before: 5_000_000,
+            transfer_budget_after: 4_000_000,
+            finance_before: 9_000_000,
+            finance_after: 8_000_000,
+            annual_wage_bill_before: 2_600_000,
+            annual_wage_bill_after: 3_000_000,
+            annual_wage_budget: 3_500_000,
+            current_weekly_wage_spend: 50_000,
+            projected_weekly_wage_spend: 57_692,
+            weekly_wage_budget: 67_307,
+            incoming_player_weekly_wage: 7_692,
+            projected_wage_budget_usage_pct: 86,
+            exceeds_transfer_budget: false,
+            exceeds_finance: false,
+            blocked_by_wage_policy: true,
+            pending_registration_date: None,
+        }
+    }
+
+    fn scouted() -> PlayerKnowledge {
+        PlayerKnowledge::Scouted {
+            scouted_on: "2026-09-01".to_string(),
+            current: true,
+        }
+    }
+
+    /// Given a counter-offer of 900 000 from the seller
+    /// When the club asks what fee it may see, for each kind of knowledge
+    /// Then an unknown player's (and an unresolvable one's) is withheld and everyone the club
+    ///      knows keeps it.
+    #[test]
+    fn the_sellers_counter_is_withheld_for_an_unknown_player_only() {
+        let counter = Some(900_000);
+
+        assert_eq!(
+            suggested_fee_the_club_may_see(Some(&PlayerKnowledge::Unknown), counter),
+            None
+        );
+        assert_eq!(suggested_fee_the_club_may_see(None, counter), None);
+        for knowledge in [PlayerKnowledge::Own, PlayerKnowledge::Known, scouted()] {
+            assert_eq!(
+                suggested_fee_the_club_may_see(Some(&knowledge), counter),
+                counter,
+                "{knowledge:?}"
+            );
+        }
+        assert_eq!(
+            suggested_fee_the_club_may_see(Some(&PlayerKnowledge::Known), None),
+            None
+        );
+    }
+
+    /// Given a hidden wage (an unknown player, or a rival the club only knows)
+    /// When the bid preview is built
+    /// Then nothing in it gives the wage away: no projected wage bill, usage or policy verdict,
+    ///      and no wage of his own; the fee-side figures are untouched.
+    #[test]
+    fn a_hidden_wage_leaves_the_preview_without_any_wage_derived_figure() {
+        let preview = bid_preview_of(
+            "P".to_string(),
+            1_000_000,
+            &projection(),
+            &VisibleWage::Hidden,
+        );
+
+        assert_eq!(preview.projected_weekly_wage_spend, None);
+        assert_eq!(preview.projected_wage_budget_usage_pct, None);
+        assert_eq!(preview.blocked_by_wage_policy, None);
+        assert_eq!(
+            (
+                preview.incoming_weekly_wage,
+                preview.incoming_wage_is_approximate
+            ),
+            (None, false)
+        );
+        assert_eq!(preview.transfer_budget_after, 4_000_000);
+        assert_eq!(preview.current_weekly_wage_spend, 50_000);
+    }
+
+    /// Given a wage a scout reported on (rounded)
+    /// When the bid preview is built
+    /// Then the rounded wage is shown and flagged, and the exact derived figures still are not.
+    #[test]
+    fn a_scouted_wage_shows_as_the_rounded_figure_only() {
+        let wage = VisibleWage::Approximate { weekly: 7_700 };
+
+        let preview = bid_preview_of("P".to_string(), 1_000_000, &projection(), &wage);
+
+        assert_eq!(
+            (
+                preview.incoming_weekly_wage,
+                preview.incoming_wage_is_approximate
+            ),
+            (Some(7_700), true)
+        );
+        assert_eq!(preview.projected_weekly_wage_spend, None);
+        assert_eq!(preview.blocked_by_wage_policy, None);
+    }
+
+    /// Given a wage the club may see exactly
+    /// When the bid preview is built
+    /// Then the projected bill, usage and policy verdict are the projection's own.
+    #[test]
+    fn an_exact_wage_keeps_every_figure() {
+        let wage = VisibleWage::Exact { weekly: 7_692 };
+
+        let preview = bid_preview_of("P".to_string(), 1_000_000, &projection(), &wage);
+
+        assert_eq!(preview.projected_weekly_wage_spend, Some(57_692));
+        assert_eq!(preview.projected_wage_budget_usage_pct, Some(86));
+        assert_eq!(preview.blocked_by_wage_policy, Some(true));
+        assert_eq!(
+            (
+                preview.incoming_weekly_wage,
+                preview.incoming_wage_is_approximate
+            ),
+            (Some(7_692), false)
+        );
     }
 }
