@@ -4,44 +4,45 @@
 
 use super::*;
 
-/// Given test FC with no sponsor and a home match won on Saturday, in a 40,000 stadium
+/// Given test FC with no sponsor and a home league match on Thursday, three days away, in a
+///       40,000 stadium
 /// When its finance snapshot is taken on Monday
-/// Then its weekly recurring income is the 608,000 that gate brings: sponsor income plus the
-///      week's estimated home gate
+/// Then its weekly recurring income is that match's expected gate: sponsor income plus the gates
+///      due this week
 #[test]
-fn the_finance_snapshot_adds_last_weeks_home_gate_to_sponsor_income() {
+fn the_finance_snapshot_adds_this_weeks_home_gate_to_sponsor_income() {
     let mut game = make_monday_game();
-    game.league = Some(League {
+    let thursday = Fixture {
+        id: "thursday".to_string(),
+        matchday: 1,
+        date: "2025-06-19".to_string(),
+        home_team_id: "team1".to_string(),
+        away_team_id: "team2".to_string(),
+        competition: FixtureCompetition::League,
+        status: FixtureStatus::Scheduled,
+        ..Default::default()
+    };
+    game.competitions = vec![League {
         id: "l1".to_string(),
         name: "Test League".to_string(),
         season: 1,
-        fixtures: vec![Fixture {
-            id: "f1".to_string(),
-            matchday: 1,
-            date: "2025-06-14".to_string(),
-            home_team_id: "team1".to_string(),
-            away_team_id: "team2".to_string(),
-            competition: FixtureCompetition::League,
-            status: FixtureStatus::Completed,
-            result: Some(MatchResult {
-                home_goals: 2,
-                away_goals: 1,
-                home_scorers: vec![],
-                away_scorers: vec![],
-                report: None,
-                home_penalties: None,
-                away_penalties: None,
-            }),
-            ..Default::default()
-        }],
+        fixtures: vec![thursday.clone()],
         standings: vec![StandingEntry::new("team1".to_string())],
         ..Default::default()
-    });
+    }];
+    game.sync_legacy_league();
+    let gate = finances::gate::expected_gate(&game, 40_000, &thursday).expect("a priced gate");
+    assert!(gate > 0, "a full stadium takes something");
 
     let snapshot = finances::team_finance_snapshot(&game, "team1").expect("a snapshot");
 
-    assert_eq!(snapshot.weekly_sponsor_income, 0);
-    assert_eq!(snapshot.weekly_recurring_income, 608_000);
+    assert_eq!(
+        (
+            snapshot.weekly_sponsor_income,
+            snapshot.weekly_recurring_income
+        ),
+        (0, gate)
+    );
 }
 
 /// Given test FC in debt (−60,000) and far over its wage budget: the campaign's gross revenue
