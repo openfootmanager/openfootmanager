@@ -495,6 +495,52 @@ mod tests {
         )
     }
 
+    /// Given a generated defender whose stored overall was set at his coarse position (here
+    ///       deliberately far from what his attributes score),
+    /// When he is given his specific natural position,
+    /// Then his stored overall is what the rating formula computes for that position, so the
+    ///      first rating refresh has nothing to change.
+    #[test]
+    fn upgrading_a_players_identity_refreshes_his_overall_to_the_natural_position() {
+        let attrs = PlayerAttributes {
+            pace: 86,
+            stamina: 84,
+            strength: 66,
+            agility: 74,
+            passing: 62,
+            shooting: 40,
+            tackling: 78,
+            dribbling: 63,
+            defending: 73,
+            positioning: 68,
+            vision: 55,
+            decisions: 64,
+            composure: 61,
+            aggression: 66,
+            teamwork: 72,
+            leadership: 50,
+            handling: 20,
+            reflexes: 20,
+            aerial: 48,
+        };
+        let mut player = make_player("stale-rb", Position::Defender, attrs);
+        player.ovr = 50;
+        player.potential = 50;
+
+        upgrade_player_identity(&mut player, Some(&Position::RightBack));
+
+        let natural = crate::player_rating::natural_ovr(&player).round() as u8;
+        assert_ne!(
+            natural, 50,
+            "the fixture must tell the stale value from the formula's"
+        );
+        assert_eq!(player.ovr, natural);
+        assert!(
+            player.potential >= player.ovr,
+            "a ceiling is never below the rating"
+        );
+    }
+
     #[test]
     fn upgrade_player_identity_infers_granular_defender_profile() {
         let attrs = PlayerAttributes {
