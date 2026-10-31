@@ -280,6 +280,10 @@ In live mode, player condition depletes each minute based on `fatigue_per_minute
 If a match is drawn after extra time (when allowed), a penalty shootout is resolved:
 - 5 rounds of alternating penalties
 - If still tied, sudden death rounds continue until one team leads after equal attempts
+- Each side kicks in an order fixed at the final whistle: the players on the pitch who were not sent off, with the designated penalty taker first, then the rest by penalty skill (shooting + composure, what the kick uses), and the goalkeeper last. Everyone kicks once before anyone kicks twice: the order carries on through sudden death and wraps to the top only after the last kicker has kicked
+- Both sides use only as many kickers as the side with fewer players on the pitch; the side with more drops the end of its order
+- A side with nobody left on the pitch does not hold the other side to nobody: the other then kicks in its full order
+- No substitutions are allowed from the final whistle of extra time, so the players who kick are the ones on the pitch when it blew
 
 ### Match Snapshot
 

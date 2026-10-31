@@ -2024,7 +2024,10 @@
       "suddenDeath": "Mort Subite",
       "shootoutScore": "Tirs au but: {{h}} – {{a}}",
       "homeKick": "Tir de l'équipe à domicile...",
-      "awayKick": "Tir de l'équipe visiteuse..."
+      "awayKick": "Tir de l'équipe visiteuse...",
+      "kickScored": "Tir {{n}}, réussi",
+      "kickMissed": "Tir {{n}}, manqué",
+      "kickToCome": "Tir {{n}}, à venir"
     },
     "fullTime": "Temps Plein",
     "ft": "TP",
@@ -2697,6 +2700,7 @@
         "maxSubstitutionsReached": "Nombre maximal de remplacements atteint",
         "preMatchSwapTooLate": "Les permutations d'avant-match ne sont autorisées qu'avant le coup d'envoi",
         "cannotSubstituteSentOffPlayer": "Impossible de remplacer un joueur expulsé",
+        "noSubstitutionsForShootout": "Plus aucun remplacement après la prolongation : la séance de tirs au but est disputée par les joueurs présents sur le terrain au coup de sifflet final.",
         "playerNotOnPitch": "Le joueur n'est pas sur le terrain",
         "playerAlreadySubstitutedOff": "Ce joueur a déjà été remplacé",
         "playerNotOnBench": "Le joueur n'est pas sur le banc",

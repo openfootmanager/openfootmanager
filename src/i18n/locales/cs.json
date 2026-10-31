@@ -2058,7 +2058,10 @@
       "suddenDeath": "Náhlá smrt",
       "shootoutScore": "Penalty: {{h}} – {{a}}",
       "homeKick": "Domácí se chystá na penaltu...",
-      "awayKick": "Hosté se chystají na penaltu..."
+      "awayKick": "Hosté se chystají na penaltu...",
+      "kickScored": "Penalta {{n}}, proměněná",
+      "kickMissed": "Penalta {{n}}, neproměněná",
+      "kickToCome": "Penalta {{n}}, ještě se kope"
     },
     "fullTime": "Konec zápasu",
     "ft": "KZ",
@@ -2732,6 +2735,7 @@
         "maxSubstitutionsReached": "Bylo dosaženo maximálního počtu střídání",
         "preMatchSwapTooLate": "Předzápasové změny v sestavě jsou povoleny pouze před výkopem",
         "cannotSubstituteSentOffPlayer": "Nelze střídat vyloučeného hráče",
+        "noSubstitutionsForShootout": "Po skončení prodloužení už nelze střídat: penaltový rozstřel kopou hráči, kteří byli na hřišti při závěrečném hvizdu.",
         "playerNotOnPitch": "Hráč není na hřišti",
         "playerAlreadySubstitutedOff": "Hráč již byl vystřídán",
         "playerNotOnBench": "Hráč není na lavički",

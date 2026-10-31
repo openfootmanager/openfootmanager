@@ -36,6 +36,9 @@ fn season_start_string(season: u32) -> String {
     format!("{:04}-07-01", season)
 }
 
+/// The key of the group of clubs that play in no domestic league.
+const RESIDUAL_GROUP_KEY: &str = "residual";
+
 /// The clubs of one domestic league, under the id its stream of randomness is keyed on.
 struct LeagueGroup {
     key: String,
@@ -94,7 +97,7 @@ fn historical_league_groups(game: &Game) -> Vec<LeagueGroup> {
         .collect();
     if !residual.is_empty() {
         groups.push(LeagueGroup {
-            key: "residual".to_string(),
+            key: RESIDUAL_GROUP_KEY.to_string(),
             team_ids: residual,
         });
     }
@@ -224,6 +227,21 @@ fn advance_form(form: &mut [f64], form_sd: f64, rng: &mut impl Rng) {
     }
 }
 
+/// The competition id of each historical league group, in the order its tables are simulated:
+/// blank for the residual group, which is no competition.
+fn historical_league_ids(game: &Game) -> Vec<String> {
+    historical_league_groups(game)
+        .into_iter()
+        .map(|group| {
+            if group.key == RESIDUAL_GROUP_KEY {
+                String::new()
+            } else {
+                group.key
+            }
+        })
+        .collect()
+}
+
 /// The tables of one league over `seasons` seasons, oldest first. Its clubs' form carries from
 /// one season to the next, and the draws come from a stream of the world's seed and the league
 /// alone: the same world has the same past, another world another.
@@ -300,8 +318,31 @@ fn positions_by_team(tables: &[Vec<StandingEntry>]) -> HashMap<&str, (u32, &Stan
         .collect()
 }
 
-fn upsert_team_history(game: &mut Game, season: u32, tables: &[Vec<StandingEntry>]) {
+/// The competition each club's table belongs to; blank for the residual table of clubs in no
+/// domestic league, which is no competition's.
+fn competitions_by_team<'a>(
+    tables: &'a [Vec<StandingEntry>],
+    league_ids: &'a [String],
+) -> HashMap<&'a str, &'a str> {
+    tables
+        .iter()
+        .zip(league_ids)
+        .flat_map(|(table, id)| {
+            table
+                .iter()
+                .map(move |standing| (standing.team_id.as_str(), id.as_str()))
+        })
+        .collect()
+}
+
+fn upsert_team_history(
+    game: &mut Game,
+    season: u32,
+    tables: &[Vec<StandingEntry>],
+    league_ids: &[String],
+) {
     let standings_by_team = positions_by_team(tables);
+    let competition_of = competitions_by_team(tables, league_ids);
 
     for team in game.teams.iter_mut() {
         let Some((league_position, standing)) = standings_by_team.get(team.id.as_str()) else {
@@ -318,6 +359,10 @@ fn upsert_team_history(game: &mut Game, season: u32, tables: &[Vec<StandingEntry
             lost: standing.lost,
             goals_for: standing.goals_for,
             goals_against: standing.goals_against,
+            competition_id: competition_of
+                .get(team.id.as_str())
+                .map(|id| id.to_string())
+                .unwrap_or_default(),
         };
 
         if team
@@ -654,10 +699,11 @@ pub fn generate_past_world_history(game: &mut Game, start_year: i32, history_dep
     let original_league = game.league.clone();
 
     let past = simulate_past_tables(game, (start_year - first_season) as usize);
+    let league_ids = historical_league_ids(game);
     for (season_year, tables) in (first_season..start_year).zip(&past) {
         let season = season_year as u32;
         let standings: Vec<StandingEntry> = tables.iter().flatten().cloned().collect();
-        upsert_team_history(game, season, tables);
+        upsert_team_history(game, season, tables, &league_ids);
         upsert_manager_history(game, tables);
         upsert_player_career(game, season, &standings);
 
@@ -691,6 +737,7 @@ mod tests {
     use crate::{clock::GameClock, game::Game};
     use chrono::{TimeZone, Utc};
     use domain::{
+        league::League,
         manager::{Manager, ManagerCareerEntry},
         player::{CareerEntry, Player, PlayerAttributes, Position},
         staff::{Staff, StaffAttributes, StaffRole},
@@ -857,6 +904,7 @@ mod tests {
             lost: 8,
             goals_for: 64,
             goals_against: 36,
+            competition_id: String::new(),
         });
 
         let player = game
@@ -966,6 +1014,38 @@ mod tests {
         );
         assert_eq!(game.world_history.season_awards.len(), 3);
         assert!(!game.world_history.rivalries.is_empty());
+    }
+
+    /// Given a world of two domestic leagues of two clubs each,
+    /// When its past seasons are generated,
+    /// Then every club's records name the league the club plays in.
+    #[test]
+    fn generated_past_records_name_their_league() {
+        let mut game = make_game();
+        let ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
+        for (league_id, clubs) in [("div-a", &ids[..2]), ("div-b", &ids[2..])] {
+            game.competitions.push(League::new(
+                league_id.to_string(),
+                league_id.to_string(),
+                2032,
+                clubs,
+            ));
+        }
+
+        generate_past_world_history(&mut game, 2032, 3);
+
+        for (index, team) in game.teams.iter().enumerate() {
+            let expected = if index < 2 { "div-a" } else { "div-b" };
+            assert!(
+                team.history
+                    .iter()
+                    .all(|record| record.competition_id == expected),
+                "{}: {:?}",
+                team.id,
+                team.history
+            );
+            assert_eq!(team.history.len(), 3);
+        }
     }
 
     fn career_seasons(game: &Game, player_id: &str) -> Vec<u32> {
