@@ -397,3 +397,70 @@ pub fn compute_blocking_actions(game: &Game) -> Vec<serde_json::Value> {
 
     blockers
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{compute_blocking_actions, stopping_blockers, INFORMATIONAL_SEVERITY};
+    use chrono::{TimeZone, Utc};
+    use domain::manager::Manager;
+    use domain::message::{InboxMessage, MessagePriority};
+    use domain::team::Team;
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::Game;
+
+    fn severities(blockers: &[serde_json::Value]) -> Vec<&str> {
+        blockers
+            .iter()
+            .filter_map(|blocker| blocker["severity"].as_str())
+            .collect()
+    }
+
+    /// Given a club with no players, which blocks time, and unread urgent mail, which only informs
+    /// When all the blockers are computed, and when the ones that stop time are
+    /// Then the first lists both kinds, and the second keeps every real blocker and drops the mail.
+    #[test]
+    fn stopping_blockers_keep_every_real_blocker_and_drop_the_informational_ones() {
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap());
+        let mut manager = Manager::new(
+            "m".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire("t1".to_string());
+        let team = Team::new(
+            "t1".to_string(),
+            "T FC".to_string(),
+            "TFC".to_string(),
+            "England".to_string(),
+            "London".to_string(),
+            "Ground".to_string(),
+            20_000,
+        );
+        let mut game = Game::new(clock, manager, vec![team], vec![], vec![], vec![]);
+        let mut mail = InboxMessage::new(
+            "urgent-1".to_string(),
+            "Subject".to_string(),
+            "Body".to_string(),
+            "Sender".to_string(),
+            "2026-08-01".to_string(),
+        );
+        mail.priority = MessagePriority::Urgent;
+        game.messages = vec![mail];
+
+        let all = compute_blocking_actions(&game);
+        let stopping = stopping_blockers(&game);
+
+        assert!(
+            severities(&all).contains(&INFORMATIONAL_SEVERITY),
+            "{all:?}"
+        );
+        assert!(!stopping.is_empty(), "an empty squad should block: {all:?}");
+        assert!(
+            !severities(&stopping).contains(&INFORMATIONAL_SEVERITY),
+            "{stopping:?}"
+        );
+        assert_eq!(stopping.len() + 1, all.len(), "{all:?}");
+    }
+}
