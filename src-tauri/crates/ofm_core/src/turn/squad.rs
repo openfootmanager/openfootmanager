@@ -798,6 +798,20 @@ pub(crate) fn domain_to_engine_tactics(t: &domain::team::TacticsPhaseSettings) -
     }
 }
 
+/// What the fitness table's multiplier averages over the fouls of a club season, so that dividing
+/// by it keeps the season's club-match injuries where they were and only their spread follows
+/// fitness.
+///
+/// Measured on the shipped world, one season with every competition played, at develop 63f8e244
+/// (31 Oct 2026): 12,623 engine injury events with the raw table against 11,088 without it, over
+/// seeds 1 and 2 (1.1329 and 1.1440 apart). It sits above the table's average over squads' days
+/// (about 1.06), which suggests the players who are fouled are less fit than the squad as a
+/// whole. It is calibrated against today's fitness distribution (91% of club players' days at
+/// fitness 70 to 89), so measure it again with `season-harness --test measure_club_injuries`, whose
+/// header gives the procedure, if the table, the engine's injury probability, or anything that
+/// moves players' fitness (training, condition, recovery) changes.
+const CLUB_MATCH_MEAN_INJURY_MULTIPLIER: f64 = 1.1384;
+
 fn to_engine_player(
     p: &domain::player::Player,
     role: EnginePlayerRole,
@@ -825,6 +839,9 @@ fn to_engine_player(
         ovr: p.ovr,
         condition: p.condition,
         fitness: p.fitness,
+        // Match fitness as it stands before the match: its wear is applied afterwards.
+        injury_risk: crate::player_wear::injury_multiplier_from_fitness(p.fitness)
+            / CLUB_MATCH_MEAN_INJURY_MULTIPLIER,
         pace: p.attributes.pace,
         stamina: p.attributes.stamina,
         strength: p.attributes.strength,
