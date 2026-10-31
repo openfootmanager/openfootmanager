@@ -1591,6 +1591,7 @@
       "league": "{{country}} Ligi",
       "firstDivision": "{{country}} 1. Ligi",
       "secondDivision": "{{country}} 2. Ligi",
+      "tierDivision": "{{country}} {{tier}}. Ligi",
       "nationalCup": "{{country}} Kupası",
       "continentalChampionsCup": "Kıtasal Şampiyonlar Kupası",
       "premierDivision": "Premier Lig"

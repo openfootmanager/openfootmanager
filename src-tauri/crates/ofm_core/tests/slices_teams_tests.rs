@@ -1,4 +1,5 @@
 use chrono::{TimeZone, Utc};
+use domain::competition_calendar::{CalendarMetadata, DivisionIdentity, SeasonCalendar};
 use domain::league::{
     CompetitionFormat, CompetitionScope, CompetitionType, Fixture, FixtureStatus, League,
     StandingEntry,
@@ -126,6 +127,32 @@ fn directory_groups_teams_under_their_domestic_league_and_region() {
     assert_eq!(league.id, "epl");
     assert_eq!(league.name, "Premier");
     assert_eq!(league.teams.len(), 2);
+}
+
+#[test]
+fn directory_preserves_division_tier() {
+    let team = make_team("arg1", "Alpha FC", "ARG", "Buenos Aires");
+    let mut league = make_domestic_league("arg-tier-3", "Argentina League", "ARG", None, &["arg1"]);
+    league.name_key = Some("tournaments.competitions.tierDivision".to_string());
+    league.calendar = Some(CalendarMetadata {
+        season: SeasonCalendar {
+            division: Some(DivisionIdentity {
+                family_id: "arg-league".to_string(),
+                tier: 3,
+                phase: Default::default(),
+            }),
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    let game = make_game(vec![team], vec![], vec![league]);
+
+    let dir = query_directory(&game, &empty_query());
+
+    let league = &dir.regions[0].leagues[0];
+    assert_eq!(league.division_tier, Some(3));
+    let serialized = serde_json::to_value(league).unwrap();
+    assert_eq!(serialized["division_tier"], 3);
 }
 
 #[test]

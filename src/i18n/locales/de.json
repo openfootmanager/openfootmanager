@@ -1591,6 +1591,7 @@
       "league": "{{country}} Liga",
       "firstDivision": "{{country}} Erste Division",
       "secondDivision": "{{country}} Zweite Division",
+      "tierDivision": "{{country}} {{tier}}. Liga",
       "nationalCup": "{{country}} Pokal",
       "continentalChampionsCup": "Kontinentaler Meisterpokal",
       "premierDivision": "Erste Division"

@@ -37,11 +37,13 @@ pub struct LeagueGroup {
     pub name_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub division_tier: Option<u32>,
     pub teams: Vec<TeamCard>,
 }
 
-/// Map key that groups teams by their league: `(id, name, name_key, country_id)`.
-type LeagueKey = (String, String, Option<String>, Option<String>);
+/// Map key that groups teams by league identity and tier metadata.
+type LeagueKey = (String, String, Option<String>, Option<String>, Option<u32>);
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct TeamCard {
@@ -137,23 +139,44 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
         let region_id = league
             .and_then(|l| l.region_id.clone())
             .unwrap_or_else(|| region_for_code(&team.country).to_string());
-        let (league_id, league_name, league_name_key, league_country_id) = league
+        let (league_id, league_name, league_name_key, league_country_id, division_tier) = league
             .map(|l| {
+                let division = l
+                    .calendar
+                    .as_ref()
+                    .and_then(|calendar| calendar.season.division.as_ref());
                 (
                     l.id.clone(),
                     l.name.clone(),
                     l.name_key.clone(),
                     l.country_id.clone(),
+                    division
+                        .map(|identity| identity.tier)
+                        .filter(|tier| *tier > 0),
                 )
             })
-            .unwrap_or_else(|| (UNGROUPED_LEAGUE_ID.to_string(), String::new(), None, None));
+            .unwrap_or_else(|| {
+                (
+                    UNGROUPED_LEAGUE_ID.to_string(),
+                    String::new(),
+                    None,
+                    None,
+                    None,
+                )
+            });
 
         let card = project_card(team, &players_by_team, &standing_by_team);
 
         regions
             .entry(region_id)
             .or_default()
-            .entry((league_id, league_name, league_name_key, league_country_id))
+            .entry((
+                league_id,
+                league_name,
+                league_name_key,
+                league_country_id,
+                division_tier,
+            ))
             .or_default()
             .push(card);
     }
@@ -173,8 +196,8 @@ fn build_region_group(
 ) -> RegionGroup {
     let mut leagues: Vec<LeagueGroup> = leagues_map
         .into_iter()
-        .map(|((id, name, name_key, country_id), teams)| {
-            build_league_group(id, name, name_key, country_id, teams)
+        .map(|((id, name, name_key, country_id, division_tier), teams)| {
+            build_league_group(id, name, name_key, country_id, division_tier, teams)
         })
         .collect();
 
@@ -198,6 +221,7 @@ fn build_league_group(
     name: String,
     name_key: Option<String>,
     country_id: Option<String>,
+    division_tier: Option<u32>,
     mut teams: Vec<TeamCard>,
 ) -> LeagueGroup {
     teams.sort_by(|a, b| {
@@ -218,6 +242,7 @@ fn build_league_group(
         name,
         name_key,
         country_id,
+        division_tier,
         teams,
     }
 }

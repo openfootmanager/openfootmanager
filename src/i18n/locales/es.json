@@ -1591,6 +1591,7 @@
       "league": "Liga de {{country}}",
       "firstDivision": "Primera División de {{country}}",
       "secondDivision": "Segunda División de {{country}}",
+      "tierDivision": "División {{tier}} de {{country}}",
       "nationalCup": "Copa de {{country}}",
       "continentalChampionsCup": "Copa Continental de Campeones",
       "premierDivision": "Primera División"

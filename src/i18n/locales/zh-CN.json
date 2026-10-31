@@ -1591,6 +1591,7 @@
       "league": "{{country}}联赛",
       "firstDivision": "{{country}}甲级联赛",
       "secondDivision": "{{country}}乙级联赛",
+      "tierDivision": "{{country}}第{{tier}}级联赛",
       "nationalCup": "{{country}}杯",
       "continentalChampionsCup": "洲际冠军杯",
       "premierDivision": "超级联赛"

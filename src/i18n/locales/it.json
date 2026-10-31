@@ -1610,6 +1610,7 @@
       "league": "Lega di {{country}}",
       "firstDivision": "Prima Divisione di {{country}}",
       "secondDivision": "Seconda Divisione di {{country}}",
+      "tierDivision": "{{tier}}ª Divisione di {{country}}",
       "nationalCup": "Coppa di {{country}}",
       "continentalChampionsCup": "Coppa dei Campioni Continentale",
       "premierDivision": "Prima Divisione"
