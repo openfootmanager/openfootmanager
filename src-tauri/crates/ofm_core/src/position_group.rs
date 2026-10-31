@@ -1,23 +1,27 @@
-//! The group (goalkeeper, defender, midfielder, forward) each position belongs to, for the screens
-//! that colour or sort by it. The rule is `Position::to_group_position`; this is its table, so the
-//! frontend asks for it instead of keeping a copy.
+//! The group (goalkeeper, defender, midfielder, forward) each position belongs to and where it sorts
+//! in a squad list, for the screens that colour, group or sort by it. The rules are
+//! `Position::to_group_position` and `Position::sort_rank`; this is their table, so the frontend asks
+//! for it instead of keeping a copy.
 
 use domain::player::Position;
 use serde::Serialize;
 
-/// One position and the group it belongs to.
+/// One position, the group it belongs to and its place in a squad list.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct PositionGroupEntry {
     pub position: Position,
     pub group: Position,
+    /// `Position::sort_rank`: lower sorts first.
+    pub rank: u32,
 }
 
-/// Every position with its group, so a screen reads the group of any position it is given.
+/// Every position with its group and rank, so a screen reads both for any position it is given.
 pub fn position_groups() -> Vec<PositionGroupEntry> {
     Position::ALL
         .into_iter()
         .map(|position| PositionGroupEntry {
             group: position.to_group_position(),
+            rank: position.sort_rank(),
             position,
         })
         .collect()
@@ -94,5 +98,25 @@ mod tests {
         ] {
             assert_eq!(group_of(&table, bucket.clone()), Some(bucket));
         }
+    }
+
+    /// Given the table of position groups,
+    /// When it is sorted by rank,
+    /// Then it reads in pitch order: the keeper first, the striker last, and every defender before
+    ///      any midfielder.
+    #[test]
+    fn the_table_carries_the_sort_rank_of_every_position() {
+        let mut table = position_groups();
+        for entry in &table {
+            assert_eq!(entry.rank, entry.position.sort_rank(), "{:?}", entry.position);
+        }
+
+        table.sort_by_key(|entry| entry.rank);
+
+        assert_eq!(table.first().map(|entry| entry.position.clone()), Some(Position::Goalkeeper));
+        assert_eq!(table.last().map(|entry| entry.position.clone()), Some(Position::Striker));
+        let last_defender = table.iter().rposition(|e| e.group == Position::Defender);
+        let first_midfielder = table.iter().position(|e| e.group == Position::Midfielder);
+        assert!(last_defender < first_midfielder);
     }
 }

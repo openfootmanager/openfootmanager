@@ -270,6 +270,32 @@ impl Position {
         )
     }
 
+    /// Where the position sits in a squad list: goalkeeper first, then the back line, midfield and
+    /// attack, so a list sorted by it reads in pitch order. Each legacy bucket takes the round
+    /// number at the start of its line (Defender 20, CenterBack 21 ...), so an unmigrated player
+    /// stays next to his granular teammates instead of scattering to the end.
+    pub fn sort_rank(&self) -> u32 {
+        match self {
+            Position::Goalkeeper => 10,
+            Position::Defender => 20,
+            Position::CenterBack => 21,
+            Position::LeftBack => 22,
+            Position::RightBack => 23,
+            Position::LeftWingBack => 24,
+            Position::RightWingBack => 25,
+            Position::Midfielder => 30,
+            Position::DefensiveMidfielder => 31,
+            Position::CentralMidfielder => 32,
+            Position::AttackingMidfielder => 33,
+            Position::LeftMidfielder => 34,
+            Position::RightMidfielder => 35,
+            Position::Forward => 40,
+            Position::LeftWinger => 41,
+            Position::RightWinger => 42,
+            Position::Striker => 43,
+        }
+    }
+
     pub fn to_group_position(&self) -> Position {
         match self {
             Position::Goalkeeper => Position::Goalkeeper,
@@ -882,6 +908,30 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given every position,
+    /// When its sort rank is read,
+    /// Then the ranks are all different, a position ranks inside the band of its group (the bucket's
+    ///      round number up to nine more), and the keeper is first and the striker last.
+    #[test]
+    fn sort_rank_puts_each_position_in_its_groups_band_in_pitch_order() {
+        let mut ranks: Vec<u32> = Position::ALL.iter().map(Position::sort_rank).collect();
+        ranks.sort_unstable();
+        ranks.dedup();
+        assert_eq!(ranks.len(), Position::ALL.len());
+
+        for position in Position::ALL {
+            let band_start = position.to_group_position().sort_rank();
+            assert!(
+                (band_start..band_start + 10).contains(&position.sort_rank()),
+                "{position:?}"
+            );
+        }
+        assert_eq!(Position::Goalkeeper.sort_rank(), 10);
+        assert_eq!(Position::ALL.iter().map(Position::sort_rank).max(), Some(43));
+        assert!(Position::Defender.sort_rank() < Position::Midfielder.sort_rank());
+        assert!(Position::Midfielder.sort_rank() < Position::Forward.sort_rank());
+    }
 
     /// Given the list of every position and an exhaustive numbering of the enum's variants,
     /// When the list is checked against it,

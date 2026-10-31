@@ -454,13 +454,8 @@ fn team_name_for<'a>(player: &'a Player, teams: &'a TeamLookup) -> &'a str {
         .unwrap_or("")
 }
 
-fn position_rank(pos: &Position) -> u8 {
-    use Position::*;
-    match pos {
-        Goalkeeper => 1,
-        Defender | RightBack | CenterBack | LeftBack | RightWingBack | LeftWingBack => 2,
-        Midfielder | DefensiveMidfielder | CentralMidfielder | AttackingMidfielder
-        | RightMidfielder | LeftMidfielder => 3,
-        Forward | RightWinger | LeftWinger | Striker => 4,
-    }
+/// A position's place by its line (keepers, defence, midfield, attack): the group's rank, from the one
+/// domain rule, so every position of a line ties.
+fn position_rank(pos: &Position) -> u32 {
+    pos.to_group_position().sort_rank()
 }
