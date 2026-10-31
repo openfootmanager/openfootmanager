@@ -143,7 +143,8 @@ drawn in the style guide.
 | an unread count or a mark on a nav item (a circle for one digit, 99+ at most) | `UnreadBadge` |
 | a kit | `JerseyIcon` |
 | a player on the pitch | `PitchToken` |
-| a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a `positive` or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details (never the first column, which keeps the accent and, failing a primary, the name). It draws no panel: put it in a `Card` |
+| a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a row's menu on right-click (`onRowContextMenu`) as well as on its action button; a `positive` or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details (never the first column, which keeps the accent and, failing a primary, the name). It draws no panel: put it in a `Card` |
+| a player's condition | `ConditionMeter`: the backend's band word (`condition_status`) in its tone, a bar in the same tone and the percentage; without the band, a neutral bar and no word |
 | a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
 More primitives arrive as the migration goes on: empty and loading states outside a table, stat
@@ -164,15 +165,16 @@ A tone never stands alone: there is always a letter, a word or the number next t
 the game doesn't know (an unscouted attribute, a match not yet rated) shows "–" in `fg-subtle`,
 never a grey number that could read as a low value.
 
-Condition will have words as well as tones, from one rule in `ofm_core` that will also drive the
-staff warnings and the squad's fitness counts, so the words, the tones and the counts always
-agree. The maintainer chose these bands; the rule doesn't exist yet (today's fitness status splits
-only at 40 and 25), and this section is updated when it lands:
+Condition has words as well as tones, from one rule in `ofm_core`
+(`training::fitness_warnings::fitness_status`) that also drives the staff warnings and the
+squad's fitness counts, so the words, the tones and the counts always agree. The backend sends
+each player's band as `condition_status`; `ConditionMeter` draws it. The maintainer chose these
+bands:
 
 | Condition | Word | Tone |
 |---|---|---|
 | 75 and over | Fresh | `good` |
-| 40–74 | Tiring | `neutral` |
+| 40–74 | Tiring | `fair` |
 | 25–39 | Exhausted | `low` |
 | under 25 | Critical | `bad` |
 

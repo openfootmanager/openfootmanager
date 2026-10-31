@@ -165,6 +165,30 @@ This is registered as Tauri managed state and accessed by all commands via `Stat
 
 **Key pattern**: Commands acquire the mutex, clone the `Game` for return, and release the lock. Mutations happen inside the lock scope.
 
+### Screen writes and the career check
+
+A request a screen sends can arrive after another career has been installed (a load, a new game,
+an agent switching careers). So every screen command that changes the active game carries the
+career token the screen was given, and the check is made **inside the write**:
+
+- `Game::career_token` is stamped by `install_career` (from `StateManager::next_career_token`, never
+  repeated, never 0) and travels to the screen with the game. It is not saved. A live match carries
+  its career's token too (`LiveMatchSession::career_token`).
+- `ofm_core::state::Career` is `Active` (an agent or in-process caller acting on whichever career is
+  open) or `Token(u64)` (a screen). `StateManager::update_game_for(career, f)` runs `f` only if the
+  token is the active game's, under the same lock, and otherwise returns `be.error.careerChanged`.
+  `mutate_active_game_for` (commands) and `persist_active_game` take a `Career` the same way.
+- Screen commands take `career_token: u64` and pass `Career::Token(..)`. **MCP tools pass
+  `Career::Active`**: an agent acts on the active career by definition and holds no token.
+- On the frontend `invokeForCareer` (`src/services/careerInvoke.ts`) adds `careerToken` from the
+  store's game to every command in `SCREEN_WRITE_COMMANDS`.
+
+Enforced by tests, not convention: `src-tauri/tests/screen_writes.rs` fails if production code calls
+`update_game`, `set_game` or `clear_game` outside the two places that install or close a career,
+or if a `#[tauri::command]` writes for `Career::Active`; and
+`src/services/careerInvoke.architecture.test.ts` fails if the TypeScript list differs from the Rust
+commands that take a `career_token`, or if any source calls one of them with a bare `invoke`.
+
 ### Frontend State
 
 Two Zustand stores:
@@ -210,7 +234,7 @@ All frontend↔backend communication goes through Tauri's `invoke()` mechanism. 
 | Command | Parameters | Returns | Description |
 |---------|-----------|---------|-------------|
 | `get_club_league_standing` | team_id | The club's league table, position and standing, or null | Any club, not only the manager's; in a split season the half the year is on; cups have no table |
-| `get_scouted_report` | player_id | The scout's dated attribute snapshot with `out_of_date`, or null | Out of date means scouted before the current season started; decided in Rust |
+| `get_scouted_report` | player_id | The scout's dated attribute snapshot with `out_of_date`, or null | Out of date means scouted before the last season rollover (`Game::last_season_rollover_on`), when every player aged and the season's growth applied; decided in Rust |
 | `get_player_knowledge` | player_ids | Per player: `own`, `known` (a club in the manager's division), `scouted` (with `scouted_on` and `current`) or `unknown` (a player the club has not scouted); an id that matches no player is omitted from the answer | The one rule for what the manager's club knows about a player (`ofm_core::player_knowledge`); screens hide what it does not know. The serialized `Game` still carries every value |
 | `get_visible_wage` | player_id | `exact` (the club's own player), `approximate` (a scouted player: two significant figures) or `hidden`, each with `weekly` where shown; null for an id no player has | `ofm_core::player_knowledge::visible_wage`; for one player's profile only, never a list |
 | `get_squad` | team_id | Player rows with `match_day_eligible` | Complete club roster with computed match-day eligibility; youth call-ups retain their academy role |

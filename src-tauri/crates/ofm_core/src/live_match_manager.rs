@@ -154,6 +154,9 @@ pub struct LiveMatchSession {
     pub user_side: Option<Side>,
     pub ai_home: AiProfile,
     pub ai_away: AiProfile,
+    /// The career this match belongs to (`Game::career_token` when it was started), so a screen's
+    /// step, command or finish meant for another career is refused instead of landing here.
+    pub career_token: u64,
 }
 
 impl LiveMatchSession {
@@ -483,6 +486,7 @@ fn create_live_match_with(
         user_side,
         ai_home,
         ai_away,
+        career_token: game.career_token,
     })
 }
 

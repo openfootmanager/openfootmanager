@@ -170,7 +170,7 @@ function brandOutsideBrandFiles(path: string, source: string): string[] {
  * tones (round-4 PR 1b adds components/squad). It never covers components/ui, the vocabulary's
  * home, and it grows to all of src/ by round-4 PR 7.
  */
-const VOCABULARY_FOLDERS: string[] = [];
+const VOCABULARY_FOLDERS: string[] = ["./components/squad/"];
 
 /**
  * The words a colour may be keyed by only in its one home: the positions, the rating tiers' letters

@@ -24,6 +24,7 @@ describe("freeAgentService", () => {
 
     await expect(offerFreeAgentContract("player-1", 4000, 3)).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("offer_free_agent_contract", {
+      careerToken: 0,
       playerId: "player-1",
       weeklyWage: 4000,
       contractYears: 3,

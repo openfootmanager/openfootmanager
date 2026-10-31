@@ -27,6 +27,7 @@ describe("contractService", () => {
       response,
     );
     expect(mockedInvoke).toHaveBeenCalledWith("set_contract_exit_intent", {
+      careerToken: 0,
       playerId: "player-1",
       reason: "manager_profile_action",
     });
@@ -38,6 +39,7 @@ describe("contractService", () => {
 
     await expect(clearContractExitIntent("player-1")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("clear_contract_exit_intent", {
+      careerToken: 0,
       playerId: "player-1",
     });
   });
@@ -58,6 +60,7 @@ describe("contractService", () => {
 
     await expect(terminateContractNow("player-1")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("terminate_contract_now", {
+      careerToken: 0,
       playerId: "player-1",
     });
   });

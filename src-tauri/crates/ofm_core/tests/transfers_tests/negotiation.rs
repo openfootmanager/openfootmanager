@@ -140,6 +140,22 @@ fn a_third_improving_bid_inside_the_two_percent_concession_is_accepted() {
     );
 }
 
+/// Given an owner asking 950,000 who refused 800,000 and then countered 870,000 at 950,000
+/// When the third bid, 925,000, comes within 5% of that counter
+/// Then the owner meets it: respecting the counter earns a 4% concession (asking 912,000), more
+///      than the 2% (931,000) a merely improving third bid earns, so the bid is accepted
+#[test]
+fn a_third_bid_that_respects_the_counter_earns_the_four_percent_concession() {
+    let mut game = negotiation_game("player-respected");
+    make_transfer_bid(&mut game, "player-respected", 800_000).expect("first bid");
+    let second = bid_on_a_later_day(&mut game, "player-respected", 870_000);
+    assert_eq!(second, TransferNegotiationDecision::CounterOffer);
+
+    let third = bid_on_a_later_day(&mut game, "player-respected", 925_000);
+
+    assert_eq!(third, TransferNegotiationDecision::Accepted);
+}
+
 /// Given a user club with a starting eleven of its own players
 /// When it buys a player who is not in that eleven
 /// Then its eleven is exactly as it was: only the seller's side loses a starter.

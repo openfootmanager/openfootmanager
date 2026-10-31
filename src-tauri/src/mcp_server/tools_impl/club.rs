@@ -7,6 +7,7 @@ use mcp_results::club::{
 
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{require_game, serde_label};
+use ofm_core::state::Career;
 use std::sync::Arc;
 
 // ─── club_upgrade_facility ──────────────────────────────────────────────────
@@ -15,7 +16,11 @@ pub fn club_upgrade_facility(
     ctx: Arc<McpContext>,
     facility: String,
 ) -> Result<FacilityUpgraded, String> {
-    crate::commands::club::upgrade_facility_internal(&ctx.state_manager, &facility)?;
+    crate::commands::club::upgrade_facility_internal(
+        &ctx.state_manager,
+        Career::Active,
+        &facility,
+    )?;
 
     {
         use tauri::Emitter;
@@ -55,7 +60,7 @@ pub fn staff_get(ctx: Arc<McpContext>) -> Result<StaffList, String> {
 // ─── staff_hire ──────────────────────────────────────────────────────────────
 
 pub fn staff_hire(ctx: Arc<McpContext>, staff_id: String) -> Result<StaffHired, String> {
-    crate::commands::staff::hire_staff_internal(&ctx.state_manager, &staff_id)?;
+    crate::commands::staff::hire_staff_internal(&ctx.state_manager, Career::Active, &staff_id)?;
 
     {
         use tauri::Emitter;
@@ -70,7 +75,7 @@ pub fn staff_hire(ctx: Arc<McpContext>, staff_id: String) -> Result<StaffHired, 
 // ─── staff_release ───────────────────────────────────────────────────────────
 
 pub fn staff_release(ctx: Arc<McpContext>, staff_id: String) -> Result<StaffReleased, String> {
-    crate::commands::staff::release_staff_internal(&ctx.state_manager, &staff_id)?;
+    crate::commands::staff::release_staff_internal(&ctx.state_manager, Career::Active, &staff_id)?;
 
     {
         use tauri::Emitter;
@@ -85,7 +90,10 @@ pub fn staff_release(ctx: Arc<McpContext>, staff_id: String) -> Result<StaffRele
 // ─── club_request_board_support ─────────────────────────────────────────────
 
 pub fn club_request_board_support(ctx: Arc<McpContext>) -> Result<BoardSupport, String> {
-    let response = crate::commands::finances::request_board_support_internal(&ctx.state_manager)?;
+    let response = crate::commands::finances::request_board_support_internal(
+        &ctx.state_manager,
+        Career::Active,
+    )?;
 
     {
         use tauri::Emitter;
@@ -104,8 +112,10 @@ pub fn club_request_board_support(ctx: Arc<McpContext>) -> Result<BoardSupport, 
 // ─── club_request_marketing ─────────────────────────────────────────────────
 
 pub fn club_request_marketing(ctx: Arc<McpContext>) -> Result<MarketingCampaign, String> {
-    let response =
-        crate::commands::finances::request_marketing_campaign_internal(&ctx.state_manager)?;
+    let response = crate::commands::finances::request_marketing_campaign_internal(
+        &ctx.state_manager,
+        Career::Active,
+    )?;
 
     {
         use tauri::Emitter;
@@ -122,7 +132,10 @@ pub fn club_request_marketing(ctx: Arc<McpContext>) -> Result<MarketingCampaign,
 // ─── club_request_sponsor_pitch ─────────────────────────────────────────────
 
 pub fn club_request_sponsor_pitch(ctx: Arc<McpContext>) -> Result<SponsorPitch, String> {
-    let response = crate::commands::finances::request_sponsor_pitch_internal(&ctx.state_manager)?;
+    let response = crate::commands::finances::request_sponsor_pitch_internal(
+        &ctx.state_manager,
+        Career::Active,
+    )?;
 
     {
         use tauri::Emitter;

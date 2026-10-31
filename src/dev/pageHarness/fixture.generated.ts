@@ -8,6 +8,7 @@ import type { ContractWarningStage } from "../../services/contractService";
 import type { BackendFinanceSnapshotResponseData } from "../../services/financeService";
 import type { JobOpportunity } from "../../services/jobService";
 import type { PlayersPage, PlayersPageQuery } from "../../services/playersService";
+import type { PositionGroupEntry } from "../../services/positionService";
 import type { RatingTier, SquadFitness } from "../../services/squadService";
 import type { StaffSlice } from "../../services/staffService";
 import type { TeamsDirectory } from "../../services/teamsService";
@@ -1647,6 +1648,77 @@ export const ratingTiers = [
   "S",
   "S",
 ] satisfies RatingTier[];
+
+export const positionGroups = [
+  {
+    "group": "Goalkeeper",
+    "position": "Goalkeeper",
+  },
+  {
+    "group": "Defender",
+    "position": "Defender",
+  },
+  {
+    "group": "Midfielder",
+    "position": "Midfielder",
+  },
+  {
+    "group": "Forward",
+    "position": "Forward",
+  },
+  {
+    "group": "Defender",
+    "position": "RightBack",
+  },
+  {
+    "group": "Defender",
+    "position": "CenterBack",
+  },
+  {
+    "group": "Defender",
+    "position": "LeftBack",
+  },
+  {
+    "group": "Defender",
+    "position": "RightWingBack",
+  },
+  {
+    "group": "Defender",
+    "position": "LeftWingBack",
+  },
+  {
+    "group": "Midfielder",
+    "position": "DefensiveMidfielder",
+  },
+  {
+    "group": "Midfielder",
+    "position": "CentralMidfielder",
+  },
+  {
+    "group": "Midfielder",
+    "position": "AttackingMidfielder",
+  },
+  {
+    "group": "Midfielder",
+    "position": "RightMidfielder",
+  },
+  {
+    "group": "Midfielder",
+    "position": "LeftMidfielder",
+  },
+  {
+    "group": "Forward",
+    "position": "RightWinger",
+  },
+  {
+    "group": "Forward",
+    "position": "LeftWinger",
+  },
+  {
+    "group": "Forward",
+    "position": "Striker",
+  },
+] satisfies PositionGroupEntry[];
 
 export const careerStage = "employed" satisfies CareerStage;
 
