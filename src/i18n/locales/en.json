@@ -2735,6 +2735,7 @@
         "maxSubstitutionsReached": "Maximum substitutions reached",
         "preMatchSwapTooLate": "Pre-match swaps are only allowed before kick-off",
         "cannotSubstituteSentOffPlayer": "Cannot substitute a sent-off player",
+        "noSubstitutionsForShootout": "No substitutions once extra time is over: the shootout is taken by the players on the pitch at the final whistle.",
         "playerNotOnPitch": "Player not on pitch",
         "playerAlreadySubstitutedOff": "Player has already been substituted off",
         "playerNotOnBench": "Player not on bench",
