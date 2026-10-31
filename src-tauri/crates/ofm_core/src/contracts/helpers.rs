@@ -4,6 +4,19 @@
 
 use super::*;
 
+/// The manager's club: the one a contract the manager offers is with.
+pub(crate) fn managed_team(game: &Game) -> Result<&Team, String> {
+    let manager_team_id = game
+        .manager
+        .team_id
+        .as_deref()
+        .ok_or(ERR_NO_TEAM_ASSIGNED.to_string())?;
+    game.teams
+        .iter()
+        .find(|candidate| candidate.id == manager_team_id)
+        .ok_or(ERR_MANAGED_TEAM_NOT_FOUND.to_string())
+}
+
 pub(crate) fn owned_player<'a>(game: &'a Game, player_id: &str) -> Result<&'a Player, String> {
     let manager_team_id = game
         .manager
