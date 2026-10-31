@@ -81,6 +81,19 @@ describe("the wage share a loan offer would cover", () => {
       screen.getByText(`transfers.loanWageSummary(${formatExactMoney(9000)})`),
     ).toBeInTheDocument();
   });
+
+  /**
+   * Given a player whose wage the club may not see
+   * When the loan form offers to cover none of it, 0%
+   * Then the amount is zero: nothing of a hidden wage is still nothing, and it tells nothing.
+   */
+  it("writes a zero share at 0% even when the wage is hidden", () => {
+    renderLoanForm({ kind: "hidden" }, 0);
+
+    expect(
+      screen.getByText(`transfers.loanWageSummary(${formatExactMoney(0)})`),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("LoanOfferModal", () => {

@@ -210,11 +210,15 @@ export function LoanOfferForm({
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
         {t("transfers.loanWageSummary", {
           percent: wageContributionPct,
-          wage: visibleWageText(
-            visibleWage,
-            (weekly) => formatExactMoney(Math.round((weekly * wageContributionPct) / 100)),
-            t,
-          ),
+          // Covering none of his wage costs nothing whatever it is, so 0% tells nothing hidden.
+          wage:
+            wageContributionPct === 0
+              ? formatExactMoney(0)
+              : visibleWageText(
+                  visibleWage,
+                  (weekly) => formatExactMoney(Math.round((weekly * wageContributionPct) / 100)),
+                  t,
+                ),
         })}
       </p>
 
