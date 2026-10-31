@@ -459,11 +459,14 @@ pub(crate) fn knockout_bracket_order(league: &League) -> Vec<String> {
 
 type Tie = (String, String);
 
+/// A tie with its index in the order it was drawn.
+type NumberedTie = (usize, Tie);
+
 fn is_two_per_group_without_thirds(league: &League) -> bool {
     league.rules.group_qualifiers_per_group == 2
         && league.rules.group_best_third_qualifiers == 0
         && league.groups.len() >= 2
-        && league.groups.len() % 2 == 0
+        && league.groups.len().is_multiple_of(2)
 }
 
 /// A1 v B2, B1 v A2, C1 v D2, D1 v C2, ...: each winner against the runner-up of the group it is
@@ -554,11 +557,11 @@ fn arrange_halves(ties: Vec<Tie>, group_of: &impl Fn(&str) -> Option<usize>) -> 
     let Some((_, mask)) = best else {
         return ties;
     };
-    let (first, second): (Vec<(usize, Tie)>, Vec<(usize, Tie)>) = ties
+    let (first, second): (Vec<NumberedTie>, Vec<NumberedTie>) = ties
         .into_iter()
         .enumerate()
         .partition(|(index, _)| mask & (1u32 << *index) != 0);
-    let strip = |side: Vec<(usize, Tie)>| side.into_iter().map(|(_, tie)| tie).collect::<Vec<_>>();
+    let strip = |side: Vec<NumberedTie>| side.into_iter().map(|(_, tie)| tie).collect::<Vec<_>>();
     let mut arranged = arrange_halves(strip(first), group_of);
     arranged.extend(arrange_halves(strip(second), group_of));
     arranged
@@ -1044,6 +1047,19 @@ mod tests {
         for (home, away) in &ties {
             assert_ne!(group_index_of(&cup, home), group_index_of(&cup, away));
         }
+        // The one winner without a bye plays the lowest-placed qualifier of another group.
+        let winner = ranked[2].clone();
+        let lowest_other = ranked
+            .iter()
+            .rev()
+            .find(|team| group_index_of(&cup, team) != group_index_of(&cup, &winner))
+            .unwrap();
+        let tie = ties
+            .iter()
+            .find(|(home, away)| *home == winner || *away == winner)
+            .unwrap();
+        let opponent = if tie.0 == winner { &tie.1 } else { &tie.0 };
+        assert_eq!(opponent, lowest_other);
     }
 
     #[test]
