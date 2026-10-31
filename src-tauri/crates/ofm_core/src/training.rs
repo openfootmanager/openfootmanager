@@ -1429,9 +1429,18 @@ mod tests {
         );
     }
 
-    fn fitness_after(fitness: u8, focus: TrainingFocus, mut roll: Roll) -> u8 {
+    fn fitness_after(fitness: u8, focus: TrainingFocus, roll: Roll) -> u8 {
+        fitness_after_at(1.0, fitness, focus, roll)
+    }
+
+    fn fitness_after_at(
+        intensity_mult: f64,
+        fitness: u8,
+        focus: TrainingFocus,
+        mut roll: Roll,
+    ) -> u8 {
         let mut value = fitness;
-        apply_fitness_change(&mut value, &focus, 1.0, &mut roll);
+        apply_fitness_change(&mut value, &focus, intensity_mult, &mut roll);
         value
     }
 
@@ -1475,5 +1484,150 @@ mod tests {
             ),
             (100, 100)
         );
+    }
+
+    /// Given a player at fitness 80 and a roll of 0.02, between the medium rate (1.5%) and the high
+    ///       one (2.25%)
+    /// When he has a high-intensity physical session
+    /// Then he gains a point: intensity scales the chance up
+    #[test]
+    fn a_high_intensity_physical_session_raises_the_chance_of_a_fitness_point() {
+        assert_eq!(
+            fitness_after_at(1.5, 80, TrainingFocus::Physical, Roll::at(0.02)),
+            81
+        );
+    }
+
+    /// Given a player at fitness 90 in a technical session, a 5% chance of losing a point
+    /// When the roll is 0, and then when it is 0.06
+    /// Then he loses a point on the first and none on the second
+    #[test]
+    fn a_very_fit_player_loses_sharpness_only_on_a_roll_under_one_in_twenty() {
+        assert_eq!(
+            (
+                fitness_after(90, TrainingFocus::Technical, Roll::at(0.0)),
+                fitness_after(90, TrainingFocus::Technical, Roll::at(0.06))
+            ),
+            (89, 90)
+        );
+    }
+
+    /// Given a player at fitness exactly 85 in a technical session and a roll of 0
+    /// When the session ends
+    /// Then he keeps all 85: only fitness above 85 needs maintaining
+    #[test]
+    fn fitness_of_eighty_five_needs_no_maintaining() {
+        assert_eq!(
+            fitness_after(85, TrainingFocus::Technical, Roll::at(0.0)),
+            85
+        );
+    }
+
+    /// Given a club with physios rated 80 and 40, and another club's physio rated 0
+    /// When the club's physio bonus is worked out
+    /// Then it is 1.24: 1.0 plus four tenths of its own physios' average, 60
+    #[test]
+    fn the_physio_bonus_is_the_clubs_average_physio_rating_on_a_four_tenths_scale() {
+        let physio = |id: &str, team: &str, rating: u8| {
+            let mut member = staff(id, Some(team), StaffRole::Physio, 50);
+            member.attributes.physiotherapy = rating;
+            member
+        };
+        let mut game = training_game("team1");
+        game.staff = vec![
+            physio("good", "team1", 80),
+            physio("fair", "team1", 40),
+            physio("theirs", "team2", 0),
+        ];
+
+        let bonus = compute_coaching_bonus(&game, "team1", &TrainingFocus::Technical);
+
+        assert!(
+            (bonus.physio_mult - 1.24).abs() < 1e-9,
+            "{}",
+            bonus.physio_mult
+        );
+    }
+
+    /// Given a player with stamina 50 (recovery scaled by 0.75) whose other factors are all 1.0
+    /// When he has a day off with no physio or medical centre to speak of
+    /// Then he recovers 7: three quarters of the bare 10
+    #[test]
+    fn a_player_with_less_stamina_recovers_less_on_a_day_off() {
+        let mut player = neutral_player();
+        player.attributes.stamina = 50;
+
+        assert_eq!(
+            condition_gained_on_a_day_off(&mut player, &staffed_plan(1.0, 1.0)),
+            7
+        );
+    }
+
+    /// A 27-year-old at condition 60, morale 80 (1.1) and fitness 75 (1.12), with stamina 100, who
+    /// trains on Monday with the best physio and medical centre (1.4 each): the change in his
+    /// condition over the session.
+    fn condition_change_over_a_session(focus: TrainingFocus) -> i16 {
+        let mut player = neutral_player();
+        player.morale = 80;
+        player.fitness = 75;
+        let mut plan = staffed_plan(1.4, 1.4);
+        plan.default_focus = focus;
+
+        session(&mut player, &plan, A_TRAINING_DAY);
+
+        i16::from(player.condition) - 60
+    }
+
+    /// Given that player in a recovery session, which costs no condition
+    /// When the session ends
+    /// Then he is 21 better: nine times the staff's 1.96 (17.64), scaled by his morale and fitness
+    #[test]
+    fn a_recovery_session_restores_nine_times_the_staffs_base() {
+        assert_eq!(condition_change_over_a_session(TrainingFocus::Recovery), 21);
+    }
+
+    /// Given that player in a medium technical session, which costs 6 condition
+    /// When the session ends
+    /// Then he is 1 better: it restores 7, three times the staff's 1.96, scaled by his morale and
+    ///      fitness
+    #[test]
+    fn an_ordinary_session_restores_three_times_the_staffs_base() {
+        assert_eq!(condition_change_over_a_session(TrainingFocus::Technical), 1);
+    }
+
+    /// Given two players on a training day, one at condition 40 and one at 39
+    /// When their session is planned
+    /// Then the one at 40 trains as planned and the one at 39 is rested: the guard is below 40
+    #[test]
+    fn the_fatigue_guard_rests_only_a_player_below_forty() {
+        let focus_at = |condition: u8| {
+            let mut player = neutral_player();
+            player.condition = condition;
+            player_training_session(&player, &plan(TrainingFocus::Technical), A_TRAINING_DAY).focus
+        };
+
+        assert_eq!(
+            (focus_at(40), focus_at(39)),
+            (TrainingFocus::Technical, TrainingFocus::Recovery)
+        );
+    }
+
+    fn intensity_plan(intensity: TrainingIntensity) -> TeamTrainingPlan {
+        TeamTrainingPlan {
+            intensity,
+            ..plan(TrainingFocus::Technical)
+        }
+    }
+
+    /// Given a young keeper trained 4,000 times at high intensity (1.5) and at low (0.5), on the
+    ///       same rolls
+    /// When the attribute points gained are counted
+    /// Then high intensity brings at least twice as many: about three times
+    #[test]
+    fn a_high_intensity_session_brings_more_attribute_gains_than_a_low_one() {
+        let low = points_gained_over(4_000, &intensity_plan(TrainingIntensity::Low));
+        let high = points_gained_over(4_000, &intensity_plan(TrainingIntensity::High));
+
+        assert!(high as f64 > low as f64 * 2.0, "{high} against {low}");
     }
 }
