@@ -5,6 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { PlayersPageQuery } from "../../services/playersService";
 import PlayerListFilters from "./PlayerListFilters";
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>

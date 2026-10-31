@@ -18,7 +18,6 @@ import { makeTeamFallback } from "./helpers";
 import {
   isPlayerExactForSlot,
   isPlayerOutOfPosition,
-  normalisePosition,
   translatePositionAbbreviation,
 } from "../squad/SquadTab.helpers";
 import { PhaseBlueprintPanel } from "../tactics/PhaseBlueprintPanel";
@@ -28,6 +27,7 @@ import type { PlayerRole, TacticsPhaseSettings } from "../../store/types";
 import { PitchToken, Select, TeamLogo, ThemeToggle, type PitchFitTone } from "../ui";
 import { ChevronRight, Crown, Footprints, CornerDownRight, CircleDot, Wand2 } from "lucide-react";
 import { naturalPositionOf } from "../../lib/positions";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 interface PreMatchSetupProps {
   snapshot: MatchSnapshot;
@@ -48,6 +48,7 @@ export default function PreMatchSetup({
 }: PreMatchSetupProps) {
   const tierOf = useRatingTiers();
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const [selectedStarterId, setSelectedStarterId] = useState<string | null>(null);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [activeTab, setActiveTab] = useState<"team" | "opponent">("team");
@@ -136,7 +137,7 @@ export default function PreMatchSetup({
           : isPlayerOutOfPosition(sp, slotPosition)
             ? "out"
             : "adapted"
-        : normalisePosition(naturalPositionOf(sp)) === player.position
+        : positions.groupOf(naturalPositionOf(sp)) === player.position
           ? "exact"
           : "out";
     const displayPosition = slotPosition ?? player.position;

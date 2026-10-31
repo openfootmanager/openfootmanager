@@ -8,6 +8,7 @@ import {
 import { emptyPlayer } from "./helpers";
 import en from "../../../i18n/locales/en.json";
 import type { PlayerDef, Position } from "./types";
+import { cannedPositionTable } from "../../../test-utils/positionTable";
 
 function player(overrides: Partial<PlayerDef> = {}): PlayerDef {
   return { ...emptyPlayer(), ...overrides };
@@ -24,7 +25,12 @@ describe("filterPlayerRows", () => {
       player({ id: "d", name: "Bo Reilly" }),
     ];
 
-    const { filtered } = filterPlayerRows({ players, query: "bo", teamNames: NO_TEAMS });
+    const { filtered } = filterPlayerRows({
+      players,
+      query: "bo",
+      teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
+    });
 
     expect(filtered.map(({ i }) => i)).toEqual([1, 3]);
   });
@@ -36,8 +42,20 @@ describe("filterPlayerRows", () => {
       player({ id: "c", name: "Cyd" }),
     ];
 
-    const youth = filterPlayerRows({ players, youthOnly: true, query: "", teamNames: NO_TEAMS });
-    const seniors = filterPlayerRows({ players, youthOnly: false, query: "", teamNames: NO_TEAMS });
+    const youth = filterPlayerRows({
+      players,
+      youthOnly: true,
+      query: "",
+      teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
+    });
+    const seniors = filterPlayerRows({
+      players,
+      youthOnly: false,
+      query: "",
+      teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
+    });
 
     expect(youth.filtered.map(({ i }) => i)).toEqual([1]);
     expect(seniors.filtered.map(({ i }) => i)).toEqual([0, 2]);
@@ -50,6 +68,7 @@ describe("filterPlayerRows", () => {
       players,
       query: "ana",
       teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
     });
 
     expect(scoped).toHaveLength(2);
@@ -68,7 +87,12 @@ describe("filterPlayerRows", () => {
       ["hav", "Havenport"],
     ]);
 
-    const { filtered } = filterPlayerRows({ players, query: "northshire", teamNames });
+    const { filtered } = filterPlayerRows({
+      players,
+      query: "northshire",
+      teamNames,
+      positions: cannedPositionTable(),
+    });
 
     expect(filtered.map(({ player: p }) => p.id)).toEqual(["a"]);
   });
@@ -89,9 +113,24 @@ describe("filterPlayerRows", () => {
       }),
     ];
 
-    const byId = filterPlayerRows({ players, query: "keeper-o", teamNames: NO_TEAMS });
-    const byPosition = filterPlayerRows({ players, query: "goalkeeper", teamNames: NO_TEAMS });
-    const byNationality = filterPlayerRows({ players, query: "arg", teamNames: NO_TEAMS });
+    const byId = filterPlayerRows({
+      players,
+      query: "keeper-o",
+      teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
+    });
+    const byPosition = filterPlayerRows({
+      players,
+      query: "goalkeeper",
+      teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
+    });
+    const byNationality = filterPlayerRows({
+      players,
+      query: "arg",
+      teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
+    });
 
     expect(byId.filtered.map(({ player: p }) => p.id)).toEqual(["keeper-one"]);
     expect(byPosition.filtered.map(({ player: p }) => p.id)).toEqual(["keeper-one"]);
@@ -102,34 +141,41 @@ describe("filterPlayerRows", () => {
     const players = [player({ id: "a", firstName: "Ana", lastName: "Reyes" })];
 
     expect(
-      filterPlayerRows({ players, query: "reyes", teamNames: NO_TEAMS }).filtered,
+      filterPlayerRows({
+        players,
+        query: "reyes",
+        teamNames: NO_TEAMS,
+        positions: cannedPositionTable(),
+      }).filtered,
     ).toHaveLength(1);
   });
 });
 
 describe("matchesPositionFilter", () => {
   it("lets everything through when no position is chosen", () => {
-    expect(matchesPositionFilter("Striker", "All")).toBe(true);
-    expect(matchesPositionFilter("Goalkeeper", "All")).toBe(true);
+    expect(matchesPositionFilter("Striker", "All", cannedPositionTable())).toBe(true);
+    expect(matchesPositionFilter("Goalkeeper", "All", cannedPositionTable())).toBe(true);
   });
 
   it("matches one exact position", () => {
-    expect(matchesPositionFilter("CenterBack", "CenterBack")).toBe(true);
-    expect(matchesPositionFilter("LeftBack", "CenterBack")).toBe(false);
+    expect(matchesPositionFilter("CenterBack", "CenterBack", cannedPositionTable())).toBe(true);
+    expect(matchesPositionFilter("LeftBack", "CenterBack", cannedPositionTable())).toBe(false);
   });
 
   it("matches every position in a group", () => {
-    expect(matchesPositionFilter("CenterBack", "group:Defender")).toBe(true);
-    expect(matchesPositionFilter("LeftWingBack", "group:Defender")).toBe(true);
-    expect(matchesPositionFilter("Striker", "group:Defender")).toBe(false);
+    expect(matchesPositionFilter("CenterBack", "group:Defender", cannedPositionTable())).toBe(true);
+    expect(matchesPositionFilter("LeftWingBack", "group:Defender", cannedPositionTable())).toBe(
+      true,
+    );
+    expect(matchesPositionFilter("Striker", "group:Defender", cannedPositionTable())).toBe(false);
   });
 
   it("keeps a group apart from the bare enum value of the same name", () => {
     // Some packages set the broad "Defender" literally. Choosing that should
     // find those players, not every defender in the game.
-    expect(matchesPositionFilter("Defender", "Defender")).toBe(true);
-    expect(matchesPositionFilter("CenterBack", "Defender")).toBe(false);
-    expect(matchesPositionFilter("Defender", "group:Defender")).toBe(true);
+    expect(matchesPositionFilter("Defender", "Defender", cannedPositionTable())).toBe(true);
+    expect(matchesPositionFilter("CenterBack", "Defender", cannedPositionTable())).toBe(false);
+    expect(matchesPositionFilter("Defender", "group:Defender", cannedPositionTable())).toBe(true);
   });
 });
 
@@ -181,6 +227,7 @@ describe("filterPlayerRows with a position filter", () => {
       positionFilter: "group:Defender",
       query: "",
       teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
     });
 
     expect(filtered.map(({ i }) => i)).toEqual([1, 2]);
@@ -192,6 +239,7 @@ describe("filterPlayerRows with a position filter", () => {
       positionFilter: "Goalkeeper",
       query: "",
       teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
     });
 
     expect(filtered.map(({ player: p }) => p.id)).toEqual(["gk"]);
@@ -203,6 +251,7 @@ describe("filterPlayerRows with a position filter", () => {
       positionFilter: "group:Defender",
       query: "bo r",
       teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
     });
 
     expect(filtered.map(({ player: p }) => p.id)).toEqual(["lb"]);
@@ -214,6 +263,7 @@ describe("filterPlayerRows with a position filter", () => {
       positionFilter: "Goalkeeper",
       query: "",
       teamNames: NO_TEAMS,
+      positions: cannedPositionTable(),
     });
 
     expect(scoped).toHaveLength(4);

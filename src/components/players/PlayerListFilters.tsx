@@ -2,7 +2,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { CORE_POSITIONS, positionsInGroup } from "../../lib/positions";
+import { CORE_POSITIONS } from "../../lib/positions";
 import type {
   PlayerStatusFilter,
   PlayersPageQuery,
@@ -10,6 +10,8 @@ import type {
   StatusCounts,
 } from "../../services/playersService";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
+import { usePositionTable } from "../../hooks/usePositionGroups";
+import type { PositionTable } from "../../lib/positionTable";
 
 const chip =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-800 motion-reduce:transition-none px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all";
@@ -27,20 +29,20 @@ const STATUS_LABEL_KEY: Record<PlayerStatusFilter, string> = {
 };
 
 /** The detailed positions a query's position tests stand for, whichever shorthand wrote them. */
-function chosenPositions(positions: PositionFilter[]): Set<string> {
+function chosenPositions(positions: PositionFilter[], table: PositionTable): Set<string> {
   const chosen = new Set<string>();
   for (const filter of positions) {
     if ("exact" in filter) chosen.add(filter.exact);
-    else for (const member of positionsInGroup(filter.group)) chosen.add(member);
+    else for (const member of table.membersOf(filter.group)) chosen.add(member);
   }
   return chosen;
 }
 
 /** Writes a chosen set back, a fully chosen group as its shorthand so broad stored values match. */
-function toPositionFilters(chosen: Set<string>): PositionFilter[] {
+function toPositionFilters(chosen: Set<string>, table: PositionTable): PositionFilter[] {
   const filters: PositionFilter[] = [];
   for (const group of CORE_POSITIONS) {
-    const members = positionsInGroup(group);
+    const members = table.membersOf(group);
     const inGroup = members.filter((member) => chosen.has(member));
     if (inGroup.length === members.length) filters.push({ group });
     else filters.push(...inGroup.map((exact) => ({ exact })));
@@ -58,7 +60,7 @@ interface PositionGroupChipProps {
 
 function PositionGroupChip({ group, chosen, open, onPress, onToggle }: PositionGroupChipProps) {
   const { t } = useTranslation();
-  const members = positionsInGroup(group);
+  const members = usePositionTable().membersOf(group);
   const refinable = members.length > 1;
   const selected = members.filter((member) => chosen.has(member)).length;
   const active = selected > 0;
@@ -191,9 +193,10 @@ export default function PlayerListFilters({
   trailing,
 }: PlayerListFiltersProps) {
   const { t } = useTranslation();
+  const table = usePositionTable();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const positionsRef = useRef<HTMLDivElement | null>(null);
-  const chosen = chosenPositions(query.positions);
+  const chosen = chosenPositions(query.positions, table);
 
   useEffect(() => {
     if (!openGroup) return;
@@ -216,12 +219,12 @@ export default function PlayerListFilters({
   }, [openGroup]);
 
   const pressGroup = (group: string) => {
-    const members = positionsInGroup(group);
+    const members = table.membersOf(group);
     if (members.length <= 1) {
       const next = new Set(chosen);
       if (next.has(group)) next.delete(group);
       else next.add(group);
-      onChange({ positions: toPositionFilters(next) });
+      onChange({ positions: toPositionFilters(next, table) });
       setOpenGroup(null);
       return;
     }
@@ -235,11 +238,11 @@ export default function PlayerListFilters({
     if (members.every((member) => chosen.has(member))) {
       const rest = new Set(chosen);
       for (const member of members) rest.delete(member);
-      onChange({ positions: toPositionFilters(rest) });
+      onChange({ positions: toPositionFilters(rest, table) });
       return;
     }
     // Otherwise the group is chosen whole, which is a shortcut that keeps earlier picks elsewhere.
-    onChange({ positions: toPositionFilters(new Set([...chosen, ...members])) });
+    onChange({ positions: toPositionFilters(new Set([...chosen, ...members]), table) });
     setOpenGroup(group);
   };
 
@@ -247,7 +250,7 @@ export default function PlayerListFilters({
     const next = new Set(chosen);
     if (next.has(position)) next.delete(position);
     else next.add(position);
-    onChange({ positions: toPositionFilters(next) });
+    onChange({ positions: toPositionFilters(next, table) });
   };
 
   return (

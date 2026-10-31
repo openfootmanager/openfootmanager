@@ -10,6 +10,7 @@ import { useKeepRevealed } from "./entityList.reveal";
 import { filterPlayerRows, positionFilterGroups, type PositionFilter } from "./PlayersTab.helpers";
 import { Select } from "../../ui/Select";
 import type { PlayerDef, Position, TeamDef } from "./types";
+import { usePositionTable } from "../../../hooks/usePositionGroups";
 
 interface PlayerAvatarCellProps {
   player: PlayerDef;
@@ -75,6 +76,7 @@ export function PlayersTab({
   youthOnly,
 }: PlayersTabProps) {
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const positionFilterId = useId();
   const positionFilterCaptionId = useId();
   const [query, setQuery] = useState("");
@@ -84,8 +86,8 @@ export function PlayersTab({
 
   const teamNames = useMemo(() => buildTeamNameMap(teams), [teams]);
   const { scoped, filtered } = useMemo(
-    () => filterPlayerRows({ players, youthOnly, positionFilter, query, teamNames }),
-    [players, youthOnly, positionFilter, query, teamNames],
+    () => filterPlayerRows({ players, youthOnly, positionFilter, query, teamNames, positions }),
+    [players, youthOnly, positionFilter, query, teamNames, positions],
   );
   const { visible } = capRows(
     filtered,

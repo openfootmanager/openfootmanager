@@ -9,6 +9,7 @@ import ContextMenu from "../ContextMenu";
 import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { condColor } from "../../lib/playerConditionDisplay";
 import { sortByPositionGroup } from "./SubPanel.helpers";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 export const POSITION_KEY_STATS: Record<string, { label: string; key: string }[]> = {
   Goalkeeper: [
@@ -173,6 +174,7 @@ export default function PreMatchLineup({
 }: PreMatchLineupProps) {
   const tierOf = useRatingTiers();
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
   const jerseyChip = (playerId: string) =>
@@ -393,7 +395,7 @@ export default function PreMatchLineup({
                 COND
               </span>
             </div>
-            {sortByPositionGroup(userBench).map((bp) => {
+            {sortByPositionGroup(userBench, positions).map((bp) => {
               const posOvr = bp.ovr;
               const keyStats = POSITION_KEY_STATS[bp.position] || [];
               const canSwap = Boolean(selectedStarterId);

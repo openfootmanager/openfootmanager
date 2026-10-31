@@ -10,8 +10,8 @@ const { getPositionGroups } = await import("../services/positionService");
 const mockedGroups = vi.mocked(getPositionGroups);
 
 const table = (): PositionGroupEntry[] => [
-  { position: "RightWingBack", group: "Defender" },
-  { position: "Striker", group: "Forward" },
+  { position: "RightWingBack", group: "Defender", rank: 0 },
+  { position: "Striker", group: "Forward", rank: 0 },
 ];
 
 beforeEach(() => {

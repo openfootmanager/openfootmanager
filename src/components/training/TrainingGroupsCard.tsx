@@ -17,6 +17,7 @@ import {
   sortTrainingRoster,
 } from "./trainingGroupsModel";
 import { naturalPositionOf } from "../../lib/positions";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 type TrainingGroup = TrainingGroupData;
 
@@ -40,6 +41,7 @@ export default function TrainingGroupsCard({
   trainingFocusIcons,
 }: TrainingGroupsCardProps) {
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const groups: TrainingGroup[] = team?.training_groups ?? [];
   const teamFocus = team?.training_focus || "Physical";
 
@@ -106,7 +108,7 @@ export default function TrainingGroupsCard({
   };
 
   const playerGroupMap = buildPlayerGroupMap(groups);
-  const sortedRoster = sortTrainingRoster(roster);
+  const sortedRoster = sortTrainingRoster(roster, positions);
 
   return (
     <Card>

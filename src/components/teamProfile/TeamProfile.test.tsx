@@ -8,6 +8,11 @@ import { ratingTierClass } from "../../lib/ratingTier";
 import TeamProfile from "./TeamProfile";
 import { createSeasonContext } from "../../test-utils/factories";
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("../../hooks/useRatingTiers", async () => {
   const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
   return cannedRatingTiersModule();
