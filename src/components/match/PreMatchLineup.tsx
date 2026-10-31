@@ -174,7 +174,7 @@ export default function PreMatchLineup({
 }: PreMatchLineupProps) {
   const tierOf = useRatingTiers();
   const { t } = useTranslation();
-  const positions = usePositionTable();
+  const positionTable = usePositionTable();
   const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
 
   const jerseyChip = (playerId: string) =>
@@ -395,7 +395,7 @@ export default function PreMatchLineup({
                 COND
               </span>
             </div>
-            {sortByPositionGroup(userBench, positions).map((bp) => {
+            {sortByPositionGroup(userBench, positionTable).map((bp) => {
               const posOvr = bp.ovr;
               const keyStats = POSITION_KEY_STATS[bp.position] || [];
               const canSwap = Boolean(selectedStarterId);

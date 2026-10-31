@@ -48,7 +48,7 @@ export default function PreMatchSetup({
 }: PreMatchSetupProps) {
   const tierOf = useRatingTiers();
   const { t } = useTranslation();
-  const positions = usePositionTable();
+  const positionTable = usePositionTable();
   const [selectedStarterId, setSelectedStarterId] = useState<string | null>(null);
   const [isAutoSelecting, setIsAutoSelecting] = useState(false);
   const [activeTab, setActiveTab] = useState<"team" | "opponent">("team");
@@ -137,7 +137,7 @@ export default function PreMatchSetup({
           : isPlayerOutOfPosition(sp, slotPosition)
             ? "out"
             : "adapted"
-        : positions.groupOf(naturalPositionOf(sp)) === player.position
+        : positionTable.groupOf(naturalPositionOf(sp)) === player.position
           ? "exact"
           : "out";
     const displayPosition = slotPosition ?? player.position;

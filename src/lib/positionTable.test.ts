@@ -48,6 +48,10 @@ describe("createPositionTable", () => {
    * Then they come in pitch order without the bucket itself; a group with none is just itself.
    */
   it("lists a group's detailed members in pitch order", () => {
+    // The table arrives in whatever order the backend writes it; the members come back by rank.
+    const shuffled = createPositionTable([...ENTRIES].reverse());
+
+    expect(shuffled.membersOf("Defender")).toEqual(["CenterBack", "RightBack"]);
     expect(table.membersOf("Defender")).toEqual(["CenterBack", "RightBack"]);
     expect(table.membersOf("Goalkeeper")).toEqual(["Goalkeeper"]);
   });
