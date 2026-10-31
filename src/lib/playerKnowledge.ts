@@ -57,6 +57,32 @@ export function knowledgeRevision(inputs: KnowledgeRevisionInputs): string {
   ]);
 }
 
+/** The parts of the game that what the club knows moves with. */
+export interface KnowledgeGame {
+  career_token?: number;
+  clock: { current_date: string };
+  manager: { team_id?: string | null };
+  season_context?: { season_start?: string | null } | null;
+}
+
+/**
+ * The knowledge revision of the game a screen shows: its career, date, manager's club and season
+ * start, picked here once for every screen, plus a screen's own inputs (a profile's player's club
+ * and wage).
+ */
+export function gameKnowledgeRevision(
+  game: KnowledgeGame,
+  screenInputs: Pick<KnowledgeRevisionInputs, "playerClubId" | "wage"> = {},
+): string {
+  return knowledgeRevision({
+    careerToken: game.career_token,
+    date: game.clock.current_date,
+    managerClubId: game.manager.team_id,
+    seasonStart: game.season_context?.season_start,
+    ...screenInputs,
+  });
+}
+
 /**
  * A rating as a list or a card writes it: the number when the club knows it, "–" when it does not.
  * The one place a hidden rating is spelled, so every screen hides it alike.

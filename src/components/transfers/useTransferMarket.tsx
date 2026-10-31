@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { knowledgeRevision, NOTHING_VISIBLE, type VisibleFigures } from "../../lib/playerKnowledge";
+import {
+  gameKnowledgeRevision,
+  NOTHING_VISIBLE,
+  type VisibleFigures,
+} from "../../lib/playerKnowledge";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import type { PlayersPageQuery } from "../../services/playersService";
 import { usePlayersPage } from "../../hooks/usePlayersPage";
@@ -53,12 +57,7 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
   const [view, setView] = useState<TransferTabView>("players");
   // What the club knows moves with the career, the manager's club, the date and the season: an
   // answer asked under another of these never shows its figures (see `visibleOf`).
-  const revision = knowledgeRevision({
-    careerToken: gameState.career_token,
-    date: gameState.clock.current_date,
-    managerClubId: gameState.manager.team_id,
-    seasonStart: gameState.season_context?.season_start,
-  });
+  const revision = gameKnowledgeRevision(gameState);
   const {
     query: marketQuery,
     patchQuery: patchMarketQuery,

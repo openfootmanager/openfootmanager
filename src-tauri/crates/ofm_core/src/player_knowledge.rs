@@ -77,6 +77,13 @@ impl<'a> KnowledgeView<'a> {
         }
     }
 
+    /// The club knows the squad at `club_id`: its own, or a rival in its division, whose players
+    /// it sees every season. A figure about a whole squad, such as its average rating, shows only
+    /// then; a few scouted players would make a skewed figure that looks authoritative.
+    pub fn knows_squad_at(&self, club_id: &str) -> bool {
+        self.club == Some(club_id) || self.known_clubs.contains(club_id)
+    }
+
     fn wage_for(&self, knowledge: &PlayerKnowledge, player: &Player) -> VisibleWage {
         match knowledge {
             PlayerKnowledge::Own => VisibleWage::Exact {
@@ -548,6 +555,44 @@ mod tests {
         game.league = Some(division("legacy", &["homeless", "neighbour"]));
 
         assert_eq!(knowledge_of(&game, "p"), PlayerKnowledge::Unknown);
+    }
+
+    /// Given the manager's club, a rival in his division and a club in another division
+    /// When the view is asked whether the club knows each squad
+    /// Then it knows its own and its rival's, and not the other division's
+    #[test]
+    fn the_club_knows_its_own_squad_and_its_division_rivals() {
+        let game = world(Some(MY_CLUB), vec![]);
+        let view = KnowledgeView::of(&game);
+
+        assert!(view.knows_squad_at(MY_CLUB));
+        assert!(view.knows_squad_at("rival"));
+        assert!(!view.knows_squad_at("faraway"));
+    }
+
+    /// Given a club in no league table, as a legacy save can have
+    /// When the view is asked whether the club knows its own squad
+    /// Then it does: no division is needed to know one's own players
+    #[test]
+    fn a_club_outside_every_table_still_knows_its_own_squad() {
+        let game = world(Some("homeless"), vec![]);
+        let view = KnowledgeView::of(&game);
+
+        assert!(view.knows_squad_at("homeless"));
+        assert!(!view.knows_squad_at("rival"));
+    }
+
+    /// Given a manager without a club
+    /// When the view is asked whether the club knows any squad
+    /// Then it knows none
+    #[test]
+    fn an_unemployed_manager_knows_no_squad() {
+        let game = world(None, vec![]);
+        let view = KnowledgeView::of(&game);
+
+        for club in [MY_CLUB, "rival", "faraway"] {
+            assert!(!view.knows_squad_at(club), "{club}");
+        }
     }
 
     fn paid(mut player: Player, weekly: u32) -> Player {
