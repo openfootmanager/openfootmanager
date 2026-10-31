@@ -1062,6 +1062,94 @@ mod tests {
         assert_eq!(opponent, lowest_other);
     }
 
+    /// Plays every group fixture with a pseudo-random score drawn from `seed`, so group tables
+    /// are not simply ordered by the draw.
+    fn play_group_stage_at_random(cup: &mut League, seed: u64) {
+        let mut state = seed.wrapping_add(17);
+        let mut next = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) as u8 % 5
+        };
+        for index in 0..cup.fixtures.len() {
+            let id = cup.fixtures[index].id.clone();
+            if cup.fixtures[index].status == FixtureStatus::Scheduled
+                && !is_knockout_fixture(cup, &id)
+            {
+                let (home, away) = (next(), next());
+                complete_fixture(cup, index, home, away);
+            }
+        }
+    }
+
+    /// Given group-and-knockout fields of every shape a package can describe (2 to 8 groups of 3
+    ///       to 5, one to three qualifiers per group, no best thirds to as many as groups), with
+    ///       six pseudo-random sets of group results each,
+    /// When the group stage ends and the first knockout round is drawn,
+    /// Then no tie pairs two teams of one group whenever a draw without such a tie exists: the
+    ///      teams in play are an even number and no group supplies more than half of them.
+    #[test]
+    fn no_first_round_tie_is_inside_a_group_when_a_clean_draw_exists() {
+        let mut checked = 0;
+        for group_count in 2usize..=8 {
+            for group_size in 3usize..=5 {
+                for qualifiers in 1u32..=3 {
+                    if qualifiers as usize >= group_size {
+                        continue;
+                    }
+                    for best_thirds in [0, 1, group_count as u32 / 2, group_count as u32] {
+                        for seed in 0..6u64 {
+                            let mut cup = generate_group_knockout_cup_with(
+                                "Cup",
+                                2026,
+                                &clubs(group_count * group_size),
+                                start(),
+                                CompetitionType::Cup,
+                                CompetitionScope::Domestic,
+                                &GroupStageConfig {
+                                    group_size: group_size as u32,
+                                    legs: 1,
+                                    matchday_gap_days: 3,
+                                    qualifiers_per_group: qualifiers,
+                                    best_third_qualifiers: best_thirds,
+                                    ..Default::default()
+                                },
+                            );
+                            play_group_stage_at_random(&mut cup, seed);
+                            let Some(round) = cup.knockout_rounds.first() else {
+                                continue;
+                            };
+                            let playing: Vec<String> = first_round_ties(&cup)
+                                .into_iter()
+                                .flat_map(|(home, away)| [home, away])
+                                .collect();
+                            let mut per_group = std::collections::BTreeMap::<usize, usize>::new();
+                            for team in &playing {
+                                *per_group.entry(group_index_of(&cup, team)).or_default() += 1;
+                            }
+                            let largest = per_group.values().copied().max().unwrap_or(0);
+                            if largest * 2 > playing.len() {
+                                continue;
+                            }
+                            checked += 1;
+                            for (home, away) in first_round_ties(&cup) {
+                                assert_ne!(
+                                    group_index_of(&cup, &home),
+                                    group_index_of(&cup, &away),
+                                    "{home} v {away}: groups={group_count} size={group_size} \
+                                 qualifiers={qualifiers} thirds={best_thirds} seed={seed} ({} byes)",
+                                    round.bye_team_ids.len()
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert!(checked > 100, "only {checked} field shapes were checked");
+    }
+
     #[test]
     fn finished_group_stage_seeds_the_knockout_with_top_two_per_group() {
         let mut cup = make_cup(8);
