@@ -127,6 +127,22 @@ pub fn translate_error(key: &str) -> String {
         "be.error.liveMatch.fixtureNotScheduled" => {
             "This fixture is no longer scheduled and cannot be played.".to_string()
         }
+        "be.error.noActiveLiveMatch" => {
+            "No live match is in progress. Start one with `match_start`.".to_string()
+        }
+        "be.error.liveMatch.shootoutOrderNotNow" => {
+            "The shootout order can only be set once the shootout has started, before its first \
+             kick."
+                .to_string()
+        }
+        "be.error.liveMatch.shootoutOrderNotYourSide" => {
+            "You can only set your own side's shootout order.".to_string()
+        }
+        "be.error.liveMatch.shootoutOrderNotEligible" => {
+            "The order must list each player in your current shootout order exactly once \
+             (see `match_snapshot`)."
+                .to_string()
+        }
         _ => format!("Error: {}", key),
     }
 }
@@ -149,6 +165,22 @@ mod tests {
     fn the_live_match_refusal_is_renderable() {
         let key = "be.error.liveMatch.inProgress";
         assert!(!translate_error(key).contains(key));
+    }
+
+    /// Given the refusals an agent can meet when it sets its shootout order, or acts with no
+    /// live match, when rendered for the agent, then each is a readable message rather than a
+    /// raw key.
+    #[test]
+    fn the_shootout_order_refusals_are_renderable() {
+        for key in [
+            "be.error.noActiveLiveMatch",
+            "be.error.liveMatch.shootoutOrderNotNow",
+            "be.error.liveMatch.shootoutOrderNotYourSide",
+            "be.error.liveMatch.shootoutOrderNotEligible",
+        ] {
+            let rendered = translate_error(key);
+            assert!(!rendered.contains(key), "{key} renders as {rendered:?}");
+        }
     }
 
     /// The wrapper renders a key exactly once.
