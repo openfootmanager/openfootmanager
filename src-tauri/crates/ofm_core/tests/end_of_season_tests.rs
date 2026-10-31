@@ -2238,11 +2238,88 @@ fn manager_career_stats_updated() {
     assert_eq!(game.manager.career_stats.losses, 0);
 }
 
+/// Given a finished season in which Rival FC (team2), managed by another manager, lost both matches
+/// When the season ends
+/// Then his record has that season too, not only the user's: two matches, two defeats, last place
+#[test]
+fn another_clubs_manager_has_his_season_on_his_record() {
+    let mut game = make_completed_season_game();
+    let mut rival_boss = Manager::new(
+        "mgr2".to_string(),
+        "Rival".to_string(),
+        "Boss".to_string(),
+        "1978-01-01".to_string(),
+        "England".to_string(),
+    );
+    rival_boss.hire("team2".to_string());
+    game.managers.push(rival_boss);
+    // A generated world's league, which the rollover can archive: its clubs, and a calendar that
+    // says it is a double round robin.
+    let league = game.league.as_mut().unwrap();
+    league.participant_ids = vec!["team1".to_string(), "team2".to_string()];
+    league.calendar = Some(domain::competition_calendar::CalendarMetadata {
+        league_legs: Some(2),
+        ..Default::default()
+    });
+    for fixture in &mut league.fixtures {
+        fixture.competition_id = league.id.clone();
+    }
+
+    process_end_of_season(&mut game);
+
+    let rival_boss = game.managers.iter().find(|m| m.id == "mgr2").unwrap();
+    assert_eq!(rival_boss.career_stats.matches_managed, 2);
+    assert_eq!(rival_boss.career_stats.losses, 2);
+    assert_eq!(rival_boss.career_stats.best_finish, Some(2));
+    assert_eq!(game.manager.career_stats.matches_managed, 2);
+}
+
 #[test]
 fn manager_trophy_awarded_for_first_place() {
     let mut game = make_completed_season_game();
     process_end_of_season(&mut game);
     assert_eq!(game.manager.career_stats.trophies, 1);
+}
+
+/// Given the user's manager also listed in `game.managers` (the managers list and a live match's
+///      AI profile read him there), in step with `game.manager`
+/// When his season is credited at the season's end
+/// Then the listed copy carries the same record and satisfaction, not last season's until the
+///      next day's sync
+#[test]
+fn the_users_listed_record_takes_his_season_too() {
+    let mut game = make_completed_season_game();
+    game.sync_user_manager_record();
+
+    process_end_of_season(&mut game);
+
+    // The record as the managers list shows it: totals, then each stint's club, end and matches.
+    let record = |manager: &Manager| {
+        let stats = &manager.career_stats;
+        (
+            (
+                stats.matches_managed,
+                stats.wins,
+                stats.draws,
+                stats.losses,
+                stats.trophies,
+                stats.best_finish,
+            ),
+            manager
+                .career_history
+                .iter()
+                .map(|stint| (stint.team_id.clone(), stint.end_date.clone(), stint.matches))
+                .collect::<Vec<_>>(),
+            manager.satisfaction,
+        )
+    };
+    let listed = game
+        .managers
+        .iter()
+        .find(|manager| manager.id == game.manager_id)
+        .expect("the user's manager is listed");
+    assert_eq!(record(listed), record(&game.manager));
+    assert_eq!(listed.career_stats.trophies, 1);
 }
 
 #[test]
