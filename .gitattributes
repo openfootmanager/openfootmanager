@@ -1,0 +1,3 @@
+# Written by ts-rs from the Rust wire types (src-tauri/tests/wire_types.rs byte-compares them).
+# LF everywhere, or a Windows checkout with autocrlf fails that comparison.
+src/store/generated/** linguist-generated=true eol=lf

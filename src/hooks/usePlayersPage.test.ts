@@ -147,4 +147,32 @@ describe("usePlayersPage", () => {
     await waitFor(() => expect(result.current.query.page).toBe(2));
     await waitFor(() => expect(result.current.slice?.items[0].id).toBe("page-2"));
   });
+
+  /**
+   * Given a page answered under one revision of the game (say, one manager's club)
+   * When the revision changes and the new answer is still on its way
+   * Then the hook asks again, says the page it holds answers the old revision, and says the new
+   *      one only once its answer lands.
+   */
+  it("says which revision of the game its page answers", async () => {
+    let answerSecond!: (value: PlayersPage) => void;
+    mockedFetch
+      .mockResolvedValueOnce(page("first"))
+      .mockImplementationOnce(
+        () => new Promise<PlayersPage>((resolve) => (answerSecond = resolve)),
+      );
+    const { result, rerender } = renderHook(
+      ({ revision }) => usePlayersPage(baseQuery, translate, revision),
+      { initialProps: { revision: "club-a" } },
+    );
+    await waitFor(() => expect(result.current.answeredRevision).toBe("club-a"));
+
+    rerender({ revision: "club-b" });
+
+    await waitFor(() => expect(mockedFetch).toHaveBeenCalledTimes(2));
+    expect(result.current.answeredRevision).toBe("club-a");
+    await act(async () => answerSecond(page("second")));
+    expect(result.current.answeredRevision).toBe("club-b");
+    expect(result.current.slice?.items[0].id).toBe("second");
+  });
 });
