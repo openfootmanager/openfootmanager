@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use ts_rs::TS;
 
 use crate::player::Player;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum MessageCategory {
     Welcome,
     LeagueInfo,
@@ -22,7 +23,7 @@ pub enum MessageCategory {
     JobOffer,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum MessagePriority {
     Low,
     Normal,
@@ -30,7 +31,7 @@ pub enum MessagePriority {
     Urgent,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct MessageAction {
     pub id: String,
     pub label: String,
@@ -41,7 +42,7 @@ pub struct MessageAction {
     pub label_key: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub enum ActionType {
     Acknowledge,
     NavigateTo { route: String },
@@ -49,7 +50,7 @@ pub enum ActionType {
     Dismiss,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ActionOption {
     pub id: String,
     pub label: String,
@@ -60,7 +61,7 @@ pub struct ActionOption {
     pub description_key: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct InboxMessage {
     pub id: String,
     pub subject: String,
@@ -91,7 +92,7 @@ pub struct InboxMessage {
     pub i18n_params: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 pub struct MessageContext {
     pub team_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -113,7 +114,7 @@ pub struct MessageContext {
     pub delegated_renewal_report: Option<DelegatedRenewalReportData>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct DelegatedRenewalReportData {
     pub success_count: u32,
     pub failure_count: u32,
@@ -121,7 +122,7 @@ pub struct DelegatedRenewalReportData {
     pub cases: Vec<DelegatedRenewalCaseData>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct DelegatedRenewalCaseData {
     pub player_id: String,
     pub player_name: String,
@@ -136,7 +137,7 @@ pub struct DelegatedRenewalCaseData {
     pub note_params: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ScoutReportData {
     pub player_id: String,
     pub player_name: String,
@@ -163,7 +164,7 @@ pub struct ScoutReportData {
     pub confidence_key: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ContextMatchResult {
     pub home_team_id: String,
     pub away_team_id: String,
