@@ -1012,6 +1012,54 @@ mod tests {
         assert!(blockers_of(&game, true).live_match_in_progress);
     }
 
+    /// Given an injured pair of starters, and a game with only unread urgent mail
+    /// When the MCP advance gate is asked, and the MCP skip is run on the injured game
+    /// Then the gate refuses the injured game naming `injured_xi` and lets the mail-only game
+    ///      through, and the skip returns Blocked with `injured_xi` before it advances a day.
+    #[cfg(feature = "mcp")]
+    #[test]
+    fn the_mcp_advance_and_skip_stop_on_a_real_blocker_and_not_on_mail() {
+        use crate::mcp_server::tools_impl::time::{advance_gate, skip_to_match_day_in};
+        use mcp_results::time::SkipToMatchDay;
+        let injured = || {
+            let mut game = make_game(11);
+            for player_id in ["p2", "p5"] {
+                let player = game.players.iter_mut().find(|p| p.id == player_id).unwrap();
+                player.injury = Some(Injury {
+                    name: "Hamstring".to_string(),
+                    days_remaining: 7,
+                });
+            }
+            game
+        };
+        let mut mail_only = make_game(11);
+        mail_only.messages = vec![make_message("urgent-1", MessagePriority::Urgent, false)];
+
+        let refused = advance_gate(&injured()).expect_err("an injured XI stops time");
+        let state = StateManager::new();
+        let before = injured();
+        let date = before.clock.current_date;
+        state.set_game(before);
+        let skipped = skip_to_match_day_in(&state).expect("the skip answers");
+
+        assert!(refused.contains("injured_xi"), "{refused}");
+        assert!(advance_gate(&mail_only).is_ok());
+        match skipped {
+            SkipToMatchDay::Blocked {
+                days_advanced,
+                blockers,
+            } => {
+                assert_eq!(days_advanced, 0);
+                assert!(
+                    blockers.iter().any(|b| b.id == "injured_xi"),
+                    "{blockers:?}"
+                );
+            }
+            other => panic!("expected the skip to be blocked, got {other:?}"),
+        }
+        assert_eq!(state.get_game(|g| g.clock.current_date), Some(date));
+    }
+
     /// Given career B is active (token 2) and a screen still holds career A's token (1)
     /// When each way of advancing time arrives with A's token
     /// Then each is refused with the career-changed key and career B's clock, messages and stats

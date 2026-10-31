@@ -16,6 +16,8 @@ use std::sync::{Arc, Mutex};
 // ─── time_advance ───────────────────────────────────────────────────────────
 
 pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
+    advance_gate(&require_game(&ctx.state_manager)?)?;
+
     // Rate limiting: enforce minimum delay between advances
     if ctx.config.min_tick_delay_ms > 0 {
         // Simple approach: sleep for the configured delay
@@ -81,6 +83,20 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
     }
 
     Ok(DayAdvanced { auto_saved, ..day })
+}
+
+/// Time does not advance while a blocker stands: the screen's Continue stops on exactly this list,
+/// and an agent resolves the squad, contract or other problem first, as a manager would.
+pub(crate) fn advance_gate(game: &Game) -> Result<(), String> {
+    let blockers = blockers_of(game, false).blockers;
+    if blockers.is_empty() {
+        return Ok(());
+    }
+    let list: Vec<String> = blockers.iter().map(|b| format!("- {b}")).collect();
+    Err(format!(
+        "Time cannot advance until these are resolved:\n{}\nUse time_check_blockers to see them again.",
+        list.join("\n")
+    ))
 }
 
 fn your_match_in(
@@ -159,8 +175,33 @@ fn auto_save_if_due(state: &StateManager, saves: &SaveManagerState, interval_day
 // ─── time_skip_to_match_day ─────────────────────────────────────────────────
 
 pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, String> {
-    crate::application::live_session::ensure_idle(&ctx.state_manager)?;
-    let game = require_game(&ctx.state_manager)?;
+    let outcome = skip_to_match_day_in(&ctx.state_manager)?;
+    if matches!(
+        outcome,
+        SkipToMatchDay::Skipped { .. }
+            | SkipToMatchDay::Blocked {
+                days_advanced: 1..,
+                ..
+            }
+    ) {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+    Ok(outcome)
+}
+
+/// Skips to the next match day, stopping where the screen's skip stops: before it starts if a
+/// blocker stands, and after any day that brings one.
+pub(crate) fn skip_to_match_day_in(state: &StateManager) -> Result<SkipToMatchDay, String> {
+    crate::application::live_session::ensure_idle(state)?;
+    let game = require_game(state)?;
+    let blockers = blockers_of(&game, false).blockers;
+    if !blockers.is_empty() {
+        return Ok(SkipToMatchDay::Blocked {
+            days_advanced: 0,
+            blockers,
+        });
+    }
     let league = require_league(&game)?;
     let team_id = game
         .manager
@@ -197,19 +238,28 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
     // Advance time day by day until we reach the match day
     let mut advanced = 0u32;
     loop {
-        let game = require_game(&ctx.state_manager)?;
+        let game = require_game(state)?;
         let current = game.clock.current_date.format("%Y-%m-%d").to_string();
         if current >= target_date {
             break;
         }
 
         crate::application::time_advancement::advance_time_with_mode(
-            &ctx.state_manager,
+            state,
             ofm_core::state::Career::Active,
             "delegate",
         )?;
 
         advanced += 1;
+
+        let game = require_game(state)?;
+        let blockers = blockers_of(&game, false).blockers;
+        if !blockers.is_empty() {
+            return Ok(SkipToMatchDay::Blocked {
+                days_advanced: advanced,
+                blockers,
+            });
+        }
 
         // Safety limit
         if advanced > 365 {
@@ -217,11 +267,6 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
                 days_advanced: advanced,
             });
         }
-    }
-
-    {
-        use tauri::Emitter;
-        let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
     Ok(SkipToMatchDay::Skipped {
