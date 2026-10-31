@@ -356,7 +356,7 @@ describe("StaffTab", () => {
     fireEvent.click(screen.getByTitle("Hire staff"));
 
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { staffId: "staff-2" });
+      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { careerToken: 0, staffId: "staff-2" });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });
   });
@@ -386,7 +386,7 @@ describe("StaffTab", () => {
     fireEvent.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Hire staff" }));
 
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { staffId: "staff-2" });
+      expect(invokeMock).toHaveBeenCalledWith("hire_staff", { careerToken: 0, staffId: "staff-2" });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });
   });
@@ -411,7 +411,10 @@ describe("StaffTab", () => {
     );
 
     await waitFor(() => {
-      expect(invokeMock).toHaveBeenCalledWith("release_staff", { staffId: "staff-1" });
+      expect(invokeMock).toHaveBeenCalledWith("release_staff", {
+        careerToken: 0,
+        staffId: "staff-1",
+      });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedState);
     });
   });

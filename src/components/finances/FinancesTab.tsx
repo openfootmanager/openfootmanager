@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { FinanceCashFlowChart } from "./FinanceCashFlowChart";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
 import type { GameStateData, PlayerSelectionOptions, TeamData } from "../../store/gameStore";
@@ -15,6 +14,7 @@ import {
 } from "../../lib/helpers";
 import { weeklyWageAmount } from "../../lib/finance";
 import { getFinanceSnapshot, type FinanceSnapshotData } from "../../services/financeService";
+import { invokeForCareer } from "../../services/careerInvoke";
 import { useTranslation } from "react-i18next";
 import { resolveBackendError, resolveMessage } from "../../utils/backendI18n";
 import {
@@ -293,7 +293,7 @@ function FinancesTabLoaded({
     setFacilityUpgradeError(null);
     setActionLoading(facility);
     try {
-      const updated = await invoke<GameStateData>("upgrade_facility", {
+      const updated = await invokeForCareer<GameStateData>("upgrade_facility", {
         facility,
       });
       onGameUpdate?.(updated);
@@ -314,7 +314,7 @@ function FinancesTabLoaded({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<BoardSupportResponseData>("request_board_support");
+      const response = await invokeForCareer<BoardSupportResponseData>("request_board_support");
       onGameUpdate?.(response.game);
       setBoardSupportFeedback({
         tone: "success",
@@ -341,7 +341,7 @@ function FinancesTabLoaded({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<SponsorPitchResponseData>("request_sponsor_pitch");
+      const response = await invokeForCareer<SponsorPitchResponseData>("request_sponsor_pitch");
       onGameUpdate?.(response.game);
       setSponsorPitchFeedback({
         tone: "success",
@@ -368,7 +368,9 @@ function FinancesTabLoaded({
     setActionLoading(loadingKey);
 
     try {
-      const response = await invoke<MarketingCampaignResponseData>("request_marketing_campaign");
+      const response = await invokeForCareer<MarketingCampaignResponseData>(
+        "request_marketing_campaign",
+      );
       onGameUpdate?.(response.game);
       setMarketingCampaignFeedback({
         tone: "success",
@@ -400,7 +402,7 @@ function FinancesTabLoaded({
     setDelegatedRenewalsSummary(null);
 
     try {
-      const result = await invoke<DelegatedRenewalResponseData>("delegate_renewals", {
+      const result = await invokeForCareer<DelegatedRenewalResponseData>("delegate_renewals", {
         playerIds: selectedRiskPlayers.map(({ player }) => player.id),
         maxWageIncreasePct: 35,
         maxContractYears: 3,
@@ -428,7 +430,7 @@ function FinancesTabLoaded({
     const loadingKey = `sponsor:${messageId}:${optionId}`;
     setActionLoading(loadingKey);
     try {
-      const result = await invoke<ResolveMessageActionResult>("resolve_message_action", {
+      const result = await invokeForCareer<ResolveMessageActionResult>("resolve_message_action", {
         messageId,
         actionId,
         optionId,

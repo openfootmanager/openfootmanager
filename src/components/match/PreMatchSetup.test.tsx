@@ -1,9 +1,11 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { invoke } from "@tauri-apps/api/core";
 import { describe, expect, it, vi } from "vitest";
 
 import PreMatchSetup from "./PreMatchSetup";
 import { ratingTierClass } from "../../lib/ratingTier";
 import type { FixtureData, GameStateData, LeagueData } from "../../store/gameStore";
+import { useGameStore } from "../../store/gameStore";
 import type { MatchSnapshot } from "./types";
 
 // Mock the few external dependencies PreMatchSetup pulls in at render time so we
@@ -259,5 +261,64 @@ describe("PreMatchSetup opponent scout panel", () => {
     ]);
 
     expect(screen.getByText("Copa Nacional")).toBeInTheDocument();
+  });
+});
+
+describe("PreMatchSetup auto-select", () => {
+  /**
+   * Given a lineup that needs two swaps, asked for while the screen shows career 7
+   * When the screen comes to show career 8 between the two swaps
+   * Then both swaps go out with career 7's token: the loop reads it once, when it was asked.
+   */
+  it("sends every swap with the token of the career it was asked in", async () => {
+    const mockedInvoke = vi.mocked(invoke);
+    mockedInvoke.mockReset();
+    useGameStore.setState({ gameState: { career_token: 7 } as unknown as GameStateData });
+    let swaps = 0;
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "apply_match_command") {
+        swaps += 1;
+        if (swaps === 1) {
+          useGameStore.setState({ gameState: { career_token: 8 } as unknown as GameStateData });
+        }
+        return snapshot();
+      }
+      return undefined;
+    });
+    const raw = snapshot() as {
+      home_team: { formation: string; players: Record<string, unknown>[] };
+      home_bench: Record<string, unknown>[];
+    };
+    raw.home_team.formation = "1-1-1";
+    // Eleven on the pitch, the seven extra midfielders weak, so two of them give way to the bench.
+    raw.home_team.players = [
+      ...homePlayers,
+      ...Array.from({ length: 7 }, (_, i) =>
+        enginePlayer({ id: `weak-${i}`, name: `Weak ${i}`, position: "Midfielder", ovr: 40 }),
+      ),
+    ];
+    raw.home_bench = [
+      enginePlayer({ id: "b-df", name: "Bench Def", position: "Defender", ovr: 90 }),
+      enginePlayer({ id: "b-mf", name: "Bench Mid", position: "Midfielder", ovr: 90 }),
+    ];
+    render(
+      <PreMatchSetup
+        snapshot={raw as unknown as MatchSnapshot}
+        gameState={gameState() as unknown as GameStateData}
+        userSide="Home"
+        onStart={vi.fn()}
+        onUpdateSnapshot={vi.fn()}
+      />,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "match.autoSelectXI" }));
+    });
+
+    const sent = mockedInvoke.mock.calls.filter(([command]) => command === "apply_match_command");
+    expect(sent).toHaveLength(2);
+    for (const [, args] of sent) {
+      expect(args).toMatchObject({ careerToken: 7 });
+    }
   });
 });

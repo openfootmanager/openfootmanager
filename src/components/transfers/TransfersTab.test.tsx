@@ -364,6 +364,7 @@ describe("TransfersTab", (): void => {
 
     await waitFor((): void => {
       expect(mockedInvoke).toHaveBeenCalledWith("counter_offer", {
+        careerToken: 0,
         playerId: "player-1",
         offerId: "offer-1",
         requestedFee: 1200000,
