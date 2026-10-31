@@ -130,10 +130,12 @@ function focusRingViolations(source: string): string[] {
 /**
  * ring-focus drawn without a focus variant marks a list's keyboard-active option, where real focus
  * stays on the trigger (aria-activedescendant). It is then the only sign of where the arrow keys
- * are, so it is drawn at full strength: at /40 it falls under 3:1 in every theme. A theme or
- * state prefix (`dark:`, `hover:`) doesn't hide it; a focus variant is FOCUS_RING's to report.
+ * are, so it is drawn at full strength: at /40 it falls under 3:1 in every theme. No prefix hides
+ * it: a theme or state (`dark:`, `hover:`), a data or aria value (`data-[active]:`, the likely way
+ * to mark that option), a child (`*:`) or an arbitrary variant (`[&>li]:`). A focus variant is
+ * FOCUS_RING's to report, so it is reported once. A class starts after a space, a quote or a brace.
  */
-const TRANSLUCENT_FOCUS = /(?<![\w:-])(?:(?![\w-]*focus)[\w-]+:)*ring-focus\/\d+/g;
+const TRANSLUCENT_FOCUS = /(?<=^|[\s"'`{(])(?:(?![^\s:"'`]*focus)[^\s:"'`]+:)*ring-focus\/\d+/g;
 
 /**
  * The files where the brand green is a brand moment, not a state: the primary button and the
@@ -151,7 +153,7 @@ const BRAND_FILES: Record<string, string> = {
 };
 
 const BRAND_CLASS =
-  /(?<![\w-])(?:bg|text|border(?:-(?:[trblxyse]|bs|be))?|ring|ring-offset|outline|fill|stroke|from|via|to|divide|placeholder|decoration|shadow|accent|caret)-primary-\d{2,3}(?:\/\d+)?/g;
+  /(?<![\w-])(?:bg|text|border(?:-(?:[trblxyse]|bs|be))?|ring|inset-ring|ring-offset|outline|fill|stroke|from|via|to|divide|placeholder|decoration|shadow|drop-shadow|accent|caret)-primary-\d{2,3}(?:\/\d+)?/g;
 
 /**
  * Rule 8: a control that is on or chosen is painted in the `selected` role (a switch's track, a
@@ -411,6 +413,17 @@ describe("the rule checks themselves", () => {
     expect(focusRingViolations('className="focus-visible:ring-focus/40"')).toEqual([
       "1: focus-visible:ring-focus/40",
     ]);
+    // Nor a data or aria value, a child variant or an arbitrary one.
+    expect(
+      focusRingViolations(
+        'className="data-[active]:ring-focus/40 aria-[selected=true]:ring-focus/40 *:ring-focus/40 [&>li]:ring-focus/40"',
+      ),
+    ).toEqual([
+      "1: data-[active]:ring-focus/40",
+      "1: aria-[selected=true]:ring-focus/40",
+      "1: *:ring-focus/40",
+      "1: [&>li]:ring-focus/40",
+    ]);
   });
 
   /**
@@ -481,7 +494,7 @@ describe("the rule checks themselves", () => {
    */
   it("catches the brand green outside a brand file only", () => {
     const chosen =
-      'className="peer-checked:bg-primary-600 dark:text-primary-400 border-t-primary-500 border-s-primary-500 border-be-primary-500 ring-primary-500/40"';
+      'className="peer-checked:bg-primary-600 dark:text-primary-400 border-t-primary-500 border-s-primary-500 border-be-primary-500 ring-primary-500/40 inset-ring-primary-400 drop-shadow-primary-500"';
     expect(brandOutsideBrandFiles("./components/ui/Checkbox.tsx", chosen)).toEqual([
       "1: bg-primary-600",
       "1: text-primary-400",
@@ -489,6 +502,8 @@ describe("the rule checks themselves", () => {
       "1: border-s-primary-500",
       "1: border-be-primary-500",
       "1: ring-primary-500/40",
+      "1: inset-ring-primary-400",
+      "1: drop-shadow-primary-500",
     ]);
     expect(brandOutsideBrandFiles("./components/ui/Button.tsx", chosen)).toEqual([]);
     expect(
