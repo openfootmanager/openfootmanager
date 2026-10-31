@@ -39,6 +39,7 @@ export const gameState = {
     "contract_review_takeover_cd2d2d52-6e05-42c7-a634-4303856fef44_2031-07-01",
   ],
   "gate_settled_from": null,
+  "last_season_rollover_on": null,
   "league": {
     "berths": [{"rule":{"from":1,"kind":"positionRange","to":4},"target":"continental-champions-cup"}],
     "calendar": {"definition_id":"sco-d1","edition_basis":{"kind":"calendarYear"},"league_legs":2,"matchday_gap_days":7,"season":{"division":{"familyId":"sco-league","phase":"annual","tier":1},"windowEnd":null}},
