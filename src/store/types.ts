@@ -912,6 +912,9 @@ export interface GameStateData {
   legacy_world_cup_draw?: boolean;
   /** The first date a completed home fixture is paid a gate for (`YYYY-MM-DD`); null until then. */
   gate_settled_from?: string | null;
+  /** The day the last season ended (`YYYY-MM-DD`): a scout's report from before it is out of date.
+   *  Null until the career's first season end. */
+  last_season_rollover_on?: string | null;
   /** Sent by the backend; the frontend reads these through their own commands. */
   custom_tactics?: unknown[];
   scouted_players?: unknown[];
