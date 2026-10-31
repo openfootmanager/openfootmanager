@@ -5,9 +5,10 @@
 //! threshold of its own, and a value reads the same wherever it appears.
 
 use serde::Serialize;
+use ts_rs::TS;
 
 /// A step on the good-to-bad scale. Serialized lowercase, as the `tone-*` tokens are named.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum RatedTone {
     Top,
