@@ -218,7 +218,7 @@ it("sorts the market cards with the shared sort control", async () => {
   await waitFor(() => expect(requestedQueries().slice(-1)[0]?.sort_key).toBe("age"));
   expect(requestedQueries().slice(-1)[0]?.sort_asc).toBe(false);
 
-  fireEvent.click(screen.getByRole("button", { name: "Descending" }));
+  fireEvent.click(screen.getByRole("button", { name: "Ascending" }));
   await waitFor(() => expect(requestedQueries().slice(-1)[0]?.sort_asc).toBe(true));
   expect(requestedQueries().slice(-1)[0]?.sort_key).toBe("age");
 });
