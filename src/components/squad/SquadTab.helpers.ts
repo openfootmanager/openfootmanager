@@ -657,6 +657,7 @@ export function buildAssignBestFitSlot(
   playersById: Map<string, PlayerData>,
   formation: string,
   playerId: string,
+  positionTable: PositionTable,
 ): string[] | null {
   const currentSlotIndex = currentXiIds.indexOf(playerId);
 

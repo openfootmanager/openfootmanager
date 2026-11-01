@@ -223,7 +223,13 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   }
 
   async function handleAssignBestFit(playerId: string): Promise<void> {
-    const nextXiIds = buildAssignBestFitSlot(startingXiIds, playersById, formation, playerId);
+    const nextXiIds = buildAssignBestFitSlot(
+      startingXiIds,
+      playersById,
+      formation,
+      playerId,
+      positionTable,
+    );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
