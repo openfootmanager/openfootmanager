@@ -110,19 +110,28 @@ pub struct BidPreview {
     pub finance_before: i64,
     pub finance_after: i64,
     pub current_weekly_wage_spend: i64,
-    pub projected_weekly_wage_spend: i64,
+    /// The wage-derived figures are shown only when the club may see the player's exact wage
+    /// (`ofm_core::player_knowledge::VisibleWage::Exact`); otherwise they would tell it the wage.
+    pub projected_weekly_wage_spend: Option<i64>,
     pub weekly_wage_budget: i64,
-    pub projected_wage_budget_usage_pct: i64,
+    pub projected_wage_budget_usage_pct: Option<i64>,
     pub exceeds_transfer_budget: bool,
     pub exceeds_finance: bool,
-    pub blocked_by_wage_policy: bool,
+    pub blocked_by_wage_policy: Option<bool>,
+    /// The player's weekly wage as the club may see it: rounded for a player a scout reported on,
+    /// `None` for anyone else.
+    #[serde(default)]
+    pub incoming_weekly_wage: Option<u32>,
+    /// `incoming_weekly_wage` is a scout's rounded figure, not the contract's.
+    #[serde(default)]
+    pub incoming_wage_is_approximate: bool,
 }
 
 impl fmt::Display for BidPreview {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "## Transfer Bid Preview: {} — {} 💰\n\n| Field | Value |\n|-------|-------|\n| Transfer Budget Before | {} |\n| Transfer Budget After | {} |\n| Finance Before | {} |\n| Finance After | {} |\n| Weekly Wage Bill Before | {} |\n| Weekly Wage Bill After | {} |\n| Weekly Wage Budget | {} |\n| Projected Wage Usage | {}% |\n| Exceeds Transfer Budget | {} |\n| Exceeds Finance | {} |\n| Blocked By Wage Policy | {} |\n\nThis is a preview — no bid was made.",
+            "## Transfer Bid Preview: {} — {} 💰\n\n| Field | Value |\n|-------|-------|\n| Transfer Budget Before | {} |\n| Transfer Budget After | {} |\n| Finance Before | {} |\n| Finance After | {} |\n| Weekly Wage Bill Before | {} |\n| Weekly Wage Bill After | {} |\n| Weekly Wage Budget | {} |\n| Projected Wage Usage | {} |\n| Exceeds Transfer Budget | {} |\n| Exceeds Finance | {} |\n| Blocked By Wage Policy | {} |\n| His Weekly Wage | {} |\n\nThis is a preview — no bid was made.",
             self.player_name,
             self.fee,
             self.transfer_budget_before,
@@ -130,12 +139,20 @@ impl fmt::Display for BidPreview {
             self.finance_before,
             self.finance_after,
             self.current_weekly_wage_spend,
-            self.projected_weekly_wage_spend,
+            self.projected_weekly_wage_spend
+                .map_or_else(|| "?".to_string(), |spend| spend.to_string()),
             self.weekly_wage_budget,
-            self.projected_wage_budget_usage_pct,
+            self.projected_wage_budget_usage_pct
+                .map_or_else(|| "?".to_string(), |usage| format!("{usage}%")),
             yes_no(self.exceeds_transfer_budget),
             yes_no(self.exceeds_finance),
-            yes_no(self.blocked_by_wage_policy),
+            self.blocked_by_wage_policy
+                .map_or("?", |blocked| yes_no(blocked)),
+            match (self.incoming_weekly_wage, self.incoming_wage_is_approximate) {
+                (Some(wage), true) => format!("~{wage}"),
+                (Some(wage), false) => wage.to_string(),
+                (None, _) => "?".to_string(),
+            },
         )
     }
 }
