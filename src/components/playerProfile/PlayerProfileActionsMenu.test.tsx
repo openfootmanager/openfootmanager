@@ -138,9 +138,13 @@ describe("PlayerProfileActionsMenu", () => {
    *      is not made without it, and a disabled item says so where a silent no-op would not.
    */
   it("disables the lineup actions until the position table has loaded", () => {
-    const benchCandidate = buildPlayer({ id: "p2", full_name: "Bench Player" });
-    const player = buildPlayer();
-    const props = baseProps(player, buildGameState([player, benchCandidate]));
+    const starters = Array.from({ length: 11 }, (_, i) =>
+      buildPlayer({ id: `s${i}`, full_name: `Starter ${i}` }),
+    );
+    const bench = buildPlayer({ id: "bench", full_name: "Bench Player" });
+    const game = buildGameState([...starters, bench]);
+    (game.teams[0] as { starting_xi_ids: string[] }).starting_xi_ids = starters.map((p) => p.id);
+    const props = baseProps(starters[0], game);
 
     positionTableState.arrived = false;
     try {
