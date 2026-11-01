@@ -422,13 +422,13 @@ impl GamePersistenceReader {
                 &meta.world_history_json,
                 WorldHistoryArchive::default,
             ),
-            // A malformed ledger degrades to the legacy-save path rather than
-            // failing the load: `seed_ledger_from_save` below re-seeds it from
-            // the inbox, which is exactly what a pre-v043 save does. Refusing to
-            // open an entire career over one bookkeeping column would be the
-            // worse trade — but it is not silent: the cell is logged and kept in
-            // unreadable_records, because a repeat announcement months later is
-            // impossible to trace back to this line otherwise.
+            // A malformed ledger reads as empty rather than failing the load:
+            // refusing to open an entire career over one bookkeeping column would
+            // be the worse trade. It is NOT re-seeded: `SaveManager::load_game`
+            // seeds from the inbox only for a save older than format 5, so on a
+            // current save the next advance may announce events once more. The
+            // cell is logged and kept in unreadable_records, because a repeat
+            // announcement months later is impossible to trace back otherwise.
             emitted_events: json_column::read(
                 conn,
                 meta_cell("emitted_events_json"),
