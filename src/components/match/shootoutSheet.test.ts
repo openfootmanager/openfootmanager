@@ -214,3 +214,60 @@ describe("buildKickSheet", () => {
     expect(sheet.currentRound).toBeNull();
   });
 });
+
+describe("buildKickSheet with a planned order", () => {
+  /** Alpha FC with Carol (p3) and Dan (p4) beside Alice (p1); Beta FC as before. */
+  function withThreeHomePlayers(): MatchSnapshot {
+    const base = shootout([]);
+    const alice = base.home_team.players[0];
+    const named = (id: string, name: string): EnginePlayerData => ({ ...alice, id, name });
+    return {
+      ...base,
+      home_team: { ...base.home_team, players: [alice, named("p3", "Carol")] },
+      // A kicker may be listed from the bench, as the sheet's own names are.
+      home_bench: [named("p4", "Dan")],
+    };
+  }
+
+  /**
+   * Given the home manager's order Dan, Carol, Alice, with three kickers a side, before any kick
+   * When the sheet is built with that plan
+   * Then the home column names who will take each kick, starting again from Dan at kick 4, and the
+   * away column names nobody: the opponent's order stays hidden.
+   */
+  it("names each planned kicker in the planning side's column only", () => {
+    const sheet = buildKickSheet(withThreeHomePlayers(), {
+      side: "Home",
+      order: ["p4", "p3", "p1"],
+      kickers: 3,
+    });
+
+    expect(sheet.rows.map((row) => row.home)).toEqual([
+      { state: "toCome", plannedKickerName: "Dan" },
+      { state: "toCome", plannedKickerName: "Carol" },
+      { state: "toCome", plannedKickerName: "Alice" },
+      { state: "toCome", plannedKickerName: "Dan" },
+      { state: "toCome", plannedKickerName: "Carol" },
+    ]);
+    expect(sheet.rows.every((row) => row.away.state === "toCome")).toBe(true);
+    expect(sheet.rows.some((row) => "plannedKickerName" in row.away)).toBe(false);
+  });
+
+  /**
+   * Given an away order of four with three kickers
+   * When the sheet is built with that plan
+   * Then the fourth player, who sits out, is never on the sheet.
+   */
+  it("leaves the players who sit out off the sheet", () => {
+    const sheet = buildKickSheet(withThreeHomePlayers(), {
+      side: "Away",
+      order: ["p2", "p4", "p3", "p1"],
+      kickers: 3,
+    });
+
+    const planned = sheet.rows.map((row) =>
+      row.away.state === "toCome" ? row.away.plannedKickerName : null,
+    );
+    expect(planned).toEqual(["Bob", "Dan", "Carol", "Bob", "Dan"]);
+  });
+});
