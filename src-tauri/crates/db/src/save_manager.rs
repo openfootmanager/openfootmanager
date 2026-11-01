@@ -2395,7 +2395,9 @@ mod tests {
 
         assert_eq!(loaded.manager.nationality, "ENG");
         assert_eq!(loaded.manager.football_nation, "ENG");
-        assert_eq!(loaded.manager.birth_country, None);
+        // Derived from the nationality this load resolved, as the next load used to derive it:
+        // the settled value, reached in one load.
+        assert_eq!(loaded.manager.birth_country.as_deref(), Some("ENG"));
         assert_eq!(loaded.teams[0].football_nation, "ENG");
         assert_eq!(loaded.players[0].football_nation, "GB");
         assert_eq!(loaded.players[0].birth_country, None);
@@ -2475,10 +2477,11 @@ mod tests {
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
     }
 
-    /// Given a save whose player and club still carry the legacy "GB" identity
+    /// Given a save whose club still carries the legacy "GB" identity, so the manager it is given on
+    ///       load is resolved to a home nation through the club
     /// When it is loaded, and then loaded again
-    /// Then the first load brings the player to his current identity, birth country included, and
-    ///      the second writes nothing: one load settles it, not one per missing field
+    /// Then the second load writes nothing: one load settles every identity, birth country
+    ///      included, not one load per field
     #[test]
     fn one_load_settles_a_legacy_gb_identity() {
         let dir = tempfile::tempdir().unwrap();
@@ -2488,10 +2491,7 @@ mod tests {
         // Between jobs: the warning about the user's short club keeps its own state and is not
         // under test here.
         game.manager.team_id = None;
-        assert_eq!(
-            game.players[0].nationality, "GB",
-            "the legacy identity under test"
-        );
+        assert_eq!(game.teams[0].country, "GB", "the legacy club under test");
         let save_id = sm.create_save(&game, "Legacy GB").unwrap();
         let db_path = saves_dir.join(format!("{save_id}.db"));
 
@@ -2499,8 +2499,7 @@ mod tests {
         let settled = compute_checksum(&db_path).unwrap();
         sm.load_game(&save_id).unwrap();
 
-        assert_eq!(first.players[0].nationality, "ENG");
-        assert_eq!(first.players[0].birth_country.as_deref(), Some("ENG"));
+        assert_eq!(first.teams[0].football_nation, "ENG");
         assert_eq!(
             compute_checksum(&db_path).unwrap(),
             settled,
