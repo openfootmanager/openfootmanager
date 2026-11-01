@@ -824,6 +824,35 @@ mod tests {
         players
     }
 
+    /// Given the same players and slots
+    /// When the selection penalty (what the lineup choice and the team rating subtract for playing a
+    ///      player out of his position) is set beside `familiarity`
+    /// Then no penalty is natural, the alternate and same-line penalties are can play, and the
+    ///      other-line penalty is out of position: the screens' words are the penalties' bands
+    #[test]
+    fn familiarity_is_the_band_of_the_selection_penalty() {
+        for player in familiarity_fixture_players() {
+            for slot in Position::ALL {
+                let canonical = canonical_position(&slot);
+                let penalty = compatibility_penalty(&player, &canonical);
+                let expected = if penalty == 0.0 {
+                    Familiarity::Natural
+                } else if penalty == 14.0 {
+                    Familiarity::OutOfPosition
+                } else {
+                    Familiarity::CanPlay
+                };
+                assert_eq!(
+                    familiarity(&player, &slot),
+                    expected,
+                    "{:?} (alternates {:?}) at {slot:?}: penalty {penalty}",
+                    player.natural_position,
+                    player.alternate_positions,
+                );
+            }
+        }
+    }
+
     /// Given every position as a natural position (with and without an alternate) and every
     ///       position as a slot
     /// When `familiarity` is read for each pair
