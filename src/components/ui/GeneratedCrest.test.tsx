@@ -40,18 +40,16 @@ describe("GeneratedCrest", () => {
   });
 
   /**
-   * Given a green and white crest, whose label used to vanish on the white half
+   * Given a green and white crest, whose label used to vanish on the white half (the green alone
+   *       calls for white ink)
    * When it renders
    * Then the label is the dark ink with a light halo, so it reads on both colours.
    */
-  it("keeps the label readable on both halves of a green and white crest", () => {
-    render(
-      <GeneratedCrest
-        name="Alpha"
-        label="AL"
-        colors={{ primary: "#00ff00", secondary: "#ffffff" }}
-      />,
-    );
+  it.each([
+    ["#15803d", "#ffffff"],
+    ["#00ff00", "#ffffff"],
+  ])("keeps the label readable on both halves of a %s and %s crest", (primary, secondary) => {
+    render(<GeneratedCrest name="Alpha" label="AL" colors={{ primary, secondary }} />);
 
     const label = screen.getByTestId("crest-label");
 
@@ -70,6 +68,19 @@ describe("GeneratedCrest", () => {
     );
 
     expect(screen.getByTestId("crest-label")).toHaveAttribute("fill", "#111827");
+  });
+
+  /**
+   * Given two dark colours written as three hex digits
+   * When the crest renders
+   * Then they read as dark and the label is white, not whatever an unread colour would give.
+   */
+  it("reads dark three-digit colours as dark", () => {
+    render(
+      <GeneratedCrest name="Delta" label="DE" colors={{ primary: "#003", secondary: "#000" }} />,
+    );
+
+    expect(screen.getByTestId("crest-label")).toHaveAttribute("fill", "#ffffff");
   });
 
   /**

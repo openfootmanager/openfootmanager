@@ -55,6 +55,9 @@ describe("readableInk", () => {
    */
   it("picks the ink that reads on both halves, not just the first colour", () => {
     expect(readableInk(["#00ff00", "#ffffff"])).toBe(DARK_INK);
+    // The primary alone calls for white here; the white half is why it must not be.
+    expect(readableInk(["#15803d", "#ffffff"])).toBe(DARK_INK);
+    expect(readableInk(["#15803d"])).toBe(LIGHT_INK);
     expect(readableInk(["#003300", "#000000"])).toBe(LIGHT_INK);
     expect(readableInk(["#ffffff", "#ffff00"])).toBe(DARK_INK);
   });
@@ -68,6 +71,8 @@ describe("readableInk", () => {
     expect(readableInk(["#fff", "white"])).toBe(DARK_INK);
     expect(readableInk(["yellow", "#ff0"])).toBe(DARK_INK);
     expect(readableInk(["navy", "black"])).toBe(LIGHT_INK);
+    // Read as three digits these are dark and call for white; unread they would be mid-grey.
+    expect(readableInk(["#000", "#003"])).toBe(LIGHT_INK);
   });
 
   /**
