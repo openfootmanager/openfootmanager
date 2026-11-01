@@ -733,7 +733,7 @@ describe("getDeployedPosition", () => {
      *      he is moved.
      */
     it("leaves the XI alone when asked for a best-fit slot", () => {
-      const withWinger = ["rw", ...xi.slice(1, 10), "f2"];
+      const withWinger = [...xi.slice(0, 10), "rw"];
 
       expect(buildAssignBestFitSlot(withWinger, squad(), "4-4-2", "rw", notLoaded())).toEqual(
         withWinger,
