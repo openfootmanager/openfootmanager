@@ -629,7 +629,11 @@
     "listView": "List",
     "radarView": "Radar",
     "competition": "Competition",
-    "confirmDelete": "Confirm delete"
+    "confirmDelete": "Confirm delete",
+    "firstPage": "First page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "lastPage": "Last page"
   },
   "teamSelection": {
     "title": "Choose Your Club",

@@ -629,7 +629,11 @@
     "center": "Centre",
     "right": "Droite",
     "competition": "Compétition",
-    "confirmDelete": "Confirmer la suppression"
+    "confirmDelete": "Confirmer la suppression",
+    "firstPage": "Première page",
+    "previousPage": "Page précédente",
+    "nextPage": "Page suivante",
+    "lastPage": "Dernière page"
   },
   "teamSelection": {
     "title": "Choisissez Votre Club",
