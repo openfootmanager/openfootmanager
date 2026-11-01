@@ -50,6 +50,8 @@ describe("PlayerCard", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
     expect(within(card).getByText("Rovers")).toBeInTheDocument();
     expect(within(card).getByText("24")).toBeInTheDocument();
+    // The bare number is named for a screen reader: "Age 24", not just "24".
+    expect(within(card).getByText("common.age")).toBeInTheDocument();
   });
 
   /**
