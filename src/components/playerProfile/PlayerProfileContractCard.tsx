@@ -33,6 +33,8 @@ interface PlayerProfileContractCardProps {
   marketValue: number;
   /** His weekly wage as the club may see it, already written: exact, approximate or "–". */
   wageText: string;
+  /** Set when the wage failed to load: the row then reads "Couldn't load" with a retry. */
+  wageRetry?: () => void;
   language: string;
   contractRiskLevel: "critical" | "warning" | "stable";
   contractRiskLabel: string;
@@ -56,6 +58,7 @@ export default function PlayerProfileContractCard({
   morale,
   marketValue,
   wageText,
+  wageRetry,
   language,
   contractRiskLevel,
   contractRiskLabel,
@@ -111,7 +114,23 @@ export default function PlayerProfileContractCard({
           <InfoRow
             icon={<TrendingUp className="w-4 h-4" />}
             label={t("playerProfile.weeklyWage")}
-            value={wageText}
+            value={
+              wageRetry ? (
+                <span className="inline-flex items-center gap-2">
+                  {t("playerProfile.loadFailed")}
+                  <button
+                    type="button"
+                    onClick={wageRetry}
+                    aria-label={t("playerProfile.retryWage")}
+                    className="rounded text-caption font-semibold text-fg underline underline-offset-2 hover:text-fg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
+                  >
+                    {t("common.retry")}
+                  </button>
+                </span>
+              ) : (
+                wageText
+              )
+            }
           />
           <InfoRow
             icon={<Heart className="w-4 h-4" />}

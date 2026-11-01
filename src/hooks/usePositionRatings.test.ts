@@ -1,82 +1,122 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getPositionRatings } from "../services/positionService";
 import type { PositionRatings } from "../store/generated/PositionRatings";
+import { getPositionRatings } from "../services/positionService";
 import { usePositionRatings } from "./usePositionRatings";
 
 vi.mock("../services/positionService", () => ({ getPositionRatings: vi.fn() }));
-const mockedRatings = vi.mocked(getPositionRatings);
+const mocked = vi.mocked(getPositionRatings);
 
-const ratings = (rating: number): PositionRatings => ({
+/** A player rated 77 at his natural position. */
+const answer = {
   source: { kind: "live" },
   rows: [
     {
       position: "CentralMidfielder",
-      rating,
+      rating: 77,
       familiarity: "natural",
       deployed: false,
       key_attributes: [],
     },
   ],
-});
+} satisfies PositionRatings;
 
 beforeEach(() => {
-  mockedRatings.mockReset();
+  mocked.mockReset();
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 describe("usePositionRatings", () => {
   /**
-   * Given the backend rates a player 77 at his natural position
+   * Given the backend's answer about a player
    * When the hook mounts
-   * Then it reads none until the answer arrives, then the backend's, asked for him
+   * Then it reads loading, then the backend's answer, asked for him
    */
-  it("reads no ratings until the backend answers, then the backend's", async () => {
-    mockedRatings.mockResolvedValue(ratings(77));
+  it("reads loading, then the backend's answer", async () => {
+    mocked.mockResolvedValue(answer);
 
     const { result } = renderHook(() => usePositionRatings("p1", "r1"));
 
-    expect(result.current).toBeNull();
-    await waitFor(() => expect(result.current).toEqual(ratings(77)));
-    expect(mockedRatings).toHaveBeenCalledWith("p1");
+    expect(result.current.status).toBe("loading");
+    await waitFor(() => expect(result.current).toEqual({ status: "answered", value: answer }));
+    expect(mocked).toHaveBeenCalledWith("p1");
   });
 
   /**
-   * Given one player's ratings on screen
-   * When another player's profile opens, whose answer has not arrived
-   * Then the first player's ratings are not shown for him
+   * Given a player the club knows nothing about (no attributes: the backend answers null), and another whose request fails
+   * When each is asked for
+   * Then the first reads answered with no ratings, the second reads failed with no data: a
+   *      failed load is never "nothing known"
    */
-  it("never shows the previous player's ratings", async () => {
-    mockedRatings.mockResolvedValueOnce(ratings(77));
+  it("tells a failed load from nothing known", async () => {
+    mocked.mockResolvedValueOnce(null);
+    mocked.mockRejectedValueOnce("be.error.noActiveGameSession");
+
+    const unknown = renderHook(() => usePositionRatings("unknown", "r1"));
+    const failed = renderHook(() => usePositionRatings("failing", "r1"));
+
+    await waitFor(() =>
+      expect(unknown.result.current).toEqual({ status: "answered", value: null }),
+    );
+    await waitFor(() => expect(failed.result.current.status).toBe("failed"));
+    expect(failed.result.current).not.toHaveProperty("value");
+  });
+
+  /**
+   * Given a failed load
+   * When the retry is asked for and the backend answers this time
+   * Then it asks again and reads the answer
+   */
+  it("asks again on retry and reads the answer", async () => {
+    mocked.mockRejectedValueOnce("down");
+    mocked.mockResolvedValueOnce(answer);
+    const { result } = renderHook(() => usePositionRatings("p1", "r1"));
+    await waitFor(() => expect(result.current.status).toBe("failed"));
+
+    act(() => {
+      if (result.current.status === "failed") result.current.retry();
+    });
+
+    await waitFor(() => expect(result.current).toEqual({ status: "answered", value: answer }));
+    expect(mocked).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * Given one player's answer on screen
+   * When another player's profile opens, whose answer has not arrived
+   * Then it reads loading, never the previous player's answer
+   */
+  it("never shows the previous player's answer", async () => {
+    mocked.mockResolvedValueOnce(answer);
+    mocked.mockReturnValueOnce(new Promise<never>(() => undefined));
     const { result, rerender } = renderHook(({ id }) => usePositionRatings(id, "r1"), {
       initialProps: { id: "p1" },
     });
-    await waitFor(() => expect(result.current).toEqual(ratings(77)));
-    mockedRatings.mockReturnValueOnce(new Promise(() => {}));
+    await waitFor(() => expect(result.current.status).toBe("answered"));
 
     rerender({ id: "p2" });
 
-    expect(result.current).toBeNull();
+    expect(result.current.status).toBe("loading");
   });
 
   /**
-   * Given a player's ratings on screen
-   * When the game moves on (a new revision) and the backend's next answer fails
-   * Then no ratings are read, not the last answer
+   * Given an answer on screen
+   * When the game moves on (a new revision) and the next request fails
+   * Then it reads loading, then failed: never the last answer
    */
-  it("reads no ratings, not the last answer, until the game's next answer arrives", async () => {
-    mockedRatings.mockResolvedValueOnce(ratings(77));
-    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  it("carries no data after the game moves on and the next request fails", async () => {
+    mocked.mockResolvedValueOnce(answer);
+    mocked.mockRejectedValueOnce("be.error.noActiveGameSession");
     const { result, rerender } = renderHook(({ revision }) => usePositionRatings("p1", revision), {
       initialProps: { revision: "r1" },
     });
-    await waitFor(() => expect(result.current).toEqual(ratings(77)));
-    mockedRatings.mockRejectedValueOnce("be.error.noActiveGameSession");
+    await waitFor(() => expect(result.current.status).toBe("answered"));
 
     rerender({ revision: "r2" });
 
-    await waitFor(() => expect(errors).toHaveBeenCalled());
-    expect(result.current).toBeNull();
-    errors.mockRestore();
+    expect(result.current.status).toBe("loading");
+    await waitFor(() => expect(result.current.status).toBe("failed"));
+    expect(mocked).toHaveBeenCalledTimes(2);
   });
 });

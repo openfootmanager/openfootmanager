@@ -61,18 +61,24 @@ const wages = vi.hoisted(() => ({
 vi.mock("../../hooks/useVisibleWage", () => ({
   useVisibleWage: (playerId: string, revision: string) => {
     wages.revisions.push(revision);
-    return (
-      wages.current[playerId] ??
-      ({ kind: "exact", weekly: Number(JSON.parse(revision).at(-1)) } as const)
-    );
+    return {
+      status: "answered" as const,
+      value:
+        wages.current[playerId] ??
+        ({ kind: "exact", weekly: Number(JSON.parse(revision).at(-1)) } as const),
+    };
   },
 }));
 
 // The club holds no opinion of anyone's potential in these tests; PlayerProfile.potential.test.tsx
 // shows one, through the real hook. The hook has its own test.
-vi.mock("../../hooks/usePotentialOpinion", () => ({ usePotentialOpinion: () => null }));
+vi.mock("../../hooks/usePotentialOpinion", () => ({
+  usePotentialOpinion: () => ({ status: "answered", value: null }),
+}));
 // Nor its ratings at positions: PlayerProfilePositionRatings and usePositionRatings have their own.
-vi.mock("../../hooks/usePositionRatings", () => ({ usePositionRatings: () => null }));
+vi.mock("../../hooks/usePositionRatings", () => ({
+  usePositionRatings: () => ({ status: "answered", value: null }),
+}));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

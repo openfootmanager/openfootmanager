@@ -1768,7 +1768,9 @@
     "positions": {
       "title": "Posisi",
       "wherePlayed": "tempat kamu memainkannya"
-    }
+    },
+    "loadFailed": "Gagal memuat",
+    "retryWage": "Coba muat gaji lagi"
   },
   "teamProfile": {
     "clubInfo": "Informasi Klub",
