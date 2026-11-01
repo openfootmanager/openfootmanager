@@ -228,8 +228,92 @@ mod tests {
 
         assert!(text.contains("| A0 | 0 | A1 | 1 | A2 | 2 |"));
         assert!(text.contains("| A15 | 15 | A16 | 16 | A17 | 17 |"));
+        assert!(
+            text.contains("| A18 | 18 |"),
+            "the 19th attribute fills a short last row and must not be dropped: {text}"
+        );
         assert!(text.contains("| Contract End | - |"));
         round_trips(profile);
+    }
+
+    fn identity() -> info::PlayerProfile {
+        info::PlayerProfile {
+            id: "p1".to_string(),
+            match_name: "A. Player".to_string(),
+            full_name: "Alan Player".to_string(),
+            position: "ST".to_string(),
+            age: "24".to_string(),
+            nationality: "England".to_string(),
+            team: "Reds".to_string(),
+            detail: info::PlayerDetail::Unknown,
+        }
+    }
+
+    /// Given a player the club knows nothing about
+    /// When the profile is rendered
+    /// Then it shows who he is and says no more, with no rating or attribute table.
+    #[test]
+    fn an_unknown_players_profile_shows_identity_only() {
+        let profile = identity();
+
+        let text = profile.to_string();
+
+        assert!(text.contains("| Full Name | Alan Player |"));
+        assert!(!text.contains("OVR"));
+        assert!(!text.contains("Attributes"));
+        round_trips(profile);
+    }
+
+    /// Given a scouted player and a rival in the manager's division
+    /// When their profiles are rendered
+    /// Then the scouted one shows the report's date (flagged when out of date) and the rival his rating.
+    #[test]
+    fn scouted_and_known_profiles_show_what_the_club_knows() {
+        let attributes = vec![
+            info::Attribute {
+                name: "Pace".to_string(),
+                value: 55,
+            },
+            info::Attribute {
+                name: "Shooting".to_string(),
+                value: 56,
+            },
+            info::Attribute {
+                name: "Passing".to_string(),
+                value: 57,
+            },
+        ];
+        let scouted = info::PlayerProfile {
+            detail: info::PlayerDetail::Scouted {
+                scouted_on: "2026-03-10".to_string(),
+                current: false,
+                attributes: attributes.clone(),
+            },
+            ..identity()
+        };
+        let known = info::PlayerProfile {
+            detail: info::PlayerDetail::Known {
+                ovr: 71,
+                attributes,
+            },
+            ..identity()
+        };
+
+        assert!(scouted
+            .to_string()
+            .contains("| Scouted On | 2026-03-10 (out of date) |"));
+        assert!(!scouted.to_string().contains("OVR"));
+        assert!(known.to_string().contains("| OVR | 71 |"));
+        assert!(!known.to_string().contains("Condition"));
+        for text in [scouted.to_string(), known.to_string()] {
+            assert!(text.contains("### Attributes"), "{text}");
+            assert!(
+                text.contains("| Pace | 55 | Shooting | 56 | Passing | 57 |"),
+                "{text}"
+            );
+        }
+        round_trips(scouted);
+        round_trips(known);
     }
 
     /// Given a market row for a rival (rating only), a scouted player (rounded wage only) and a

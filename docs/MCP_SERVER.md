@@ -127,7 +127,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `info_fixtures` | Upcoming fixtures and recent results for your team |
 | `info_match_preview` | Next opponent details, form, and standings comparison |
 | `info_season_context` | Current season phase and transfer window status |
-| `info_player_profile` | Detailed player card: attributes, contract, morale (own team) or limited info (other teams) |
+| `info_player_profile` | Player card, limited to what the club knows (`ofm_core::player_knowledge`): own players in full; a player at a club in the manager's own division by rating and attributes; a scouted player by the scout's report (attributes and date); anyone else by identity only. Condition, morale, fitness, injury and contract are shown for own players only; potential never |
 | `info_player_stats` | Season and career statistics for a player |
 | `info_player_match_history` | Match-by-match performance for a player |
 | `info_team_profile` | Team details: squad size, standings position, recent form, finances |
@@ -434,14 +434,19 @@ The `mcp` feature adds `rmcp`, `axum`, `tower`, `tokio` (with `net`), and `tokio
 
 ## Information Visibility
 
-In competition mode, the formatted player tools limit information about other teams' players:
+`info_player_profile` shows a player only as much as the club knows about him
+(`ofm_core::player_knowledge`, the same rule the game's own screens follow), in every mode.
+`info_player_stats` and `info_player_match_history` do not apply this limit: match and
+performance statistics are public, and they return those of any player in the game.
 
-- **Your team**: Full detail (all attributes, condition, morale, wage, contract end, injury status)
-- **Other teams**: OVR, position, age, and condition only
-- **Scouted players**: Full detail from scout reports (use `scout_send` → `scout_get_reports`)
+- **Your team** (including players loaned in or out): full detail (all attributes, condition, morale, wage, contract end, injury status)
+- **A club in your own division**: rating and the 19 attributes; no condition, morale, injury, wage or contract
+- **Scouted players**: the scout report's attributes and its date (use `scout_send` → `scout_get_reports`); not the live rating or condition
+- **Anyone else**: who he is (name, age, position, nationality, team) and nothing more
 
-Scout reports provide the full details in these formatted tools. The raw `info_game_state` dump is not
-available in competition mode, as described under [Competition Mode](#competition-mode).
+A scouted player's profile carries only the report's attributes and its date, never his condition or
+morale. The raw `info_game_state` dump is not available in competition mode, as described under
+[Competition Mode](#competition-mode).
 
 ---
 
