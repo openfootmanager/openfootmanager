@@ -157,17 +157,10 @@ pub fn transfer_preview_bid(
         KnowledgeView::of(&game).of_player(p).wage
     });
 
-    let response = crate::commands::transfers::preview_transfer_bid_financial_impact_internal(
-        &ctx.state_manager,
-        &player_id,
-        fee,
-    )?;
-    Ok(bid_preview_of(
-        player_name,
-        fee,
-        &response.projection,
-        &wage,
-    ))
+    // Projected from the same snapshot the wage was read from, so the two cannot disagree.
+    let projection =
+        ofm_core::transfers::project_transfer_bid_financial_impact(&game, &player_id, fee)?;
+    Ok(bid_preview_of(player_name, fee, &projection, &wage))
 }
 
 /// The seller's counter-offer is the seller's valuation, which a club that does not know the
