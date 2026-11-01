@@ -486,6 +486,56 @@ const CEILING_MEAN: f64 = 70.1;
 /// stopped drifting.
 const CEILING_SD: f64 = 5.0;
 
+/// How far above the opening players' centre the youth intake's ceilings sit. The settled world is
+/// made by the intake (everyone alive after about 15 seasons was an intake recruit), and the opening
+/// cohort it replaces carries less of the A tier on a normal bell than the old light-tailed one did,
+/// so an intake on the opening's own centre settles below the band #965 set (S 1.0 to 1.8%, A 5.9
+/// to 8.2%). Swept over 12 and 20 seasons on the shipped world, 1.0 holds the band to season 20 on
+/// two seeds; 1.6 pushes A past 8.2% and the mean up another 0.4.
+const INTAKE_CEILING_OFFSET: f64 = 1.0;
+/// The fraction of the opening's spread the intake keeps. Alone, the offset doubles the settled
+/// wonderkid rate (0.16 to 0.22% against 0.06 to 0.13% on the old bell); 0.95 brings it back to
+/// 0.10 to 0.12% and costs S about 0.1 points.
+const INTAKE_SPREAD_KEPT: f64 = 0.95;
+
+/// How a ceiling bell is moved: `shift` rating points up, keeping `spread_kept` of its spread.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct Standard {
+    shift: f64,
+    spread_kept: f64,
+}
+
+/// How a generated player is rolled besides his slot: the age to fix, and the bell his ceiling is
+/// drawn from.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub(super) struct PlayerRoll {
+    /// `None` draws the age from the slot (17 to 21 for a youth-reserved slot, 17 to 35 otherwise).
+    pub age: Option<u32>,
+    /// `None` is the opening's bell.
+    pub standard: Option<Standard>,
+}
+
+impl PlayerRoll {
+    /// A player on the opening's bell, of `age` (or the slot's age).
+    pub(super) fn unscaled(age: Option<u32>) -> Self {
+        Self {
+            age,
+            standard: None,
+        }
+    }
+
+    /// A youth intake recruit or scouted prospect, of `age` (or the slot's age).
+    pub(super) fn for_intake(age: Option<u32>) -> Self {
+        Self {
+            age,
+            standard: Some(Standard {
+                shift: INTAKE_CEILING_OFFSET,
+                spread_kept: INTAKE_SPREAD_KEPT,
+            }),
+        }
+    }
+}
+
 /// The z grid [`ROLLED_AT_Z`] is tabulated on: -3.5 to 3.5 in steps of 0.25.
 const ROLLED_Z_MIN: f64 = -3.5;
 const ROLLED_Z_STEP: f64 = 0.25;
@@ -553,7 +603,8 @@ fn rolled_to_z(group: &Position, rolled: f64) -> f64 {
     ROLLED_Z_MIN + (lower as f64 + fraction) * ROLLED_Z_STEP
 }
 
-/// The ceiling a rolled rating becomes for a player of `group` and `age`: the same ranking, on the
+/// The ceiling a rolled rating becomes for a player of `group` and `age` on the opening's bell, or
+/// on `standard`'s moved one: the same ranking, on the
 /// normal bell the world is meant to have at 25. A young player's ceiling will still drift
 /// (`development`), so he is drawn from a bell narrower by the variance that drift will add; by 25
 /// everyone's ceiling follows one bell, and a teenager's ceiling stays a good guide to where he
@@ -562,10 +613,14 @@ fn rolled_to_z(group: &Position, rolled: f64) -> f64 {
 /// The centre is not raised for the drift's small pull down: a player closes the gap to his
 /// ceiling by 19 to 21, after which his rating holds the ceiling up, so the pull is mostly absorbed
 /// (measured on the shipped world: ceilings of 72.2 at 16 are 72.4 at 25).
-fn shaped_ceiling(group: &Position, rolled: f64, age: u32) -> u8 {
+fn shaped_ceiling(group: &Position, rolled: f64, age: u32, standard: Option<Standard>) -> u8 {
     let (_, drift_variance) = crate::development::ceiling_drift_still_to_come(age);
     let narrowing = (1.0 - drift_variance / CEILING_SD.powi(2)).max(0.0).sqrt();
-    (CEILING_MEAN + narrowing * CEILING_SD * rolled_to_z(group, rolled))
+    let Standard { shift, spread_kept } = standard.unwrap_or(Standard {
+        shift: 0.0,
+        spread_kept: 1.0,
+    });
+    (CEILING_MEAN + shift + narrowing * CEILING_SD * spread_kept * rolled_to_z(group, rolled))
         .round()
         .clamp(1.0, 99.0) as u8
 }
@@ -632,16 +687,15 @@ fn roll_attributes(group: &Position, rng: &mut impl Rng) -> PlayerAttributes {
     }
 }
 
-/// A generated player for squad slot `index`. `age` fixes his age; `None`
-/// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
-/// exactly as before the parameter existed, so every seeded world — all of
-/// which pass `None` — is unchanged by it.
+/// A generated player for squad slot `index`. `roll` says how he is rolled beyond the slot: his
+/// age (`None` draws it from the slot, 17–21 for a youth-reserved slot and 17–35 otherwise) and
+/// the bell of his ceiling. `PlayerRoll::unscaled(None)` is the opening's bell with the slot's age.
 pub(super) fn generate_random_player_from_def(
     team_id: &str,
     index: usize,
     nationality: &str,
     opening_year: u32,
-    age: Option<u32>,
+    roll: PlayerRoll,
     names_def: &NamesDefinition,
     rng: &mut impl Rng,
 ) -> Player {
@@ -657,7 +711,7 @@ pub(super) fn generate_random_player_from_def(
     // Reserve one slot per position group (GK + back line + midfield + attack) as
     // youth-aged so scouted youth recruits land at a consistent age across positions
     // and clubs can open with real academy prospects instead of an empty youth squad.
-    let age = age.unwrap_or_else(|| {
+    let age = roll.age.unwrap_or_else(|| {
         if is_youth_reserved_slot(index) {
             rng.random_range(17..22)
         } else {
@@ -678,7 +732,12 @@ pub(super) fn generate_random_player_from_def(
     // who has years of growth left is lowered from it by the headroom for his age. Ceiling
     // first, rating second, so the whole world's ceilings follow one bell and a teenager is an
     // earlier version of a prime-age player rather than a better one.
-    let ceiling = shaped_ceiling(&group, ovr_from_attributes(&attributes, &position), age);
+    let ceiling = shaped_ceiling(
+        &group,
+        ovr_from_attributes(&attributes, &position),
+        age,
+        roll.standard,
+    );
     let headroom = roll_growth_headroom(age, rng);
     move_attributes_to(&mut attributes, &position, ceiling.saturating_sub(headroom));
     // Size market value and wage from the same position-weighted rating the
@@ -1417,7 +1476,7 @@ mod tests {
                     n % 23,
                     "ENG",
                     2026,
-                    None,
+                    PlayerRoll::unscaled(None),
                     &names_def,
                     &mut rng,
                 );
@@ -1443,14 +1502,17 @@ mod tests {
         .enumerate()
         {
             let centre = CEILING_MEAN.round() as u8;
-            assert_eq!(shaped_ceiling(group, ROLLED_AT_Z[row][14], 25), centre);
+            assert_eq!(
+                shaped_ceiling(group, ROLLED_AT_Z[row][14], 25, None),
+                centre
+            );
             let two_sd = (2.0 * CEILING_SD).round() as u8;
             assert_eq!(
-                shaped_ceiling(group, ROLLED_AT_Z[row][22], 25),
+                shaped_ceiling(group, ROLLED_AT_Z[row][22], 25, None),
                 centre + two_sd
             );
             assert_eq!(
-                shaped_ceiling(group, ROLLED_AT_Z[row][6], 25),
+                shaped_ceiling(group, ROLLED_AT_Z[row][6], 25, None),
                 centre - two_sd
             );
         }
@@ -1463,12 +1525,12 @@ mod tests {
     #[test]
     fn a_teenagers_ceiling_bell_is_narrower_than_a_prime_players() {
         let group = Position::Midfielder;
-        let prime = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 25);
-        let teenager = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 16);
+        let prime = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 25, None);
+        let teenager = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 16, None);
         assert!(teenager < prime, "{teenager} vs {prime}");
         assert_eq!(
-            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 16),
-            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 25)
+            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 16, None),
+            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 25, None)
         );
     }
 
@@ -1703,7 +1765,7 @@ mod tests {
                         senior_slot(n % 23),
                         "ENG",
                         2026,
-                        Some(28),
+                        PlayerRoll::unscaled(Some(28)),
                         &names_def,
                         &mut rng,
                     )
@@ -1728,6 +1790,58 @@ mod tests {
                 normal * 100.0
             );
         }
+    }
+
+    /// Ceilings of `count` players of age 28 (no headroom: rating is ceiling) rolled with `roll`.
+    fn ceilings_rolled_with(roll: PlayerRoll, count: usize, seed: u64) -> Vec<f64> {
+        use rand::SeedableRng;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+        (0..count)
+            .map(|n| {
+                f64::from(
+                    generate_random_player_from_def(
+                        "club-id",
+                        senior_slot(n % 23),
+                        "ENG",
+                        2026,
+                        roll,
+                        &names_def,
+                        &mut rng,
+                    )
+                    .potential,
+                )
+            })
+            .collect()
+    }
+
+    fn mean_and_sd(values: &[f64]) -> (f64, f64) {
+        let mean = values.iter().sum::<f64>() / values.len() as f64;
+        let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
+        (mean, variance.sqrt())
+    }
+
+    /// Given the same slots rolled once on the opening's bell and once as youth intake recruits,
+    ///       both fixed at 28 so that rating is ceiling,
+    /// When their ceilings are compared,
+    /// Then the intake's centre is higher by the intake offset and its spread is the kept fraction
+    ///      of the opening's.
+    #[test]
+    fn the_intake_is_rolled_on_its_own_centre_and_spread() {
+        let opening = ceilings_rolled_with(PlayerRoll::unscaled(Some(28)), 80_000, 31);
+        let intake = ceilings_rolled_with(PlayerRoll::for_intake(Some(28)), 80_000, 31);
+
+        let ((opening_mean, opening_sd), (intake_mean, intake_sd)) =
+            (mean_and_sd(&opening), mean_and_sd(&intake));
+
+        assert!(
+            ((intake_mean - opening_mean) - INTAKE_CEILING_OFFSET).abs() < 0.15,
+            "centres {opening_mean:.2} and {intake_mean:.2}"
+        );
+        assert!(
+            ((intake_sd / opening_sd) - INTAKE_SPREAD_KEPT).abs() < 0.04,
+            "spreads {opening_sd:.2} and {intake_sd:.2}"
+        );
     }
 
     /// Given staff authored with and without a `knownAs` name (#557)
