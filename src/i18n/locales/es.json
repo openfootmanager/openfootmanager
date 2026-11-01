@@ -712,6 +712,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Banquillo {{bench}}",
     "bestRole": "Mejor rol",
     "startingXi": "Once titular",
+    "notMatchDayEligible": "No disponible para la convocatoria",
     "starter": "Titular",
     "benchOption": "Banquillo",
     "naturalFit": "Posición natural",
