@@ -1,6 +1,6 @@
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::staff::{Staff, StaffRole};
-use domain::team::PlayStyle;
+use domain::team::{PlayStyle, Team};
 use rand::{Rng, RngExt};
 
 use super::authored_player::{is_valid_date_of_birth, resolve_authored_contract};
@@ -527,13 +527,16 @@ const NATIONAL_POOL_SHIFT: f64 = -2.0;
 /// for a younger feature that does (the academy intake).
 const YOUNG_SPREAD_KEPT: f64 = 1.0;
 const YOUNG_SHIFT_KEPT: f64 = 1.0;
+/// The fraction of a club's standard shift its academy's recruits take. The recruits are the
+/// age wonderkids come from, so the full shift would give the big clubs nearly all of them.
+const ACADEMY_SHIFT_KEPT: f64 = 0.5;
 
 /// How club reputations are spread in the world being generated: the centre and spread that turn
 /// a club's reputation into a standard score. Computed from the world's own clubs, not fixed: a
 /// package world (a historical league, a modder's one) has its own spread, and fixed figures
 /// would only move the mis-centring there.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(super) struct ReputationScale {
+pub struct ReputationScale {
     mean: f64,
     sd: f64,
 }
@@ -542,6 +545,23 @@ impl ReputationScale {
     #[cfg(test)]
     pub(super) fn new(mean: f64, sd: f64) -> Self {
         Self { mean, sd }
+    }
+
+    /// The scale of a running world made of `clubs`, at the reputations they hold now: the one
+    /// rule for which clubs a recruit's standard is measured against, shared by the annual intake
+    /// and a youth scout's prospects.
+    pub fn of_clubs(clubs: &[Team]) -> Self {
+        Self::of_reputations(clubs.iter().map(|club| club.reputation))
+    }
+
+    /// The scale of a world whose clubs hold `reputations`, each known rather than drawn from a
+    /// range.
+    pub(super) fn of_reputations(reputations: impl IntoIterator<Item = u32>) -> Self {
+        Self::of_ranges(
+            reputations
+                .into_iter()
+                .map(|reputation| [reputation, reputation]),
+        )
     }
 
     /// The scale of a world whose clubs draw their reputation uniformly from `ranges` (one range
@@ -578,6 +598,12 @@ impl ReputationScale {
         }
         (f64::from(reputation) - self.mean) / self.sd
     }
+
+    /// [`Self::standard_score`], capped at [`REPUTATION_Z_CAP`].
+    fn capped_score(&self, reputation: u32) -> f64 {
+        self.standard_score(reputation)
+            .clamp(-REPUTATION_Z_CAP, REPUTATION_Z_CAP)
+    }
 }
 
 /// The bell a player's ceiling is drawn from when it is not the single world-wide one.
@@ -587,6 +613,12 @@ pub(super) struct Standard {
     shift: f64,
     /// The fraction of the rolled spread the bell keeps.
     spread_kept: f64,
+    /// The variance (rating points squared) this bell's shift adds across clubs, which its
+    /// spread gives back at the player's own age, so the clubs' bells together make the one they
+    /// share. It is taken from the bell as it is at that age, narrowed for the ceiling drift still
+    /// to come: taken from the full bell, the drift would later widen it again and every season's
+    /// intake would add stars. Zero for a bell whose `spread_kept` already pays for its shift.
+    absorbed_shift_variance: f64,
 }
 
 impl Standard {
@@ -638,14 +670,35 @@ impl PlayerRoll {
 
     /// A player of a club of `reputation`, at the slot's age.
     pub(super) fn for_club(reputation: u32, scale: &ReputationScale) -> Self {
-        let z = scale
-            .standard_score(reputation)
-            .clamp(-REPUTATION_Z_CAP, REPUTATION_Z_CAP);
         Self {
             age: None,
             standard: Some(Standard {
-                shift: CLUB_LIFT + BETWEEN_CLUB_SD * z,
+                shift: CLUB_LIFT + BETWEEN_CLUB_SD * scale.capped_score(reputation),
                 spread_kept: Standard::within_club_spread(),
+                absorbed_shift_variance: 0.0,
+            }),
+        }
+    }
+
+    /// A youngster joining the academy of a club of `reputation`, of `age` (or the slot's age),
+    /// in a world whose clubs' reputations are spread as `scale` says.
+    ///
+    /// The scale is the world's as it stands at the intake, not at its opening: a club that has
+    /// risen recruits as the big club it now is. He is drawn on the intake's bell
+    /// ([`INTAKE_CEILING_OFFSET`], [`INTAKE_SPREAD_KEPT`]) moved by [`ACADEMY_SHIFT_KEPT`] of the
+    /// club's standard shift, and by
+    /// none of [`CLUB_LIFT`], which pays for the opening free-agent pool and would inflate the
+    /// world every season. His spread gives back the variance the shift takes, at his age, so
+    /// across clubs of every standing the academies together keep the intake's bell, mean and
+    /// tails alike: the best prospects gather at the big clubs, but there are no more of them.
+    pub(super) fn for_academy(reputation: u32, age: Option<u32>, scale: &ReputationScale) -> Self {
+        let shift_spread = ACADEMY_SHIFT_KEPT * BETWEEN_CLUB_SD;
+        Self {
+            age,
+            standard: Some(Standard {
+                shift: INTAKE_CEILING_OFFSET + shift_spread * scale.capped_score(reputation),
+                spread_kept: INTAKE_SPREAD_KEPT,
+                absorbed_shift_variance: shift_spread.powi(2),
             }),
         }
     }
@@ -658,6 +711,7 @@ impl PlayerRoll {
             standard: Some(Standard {
                 shift: NATIONAL_POOL_SHIFT,
                 spread_kept: NATIONAL_POOL_SPREAD_KEPT,
+                absorbed_shift_variance: 0.0,
             }),
         }
     }
@@ -669,17 +723,22 @@ impl PlayerRoll {
             standard: Some(Standard {
                 shift: FREE_AGENT_SHIFT,
                 spread_kept: Standard::within_club_spread(),
+                absorbed_shift_variance: 0.0,
             }),
         }
     }
 
-    /// A youth intake recruit or scouted prospect, of `age` (or the slot's age).
+    /// The bell the world's academies make together, of `age` (or the slot's age): every
+    /// [`Self::for_academy`] recruit pooled over clubs of every standing. The tests compare the
+    /// academies against it.
+    #[cfg(test)]
     pub(super) fn for_intake(age: Option<u32>) -> Self {
         Self {
             age,
             standard: Some(Standard {
                 shift: INTAKE_CEILING_OFFSET,
                 spread_kept: INTAKE_SPREAD_KEPT,
+                absorbed_shift_variance: 0.0,
             }),
         }
     }
@@ -776,10 +835,20 @@ fn rolled_to_z(group: &Position, rolled: f64) -> f64 {
 fn shaped_ceiling(group: &Position, rolled: f64, age: u32, standard: Option<Standard>) -> u8 {
     let (_, drift_variance) = crate::development::ceiling_drift_still_to_come(age);
     let narrowing = (1.0 - drift_variance / CEILING_SD.powi(2)).max(0.0).sqrt();
-    let Standard { shift, spread_kept } = standard.unwrap_or(Standard {
+    let Standard {
+        shift,
+        spread_kept,
+        absorbed_shift_variance,
+    } = standard.unwrap_or(Standard {
         shift: 0.0,
         spread_kept: 1.0,
+        absorbed_shift_variance: 0.0,
     });
+    let spread_kept = spread_kept
+        * spread_left_after(
+            absorbed_shift_variance,
+            narrowing * CEILING_SD * spread_kept,
+        );
     // A player young enough to be a wonderkid keeps only part of his standard's shift and spread.
     let (shift, spread_kept) = if age <= WONDERKID_MAX_AGE {
         (shift * YOUNG_SHIFT_KEPT, spread_kept * YOUNG_SPREAD_KEPT)
@@ -789,6 +858,19 @@ fn shaped_ceiling(group: &Position, rolled: f64, age: u32, standard: Option<Stan
     (CEILING_MEAN + shift + narrowing * CEILING_SD * spread_kept * rolled_to_z(group, rolled))
         .round()
         .clamp(1.0, 99.0) as u8
+}
+
+/// The share of a bell of spread `bell_sd` (rating points) left once `shift_variance` is taken
+/// from it, so that a bell moved by a shift of that variance across clubs and narrowed by this
+/// share adds up, over the clubs, to the bell it was taken from.
+fn spread_left_after(shift_variance: f64, bell_sd: f64) -> f64 {
+    if shift_variance <= 0.0 {
+        return 1.0;
+    }
+    if bell_sd <= 0.0 {
+        return 0.0;
+    }
+    (1.0 - shift_variance / bell_sd.powi(2)).max(0.0).sqrt()
 }
 
 /// The attributes a generated player of a position group is rolled with: each drawn uniformly from a
