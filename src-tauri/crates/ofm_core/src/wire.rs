@@ -12,6 +12,10 @@
 //! through their own types (`db::repositories`), and a legacy JSON save is only ever read. Doing it
 //! in the serializer means a new path to the screens cannot leak by forgetting to redact.
 //!
+//! The few answers that carry players or messages outside a `Game` (the squad, an archived player,
+//! the inbox and its archive) build their copies with `without_potential` and
+//! `message_for_readers`. They are the paths to watch: a new one needs the same.
+//!
 //! The one reader who needs the truth is the harness that checks a save against the live game
 //! (`truthful_value`).
 
@@ -40,6 +44,24 @@ pub(crate) fn players_without_potential<S: Serializer>(
     seq.end()
 }
 
+/// `message` as a reader may receive it: a youth scouting report's prospects without their
+/// potential.
+pub fn message_for_readers(message: &InboxMessage) -> InboxMessage {
+    let mut wire = message.clone();
+    if let Some(prospects) = wire.context.youth_prospects.as_mut() {
+        for prospect in prospects {
+            prospect.potential = 0;
+        }
+    }
+    wire
+}
+
+/// The inbox as a reader may receive it (`message_for_readers`): what every command that answers
+/// with the messages themselves returns, rather than the game.
+pub fn messages_for_readers(messages: &[InboxMessage]) -> Vec<InboxMessage> {
+    messages.iter().map(message_for_readers).collect()
+}
+
 /// `Game.messages` for a reader: a youth scouting report's prospects without their potential. Every
 /// other message goes as it is, uncopied.
 pub(crate) fn messages_without_potential<S: Serializer>(
@@ -48,14 +70,10 @@ pub(crate) fn messages_without_potential<S: Serializer>(
 ) -> Result<S::Ok, S::Error> {
     let mut seq = serializer.serialize_seq(Some(messages.len()))?;
     for message in messages {
-        match message.context.youth_prospects.as_ref() {
-            Some(prospects) if prospects.iter().any(|prospect| prospect.potential != 0) => {
-                let mut wire = message.clone();
-                wire.context.youth_prospects =
-                    Some(prospects.iter().cloned().map(without_potential).collect());
-                seq.serialize_element(&wire)?;
-            }
-            _ => seq.serialize_element(message)?,
+        if message.context.youth_prospects.is_some() {
+            seq.serialize_element(&message_for_readers(message))?;
+        } else {
+            seq.serialize_element(message)?;
         }
     }
     seq.end()
@@ -216,6 +234,27 @@ mod tests {
         assert_eq!(potentials, vec![88, 82, 79]);
         let prospect = &game.messages[0].context.youth_prospects.as_ref().unwrap()[0];
         assert_eq!(prospect.potential, 91);
+    }
+
+    /// Given the world's youth report, its prospect's true potential 91, in the inbox and in the
+    ///       archive
+    /// When the inbox and a page of the archive are read
+    /// Then each gives the prospect with potential 0, and the game still holds 91
+    #[test]
+    fn the_inbox_and_its_archive_never_send_a_prospects_potential() {
+        let mut game = world();
+        game.archived_messages = game.messages.clone();
+        let prospect_of =
+            |message: &InboxMessage| message.context.youth_prospects.as_ref().unwrap()[0].potential;
+
+        let inbox =
+            crate::slices::inbox::query_messages(&game, &crate::slices::inbox::MessagesQuery {});
+        let archive = crate::inbox_archive::page(&game, None, 10);
+
+        assert_eq!(prospect_of(&inbox[0]), 0);
+        assert_eq!(prospect_of(&archive.items[0]), 0);
+        assert_eq!(prospect_of(&game.messages[0]), 91);
+        assert_eq!(prospect_of(&game.archived_messages[0]), 91);
     }
 
     /// Given the same world
