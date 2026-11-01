@@ -633,7 +633,10 @@
     "firstPage": "First page",
     "previousPage": "Previous page",
     "nextPage": "Next page",
-    "lastPage": "Last page"
+    "lastPage": "Last page",
+    "sortBy": "Sort by",
+    "sortAscending": "Ascending",
+    "sortDescending": "Descending"
   },
   "teamSelection": {
     "title": "Choose Your Club",

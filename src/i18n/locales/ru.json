@@ -633,7 +633,10 @@
     "firstPage": "Первая страница",
     "previousPage": "Предыдущая страница",
     "nextPage": "Следующая страница",
-    "lastPage": "Последняя страница"
+    "lastPage": "Последняя страница",
+    "sortBy": "Сортировать по",
+    "sortAscending": "По возрастанию",
+    "sortDescending": "По убыванию"
   },
   "teamSelection": {
     "title": "Выберите клуб",

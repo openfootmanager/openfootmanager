@@ -53,6 +53,53 @@ describe("useSettingsStore", () => {
     expect(state.loaded).toBe(false);
   });
 
+  /**
+   * Given get_settings still in flight, and the player picks the cards view meanwhile
+   * When the load answers with the view it read before the pick ("table")
+   * Then the pick stands: the older answer does not flip the view back, and other settings come
+   *      from the answer.
+   */
+  it("keeps a setting changed while the load was in flight", async () => {
+    let answer: (value: unknown) => void = () => {};
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command !== "get_settings") return undefined;
+      return new Promise((resolve) => {
+        answer = resolve;
+      });
+    });
+
+    const loading = useSettingsStore.getState().loadSettings();
+    await useSettingsStore.getState().updateSettings({ list_view: "cards" });
+    answer({
+      settings: { language: "es", list_view: "table" },
+      currency: SUPPORTED_CURRENCIES[0],
+      supported_currencies: SUPPORTED_CURRENCIES,
+    });
+    await loading;
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("cards");
+    expect(useSettingsStore.getState().settings.language).toBe("es");
+  });
+
+  /**
+   * Given a load that finished, and then a setting is changed
+   * When a later load answers with the old value
+   * Then the answer is used: only a change made during that load is kept.
+   */
+  it("lets a later load replace a setting changed before it started", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    await useSettingsStore.getState().updateSettings({ list_view: "cards" });
+    vi.mocked(invoke).mockResolvedValue({
+      settings: { list_view: "table" },
+      currency: SUPPORTED_CURRENCIES[0],
+      supported_currencies: SUPPORTED_CURRENCIES,
+    });
+
+    await useSettingsStore.getState().loadSettings();
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("table");
+  });
+
   it("loads settings from the backend and merges missing fields with defaults", async () => {
     vi.mocked(invoke).mockResolvedValue({
       settings: {

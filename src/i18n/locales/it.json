@@ -652,7 +652,10 @@
     "firstPage": "Prima pagina",
     "previousPage": "Pagina precedente",
     "nextPage": "Pagina successiva",
-    "lastPage": "Ultima pagina"
+    "lastPage": "Ultima pagina",
+    "sortBy": "Ordina per",
+    "sortAscending": "Crescente",
+    "sortDescending": "Decrescente"
   },
   "teamSelection": {
     "title": "Scegli il tuo club",

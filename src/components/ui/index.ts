@@ -20,6 +20,7 @@ export { PositionBadge, PositionBadges } from "./PositionBadge";
 export type { PitchFitTone } from "./PitchToken";
 export { PageToolbar } from "./PageToolbar";
 export { SegmentedControl } from "./SegmentedControl";
+export { SortControl } from "./SortControl";
 export { Switch } from "./Switch";
 export { TabPanel, Tabs } from "./Tabs";
 export { DataTable } from "./DataTable";
