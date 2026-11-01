@@ -295,7 +295,7 @@ describe("SquadTab", () => {
 
     expect(await screen.findByRole("row", { name: /GK1/ })).toHaveAttribute(
       "data-accent",
-      "positive",
+      "selected",
     );
     expect(screen.getByRole("row", { name: /Hurt Forward/ })).toHaveAttribute(
       "data-accent",
