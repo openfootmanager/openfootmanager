@@ -408,11 +408,26 @@ fn position_step(player: &Player, slot_position: &Position) -> PositionStep {
         .any(|position| &position == slot_position);
     if is_alternate {
         PositionStep::Alternate
-    } else if primary.to_group_position() == slot_position.to_group_position() {
+    } else if primary.to_group_position() == slot_position.to_group_position()
+        || is_flank_partner(&primary, slot_position)
+    {
         PositionStep::SameLine
     } else {
         PositionStep::OtherLine
     }
+}
+
+/// A winger and the wide midfielder on his side play the same flank, one line apart, so the step
+/// between them is priced and named like a step within a line. Only familiarity reads this: the
+/// winger still counts in the forward line (`to_group_position`).
+fn is_flank_partner(primary: &Position, slot_position: &Position) -> bool {
+    matches!(
+        (primary, slot_position),
+        (Position::RightWinger, Position::RightMidfielder)
+            | (Position::RightMidfielder, Position::RightWinger)
+            | (Position::LeftWinger, Position::LeftMidfielder)
+            | (Position::LeftMidfielder, Position::LeftWinger)
+    )
 }
 
 fn compatibility_penalty(player: &Player, slot_position: &Position) -> f64 {
