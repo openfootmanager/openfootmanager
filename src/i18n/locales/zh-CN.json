@@ -417,6 +417,9 @@
     "overallRatingTier": "综合实力 {{value}}，等级 {{tier}}",
     "namedRating": "{{name}} {{value}}",
     "namedRatingTier": "{{name}} {{value}}，等级 {{tier}}",
+    "listViewLabel": "显示方式",
+    "listViewTable": "表格",
+    "listViewCards": "卡片",
     "noResults": "未找到结果。",
     "place": {
       "1": "第1",
@@ -1975,6 +1978,7 @@
     "step1Min": "步进1分钟",
     "teamControls": "球队控制",
     "subs": "替补",
+    "subsClosed": "加时赛结束后不能再换人",
     "formation": "阵型",
     "playStyle": "打法风格",
     "keyEvents": "关键事件",

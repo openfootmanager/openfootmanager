@@ -417,6 +417,9 @@
     "overallRatingTier": "Keseluruhan {{value}}, tingkat {{tier}}",
     "namedRating": "{{name}} {{value}}",
     "namedRatingTier": "{{name}} {{value}}, tingkat {{tier}}",
+    "listViewLabel": "Tampilkan sebagai",
+    "listViewTable": "Tabel",
+    "listViewCards": "Kartu",
     "noResults": "Tidak ada hasil ditemukan.",
     "place": {
       "1": "ke-1",
@@ -1975,6 +1978,7 @@
     "step1Min": "Langkah 1 Menit",
     "teamControls": "Kontrol Tim",
     "subs": "Pergantian",
+    "subsClosed": "Pergantian pemain ditutup setelah perpanjangan waktu",
     "formation": "Formasi",
     "playStyle": "Gaya Bermain",
     "keyEvents": "Peristiwa Penting",

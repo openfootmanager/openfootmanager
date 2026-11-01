@@ -417,6 +417,9 @@
     "overallRatingTier": "Geral {{value}}, nível {{tier}}",
     "namedRating": "{{name}} {{value}}",
     "namedRatingTier": "{{name}} {{value}}, nível {{tier}}",
+    "listViewLabel": "Mostrar como",
+    "listViewTable": "Tabela",
+    "listViewCards": "Cartões",
     "noResults": "Nenhum resultado encontrado.",
     "place": {
       "1": "1º",
@@ -1975,6 +1978,7 @@
     "step1Min": "Avançar 1 Minuto",
     "teamControls": "Controlos da Equipa",
     "subs": "Substituições",
+    "subsClosed": "As substituições encerram no fim do prolongamento",
     "formation": "Formação",
     "playStyle": "Estilo de Jogo",
     "keyEvents": "Eventos-Chave",

@@ -436,6 +436,9 @@
     "overallRatingTier": "Valutazione generale {{value}}, fascia {{tier}}",
     "namedRating": "{{name}} {{value}}",
     "namedRatingTier": "{{name}} {{value}}, fascia {{tier}}",
+    "listViewLabel": "Mostra come",
+    "listViewTable": "Tabella",
+    "listViewCards": "Schede",
     "noResults": "Nessun risultato trovato.",
     "place": {
       "1": "1°",
@@ -1994,6 +1997,7 @@
     "step1Min": "Avanza di 1 minuto",
     "teamControls": "Controlli squadra",
     "subs": "Sostituzioni",
+    "subsClosed": "Le sostituzioni sono chiuse dopo i tempi supplementari",
     "formation": "Formazione",
     "playStyle": "Stile di gioco",
     "keyEvents": "Eventi chiave",

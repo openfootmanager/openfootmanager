@@ -5,7 +5,8 @@ import type { MouseEventHandler } from "react";
 import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
 import { Badge, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
-import { getTeamName, calcAge, formatVal, formatWeeklyWage, getPlayerOvr } from "../../lib/helpers";
+import { getTeamName, calcAge, formatVal, formatWeeklyWage } from "../../lib/helpers";
+import { type VisibleFigures, visibleRatingText, visibleWageText } from "../../lib/playerKnowledge";
 import { countryName } from "../../lib/countries";
 import {
   buildDividerMenuItem,
@@ -44,7 +45,8 @@ type PlayerRowDetailsProps = {
   player: PlayerData;
   onContextMenu?: MouseEventHandler<HTMLTableRowElement>;
   age: number;
-  ovr: number;
+  /** His rating and wage as the club may see them (the market page's projection). */
+  figures: VisibleFigures;
   hasOffersForThisPlayer: boolean;
   transferOffersForThisPlayer: TransferOfferData[];
   loanOffersForThisPlayer: LoanOfferData[];
@@ -75,6 +77,7 @@ type TransferPlayerRowProps = {
     | "handleRespondLoanOffer"
     | "openLoanCounterOffer"
     | "handleExerciseLoanBuyOption"
+    | "visibleOf"
   >;
   player: PlayerData;
 };
@@ -84,7 +87,7 @@ export function PlayerRowDetails({
   onContextMenu,
   player,
   age,
-  ovr,
+  figures,
   hasOffersForThisPlayer,
   transferOffersForThisPlayer,
   loanOffersForThisPlayer,
@@ -152,13 +155,16 @@ export function PlayerRowDetails({
         {formatVal(player.market_value)}
       </td>
       <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
-        {formatWeeklyWage(player.wage, "compact")}
+        {visibleWageText(figures.wage, (weekly) => formatWeeklyWage(weekly, "compact"), t)}
       </td>
       <td className="py-2.5 px-4">
         <span
-          className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(tierOf(ovr), "text")}`}
+          className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(
+            figures.ovr === null ? "Rest" : tierOf(figures.ovr),
+            "text",
+          )}`}
         >
-          {ovr}
+          {visibleRatingText(figures.ovr)}
         </span>
       </td>
       <td className="py-2.5 px-4">
@@ -230,9 +236,9 @@ export function TransferPlayerRow({ state, player }: TransferPlayerRowProps) {
     getDealEntryLabel,
     getDealEntryIcon,
     openDealEntry,
+    visibleOf,
   } = state;
 
-  const ovr = getPlayerOvr(player);
   const age = calcAge(player.date_of_birth);
   const transferOffersForThisPlayer = getRelevantTransferOffers(player, userTeamId);
   const loanOffersForThisPlayer = getRelevantLoanOffers(player, userTeamId);
@@ -289,7 +295,7 @@ export function TransferPlayerRow({ state, player }: TransferPlayerRowProps) {
       state={state}
       player={player}
       age={age}
-      ovr={ovr}
+      figures={visibleOf(player.id)}
       hasOffersForThisPlayer={hasOffersForThisPlayer}
       transferOffersForThisPlayer={transferOffersForThisPlayer}
       loanOffersForThisPlayer={loanOffersForThisPlayer}

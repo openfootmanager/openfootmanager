@@ -417,6 +417,9 @@
     "overallRatingTier": "Gesamtstärke {{value}}, Stufe {{tier}}",
     "namedRating": "{{name}} {{value}}",
     "namedRatingTier": "{{name}} {{value}}, Stufe {{tier}}",
+    "listViewLabel": "Anzeigen als",
+    "listViewTable": "Tabelle",
+    "listViewCards": "Karten",
     "noResults": "Keine Ergebnisse gefunden.",
     "place": {
       "1": "1.",
@@ -1975,6 +1978,7 @@
     "step1Min": "1 Minute vorspulen",
     "teamControls": "Teamsteuerung",
     "subs": "Wechsel",
+    "subsClosed": "Auswechslungen sind nach der Verlängerung nicht mehr möglich",
     "formation": "Formation",
     "playStyle": "Spielstil",
     "keyEvents": "Wichtige Ereignisse",

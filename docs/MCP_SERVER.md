@@ -127,7 +127,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | `info_fixtures` | Upcoming fixtures and recent results for your team |
 | `info_match_preview` | Next opponent details, form, and standings comparison |
 | `info_season_context` | Current season phase and transfer window status |
-| `info_player_profile` | Detailed player card: attributes, contract, morale (own team) or limited info (other teams) |
+| `info_player_profile` | Player card, limited to what the club knows (`ofm_core::player_knowledge`): own players in full; a player at a club in the manager's own division by rating and attributes; a scouted player by the scout's report (attributes and date); anyone else by identity only. Condition, morale, fitness, injury and contract are shown for own players only; potential never |
 | `info_player_stats` | Season and career statistics for a player |
 | `info_player_match_history` | Match-by-match performance for a player |
 | `info_team_profile` | Team details: squad size, standings position, recent form, finances |
@@ -141,9 +141,9 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 
 | Tool | Description |
 |------|-------------|
-| `time_advance` | Advance one day. Matches are auto-simulated in delegate mode. Returns round summary on match days. |
-| `time_skip_to_match_day` | Fast-forward day-by-day until next fixture. Use `time_advance` to then play the match. |
-| `time_check_blockers` | Check for live matches, pending transfer offers, or other blockers before advancing. |
+| `time_advance` | Advance one day. Matches are auto-simulated in delegate mode. Returns round summary on match days. Refused while a stopping blocker stands (see `time_check_blockers`): the reply lists them, and the squad, contract or other problem has to be resolved first, as on the screen. |
+| `time_skip_to_match_day` | Fast-forward day-by-day until next fixture. Use `time_advance` to then play the match. Stops with a `blocked` outcome, listing the blockers, before it starts if one stands and after any day that brings one. |
+| `time_check_blockers` | What stops time, from the game's own blocker check (`application::time_blockers`, the list and severities the UI uses; informational items such as unread urgent mail are left out): each blocker has an `id` (`injured_xi`, `incomplete_xi`, `squad_size_crisis`, `planned_contract_exit_crisis`, `key_contract_risk`, `contract_wage_risk`), a `severity`, the `tab` that resolves it and its `params`, plus `live_match_in_progress`. |
 
 ### Squad (7 tools)
 
@@ -171,7 +171,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 
 | Tool | Description |
 |------|-------------|
-| `transfer_market_browse` | Browse players with optional position, max price, and listed-only filters |
+| `transfer_market_browse` | Browse players with optional position, max price, and listed-only filters. Each row shows only what the club knows (`ofm_core::player_knowledge`): the rating of a player in the club's own division (`?` for anyone else), and a wage only for a player a scout reported on, rounded to two significant figures (`~16000`; `?` otherwise). `max_price` is an annual figure compared with the weekly wage the club may see, so a player whose wage is hidden never matches it |
 | `transfer_make_bid` | Make a transfer bid. Returns negotiation feedback (mood, tension, patience, suggested fee). |
 | `transfer_preview_bid` | Preview financial impact of a bid without making it |
 | `transfer_respond_to_offer` | Accept or reject an incoming transfer offer |
@@ -434,14 +434,19 @@ The `mcp` feature adds `rmcp`, `axum`, `tower`, `tokio` (with `net`), and `tokio
 
 ## Information Visibility
 
-In competition mode, the formatted player tools limit information about other teams' players:
+`info_player_profile` shows a player only as much as the club knows about him
+(`ofm_core::player_knowledge`, the same rule the game's own screens follow), in every mode.
+`info_player_stats` and `info_player_match_history` do not apply this limit: match and
+performance statistics are public, and they return those of any player in the game.
 
-- **Your team**: Full detail (all attributes, condition, morale, wage, contract end, injury status)
-- **Other teams**: OVR, position, age, and condition only
-- **Scouted players**: Full detail from scout reports (use `scout_send` → `scout_get_reports`)
+- **Your team** (including players loaned in or out): full detail (all attributes, condition, morale, wage, contract end, injury status)
+- **A club in your own division**: rating and the 19 attributes; no condition, morale, injury, wage or contract
+- **Scouted players**: the scout report's attributes and its date (use `scout_send` → `scout_get_reports`); not the live rating or condition
+- **Anyone else**: who he is (name, age, position, nationality, team) and nothing more
 
-Scout reports provide the full details in these formatted tools. The raw `info_game_state` dump is not
-available in competition mode, as described under [Competition Mode](#competition-mode).
+A scouted player's profile carries only the report's attributes and its date, never his condition or
+morale. The raw `info_game_state` dump is not available in competition mode, as described under
+[Competition Mode](#competition-mode).
 
 ---
 

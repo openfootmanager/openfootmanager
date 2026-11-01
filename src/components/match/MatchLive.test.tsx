@@ -160,4 +160,50 @@ describe("MatchLive", () => {
     expect(screen.getByRole("button", pause)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^match\.resume/, hidden: true })).toBeNull();
   });
+
+  /**
+   * Given the one-step pause at the end of extra time, where the engine refuses substitutions
+   * When the match screen is shown
+   * Then the substitutions control is disabled, instead of opening a panel whose every change
+   *      comes back refused.
+   */
+  it("closes the substitutions control at the end of extra time", () => {
+    renderLive({ snapshot: { ...SNAPSHOT, phase: "ExtraTimeEnd" } as typeof SNAPSHOT });
+
+    const subs = screen.getByRole("button", { name: /match\.subs/ });
+
+    expect(subs).toBeDisabled();
+    fireEvent.click(subs);
+    expect(screen.queryByRole("dialog", { hidden: true })).toBeNull();
+  });
+
+  /**
+   * Given the substitutions control closed at the end of extra time
+   * When the match screen is shown
+   * Then the reason is on the screen and described to the button, not only in a tooltip that a
+   *      keyboard or touch user cannot reach.
+   */
+  it("says why the substitutions control is closed, as visible text", () => {
+    renderLive({ snapshot: { ...SNAPSHOT, phase: "ExtraTimeEnd" } as typeof SNAPSHOT });
+
+    const subs = screen.getByRole("button", { name: /match\.subs/ });
+
+    expect(screen.getByText("match.subsClosed")).toBeVisible();
+    expect(subs).toHaveAccessibleDescription("match.subsClosed");
+  });
+
+  /**
+   * Given the break between the two halves of extra time, where substitutions are allowed
+   * When the match screen is shown
+   * Then the substitutions control stays open: only the end of extra time closes it.
+   */
+  it("keeps the substitutions control open at the break in extra time", () => {
+    renderLive({ snapshot: { ...SNAPSHOT, phase: "ExtraTimeHalfTime" } as typeof SNAPSHOT });
+
+    const subs = screen.getByRole("button", { name: /match\.subs/ });
+
+    expect(subs).toBeEnabled();
+    expect(subs).not.toHaveAccessibleDescription();
+    expect(screen.queryByText("match.subsClosed")).toBeNull();
+  });
 });

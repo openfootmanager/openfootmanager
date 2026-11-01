@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { contrastRatio } from "./lib/colorContrast";
 
 // Paths are relative to the Vitest root (the repository root); `new URL(..., import.meta.url)`
 // throws under jsdom.
@@ -49,17 +50,8 @@ function over(top: Rgba, bottom: Rgba): Rgba {
   return [0, 1, 2].map((i) => top[i] * alpha + bottom[i] * (1 - alpha)).concat(1) as Rgba;
 }
 
-function luminance([r, g, b]: Rgba): number {
-  const channel = (c: number) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
 function contrast(a: Rgba, b: Rgba): number {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (high + 0.05) / (low + 0.05);
+  return contrastRatio({ r: a[0], g: a[1], b: a[2] }, { r: b[0], g: b[1], b: b[2] });
 }
 
 type Mode = "light" | "dark" | "high-contrast light" | "high-contrast dark";

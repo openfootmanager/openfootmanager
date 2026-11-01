@@ -1041,3 +1041,36 @@ fn an_elite_manager_does_not_rest_a_starter_for_a_deputy_barely_fresher() {
 
     assert!(!rotates_in_the_deputy(&eleven));
 }
+
+/// Given two players alike but for match fitness, one exhausted (20) and one fit (95),
+/// When they are handed to the engine for a club match,
+/// Then they carry the injury risks of the fitness table's bottom and top steps, 3.0 : 0.7, so a
+/// foul is that much likelier to injure the exhausted one.
+#[test]
+fn a_players_injury_risk_in_a_club_match_follows_the_fitness_table() {
+    let mut exhausted = mk("exhausted", 70, 100);
+    exhausted.fitness = 20;
+    let mut fit = mk("fit", 70, 100);
+    fit.fitness = 95;
+    let risk =
+        |player: &Player| to_engine_player(player, EnginePlayerRole::Standard, None).injury_risk;
+    let ratio = risk(&exhausted) / risk(&fit);
+    assert!((ratio - 3.0 / 0.7).abs() < 1e-9, "{ratio}");
+}
+
+/// Given a player of ordinary match fitness (75, the fitness table's 1.0 step),
+/// When the player is handed to the engine for a club match,
+/// Then the risk is below 1.0, divided by the table's measured mean over a season's fouls, so
+/// that the season's club-match injuries stay where they were and only their spread follows
+/// fitness.
+#[test]
+fn an_ordinary_players_injury_risk_is_divided_by_the_seasons_mean() {
+    let mut ordinary = mk("ordinary", 70, 100);
+    ordinary.fitness = 75;
+    let risk = to_engine_player(&ordinary, EnginePlayerRole::Standard, None).injury_risk;
+    assert!(risk < 1.0, "{risk}");
+    assert!(
+        (risk * CLUB_MATCH_MEAN_INJURY_MULTIPLIER - 1.0).abs() < 1e-12,
+        "{risk}"
+    );
+}

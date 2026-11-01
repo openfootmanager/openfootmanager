@@ -417,6 +417,9 @@
     "overallRatingTier": "Общий уровень {{value}}, категория {{tier}}",
     "namedRating": "{{name}} {{value}}",
     "namedRatingTier": "{{name}} {{value}}, категория {{tier}}",
+    "listViewLabel": "Показать как",
+    "listViewTable": "Таблица",
+    "listViewCards": "Карточки",
     "noResults": "Ничего не найдено.",
     "place": {
       "1": "1-е",
@@ -1975,6 +1978,7 @@
     "step1Min": "Шаг 1 мин.",
     "teamControls": "Управление командой",
     "subs": "Замены",
+    "subsClosed": "Замены закрыты после дополнительного времени",
     "formation": "Схема",
     "playStyle": "Стиль игры",
     "keyEvents": "Ключевые события",

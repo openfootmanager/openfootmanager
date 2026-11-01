@@ -417,6 +417,9 @@
     "overallRatingTier": "Overall {{value}}, tier {{tier}}",
     "namedRating": "{{name}} {{value}}",
     "namedRatingTier": "{{name}} {{value}}, tier {{tier}}",
+    "listViewLabel": "Show as",
+    "listViewTable": "Table",
+    "listViewCards": "Cards",
     "noResults": "No results found.",
     "place": {
       "1": "1st",
@@ -1975,6 +1978,7 @@
     "step1Min": "Step 1 Minute",
     "teamControls": "Team Controls",
     "subs": "Subs",
+    "subsClosed": "Substitutions are closed after extra time",
     "formation": "Formation",
     "playStyle": "Play Style",
     "keyEvents": "Key Events",

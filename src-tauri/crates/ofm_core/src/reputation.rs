@@ -163,4 +163,20 @@ mod tests {
         assert_eq!(next_reputation(995, 10, 1, 10), 1000);
         assert_eq!(next_reputation(5, 1, 10, 10), 0);
     }
+
+    /// Given a club of reputation 500 in a ten-club league, expected to finish fifth
+    /// When it finishes third
+    /// Then its reputation rises to 524: twelve points a place above expectation
+    #[test]
+    fn a_mid_table_finish_beating_expectation_gains_twelve_points_a_place() {
+        assert_eq!(next_reputation(500, 5, 3, 10), 524);
+    }
+
+    /// Given the same club expected to finish third
+    /// When it wins the league
+    /// Then its reputation rises to 536: two places above expectation, and the champion's bonus
+    #[test]
+    fn winning_the_league_adds_the_champions_bonus_to_the_places_gained() {
+        assert_eq!(next_reputation(500, 3, 1, 10), 536);
+    }
 }

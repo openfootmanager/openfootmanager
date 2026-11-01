@@ -417,6 +417,9 @@
     "overallRatingTier": "Hodnocení {{value}}, úroveň {{tier}}",
     "namedRating": "{{name}} {{value}}",
     "namedRatingTier": "{{name}} {{value}}, úroveň {{tier}}",
+    "listViewLabel": "Zobrazit jako",
+    "listViewTable": "Tabulka",
+    "listViewCards": "Karty",
     "noResults": "Výsledky nenalezeny.",
     "place": {
       "1": "1.",
@@ -1975,6 +1978,7 @@
     "step1Min": "Posunout o 1 minutu",
     "teamControls": "Ovládání týmu",
     "subs": "Střídání",
+    "subsClosed": "Po prodloužení jsou střídání uzavřena",
     "formation": "Rozestavení",
     "playStyle": "Herní styl",
     "keyEvents": "Klíčové události",

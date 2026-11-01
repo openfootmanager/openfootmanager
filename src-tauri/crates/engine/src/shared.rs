@@ -35,6 +35,7 @@ pub(crate) struct PlayerSnap {
     pub aerial: u8,
     pub traits: Vec<String>,
     pub role: PlayerRole,
+    pub injury_risk: f64,
 }
 
 impl PlayerSnap {
@@ -69,6 +70,7 @@ impl PlayerSnap {
             aerial: 0,
             traits: Vec::new(),
             role: PlayerRole::Standard,
+            injury_risk: 1.0,
         }
     }
 
@@ -96,6 +98,7 @@ impl PlayerSnap {
             aerial: p.aerial,
             traits: p.traits.clone(),
             role: p.role,
+            injury_risk: p.injury_risk,
         }
     }
 
