@@ -291,6 +291,50 @@ describe("SquadRosterView cards", () => {
   });
 
   /**
+   * Given the bench defender's card, reached without a mouse
+   * When its actions button is pressed
+   * Then the card's menu opens with the row's items, the button says the menu is open, and the
+   *      player's profile does not open.
+   */
+  it("opens a card's menu from its actions button", () => {
+    const { onSelectPlayer } = renderRoster();
+    const card = screen.getByRole("article", { name: "Bench DEF" });
+    const actions = within(card).getByRole("button", { name: "common.playerActions" });
+    expect(actions).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(actions);
+
+    expect(menuItemNames()).toContain("squad.makeStarter");
+    expect(actions).toHaveAttribute("aria-expanded", "true");
+    expect(onSelectPlayer).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given a fit bench defender the backend rules out of the match day, an injured forward it rules
+   * out too, and a fit defender it doesn't
+   * When their cards render
+   * Then the first card says he can't be picked; the injured one names only his injury, and the
+   *      eligible one says nothing of the kind.
+   */
+  it("says on his card that a player the backend rules out can't be picked", () => {
+    renderRoster([
+      ...makeSquad(),
+      makePlayer("out", "Defender", { match_name: "Ruled Out", match_day_eligible: false }),
+      makePlayer("inj", "Forward", {
+        match_name: "Hurt Forward",
+        injury: { name: "Knee bruise", days_remaining: 10 },
+        match_day_eligible: false,
+      }),
+    ]);
+
+    const cardSays = (name: string) =>
+      within(screen.getByRole("article", { name })).queryByText("squad.notMatchDayEligible");
+    expect(cardSays("Ruled Out")).toBeInTheDocument();
+    expect(cardSays("Hurt Forward")).toBeNull();
+    expect(cardSays("Bench DEF")).toBeNull();
+  });
+
+  /**
    * Given the position table has not arrived
    * When a bench player's card menu and then a starter's are opened
    * Then "Make starter" and "Send to bench" are disabled, as on the row: a lineup change is not
