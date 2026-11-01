@@ -1,0 +1,89 @@
+{
+  "schema": "team",
+  "items": [
+    {
+      "id": "ashford-fc",
+      "name": "Ashford FC",
+      "shortName": "ASH",
+      "city": "Ashford",
+      "country": "ENG",
+      "colors": {
+        "primary": "#1e3c78",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Balanced",
+      "stadiumName": "Ashford Park",
+      "reputationRange": [
+        600,
+        600
+      ],
+      "financeRange": [
+        2000000,
+        6000000
+      ]
+    },
+    {
+      "id": "brackley-fc",
+      "name": "Brackley FC",
+      "shortName": "BRA",
+      "city": "Brackley",
+      "country": "ENG",
+      "colors": {
+        "primary": "#23407b",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Possession",
+      "stadiumName": "Brackley Park",
+      "reputationRange": [
+        600,
+        600
+      ],
+      "financeRange": [
+        2000000,
+        6000000
+      ]
+    },
+    {
+      "id": "carlow-fc",
+      "name": "Carlow FC",
+      "shortName": "CAR",
+      "city": "Carlow",
+      "country": "ENG",
+      "colors": {
+        "primary": "#28447e",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Counter",
+      "stadiumName": "Carlow Park",
+      "reputationRange": [
+        600,
+        600
+      ],
+      "financeRange": [
+        2000000,
+        6000000
+      ]
+    },
+    {
+      "id": "dunmore-fc",
+      "name": "Dunmore FC",
+      "shortName": "DUN",
+      "city": "Dunmore",
+      "country": "ENG",
+      "colors": {
+        "primary": "#2d4881",
+        "secondary": "#ffffff"
+      },
+      "playStyle": "Attacking",
+      "stadiumName": "Dunmore Park",
+      "reputationRange": [
+        600,
+        600
+      ],
+      "financeRange": [
+        2000000,
+        6000000
+      ]
+    }
+  ]
+}

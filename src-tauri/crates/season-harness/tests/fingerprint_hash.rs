@@ -43,6 +43,28 @@ fn the_fingerprint_hash_of_fixed_runs() {
             play(&WorldSpec::gate(seed), 2)
         );
     }
+    // Every club squad in this package is authored, so the bell draws nothing for them: this line
+    // must be the same before and after a change to the bell. The free agents the world adds around
+    // the clubs are generated and are left out on purpose.
+    let authored = WorldSpec::authored_only_package(1)
+        .build()
+        .expect("the package builds");
+    let mut club_squads: Vec<String> = authored
+        .players
+        .iter()
+        .filter(|player| player.team_id.is_some())
+        .map(|player| {
+            format!(
+                "{} {:?} {} {}",
+                player.id, player.team_id, player.ovr, player.potential
+            )
+        })
+        .collect();
+    club_squads.sort_unstable();
+    eprintln!(
+        "FINGERPRINT authored-only club squads {:016x}",
+        hash_of(&club_squads.join("\n"))
+    );
     let shipped_seed = 1;
     eprintln!(
         "FINGERPRINT shipped seed {shipped_seed} one season {:016x}",

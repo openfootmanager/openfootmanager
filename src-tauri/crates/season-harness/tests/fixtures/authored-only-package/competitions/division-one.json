@@ -1,0 +1,23 @@
+{
+  "schema": "competition",
+  "id": "authored-d1",
+  "name": "Authored Division",
+  "type": "League",
+  "scope": "Domestic",
+  "countryId": "ENG",
+  "priority": 0,
+  "format": {
+    "kind": "LeagueTable",
+    "legs": 2
+  },
+  "participants": {
+    "explicit": [
+      "ashford-fc",
+      "brackley-fc",
+      "carlow-fc",
+      "dunmore-fc"
+    ]
+  },
+  "seasonStartMonth": 8,
+  "seasonStartDay": 1
+}
