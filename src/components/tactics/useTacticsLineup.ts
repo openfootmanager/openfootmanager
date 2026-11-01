@@ -174,12 +174,10 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     startingXiIds,
   ]);
 
-  const outOfPositionCount = countOutOfPositionPlayers(
-    startingXI,
-    xiActivePosition,
-    positionTable,
-    familiarity,
-  );
+  // No count is claimed before the lineup can be graded: a "0" there would read as "all in place".
+  const outOfPositionCount = canGradeLineup
+    ? countOutOfPositionPlayers(startingXI, xiActivePosition, positionTable, familiarity)
+    : null;
   const autoSetPieces = useAutoSetPieces(startingXiIds, sessionState ?? gameState);
   const effectiveMatchRoles = useMemo(
     () => resolveEffectiveMatchRoles(startingXI, team?.match_roles, autoSetPieces),

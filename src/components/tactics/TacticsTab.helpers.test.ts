@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerData } from "../../store/gameStore";
 import { createPositionTable } from "../../lib/positionTable";
+import type { FamiliarityTable } from "../../hooks/useFamiliarity";
+import type { Familiarity } from "../../store/generated/Familiarity";
 import { cannedPositionTable } from "../../test-utils/positionTable";
 import {
   buildTacticsRoster,
@@ -203,5 +205,61 @@ describe("the tactics roster and its lists, by the backend's position table", ()
 
     expect(countOutOfPositionPlayers(xi, slots, cannedPositionTable())).toBe(1);
     expect(countOutOfPositionPlayers(xi, slots, createPositionTable([]))).toBe(0);
+  });
+
+  describe("when the screen reads the backend's familiarity", () => {
+    // A table that says what the test says per player, whatever his own positions are: it proves
+    // the helpers read the table and do not grade the player themselves.
+    const byPlayer = (words: Record<string, Familiarity>): FamiliarityTable => ({
+      loaded: true,
+      familiarityOf: (playerId) => words[playerId] ?? null,
+    });
+
+    /**
+     * Given a centre back in his own slot whom the backend calls out of position there
+     * When the out-of-position players are counted with that table
+     * Then he is counted: the backend's word wins over his positions.
+     */
+    it("counts what the backend calls out of position", () => {
+      const xi = [makePlayer("cb", "CenterBack", { team_id: "t1" })];
+      const slots = new Map([["cb", "CenterBack"]]);
+
+      expect(
+        countOutOfPositionPlayers(
+          xi,
+          slots,
+          cannedPositionTable(),
+          byPlayer({ cb: "out_of_position" }),
+        ),
+      ).toBe(1);
+      expect(countOutOfPositionPlayers(xi, slots, cannedPositionTable())).toBe(0);
+    });
+
+    /**
+     * Given a pool of midfielders in which only the lowest-rated, last-named one is the backend's
+     *       natural goalkeeper, and no saved lineup
+     * When the lineup is resolved with that table
+     * Then he takes the goalkeeper slot: the backend's grade orders the auto-fill.
+     */
+    it("fills a slot by the backend's grade", () => {
+      const weak = { ...makePlayer("zz-keeper", "Midfielder").attributes, pace: 20, passing: 20 };
+      const availablePlayers = [
+        ...Array.from({ length: 11 }, (_, index) => makePlayer(`m${index}`, "Midfielder")),
+        makePlayer("zz-keeper", "Midfielder", { attributes: weak, condition: 50 }),
+      ];
+      const playersById = new Map(availablePlayers.map((player) => [player.id, player]));
+
+      const ids = resolveStartingXiIds({
+        availablePlayers,
+        positionTable: cannedPositionTable(),
+        familiarity: byPlayer({ "zz-keeper": "natural" }),
+        formation: "4-4-2",
+        pendingStartingXiIds: null,
+        playersById,
+        savedStartingXiIds: [],
+      });
+
+      expect(ids[0]).toBe("zz-keeper");
+    });
   });
 });

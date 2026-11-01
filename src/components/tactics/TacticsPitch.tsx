@@ -11,8 +11,7 @@ import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { Badge, Card, PitchToken, Select, usePitchTokenFocus } from "../ui";
 import {
-  isPlayerExactForSlot,
-  isPlayerOutOfPosition,
+  getSquadTacticalFit,
   translatePositionAbbreviation,
   type DragState,
   type SquadSection,
@@ -49,7 +48,8 @@ interface TacticsPitchProps {
   onSlotDragOver: (event: DragEvent<HTMLElement>, slotIndex: number) => void;
   onSlotDragLeave: (slotIndex: number) => void;
   onSlotDrop: (event: DragEvent<HTMLElement>, slotIndex: number) => void;
-  outOfPositionCount: number;
+  /** Null until the lineup can be graded: the badge then claims no count. */
+  outOfPositionCount: number | null;
   pitchSlots: TacticsPitchSlot[];
   selectedPlayer: PlayerData | null;
   selectedPlayerId: string | null;
@@ -73,15 +73,17 @@ function getFitTone(
     return "empty";
   }
 
-  if (isPlayerExactForSlot(player, slotPosition, familiarity)) {
-    return "exact";
+  // No grade (not loaded, or not the club's) is no verdict: the token says nothing of fit.
+  switch (getSquadTacticalFit(player, slotPosition, positionTable, familiarity)) {
+    case "natural":
+      return "exact";
+    case "out":
+      return "out";
+    case "adapted":
+      return "adapted";
+    default:
+      return "empty";
   }
-
-  if (isPlayerOutOfPosition(player, slotPosition, positionTable, familiarity)) {
-    return "out";
-  }
-
-  return "adapted";
 }
 
 function getRoleMarkers(
@@ -304,9 +306,11 @@ export default function TacticsPitch({
           <p className="mt-0.5 text-xs text-gray-400">{t("tactics.pitchInteractionHint")}</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
-            {outOfPositionCount} {t("squad.outOfPosition")}
-          </Badge>
+          {outOfPositionCount === null ? null : (
+            <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
+              {outOfPositionCount} {t("squad.outOfPosition")}
+            </Badge>
+          )}
           <span className="rounded-full bg-success-500/15 px-2.5 py-1 text-[10px] font-heading font-bold uppercase tracking-widest text-success-300">
             {t("tactics.naturalFit")}
           </span>

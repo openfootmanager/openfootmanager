@@ -517,6 +517,49 @@ describe("TacticsTab", () => {
   });
 
   /**
+   * Given the keeper and a centre back swapped, with the familiarity arrived and not arrived
+   * When the pitch is drawn
+   * Then arrived, two tokens are ringed out of position and the badge counts them; not arrived,
+   *      no token is ringed and no count is claimed: a missing grade is not a verdict.
+   */
+  it("rings no token and counts nothing before the familiarity has loaded", () => {
+    const swapped = () => {
+      const state = makeGameState();
+      state.teams[0].starting_xi_ids = [
+        "d1",
+        "gk1",
+        "d2",
+        "d3",
+        "d4",
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+        "f1",
+        "f2",
+      ];
+      return state;
+    };
+    const { container, unmount } = render(
+      <TacticsTab gameState={swapped()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    expect(container.querySelectorAll(".ring-warning-solid")).toHaveLength(2);
+    unmount();
+
+    familiarityState.arrived = false;
+    try {
+      const { container: waiting } = render(
+        <TacticsTab gameState={swapped()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+
+      expect(waiting.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
+      expect(screen.queryByText(/^\d+ squad\.outOfPosition$/)).toBeNull();
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
+  /**
    * Given a squad with the keeper and a centre back swapped (each deployed in the other's line)
    * When the pitch is drawn with the backend's familiarity
    * Then the out-of-position count reads two, the grade the backend gives them.
