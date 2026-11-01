@@ -3627,6 +3627,10 @@
       "matchesMoved": {
         "subject": "Fixtures rescheduled",
         "body": "Some of your matches have been moved so that your players keep their rest and the international breaks are respected:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Some saved data was set aside",
+        "body": "Part of this save couldn't be read when it loaded. It has been set aside rather than lost, and your career carries on. If something looks missing, a bug report ({{settings}} → {{reportBug}}, with the save attached) lets us look at it."
       }
     },
     "news": {

@@ -3627,6 +3627,10 @@
       "matchesMoved": {
         "subject": "Partite riprogrammate",
         "body": "Alcune delle tue partite sono state spostate affinché i tuoi giocatori mantengano il loro riposo e le pause internazionali siano rispettate:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Alcuni dati salvati sono stati messi da parte",
+        "body": "Una parte di questo salvataggio non è stata letta al caricamento. È stata messa da parte invece di andare persa, e la tua carriera continua. Se ti sembra che manchi qualcosa, una segnalazione di bug ({{settings}} → {{reportBug}}, con il salvataggio allegato) ci permette di controllare."
       }
     },
     "news": {

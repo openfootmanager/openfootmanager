@@ -3627,6 +3627,10 @@
       "matchesMoved": {
         "subject": "Matchs reprogrammés",
         "body": "Certains de vos matchs ont été déplacés afin que vos joueurs gardent leur repos et que les trêves internationales soient respectées :\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Des données de sauvegarde ont été mises de côté",
+        "body": "Une partie de cette sauvegarde n'a pas pu être lue au chargement. Elle a été mise de côté plutôt que perdue, et votre carrière continue. S'il semble manquer quelque chose, un rapport de bug ({{settings}} → {{reportBug}}, sauvegarde jointe) nous permettra de l'examiner."
       }
     },
     "news": {
