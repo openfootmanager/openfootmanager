@@ -4,7 +4,11 @@ use std::sync::Arc;
 use tauri::State;
 
 use domain::message::InboxMessage;
-use ofm_core::player_knowledge::{players_knowledge, visible_wage, PlayerKnowledge, VisibleWage};
+use ofm_core::player_knowledge::{
+    players_knowledge, potential_opinion, visible_wage, PlayerKnowledge, VisibleWage,
+};
+use ofm_core::position_ratings::{position_ratings, PositionRatings};
+use ofm_core::potential_opinion::PotentialOpinion;
 use ofm_core::slices::competitions::{query_competitions, CompetitionsQuery, CompetitionsView};
 use ofm_core::slices::inbox::{query_messages, MessagesQuery};
 use ofm_core::slices::news::{query_news_feed, NewsFeed, NewsFeedQuery};
@@ -143,6 +147,54 @@ fn get_player_knowledge_internal(
 ) -> Result<HashMap<String, PlayerKnowledge>, String> {
     state
         .get_game(|game| players_knowledge(game, player_ids))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+/// The club's opinion of one player's potential, for his profile: a range, or null when the club
+/// holds none. Not a bulk command, on purpose: no list ever carries potential.
+#[tauri::command]
+pub async fn get_potential_opinion(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<Option<PotentialOpinion>, String> {
+    get_potential_opinion_internal(&state, &player_id)
+}
+
+/// What one player is worth at each position he plays, for his profile: his rating, familiarity
+/// and key attributes there, or null when the club knows nothing of his attributes.
+#[tauri::command]
+pub async fn get_position_ratings(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<Option<PositionRatings>, String> {
+    get_position_ratings_internal(&state, &player_id)
+}
+
+fn get_position_ratings_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<Option<PositionRatings>, String> {
+    state
+        .get_game(|game| {
+            game.players
+                .iter()
+                .find(|player| player.id == player_id)
+                .and_then(|player| position_ratings(game, player))
+        })
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+fn get_potential_opinion_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<Option<PotentialOpinion>, String> {
+    state
+        .get_game(|game| {
+            game.players
+                .iter()
+                .find(|player| player.id == player_id)
+                .and_then(|player| potential_opinion(game, player))
+        })
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
@@ -351,6 +403,103 @@ mod tests {
         assert!(get_squad_internal(&state, "other-club").unwrap().is_empty());
     }
 
+    /// Given no active game, when the potential opinion adapter reads it,
+    /// then the translated session error is returned.
+    #[test]
+    fn the_potential_opinion_adapter_reports_a_missing_session() {
+        assert_eq!(
+            get_potential_opinion_internal(&StateManager::new(), "p").unwrap_err(),
+            NO_ACTIVE_GAME
+        );
+    }
+
+    /// Given a player in the live session whose scout, Ann Scout, wrote 76-84 on 1 Sep, a player
+    ///       nobody has judged, and an id no player has
+    /// When the potential opinion adapter reads each
+    /// Then the first comes as the shape the profile reads (the range, the band, the certainty, a
+    ///      tagged source naming the scout and the date, and the wonderkid verdict), and the other
+    ///      two as null
+    #[test]
+    fn the_potential_opinion_adapter_sends_the_opinion_or_null() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        use domain::player::{Player, PlayerAttributes, Position};
+        let attrs: PlayerAttributes = serde_json::from_value(serde_json::json!({
+            "pace": 60, "stamina": 60, "strength": 60, "agility": 60, "passing": 60,
+            "shooting": 60, "tackling": 60, "dribbling": 60, "defending": 60,
+            "positioning": 60, "vision": 60, "decisions": 60, "composure": 60,
+            "aggression": 60, "teamwork": 60, "leadership": 60,
+            "handling": 60, "reflexes": 60, "aerial": 60
+        }))
+        .unwrap();
+        let rated = |id: &str| {
+            let mut player = Player::new(
+                id.into(),
+                id.into(),
+                id.into(),
+                "2004-01-01".into(),
+                "GB".into(),
+                Position::Midfielder,
+                attrs.clone(),
+            );
+            player.team_id = Some("faraway".into());
+            player.potential = 80;
+            player
+        };
+        let mut game = ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
+            ),
+            Manager::new(
+                "m".into(),
+                "M".into(),
+                "Gr".into(),
+                "1980-01-01".into(),
+                "GB".into(),
+            ),
+            vec![],
+            vec![rated("scouted"), rated("unjudged")],
+            vec![],
+            vec![],
+        );
+        game.scouted_players.push(ofm_core::game::ScoutedPlayer {
+            player_id: "scouted".into(),
+            scouted_on: "2026-09-01".into(),
+            attributes: attrs.clone(),
+            potential: Some(ofm_core::game::PotentialRange { low: 76, high: 84 }),
+            scout_name: Some("Ann Scout".into()),
+        });
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let opinion =
+            serde_json::to_value(get_potential_opinion_internal(&state, "scouted").unwrap())
+                .unwrap();
+
+        assert_eq!(
+            opinion,
+            serde_json::json!({
+                "low": 76,
+                "high": 84,
+                "band": "A",
+                "certainty": "fairly_sure",
+                "source": {
+                    "kind": "scout",
+                    "scout_name": "Ann Scout",
+                    "scouted_on": "2026-09-01",
+                    "current": true
+                },
+                "wonderkid": false
+            })
+        );
+        assert!(get_potential_opinion_internal(&state, "unjudged")
+            .unwrap()
+            .is_none());
+        assert!(get_potential_opinion_internal(&state, "nobody")
+            .unwrap()
+            .is_none());
+    }
+
     /// Given no active game, when the knowledge adapter reads it,
     /// then the translated session error is returned.
     #[test]
@@ -419,6 +568,8 @@ mod tests {
             player_id: "free".into(),
             scouted_on: "2026-07-20".into(),
             attributes: attrs,
+            potential: None,
+            scout_name: None,
         });
         let state = StateManager::new();
         state.set_game(game);
@@ -488,6 +639,8 @@ mod tests {
             player_id: "free".into(),
             scouted_on: "2026-07-20".into(),
             attributes: attrs.clone(),
+            potential: None,
+            scout_name: None,
         });
         let state = StateManager::new();
         state.set_game(game);
@@ -504,5 +657,34 @@ mod tests {
             serde_json::json!({ "kind": "approximate", "weekly": 16_000 })
         );
         assert_eq!(wage_of("nobody"), serde_json::Value::Null);
+    }
+
+    /// Given an unknown id and no world knowledge of anyone
+    /// When the position ratings adapter reads it
+    /// Then the answer is null, not an error
+    #[test]
+    fn the_position_ratings_adapter_answers_null_for_a_player_it_cannot_find() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        let game = ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
+            ),
+            Manager::new(
+                "m".into(),
+                "M".into(),
+                "Gr".into(),
+                "1980-01-01".into(),
+                "GB".into(),
+            ),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        let state = StateManager::new();
+        state.set_game(game);
+
+        assert_eq!(get_position_ratings_internal(&state, "nobody"), Ok(None));
     }
 }

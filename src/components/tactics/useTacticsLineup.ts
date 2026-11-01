@@ -12,6 +12,7 @@ import {
   setTeamMatchRoles,
 } from "../../services/squadService";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import { useAutoSetPieces } from "../../hooks/useAutoSetPieces";
 import type { TacticsPhaseSettings } from "../../store/types";
 
@@ -53,6 +54,7 @@ function isPlayerEligibleForLineup(player: PlayerData | null | undefined): boole
 
 export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupArgs) {
   const { sessionState } = useGameStore();
+  const positionTable = usePositionTable();
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const [fetchedSquad] = useFetchedSquad(teamId, clockDate, sessionState ?? gameState);
@@ -76,7 +78,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const players = fetchedSquad ?? gameState?.players ?? [];
-  const roster = team ? buildTacticsRoster(players, team.id) : [];
+  const roster = team ? buildTacticsRoster(players, team.id, positionTable) : [];
 
   const formation = team?.formation || "4-4-2";
   const activePlayStyle = team?.play_style || "Balanced";
@@ -91,6 +93,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
         availablePlayers: available,
         formation,
         pendingStartingXiIds,
+        positionTable,
         playersById,
         savedStartingXiIds: team?.starting_xi_ids || [],
       }),
@@ -100,6 +103,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       (team?.starting_xi_ids || []).join(","),
       (pendingStartingXiIds || []).join(","),
       roster.map((player) => player.id).join(","),
+      positionTable,
     ],
   );
 
@@ -164,7 +168,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     startingXiIds,
   ]);
 
-  const outOfPositionCount = countOutOfPositionPlayers(startingXI, xiActivePosition);
+  const outOfPositionCount = countOutOfPositionPlayers(startingXI, xiActivePosition, positionTable);
   const autoSetPieces = useAutoSetPieces(startingXiIds, sessionState ?? gameState);
   const effectiveMatchRoles = useMemo(
     () => resolveEffectiveMatchRoles(startingXI, team?.match_roles, autoSetPieces),
@@ -172,6 +176,8 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   );
 
   async function persistStartingXI(playerIds: string[]): Promise<void> {
+    // Nothing is saved from a lineup worked out before the position table has loaded.
+    if (!positionTable.loaded) return;
     setPendingStartingXiIds(playerIds);
     try {
       const updated = await setStartingXi(playerIds);
@@ -219,7 +225,13 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   }
 
   async function handleAssignBestFit(playerId: string): Promise<void> {
-    const nextXiIds = buildAssignBestFitSlot(startingXiIds, playersById, formation, playerId);
+    const nextXiIds = buildAssignBestFitSlot(
+      startingXiIds,
+      playersById,
+      formation,
+      playerId,
+      positionTable,
+    );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -234,7 +246,13 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return;
     }
 
-    const nextXiIds = buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId);
+    const nextXiIds = buildPromoteToStartingXi(
+      startingXiIds,
+      playersById,
+      formation,
+      playerId,
+      positionTable,
+    );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -245,7 +263,13 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   }
 
   async function handleDemoteStarter(playerId: string): Promise<void> {
-    const nextXiIds = buildDemoteFromStartingXi(startingXiIds, available, formation, playerId);
+    const nextXiIds = buildDemoteFromStartingXi(
+      startingXiIds,
+      available,
+      formation,
+      playerId,
+      positionTable,
+    );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;

@@ -2,7 +2,7 @@ use crate::game::Game;
 use crate::match_day_eligibility::{club_players, match_day_eligible_players};
 use crate::rated_tone::RatedTone;
 use domain::player::Player;
-use domain::team::{TrainingIntensity, TrainingSchedule};
+use domain::team::TrainingSchedule;
 use serde::Serialize;
 use std::collections::HashMap;
 use ts_rs::TS;
@@ -181,13 +181,6 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
         .map(|t| t.training_schedule.clone())
         .unwrap_or_default();
 
-    let intensity = game
-        .teams
-        .iter()
-        .find(|t| t.id == user_team_id)
-        .map(|t| t.training_intensity.clone())
-        .unwrap_or_default();
-
     // Determine if we need a physio/staff role sender
     let has_physio = game.staff.iter().any(|s| {
         s.team_id.as_deref() == Some(&user_team_id)
@@ -263,11 +256,6 @@ pub fn check_squad_fitness_warnings(game: &mut Game) {
                         TrainingSchedule::Light => "light",
                     };
                     p.insert("schedule".to_string(), sched_key.to_string());
-                    let int_key = match intensity {
-                        TrainingIntensity::High => "high",
-                        _ => "",
-                    };
-                    p.insert("intensity".to_string(), int_key.to_string());
                     p
                 },
             );

@@ -8,6 +8,11 @@ import { createSeasonContext } from "../../test-utils/factories";
 const setTrainingGroupsMock = vi.fn();
 const setPlayerTrainingFocusMock = vi.fn();
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("../../services/trainingService", () => ({
   setTrainingGroups: (...args: unknown[]) => setTrainingGroupsMock(...args),
   setPlayerTrainingFocus: (...args: unknown[]) => setPlayerTrainingFocusMock(...args),

@@ -16,6 +16,7 @@ import { useClubLeagueStanding } from "./useClubLeagueStanding";
 import { useTeamAverageRating } from "./useTeamAverageRating";
 import { useTeamProfileStats } from "./useTeamProfileStats";
 import { buildTeamProfileViewModel } from "./TeamProfile.viewModel";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 export default function TeamProfile({
   team,
@@ -25,7 +26,8 @@ export default function TeamProfile({
 }: TeamProfileProps) {
   const { t, i18n } = useTranslation();
   const { standing: leagueStanding } = useClubLeagueStanding(team.id, gameState.clock.current_date);
-  const viewModel = buildTeamProfileViewModel(team, gameState, leagueStanding);
+  const positions = usePositionTable();
+  const viewModel = buildTeamProfileViewModel(team, gameState, leagueStanding, positions);
   const { teamStatsOverview, recentMatches } = useTeamProfileStats(team.id);
   const revision = gameKnowledgeRevision(gameState, { playerClubId: team.id });
   const knowledgeOf = usePlayerKnowledge(

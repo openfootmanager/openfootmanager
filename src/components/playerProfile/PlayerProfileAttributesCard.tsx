@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { Shield } from "lucide-react";
 import { getAttributeColorClass } from "./PlayerProfile.helpers";
 import { getAttributeColors } from "../../lib/playerAttributeDisplay";
@@ -13,6 +13,10 @@ interface PlayerProfileAttributesCardProps {
   player: PlayerData;
   attributesVisible: boolean;
   scoutNote?: { scoutedLabel: string; outOfDate: boolean; outOfDateLabel: string };
+  /** The club's opinion of his potential, shown above his attributes when it holds one. */
+  potentialOpinion?: ReactNode;
+  /** His ratings at the positions he plays, shown below his attributes when the club knows them. */
+  positionRatings?: ReactNode;
   isGk?: boolean;
   title: string;
   averageLabel: string;
@@ -27,6 +31,8 @@ export default function PlayerProfileAttributesCard({
   player,
   attributesVisible,
   scoutNote,
+  potentialOpinion,
+  positionRatings,
   isGk = false,
   title,
   averageLabel,
@@ -66,6 +72,7 @@ export default function PlayerProfileAttributesCard({
         {title}
       </CardHeader>
       <CardBody>
+        {potentialOpinion}
         {attributesVisible && scoutNote ? (
           <p className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <span>{scoutNote.scoutedLabel}</span>
@@ -127,6 +134,7 @@ export default function PlayerProfileAttributesCard({
             </p>
           </div>
         )}
+        {attributesVisible ? positionRatings : null}
       </CardBody>
     </Card>
   );

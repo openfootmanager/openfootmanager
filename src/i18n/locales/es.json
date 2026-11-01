@@ -629,7 +629,13 @@
     "center": "Centro",
     "right": "Derecha",
     "competition": "Competición",
-    "confirmDelete": "Confirmar eliminación"
+    "confirmDelete": "Confirmar eliminación",
+    "firstPage": "Primera página",
+    "previousPage": "Página anterior",
+    "nextPage": "Página siguiente",
+    "lastPage": "Última página",
+    "sortBy": "Ordenar por",
+    "sortAscending": "Ascendente"
   },
   "teamSelection": {
     "title": "Elige Tu Club",
@@ -910,7 +916,8 @@
       "sharp": "Afinado",
       "managing": "Controlado",
       "risk": "Riesgo"
-    }
+    },
+    "positionsLoading": "Los datos de posiciones aún se están cargando, así que los cambios de alineación todavía no están disponibles."
   },
   "training": {
     "weeklySchedule": "Calendario Semanal",
@@ -1743,7 +1750,27 @@
     "renewalProjectionWageBill": "Nómina semanal {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Uso del presupuesto salarial {{before}}% → {{after}}%",
     "renewalProjectionRunway": "Reserva de caja {{before}} → {{after}}",
-    "ratingTrend": "Tendencia de calificación"
+    "ratingTrend": "Tendencia de calificación",
+    "potentialOpinion": {
+      "scoutsOpinion": "Opinión del ojeador",
+      "coachesOpinion": "Opinión del cuerpo técnico",
+      "bandS": "Podría llegar a ser de los mejores",
+      "bandA": "Podría llegar a ser titular habitual",
+      "bandB": "Podría ser un jugador útil para la plantilla",
+      "bandRest": "Es poco probable que mejore mucho más",
+      "range": "Potencial {{low}}–{{high}}",
+      "confident": "Seguro",
+      "fairlySure": "Bastante seguro",
+      "unsure": "Inseguro",
+      "guess": "Una suposición",
+      "byScout": "Ojeado por {{scout}} el {{date}}"
+    },
+    "positions": {
+      "title": "Posiciones",
+      "wherePlayed": "donde lo alineas"
+    },
+    "loadFailed": "No se pudo cargar",
+    "retryWage": "Reintentar cargar el salario"
   },
   "teamProfile": {
     "clubInfo": "Información del Club",

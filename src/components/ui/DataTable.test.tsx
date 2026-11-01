@@ -95,6 +95,36 @@ describe("DataTable", () => {
   });
 
   /**
+   * Given a sortable header and one that is not
+   * When their padding is read
+   * Then the sortable header's padding is on its button, which fills the cell, so a click in the
+   *      cell's padding sorts (jsdom has no layout to click on); the other header keeps its own.
+   *      The padding is not on both, which would double it.
+   */
+  it("gives a sortable header's padding to its button, so the whole cell sorts", () => {
+    renderTable({ sort: { key: "name", direction: "asc" }, onSortChange: vi.fn() });
+
+    const age = screen.getByRole("columnheader", { name: "Age" });
+    expect(age.className).not.toMatch(/(?:^|\s)(?:first:)?p[xl]-/);
+    expect(within(age).getByRole("button", { name: "Age" })).toHaveClass("w-full", "px-2", "h-8");
+
+    const morale = screen.getByRole("columnheader", { name: "Morale" });
+    expect(morale).toHaveClass("px-2");
+  });
+
+  /**
+   * Given the first column of a table, sortable
+   * When its header is read
+   * Then its button keeps the wider left padding the first cell has, so the names line up.
+   */
+  it("keeps the first sortable header's wider left padding on its button", () => {
+    renderTable({ sort: { key: "name", direction: "asc" }, onSortChange: vi.fn() });
+
+    const name = screen.getByRole("columnheader", { name: "Name" });
+    expect(within(name).getByRole("button", { name: "Name" })).toHaveClass("pl-3.5");
+  });
+
+  /**
    * Given rows that open a profile
    * When the player activates a row's name (a click, or Enter on it) or clicks elsewhere on the row
    * Then that row is opened; a control in the row's action cell does its own job without opening
@@ -266,25 +296,27 @@ describe("DataTable", () => {
    */
   it("keeps the accented first column when it asks to fold", () => {
     const firstFolds = [{ ...COLUMNS[1], drawer: true }, COLUMNS[0], COLUMNS[2]];
-    renderTable({ columns: firstFolds, rowAccent: (p) => (p.starter ? "positive" : null) });
+    renderTable({ columns: firstFolds, rowAccent: (p) => (p.starter ? "selected" : null) });
     const firstCell = within(screen.getByRole("row", { name: /Anderson/ })).getByText("31");
-    expect(firstCell.closest("td")).toHaveClass("border-l-positive");
+    expect(firstCell.closest("td")).toHaveClass("border-l-selected");
     expect(firstCell.closest("td")).not.toHaveClass("@max-3xl:hidden");
     expect(screen.getByRole("columnheader", { name: "Age" })).not.toHaveClass("@max-3xl:hidden");
   });
 
-  /** Given starters, then their rows carry the starter accent, and the others don't. */
+  /**
+   * Given starters, then their rows carry the starter accent, and the others don't. The edge is
+   * the selected role (a chosen row is never "positive", maintainer 28 Oct), in its text strength.
+   */
   it("marks a row with its accent", () => {
-    renderTable({ rowAccent: (p) => (p.starter ? "positive" : null) });
+    renderTable({ rowAccent: (p) => (p.starter ? "selected" : null) });
     expect(screen.getByRole("row", { name: /Anderson/ })).toHaveAttribute(
       "data-accent",
-      "positive",
+      "selected",
     );
     expect(screen.getByRole("row", { name: /Navarro/ })).not.toHaveAttribute("data-accent");
-    // The starter edge is the positive text colour (5.5:1 on a panel), not the solid (2.5:1).
-    expect(
-      within(screen.getByRole("row", { name: /Anderson/ })).getAllByRole("cell")[0],
-    ).toHaveClass("border-l-positive");
+    const edge = within(screen.getByRole("row", { name: /Anderson/ })).getAllByRole("cell")[0];
+    expect(edge).toHaveClass("border-l-selected");
+    expect(edge).not.toHaveClass("border-l-positive");
   });
 
   /**

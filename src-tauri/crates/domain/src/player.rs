@@ -271,6 +271,32 @@ impl Position {
         )
     }
 
+    /// Where the position sits in a squad list: goalkeeper first, then the back line, midfield and
+    /// attack, so a list sorted by it reads in pitch order. Each legacy bucket takes the round
+    /// number at the start of its line (Defender 20, CenterBack 21 ...), so an unmigrated player
+    /// stays next to his granular teammates instead of scattering to the end.
+    pub fn sort_rank(&self) -> u32 {
+        match self {
+            Position::Goalkeeper => 10,
+            Position::Defender => 20,
+            Position::CenterBack => 21,
+            Position::LeftBack => 22,
+            Position::RightBack => 23,
+            Position::LeftWingBack => 24,
+            Position::RightWingBack => 25,
+            Position::Midfielder => 30,
+            Position::DefensiveMidfielder => 31,
+            Position::CentralMidfielder => 32,
+            Position::AttackingMidfielder => 33,
+            Position::LeftMidfielder => 34,
+            Position::RightMidfielder => 35,
+            Position::Forward => 40,
+            Position::LeftWinger => 41,
+            Position::RightWinger => 42,
+            Position::Striker => 43,
+        }
+    }
+
     pub fn to_group_position(&self) -> Position {
         match self {
             Position::Goalkeeper => Position::Goalkeeper,
@@ -345,6 +371,82 @@ pub struct PlayerAttributes {
     pub reflexes: u8,
     #[serde(default = "default_attr")]
     pub aerial: u8,
+}
+
+/// The name of one of a player's attributes: the [`PlayerAttributes`] field it reads, spelled as
+/// that field is (and so as the screens' `common.attributes.*` labels are).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AttributeKey {
+    Pace,
+    Stamina,
+    Strength,
+    Agility,
+    Passing,
+    Shooting,
+    Tackling,
+    Dribbling,
+    Defending,
+    Positioning,
+    Vision,
+    Decisions,
+    Composure,
+    Aggression,
+    Teamwork,
+    Leadership,
+    Handling,
+    Reflexes,
+    Aerial,
+}
+
+impl AttributeKey {
+    /// Every attribute, in the order `PlayerAttributes` declares them.
+    pub const ALL: [AttributeKey; 19] = [
+        AttributeKey::Pace,
+        AttributeKey::Stamina,
+        AttributeKey::Strength,
+        AttributeKey::Agility,
+        AttributeKey::Passing,
+        AttributeKey::Shooting,
+        AttributeKey::Tackling,
+        AttributeKey::Dribbling,
+        AttributeKey::Defending,
+        AttributeKey::Positioning,
+        AttributeKey::Vision,
+        AttributeKey::Decisions,
+        AttributeKey::Composure,
+        AttributeKey::Aggression,
+        AttributeKey::Teamwork,
+        AttributeKey::Leadership,
+        AttributeKey::Handling,
+        AttributeKey::Reflexes,
+        AttributeKey::Aerial,
+    ];
+
+    /// This attribute's value in `attributes`.
+    pub fn value_in(self, attributes: &PlayerAttributes) -> u8 {
+        match self {
+            AttributeKey::Pace => attributes.pace,
+            AttributeKey::Stamina => attributes.stamina,
+            AttributeKey::Strength => attributes.strength,
+            AttributeKey::Agility => attributes.agility,
+            AttributeKey::Passing => attributes.passing,
+            AttributeKey::Shooting => attributes.shooting,
+            AttributeKey::Tackling => attributes.tackling,
+            AttributeKey::Dribbling => attributes.dribbling,
+            AttributeKey::Defending => attributes.defending,
+            AttributeKey::Positioning => attributes.positioning,
+            AttributeKey::Vision => attributes.vision,
+            AttributeKey::Decisions => attributes.decisions,
+            AttributeKey::Composure => attributes.composure,
+            AttributeKey::Aggression => attributes.aggression,
+            AttributeKey::Teamwork => attributes.teamwork,
+            AttributeKey::Leadership => attributes.leadership,
+            AttributeKey::Handling => attributes.handling,
+            AttributeKey::Reflexes => attributes.reflexes,
+            AttributeKey::Aerial => attributes.aerial,
+        }
+    }
 }
 
 fn default_attr() -> u8 {
@@ -883,6 +985,72 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given an attribute block whose nineteen values all differ
+    /// When each attribute name is written and read from it
+    /// Then the names are exactly the block's own field names, each once, and each reads its own
+    ///      field: a name the screens look up as a label always names a real attribute
+    #[test]
+    fn every_attribute_name_is_a_field_of_the_attribute_block_and_reads_it() {
+        let names: Vec<String> = AttributeKey::ALL
+            .iter()
+            .map(|key| {
+                serde_json::to_value(key)
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect();
+        let values: serde_json::Map<String, serde_json::Value> = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (name.clone(), serde_json::Value::from(index as u8 + 1)))
+            .collect();
+        let attributes: PlayerAttributes =
+            serde_json::from_value(serde_json::Value::Object(values.clone())).unwrap();
+        let fields = serde_json::to_value(&attributes).unwrap();
+        let mut field_names: Vec<&String> = fields.as_object().unwrap().keys().collect();
+        let mut sorted_names: Vec<&String> = names.iter().collect();
+        field_names.sort();
+        sorted_names.sort();
+
+        assert_eq!(sorted_names, field_names);
+        for (key, name) in AttributeKey::ALL.iter().zip(&names) {
+            assert_eq!(
+                serde_json::Value::from(key.value_in(&attributes)),
+                values[name],
+                "{name}"
+            );
+        }
+    }
+
+    /// Given every position,
+    /// When its sort rank is read,
+    /// Then the ranks are all different, a position ranks inside the band of its group (the bucket's
+    ///      round number up to nine more), and the keeper is first and the striker last.
+    #[test]
+    fn sort_rank_puts_each_position_in_its_groups_band_in_pitch_order() {
+        let mut ranks: Vec<u32> = Position::ALL.iter().map(Position::sort_rank).collect();
+        ranks.sort_unstable();
+        ranks.dedup();
+        assert_eq!(ranks.len(), Position::ALL.len());
+
+        for position in Position::ALL {
+            let band_start = position.to_group_position().sort_rank();
+            assert!(
+                (band_start..band_start + 10).contains(&position.sort_rank()),
+                "{position:?}"
+            );
+        }
+        assert_eq!(Position::Goalkeeper.sort_rank(), 10);
+        assert_eq!(
+            Position::ALL.iter().map(Position::sort_rank).max(),
+            Some(43)
+        );
+        assert!(Position::Defender.sort_rank() < Position::Midfielder.sort_rank());
+        assert!(Position::Midfielder.sort_rank() < Position::Forward.sort_rank());
+    }
 
     /// Given the list of every position and an exhaustive numbering of the enum's variants,
     /// When the list is checked against it,

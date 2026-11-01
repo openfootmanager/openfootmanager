@@ -1,4 +1,4 @@
-import { positionGroupRank } from "../../lib/positions";
+import type { PositionTable } from "../../lib/positionTable";
 import type { EnginePlayerData, MatchSnapshot } from "./types";
 
 /**
@@ -9,10 +9,12 @@ import type { EnginePlayerData, MatchSnapshot } from "./types";
  */
 export function sortByPositionGroup<T extends Pick<EnginePlayerData, "name" | "position">>(
   players: readonly T[],
+  positions: PositionTable,
 ): T[] {
   return [...players].sort(
     (a, b) =>
-      positionGroupRank(a.position) - positionGroupRank(b.position) || a.name.localeCompare(b.name),
+      positions.lineRankOf(a.position) - positions.lineRankOf(b.position) ||
+      a.name.localeCompare(b.name),
   );
 }
 

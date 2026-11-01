@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { Shield } from "lucide-react";
@@ -11,6 +12,7 @@ import { formatPlayerMarketValue } from "./PlayerProfile.helpers";
 import type { PlayerProfileScoutStatus, ScoutAvailability } from "./PlayerProfile.scouting";
 import PlayerProfileScoutAction from "./PlayerProfileScoutAction";
 import { TraitList } from "../TraitBadge";
+import { LoadFailedRetryText } from "./ProfileLoadFailed";
 import { Badge, Card, CountryFlag, JerseyIcon, PlayerAvatar } from "../ui";
 import type { TeamData } from "../../store/types";
 import PlayerPositionBadge from "../PlayerPositionBadge";
@@ -42,6 +44,8 @@ interface PlayerProfileHeroCardProps {
   showsPrivateState: boolean;
   /** His weekly wage as the club may see it, already written: exact, approximate or "–". */
   wageText: string;
+  /** Set when the wage failed to load: the wage then reads as its own retry button. */
+  wageRetry?: () => void;
   t: TranslateFn;
 }
 
@@ -64,8 +68,22 @@ export default function PlayerProfileHeroCard({
   traits,
   showsPrivateState,
   wageText,
+  wageRetry,
   t,
 }: PlayerProfileHeroCardProps) {
+  // A failed wage reads as its own retry, coloured for the surface it sits on: the desktop stats
+  // sit on the always-dark chrome, the narrow layout's on a page-coloured card.
+  const wageValue = (tone: "page" | "chrome"): ReactNode =>
+    wageRetry ? (
+      <LoadFailedRetryText
+        t={t}
+        onRetry={wageRetry}
+        description={t("playerProfile.retryWage")}
+        tone={tone}
+      />
+    ) : (
+      wageText
+    );
   const tierOf = useRatingTiers();
   const teamContextItems =
     player.team_id && onSelectTeam
@@ -193,8 +211,8 @@ export default function PlayerProfileHeroCard({
             />
             <QuickStat
               label={t("common.wage")}
-              value={wageText}
-              color={wageText === NO_DATA ? "text-chrome-fg-muted" : "text-white"}
+              value={wageValue("chrome")}
+              color={wageText === NO_DATA || wageRetry ? "text-chrome-fg-muted" : "text-white"}
             />
           </div>
         </div>
@@ -230,15 +248,17 @@ export default function PlayerProfileHeroCard({
         />
         <MobileQuickStat
           label={t("common.wage")}
-          value={wageText}
-          color={wageText === NO_DATA ? "text-fg-muted" : "text-gray-700 dark:text-gray-200"}
+          value={wageValue("page")}
+          color={
+            wageText === NO_DATA || wageRetry ? "text-fg-muted" : "text-gray-700 dark:text-gray-200"
+          }
         />
       </div>
     </Card>
   );
 }
 
-function QuickStat({ label, value, color }: { label: string; value: string; color: string }) {
+function QuickStat({ label, value, color }: { label: string; value: ReactNode; color: string }) {
   return (
     <div className="bg-white/5 rounded-xl px-5 py-3 text-center min-w-25">
       <p className="text-xs text-gray-400 font-heading uppercase tracking-wider">{label}</p>
@@ -247,7 +267,15 @@ function QuickStat({ label, value, color }: { label: string; value: string; colo
   );
 }
 
-function MobileQuickStat({ label, value, color }: { label: string; value: string; color: string }) {
+function MobileQuickStat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: ReactNode;
+  color: string;
+}) {
   return (
     <div className="bg-white dark:bg-navy-800 p-3 text-center">
       <p className="text-xs text-gray-400 dark:text-gray-500 font-heading uppercase tracking-wider">

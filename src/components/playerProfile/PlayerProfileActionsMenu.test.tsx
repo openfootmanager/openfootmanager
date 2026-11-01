@@ -6,6 +6,23 @@ import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
 import { setPlayerSquadRole } from "../../services/squadService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 
+// Whether the backend's position table has arrived; a test says it has not.
+const positionTableState = vi.hoisted(() => ({ arrived: true }));
+
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  const { createPositionTable } = await import("../../lib/positionTable");
+  const canned = cannedPositionsModule();
+  const notArrived = createPositionTable([]);
+  return {
+    ...canned,
+    usePositionTable: () => {
+      const arrived = canned.usePositionTable();
+      return positionTableState.arrived ? arrived : notArrived;
+    },
+  };
+});
+
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
@@ -112,6 +129,65 @@ describe("PlayerProfileActionsMenu", () => {
     expect(screen.getByText("squad.addToLoanList")).toBeInTheDocument();
     // sole available player is auto-slotted into the XI
     expect(screen.getByText("squad.sendToBench")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the manager's own player, in the XI, and the position table loaded or not
+   * When the menu is opened
+   * Then "Send to bench" is enabled once the table has loaded and disabled before: a lineup change
+   *      is not made without it, and a disabled item says so where a silent no-op would not.
+   */
+  it("disables the lineup actions until the position table has loaded", () => {
+    const starters = Array.from({ length: 11 }, (_, i) =>
+      buildPlayer({ id: `s${i}`, full_name: `Starter ${i}` }),
+    );
+    const bench = buildPlayer({ id: "bench", full_name: "Bench Player" });
+    const game = buildGameState([...starters, bench]);
+    (game.teams[0] as { starting_xi_ids: string[] }).starting_xi_ids = starters.map((p) => p.id);
+    const props = baseProps(starters[0], game);
+
+    positionTableState.arrived = false;
+    try {
+      const { unmount } = render(<PlayerProfileActionsMenu {...props} isManagerOwnedProfile />);
+      openMenu();
+      expect(screen.getByRole("menuitem", { name: "squad.sendToBench" })).toBeDisabled();
+      unmount();
+    } finally {
+      positionTableState.arrived = true;
+    }
+
+    render(<PlayerProfileActionsMenu {...props} isManagerOwnedProfile />);
+    openMenu();
+    expect(screen.getByRole("menuitem", { name: "squad.sendToBench" })).toBeEnabled();
+  });
+
+  /**
+   * Given a bench player's profile, and the position table not loaded
+   * When the menu is opened
+   * Then "Make starter" is disabled (loaded, it is enabled).
+   */
+  it("disables Make starter on a bench player's profile until the table has loaded", () => {
+    const starters = Array.from({ length: 11 }, (_, i) =>
+      buildPlayer({ id: `s${i}`, full_name: `Starter ${i}` }),
+    );
+    const bench = buildPlayer({ id: "bench", full_name: "Bench Player" });
+    const game = buildGameState([...starters, bench]);
+    (game.teams[0] as { starting_xi_ids: string[] }).starting_xi_ids = starters.map((p) => p.id);
+    const props = baseProps(bench, game);
+
+    positionTableState.arrived = false;
+    try {
+      const { unmount } = render(<PlayerProfileActionsMenu {...props} isManagerOwnedProfile />);
+      openMenu();
+      expect(screen.getByRole("menuitem", { name: "squad.makeStarter" })).toBeDisabled();
+      unmount();
+    } finally {
+      positionTableState.arrived = true;
+    }
+
+    render(<PlayerProfileActionsMenu {...props} isManagerOwnedProfile />);
+    openMenu();
+    expect(screen.getByRole("menuitem", { name: "squad.makeStarter" })).toBeEnabled();
   });
 
   it("toggles the transfer list and propagates the updated game state", async () => {

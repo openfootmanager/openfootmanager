@@ -1655,70 +1655,87 @@ export const positionGroups = [
   {
     "group": "Goalkeeper",
     "position": "Goalkeeper",
+    "rank": 10,
   },
   {
     "group": "Defender",
     "position": "Defender",
+    "rank": 20,
   },
   {
     "group": "Midfielder",
     "position": "Midfielder",
+    "rank": 30,
   },
   {
     "group": "Forward",
     "position": "Forward",
+    "rank": 40,
   },
   {
     "group": "Defender",
     "position": "RightBack",
+    "rank": 23,
   },
   {
     "group": "Defender",
     "position": "CenterBack",
+    "rank": 21,
   },
   {
     "group": "Defender",
     "position": "LeftBack",
+    "rank": 22,
   },
   {
     "group": "Defender",
     "position": "RightWingBack",
+    "rank": 25,
   },
   {
     "group": "Defender",
     "position": "LeftWingBack",
+    "rank": 24,
   },
   {
     "group": "Midfielder",
     "position": "DefensiveMidfielder",
+    "rank": 31,
   },
   {
     "group": "Midfielder",
     "position": "CentralMidfielder",
+    "rank": 32,
   },
   {
     "group": "Midfielder",
     "position": "AttackingMidfielder",
+    "rank": 33,
   },
   {
     "group": "Midfielder",
     "position": "RightMidfielder",
+    "rank": 35,
   },
   {
     "group": "Midfielder",
     "position": "LeftMidfielder",
+    "rank": 34,
   },
   {
     "group": "Forward",
     "position": "RightWinger",
+    "rank": 42,
   },
   {
     "group": "Forward",
     "position": "LeftWinger",
+    "rank": 41,
   },
   {
     "group": "Forward",
     "position": "Striker",
+    "rank": 43,
   },
 ] satisfies PositionGroupEntry[];
 
