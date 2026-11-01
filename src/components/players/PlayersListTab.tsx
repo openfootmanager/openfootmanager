@@ -16,6 +16,7 @@ import {
 } from "../ui";
 import { useListView } from "../../hooks/useListView";
 import PlayersCardGrid from "./PlayersCardGrid";
+import { PLAYER_SORT_OPTIONS } from "./playerSortOptions";
 import PlayersPagination from "./PlayersPagination";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import PlayerListFilters from "./PlayerListFilters";
@@ -45,16 +46,6 @@ import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow"
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import { naturalPositionOf } from "../../lib/positions";
 import PlayerPositionBadge from "../PlayerPositionBadge";
-
-/** The fields the list sorts by, as the card view's sort control offers them (the table's headers). */
-const PLAYER_SORT_OPTIONS: readonly { key: PlayerSortKey; labelKey: string }[] = [
-  { key: "name", labelKey: "common.name" },
-  { key: "position", labelKey: "common.position" },
-  { key: "age", labelKey: "common.age" },
-  { key: "team", labelKey: "common.team" },
-  { key: "value", labelKey: "common.value" },
-  { key: "ovr", labelKey: "common.ovr" },
-];
 
 interface PlayersListTabProps {
   gameState: GameStateData;
