@@ -3,10 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import PlayerCard from "./PlayerCard";
 
-vi.mock("../hooks/usePositionGroups", async () => {
-  const { cannedPositionsModule } = await import("../test-utils/positionTable");
-  return cannedPositionsModule();
-});
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) =>

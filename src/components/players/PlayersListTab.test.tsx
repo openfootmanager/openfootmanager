@@ -11,11 +11,6 @@ import { ratingTierClass } from "../../lib/ratingTier";
 import { createSeasonContext } from "../../test-utils/factories";
 import { useSettingsStore } from "../../store/settingsStore";
 
-vi.mock("../../hooks/usePositionGroups", async () => {
-  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
-  return cannedPositionsModule();
-});
-
 vi.mock("../../hooks/useRatingTiers", async () => {
   const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
   return cannedRatingTiersModule();
