@@ -608,41 +608,41 @@ mod tests {
     use chrono::{Datelike, TimeZone, Utc};
     use domain::player::{Injury, PlayerTrait, Position};
 
-    /// Zero lies below every positive gain probability, so these scenarios have no lucky-roll dependency.
-    struct LowestRoll;
+    /// Every draw reads as the same point of the unit interval, so a test can set where a roll
+    /// lands against a rate.
+    struct Roll(u64);
 
-    impl rand::TryRng for LowestRoll {
+    impl Roll {
+        fn at(fraction: f64) -> Self {
+            Self((fraction * u64::MAX as f64) as u64)
+        }
+    }
+
+    impl rand::TryRng for Roll {
         type Error = std::convert::Infallible;
         fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            Ok(0)
+            Ok((self.0 >> 32) as u32)
         }
         fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(0)
+            Ok(self.0)
         }
         fn try_fill_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Self::Error> {
-            bytes.fill(0);
+            for chunk in bytes.chunks_mut(8) {
+                chunk.copy_from_slice(&self.0.to_le_bytes()[..chunk.len()]);
+            }
             Ok(())
         }
     }
 
+    /// Zero lies below every positive gain probability, so these scenarios have no lucky-roll dependency.
+    fn lowest_roll() -> Roll {
+        Roll(0)
+    }
+
     /// One thirty-second succeeds at the primary rate (about 0.05 for a young player far from his
     /// ceiling, after training's share of development) and fails at the secondary (about 0.025).
-    struct BetweenGainRates;
-
-    impl rand::TryRng for BetweenGainRates {
-        type Error = std::convert::Infallible;
-        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            Ok(u32::MAX / 32)
-        }
-        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(u64::MAX / 32)
-        }
-        fn try_fill_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Self::Error> {
-            for chunk in bytes.chunks_mut(8) {
-                chunk.copy_from_slice(&(u64::MAX / 32).to_le_bytes()[..chunk.len()]);
-            }
-            Ok(())
-        }
+    fn between_gain_rates() -> Roll {
+        Roll(u64::MAX / 32)
     }
 
     fn keeper(team_id: &str) -> Player {
@@ -685,7 +685,7 @@ mod tests {
                 date: domain::age::season_midpoint(2026),
                 world_seed: 1,
             },
-            &mut LowestRoll,
+            &mut lowest_roll(),
         );
     }
 
@@ -762,7 +762,7 @@ mod tests {
                 date: domain::age::season_midpoint(2026),
                 world_seed: 1,
             },
-            &mut BetweenGainRates,
+            &mut between_gain_rates(),
         );
         assert_eq!(attributes(&player), serde_json::to_value(expected).unwrap());
     }
@@ -984,7 +984,7 @@ mod tests {
                     date: chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap(),
                     world_seed: 1,
                 },
-                &mut LowestRoll,
+                &mut lowest_roll(),
             );
             player.condition - 40
         };
@@ -1106,5 +1106,548 @@ mod tests {
             serde_json::to_value(&restored.players).unwrap(),
             serde_json::to_value(&game.players).unwrap()
         );
+    }
+
+    /// Wednesday: a rest day on the Balanced schedule.
+    const A_REST_DAY: u32 = 2;
+    /// Monday: a training day on it.
+    const A_TRAINING_DAY: u32 = 0;
+
+    /// A 27-year-old at morale 50, condition 60 and fitness 60, with stamina 100: every recovery
+    /// factor is 1.0, so a day off restores exactly the base.
+    fn neutral_player() -> Player {
+        let mut player = keeper("team1");
+        player.date_of_birth = "1999-01-01".to_string();
+        player.morale = 50;
+        player.condition = 60;
+        player.fitness = 60;
+        player.attributes.stamina = 100;
+        player
+    }
+
+    fn injured(player: &mut Player) {
+        player.injury = Some(Injury {
+            name: "test injury".to_string(),
+            days_remaining: 30,
+        });
+    }
+
+    fn staffed_plan(physio_mult: f64, medical_facility_mult: f64) -> TeamTrainingPlan {
+        TeamTrainingPlan {
+            bonus: TeamCoachingBonus {
+                physio_mult,
+                ..plan(TrainingFocus::Technical).bonus
+            },
+            medical_facility_mult,
+            ..plan(TrainingFocus::Technical)
+        }
+    }
+
+    fn condition_gained_on_a_day_off(player: &mut Player, plan: &TeamTrainingPlan) -> u8 {
+        let before = player.condition;
+        session(player, plan, A_REST_DAY);
+        player.condition - before
+    }
+
+    /// Given a player whose recovery factors are all 1.0, with no physio or medical centre to
+    ///       speak of
+    /// When he has a day off
+    /// Then he recovers exactly 10 condition
+    #[test]
+    fn a_day_off_restores_ten_condition_before_staff_and_facilities() {
+        let mut player = neutral_player();
+
+        assert_eq!(
+            condition_gained_on_a_day_off(&mut player, &staffed_plan(1.0, 1.0)),
+            10
+        );
+    }
+
+    /// Given the best physio and medical centre (1.4 each, so a base of 19.6), and a tired but very
+    ///       fit player: condition 40 (0.9) and fitness 90 (1.2)
+    /// When he has a day off
+    /// Then he recovers 21: the base scaled by his condition and his fitness
+    #[test]
+    fn a_tired_players_day_off_is_scaled_by_his_condition_and_fitness() {
+        let mut player = neutral_player();
+        player.condition = 40;
+        player.fitness = 90;
+
+        assert_eq!(
+            condition_gained_on_a_day_off(&mut player, &staffed_plan(1.4, 1.4)),
+            21
+        );
+    }
+
+    /// Given an injured player in good spirits and very fit (morale 80: 1.1; fitness 95: 1.2), with
+    ///       a base of 19.6
+    /// When he has a day off
+    /// Then he recovers 12: half the base, scaled by his morale and his fitness
+    #[test]
+    fn an_injured_players_recovery_is_half_the_base_scaled_by_morale_and_fitness() {
+        let mut player = neutral_player();
+        player.condition = 40;
+        player.morale = 80;
+        player.fitness = 95;
+        injured(&mut player);
+
+        assert_eq!(
+            condition_gained_on_a_day_off(&mut player, &staffed_plan(1.4, 1.4)),
+            12
+        );
+    }
+
+    /// Given an injured player at fitness 80
+    /// When a day passes
+    /// Then his fitness is 79: an injury costs one point a day
+    #[test]
+    fn an_injured_player_loses_one_point_of_fitness_a_day() {
+        let mut player = neutral_player();
+        player.fitness = 80;
+        injured(&mut player);
+
+        session(&mut player, &plan(TrainingFocus::Technical), A_REST_DAY);
+
+        assert_eq!(player.fitness, 79);
+    }
+
+    /// Given ages either side of each band: 21, 22, 25, 26, 29, 30, 33 and 34
+    /// When the recovery factor for age is read
+    /// Then it steps down from 1.10 to 1.05 at 22, to 1.00 at 26, to 0.85 at 30 and to 0.70 at 34
+    #[test]
+    fn recovery_slows_band_by_band_with_age() {
+        let factors: Vec<f64> = [21, 22, 25, 26, 29, 30, 33, 34]
+            .into_iter()
+            .map(recovery_factor_from_age)
+            .collect();
+
+        assert_eq!(
+            factors,
+            vec![1.10, 1.05, 1.05, 1.00, 1.00, 0.85, 0.85, 0.70]
+        );
+    }
+
+    /// Given fitness either side of each band: 29, 30, 49, 50, 69, 70, 89 and 90
+    /// When the recovery factor for fitness is read
+    /// Then it steps up from 0.75 to 0.88 at 30, to 1.00 at 50, to 1.12 at 70 and to 1.20 at 90
+    #[test]
+    fn fitter_players_recover_faster_band_by_band() {
+        let factors: Vec<f64> = [29, 30, 49, 50, 69, 70, 89, 90]
+            .into_iter()
+            .map(recovery_factor_from_fitness)
+            .collect();
+
+        assert_eq!(
+            factors,
+            vec![0.75, 0.88, 0.88, 1.00, 1.00, 1.12, 1.12, 1.20]
+        );
+    }
+
+    /// Given a club with no staff and a level-three medical centre (1.2), and a player whose
+    ///       recovery factors are all 1.0
+    /// When the club's rest day is processed
+    /// Then he recovers 12: a fifth more than the bare 10
+    #[test]
+    fn a_level_three_medical_centre_adds_a_fifth_to_a_day_off() {
+        let mut game = training_game("team1");
+        game.players[0] = neutral_player();
+        game.teams[0].facilities.medical = 3;
+
+        process_training(&mut game, A_REST_DAY);
+
+        assert_eq!(game.players[0].condition, 72);
+    }
+
+    fn staff(
+        id: &str,
+        team_id: Option<&str>,
+        role: StaffRole,
+        coaching: u8,
+    ) -> domain::staff::Staff {
+        let mut member = domain::staff::Staff::new(
+            id.to_string(),
+            "Sam".to_string(),
+            id.to_string(),
+            "1980-01-01".to_string(),
+            role,
+            domain::staff::StaffAttributes {
+                coaching,
+                judging_ability: 50,
+                judging_potential: 50,
+                physiotherapy: 50,
+            },
+        );
+        member.team_id = team_id.map(str::to_string);
+        member
+    }
+
+    /// Given a club with a coach rated 80 and an assistant manager rated 60, and both another
+    ///       club's coach and an unattached coach rated 0
+    /// When the club's coaching bonus is worked out
+    /// Then it is 1.20: 0.85 plus half the average of its own coaches' ratings, 70
+    #[test]
+    fn the_coaching_bonus_is_the_clubs_average_coach_rating_on_a_half_point_scale() {
+        let mut game = training_game("team1");
+        game.staff = vec![
+            staff("coach", Some("team1"), StaffRole::Coach, 80),
+            staff("assistant", Some("team1"), StaffRole::AssistantManager, 60),
+            staff("their-coach", Some("team2"), StaffRole::Coach, 0),
+            staff("free-coach", None, StaffRole::Coach, 0),
+        ];
+
+        let bonus = compute_coaching_bonus(&game, "team1", &TrainingFocus::Technical);
+
+        assert!(
+            (bonus.coaching_mult - 1.20).abs() < 1e-9,
+            "{}",
+            bonus.coaching_mult
+        );
+    }
+
+    /// The specialist bonus for `focus` at `team`, in a world where team1's only coach specialises in
+    /// fitness and team2's only coach has no speciality.
+    fn specialist_bonus(team: &str, focus: TrainingFocus) -> f64 {
+        let mut fitness_coach = staff("fitness-coach", Some("team1"), StaffRole::Coach, 50);
+        fitness_coach.specialization = Some(CoachingSpecialization::Fitness);
+        let mut game = training_game("team1");
+        game.staff = vec![
+            fitness_coach,
+            staff("plain-coach", Some("team2"), StaffRole::Coach, 50),
+        ];
+        compute_coaching_bonus(&game, team, &focus).specialization_mult
+    }
+
+    /// Given a club whose only coach specialises in fitness
+    /// When its specialist bonus is read for physical training
+    /// Then it is 1.25: a specialist in the session's focus adds a quarter
+    #[test]
+    fn a_fitness_specialist_adds_a_quarter_to_physical_training() {
+        assert_eq!(specialist_bonus("team1", TrainingFocus::Physical), 1.25);
+    }
+
+    /// Given the same club
+    /// When its specialist bonus is read for technical training
+    /// Then it is 1.0: his speciality is not the session's focus
+    #[test]
+    fn a_fitness_specialist_adds_nothing_to_technical_training() {
+        assert_eq!(specialist_bonus("team1", TrainingFocus::Technical), 1.0);
+    }
+
+    /// Given a club whose only coach has no speciality
+    /// When its specialist bonus is read for physical training
+    /// Then it is 1.0
+    #[test]
+    fn a_coach_without_a_speciality_adds_nothing() {
+        assert_eq!(specialist_bonus("team2", TrainingFocus::Physical), 1.0);
+    }
+
+    fn coached_plan(coaching_mult: f64, specialization_mult: f64) -> TeamTrainingPlan {
+        TeamTrainingPlan {
+            bonus: TeamCoachingBonus {
+                coaching_mult,
+                specialization_mult,
+                physio_mult: 1.0,
+            },
+            ..plan(TrainingFocus::Technical)
+        }
+    }
+
+    fn attribute_points(player: &Player) -> u64 {
+        attributes(player)
+            .as_object()
+            .expect("attributes serialize as an object")
+            .values()
+            .filter_map(serde_json::Value::as_u64)
+            .sum()
+    }
+
+    /// The attribute points a fresh young keeper gains over `sessions` technical sessions on
+    /// `plan`, a new keeper each session and one seeded stream of rolls. Each session draws the
+    /// same number of rolls whatever it gains, so two plans see the same rolls.
+    fn points_gained_over(sessions: usize, plan: &TeamTrainingPlan) -> u64 {
+        use rand::SeedableRng;
+        let mut rng = rand::rngs::StdRng::seed_from_u64(7);
+        let day = TrainingDay {
+            weekday_num: A_TRAINING_DAY,
+            date: domain::age::season_midpoint(2026),
+            world_seed: 1,
+        };
+        (0..sessions)
+            .map(|_| {
+                let mut player = keeper("team1");
+                let before = attribute_points(&player);
+                train_player(&mut player, plan, &day, &mut rng);
+                attribute_points(&player) - before
+            })
+            .sum()
+    }
+
+    /// Given a young keeper trained 4,000 times by a staff worth 1.25 and by one worth 0.8, on the
+    ///       same rolls
+    /// When the attribute points gained are counted
+    /// Then the better staff brings at least a third more: about 1.56 times as many
+    #[test]
+    fn a_better_coaching_staff_brings_more_attribute_gains() {
+        let weak = points_gained_over(4_000, &coached_plan(0.8, 1.0));
+        let strong = points_gained_over(4_000, &coached_plan(1.25, 1.0));
+
+        assert!(
+            strong as f64 > weak as f64 * 1.33,
+            "{strong} against {weak}"
+        );
+    }
+
+    /// Given a young keeper trained 4,000 times with a specialist coach (1.25) and without one, on
+    ///       the same rolls
+    /// When the attribute points gained are counted
+    /// Then the specialist brings at least a tenth more: about 1.25 times as many
+    #[test]
+    fn a_specialist_coach_brings_more_attribute_gains() {
+        let plain = points_gained_over(4_000, &coached_plan(1.0, 1.0));
+        let specialist = points_gained_over(4_000, &coached_plan(1.0, 1.25));
+
+        assert!(
+            specialist as f64 > plain as f64 * 1.1,
+            "{specialist} against {plain}"
+        );
+    }
+
+    fn fitness_after(fitness: u8, focus: TrainingFocus, roll: Roll) -> u8 {
+        fitness_after_at(1.0, fitness, focus, roll)
+    }
+
+    fn fitness_after_at(
+        intensity_mult: f64,
+        fitness: u8,
+        focus: TrainingFocus,
+        mut roll: Roll,
+    ) -> u8 {
+        let mut value = fitness;
+        apply_fitness_change(&mut value, &focus, intensity_mult, &mut roll);
+        value
+    }
+
+    /// Given a player at fitness 80 in a medium physical session, a 1.5% chance of a point
+    /// When the roll is 0
+    /// Then he gains a point
+    #[test]
+    fn physical_training_adds_a_fitness_point_on_a_roll_under_its_rate() {
+        assert_eq!(
+            fitness_after(80, TrainingFocus::Physical, Roll::at(0.0)),
+            81
+        );
+    }
+
+    /// Given the same session
+    /// When the roll is 0.02, above the 1.5%
+    /// Then he gains nothing
+    #[test]
+    fn physical_training_adds_nothing_on_a_roll_above_its_rate() {
+        assert_eq!(
+            fitness_after(80, TrainingFocus::Physical, Roll::at(0.02)),
+            80
+        );
+    }
+
+    /// Given a player at fitness 80 in a recovery session, a 5% chance of a point
+    /// When the roll is 0
+    /// Then he gains a point
+    #[test]
+    fn a_recovery_session_adds_a_fitness_point_on_a_roll_under_one_in_twenty() {
+        assert_eq!(
+            fitness_after(80, TrainingFocus::Recovery, Roll::at(0.0)),
+            81
+        );
+    }
+
+    /// Given the same session
+    /// When the roll is 0.06, above the 5%
+    /// Then he gains nothing
+    #[test]
+    fn a_recovery_session_adds_nothing_on_a_roll_above_one_in_twenty() {
+        assert_eq!(
+            fitness_after(80, TrainingFocus::Recovery, Roll::at(0.06)),
+            80
+        );
+    }
+
+    /// Given a player at fitness 100 and a roll of 0
+    /// When he has a physical session
+    /// Then he stays at 100
+    #[test]
+    fn physical_training_never_lifts_fitness_past_one_hundred() {
+        assert_eq!(
+            fitness_after(100, TrainingFocus::Physical, Roll::at(0.0)),
+            100
+        );
+    }
+
+    /// Given a player at fitness 100 and a roll of 0
+    /// When he has a recovery session
+    /// Then he stays at 100
+    #[test]
+    fn a_recovery_session_never_lifts_fitness_past_one_hundred() {
+        assert_eq!(
+            fitness_after(100, TrainingFocus::Recovery, Roll::at(0.0)),
+            100
+        );
+    }
+
+    /// Given a player at fitness 80 and a roll of 0.02, between the medium rate (1.5%) and the high
+    ///       one (2.25%)
+    /// When he has a high-intensity physical session
+    /// Then he gains a point: intensity scales the chance up
+    #[test]
+    fn a_high_intensity_physical_session_raises_the_chance_of_a_fitness_point() {
+        assert_eq!(
+            fitness_after_at(1.5, 80, TrainingFocus::Physical, Roll::at(0.02)),
+            81
+        );
+    }
+
+    /// Given a player at fitness 90 in a technical session, a 5% chance of losing a point
+    /// When the roll is 0
+    /// Then he loses a point
+    #[test]
+    fn a_very_fit_player_loses_a_point_on_a_roll_under_one_in_twenty() {
+        assert_eq!(
+            fitness_after(90, TrainingFocus::Technical, Roll::at(0.0)),
+            89
+        );
+    }
+
+    /// Given the same session
+    /// When the roll is 0.06, above the 5%
+    /// Then he keeps all 90
+    #[test]
+    fn a_very_fit_player_keeps_his_fitness_on_a_roll_above_one_in_twenty() {
+        assert_eq!(
+            fitness_after(90, TrainingFocus::Technical, Roll::at(0.06)),
+            90
+        );
+    }
+
+    /// Given a player at fitness exactly 85 in a technical session and a roll of 0
+    /// When the session ends
+    /// Then he keeps all 85: only fitness above 85 needs maintaining
+    #[test]
+    fn fitness_of_eighty_five_needs_no_maintaining() {
+        assert_eq!(
+            fitness_after(85, TrainingFocus::Technical, Roll::at(0.0)),
+            85
+        );
+    }
+
+    /// Given a club with physios rated 80 and 40, and another club's physio rated 0
+    /// When the club's physio bonus is worked out
+    /// Then it is 1.24: 1.0 plus four tenths of its own physios' average, 60
+    #[test]
+    fn the_physio_bonus_is_the_clubs_average_physio_rating_on_a_four_tenths_scale() {
+        let physio = |id: &str, team: &str, rating: u8| {
+            let mut member = staff(id, Some(team), StaffRole::Physio, 50);
+            member.attributes.physiotherapy = rating;
+            member
+        };
+        let mut game = training_game("team1");
+        game.staff = vec![
+            physio("good", "team1", 80),
+            physio("fair", "team1", 40),
+            physio("theirs", "team2", 0),
+        ];
+
+        let bonus = compute_coaching_bonus(&game, "team1", &TrainingFocus::Technical);
+
+        assert!(
+            (bonus.physio_mult - 1.24).abs() < 1e-9,
+            "{}",
+            bonus.physio_mult
+        );
+    }
+
+    /// Given a player with stamina 50 (recovery scaled by 0.75) whose other factors are all 1.0
+    /// When he has a day off with no physio or medical centre to speak of
+    /// Then he recovers 7: three quarters of the bare 10
+    #[test]
+    fn a_player_with_less_stamina_recovers_less_on_a_day_off() {
+        let mut player = neutral_player();
+        player.attributes.stamina = 50;
+
+        assert_eq!(
+            condition_gained_on_a_day_off(&mut player, &staffed_plan(1.0, 1.0)),
+            7
+        );
+    }
+
+    /// A 27-year-old at condition 60, morale 80 (1.1) and fitness 75 (1.12), with stamina 100, who
+    /// trains on Monday with the best physio and medical centre (1.4 each): the change in his
+    /// condition over the session.
+    fn condition_change_over_a_session(focus: TrainingFocus) -> i16 {
+        let mut player = neutral_player();
+        player.morale = 80;
+        player.fitness = 75;
+        let mut plan = staffed_plan(1.4, 1.4);
+        plan.default_focus = focus;
+
+        session(&mut player, &plan, A_TRAINING_DAY);
+
+        i16::from(player.condition) - 60
+    }
+
+    /// Given that player in a recovery session, which costs no condition
+    /// When the session ends
+    /// Then he is 21 better: nine times the staff's 1.96 (17.64), scaled by his morale and fitness
+    #[test]
+    fn a_recovery_session_restores_nine_times_the_staffs_base() {
+        assert_eq!(condition_change_over_a_session(TrainingFocus::Recovery), 21);
+    }
+
+    /// Given that player in a medium technical session, which costs 6 condition
+    /// When the session ends
+    /// Then he is 1 better: it restores 7, three times the staff's 1.96, scaled by his morale and
+    ///      fitness
+    #[test]
+    fn an_ordinary_session_restores_three_times_the_staffs_base() {
+        assert_eq!(condition_change_over_a_session(TrainingFocus::Technical), 1);
+    }
+
+    fn planned_focus_at_condition(condition: u8) -> TrainingFocus {
+        let mut player = neutral_player();
+        player.condition = condition;
+        player_training_session(&player, &plan(TrainingFocus::Technical), A_TRAINING_DAY).focus
+    }
+
+    /// Given a player at condition exactly 40 on a technical training day
+    /// When his session is planned
+    /// Then he trains as planned: the fatigue guard is below 40
+    #[test]
+    fn a_player_at_forty_condition_trains_as_planned() {
+        assert_eq!(planned_focus_at_condition(40), TrainingFocus::Technical);
+    }
+
+    /// Given a player at condition 39 on the same day
+    /// When his session is planned
+    /// Then he is rested: his session becomes recovery work
+    #[test]
+    fn a_player_below_forty_condition_is_rested() {
+        assert_eq!(planned_focus_at_condition(39), TrainingFocus::Recovery);
+    }
+
+    fn intensity_plan(intensity: TrainingIntensity) -> TeamTrainingPlan {
+        TeamTrainingPlan {
+            intensity,
+            ..plan(TrainingFocus::Technical)
+        }
+    }
+
+    /// Given a young keeper trained 4,000 times at high intensity (1.5) and at low (0.5), on the
+    ///       same rolls
+    /// When the attribute points gained are counted
+    /// Then high intensity brings at least twice as many: about three times
+    #[test]
+    fn a_high_intensity_session_brings_more_attribute_gains_than_a_low_one() {
+        let low = points_gained_over(4_000, &intensity_plan(TrainingIntensity::Low));
+        let high = points_gained_over(4_000, &intensity_plan(TrainingIntensity::High));
+
+        assert!(high as f64 > low as f64 * 2.0, "{high} against {low}");
     }
 }

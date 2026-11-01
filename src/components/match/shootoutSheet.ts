@@ -9,12 +9,14 @@ export const REGULAR_ROUNDS = 5;
 /** One side's kick in one round of the sheet. */
 export type KickCell =
   | { state: "scored" | "missed"; kickerName: string | null }
-  /** The shootout is still on and this kick hasn't been taken. */
-  | { state: "toCome" }
+  /**
+   * The shootout is still on and this kick hasn't been taken. While the manager sets the order,
+   * their own side's cells name who is due to take each kick.
+   */
+  | { state: "toCome"; plannedKickerName?: string }
   /**
    * Over, and this kick was never taken: under the Laws a shootout ends as soon as one side can't
-   * catch up, so the away side can finish a kick short. The engine decides only at equal kick
-   * counts today (penalty.rs `decided`); tactics-match's planned change makes this reachable.
+   * catch up (penalty.rs `decided`), so the away side can finish a kick short, whichever side wins.
    */
   | { state: "notTaken" };
 
@@ -29,6 +31,14 @@ export interface KickSheet {
   rows: KickSheetRow[];
   /** The 1-based round being taken now; null once the shootout is over. */
   currentRound: number | null;
+}
+
+/** A side's order as the manager is setting it, previewed on the sheet before the first kick. */
+interface KickPlan {
+  side: "Home" | "Away";
+  order: readonly string[];
+  /** How many of the order kick; kick n is taken by entry n % kickers, as the engine rotates. */
+  kickers: number;
 }
 
 /** Whether an event is one of the shootout's kicks. */
@@ -70,15 +80,22 @@ function roundCount(homeKicks: number, awayKicks: number, live: boolean): number
 
 /**
  * The shootout as a referee's sheet: a row per round, each side's kicker and result in it, drawn
- * from the kick events in the order they were taken.
+ * from the kick events in the order they were taken. With a plan, the planning side's kicks still
+ * to come name who is due to take them; the other side's never do.
  */
-export function buildKickSheet(snapshot: MatchSnapshot): KickSheet {
+export function buildKickSheet(snapshot: MatchSnapshot, plan?: KickPlan): KickSheet {
   const live = snapshot.phase === "PenaltyShootout";
   const names = playerNames(snapshot);
   const home = sideKicks(snapshot.events, "Home");
   const away = sideKicks(snapshot.events, "Away");
 
-  const cell = (kicks: MatchEvent[], index: number): KickCell => {
+  const plannedName = (side: "Home" | "Away", index: number): string | undefined => {
+    if (!plan || plan.side !== side || plan.kickers <= 0) return undefined;
+    const id = plan.order[index % plan.kickers];
+    return id === undefined ? undefined : (names.get(id) ?? undefined);
+  };
+
+  const cell = (side: "Home" | "Away", kicks: MatchEvent[], index: number): KickCell => {
     const kick = kicks[index];
     if (kick) {
       return {
@@ -86,13 +103,17 @@ export function buildKickSheet(snapshot: MatchSnapshot): KickSheet {
         kickerName: kick.player_id ? (names.get(kick.player_id) ?? null) : null,
       };
     }
-    return live ? { state: "toCome" } : { state: "notTaken" };
+    if (!live) return { state: "notTaken" };
+    const plannedKickerName = plannedName(side, index);
+    return plannedKickerName === undefined
+      ? { state: "toCome" }
+      : { state: "toCome", plannedKickerName };
   };
 
   const rows = Array.from({ length: roundCount(home.length, away.length, live) }, (_, index) => ({
     round: index + 1,
-    home: cell(home, index),
-    away: cell(away, index),
+    home: cell("Home", home, index),
+    away: cell("Away", away, index),
   }));
 
   return { rows, currentRound: live ? Math.min(home.length, away.length) + 1 : null };

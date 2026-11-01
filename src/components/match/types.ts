@@ -15,6 +15,7 @@ export type {
   EngineTeamData,
   MatchSnapshot,
   MinuteResult,
+  ShootoutOrder,
 } from "../../store/liveMatchTypes";
 
 export interface RoundResultSummary {
