@@ -354,6 +354,14 @@ function DisplaySection() {
             colors: { primary: "#15803d", secondary: "#ffffff" },
           }}
         />
+        {/* Bright green beside white: the pair whose label used to vanish on the white half. */}
+        <TeamLogo
+          team={{
+            name: "Alpha United",
+            short_name: "AL",
+            colors: { primary: "#00ff00", secondary: "#ffffff" },
+          }}
+        />
         <TeamLogo
           team={{
             name: "Sporting Waregem",
