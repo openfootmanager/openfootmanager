@@ -4,7 +4,7 @@
 use std::collections::{HashMap, HashSet};
 
 use chrono::NaiveDate;
-use domain::player::{Player, PlayerMovementKind};
+use domain::player::{Player, PlayerMovementEntry, PlayerMovementKind};
 use serde::Serialize;
 
 use crate::game::{Game, ScoutedPlayer};
@@ -354,28 +354,45 @@ fn trains_with_club_since<'a>(player: &'a Player, club: &str) -> Option<&'a str>
         .max();
     let arrived = player
         .joined_current_club_on()
-        .map(|arrival| opening_contract_start(player, club, arrival).unwrap_or(arrival));
+        .map(|arrival| training_began_on(player, club, arrival));
     // ISO dates order like the days they name, so the later of the two is the larger string.
     arrived.into_iter().chain(last_return).max()
 }
 
-/// When the arrival on `arrival` is the contract a career opened with, the day that contract
-/// began. The opening entry is dated the career's first day, but a player already at the club
-/// joined when his contract began, so his coaches have known him since then, not since the
-/// career opened. None for any other arrival.
-fn opening_contract_start<'a>(player: &'a Player, club: &str, arrival: &str) -> Option<&'a str> {
-    player
+/// The day a player who arrived at `club` on `arrival` began training there. Two arrivals are
+/// dated later than that:
+/// - the contract a career opened with, dated the career's first day, though a player already at
+///   the club joined when that contract began;
+/// - a loan made permanent, dated the purchase, though he has trained there since his loan began.
+///
+/// Any other arrival is the day itself.
+fn training_began_on<'a>(player: &'a Player, club: &str, arrival: &'a str) -> &'a str {
+    let into_club = |entry: &&PlayerMovementEntry| entry.to_team_id.as_deref() == Some(club);
+    let arrival_entry = player
         .movement_history
         .iter()
+        .filter(into_club)
         .find(|entry| {
-            entry.kind == PlayerMovementKind::InitialContract
-                && entry.date == arrival
-                && entry.to_team_id.as_deref() == Some(club)
-        })?
-        .contract
-        .as_ref()?
-        .start
-        .as_deref()
+            entry.date == arrival
+                && matches!(
+                    entry.kind,
+                    PlayerMovementKind::InitialContract | PlayerMovementKind::LoanToBuy
+                )
+        });
+    let earlier = match arrival_entry.map(|entry| &entry.kind) {
+        Some(PlayerMovementKind::InitialContract) => arrival_entry
+            .and_then(|entry| entry.contract.as_ref())
+            .and_then(|contract| contract.start.as_deref()),
+        Some(PlayerMovementKind::LoanToBuy) => player
+            .movement_history
+            .iter()
+            .filter(into_club)
+            .filter(|entry| entry.kind == PlayerMovementKind::LoanStart && *entry.date <= *arrival)
+            .map(|entry| entry.date.as_str())
+            .max(),
+        _ => None,
+    };
+    earlier.unwrap_or(arrival)
 }
 
 fn scouts_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
@@ -401,7 +418,7 @@ mod tests {
     use chrono::{TimeZone, Utc};
     use domain::league::League;
     use domain::manager::Manager;
-    use domain::player::{ActiveLoan, PlayerMovementEntry, Position};
+    use domain::player::{ActiveLoan, Position};
     use domain::staff::{Staff, StaffAttributes, StaffRole};
 
     const MY_CLUB: &str = "mine";
@@ -1454,5 +1471,38 @@ mod tests {
 
         assert_eq!(one_way, other_way);
         assert_eq!(one_way, first_by_id, "the coach with the first id judges");
+    }
+
+    /// Given a player on loan at the club since 1 Jul, whose buy option the club takes up today,
+    ///       15 Sep (the purchase is recorded as an arrival dated today)
+    /// When the club's opinion of his potential is asked
+    /// Then it is still the coaches': he has trained with the club since his loan began, and
+    ///      buying him did not take him off the training ground
+    #[test]
+    fn a_loanee_bought_by_the_club_keeps_the_coaches_opinion() {
+        let mut bought = player("bought", Some(MY_CLUB));
+        bought.potential = 80;
+        bought
+            .record_movement(PlayerMovementEntry {
+                from_team_id: Some("rival".to_string()),
+                to_team_id: Some(MY_CLUB.to_string()),
+                ..PlayerMovementEntry::new("2026-07-01", PlayerMovementKind::LoanStart)
+            })
+            .unwrap();
+        bought
+            .record_movement(PlayerMovementEntry {
+                from_team_id: Some("rival".to_string()),
+                to_team_id: Some(MY_CLUB.to_string()),
+                ..PlayerMovementEntry::new("2026-09-15", PlayerMovementKind::LoanToBuy)
+            })
+            .unwrap();
+        let mut game = world(Some(MY_CLUB), vec![bought]);
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+
+        assert_eq!(game.players[0].joined_current_club_on(), Some("2026-09-15"));
+        assert_eq!(
+            opinion_of(&game, "bought").map(|opinion| opinion.source),
+            Some(OpinionSource::Coaches)
+        );
     }
 }
