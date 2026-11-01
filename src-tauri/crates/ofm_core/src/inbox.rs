@@ -116,14 +116,7 @@ pub fn already_emitted(game: &Game, key: &str) -> bool {
 /// save has an empty ledger and inherits the world's `world_history`, so seeding
 /// it would suppress every World Cup announcement the previous career had seen.
 pub fn seed_ledger_from_save(game: &mut Game) {
-    let ids: Vec<String> = game.messages.iter().map(|m| m.id.clone()).collect();
-    let upgraded: Vec<String> = game
-        .messages
-        .iter()
-        .filter_map(upgraded_legacy_key)
-        .collect();
-    game.emitted_events.extend(ids);
-    game.emitted_events.extend(upgraded);
+    adopt_the_inbox(game);
     let champions: Vec<u32> = game
         .world_history
         .world_cup_champions
@@ -134,6 +127,28 @@ pub fn seed_ledger_from_save(game: &mut Game) {
         game.emitted_events
             .insert(format!("world_cup_champion_{year}"));
     }
+}
+
+/// Rebuild the ledger of a current save that had one and lost it (its save cell did not read).
+///
+/// From the inbox only: every message there was sent. The World Cup archive is not read, unlike
+/// [`seed_ledger_from_save`]: a career started from an existing world inherits it, and taking its
+/// champions as announced would silence a World Cup this career was never told about. A champion
+/// whose message this career already deleted may be announced once more, the smaller loss.
+pub fn rebuild_lost_ledger(game: &mut Game) {
+    adopt_the_inbox(game);
+}
+
+/// Every message in the inbox, and the current key of a legacy one, as sent.
+fn adopt_the_inbox(game: &mut Game) {
+    let ids: Vec<String> = game.messages.iter().map(|m| m.id.clone()).collect();
+    let upgraded: Vec<String> = game
+        .messages
+        .iter()
+        .filter_map(upgraded_legacy_key)
+        .collect();
+    game.emitted_events.extend(ids);
+    game.emitted_events.extend(upgraded);
 }
 
 /// Whether `segment` is shaped like a `YYYY-MM-DD` day.
@@ -314,6 +329,28 @@ mod tests {
             });
         seed_ledger_from_save(&mut game);
         assert!(already_emitted(&game, "world_cup_champion_2026"));
+    }
+
+    /// Given a lost ledger, an inbox holding one announcement, and an archived World Cup champion
+    ///       that may be inherited from the world the career started in
+    /// When the ledger is rebuilt
+    /// Then the announcement counts as sent and the champion does not: an inherited World Cup is
+    ///      never silenced
+    #[test]
+    fn a_lost_ledger_is_rebuilt_from_the_inbox_and_not_the_archive() {
+        let mut game = game();
+        game.messages.push(message("promotion_2032"));
+        game.world_history
+            .record_world_cup_champion(WorldCupChampionRecord {
+                year: 2030,
+                nation_code: "BRA".to_string(),
+                nation_name: "Brazil".to_string(),
+            });
+
+        rebuild_lost_ledger(&mut game);
+
+        assert!(already_emitted(&game, "promotion_2032"));
+        assert!(!already_emitted(&game, "world_cup_champion_2030"));
     }
 
     /// No generator may dedupe against the mailbox again.

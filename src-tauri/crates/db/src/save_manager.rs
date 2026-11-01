@@ -484,7 +484,9 @@ impl SaveManager {
         // Save-format gate: reject saves from a newer build whose format this
         // build can't understand, and flag older saves so the migrations below
         // are restamped at the current format on resave.
-        let save_format_version = meta_repo::load_meta(db.conn())?
+        let meta = meta_repo::load_meta(db.conn())?;
+        let save_format_version = meta
+            .as_ref()
             .map(|meta| meta.save_format_version)
             .unwrap_or(meta_repo::CURRENT_SAVE_FORMAT_VERSION);
         if save_format_version > meta_repo::CURRENT_SAVE_FORMAT_VERSION {
@@ -528,6 +530,27 @@ impl SaveManager {
                 // a new game is drawn from its seed.
                 game.legacy_world_cup_draw = true;
             }
+            needs_resave = true;
+        }
+        // A save that had a sent-ledger and lost it (its cell did not read: `read_game` loaded it
+        // empty and kept the cell). Left empty, the next advance would announce again everything it
+        // held, so it is rebuilt from the inbox, and saved now so later loads read the rebuilt one.
+        // A pre-v5 save was seeded above. Before the repairs below, which may send messages and
+        // are deduped by this ledger.
+        let ledger_lost = save_format_version >= 5
+            && meta.as_ref().is_some_and(|meta| {
+                crate::json_column::try_read::<std::collections::BTreeSet<String>>(
+                    db.conn(),
+                    crate::json_column::Cell::new("game_meta", "singleton", "emitted_events_json"),
+                    &meta.emitted_events_json,
+                )
+                .is_none()
+            });
+        if ledger_lost {
+            log::warn!(
+                "[save_manager] the sent-ledger of save {save_id} did not read; rebuilt from the inbox"
+            );
+            ofm_core::inbox::rebuild_lost_ledger(&mut game);
             needs_resave = true;
         }
         // Retirees used to stay on the roster flagged retired (saves below format 9). Whatever the
@@ -2510,6 +2533,13 @@ mod tests {
         let sent_again = ofm_core::inbox::emit(&mut loaded, announcement());
 
         assert!(!sent_again, "the announcement went out a second time");
+        let stored = meta_repo::load_meta(GameDatabase::open(&db_path).unwrap().conn())
+            .unwrap()
+            .unwrap()
+            .emitted_events_json;
+        let rebuilt: std::collections::BTreeSet<String> = serde_json::from_str(&stored)
+            .expect("the load saved the rebuilt ledger, so a fresh reader reads it");
+        assert!(rebuilt.contains("promotion_2032"), "{rebuilt:?}");
         let copies = loaded
             .messages
             .iter()

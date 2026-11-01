@@ -367,14 +367,6 @@ impl GamePersistenceReader {
             })
             .collect::<Result<_, String>>()?;
 
-        // The sent-ledger is read apart: when its cell does not parse, the game is built with an
-        // empty one and the ledger is then rebuilt from the inbox (below).
-        let ledger: Option<std::collections::BTreeSet<String>> = json_column::try_read(
-            conn,
-            meta_cell("emitted_events_json"),
-            &meta.emitted_events_json,
-        );
-        let ledger_was_lost = ledger.is_none();
         let mut game = Game {
             seed: meta.seed as u64,
             legacy_world_cup_draw: meta.legacy_world_cup_draw,
@@ -430,11 +422,16 @@ impl GamePersistenceReader {
                 &meta.world_history_json,
                 WorldHistoryArchive::default,
             ),
-            // A malformed ledger does not fail the load: refusing to open an
-            // entire career over one bookkeeping column would be the worse trade.
-            // It is rebuilt from the inbox below, and its cell is logged and kept
-            // in unreadable_records.
-            emitted_events: ledger.unwrap_or_default(),
+            // A malformed ledger reads as empty rather than failing the load:
+            // refusing to open an entire career over one bookkeeping column would
+            // be the worse trade. The cell is logged and kept in unreadable_records,
+            // and `SaveManager::load_game` rebuilds the ledger from the inbox; this
+            // reader only reports what is stored.
+            emitted_events: json_column::read(
+                conn,
+                meta_cell("emitted_events_json"),
+                &meta.emitted_events_json,
+            ),
             extra_translations: json_column::read(
                 conn,
                 meta_cell("extra_translations_json"),
@@ -461,18 +458,6 @@ impl GamePersistenceReader {
         // here: this reads whatever is on disk, and "is the ledger empty?" is not
         // the same question as "was this save written before the ledger existed?".
         // `SaveManager::load_game` owns that, gated on the save-format version.
-        //
-        // A ledger whose cell did not parse is the one exception, and it is a
-        // third question: the save had a ledger and lost it. Left empty, the next
-        // advance would announce again everything it held. Rebuilt the way a
-        // pre-v5 save's is: from the inbox and the World Cup archive, so an event
-        // whose message was already deleted, and is in neither, may still be
-        // announced once more. Only on the load that finds the cell unreadable;
-        // the next save writes the rebuilt ledger, and later loads read it.
-        if ledger_was_lost {
-            log::warn!("[load] the sent-ledger did not read; rebuilding it from the inbox");
-            ofm_core::inbox::seed_ledger_from_save(&mut game);
-        }
         ofm_core::season_context::refresh_game_context(&mut game);
 
         Ok(game)
