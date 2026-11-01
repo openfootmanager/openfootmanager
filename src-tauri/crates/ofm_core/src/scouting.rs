@@ -307,6 +307,7 @@ pub fn process_scouting(game: &mut Game) {
 
         if let (Some(scout), Some(player)) = (scout, player) {
             let scout_name = format!("{} {}", scout.first_name, scout.last_name);
+            let scout_id = scout.id.clone();
             let judging_ability = scout.attributes.judging_ability;
             let judging_potential = scout.attributes.judging_potential;
             let team_name = player
@@ -334,7 +335,12 @@ pub fn process_scouting(game: &mut Game) {
                 &today,
             );
             game.messages.push(msg);
-            record_scouted_player(game, &assignment.player_id, &today);
+            let judge = ReportWriter {
+                id: scout_id,
+                name: scout_name,
+                judging_potential,
+            };
+            record_scouted_player(game, &assignment.player_id, &today, judge);
         }
     }
 
@@ -343,14 +349,34 @@ pub fn process_scouting(game: &mut Game) {
     }
 }
 
-fn record_scouted_player(game: &mut Game, player_id: &str, scouted_on: &str) {
+/// The scout who wrote a report: his name is kept with it, and his eye sets the width of the range
+/// he gives the player's potential.
+struct ReportWriter {
+    id: String,
+    name: String,
+    judging_potential: u8,
+}
+
+fn record_scouted_player(game: &mut Game, player_id: &str, scouted_on: &str, scout: ReportWriter) {
     let Some(player) = game.players.iter().find(|p| p.id == player_id) else {
         return;
     };
+    // The opinion describes him as he is today, like the attributes beside it; a player with no
+    // stored potential gets none.
+    let potential = (player.potential > 0).then(|| {
+        crate::potential_opinion::judged_range(
+            player_id,
+            &scout.id,
+            player.potential,
+            scout.judging_potential,
+        )
+    });
     let scouted = ScoutedPlayer {
         player_id: player_id.to_string(),
         scouted_on: scouted_on.to_string(),
         attributes: player.attributes.clone(),
+        potential,
+        scout_name: Some(scout.name),
     };
     game.scouted_players.retain(|s| s.player_id != player_id);
     game.scouted_players.push(scouted);

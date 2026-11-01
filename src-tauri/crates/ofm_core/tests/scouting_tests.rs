@@ -1163,6 +1163,32 @@ fn a_scouted_snapshot_does_not_follow_later_attribute_changes() {
     assert_eq!(game.scouted_players[0].attributes.pace, pace_seen);
 }
 
+/// Given a player whose true potential is 70, and a scout with an eye for potential of 75
+/// When the scout's assignment on him completes
+/// Then the report keeps the scout's name and his opinion of the potential: a range 8 points wide
+///      (his band) that holds the true 70, the same range his eye always gives that player
+#[test]
+fn a_finished_scouting_job_stores_the_scouts_opinion_and_name() {
+    let mut game = make_game();
+    game.players
+        .iter_mut()
+        .find(|p| p.id == "p2")
+        .unwrap()
+        .potential = 70;
+    send_scout(&mut game, "scout1", "p2").unwrap();
+    complete_scouting(&mut game);
+
+    let report = &game.scouted_players[0];
+    let range = report.potential.expect("the scout gives a range");
+    assert_eq!(report.scout_name.as_deref(), Some("Scout Nrscout1"));
+    assert_eq!(range.high - range.low, 8);
+    assert!(range.low <= 70 && 70 <= range.high, "{range:?}");
+    assert_eq!(
+        range,
+        ofm_core::potential_opinion::judged_range("p2", "scout1", 70, 75)
+    );
+}
+
 /// Given a player already scouted
 /// When a second assignment on him completes later
 /// Then there is still one record, with the newer date and attributes

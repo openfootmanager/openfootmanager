@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 61;
+const EXPECTED_MIGRATION_COUNT: usize = 62;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -177,6 +177,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "v061_last_season_rollover.sql",
         include_str!("sql/v061_last_season_rollover.sql"),
+    ),
+    // V62: A scout report's opinion of the player's potential (a range) and the scout's name
+    (
+        "v062_scouted_potential_opinion.sql",
+        include_str!("sql/v062_scouted_potential_opinion.sql"),
     ),
 ];
 
@@ -645,6 +650,55 @@ mod tests {
         }
     }
 
+    /// Given a real v061 save holding a scout report, written before reports carried an opinion of
+    ///       the player's potential
+    /// When it is migrated, twice
+    /// Then the report reads "no opinion, no scout named" (NULLs), so that player shows no opinion
+    ///      until he is scouted again, and the report's date and attributes are untouched
+    #[test]
+    fn scouted_potential_v062_upgrades_a_v061_report_with_no_opinion() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(
+            MIGRATIONS
+                .iter()
+                .take(61)
+                .map(|(_, sql)| M::up(sql))
+                .collect(),
+        )
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO scouted_players (player_id, scouted_on, attributes_json) VALUES ('p1', '2033-03-10', '{\"pace\":71}')",
+            [],
+        )
+        .unwrap();
+        assert!(
+            conn.prepare("SELECT potential_low FROM scouted_players")
+                .is_err()
+        );
+
+        for _ in 0..2 {
+            all_migrations().to_latest(&mut conn).unwrap();
+            let row: (String, String, Option<i64>, Option<i64>, Option<String>) = conn
+                .query_row(
+                    "SELECT scouted_on, attributes_json, potential_low, potential_high, scout_name FROM scouted_players",
+                    [],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+                )
+                .expect("v062 must add the columns to a real v061 report");
+            assert_eq!(
+                row,
+                (
+                    "2033-03-10".to_string(),
+                    "{\"pace\":71}".to_string(),
+                    None,
+                    None,
+                    None
+                )
+            );
+        }
+    }
+
     /// Given a real v060 save, written before the season rollover date was kept
     /// When it is migrated, twice
     /// Then its game_meta row reads "no rollover recorded" (NULL), so no scout report in it is
@@ -1065,6 +1119,7 @@ mod tests {
     ("v059_legacy_tactics_imported.sql", 0xf2fdbc95bf5fdc99),
     ("v060_gate_settled_from.sql", 0x8040d9e0256352d4),
     ("v061_last_season_rollover.sql", 0x111c4c4f40b3952a),
+    ("v062_scouted_potential_opinion.sql", 0xd409624c4d0ca76f),
     ];
 
     /// Given the migrations already shipped
