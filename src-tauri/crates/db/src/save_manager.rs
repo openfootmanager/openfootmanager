@@ -484,7 +484,9 @@ impl SaveManager {
         // Save-format gate: reject saves from a newer build whose format this
         // build can't understand, and flag older saves so the migrations below
         // are restamped at the current format on resave.
-        let save_format_version = meta_repo::load_meta(db.conn())?
+        let meta = meta_repo::load_meta(db.conn())?;
+        let save_format_version = meta
+            .as_ref()
             .map(|meta| meta.save_format_version)
             .unwrap_or(meta_repo::CURRENT_SAVE_FORMAT_VERSION);
         if save_format_version > meta_repo::CURRENT_SAVE_FORMAT_VERSION {
@@ -528,6 +530,27 @@ impl SaveManager {
                 // a new game is drawn from its seed.
                 game.legacy_world_cup_draw = true;
             }
+            needs_resave = true;
+        }
+        // A save that had a sent-ledger and lost it (its cell did not read: `read_game` loaded it
+        // empty and kept the cell). Left empty, the next advance would announce again everything it
+        // held, so it is rebuilt from the inbox, and saved now so later loads read the rebuilt one.
+        // A pre-v5 save was seeded above. Before the repairs below, which may send messages and
+        // are deduped by this ledger.
+        let ledger_lost = save_format_version >= 5
+            && meta.as_ref().is_some_and(|meta| {
+                crate::json_column::try_read::<std::collections::BTreeSet<String>>(
+                    db.conn(),
+                    crate::json_column::Cell::new("game_meta", "singleton", "emitted_events_json"),
+                    &meta.emitted_events_json,
+                )
+                .is_none()
+            });
+        if ledger_lost {
+            log::warn!(
+                "[save_manager] the sent-ledger of save {save_id} did not read; rebuilt from its mail"
+            );
+            ofm_core::inbox::rebuild_lost_ledger(&mut game);
             needs_resave = true;
         }
         // Retirees used to stay on the roster flagged retired (saves below format 9). Whatever the
@@ -2473,6 +2496,111 @@ mod tests {
         let loaded = sm.load_game(&save_id).unwrap();
 
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
+    }
+
+    /// Given a current-format save whose inbox holds an announcement, and whose sent-ledger cell
+    ///       no longer parses
+    /// When it is loaded, and the day's generators send that announcement again
+    /// Then it is not sent twice: the ledger was rebuilt from the inbox, and its cell kept
+    #[test]
+    fn an_unreadable_ledger_is_rebuilt_so_nothing_is_announced_twice() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        // A save that settles in one load, so the lost ledger can be the only reason the load
+        // under test writes: identities already in their current form (the sample's legacy "GB"
+        // takes several loads to settle), and the manager between jobs (the warning about the
+        // user's short club keeps its state in the ledger too).
+        game.manager.team_id = None;
+        for player in &mut game.players {
+            player.nationality = "ENG".to_string();
+            player.football_nation = "ENG".to_string();
+            player.birth_country = Some("ENG".to_string());
+        }
+        for team in &mut game.teams {
+            team.football_nation = "ENG".to_string();
+        }
+        let announcement = || {
+            domain::message::InboxMessage::new(
+                "promotion_2032".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                "2032-05-30".to_string(),
+            )
+        };
+        assert!(ofm_core::inbox::emit(&mut game, announcement()));
+        let save_id = sm.create_save(&game, "Lost Ledger").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        // One load first, so the save's one-time repairs are done and saved; then the precondition:
+        // a plain reload writes nothing.
+        sm.load_game(&save_id).unwrap();
+        let settled = compute_checksum(&db_path).unwrap();
+        sm.load_game(&save_id).unwrap();
+        assert_eq!(
+            compute_checksum(&db_path).unwrap(),
+            settled,
+            "a plain reload of the settled save writes nothing"
+        );
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            assert!(meta.save_format_version >= 5, "a save that has a ledger");
+            db.conn()
+                .execute("UPDATE game_meta SET emitted_events_json = '[\"promo'", [])
+                .unwrap();
+        }
+
+        let mut loaded = sm.load_game(&save_id).unwrap();
+        let sent_again = ofm_core::inbox::emit(&mut loaded, announcement());
+
+        assert!(!sent_again, "the announcement went out a second time");
+        let stored = meta_repo::load_meta(GameDatabase::open(&db_path).unwrap().conn())
+            .unwrap()
+            .unwrap()
+            .emitted_events_json;
+        let rebuilt: std::collections::BTreeSet<String> = serde_json::from_str(&stored)
+            .expect("the load saved the rebuilt ledger, so a fresh reader reads it");
+        assert!(rebuilt.contains("promotion_2032"), "{rebuilt:?}");
+        let copies = loaded
+            .messages
+            .iter()
+            .filter(|message| message.id == "promotion_2032")
+            .count();
+        assert_eq!(copies, 1);
+        let db = GameDatabase::open(&db_path).unwrap();
+        let kept = crate::json_column::unreadable_cells(db.conn()).unwrap();
+        assert_eq!(kept.len(), 1, "{kept:?}");
+        assert_eq!(kept[0].column, "emitted_events_json");
+    }
+
+    /// Given a current-format save whose sent-ledger reads, and whose inbox holds a message the
+    ///       ledger does not (not every message is sent through it)
+    /// When it is loaded
+    /// Then the ledger is left as stored: only a ledger that was lost is rebuilt
+    #[test]
+    fn a_ledger_that_reads_is_not_rebuilt() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.messages.push(domain::message::InboxMessage::new(
+            "unledgered_note".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2032-05-30".to_string(),
+        ));
+        let save_id = sm.create_save(&game, "Ledger Reads").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert!(
+            !loaded.emitted_events.contains("unledgered_note"),
+            "{:?}",
+            loaded.emitted_events
+        );
     }
 
     /// Given a save written before games had a seed,
