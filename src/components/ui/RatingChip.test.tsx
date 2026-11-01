@@ -9,6 +9,9 @@ vi.mock("react-i18next", () => ({
       if (key === "common.overallRatingTier")
         return `Overall ${params?.value}, tier ${params?.tier}`;
       if (key === "common.overallRating") return `Overall ${params?.value}`;
+      if (key === "common.namedRatingTier")
+        return `${params?.name} ${params?.value}, tier ${params?.tier}`;
+      if (key === "common.namedRating") return `${params?.name} ${params?.value}`;
       if (key.startsWith("common.ratingTier.")) return key.slice("common.ratingTier.".length);
       return key;
     },
@@ -61,6 +64,24 @@ describe("RatingChip", () => {
   it("shows a rating as a whole number", () => {
     render(<RatingChip value={78.6} tier="A" />);
     expect(screen.getByText("Overall 79, tier A")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a shooting rating of 74 in tier A, and a composure of 50 below every tier
+   * When each chip is drawn with the attribute's name
+   * Then it names that attribute, not the overall rating, with the tier where there is one.
+   */
+  it("names the rating it shows when it is not the overall", () => {
+    render(
+      <>
+        <RatingChip value={74} tier="A" name="Shooting" />
+        <RatingChip value={50} tier="Rest" name="Composure" />
+      </>,
+    );
+    expect(screen.getByTitle("Shooting 74, tier A")).toHaveClass("bg-tone-good-tint");
+    expect(screen.getByText("Shooting 74, tier A")).toBeInTheDocument();
+    expect(screen.getByTitle("Composure 50")).toHaveClass("bg-sunken");
+    expect(screen.queryByText(/Overall/)).not.toBeInTheDocument();
   });
 
   /** Given the larger size, then the chip is the taller one; the default is the row's size. */

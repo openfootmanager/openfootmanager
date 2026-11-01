@@ -88,13 +88,16 @@ describe("bundled font coverage", () => {
    * Then Inter's Cyrillic face is declared at every UI weight, limited to Cyrillic code points, so
    *      the text is not drawn in a system fallback
    */
-  it("declares Inter cyrillic at every UI weight, scoped to Cyrillic", () => {
+  it("declares Inter cyrillic and cyrillic-ext at every UI weight, scoped to Cyrillic", () => {
     const css = appCss();
 
     for (const weight of INTER_WEIGHTS) {
       const block = faceBlock(css, "Inter", weight, `inter-cyrillic-${weight}-normal.woff2`);
       expect(block, `Inter cyrillic ${weight}`).not.toBeNull();
       expectCyrillicOnly(block ?? "");
+      const extended = faceBlock(css, "Inter", weight, `inter-cyrillic-ext-${weight}-normal.woff2`);
+      expect(extended, `Inter cyrillic-ext ${weight}`).not.toBeNull();
+      expectCyrillicOnly(extended ?? "");
     }
   });
 

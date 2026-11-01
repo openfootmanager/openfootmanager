@@ -55,6 +55,15 @@ export interface TeamSeasonRecord {
   lost: number;
   goals_for: number;
   goals_against: number;
+  /** The league the table was in; blank on a record saved before it was kept. */
+  competition_id: string;
+}
+
+/** A league title in the world's past, as the backend names it. */
+export interface PastChampionData {
+  season: number;
+  team_id: string;
+  record: TeamSeasonRecord;
 }
 
 export type PlayerRole =
@@ -910,9 +919,10 @@ export interface GameStateData {
   emitted_events?: string[];
   legacy_tactics_imported?: boolean;
   legacy_world_cup_draw?: boolean;
-  /** The day per-fixture gate income starts being paid from (an ISO date); null until the first settlement. */
+  /** The first date a completed home fixture is paid a gate for (`YYYY-MM-DD`); null until then. */
   gate_settled_from?: string | null;
-  /** The day the last season ended and the next began (an ISO date); null until the career's first season end. */
+  /** The day the last season ended (`YYYY-MM-DD`): a scout's report from before it is out of date.
+   *  Null until the career's first season end. */
   last_season_rollover_on?: string | null;
   /** Sent by the backend; the frontend reads these through their own commands. */
   custom_tactics?: unknown[];

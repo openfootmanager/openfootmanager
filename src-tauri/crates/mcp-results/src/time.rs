@@ -119,6 +119,12 @@ pub enum SkipToMatchDay {
         days_advanced: u32,
         target_date: String,
     },
+    /// Stopped by blockers, as the screen's skip is: nothing to skip past until they are resolved
+    /// (`days_advanced` is how many days passed before one appeared, 0 when one stood at the start).
+    Blocked {
+        days_advanced: u32,
+        blockers: Vec<Blocker>,
+    },
 }
 
 impl fmt::Display for SkipToMatchDay {
@@ -143,22 +149,73 @@ impl fmt::Display for SkipToMatchDay {
                 f,
                 "## Skipped to Match Day\n\n**{days_advanced} days advanced** to {target_date}.\nUse `time_advance` to play the match."
             ),
+            Self::Blocked {
+                days_advanced,
+                blockers,
+            } => {
+                let list: Vec<String> = blockers.iter().map(|b| format!("- {b}")).collect();
+                write!(
+                    f,
+                    "## Skip Blocked\n\n**{days_advanced} days advanced** before something needs you:\n\n{}\n\nResolve these, as a manager would on the screen, then skip again.",
+                    list.join("\n")
+                )
+            }
         }
+    }
+}
+
+/// One thing that stops time, exactly as the game's own blocker check reports it to the UI.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Blocker {
+    /// A stable name such as `injured_xi`, `incomplete_xi`, `squad_size_crisis`,
+    /// `planned_contract_exit_crisis`, `key_contract_risk` or `contract_wage_risk`.
+    pub id: String,
+    /// `warn` for everything that stops time today.
+    pub severity: String,
+    /// The screen that resolves it.
+    pub tab: String,
+    /// Counts and names the blocker is about (`{"count": "2"}`), when it has any.
+    pub params: Option<serde_json::Value>,
+}
+
+impl fmt::Display for Blocker {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let params = self
+            .params
+            .as_ref()
+            .map_or_else(String::new, |params| format!(" {params}"));
+        write!(
+            f,
+            "[{}] {} (resolve on the {} screen){params}",
+            self.severity, self.id, self.tab
+        )
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Blockers {
-    pub blockers: Vec<String>,
+    /// What stops `time_advance` and `time_skip_to_match_day`, which refuse while any stands, as
+    /// the UI's Continue and skip do: the same list and severities the UI uses, informational items
+    /// (unread urgent mail) left out.
+    pub blockers: Vec<Blocker>,
+    /// A live match is in progress: finish it first.
+    #[serde(default)]
+    pub live_match_in_progress: bool,
 }
 
 impl fmt::Display for Blockers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.blockers.is_empty() {
+        if self.blockers.is_empty() && !self.live_match_in_progress {
             return write!(f, "## No Blockers\n\nTime can be advanced safely.");
         }
-        let list: Vec<String> = self.blockers.iter().map(|b| format!("- {b}")).collect();
-        write!(f, "## ⚠️ Blockers Detected\n\n{}", list.join("\n"))
+        let mut lines = Vec::new();
+        if self.live_match_in_progress {
+            lines.push("- Live match in progress — finish the match first".to_string());
+        }
+        for blocker in &self.blockers {
+            lines.push(format!("- {blocker}"));
+        }
+        write!(f, "## ⚠️ Blockers Detected\n\n{}", lines.join("\n"))
     }
 }
 

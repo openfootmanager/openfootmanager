@@ -10,6 +10,11 @@ interface RatingChipProps {
   tier: RatingTier;
   /** `sm` fits a table row (the default); `md` a card or a profile line. */
   size?: "sm" | "md";
+  /**
+   * The translated name of what is rated, when it is not the overall rating ("Shooting"): the
+   * chip then reads "Shooting 74, tier A" rather than calling it the overall.
+   */
+  name?: string;
 }
 
 const SIZE = {
@@ -22,13 +27,20 @@ const SIZE = {
  * words for a screen reader and as a tooltip ("Overall 79, tier A"), so the colour is never the
  * only signal. It replaces each screen's own OVR badge as the pages move onto it.
  */
-export function RatingChip({ value, tier, size = "sm" }: RatingChipProps) {
+export function RatingChip({ value, tier, size = "sm", name }: RatingChipProps) {
   const { t } = useTranslation();
   const rating = Math.round(value);
   const letterKey = ratingTierLetterKey(tier);
-  const label = letterKey
-    ? t("common.overallRatingTier", { value: rating, tier: t(letterKey) })
-    : t("common.overallRating", { value: rating });
+  let label: string;
+  if (name === undefined) {
+    label = letterKey
+      ? t("common.overallRatingTier", { value: rating, tier: t(letterKey) })
+      : t("common.overallRating", { value: rating });
+  } else {
+    label = letterKey
+      ? t("common.namedRatingTier", { name, value: rating, tier: t(letterKey) })
+      : t("common.namedRating", { name, value: rating });
+  }
   return (
     <span
       title={label}

@@ -13,6 +13,10 @@ use crate::mcp_server::tools_impl::helpers::{
     age_from_dob, format_position, require_game, require_league, serde_label, user_team,
 };
 use domain::league::{FixtureStatus, League};
+use domain::player::PlayerAttributes;
+use ofm_core::game::Game;
+use ofm_core::player_knowledge::{player_knowledge, PlayerKnowledge};
+use ofm_core::slices::scouted_report::query_scouted_report;
 use ofm_core::state::StateManager;
 use std::sync::Arc;
 
@@ -79,12 +83,23 @@ fn finance_figures(snapshot: &ofm_core::finances::TeamFinanceSnapshot) -> Financ
 
 // ─── info_game_state ────────────────────────────────────────────────────────
 
-/// Return the full game state as JSON. This gives agents access to the raw
-/// structured data rather than formatted text. It is available in competition mode
-/// by maintainer decision. Only game_new, game_select_team, game_export_world,
-/// game_exit and game_load_save are restricted by that mode.
+/// Return the full game state as JSON, for agents that want the raw structured data.
+/// It is not available in competition mode (`McpMode::disabled_tools`): the dump holds every
+/// club's players and finances, and competition agents follow the same knowledge rule as players.
+/// A projection of it through `ofm_core::player_knowledge` for sandbox mode is the next change.
 pub fn info_game_state(ctx: Arc<McpContext>) -> Result<GameState, String> {
-    let game = require_game(&ctx.state_manager)?;
+    full_game_state(&ctx.state_manager)
+}
+
+/// The same dump for the end-to-end harness, which compares live state with the saved database and
+/// checks that a refusal changed nothing. Registered only with `--dev-full-state`, never in
+/// competition mode (`McpConfig::hidden_tools`, `parse_mcp_config_from_iter`).
+pub fn dev_full_game_state(ctx: Arc<McpContext>) -> Result<GameState, String> {
+    full_game_state(&ctx.state_manager)
+}
+
+fn full_game_state(state: &StateManager) -> Result<GameState, String> {
+    let game = require_game(state)?;
     let game = serde_json::to_value(&game)
         .map_err(|e| format!("Failed to serialize game state: {}", e))?;
     Ok(GameState { game })
@@ -360,6 +375,46 @@ pub fn info_player_profile(
     player_id: String,
 ) -> Result<PlayerProfile, String> {
     let game = require_game(&ctx.state_manager)?;
+    player_profile_in(&game, &player_id)
+}
+
+/// The 19 attributes in the order the profile lists them.
+fn attribute_rows(a: &PlayerAttributes) -> Vec<Attribute> {
+    let attribute = |name: &str, value: u8| Attribute {
+        name: name.to_string(),
+        value,
+    };
+    vec![
+        attribute("Pace", a.pace),
+        attribute("Shooting", a.shooting),
+        attribute("Passing", a.passing),
+        attribute("Dribbling", a.dribbling),
+        attribute("Defending", a.defending),
+        attribute("Tackling", a.tackling),
+        attribute("Strength", a.strength),
+        attribute("Stamina", a.stamina),
+        attribute("Agility", a.agility),
+        attribute("Vision", a.vision),
+        attribute("Decisions", a.decisions),
+        attribute("Composure", a.composure),
+        attribute("Positioning", a.positioning),
+        attribute("Aggression", a.aggression),
+        attribute("Teamwork", a.teamwork),
+        attribute("Leadership", a.leadership),
+        attribute("Handling", a.handling),
+        attribute("Reflexes", a.reflexes),
+        attribute("Aerial", a.aerial),
+    ]
+}
+
+/// The attributes a scout's report holds for `player_id`: a snapshot, never the live player's.
+fn scouted_attributes(game: &Game, player_id: &str) -> Vec<Attribute> {
+    query_scouted_report(game, player_id)
+        .map(|view| attribute_rows(&view.report.attributes))
+        .unwrap_or_default()
+}
+
+fn player_profile_in(game: &Game, player_id: &str) -> Result<PlayerProfile, String> {
     let player = game
         .players
         .iter()
@@ -372,13 +427,8 @@ pub fn info_player_profile(
         .and_then(|tid| game.teams.iter().find(|t| t.id == tid))
         .map_or_else(|| "Free Agent".to_string(), |t| t.name.clone());
 
-    let detail = if game.manager.team_id.as_deref() == player.team_id.as_deref() {
-        let a = &player.attributes;
-        let attribute = |name: &str, value: u8| Attribute {
-            name: name.to_string(),
-            value,
-        };
-        PlayerDetail::Own {
+    let detail = match player_knowledge(game, player) {
+        PlayerKnowledge::Own => PlayerDetail::Own {
             ovr: player.ovr,
             condition: player.condition,
             morale: player.morale,
@@ -389,34 +439,21 @@ pub fn info_player_profile(
                 .injury
                 .as_ref()
                 .map(|injury| serde_json::to_string(injury).unwrap_or_default()),
-            attributes: vec![
-                attribute("Pace", a.pace),
-                attribute("Shooting", a.shooting),
-                attribute("Passing", a.passing),
-                attribute("Dribbling", a.dribbling),
-                attribute("Defending", a.defending),
-                attribute("Tackling", a.tackling),
-                attribute("Strength", a.strength),
-                attribute("Stamina", a.stamina),
-                attribute("Agility", a.agility),
-                attribute("Vision", a.vision),
-                attribute("Decisions", a.decisions),
-                attribute("Composure", a.composure),
-                attribute("Positioning", a.positioning),
-                attribute("Aggression", a.aggression),
-                attribute("Teamwork", a.teamwork),
-                attribute("Leadership", a.leadership),
-                attribute("Handling", a.handling),
-                attribute("Reflexes", a.reflexes),
-                attribute("Aerial", a.aerial),
-            ],
-        }
-    } else {
-        // Limited detail for other teams' players (competition mode)
-        PlayerDetail::Other {
+            attributes: attribute_rows(&player.attributes),
+        },
+        PlayerKnowledge::Known => PlayerDetail::Known {
             ovr: player.ovr,
-            condition: player.condition,
-        }
+            attributes: attribute_rows(&player.attributes),
+        },
+        PlayerKnowledge::Scouted {
+            scouted_on,
+            current,
+        } => PlayerDetail::Scouted {
+            attributes: scouted_attributes(game, &player.id),
+            scouted_on,
+            current,
+        },
+        PlayerKnowledge::Unknown => PlayerDetail::Unknown,
     };
 
     Ok(PlayerProfile {
@@ -424,7 +461,7 @@ pub fn info_player_profile(
         match_name: player.match_name.clone(),
         full_name: player.full_name.clone(),
         position: format_position(&player.position).to_string(),
-        age: age_from_dob(&player.date_of_birth, &game),
+        age: age_from_dob(&player.date_of_birth, game),
         nationality: player.nationality.clone(),
         team,
         detail,
@@ -777,6 +814,278 @@ mod info_news_tests {
         let rendered = recent_news(&news, "2026-02-15").to_string();
 
         assert!(rendered.contains("digest headline"));
+    }
+}
+
+#[cfg(test)]
+mod player_profile_tests {
+    use super::player_profile_in;
+    use chrono::{TimeZone, Utc};
+    use domain::league::League;
+    use domain::manager::Manager;
+    use domain::player::{Injury, Player, Position};
+    use ofm_core::clock::GameClock;
+    use ofm_core::game::{Game, ScoutedPlayer};
+    use serde_json::Value;
+
+    const MY_CLUB: &str = "mine";
+
+    fn attributes(value: u8) -> domain::player::PlayerAttributes {
+        domain::player::PlayerAttributes {
+            pace: value,
+            stamina: value,
+            strength: value,
+            agility: value,
+            passing: value,
+            shooting: value,
+            tackling: value,
+            dribbling: value,
+            defending: value,
+            positioning: value,
+            vision: value,
+            decisions: value,
+            composure: value,
+            aggression: value,
+            teamwork: value,
+            leadership: value,
+            handling: value,
+            reflexes: value,
+            aerial: value,
+        }
+    }
+
+    /// A 77-rated player (attributes 77) whose condition (31), morale (22), fitness (13) and wage
+    /// differ from each other, so a value shown under the wrong name cannot pass as the right one.
+    fn player(id: &str, team_id: Option<&str>) -> Player {
+        let mut player = Player::new(
+            id.to_string(),
+            id.to_string(),
+            format!("{id} Full"),
+            "2000-01-01".to_string(),
+            "GB".to_string(),
+            Position::Midfielder,
+            attributes(77),
+        );
+        player.team_id = team_id.map(str::to_string);
+        player.ovr = 77;
+        player.condition = 31;
+        player.morale = 22;
+        player.fitness = 13;
+        player.stage_contract(None, Some("2028-06-30".to_string()), 4_200);
+        player.injury = Some(Injury {
+            name: "Hamstring".to_string(),
+            days_remaining: 9,
+        });
+        player
+    }
+
+    /// My club and "rival" play in division one; "faraway" plays in division two.
+    fn world(manager_club: Option<&str>, players: Vec<Player>) -> Game {
+        let mut manager = Manager::new(
+            "m1".to_string(),
+            "A".to_string(),
+            "B".to_string(),
+            "1980-01-01".to_string(),
+            "GB".to_string(),
+        );
+        manager.team_id = manager_club.map(str::to_string);
+        let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap());
+        let mut game = Game::new(clock, manager, vec![], players, vec![], vec![]);
+        let division = |id: &str, clubs: &[&str]| {
+            let clubs: Vec<String> = clubs.iter().map(|club| club.to_string()).collect();
+            League::new(id.to_string(), id.to_string(), 2026, &clubs)
+        };
+        game.competitions = vec![
+            division("division-one", &[MY_CLUB, "rival"]),
+            division("division-two", &["faraway", "other"]),
+        ];
+        game
+    }
+
+    fn detail_of(game: &Game, player_id: &str) -> Value {
+        let profile = player_profile_in(game, player_id).expect("the player exists");
+        serde_json::to_value(profile.detail).expect("serializes")
+    }
+
+    /// Every name the profile may not show for a player the club does not own.
+    const OWN_ONLY: [&str; 6] = [
+        "condition",
+        "morale",
+        "fitness",
+        "wage",
+        "contract_end",
+        "injury",
+    ];
+
+    fn shows(detail: &Value, field: &str) -> bool {
+        detail.get(field).is_some()
+    }
+
+    /// The profile lists all 19 attributes by name in the profile's order, each at `value`: a list
+    /// that is empty, short, repeats a name, or carries someone else's numbers would not pass.
+    fn shows_all_attributes_at(detail: &Value, value: u64) {
+        const NAMES: [&str; 19] = [
+            "Pace",
+            "Shooting",
+            "Passing",
+            "Dribbling",
+            "Defending",
+            "Tackling",
+            "Strength",
+            "Stamina",
+            "Agility",
+            "Vision",
+            "Decisions",
+            "Composure",
+            "Positioning",
+            "Aggression",
+            "Teamwork",
+            "Leadership",
+            "Handling",
+            "Reflexes",
+            "Aerial",
+        ];
+        let attributes = detail["attributes"].as_array().expect("an attributes list");
+        assert_eq!(attributes.len(), 19, "{detail}");
+        let names: Vec<&str> = attributes
+            .iter()
+            .map(|attribute| attribute["name"].as_str().expect("a name"))
+            .collect();
+        assert_eq!(names, NAMES, "{detail}");
+        assert!(
+            attributes
+                .iter()
+                .all(|attribute| attribute["value"] == value),
+            "every attribute should be {value}: {detail}"
+        );
+    }
+
+    /// Given a player at the manager's club
+    /// When the profile is read
+    /// Then everything shows: rating, condition, morale, fitness, injury and the attributes.
+    #[test]
+    fn the_clubs_own_player_shows_everything() {
+        let game = world(Some(MY_CLUB), vec![player("p", Some(MY_CLUB))]);
+
+        let detail = detail_of(&game, "p");
+
+        assert_eq!(detail["visibility"], "own");
+        for field in [
+            "ovr",
+            "condition",
+            "morale",
+            "fitness",
+            "injury",
+            "attributes",
+        ] {
+            assert!(shows(&detail, field), "{field} missing: {detail}");
+        }
+        assert_eq!(detail["condition"], 31);
+        assert_eq!(detail["morale"], 22);
+        assert_eq!(detail["fitness"], 13);
+        assert!(
+            detail["injury"]
+                .as_str()
+                .is_some_and(|injury| injury.contains("Hamstring")),
+            "{detail}"
+        );
+        assert_eq!(detail["wage"], 4_200);
+        assert_eq!(detail["contract_end"], "2028-06-30");
+        shows_all_attributes_at(&detail, 77);
+    }
+
+    /// Given a player at a rival in the manager's own division
+    /// When the profile is read
+    /// Then the rating and attributes show, and condition, morale, fitness, wage and injury do not.
+    #[test]
+    fn a_rival_in_the_same_division_shows_rating_and_attributes_only() {
+        let game = world(Some(MY_CLUB), vec![player("p", Some("rival"))]);
+
+        let detail = detail_of(&game, "p");
+
+        assert_eq!(detail["visibility"], "known");
+        assert_eq!(detail["ovr"], 77);
+        shows_all_attributes_at(&detail, 77);
+        for field in OWN_ONLY {
+            assert!(!shows(&detail, field), "{field} leaked: {detail}");
+        }
+    }
+
+    /// Given a player in another division whom a scout reported on, as he was then
+    /// When the profile is read
+    /// Then the report's attributes and date show, not his live rating, condition or morale.
+    #[test]
+    fn a_scouted_player_shows_the_report_and_not_the_live_player() {
+        let mut game = world(Some(MY_CLUB), vec![player("p", Some("faraway"))]);
+        game.scouted_players.push(ScoutedPlayer {
+            player_id: "p".to_string(),
+            scouted_on: "2026-09-01".to_string(),
+            attributes: attributes(55),
+        });
+
+        let detail = detail_of(&game, "p");
+
+        assert_eq!(detail["visibility"], "scouted");
+        assert_eq!(detail["scouted_on"], "2026-09-01");
+        assert_eq!(detail["current"], true);
+        shows_all_attributes_at(&detail, 55);
+        assert!(!shows(&detail, "ovr"), "the live rating leaked: {detail}");
+        for field in OWN_ONLY {
+            assert!(!shows(&detail, field), "{field} leaked: {detail}");
+        }
+    }
+
+    /// Given a player in another division whom nobody scouted
+    /// When the profile is read
+    /// Then only who he is shows: no rating, no attributes, nothing about his body or contract.
+    #[test]
+    fn an_unscouted_player_in_another_division_shows_identity_only() {
+        let game = world(Some(MY_CLUB), vec![player("p", Some("faraway"))]);
+
+        let profile = player_profile_in(&game, "p").expect("the player exists");
+        let detail = serde_json::to_value(&profile.detail).unwrap();
+
+        assert_eq!(profile.full_name, "p Full");
+        assert_eq!(detail["visibility"], "unknown");
+        for field in ["ovr", "attributes"].into_iter().chain(OWN_ONLY) {
+            assert!(!shows(&detail, field), "{field} leaked: {detail}");
+        }
+    }
+
+    /// Given a manager with no club, and a free agent nobody scouted
+    /// When the free agent's profile is read
+    /// Then he is unknown, not "the club's own" because both have no team.
+    #[test]
+    fn a_free_agent_is_not_the_players_of_a_manager_without_a_club() {
+        let game = world(None, vec![player("p", None)]);
+
+        let detail = detail_of(&game, "p");
+
+        assert_eq!(detail["visibility"], "unknown");
+        assert!(!shows(&detail, "condition"), "{detail}");
+    }
+
+    /// Given a player another club loaned to the manager's club
+    /// When the profile is read
+    /// Then he shows in full: he trains with the club every day.
+    #[test]
+    fn a_player_loaned_in_shows_everything() {
+        let mut loanee = player("p", Some(MY_CLUB));
+        loanee.active_loan = Some(domain::player::ActiveLoan {
+            parent_team_id: "faraway".to_string(),
+            loan_team_id: MY_CLUB.to_string(),
+            start_date: "2026-07-01".to_string(),
+            end_date: "2027-06-30".to_string(),
+            wage_contribution_pct: 100,
+            buy_option_fee: None,
+            loan_start_minutes: 0,
+            loan_start_appearances: 0,
+            development_reported_minutes: 0,
+            development_reported_appearances: 0,
+        });
+        let game = world(Some(MY_CLUB), vec![loanee]);
+
+        assert_eq!(detail_of(&game, "p")["visibility"], "own");
     }
 }
 

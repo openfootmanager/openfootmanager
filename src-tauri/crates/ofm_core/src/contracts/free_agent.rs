@@ -9,16 +9,7 @@ pub fn project_free_agent_contract_impact(
     player_id: &str,
     offered_wage: u32,
 ) -> Result<RenewalFinancialProjection, String> {
-    let manager_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or(ERR_NO_TEAM_ASSIGNED.to_string())?;
-    let team = game
-        .teams
-        .iter()
-        .find(|candidate| candidate.id == manager_team_id)
-        .ok_or(ERR_MANAGED_TEAM_NOT_FOUND.to_string())?;
+    let team = managed_team(game)?;
     let player = free_agent(game, player_id)?;
 
     Ok(project_contract_offer_financial_impact(
@@ -29,14 +20,18 @@ pub fn project_free_agent_contract_impact(
     ))
 }
 
-/// The terms the manager's first offer to a free agent starts from: his reference wage, for the
-/// years a player his age expects. The screen asks for these rather than working out a wage or a
-/// length of its own.
+/// The terms the manager's first offer to a free agent starts from: the wage he expects from the
+/// manager's club, for the years a player his age expects. Never under the wage that would insult
+/// him, which is a share of what he expects (the maintainer's ruling, 29 Oct 2026); the manager
+/// may still offer less and take the risk. The screen asks for these rather than working out a
+/// wage or a length of its own.
 pub fn free_agent_opening_offer(game: &Game, player_id: &str) -> Result<RenewalOffer, String> {
+    let team = managed_team(game)?;
     let player = free_agent(game, player_id)?;
+    let today = game.clock.current_date.date_naive();
     Ok(RenewalOffer {
-        weekly_wage: reference_player_wage(player),
-        contract_years: expected_contract_years(player, game.clock.current_date.date_naive()),
+        weekly_wage: expected_wage(player, team, today),
+        contract_years: expected_contract_years(player, today),
     })
 }
 
@@ -65,19 +60,7 @@ pub fn offer_free_agent_contract(
     player_id: &str,
     offer: RenewalOffer,
 ) -> Result<RenewalOutcome, String> {
-    let manager_team_id = game
-        .manager
-        .team_id
-        .clone()
-        .ok_or(ERR_NO_TEAM_ASSIGNED.to_string())?;
-
-    let team = game
-        .teams
-        .iter()
-        .find(|candidate| candidate.id == manager_team_id)
-        .ok_or(ERR_MANAGED_TEAM_NOT_FOUND.to_string())?
-        .clone();
-
+    let team = managed_team(game)?.clone();
     let player_index = free_agent_index(game, player_id)?;
 
     let current_date = game.clock.current_date.date_naive();

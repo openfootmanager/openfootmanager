@@ -228,8 +228,225 @@ mod tests {
 
         assert!(text.contains("| A0 | 0 | A1 | 1 | A2 | 2 |"));
         assert!(text.contains("| A15 | 15 | A16 | 16 | A17 | 17 |"));
+        assert!(
+            text.contains("| A18 | 18 |"),
+            "the 19th attribute fills a short last row and must not be dropped: {text}"
+        );
         assert!(text.contains("| Contract End | - |"));
         round_trips(profile);
+    }
+
+    fn identity() -> info::PlayerProfile {
+        info::PlayerProfile {
+            id: "p1".to_string(),
+            match_name: "A. Player".to_string(),
+            full_name: "Alan Player".to_string(),
+            position: "ST".to_string(),
+            age: "24".to_string(),
+            nationality: "England".to_string(),
+            team: "Reds".to_string(),
+            detail: info::PlayerDetail::Unknown,
+        }
+    }
+
+    /// Given a player the club knows nothing about
+    /// When the profile is rendered
+    /// Then it shows who he is and says no more, with no rating or attribute table.
+    #[test]
+    fn an_unknown_players_profile_shows_identity_only() {
+        let profile = identity();
+
+        let text = profile.to_string();
+
+        assert!(text.contains("| Full Name | Alan Player |"));
+        assert!(!text.contains("OVR"));
+        assert!(!text.contains("Attributes"));
+        round_trips(profile);
+    }
+
+    /// Given a scouted player and a rival in the manager's division
+    /// When their profiles are rendered
+    /// Then the scouted one shows the report's date (flagged when out of date) and the rival his rating.
+    #[test]
+    fn scouted_and_known_profiles_show_what_the_club_knows() {
+        let attributes = vec![
+            info::Attribute {
+                name: "Pace".to_string(),
+                value: 55,
+            },
+            info::Attribute {
+                name: "Shooting".to_string(),
+                value: 56,
+            },
+            info::Attribute {
+                name: "Passing".to_string(),
+                value: 57,
+            },
+        ];
+        let scouted = info::PlayerProfile {
+            detail: info::PlayerDetail::Scouted {
+                scouted_on: "2026-03-10".to_string(),
+                current: false,
+                attributes: attributes.clone(),
+            },
+            ..identity()
+        };
+        let known = info::PlayerProfile {
+            detail: info::PlayerDetail::Known {
+                ovr: 71,
+                attributes,
+            },
+            ..identity()
+        };
+
+        assert!(scouted
+            .to_string()
+            .contains("| Scouted On | 2026-03-10 (out of date) |"));
+        assert!(!scouted.to_string().contains("OVR"));
+        assert!(known.to_string().contains("| OVR | 71 |"));
+        assert!(!known.to_string().contains("Condition"));
+        for text in [scouted.to_string(), known.to_string()] {
+            assert!(text.contains("### Attributes"), "{text}");
+            assert!(
+                text.contains("| Pace | 55 | Shooting | 56 | Passing | 57 |"),
+                "{text}"
+            );
+        }
+        round_trips(scouted);
+        round_trips(known);
+    }
+
+    /// Given a market row for a rival (rating only), a scouted player (rounded wage only) and a
+    /// stranger (neither)
+    /// When the market is rendered
+    /// Then a missing rating or wage shows as "?", a rounded wage with a "~", and all survive a round trip.
+    #[test]
+    fn market_rows_show_only_what_the_club_may_see() {
+        let row = |id: &str, ovr: Option<u8>, wage: Option<u32>, approximate: bool| {
+            transfers::MarketPlayer {
+                id: id.to_string(),
+                name: id.to_string(),
+                position: "CM".to_string(),
+                age: "24".to_string(),
+                ovr,
+                team: Some("Reds".to_string()),
+                transfer_listed: false,
+                loan_listed: false,
+                wage,
+                wage_is_approximate: approximate,
+            }
+        };
+        let market = transfers::TransferMarket {
+            players: vec![
+                row("rival", Some(71), None, false),
+                row("scouted", None, Some(16_000), true),
+                row("stranger", None, None, false),
+            ],
+        };
+
+        let text = market.to_string();
+
+        assert!(
+            text.contains("| rival | rival | CM | 24 | 71 | Reds | - | ? |"),
+            "{text}"
+        );
+        assert!(
+            text.contains("| scouted | scouted | CM | 24 | ? | Reds | - | ~16000 |"),
+            "{text}"
+        );
+        assert!(
+            text.contains("| stranger | stranger | CM | 24 | ? | Reds | - | ? |"),
+            "{text}"
+        );
+        round_trips(market);
+    }
+
+    /// Given a bid preview whose wage-derived figures the club may not see
+    /// When it is rendered
+    /// Then they show as "?", the rounded wage with a "~", and it survives a round trip.
+    #[test]
+    fn a_preview_without_the_wage_renders_question_marks() {
+        let preview = transfers::BidPreview {
+            player_name: "P".to_string(),
+            fee: 1_000_000,
+            transfer_budget_before: 5,
+            transfer_budget_after: 4,
+            finance_before: 9,
+            finance_after: 8,
+            current_weekly_wage_spend: 50_000,
+            projected_weekly_wage_spend: None,
+            weekly_wage_budget: 67_307,
+            projected_wage_budget_usage_pct: None,
+            exceeds_transfer_budget: false,
+            exceeds_finance: false,
+            blocked_by_wage_policy: None,
+            incoming_weekly_wage: Some(7_700),
+            incoming_wage_is_approximate: true,
+        };
+
+        let text = preview.to_string();
+
+        assert!(text.contains("| Weekly Wage Bill After | ? |"), "{text}");
+        assert!(text.contains("| Projected Wage Usage | ? |"), "{text}");
+        assert!(text.contains("| Blocked By Wage Policy | ? |"), "{text}");
+        assert!(text.contains("| His Weekly Wage | ~7700 |"), "{text}");
+        round_trips(preview);
+    }
+
+    /// Given no blockers, and then a live match with one real blocker
+    /// When the blockers are rendered
+    /// Then the first says time can advance, and the second lists the live match and the blocker
+    ///      with its severity, screen and counts; both survive a round trip.
+    #[test]
+    fn blockers_render_the_live_match_and_the_games_own_list() {
+        let none = time::Blockers {
+            blockers: Vec::new(),
+            live_match_in_progress: false,
+        };
+        let some = time::Blockers {
+            blockers: vec![time::Blocker {
+                id: "injured_xi".to_string(),
+                severity: "warn".to_string(),
+                tab: "Squad".to_string(),
+                params: Some(serde_json::json!({"count": "2"})),
+            }],
+            live_match_in_progress: true,
+        };
+
+        assert!(none.to_string().contains("Time can be advanced safely."));
+        let text = some.to_string();
+        assert!(text.contains("Live match in progress"), "{text}");
+        assert!(
+            text.contains("- [warn] injured_xi (resolve on the Squad screen) {\"count\":\"2\"}"),
+            "{text}"
+        );
+        round_trips(none);
+        round_trips(some);
+    }
+
+    /// Given a skip that a blocker stopped after one day
+    /// When it is rendered
+    /// Then the days advanced and the blocker are shown, and it survives a round trip.
+    #[test]
+    fn a_blocked_skip_names_its_blockers() {
+        let skip = time::SkipToMatchDay::Blocked {
+            days_advanced: 1,
+            blockers: vec![time::Blocker {
+                id: "injured_xi".to_string(),
+                severity: "warn".to_string(),
+                tab: "Squad".to_string(),
+                params: None,
+            }],
+        };
+
+        let text = skip.to_string();
+
+        assert!(text.contains("1 days advanced"), "{text}");
+        assert!(
+            text.contains("- [warn] injured_xi (resolve on the Squad screen)"),
+            "{text}"
+        );
+        round_trips(skip);
     }
 
     /// Given a winner in a player award and in the manager award

@@ -152,6 +152,11 @@ pub struct PlayerData {
     /// Long-term physical shape (0-100). Multiplies stamina depletion rate in-match.
     #[serde(default = "default_fitness")]
     pub fitness: u8,
+    /// How much likelier than the match's injury probability a foul is to injure this player.
+    /// The engine does not decide it: the caller does, from whatever makes a player fragile (for
+    /// a club match, ofm_core's fitness table). 1.0 is the match's own probability.
+    #[serde(default = "default_injury_risk")]
+    pub injury_risk: f64,
 
     // Physical
     pub pace: u8,
@@ -202,6 +207,10 @@ fn default_engine_attr() -> u8 {
 
 fn default_fitness() -> u8 {
     75
+}
+
+fn default_injury_risk() -> f64 {
+    1.0
 }
 
 impl PlayerData {

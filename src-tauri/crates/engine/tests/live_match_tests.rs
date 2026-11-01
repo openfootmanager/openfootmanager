@@ -19,6 +19,7 @@ fn make_player(id: &str, name: &str, pos: Position, skill: u8) -> PlayerData {
         ovr: skill,
         condition: 90,
         fitness: 75,
+        injury_risk: 1.0,
         pace: skill,
         stamina: skill,
         strength: skill,
@@ -435,11 +436,17 @@ fn penalty_shootout_resolves_drawn_et() {
     // That's OK — the mechanism is tested structurally
 }
 
+/// Given every shootout over 500 seeds,
+/// When each ends,
+/// Then a round is left half taken only inside the first five kicks, with the away side one kick
+/// short because one side could no longer catch up: away with its remaining kicks, or home, which
+/// has just kicked, with its own. A sudden-death round always ends completed.
+///
+/// Regression: the shootout used to be declared decided the moment one side led after 5+ kicks,
+/// before the trailing side's reply, which handed every sudden-death shootout to the side kicking
+/// first (home).
 #[test]
-fn shootout_ends_only_on_completed_pairs() {
-    // Regression: the shootout used to be declared decided the moment one side
-    // led after 5+ kicks, before the trailing side's reply — handing every
-    // sudden-death shootout to the side kicking first (home).
+fn a_shootout_ends_mid_round_only_when_one_side_cannot_catch_up() {
     let mut shootouts = 0;
     for seed in 0..500 {
         let mut state = make_live_match(true);
@@ -449,11 +456,23 @@ fn shootout_ends_only_on_completed_pairs() {
         let snap = state.snapshot();
         if let Some(ps) = snap.penalty_shootout {
             shootouts += 1;
-            assert_eq!(
-                ps.home_taken, ps.away_taken,
-                "shootout decided mid-round (seed {seed}): {}/{} kicks taken",
-                ps.home_taken, ps.away_taken
-            );
+            if ps.home_taken != ps.away_taken {
+                let away_cannot_catch_up =
+                    ps.away_scored + 5u8.saturating_sub(ps.away_taken) < ps.home_scored;
+                let home_cannot_catch_up =
+                    ps.home_scored + 5u8.saturating_sub(ps.home_taken) < ps.away_scored;
+                assert!(
+                    ps.home_taken == ps.away_taken + 1
+                        && ps.home_taken <= 5
+                        && (away_cannot_catch_up || home_cannot_catch_up),
+                    "shootout ended mid-round with both sides still able to catch up \
+                     (seed {seed}): {}/{} kicks, {}-{}",
+                    ps.home_taken,
+                    ps.away_taken,
+                    ps.home_scored,
+                    ps.away_scored
+                );
+            }
             assert_ne!(
                 ps.home_scored, ps.away_scored,
                 "finished shootout must have a winner (seed {seed})"
@@ -1483,6 +1502,7 @@ fn make_player_with_traits(
         ovr: skill,
         condition: 90,
         fitness: 75,
+        injury_risk: 1.0,
         pace: skill,
         stamina: skill,
         strength: skill,
@@ -2329,4 +2349,158 @@ fn the_eleven_is_listed_back_to_front_after_a_formation_change() {
     expected.extend([Position::Forward; 3]);
     assert_eq!(lines, expected);
     assert_eq!(home_line_of(&state, "home_mid2"), Position::Forward);
+}
+
+// ===========================================================================
+// Tests: Who takes an in-match penalty
+// ===========================================================================
+
+const PENALTY_SEEDS: u64 = 400;
+
+fn designate_home_fwd1(state: &mut LiveMatchState) {
+    state
+        .apply_command(MatchCommand::SetPenaltyTaker {
+            side: Side::Home,
+            player_id: "home_fwd1".to_string(),
+        })
+        .expect("home_fwd1 is on the pitch");
+}
+
+/// The takers of every home penalty over many seeds, with `prepare` applied before kick-off.
+/// Seeds in which the referee sent anyone off are left out, since `prepare` decides who is off
+/// the pitch; `sent_off_by_prepare` names the players it sends off itself.
+fn home_penalty_takers(
+    prepare: &dyn Fn(&mut LiveMatchState),
+    sent_off_by_prepare: &[&str],
+) -> Vec<String> {
+    let mut takers = Vec::new();
+    for seed in 0..PENALTY_SEEDS {
+        let mut state = make_live_match(false);
+        prepare(&mut state);
+        let mut rng = seeded_rng(seed);
+        let results = run_to_finish(&mut state, &mut rng);
+        let referee_sent_someone_off = state
+            .snapshot()
+            .sent_off
+            .iter()
+            .any(|id| !sent_off_by_prepare.contains(&id.as_str()));
+        if referee_sent_someone_off {
+            continue;
+        }
+        takers.extend(
+            results
+                .iter()
+                .flat_map(|result| &result.events)
+                .filter(|event| {
+                    event.side == Side::Home
+                        && matches!(
+                            event.event_type,
+                            EventType::PenaltyGoal | EventType::PenaltyMiss
+                        )
+                })
+                .map(|event| event.player_id.clone().unwrap_or_default()),
+        );
+    }
+    takers
+}
+
+/// Given a side whose designated penalty taker is on the pitch,
+/// When it is awarded penalties,
+/// Then the designated taker takes every one.
+#[test]
+fn a_designated_penalty_taker_on_the_pitch_takes_every_penalty() {
+    let takers = home_penalty_takers(&designate_home_fwd1, &[]);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker == "home_fwd1"),
+        "{takers:?}"
+    );
+}
+
+/// Given a side whose designated penalty taker has been sent off,
+/// When it is awarded penalties,
+/// Then the sent-off player never takes one.
+#[test]
+fn a_sent_off_designated_penalty_taker_never_takes_a_penalty() {
+    let designate_then_send_off = |state: &mut LiveMatchState| {
+        designate_home_fwd1(state);
+        state.test_send_off("home_fwd1");
+    };
+    let takers = home_penalty_takers(&designate_then_send_off, &["home_fwd1"]);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        !takers.iter().any(|taker| taker == "home_fwd1"),
+        "the sent-off taker took a penalty: {takers:?}"
+    );
+}
+
+/// Given a side whose designated penalty taker has been substituted off,
+/// When it is awarded penalties,
+/// Then one of the forwards still on the pitch takes each one, as with no designated taker,
+/// never the substituted player and never the goalkeeper.
+#[test]
+fn a_substituted_designated_penalty_taker_leaves_the_penalty_to_a_forward() {
+    let designate_then_substitute = |state: &mut LiveMatchState| {
+        designate_home_fwd1(state);
+        state
+            .apply_command(MatchCommand::Substitute {
+                side: Side::Home,
+                player_off_id: "home_fwd1".to_string(),
+                player_on_id: "home_sub_fwd1".to_string(),
+            })
+            .expect("a substitution before kick-off");
+    };
+    let takers = home_penalty_takers(&designate_then_substitute, &[]);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers
+            .iter()
+            .all(|taker| taker == "home_fwd2" || taker == "home_sub_fwd1"),
+        "{takers:?}"
+    );
+}
+
+/// Given a side with no designated penalty taker and both its forwards sent off,
+/// When it is awarded penalties,
+/// Then a midfielder takes each one, never a defender and never the goalkeeper.
+#[test]
+fn with_no_forward_on_the_pitch_a_midfielder_takes_the_penalty() {
+    let forwards = ["home_fwd1", "home_fwd2"];
+    let forwards_off = |state: &mut LiveMatchState| {
+        for forward in forwards {
+            state.test_send_off(forward);
+        }
+    };
+    let takers = home_penalty_takers(&forwards_off, &forwards);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker.starts_with("home_mid")),
+        "{takers:?}"
+    );
+}
+
+/// Given a side with only its goalkeeper and defenders left on the pitch,
+/// When it is awarded penalties,
+/// Then a defender takes each one, never the goalkeeper.
+#[test]
+fn with_only_defenders_and_the_keeper_left_a_defender_takes_the_penalty() {
+    let gone = [
+        "home_fwd1",
+        "home_fwd2",
+        "home_mid1",
+        "home_mid2",
+        "home_mid3",
+        "home_mid4",
+    ];
+    let attackers_off = |state: &mut LiveMatchState| {
+        for player in gone {
+            state.test_send_off(player);
+        }
+    };
+    let takers = home_penalty_takers(&attackers_off, &gone);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker.starts_with("home_def")),
+        "{takers:?}"
+    );
 }

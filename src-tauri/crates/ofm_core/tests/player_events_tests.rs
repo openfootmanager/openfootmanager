@@ -1,3 +1,12 @@
+#[path = "player_events_tests/answers.rs"]
+mod answers;
+#[path = "player_events_tests/bench.rs"]
+mod bench;
+#[path = "player_events_tests/consequences.rs"]
+mod consequences;
+#[path = "player_events_tests/responses.rs"]
+mod responses;
+
 use chrono::{TimeZone, Utc};
 use domain::league::{
     Fixture, FixtureCompetition, FixtureStatus, GoalEvent, League, MatchResult, StandingEntry,
@@ -187,7 +196,9 @@ fn low_morale_generates_message() {
     // Deliberately no `messages.clear()` between rolls: clearing the inbox used
     // to be what let the generator run again, and that is the bug (#520).
     let mut found = false;
-    for _ in 0..100 {
+    for attempt in 0..100 {
+        // A new day's dice each time: one seed on one day always rolls the same.
+        game.seed = attempt;
         player_events::check_player_events(&mut game);
         if game
             .messages
@@ -340,7 +351,9 @@ fn upgrading_a_save_does_not_silence_this_seasons_morale_talk() {
     ofm_core::inbox::seed_ledger_from_save(&mut game);
 
     let mut raised = false;
-    for _ in 0..100 {
+    for attempt in 0..100 {
+        // A new day's dice each time: one seed on one day always rolls the same.
+        game.seed = attempt;
         player_events::check_player_events(&mut game);
         if game
             .messages
@@ -404,7 +417,9 @@ fn morale_message_not_duplicated() {
         .unwrap()
         .morale = 20;
 
-    for _ in 0..100 {
+    for attempt in 0..100 {
+        // A new day's dice each time: one seed on one day always rolls the same.
+        game.seed = attempt;
         player_events::check_player_events(&mut game);
         if game
             .messages
@@ -422,7 +437,9 @@ fn morale_message_not_duplicated() {
         .count();
     assert_eq!(count1, 1, "Should generate exactly one morale message");
 
-    for _ in 0..20 {
+    for attempt in 0..20 {
+        // A new day's dice each time: one seed on one day always rolls the same.
+        game.seed = attempt;
         player_events::check_player_events(&mut game);
     }
     let count2 = game
@@ -565,7 +582,9 @@ fn bench_complaint_not_for_gk() {
     // Run many times — GKs should never get bench complaints. Matched on prefix:
     // the id carries the season now, so an exact match against the old shape
     // could never fire whatever the generator did.
-    for _ in 0..100 {
+    for attempt in 0..100 {
+        // A new day's dice each time: one seed on one day always rolls the same.
+        game.seed = attempt;
         player_events::check_player_events(&mut game);
         let gk_complaint = game
             .messages
@@ -609,22 +628,26 @@ fn bench_complaint_not_with_fewer_than_5_fixtures() {
         transfer_rumours: vec![],
         ..Default::default()
     });
-    // Set low morale so they would complain if threshold was met
+    // Low morale and a decent rating, so they would complain if the match count allowed. Without
+    // the rating, which `Player::new` leaves at 0, the rating gate alone kept this test green.
     for p in &mut game.players {
         p.morale = 30;
+        p.ovr = 70;
     }
 
-    player_events::check_player_events(&mut game);
+    // Many days' dice: one roll misses the one-in-ten chance nine times in ten.
+    for seed in 0..200 {
+        let mut day = game.clone();
+        day.seed = seed;
+        player_events::check_player_events(&mut day);
 
-    let bench_msgs: Vec<_> = game
-        .messages
-        .iter()
-        .filter(|m| m.id.starts_with("bench_complaint_"))
-        .collect();
-    assert!(
-        bench_msgs.is_empty(),
-        "No bench complaints with fewer than 5 completed fixtures"
-    );
+        assert!(
+            !day.messages
+                .iter()
+                .any(|m| m.id.starts_with("bench_complaint_")),
+            "No bench complaints with fewer than 5 completed fixtures (seed {seed})"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -913,8 +936,10 @@ fn morale_talk_encourage_boosts_morale() {
     // Run many times to get a statistically valid result
     let mut total_delta: i32 = 0;
     let runs = 50;
-    for _ in 0..runs {
+    for run in 0..runs {
         let mut g = game.clone();
+        // A seed of its own per run: every clone of one game draws the same number on one day.
+        g.seed = run as u64;
         let result = player_events::apply_player_response(
             &mut g,
             "morale_talk_p_fwd0",
@@ -945,8 +970,10 @@ fn morale_talk_promise_time_big_boost() {
 
     let mut total_delta: i32 = 0;
     let runs = 30;
-    for _ in 0..runs {
+    for run in 0..runs {
         let mut g = game.clone();
+        // A seed of its own per run: every clone of one game draws the same number on one day.
+        g.seed = run as u64;
         player_events::apply_player_response(
             &mut g,
             "morale_talk_p_fwd0",
@@ -1151,7 +1178,9 @@ fn recent_player_talk_enters_cooldown_and_blocks_same_day_repeat() {
     assert!(player.morale_core.talk_cooldown_until.is_some());
 
     game.messages.clear();
-    for _ in 0..50 {
+    for attempt in 0..50 {
+        // A new day's dice each time: one seed on one day always rolls the same.
+        game.seed = attempt;
         player_events::check_player_events(&mut game);
     }
 
@@ -1285,8 +1314,10 @@ fn bench_complaint_promise_chance_big_boost() {
 
     let mut total_delta: i32 = 0;
     let runs = 30;
-    for _ in 0..runs {
+    for run in 0..runs {
         let mut g = game.clone();
+        // A seed of its own per run: every clone of one game draws the same number on one day.
+        g.seed = run as u64;
         player_events::apply_player_response(
             &mut g,
             "bench_complaint_p_fwd0",
@@ -1357,8 +1388,10 @@ fn happy_player_praise_back_boosts() {
 
     let mut total_delta: i32 = 0;
     let runs = 30;
-    for _ in 0..runs {
+    for run in 0..runs {
         let mut g = game.clone();
+        // A seed of its own per run: every clone of one game draws the same number on one day.
+        g.seed = run as u64;
         player_events::apply_player_response(
             &mut g,
             "happy_player_p_fwd0",
@@ -1447,8 +1480,10 @@ fn contract_reassure_boosts_morale() {
 
     let mut total_delta: i32 = 0;
     let runs = 30;
-    for _ in 0..runs {
+    for run in 0..runs {
         let mut g = game.clone();
+        // A seed of its own per run: every clone of one game draws the same number on one day.
+        g.seed = run as u64;
         player_events::apply_player_response(
             &mut g,
             "contract_concern_p_fwd0",
@@ -1499,8 +1534,10 @@ fn contract_noncommittal_generally_negative() {
 
     let mut total_delta: i32 = 0;
     let runs = 50;
-    for _ in 0..runs {
+    for run in 0..runs {
         let mut g = game.clone();
+        // A seed of its own per run: every clone of one game draws the same number on one day.
+        g.seed = run as u64;
         player_events::apply_player_response(
             &mut g,
             "contract_concern_p_fwd0",
@@ -1796,8 +1833,10 @@ fn volatile_player_worse_outcomes_from_tough_love() {
 
     let mut total_delta: i32 = 0;
     let runs = 100;
-    for _ in 0..runs {
+    for run in 0..runs {
         let mut g = game.clone();
+        // A seed of its own per run: every clone of one game draws the same number on one day.
+        g.seed = run as u64;
         player_events::apply_player_response(
             &mut g,
             "morale_talk_p_fwd0",
@@ -1816,8 +1855,10 @@ fn volatile_player_worse_outcomes_from_tough_love() {
     player.attributes.leadership = 95;
 
     let mut total_delta2: i32 = 0;
-    for _ in 0..runs {
+    for run in 0..runs {
         let mut g = game.clone();
+        // A seed of its own per run: every clone of one game draws the same number on one day.
+        g.seed = run as u64;
         player_events::apply_player_response(
             &mut g,
             "morale_talk_p_fwd0",

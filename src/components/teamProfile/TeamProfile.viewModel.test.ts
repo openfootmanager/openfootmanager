@@ -192,7 +192,6 @@ describe("TeamProfile.viewModel", () => {
       "midfielder",
       "forward",
     ]);
-    expect(viewModel.avgOvr).toBeGreaterThan(0);
     expect(viewModel.totalWages).toBe(36000);
     expect(viewModel.totalValue).toBe(1050000);
     expect(viewModel.manager?.id).toBe("manager-1");

@@ -15,8 +15,8 @@ use ofm_core::slices::session::{project_session, SessionState, SessionStateQuery
 use ofm_core::slices::squad::{query_squad, SquadPlayer};
 use ofm_core::slices::staff::{query_staff, StaffSlice};
 use ofm_core::slices::teams::{
-    query_club_league_standing, query_directory, ClubLeagueStanding, TeamsDirectory,
-    TeamsDirectoryQuery,
+    query_club_league_standing, query_directory, query_team_card, ClubLeagueStanding, TeamCard,
+    TeamsDirectory, TeamsDirectoryQuery,
 };
 use ofm_core::state::StateManager;
 
@@ -39,6 +39,22 @@ pub async fn get_teams_directory(
 ) -> Result<TeamsDirectory, String> {
     state
         .get_game(|game| query_directory(game, &query))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+/// One club's card, as the clubs directory shows it, for the team profile; null for an id no club
+/// has. Its average rating is withheld for a club outside the manager's division.
+#[tauri::command]
+pub async fn get_team_card(
+    state: State<'_, Arc<StateManager>>,
+    team_id: String,
+) -> Result<Option<TeamCard>, String> {
+    get_team_card_internal(&state, &team_id)
+}
+
+fn get_team_card_internal(state: &StateManager, team_id: &str) -> Result<Option<TeamCard>, String> {
+    state
+        .get_game(|game| query_team_card(game, team_id))
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
@@ -181,6 +197,88 @@ pub async fn get_staff(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given no active game, when the team card adapter reads it,
+    /// then the translated session error is returned.
+    #[test]
+    fn the_team_card_adapter_reports_a_missing_session() {
+        assert_eq!(
+            get_team_card_internal(&StateManager::new(), "club").unwrap_err(),
+            NO_ACTIVE_GAME
+        );
+    }
+
+    /// Given the manager's club, another club he knows nothing about, and an id no club has
+    /// When the team card adapter reads each from the live session
+    /// Then his club's card carries its average rating as a number, the other's sends `null`
+    ///      in its place (the shape the team profile reads), and the unknown id has no card
+    #[test]
+    fn the_team_card_adapter_withholds_an_unknown_clubs_average() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        use domain::player::{Player, PlayerAttributes, Position};
+        use domain::team::Team;
+        let attrs: PlayerAttributes = serde_json::from_value(serde_json::json!({
+            "pace": 60, "stamina": 60, "strength": 60, "agility": 60, "passing": 60,
+            "shooting": 60, "tackling": 60, "dribbling": 60, "defending": 60,
+            "positioning": 60, "vision": 60, "decisions": 60, "composure": 60,
+            "aggression": 60, "teamwork": 60, "leadership": 60,
+            "handling": 60, "reflexes": 60, "aerial": 60
+        }))
+        .unwrap();
+        let player_at = |id: &str, club: &str| {
+            let mut player = Player::new(
+                id.into(),
+                id.into(),
+                id.into(),
+                "2000-01-01".into(),
+                "GB".into(),
+                Position::Midfielder,
+                attrs.clone(),
+            );
+            player.team_id = Some(club.into());
+            player.ovr = 66;
+            player
+        };
+        let team = |id: &str| {
+            Team::new(
+                id.into(),
+                id.into(),
+                id.into(),
+                "ENG".into(),
+                "City".into(),
+                "Ground".into(),
+                10_000,
+            )
+        };
+        let mut manager = Manager::new(
+            "m".into(),
+            "M".into(),
+            "Gr".into(),
+            "1980-01-01".into(),
+            "GB".into(),
+        );
+        manager.team_id = Some("mine".into());
+        let state = StateManager::new();
+        state.set_game(ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap(),
+            ),
+            manager,
+            vec![team("mine"), team("stranger")],
+            vec![player_at("a", "mine"), player_at("b", "stranger")],
+            vec![],
+            vec![],
+        ));
+
+        let card_of = |club: &str| {
+            serde_json::to_value(get_team_card_internal(&state, club).unwrap()).unwrap()
+        };
+
+        assert_eq!(card_of("mine")["avg_ovr"], 66);
+        assert!(card_of("stranger")["avg_ovr"].is_null());
+        assert!(get_team_card_internal(&state, "nobody").unwrap().is_none());
+    }
 
     /// Given no active game, when the roster adapter reads it,
     /// then the existing translated session error is returned.
