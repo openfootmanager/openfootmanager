@@ -10,11 +10,15 @@ export const REGULAR_ROUNDS = 5;
 export type KickCell =
   | { state: "scored" | "missed"; kickerName: string | null }
   /**
-   * The shootout is still on and this kick hasn't been taken. While the manager sets his order,
-   * his own side's cells name who is due to take each kick.
+   * The shootout is still on and this kick hasn't been taken. While the manager sets the order,
+   * their own side's cells name who is due to take each kick.
    */
   | { state: "toCome"; plannedKickerName?: string }
-  /** The shootout was decided before this kick was needed. */
+  /**
+   * Over, and this kick was never taken: under the Laws a shootout ends as soon as one side can't
+   * catch up, so the away side can finish a kick short. The engine decides only at equal kick
+   * counts today (penalty.rs `decided`); tactics-match's planned change makes this reachable.
+   */
   | { state: "notTaken" };
 
 interface KickSheetRow {
