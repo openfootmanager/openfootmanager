@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 
 type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
 
@@ -10,28 +10,40 @@ const TONE_CLASSES: Record<RetryTone, string> = {
   chrome: "text-chrome-fg hover:text-chrome-fg-muted focus-visible:ring-offset-chrome",
 };
 
-/** A retry for an answer that failed to load: one look on every surface, its colours the surface's. */
+/**
+ * A retry for an answer that failed to load: one look on every surface, its colours the surface's.
+ * Its accessible name is its visible text, so a voice-control user can say what they see (WCAG
+ * 2.5.3); `description` says what is retried, as the button's description.
+ */
 export function RetryButton({
   onRetry,
-  label,
+  description,
   tone = "page",
   children,
 }: {
   onRetry: () => void;
-  /** What is retried, for a screen reader, when the visible text does not say. */
-  label?: string;
+  /** What is retried, when the visible text does not say: read as the button's description. */
+  description?: string;
   tone?: RetryTone;
   children: ReactNode;
 }) {
+  const descriptionId = useId();
   return (
-    <button
-      type="button"
-      onClick={onRetry}
-      aria-label={label}
-      className={`rounded font-semibold underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${TONE_CLASSES[tone]}`}
-    >
-      {children}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={onRetry}
+        aria-describedby={description ? descriptionId : undefined}
+        className={`rounded font-semibold underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 ${TONE_CLASSES[tone]}`}
+      >
+        {children}
+      </button>
+      {description ? (
+        <span id={descriptionId} className="sr-only">
+          {description}
+        </span>
+      ) : null}
+    </>
   );
 }
 
@@ -50,21 +62,21 @@ export default function ProfileLoadFailed({ t, onRetry }: { t: TranslateFn; onRe
 
 /**
  * "Couldn't load" as its own retry button, for a slot with room only for the value (the hero's
- * wage). `label` names what is retried, for a screen reader; `tone` is the surface's.
+ * wage). `description` says what is retried; `tone` is the surface's.
  */
 export function LoadFailedRetryText({
   t,
   onRetry,
-  label,
+  description,
   tone = "page",
 }: {
   t: TranslateFn;
   onRetry: () => void;
-  label: string;
+  description: string;
   tone?: RetryTone;
 }) {
   return (
-    <RetryButton onRetry={onRetry} label={label} tone={tone}>
+    <RetryButton onRetry={onRetry} description={description} tone={tone}>
       {t("playerProfile.loadFailed")}
     </RetryButton>
   );

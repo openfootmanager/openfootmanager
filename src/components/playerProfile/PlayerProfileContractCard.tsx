@@ -119,7 +119,7 @@ export default function PlayerProfileContractCard({
               wageRetry ? (
                 <span className="inline-flex items-center gap-2">
                   {t("playerProfile.loadFailed")}
-                  <RetryButton onRetry={wageRetry} label={t("playerProfile.retryWage")}>
+                  <RetryButton onRetry={wageRetry} description={t("playerProfile.retryWage")}>
                     {t("common.retry")}
                   </RetryButton>
                 </span>

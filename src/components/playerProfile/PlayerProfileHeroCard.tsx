@@ -78,7 +78,7 @@ export default function PlayerProfileHeroCard({
       <LoadFailedRetryText
         t={t}
         onRetry={wageRetry}
-        label={t("playerProfile.retryWage")}
+        description={t("playerProfile.retryWage")}
         tone={tone}
       />
     ) : (

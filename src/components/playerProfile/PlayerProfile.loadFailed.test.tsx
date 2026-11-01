@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createInstance } from "i18next";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
@@ -192,7 +192,7 @@ describe("a profile answer that fails to load", () => {
   /**
    * Given the request for his wage fails once
    * When his profile opens
-   * Then the hero and the contract row both read "Couldn't load", never "–", and each offers the
+   * Then the hero and the contract row both read "Couldn't load", never "–", each with its own
    *      retry; retrying from the hero clears the contract row too: one request, one state
    */
   it("retries a failed wage from the hero, which clears the contract row too", async () => {
@@ -200,18 +200,36 @@ describe("a profile answer that fails to load", () => {
 
     renderProfile();
 
-    const retries = await screen.findAllByRole("button", { name: "Retry loading the wage" });
-    // The hero (desktop and narrow layouts) and the contract row.
-    expect(retries.length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("Weekly Wage").parentElement).toHaveTextContent("Couldn't load");
+    const heroRetries = await screen.findAllByRole("button", { name: "Couldn't load" });
+    const wageRow = screen.getByText("Weekly Wage").parentElement as HTMLElement;
+    const rowRetry = within(wageRow).getByRole("button", { name: "Retry" });
+    expect(rowRetry).toHaveAccessibleDescription("Retry loading the wage");
+    expect(wageRow).toHaveTextContent("Couldn't load");
 
-    fireEvent.click(retries[0]);
+    fireEvent.click(heroRetries[0]);
 
-    await waitFor(() =>
-      expect(screen.queryAllByRole("button", { name: "Retry loading the wage" })).toHaveLength(0),
-    );
+    await waitFor(() => expect(within(wageRow).queryByRole("button")).not.toBeInTheDocument());
     expect(screen.queryByText("Couldn't load")).not.toBeInTheDocument();
-    expect(screen.getByText("Weekly Wage").parentElement).not.toHaveTextContent("–");
+    expect(wageRow).not.toHaveTextContent("–");
     expect(calls("get_visible_wage")).toBe(2);
+  });
+
+  /**
+   * Given the request for his wage fails once
+   * When his profile opens
+   * Then each wage retry is named by the text it shows, so a voice-control user can say what they
+   *      see (WCAG 2.5.3), and says what it retries as its description
+   */
+  it("names each wage retry by the text it shows", async () => {
+    backendWhere("get_visible_wage");
+
+    renderProfile();
+
+    const retries = await screen.findAllByRole("button", { description: "Retry loading the wage" });
+    // The hero (desktop and narrow layouts) and the contract row.
+    expect(retries.length).toBe(3);
+    for (const retry of retries) {
+      expect(retry).toHaveAccessibleName(retry.textContent ?? "");
+    }
   });
 });
