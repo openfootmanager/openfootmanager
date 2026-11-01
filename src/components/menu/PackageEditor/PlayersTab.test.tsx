@@ -7,6 +7,11 @@ import type { PlayerDef, Position, TeamDef } from "./types";
 
 const useAssetDataUrl = vi.fn(() => null);
 
+vi.mock("../../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("../../../hooks/useAssetDataUrl", () => ({
   useAssetDataUrl: (...args: unknown[]) => useAssetDataUrl(...(args as [])),
