@@ -521,6 +521,30 @@ fn serialized_photo_matches_the_shape_the_frontend_parses() {
     );
 }
 
+/// Given the manager's own player, scouted too, with a stored potential
+/// When the players page lists him
+/// Then nothing in the page mentions potential: a player's potential is an opinion shown on his
+///      profile alone, never a column a list could print, sort or filter by (maintainer, B3)
+#[test]
+fn the_players_page_never_carries_potential() {
+    let mut player = PlayerSpec::new("p1", "Own Player", Some("t1")).build();
+    player.potential = 88;
+    let mut game = make_game(vec![make_team("t1", "Mine")], vec![player]);
+    game.manager.team_id = Some("t1".to_string());
+    game.scouted_players.push(ofm_core::game::ScoutedPlayer {
+        player_id: "p1".to_string(),
+        scouted_on: "2026-06-20".to_string(),
+        attributes: default_attrs(70),
+        potential: Some(ofm_core::game::PotentialRange { low: 84, high: 92 }),
+        scout_name: Some("Ann Scout".to_string()),
+    });
+
+    let page = serde_json::to_string(&query_page(&game, &baseline_query())).expect("serializes");
+
+    assert!(!page.contains("potential"), "{page}");
+    assert!(!page.contains("88"), "{page}");
+}
+
 #[test]
 fn projection_leaves_the_photo_empty_for_a_generated_player() {
     let game = make_game(

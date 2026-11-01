@@ -4,8 +4,8 @@ use domain::player::{
 };
 use rand::RngExt;
 
-const WONDERKID_MAX_AGE: u32 = 20;
-const WONDERKID_MIN_GROWTH_ROOM: u8 = 14;
+pub(crate) const WONDERKID_MAX_AGE: u32 = 20;
+pub(crate) const WONDERKID_MIN_GROWTH_ROOM: u8 = 14;
 
 pub fn formation_slots(formation: &str) -> Vec<Position> {
     formation_slot_rows(formation)
@@ -39,8 +39,7 @@ pub fn deployed_position(team: &domain::team::Team, player_id: &str) -> Option<P
 /// year is known.
 pub fn refresh_player_derived(player: &mut Player, on: chrono::NaiveDate) {
     // 1. Compute position-weighted OVR
-    let ovr_f = natural_ovr(player);
-    let ovr = ovr_f.round() as u8;
+    let ovr = natural_rating_from(player, &player.attributes);
 
     // 2. Compute potential if not yet set (initial generation or legacy saves)
     let age = domain::age::playing_age(on, &player.date_of_birth);
@@ -231,6 +230,13 @@ fn formation_slot_rows(formation: &str) -> Vec<Vec<Position>> {
 pub fn natural_ovr(player: &Player) -> f64 {
     let natural_position = primary_position(player);
     ovr_for_position(player, &natural_position)
+}
+
+/// The whole-number rating `attributes` give the player at his natural position: his `ovr` when
+/// they are his own, and the figure a scout's report rates him at when they are the report's
+/// snapshot (`player_knowledge`). One rounding for both, so the two can be compared.
+pub(crate) fn natural_rating_from(player: &Player, attributes: &PlayerAttributes) -> u8 {
+    ovr_from_attributes(attributes, &primary_position(player)).round() as u8
 }
 
 pub fn ovr_for_position(player: &Player, position: &Position) -> f64 {

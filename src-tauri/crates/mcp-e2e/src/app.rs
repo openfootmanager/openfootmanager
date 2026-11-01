@@ -175,15 +175,16 @@ impl App {
         }
         args.extend(config.extra_args.iter().cloned());
 
-        let child = app_command(&binary, &args, dir.path())
+        let mut command = app_command(&binary, &args, dir.path());
+        command
             .stdin(Stdio::null())
             .stdout(Stdio::from(
                 log_file
                     .try_clone()
                     .map_err(|e| LaunchError::Io(e.to_string()))?,
             ))
-            .stderr(Stdio::from(log_file))
-            .spawn()
+            .stderr(Stdio::from(log_file));
+        let child = spawn_retrying_busy(&mut command)
             .map_err(|e| LaunchError::Io(format!("could not start {}: {e}", binary.display())))?;
 
         let mut app = Self {
@@ -477,14 +478,15 @@ pub fn gui_launch_maps_a_window(timeout: Duration) -> Result<GuiLaunch, LaunchEr
     let dir = tempfile::tempdir().map_err(|e| LaunchError::Io(e.to_string()))?;
     let log_path = dir.path().join("app.log");
     let log = fs::File::create(&log_path).map_err(|e| LaunchError::Io(e.to_string()))?;
-    let mut child = app_command(&binary, &[], dir.path())
+    let mut command = app_command(&binary, &[], dir.path());
+    command
         .stdin(Stdio::null())
         .stdout(Stdio::from(
             log.try_clone()
                 .map_err(|e| LaunchError::Io(e.to_string()))?,
         ))
-        .stderr(Stdio::from(log))
-        .spawn()
+        .stderr(Stdio::from(log));
+    let mut child = spawn_retrying_busy(&mut command)
         .map_err(|e| LaunchError::Io(format!("could not start {}: {e}", binary.display())))?;
     let outcome = wait_for_window_of(child.id(), timeout);
     let _ = child.kill();
@@ -508,6 +510,31 @@ fn wait_for_window_of(pid: u32, timeout: Duration) -> Result<bool, LaunchError> 
         }
     }
     Ok(false)
+}
+
+/// Starts `command`, trying again while the kernel calls the binary busy (`ETXTBSY`).
+///
+/// A binary written moments ago is refused with "Text file busy" if another thread forked while
+/// the file was still open for writing: the fork holds a copy of the write descriptor until it
+/// execs. The tests write their fake binaries exactly that way, from parallel threads, and a
+/// refused probe read as an unknown version. That failed
+/// `a_stale_binary_is_refused_before_the_display_is_touched` in merge-group run 41276812623.
+/// The window closes as soon as that child execs, so a short retry outlasts it. Renaming the
+/// file into place would not help: busy follows the inode, not the name.
+fn spawn_retrying_busy(command: &mut Command) -> std::io::Result<Child> {
+    const ATTEMPTS: u32 = 100;
+    let mut attempt = 1;
+    loop {
+        match command.spawn() {
+            Err(error)
+                if error.kind() == std::io::ErrorKind::ExecutableFileBusy && attempt < ATTEMPTS =>
+            {
+                attempt += 1;
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            result => return result,
+        }
+    }
 }
 
 /// The command that starts the app, with its environment pinned to the scratch directory and to X11.
@@ -563,12 +590,12 @@ pub fn probe_build_version(binary: &Path, within: Duration) -> Option<String> {
     for sub in ["data", "config", "cache", "state"] {
         fs::create_dir_all(dir.path().join(sub)).ok()?;
     }
-    let mut child = probe_command(binary, dir.path())
+    let mut command = probe_command(binary, dir.path());
+    command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .ok()?;
+        .stderr(Stdio::null());
+    let mut child = spawn_retrying_busy(&mut command).ok()?;
     let started = Instant::now();
     let finished = loop {
         match child.try_wait() {
@@ -837,6 +864,29 @@ mod tests {
             }
             other => panic!("expected the stale refusal, got {:?}", other.err()),
         }
+    }
+
+    /// Given a fake binary that is still open for writing, as one is when another test thread
+    ///       forks while it is being written, and is closed a moment later
+    /// When its version is probed
+    /// Then the probe waits out the "text file busy" refusal and reads the version
+    #[test]
+    fn a_binary_busy_for_a_moment_still_reports_its_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let binary = fake_binary(dir.path(), "echo 0.3.0+abc123abc123");
+        let still_writing = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&binary)
+            .unwrap();
+        let closer = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(200));
+            drop(still_writing);
+        });
+
+        let version = probe_build_version(&binary, Duration::from_secs(5));
+        closer.join().unwrap();
+
+        assert_eq!(version.as_deref(), Some("0.3.0+abc123abc123"));
     }
 
     /// Given a binary from the right sources
