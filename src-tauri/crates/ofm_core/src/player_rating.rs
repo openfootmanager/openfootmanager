@@ -790,6 +790,75 @@ mod tests {
         );
     }
 
+    /// A player whose natural position is `natural`, with no alternates.
+    fn natural_at(natural: Position) -> Player {
+        let mut player = make_player(natural.clone());
+        player.natural_position = natural;
+        player
+    }
+
+    /// Given a natural right winger, left winger, right midfielder and left midfielder
+    /// When each is read at the wide position on his own flank in the other line
+    /// Then each can play it: a winger and the wide midfielder on his side play the same flank
+    #[test]
+    fn a_winger_can_play_wide_midfield_on_his_own_flank() {
+        let flank_pairs = [
+            (Position::RightWinger, Position::RightMidfielder),
+            (Position::RightMidfielder, Position::RightWinger),
+            (Position::LeftWinger, Position::LeftMidfielder),
+            (Position::LeftMidfielder, Position::LeftWinger),
+        ];
+        for (natural, slot) in flank_pairs {
+            assert_eq!(
+                familiarity(&natural_at(natural.clone()), &slot),
+                Familiarity::CanPlay,
+                "a natural {natural:?} at {slot:?}"
+            );
+        }
+    }
+
+    /// Given a natural right winger
+    /// When he is read at left midfield, the other flank in the other line
+    /// Then he is out of position: only his own flank's wide midfield is one step away
+    #[test]
+    fn a_winger_at_wide_midfield_on_the_other_flank_is_out_of_position() {
+        assert_eq!(
+            familiarity(
+                &natural_at(Position::RightWinger),
+                &Position::LeftMidfielder
+            ),
+            Familiarity::OutOfPosition
+        );
+    }
+
+    /// Given a natural right winger
+    /// When the lineup choice prices him at right midfield
+    /// Then it charges a step within a line (8), not another line (14): the AI and the screens
+    ///      read the one table
+    #[test]
+    fn the_ai_prices_a_winger_at_wide_midfield_as_a_step_within_a_line() {
+        assert_eq!(
+            compatibility_penalty(
+                &natural_at(Position::RightWinger),
+                &Position::RightMidfielder
+            ),
+            8.0
+        );
+    }
+
+    /// Given a natural right winger and a natural right midfielder
+    /// When their lines are read
+    /// Then the winger is still a forward and the midfielder a midfielder: the flank step changes
+    ///      familiarity only, never which line a player counts in
+    #[test]
+    fn a_winger_still_counts_in_the_forward_line() {
+        assert_eq!(Position::RightWinger.to_group_position(), Position::Forward);
+        assert_eq!(
+            Position::RightMidfielder.to_group_position(),
+            Position::Midfielder
+        );
+    }
+
     /// Where the screens' copy of this grid lives: the frontend reads it to check that the
     /// helpers it still has for the squad and tactics tones grade a player the way `familiarity`
     /// does, until those helpers are replaced by the backend's answer.
