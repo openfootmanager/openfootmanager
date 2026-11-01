@@ -2520,6 +2520,9 @@ mod tests {
         assert!(ofm_core::inbox::emit(&mut game, announcement()));
         let save_id = sm.create_save(&game, "Lost Ledger").unwrap();
         let db_path = saves_dir.join(format!("{save_id}.db"));
+        // One load first, so the sample save's one-time repairs are done and saved: on the load
+        // under test, only the lost ledger can be what makes it save.
+        sm.load_game(&save_id).unwrap();
         {
             let db = GameDatabase::open(&db_path).unwrap();
             let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
