@@ -1642,19 +1642,41 @@ mod tests {
             .expect("an open spell")
     }
 
-    /// Given a club's manager and a past season it finished with 5 wins, 2 draws and 3 defeats
+    /// Given a club's manager with 20 matches already on his record (8 won, 6 drawn, 6 lost), and a
+    ///       past season his club finished with 5 wins, 2 draws and 3 defeats
     /// When the season is added to the managers' records
-    /// Then his career totals gain 10 matches, 5 wins, 2 draws and 3 defeats
+    /// Then his career totals rise by 10 matches, 5 wins, 2 draws and 3 defeats
     #[test]
     fn a_past_seasons_results_add_to_the_managers_career_totals() {
         let mut game = make_game();
         let id = put_manager_at(&mut game, "team-1", vec![]);
+        let totals = |game: &Game| {
+            let stats = &manager(game, &id).career_stats;
+            (stats.matches_managed, stats.wins, stats.draws, stats.losses)
+        };
+        {
+            let manager = game
+                .managers
+                .iter_mut()
+                .find(|manager| manager.id == id)
+                .expect("the manager is on record");
+            manager.career_stats.matches_managed = 20;
+            manager.career_stats.wins = 8;
+            manager.career_stats.draws = 6;
+            manager.career_stats.losses = 6;
+        }
+        let before = totals(&game);
 
         super::upsert_manager_history(&mut game, &[vec![row("team-1", 5, 2, 3)]]);
 
-        let stats = &manager(&game, &id).career_stats;
+        let after = totals(&game);
         assert_eq!(
-            (stats.matches_managed, stats.wins, stats.draws, stats.losses),
+            (
+                after.0 - before.0,
+                after.1 - before.1,
+                after.2 - before.2,
+                after.3 - before.3
+            ),
             (10, 5, 2, 3)
         );
     }
@@ -1804,20 +1826,20 @@ mod tests {
 
     /// Given a world with a manager at every club
     /// When two past seasons are generated
-    /// Then each season's awards name a manager of the season
+    /// Then the awards of both, 2030 and 2031, name a manager of the season
     #[test]
     fn every_generated_season_names_a_manager_of_the_season() {
         let mut game = make_game();
 
         generate_past_world_history(&mut game, 2032, 2);
 
-        let named: Vec<(u32, bool)> = game
+        let mut named: Vec<(u32, bool)> = game
             .world_history
             .season_awards
             .iter()
             .map(|record| (record.season, record.manager_of_season.is_some()))
             .collect();
-        assert!(!named.is_empty(), "no season's awards were recorded");
-        assert!(named.iter().all(|(_, some)| *some), "{named:?}");
+        named.sort_unstable();
+        assert_eq!(named, vec![(2030, true), (2031, true)]);
     }
 }
