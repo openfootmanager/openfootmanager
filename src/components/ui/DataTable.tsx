@@ -79,6 +79,39 @@ const ACCENT: Record<RowAccent | "none", string> = {
   danger: "border-l-danger-solid",
 };
 
+/**
+ * The button inside a sortable column header: reachable by Tab, pressed by Enter or Space, with
+ * the sort arrow shown on the sorted column. The `<th>` around it carries `aria-sort`. Every
+ * table that sorts by its headers uses this one, so they all behave and look alike.
+ */
+export function SortHeaderButton({
+  header,
+  headerLabel,
+  numeric = false,
+  direction,
+  onSort,
+}: {
+  header: ReactNode;
+  /** The header's spoken name, when its visible content is not enough (an icon, say). */
+  headerLabel?: string;
+  numeric?: boolean;
+  direction: SortDirection | null;
+  onSort: () => void;
+}) {
+  const Arrow = direction === "asc" ? ChevronUp : ChevronDown;
+  return (
+    <button
+      type="button"
+      onClick={onSort}
+      aria-label={headerLabel}
+      className={`inline-flex items-center gap-1 ${numeric ? "flex-row-reverse" : ""} ${CONTROL_FOCUS}`}
+    >
+      {header}
+      {direction ? <Arrow aria-hidden="true" className="h-3 w-3" /> : null}
+    </button>
+  );
+}
+
 function SortableHeader({
   column,
   direction,
@@ -88,17 +121,14 @@ function SortableHeader({
   direction: SortDirection | null;
   onSortChange: (key: string) => void;
 }) {
-  const Arrow = direction === "asc" ? ChevronUp : ChevronDown;
   return (
-    <button
-      type="button"
-      onClick={() => onSortChange(column.key)}
-      aria-label={column.headerLabel}
-      className={`inline-flex items-center gap-1 ${column.numeric ? "flex-row-reverse" : ""} ${CONTROL_FOCUS}`}
-    >
-      {column.header}
-      {direction ? <Arrow aria-hidden="true" className="h-3 w-3" /> : null}
-    </button>
+    <SortHeaderButton
+      header={column.header}
+      headerLabel={column.headerLabel}
+      numeric={column.numeric}
+      direction={direction}
+      onSort={() => onSortChange(column.key)}
+    />
   );
 }
 
