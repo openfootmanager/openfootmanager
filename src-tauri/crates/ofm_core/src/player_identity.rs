@@ -7,9 +7,13 @@ pub fn upgrade_game_player_identities(game: &mut Game) -> bool {
     let slot_map = build_assigned_slot_map(game);
     let mut changed = false;
 
+    let on = game.clock.current_date.date_naive();
+
     for player in &mut game.players {
         if upgrade_player_identity(player, slot_map.get(&player.id)) {
             changed = true;
+            // The upgrade re-rated him, and the wonderkid tag is a function of his rating.
+            crate::player_rating::reconcile_wonderkid_trait(player, on);
         }
     }
 
@@ -794,6 +798,72 @@ mod tests {
                 .iter()
                 .all(|position| !position.is_legacy_bucket()),
             "alternates should be fully granular after upgrade",
+        );
+    }
+
+    /// Given a 19-year-old with an S-tier ceiling whose stored overall was stale-high (so he did
+    ///       not qualify as a wonderkid), and whose rating at his natural position is much lower,
+    /// When the game's players are given their identities,
+    /// Then his wonderkid tag follows his new rating: he is tagged, as the rule says.
+    #[test]
+    fn re_rating_a_player_at_career_open_reconciles_his_wonderkid_tag() {
+        let start = Utc.with_ymd_and_hms(2026, 7, 1, 0, 0, 0).unwrap();
+        let attrs = PlayerAttributes {
+            pace: 62,
+            stamina: 62,
+            strength: 62,
+            agility: 62,
+            passing: 62,
+            shooting: 62,
+            tackling: 62,
+            dribbling: 62,
+            defending: 62,
+            positioning: 62,
+            vision: 62,
+            decisions: 62,
+            composure: 62,
+            aggression: 62,
+            teamwork: 62,
+            leadership: 62,
+            handling: 20,
+            reflexes: 20,
+            aerial: 62,
+        };
+        let mut prospect = make_player("prospect", Position::Midfielder, attrs);
+        prospect.date_of_birth = "2007-03-01".to_string();
+        prospect.team_id = Some("team-1".to_string());
+        prospect.ovr = 80;
+        prospect.potential = 85;
+        prospect
+            .traits
+            .retain(|t| *t != domain::player::PlayerTrait::Wonderkid);
+        let mut game = Game::new(
+            GameClock::new(start),
+            make_manager(),
+            vec![make_team()],
+            vec![prospect],
+            vec![],
+            vec![],
+        );
+
+        upgrade_game_player_identities(&mut game);
+
+        let player = &game.players[0];
+        let age = domain::age::playing_age(start.date_naive(), &player.date_of_birth);
+        assert!(
+            player.ovr < 71,
+            "the fixture must re-rate him well below his ceiling"
+        );
+        assert!(crate::player_rating::qualifies_for_wonderkid(
+            age,
+            player.potential,
+            player.ovr
+        ));
+        assert!(
+            player
+                .traits
+                .contains(&domain::player::PlayerTrait::Wonderkid),
+            "his tag must follow his new rating"
         );
     }
 

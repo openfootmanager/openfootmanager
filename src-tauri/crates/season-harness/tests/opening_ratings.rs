@@ -84,3 +84,29 @@ fn the_opening_world_keeps_its_tiers_mean_and_rare_wonderkids() {
         );
     }
 }
+
+/// Given the shipped world on its opening day,
+/// When each player's Wonderkid tag is compared with the wonderkid rule,
+/// Then they agree for every player: re-rating a player at career open must reconcile his tag.
+#[test]
+fn every_opening_wonderkid_tag_agrees_with_the_rule() {
+    use domain::player::PlayerTrait;
+    use ofm_core::player_rating::qualifies_for_wonderkid;
+
+    for seed in [1, 2] {
+        let game = WorldSpec::shipped(seed).build().expect("the world builds");
+        let on = game.clock.current_date.date_naive();
+        let disagreeing = game
+            .players
+            .iter()
+            .filter(|player| !player.retired)
+            .filter(|player| {
+                let age = age_on_or_unknown(on, &player.date_of_birth).max(0) as u32;
+                player.traits.contains(&PlayerTrait::Wonderkid)
+                    != qualifies_for_wonderkid(age, player.potential, player.ovr)
+            })
+            .count();
+
+        assert_eq!(disagreeing, 0, "seed {seed}: tags disagree with the rule");
+    }
+}
