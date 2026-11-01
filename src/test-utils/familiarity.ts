@@ -23,6 +23,17 @@ const BUCKET_AS_GRANULAR: Record<string, string> = {
 /** The positions `Position::is_legacy_bucket` names: the goalkeeper is among them, on purpose. */
 const LEGACY_BUCKETS = new Set(["Goalkeeper", ...Object.keys(BUCKET_AS_GRANULAR)]);
 
+/**
+ * A winger and the wide midfielder on his flank step between each other as within a line, though
+ * they are in different groups: `position_step`'s `is_flank_partner`, keyed "primary:slot".
+ */
+const FLANK_PARTNERS: ReadonlySet<string> = new Set([
+  "RightWinger:RightMidfielder",
+  "RightMidfielder:RightWinger",
+  "LeftWinger:LeftMidfielder",
+  "LeftMidfielder:LeftWinger",
+]);
+
 const POSITION_NAMES = new Set(CANNED_POSITION_ENTRIES.map((entry) => entry.position));
 
 function graded(position: string): string {
@@ -46,6 +57,7 @@ export function cannedGrade(player: PlayerData, position: string): Familiarity {
   if ((player.alternate_positions ?? []).some((alternate) => graded(alternate) === slot)) {
     return "can_play";
   }
+  if (FLANK_PARTNERS.has(`${primary}:${slot}`)) return "can_play";
   return table.groupOf(primary) === table.groupOf(slot) ? "can_play" : "out_of_position";
 }
 
