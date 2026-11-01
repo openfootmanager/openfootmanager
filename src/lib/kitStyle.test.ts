@@ -20,7 +20,7 @@ describe("kitStyle", () => {
   /**
    * Given a pale kit (white, yellow) and a dark one (navy)
    * When a card asks for its style
-   * Then the pale kit's header wash takes a share scaled down by its luminance (white a quarter),
+   * Then the pale kit's header wash takes a share scaled down by its luminance (white about 0.27 of it),
    * so it can't lift a dark header past readable, and the dark kit takes the full share.
    */
   it("scales a pale kit's header wash down, and leaves a dark kit's whole", () => {
