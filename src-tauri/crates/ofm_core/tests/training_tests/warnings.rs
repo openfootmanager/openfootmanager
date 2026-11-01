@@ -52,13 +52,21 @@ fn the_warning_describes_the_users_own_training_schedule() {
     );
 }
 
-/// Given the user's club with a coach but no physio, and another club's physio
+/// Given the user's club with a coach and an assistant manager but no physio, and another club's
+///       physio
 /// When a squad averaging 40 gets its warning
-/// Then the assistant manager signs it: only the user's own physio does
+/// Then the user's assistant manager signs it: only the user's own physio would
 #[test]
 fn another_clubs_physio_does_not_sign_the_users_warning() {
     let mut game = make_game();
     game.staff.retain(|member| member.role != StaffRole::Physio);
+    game.staff.push(make_staff(
+        "assistant",
+        "team1",
+        StaffRole::AssistantManager,
+        60,
+        30,
+    ));
     game.staff.insert(
         0,
         make_staff("their-physio", "team0", StaffRole::Physio, 30, 80),
@@ -67,8 +75,8 @@ fn another_clubs_physio_does_not_sign_the_users_warning() {
     let warning = warning_with_squad_at(&mut game, 40).expect("an average of 40 is a warning");
 
     assert_eq!(
-        warning.sender_role_key.as_deref(),
-        Some("be.role.assistantManager")
+        (warning.sender_role_key.as_deref(), warning.sender.as_str()),
+        (Some("be.role.assistantManager"), "Staff assistant")
     );
 }
 
