@@ -90,6 +90,44 @@ jobs:
       - run: true
 " "a commented-out timeout fails"
 
+expect 1 comment-after-key "name: ci
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - run: true
+  lint: # a note after the key
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+" "a job whose key carries a comment is still a job, and fails without a timeout"
+
+expect 1 anchor-after-key "name: ci
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - run: true
+  lint: &lint
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+" "a job whose key carries an anchor is still a job, and fails without a timeout"
+
+expect 0 commented-key-with-timeout "name: ci
+on: push
+jobs:
+  lint: # a note after the key
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - run: true
+" "a commented job key with its own timeout passes"
+
 expect 1 no-jobs "name: ci
 on: push
 " "a file with no jobs fails rather than passing on nothing"

@@ -29,7 +29,10 @@ for file in "$@"; do
         }
         /^jobs:[[:space:]]*$/ { in_jobs = 1; next }
         in_jobs && /^[^[:space:]#]/ { close_job(); in_jobs = 0 }
-        in_jobs && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ {
+        # A job key: two spaces, the id, a colon, then nothing but an optional anchor (`&name`)
+        # and an optional comment. A key that did not match would fold its lines into the job
+        # before it, so a job with no timeout could pass on the timeout of the job above.
+        in_jobs && /^  [A-Za-z0-9_-]+:([[:space:]]+&[^[:space:]]+)?([[:space:]]+#.*)?[[:space:]]*$/ {
             close_job()
             job = $1
             sub(/:$/, "", job)
