@@ -131,22 +131,22 @@ pub fn seed_ledger_from_save(game: &mut Game) {
 
 /// Rebuild the ledger of a current save that had one and lost it (its save cell did not read).
 ///
-/// From the inbox only: every message there was sent. The World Cup archive is not read, unlike
-/// [`seed_ledger_from_save`]: a career started from an existing world inherits it, and taking its
-/// champions as announced would silence a World Cup this career was never told about. A champion
-/// whose message this career already deleted may be announced once more, the smaller loss.
+/// From this career's mail only: the inbox and the mail archive (old read messages moved out of
+/// the inbox), every message of which was sent. The World Cup archive (`world_history`) is not
+/// read, unlike [`seed_ledger_from_save`]: a career started from an existing world inherits it,
+/// and taking its champions as announced would silence a World Cup this career was never told
+/// about. A champion whose message this career already deleted may be announced once more, the
+/// smaller loss.
 pub fn rebuild_lost_ledger(game: &mut Game) {
     adopt_the_inbox(game);
 }
 
-/// Every message in the inbox, and the current key of a legacy one, as sent.
+/// Every message in the inbox and the mail archive, and the current key of a legacy one, as sent.
+/// The mail archive is this career's own (a new career from a save starts without it).
 fn adopt_the_inbox(game: &mut Game) {
-    let ids: Vec<String> = game.messages.iter().map(|m| m.id.clone()).collect();
-    let upgraded: Vec<String> = game
-        .messages
-        .iter()
-        .filter_map(upgraded_legacy_key)
-        .collect();
+    let mail = || game.messages.iter().chain(game.archived_messages.iter());
+    let ids: Vec<String> = mail().map(|m| m.id.clone()).collect();
+    let upgraded: Vec<String> = mail().filter_map(upgraded_legacy_key).collect();
     game.emitted_events.extend(ids);
     game.emitted_events.extend(upgraded);
 }
@@ -351,6 +351,21 @@ mod tests {
 
         assert!(already_emitted(&game, "promotion_2032"));
         assert!(!already_emitted(&game, "world_cup_champion_2030"));
+    }
+
+    /// Given a lost ledger, and a message read long ago and moved out of the inbox into the mail
+    ///       archive
+    /// When the ledger is rebuilt
+    /// Then its key counts as sent: old mail is still mail this career received
+    #[test]
+    fn an_archived_messages_key_survives_a_lost_ledger() {
+        let mut game = game();
+        game.archived_messages
+            .push(message("world_cup_champion_2026"));
+
+        rebuild_lost_ledger(&mut game);
+
+        assert!(already_emitted(&game, "world_cup_champion_2026"));
     }
 
     /// No generator may dedupe against the mailbox again.
