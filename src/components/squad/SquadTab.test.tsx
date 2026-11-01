@@ -321,13 +321,15 @@ describe("SquadTab", () => {
         .slice(1)
         .map((row) => within(row).getAllByRole("button")[0].getAttribute("aria-label"));
 
+    // Numbered 1 to 11 in the fixture's order: the keeper, four defenders, four midfielders, two
+    // forwards.
+    const numbered = ["GK1", "D1", "D2", "D3", "D4", "M1", "M2", "M3", "M4", "F1", "F2"];
+
     const { rerender } = render(roster("asc"));
-    expect(rowNames()[0]).toBe("GK1");
-    expect(rowNames()[rowNames().length - 1]).toBe("Bench DEF");
+    expect(rowNames()).toEqual([...numbered, "Bench DEF"]);
 
     rerender(roster("desc"));
-    expect(rowNames()[0]).toBe("F2");
-    expect(rowNames()[rowNames().length - 1]).toBe("Bench DEF");
+    expect(rowNames()).toEqual([...numbered].reverse().concat("Bench DEF"));
   });
 
   /**
