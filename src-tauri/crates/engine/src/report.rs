@@ -305,11 +305,22 @@ impl MatchReport {
                         ps.fouls_committed += 1;
                     }
                 }
-                EventType::YellowCard | EventType::SecondYellow => {
+                EventType::YellowCard => {
                     stats.yellow_cards += 1;
                     if !pid.is_empty() {
                         let ps = player_stats.entry(pid.to_string()).or_default();
                         ps.yellow_cards += 1;
+                    }
+                }
+                // A second yellow is a booking and a sending-off: the red-card tally is how the
+                // season stats and the post-match morale see a dismissal.
+                EventType::SecondYellow => {
+                    stats.yellow_cards += 1;
+                    stats.red_cards += 1;
+                    if !pid.is_empty() {
+                        let ps = player_stats.entry(pid.to_string()).or_default();
+                        ps.yellow_cards += 1;
+                        ps.red_cards += 1;
                     }
                 }
                 EventType::RedCard => {
@@ -449,5 +460,25 @@ mod tests {
         );
         // In-match penalties still count.
         assert_eq!(report.goals[1].goal_source, GoalSource::Penalty);
+    }
+
+    /// Given a player booked at 20' and shown a second yellow at 60',
+    /// When the match report is built,
+    /// Then he has two yellow cards and one red, and so has his side: a second yellow is a
+    /// sending-off, and the red-card tally is how the season stats and morale see one.
+    #[test]
+    fn a_second_yellow_is_a_red_card_in_the_report() {
+        let events = vec![
+            event(20, EventType::YellowCard, Side::Home, "h1"),
+            event(60, EventType::SecondYellow, Side::Home, "h1"),
+        ];
+        let report = MatchReport::from_events(events, 50, 50, 90);
+
+        let sent_off = &report.player_stats["h1"];
+        assert_eq!((sent_off.yellow_cards, sent_off.red_cards), (2, 1));
+        assert_eq!(
+            (report.home_stats.yellow_cards, report.home_stats.red_cards),
+            (2, 1)
+        );
     }
 }

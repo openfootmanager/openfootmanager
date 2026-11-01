@@ -685,6 +685,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Cadangan {{bench}}",
     "bestRole": "Peran terbaik",
     "startingXi": "Starting XI",
+    "notMatchDayEligible": "Tidak tersedia untuk dipilih",
     "starter": "Starter",
     "benchOption": "Cadangan",
     "naturalFit": "Posisi alami",
