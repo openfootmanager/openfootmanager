@@ -490,9 +490,10 @@ const CEILING_SD: f64 = 5.0;
 /// made by the intake (everyone alive after about 15 seasons was an intake recruit), and the opening
 /// cohort it replaces carries less of the A tier on a normal bell than the old light-tailed one did,
 /// so an intake on the opening's own centre settles below the band #965 set (S 1.0 to 1.8%, A 5.9
-/// to 8.2%). Swept over 12 and 20 seasons on the shipped world, 1.0 holds the band to season 20 on
-/// two seeds; 1.6 pushes A past 8.2% and the mean up another 0.4.
-const INTAKE_CEILING_OFFSET: f64 = 1.0;
+/// to 8.2%). Swept over 20 seasons on two seeds of the shipped world, 1.2 holds S and A inside the band
+/// at seasons 10, 15 and 20 (A 5.9 to 7.7%); 1.0 dips A under 5.9% at season 10, and 1.4 reaches
+/// 8.2% by season 20.
+const INTAKE_CEILING_OFFSET: f64 = 1.2;
 /// The fraction of the opening's spread the intake keeps. Alone, the offset doubles the settled
 /// wonderkid rate (0.16 to 0.22% against 0.06 to 0.13% on the old bell); 0.95 brings it back to
 /// 0.10 to 0.12% and costs S about 0.1 points.
