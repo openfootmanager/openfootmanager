@@ -12,6 +12,7 @@ import {
   ConditionMeter,
   CountryFlag,
   DataTable,
+  SortHeaderButton,
   type DataTableColumn,
   DatePicker,
   Dialog,
@@ -514,6 +515,21 @@ function TablesSection() {
   });
   return (
     <Section title="Tables">
+      {/* The button inside a sortable column header, for a table that draws its own header: it fills
+          the cell and carries the cell's padding, so the whole header sorts. */}
+      <div className="w-48 rounded-lg border border-line bg-panel text-caption">
+        <SortHeaderButton
+          header="Age"
+          direction={sort.direction}
+          onSort={() =>
+            setSort((current) => ({
+              key: "age",
+              direction: current.direction === "asc" ? "desc" : "asc",
+            }))
+          }
+          className="h-8 px-2"
+        />
+      </div>
       <div className="grid gap-4">
         <TablePanel>
           <DataTable

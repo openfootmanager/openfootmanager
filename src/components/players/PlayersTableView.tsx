@@ -8,8 +8,7 @@ import { ratingTierClass } from "../../lib/ratingTier";
 import type { PlayerSortKey, PlayerSummary, PlayersPageQuery } from "../../services/playersService";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import PlayerPositionBadge from "../PlayerPositionBadge";
-import { Badge, Card, CardBody, CountryFlag, PlayerAvatar } from "../ui";
-import { SortHeaderButton } from "../ui/DataTable";
+import { Badge, Card, CardBody, CountryFlag, PlayerAvatar, SortHeaderButton } from "../ui";
 import PlayersPagination from "./PlayersPagination";
 
 interface PlayersTableViewProps {
