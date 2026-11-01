@@ -106,7 +106,7 @@ pub fn apply_match_wear(player: &mut Player, minutes: u8, rng: &mut impl Rng) {
 
 /// Injury-risk multiplier scaled by match fitness: less fit players are more
 /// prone to picking up a knock.
-fn injury_multiplier_from_fitness(fitness: u8) -> f64 {
+pub(crate) fn injury_multiplier_from_fitness(fitness: u8) -> f64 {
     if fitness < 30 {
         3.0
     } else if fitness < 50 {

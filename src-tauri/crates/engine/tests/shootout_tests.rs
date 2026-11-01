@@ -22,6 +22,7 @@ fn player(id: &str, position: Position, (shooting, composure): (u8, u8)) -> Play
         ovr: 70,
         condition: 100,
         fitness: 100,
+        injury_risk: 1.0,
         pace: 70,
         stamina: 70,
         strength: 70,
