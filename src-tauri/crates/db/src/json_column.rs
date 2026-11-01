@@ -374,6 +374,60 @@ mod tests {
         assert!(found.is_empty(), "outside json_column: {found:?}");
     }
 
+    /// Whether a migration's SQL names the quarantine table, its `--` comments left out.
+    fn sql_names_the_quarantine_table(sql: &str) -> bool {
+        sql.lines()
+            .map(|line| line.split("--").next().unwrap_or(""))
+            .any(|code| code.to_ascii_lowercase().contains("unreadable_records"))
+    }
+
+    /// Given SQL that deletes from the quarantine table, and SQL that only mentions it in a comment
+    /// When the migration scan reads each
+    /// Then it sees the first and not the second: the guard below would catch a migration that
+    ///      empties or drops the table
+    #[test]
+    fn the_migration_scan_sees_sql_and_not_comments() {
+        assert!(sql_names_the_quarantine_table(
+            "-- tidy up\nDELETE FROM unreadable_records;"
+        ));
+        assert!(sql_names_the_quarantine_table(
+            "drop table UNREADABLE_RECORDS;"
+        ));
+        assert!(!sql_names_the_quarantine_table(
+            "-- unreadable_records is json_column's\nCREATE TABLE other (id TEXT);"
+        ));
+    }
+
+    /// Given every migration but the one that creates the quarantine table
+    /// When their SQL is read
+    /// Then none touches it: a migration that deleted, dropped or rewrote kept cells would lose
+    ///      them, and the set-aside notice's count, which assumes the table only grows, would
+    ///      repeat old notices
+    #[test]
+    fn no_other_migration_touches_the_quarantine_table() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/sql");
+        let mut scanned = 0;
+        let mut found = Vec::new();
+        for entry in std::fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("sql")
+                || path.ends_with("v063_unreadable_records.sql")
+            {
+                continue;
+            }
+            scanned += 1;
+            if sql_names_the_quarantine_table(&std::fs::read_to_string(&path).unwrap()) {
+                found.push(path.display().to_string());
+            }
+        }
+
+        assert!(scanned > 50, "the scan read the migrations: {scanned}");
+        assert!(
+            found.is_empty(),
+            "a migration touches unreadable_records: {found:?}"
+        );
+    }
+
     /// Given one cell that parses and one that does not
     /// When each is read for a caller that repairs a lost cell
     /// Then the first is its value, the second None and kept: the caller knows to repair it
