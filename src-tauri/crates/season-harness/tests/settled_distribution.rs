@@ -21,6 +21,7 @@ use season_harness::worlds::WorldSpec;
 #[test]
 #[ignore = "nightly tier: twenty seasons of the shipped world"]
 fn the_settled_world_stays_inside_its_band() {
+    let mut outside: Vec<String> = Vec::new();
     for seed in [1, 2] {
         let mut game = WorldSpec::shipped(seed).build().expect("the world builds");
         eprintln!("seed {seed} opening: {:?}", distribution_report(&game));
@@ -29,24 +30,27 @@ fn the_settled_world_stays_inside_its_band() {
 
         for season in [10usize, 15, 20] {
             let report = &log.after_each_season[season - 1];
-            let message = format!(
+            let line = format!(
                 "seed {seed} season {season}: S {:.2}% A {:.2}% mean {:.2} wonderkids {:.2}%",
                 report.senior_ovr_s_share * 100.0,
                 report.senior_ovr_a_share * 100.0,
                 report.mean_senior_ovr,
                 report.wonderkid_share * 100.0
             );
-            eprintln!("{message}");
+            eprintln!("{line}");
 
-            assert!(
-                (0.010..=0.018).contains(&report.senior_ovr_s_share),
-                "S share; {message}"
-            );
-            assert!(
-                (0.059..=0.082).contains(&report.senior_ovr_a_share),
-                "A share; {message}"
-            );
-            assert!(report.wonderkid_share <= 0.0015, "wonderkids; {message}");
+            let in_band = (0.010..=0.018).contains(&report.senior_ovr_s_share)
+                && (0.059..=0.082).contains(&report.senior_ovr_a_share)
+                && report.wonderkid_share <= 0.0015;
+            if !in_band {
+                outside.push(line);
+            }
         }
     }
+
+    assert!(
+        outside.is_empty(),
+        "outside the band (S 1.0-1.8%, A 5.9-8.2%, wonderkids <= 0.15%):\n{}",
+        outside.join("\n")
+    );
 }
