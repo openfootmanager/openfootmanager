@@ -1584,4 +1584,240 @@ mod tests {
             "one champion a season in a one-league world"
         );
     }
+
+    /// A manager of `team_id` with no spells on record, the club's manager in `game`.
+    fn put_manager_at(game: &mut Game, team_id: &str, spells: Vec<ManagerCareerEntry>) -> String {
+        let id = format!("mgr-{team_id}");
+        let mut manager = Manager::new(
+            id.clone(),
+            "Pat".to_string(),
+            "Seed".to_string(),
+            "1975-01-01".to_string(),
+            "England".to_string(),
+        );
+        manager.hire(team_id.to_string());
+        manager.career_history = spells;
+        game.managers.push(manager);
+        if let Some(team) = game.teams.iter_mut().find(|team| team.id == team_id) {
+            team.manager_id = Some(id.clone());
+        }
+        id
+    }
+
+    fn spell(team_id: &str, start: &str, end: Option<&str>, wins: u32) -> ManagerCareerEntry {
+        ManagerCareerEntry {
+            team_id: team_id.to_string(),
+            team_name: String::new(),
+            start_date: start.to_string(),
+            end_date: end.map(str::to_string),
+            matches: wins,
+            wins,
+            draws: 0,
+            losses: 0,
+            best_league_position: None,
+        }
+    }
+
+    fn row(team_id: &str, won: u32, drawn: u32, lost: u32) -> domain::league::StandingEntry {
+        let mut row = domain::league::StandingEntry::new(team_id.to_string());
+        row.played = won + drawn + lost;
+        row.won = won;
+        row.drawn = drawn;
+        row.lost = lost;
+        row
+    }
+
+    fn manager<'a>(game: &'a Game, id: &str) -> &'a Manager {
+        game.managers
+            .iter()
+            .find(|manager| manager.id == id)
+            .expect("the manager is on record")
+    }
+
+    fn open_spell(manager: &Manager) -> &ManagerCareerEntry {
+        manager
+            .career_history
+            .iter()
+            .find(|spell| spell.end_date.is_none())
+            .expect("an open spell")
+    }
+
+    /// Given a club's manager and a past season it finished with 5 wins, 2 draws and 3 defeats
+    /// When the season is added to the managers' records
+    /// Then his career totals gain 10 matches, 5 wins, 2 draws and 3 defeats
+    #[test]
+    fn a_past_seasons_results_add_to_the_managers_career_totals() {
+        let mut game = make_game();
+        let id = put_manager_at(&mut game, "team-1", vec![]);
+
+        super::upsert_manager_history(&mut game, &[vec![row("team-1", 5, 2, 3)]]);
+
+        let stats = &manager(&game, &id).career_stats;
+        assert_eq!(
+            (stats.matches_managed, stats.wins, stats.draws, stats.losses),
+            (10, 5, 2, 3)
+        );
+    }
+
+    /// Given a manager back at a club he left before: a closed spell there, then his open one
+    /// When a past season of 5 wins, 2 draws and 3 defeats is added
+    /// Then it counts on the open spell, and the earlier spell is untouched
+    #[test]
+    fn a_past_season_counts_on_the_current_spell_not_an_earlier_one_at_the_same_club() {
+        let mut game = make_game();
+        let id = put_manager_at(
+            &mut game,
+            "team-1",
+            vec![
+                spell("team-1", "2015-07-01", Some("2018-06-30"), 40),
+                spell("team-1", "2032-07-01", None, 0),
+            ],
+        );
+
+        super::upsert_manager_history(&mut game, &[vec![row("team-1", 5, 2, 3)]]);
+
+        let manager = manager(&game, &id);
+        let earlier = &manager.career_history[0];
+        let open = open_spell(manager);
+        assert_eq!(
+            (
+                (earlier.matches, earlier.wins),
+                (open.matches, open.wins, open.draws, open.losses)
+            ),
+            ((40, 40), (10, 5, 2, 3))
+        );
+    }
+
+    /// Given a club's manager who finishes second, then first, then second again
+    /// When each season is added in turn
+    /// Then first is his best finish, in his career and in his spell: a worse place never replaces it
+    #[test]
+    fn a_better_finish_becomes_the_best_and_a_worse_one_does_not() {
+        let mut game = make_game();
+        let id = put_manager_at(
+            &mut game,
+            "team-1",
+            vec![spell("team-1", "2032-07-01", None, 0)],
+        );
+
+        for table in [
+            vec![row("team-2", 6, 0, 0), row("team-1", 3, 0, 3)],
+            vec![row("team-1", 6, 0, 0), row("team-2", 3, 0, 3)],
+            vec![row("team-2", 6, 0, 0), row("team-1", 3, 0, 3)],
+        ] {
+            super::upsert_manager_history(&mut game, &[table]);
+        }
+
+        let manager = manager(&game, &id);
+        assert_eq!(
+            (
+                manager.career_stats.best_finish,
+                open_spell(manager).best_league_position
+            ),
+            (Some(1), Some(1))
+        );
+    }
+
+    /// Given a club's manager whose open spell has no results yet
+    /// When the past is prepared from 2028
+    /// Then the spell starts on 1 July 2028: his record goes back as far as the history does
+    #[test]
+    fn an_untouched_open_spell_starts_with_the_first_historical_season() {
+        let mut game = make_game();
+        let id = put_manager_at(
+            &mut game,
+            "team-1",
+            vec![spell("team-1", "2032-07-01", None, 0)],
+        );
+
+        super::prepare_seeded_managers(&mut game, 2028);
+
+        assert_eq!(open_spell(manager(&game, &id)).start_date, "2028-07-01");
+    }
+
+    /// Given a club's manager whose open spell already has results
+    /// When the past is prepared from 2028
+    /// Then the spell keeps the start date it has
+    #[test]
+    fn an_open_spell_with_results_keeps_its_own_start_date() {
+        let mut game = make_game();
+        let id = put_manager_at(
+            &mut game,
+            "team-1",
+            vec![spell("team-1", "2030-07-01", None, 3)],
+        );
+
+        super::prepare_seeded_managers(&mut game, 2028);
+
+        assert_eq!(open_spell(manager(&game, &id)).start_date, "2030-07-01");
+    }
+
+    /// Given a manager back at a club he left before: a closed spell there with results, then his
+    ///       untouched open one
+    /// When the past is prepared from 2028
+    /// Then the open spell moves to 2028, the earlier one keeps its dates, and no spell is added
+    #[test]
+    fn preparing_the_past_moves_only_the_current_spell_at_the_club() {
+        let mut game = make_game();
+        let id = put_manager_at(
+            &mut game,
+            "team-1",
+            vec![
+                spell("team-1", "2015-07-01", Some("2018-06-30"), 40),
+                spell("team-1", "2032-07-01", None, 0),
+            ],
+        );
+
+        super::prepare_seeded_managers(&mut game, 2028);
+
+        let starts: Vec<&str> = manager(&game, &id)
+            .career_history
+            .iter()
+            .map(|spell| spell.start_date.as_str())
+            .collect();
+        assert_eq!(starts, vec!["2015-07-01", "2028-07-01"]);
+    }
+
+    /// Given the manager of the second club listed, with no spell on record
+    /// When the past is prepared from 2028
+    /// Then he gets one open spell, from 1 July 2028, named after his own club
+    #[test]
+    fn a_manager_with_no_spell_gets_one_named_after_his_own_club() {
+        let mut game = make_game();
+        let id = put_manager_at(&mut game, "team-2", vec![]);
+
+        super::prepare_seeded_managers(&mut game, 2028);
+
+        let spells: Vec<(&str, &str, &str)> = manager(&game, &id)
+            .career_history
+            .iter()
+            .map(|spell| {
+                (
+                    spell.team_id.as_str(),
+                    spell.team_name.as_str(),
+                    spell.start_date.as_str(),
+                )
+            })
+            .collect();
+        assert_eq!(spells, vec![("team-2", "Club 2", "2028-07-01")]);
+    }
+
+    /// Given a world with a manager at every club
+    /// When two past seasons are generated
+    /// Then each season's awards name a manager of the season
+    #[test]
+    fn every_generated_season_names_a_manager_of_the_season() {
+        let mut game = make_game();
+
+        generate_past_world_history(&mut game, 2032, 2);
+
+        let named: Vec<(u32, bool)> = game
+            .world_history
+            .season_awards
+            .iter()
+            .map(|record| (record.season, record.manager_of_season.is_some()))
+            .collect();
+        assert!(!named.is_empty(), "no season's awards were recorded");
+        assert!(named.iter().all(|(_, some)| *some), "{named:?}");
+    }
 }
