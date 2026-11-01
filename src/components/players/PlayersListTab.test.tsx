@@ -779,12 +779,12 @@ describe("PlayersListTab cards view", () => {
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.getAllByRole("article")).toHaveLength(gameState.players.length);
 
-    fireEvent.click(within(card).getByRole("button", { name: "Alpha FC" }));
-    expect(onSelectTeam).toHaveBeenCalledWith("team-1");
+    fireEvent.click(within(card).getByRole("button", { name: "Beta FC" }));
+    expect(onSelectTeam).toHaveBeenCalledWith("team-2");
     expect(onSelectPlayer).not.toHaveBeenCalled();
 
     fireEvent.click(within(card).getByRole("button", { name: "A. Keeper" }));
-    expect(onSelectPlayer).toHaveBeenCalledWith(gameState.players[0].id);
+    expect(onSelectPlayer).toHaveBeenCalledWith("player-2");
   });
 
   /**
@@ -876,7 +876,7 @@ describe("PlayersListTab cards view", () => {
     fireEvent.contextMenu(card);
     fireEvent.click(await screen.findByText("View profile"));
 
-    expect(onSelectPlayer).toHaveBeenCalledWith(gameState.players[0].id);
+    expect(onSelectPlayer).toHaveBeenCalledWith("player-2");
   });
 });
 
