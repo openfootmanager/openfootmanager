@@ -563,29 +563,19 @@ describe("SquadTab", () => {
     expect(within(keeperRow).getAllByText("10d").length).toBeGreaterThan(0);
   });
 
+  /**
+   * Given an OVR sort, high to low, saved on the dashboard, and two forwards the backend rates 30
+   *       and 90, the weaker listed first
+   * When Squad opens
+   * Then the 90 is drawn above the 30.
+   */
   it("honors a persisted OVR sort state from the dashboard", () => {
     const gameState = makeGameState();
+    // The rating is the backend's `ovr`; the list never derives one from attributes. Without it
+    // both read 0, and the order would rest on how a tie falls.
     gameState.players = [
-      makePlayer("low", "Forward", {
-        match_name: "Low OVR",
-        attributes: {
-          ...makePlayer("base-low", "Forward").attributes,
-          pace: 30,
-          shooting: 30,
-          passing: 30,
-          dribbling: 30,
-        },
-      }),
-      makePlayer("high", "Forward", {
-        match_name: "High OVR",
-        attributes: {
-          ...makePlayer("base-high", "Forward").attributes,
-          pace: 90,
-          shooting: 90,
-          passing: 90,
-          dribbling: 90,
-        },
-      }),
+      makePlayer("low", "Forward", { match_name: "Low OVR", ovr: 30 }),
+      makePlayer("high", "Forward", { match_name: "High OVR", ovr: 90 }),
     ];
 
     render(
