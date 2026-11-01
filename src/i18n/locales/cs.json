@@ -2873,6 +2873,7 @@
         "bothParticipantSources": "Zadejte buď explicitní seznam, nebo selektor, nikoliv obojí.",
         "tooFewParticipants": "Je vyžadována účast alespoň dvou účastníků.",
         "unknownTeam": "Neznámý tým „{{team}}“.",
+        "duplicateTeam": "Tým „{{team}}“ je uveden vícekrát.",
         "selectorMissingCountry": "Tento selektor vyžaduje zemi.",
         "selectorCountTooSmall": "Tento selektor vyžaduje počet alespoň 2.",
         "selectorMissingRegion": "Tento selektor vyžaduje region.",

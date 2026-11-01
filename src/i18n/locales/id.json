@@ -2873,6 +2873,7 @@
         "bothParticipantSources": "Berikan daftar eksplisit atau pemilih, tidak keduanya.",
         "tooFewParticipants": "Setidaknya dua peserta diperlukan.",
         "unknownTeam": "Tim \"{{team}}\" tidak dikenal.",
+        "duplicateTeam": "Tim \"{{team}}\" tercantum lebih dari sekali.",
         "selectorMissingCountry": "Pemilih ini membutuhkan negara.",
         "selectorCountTooSmall": "Pemilih ini membutuhkan jumlah minimal 2.",
         "selectorMissingRegion": "Pemilih ini membutuhkan wilayah.",

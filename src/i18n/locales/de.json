@@ -2830,6 +2830,7 @@
         "bothParticipantSources": "Geben Sie entweder eine explizite Liste oder einen Selektor an, nicht beides.",
         "tooFewParticipants": "Mindestens zwei Teilnehmer sind erforderlich.",
         "unknownTeam": "Unbekanntes Team \"{{team}}\".",
+        "duplicateTeam": "Team \"{{team}}\" ist mehrfach aufgeführt.",
         "selectorMissingCountry": "Dieser Selektor benötigt ein Land.",
         "selectorCountTooSmall": "Dieser Selektor benötigt eine Anzahl von mindestens 2.",
         "selectorMissingRegion": "Dieser Selektor benötigt eine Region.",

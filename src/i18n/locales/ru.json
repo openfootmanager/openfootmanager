@@ -2865,6 +2865,7 @@
         "bothParticipantSources": "Укажите либо явный список, либо селектор, но не оба.",
         "tooFewParticipants": "Требуется не менее двух участников.",
         "unknownTeam": "Неизвестная команда \"{{team}}\".",
+        "duplicateTeam": "Команда \"{{team}}\" указана более одного раза.",
         "selectorMissingCountry": "Этому селектору нужна страна.",
         "selectorCountTooSmall": "Этому селектору нужно число не менее 2.",
         "selectorMissingRegion": "Этому селектору нужен регион.",
