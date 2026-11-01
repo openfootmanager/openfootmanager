@@ -19,6 +19,7 @@ fn make_player(id: &str, name: &str, pos: Position, skill: u8) -> PlayerData {
         ovr: skill,
         condition: 90,
         fitness: 75,
+        injury_risk: 1.0,
         pace: skill,
         stamina: skill,
         strength: skill,
@@ -435,11 +436,17 @@ fn penalty_shootout_resolves_drawn_et() {
     // That's OK — the mechanism is tested structurally
 }
 
+/// Given every shootout over 500 seeds,
+/// When each ends,
+/// Then a round is left half taken only inside the first five kicks, with the away side one kick
+/// short because one side could no longer catch up: away with its remaining kicks, or home, which
+/// has just kicked, with its own. A sudden-death round always ends completed.
+///
+/// Regression: the shootout used to be declared decided the moment one side led after 5+ kicks,
+/// before the trailing side's reply, which handed every sudden-death shootout to the side kicking
+/// first (home).
 #[test]
-fn shootout_ends_only_on_completed_pairs() {
-    // Regression: the shootout used to be declared decided the moment one side
-    // led after 5+ kicks, before the trailing side's reply — handing every
-    // sudden-death shootout to the side kicking first (home).
+fn a_shootout_ends_mid_round_only_when_one_side_cannot_catch_up() {
     let mut shootouts = 0;
     for seed in 0..500 {
         let mut state = make_live_match(true);
@@ -449,11 +456,23 @@ fn shootout_ends_only_on_completed_pairs() {
         let snap = state.snapshot();
         if let Some(ps) = snap.penalty_shootout {
             shootouts += 1;
-            assert_eq!(
-                ps.home_taken, ps.away_taken,
-                "shootout decided mid-round (seed {seed}): {}/{} kicks taken",
-                ps.home_taken, ps.away_taken
-            );
+            if ps.home_taken != ps.away_taken {
+                let away_cannot_catch_up =
+                    ps.away_scored + 5u8.saturating_sub(ps.away_taken) < ps.home_scored;
+                let home_cannot_catch_up =
+                    ps.home_scored + 5u8.saturating_sub(ps.home_taken) < ps.away_scored;
+                assert!(
+                    ps.home_taken == ps.away_taken + 1
+                        && ps.home_taken <= 5
+                        && (away_cannot_catch_up || home_cannot_catch_up),
+                    "shootout ended mid-round with both sides still able to catch up \
+                     (seed {seed}): {}/{} kicks, {}-{}",
+                    ps.home_taken,
+                    ps.away_taken,
+                    ps.home_scored,
+                    ps.away_scored
+                );
+            }
             assert_ne!(
                 ps.home_scored, ps.away_scored,
                 "finished shootout must have a winner (seed {seed})"
@@ -1483,6 +1502,7 @@ fn make_player_with_traits(
         ovr: skill,
         condition: 90,
         fitness: 75,
+        injury_risk: 1.0,
         pace: skill,
         stamina: skill,
         strength: skill,

@@ -22,6 +22,7 @@ fn player(id: &str, position: Position, (shooting, composure): (u8, u8)) -> Play
         ovr: 70,
         condition: 100,
         fitness: 100,
+        injury_risk: 1.0,
         pace: 70,
         stamina: 70,
         strength: 70,
@@ -665,4 +666,75 @@ fn the_engine_snapshot_never_carries_an_order() {
     let shootout = state.snapshot().penalty_shootout.expect("a shootout is on");
     assert_eq!(shootout.home_order, None);
     assert_eq!(shootout.away_order, None);
+}
+
+// ---------------------------------------------------------------------------
+// When a shootout ends
+// ---------------------------------------------------------------------------
+
+/// Given two full sides level after extra time, over many seeds,
+/// When their shootouts are played,
+/// Then some end mid-round inside the first five kicks, with the away side one kick short,
+/// because one side could no longer catch up; and the final snapshot shows the kicks each side
+/// took.
+#[test]
+fn a_shootout_can_end_mid_round_in_the_first_five_kicks() {
+    let mut mid_round = 0;
+    for seed in 0..SEEDS {
+        let Some((mut state, mut rng)) = to_the_final_whistle(seed, kick_off(vec![])) else {
+            continue;
+        };
+        let (mut home_kicks, mut away_kicks) = (0u8, 0u8);
+        loop {
+            let minute = state.step_minute(&mut rng);
+            for event in &minute.events {
+                if matches!(
+                    event.event_type,
+                    EventType::ShootoutGoal | EventType::ShootoutMiss
+                ) {
+                    match event.side {
+                        Side::Home => home_kicks += 1,
+                        Side::Away => away_kicks += 1,
+                    }
+                }
+            }
+            if minute.is_finished {
+                break;
+            }
+        }
+        let shootout = state
+            .snapshot()
+            .penalty_shootout
+            .expect("a finished shootout keeps its score");
+        assert_eq!(
+            (shootout.home_taken, shootout.away_taken),
+            (home_kicks, away_kicks),
+            "seed {seed}: the snapshot's kick counts are the kicks taken"
+        );
+        mid_round += usize::from(home_kicks == away_kicks + 1 && home_kicks <= 5);
+    }
+    assert!(mid_round > 10, "only {mid_round} shootouts ended mid-round");
+}
+
+/// Given the same shootouts,
+/// When one goes past the fifth kicks into sudden death,
+/// Then it always ends with both sides having taken the same number of kicks: the side that
+/// kicks second in a sudden-death round always gets its reply.
+#[test]
+fn a_sudden_death_round_is_always_completed() {
+    let mut sudden_deaths = 0;
+    for kickers in shootouts(&nothing, &nothing) {
+        if kickers.home.len() > 5 {
+            sudden_deaths += 1;
+            assert_eq!(
+                kickers.home.len(),
+                kickers.away.len(),
+                "a sudden-death round ended half taken"
+            );
+        }
+    }
+    assert!(
+        sudden_deaths > 10,
+        "only {sudden_deaths} went to sudden death"
+    );
 }

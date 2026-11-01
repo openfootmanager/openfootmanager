@@ -473,7 +473,7 @@ impl LiveMatchState {
         let card_events = self.maybe_card(minute, fouling_side, &fouler.id, zone, rng);
         events.extend(card_events);
 
-        if rng.random_range(0.0..1.0f64) < self.config.injury_probability {
+        if rng.random_range(0.0..1.0f64) < self.config.injury_probability * fouled.injury_risk {
             let evt =
                 MatchEvent::new(minute, EventType::Injury, att_side, zone).with_player(&fouled.id);
             self.events.push(evt.clone());
@@ -551,6 +551,7 @@ mod event_detail_tests {
             ovr: 70,
             condition: 90,
             fitness: 75,
+            injury_risk: 1.0,
             pace: 70,
             stamina: 70,
             strength: 70,
