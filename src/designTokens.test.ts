@@ -27,6 +27,8 @@ const BOUNDARY_KITS = [
   "#808080",
   "#000000",
   "#0000ff",
+  // The approved mock's green, just under the full-wash threshold: it takes the whole share.
+  "#16a34a",
 ];
 
 /**
