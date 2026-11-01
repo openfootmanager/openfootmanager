@@ -48,6 +48,8 @@ describe("parseColor, the edges", () => {
    */
   it("reads the slash value of rgb() as alpha, not as a unit of the channels", () => {
     expect(parseColor("rgb(50 50 50 / 100%)")).toEqual({ r: 50, g: 50, b: 50 });
+    // No spaces round the slash: the alpha must still not turn the channels into percentages.
+    expect(parseColor("rgb(50 50 50/100%)")).toEqual({ r: 50, g: 50, b: 50 });
     expect(parseColor("rgb(100% 0% 0%)")).toEqual({ r: 255, g: 0, b: 0 });
   });
 
@@ -83,6 +85,9 @@ describe("contrast", () => {
     // A mid-tone, from the WCAG reference: #777777 on white is 4.48:1 (the well-known "just short of
     // 4.5" grey), so a slip in the curve between the extremes shows.
     expect(contrastRatio({ r: 0x77, g: 0x77, b: 0x77 }, white)).toBeCloseTo(4.48, 2);
+    // A dark grey whose channel sits just above the curve's linear segment (#141414, 20/255): 18.42,
+    // where reading it on the linear segment would say 18.73.
+    expect(contrastRatio({ r: 20, g: 20, b: 20 }, white)).toBeCloseTo(18.42, 2);
   });
 });
 
