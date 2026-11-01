@@ -194,6 +194,12 @@ it("opens the offer history from the card's button", async () => {
 
   const dialog = await screen.findByRole("dialog", { name: "Offered Player" });
   expect(within(dialog).getByRole("region", { name: "Offer history" })).toBeInTheDocument();
+  // Reading the history is not starting a bid: the bid button is off and no bid was priced.
+  expect(within(dialog).getByRole("button", { name: "Make Transfer Bid" })).toBeDisabled();
+  expect(vi.mocked(invoke)).not.toHaveBeenCalledWith(
+    "preview_transfer_bid_financial_impact",
+    expect.anything(),
+  );
 });
 
 /** The queries the market has asked the backend for, in order. */
