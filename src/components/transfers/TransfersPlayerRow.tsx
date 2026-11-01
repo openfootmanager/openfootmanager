@@ -101,7 +101,7 @@ export function TransferDealButton({ state, player }: TransferDealButtonProps) {
         if (view === "offers") openDealHistory(player);
         else openDealEntry(player);
       }}
-      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-800 motion-reduce:transition-none flex items-center gap-1 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-700 dark:text-primary-400 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors"
+      className="focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page motion-reduce:transition-none flex items-center gap-1 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-700 dark:text-primary-400 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors"
     >
       {view === "offers" ? <History className="w-3 h-3" /> : getDealEntryIcon(player, "w-3 h-3")}
       {view === "offers" ? t("transfers.viewOfferHistory") : getDealEntryLabel(player)}

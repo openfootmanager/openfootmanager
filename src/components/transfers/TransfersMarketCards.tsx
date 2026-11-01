@@ -7,7 +7,7 @@ import { naturalPositionOf } from "../../lib/positions";
 import type { PlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import PlayerCard from "../PlayerCard";
-import { Badge } from "../ui";
+import { Badge, CardGrid } from "../ui";
 import { PlayerOffersList } from "./TransfersPlayerOffers";
 import { TransferDealButton, transferPlayerRowModel } from "./TransfersPlayerRow";
 import type { TransfersMarketTableState } from "./TransfersMarketTable";
@@ -90,12 +90,12 @@ function TransferPlayerCard({ state, player }: TransferPlayerCardProps) {
 /** The market list as cards, one per player on the page. */
 export function TransfersMarketCards({ state }: { state: TransfersMarketTableState }) {
   return (
-    <ul className="grid list-none grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-3 p-0">
+    <CardGrid>
       {state.visibleList.map((player) => (
         <li key={player.id} className="min-w-0">
           <TransferPlayerCard state={state} player={player} />
         </li>
       ))}
-    </ul>
+    </CardGrid>
   );
 }

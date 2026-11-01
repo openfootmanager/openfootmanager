@@ -1,4 +1,5 @@
-import { Card, CardBody } from "../ui";
+import { Card, CardBody, SortControl } from "../ui";
+import { PLAYER_SORT_OPTIONS } from "../players/playerSortOptions";
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import type { TransfersTabController } from "./useTransfersTabController";
 import { TransferPlayerRow } from "./TransfersPlayerRow";
@@ -23,6 +24,8 @@ export type TransfersMarketTableState = Pick<
   | "t"
   | "ovrSortDir"
   | "cycleOvrSort"
+  | "marketQuery"
+  | "patchMarketQuery"
   | "view"
   | "isScoutingView"
   | "visibleList"
@@ -105,11 +108,30 @@ export function TransfersMarketPagination({ state }: TransfersMarketPaginationPr
 }
 
 export function TransfersMarketTable({ state }: TransfersMarketTableProps) {
-  const { filteredList, t, ovrSortDir, cycleOvrSort, view, isScoutingView, visibleList } = state;
+  const {
+    filteredList,
+    t,
+    ovrSortDir,
+    cycleOvrSort,
+    view,
+    isScoutingView,
+    visibleList,
+    marketQuery,
+    patchMarketQuery,
+  } = state;
   const [listView] = useListView();
   if (filteredList.length > 0 && listView === "cards") {
     return (
       <>
+        <div className="mb-3 flex justify-end">
+          <SortControl
+            options={PLAYER_SORT_OPTIONS.map(({ key, labelKey }) => ({ key, label: t(labelKey) }))}
+            sortKey={marketQuery.sort_key}
+            ascending={marketQuery.sort_asc}
+            defaultAscending={(key) => key === "name"}
+            onChange={(key, ascending) => patchMarketQuery({ sort_key: key, sort_asc: ascending })}
+          />
+        </div>
         <TransfersMarketCards state={state} />
         <TransfersMarketPagination state={state} />
       </>

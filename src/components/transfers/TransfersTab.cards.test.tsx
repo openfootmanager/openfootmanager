@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import { createInstance } from "i18next";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -146,7 +146,7 @@ it("opens a player from his card and from its context menu", async () => {
 
   onSelectPlayer.mockClear();
   fireEvent.contextMenu(card);
-  fireEvent.click(await screen.findByText("View profile"));
+  fireEvent.click(await screen.findByRole("menuitem", { name: "View profile" }));
   expect(onSelectPlayer).toHaveBeenCalledWith("unscouted");
 });
 
@@ -178,4 +178,63 @@ it("switches the market to cards from the view switch", async () => {
 
   expect(await screen.findAllByRole("article")).not.toHaveLength(0);
   expect(screen.queryByRole("table")).toBeNull();
+});
+
+/**
+ * Given a player with a deferred bid in the Offers tab's cards
+ * When the card's offer-history button is chosen
+ * Then the offer history opens for that player (the button works, not only exists).
+ */
+it("opens the offer history from the card's button", async () => {
+  renderCentre();
+  fireEvent.click(await screen.findByRole("button", { name: /^Offers/ }));
+  const card = await screen.findByRole("article", { name: "Offered Player" });
+
+  fireEvent.click(within(card).getByRole("button", { name: "View offer history" }));
+
+  const dialog = await screen.findByRole("dialog", { name: "Offered Player" });
+  expect(within(dialog).getByRole("region", { name: "Offer history" })).toBeInTheDocument();
+});
+
+/** The queries the market has asked the backend for, in order. */
+function requestedQueries(): { sort_key: string; sort_asc: boolean }[] {
+  return vi
+    .mocked(invoke)
+    .mock.calls.filter(([command]) => command === "get_players_page")
+    .map(([, payload]) => (payload as { query: { sort_key: string; sort_asc: boolean } }).query);
+}
+
+/**
+ * Given the cards view, which has no OVR header to press
+ * When the sort field is changed to Age, and then the direction is flipped
+ * Then the market asks the backend for that field, and then for the other direction.
+ */
+it("sorts the market cards with the shared sort control", async () => {
+  renderCentre();
+  await screen.findAllByRole("article");
+
+  fireEvent.click(screen.getByRole("combobox", { name: "Sort by" }));
+  fireEvent.click(screen.getByRole("option", { name: "Age" }));
+  await waitFor(() => expect(requestedQueries().slice(-1)[0]?.sort_key).toBe("age"));
+  expect(requestedQueries().slice(-1)[0]?.sort_asc).toBe(false);
+
+  fireEvent.click(screen.getByRole("button", { name: "Descending" }));
+  await waitFor(() => expect(requestedQueries().slice(-1)[0]?.sort_asc).toBe(true));
+  expect(requestedQueries().slice(-1)[0]?.sort_key).toBe("age");
+});
+
+/**
+ * Given the deal button of a card in the Offers view
+ * When it is drawn
+ * Then keyboard focus shows with the standard ring and page offset, not the old primary ring.
+ */
+it("draws the deal button's focus ring in the standard tokens", async () => {
+  renderCentre();
+  fireEvent.click(await screen.findByRole("button", { name: /^Offers/ }));
+  const card = await screen.findByRole("article", { name: "Offered Player" });
+
+  const button = within(card).getByRole("button", { name: "View offer history" });
+
+  expect(button).toHaveClass("focus-visible:ring-focus", "focus-visible:ring-offset-page");
+  expect(button.className).not.toContain("ring-primary");
 });
