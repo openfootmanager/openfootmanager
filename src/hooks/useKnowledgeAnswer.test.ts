@@ -58,9 +58,8 @@ describe("useKnowledgeAnswer", () => {
 
   /**
    * Given one question's answer on screen
-   * When another question is asked, whose answer has not arrived, and then the first's failure
-   *      for the new question is not what is read
-   * Then it reads loading: the previous answer never shows for the new question
+   * When another question is asked, whose answer has not arrived yet
+   * Then it reads loading: the previous question's answer never shows for the new one
    */
   it("never shows another question's answer", async () => {
     const { result, rerender } = renderHook(({ key, load }) => useKnowledgeAnswer(key, load), {

@@ -1,3 +1,4 @@
+import { RetryButton } from "./ProfileLoadFailed";
 import {
   Activity,
   Briefcase,
@@ -118,14 +119,9 @@ export default function PlayerProfileContractCard({
               wageRetry ? (
                 <span className="inline-flex items-center gap-2">
                   {t("playerProfile.loadFailed")}
-                  <button
-                    type="button"
-                    onClick={wageRetry}
-                    aria-label={t("playerProfile.retryWage")}
-                    className="rounded text-caption font-semibold text-fg underline underline-offset-2 hover:text-fg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
-                  >
+                  <RetryButton onRetry={wageRetry} label={t("playerProfile.retryWage")}>
                     {t("common.retry")}
-                  </button>
+                  </RetryButton>
                 </span>
               ) : (
                 wageText

@@ -71,11 +71,19 @@ export default function PlayerProfileHeroCard({
   wageRetry,
   t,
 }: PlayerProfileHeroCardProps) {
-  const wageValue: ReactNode = wageRetry ? (
-    <LoadFailedRetryText t={t} onRetry={wageRetry} label={t("playerProfile.retryWage")} />
-  ) : (
-    wageText
-  );
+  // A failed wage reads as its own retry, coloured for the surface it sits on: the desktop stats
+  // sit on the always-dark chrome, the narrow layout's on a page-coloured card.
+  const wageValue = (tone: "page" | "chrome"): ReactNode =>
+    wageRetry ? (
+      <LoadFailedRetryText
+        t={t}
+        onRetry={wageRetry}
+        label={t("playerProfile.retryWage")}
+        tone={tone}
+      />
+    ) : (
+      wageText
+    );
   const tierOf = useRatingTiers();
   const teamContextItems =
     player.team_id && onSelectTeam
@@ -203,7 +211,7 @@ export default function PlayerProfileHeroCard({
             />
             <QuickStat
               label={t("common.wage")}
-              value={wageValue}
+              value={wageValue("chrome")}
               color={wageText === NO_DATA || wageRetry ? "text-chrome-fg-muted" : "text-white"}
             />
           </div>
@@ -240,7 +248,7 @@ export default function PlayerProfileHeroCard({
         />
         <MobileQuickStat
           label={t("common.wage")}
-          value={wageValue}
+          value={wageValue("page")}
           color={
             wageText === NO_DATA || wageRetry ? "text-fg-muted" : "text-gray-700 dark:text-gray-200"
           }

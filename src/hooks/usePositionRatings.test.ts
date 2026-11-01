@@ -117,6 +117,7 @@ describe("usePositionRatings", () => {
 
     expect(result.current.status).toBe("loading");
     await waitFor(() => expect(result.current.status).toBe("failed"));
+    expect(result.current).not.toHaveProperty("value");
     expect(mocked).toHaveBeenCalledTimes(2);
   });
 });
