@@ -1743,7 +1743,21 @@
     "renewalProjectionWageBill": "Wöchentliche Lohnkosten {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Gehaltsbudget-Nutzung {{before}}% → {{after}}%",
     "renewalProjectionRunway": "Kassenreserve {{before}} → {{after}}",
-    "ratingTrend": "Bewertungstrend"
+    "ratingTrend": "Bewertungstrend",
+    "potentialOpinion": {
+      "scoutsOpinion": "Einschätzung des Scouts",
+      "coachesOpinion": "Einschätzung des Trainerteams",
+      "bandS": "Könnte einer der Besten werden",
+      "bandA": "Könnte Stammspieler werden",
+      "bandB": "Könnte ein nützlicher Kaderspieler sein",
+      "bandRest": "Wird sich kaum noch stark verbessern",
+      "range": "Potenzial {{low}}–{{high}}",
+      "confident": "Sicher",
+      "fairlySure": "Ziemlich sicher",
+      "unsure": "Unsicher",
+      "guess": "Eine Vermutung",
+      "byScout": "Beobachtet von {{scout}} am {{date}}"
+    }
   },
   "teamProfile": {
     "clubInfo": "Vereinsinformationen",

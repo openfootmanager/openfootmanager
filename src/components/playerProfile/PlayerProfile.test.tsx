@@ -68,6 +68,10 @@ vi.mock("../../hooks/useVisibleWage", () => ({
   },
 }));
 
+// The club holds no opinion of anyone's potential in these tests; PlayerProfile.potential.test.tsx
+// shows one, through the real hook. The hook has its own test.
+vi.mock("../../hooks/usePotentialOpinion", () => ({ usePotentialOpinion: () => null }));
+
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));

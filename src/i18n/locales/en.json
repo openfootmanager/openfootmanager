@@ -1743,7 +1743,21 @@
     "renewalProjectionTitle": "Projected financial impact",
     "renewalProjectionWageBill": "Weekly wage bill {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Wage budget use {{before}}% → {{after}}%",
-    "renewalProjectionRunway": "Cash runway {{before}} → {{after}}"
+    "renewalProjectionRunway": "Cash runway {{before}} → {{after}}",
+    "potentialOpinion": {
+      "scoutsOpinion": "Scout's opinion",
+      "coachesOpinion": "Coaches' opinion",
+      "bandS": "Could become one of the best",
+      "bandA": "Could become a first-team regular",
+      "bandB": "Could be a useful squad player",
+      "bandRest": "Unlikely to go much further",
+      "range": "Potential {{low}}–{{high}}",
+      "confident": "Confident",
+      "fairlySure": "Fairly sure",
+      "unsure": "Unsure",
+      "guess": "A guess",
+      "byScout": "Scouted by {{scout}} on {{date}}"
+    }
   },
   "teamProfile": {
     "clubInfo": "Club Information",

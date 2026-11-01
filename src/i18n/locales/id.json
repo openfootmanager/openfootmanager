@@ -1743,7 +1743,21 @@
     "renewalProjectionTitle": "Perkiraan dampak finansial",
     "renewalProjectionWageBill": "Beban gaji mingguan {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Penggunaan anggaran gaji {{before}}% → {{after}}%",
-    "renewalProjectionRunway": "Jarak kas {{before}} → {{after}}"
+    "renewalProjectionRunway": "Jarak kas {{before}} → {{after}}",
+    "potentialOpinion": {
+      "scoutsOpinion": "Pendapat pemandu bakat",
+      "coachesOpinion": "Pendapat staf pelatih",
+      "bandS": "Bisa menjadi salah satu yang terbaik",
+      "bandA": "Bisa menjadi pemain inti",
+      "bandB": "Bisa menjadi pemain pelapis yang berguna",
+      "bandRest": "Kecil kemungkinan berkembang jauh lagi",
+      "range": "Potensi {{low}}–{{high}}",
+      "confident": "Yakin",
+      "fairlySure": "Cukup yakin",
+      "unsure": "Kurang yakin",
+      "guess": "Tebakan",
+      "byScout": "Diamati oleh {{scout}} pada {{date}}"
+    }
   },
   "teamProfile": {
     "clubInfo": "Informasi Klub",

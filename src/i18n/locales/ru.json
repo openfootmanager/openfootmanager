@@ -1743,7 +1743,21 @@
     "renewalProjectionWageBill": "Недельный фонд зарплат {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Использование зарплатного бюджета {{before}}% → {{after}}%",
     "renewalProjectionRunway": "Финансовый запас {{before}} → {{after}}",
-    "ratingTrend": "Динамика рейтинга"
+    "ratingTrend": "Динамика рейтинга",
+    "potentialOpinion": {
+      "scoutsOpinion": "Мнение скаута",
+      "coachesOpinion": "Мнение тренерского штаба",
+      "bandS": "Может стать одним из лучших",
+      "bandA": "Может стать игроком основы",
+      "bandB": "Может быть полезным игроком ротации",
+      "bandRest": "Вряд ли заметно прибавит",
+      "range": "Потенциал {{low}}–{{high}}",
+      "confident": "Уверенная оценка",
+      "fairlySure": "Довольно уверенная оценка",
+      "unsure": "Неуверенная оценка",
+      "guess": "Догадка",
+      "byScout": "Оценён скаутом {{scout}} {{date}}"
+    }
   },
   "teamProfile": {
     "clubInfo": "Информация о клубе",

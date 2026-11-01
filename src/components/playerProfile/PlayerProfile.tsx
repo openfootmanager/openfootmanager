@@ -35,6 +35,8 @@ import PlayerProfileRenewalModal from "./PlayerProfileRenewalModal";
 import PlayerProfileSeasonStatsCard from "./PlayerProfileSeasonStatsCard";
 import PlayerProfileTerminationModal from "./PlayerProfileTerminationModal";
 import { useScoutedReport } from "./useScoutedReport";
+import PlayerProfilePotentialOpinion from "./PlayerProfilePotentialOpinion";
+import { usePotentialOpinion } from "../../hooks/usePotentialOpinion";
 import { useContractActionsFlow } from "./useContractActionsFlow";
 import { useInitialModalIntent } from "./useInitialModalIntent";
 import { usePlayerProfileData } from "./usePlayerProfileData";
@@ -91,6 +93,8 @@ export default function PlayerProfile({
   });
   const knowledge = usePlayerKnowledge([player.id], revision)(player.id);
   const visibleWage = useVisibleWage(player.id, revision);
+  // The club's opinion of his potential: a range from his scout or his coaches, never the number.
+  const potentialOpinion = usePotentialOpinion(player.id, revision);
   const showsPrivateState = knowsPrivateState(knowledge);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
@@ -373,6 +377,15 @@ export default function PlayerProfile({
           hiddenBody={t("playerProfile.scoutToView")}
           listLabel={t("common.listView")}
           radarLabel={t("common.radarView")}
+          potentialOpinion={
+            potentialOpinion ? (
+              <PlayerProfilePotentialOpinion
+                opinion={potentialOpinion}
+                locale={i18n.language}
+                t={t}
+              />
+            ) : null
+          }
         />
       </div>
 

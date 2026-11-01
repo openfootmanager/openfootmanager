@@ -1743,7 +1743,21 @@
     "renewalProjectionTitle": "Předpokládaný finanční dopad",
     "renewalProjectionWageBill": "Týdenní mzdové náklady: {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Využití platového rozpočtu: {{before}} % → {{after}} %",
-    "renewalProjectionRunway": "Finanční rezerva: {{before}} → {{after}}"
+    "renewalProjectionRunway": "Finanční rezerva: {{before}} → {{after}}",
+    "potentialOpinion": {
+      "scoutsOpinion": "Názor skauta",
+      "coachesOpinion": "Názor trenérského týmu",
+      "bandS": "Může se stát jedním z nejlepších",
+      "bandA": "Může se stát stabilním členem základní sestavy",
+      "bandB": "Může být užitečným hráčem kádru",
+      "bandRest": "Pravděpodobně se už výrazně nezlepší",
+      "range": "Potenciál {{low}}–{{high}}",
+      "confident": "Jistě",
+      "fairlySure": "Docela jistě",
+      "unsure": "Nejistě",
+      "guess": "Jen odhad",
+      "byScout": "Skautská zpráva: {{scout}}, {{date}}"
+    }
   },
   "teamProfile": {
     "clubInfo": "Informace o klubu",
