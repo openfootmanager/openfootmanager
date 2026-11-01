@@ -66,7 +66,15 @@ describe("PreMatchSetup before the position table loads", () => {
     };
     const game = {
       clock: { current_date: "2026-08-01" },
-      players: [{ id: "h-rb", position: "RightBack", natural_position: "RightBack" }],
+      players: [
+        {
+          id: "h-rb",
+          full_name: "Home RB",
+          match_name: "Home RB",
+          position: "RightBack",
+          natural_position: "RightBack",
+        },
+      ],
       teams: [
         {
           id: "home1",
