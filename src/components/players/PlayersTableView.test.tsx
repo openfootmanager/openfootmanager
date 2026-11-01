@@ -86,6 +86,26 @@ describe("PlayersTableView", () => {
   });
 
   /**
+   * Given a sortable header
+   * When its padding is read
+   * Then the padding is on the button, which fills the cell, so a click in the cell's padding
+   *      sorts; the cell carries none (it would be doubled).
+   */
+  it("gives each sortable header's padding to its button", () => {
+    renderTable();
+
+    for (const [label] of SORTABLE) {
+      const header = screen.getByRole("columnheader", { name: label });
+      expect(header.className).not.toMatch(/(?:^|\s)p[xy]-/);
+      expect(within(header).getByRole("button", { name: label })).toHaveClass(
+        "w-full",
+        "px-4",
+        "py-3",
+      );
+    }
+  });
+
+  /**
    * Given the list sorted by rating, highest first
    * When the headers are read
    * Then the rating header says "descending" and no other header carries a sort state.
