@@ -4,4 +4,4 @@ import type { Familiarity } from "./Familiarity";
 /**
  * One player's familiarity at each of the 17 positions, keyed by the position's name.
  */
-export type PlayerFamiliarity = { player_id: string, by_position: { [key in string]?: Familiarity }, };
+export type PlayerFamiliarity = { player_id: string, by_position: { [key in string]: Familiarity }, };
