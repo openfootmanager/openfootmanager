@@ -517,6 +517,37 @@ describe("TacticsTab", () => {
   });
 
   /**
+   * Given the keeper and a centre back swapped, but neither held by the backend's projection
+   * When the pitch is drawn
+   * Then nobody is ringed and the count reads zero: a player with no grade is not out of position.
+   */
+  it("counts nobody out of position for players the projection does not hold", () => {
+    const state = makeGameState();
+    state.teams[0].starting_xi_ids = [
+      "d1",
+      "gk1",
+      "d2",
+      "d3",
+      "d4",
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "f1",
+      "f2",
+    ];
+    familiarityState.players.delete("gk1");
+    familiarityState.players.delete("d1");
+
+    const { container } = render(
+      <TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+
+    expect(screen.getByText("0 squad.outOfPosition")).toBeInTheDocument();
+    expect(container.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
+  });
+
+  /**
    * Given the keeper and a centre back swapped, with the familiarity arrived and not arrived
    * When the pitch is drawn
    * Then arrived, two tokens are ringed out of position and the badge counts them; not arrived,

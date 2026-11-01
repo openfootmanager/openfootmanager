@@ -261,5 +261,33 @@ describe("the tactics roster and its lists, by the backend's position table", ()
 
       expect(ids[0]).toBe("zz-keeper");
     });
+
+    /**
+     * Given a pending lineup of one player and the same pool, where only the lowest-rated,
+     *       last-named midfielder is graded natural by the backend
+     * When the lineup is resolved with that table
+     * Then he takes the next slot: the pending fill reads the backend's grade too.
+     */
+    it("fills the rest of a pending lineup by the backend's grade", () => {
+      const weak = { ...makePlayer("zz-keeper", "Midfielder").attributes, pace: 20, passing: 20 };
+      const availablePlayers = [
+        ...Array.from({ length: 11 }, (_, index) => makePlayer(`m${index}`, "Midfielder")),
+        makePlayer("zz-keeper", "Midfielder", { attributes: weak, condition: 50 }),
+      ];
+      const playersById = new Map(availablePlayers.map((player) => [player.id, player]));
+
+      const ids = resolveStartingXiIds({
+        availablePlayers,
+        positionTable: cannedPositionTable(),
+        familiarity: byPlayer({ "zz-keeper": "natural" }),
+        formation: "4-4-2",
+        pendingStartingXiIds: ["m0"],
+        playersById,
+        savedStartingXiIds: [],
+      });
+
+      expect(ids[0]).toBe("m0");
+      expect(ids[1]).toBe("zz-keeper");
+    });
   });
 });
