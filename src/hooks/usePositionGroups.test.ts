@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PositionGroupEntry } from "../services/positionService";
 import { resetPositionGroupsCache, usePositionGroups } from "./usePositionGroups";
@@ -83,5 +83,82 @@ describe("usePositionGroups", () => {
     });
 
     expect(result.current("Striker")).toBeNull();
+  });
+
+  describe("when the request fails and the screen stays mounted", () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }));
+    afterEach(() => vi.useRealTimers());
+
+    /**
+     * Given a request that fails once and a screen that stays mounted
+     * When the first retry delay passes
+     * Then the hook asks again on its own and the table arrives, with no remount.
+     */
+    it("asks again on its own, so a waiting screen is not stuck", async () => {
+      const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockedGroups.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(table());
+
+      const { result } = renderHook(() => usePositionGroups());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(result.current("Striker")).toBeNull();
+      expect(mockedGroups).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+
+      expect(mockedGroups).toHaveBeenCalledTimes(2);
+      expect(result.current("Striker")).toBe("Forward");
+      quiet.mockRestore();
+    });
+
+    /**
+     * Given a request that keeps failing
+     * When the delays pass
+     * Then each retry waits longer than the last (1s, then 2s), so a dead backend is not hammered.
+     */
+    it("waits longer after each failure in a row", async () => {
+      const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockedGroups.mockRejectedValue(new Error("offline"));
+
+      renderHook(() => usePositionGroups());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      expect(mockedGroups).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_999);
+      });
+      expect(mockedGroups).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(mockedGroups).toHaveBeenCalledTimes(3);
+      quiet.mockRestore();
+    });
+
+    /**
+     * Given a request that failed and a screen that then unmounts
+     * When the retry delay passes
+     * Then nothing asks again: there is no one left to wait for the table.
+     */
+    it("stops retrying once every screen has gone", async () => {
+      const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockedGroups.mockRejectedValue(new Error("offline"));
+
+      const { unmount } = renderHook(() => usePositionGroups());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      unmount();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+
+      expect(mockedGroups).toHaveBeenCalledTimes(1);
+      quiet.mockRestore();
+    });
   });
 });

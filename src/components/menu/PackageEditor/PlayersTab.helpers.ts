@@ -18,6 +18,11 @@ export type PositionFilter = "All" | `group:${CorePosition}` | Position;
 
 const GROUP_PREFIX = "group:";
 
+/** Whether a position filter value picks a whole group rather than one position. */
+export function isGroupFilter(filter: string): boolean {
+  return filter.startsWith(GROUP_PREFIX);
+}
+
 export function matchesPositionFilter(
   position: Position,
   filter: PositionFilter,

@@ -270,10 +270,13 @@ describe("PlayerListFilters", () => {
   it("waits for the position table before the position chips work", () => {
     positionTableState.arrived = false;
     try {
-      renderFilters({ positions: [{ exact: "CenterBack" }] });
+      const onChange = renderFilters({ positions: [{ exact: "CenterBack" }] });
 
       expect(screen.getByRole("button", { name: "common.positionGroups.Defender" })).toBeDisabled();
-      expect(screen.getByRole("button", { name: "transfers.allPositions" })).toBeEnabled();
+      const all = screen.getByRole("button", { name: "transfers.allPositions" });
+      expect(all).toBeEnabled();
+      fireEvent.click(all);
+      expect(onChange).toHaveBeenCalledWith({ positions: [] });
     } finally {
       positionTableState.arrived = true;
     }
