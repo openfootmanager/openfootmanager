@@ -62,7 +62,7 @@ describe("usePlayersListActions context menu", () => {
     expect(labels).toContain("squad.addToTransferList");
     expect(labels).toContain("squad.addToLoanList");
     expect(labels).not.toContain("transfers.makeBid");
-    expect(labels).not.toContain("scouting.scoutBtn");
+    expect(labels).not.toContain("scouting.noScoutsFree");
   });
 
   /**
@@ -74,7 +74,8 @@ describe("usePlayersListActions context menu", () => {
     const labels = menuLabels(summary({ team_id: "rivals" }));
 
     expect(labels).toContain("transfers.makeBid");
-    expect(labels).toContain("scouting.scoutBtn");
+    // No scout is on the fixture's staff, so the scouting action reads "no scouts free".
+    expect(labels).toContain("scouting.noScoutsFree");
     expect(labels).not.toContain("squad.addToTransferList");
   });
 
@@ -84,10 +85,12 @@ describe("usePlayersListActions context menu", () => {
    * Then the free agent can be offered a contract and scouted; the retired one neither.
    */
   it("offers a free agent a contract, and a retired one nothing", () => {
-    expect(menuLabels(summary({ team_id: null }))).toContain("transfers.offerContract");
+    const free = menuLabels(summary({ team_id: null }));
+    expect(free).toContain("transfers.offerContract");
+    expect(free).toContain("scouting.noScoutsFree");
 
     const retired = menuLabels(summary({ team_id: null, retired: true }));
     expect(retired).not.toContain("transfers.offerContract");
-    expect(retired).not.toContain("scouting.scoutBtn");
+    expect(retired).not.toContain("scouting.noScoutsFree");
   });
 });
