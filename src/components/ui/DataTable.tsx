@@ -146,7 +146,9 @@ function SortableHeader({
 /**
  * The table view of every list (table C): column definitions, one sortable header, rows the
  * height of a row token, and a row that opens its profile. In a narrow table the `drawer` columns
- * fold into the row's details, opened from the name cell. It draws no panel of its own.
+ * fold into the row's details, opened from the name cell. It draws no panel of its own. Its
+ * scrolling box is positioned, so text in a cell that only a screen reader reads (`sr-only`, which
+ * places it absolutely) stays inside the table instead of stretching the page.
  */
 export function DataTable<Row>({
   label,
@@ -193,7 +195,7 @@ export function DataTable<Row>({
   const cellClass = "h-row whitespace-nowrap border-b border-line px-2 align-middle first:pl-3.5";
 
   return (
-    <div className="@container w-full overflow-x-auto">
+    <div className="@container relative w-full overflow-x-auto">
       <table
         aria-label={label}
         aria-busy={loading || undefined}
