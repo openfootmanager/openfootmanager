@@ -520,11 +520,11 @@ function TablesSection() {
       <div className="w-48 rounded-lg border border-line bg-panel text-caption">
         <SortHeaderButton
           header="Age"
-          direction={sort.direction}
+          direction={sort.key === "age" ? sort.direction : null}
           onSort={() =>
             setSort((current) => ({
               key: "age",
-              direction: current.direction === "asc" ? "desc" : "asc",
+              direction: current.key === "age" && current.direction === "desc" ? "asc" : "desc",
             }))
           }
           className="h-8 px-2"
