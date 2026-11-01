@@ -916,7 +916,8 @@
       "ready": "Hazır",
       "adjusted": "Uyarlanmış",
       "risk": "Riskli"
-    }
+    },
+    "positionsLoading": "Pozisyon verileri hâlâ yükleniyor, bu yüzden kadro değişiklikleri henüz kullanılamıyor."
   },
   "training": {
     "weeklySchedule": "Haftalık Program",

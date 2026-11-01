@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import type { MatchSnapshot, MatchEvent, EnginePlayerData } from "./types";
 import { getEventDisplay, getEventTypeLabel, getPlayerName } from "./helpers";
 import { getCommentary } from "./commentary";
@@ -194,6 +195,7 @@ export function MatchStats({ snapshot }: { snapshot: MatchSnapshot }) {
 
 export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
   const renderTeam = (
     team: MatchSnapshot["home_team"],
     bench: EnginePlayerData[],
@@ -201,7 +203,15 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
     yellows: Record<string, number>,
     sentOff: string[],
   ) => {
-    const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
+    // The starters are grouped by the backend's lines; until its table arrives there are none, and
+    // they show in the XI's own order instead, so the lineup is never empty.
+    const groups = positionTable.loaded
+      ? positionTable.lines().map((pos) => ({
+          key: pos,
+          label: `${pos}s`,
+          players: team.players.filter((p) => p.position === pos),
+        }))
+      : [{ key: "all", label: null, players: team.players }];
     const subbedOnIds = new Set(
       snapshot.substitutions.filter((s) => s.side === side).map((s) => s.player_on_id),
     );
@@ -218,14 +228,15 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
             ({team.formation})
           </span>
         </h4>
-        {positions.map((pos) => {
-          const players = team.players.filter((p) => p.position === pos);
+        {groups.map(({ key, label, players }) => {
           if (players.length === 0) return null;
           return (
-            <div key={pos} className="mb-3">
-              <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">
-                {pos}s
-              </p>
+            <div key={key} className="mb-3">
+              {label ? (
+                <p className="text-[10px] font-heading uppercase tracking-widest text-gray-600 dark:text-gray-500 mb-1">
+                  {label}
+                </p>
+              ) : null}
               {players.map((p) => {
                 const isOff = sentOff.includes(p.id);
                 const yc = yellows[p.id] || 0;

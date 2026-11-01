@@ -916,7 +916,8 @@
       "ready": "Siap",
       "adjusted": "Disesuaikan",
       "risk": "Berisiko"
-    }
+    },
+    "positionsLoading": "Data posisi masih dimuat, sehingga perubahan susunan pemain belum tersedia."
   },
   "training": {
     "weeklySchedule": "Jadwal Mingguan",
