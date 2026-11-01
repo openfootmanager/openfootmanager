@@ -61,7 +61,7 @@ describe("Lineups", () => {
 
       const names = screen.getAllByText(/Starter/).map((element) => element.textContent);
       expect(names).toEqual(["Fwd Starter", "Keeper Starter"]);
-      expect(screen.queryByText("Goalkeepers")).toBeNull();
+      expect(screen.queryByText("common.positionGroups.Goalkeeper")).toBeNull();
     } finally {
       positionTableState.arrived = true;
     }
@@ -70,13 +70,15 @@ describe("Lineups", () => {
   /**
    * Given the table has arrived
    * When the lineups are drawn
-   * Then the starters are grouped by the table's lines, keeper first.
+   * Then the starters are grouped by the table's lines, keeper first, each group headed by its
+   *      translated name (never an English plural built from the position code).
    */
   it("groups the starters by the table's lines once it has loaded", () => {
     render(<Lineups snapshot={snapshot} />);
 
     const names = screen.getAllByText(/Starter/).map((element) => element.textContent);
     expect(names).toEqual(["Keeper Starter", "Fwd Starter"]);
-    expect(screen.getByText("Goalkeepers")).toBeInTheDocument();
+    expect(screen.getByText("common.positionGroups.Goalkeeper")).toBeInTheDocument();
+    expect(screen.queryByText("Goalkeepers")).toBeNull();
   });
 });
