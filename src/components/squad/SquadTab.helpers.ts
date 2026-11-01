@@ -1,4 +1,3 @@
-export { CORE_POSITIONS, normalisePosition } from "../../lib/positions";
 import { canonicalPosition, naturalPositionOf } from "../../lib/positions";
 import type { PositionTable } from "../../lib/positionTable";
 

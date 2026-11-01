@@ -19,7 +19,6 @@ import {
   getPitchSlotWidth,
   getPreferredPositions,
   isPlayerOutOfPosition,
-  normalisePosition,
   parseFormationSlots,
   positionCode,
   translatePositionAbbreviation,
@@ -89,10 +88,10 @@ const makePlayer = (
 
 describe("SquadTab helpers", () => {
   it("normalises detailed positions into core roles", () => {
-    expect(normalisePosition("Center Back")).toBe("Defender");
-    expect(normalisePosition("Winger")).toBe("Forward");
-    expect(normalisePosition("Striker")).toBe("Forward");
-    expect(normalisePosition("Goalkeeper")).toBe("Goalkeeper");
+    expect(cannedPositionTable().groupOf("Center Back")).toBe("Defender");
+    expect(cannedPositionTable().groupOf("Winger")).toBe("Forward");
+    expect(cannedPositionTable().groupOf("Striker")).toBe("Forward");
+    expect(cannedPositionTable().groupOf("Goalkeeper")).toBe("Goalkeeper");
   });
 
   it("builds preferred positions using normalised natural and alternate roles", () => {
