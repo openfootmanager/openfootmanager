@@ -1079,9 +1079,14 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         crate::reputation::update_team_reputation(game, &division_standings);
     }
 
-    // 5. Record player career entries and reset stats
+    // 5. Record player career entries and reset stats. Every senior player at a club gets the
+    //    season's row, played or not, so an injured season is no gap in his record (R2-Q5); an
+    //    academy player or a free agent only when he played. Each row keeps how he stood at the
+    //    season's end, taken here, before the turnover below ages him.
     for player in game.players.iter_mut() {
-        if player.stats.appearances > 0 {
+        let senior_at_a_club =
+            player.team_id.is_some() && player.squad_role == domain::player::SquadRole::Senior;
+        if player.stats.appearances > 0 || senior_at_a_club {
             let team_name = player
                 .team_id
                 .as_ref()
@@ -1097,6 +1102,12 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 appearances: player.stats.appearances,
                 goals: player.stats.goals,
                 assists: player.stats.assists,
+                ovr: Some(player.ovr),
+                // A player whose potential is not stored (0) has none recorded.
+                potential: (player.potential > 0).then_some(player.potential),
+                minutes: player.stats.minutes_played,
+                average_rating: (player.stats.rated_appearances > 0)
+                    .then_some(player.stats.avg_rating),
             });
         }
     }
@@ -1341,7 +1352,9 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
     let retirees: Vec<RetiredSnapshot> = game
         .retired_players
         .iter()
-        .filter(|p| p.retired_season == season && !p.career.is_empty())
+        // A playing career is the seasons he played: a senior's row for a season he missed
+        // (step 5) is no experience to build a manager or a scout on.
+        .filter(|p| p.retired_season == season && p.career.iter().any(|e| e.appearances > 0))
         .map(|p| {
             let mut name_parts = p.full_name.splitn(2, ' ');
             let first_name = name_parts.next().unwrap_or(&p.full_name).to_string();
@@ -1353,7 +1366,7 @@ fn convert_retired_players_to_candidates(game: &mut Game, season: u32) {
                 date_of_birth: p.date_of_birth.clone(),
                 nationality: p.nationality.clone(),
                 ovr: p.ovr,
-                career_len: p.career.len(),
+                career_len: p.career.iter().filter(|e| e.appearances > 0).count(),
                 vision: p.attributes.vision,
                 decisions: p.attributes.decisions,
                 positioning: p.attributes.positioning,

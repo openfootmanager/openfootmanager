@@ -897,6 +897,78 @@ mod tests {
         assert_eq!(loaded[0].squad_role, SquadRole::Youth);
     }
 
+    /// Given a player whose season's row holds the snapshot (rating 74, potential 82, 2,430 minutes,
+    ///       average 7.25)
+    /// When he is saved and loaded
+    /// Then every part of the snapshot reads back as written
+    #[test]
+    fn a_seasons_snapshot_survives_a_save_and_load() {
+        let db = test_db();
+        let mut player = sample_player("p-career", Some("team-1"));
+        let season = domain::player::CareerEntry {
+            season: 2026,
+            team_id: "team-1".to_string(),
+            team_name: "Team One".to_string(),
+            appearances: 31,
+            goals: 4,
+            assists: 6,
+            ovr: Some(74),
+            potential: Some(82),
+            minutes: 2430,
+            average_rating: Some(7.25),
+        };
+        player.career = vec![season.clone()];
+        upsert_player(db.conn(), &player).unwrap();
+
+        let stored = load_all_players(db.conn()).unwrap().remove(0);
+
+        assert_eq!(stored.career, vec![season]);
+    }
+
+    /// Given a career saved before seasons kept a snapshot (no ovr, potential, minutes or average)
+    /// When it is loaded
+    /// Then each season reads, its snapshot empty: an old career is never lost to the new fields
+    #[test]
+    fn a_career_saved_before_snapshots_still_loads() {
+        let db = test_db();
+        upsert_player(db.conn(), &sample_player("p-old", Some("team-1"))).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE players SET career = ?1 WHERE id = 'p-old'",
+                [r#"[{"season":2024,"team_id":"team-1","team_name":"Team One","appearances":12,"goals":2,"assists":1}]"#],
+            )
+            .unwrap();
+
+        let stored = load_all_players(db.conn()).unwrap().remove(0);
+
+        assert_eq!(stored.career.len(), 1);
+        assert_eq!(stored.career[0].appearances, 12);
+        assert_eq!(stored.career[0].ovr, None);
+        assert_eq!(stored.career[0].average_rating, None);
+    }
+
+    /// Given a career column that does not parse
+    /// When it is loaded
+    /// Then the career reads as empty. This pins a known bug, not the behaviour we want: a parse
+    ///      error silently wipes the player's career (`unwrap_or_default` in `row_to_player`); it
+    ///      should keep the raw record and say so. Reported separately; when it is fixed, this test
+    ///      changes with it.
+    #[test]
+    fn a_career_that_does_not_parse_is_still_wiped_on_load() {
+        let db = test_db();
+        upsert_player(db.conn(), &sample_player("p-corrupt", Some("team-1"))).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE players SET career = '[{\"season\": oops' WHERE id = 'p-corrupt'",
+                [],
+            )
+            .unwrap();
+
+        let stored = load_all_players(db.conn()).unwrap().remove(0);
+
+        assert!(stored.career.is_empty(), "the known bug: still wiped");
+    }
+
     #[test]
     fn test_player_ovr_potential_roundtrip() {
         let db = test_db();

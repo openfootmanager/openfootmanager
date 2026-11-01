@@ -568,7 +568,10 @@ pub struct PlayerSeasonStats {
     pub fouls_committed: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+/// One season of a player's career: where he played and what he did, and (from the release that
+/// began keeping them) how he stood at the season's end. A row from before then, or a generated
+/// past season, has no snapshot: its `ovr`, `potential` and `average_rating` are None.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, TS)]
 pub struct CareerEntry {
     pub season: u32,
     pub team_id: String,
@@ -576,6 +579,19 @@ pub struct CareerEntry {
     pub appearances: u32,
     pub goals: u32,
     pub assists: u32,
+    /// His rating at the season's end, before he aged.
+    #[serde(default)]
+    pub ovr: Option<u8>,
+    /// His true potential at the season's end: the game's record, never sent to a reader
+    /// (`ofm_core::wire`).
+    #[serde(default)]
+    pub potential: Option<u8>,
+    #[serde(default)]
+    pub minutes: u32,
+    /// His average match rating over the season's rated matches; None when none was rated. Kept
+    /// as computed: a screen rounds it where it shows it.
+    #[serde(default)]
+    pub average_rating: Option<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]

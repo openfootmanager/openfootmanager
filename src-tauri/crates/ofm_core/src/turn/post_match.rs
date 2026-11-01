@@ -890,6 +890,7 @@ mod tests {
             appearances: 20,
             goals: 3,
             assists: 4,
+            ..Default::default()
         });
         let mut game: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
         let career = serde_json::to_value(&game.players[0].career).unwrap();

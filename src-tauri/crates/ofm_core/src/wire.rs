@@ -31,6 +31,10 @@ use crate::game::Game;
 fn redact(player: &mut Player) {
     player.potential = 0;
     player.traits.retain(|tag| *tag != PlayerTrait::Wonderkid);
+    // Each season's record of it too (`CareerEntry::potential`).
+    for season in &mut player.career {
+        season.potential = None;
+    }
 }
 
 /// `player` as a reader may receive him: everything but his potential, which reads 0, and the
@@ -100,6 +104,7 @@ pub fn truthful_value(game: &Game) -> serde_json::Result<serde_json::Value> {
         for (json, player) in players.iter_mut().zip(&game.players) {
             json["potential"] = player.potential.into();
             json["traits"] = serde_json::to_value(&player.traits)?;
+            json["career"] = serde_json::to_value(&player.career)?;
         }
     }
     if let Some(messages) = value["messages"].as_array_mut() {
@@ -111,6 +116,7 @@ pub fn truthful_value(game: &Game) -> serde_json::Result<serde_json::Value> {
                 for (json, prospect) in json_prospects.iter_mut().zip(prospects) {
                     json["potential"] = prospect.potential.into();
                     json["traits"] = serde_json::to_value(&prospect.traits)?;
+                    json["career"] = serde_json::to_value(&prospect.career)?;
                 }
             }
         }
@@ -173,6 +179,13 @@ mod tests {
         player.potential = potential;
         // The game's own tag, read from his true potential: no reader may receive it either.
         player.traits = vec![PlayerTrait::Wonderkid];
+        // A recorded season, its potential the game's record: no reader receives that either.
+        player.career = vec![domain::player::CareerEntry {
+            season: 2025,
+            ovr: Some(60),
+            potential: Some(potential),
+            ..Default::default()
+        }];
         player
     }
 
@@ -235,6 +248,22 @@ mod tests {
             !value.to_string().contains("\"Wonderkid\""),
             "a reader's copy carries no Wonderkid tag"
         );
+        let career_potentials: Vec<&serde_json::Value> = value["players"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|player| &player["career"][0]["potential"])
+            .collect();
+        assert!(
+            career_potentials
+                .iter()
+                .all(|potential| potential.is_null()),
+            "no season's record carries his potential: {career_potentials:?}"
+        );
+        assert_eq!(
+            value["players"][0]["career"][0]["ovr"], 60,
+            "his season's rating does"
+        );
         assert_eq!(value["scouted_players"][0]["potential"]["low"], 75);
     }
 
@@ -276,8 +305,8 @@ mod tests {
 
     /// Given the same world
     /// When it is written as the truthful form and as a reader's copy
-    /// Then the two differ only in the potentials and the Wonderkid tags, which the truthful form
-    ///      gives as they are
+    /// Then the two differ only in the potentials (his own and each season's) and the Wonderkid
+    ///      tags, which the truthful form gives as they are
     #[test]
     fn the_truthful_form_differs_from_a_readers_only_in_potential() {
         let game = world();
@@ -291,16 +320,22 @@ mod tests {
             .map(|(_, potential)| potential)
             .collect();
         truths.sort_unstable();
-        assert_eq!(truths, vec![79, 82, 88, 91]);
+        // Each player's potential and his recorded season's.
+        assert_eq!(truths, vec![79, 79, 82, 82, 88, 88, 91, 91]);
         for (index, player) in game.players.iter().enumerate() {
             redacted["players"][index]["potential"] = player.potential.into();
         }
         redacted["messages"][0]["context"]["youth_prospects"][0]["potential"] = 91.into();
         let true_tags = serde_json::json!(["Wonderkid"]);
-        for index in 0..game.players.len() {
+        for (index, player) in game.players.iter().enumerate() {
             redacted["players"][index]["traits"] = true_tags.clone();
+            redacted["players"][index]["career"] = serde_json::to_value(&player.career).unwrap();
         }
         redacted["messages"][0]["context"]["youth_prospects"][0]["traits"] = true_tags;
+        redacted["messages"][0]["context"]["youth_prospects"][0]["career"] = serde_json::to_value(
+            &game.messages[0].context.youth_prospects.as_ref().unwrap()[0].career,
+        )
+        .unwrap();
         assert_eq!(redacted, truthful);
     }
 }

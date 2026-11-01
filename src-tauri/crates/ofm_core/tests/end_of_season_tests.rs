@@ -2210,20 +2210,131 @@ fn season_end_ages_players_and_retires_out_of_contract_veterans() {
     );
 }
 
+/// Given a senior player at a club who did not play all season (an injured season, say)
+/// When the season ends
+/// Then he gets the season's row anyway, with 0 appearances: no gap in his record (R2-Q5)
 #[test]
-fn player_with_zero_appearances_no_career_entry() {
+fn a_senior_who_did_not_play_still_gets_the_seasons_row() {
     let mut game = make_completed_season_game();
-    // Add a player with 0 appearances
-    let p3 = make_player("p3", "Bench", "team1", Position::Defender);
-    game.players.push(p3);
+    game.players
+        .push(make_player("p3", "Bench", "team1", Position::Defender));
 
     process_end_of_season(&mut game);
 
     let p3 = game.players.iter().find(|p| p.id == "p3").unwrap();
-    assert!(
-        p3.career.is_empty(),
-        "No career entry for 0-appearance player"
+    assert_eq!(p3.career.len(), 1, "a row for the season he missed");
+    assert_eq!(p3.career[0].appearances, 0);
+    assert_eq!(
+        p3.career[0].average_rating, None,
+        "no rated match, no average"
     );
+}
+
+/// Given an academy player who did not play, and one who played twice
+/// When the season ends
+/// Then only the one who played gets a row: an academy season counts when he played
+#[test]
+fn an_academy_player_gets_a_row_only_when_he_played() {
+    let mut game = make_completed_season_game();
+    let mut idle = make_player("kid-idle", "Idle", "team1", Position::Midfielder);
+    idle.squad_role = domain::player::SquadRole::Youth;
+    let mut used = make_player("kid-used", "Used", "team1", Position::Midfielder);
+    used.squad_role = domain::player::SquadRole::Youth;
+    used.stats.appearances = 2;
+    game.players.extend([idle, used]);
+
+    process_end_of_season(&mut game);
+
+    let career_of = |id: &str| {
+        game.players
+            .iter()
+            .find(|p| p.id == id)
+            .map(|p| p.career.len())
+    };
+    assert_eq!(career_of("kid-idle"), Some(0));
+    assert_eq!(career_of("kid-used"), Some(1));
+}
+
+/// Given a forward rated as he stands, potential 84, who played 2,700 minutes with an average
+///       rating of 7.5 over 30 rated matches
+/// When the season ends
+/// Then his row keeps that snapshot: his rating, his potential, the minutes and the average
+#[test]
+fn a_seasons_row_keeps_his_snapshot() {
+    let mut game = make_completed_season_game();
+    let p1 = game.players.iter_mut().find(|p| p.id == "p1").unwrap();
+    p1.ovr = 71;
+    p1.potential = 84;
+    let rating = p1.ovr;
+
+    process_end_of_season(&mut game);
+
+    let entry = &game.players.iter().find(|p| p.id == "p1").unwrap().career[0];
+    assert_eq!(entry.ovr, Some(rating));
+    assert_eq!(entry.potential, Some(84));
+    assert_eq!(entry.minutes, 2700);
+    assert_eq!(entry.average_rating, Some(7.5));
+}
+
+/// A completed season whose star, p1, is a 38-year-old out of contract with fading pace: the
+/// season's end ages him and retires him into the archive.
+fn season_ending_with_a_retiring_veteran() -> (Game, u8) {
+    let mut game = make_completed_season_game();
+    let veteran = game.players.iter_mut().find(|p| p.id == "p1").unwrap();
+    veteran.date_of_birth = "1988-01-01".to_string();
+    veteran.stage_contract_end(Some("2026-05-01".to_string()));
+    veteran.attributes.pace = 16;
+    veteran.attributes.passing = 70;
+    ofm_core::player_rating::refresh_player_derived(
+        veteran,
+        chrono::NaiveDate::from_ymd_opt(2026, 5, 20).unwrap(),
+    );
+    let rating = veteran.ovr;
+    (game, rating)
+}
+
+/// Given a veteran whom the season's end ages (his attributes decline) and retires
+/// When the season ends
+/// Then his final row keeps the rating he ended the season on, from before he aged
+#[test]
+fn a_seasons_row_keeps_his_rating_from_before_he_aged() {
+    let (mut game, rating_at_the_end) = season_ending_with_a_retiring_veteran();
+
+    process_end_of_season(&mut game);
+
+    let veteran = game
+        .retired_players
+        .iter()
+        .find(|record| record.id == "p1")
+        .expect("he retires")
+        .to_player();
+    assert!(
+        veteran.attributes.pace < 16,
+        "the fixture ages him after the row is written"
+    );
+    assert_eq!(veteran.career.last().unwrap().ovr, Some(rating_at_the_end));
+}
+
+/// Given a veteran who retires at the season's end
+/// When the season ends
+/// Then his archived record holds his final season's row, with its snapshot: retiring right after
+///      the row is written does not lose it
+#[test]
+fn a_player_who_retires_at_the_seasons_end_keeps_his_final_seasons_row() {
+    let (mut game, _) = season_ending_with_a_retiring_veteran();
+
+    process_end_of_season(&mut game);
+
+    let record = game
+        .retired_players
+        .iter()
+        .find(|record| record.id == "p1")
+        .expect("he retires");
+    let last = record.career.last().expect("his final season");
+    assert_eq!(last.season, 1);
+    assert_eq!(last.appearances, 30);
+    assert_eq!(last.minutes, 2700);
+    assert!(last.ovr.is_some(), "with the season's snapshot");
 }
 
 // ---------------------------------------------------------------------------
@@ -3784,6 +3895,7 @@ fn make_retired_player(id: &str) -> domain::player::Player {
         appearances: 30,
         goals: 5,
         assists: 8,
+        ..Default::default()
     });
     p
 }

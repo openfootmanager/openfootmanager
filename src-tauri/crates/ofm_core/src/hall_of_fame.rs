@@ -33,7 +33,8 @@ pub fn hall_of_fame_legends(game: &Game) -> Vec<HallOfFameLegend> {
     let mut legends: Vec<HallOfFameLegend> = game
         .retired_players
         .iter()
-        .filter(|retiree| !retiree.career.is_empty())
+        // A legend played: a senior's row for a season he missed is no career on its own.
+        .filter(|retiree| retiree.career.iter().any(|entry| entry.appearances > 0))
         .map(|retiree| legend_of(retiree, &championships))
         .collect();
     legends.sort_by(|left, right| {
@@ -214,6 +215,24 @@ mod tests {
         team
     }
 
+    /// Given a retiree whose career is only seasons he missed (rows with no appearance), beside
+    ///       one who played
+    /// When the Hall of Fame lists its legends
+    /// Then only the one who played is listed: a missed season's row is no playing career
+    #[test]
+    fn a_retiree_who_never_played_is_no_legend() {
+        let idle = veteran("idle", "Idle Man", vec![career(2030, "t", "T", 0, 0)]);
+        let played = veteran("played", "Played Man", vec![career(2030, "t", "T", 20, 3)]);
+        let game = game_with(vec![idle, played], vec![]);
+
+        let names: Vec<String> = hall_of_fame_legends(&game)
+            .into_iter()
+            .map(|legend| legend.full_name)
+            .collect();
+
+        assert_eq!(names, vec!["Played Man".to_string()]);
+    }
+
     fn career(season: u32, team_id: &str, team_name: &str, apps: u32, goals: u32) -> CareerEntry {
         CareerEntry {
             season,
@@ -222,6 +241,7 @@ mod tests {
             appearances: apps,
             goals,
             assists: goals / 2,
+            ..Default::default()
         }
     }
 

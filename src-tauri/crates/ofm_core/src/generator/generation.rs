@@ -1252,6 +1252,7 @@ pub(super) fn generate_player_from_def(
             appearances: entry.appearances,
             goals: entry.goals,
             assists: entry.assists,
+            ..Default::default()
         })
         .collect();
     if def.youth {

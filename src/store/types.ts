@@ -221,6 +221,13 @@ export interface CareerEntry {
   appearances: number;
   goals: number;
   assists: number;
+  /** His rating at the season's end; null for a season recorded before snapshots were kept. */
+  ovr?: number | null;
+  /** Always null on screen: the game keeps it, and never sends it (`ofm_core::wire`). */
+  potential?: number | null;
+  minutes?: number;
+  /** His average over the season's rated matches, unrounded; null when none was rated. */
+  average_rating?: number | null;
 }
 
 export type PlayerMovementKind =
