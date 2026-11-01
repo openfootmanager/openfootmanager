@@ -114,26 +114,30 @@ export default function SquadRosterView({
   const riskLevelOf = useContractRiskLevels(roster, clockDate);
 
   const available = roster.filter(isMatchDayEligible);
+  // The saved XI is drawn from everyone the backend has not ruled out: before get_squad answers no
+  // player carries a verdict (so `available` is empty) and the XI would not be drawn at all. Only
+  // display reads this pool; a lineup action keeps the strict `available`.
+  const drawable = roster.filter((player) => !isRuledOutOfMatchDay(player));
   const formation = team.formation || "4-4-2";
   const activePlayStyle = team.play_style || "Balanced";
   const currentPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const startingXiIds = useMemo(
     () =>
       buildStartingXIIds(
-        available,
+        drawable,
         team.starting_xi_ids || [],
         formation,
         positionTable,
         familiarity,
       ),
-    [available, team.starting_xi_ids, formation, positionTable, familiarity],
+    [drawable, team.starting_xi_ids, formation, positionTable, familiarity],
   );
   const pitchSlotRows = buildPitchSlotRows(buildPitchRows(formation), startingXiIds, playersById);
   const xiActivePosition = buildActivePositionMap(pitchSlotRows);
   const xiIds = useMemo(() => new Set(startingXiIds), [startingXiIds]);
   const roleCoverage = useMemo(
-    () => buildRoleCoverageSummary(available, startingXiIds, formation, positionTable, familiarity),
-    [available, startingXiIds, formation, positionTable, familiarity],
+    () => buildRoleCoverageSummary(drawable, startingXiIds, formation, positionTable, familiarity),
+    [drawable, startingXiIds, formation, positionTable, familiarity],
   );
   const rolesNeedingCover = useMemo(
     () =>

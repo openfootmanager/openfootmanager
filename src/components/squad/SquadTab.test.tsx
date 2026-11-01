@@ -1020,6 +1020,40 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given get_squad has not answered, so no player carries a match-day verdict yet
+   * When Squad is drawn from the raw game state
+   * Then the saved XI is still drawn (starters are marked), and no lineup action is open: both
+   *      menu items stay disabled and nothing is saved.
+   */
+  it("draws the saved XI before get_squad answers and saves nothing", async () => {
+    const state = makeGameState();
+    state.players = state.players.map((player) => ({ ...player, match_day_eligible: undefined }));
+    mockedInvoke.mockReturnValue(new Promise(() => {}));
+
+    render(
+      <SquadTab
+        gameState={state}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      within(screen.getByRole("row", { name: /GK1/ })).getByText("squad.startingXi"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: /Bench DEF/ })).queryByText("squad.startingXi"),
+    ).toBeNull();
+    fireEvent.contextMenu(screen.getByText("Bench DEF").closest("tr") as HTMLTableRowElement);
+    const makeStarter = screen.getByRole("menuitem", { name: "squad.makeStarter" });
+    expect(makeStarter).toBeDisabled();
+    fireEvent.click(makeStarter);
+    await act(async () => {});
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+  });
+
+  /**
    * Given the backend's familiarity has not arrived (the position table has)
    * When a bench player is made a starter from the roster context menu
    * Then nothing is saved and the item is disabled: a lineup worked out without the grade must
