@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData } from "../../store/gameStore";
+import { useSettingsStore } from "../../store/settingsStore";
 import type { TeamCard, TeamsDirectory, TeamsDirectoryQuery } from "../../services/teamsService";
 import TeamsListTab from "./TeamsListTab";
 import { createSeasonContext } from "../../test-utils/factories";
@@ -22,6 +23,10 @@ vi.mock("react-i18next", () => ({
         "teams.rep": "Rep",
         "common.value": "Value",
         "common.pts": "Pts",
+        "common.played": "P",
+        "common.team": "Team",
+        "common.listViewTable": "Table",
+        "common.listViewCards": "Cards",
         "teams.est": "Est",
         "teams.searchPlaceholder": "Search clubs",
         "teams.noResults": "No clubs match your search.",
@@ -100,6 +105,7 @@ function buildCard(overrides: {
   league_pos: number;
   points?: number;
   avg_ovr?: number | null;
+  reputation?: number;
 }): TeamCard {
   return {
     team: {
@@ -112,7 +118,7 @@ function buildCard(overrides: {
       formation: "4-4-2",
       play_style: overrides.play_style ?? "Balanced",
       founded_year: overrides.founded_year ?? 1900,
-      reputation: 50,
+      reputation: overrides.reputation ?? 50,
       media: { logo: null },
     },
     roster_size: 22,
@@ -175,9 +181,16 @@ function setupDirectoryMock(cards: TeamCard[]) {
   });
 }
 
+function setListView(view: "table" | "cards") {
+  useSettingsStore.setState({
+    settings: { ...useSettingsStore.getState().settings, list_view: view },
+  });
+}
+
 describe("TeamsListTab", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
+    setListView("cards");
   });
 
   it("orders teams by league position and marks the user team", async () => {
@@ -280,5 +293,193 @@ describe("TeamsListTab", () => {
     expect(screen.getByText(/4-4-2 — Contra-ataque/)).toBeInTheDocument();
     expect(screen.queryByText(/4-4-2 — Balanced/)).not.toBeInTheDocument();
     expect(screen.queryByText(/4-4-2 — Counter/)).not.toBeInTheDocument();
+  });
+});
+
+/** The league's table: the clubs down its rows in the order drawn, read from each row's open button. */
+const tableClubs = () =>
+  within(screen.getByRole("table", { name: "League" }))
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => within(row).getAllByRole("button")[0].getAttribute("aria-label") ?? "");
+
+/** A row's cells, read by the header above each. */
+function rowCells(club: string): Record<string, string> {
+  const table = screen.getByRole("table", { name: "League" });
+  const headers = within(table)
+    .getAllByRole("columnheader")
+    .map((header) => header.getAttribute("aria-label") ?? header.textContent?.trim() ?? "");
+  const row = within(table)
+    .getAllByRole("row")
+    .find((candidate) => within(candidate).queryByRole("button", { name: club }));
+  if (!row) throw new Error(`no row for ${club}`);
+  const cells = within(row).getAllByRole("cell");
+  return Object.fromEntries(
+    headers.map((header, index) => [header, cells[index].textContent ?? ""]),
+  );
+}
+
+/** Three clubs in one league: a leader, the manager's club second, and a club he doesn't know. */
+function leagueOfThree() {
+  return [
+    buildCard({
+      id: "leader",
+      name: "Leader FC",
+      league_pos: 1,
+      points: 9,
+      avg_ovr: 64,
+      reputation: 40,
+    }),
+    buildCard({
+      id: "mine",
+      name: "Mine FC",
+      league_pos: 2,
+      points: 6,
+      avg_ovr: 71,
+      reputation: 60,
+    }),
+    buildCard({
+      id: "unknown",
+      name: "Unknown FC",
+      league_pos: 3,
+      points: 3,
+      avg_ovr: null,
+      reputation: 80,
+    }),
+  ];
+}
+
+describe("TeamsListTab as a table", () => {
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+    setListView("table");
+  });
+
+  /**
+   * Given the list view is Table (the default) and the manager's league holds three clubs
+   * When the clubs list opens
+   * Then the league is a table named for the league, its clubs in league order, with the columns
+   *      #, Team, P, Pts, Avg OVR, Rep, Squad and Value: no wage bill or balance, since a rival's
+   *      finances are hidden.
+   */
+  it("lists a league's clubs as a table, in league order, without their finances", async () => {
+    setupDirectoryMock(leagueOfThree());
+
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("mine")} onSelectTeam={vi.fn()} />);
+
+    await screen.findByRole("table", { name: "League" });
+    expect(tableClubs()).toEqual(["Leader FC", "Mine FC", "Unknown FC"]);
+    expect(Object.keys(rowCells("Leader FC"))).toEqual([
+      "Position",
+      "Team",
+      "P",
+      "Pts",
+      "Avg OVR",
+      "Rep",
+      "Squad",
+      "Value",
+    ]);
+    expect(rowCells("Leader FC")).toMatchObject({
+      Position: "1",
+      P: "1",
+      Pts: "9",
+      "Avg OVR": "64",
+      Rep: "40",
+      Squad: "22",
+    });
+    expect(screen.queryByRole("heading", { level: 3 })).toBeNull();
+  });
+
+  /**
+   * Given the manager's own club in the table
+   * When it is drawn
+   * Then its row says "Your Team", and no other row does.
+   */
+  it("marks the manager's own club in the table", async () => {
+    setupDirectoryMock(leagueOfThree());
+
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("mine")} onSelectTeam={vi.fn()} />);
+
+    await screen.findByRole("table", { name: "League" });
+    expect(rowCells("Mine FC").Team).toContain("Your Team");
+    expect(rowCells("Leader FC").Team).not.toContain("Your Team");
+  });
+
+  /**
+   * Given a club outside what the manager knows, whose average the backend withholds
+   * When the table is sorted by Avg OVR, high to low and then low to high
+   * Then that club shows "–" and comes last both times, under the clubs whose averages are known.
+   */
+  it("shows a withheld average as a dash and sorts it last both ways", async () => {
+    setupDirectoryMock(leagueOfThree());
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("mine")} onSelectTeam={vi.fn()} />);
+    await screen.findByRole("table", { name: "League" });
+    expect(rowCells("Unknown FC")["Avg OVR"]).toBe("–");
+
+    fireEvent.click(screen.getByRole("button", { name: "Avg OVR" }));
+    expect(tableClubs()).toEqual(["Mine FC", "Leader FC", "Unknown FC"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Avg OVR" }));
+    expect(tableClubs()).toEqual(["Leader FC", "Mine FC", "Unknown FC"]);
+  });
+
+  /**
+   * Given the table in league order
+   * When the Team header is pressed, and then the Rep header
+   * Then the clubs run A to Z by name first, and by reputation high to low next: each column
+   *      starts in its own direction.
+   */
+  it("sorts by the header pressed, each column from its own starting direction", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "b", name: "Beta FC", league_pos: 1, reputation: 30 }),
+      buildCard({ id: "c", name: "Gamma FC", league_pos: 2, reputation: 90 }),
+      buildCard({ id: "a", name: "Alpha FC", league_pos: 3, reputation: 60 }),
+    ]);
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("b")} onSelectTeam={vi.fn()} />);
+    await screen.findByRole("table", { name: "League" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Team" }));
+    expect(tableClubs()).toEqual(["Alpha FC", "Beta FC", "Gamma FC"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Rep" }));
+    expect(tableClubs()).toEqual(["Gamma FC", "Alpha FC", "Beta FC"]);
+  });
+
+  /**
+   * Given the table
+   * When a club's name is pressed (the row's button, which Enter presses too)
+   * Then that club's profile opens.
+   */
+  it("opens a club from its row", async () => {
+    const onSelectTeam = vi.fn();
+    setupDirectoryMock(leagueOfThree());
+    render(
+      <TeamsListTab gameState={gameStateWithManagerTeam("mine")} onSelectTeam={onSelectTeam} />,
+    );
+    await screen.findByRole("table", { name: "League" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Leader FC" }));
+
+    expect(onSelectTeam).toHaveBeenCalledWith("leader");
+  });
+
+  /**
+   * Given the clubs list as a table
+   * When Cards is picked on the view switch
+   * Then the clubs are drawn as cards, and the choice is saved as the one list view every list
+   *      opens with.
+   */
+  it("switches to cards from the view switch and saves the choice", async () => {
+    setupDirectoryMock(leagueOfThree());
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("mine")} onSelectTeam={vi.fn()} />);
+    await screen.findByRole("table", { name: "League" });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "Cards" }));
+    });
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("cards");
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getAllByRole("heading", { level: 3 })[0]).toHaveTextContent("Leader FC");
   });
 });
