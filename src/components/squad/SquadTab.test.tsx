@@ -206,6 +206,23 @@ describe("SquadTab", () => {
   }
 
   /**
+   * Given a centre back whom the old rule tagged a wonderkid, beside an attribute trait
+   * When Squad lists him
+   * Then his row shows the attribute trait and no Wonderkid chip: a list never carries it
+   *      (maintainer, 1 Nov)
+   */
+  it("shows no Wonderkid chip in the roster", async () => {
+    const state = makeGameState();
+    state.players[1] = { ...state.players[1], traits: ["Wonderkid", "Speedster"] };
+
+    renderSquadTab(state);
+
+    // He appears in more than one place on the screen; every one of them leaves the chip off.
+    expect((await screen.findAllByText("traits.Speedster.label")).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText("traits.Wonderkid.label")).toHaveLength(0);
+  });
+
+  /**
    * Given a player on 30 whom the backend's squad projection rates fresh
    * When Squad lists him
    * Then his condition bar is painted in the backend's tone, not in a colour picked from 30.

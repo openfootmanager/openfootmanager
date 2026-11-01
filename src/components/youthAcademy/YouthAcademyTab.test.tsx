@@ -84,8 +84,16 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+// One element per trait, carrying the label key the real badge prints, so a test can tell which
+// traits a row was handed.
 vi.mock("../TraitBadge", () => ({
-  TraitList: () => <span>Traits</span>,
+  TraitList: ({ traits }: { traits: string[] }) => (
+    <span>
+      {traits.map((trait) => (
+        <span key={trait}>{`traits.${trait}.label`}</span>
+      ))}
+    </span>
+  ),
 }));
 
 const mockedInvoke = vi.mocked(invoke);
@@ -474,6 +482,35 @@ describe("YouthAcademyTab", () => {
     expect(screen.queryByRole("columnheader", { name: "Growth" })).not.toBeInTheDocument();
     expect(screen.queryByText("Avg Potential")).not.toBeInTheDocument();
     expect(screen.queryByText("High Potential")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a prospect whom the old rule tagged a wonderkid, beside an attribute trait
+   * When the academy lists him
+   * Then his row shows the attribute trait and no Wonderkid chip: a list never carries it
+   *      (maintainer, 1 Nov)
+   */
+  it("shows no Wonderkid chip in the academy", async () => {
+    const state = createGameState([
+      createPlayer({
+        id: "kid",
+        full_name: "Prospect kid",
+        date_of_birth: "2008-01-01",
+        squad_role: "Youth",
+        traits: ["Wonderkid", "Speedster"],
+      }),
+    ]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} />);
+
+    const row = within(await screen.findByRole("row", { name: /Prospect kid\b/ }));
+    expect(row.getByText("traits.Speedster.label")).toBeInTheDocument();
+    expect(row.queryByText("traits.Wonderkid.label")).not.toBeInTheDocument();
   });
 
   /**

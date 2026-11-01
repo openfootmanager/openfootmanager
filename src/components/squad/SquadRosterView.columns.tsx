@@ -10,6 +10,7 @@ import {
 import { formatDate } from "../../lib/dateFormatting";
 import type { RatingTier } from "../../services/squadService";
 import type { PlayerData } from "../../store/gameStore";
+import { traitsForLists } from "../../lib/playerKnowledge";
 import { TraitList } from "../TraitBadge";
 import {
   Badge,
@@ -129,7 +130,9 @@ export function squadRosterColumns(context: SquadColumnContext): SquadColumn[] {
       key: "traits",
       header: t("squad.traits"),
       drawer: true,
-      cell: (player) => <TraitList traits={player.traits || []} size="xs" max={2} oneLine />,
+      cell: (player) => (
+        <TraitList traits={traitsForLists(player.traits || [])} size="xs" max={2} oneLine />
+      ),
     },
     {
       key: "age",

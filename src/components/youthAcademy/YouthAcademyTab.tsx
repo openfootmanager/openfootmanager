@@ -6,6 +6,7 @@ import { getStaff, type StaffSlice } from "../../services/staffService";
 import { Card, CardHeader, CardBody, Badge, CountryFlag, Button, PlayerAvatar } from "../ui";
 import { calcAge } from "../../lib/helpers";
 import { canDelegateToYouthAcademy, isYouthAcademyPlayer } from "../../lib/playerSquad";
+import { traitsForLists } from "../../lib/playerKnowledge";
 import { TraitList } from "../TraitBadge";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
@@ -451,7 +452,7 @@ export default function YouthAcademyTab({
                           </span>
                         </td>
                         <td className="py-2.5 px-4">
-                          <TraitList traits={player.traits || []} max={2} />
+                          <TraitList traits={traitsForLists(player.traits || [])} max={2} />
                         </td>
                         <td className="py-2.5 px-4 text-center">
                           <span
