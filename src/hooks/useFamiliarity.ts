@@ -61,10 +61,13 @@ export function useFamiliarityRevision(): string {
 
 function tableOf(projection: FamiliarityProjection | null): FamiliarityTable {
   if (!projection) return { loaded: false, familiarityOf: () => null };
-  const byPlayer = new Map(projection.players.map((row) => [row.player_id, row.by_position]));
+  // Maps, not objects: a position named "toString" must be unheard of, not an inherited function.
+  const byPlayer = new Map(
+    projection.players.map((row) => [row.player_id, new Map(Object.entries(row.by_position))]),
+  );
   return {
     loaded: true,
-    familiarityOf: (playerId, position) => byPlayer.get(playerId)?.[position] ?? null,
+    familiarityOf: (playerId, position) => byPlayer.get(playerId)?.get(position) ?? null,
   };
 }
 

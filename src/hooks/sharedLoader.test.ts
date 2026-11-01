@@ -66,4 +66,46 @@ describe("a loader with more than one key", () => {
     expect(shownA).toHaveBeenCalledWith("value of a");
     quiet.mockRestore();
   });
+
+  /**
+   * Given a key whose request failed after its screen had moved on to another key, and the new
+   *       key's own first request failing later
+   * When the new key's failure is a second after it happened
+   * Then it retries then, not earlier: the old key's failure neither raised the delay nor armed
+   *      the timer.
+   */
+  it("counts only the failures of keys a screen still mounts", async () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    const later = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const fetchValue = vi.fn<(key: string) => Promise<string>>(async (key) => {
+      if (key === "old") {
+        await later(5);
+        throw new Error("offline");
+      }
+      if (fetchValue.mock.calls.filter(([asked]) => asked === "new").length === 1) {
+        await later(800);
+        throw new Error("offline");
+      }
+      return "value of new";
+    });
+    const loader = createSharedLoader(fetchValue, "test value");
+    loader.subscribe("old", () => {})();
+    const shown = vi.fn();
+    loader.subscribe("new", shown);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+    expect(fetchValue.mock.calls.filter(([asked]) => asked === "new")).toHaveLength(1);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(999);
+    });
+    expect(fetchValue.mock.calls.filter(([asked]) => asked === "new")).toHaveLength(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+
+    expect(shown).toHaveBeenCalledWith("value of new");
+    quiet.mockRestore();
+  });
 });

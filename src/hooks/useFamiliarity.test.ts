@@ -57,6 +57,8 @@ describe("useFamiliarity", () => {
     expect(result.current.familiarityOf("p1", "Goalkeeper")).toBe("out_of_position");
     expect(result.current.familiarityOf("stranger", "Striker")).toBeNull();
     expect(result.current.familiarityOf("p1", "Unheard Of")).toBeNull();
+    expect(result.current.familiarityOf("p1", "toString")).toBeNull();
+    expect(result.current.familiarityOf("toString", "Striker")).toBeNull();
   });
 
   /**

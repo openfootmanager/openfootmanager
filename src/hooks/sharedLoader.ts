@@ -80,6 +80,9 @@ export function createSharedLoader<T>(
       })
       .catch((error: unknown) => {
         pending.delete(key);
+        // A failure for a key no screen mounts any more (the squad moved on) is nobody's wait: it
+        // must not raise the delay of the current key's first retry, nor arm the shared timer.
+        if (!mountedKeys().has(key)) throw error;
         failures += 1;
         scheduleRetry();
         throw error;
