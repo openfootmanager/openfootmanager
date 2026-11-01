@@ -72,9 +72,6 @@ function PositionGroupChip({ group, chosen, open, onPress, onToggle }: PositionG
       <button
         type="button"
         onClick={onPress}
-        // Until the table arrives a group has no members to select, and writing a selection back
-        // would drop the detailed positions already chosen.
-        disabled={!table.loaded}
         aria-expanded={refinable ? open : undefined}
         aria-pressed={partial ? "mixed" : active}
         aria-label={

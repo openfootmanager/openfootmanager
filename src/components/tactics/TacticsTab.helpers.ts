@@ -85,6 +85,7 @@ interface TacticsPlayerFilterContext {
 
 interface ResolveStartingXiIdsOptions {
   availablePlayers: PlayerData[];
+  positionTable: PositionTable;
   formation: string;
   pendingStartingXiIds: string[] | null;
   playersById: Map<string, PlayerData>;
@@ -109,12 +110,18 @@ export function buildTacticsRoster(
 
 export function resolveStartingXiIds({
   availablePlayers,
+  positionTable,
   formation,
   pendingStartingXiIds,
   playersById,
   savedStartingXiIds,
 }: ResolveStartingXiIdsOptions): string[] {
-  const baseIds = buildStartingXIIds(availablePlayers, savedStartingXiIds, formation);
+  const baseIds = buildStartingXIIds(
+    availablePlayers,
+    savedStartingXiIds,
+    formation,
+    positionTable,
+  );
   const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
 
   if (!pendingStartingXiIds || pendingStartingXiIds.length === 0) {
@@ -130,7 +137,7 @@ export function resolveStartingXiIds({
     const bestPlayer = availablePlayers
       .filter((player) => !usedPlayerIds.has(player.id))
       .sort((leftPlayer, rightPlayer) =>
-        comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition),
+        comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition, positionTable),
       )[0];
 
     if (!bestPlayer) break;

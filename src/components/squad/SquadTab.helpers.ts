@@ -275,10 +275,11 @@ export function comparePlayersForSlot(
   leftPlayer: PlayerData,
   rightPlayer: PlayerData,
   slotPosition: string,
+  positionTable: PositionTable,
 ): number {
   return (
-    Number(isPlayerOutOfPosition(leftPlayer, slotPosition)) -
-      Number(isPlayerOutOfPosition(rightPlayer, slotPosition)) ||
+    Number(isPlayerOutOfPosition(leftPlayer, slotPosition, positionTable)) -
+      Number(isPlayerOutOfPosition(rightPlayer, slotPosition, positionTable)) ||
     Number(!isPlayerExactForSlot(leftPlayer, slotPosition)) -
       Number(!isPlayerExactForSlot(rightPlayer, slotPosition)) ||
     getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer) ||
@@ -291,6 +292,7 @@ export function buildStartingXIIds(
   available: PlayerData[],
   savedIds: string[],
   formation: string,
+  positionTable: PositionTable,
 ): string[] {
   const rows = buildPitchRows(formation);
   const slotPositions = rows.flatMap((row) => row.positions);
@@ -311,7 +313,9 @@ export function buildStartingXIIds(
     while (xi.length < 11) {
       const slotPosition = slotPositions[xi.length];
       const candidates = available.filter((player) => !used.has(player.id));
-      const bestPlayer = candidates.sort((a, b) => comparePlayersForSlot(a, b, slotPosition))[0];
+      const bestPlayer = candidates.sort((a, b) =>
+        comparePlayersForSlot(a, b, slotPosition, positionTable),
+      )[0];
 
       if (!bestPlayer) break;
       xi.push(bestPlayer.id);
@@ -323,7 +327,9 @@ export function buildStartingXIIds(
   const xi: string[] = [];
   slotPositions.slice(0, 11).forEach((slotPosition) => {
     const candidates = available.filter((player) => !used.has(player.id));
-    const bestPlayer = candidates.sort((a, b) => comparePlayersForSlot(a, b, slotPosition))[0];
+    const bestPlayer = candidates.sort((a, b) =>
+      comparePlayersForSlot(a, b, slotPosition, positionTable),
+    )[0];
 
     if (bestPlayer) {
       xi.push(bestPlayer.id);
@@ -470,6 +476,7 @@ export function buildRoleCoverageSummary(
   availablePlayers: PlayerData[],
   currentXiIds: string[],
   formation: string,
+  positionTable: PositionTable,
 ): SquadRoleCoverage[] {
   const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
   const requiredByRole = new Map<string, number>();
@@ -490,7 +497,7 @@ export function buildRoleCoverageSummary(
       return;
     }
 
-    if (getSquadTacticalFit(player, slotPosition) === "natural") {
+    if (getSquadTacticalFit(player, slotPosition, positionTable) === "natural") {
       naturalStartersByRole.set(slotPosition, (naturalStartersByRole.get(slotPosition) ?? 0) + 1);
     }
   });
@@ -539,8 +546,8 @@ export function buildRoleCoverageSummary(
     });
 }
 
-function getFitScore(player: PlayerData, currentPos: string): number {
-  const fit = getSquadTacticalFit(player, currentPos);
+function getFitScore(player: PlayerData, currentPos: string, positionTable: PositionTable): number {
+  const fit = getSquadTacticalFit(player, currentPos, positionTable);
 
   if (fit === "natural") return 2;
   if (fit === "adapted") return 1;
@@ -552,6 +559,7 @@ export function buildPromoteToStartingXi(
   playersById: Map<string, PlayerData>,
   formation: string,
   playerId: string,
+  positionTable: PositionTable,
 ): string[] | null {
   if (currentXiIds.includes(playerId)) {
     return currentXiIds;
@@ -581,13 +589,13 @@ export function buildPromoteToStartingXi(
       };
     })
     .sort((leftSlot, rightSlot) => {
-      const promotedLeftScore = getFitScore(promotedPlayer, leftSlot.slotPosition);
-      const promotedRightScore = getFitScore(promotedPlayer, rightSlot.slotPosition);
+      const promotedLeftScore = getFitScore(promotedPlayer, leftSlot.slotPosition, positionTable);
+      const promotedRightScore = getFitScore(promotedPlayer, rightSlot.slotPosition, positionTable);
       const incumbentLeftScore = leftSlot.incumbentPlayer
-        ? getFitScore(leftSlot.incumbentPlayer, leftSlot.slotPosition)
+        ? getFitScore(leftSlot.incumbentPlayer, leftSlot.slotPosition, positionTable)
         : -1;
       const incumbentRightScore = rightSlot.incumbentPlayer
-        ? getFitScore(rightSlot.incumbentPlayer, rightSlot.slotPosition)
+        ? getFitScore(rightSlot.incumbentPlayer, rightSlot.slotPosition, positionTable)
         : -1;
       const incumbentLeftOvr = leftSlot.incumbentPlayer
         ? getPlayerOvr(leftSlot.incumbentPlayer)
@@ -665,7 +673,7 @@ export function buildAssignBestFitSlot(
 
   const bestSlotIndex = slotPositions
     .map((slotPosition, slotIndex) => ({
-      fitScore: getFitScore(player, slotPosition),
+      fitScore: getFitScore(player, slotPosition, positionTable),
       slotIndex,
     }))
     .sort((leftSlot, rightSlot) => {
@@ -684,6 +692,7 @@ export function buildDemoteFromStartingXi(
   availablePlayers: PlayerData[],
   formation: string,
   playerId: string,
+  positionTable: PositionTable,
 ): string[] | null {
   const slotIndex = currentXiIds.indexOf(playerId);
 
@@ -696,7 +705,7 @@ export function buildDemoteFromStartingXi(
     (player) => !currentXiIds.includes(player.id) && player.id !== playerId,
   );
   const replacement = benchCandidates.sort((leftPlayer, rightPlayer) =>
-    comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition),
+    comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition, positionTable),
   )[0];
 
   if (!replacement) {

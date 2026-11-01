@@ -105,15 +105,15 @@ export default function SquadRosterView({
   const activePlayStyle = team.play_style || "Balanced";
   const currentPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const startingXiIds = useMemo(
-    () => buildStartingXIIds(available, team.starting_xi_ids || [], formation),
-    [available, team.starting_xi_ids, formation],
+    () => buildStartingXIIds(available, team.starting_xi_ids || [], formation, positionTable),
+    [available, team.starting_xi_ids, formation, positionTable],
   );
   const pitchSlotRows = buildPitchSlotRows(buildPitchRows(formation), startingXiIds, playersById);
   const xiActivePosition = buildActivePositionMap(pitchSlotRows);
   const xiIds = useMemo(() => new Set(startingXiIds), [startingXiIds]);
   const roleCoverage = useMemo(
-    () => buildRoleCoverageSummary(available, startingXiIds, formation),
-    [available, startingXiIds, formation],
+    () => buildRoleCoverageSummary(available, startingXiIds, formation, positionTable),
+    [available, startingXiIds, formation, positionTable],
   );
   const rolesNeedingCover = useMemo(
     () =>
@@ -314,8 +314,8 @@ export default function SquadRosterView({
   ): Promise<void> => {
     const nextXiIds =
       action === "promote"
-        ? buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId)
-        : buildDemoteFromStartingXi(startingXiIds, available, formation, playerId);
+        ? buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId, positionTable)
+        : buildDemoteFromStartingXi(startingXiIds, available, formation, playerId, positionTable);
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;

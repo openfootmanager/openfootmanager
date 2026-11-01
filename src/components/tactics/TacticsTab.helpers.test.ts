@@ -135,6 +135,7 @@ describe("resolveStartingXiIds", () => {
 
     const ids = resolveStartingXiIds({
       availablePlayers,
+      positionTable: cannedPositionTable(),
       formation: "4-4-2",
       pendingStartingXiIds: ["gk"],
       playersById,

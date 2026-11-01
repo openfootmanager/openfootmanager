@@ -15,11 +15,6 @@ export type PositionFilter = "All" | `group:${string}` | Position;
 
 const GROUP_PREFIX = "group:";
 
-/** Whether a position filter value picks a whole group rather than one position. */
-export function isGroupFilter(filter: string): boolean {
-  return filter.startsWith(GROUP_PREFIX);
-}
-
 export function matchesPositionFilter(
   position: Position,
   filter: PositionFilter,
@@ -44,20 +39,29 @@ export interface PositionFilterGroup {
   options: PositionFilterOption[];
 }
 
-/** The dropdown's two sections: the broad groups, then every exact position. */
+/**
+ * The dropdown's two sections: the broad groups (the backend's lines, so none until its table
+ * arrives), then every exact position.
+ */
 export function positionFilterGroups(lines: readonly string[]): PositionFilterGroup[] {
+  const groupSection: PositionFilterGroup[] =
+    lines.length === 0
+      ? []
+      : [
+          {
+            labelKey: "worldEditor.positionFilterByGroup",
+            // Not `common.positionGroups.*`: in German, Chinese and Indonesian its
+            // plurals are byte-identical to four of the seventeen exact positions,
+            // so the same label would appear in both sections meaning two different
+            // things. These are worded "all <group>" instead.
+            options: lines.map((core) => ({
+              value: `${GROUP_PREFIX}${core}` as PositionFilter,
+              labelKey: `worldEditor.positionGroupFilter.${core}`,
+            })),
+          },
+        ];
   return [
-    {
-      labelKey: "worldEditor.positionFilterByGroup",
-      // Not `common.positionGroups.*`: in German, Chinese and Indonesian its
-      // plurals are byte-identical to four of the seventeen exact positions,
-      // so the same label would appear in both sections meaning two different
-      // things. These are worded "all <group>" instead.
-      options: lines.map((core) => ({
-        value: `${GROUP_PREFIX}${core}` as PositionFilter,
-        labelKey: `worldEditor.positionGroupFilter.${core}`,
-      })),
-    },
+    ...groupSection,
     {
       labelKey: "worldEditor.positionFilterBySpecific",
       options: POSITIONS.map((position) => ({

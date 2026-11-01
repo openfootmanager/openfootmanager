@@ -269,4 +269,16 @@ describe("filterPlayerRows with a position filter", () => {
     expect(scoped).toHaveLength(4);
     expect(filtered).toHaveLength(1);
   });
+
+  /**
+   * Given a table that has not arrived, so no line is known
+   * When the dropdown's sections are built
+   * Then only the exact positions are offered: a group would match no one.
+   */
+  it("offers no group section before the position table arrives", () => {
+    const groups = positionFilterGroups([]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].labelKey).toBe("worldEditor.positionFilterBySpecific");
+  });
 });

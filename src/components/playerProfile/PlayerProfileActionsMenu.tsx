@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import { ChevronDown, Repeat, RotateCcw, TimerOff, Trash2, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -67,6 +68,7 @@ export default function PlayerProfileActionsMenu({
   onError,
 }: PlayerProfileActionsMenuProps) {
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
   const menuRef = useRef<ContextMenuHandle>(null);
   const [mutationPending, setMutationPending] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -106,6 +108,7 @@ export default function PlayerProfileActionsMenu({
       available,
       managerTeam.starting_xi_ids ?? [],
       formation,
+      positionTable,
     );
     const inXI = startingXiIds.includes(player.id);
     const playersById = new Map(available.map((candidate) => [candidate.id, candidate]));
@@ -127,7 +130,13 @@ export default function PlayerProfileActionsMenu({
               available.filter((candidate) => !startingXiIds.includes(candidate.id)).length === 0,
             onClick: () =>
               persistStartingXi(
-                buildDemoteFromStartingXi(startingXiIds, available, formation, player.id),
+                buildDemoteFromStartingXi(
+                  startingXiIds,
+                  available,
+                  formation,
+                  player.id,
+                  positionTable,
+                ),
               ),
           }
         : {
@@ -136,7 +145,13 @@ export default function PlayerProfileActionsMenu({
             disabled: actionBusy || Boolean(player.injury),
             onClick: () =>
               persistStartingXi(
-                buildPromoteToStartingXi(startingXiIds, playersById, formation, player.id),
+                buildPromoteToStartingXi(
+                  startingXiIds,
+                  playersById,
+                  formation,
+                  player.id,
+                  positionTable,
+                ),
               ),
           },
       buildDividerMenuItem(),

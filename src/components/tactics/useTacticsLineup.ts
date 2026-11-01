@@ -93,6 +93,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
         availablePlayers: available,
         formation,
         pendingStartingXiIds,
+        positionTable,
         playersById,
         savedStartingXiIds: team?.starting_xi_ids || [],
       }),
@@ -102,6 +103,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       (team?.starting_xi_ids || []).join(","),
       (pendingStartingXiIds || []).join(","),
       roster.map((player) => player.id).join(","),
+      positionTable,
     ],
   );
 
@@ -236,7 +238,13 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       return;
     }
 
-    const nextXiIds = buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId);
+    const nextXiIds = buildPromoteToStartingXi(
+      startingXiIds,
+      playersById,
+      formation,
+      playerId,
+      positionTable,
+    );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -247,7 +255,13 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   }
 
   async function handleDemoteStarter(playerId: string): Promise<void> {
-    const nextXiIds = buildDemoteFromStartingXi(startingXiIds, available, formation, playerId);
+    const nextXiIds = buildDemoteFromStartingXi(
+      startingXiIds,
+      available,
+      formation,
+      playerId,
+      positionTable,
+    );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;

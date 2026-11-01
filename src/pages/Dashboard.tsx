@@ -1,4 +1,5 @@
 import { useSquadFitness } from "../hooks/useSquadFitness";
+import { usePositionTable } from "../hooks/usePositionGroups";
 import { routeForActiveCareer } from "../services/careerService";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { applyExtraTranslations } from "../lib/extraTranslations";
@@ -112,6 +113,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     markClean,
   } = useGameStore();
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
   const { settings, loaded: settingsLoaded, loadSettings, updateSettings } = useSettingsStore();
   const latestGameStateRef = useRef<GameStateData | null>(null);
   latestGameStateRef.current = gameState ?? null;
@@ -535,6 +537,7 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
     financeVerdict?.teamId === gameState.manager.team_id ? financeVerdict.snapshot : null;
   const dashboardAlerts = getDashboardAlerts(
     gameState,
+    positionTable,
     hasMatchToday,
     t,
     currentFinanceVerdict,

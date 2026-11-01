@@ -178,6 +178,7 @@ describe("SquadTab helpers", () => {
       available,
       ["gk", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       "4-4-2",
+      cannedPositionTable(),
     );
 
     expect(ids).toEqual(["gk", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"]);
@@ -198,7 +199,7 @@ describe("SquadTab helpers", () => {
       makePlayer("f2", "Forward"),
     ];
 
-    const ids = buildStartingXIIds(available, [], "4-4-2");
+    const ids = buildStartingXIIds(available, [], "4-4-2", cannedPositionTable());
 
     expect(ids).toHaveLength(11);
     expect(ids[0]).toBe("gk");
@@ -266,7 +267,7 @@ describe("SquadTab helpers", () => {
       makePlayer("f2", "Forward"),
     ];
 
-    const ids = buildStartingXIIds(available, [], "4-4-2");
+    const ids = buildStartingXIIds(available, [], "4-4-2", cannedPositionTable());
 
     expect(ids[1]).toBe("lb");
   });
@@ -331,6 +332,7 @@ describe("SquadTab helpers", () => {
       available,
       ["gk", "rb", "cb1", "cb2", "lb", "rm", "cm1", "cm2", "lm", "st1", "st2"],
       "4-4-2",
+      cannedPositionTable(),
     );
 
     expect(ids).toEqual(["gk", "rb", "cb1", "cb2", "lb", "rm", "cm1", "cm2", "lm", "st1", "st2"]);
@@ -448,12 +450,14 @@ describe("SquadTab helpers", () => {
       withBench(makePlayer("d5", "Defender", { injury: injured, match_day_eligible: false })),
       "4-4-2",
       "d5",
+      cannedPositionTable(),
     );
     const fielded = buildPromoteToStartingXi(
       xi,
       withBench(makePlayer("d5", "Defender", { injury: injured, match_day_eligible: true })),
       "4-4-2",
       "d5",
+      cannedPositionTable(),
     );
 
     expect(refused).toBeNull();
@@ -484,6 +488,7 @@ describe("SquadTab helpers", () => {
         playersById,
         "4-4-2",
         "lb",
+        cannedPositionTable(),
       ),
     ).toEqual(["gk", "lb", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"]);
   });
@@ -510,6 +515,7 @@ describe("SquadTab helpers", () => {
         players,
         "4-4-2",
         "d1",
+        cannedPositionTable(),
       ),
     ).toEqual(["gk", "lb", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"]);
   });
@@ -647,6 +653,7 @@ describe("SquadTab helpers", () => {
       players,
       ["gk", "lb", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "st1", "st2"],
       "4-4-2",
+      cannedPositionTable(),
     );
 
     expect(coverage.find((role) => role.role === "Goalkeeper")).toMatchObject({
