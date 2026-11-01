@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   cancelYouthScouting,
   getPlayerKnowledge,
+  getPotentialOpinion,
   getScoutedReport,
   getVisibleWage,
   reassignYouthScouting,
@@ -125,5 +126,35 @@ describe("scoutingService", () => {
     mockedInvoke.mockRejectedValueOnce("be.error.noActiveGameSession");
 
     await expect(getPlayerKnowledge(["p1"])).rejects.toBe("be.error.noActiveGameSession");
+  });
+
+  /**
+   * Given a player his scout reported on
+   * When his profile asks for the club's opinion of his potential
+   * Then the command is called with his id and the backend's opinion comes back as it is
+   */
+  it("asks the backend for the club's opinion of a player's potential", async () => {
+    const opinion = {
+      low: 76,
+      high: 84,
+      band: "A",
+      certainty: "fairly_sure",
+      source: { kind: "scout", scout_name: "Ann Scout", scouted_on: "2026-09-01", current: true },
+    };
+    mockedInvoke.mockResolvedValueOnce(opinion);
+
+    await expect(getPotentialOpinion("p1")).resolves.toEqual(opinion);
+    expect(mockedInvoke).toHaveBeenCalledWith("get_potential_opinion", { playerId: "p1" });
+  });
+
+  /**
+   * Given no game is open
+   * When a profile asks for an opinion of a player's potential
+   * Then the backend's translated error is passed on for the screen to show
+   */
+  it("passes on the backend's error when asked for an opinion with no game", async () => {
+    mockedInvoke.mockRejectedValueOnce("be.error.noActiveGameSession");
+
+    await expect(getPotentialOpinion("p1")).rejects.toBe("be.error.noActiveGameSession");
   });
 });

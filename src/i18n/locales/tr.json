@@ -1743,7 +1743,21 @@
     "renewalProjectionTitle": "Öngörülen finansal etki",
     "renewalProjectionWageBill": "Haftalık maaş yükü {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Maaş bütçesi kullanımı %{{before}} → %{{after}}",
-    "renewalProjectionRunway": "Nakit yeterliliği {{before}} → {{after}}"
+    "renewalProjectionRunway": "Nakit yeterliliği {{before}} → {{after}}",
+    "potentialOpinion": {
+      "scoutsOpinion": "Scout görüşü",
+      "coachesOpinion": "Teknik ekip görüşü",
+      "bandS": "En iyilerden biri olabilir",
+      "bandA": "İlk on birin vazgeçilmezi olabilir",
+      "bandB": "Kadroda işe yarar bir oyuncu olabilir",
+      "bandRest": "Daha fazla gelişmesi pek olası değil",
+      "range": "Potansiyel {{low}}–{{high}}",
+      "confident": "Emin",
+      "fairlySure": "Oldukça emin",
+      "unsure": "Emin değil",
+      "guess": "Tahmin",
+      "byScout": "{{scout}} tarafından {{date}} tarihinde izlendi"
+    }
   },
   "teamProfile": {
     "clubInfo": "Kulüp Bilgisi",

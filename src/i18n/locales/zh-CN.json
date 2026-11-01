@@ -1743,7 +1743,21 @@
     "renewalProjectionWageBill": "周薪总支出 {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "薪资预算占用 {{before}}% → {{after}}%",
     "renewalProjectionRunway": "现金储备 {{before}} → {{after}}",
-    "ratingTrend": "评分趋势"
+    "ratingTrend": "评分趋势",
+    "potentialOpinion": {
+      "scoutsOpinion": "球探意见",
+      "coachesOpinion": "教练组意见",
+      "bandS": "有望成为顶尖球员",
+      "bandA": "有望成为主力",
+      "bandB": "可以成为有用的轮换球员",
+      "bandRest": "不太可能再有大的进步",
+      "range": "潜力 {{low}}–{{high}}",
+      "confident": "把握很大",
+      "fairlySure": "比较有把握",
+      "unsure": "没有把握",
+      "guess": "只是猜测",
+      "byScout": "球探 {{scout}} 于 {{date}} 考察"
+    }
   },
   "teamProfile": {
     "clubInfo": "俱乐部信息",
