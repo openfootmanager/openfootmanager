@@ -237,6 +237,39 @@ describe("overlapping loads", () => {
   });
 
   /**
+   * Given a load that has settled
+   * When the settings are loaded again
+   * Then the backend is asked again: only a load still in flight is shared.
+   */
+  it("fetches again for a load made after the last one settled", async () => {
+    vi.mocked(invoke).mockResolvedValue(stale());
+
+    await useSettingsStore.getState().loadSettings();
+    await useSettingsStore.getState().loadSettings();
+
+    expect(
+      vi.mocked(invoke).mock.calls.filter(([command]) => command === "get_settings"),
+    ).toHaveLength(2);
+  });
+
+  /**
+   * Given a backend call that throws at once (not a rejected promise)
+   * When the settings are loaded, and then loaded again
+   * Then the first load settles with defaults and the second asks again: nothing is left stuck.
+   */
+  it("does not stay stuck on a load whose request throws at once", async () => {
+    vi.mocked(invoke).mockImplementationOnce(() => {
+      throw new Error("no bridge");
+    });
+    await useSettingsStore.getState().loadSettings();
+    vi.mocked(invoke).mockResolvedValue({ ...stale(), settings: { language: "es" } });
+
+    await useSettingsStore.getState().loadSettings();
+
+    expect(useSettingsStore.getState().settings.language).toBe("es");
+  });
+
+  /**
    * Given two loads in flight, the first of which has answered
    * When the player changes a setting, and then the second load answers with the older value
    * Then the change stands.

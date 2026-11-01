@@ -128,7 +128,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   loadSettings: () => {
     if (inFlightLoad) return inFlightLoad;
     changedDuringLoad = {};
-    inFlightLoad = (async () => {
+    const load = (async () => {
       try {
         const response = await invoke<SettingsResponse>("get_settings");
         const settings = mergeWithDefaultSettings({ ...response.settings, ...changedDuringLoad });
@@ -147,12 +147,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
           supportedCurrencies: indexSupportedCurrencies(),
           loaded: true,
         });
-      } finally {
-        changedDuringLoad = null;
-        inFlightLoad = null;
       }
     })();
-    return inFlightLoad;
+    // Assigned before the load can settle, and cleared from a handler attached after, so a load
+    // that fails at once cannot leave a settled promise standing in for the next one.
+    inFlightLoad = load;
+    void load.finally(() => {
+      if (inFlightLoad === load) {
+        inFlightLoad = null;
+        changedDuringLoad = null;
+      }
+    });
+    return load;
   },
 
   updateSettings: async (partial) => {
