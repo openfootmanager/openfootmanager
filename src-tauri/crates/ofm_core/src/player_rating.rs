@@ -586,7 +586,8 @@ pub fn key_attributes(position: &Position) -> [AttributeKey; 3] {
 
 fn critical_penalty(attrs: &PlayerAttributes, position: &Position) -> f64 {
     // An outfield bucket is never scored here (`ovr_from_attributes` canonicalises first); it has
-    // always carried no penalty. Not `is_legacy_bucket`, which counts the goalkeeper too.
+    // always carried no penalty. Not `is_legacy_bucket`: it counts the goalkeeper too, on purpose (see
+    // its doc).
     if matches!(
         position,
         Position::Defender | Position::Midfielder | Position::Forward

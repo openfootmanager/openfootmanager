@@ -264,6 +264,17 @@ impl Position {
         self.valid_roles().contains(role)
     }
 
+    /// Whether this is one of the four coarse positions an older save wrote (`Defender`,
+    /// `Midfielder`, `Forward`) or `Goalkeeper`, which is in the set on purpose although a keeper
+    /// was never coarse.
+    ///
+    /// `Player::natural_position` is `#[serde(default)]` and `Position`'s default is `Goalkeeper`,
+    /// so a save from before the field existed loads every player as a natural goalkeeper. Counting
+    /// `Goalkeeper` here is what makes the load-time identity upgrade
+    /// (`ofm_core::player_identity::needs_identity_upgrade`) and `primary_position` read his
+    /// `position` instead of trusting that default. Dropping it would turn those players into
+    /// keepers, so a caller that wants only the three outfield buckets must say so (match them
+    /// explicitly, as `critical_penalty` does), not reuse this.
     pub fn is_legacy_bucket(&self) -> bool {
         matches!(
             self,
