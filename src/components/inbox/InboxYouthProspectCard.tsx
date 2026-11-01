@@ -90,11 +90,11 @@ export default function InboxYouthProspectCard({
             <PlayerProfilePotentialOpinion opinion={opinion} locale={language} t={t} />
           ) : null}
 
-          <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-navy-600 dark:bg-navy-700/40">
-            <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
+          <div className="rounded-lg bg-sunken px-3 py-2">
+            <p className="font-heading text-caption font-bold uppercase tracking-label text-fg-muted">
               {t("playerProfile.contractInfo")}
             </p>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-300">
+            <div className="mt-2 flex flex-wrap gap-2 text-caption text-fg">
               <Badge variant="neutral" size="sm">
                 {t("finances.wagePerWeek")}: {formatWeeklyWage(prospect.wage ?? 0, "compact")}
               </Badge>
