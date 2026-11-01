@@ -78,7 +78,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const players = fetchedSquad ?? gameState?.players ?? [];
-  const roster = team ? buildTacticsRoster(players, team.id) : [];
+  const roster = team ? buildTacticsRoster(players, team.id, positionTable) : [];
 
   const formation = team?.formation || "4-4-2";
   const activePlayStyle = team?.play_style || "Balanced";
