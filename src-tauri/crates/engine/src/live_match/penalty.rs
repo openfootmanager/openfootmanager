@@ -300,34 +300,26 @@ impl LiveMatchState {
 
 impl PenaltyShootoutState {
     /// Whether the shootout has produced a winner after the kick just taken.
-    /// A round is only ever decided once both sides have taken the same number
-    /// of kicks — the trailing side always gets its reply.
+    ///
+    /// Within the first five kicks each, it is over the moment one side cannot catch up, even
+    /// mid-round: its remaining regulation kicks, all scored, would still leave it behind (the
+    /// Laws of the Game). In sudden death a round is decided only once both sides have kicked in
+    /// it, so the side that kicks second always gets its reply.
     fn decided(&self) -> bool {
-        if !self.sudden_death {
-            // Normal rounds (5 each)
-            let home_remaining = 5u8.saturating_sub(self.home_taken);
-            let away_remaining = 5u8.saturating_sub(self.away_taken);
-
-            // Home can't catch up even if they score all remaining
-            if self.home_scored + home_remaining < self.away_scored
-                && self.home_taken == self.away_taken
-            {
-                return true;
-            }
-            if self.away_scored + away_remaining < self.home_scored
-                && self.away_taken == self.home_taken
-            {
-                return true;
-            }
-
-            // After 5 completed rounds
-            self.home_taken >= 5
-                && self.home_taken == self.away_taken
-                && self.home_scored != self.away_scored
-        } else {
-            // Sudden death: after each pair, check if one side leads
-            self.home_taken == self.away_taken && self.home_scored != self.away_scored
+        let level_on_kicks = self.home_taken == self.away_taken;
+        if self.sudden_death {
+            return level_on_kicks && self.home_scored != self.away_scored;
         }
+        if self.home_taken <= 5 && self.away_taken <= 5 {
+            let home_best = self.home_scored + (5 - self.home_taken);
+            let away_best = self.away_scored + (5 - self.away_taken);
+            if home_best < self.away_scored || away_best < self.home_scored {
+                return true;
+            }
+        }
+        // Past the fifth kicks without the sudden-death flag (it is raised after a level fifth
+        // round), the same rule as sudden death applies.
+        self.home_taken >= 5 && level_on_kicks && self.home_scored != self.away_scored
     }
 }
 
@@ -400,5 +392,46 @@ mod tests {
     #[test]
     fn regulation_level_after_five_rounds_not_decided() {
         assert!(!state(5, 5, 3, 3).decided());
+    }
+
+    /// Given home 4 from 4 and away 1 from 3, after home's 4th kick,
+    /// When the shootout is checked,
+    /// Then it is over: away's two remaining kicks, both scored, would still leave it behind,
+    /// so it does not take them.
+    #[test]
+    fn a_shootout_ends_mid_round_when_the_side_still_to_kick_cannot_catch_up() {
+        assert!(state(4, 3, 4, 1).decided());
+    }
+
+    /// Given home 3 from 4 and away 1 from 3, after home's 4th kick,
+    /// When the shootout is checked,
+    /// Then it goes on: away scoring both its remaining kicks would draw level at 3.
+    #[test]
+    fn a_shootout_goes_on_while_the_side_still_to_kick_can_draw_level() {
+        assert!(!state(4, 3, 3, 1).decided());
+    }
+
+    /// Given home 0 from 3 and away 2 from 3, after away's 3rd kick,
+    /// When the shootout is checked,
+    /// Then it goes on: home scoring its two remaining kicks would draw level at 2.
+    #[test]
+    fn a_shootout_goes_on_while_the_side_behind_can_draw_level_with_two_kicks_left() {
+        assert!(!state(3, 3, 0, 2).decided());
+    }
+
+    /// Given home 1 from 4 and away 3 from 3, after home's 4th kick,
+    /// When the shootout is checked,
+    /// Then it is over: home's one remaining kick cannot catch away even before away kicks.
+    #[test]
+    fn a_shootout_ends_mid_round_when_the_side_that_just_kicked_cannot_catch_up() {
+        assert!(state(4, 3, 1, 3).decided());
+    }
+
+    /// Given home 5 from 5 and away 3 from 4, after home's 5th kick,
+    /// When the shootout is checked,
+    /// Then it is over: away's last regulation kick cannot draw it level.
+    #[test]
+    fn a_shootout_ends_after_homes_fifth_kick_when_away_cannot_draw_level() {
+        assert!(state(5, 4, 5, 3).decided());
     }
 }
