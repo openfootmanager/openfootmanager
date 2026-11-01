@@ -427,6 +427,29 @@ describe("TacticsTab", () => {
    * When a bench defender is dropped onto a defensive slot of the pitch
    * Then nothing is saved: a lineup worked out without the lines must not be written.
    */
+  /**
+   * Given the position table has not arrived, and then has
+   * When the tactics screen is drawn
+   * Then it says why lineup changes are not available yet, and says nothing once it has loaded.
+   */
+  it("says lineup changes wait for the position table, only until it has loaded", () => {
+    positionTableState.arrived = false;
+    try {
+      const { unmount } = render(
+        <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+      expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+      unmount();
+    } finally {
+      positionTableState.arrived = true;
+    }
+
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
+  });
+
   it("saves no lineup change before the position table has loaded", async () => {
     positionTableState.arrived = false;
     try {

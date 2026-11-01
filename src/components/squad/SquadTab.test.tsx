@@ -924,6 +924,7 @@ describe("SquadTab", () => {
     const benchRow = screen.getByText("Bench DEF").closest("tr");
     expect(benchRow).not.toBeNull();
     fireEvent.contextMenu(benchRow as HTMLTableRowElement);
+    expect(screen.getByRole("menuitem", { name: "squad.makeStarter" })).toBeEnabled();
     fireEvent.click(screen.getByRole("menuitem", { name: "squad.makeStarter" }));
 
     await waitFor(() => {
@@ -946,13 +947,65 @@ describe("SquadTab", () => {
 
       const benchRow = screen.getByText("Bench DEF").closest("tr");
       fireEvent.contextMenu(benchRow as HTMLTableRowElement);
-      fireEvent.click(screen.getByRole("menuitem", { name: "squad.makeStarter" }));
+      const makeStarter = screen.getByRole("menuitem", { name: "squad.makeStarter" });
+      // Disabled, so the item says it cannot be done yet instead of silently doing nothing.
+      expect(makeStarter).toBeDisabled();
+      fireEvent.click(makeStarter);
       await act(async () => {});
 
       expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
     } finally {
       positionTableState.arrived = true;
     }
+  });
+
+  /**
+   * Given the position table has not arrived
+   * When a starter's roster menu is opened
+   * Then "Send to bench" is disabled: a lineup change is not made without the lines.
+   */
+  it("disables Send to bench in a starter's menu until the position table has loaded", () => {
+    positionTableState.arrived = false;
+    try {
+      renderSquadTab(makeGameState());
+
+      const starterRow = screen.getByText("GK1").closest("tr");
+      fireEvent.contextMenu(starterRow as HTMLTableRowElement);
+
+      expect(screen.getByRole("menuitem", { name: "squad.sendToBench" })).toBeDisabled();
+    } finally {
+      positionTableState.arrived = true;
+    }
+  });
+
+  /**
+   * Given the position table loaded or not
+   * When the status filter's options are opened
+   * Then "needs cover" is offered once the table has loaded and not before: without the lines
+   *      it would drop players it should keep.
+   */
+  it("offers the needs-cover filter only once the position table has loaded", () => {
+    positionTableState.arrived = false;
+    try {
+      const { unmount } = render(
+        <SquadTab
+          gameState={makeGameState()}
+          managerId="mgr1"
+          onSelectPlayer={vi.fn()}
+          onGameUpdate={vi.fn()}
+        />,
+      );
+      fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
+      expect(screen.queryByRole("option", { name: "squad.needsCover" })).toBeNull();
+      expect(screen.getByRole("option", { name: "squad.naturalFit" })).toBeInTheDocument();
+      unmount();
+    } finally {
+      positionTableState.arrived = true;
+    }
+
+    renderSquadTab(makeGameState());
+    fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
+    expect(screen.getByRole("option", { name: "squad.needsCover" })).toBeInTheDocument();
   });
 
   it("names each roster filter after its visible label", async () => {

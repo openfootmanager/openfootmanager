@@ -127,6 +127,7 @@ export default function PlayerProfileActionsMenu({
             label: t("squad.sendToBench"),
             icon: <RotateCcw className="w-4 h-4" />,
             disabled:
+              !positionTable.loaded ||
               actionBusy ||
               available.filter((candidate) => !startingXiIds.includes(candidate.id)).length === 0,
             onClick: () =>
@@ -143,7 +144,7 @@ export default function PlayerProfileActionsMenu({
         : {
             label: t("squad.makeStarter"),
             icon: <Users className="w-4 h-4" />,
-            disabled: actionBusy || Boolean(player.injury),
+            disabled: !positionTable.loaded || actionBusy || Boolean(player.injury),
             onClick: () =>
               persistStartingXi(
                 buildPromoteToStartingXi(

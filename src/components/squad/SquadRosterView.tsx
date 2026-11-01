@@ -366,6 +366,7 @@ export default function SquadRosterView({
     contractActionPending: contractActionPlayerId === player.id,
     onSelectPlayer,
     onMutationComplete: completeMutation,
+    positionTableLoaded: positionTable.loaded,
     updateSquadPlanning,
     updateContractExitIntent,
     onActionError: (error: unknown) => setContractActionError(resolveBackendError(error)),
@@ -429,7 +430,11 @@ export default function SquadRosterView({
               <option value="xi">{t("preMatch.startingXI")}</option>
               <option value="bench">{t("preMatch.substitutes")}</option>
               <option value="naturalFit">{t("squad.naturalFit")}</option>
-              <option value="needsCover">{t("squad.needsCover")}</option>
+              {/* A role needs cover by the backend's lines; until they arrive the filter would drop
+                  players it should keep, so it is not offered yet. */}
+              {positionTable.loaded ? (
+                <option value="needsCover">{t("squad.needsCover")}</option>
+              ) : null}
               <option value="outOfPosition">{t("squad.outOfPosition")}</option>
               <option value="injured">{t("common.injured")}</option>
             </Select>
