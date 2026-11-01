@@ -1327,12 +1327,51 @@ mod tests {
         on_record(&mut game, "mgr_team2_staff2_2");
         vacant_long_enough(&mut game, "team2");
 
-        process_vacant_ai_clubs(&mut game);
+        let game = within_five_seconds(game, process_vacant_ai_clubs);
 
         assert_eq!(
             manager_id_of(&game, "team2").as_deref(),
             Some("mgr_team2_staff2_3")
         );
+    }
+
+    /// Given a vacant AI club with no assistant, whose invented manager's id and the one after it
+    ///       are both on record
+    /// When the vacancy is filled
+    /// Then the invented manager takes the third: `mgr_team2_3`
+    #[test]
+    fn a_third_invented_manager_takes_the_next_free_id_after_two_on_record() {
+        let mut game = make_game();
+        game.staff
+            .retain(|member| member.team_id.as_deref() != Some("team2"));
+        on_record(&mut game, "mgr_team2");
+        on_record(&mut game, "mgr_team2_2");
+        vacant_long_enough(&mut game, "team2");
+
+        let game = within_five_seconds(game, process_vacant_ai_clubs);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_3")
+        );
+    }
+
+    /// Runs `step` on `game` in a thread and hands the game back, failing the test if the step has
+    /// not finished within five seconds.
+    ///
+    /// The id loops search upward until they find a free id, so a regression that stops them
+    /// advancing hangs rather than fails, and `cargo test` has no timeout of its own: the suite
+    /// would sit until CI's job limit. This turns such a hang into a named failure. A thread
+    /// left spinning dies with the test process.
+    fn within_five_seconds(mut game: Game, step: fn(&mut Game)) -> Game {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            step(&mut game);
+            let _ = sender.send(game);
+        });
+        receiver
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("the step did not finish within five seconds: an id search may have stopped advancing")
     }
 
     /// Given a vacant AI club whose assistant has coaching 60
