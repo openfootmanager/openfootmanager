@@ -29,6 +29,7 @@ pub mod delegated_renewals;
 pub mod development;
 pub mod edition_archive;
 pub mod end_of_season;
+pub mod familiarity_projection;
 pub mod finances;
 pub mod firing;
 pub mod football_identity;
