@@ -187,12 +187,19 @@ pub struct MarketPlayer {
     pub name: String,
     pub position: String,
     pub age: String,
-    pub ovr: u8,
+    /// The rating the club may see: a division rival's, and nobody else's until a scout's estimate
+    /// exists (`ofm_core::player_knowledge`). `None` for a scouted or unknown player.
+    pub ovr: Option<u8>,
     /// `None` for a free agent.
     pub team: Option<String>,
     pub transfer_listed: bool,
     pub loan_listed: bool,
-    pub wage: u32,
+    /// The weekly wage the club may see: exact for its own player, rounded to two significant
+    /// figures for a scouted one, and `None` for anyone else (`max_price` never filters on it).
+    pub wage: Option<u32>,
+    /// `wage` is a scout's rounded figure, not the contract's.
+    #[serde(default)]
+    pub wage_is_approximate: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -221,6 +228,12 @@ impl fmt::Display for TransferMarket {
             } else {
                 "-"
             };
+            let ovr = p.ovr.map_or_else(|| "?".to_string(), |ovr| ovr.to_string());
+            let wage = match (p.wage, p.wage_is_approximate) {
+                (Some(wage), true) => format!("~{wage}"),
+                (Some(wage), false) => wage.to_string(),
+                (None, _) => "?".to_string(),
+            };
             writeln!(
                 f,
                 "| {} | {} | {} | {} | {} | {} | {} | {} |",
@@ -228,10 +241,10 @@ impl fmt::Display for TransferMarket {
                 p.name,
                 p.position,
                 p.age,
-                p.ovr,
+                ovr,
                 p.team.as_deref().unwrap_or("Free"),
                 listed,
-                p.wage,
+                wage,
             )?;
         }
         if self.players.len() > LISTED_IN_TEXT {

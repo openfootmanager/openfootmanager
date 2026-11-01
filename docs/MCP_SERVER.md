@@ -171,7 +171,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 
 | Tool | Description |
 |------|-------------|
-| `transfer_market_browse` | Browse players with optional position, max price, and listed-only filters |
+| `transfer_market_browse` | Browse players with optional position, max price, and listed-only filters. Each row shows only what the club knows (`ofm_core::player_knowledge`): the rating of a player in the club's own division (`?` for anyone else), and a wage only for a player a scout reported on, rounded to two significant figures (`~16000`; `?` otherwise). `max_price` is an annual figure compared with the weekly wage the club may see, so a player whose wage is hidden never matches it |
 | `transfer_make_bid` | Make a transfer bid. Returns negotiation feedback (mood, tension, patience, suggested fee). |
 | `transfer_preview_bid` | Preview financial impact of a bid without making it |
 | `transfer_respond_to_offer` | Accept or reject an incoming transfer offer |
