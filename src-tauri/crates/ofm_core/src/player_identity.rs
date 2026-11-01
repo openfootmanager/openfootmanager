@@ -38,10 +38,29 @@ pub fn upgrade_player_identity(player: &mut Player, assigned_slot: Option<&Posit
     // The rating is the one the formula gives at the natural position, which is what the daily
     // refresh computes: a generated player was rated at his coarse slot position, and left so he
     // would jump (about 1.4 points on average) the first time the game refreshed him.
-    let rated = natural_ovr(player).round() as u8;
-    player.ovr = rated;
-    player.potential = player.potential.max(rated);
+    //
+    // A player with no rating at all (a save from before ratings existed) is left to the loader's
+    // age-based backfill, which also draws his ceiling.
+    let rated_changed = refresh_rating_to_natural_position(player);
 
+    changed || rated_changed
+}
+
+/// Sets `player.ovr` to the formula's rating at his natural position and floors a ceiling he
+/// already has at it, as the daily refresh does. `true` when either changed.
+fn refresh_rating_to_natural_position(player: &mut Player) -> bool {
+    if player.ovr == 0 {
+        return false;
+    }
+    let rated = natural_ovr(player).round() as u8;
+    let ceiling = if player.potential == 0 {
+        0
+    } else {
+        player.potential.max(rated)
+    };
+    let changed = player.ovr != rated || player.potential != ceiling;
+    player.ovr = rated;
+    player.potential = ceiling;
     changed
 }
 
@@ -545,6 +564,77 @@ mod tests {
             player.potential >= player.ovr,
             "a ceiling is never below the rating"
         );
+    }
+
+    /// Given a goalkeeper (whose specific position is his coarse one) with a stale stored overall,
+    /// When his identity is upgraded,
+    /// Then his overall is corrected and the call reports a change, so a save loader persists it.
+    #[test]
+    fn a_rating_correction_alone_is_reported_as_a_change() {
+        let attrs = PlayerAttributes {
+            pace: 50,
+            stamina: 60,
+            strength: 60,
+            agility: 70,
+            passing: 55,
+            shooting: 30,
+            tackling: 30,
+            dribbling: 30,
+            defending: 40,
+            positioning: 70,
+            vision: 55,
+            decisions: 66,
+            composure: 62,
+            aggression: 50,
+            teamwork: 60,
+            leadership: 50,
+            handling: 78,
+            reflexes: 80,
+            aerial: 72,
+        };
+        let mut player = make_player("stale-gk", Position::Goalkeeper, attrs);
+        let formula = crate::player_rating::natural_ovr(&player).round() as u8;
+        player.ovr = formula.saturating_sub(7);
+
+        let changed = upgrade_player_identity(&mut player, None);
+
+        assert_eq!(player.ovr, formula);
+        assert!(changed, "a corrected rating must be reported");
+    }
+
+    /// Given a legacy player with no rating and no ceiling,
+    /// When his identity is upgraded,
+    /// Then both stay unset, so the loader's age-based backfill draws his ceiling.
+    #[test]
+    fn a_player_with_no_rating_yet_keeps_it_unset() {
+        let attrs = PlayerAttributes {
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 20,
+            reflexes: 20,
+            aerial: 60,
+        };
+        let mut player = make_player("pre-rating", Position::Midfielder, attrs);
+        player.ovr = 0;
+        player.potential = 0;
+
+        upgrade_player_identity(&mut player, None);
+
+        assert_eq!((player.ovr, player.potential), (0, 0));
     }
 
     #[test]
