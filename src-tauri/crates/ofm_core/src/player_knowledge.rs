@@ -401,11 +401,13 @@ fn scouts_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
         .iter()
         .find(|report| report.player_id == player.id)?;
     let range = report.potential?;
+    // An old report is still the scout's opinion, read as an old report: it says so.
     Some(PotentialOpinion::of(
         range,
         OpinionSource::Scout {
             scout_name: report.scout_name.clone(),
             scouted_on: report.scouted_on.clone(),
+            current: !is_out_of_date(report, game.last_season_rollover_on.as_deref()),
         },
     ))
 }
@@ -1142,22 +1144,31 @@ mod tests {
         opinion.high - opinion.low
     }
 
-    /// Given a player in another division whose scout, Ann Scout, wrote 76-84 on 1 Sep
-    /// When the club's opinion of his potential is asked
-    /// Then it is her range, with its band (the tier of 80, A), how sure she was, and her name
-    ///      and date
-    #[test]
-    fn a_scouted_player_shows_the_opinion_his_scout_wrote() {
+    /// A world in which the last season ended on 25 May, holding a player in another division
+    /// (potential 80) whose scout, Ann Scout, wrote 76-84 on `scouted_on`.
+    fn scouted_by_ann_on(scouted_on: &str) -> Game {
         let mut far = player("far", Some("faraway"));
         far.potential = 80;
         let mut game = world(Some(MY_CLUB), vec![far]);
+        game.last_season_rollover_on = Some("2026-05-25".to_string());
         game.scouted_players.push(ScoutedPlayer {
             player_id: "far".to_string(),
-            scouted_on: "2026-09-01".to_string(),
+            scouted_on: scouted_on.to_string(),
             attributes: uniform_attributes(60),
             potential: Some(crate::game::PotentialRange { low: 76, high: 84 }),
             scout_name: Some("Ann Scout".to_string()),
         });
+        game
+    }
+
+    /// Given a player in another division whose scout, Ann Scout, wrote 76-84 on 1 Sep, after the
+    ///       season ended on 25 May
+    /// When the club's opinion of his potential is asked
+    /// Then it is her range, with its band (the tier of 80, A), how sure she was, and her name,
+    ///      date and a current report
+    #[test]
+    fn a_scouted_player_shows_the_opinion_his_scout_wrote() {
+        let game = scouted_by_ann_on("2026-09-01");
 
         assert_eq!(
             opinion_of(&game, "far"),
@@ -1169,7 +1180,31 @@ mod tests {
                 source: OpinionSource::Scout {
                     scout_name: Some("Ann Scout".to_string()),
                     scouted_on: "2026-09-01".to_string(),
+                    current: true,
                 },
+            })
+        );
+    }
+
+    /// Given the same report, written on 10 Mar, before the season ended on 25 May
+    /// When the club's opinion of his potential is asked
+    /// Then it is still her opinion, said to be out of date, as the report's own verdict says: an
+    ///      old scout's opinion is an old report, not no opinion
+    #[test]
+    fn a_scouts_opinion_from_before_the_season_ended_is_shown_as_out_of_date() {
+        let game = scouted_by_ann_on("2026-03-10");
+        let report_is_out_of_date =
+            crate::slices::scouted_report::query_scouted_report(&game, "far")
+                .unwrap()
+                .out_of_date;
+
+        assert!(report_is_out_of_date, "the fixture's report is stale");
+        assert_eq!(
+            opinion_of(&game, "far").map(|opinion| opinion.source),
+            Some(OpinionSource::Scout {
+                scout_name: Some("Ann Scout".to_string()),
+                scouted_on: "2026-03-10".to_string(),
+                current: false,
             })
         );
     }

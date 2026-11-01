@@ -457,7 +457,12 @@ mod tests {
                 "high": 84,
                 "band": "A",
                 "certainty": "fairly_sure",
-                "source": { "kind": "scout", "scout_name": "Ann Scout", "scouted_on": "2026-09-01" }
+                "source": {
+                    "kind": "scout",
+                    "scout_name": "Ann Scout",
+                    "scouted_on": "2026-09-01",
+                    "current": true
+                }
             })
         );
         assert!(get_potential_opinion_internal(&state, "unjudged")

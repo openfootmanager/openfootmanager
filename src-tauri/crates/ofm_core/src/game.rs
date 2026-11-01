@@ -47,9 +47,11 @@ pub struct ScoutedPlayer {
     pub player_id: String,
     pub scouted_on: String,
     pub attributes: PlayerAttributes,
-    /// The scout's opinion of his potential on `scouted_on`: a range that always holds the true
-    /// value, narrower for a better judge (`potential_opinion`). None for a report written before
-    /// reports carried one; such a player shows no opinion until he is scouted again.
+    /// The scout's opinion of his potential on `scouted_on`: a range that held the true value that
+    /// day, narrower for a better judge (`potential_opinion`). Like the attributes beside it, it is
+    /// a snapshot: after a season end the player has developed, and the report reads as out of date.
+    /// None for a report written before reports carried one; such a player shows no opinion until
+    /// he is scouted again.
     #[serde(default)]
     pub potential: Option<PotentialRange>,
     /// Who wrote the report, kept with it: a scout who has since left can't be looked up.

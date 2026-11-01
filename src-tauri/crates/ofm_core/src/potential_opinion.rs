@@ -61,7 +61,9 @@ impl Certainty {
 /// The range a judge with `judging_potential` gives a player whose true potential is `potential`.
 ///
 /// Its centre is the true value moved by an offset no wider than the half-width, so the true value
-/// is always inside: the opinion is vague, never wrong. The offset is drawn from the player and the
+/// is inside on the day it is formed: the opinion is vague, never wrong. (A scout's range is kept
+/// with his report; once the player develops past a season end, it describes him as he was.) The
+/// offset is drawn from the player and the
 /// judge alone, so the same judge always says the same about the same player. Near either end of
 /// the 1-99 scale the window is moved inside rather than cut, so it keeps its width (and the true
 /// value) there too.
@@ -96,13 +98,19 @@ pub enum OpinionSource {
         /// None for a report written before reports named their scout.
         scout_name: Option<String>,
         scouted_on: String,
+        /// False for a report written before the last season ended: the player has aged and
+        /// developed since, so the range describes him as he was (`scouted_report::is_out_of_date`,
+        /// the same verdict `player_knowledge` gives the report).
+        current: bool,
     },
     Coaches,
 }
 
 /// What the club may read of a player's potential: the range, the band its middle falls in (the
 /// backend's tier, so the screen picks no threshold), how sure the judge is, and whose opinion it
-/// is. Never the true potential.
+/// is. Never the true potential. The range held the true value when it was formed: the coaches'
+/// is formed today, a scout's on the day of his report, so an out-of-date report's range may no
+/// longer hold it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PotentialOpinion {
     pub low: u8,
