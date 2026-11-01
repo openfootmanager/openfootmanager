@@ -93,7 +93,7 @@ export function EntityCard({
             {meta}
           </div>
         </div>
-        {hero ? (
+        {hero !== undefined && hero !== null && hero !== false ? (
           <div
             className={`shrink-0 text-right font-heading font-extrabold tabular-nums leading-none ${
               compact ? "text-title" : "text-display"

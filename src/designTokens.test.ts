@@ -1,12 +1,33 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { contrastRatio } from "./lib/colorContrast";
+import { kitWashScale } from "./lib/kitStyle";
 
 import { gameState } from "./dev/pageHarness/fixture.generated";
 
 // Paths are relative to the Vitest root (the repository root); `new URL(..., import.meta.url)`
 // throws under jsdom.
 const appCss = readFileSync("src/App.css", "utf-8");
+
+/** The kit primaries the world generator hands out, read from the shipped definitions. */
+const SHIPPED_PALETTE: string[] = (
+  JSON.parse(readFileSync("src-tauri/crates/ofm_core/data/default_nations.json", "utf-8")) as {
+    colorPalette: { primary: string }[];
+  }
+).colorPalette.map((colours) => colours.primary);
+
+/** Kits at the edges of what kitStyle accepts (any six-digit hex): a modded club can be any. */
+const BOUNDARY_KITS = [
+  "#ffffff",
+  "#ffff00",
+  "#00ff00",
+  "#00ffff",
+  "#ff8000",
+  "#ff3030",
+  "#808080",
+  "#000000",
+  "#0000ff",
+];
 
 /**
  * The custom properties declared in the one block whose line reads exactly `selector {`. A selector
@@ -162,21 +183,29 @@ describe("design tokens", () => {
   });
 
   /**
-   * Given every club in the page harness's career, each card header washed in its kit colour
-   * (--kit-wash-mix of the kit over the panel, as the kit-wash token mixes it)
+   * Given every club in the page harness's career, the shipped palette's twelve primaries, and the kits at the edges of what kitStyle
+   * accepts (white, yellow, lime, cyan, orange, a light red, grey, black, pure blue), each card
+   * header washed in its kit colour (--kit-wash-mix of the kit over the panel, scaled by
+   * kitWashScale for a pale kit, as the kit-wash token mixes it)
    * When the header's name (fg) and meta line (fg-muted) sit on that wash in any mode
-   * Then both reach 4.5:1, so the mix is safe for real clubs' colours, not only for the mock's.
+   * Then both reach 4.5:1, so the mix is safe for any six-digit kit, not only the fixture's.
    */
-  it.each(MODES)("keeps a card header readable on every fixture club's kit wash in %s", (mode) => {
-    const share = Number.parseFloat(tokenIn(mode, "--kit-wash-mix")) / 100;
+  it.each(MODES)("keeps a card header readable on every kit's wash in %s", (mode) => {
+    const mix = Number.parseFloat(tokenIn(mode, "--kit-wash-mix")) / 100;
     const panel = parseColour(tokenIn(mode, "--color-panel"));
     const failures: string[] = [];
-    for (const team of gameState.teams) {
-      const kit = parseColour(team.colors.primary);
+    const kits = [
+      ...gameState.teams.map((team) => ({ name: team.name, primary: team.colors.primary })),
+      ...SHIPPED_PALETTE.map((primary) => ({ name: `palette ${primary}`, primary })),
+      ...BOUNDARY_KITS.map((primary) => ({ name: primary, primary })),
+    ];
+    for (const { name, primary } of kits) {
+      const kit = parseColour(primary);
+      const share = mix * kitWashScale(primary);
       const wash = [0, 1, 2].map((i) => kit[i] * share + panel[i] * (1 - share)).concat(1) as Rgba;
       for (const text of ["fg", "fg-muted"]) {
         const ratio = contrast(rendered(mode, `--color-${text}`), wash);
-        if (ratio < 4.5) failures.push(`${text} on ${team.name}: ${ratio.toFixed(2)}`);
+        if (ratio < 4.5) failures.push(`${text} on ${name}: ${ratio.toFixed(2)}`);
       }
     }
     expect(gameState.teams.length).toBeGreaterThan(0);
