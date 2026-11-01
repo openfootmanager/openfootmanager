@@ -134,7 +134,7 @@ export default function PlayerProfileAttributesCard({
             </p>
           </div>
         )}
-        {positionRatings}
+        {attributesVisible ? positionRatings : null}
       </CardBody>
     </Card>
   );
