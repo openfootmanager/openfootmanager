@@ -105,7 +105,8 @@ pub fn apply_match_wear(player: &mut Player, minutes: u8, rng: &mut impl Rng) {
 }
 
 /// Injury-risk multiplier scaled by match fitness: less fit players are more
-/// prone to picking up a knock.
+/// prone to picking up a knock. The one rule for every injury roll that reads
+/// fitness: on international duty, in a club match, and on the training ground.
 pub(crate) fn injury_multiplier_from_fitness(fitness: u8) -> f64 {
     if fitness < 30 {
         3.0
