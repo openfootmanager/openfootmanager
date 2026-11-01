@@ -1,9 +1,6 @@
 import type { PositionTable } from "../../../lib/positionTable";
-import { CORE_POSITIONS } from "../../squad/SquadTab.helpers";
 import { POSITIONS } from "./helpers";
 import type { PlayerDef, Position } from "./types";
-
-type CorePosition = (typeof CORE_POSITIONS)[number];
 
 /**
  * What the position dropdown is set to: everything, one of the four broad
@@ -14,14 +11,9 @@ type CorePosition = (typeof CORE_POSITIONS)[number];
  * half; choosing "Defender" should find only the players a package left on
  * the broad value. Without the prefix those two are the same string.
  */
-export type PositionFilter = "All" | `group:${CorePosition}` | Position;
+export type PositionFilter = "All" | `group:${string}` | Position;
 
 const GROUP_PREFIX = "group:";
-
-/** Whether a position filter value picks a whole group rather than one position. */
-export function isGroupFilter(filter: string): boolean {
-  return filter.startsWith(GROUP_PREFIX);
-}
 
 export function matchesPositionFilter(
   position: Position,
@@ -47,20 +39,29 @@ export interface PositionFilterGroup {
   options: PositionFilterOption[];
 }
 
-/** The dropdown's two sections: the broad groups, then every exact position. */
-export function positionFilterGroups(): PositionFilterGroup[] {
+/**
+ * The dropdown's two sections: the broad groups (the backend's lines, so none until its table
+ * arrives), then every exact position.
+ */
+export function positionFilterGroups(lines: readonly string[]): PositionFilterGroup[] {
+  const groupSection: PositionFilterGroup[] =
+    lines.length === 0
+      ? []
+      : [
+          {
+            labelKey: "worldEditor.positionFilterByGroup",
+            // Not `common.positionGroups.*`: in German, Chinese and Indonesian its
+            // plurals are byte-identical to four of the seventeen exact positions,
+            // so the same label would appear in both sections meaning two different
+            // things. These are worded "all <group>" instead.
+            options: lines.map((core) => ({
+              value: `${GROUP_PREFIX}${core}` as PositionFilter,
+              labelKey: `worldEditor.positionGroupFilter.${core}`,
+            })),
+          },
+        ];
   return [
-    {
-      labelKey: "worldEditor.positionFilterByGroup",
-      // Not `common.positionGroups.*`: in German, Chinese and Indonesian its
-      // plurals are byte-identical to four of the seventeen exact positions,
-      // so the same label would appear in both sections meaning two different
-      // things. These are worded "all <group>" instead.
-      options: CORE_POSITIONS.map((core) => ({
-        value: `${GROUP_PREFIX}${core}` as PositionFilter,
-        labelKey: `worldEditor.positionGroupFilter.${core}`,
-      })),
-    },
+    ...groupSection,
     {
       labelKey: "worldEditor.positionFilterBySpecific",
       options: POSITIONS.map((position) => ({

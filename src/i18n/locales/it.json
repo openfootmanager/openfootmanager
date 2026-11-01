@@ -935,7 +935,8 @@
       "sharp": "Brillante",
       "managing": "Da gestire",
       "risk": "Rischio"
-    }
+    },
+    "positionsLoading": "I dati sulle posizioni sono ancora in caricamento, quindi le modifiche alla formazione non sono ancora disponibili."
   },
   "training": {
     "weeklySchedule": "Programma settimanale",

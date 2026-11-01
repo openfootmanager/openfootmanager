@@ -7,9 +7,21 @@ import TacticsTab from "./TacticsTab";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { createSeasonContext } from "../../test-utils/factories";
 
+// Whether the backend's position table has arrived; a test says it has not.
+const positionTableState = vi.hoisted(() => ({ arrived: true }));
+
 vi.mock("../../hooks/usePositionGroups", async () => {
   const { cannedPositionsModule } = await import("../../test-utils/positionTable");
-  return cannedPositionsModule();
+  const { createPositionTable } = await import("../../lib/positionTable");
+  const canned = cannedPositionsModule();
+  const notArrived = createPositionTable([]);
+  return {
+    ...canned,
+    usePositionTable: () => {
+      const arrived = canned.usePositionTable();
+      return positionTableState.arrived ? arrived : notArrived;
+    },
+  };
 });
 
 vi.mock("react-i18next", () => ({
@@ -408,6 +420,54 @@ describe("TacticsTab", () => {
     await waitFor(() => {
       expect(screen.queryByText("Academy Prospect")).not.toBeInTheDocument();
     });
+  });
+
+  /**
+   * Given the position table has not arrived
+   * When a bench defender is dropped onto a defensive slot of the pitch
+   * Then nothing is saved: a lineup worked out without the lines must not be written.
+   */
+  /**
+   * Given the position table has not arrived, and then has
+   * When the tactics screen is drawn
+   * Then it says why lineup changes are not available yet, and says nothing once it has loaded.
+   */
+  it("says lineup changes wait for the position table, only until it has loaded", () => {
+    positionTableState.arrived = false;
+    try {
+      const { unmount } = render(
+        <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+      expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+      unmount();
+    } finally {
+      positionTableState.arrived = true;
+    }
+
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
+  });
+
+  it("saves no lineup change before the position table has loaded", async () => {
+    positionTableState.arrived = false;
+    try {
+      render(
+        <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+
+      const benchPlayer = screen.getByTestId("pitch-bench-player-d5");
+      const pitchSlot = screen.getByTestId("pitch-slot-1");
+      const dataTransfer = createDataTransfer();
+      fireEvent.dragStart(benchPlayer, { dataTransfer });
+      fireEvent.drop(pitchSlot, { dataTransfer });
+      await act(async () => {});
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    } finally {
+      positionTableState.arrived = true;
+    }
   });
 
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {

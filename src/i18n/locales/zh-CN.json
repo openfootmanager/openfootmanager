@@ -916,7 +916,8 @@
       "sharp": "状态上佳",
       "managing": "需要管理",
       "risk": "风险"
-    }
+    },
+    "positionsLoading": "位置数据仍在加载，暂时无法调整阵容。"
   },
   "training": {
     "weeklySchedule": "每周日程",

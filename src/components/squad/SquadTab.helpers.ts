@@ -1,5 +1,5 @@
-export { CORE_POSITIONS, normalisePosition } from "../../lib/positions";
-import { canonicalPosition, naturalPositionOf, normalisePosition } from "../../lib/positions";
+import { canonicalPosition, naturalPositionOf } from "../../lib/positions";
+import type { PositionTable } from "../../lib/positionTable";
 
 import type { PlayerData } from "../../store/gameStore";
 import { getPlayerOvr } from "../../lib/helpers";
@@ -275,10 +275,11 @@ export function comparePlayersForSlot(
   leftPlayer: PlayerData,
   rightPlayer: PlayerData,
   slotPosition: string,
+  positionTable: PositionTable,
 ): number {
   return (
-    Number(isPlayerOutOfPosition(leftPlayer, slotPosition)) -
-      Number(isPlayerOutOfPosition(rightPlayer, slotPosition)) ||
+    Number(isPlayerOutOfPosition(leftPlayer, slotPosition, positionTable)) -
+      Number(isPlayerOutOfPosition(rightPlayer, slotPosition, positionTable)) ||
     Number(!isPlayerExactForSlot(leftPlayer, slotPosition)) -
       Number(!isPlayerExactForSlot(rightPlayer, slotPosition)) ||
     getPlayerOvr(rightPlayer) - getPlayerOvr(leftPlayer) ||
@@ -291,6 +292,7 @@ export function buildStartingXIIds(
   available: PlayerData[],
   savedIds: string[],
   formation: string,
+  positionTable: PositionTable,
 ): string[] {
   const rows = buildPitchRows(formation);
   const slotPositions = rows.flatMap((row) => row.positions);
@@ -311,7 +313,9 @@ export function buildStartingXIIds(
     while (xi.length < 11) {
       const slotPosition = slotPositions[xi.length];
       const candidates = available.filter((player) => !used.has(player.id));
-      const bestPlayer = candidates.sort((a, b) => comparePlayersForSlot(a, b, slotPosition))[0];
+      const bestPlayer = candidates.sort((a, b) =>
+        comparePlayersForSlot(a, b, slotPosition, positionTable),
+      )[0];
 
       if (!bestPlayer) break;
       xi.push(bestPlayer.id);
@@ -323,7 +327,9 @@ export function buildStartingXIIds(
   const xi: string[] = [];
   slotPositions.slice(0, 11).forEach((slotPosition) => {
     const candidates = available.filter((player) => !used.has(player.id));
-    const bestPlayer = candidates.sort((a, b) => comparePlayersForSlot(a, b, slotPosition))[0];
+    const bestPlayer = candidates.sort((a, b) =>
+      comparePlayersForSlot(a, b, slotPosition, positionTable),
+    )[0];
 
     if (bestPlayer) {
       xi.push(bestPlayer.id);
@@ -383,12 +389,22 @@ export function buildActivePositionMap(pitchSlotRows: PitchSlotRow[]): Map<strin
   return map;
 }
 
-export function isPlayerOutOfPosition(player: PlayerData, currentPos: string): boolean {
+/**
+ * Whether none of the player's preferred positions is the slot's position or in its line. Until
+ * the backend's position table has loaded no line is known, and "out of position" would be a guess
+ * that reads every granular player as out, so it says no.
+ */
+export function isPlayerOutOfPosition(
+  player: PlayerData,
+  currentPos: string,
+  positionTable: PositionTable,
+): boolean {
+  if (!positionTable.loaded) return false;
   const canonicalCurrentPos = canonicalPosition(currentPos);
-  const normalizedCurrentPos = normalisePosition(currentPos);
+  const currentGroup = positionTable.groupOf(currentPos);
   return !getPreferredPositions(player).some(
     (position) =>
-      position === canonicalCurrentPos || normalisePosition(position) === normalizedCurrentPos,
+      position === canonicalCurrentPos || positionTable.groupOf(position) === currentGroup,
   );
 }
 
@@ -396,19 +412,27 @@ export function isPlayerExactForSlot(player: PlayerData, currentPos: string): bo
   return canonicalPosition(naturalPositionOf(player)) === canonicalPosition(currentPos);
 }
 
-export function getSquadTacticalFit(player: PlayerData, currentPos: string): SquadTacticalFit {
+export function getSquadTacticalFit(
+  player: PlayerData,
+  currentPos: string,
+  positionTable: PositionTable,
+): SquadTacticalFit {
   if (isPlayerExactForSlot(player, currentPos)) {
     return "natural";
   }
 
-  if (isPlayerOutOfPosition(player, currentPos)) {
+  if (isPlayerOutOfPosition(player, currentPos, positionTable)) {
     return "out";
   }
 
   return "adapted";
 }
 
-export function getBestRoleForFormation(player: PlayerData, formation: string): string {
+export function getBestRoleForFormation(
+  player: PlayerData,
+  formation: string,
+  positionTable: PositionTable,
+): string {
   const formationSlots = buildPitchRows(formation).flatMap((row) => row.positions);
   // Best role is an ability recommendation, so it is driven by the player's
   // natural position (not player.position, which is only a coarse bucket).
@@ -423,7 +447,7 @@ export function getBestRoleForFormation(player: PlayerData, formation: string): 
   // 2. The closest role within the player's primary position group. This is
   //    preferred over tangential alternates so a DM in a DM-less formation
   //    resolves to CM, never to an unrelated alternate such as RB.
-  const playerGroup = normalisePosition(naturalPosition);
+  const playerGroup = positionTable.groupOf(naturalPosition);
   const groupRolePreferences = GROUP_ROLE_PREFERENCES[playerGroup] ?? [];
   const preferredGroupRole = groupRolePreferences.find((position) =>
     formationSlots.includes(position),
@@ -442,7 +466,7 @@ export function getBestRoleForFormation(player: PlayerData, formation: string): 
 
   // 4. Fallbacks: any slot in the player's group, else first preferred position.
   const firstGroupRole = formationSlots.find(
-    (position) => normalisePosition(position) === playerGroup,
+    (position) => positionTable.groupOf(position) === playerGroup,
   );
 
   return firstGroupRole ?? getPreferredPositions(player)[0] ?? naturalPosition;
@@ -452,6 +476,7 @@ export function buildRoleCoverageSummary(
   availablePlayers: PlayerData[],
   currentXiIds: string[],
   formation: string,
+  positionTable: PositionTable,
 ): SquadRoleCoverage[] {
   const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
   const requiredByRole = new Map<string, number>();
@@ -472,7 +497,7 @@ export function buildRoleCoverageSummary(
       return;
     }
 
-    if (getSquadTacticalFit(player, slotPosition) === "natural") {
+    if (getSquadTacticalFit(player, slotPosition, positionTable) === "natural") {
       naturalStartersByRole.set(slotPosition, (naturalStartersByRole.get(slotPosition) ?? 0) + 1);
     }
   });
@@ -521,8 +546,8 @@ export function buildRoleCoverageSummary(
     });
 }
 
-function getFitScore(player: PlayerData, currentPos: string): number {
-  const fit = getSquadTacticalFit(player, currentPos);
+function getFitScore(player: PlayerData, currentPos: string, positionTable: PositionTable): number {
+  const fit = getSquadTacticalFit(player, currentPos, positionTable);
 
   if (fit === "natural") return 2;
   if (fit === "adapted") return 1;
@@ -534,7 +559,10 @@ export function buildPromoteToStartingXi(
   playersById: Map<string, PlayerData>,
   formation: string,
   playerId: string,
+  positionTable: PositionTable,
 ): string[] | null {
+  // As for the best-fit slot: no lines known yet means no pick that could be saved.
+  if (!positionTable.loaded) return currentXiIds;
   if (currentXiIds.includes(playerId)) {
     return currentXiIds;
   }
@@ -563,13 +591,13 @@ export function buildPromoteToStartingXi(
       };
     })
     .sort((leftSlot, rightSlot) => {
-      const promotedLeftScore = getFitScore(promotedPlayer, leftSlot.slotPosition);
-      const promotedRightScore = getFitScore(promotedPlayer, rightSlot.slotPosition);
+      const promotedLeftScore = getFitScore(promotedPlayer, leftSlot.slotPosition, positionTable);
+      const promotedRightScore = getFitScore(promotedPlayer, rightSlot.slotPosition, positionTable);
       const incumbentLeftScore = leftSlot.incumbentPlayer
-        ? getFitScore(leftSlot.incumbentPlayer, leftSlot.slotPosition)
+        ? getFitScore(leftSlot.incumbentPlayer, leftSlot.slotPosition, positionTable)
         : -1;
       const incumbentRightScore = rightSlot.incumbentPlayer
-        ? getFitScore(rightSlot.incumbentPlayer, rightSlot.slotPosition)
+        ? getFitScore(rightSlot.incumbentPlayer, rightSlot.slotPosition, positionTable)
         : -1;
       const incumbentLeftOvr = leftSlot.incumbentPlayer
         ? getPlayerOvr(leftSlot.incumbentPlayer)
@@ -631,7 +659,11 @@ export function buildAssignBestFitSlot(
   playersById: Map<string, PlayerData>,
   formation: string,
   playerId: string,
+  positionTable: PositionTable,
 ): string[] | null {
+  // Fit is graded by the backend's lines; without them every slot ties and the lowest index wins,
+  // which is the keeper's. A pick made on that would be saved, so nothing is picked yet.
+  if (!positionTable.loaded) return currentXiIds;
   const currentSlotIndex = currentXiIds.indexOf(playerId);
 
   if (currentSlotIndex < 0) {
@@ -647,7 +679,7 @@ export function buildAssignBestFitSlot(
 
   const bestSlotIndex = slotPositions
     .map((slotPosition, slotIndex) => ({
-      fitScore: getFitScore(player, slotPosition),
+      fitScore: getFitScore(player, slotPosition, positionTable),
       slotIndex,
     }))
     .sort((leftSlot, rightSlot) => {
@@ -666,7 +698,10 @@ export function buildDemoteFromStartingXi(
   availablePlayers: PlayerData[],
   formation: string,
   playerId: string,
+  positionTable: PositionTable,
 ): string[] | null {
+  // As for the best-fit slot: no lines known yet means no replacement that could be saved.
+  if (!positionTable.loaded) return currentXiIds;
   const slotIndex = currentXiIds.indexOf(playerId);
 
   if (slotIndex < 0) {
@@ -678,7 +713,7 @@ export function buildDemoteFromStartingXi(
     (player) => !currentXiIds.includes(player.id) && player.id !== playerId,
   );
   const replacement = benchCandidates.sort((leftPlayer, rightPlayer) =>
-    comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition),
+    comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition, positionTable),
   )[0];
 
   if (!replacement) {

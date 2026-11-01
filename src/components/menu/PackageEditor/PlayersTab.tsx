@@ -7,12 +7,7 @@ import { POSITION_COLOR, entityRowKey } from "./helpers";
 import { EntityListFooter, EntityListShell, EntityRow, ExportCsvButton } from "./shared";
 import { ENTITY_LIST_PAGE_SIZE, buildTeamNameMap, capRows } from "./entityList.helpers";
 import { useKeepRevealed } from "./entityList.reveal";
-import {
-  filterPlayerRows,
-  isGroupFilter,
-  positionFilterGroups,
-  type PositionFilter,
-} from "./PlayersTab.helpers";
+import { filterPlayerRows, positionFilterGroups, type PositionFilter } from "./PlayersTab.helpers";
 import { Select } from "../../ui/Select";
 import type { PlayerDef, Position, TeamDef } from "./types";
 import { usePositionTable } from "../../../hooks/usePositionGroups";
@@ -165,16 +160,10 @@ export function PlayersTab({
                   of `children` and does not descend into one.
                 */}
                   <option value="All">{t("worldEditor.allPositions")}</option>
-                  {positionFilterGroups().map((group) => (
+                  {positionFilterGroups(positions.lines()).map((group) => (
                     <optgroup key={group.labelKey} label={t(group.labelKey)}>
                       {group.options.map((option) => (
-                        // A group matches by the backend's table, so until it arrives a group
-                        // would show no one; the exact positions do not depend on it.
-                        <option
-                          key={option.value}
-                          value={option.value}
-                          disabled={isGroupFilter(option.value) && !positions.loaded}
-                        >
+                        <option key={option.value} value={option.value}>
                           {t(option.labelKey)}
                         </option>
                       ))}

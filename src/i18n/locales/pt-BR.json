@@ -916,7 +916,8 @@
       "sharp": "Afiado",
       "managing": "Gerenciando",
       "risk": "Risco"
-    }
+    },
+    "positionsLoading": "Os dados de posições ainda estão carregando, então as alterações na escalação ainda não estão disponíveis."
   },
   "training": {
     "weeklySchedule": "Calendário Semanal",

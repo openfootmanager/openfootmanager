@@ -916,7 +916,8 @@
       "sharp": "Afiado",
       "managing": "A gerir",
       "risk": "Risco"
-    }
+    },
+    "positionsLoading": "Os dados de posições ainda estão a carregar, por isso as alterações à equipa ainda não estão disponíveis."
   },
   "training": {
     "weeklySchedule": "Calendário Semanal",
