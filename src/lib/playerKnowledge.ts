@@ -84,6 +84,22 @@ export function gameKnowledgeRevision(
   });
 }
 
+/** What `ownLineupRevision` reads of a game: the manager's club and every team's lineup. */
+export interface LineupGame {
+  manager: { team_id?: string | null };
+  teams: { id: string; formation: string; starting_xi_ids: string[] }[];
+}
+
+/**
+ * The manager's own lineup, as a revision: his team's formation and starting XI. A player's
+ * position ratings mark the slot he is played in, which no knowledge revision follows, so the
+ * profile asks for them again when this moves (benching him, or starting him elsewhere).
+ */
+export function ownLineupRevision(game: LineupGame): string {
+  const team = game.teams.find((candidate) => candidate.id === game.manager.team_id);
+  return team ? JSON.stringify([team.formation, team.starting_xi_ids]) : "no-team";
+}
+
 /**
  * A rating as a list or a card writes it: the number when the club knows it, "–" when it does not.
  * The one place a hidden rating is spelled, so every screen hides it alike.

@@ -49,6 +49,7 @@ import {
   gameKnowledgeRevision,
   knowsPlayerRating,
   knowsPrivateState,
+  ownLineupRevision,
   visibleTraits,
   visibleWageText,
 } from "../../lib/playerKnowledge";
@@ -97,7 +98,11 @@ export default function PlayerProfile({
   const visibleWage = useVisibleWage(player.id, revision);
   // The club's opinion of his potential: a range from his scout or his coaches, never the number.
   const potentialOpinion = usePotentialOpinion(player.id, revision);
-  const positionRatings = usePositionRatings(player.id, revision);
+  // The slot he is played in moves with the lineup, which the knowledge revision does not follow.
+  const positionRatings = usePositionRatings(
+    player.id,
+    `${revision}|${ownLineupRevision(gameState)}`,
+  );
   const showsPrivateState = knowsPrivateState(knowledge);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
