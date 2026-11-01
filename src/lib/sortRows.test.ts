@@ -118,6 +118,33 @@ describe("sortRows", () => {
   });
 
   /**
+   * Given "ajax" listed before "AJAX", names that differ only by case
+   * When they are sorted by name, up and then down
+   * Then they are one name to the sort, a tie, so they keep the order they arrived in both times.
+   */
+  it("treats names that differ only by case as a tie", () => {
+    const pair = [{ name: "ajax" }, { name: "AJAX" }];
+    const byName = (direction: "asc" | "desc") =>
+      sortRows(pair, (club) => club.name, direction, "en").map((club) => club.name);
+    expect(byName("asc")).toEqual(["ajax", "AJAX"]);
+    expect(byName("desc")).toEqual(["ajax", "AJAX"]);
+  });
+
+  /**
+   * Given "Málaga" listed before "Malaga"
+   * When they are sorted by name, up and then down
+   * Then they take the language's order for an accent (the plain letter first going up), not the
+   *      order they arrived in, as they would if an accent counted for nothing.
+   */
+  it("tells names apart by their accents, in the language's order", () => {
+    const pair = [{ name: "Málaga" }, { name: "Malaga" }];
+    const byName = (direction: "asc" | "desc") =>
+      sortRows(pair, (club) => club.name, direction, "es").map((club) => club.name);
+    expect(byName("asc")).toEqual(["Malaga", "Málaga"]);
+    expect(byName("desc")).toEqual(["Málaga", "Malaga"]);
+  });
+
+  /**
    * Given a list
    * When it is sorted
    * Then the list itself is left as it was: a sort returns a new one.

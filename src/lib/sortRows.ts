@@ -29,14 +29,15 @@ function compareKnown(
     return a.length - b.length;
   }
   if (typeof a === "number" && typeof b === "number") return a - b;
-  return String(a).localeCompare(String(b), locale, { sensitivity: "base" });
+  return String(a).localeCompare(String(b), locale, { sensitivity: "accent" });
 }
 
 /**
  * A list's rows in a column's order, for a table the client sorts (the backend sends the whole
  * list). Rows with no value go last in both directions, so a withheld figure ("–") never heads its
  * column; ties keep the order the rows arrived in. Text sorts in the alphabet of `locale`, the
- * game's language (not the machine's), ignoring case.
+ * game's language (not the machine's), ignoring case but not accents: "Malaga" and "Málaga" are
+ * two names, in the language's order.
  */
 export function sortRows<Row>(
   rows: readonly Row[],

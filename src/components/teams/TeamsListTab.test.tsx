@@ -470,6 +470,26 @@ describe("TeamsListTab as a table", () => {
   });
 
   /**
+   * Given two clubs, one of them in Leeds, whose name doesn't say so
+   * When the search asks for "leeds"
+   * Then the Leeds club's row is the one left, and it shows its city, so the reader can see why
+   *      it matched.
+   */
+  it("shows a club's city in its row, so a match by city has its reason in view", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "white", name: "Whites AFC", city: "Leeds", league_pos: 1 }),
+      buildCard({ id: "other", name: "Other FC", city: "London", league_pos: 2 }),
+    ]);
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("other")} onSelectTeam={vi.fn()} />);
+    await screen.findByRole("table", { name: "League" });
+
+    fireEvent.change(screen.getByPlaceholderText("Search clubs"), { target: { value: "leeds" } });
+
+    await waitFor(() => expect(tableClubs()).toEqual(["Whites AFC"]));
+    expect(rowCells("Whites AFC").Team).toContain("Leeds");
+  });
+
+  /**
    * Given the table
    * When a club's name is pressed (the row's button, which Enter presses too)
    * Then that club's profile opens.
