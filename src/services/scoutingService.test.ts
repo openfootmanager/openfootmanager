@@ -7,6 +7,7 @@ import {
   getPotentialOpinion,
   getScoutedReport,
   getVisibleWage,
+  getYouthProspectOpinions,
   reassignYouthScouting,
   sendScout,
   startYouthScouting,
@@ -120,6 +121,30 @@ describe("scoutingService", () => {
 
     await expect(getVisibleWage("p1")).resolves.toEqual({ kind: "approximate", weekly: 16_000 });
     expect(mockedInvoke).toHaveBeenCalledWith("get_visible_wage", { playerId: "p1" });
+  });
+
+  /**
+   * Given a youth report whose scout judged one prospect
+   * When the report's screen asks for the opinions
+   * Then the command is called with the report's id and the answer comes back as it is
+   */
+  it("asks the backend for a youth report's opinions of its prospects", async () => {
+    const opinions = {
+      "prospect-1": {
+        low: 76,
+        high: 84,
+        band: "A",
+        certainty: "fairly_sure",
+        source: { kind: "scout", scout_name: "Ann Scout", scouted_on: "2026-09-01", current: true },
+        wonderkid: false,
+      },
+    };
+    mockedInvoke.mockResolvedValueOnce(opinions);
+
+    await expect(getYouthProspectOpinions("youth-scout-1")).resolves.toEqual(opinions);
+    expect(mockedInvoke).toHaveBeenCalledWith("get_youth_prospect_opinions", {
+      messageId: "youth-scout-1",
+    });
   });
 
   it("passes on the backend's error when there is no game", async () => {

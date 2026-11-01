@@ -208,4 +208,21 @@ describe("the player profile's opinion of his potential", () => {
     await screen.findByRole("region", { name: "Coaches' opinion" });
     expect(screen.queryByText("Wonderkid")).not.toBeInTheDocument();
   });
+
+  /**
+   * Given the club's own new signing who carries the Wonderkid tag, inside his first six weeks
+   *       (the backend holds no opinion of him yet: no coaches' opinion, no scout's report)
+   * When his profile opens
+   * Then no Wonderkid tag shows: without an opinion the club calls nobody a wonderkid
+   */
+  it("shows no Wonderkid tag on a new signing the club holds no opinion of yet", async () => {
+    backendWith(null);
+
+    renderProfile(["Wonderkid"]);
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("get_potential_opinion", { playerId: "player-1" }),
+    );
+    expect(screen.queryByText("Wonderkid")).not.toBeInTheDocument();
+  });
 });

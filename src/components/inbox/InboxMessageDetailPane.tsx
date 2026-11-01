@@ -11,6 +11,7 @@ import SwitchClubConfirmModal from "../SwitchClubConfirmModal";
 import { Badge, Button } from "../ui";
 import InboxDelegatedRenewalReport from "./InboxDelegatedRenewalReport";
 import InboxYouthProspectCard from "./InboxYouthProspectCard";
+import { useYouthProspectOpinions } from "../../hooks/useYouthProspectOpinions";
 import {
   getActionButtonClassName,
   getCategoryColor,
@@ -32,6 +33,8 @@ interface InboxMessageDetailPaneProps {
   currentTeamId: string | null;
   currentTeamName: string | null;
   language: string;
+  /** The game's knowledge revision (`gameKnowledgeRevision`): the scout's opinions are asked again when it moves. */
+  knowledgeRevision: string;
   selectedMessage: MessageData | null;
   onAction: (messageId: string, actionId: string, optionId?: string) => void;
   onCloseSelectedMessage: () => void;
@@ -44,6 +47,7 @@ export default function InboxMessageDetailPane({
   currentTeamId,
   currentTeamName,
   language,
+  knowledgeRevision,
   selectedMessage,
   onAction,
   onCloseSelectedMessage,
@@ -62,6 +66,10 @@ export default function InboxMessageDetailPane({
 
   const currentClubName = currentTeamName ?? "";
   const hasYouthProspects = Boolean(selectedMessage?.context?.youth_prospects?.length);
+  const prospectOpinions = useYouthProspectOpinions(
+    hasYouthProspects && selectedMessage ? selectedMessage.id : null,
+    knowledgeRevision,
+  );
   const linkedPlayerId = selectedMessage?.context?.player_id ?? null;
 
   const handleOptionClick = (messageId: string, actionId: string, optionId: string) => {
@@ -222,6 +230,7 @@ export default function InboxMessageDetailPane({
                     <InboxYouthProspectCard
                       key={prospect.id}
                       prospect={prospect}
+                      opinion={prospectOpinions[prospect.id] ?? null}
                       action={selectedMessage.actions.find(
                         (candidate) => candidate.id === `prospect:${prospect.id}`,
                       )}
