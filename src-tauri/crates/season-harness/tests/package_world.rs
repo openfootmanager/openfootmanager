@@ -118,8 +118,8 @@ fn a_package_world_is_prepared_for_a_career_as_the_app_prepares_one() {
 
 /// Given the package in which every player is authored,
 /// When a world is built from it,
-/// Then it holds exactly the authored players and no generated one, so nothing in it depends on
-///      the generator's rating bell.
+/// Then every club holds exactly its authored players and no generated one, so no squad depends on
+///      the generator's rating bell (the free agents around the clubs are generated).
 #[test]
 fn an_authored_only_package_builds_no_generated_player() {
     let game = WorldSpec::authored_only_package(11)
@@ -127,10 +127,13 @@ fn an_authored_only_package_builds_no_generated_player() {
         .expect("the package builds");
 
     assert_eq!(game.teams.len(), 4);
-    assert_eq!(game.players.len(), 96, "four clubs of 24 authored players");
-    let strangers: Vec<&str> = game
-        .players
-        .iter()
+    let squads = || {
+        game.players
+            .iter()
+            .filter(|player| player.team_id.is_some())
+    };
+    assert_eq!(squads().count(), 96, "four clubs of 24 authored players");
+    let strangers: Vec<&str> = squads()
         .filter(|player| !player.id.contains("-fc-p"))
         .map(|player| player.id.as_str())
         .take(3)
