@@ -423,8 +423,19 @@ function primaryPositionOf(player: PlayerData): string {
 }
 
 /**
- * Whether the slot is neither the player's position, one of his alternates, nor a position in his
- * own line: the backend's `out_of_position`. Until the backend's position table has loaded no line
+ * A winger and the wide midfielder on his side, one line apart on the same flank: the backend's
+ * `is_flank_partner` (player_rating.rs), which steps between them as within a line.
+ */
+const FLANK_PARTNERS: ReadonlySet<string> = new Set([
+  "RightWinger:RightMidfielder",
+  "RightMidfielder:RightWinger",
+  "LeftWinger:LeftMidfielder",
+  "LeftMidfielder:LeftWinger",
+]);
+
+/**
+ * Whether the slot is neither the player's position, one of his alternates, a position in his
+ * own line, nor the wide position on his flank in the next line: the backend's `out_of_position`. Until the backend's position table has loaded no line
  * is known, and "out of position" would be a guess that reads every granular player as out, so it
  * says no.
  */
@@ -447,6 +458,7 @@ export function isPlayerOutOfPosition(
   if ((player.alternate_positions || []).some((alternate) => gradedPosition(alternate) === slot)) {
     return false;
   }
+  if (FLANK_PARTNERS.has(`${primary}:${slot}`)) return false;
   return positionTable.groupOf(primary) !== positionTable.groupOf(slot);
 }
 
