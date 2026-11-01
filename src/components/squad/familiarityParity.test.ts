@@ -32,6 +32,9 @@ describe("a player's fit for a slot, as the squad and tactics screens grade it",
   it("agrees with the backend's familiarity at every slot", () => {
     const table = cannedPositionTable();
     const disagreements: string[] = [];
+    // The grid is 52 players and a natural goalkeeper listed as a centre back; a shorter or empty
+    // fixture must not pass by having nothing to compare.
+    expect(fixture).toHaveLength(53);
 
     for (const row of fixture as FixtureRow[]) {
       const player = {

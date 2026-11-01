@@ -796,7 +796,9 @@ mod tests {
 
     /// The players the fixture grades: every position as a natural position, each with no
     /// alternate, a right back as his alternate and a striker as his alternate, and a few legacy
-    /// buckets (the old coarse natural position, with a granular `position` or without).
+    /// buckets (the old coarse natural position, with a granular `position` or without), and a
+    /// natural goalkeeper whose `position` says otherwise (`is_legacy_bucket` counts the goalkeeper
+    /// among the buckets, so the backend reads his `position`).
     fn familiarity_fixture_players() -> Vec<Player> {
         let mut players = Vec::new();
         for natural in Position::ALL {
@@ -816,6 +818,7 @@ mod tests {
             (Position::LeftBack, Position::Defender),
             (Position::DefensiveMidfielder, Position::Midfielder),
             (Position::RightWinger, Position::Forward),
+            (Position::CenterBack, Position::Goalkeeper),
         ] {
             let mut player = make_player(position);
             player.natural_position = natural;

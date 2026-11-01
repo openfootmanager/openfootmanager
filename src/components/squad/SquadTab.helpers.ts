@@ -396,6 +396,12 @@ const BUCKET_AS_GRANULAR: Record<string, string> = {
   Forward: "Striker",
 };
 
+/**
+ * The positions the backend's `is_legacy_bucket` names: the goalkeeper is among them, so a player
+ * whose natural position is Goalkeeper is read by his `position`.
+ */
+const LEGACY_BUCKETS = new Set(["Goalkeeper", ...Object.keys(BUCKET_AS_GRANULAR)]);
+
 /** A position as it is graded: a legacy bucket as its granular position, anything else as it is. */
 function gradedPosition(position: string): string {
   const canonical = canonicalPosition(position);
@@ -409,7 +415,7 @@ function gradedPosition(position: string): string {
  */
 function primaryPositionOf(player: PlayerData): string {
   const natural = canonicalPosition(player.natural_position || "");
-  const naturalIsBucket = natural === "" || natural in BUCKET_AS_GRANULAR;
+  const naturalIsBucket = natural === "" || LEGACY_BUCKETS.has(natural);
   return gradedPosition(naturalIsBucket ? player.position : natural);
 }
 
