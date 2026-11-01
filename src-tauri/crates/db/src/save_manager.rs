@@ -2508,10 +2508,19 @@ mod tests {
         let saves_dir = dir.path().join("saves");
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
-        // Between jobs: the sample club is short of the squad floor, and the warning about the
-        // user's club keeps its state in the ledger too, so a lost ledger would make the load save
-        // for that reason as well. Without a club, the lost ledger is the only reason.
+        // A save that settles in one load, so the lost ledger can be the only reason the load
+        // under test writes: identities already in their current form (the sample's legacy "GB"
+        // takes several loads to settle), and the manager between jobs (the warning about the
+        // user's short club keeps its state in the ledger too).
         game.manager.team_id = None;
+        for player in &mut game.players {
+            player.nationality = "ENG".to_string();
+            player.football_nation = "ENG".to_string();
+            player.birth_country = Some("ENG".to_string());
+        }
+        for team in &mut game.teams {
+            team.football_nation = "ENG".to_string();
+        }
         let announcement = || {
             domain::message::InboxMessage::new(
                 "promotion_2032".to_string(),
@@ -2524,9 +2533,16 @@ mod tests {
         assert!(ofm_core::inbox::emit(&mut game, announcement()));
         let save_id = sm.create_save(&game, "Lost Ledger").unwrap();
         let db_path = saves_dir.join(format!("{save_id}.db"));
-        // One load first, so the sample save's one-time repairs are done and saved: on the load
-        // under test, only the lost ledger can be what makes it save.
+        // One load first, so the save's one-time repairs are done and saved; then the precondition:
+        // a plain reload writes nothing.
         sm.load_game(&save_id).unwrap();
+        let settled = compute_checksum(&db_path).unwrap();
+        sm.load_game(&save_id).unwrap();
+        assert_eq!(
+            compute_checksum(&db_path).unwrap(),
+            settled,
+            "a plain reload of the settled save writes nothing"
+        );
         {
             let db = GameDatabase::open(&db_path).unwrap();
             let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
