@@ -503,7 +503,7 @@ describe("TacticsTab", () => {
       render(
         <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
       );
-      expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+      expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
 
       const dataTransfer = createDataTransfer();
       fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
