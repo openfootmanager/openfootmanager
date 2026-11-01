@@ -6,6 +6,8 @@ import type { PlayerTier } from "./PlayerTier";
 /**
  * What the club may read of a player's potential: the range, the band its middle falls in (the
  * backend's tier, so the screen picks no threshold), how sure the judge is, and whose opinion it
- * is. Never the true potential.
+ * is. Never the true potential. The range held the true value when it was formed: the coaches'
+ * is formed today, a scout's on the day of his report, so an out-of-date report's range may no
+ * longer hold it.
  */
 export type PotentialOpinion = { low: number, high: number, band: PlayerTier, certainty: Certainty, source: OpinionSource, };

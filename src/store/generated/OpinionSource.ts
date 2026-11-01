@@ -8,4 +8,10 @@ export type OpinionSource = { "kind": "scout",
 /**
  * None for a report written before reports named their scout.
  */
-scout_name: string | null, scouted_on: string, } | { "kind": "coaches" };
+scout_name: string | null, scouted_on: string, 
+/**
+ * False for a report written before the last season ended: the player has aged and
+ * developed since, so the range describes him as he was (`scouted_report::is_out_of_date`,
+ * the same verdict `player_knowledge` gives the report).
+ */
+current: boolean, } | { "kind": "coaches" };
