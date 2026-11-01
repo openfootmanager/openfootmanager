@@ -122,14 +122,7 @@ export default function PlayersListTab({
         </p>
       ) : null}
 
-      {listingError ? (
-        <p
-          role="alert"
-          className="mb-3 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
-        >
-          {listingError}
-        </p>
-      ) : null}
+      {listingError ? <ListingAlert message={listingError} /> : null}
 
       {view === "cards" ? (
         <PlayersCardsView
@@ -142,5 +135,17 @@ export default function PlayersListTab({
       )}
       <PlayersDealModals teams={gameState.teams} bidFlow={bidFlow} contractFlow={contractFlow} />
     </div>
+  );
+}
+
+/** A listing that was not saved, as a sentence on the danger tint (read as a warning in both themes). */
+function ListingAlert({ message }: { message: string }) {
+  return (
+    <p
+      role="alert"
+      className="mb-3 rounded-lg border border-line bg-danger-tint px-4 py-2 text-body font-medium text-danger"
+    >
+      {message}
+    </p>
   );
 }
