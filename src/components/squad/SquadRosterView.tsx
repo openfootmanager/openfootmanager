@@ -28,11 +28,13 @@ import {
   buildStartingXIIds,
   getPreferredPositions,
   getSquadTacticalFit,
+  lineupReady,
   isPlayerOutOfPosition,
   translatePositionAbbreviation,
   translatePositionLabel,
 } from "./SquadTab.helpers";
 import { naturalPositionOf } from "../../lib/positions";
+import { useFamiliarity } from "../../hooks/useFamiliarity";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
 import { SquadNameAside, squadRosterColumns } from "./SquadRosterView.columns";
@@ -89,6 +91,8 @@ export default function SquadRosterView({
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
   const positionTable = usePositionTable();
+  const familiarity = useFamiliarity();
+  const canGradeLineup = lineupReady(positionTable, familiarity);
   const roster = players
     .filter((player) => isFirstTeamSquadPlayer(player))
     .sort(
@@ -105,15 +109,22 @@ export default function SquadRosterView({
   const activePlayStyle = team.play_style || "Balanced";
   const currentPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const startingXiIds = useMemo(
-    () => buildStartingXIIds(available, team.starting_xi_ids || [], formation, positionTable),
-    [available, team.starting_xi_ids, formation, positionTable],
+    () =>
+      buildStartingXIIds(
+        available,
+        team.starting_xi_ids || [],
+        formation,
+        positionTable,
+        familiarity,
+      ),
+    [available, team.starting_xi_ids, formation, positionTable, familiarity],
   );
   const pitchSlotRows = buildPitchSlotRows(buildPitchRows(formation), startingXiIds, playersById);
   const xiActivePosition = buildActivePositionMap(pitchSlotRows);
   const xiIds = useMemo(() => new Set(startingXiIds), [startingXiIds]);
   const roleCoverage = useMemo(
-    () => buildRoleCoverageSummary(available, startingXiIds, formation, positionTable),
-    [available, startingXiIds, formation, positionTable],
+    () => buildRoleCoverageSummary(available, startingXiIds, formation, positionTable, familiarity),
+    [available, startingXiIds, formation, positionTable, familiarity],
   );
   const rolesNeedingCover = useMemo(
     () =>
@@ -158,12 +169,22 @@ export default function SquadRosterView({
   const isOutOfPosition = (player: PlayerData): boolean => {
     return (
       xiIds.has(player.id) &&
-      isPlayerOutOfPosition(player, getCurrentPosition(player, xiActivePosition), positionTable)
+      isPlayerOutOfPosition(
+        player,
+        getCurrentPosition(player, xiActivePosition),
+        positionTable,
+        familiarity,
+      )
     );
   };
 
   const getTacticalFit = (player: PlayerData) => {
-    return getSquadTacticalFit(player, getCurrentPosition(player, xiActivePosition), positionTable);
+    return getSquadTacticalFit(
+      player,
+      getCurrentPosition(player, xiActivePosition),
+      positionTable,
+      familiarity,
+    );
   };
 
   const matchesFilters = (player: PlayerData): boolean => {
@@ -285,8 +306,9 @@ export default function SquadRosterView({
   };
 
   const persistStartingXi = async (playerIds: string[]): Promise<void> => {
-    // Nothing is saved from a lineup worked out before the backend's position table has loaded.
-    if (!positionTable.loaded) return;
+    // Nothing is saved from a lineup worked out before the backend's position table and
+    // familiarity have loaded.
+    if (!canGradeLineup) return;
     const updated = await setStartingXi(playerIds);
     completeMutation(updated);
   };
@@ -316,8 +338,22 @@ export default function SquadRosterView({
   ): Promise<void> => {
     const nextXiIds =
       action === "promote"
-        ? buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId, positionTable)
-        : buildDemoteFromStartingXi(startingXiIds, available, formation, playerId, positionTable);
+        ? buildPromoteToStartingXi(
+            startingXiIds,
+            playersById,
+            formation,
+            playerId,
+            positionTable,
+            familiarity,
+          )
+        : buildDemoteFromStartingXi(
+            startingXiIds,
+            available,
+            formation,
+            playerId,
+            positionTable,
+            familiarity,
+          );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -366,7 +402,7 @@ export default function SquadRosterView({
     contractActionPending: contractActionPlayerId === player.id,
     onSelectPlayer,
     onMutationComplete: completeMutation,
-    positionTableLoaded: positionTable.loaded,
+    lineupReady: canGradeLineup,
     updateSquadPlanning,
     updateContractExitIntent,
     onActionError: (error: unknown) => setContractActionError(resolveBackendError(error)),

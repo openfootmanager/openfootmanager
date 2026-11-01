@@ -20,6 +20,19 @@ const riskLevels = vi.hoisted(() => ({
 
 // Whether the backend's position table has arrived; a test says it has not.
 const positionTableState = vi.hoisted(() => ({ arrived: true }));
+// Whether the backend's familiarity has arrived, and the players it grades (every one built here).
+const familiarityState = vi.hoisted(() => ({
+  arrived: true,
+  players: new Map<string, unknown>(),
+}));
+
+vi.mock("../../hooks/useFamiliarity", async () => {
+  const { cannedFamiliarityModule } = await import("../../test-utils/familiarity");
+  return cannedFamiliarityModule(
+    (playerId) => familiarityState.players.get(playerId) as PlayerData | undefined,
+    () => familiarityState.arrived,
+  );
+});
 
 vi.mock("../../hooks/usePositionGroups", async () => {
   const { cannedPositionsModule } = await import("../../test-utils/positionTable");
@@ -87,8 +100,8 @@ const makePlayer = (
   id: string,
   position: string,
   overrides: Partial<PlayerData> = {},
-): PlayerData =>
-  createPlayer({
+): PlayerData => {
+  const player = createPlayer({
     id,
     match_name: id.toUpperCase(),
     full_name: `Player ${id}`,
@@ -105,6 +118,10 @@ const makePlayer = (
     match_day_eligible: true,
     ...overrides,
   });
+  // The backend would grade him; the stand-in finds him here.
+  familiarityState.players.set(player.id, player);
+  return player;
+};
 
 const makeTeam = (overrides: Partial<TeamData> = {}): TeamData => ({
   id: "team1",
@@ -937,6 +954,49 @@ describe("SquadTab", () => {
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
   });
+  /**
+   * Given the backend's familiarity has not arrived (the position table has)
+   * When a bench player is made a starter from the roster context menu
+   * Then nothing is saved and the item is disabled: a lineup worked out without the grade must
+   *      not be written.
+   */
+  it("saves no lineup change before the familiarity has loaded", async () => {
+    familiarityState.arrived = false;
+    try {
+      renderSquadTab(makeGameState());
+
+      const benchRow = screen.getByText("Bench DEF").closest("tr");
+      fireEvent.contextMenu(benchRow as HTMLTableRowElement);
+      const makeStarter = screen.getByRole("menuitem", { name: "squad.makeStarter" });
+      expect(makeStarter).toBeDisabled();
+      fireEvent.click(makeStarter);
+      await act(async () => {});
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
+  /**
+   * Given the backend's familiarity has not arrived
+   * When a starter's roster menu is opened
+   * Then "Send to bench" is disabled until it has.
+   */
+  it("disables Send to bench in a starter's menu until the familiarity has loaded", () => {
+    familiarityState.arrived = false;
+    try {
+      renderSquadTab(makeGameState());
+
+      const starterRow = screen.getByText("GK1").closest("tr");
+      fireEvent.contextMenu(starterRow as HTMLTableRowElement);
+
+      expect(screen.getByRole("menuitem", { name: "squad.sendToBench" })).toBeDisabled();
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
   /**
    * Given the position table has not arrived (every slot would tie, and the keeper's is first)
    * When a bench player is made a starter from the roster context menu
