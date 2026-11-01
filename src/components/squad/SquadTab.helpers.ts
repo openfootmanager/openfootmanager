@@ -389,10 +389,41 @@ export function buildActivePositionMap(pitchSlotRows: PitchSlotRow[]): Map<strin
   return map;
 }
 
+/** The granular position a legacy bucket is graded as, as the backend reads it. */
+const BUCKET_AS_GRANULAR: Record<string, string> = {
+  Defender: "CenterBack",
+  Midfielder: "CentralMidfielder",
+  Forward: "Striker",
+};
+
 /**
- * Whether none of the player's preferred positions is the slot's position or in its line. Until
- * the backend's position table has loaded no line is known, and "out of position" would be a guess
- * that reads every granular player as out, so it says no.
+ * The positions the backend's `is_legacy_bucket` names: the goalkeeper is among them, so a player
+ * whose natural position is Goalkeeper is read by his `position`.
+ */
+const LEGACY_BUCKETS = new Set(["Goalkeeper", ...Object.keys(BUCKET_AS_GRANULAR)]);
+
+/** A position as it is graded: a legacy bucket as its granular position, anything else as it is. */
+function gradedPosition(position: string): string {
+  const canonical = canonicalPosition(position);
+  return BUCKET_AS_GRANULAR[canonical] ?? canonical;
+}
+
+/**
+ * The position a player is graded as playing: his natural position, or his coarse `position` when
+ * the natural one is still a legacy bucket. This is the backend's `primary_position`, kept here
+ * only while the screens grade a fit themselves (a copy to retire once they read the backend's).
+ */
+function primaryPositionOf(player: PlayerData): string {
+  const natural = canonicalPosition(player.natural_position || "");
+  const naturalIsBucket = natural === "" || LEGACY_BUCKETS.has(natural);
+  return gradedPosition(naturalIsBucket ? player.position : natural);
+}
+
+/**
+ * Whether the slot is neither the player's position, one of his alternates, nor a position in his
+ * own line: the backend's `out_of_position`. Until the backend's position table has loaded no line
+ * is known, and "out of position" would be a guess that reads every granular player as out, so it
+ * says no.
  */
 export function isPlayerOutOfPosition(
   player: PlayerData,
@@ -400,16 +431,17 @@ export function isPlayerOutOfPosition(
   positionTable: PositionTable,
 ): boolean {
   if (!positionTable.loaded) return false;
-  const canonicalCurrentPos = canonicalPosition(currentPos);
-  const currentGroup = positionTable.groupOf(currentPos);
-  return !getPreferredPositions(player).some(
-    (position) =>
-      position === canonicalCurrentPos || positionTable.groupOf(position) === currentGroup,
-  );
+  const slot = gradedPosition(currentPos);
+  const primary = primaryPositionOf(player);
+  if (slot === primary) return false;
+  if ((player.alternate_positions || []).some((alternate) => gradedPosition(alternate) === slot)) {
+    return false;
+  }
+  return positionTable.groupOf(primary) !== positionTable.groupOf(slot);
 }
 
 export function isPlayerExactForSlot(player: PlayerData, currentPos: string): boolean {
-  return canonicalPosition(naturalPositionOf(player)) === canonicalPosition(currentPos);
+  return primaryPositionOf(player) === gradedPosition(currentPos);
 }
 
 export function getSquadTacticalFit(

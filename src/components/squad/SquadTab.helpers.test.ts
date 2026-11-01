@@ -406,10 +406,19 @@ describe("SquadTab helpers", () => {
       ),
     ).toBe("natural");
 
+    // A player still on the coarse "Defender" is graded as a centre back, as the backend reads him.
     expect(
       getSquadTacticalFit(
         makePlayer("def", "Defender", { natural_position: "Defender" }),
         "CenterBack",
+        cannedPositionTable(),
+      ),
+    ).toBe("natural");
+
+    expect(
+      getSquadTacticalFit(
+        makePlayer("def2", "Defender", { natural_position: "Defender" }),
+        "LeftBack",
         cannedPositionTable(),
       ),
     ).toBe("adapted");
