@@ -369,6 +369,46 @@ describe("ScoutingPlayerSearchCard cards view", () => {
     expect(screen.queryByRole("table")).toBeNull();
   });
 
+  /**
+   * Given the cards view, which has no column headers
+   * When the sort field is changed to Age, and then the direction is flipped
+   * Then the search is asked to sort by it: the same sort_key / sort_asc the query carries.
+   */
+  it("sorts the cards with the shared sort control", () => {
+    setListView("cards");
+    const onFilterChange = vi.fn();
+    renderCards({ onFilterChange });
+
+    fireEvent.click(screen.getByRole("combobox", { name: "common.sortBy" }));
+    fireEvent.click(screen.getByRole("option", { name: "common.age" }));
+    expect(onFilterChange).toHaveBeenCalledWith({ sort_key: "age", sort_asc: false });
+
+    fireEvent.click(screen.getByRole("button", { name: "common.sortDescending" }));
+    expect(onFilterChange).toHaveBeenCalledWith({ sort_key: "ovr", sort_asc: true });
+  });
+
+  /**
+   * Given the cards view
+   * When a card's Scout button and the no-scout note are drawn
+   * Then the button shows keyboard focus with the offset ring, and the note takes a role token.
+   */
+  it("gives the scout action a focus ring and role-token colours", () => {
+    setListView("cards");
+    renderCards();
+    expect(screen.getAllByRole("button", { name: /^Scout$/i })[0]).toHaveClass(
+      "focus-visible:ring-focus",
+      "focus-visible:ring-offset-2",
+    );
+  });
+
+  it("shows the no-free-scout note in a role token and the type role size", () => {
+    setListView("cards");
+    renderCards({ availableScoutCount: 0 });
+    const note = screen.getAllByText("No scouts free")[0];
+    expect(note).toHaveClass("text-fg-muted", "text-caption");
+    expect(note.className).not.toMatch(/text-gray|text-xs/);
+  });
+
   it.each(["table", "cards"] as const)("says no player was found in the %s view", (view) => {
     setListView(view);
     renderCards({ players: [], totalPlayers: 0 });

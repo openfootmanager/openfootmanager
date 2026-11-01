@@ -6,6 +6,7 @@ import { naturalPositionOf } from "../../lib/positions";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import PlayerCard from "../PlayerCard";
+import { CardGrid } from "../ui";
 
 interface ScoutActionProps {
   isScouting: boolean;
@@ -24,20 +25,20 @@ export function ScoutAction({
   const { t } = useTranslation();
   if (isScouting) {
     return (
-      <span className="text-xs text-primary-400 font-heading font-bold">
+      <span className="text-caption text-positive font-heading font-bold">
         {t("scouting.scoutingInProgress")}
       </span>
     );
   }
   if (availableScoutCount === 0) {
-    return <span className="text-xs text-gray-400">{t("scouting.noScoutsFree")}</span>;
+    return <span className="text-caption text-fg-muted">{t("scouting.noScoutsFree")}</span>;
   }
   return (
     <button
       type="button"
       disabled={sending}
       onClick={onSendScout}
-      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 transition-colors text-xs font-heading font-bold uppercase tracking-wider disabled:opacity-50"
+      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 transition-colors text-caption font-heading font-bold uppercase tracking-wider disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
     >
       <ScanSearch className="w-3 h-3" />
       {sending ? "..." : t("scouting.scoutBtn")}
@@ -74,7 +75,7 @@ export default function ScoutingPlayerCards({
 }: ScoutingPlayerCardsProps) {
   const { t } = useTranslation();
   return (
-    <ul className="grid list-none grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-3 p-0">
+    <CardGrid>
       {players.map((player) => {
         const team = player.team_id ? teams.find((tm) => tm.id === player.team_id) : undefined;
         return (
@@ -117,6 +118,6 @@ export default function ScoutingPlayerCards({
           </li>
         );
       })}
-    </ul>
+    </CardGrid>
   );
 }
