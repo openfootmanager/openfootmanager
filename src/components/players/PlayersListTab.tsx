@@ -99,7 +99,7 @@ export default function PlayersListTab({
         }
       />
 
-      <p className="mb-3 font-heading text-caption font-bold uppercase tracking-label text-fg-subtle">
+      <p className="mb-3 font-heading text-caption font-medium text-fg-subtle">
         <Filter className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
         {t("players.nPlayersFound", { count: total })}
       </p>
