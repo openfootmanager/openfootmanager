@@ -276,6 +276,7 @@ fn make_player(
         ovr: avg_ovr,
         condition: rng.random_range(80u8..=100u8),
         fitness: rng.random_range(65u8..=90u8),
+        injury_risk: 1.0,
         pace: noise(base, rng),
         stamina: noise(base, rng),
         strength: noise(base, rng),

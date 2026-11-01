@@ -288,6 +288,7 @@ mod commentary_detail_tests {
             ovr: 70,
             condition: 90,
             fitness: 75,
+            injury_risk: 1.0,
             pace: 70,
             stamina: 70,
             strength: 70,
