@@ -449,6 +449,14 @@ function CardsSection() {
           </li>
         ))}
       </CardGrid>
+      {/* The same grid in a container narrower than a card: one full-width column, no sideways scroll. */}
+      <div className="w-48 overflow-hidden rounded-lg border border-line p-2">
+        <CardGrid>
+          <li className="min-w-0 truncate rounded-lg bg-panel p-2 text-caption">
+            Narrow container
+          </li>
+        </CardGrid>
+      </div>
       <div className="flex max-w-xl flex-col gap-2">
         {CARD_KITS.slice(0, 2).map(({ name, country, kit }) => (
           <EntityCard
