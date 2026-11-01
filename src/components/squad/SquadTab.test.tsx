@@ -651,6 +651,61 @@ describe("SquadTab", () => {
     expect(keeperIndex).toBeLessThan(strikerIndex);
   });
 
+  /**
+   * Given a strong striker and a weak goalkeeper of the same age
+   * When the squad is sorted by age, which ties
+   * Then the tie keeps the roster's own order: the goalkeeper's line first, not the striker's
+   *      higher rating.
+   */
+  it("keeps a tie in the roster's own order: line first, then rating", () => {
+    const gameState = makeGameState();
+    const weak = (id: string, position: string) =>
+      makePlayer(id, position, {
+        match_name: id,
+        attributes: {
+          ...makePlayer(`base-${id}`, position).attributes,
+          pace: 30,
+          shooting: 30,
+          passing: 30,
+          dribbling: 30,
+          handling: 30,
+          reflexes: 30,
+        },
+      });
+    gameState.players = [
+      makePlayer("Striker Strong", "Striker", {
+        match_name: "Striker Strong",
+        attributes: {
+          ...makePlayer("base-strong", "Striker").attributes,
+          pace: 90,
+          shooting: 90,
+          passing: 90,
+          dribbling: 90,
+        },
+      }),
+      weak("Keeper Weak", "Goalkeeper"),
+    ];
+
+    render(
+      <SquadTab
+        gameState={gameState}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "age", sortDir: "asc" }}
+        onSortStateChange={vi.fn()}
+      />,
+    );
+
+    const rowTexts = screen.getAllByRole("row").map((row) => row.textContent ?? "");
+    const keeperIndex = rowTexts.findIndex((text) => text.includes("Keeper Weak"));
+    const strikerIndex = rowTexts.findIndex((text) => text.includes("Striker Strong"));
+
+    expect(keeperIndex).toBeGreaterThan(-1);
+    expect(strikerIndex).toBeGreaterThan(-1);
+    expect(keeperIndex).toBeLessThan(strikerIndex);
+  });
+
   it("shows contract risk badge for expiring players and opens renewal from context menu", async () => {
     const onSelectPlayer = vi.fn();
     const gameState = makeGameState();
