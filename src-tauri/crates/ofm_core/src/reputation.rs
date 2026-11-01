@@ -28,7 +28,8 @@ fn points_per_game(standing: &StandingEntry) -> f64 {
 /// A line, unlike an expected finishing place, can be beaten from the top: a club expected to
 /// finish first used to be able only to lose places, so the top of every division drained. The
 /// residuals of a fitted line sum to zero, so the division's reputation is conserved apart from
-/// the champion's bonus and the last club's penalty.
+/// each club's rounding, the champion's bonus and the last club's penalty, the cap on a season's
+/// movement where it binds, and the 0-1000 bounds.
 fn expected_points_per_game(
     game: &Game,
     final_standings: &[StandingEntry],
@@ -80,15 +81,18 @@ fn expected_points_per_game(
         .collect()
 }
 
+/// `fitted_clubs` is how many clubs the expectation was fitted to (it sets the cap on the
+/// season's movement); `team_count` is how many rows the table has (it decides who finished last).
 fn next_reputation(
     current_reputation: u32,
     points_per_game_above_expectation: f64,
     final_position: usize,
     team_count: usize,
+    fitted_clubs: usize,
 ) -> u32 {
     // A season moves a reputation at most as far as the old place-based rule could: in a tiny
     // or short division a few results swing points per game far more than in a full table.
-    let most_a_season_can_move = i32::try_from(team_count.saturating_sub(1))
+    let most_a_season_can_move = i32::try_from(fitted_clubs.saturating_sub(1))
         .unwrap_or(i32::MAX)
         .saturating_mul(REPUTATION_PER_PLACE);
     let performance_delta = ((points_per_game_above_expectation * POINTS_PER_GAME_WEIGHT).round()
@@ -131,6 +135,7 @@ pub fn update_team_reputation(game: &mut Game, final_standings: &[StandingEntry]
                 points_per_game(standing) - expected_points,
                 index + 1,
                 team_count,
+                expected.len(),
             );
         }
     }
@@ -341,6 +346,23 @@ mod tests {
         assert_eq!(reputation_of(&game, "big"), 700 - 12 - 8);
     }
 
+    /// Given the same two-club upset in a table that also holds eight rows for clubs no longer in
+    ///       the world
+    /// When reputations are updated at the season's end
+    /// Then the cap is still a place's worth: it counts the clubs measured, not the table's rows
+    #[test]
+    fn rows_for_clubs_outside_the_world_do_not_widen_the_cap() {
+        let mut game = make_game_with_reputations(&[("big", 700), ("small", 300)]);
+        let mut table = vec![("small", 2, 6), ("big", 2, 0)];
+        let ghosts: Vec<String> = (0..8).map(|i| format!("gone{i}")).collect();
+        table.extend(ghosts.iter().map(|id| (id.as_str(), 2, 3)));
+
+        update_team_reputation(&mut game, &final_table(&table));
+
+        assert_eq!(reputation_of(&game, "small"), 300 + 12 + 12);
+        assert_eq!(reputation_of(&game, "big"), 700 - 12);
+    }
+
     /// Given a full 20-club division of equal reputations where the champion took a point per
     ///       game more than the rest and the last club a point per game fewer
     /// When reputations are updated at the season's end
@@ -366,18 +388,18 @@ mod tests {
 
     #[test]
     fn champion_outperforming_expectation_gains_reputation() {
-        assert!(next_reputation(320, 0.5, 1, 10) > 320);
+        assert!(next_reputation(320, 0.5, 1, 10, 10) > 320);
     }
 
     #[test]
     fn bottom_finish_after_high_expectation_loses_reputation() {
-        assert!(next_reputation(860, -1.0, 10, 10) < 860);
+        assert!(next_reputation(860, -1.0, 10, 10, 10) < 860);
     }
 
     #[test]
     fn reputation_is_clamped_within_supported_bounds() {
-        assert_eq!(next_reputation(995, 0.5, 1, 10), 1000);
-        assert_eq!(next_reputation(5, -0.5, 10, 10), 0);
+        assert_eq!(next_reputation(995, 0.5, 1, 10, 10), 1000);
+        assert_eq!(next_reputation(5, -0.5, 10, 10, 10), 0);
     }
 
     /// Given a club of reputation 500 in a ten-club league that finishes third, 0.2 points a game
@@ -387,7 +409,7 @@ mod tests {
     ///      or penalty for a place in mid-table
     #[test]
     fn a_mid_table_finish_beating_expectation_gains_150_a_point_per_game() {
-        assert_eq!(next_reputation(500, 0.2, 3, 10), 530);
+        assert_eq!(next_reputation(500, 0.2, 3, 10, 10), 530);
     }
 
     /// Given the same club winning the league, 0.2 points a game above expectation
@@ -395,6 +417,6 @@ mod tests {
     /// Then its reputation rises to 542: 30 for beating its expectation, and the champion's bonus
     #[test]
     fn winning_the_league_adds_the_champions_bonus_to_the_performance() {
-        assert_eq!(next_reputation(500, 0.2, 1, 10), 542);
+        assert_eq!(next_reputation(500, 0.2, 1, 10, 10), 542);
     }
 }
