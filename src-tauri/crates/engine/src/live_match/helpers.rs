@@ -429,3 +429,121 @@ mod empty_squad_tests {
         assert!(keeper.id.is_empty(), "nobody is available to keep goal");
     }
 }
+
+#[cfg(test)]
+mod short_handed_line_tests {
+    use crate::live_match::LiveMatchState;
+    use crate::shared::{PlayStylePhase, home_mod, play_style_modifier, tactics_pressing_press};
+    use crate::types::{
+        MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticsConfig, TeamData,
+    };
+
+    fn player(id: &str, position: Position) -> PlayerData {
+        PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position,
+            ovr: 70,
+            condition: 100,
+            fitness: 100,
+            injury_risk: 1.0,
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 70,
+            reflexes: 70,
+            aerial: 70,
+            traits: vec![],
+            role: PlayerRole::Standard,
+        }
+    }
+
+    /// A 4-4-2 whose midfielders, `{prefix}_m1` .. `{prefix}_m4`, have stamina 60, tackling 70
+    /// and pace 80, so a press that read the wrong mix of them would not come to 70.
+    fn side(prefix: &str) -> TeamData {
+        let mut players = vec![player(&format!("{prefix}_gk"), Position::Goalkeeper)];
+        players.extend((1..=4).map(|n| player(&format!("{prefix}_d{n}"), Position::Defender)));
+        players.extend((1..=4).map(|n| {
+            let mut midfielder = player(&format!("{prefix}_m{n}"), Position::Midfielder);
+            midfielder.stamina = 60;
+            midfielder.pace = 80;
+            midfielder
+        }));
+        players.extend((1..=2).map(|n| player(&format!("{prefix}_f{n}"), Position::Forward)));
+        TeamData {
+            id: prefix.to_string(),
+            name: prefix.to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: PlayStyle::Balanced,
+            tactics: TacticsConfig::default(),
+            players,
+        }
+    }
+
+    fn kick_off() -> LiveMatchState {
+        LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![],
+            vec![],
+            false,
+        )
+    }
+
+    /// Given a full side whose midfielders have stamina 60, tackling 70 and pace 80,
+    /// When its press is read,
+    /// Then it is the midfield's average of the three, 70, times the side's press modifiers.
+    #[test]
+    fn the_press_reads_its_midfielders_stamina_tackling_and_pace() {
+        let state = kick_off();
+        let modifiers = play_style_modifier(PlayStyle::Balanced, PlayStylePhase::Press, true)
+            * tactics_pressing_press(&TacticsConfig::default())
+            * home_mod(Side::Home, &MatchConfig::default());
+        assert!((state.effective_press(Side::Home) - 70.0 * modifiers).abs() < 1e-9);
+    }
+
+    /// Given a full four-man midfield,
+    /// When one midfielder is sent off,
+    /// Then the side's midfield is three quarters of what it was: his slot is empty.
+    #[test]
+    fn a_midfielder_sent_off_leaves_the_midfield_three_quarters_strong() {
+        let mut state = kick_off();
+        let full = state.effective_midfield(Side::Home);
+        state.test_send_off("h_m1");
+        let ratio = state.effective_midfield(Side::Home) / full;
+        assert!(
+            (ratio - 0.75).abs() < 1e-12,
+            "the midfield kept {ratio} of its strength"
+        );
+    }
+
+    /// Given a full four-man midfield,
+    /// When one midfielder is sent off,
+    /// Then the side's press keeps three quarters for his empty slot, and of that the cover a
+    /// side one short keeps, 1 / (1 + 0.7).
+    #[test]
+    fn a_midfielder_sent_off_costs_the_press_his_slot_and_the_sides_cover() {
+        let mut state = kick_off();
+        let full = state.effective_press(Side::Home);
+        state.test_send_off("h_m1");
+        let ratio = state.effective_press(Side::Home) / full;
+        assert!(
+            (ratio - 0.75 / 1.7).abs() < 1e-12,
+            "the press kept {ratio} of its strength"
+        );
+    }
+}
