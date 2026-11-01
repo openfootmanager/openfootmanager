@@ -956,7 +956,7 @@ describe("PlayersListTab sort and load errors", () => {
     await waitFor(() => expect(lastQuery()?.sort_key).toBe("age"));
     expect(lastQuery()?.sort_asc).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: "common.sortDescending" }));
+    fireEvent.click(screen.getByRole("button", { name: "common.sortAscending" }));
     await waitFor(() => expect(lastQuery()?.sort_asc).toBe(true));
     expect(lastQuery()?.sort_key).toBe("age");
   });

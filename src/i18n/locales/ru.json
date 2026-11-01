@@ -635,8 +635,7 @@
     "nextPage": "Следующая страница",
     "lastPage": "Последняя страница",
     "sortBy": "Сортировать по",
-    "sortAscending": "По возрастанию",
-    "sortDescending": "По убыванию"
+    "sortAscending": "По возрастанию"
   },
   "teamSelection": {
     "title": "Выберите клуб",
