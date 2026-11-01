@@ -432,6 +432,27 @@ describe("PenaltyShootoutScreen: setting the order by keyboard", () => {
   });
 
   /**
+   * Given the auto order, Alice first and Carol second
+   * When the player drags Carol's row onto Alice's
+   * Then Carol kicks first and Alice second, and the drop is announced, as by keyboard.
+   */
+  it("moves a player by dragging his row onto another's", () => {
+    renderScreen(pickerSnapshot());
+    const carolRow = gripOf("Carol").closest("li") as HTMLElement;
+    const aliceRow = gripOf("Alice").closest("li") as HTMLElement;
+
+    fireEvent.dragStart(carolRow, { dataTransfer: { setData: () => {}, effectAllowed: "" } });
+    fireEvent.dragOver(aliceRow, { dataTransfer: { dropEffect: "" } });
+    fireEvent.drop(aliceRow, { dataTransfer: {} });
+
+    expect(gripNames()[0]).toBe("match.shootout.moveKicker:Carol,1,3");
+    expect(gripNames()[1]).toBe("match.shootout.moveKicker:Alice,2,3");
+    expect(
+      screen.getByText(/^match\.shootout\.droppedKick:Carol/, { selector: "[role='status']" }),
+    ).toBeInTheDocument();
+  });
+
+  /**
    * Given an order the player changed
    * When he chooses Use auto order
    * Then the engine's first order is back, and that is announced.
