@@ -1,3 +1,6 @@
+#[path = "scouting_tests/timing.rs"]
+mod timing;
+
 use chrono::{TimeZone, Utc};
 use domain::manager::Manager;
 use domain::message::*;

@@ -5,6 +5,7 @@ use domain::player::Player;
 use domain::team::{TrainingIntensity, TrainingSchedule};
 use serde::Serialize;
 use std::collections::HashMap;
+use ts_rs::TS;
 
 /// From this condition up a player is fresh.
 const FRESH_FROM: u8 = 75;
@@ -15,7 +16,7 @@ const CRITICAL_BELOW: u8 = 25;
 
 /// The band a player's condition falls in, the one the staff's warnings, the counts and every
 /// screen share.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 pub enum FitnessStatus {
     /// 75 and up.
     Fresh,
@@ -72,7 +73,7 @@ pub fn fitness_status(condition: u8) -> FitnessStatus {
 }
 
 /// A condition as the screens show it: its band, the word for it and the tone to paint it in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
 pub struct ConditionStatus {
     pub band: FitnessStatus,
     pub label_key: &'static str,

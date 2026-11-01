@@ -1,18 +1,23 @@
 //! MCP tool implementations: time
 
 use mcp_results::time::{
-    Blockers, DayAdvanced, Outcome, PlayedMatch, SkipToMatchDay, StandingsUpdate, YourMatch,
+    Blocker, Blockers, DayAdvanced, Outcome, PlayedMatch, SkipToMatchDay, StandingsUpdate,
+    YourMatch,
 };
 
+use crate::application::time_blockers::stopping_blockers;
 use crate::mcp_server::context::McpContext;
 use crate::mcp_server::tools_impl::helpers::{require_game, require_league};
 use crate::SaveManagerState;
+use ofm_core::game::Game;
 use ofm_core::state::StateManager;
 use std::sync::{Arc, Mutex};
 
 // ─── time_advance ───────────────────────────────────────────────────────────
 
 pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
+    advance_gate(&require_game(&ctx.state_manager)?)?;
+
     // Rate limiting: enforce minimum delay between advances
     if ctx.config.min_tick_delay_ms > 0 {
         // Simple approach: sleep for the configured delay
@@ -78,6 +83,20 @@ pub fn time_advance(ctx: Arc<McpContext>) -> Result<DayAdvanced, String> {
     }
 
     Ok(DayAdvanced { auto_saved, ..day })
+}
+
+/// Time does not advance while a blocker stands: the screen's Continue stops on exactly this list,
+/// and an agent resolves the squad, contract or other problem first, as a manager would.
+pub(crate) fn advance_gate(game: &Game) -> Result<(), String> {
+    let blockers = blockers_of(game, false).blockers;
+    if blockers.is_empty() {
+        return Ok(());
+    }
+    let list: Vec<String> = blockers.iter().map(|b| format!("- {b}")).collect();
+    Err(format!(
+        "Time cannot advance until these are resolved:\n{}\nUse time_check_blockers to see them again.",
+        list.join("\n")
+    ))
 }
 
 fn your_match_in(
@@ -156,8 +175,33 @@ fn auto_save_if_due(state: &StateManager, saves: &SaveManagerState, interval_day
 // ─── time_skip_to_match_day ─────────────────────────────────────────────────
 
 pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, String> {
-    crate::application::live_session::ensure_idle(&ctx.state_manager)?;
-    let game = require_game(&ctx.state_manager)?;
+    let outcome = skip_to_match_day_in(&ctx.state_manager)?;
+    if matches!(
+        outcome,
+        SkipToMatchDay::Skipped { .. }
+            | SkipToMatchDay::Blocked {
+                days_advanced: 1..,
+                ..
+            }
+    ) {
+        use tauri::Emitter;
+        let _ = ctx.app_handle.emit("game-state-changed", ());
+    }
+    Ok(outcome)
+}
+
+/// Skips to the next match day, stopping where the screen's skip stops: before it starts if a
+/// blocker stands, and after any day that brings one.
+pub(crate) fn skip_to_match_day_in(state: &StateManager) -> Result<SkipToMatchDay, String> {
+    crate::application::live_session::ensure_idle(state)?;
+    let game = require_game(state)?;
+    let blockers = blockers_of(&game, false).blockers;
+    if !blockers.is_empty() {
+        return Ok(SkipToMatchDay::Blocked {
+            days_advanced: 0,
+            blockers,
+        });
+    }
     let league = require_league(&game)?;
     let team_id = game
         .manager
@@ -194,19 +238,28 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
     // Advance time day by day until we reach the match day
     let mut advanced = 0u32;
     loop {
-        let game = require_game(&ctx.state_manager)?;
+        let game = require_game(state)?;
         let current = game.clock.current_date.format("%Y-%m-%d").to_string();
         if current >= target_date {
             break;
         }
 
         crate::application::time_advancement::advance_time_with_mode(
-            &ctx.state_manager,
+            state,
             ofm_core::state::Career::Active,
             "delegate",
         )?;
 
         advanced += 1;
+
+        let game = require_game(state)?;
+        let blockers = blockers_of(&game, false).blockers;
+        if !blockers.is_empty() {
+            return Ok(SkipToMatchDay::Blocked {
+                days_advanced: advanced,
+                blockers,
+            });
+        }
 
         // Safety limit
         if advanced > 365 {
@@ -214,11 +267,6 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
                 days_advanced: advanced,
             });
         }
-    }
-
-    {
-        use tauri::Emitter;
-        let _ = ctx.app_handle.emit("game-state-changed", ());
     }
 
     Ok(SkipToMatchDay::Skipped {
@@ -229,44 +277,35 @@ pub fn time_skip_to_match_day(ctx: Arc<McpContext>) -> Result<SkipToMatchDay, St
 
 // ─── time_check_blockers ────────────────────────────────────────────────────
 
-// ─── time_check_blockers ────────────────────────────────────────────────────
-
 pub fn time_check_blockers(ctx: Arc<McpContext>) -> Result<Blockers, String> {
     let game = require_game(&ctx.state_manager)?;
+    let live_match_in_progress = ctx.state_manager.with_live_match(|_| true).unwrap_or(false);
+    Ok(blockers_of(&game, live_match_in_progress))
+}
 
-    let mut blockers = Vec::new();
-
-    // Check for live match in progress
-    if ctx.state_manager.with_live_match(|_| true).unwrap_or(false) {
-        blockers.push("Live match in progress — finish the match first".to_string());
+/// The blockers the UI's own check reports (`application::time_blockers::stopping_blockers`), so
+/// an agent and a player are stopped by the same list with the same severities.
+pub(crate) fn blockers_of(game: &Game, live_match_in_progress: bool) -> Blockers {
+    let text = |blocker: &serde_json::Value, field: &str| {
+        blocker
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_string()
+    };
+    let blockers = stopping_blockers(game)
+        .iter()
+        .map(|blocker| Blocker {
+            id: text(blocker, "id"),
+            severity: text(blocker, "severity"),
+            tab: text(blocker, "tab"),
+            params: blocker.get("text_params").filter(|p| !p.is_null()).cloned(),
+        })
+        .collect();
+    Blockers {
+        blockers,
+        live_match_in_progress,
     }
-
-    // Check for pending transfer offers requiring response
-    let team_id = game.manager.team_id.as_deref();
-    if let Some(tid) = team_id {
-        let pending_offers: Vec<_> = game
-            .players
-            .iter()
-            .filter(|p| p.team_id.as_deref() == Some(tid))
-            .flat_map(|p| p.transfer_offers.iter())
-            .filter(|o| o.status == domain::player::TransferOfferStatus::Pending)
-            .collect();
-
-        if !pending_offers.is_empty() {
-            blockers.push(format!(
-                "{} pending transfer offer(s) need response",
-                pending_offers.len()
-            ));
-        }
-    }
-
-    // Check for contract renewal deadlines
-    if let Some(_tid) = team_id {
-        // Note: exit_intent is nested in player.morale_core.renewal_state.exit_intent
-        // Skip this check for simplicity — agents can use info_player_profile to check
-    }
-
-    Ok(Blockers { blockers })
 }
 
 // ─── transfer_market_browse ─────────────────────────────────────────────────

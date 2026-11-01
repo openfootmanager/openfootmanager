@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { knowledgeRevision, visibleRatingText, visibleWageText } from "./playerKnowledge";
+import {
+  gameKnowledgeRevision,
+  knowledgeRevision,
+  visibleRatingText,
+  visibleWageText,
+} from "./playerKnowledge";
 
 describe("visibleWageText", () => {
   const format = (weekly: number) => `€${weekly}/wk`;
@@ -104,5 +109,49 @@ describe("knowledgeRevision", () => {
    */
   it("stays put while nothing it depends on changes", () => {
     expect(knowledgeRevision({ ...inputs })).toBe(knowledgeRevision(inputs));
+  });
+});
+
+describe("gameKnowledgeRevision", () => {
+  const game = {
+    career_token: 3,
+    clock: { current_date: "2026-09-15" },
+    manager: { team_id: "team-1" },
+    season_context: { season_start: "2026-07-01" },
+  };
+
+  /**
+   * Given the game a screen shows
+   * When its knowledge revision is taken
+   * Then it is the key of that game's career, date, manager's club and season start, read in one
+   *      place for every screen
+   */
+  it("reads the career, the date, the manager's club and the season start from the game", () => {
+    expect(gameKnowledgeRevision(game)).toBe(
+      knowledgeRevision({
+        careerToken: 3,
+        date: "2026-09-15",
+        managerClubId: "team-1",
+        seasonStart: "2026-07-01",
+      }),
+    );
+  });
+
+  /**
+   * Given a profile that also depends on its player's club and wage
+   * When its knowledge revision is taken
+   * Then the key carries those too, beside the game's four
+   */
+  it("adds a screen's own inputs to the game's", () => {
+    expect(gameKnowledgeRevision(game, { playerClubId: "team-2", wage: 12_000 })).toBe(
+      knowledgeRevision({
+        careerToken: 3,
+        date: "2026-09-15",
+        playerClubId: "team-2",
+        managerClubId: "team-1",
+        seasonStart: "2026-07-01",
+        wage: 12_000,
+      }),
+    );
   });
 });
