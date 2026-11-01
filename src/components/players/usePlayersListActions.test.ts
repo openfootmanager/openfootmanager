@@ -1,0 +1,93 @@
+import { renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import type { PlayerSummary } from "../../services/playersService";
+import type { GameStateData } from "../../store/gameStore";
+import { usePlayersListActions } from "./usePlayersListActions";
+
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+vi.mock("../transfers/useTransferBidFlow", () => ({
+  useTransferBidFlow: () => ({ openBidNegotiation: vi.fn() }),
+}));
+vi.mock("../transfers/useFreeAgentContractFlow", () => ({
+  useFreeAgentContractFlow: () => ({ openFreeAgentContract: vi.fn() }),
+}));
+vi.mock("../../services/transfersService", () => ({
+  toggleTransferList: vi.fn(),
+  toggleLoanList: vi.fn(),
+}));
+vi.mock("../../services/scoutingService", () => ({ sendScout: vi.fn() }));
+
+const gameState = {
+  manager: { team_id: "mine" },
+  players: [],
+  staff: [],
+  scouting_assignments: [],
+  youth_scouting_assignments: [],
+} as unknown as GameStateData;
+
+const summary = (over: Partial<PlayerSummary>): PlayerSummary =>
+  ({
+    id: "p1",
+    team_id: "mine",
+    transfer_listed: false,
+    loan_listed: false,
+    retired: false,
+    ...over,
+  }) as PlayerSummary;
+
+function menuLabels(player: PlayerSummary): string[] {
+  const { result } = renderHook(() =>
+    usePlayersListActions({
+      gameState,
+      onSelectPlayer: vi.fn(),
+      onSelectTeam: vi.fn(),
+      refetchSlice: vi.fn(),
+    }),
+  );
+  return result.current.contextItemsFor(player).map((item) => item.label);
+}
+
+describe("usePlayersListActions context menu", () => {
+  /**
+   * Given a player of the manager's own club
+   * When his context menu is built
+   * Then it offers listing him for transfer and for loan, and no bid or scouting.
+   */
+  it("offers the club's own player the listing actions, not a bid", () => {
+    const labels = menuLabels(summary({ team_id: "mine" }));
+
+    expect(labels).toContain("squad.addToTransferList");
+    expect(labels).toContain("squad.addToLoanList");
+    expect(labels).not.toContain("transfers.makeBid");
+    expect(labels).not.toContain("scouting.scoutBtn");
+  });
+
+  /**
+   * Given another club's player
+   * When his context menu is built
+   * Then it offers a bid and scouting, and no listing actions.
+   */
+  it("offers another club's player a bid and scouting, not the listing actions", () => {
+    const labels = menuLabels(summary({ team_id: "rivals" }));
+
+    expect(labels).toContain("transfers.makeBid");
+    expect(labels).toContain("scouting.scoutBtn");
+    expect(labels).not.toContain("squad.addToTransferList");
+  });
+
+  /**
+   * Given a free agent, and a retired free agent
+   * When their context menus are built
+   * Then the free agent can be offered a contract and scouted; the retired one neither.
+   */
+  it("offers a free agent a contract, and a retired one nothing", () => {
+    expect(menuLabels(summary({ team_id: null }))).toContain("transfers.offerContract");
+
+    const retired = menuLabels(summary({ team_id: null, retired: true }));
+    expect(retired).not.toContain("transfers.offerContract");
+    expect(retired).not.toContain("scouting.scoutBtn");
+  });
+});
