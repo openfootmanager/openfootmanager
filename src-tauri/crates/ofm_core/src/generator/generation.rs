@@ -509,49 +509,14 @@ fn shaped_ceiling(rolled: f64, age: u32) -> u8 {
         .clamp(1.0, 99.0) as u8
 }
 
-/// A generated player for squad slot `index`. `age` fixes his age; `None`
-/// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
-/// exactly as before the parameter existed, so every seeded world — all of
-/// which pass `None` — is unchanged by it.
-pub(super) fn generate_random_player_from_def(
-    team_id: &str,
-    index: usize,
-    nationality: &str,
-    opening_year: u32,
-    age: Option<u32>,
-    names_def: &NamesDefinition,
-    rng: &mut impl Rng,
-) -> Player {
-    let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
-    let full_name = format!("{} {}", first_name, last_name);
-    let match_name = last_name.clone();
-
-    let position = position_for_slot(index);
-
-    let p_id = seeded_id(rng);
-    let nationality = nationality.to_string();
-
-    // Reserve one slot per position group (GK + back line + midfield + attack) as
-    // youth-aged so scouted youth recruits land at a consistent age across positions
-    // and clubs can open with real academy prospects instead of an empty youth squad.
-    let age = age.unwrap_or_else(|| {
-        if is_youth_reserved_slot(index) {
-            rng.random_range(17..22)
-        } else {
-            rng.random_range(17..36)
-        }
-    });
-    let birth_year = opening_year.saturating_sub(age);
-    let birth_month = rng.random_range(1..13);
-    let birth_day = rng.random_range(1..29);
-    let dob = format!("{:04}-{:02}-{:02}", birth_year, birth_month, birth_day);
-
-    let group = position.to_group_position();
+/// The attributes a generated player of a position group is rolled with: each drawn uniformly from a
+/// range that depends on the group. The player at his best; his rating and ceiling follow from them.
+fn roll_attributes(group: &Position, rng: &mut impl Rng) -> PlayerAttributes {
     let is_gk = matches!(group, Position::Goalkeeper);
     let is_def = matches!(group, Position::Defender);
     let is_fwd = matches!(group, Position::Forward);
 
-    let mut attributes = PlayerAttributes {
+    PlayerAttributes {
         pace: rng.random_range(40..95),
         stamina: rng.random_range(40..95),
         strength: rng.random_range(40..95),
@@ -603,7 +568,50 @@ pub(super) fn generate_random_player_from_def(
         } else {
             rng.random_range(30..75)
         },
-    };
+    }
+}
+
+/// A generated player for squad slot `index`. `age` fixes his age; `None`
+/// draws it from the slot (17–21 for a youth-reserved slot, 17–35 otherwise),
+/// exactly as before the parameter existed, so every seeded world — all of
+/// which pass `None` — is unchanged by it.
+pub(super) fn generate_random_player_from_def(
+    team_id: &str,
+    index: usize,
+    nationality: &str,
+    opening_year: u32,
+    age: Option<u32>,
+    names_def: &NamesDefinition,
+    rng: &mut impl Rng,
+) -> Player {
+    let (first_name, last_name) = pick_name_from_def(nationality, names_def, rng);
+    let full_name = format!("{} {}", first_name, last_name);
+    let match_name = last_name.clone();
+
+    let position = position_for_slot(index);
+
+    let p_id = seeded_id(rng);
+    let nationality = nationality.to_string();
+
+    // Reserve one slot per position group (GK + back line + midfield + attack) as
+    // youth-aged so scouted youth recruits land at a consistent age across positions
+    // and clubs can open with real academy prospects instead of an empty youth squad.
+    let age = age.unwrap_or_else(|| {
+        if is_youth_reserved_slot(index) {
+            rng.random_range(17..22)
+        } else {
+            rng.random_range(17..36)
+        }
+    });
+    let birth_year = opening_year.saturating_sub(age);
+    let birth_month = rng.random_range(1..13);
+    let birth_day = rng.random_range(1..29);
+    let dob = format!("{:04}-{:02}-{:02}", birth_year, birth_month, birth_day);
+
+    let group = position.to_group_position();
+    let is_gk = matches!(group, Position::Goalkeeper);
+
+    let mut attributes = roll_attributes(&group, rng);
 
     // The attributes just rolled are the player at his best: they set his ceiling, and a player
     // who has years of growth left is lowered from it by the headroom for his age. Ceiling
