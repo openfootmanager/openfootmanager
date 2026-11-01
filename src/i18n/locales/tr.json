@@ -415,6 +415,9 @@
     "detailsFor": "{{name}} ayrıntıları",
     "overallRating": "Genel {{value}}",
     "overallRatingTier": "Genel {{value}}, seviye {{tier}}",
+    "listViewLabel": "Görünüm",
+    "listViewTable": "Tablo",
+    "listViewCards": "Kartlar",
     "noResults": "Sonuç bulunamadı.",
     "place": {
       "1": "1.",

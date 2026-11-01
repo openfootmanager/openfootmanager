@@ -21,6 +21,7 @@ const DEFAULT_SETTINGS = {
   sidebar_width: "standard",
   sidebar_behaviour: "normal",
   sidebar_collapsed: false,
+  list_view: "table",
 } as const;
 
 const SUPPORTED_CURRENCIES = [
