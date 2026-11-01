@@ -2801,6 +2801,7 @@
         "bothParticipantSources": "请提供明确列表或选择器，二者不可兼用。",
         "tooFewParticipants": "至少需要两个参赛者。",
         "unknownTeam": "未知球队“{{team}}”。",
+        "duplicateTeam": "球队“{{team}}”被重复列出。",
         "selectorMissingCountry": "该选择器需要一个国家。",
         "selectorCountTooSmall": "该选择器的数量至少为 2。",
         "selectorMissingRegion": "该选择器需要一个地区。",

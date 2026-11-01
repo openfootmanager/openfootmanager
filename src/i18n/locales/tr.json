@@ -2844,6 +2844,7 @@
         "bothParticipantSources": "Açık bir liste veya bir seçici sağlayın, ikisini birden değil.",
         "tooFewParticipants": "En az iki katılımcı gereklidir.",
         "unknownTeam": "Bilinmeyen takım \"{{team}}\".",
+        "duplicateTeam": "\"{{team}}\" takımı birden fazla kez listelenmiş.",
         "selectorMissingCountry": "Bu seçici bir ülke gerektiriyor.",
         "selectorCountTooSmall": "Bu seçici en az 2'lik bir sayı gerektiriyor.",
         "selectorMissingRegion": "Bu seçici bir bölge gerektiriyor.",

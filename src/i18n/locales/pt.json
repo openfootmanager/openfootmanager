@@ -2801,6 +2801,7 @@
         "bothParticipantSources": "Forneça uma lista explícita ou um seletor, não ambos.",
         "tooFewParticipants": "São necessários pelo menos dois participantes.",
         "unknownTeam": "Equipa desconhecida \"{{team}}\".",
+        "duplicateTeam": "A equipa \"{{team}}\" aparece mais de uma vez.",
         "selectorMissingCountry": "Este seletor precisa de um país.",
         "selectorCountTooSmall": "Este seletor precisa de uma contagem de pelo menos 2.",
         "selectorMissingRegion": "Este seletor precisa de uma região.",
