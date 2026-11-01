@@ -1,5 +1,8 @@
 use super::search_text::{contains_folded, fold_needle};
 use crate::game::Game;
+use crate::player_knowledge::{
+    KnowledgeView, PlayerVisibility, VisibleWage, compare_visible_ovr, passes_ovr_filter,
+};
 use crate::transfers::{
     can_afford_fee, has_pending_transfer_registration, player_has_active_or_pending_loan,
 };
@@ -103,15 +106,17 @@ pub struct PlayerSummary {
     pub date_of_birth: String,
     /// Whole years on the game's current date.
     pub age: i32,
-    /// Weekly wage.
-    pub wage: u32,
+    /// Weekly wage as the club may see it: exact for its own player, about the figure for one its
+    /// scout reported on, hidden otherwise (`player_knowledge`).
+    pub wage: VisibleWage,
     pub nationality: String,
     pub position: Position,
     pub natural_position: Position,
     pub team_id: Option<String>,
     pub team_name: Option<String>,
     pub market_value: u64,
-    pub ovr: u8,
+    /// His rating when the club knows it (its own player, a division rival); none otherwise.
+    pub ovr: Option<u8>,
     pub transfer_listed: bool,
     pub loan_listed: bool,
     pub injured: bool,
@@ -141,11 +146,10 @@ pub struct StatusCounts {
 }
 
 impl StatusCounts {
-    fn of(players: &[&Player]) -> Self {
+    fn of(rows: &[Row]) -> Self {
         let count_of = |status| {
-            players
-                .iter()
-                .filter(|player| matches_status(player, status))
+            rows.iter()
+                .filter(|(player, _)| matches_status(player, status))
                 .count()
         };
         Self {
@@ -169,6 +173,9 @@ pub struct PlayersPage {
 
 type TeamLookup<'a> = HashMap<&'a str, &'a str>;
 
+/// A player in the list, with what the club may see of him, worked out once per query.
+type Row<'a> = (&'a Player, PlayerVisibility);
+
 pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
     let teams: TeamLookup = game
         .teams
@@ -184,15 +191,20 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
         .map(fold_needle);
 
     let context = ListContext::new(game);
-    let candidates: Vec<&Player> = game
+    let view = KnowledgeView::of(game);
+    // The rating filter reads what the club may see: an unknown rating fails any set bound
+    // (maintainer, 29 Oct), so the filter tells nothing the club does not know.
+    let candidates: Vec<Row> = game
         .players
         .iter()
         .filter(|player| matches_all_but_status(player, query, needle.as_deref(), &context, &teams))
+        .map(|player| (player, view.of_player(player)))
+        .filter(|(_, seen)| passes_ovr_filter(seen.ovr, query.ovr_min, query.ovr_max))
         .collect();
     let status_counts = StatusCounts::of(&candidates);
-    let mut matches: Vec<&Player> = candidates
+    let mut matches: Vec<Row> = candidates
         .into_iter()
-        .filter(|player| matches_status(player, query.status))
+        .filter(|(player, _)| matches_status(player, query.status))
         .collect();
 
     sort_matches(&mut matches, query, &teams, context.today);
@@ -205,7 +217,7 @@ pub fn query_page(game: &Game, query: &PlayersPageQuery) -> PlayersPage {
         .get(start..end)
         .unwrap_or(&[])
         .iter()
-        .map(|player| project_summary(player, &teams, context.today))
+        .map(|(player, seen)| project_summary(player, seen, &teams, context.today))
         .collect();
 
     PlayersPage {
@@ -320,9 +332,7 @@ fn matches_all_but_status(
     if query.age_min.is_some_and(|min| age < min) || query.age_max.is_some_and(|max| age > max) {
         return false;
     }
-    if query.ovr_min.is_some_and(|min| player.ovr < min)
-        || query.ovr_max.is_some_and(|max| player.ovr > max)
-        || query.value_min.is_some_and(|min| player.market_value < min)
+    if query.value_min.is_some_and(|min| player.market_value < min)
         || query.value_max.is_some_and(|max| player.market_value > max)
     {
         return false;
@@ -374,17 +384,24 @@ fn matches_search(player: &Player, needle: &str, teams: &TeamLookup) -> bool {
 }
 
 fn sort_matches(
-    matches: &mut [&Player],
+    matches: &mut [Row],
     query: &PlayersPageQuery,
     teams: &TeamLookup,
     today: NaiveDate,
 ) {
-    matches.sort_by(|a, b| {
-        let primary = compare_by_key(a, b, query.sort_key, teams, today);
-        let primary = if query.sort_asc {
-            primary
-        } else {
-            primary.reverse()
+    matches.sort_by(|(a, a_seen), (b, b_seen)| {
+        let primary = match query.sort_key {
+            // The rating the club may see, in the list's direction, an unknown one after every
+            // known one either way (maintainer, 29 Oct).
+            PlayerSortKey::Ovr => compare_visible_ovr(a_seen.ovr, b_seen.ovr, query.sort_asc),
+            key => {
+                let ascending = compare_by_key(a, b, key, teams, today);
+                if query.sort_asc {
+                    ascending
+                } else {
+                    ascending.reverse()
+                }
+            }
         };
         // Ties keep one order whichever way the list runs, so a page boundary never reshuffles.
         primary
@@ -393,6 +410,8 @@ fn sort_matches(
     });
 }
 
+/// The ascending order of two players by a public key. The rating is not public, so its order is
+/// `compare_visible_ovr`'s, on what the club may see.
 fn compare_by_key(
     a: &Player,
     b: &Player,
@@ -410,13 +429,18 @@ fn compare_by_key(
         PlayerSortKey::Age => age_on_or_unknown(today, &a.date_of_birth)
             .cmp(&age_on_or_unknown(today, &b.date_of_birth))
             .then_with(|| b.date_of_birth.cmp(&a.date_of_birth)),
-        PlayerSortKey::Ovr => a.ovr.cmp(&b.ovr),
+        PlayerSortKey::Ovr => Ordering::Equal,
         PlayerSortKey::Value => a.market_value.cmp(&b.market_value),
         PlayerSortKey::Team => team_name_for(a, teams).cmp(team_name_for(b, teams)),
     }
 }
 
-fn project_summary(player: &Player, teams: &TeamLookup, today: NaiveDate) -> PlayerSummary {
+fn project_summary(
+    player: &Player,
+    seen: &PlayerVisibility,
+    teams: &TeamLookup,
+    today: NaiveDate,
+) -> PlayerSummary {
     let team_name = player
         .team_id
         .as_deref()
@@ -428,14 +452,14 @@ fn project_summary(player: &Player, teams: &TeamLookup, today: NaiveDate) -> Pla
         match_name: player.match_name.clone(),
         date_of_birth: player.date_of_birth.clone(),
         age: age_on_or_unknown(today, &player.date_of_birth),
-        wage: player.wage(),
+        wage: seen.wage.clone(),
         nationality: player.nationality.clone(),
         position: player.position.clone(),
         natural_position: player.natural_position.clone(),
         team_id: player.team_id.clone(),
         team_name,
         market_value: player.market_value,
-        ovr: player.ovr,
+        ovr: seen.ovr,
         transfer_listed: player.transfer_listed,
         loan_listed: player.loan_listed,
         injured: player.injury.is_some(),

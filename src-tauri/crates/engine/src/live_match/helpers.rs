@@ -166,6 +166,17 @@ impl LiveMatchState {
         }
     }
 
+    /// Whether `player_id` is on `side`'s pitch: in the side's players and not sent off. A
+    /// substituted-off player is no longer in the side's players.
+    pub(super) fn is_on_the_pitch(&self, side: Side, player_id: &str) -> bool {
+        !self.sent_off.contains(player_id)
+            && self
+                .team_ref(side)
+                .players
+                .iter()
+                .any(|player| player.id == player_id)
+    }
+
     /// The goalkeeper this side still has on the pitch: one who has not been
     /// sent off. The one answer to "is anybody in goal", for choosing who
     /// faces a shot, for putting a keeper on, and for the AI deciding it must.
@@ -277,6 +288,7 @@ mod commentary_detail_tests {
             ovr: 70,
             condition: 90,
             fitness: 75,
+            injury_risk: 1.0,
             pace: 70,
             stamina: 70,
             strength: 70,

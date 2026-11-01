@@ -4,22 +4,8 @@ import { weeklyWageAmount } from "../../lib/finance";
 import { formatVal, formatWeeklyWage } from "../../lib/helpers";
 import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
 import { resolveInjuryName } from "../../lib/injury";
-import type { VisibleWage } from "../../services/scoutingService";
 
 type TranslateFn = (key: string, options?: TOptions) => string;
-
-/** A wage the club may see, written with `format`: as it is, as "about …", or "–". */
-export function visibleWageText(
-  wage: VisibleWage,
-  format: (weeklyWage: number) => string,
-  t: TranslateFn,
-): string {
-  if (wage.kind === "exact") return format(wage.weekly);
-  if (wage.kind === "approximate") {
-    return t("playerProfile.approximateWage", { wage: format(wage.weekly) });
-  }
-  return "–";
-}
 
 interface PlayerAdvancedMetric {
   total: number;

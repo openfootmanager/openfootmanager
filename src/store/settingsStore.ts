@@ -19,7 +19,11 @@ export interface AppSettings {
   sidebar_behaviour: "normal" | "hover" | "click" | "icons";
   /** Whether the player folded the sidebar to its icon rail. */
   sidebar_collapsed: boolean;
+  /** How every list opens: one choice for the whole game, not one per page. */
+  list_view: ListView;
 }
+
+export type ListView = "table" | "cards";
 
 export interface CurrencyDefinition {
   code: AppSettings["currency"];
@@ -48,6 +52,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   sidebar_width: "standard",
   sidebar_behaviour: "normal",
   sidebar_collapsed: false,
+  list_view: "table",
 };
 
 const DEFAULT_CURRENCY: CurrencyDefinition = {

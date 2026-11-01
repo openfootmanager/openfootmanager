@@ -56,7 +56,7 @@ pub(super) fn maybe_foul<R: Rng>(
 
     maybe_card(ctx, minute, fouling_side, &fouler_snap.id, zone, rng);
 
-    if rng.random_range(0.0..1.0f64) < ctx.config.injury_probability {
+    if rng.random_range(0.0..1.0f64) < ctx.config.injury_probability * fouled_snap.injury_risk {
         ctx.emit(
             MatchEvent::new(minute, EventType::Injury, att_side, zone).with_player(&fouled_snap.id),
         );

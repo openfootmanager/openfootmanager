@@ -14,11 +14,15 @@ pub struct ScoutedReportView {
 impl ScoutedReportView {
     fn of(report: &ScoutedPlayer, last_rollover: Option<&str>) -> Self {
         Self {
-            out_of_date: last_rollover
-                .is_some_and(|rollover| report.scouted_on.as_str() < rollover),
+            out_of_date: is_out_of_date(report, last_rollover),
             report: report.clone(),
         }
     }
+}
+
+/// The report was taken before the last rollover, so it no longer describes the player.
+pub(crate) fn is_out_of_date(report: &ScoutedPlayer, last_rollover: Option<&str>) -> bool {
+    last_rollover.is_some_and(|rollover| report.scouted_on.as_str() < rollover)
 }
 
 pub fn query_scouted_report(game: &Game, player_id: &str) -> Option<ScoutedReportView> {

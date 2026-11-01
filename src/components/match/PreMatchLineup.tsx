@@ -10,6 +10,7 @@ import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { condColor } from "../../lib/playerConditionDisplay";
 import { sortByPositionGroup } from "./SubPanel.helpers";
 import { usePositionTable } from "../../hooks/usePositionGroups";
+import { parseColor } from "../../lib/colorContrast";
 
 export const POSITION_KEY_STATS: Record<string, { label: string; key: string }[]> = {
   Goalkeeper: [
@@ -34,22 +35,6 @@ export const POSITION_KEY_STATS: Record<string, { label: string; key: string }[]
   ],
 };
 
-function hexToRgb(color: string): { red: number; green: number; blue: number } | null {
-  const normalized = normalizeHexColor(color);
-
-  if (!normalized) {
-    return null;
-  }
-
-  const hex = normalized.slice(1);
-
-  return {
-    red: Number.parseInt(hex.slice(0, 2), 16),
-    green: Number.parseInt(hex.slice(2, 4), 16),
-    blue: Number.parseInt(hex.slice(4, 6), 16),
-  };
-}
-
 function normalizeHexColor(color: string): string | null {
   const normalized = color.trim();
   const hex = normalized.startsWith("#") ? normalized.slice(1) : normalized;
@@ -70,13 +55,13 @@ function normalizeHexColor(color: string): string | null {
 }
 
 function isLightColor(color: string): boolean {
-  const rgb = hexToRgb(color);
+  const rgb = parseColor(color);
 
   if (!rgb) {
     return false;
   }
 
-  const brightness = (rgb.red * 299 + rgb.green * 587 + rgb.blue * 114) / 1000;
+  const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
   return brightness >= 205;
 }
 

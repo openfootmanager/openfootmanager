@@ -1,4 +1,3 @@
-import { getPlayerOvr } from "../../lib/helpers";
 import type { PositionTable } from "../../lib/positionTable";
 import { getPlayerWeeklyWageCommitment } from "../../lib/finance";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
@@ -9,18 +8,6 @@ function sortRoster(players: PlayerData[], positions: PositionTable): PlayerData
   return [...players].sort((leftPlayer, rightPlayer) => {
     return positions.lineRankOf(leftPlayer.position) - positions.lineRankOf(rightPlayer.position);
   });
-}
-
-function calculateAverageOvr(roster: PlayerData[]): number {
-  if (roster.length === 0) {
-    return 0;
-  }
-
-  return Math.round(
-    roster.reduce((sum, player) => {
-      return sum + getPlayerOvr(player);
-    }, 0) / roster.length,
-  );
 }
 
 export function buildTeamProfileViewModel(
@@ -36,7 +23,6 @@ export function buildTeamProfileViewModel(
 
   return {
     roster,
-    avgOvr: calculateAverageOvr(roster),
     totalWages: gameState.players.reduce(
       (sum, player) => sum + getPlayerWeeklyWageCommitment(player, team.id),
       0,

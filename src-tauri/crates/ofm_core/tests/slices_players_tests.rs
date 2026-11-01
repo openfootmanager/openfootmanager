@@ -1,10 +1,12 @@
 use chrono::{TimeZone, Utc};
+use domain::league::League;
 use domain::manager::Manager;
 use domain::player::{Injury, Player, PlayerAttributes, Position};
 use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::Game;
 use ofm_core::game::ScoutingAssignment;
+use ofm_core::player_knowledge::VisibleWage;
 use ofm_core::slices::players::{
     PlayerScope, PlayerSortKey, PlayerStatusFilter, PlayersPageQuery, PositionFilter, StatusCounts,
     query_page,
@@ -146,10 +148,12 @@ fn baseline_query() -> PlayersPageQuery {
 
 #[test]
 fn projection_includes_table_fields_and_denormalized_team_name() {
-    let game = make_game(
+    let mut game = make_game(
         vec![make_team("t1", "Alpha FC")],
         vec![PlayerSpec::new("p1", "John Smith", Some("t1")).build()],
     );
+    // The user's club's own player: his rating is the club's to see.
+    game.manager.team_id = Some("t1".to_string());
 
     let page = query_page(&game, &baseline_query());
 
@@ -160,7 +164,7 @@ fn projection_includes_table_fields_and_denormalized_team_name() {
     assert_eq!(item.full_name, "John Smith");
     assert_eq!(item.team_id.as_deref(), Some("t1"));
     assert_eq!(item.team_name.as_deref(), Some("Alpha FC"));
-    assert_eq!(item.ovr, 65);
+    assert_eq!(item.ovr, Some(65));
     assert!(!item.injured);
 }
 
@@ -386,9 +390,11 @@ fn sort_by_age_ascending_lists_youngest_first() {
 fn sort_by_ovr_uses_player_ovr_field() {
     let mut high = PlayerSpec::new("hi", "Star", Some("t1"));
     high.ovr = 90;
-    let mut low = PlayerSpec::new("lo", "Sub", Some("t1"));
+    // Named so the name tie-break would put the low one first: only the rating can order them.
+    let mut low = PlayerSpec::new("lo", "Alpha Sub", Some("t1"));
     low.ovr = 55;
-    let game = make_game(vec![make_team("t1", "X")], vec![low.build(), high.build()]);
+    let mut game = make_game(vec![make_team("t1", "X")], vec![low.build(), high.build()]);
+    game.manager.team_id = Some("t1".to_string());
 
     let mut q = baseline_query();
     q.sort_key = PlayerSortKey::Ovr;
@@ -531,13 +537,37 @@ fn projection_leaves_the_photo_empty_for_a_generated_player() {
 // Filters added for the one shared player list (#570): ranges, budget, scope, exact positions
 // ---------------------------------------------------------------------------
 
-/// A game where the user manages "mine", with `mine_cash` / `mine_budget` to spend.
+/// A game where the user manages "mine", with `mine_cash` / `mine_budget` to spend. "mine" and
+/// "other" share a division, so the club knows other's players' ratings; "faraway" plays in
+/// another, so it knows nothing private about them.
 fn game_managing_mine(mine_cash: i64, mine_budget: i64, players: Vec<Player>) -> Game {
     let mut mine = make_team("mine", "Mine FC");
     mine.finance = mine_cash;
     mine.transfer_budget = mine_budget;
-    let mut game = make_game(vec![mine, make_team("other", "Other FC")], players);
+    let mut game = make_game(
+        vec![
+            mine,
+            make_team("other", "Other FC"),
+            make_team("faraway", "Faraway FC"),
+        ],
+        players,
+    );
     game.manager.team_id = Some("mine".to_string());
+    let clubs = |ids: &[&str]| ids.iter().map(|id| id.to_string()).collect::<Vec<_>>();
+    game.competitions = vec![
+        League::new(
+            "division-one".to_string(),
+            "Division One".to_string(),
+            2026,
+            &clubs(&["mine", "other"]),
+        ),
+        League::new(
+            "division-two".to_string(),
+            "Division Two".to_string(),
+            2026,
+            &clubs(&["faraway"]),
+        ),
+    ];
     game
 }
 
@@ -1092,18 +1122,113 @@ fn the_new_query_fields_read_from_json_and_default_when_absent() {
     assert_eq!(legacy.scope, PlayerScope::All);
 }
 
-/// Given a player born 1 January 2000 on a 5,000 weekly wage, when summarised on 1 July 2026,
-/// then the row carries his age on that date and his weekly wage.
+/// Given the club's own player, born 1 January 2000, on a 5,000 weekly wage, when summarised on
+/// 1 July 2026, then the row carries his age on that date and his exact weekly wage.
 #[test]
 fn the_summary_carries_age_on_the_game_date_and_the_weekly_wage() {
-    let mut player = PlayerSpec::new("p1", "John Smith", Some("other")).build();
+    let mut player = PlayerSpec::new("p1", "John Smith", Some("mine")).build();
     player.stage_wage(5_000);
     let game = game_managing_mine(0, 0, vec![player]);
 
     let item = &query_page(&game, &baseline_query()).items[0];
 
     assert_eq!(item.age, 26);
-    assert_eq!(item.wage, 5_000);
+    assert_eq!(item.wage, VisibleWage::Exact { weekly: 5_000 });
+}
+
+// ---------------------------------------------------------------------------
+// The list shows what the club may see (player_knowledge; maintainer rulings of 29 Oct)
+// ---------------------------------------------------------------------------
+
+/// A player at `club` rated `ovr` on 5,000 a week.
+fn rated_at(id: &str, club: &str, ovr: u8) -> Player {
+    let mut spec = PlayerSpec::new(id, id, Some(club));
+    spec.ovr = ovr;
+    let mut player = spec.build();
+    player.stage_wage(5_000);
+    player
+}
+
+/// Given a player at a club in another division, never scouted, rated 90 on 5,000 a week
+/// When the list shows him
+/// Then his row carries no rating and no wage: nothing beyond what is public
+#[test]
+fn an_unknown_players_row_carries_no_rating_or_wage() {
+    let game = game_managing_mine(0, 0, vec![rated_at("far", "faraway", 90)]);
+
+    let item = &query_page(&game, &baseline_query()).items[0];
+
+    assert_eq!(item.ovr, None);
+    assert_eq!(item.wage, VisibleWage::Hidden);
+}
+
+/// Given a player at a club in the manager's own division, rated 80 on 5,000 a week
+/// When the list shows him
+/// Then his row carries his rating, as the staff see him every season, but not his wage
+#[test]
+fn a_division_rivals_row_carries_his_rating_but_not_his_wage() {
+    let game = game_managing_mine(0, 0, vec![rated_at("rival", "other", 80)]);
+
+    let item = &query_page(&game, &baseline_query()).items[0];
+
+    assert_eq!(item.ovr, Some(80));
+    assert_eq!(item.wage, VisibleWage::Hidden);
+}
+
+/// Given division rivals rated 80 and 70, and an unknown player rated 90
+/// When the list is sorted by rating, highest first and then lowest first
+/// Then the known ratings run in that direction and the unknown player comes last both times,
+///      never placed by the 90 the club cannot see
+#[test]
+fn a_rating_sort_puts_an_unknown_player_after_every_known_one_both_ways() {
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            rated_at("seventy", "other", 70),
+            rated_at("unknown", "faraway", 90),
+            rated_at("eighty", "other", 80),
+        ],
+    );
+    let order = |ascending| {
+        let mut query = baseline_query();
+        query.sort_key = PlayerSortKey::Ovr;
+        query.sort_asc = ascending;
+        query_page(&game, &query)
+            .items
+            .into_iter()
+            .map(|item| item.id)
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(order(false), vec!["eighty", "seventy", "unknown"]);
+    assert_eq!(order(true), vec!["seventy", "eighty", "unknown"]);
+}
+
+/// Given a division rival rated 80 and an unknown player rated 90
+/// When the list is filtered to ratings of 1 and up, or of 99 and down
+/// Then only the rival passes: a rating bound leaves out a player whose rating the club cannot see,
+///      so the filter never tells it; with no bound set, both are listed
+#[test]
+fn a_rating_bound_leaves_out_a_player_whose_rating_is_unknown() {
+    let game = game_managing_mine(
+        0,
+        0,
+        vec![
+            rated_at("rival", "other", 80),
+            rated_at("unknown", "faraway", 90),
+        ],
+    );
+    let mut query = baseline_query();
+
+    assert_eq!(ids(&game, &query), vec!["rival", "unknown"]);
+
+    query.ovr_min = Some(1);
+    assert_eq!(ids(&game, &query), vec!["rival"]);
+
+    query.ovr_min = None;
+    query.ovr_max = Some(99);
+    assert_eq!(ids(&game, &query), vec!["rival"]);
 }
 
 /// Given two players born in the same year, one in January and one in November, when sorted by

@@ -1,4 +1,4 @@
-import { DollarSign, Trophy, Users } from "lucide-react";
+import { DollarSign, Star, Trophy, Users } from "lucide-react";
 
 import { weeklyWageAmount } from "../../lib/finance";
 import { formatVal, formatWeeklyWage } from "../../lib/helpers";
@@ -11,6 +11,8 @@ interface TeamProfileSummaryCardProps {
   team: TeamData;
   isOwnTeam: boolean;
   viewModel: TeamProfileViewModel;
+  /** The squad's average rating as the backend gives it; null when the club may not see it. */
+  averageRating: number | null;
   t: TeamProfileTranslate;
 }
 
@@ -18,6 +20,7 @@ export default function TeamProfileSummaryCard({
   team,
   isOwnTeam,
   viewModel,
+  averageRating,
   t,
 }: TeamProfileSummaryCardProps) {
   if (isOwnTeam) {
@@ -77,11 +80,21 @@ export default function TeamProfileSummaryCard({
             label={t("finances.squadValue")}
             value={formatVal(viewModel.totalValue)}
           />
-          <InfoRow
-            icon={<Trophy className="w-4 h-4" />}
-            label={t("teams.avgOvr")}
-            value={String(viewModel.avgOvr)}
-          />
+          {/* A squad the club does not know shows the club's public standing instead of its
+              average: never an average of the few players a scout has seen (maintainer, L2c). */}
+          {averageRating === null ? (
+            <InfoRow
+              icon={<Star className="w-4 h-4" />}
+              label={t("manager.reputation")}
+              value={String(team.reputation)}
+            />
+          ) : (
+            <InfoRow
+              icon={<Trophy className="w-4 h-4" />}
+              label={t("teams.avgOvr")}
+              value={String(averageRating)}
+            />
+          )}
         </div>
       </CardBody>
     </Card>

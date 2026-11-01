@@ -509,3 +509,93 @@ describe("TeamProfile", () => {
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
   });
 });
+
+describe("the team profile's average rating", () => {
+  beforeEach(() => {
+    knowledge.current = {};
+    vi.mocked(invoke).mockReset();
+  });
+
+  // A rival club, its one player rated 61, so an average worked out on screen would read 61; the
+  // backend's card says 73 when the club may see it.
+  const rival = createTeam({ id: "rival", name: "Rival FC", reputation: 64 });
+  const rivalState = (): GameStateData => {
+    const state = createGameState(createTeam());
+    return { ...state, players: [createPlayer({ team_id: rival.id, ovr: 61 })] };
+  };
+
+  /** The card the backend sends for the rival, with `avgOvr` as its average (null: withheld). */
+  function answerCard(avgOvr: number | null) {
+    vi.mocked(invoke).mockImplementation(async (command: string, args?: unknown) => {
+      if (command !== "get_team_card") return null;
+      expect(args).toEqual({ teamId: rival.id });
+      return { team: { id: rival.id, reputation: rival.reputation }, avg_ovr: avgOvr };
+    });
+  }
+
+  /** Every average the profile shows: the hero's (wide and narrow layouts) and the summary's. */
+  const shownAverages = () =>
+    screen.getAllByText("Avg OVR").map((label) => label.nextElementSibling?.textContent);
+
+  /** The summary card: its heading sits in the card's header, which sits in the card. */
+  const summaryCard = (): HTMLElement => {
+    const card = screen.getByRole("heading", { name: "Squad Overview" }).parentElement
+      ?.parentElement;
+    if (!card) throw new Error("no summary card");
+    return card;
+  };
+
+  /**
+   * Given a rival in the manager's division, whose card the backend sends with an average of 73
+   * When his club's profile opens
+   * Then the hero and the summary show the backend's 73, not an average worked out on screen
+   */
+  it("shows the average the backend gives for a club in the manager's division", async () => {
+    answerCard(73);
+
+    render(<TeamProfile team={rival} gameState={rivalState()} isOwnTeam={false} />);
+
+    await waitFor(() => expect(shownAverages()).toEqual(["73", "73", "73"]));
+  });
+
+  /**
+   * Given a club outside the manager's division, whose card the backend sends with no average
+   * When its profile opens
+   * Then the hero shows "–" for the average, and the summary shows the club's reputation instead
+   */
+  it("shows a dash, and the reputation in the summary, for a club outside the division", async () => {
+    answerCard(null);
+
+    render(<TeamProfile team={rival} gameState={rivalState()} isOwnTeam={false} />);
+
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("get_team_card", { teamId: "rival" }));
+    expect(shownAverages()).toEqual(["–", "–"]);
+    const summary = within(summaryCard());
+    expect(summary.queryByText("Avg OVR")).not.toBeInTheDocument();
+    expect(summary.getByText("Reputation").nextElementSibling).toHaveTextContent(/^64$/);
+  });
+
+  /**
+   * Given a rival's profile showing his club's average of 73
+   * When the manager takes a job at another club and the card for the new club's view is still
+   *      on its way
+   * Then the average reads "–": the old club's answer is not the new club's
+   */
+  it("hides the old club's average while the new club's card is on its way", async () => {
+    answerCard(73);
+    const before = rivalState();
+    const { rerender } = render(<TeamProfile team={rival} gameState={before} isOwnTeam={false} />);
+    await waitFor(() => expect(shownAverages()).toEqual(["73", "73", "73"]));
+    vi.mocked(invoke).mockImplementation(() => new Promise(() => {}));
+
+    rerender(
+      <TeamProfile
+        team={rival}
+        gameState={{ ...before, manager: { ...before.manager, team_id: "elsewhere" } }}
+        isOwnTeam={false}
+      />,
+    );
+
+    await waitFor(() => expect(shownAverages()).toEqual(["–", "–"]));
+  });
+});
