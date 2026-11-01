@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { contrastRatio } from "./lib/colorContrast";
 
 import { gameState } from "./dev/pageHarness/fixture.generated";
 
@@ -51,17 +52,8 @@ function over(top: Rgba, bottom: Rgba): Rgba {
   return [0, 1, 2].map((i) => top[i] * alpha + bottom[i] * (1 - alpha)).concat(1) as Rgba;
 }
 
-function luminance([r, g, b]: Rgba): number {
-  const channel = (c: number) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
-}
-
 function contrast(a: Rgba, b: Rgba): number {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
-  return (high + 0.05) / (low + 0.05);
+  return contrastRatio({ r: a[0], g: a[1], b: a[2] }, { r: b[0], g: b[1], b: b[2] });
 }
 
 type Mode = "light" | "dark" | "high-contrast light" | "high-contrast dark";
@@ -108,6 +100,9 @@ const THEMED_COLOURS = [
   "focus",
   "series-1",
   "series-2",
+  "selected",
+  "selected-tint",
+  "selected-fill",
   ...["positive", "warning", "danger", "info"].flatMap((s) => [s, `${s}-tint`]),
   ...["top", "good", "fair", "low", "bad"].flatMap((t) => [`tone-${t}`, `tone-${t}-tint`]),
 ].map((name) => `--color-${name}`);
@@ -120,6 +115,8 @@ const READABLE_PAIRS: Array<[string, string[]]> = [
   // An entity card's status band: its labels are fg-muted, its values fg.
   ["fg", ["card-band"]],
   ["fg-muted", ["card-band"]],
+  // The chosen option in a list (Select, DatePicker, the comboboxes) and its check mark.
+  ["selected", ["panel", "selected-tint"]],
   ...["positive", "warning", "danger", "info"].map((status): [string, string[]] => [
     status,
     ["panel", `${status}-tint`],
@@ -213,6 +210,39 @@ describe("design tokens", () => {
       expect(ratio).toBeGreaterThanOrEqual(4.5);
     },
   );
+
+  /**
+   * Given a control that is on or chosen (a switch, a checked box, a strong segmented option, a
+   * count badge), drawn in selected-fill with on-brand text or a check mark on it,
+   * when it is rendered in any mode,
+   * then the text reaches 4.5:1 on the fill.
+   */
+  it.each(MODES)("keeps on-brand text readable on the selected fill in %s", (mode) => {
+    const ratio = contrast(
+      rendered(mode, "--color-on-brand"),
+      rendered(mode, "--color-selected-fill"),
+    );
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  /**
+   * Given the selected fill marking a control as on (a switch's track, a checked box),
+   * when it sits on the page, a panel or a sunken track in any mode,
+   * then it reaches the 3:1 that WCAG 1.4.11 asks of a control's state, so "on" reads in dark too.
+   */
+  it.each(MODES)("sets the selected fill apart from every surface in %s", (mode) => {
+    const failures = ["page", "panel", "sunken"]
+      .map((surface) => ({
+        surface,
+        ratio: contrast(
+          rendered(mode, "--color-selected-fill"),
+          rendered(mode, `--color-${surface}`),
+        ),
+      }))
+      .filter(({ ratio }) => ratio < 3)
+      .map(({ surface, ratio }) => `selected-fill on ${surface}: ${ratio.toFixed(2)}`);
+    expect(failures).toEqual([]);
+  });
 
   /**
    * Given the six role-named type sizes,

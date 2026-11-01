@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import { formatExactMoney, formatVal, getTeamName } from "../../lib/helpers";
+import { visibleWageText } from "../../lib/playerKnowledge";
+import type { VisibleWage } from "../../services/scoutingService";
 import { formatDate } from "../../lib/dateFormatting";
 import { Dialog } from "../ui";
 import { naturalPositionOf } from "../../lib/positions";
@@ -11,6 +13,8 @@ import PlayerPositionBadge from "../PlayerPositionBadge";
 
 export interface LoanOfferFormProps {
   loanTarget: PlayerData;
+  /** His wage as the club may see it: the share the offer would cover is worked out from this. */
+  visibleWage: VisibleWage;
   teams: TeamData[];
   periodId: LoanPeriodOptionId | "";
   periodOptions: LoanPeriodOption[];
@@ -48,6 +52,7 @@ type LoanOfferModalProps = LoanOfferFormProps;
 
 export function LoanOfferForm({
   loanTarget,
+  visibleWage,
   teams,
   periodId,
   periodOptions,
@@ -205,7 +210,15 @@ export function LoanOfferForm({
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
         {t("transfers.loanWageSummary", {
           percent: wageContributionPct,
-          wage: formatExactMoney(Math.round((loanTarget.wage * wageContributionPct) / 100)),
+          // Covering none of his wage costs nothing whatever it is, so 0% tells nothing hidden.
+          wage:
+            wageContributionPct === 0
+              ? formatExactMoney(0)
+              : visibleWageText(
+                  visibleWage,
+                  (weekly) => formatExactMoney(Math.round((weekly * wageContributionPct) / 100)),
+                  t,
+                ),
         })}
       </p>
 

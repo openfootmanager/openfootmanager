@@ -145,7 +145,7 @@ pub fn is_season_complete(game: &Game) -> bool {
                 .collect();
             let today = game.clock.current_date.format("%Y-%m-%d").to_string();
             let countrymen_still_playing = game.competitions.iter().any(|competition| {
-                berths::is_ladder_tier(competition)
+                crate::world::ladder::is_ladder_table(competition)
                     && competition
                         .country_id
                         .as_deref()
@@ -295,6 +295,7 @@ fn collapse_repeated_divisions(group: &mut Vec<&League>) {
 /// A division whose season has just been played out: its final table, how far
 /// down its own pyramid it sits, and the season it belongs to.
 struct FinishedDivision {
+    competition_id: String,
     standings: Vec<StandingEntry>,
     tier: u32,
     season: u32,
@@ -313,13 +314,12 @@ struct FinishedDivision {
 /// record with the *user's* season, which mislabels a foreign league running on
 /// another calendar: its 2034 results were recorded as 2035.
 fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
-    use std::collections::BTreeMap;
-
     if game.competitions.is_empty() {
         return game
             .league
             .iter()
             .map(|league| FinishedDivision {
+                competition_id: league.id.clone(),
                 standings: league.sorted_standings(),
                 tier: 0,
                 season: league.season,
@@ -327,51 +327,102 @@ fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
             .collect();
     }
 
-    let mut by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
-    let mut standalone: Vec<&League> = Vec::new();
-    // The same predicate the ladder admits on. A cup or a regional side
-    // competition can be scored as a table and share a country, but it is not a
-    // rung of the pyramid: ranked as one it takes a tier number, and because it
-    // often shares a roster with the real division it could win the collapse
-    // below and hand that division's prize money and history to whoever
-    // happened to win it.
-    for league in game
-        .competitions
-        .iter()
-        .filter(|competition| berths::is_ladder_tier(competition))
-    {
-        match league.country_id.as_deref() {
-            Some(country) => by_country.entry(country).or_default().push(league),
-            None => standalone.push(league),
-        }
-    }
-
-    let mut divisions: Vec<FinishedDivision> = Vec::new();
-    for mut group in by_country.into_values() {
-        group.sort_by_key(|league| league.priority);
-        collapse_repeated_divisions(&mut group);
-        for (tier, league) in group.into_iter().enumerate() {
-            if !is_league_season_ended(league) {
-                continue; // ranked, but nothing to pay out or record yet
-            }
-            divisions.push(FinishedDivision {
-                standings: league.sorted_standings(),
-                tier: tier as u32,
-                season: league.season,
-            });
-        }
-    }
+    let mut divisions: Vec<FinishedDivision> = ladder_rungs(game)
+        .into_iter()
+        .filter(|(_, league)| is_league_season_ended(league)) // ranked, but nothing to pay out or record yet
+        .map(|(tier, league)| FinishedDivision {
+            competition_id: league.id.clone(),
+            standings: league.sorted_standings(),
+            tier,
+            season: league.season,
+        })
+        .collect();
+    let standalone = standalone_leagues(game);
     for league in standalone {
         if !is_league_season_ended(league) {
             continue;
         }
         divisions.push(FinishedDivision {
+            competition_id: league.id.clone(),
             standings: league.sorted_standings(),
             tier: 0,
             season: league.season,
         });
     }
     divisions
+}
+
+/// The leagues that belong to no country, each its own top flight.
+fn standalone_leagues(game: &Game) -> Vec<&League> {
+    game.competitions
+        .iter()
+        .filter(|competition| crate::world::ladder::is_ladder_table(competition))
+        .filter(|league| league.country_id.is_none())
+        .collect()
+}
+
+/// The tier of every competition on a country's league ladder, top flight 0: the rungs
+/// `ladder_rungs` keeps, and also the older half of a repeated division (an Apertura the Clausura
+/// replaced), which sits on the same rung as the table that replaced it and still has season
+/// records that name it.
+pub(crate) fn ladder_tiers(game: &Game) -> std::collections::HashMap<&str, u32> {
+    let rungs = ladder_rungs(game);
+    let mut tiers: std::collections::HashMap<&str, u32> = rungs
+        .iter()
+        .map(|(tier, league)| (league.id.as_str(), *tier))
+        .collect();
+    for competition in game
+        .competitions
+        .iter()
+        .filter(|competition| crate::world::ladder::is_ladder_table(competition))
+    {
+        if tiers.contains_key(competition.id.as_str()) {
+            continue;
+        }
+        let roster = division_roster(competition);
+        if roster.is_empty() {
+            continue;
+        }
+        if let Some((tier, _)) = rungs.iter().find(|(_, kept)| {
+            kept.country_id == competition.country_id && division_roster(kept) == roster
+        }) {
+            tiers.insert(competition.id.as_str(), *tier);
+        }
+    }
+    tiers
+}
+
+/// Every rung of every country's league ladder as (tier, competition), top flight 0, whether or not
+/// its season has been played. One ranking, shared by the payout and by what counts as a title.
+///
+/// A cup or a regional side competition is not a rung (see `is_ladder_table`), and a table repeated
+/// over the same clubs (an Apertura and its Clausura) is one rung, the half the year ended on.
+pub(crate) fn ladder_rungs(game: &Game) -> Vec<(u32, &League)> {
+    use std::collections::BTreeMap;
+
+    let mut by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
+    for league in game
+        .competitions
+        .iter()
+        .filter(|competition| crate::world::ladder::is_ladder_table(competition))
+    {
+        if let Some(country) = league.country_id.as_deref() {
+            by_country.entry(country).or_default().push(league);
+        }
+    }
+
+    let mut rungs: Vec<(u32, &League)> = Vec::new();
+    for mut group in by_country.into_values() {
+        group.sort_by_key(|league| league.priority);
+        collapse_repeated_divisions(&mut group);
+        rungs.extend(
+            group
+                .into_iter()
+                .enumerate()
+                .map(|(tier, league)| (tier as u32, league)),
+        );
+    }
+    rungs
 }
 
 /// Roll every competition over to the next season: apply promotion/relegation
@@ -396,10 +447,12 @@ fn regenerate_competitions_for_new_season(
     if game.competitions.is_empty() {
         return;
     }
+    let first_new_edition = game.edition_archive.len();
     crate::edition_archive::archive_finished_editions(
         &mut game.edition_archive,
         &game.competitions,
     );
+    crate::manager_records::credit_managers_of_newly_archived_leagues(game, first_new_edition);
 
     // Read the World Cup field from this cycle's qualifying before competitions
     // are retired below.
@@ -806,11 +859,45 @@ fn notify_user_division_change(
 /// rating, and nothing else would stop a fifteen-year-old being picked.
 pub fn apply_season_end_squad_turnover(game: &mut Game, date: chrono::NaiveDate, season: u32) {
     crate::aging::apply_seasonal_aging(game, date, season);
+    game.last_season_rollover_on = Some(date.format("%Y-%m-%d").to_string());
     crate::ai_contracts::plan_every_ai_squad(game);
     crate::youth_intake::apply_youth_intake(game, date, season);
 }
 
+/// For a save from before the rollover day was kept: take it from the latest finished edition of a
+/// league table the manager's club played in, so a report from an earlier season in that save still
+/// reads as out of date. True when it filled the day in. A new career has no such edition and stays
+/// without one.
+pub fn backfill_last_season_rollover(game: &mut Game) -> bool {
+    if game.last_season_rollover_on.is_some() {
+        return false;
+    }
+    let Some(manager_club) = game.manager.team_id.as_deref() else {
+        return false;
+    };
+    let is_league_table = |competition_id: &str| {
+        game.competitions.iter().any(|competition| {
+            competition.id == competition_id
+                && competition.rules.format == CompetitionFormat::LeagueTable
+        })
+    };
+    let last_league_season_end = game
+        .edition_archive
+        .iter()
+        .filter(|edition| edition.participant_ids.iter().any(|id| id == manager_club))
+        .filter(|edition| is_league_table(&edition.competition_id))
+        .map(|edition| edition.completed_on.as_str())
+        .max()
+        .map(str::to_string);
+    game.last_season_rollover_on = last_league_season_end;
+    game.last_season_rollover_on.is_some()
+}
+
 pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
+    // Before any competition is regenerated: a home fixture played since the last Monday is paid
+    // now, while it is still in the calendar, and the Monday after the rollover pays nothing twice.
+    crate::finances::gate::settle_gate_income(game, game.clock.current_date.date_naive());
+
     // The summary, board review, and manager career must reflect the division
     // the user's club actually contests — not whichever competition happens to
     // be first in the list.
@@ -914,8 +1001,12 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .unwrap_or(0);
     let mut user_prize_posted = false;
     for division in divisions {
-        let (division_standings, tier, season) =
-            (division.standings, division.tier, division.season);
+        let (division_standings, tier, season, competition_id) = (
+            division.standings,
+            division.tier,
+            division.season,
+            division.competition_id,
+        );
         for (idx, standing) in division_standings.iter().enumerate() {
             let position = (idx + 1) as u32;
             let prize_money = division_prize_money(position, tier);
@@ -952,6 +1043,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                     lost: standing.lost,
                     goals_for: standing.goals_for,
                     goals_against: standing.goals_against,
+                    competition_id: competition_id.clone(),
                 });
                 team.form.clear();
 
@@ -1022,64 +1114,38 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
     crate::manager_retirement::retire_unemployed_managers(game);
     crate::generator::replenish_manager_and_scout_market(game);
 
-    // 6. Update manager career stats
+    // 6. Credit the user's manager with his division's season. Every other club's manager is
+    //    credited from the archived editions at the rollover (step 7).
     if let Some(standing) = &user_standing {
-        let total_matches = standing.won + standing.drawn + standing.lost;
-        game.manager.career_stats.matches_managed += total_matches;
-        game.manager.career_stats.wins += standing.won;
-        game.manager.career_stats.draws += standing.drawn;
-        game.manager.career_stats.losses += standing.lost;
-        if user_position == 1 {
-            game.manager.career_stats.trophies += 1;
-        }
-        let best = game.manager.career_stats.best_finish;
-        if best.is_none() || best.unwrap() > user_position {
-            game.manager.career_stats.best_finish = Some(user_position);
-        }
-        // Update or create career history entry for current team
         let team_name = game
             .teams
             .iter()
             .find(|t| t.id == user_team_id)
             .map(|t| t.name.clone())
             .unwrap_or_default();
-        let today_str = game.clock.current_date.format("%Y-%m-%d").to_string();
-        // Check if there's an existing open entry for this team
-        let existing = game
-            .manager
-            .career_history
-            .iter_mut()
-            .find(|e| e.team_id == user_team_id && e.end_date.is_none());
-        if let Some(entry) = existing {
-            entry.matches += total_matches;
-            entry.wins += standing.won;
-            entry.draws += standing.drawn;
-            entry.losses += standing.lost;
-            let prev_best = entry.best_league_position;
-            if prev_best.is_none() || prev_best.unwrap() > user_position {
-                entry.best_league_position = Some(user_position);
-            }
-        } else {
-            game.manager
-                .career_history
-                .push(domain::manager::ManagerCareerEntry {
-                    team_id: user_team_id.clone(),
-                    team_name,
-                    start_date: today_str,
-                    end_date: None,
-                    matches: total_matches,
-                    wins: standing.won,
-                    draws: standing.drawn,
-                    losses: standing.lost,
-                    best_league_position: Some(user_position),
-                });
-        }
+        let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+        crate::manager_records::credit_league_season(
+            &mut game.manager,
+            &crate::manager_records::LeagueSeason {
+                team_id: &user_team_id,
+                team_name: &team_name,
+                won: standing.won,
+                drawn: standing.drawn,
+                lost: standing.lost,
+                position: user_position,
+                on: &today,
+            },
+        );
     }
 
     // 6b. Evaluate board objectives and adjust satisfaction
     let obj_delta = crate::board_objectives::evaluate_objectives(game);
     let new_sat = (game.manager.satisfaction as i16 + obj_delta as i16).clamp(0, 100) as u8;
     game.manager.satisfaction = new_sat;
+    // The user's manager is also listed in `game.managers`, where the managers list and a live
+    // match's AI profile read him; bring that copy up to the season just credited now, not at the
+    // next day's sync.
+    game.sync_user_manager_record();
     // Clear objectives for next season (will be regenerated on first process_day)
     game.board_objectives.clear();
 
@@ -1993,5 +2059,221 @@ mod tests {
             at(2035, 7, 1),
             4,
         );
+    }
+
+    /// Given a season that ends on 30 May 2027
+    /// When its squad turnover runs, and every player ages and develops
+    /// Then the game keeps that day as its last rollover, so a scout's report from before it reads
+    ///      as out of date
+    #[test]
+    fn a_season_end_records_the_day_players_developed() {
+        let mut game = calendar_game(at(2027, 5, 30));
+        game.last_season_rollover_on = Some("2026-05-28".to_string());
+
+        apply_season_end_squad_turnover(
+            &mut game,
+            chrono::NaiveDate::from_ymd_opt(2027, 5, 30).unwrap(),
+            2026,
+        );
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-30"));
+    }
+
+    const MY_CLUB: &str = "mine";
+
+    /// A career in its second season, saved before the rollover day was kept: the manager's club
+    /// plays in "division-one", and `archived` lists (competition, format, completed_on) editions.
+    fn career_saved_before_the_rollover_was_kept(
+        archived: &[(&str, CompetitionFormat, &str)],
+    ) -> Game {
+        let mut game = calendar_game(at(2027, 9, 15));
+        game.manager.team_id = Some(MY_CLUB.to_string());
+        let clubs = [MY_CLUB.to_string(), "rival".to_string()];
+        for (id, format, completed_on) in archived {
+            let mut competition = League::new(id.to_string(), id.to_string(), 2027, &clubs);
+            competition.rules.format = format.clone();
+            game.competitions.push(competition);
+            game.edition_archive
+                .push(domain::edition_archive::CompletedEdition {
+                    competition_id: id.to_string(),
+                    season: 2026,
+                    completed_on: completed_on.to_string(),
+                    champion_id: MY_CLUB.to_string(),
+                    participant_ids: clubs.to_vec(),
+                    standings: vec![],
+                    groups: vec![],
+                    knockout_rounds: vec![],
+                    fixtures: vec![],
+                });
+        }
+        game.scouted_players.push(crate::game::ScoutedPlayer {
+            player_id: "scouted".to_string(),
+            scouted_on: "2027-03-10".to_string(),
+            attributes: crate::test_support::uniform_attributes(60),
+        });
+        game
+    }
+
+    fn report_is_out_of_date(game: &Game) -> bool {
+        crate::slices::scouted_report::query_scouted_report(game, "scouted")
+            .unwrap()
+            .out_of_date
+    }
+
+    /// Given a second-season career saved before the rollover day was kept, whose league season
+    ///      finished on 22 May 2027, and a report taken on 10 March 2027
+    /// When it is loaded
+    /// Then the rollover day is taken from that league season, and the March report reads as out
+    ///      of date, as it did before the day was kept
+    #[test]
+    fn an_old_career_takes_its_rollover_from_its_last_league_season() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[
+            ("division-one", CompetitionFormat::LeagueTable, "2027-05-22"),
+            (
+                "division-one-2026",
+                CompetitionFormat::LeagueTable,
+                "2026-05-20",
+            ),
+        ]);
+
+        assert!(backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-22"));
+        assert!(report_is_out_of_date(&game));
+    }
+
+    /// Given an old career whose only finished edition is a cup (cups finish on their own dates)
+    /// When it is loaded
+    /// Then the cup does not stand in for a season's end: no rollover day is set
+    #[test]
+    fn a_finished_cup_does_not_set_the_rollover() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "cup",
+            CompetitionFormat::Knockout,
+            "2027-05-22",
+        )]);
+
+        assert!(!backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on, None);
+    }
+
+    /// Given an old career whose own league season finished on 22 May 2027, and another
+    ///      country's league, which the club does not play in, that finished later, on 30 June
+    /// When it is loaded
+    /// Then only the club's own league counts: the rollover is 22 May
+    #[test]
+    fn a_league_the_club_did_not_play_in_does_not_set_the_rollover() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        game.competitions.push(League::new(
+            "abroad".to_string(),
+            "abroad".to_string(),
+            2027,
+            &["far-1".to_string(), "far-2".to_string()],
+        ));
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: "abroad".to_string(),
+                season: 2026,
+                completed_on: "2027-06-30".to_string(),
+                champion_id: "far-1".to_string(),
+                participant_ids: vec!["far-1".to_string(), "far-2".to_string()],
+                standings: vec![],
+                groups: vec![],
+                knockout_rounds: vec![],
+                fixtures: vec![],
+            });
+
+        assert!(backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-22"));
+    }
+
+    /// Given an old career whose manager moved from "mine" (league season finished 22 May) to
+    ///      "newclub", whose league season finished on 25 May
+    /// When it is loaded
+    /// Then the day comes from the club he manages now: 25 May
+    #[test]
+    fn a_manager_who_changed_club_takes_the_rollover_from_his_new_league() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        let new_clubs = ["newclub".to_string(), "other".to_string()];
+        game.competitions.push(League::new(
+            "division-two".to_string(),
+            "division-two".to_string(),
+            2027,
+            &new_clubs,
+        ));
+        game.edition_archive
+            .push(domain::edition_archive::CompletedEdition {
+                competition_id: "division-two".to_string(),
+                season: 2026,
+                completed_on: "2027-05-25".to_string(),
+                champion_id: "other".to_string(),
+                participant_ids: new_clubs.to_vec(),
+                standings: vec![],
+                groups: vec![],
+                knockout_rounds: vec![],
+                fixtures: vec![],
+            });
+        game.manager.team_id = Some("newclub".to_string());
+
+        assert!(backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-25"));
+    }
+
+    /// Given an old career whose manager is out of work
+    /// When it is loaded
+    /// Then no club's league gives a day: none is set
+    #[test]
+    fn an_unemployed_manager_gets_no_backfilled_rollover() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        game.manager.team_id = None;
+
+        assert!(!backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on, None);
+    }
+
+    /// Given a career in its first season, with nothing archived yet
+    /// When it is loaded
+    /// Then there is no rollover day, and no report is out of date
+    #[test]
+    fn a_first_season_career_has_no_rollover_to_backfill() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[]);
+
+        assert!(!backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on, None);
+        assert!(!report_is_out_of_date(&game));
+    }
+
+    /// Given a career that already keeps its rollover day
+    /// When it is loaded
+    /// Then the kept day is left as it is
+    #[test]
+    fn a_kept_rollover_day_is_not_replaced() {
+        let mut game = career_saved_before_the_rollover_was_kept(&[(
+            "division-one",
+            CompetitionFormat::LeagueTable,
+            "2027-05-22",
+        )]);
+        game.last_season_rollover_on = Some("2027-05-30".to_string());
+
+        assert!(!backfill_last_season_rollover(&mut game));
+
+        assert_eq!(game.last_season_rollover_on.as_deref(), Some("2027-05-30"));
     }
 }

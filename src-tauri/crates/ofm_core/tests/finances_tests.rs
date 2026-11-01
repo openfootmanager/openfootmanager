@@ -1,3 +1,6 @@
+#[path = "finances_tests/levers.rs"]
+mod levers;
+
 use chrono::{TimeZone, Utc};
 use domain::league::{
     Fixture, FixtureCompetition, FixtureStatus, League, MatchResult, StandingEntry,
@@ -683,11 +686,14 @@ fn team_finance_snapshot_reports_marketing_campaign_cooldown() {
     assert_eq!(snapshot.marketing_campaign_cooldown_days_remaining, 14);
 }
 
+/// Given 40,000 seats, three quarters of them filled at 20 euros,
+/// When the gate is priced,
+/// Then it takes 600,000.
 #[test]
-fn calc_matchday_uses_explicit_attendance_and_ticket_inputs() {
-    let revenue = finances::calc_matchday(40_000, 2, 0.75, 20.0);
+fn gate_takings_uses_explicit_attendance_and_ticket_inputs() {
+    let revenue = finances::gate::gate_takings(40_000, 75, 20);
 
-    assert_eq!(revenue, 1_200_000);
+    assert_eq!(revenue, Some(600_000));
 }
 
 #[test]

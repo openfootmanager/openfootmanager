@@ -181,7 +181,7 @@
   --color-line-strong: #d1d5db;
   /* The focus ring. Themed so it reaches WCAG 1.4.11's 3:1 against the page and a panel in both themes. */
   --color-focus: #047857;
-  /* Text and icons on the brand fill (primary-700), on chrome, on the turf or a dark hero. Never
+  /* Text and icons on the brand fill (primary-700), the selected fill, chrome, the turf or a dark hero. Never
      on a -solid colour: those are for bars, dots and fills that carry no text, and white on them
      falls under 4.5:1. */
   --color-on-brand: #ffffff;
@@ -193,6 +193,12 @@
   /* How much of a club's kit colour a card's header takes (the `kit-wash` token below). Dark takes
      more, and stays low enough that fg-muted keeps 4.5:1 on every fixture club's wash. */
   --kit-wash-mix: 14%;
+  /* A control that is on or chosen, in one place (maintainer, 22 Oct). selected-fill is a switch
+     that is on, a checked box, a strong segmented option or a count badge, and carries on-brand
+     text; selected and selected-tint are the text and background of the chosen option in a list. */
+  --color-selected: #047857;
+  --color-selected-tint: #ecfdf5;
+  --color-selected-fill: #047857;
   /* Chart series, in order. Charts read these through var(), which SVG attributes resolve in
      WebKitGTK and Chromium alike, so a chart follows the theme with no colours in TypeScript. */
   --color-series-1: #059669;
@@ -293,6 +299,11 @@
     --color-card-band: #212c4e;
     --shadow-card: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 10px 24px -12px rgb(0 0 0 / 0.75);
     --kit-wash-mix: 26%;
+    /* Lighter than primary-700, which is 2.8:1 against the panel here, so "on" reads; still dark
+       enough for white text at 4.5:1. */
+    --color-selected: #34d399;
+    --color-selected-tint: rgb(16 185 129 / 0.1);
+    --color-selected-fill: #05805c;
     --color-series-1: #10b981;
     --color-series-2: #6366f1;
     --color-positive: #34d399;

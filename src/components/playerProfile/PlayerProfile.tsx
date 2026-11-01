@@ -16,8 +16,6 @@ import {
   formatPlayerWage,
   formatPlayerWageCompact,
   getPlayerTeamName,
-  knowledgeRevision,
-  visibleWageText,
 } from "./PlayerProfile.helpers";
 import { useVisibleWage } from "../../hooks/useVisibleWage";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
@@ -43,7 +41,13 @@ import { usePlayerProfileData } from "./usePlayerProfileData";
 import { useScoutPlayerFlow } from "./useScoutPlayerFlow";
 import { useContractRenewalFlow } from "./useContractRenewalFlow";
 import { naturalPositionOf } from "../../lib/positions";
-import { knowsPlayerRating, knowsPrivateState, visibleTraits } from "../../lib/playerKnowledge";
+import {
+  gameKnowledgeRevision,
+  knowsPlayerRating,
+  knowsPrivateState,
+  visibleTraits,
+  visibleWageText,
+} from "../../lib/playerKnowledge";
 import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
 
 interface PlayerProfileProps {
@@ -81,12 +85,8 @@ export default function PlayerProfile({
   });
   const ovr = getPlayerOvr(player);
   const age = calcAgeOnDate(player.date_of_birth, gameState.clock.current_date);
-  const revision = knowledgeRevision({
-    careerToken: gameState.career_token,
-    date: gameState.clock.current_date,
+  const revision = gameKnowledgeRevision(gameState, {
     playerClubId: player.team_id,
-    managerClubId: gameState.manager.team_id,
-    seasonStart: gameState.season_context?.season_start,
     wage: player.wage,
   });
   const knowledge = usePlayerKnowledge([player.id], revision)(player.id);

@@ -19,6 +19,7 @@ fn make_player(id: &str, name: &str, pos: Position, skill: u8) -> PlayerData {
         ovr: skill,
         condition: 90,
         fitness: 75,
+        injury_risk: 1.0,
         pace: skill,
         stamina: skill,
         strength: skill,
@@ -435,11 +436,17 @@ fn penalty_shootout_resolves_drawn_et() {
     // That's OK — the mechanism is tested structurally
 }
 
+/// Given every shootout over 500 seeds,
+/// When each ends,
+/// Then a round is left half taken only inside the first five kicks, with the away side one kick
+/// short because one side could no longer catch up: away with its remaining kicks, or home, which
+/// has just kicked, with its own. A sudden-death round always ends completed.
+///
+/// Regression: the shootout used to be declared decided the moment one side led after 5+ kicks,
+/// before the trailing side's reply, which handed every sudden-death shootout to the side kicking
+/// first (home).
 #[test]
-fn shootout_ends_only_on_completed_pairs() {
-    // Regression: the shootout used to be declared decided the moment one side
-    // led after 5+ kicks, before the trailing side's reply — handing every
-    // sudden-death shootout to the side kicking first (home).
+fn a_shootout_ends_mid_round_only_when_one_side_cannot_catch_up() {
     let mut shootouts = 0;
     for seed in 0..500 {
         let mut state = make_live_match(true);
@@ -449,11 +456,23 @@ fn shootout_ends_only_on_completed_pairs() {
         let snap = state.snapshot();
         if let Some(ps) = snap.penalty_shootout {
             shootouts += 1;
-            assert_eq!(
-                ps.home_taken, ps.away_taken,
-                "shootout decided mid-round (seed {seed}): {}/{} kicks taken",
-                ps.home_taken, ps.away_taken
-            );
+            if ps.home_taken != ps.away_taken {
+                let away_cannot_catch_up =
+                    ps.away_scored + 5u8.saturating_sub(ps.away_taken) < ps.home_scored;
+                let home_cannot_catch_up =
+                    ps.home_scored + 5u8.saturating_sub(ps.home_taken) < ps.away_scored;
+                assert!(
+                    ps.home_taken == ps.away_taken + 1
+                        && ps.home_taken <= 5
+                        && (away_cannot_catch_up || home_cannot_catch_up),
+                    "shootout ended mid-round with both sides still able to catch up \
+                     (seed {seed}): {}/{} kicks, {}-{}",
+                    ps.home_taken,
+                    ps.away_taken,
+                    ps.home_scored,
+                    ps.away_scored
+                );
+            }
             assert_ne!(
                 ps.home_scored, ps.away_scored,
                 "finished shootout must have a winner (seed {seed})"
@@ -605,6 +624,81 @@ fn substitution_recorded_in_events() {
     assert_eq!(snap.substitutions.len(), 1);
     assert_eq!(snap.substitutions[0].player_off_id, off_id);
     assert_eq!(snap.substitutions[0].player_on_id, on_id);
+}
+
+fn substitutions_in(result: &MinuteResult) -> usize {
+    result
+        .events
+        .iter()
+        .filter(|event| event.event_type == EventType::Substitution)
+        .count()
+}
+
+/// Given a match in its first half,
+/// When the manager makes a substitution between two minutes,
+/// Then the next minute's results report it, once, so the live feed that is built from those
+/// results shows it; the minute after does not report it again.
+#[test]
+fn a_substitution_is_reported_in_the_next_minutes_results() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+    state.step_minute(&mut rng);
+    let off_id = state.snapshot().home_team.players[5].id.clone();
+    let on_id = state.bench(Side::Home)[0].id.clone();
+
+    state
+        .apply_command(MatchCommand::Substitute {
+            side: Side::Home,
+            player_off_id: off_id.clone(),
+            player_on_id: on_id.clone(),
+        })
+        .unwrap();
+    let next = state.step_minute(&mut rng);
+    let after = state.step_minute(&mut rng);
+
+    assert_eq!(substitutions_in(&next), 1);
+    let reported = next
+        .events
+        .iter()
+        .find(|event| event.event_type == EventType::Substitution)
+        .unwrap();
+    assert_eq!(reported.player_id.as_deref(), Some(on_id.as_str()));
+    assert_eq!(
+        reported.secondary_player_id.as_deref(),
+        Some(off_id.as_str())
+    );
+    assert_eq!(substitutions_in(&after), 0);
+}
+
+/// Given a match whose substitution has been reported in a minute's results,
+/// When the match is read back as a whole,
+/// Then its event log holds that substitution once: reporting it in the minute does not log it
+/// twice.
+#[test]
+fn a_reported_substitution_is_logged_once() {
+    let mut state = make_live_match(false);
+    let mut rng = seeded_rng(42);
+    state.step_minute(&mut rng);
+    let off_id = state.snapshot().home_team.players[5].id.clone();
+    let on_id = state.bench(Side::Home)[0].id.clone();
+    state
+        .apply_command(MatchCommand::Substitute {
+            side: Side::Home,
+            player_off_id: off_id,
+            player_on_id: on_id,
+        })
+        .unwrap();
+
+    state.step_minute(&mut rng);
+
+    let logged = state
+        .snapshot()
+        .events
+        .iter()
+        .filter(|event| event.event_type == EventType::Substitution)
+        .count();
+    assert_eq!(logged, 1);
 }
 
 // ===========================================================================
@@ -1408,6 +1502,7 @@ fn make_player_with_traits(
         ovr: skill,
         condition: 90,
         fitness: 75,
+        injury_risk: 1.0,
         pace: skill,
         stamina: skill,
         strength: skill,
@@ -2029,5 +2124,383 @@ fn every_period_lasts_its_full_length_whatever_stoppage_came_before() {
     assert!(
         saw_first_half_stoppage && saw_extra_time,
         "200 seeds should include first-half stoppage and a drawn match, or this test proves nothing"
+    );
+}
+
+/// A home 4-4-2 whose target man is strong and a fair tackler and whose left back is slight:
+/// the side a defensive-score re-sort gets wrong. `adjust` changes anyone else before kick-off.
+fn match_with_a_target_man_and_a_slight_left_back(
+    adjust: impl Fn(&mut PlayerData),
+) -> LiveMatchState {
+    let mut home = make_team("home", "Home", 60, PlayStyle::Balanced);
+    for player in &mut home.players {
+        match player.id.as_str() {
+            "home_fwd1" => {
+                player.strength = 95;
+                player.defending = 70;
+                player.tackling = 70;
+            }
+            "home_def4" => {
+                player.strength = 45;
+                player.defending = 55;
+                player.tackling = 55;
+            }
+            _ => {}
+        }
+        adjust(player);
+    }
+    let away = make_team("away", "Away", 60, PlayStyle::Balanced);
+    LiveMatchState::new(
+        home,
+        away,
+        MatchConfig::default(),
+        make_bench("home", 60),
+        make_bench("away", 60),
+        false,
+    )
+}
+
+fn as_built(_: &mut PlayerData) {}
+
+fn change_home_formation(state: &mut LiveMatchState, formation: &str) {
+    state
+        .apply_command(MatchCommand::ChangeFormation {
+            side: Side::Home,
+            formation: formation.to_string(),
+        })
+        .unwrap();
+}
+
+fn home_lines(state: &LiveMatchState) -> Vec<(String, Position)> {
+    state
+        .snapshot()
+        .home_team
+        .players
+        .iter()
+        .map(|player| (player.id.clone(), player.position))
+        .collect()
+}
+
+fn home_line_of(state: &LiveMatchState, id: &str) -> Position {
+    home_lines(state)
+        .into_iter()
+        .find(|(player_id, _)| player_id == id)
+        .map(|(_, line)| line)
+        .unwrap()
+}
+
+/// Given a 4-4-2 with a strong target man and a slight left back,
+/// When the manager switches to 4-3-3,
+/// Then the target man still plays up front and the left back still defends.
+#[test]
+fn a_formation_change_keeps_a_target_man_up_front() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+
+    change_home_formation(&mut state, "4-3-3");
+
+    assert_eq!(home_line_of(&state, "home_fwd1"), Position::Forward);
+    assert_eq!(home_line_of(&state, "home_def4"), Position::Defender);
+}
+
+/// Given a 4-4-2 with a strong target man and a slight left back,
+/// When the manager picks 4-4-2 again,
+/// Then nobody moves: every player keeps his line and his place in the eleven.
+#[test]
+fn a_change_to_the_same_shape_moves_nobody() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+    let before = home_lines(&state);
+
+    change_home_formation(&mut state, "4-4-2");
+
+    assert_eq!(home_lines(&state), before);
+}
+
+/// Given a 4-4-2 whose eleven is listed out of line order (a midfielder ahead of a defender, as
+/// a keeper coming on for an outfielder leaves it),
+/// When the manager picks 4-4-2 again,
+/// Then nobody changes line, and the eleven is listed back to front again.
+#[test]
+fn a_change_to_the_same_shape_puts_an_eleven_back_in_line_order() {
+    let mut home = make_team("home", "Home", 60, PlayStyle::Balanced);
+    home.players.swap(4, 5);
+    assert_eq!(home.players[4].position, Position::Midfielder);
+    let away = make_team("away", "Away", 60, PlayStyle::Balanced);
+    let mut state = LiveMatchState::new(
+        home,
+        away,
+        MatchConfig::default(),
+        make_bench("home", 60),
+        make_bench("away", 60),
+        false,
+    );
+
+    change_home_formation(&mut state, "4-4-2");
+
+    let lines: Vec<Position> = home_lines(&state)
+        .into_iter()
+        .map(|(_, line)| line)
+        .collect();
+    let mut expected = vec![Position::Goalkeeper];
+    expected.extend([Position::Defender; 4]);
+    expected.extend([Position::Midfielder; 4]);
+    expected.extend([Position::Forward; 2]);
+    assert_eq!(lines, expected);
+    assert_eq!(home_line_of(&state, "home_def4"), Position::Defender);
+    assert_eq!(home_line_of(&state, "home_mid1"), Position::Midfielder);
+}
+
+/// Given a 4-4-2 with a strong target man, a slight left back and one midfielder who is the
+/// side's best tackler,
+/// When the manager switches to a back five,
+/// Then the extra defender is that midfielder, both forwards stay up front and the left back
+/// stays in defence.
+#[test]
+fn a_back_five_takes_its_extra_defender_from_midfield() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(|player| {
+        if player.id == "home_mid3" {
+            player.defending = 85;
+            player.tackling = 85;
+            player.strength = 80;
+        }
+    });
+
+    change_home_formation(&mut state, "5-3-2");
+
+    assert_eq!(home_line_of(&state, "home_mid3"), Position::Defender);
+    assert_eq!(home_line_of(&state, "home_fwd1"), Position::Forward);
+    assert_eq!(home_line_of(&state, "home_fwd2"), Position::Forward);
+    assert_eq!(home_line_of(&state, "home_def4"), Position::Defender);
+}
+
+/// Given a 4-4-2 with a strong target man and a slight left back,
+/// When the manager switches to 4-3-3,
+/// Then the third forward comes from midfield, and every defender stays in defence.
+#[test]
+fn a_front_three_takes_its_extra_forward_from_midfield() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+
+    change_home_formation(&mut state, "4-3-3");
+
+    for defender in ["home_def1", "home_def2", "home_def3", "home_def4"] {
+        assert_eq!(
+            home_line_of(&state, defender),
+            Position::Defender,
+            "{defender}"
+        );
+    }
+    let midfielders_up_front = ["home_mid1", "home_mid2", "home_mid3", "home_mid4"]
+        .into_iter()
+        .filter(|id| home_line_of(&state, id) == Position::Forward)
+        .count();
+    assert_eq!(midfielders_up_front, 1);
+}
+
+/// Given a 4-4-2 with a strong target man and a slight left back,
+/// When the manager switches to 3-4-3, which needs one defender fewer and one forward more,
+/// Then the change goes through midfield: one defender steps into midfield, one midfielder
+/// steps up front, and no defender jumps straight to the front line.
+#[test]
+fn a_player_moves_only_into_the_next_line() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+
+    change_home_formation(&mut state, "3-4-3");
+
+    let defenders = ["home_def1", "home_def2", "home_def3", "home_def4"];
+    for defender in defenders {
+        assert_ne!(
+            home_line_of(&state, defender),
+            Position::Forward,
+            "{defender}"
+        );
+    }
+    let defenders_into_midfield = defenders
+        .into_iter()
+        .filter(|id| home_line_of(&state, id) == Position::Midfielder)
+        .count();
+    assert_eq!(defenders_into_midfield, 1);
+    assert_eq!(home_line_of(&state, "home_fwd1"), Position::Forward);
+    assert_eq!(home_line_of(&state, "home_fwd2"), Position::Forward);
+}
+
+/// Given a 4-4-2,
+/// When the manager switches to 4-3-3, so a midfielder from the middle of the list steps up
+/// front,
+/// Then the eleven reads back to front: the keeper, four defenders, three midfielders and three
+/// forwards, so player i plays slot i of the new shape on the pitch.
+#[test]
+fn the_eleven_is_listed_back_to_front_after_a_formation_change() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(|player| {
+        if player.id == "home_mid2" {
+            player.shooting = 90;
+            player.dribbling = 90;
+            player.pace = 90;
+        }
+    });
+
+    change_home_formation(&mut state, "4-3-3");
+
+    let lines: Vec<Position> = home_lines(&state)
+        .into_iter()
+        .map(|(_, line)| line)
+        .collect();
+    let mut expected = vec![Position::Goalkeeper];
+    expected.extend([Position::Defender; 4]);
+    expected.extend([Position::Midfielder; 3]);
+    expected.extend([Position::Forward; 3]);
+    assert_eq!(lines, expected);
+    assert_eq!(home_line_of(&state, "home_mid2"), Position::Forward);
+}
+
+// ===========================================================================
+// Tests: Who takes an in-match penalty
+// ===========================================================================
+
+const PENALTY_SEEDS: u64 = 400;
+
+fn designate_home_fwd1(state: &mut LiveMatchState) {
+    state
+        .apply_command(MatchCommand::SetPenaltyTaker {
+            side: Side::Home,
+            player_id: "home_fwd1".to_string(),
+        })
+        .expect("home_fwd1 is on the pitch");
+}
+
+/// The takers of every home penalty over many seeds, with `prepare` applied before kick-off.
+/// Seeds in which the referee sent anyone off are left out, since `prepare` decides who is off
+/// the pitch; `sent_off_by_prepare` names the players it sends off itself.
+fn home_penalty_takers(
+    prepare: &dyn Fn(&mut LiveMatchState),
+    sent_off_by_prepare: &[&str],
+) -> Vec<String> {
+    let mut takers = Vec::new();
+    for seed in 0..PENALTY_SEEDS {
+        let mut state = make_live_match(false);
+        prepare(&mut state);
+        let mut rng = seeded_rng(seed);
+        let results = run_to_finish(&mut state, &mut rng);
+        let referee_sent_someone_off = state
+            .snapshot()
+            .sent_off
+            .iter()
+            .any(|id| !sent_off_by_prepare.contains(&id.as_str()));
+        if referee_sent_someone_off {
+            continue;
+        }
+        takers.extend(
+            results
+                .iter()
+                .flat_map(|result| &result.events)
+                .filter(|event| {
+                    event.side == Side::Home
+                        && matches!(
+                            event.event_type,
+                            EventType::PenaltyGoal | EventType::PenaltyMiss
+                        )
+                })
+                .map(|event| event.player_id.clone().unwrap_or_default()),
+        );
+    }
+    takers
+}
+
+/// Given a side whose designated penalty taker is on the pitch,
+/// When it is awarded penalties,
+/// Then the designated taker takes every one.
+#[test]
+fn a_designated_penalty_taker_on_the_pitch_takes_every_penalty() {
+    let takers = home_penalty_takers(&designate_home_fwd1, &[]);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker == "home_fwd1"),
+        "{takers:?}"
+    );
+}
+
+/// Given a side whose designated penalty taker has been sent off,
+/// When it is awarded penalties,
+/// Then the sent-off player never takes one.
+#[test]
+fn a_sent_off_designated_penalty_taker_never_takes_a_penalty() {
+    let designate_then_send_off = |state: &mut LiveMatchState| {
+        designate_home_fwd1(state);
+        state.test_send_off("home_fwd1");
+    };
+    let takers = home_penalty_takers(&designate_then_send_off, &["home_fwd1"]);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        !takers.iter().any(|taker| taker == "home_fwd1"),
+        "the sent-off taker took a penalty: {takers:?}"
+    );
+}
+
+/// Given a side whose designated penalty taker has been substituted off,
+/// When it is awarded penalties,
+/// Then one of the forwards still on the pitch takes each one, as with no designated taker,
+/// never the substituted player and never the goalkeeper.
+#[test]
+fn a_substituted_designated_penalty_taker_leaves_the_penalty_to_a_forward() {
+    let designate_then_substitute = |state: &mut LiveMatchState| {
+        designate_home_fwd1(state);
+        state
+            .apply_command(MatchCommand::Substitute {
+                side: Side::Home,
+                player_off_id: "home_fwd1".to_string(),
+                player_on_id: "home_sub_fwd1".to_string(),
+            })
+            .expect("a substitution before kick-off");
+    };
+    let takers = home_penalty_takers(&designate_then_substitute, &[]);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers
+            .iter()
+            .all(|taker| taker == "home_fwd2" || taker == "home_sub_fwd1"),
+        "{takers:?}"
+    );
+}
+
+/// Given a side with no designated penalty taker and both its forwards sent off,
+/// When it is awarded penalties,
+/// Then a midfielder takes each one, never a defender and never the goalkeeper.
+#[test]
+fn with_no_forward_on_the_pitch_a_midfielder_takes_the_penalty() {
+    let forwards = ["home_fwd1", "home_fwd2"];
+    let forwards_off = |state: &mut LiveMatchState| {
+        for forward in forwards {
+            state.test_send_off(forward);
+        }
+    };
+    let takers = home_penalty_takers(&forwards_off, &forwards);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker.starts_with("home_mid")),
+        "{takers:?}"
+    );
+}
+
+/// Given a side with only its goalkeeper and defenders left on the pitch,
+/// When it is awarded penalties,
+/// Then a defender takes each one, never the goalkeeper.
+#[test]
+fn with_only_defenders_and_the_keeper_left_a_defender_takes_the_penalty() {
+    let gone = [
+        "home_fwd1",
+        "home_fwd2",
+        "home_mid1",
+        "home_mid2",
+        "home_mid3",
+        "home_mid4",
+    ];
+    let attackers_off = |state: &mut LiveMatchState| {
+        for player in gone {
+            state.test_send_off(player);
+        }
+    };
+    let takers = home_penalty_takers(&attackers_off, &gone);
+    assert!(takers.len() >= 10, "only {} home penalties", takers.len());
+    assert!(
+        takers.iter().all(|taker| taker.starts_with("home_def")),
+        "{takers:?}"
     );
 }

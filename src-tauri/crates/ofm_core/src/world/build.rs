@@ -250,6 +250,7 @@ mod tests {
                 lost: 20 - index as u32 % 5,
                 goals_for: 40 + index as u32,
                 goals_against: 50,
+                competition_id: String::new(),
             }];
         }
         let stored: Vec<String> = world

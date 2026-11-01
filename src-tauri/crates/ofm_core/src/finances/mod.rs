@@ -1,3 +1,4 @@
+pub mod gate;
 pub mod journal;
 
 pub use domain::finance::{CashJournal, CashKind};
@@ -15,7 +16,6 @@ use domain::message::*;
 use domain::team::{
     FinancialTransaction, FinancialTransactionKind, Sponsorship, SponsorshipBonusCriterion, Team,
 };
-use rand::RngExt;
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -373,28 +373,8 @@ pub fn calc_cash_runway_weeks(balance: i64, projected_weekly_net: i64) -> Option
     Some(std::cmp::max(0, balance / projected_weekly_net.abs()))
 }
 
-pub fn calc_matchday(
-    stadium_capacity: u32,
-    home_match_count: i64,
-    attendance_pct: f64,
-    avg_ticket: f64,
-) -> i64 {
-    let revenue_per_match = (stadium_capacity as f64 * attendance_pct * avg_ticket) as i64;
-
-    revenue_per_match * home_match_count
-}
-
 pub fn calc_upkeep(_team: &Team) -> i64 {
     0
-}
-
-fn estimated_weekly_matchday_income(game: &Game, team: &Team) -> i64 {
-    let recent_home_match_count = count_recent_home_matches(game, &team.id);
-    if recent_home_match_count == 0 {
-        return 0;
-    }
-
-    calc_matchday(team.stadium_capacity, recent_home_match_count, 0.76, 20.0)
 }
 
 pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSnapshot> {
@@ -411,7 +391,8 @@ pub fn team_finance_snapshot(game: &Game, team_id: &str) -> Option<TeamFinanceSn
                 + evaluate_sponsorship_bonus(current_position, &team.form, sponsorship)
         })
         .unwrap_or(0);
-    let weekly_matchday_income = estimated_weekly_matchday_income(game, team);
+    let weekly_matchday_income =
+        gate::expected_gate_next_week(game, &team.id, team.stadium_capacity);
     let weekly_recurring_income = weekly_sponsor_income + weekly_matchday_income;
     let projected_weekly_net = weekly_recurring_income - weekly_wage_spend;
     let cash_runway_weeks = calc_cash_runway_weeks(team.finance, projected_weekly_net);
@@ -1141,32 +1122,6 @@ fn current_league_position(game: &Game, team_id: &str) -> Option<u32> {
         .map(|index| index as u32 + 1)
 }
 
-fn count_recent_home_matches(game: &Game, team_id: &str) -> i64 {
-    let Some(league) = &game.league else {
-        return 0;
-    };
-
-    let current = game.clock.current_date.date_naive();
-    let week_ago = current - chrono::Duration::days(7);
-
-    league
-        .fixtures
-        .iter()
-        .filter(|fixture| {
-            fixture.status == domain::league::FixtureStatus::Completed
-                && fixture.home_team_id == team_id
-                && fixture.result.is_some()
-        })
-        .filter(|fixture| {
-            if let Ok(date) = chrono::NaiveDate::parse_from_str(&fixture.date, "%Y-%m-%d") {
-                date > week_ago && date <= current
-            } else {
-                false
-            }
-        })
-        .count() as i64
-}
-
 fn add_weekly_wage(map: &mut std::collections::HashMap<String, i64>, team_id: &str, amount: i64) {
     if amount == 0 {
         return;
@@ -1320,29 +1275,7 @@ pub fn process_weekly_finances(game: &mut Game) {
         }
     }
 
-    if game.league.is_some() {
-        let team_ids: Vec<String> = game.teams.iter().map(|team| team.id.clone()).collect();
-        for team_id in team_ids {
-            let home_count = count_recent_home_matches(game, &team_id);
-            if home_count == 0 {
-                continue;
-            }
-            let stadium_capacity = game
-                .teams
-                .iter()
-                .find(|team| team.id == team_id)
-                .map(|team| team.stadium_capacity)
-                .unwrap_or(0);
-            // One gate per club per week, drawn from that club's own stream.
-            let mut rng = game.rng_today(&format!("finances/matchday/{team_id}"));
-            let attendance_pct = rng.random_range(60..=92) as f64 / 100.0;
-            let avg_ticket = rng.random_range(15..=25) as f64;
-            let total_revenue =
-                calc_matchday(stadium_capacity, home_count, attendance_pct, avg_ticket);
-            let req = PostRequest::new(&team_id, total_revenue, CashKind::Matchday, post_date);
-            let _ = commit_weekly_posts(game, std::slice::from_ref(&req));
-        }
-    }
+    gate::settle_gate_income(game, post_date);
 
     // --- Financial health warnings for user's team ---
     generate_financial_warnings(game, &today);

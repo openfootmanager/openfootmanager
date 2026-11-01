@@ -1,5 +1,8 @@
 import { useTranslation } from "react-i18next";
 
+import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
+import { gameKnowledgeRevision } from "../../lib/playerKnowledge";
+
 import type { TeamProfileProps } from "./TeamProfile.types";
 import TeamProfileAdvancedStatsCard from "./TeamProfileAdvancedStatsCard";
 import TeamProfileClubDetailsCard from "./TeamProfileClubDetailsCard";
@@ -10,6 +13,7 @@ import TeamProfileRecentMatchesCard from "./TeamProfileRecentMatchesCard";
 import TeamProfileRosterCard from "./TeamProfileRosterCard";
 import TeamProfileSummaryCard from "./TeamProfileSummaryCard";
 import { useClubLeagueStanding } from "./useClubLeagueStanding";
+import { useTeamAverageRating } from "./useTeamAverageRating";
 import { useTeamProfileStats } from "./useTeamProfileStats";
 import { buildTeamProfileViewModel } from "./TeamProfile.viewModel";
 
@@ -23,14 +27,33 @@ export default function TeamProfile({
   const { standing: leagueStanding } = useClubLeagueStanding(team.id, gameState.clock.current_date);
   const viewModel = buildTeamProfileViewModel(team, gameState, leagueStanding);
   const { teamStatsOverview, recentMatches } = useTeamProfileStats(team.id);
+  const revision = gameKnowledgeRevision(gameState, { playerClubId: team.id });
+  const knowledgeOf = usePlayerKnowledge(
+    viewModel.roster.map((player) => player.id),
+    revision,
+  );
+  // The backend's average, never one worked out here: none for a club outside the division.
+  const averageRating = useTeamAverageRating(team.id, revision);
 
   return (
     <div className="max-w-6xl mx-auto">
-      <TeamProfileHeroCard team={team} viewModel={viewModel} locale={i18n.language} t={t} />
+      <TeamProfileHeroCard
+        team={team}
+        viewModel={viewModel}
+        averageRating={averageRating}
+        locale={i18n.language}
+        t={t}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <TeamProfileClubDetailsCard team={team} t={t} />
-        <TeamProfileSummaryCard team={team} isOwnTeam={isOwnTeam} viewModel={viewModel} t={t} />
+        <TeamProfileSummaryCard
+          team={team}
+          isOwnTeam={isOwnTeam}
+          viewModel={viewModel}
+          averageRating={averageRating}
+          t={t}
+        />
         <TeamProfileLeagueStandingCard standings={viewModel.standings} t={t} />
 
         {teamStatsOverview && <TeamProfileAdvancedStatsCard overview={teamStatsOverview} t={t} />}
@@ -39,6 +62,7 @@ export default function TeamProfile({
 
         <TeamProfileRosterCard
           roster={viewModel.roster}
+          knowledgeOf={knowledgeOf}
           isOwnTeam={isOwnTeam}
           locale={i18n.language}
           t={t}

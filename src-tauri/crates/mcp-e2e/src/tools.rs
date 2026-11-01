@@ -86,6 +86,7 @@ pub const CATALOG: &[CatalogEntry] = &[
         &[("player_id", "string")],
         &["player_id"],
     ),
+    ("dev_full_game_state", &[], &[]),
     ("game_delete_save", &[("save_id", "string")], &["save_id"]),
     ("game_exit", &[], &[]),
     ("game_export_world", &[], &[]),
@@ -630,6 +631,11 @@ impl Client {
 
     pub fn info_game_state(&self) -> Reply<info::GameState> {
         self.call("info_game_state", object([]))
+    }
+
+    /// Only a sandbox app started with `--dev-full-state` (every harness launch) has this tool.
+    pub fn dev_full_game_state(&self) -> Reply<info::GameState> {
+        self.call("dev_full_game_state", object([]))
     }
 
     pub fn info_game_summary(&self) -> Reply<info::GameSummary> {

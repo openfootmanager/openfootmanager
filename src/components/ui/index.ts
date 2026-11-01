@@ -26,3 +26,5 @@ export { DataTable } from "./DataTable";
 export type { DataTableColumn, SortDirection } from "./DataTable";
 export { RatingChip } from "./RatingChip";
 export { EntityCard } from "./EntityCard";
+export { ConditionMeter } from "./ConditionMeter";
+export { ViewSwitch } from "./ViewSwitch";

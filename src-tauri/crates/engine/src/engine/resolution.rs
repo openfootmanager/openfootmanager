@@ -187,11 +187,8 @@ fn resolve_attacking_third<R: Rng>(
 
     let att_mod = play_style_modifier(ctx.team(att_side).play_style, PlayStylePhase::Attack, true)
         * role_modifier(Position::Forward, attacker.role, PlayStylePhase::Attack);
-    let def_mod = play_style_modifier(
-        ctx.team(def_side).play_style,
-        PlayStylePhase::Defense,
-        false,
-    ) * role_modifier(Position::Defender, defender.role, PlayStylePhase::Defense);
+    let def_mod = play_style_modifier(ctx.team(def_side).play_style, PlayStylePhase::Defense, true)
+        * role_modifier(Position::Defender, defender.role, PlayStylePhase::Defense);
     let att_eff = att_rating * att_mod * home_mod(att_side, ctx.config);
     let def_eff = def_rating
         * def_mod

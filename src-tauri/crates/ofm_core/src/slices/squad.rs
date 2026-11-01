@@ -4,9 +4,10 @@ use crate::training::{ConditionStatus, condition_status};
 use domain::player::Player;
 use serde::Serialize;
 use std::collections::HashSet;
+use ts_rs::TS;
 
 /// Read-only squad projection: eligibility is computed, never persisted on Player.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 pub struct SquadPlayer {
     #[serde(flatten)]
     pub player: Player,

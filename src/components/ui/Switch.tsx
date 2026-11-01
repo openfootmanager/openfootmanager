@@ -21,8 +21,8 @@ type SwitchProps = (NamedBy | Labelled) & {
  * is on, and asks for the other state when pressed (a click, Space or Enter). A choice that is
  * submitted later is a Checkbox instead.
  *
- * The thumb is white on the brand green when on, and the panel's colour on a muted track when off:
- * at least 5:1 against its track in both themes, so the state reads by more than position.
+ * The thumb is white on the selected fill when on, and the panel's colour on a muted track when
+ * off: at least 4.9:1 against its track in both themes, so the state reads by more than position.
  */
 export function Switch({ labelledBy, label, checked, onChange, disabled = false }: SwitchProps) {
   return (
@@ -35,7 +35,7 @@ export function Switch({ labelledBy, label, checked, onChange, disabled = false 
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page disabled:cursor-not-allowed disabled:opacity-50 ${
-        checked ? "bg-primary-700" : "bg-fg-subtle"
+        checked ? "bg-selected-fill" : "bg-fg-subtle"
       }`}
     >
       <span

@@ -8,6 +8,7 @@ import {
   CardBody,
   CardHeader,
   Checkbox,
+  ConditionMeter,
   CountryFlag,
   DataTable,
   type DataTableColumn,
@@ -17,6 +18,7 @@ import {
   DialogCloseButton,
   InjuryBadge,
   UnreadBadge,
+  ViewSwitch,
   JerseyIcon,
   PageToolbar,
   PitchToken,
@@ -29,7 +31,6 @@ import {
   Select,
   type SortDirection,
   Switch,
-  TONE_TEXT,
   TabPanel,
   Tabs,
   TeamLocation,
@@ -37,6 +38,7 @@ import {
   ThemeToggle,
 } from "../../components/ui";
 import { ChartContainer } from "../../components/ui/charts/ChartContainer";
+import type { ListView } from "../../store/settingsStore";
 import type { StyleGuideOptions } from "./styleGuideOptions";
 
 /*
@@ -73,6 +75,7 @@ const STATUSES = [
   ["--color-danger", "--color-danger-tint", "--color-danger-solid"],
   ["--color-info", "--color-info-tint", "--color-info-solid"],
 ].flat();
+const SELECTED = ["--color-selected", "--color-selected-tint", "--color-selected-fill"];
 const TONES = [
   ["--color-tone-top", "--color-tone-top-tint", "--color-tone-top-solid"],
   ["--color-tone-good", "--color-tone-good-tint", "--color-tone-good-solid"],
@@ -179,6 +182,7 @@ function TokensSection() {
       <Swatches tokens={SURFACES} />
       <Swatches tokens={TEXT_AND_LINES} />
       <Swatches tokens={STATUSES} />
+      <Swatches tokens={SELECTED} />
       <Swatches tokens={TONES} />
       <Swatches tokens={BRAND} />
       <Swatches tokens={DATA_AND_PITCH} />
@@ -332,7 +336,7 @@ function DisplaySection() {
           ),
         )}
       </div>
-      {/* The good-to-bad scale the backend rates values on: a tone fills the bar, its word says it. */}
+      {/* Condition on the backend's bands: the band's word and bar in its tone; none sent, neutral. */}
       <div className="grid max-w-md gap-2">
         {(
           [
@@ -341,12 +345,14 @@ function DisplaySection() {
             ["low", "Exhausted", 32],
             ["bad", "Critical", 15],
           ] as const
-        ).map(([tone, word, value]) => (
-          <div key={tone} className="flex items-center gap-3">
-            <span className={`w-20 text-caption font-semibold ${TONE_TEXT[tone]}`}>{word}</span>
-            <ProgressBar value={value} tone={tone} showLabel className="flex-1" />
-          </div>
+        ).map(([tone, band, value]) => (
+          <ConditionMeter
+            key={band}
+            value={value}
+            status={{ band, label_key: `be.condition.${band.toLowerCase()}`, tone }}
+          />
         ))}
+        <ConditionMeter value={50} status={null} />
       </div>
       <Row>
         <CountryFlag code="BE" />
@@ -358,6 +364,14 @@ function DisplaySection() {
             name: "Brussels FC",
             short_name: "BRU",
             colors: { primary: "#15803d", secondary: "#ffffff" },
+          }}
+        />
+        {/* Bright green beside white: the pair whose label used to vanish on the white half. */}
+        <TeamLogo
+          team={{
+            name: "Alpha United",
+            short_name: "AL",
+            colors: { primary: "#00ff00", secondary: "#ffffff" },
           }}
         />
         <TeamLogo
@@ -647,6 +661,7 @@ function NavigationSection() {
   const [view, setView] = useState("list");
   const [pace, setPace] = useState("normal");
   const [density, setDensity] = useState("comfortable");
+  const [listView, setListView] = useState<ListView>("table");
   return (
     <Section title="Navigation">
       <PageToolbar
@@ -747,6 +762,8 @@ function NavigationSection() {
         />
       </Row>
       <PageToolbar action={<Button size="sm">Hire</Button>} />
+      {/* A list's toolbar: the Table/Cards switch at its end, bound to the one global setting. */}
+      <PageToolbar action={<ViewSwitch value={listView} onChange={setListView} />} />
     </Section>
   );
 }

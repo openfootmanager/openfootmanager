@@ -15,6 +15,9 @@ pub struct PostRequest {
     pub amount: i64,
     pub kind: CashKind,
     pub date: NaiveDate,
+    /// The post's id when the movement is keyed on what caused it (a gate is keyed on its
+    /// fixture), so the journal itself answers "was this already posted?". `None` draws a UUID.
+    pub id: Option<String>,
 }
 
 impl PostRequest {
@@ -24,7 +27,13 @@ impl PostRequest {
             amount,
             kind,
             date,
+            id: None,
         }
+    }
+
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.id = Some(id.into());
+        self
     }
 }
 
@@ -104,7 +113,7 @@ fn prepare_posts(game: &Game, reqs: &[PostRequest]) -> Result<Vec<PreparedPost>,
 
         prepared.push(PreparedPost {
             team_index: index,
-            post: build_post(&team.id, req.amount, req.kind, req.date),
+            post: build_keyed_post(&team.id, req.amount, req.kind, req.date, req.id.clone()),
         });
     }
 
@@ -158,8 +167,18 @@ fn commit_posts(game: &mut Game, prepared: Vec<PreparedPost>) -> Vec<String> {
 }
 
 fn build_post(club_id: &str, amount: i64, kind: CashKind, date: NaiveDate) -> CashPost {
+    build_keyed_post(club_id, amount, kind, date, None)
+}
+
+fn build_keyed_post(
+    club_id: &str,
+    amount: i64,
+    kind: CashKind,
+    date: NaiveDate,
+    id: Option<String>,
+) -> CashPost {
     CashPost {
-        id: uuid::Uuid::new_v4().to_string(),
+        id: id.unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
         club_id: club_id.to_string(),
         amount,
         kind,
@@ -556,5 +575,49 @@ mod tests {
         assert_eq!(game.cash_journal.cash_for("alpha"), 16_000);
         assert_eq!(game.teams[0].season_income, 0);
         assert!(journal_matches_cash(&game));
+    }
+
+    /// Given "alpha" with 1,000 in cash already in the journal (its seed and one 500 matchday post)
+    /// When an opening credit of 15,000 is booked
+    /// Then only the credit is added: three rows, and the journal and the club both hold 16,500
+    #[test]
+    fn credit_opening_cash_on_a_club_already_in_the_journal_adds_only_the_credit() {
+        let mut game = make_game(vec![make_team("alpha", 1_000)]);
+        post(&mut game, "alpha", 500, CashKind::Matchday, monday()).unwrap();
+
+        credit_opening_cash(&mut game, "alpha", 15_000, monday()).unwrap();
+
+        assert_eq!(game.cash_journal.len(), 3);
+        assert_eq!(
+            (game.cash_journal.cash_for("alpha"), game.teams[0].finance),
+            (16_500, 16_500)
+        );
+    }
+
+    /// Given "alpha" with 1,000 in cash
+    /// When a negative opening credit is booked
+    /// Then it is refused, and neither the club's cash nor the journal moves
+    #[test]
+    fn credit_opening_cash_refuses_a_negative_amount() {
+        let mut game = make_game(vec![make_team("alpha", 1_000)]);
+
+        let result = credit_opening_cash(&mut game, "alpha", -5_000, monday());
+
+        assert_eq!(result, Err(ERR_OPENING_BALANCE.to_string()));
+        assert_eq!((game.teams[0].finance, game.cash_journal.len()), (1_000, 0));
+    }
+
+    /// Given "alpha" whose cash and journal agree after a post
+    /// When its cash is changed without a journal row
+    /// Then the journal no longer matches the cash
+    #[test]
+    fn journal_matches_cash_reports_a_club_whose_cash_moved_outside_the_journal() {
+        let mut game = make_game(vec![make_team("alpha", 1_000)]);
+        post(&mut game, "alpha", 500, CashKind::Matchday, monday()).unwrap();
+        assert!(journal_matches_cash(&game));
+
+        game.teams[0].finance += 1;
+
+        assert!(!journal_matches_cash(&game));
     }
 }

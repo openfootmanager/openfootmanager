@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData } from "../store/gameStore";
+import { invokeForCareer } from "./careerInvoke";
 
 export type SquadSafetyIssue =
   | "too_few_healthy_players"
@@ -54,7 +55,7 @@ export async function setContractExitIntent(
   playerId: string,
   reason?: string,
 ): Promise<ContractExitIntentResponseData> {
-  return invoke<ContractExitIntentResponseData>("set_contract_exit_intent", {
+  return invokeForCareer<ContractExitIntentResponseData>("set_contract_exit_intent", {
     playerId,
     reason: reason ?? null,
   });
@@ -63,7 +64,7 @@ export async function setContractExitIntent(
 export async function clearContractExitIntent(
   playerId: string,
 ): Promise<ContractExitIntentResponseData> {
-  return invoke<ContractExitIntentResponseData>("clear_contract_exit_intent", {
+  return invokeForCareer<ContractExitIntentResponseData>("clear_contract_exit_intent", {
     playerId,
   });
 }
@@ -79,7 +80,7 @@ export async function previewContractTermination(
 export async function terminateContractNow(
   playerId: string,
 ): Promise<ContractTerminationResponseData> {
-  return invoke<ContractTerminationResponseData>("terminate_contract_now", {
+  return invokeForCareer<ContractTerminationResponseData>("terminate_contract_now", {
     playerId,
   });
 }

@@ -6,7 +6,8 @@ use std::collections::{HashMap, HashSet};
 use domain::player::Player;
 use serde::Serialize;
 
-use crate::game::Game;
+use crate::game::{Game, ScoutedPlayer};
+use crate::slices::scouted_report::is_out_of_date;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -26,40 +27,119 @@ pub enum PlayerKnowledge {
 /// `Known` (live), not `Scouted` (a snapshot). An unemployed manager has no club and no division, so
 /// he knows only the players his scouts reported on.
 pub fn player_knowledge(game: &Game, player: &Player) -> PlayerKnowledge {
-    knowledge_from(game, &Viewer::of(game), player)
+    KnowledgeView::of(game).knowledge(player)
 }
 
-/// The manager's club and the league table it plays in, worked out once per request rather than
-/// once per player.
-struct Viewer<'a> {
+/// What the manager's club can see, worked out once per request rather than once per player: the
+/// club, the clubs in its division, the clubs it meets today, and its scouts' reports by player. A
+/// list asks it about every row, so no row searches the reports.
+pub struct KnowledgeView<'a> {
     club: Option<&'a str>,
-    division: Option<&'a str>,
+    known_clubs: HashSet<&'a str>,
+    opponents_today: HashSet<&'a str>,
+    reports: HashMap<&'a str, &'a ScoutedPlayer>,
+    last_rollover: Option<&'a str>,
 }
 
-impl<'a> Viewer<'a> {
-    fn of(game: &'a Game) -> Self {
+impl<'a> KnowledgeView<'a> {
+    pub fn of(game: &'a Game) -> Self {
         let club = game.manager.team_id.as_deref();
         Self {
             club,
-            division: club.and_then(|club| division_of(game, club)),
+            known_clubs: club.map_or_else(HashSet::new, |club| clubs_in_division_of(game, club)),
+            opponents_today: club.map_or_else(HashSet::new, |club| opponents_today(game, club)),
+            reports: reports_by_player(game),
+            last_rollover: game.last_season_rollover_on.as_deref(),
         }
+    }
+
+    /// The strongest thing the club knows about the player (see [`player_knowledge`]).
+    pub fn knowledge(&self, player: &Player) -> PlayerKnowledge {
+        if self
+            .club
+            .is_some_and(|club| is_at_or_owned_by(player, club))
+        {
+            return PlayerKnowledge::Own;
+        }
+        if player
+            .team_id
+            .as_deref()
+            .is_some_and(|club| self.known_clubs.contains(club))
+        {
+            return PlayerKnowledge::Known;
+        }
+        match self.reports.get(player.id.as_str()) {
+            Some(report) => PlayerKnowledge::Scouted {
+                scouted_on: report.scouted_on.clone(),
+                current: !is_out_of_date(report, self.last_rollover),
+            },
+            None => PlayerKnowledge::Unknown,
+        }
+    }
+
+    /// The club knows the squad at `club_id`: its own, or a rival in its division, whose players
+    /// it sees every season. A figure about a whole squad, such as its average rating, shows only
+    /// then; a few scouted players would make a skewed figure that looks authoritative.
+    pub fn knows_squad_at(&self, club_id: &str) -> bool {
+        self.club == Some(club_id) || self.known_clubs.contains(club_id)
+    }
+
+    fn wage_for(&self, knowledge: &PlayerKnowledge, player: &Player) -> VisibleWage {
+        match knowledge {
+            PlayerKnowledge::Own => VisibleWage::Exact {
+                weekly: player.wage(),
+            },
+            PlayerKnowledge::Scouted { .. } => VisibleWage::Approximate {
+                weekly: two_significant_figures(player.wage()),
+            },
+            PlayerKnowledge::Known | PlayerKnowledge::Unknown => VisibleWage::Hidden,
+        }
+    }
+
+    fn condition_for(&self, knowledge: &PlayerKnowledge, player: &Player) -> Option<u8> {
+        let meets_today = player
+            .team_id
+            .as_deref()
+            .is_some_and(|club| self.opponents_today.contains(club));
+        (*knowledge == PlayerKnowledge::Own || meets_today).then_some(player.condition)
     }
 }
 
-fn knowledge_from(game: &Game, viewer: &Viewer, player: &Player) -> PlayerKnowledge {
-    if viewer
-        .club
-        .is_some_and(|club| is_at_or_owned_by(player, club))
-    {
-        return PlayerKnowledge::Own;
-    }
-    if viewer
-        .division
-        .is_some_and(|division| plays_in(game, player, division))
-    {
-        return PlayerKnowledge::Known;
-    }
-    scouted_or_unknown(game, player)
+/// Every club whose division is the same table as `club`'s. A club's division is the table
+/// `club_league_table` picks for it, so only that table's own clubs can share it.
+fn clubs_in_division_of<'a>(game: &'a Game, club: &str) -> HashSet<&'a str> {
+    let Some(division) = division_of(game, club) else {
+        return HashSet::new();
+    };
+    let Some(table) = game.competitions.iter().find(|table| table.id == division) else {
+        return HashSet::new();
+    };
+    table
+        .participant_ids
+        .iter()
+        .map(String::as_str)
+        .chain(table.standings.iter().map(|row| row.team_id.as_str()))
+        .filter(|candidate| division_of(game, candidate) == Some(division))
+        .collect()
+}
+
+/// The clubs `club` meets today, in any competition.
+fn opponents_today<'a>(game: &'a Game, club: &str) -> HashSet<&'a str> {
+    let today = game.clock.current_date.format("%Y-%m-%d").to_string();
+    game.competitions
+        .iter()
+        .flat_map(|competition| &competition.fixtures)
+        .filter(|fixture| fixture.date == today)
+        .filter_map(|fixture| {
+            if fixture.home_team_id == club {
+                Some(fixture.away_team_id.as_str())
+            } else if fixture.away_team_id == club {
+                Some(fixture.home_team_id.as_str())
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 /// The club holds his contract (a loaned-out player's `team_id` is the borrower) or he plays for it
@@ -77,21 +157,14 @@ fn division_of<'a>(game: &'a Game, club: &str) -> Option<&'a str> {
     crate::end_of_season::club_league_table(game, club).map(|league| league.id.as_str())
 }
 
-fn plays_in(game: &Game, player: &Player, division: &str) -> bool {
-    player
-        .team_id
-        .as_deref()
-        .is_some_and(|club| division_of(game, club) == Some(division))
-}
-
-fn scouted_or_unknown(game: &Game, player: &Player) -> PlayerKnowledge {
-    match crate::slices::scouted_report::query_scouted_report(game, &player.id) {
-        Some(view) => PlayerKnowledge::Scouted {
-            current: !view.out_of_date,
-            scouted_on: view.report.scouted_on,
-        },
-        None => PlayerKnowledge::Unknown,
+/// Each scouted player's report. The first report for a player is his, as
+/// `query_scouted_report` reads it; scouting a player again replaces his report anyway.
+fn reports_by_player(game: &Game) -> HashMap<&str, &ScoutedPlayer> {
+    let mut reports = HashMap::with_capacity(game.scouted_players.len());
+    for report in &game.scouted_players {
+        reports.entry(report.player_id.as_str()).or_insert(report);
     }
+    reports
 }
 
 /// The weekly wage the club may see: exact for its own player, rounded for one its scout reported
@@ -109,16 +182,81 @@ pub enum VisibleWage {
     Hidden,
 }
 
-pub fn visible_wage(game: &Game, player: &Player) -> VisibleWage {
-    match player_knowledge(game, player) {
-        PlayerKnowledge::Own => VisibleWage::Exact {
-            weekly: player.wage(),
-        },
-        PlayerKnowledge::Scouted { .. } => VisibleWage::Approximate {
-            weekly: two_significant_figures(player.wage()),
-        },
-        PlayerKnowledge::Known | PlayerKnowledge::Unknown => VisibleWage::Hidden,
+impl VisibleWage {
+    /// The figure the club may see, exact or rounded; none when the wage is hidden.
+    pub fn value(&self) -> Option<u32> {
+        match self {
+            VisibleWage::Exact { weekly } | VisibleWage::Approximate { weekly } => Some(*weekly),
+            VisibleWage::Hidden => None,
+        }
     }
+}
+
+/// What a list row may show about a player: the club's knowledge of him, and his rating, wage and
+/// condition as that knowledge allows.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PlayerVisibility {
+    pub knowledge: PlayerKnowledge,
+    /// His rating for the club's own player and a division rival; none for a scouted or unknown one
+    /// until a scout's estimate exists.
+    pub ovr: Option<u8>,
+    pub wage: VisibleWage,
+    pub condition: Option<u8>,
+}
+
+impl KnowledgeView<'_> {
+    pub fn of_player(&self, player: &Player) -> PlayerVisibility {
+        let knowledge = self.knowledge(player);
+        let knows_rating = matches!(knowledge, PlayerKnowledge::Own | PlayerKnowledge::Known);
+        PlayerVisibility {
+            ovr: knows_rating.then_some(player.ovr),
+            wage: self.wage_for(&knowledge, player),
+            condition: self.condition_for(&knowledge, player),
+            knowledge,
+        }
+    }
+}
+
+/// Whether a visible rating passes a min/max filter. An unknown rating fails any bound that is set
+/// (maintainer, 29 Oct): a filter on a rating the club does not know would tell it.
+pub fn passes_ovr_filter(ovr: Option<u8>, min: Option<u8>, max: Option<u8>) -> bool {
+    if min.is_none() && max.is_none() {
+        return true;
+    }
+    ovr.is_some_and(|ovr| min.is_none_or(|min| ovr >= min) && max.is_none_or(|max| ovr <= max))
+}
+
+/// Whether a visible wage passes a maximum. A hidden wage fails a set maximum, as an unknown rating
+/// fails a rating bound, so a price filter is never an oracle for a wage the club cannot see.
+pub fn passes_wage_filter(wage: &VisibleWage, max: Option<u32>) -> bool {
+    max.is_none_or(|max| wage.value().is_some_and(|weekly| weekly <= max))
+}
+
+/// Orders two visible ratings for a list sorted by rating, ascending or descending: an unknown
+/// rating sorts after every known one either way (maintainer, 29 Oct).
+pub fn compare_visible_ovr(a: Option<u8>, b: Option<u8>, ascending: bool) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    match (a, b) {
+        (Some(a), Some(b)) if ascending => a.cmp(&b),
+        (Some(a), Some(b)) => b.cmp(&a),
+        (Some(_), None) => Ordering::Less,
+        (None, Some(_)) => Ordering::Greater,
+        (None, None) => Ordering::Equal,
+    }
+}
+
+pub fn visible_wage(game: &Game, player: &Player) -> VisibleWage {
+    let view = KnowledgeView::of(game);
+    view.wage_for(&view.knowledge(player), player)
+}
+
+/// The player's condition as the club may see it. Its own player's always; an opponent's on the
+/// day the two clubs meet, in any competition, as the team sheet and the warm-up show it
+/// (maintainer, 29 Oct), a loanee counting for the club he plays for; nobody else's, a rival in
+/// the club's own division included.
+pub fn visible_condition(game: &Game, player: &Player) -> Option<u8> {
+    let view = KnowledgeView::of(game);
+    view.condition_for(&view.knowledge(player), player)
 }
 
 fn two_significant_figures(value: u32) -> u32 {
@@ -133,11 +271,11 @@ fn two_significant_figures(value: u32) -> u32 {
 /// The knowledge of each requested player. An id no player has is left out of the answer.
 pub fn players_knowledge(game: &Game, player_ids: &[String]) -> HashMap<String, PlayerKnowledge> {
     let wanted: HashSet<&str> = player_ids.iter().map(String::as_str).collect();
-    let viewer = Viewer::of(game);
+    let view = KnowledgeView::of(game);
     game.players
         .iter()
         .filter(|player| wanted.contains(player.id.as_str()))
-        .map(|player| (player.id.clone(), knowledge_from(game, &viewer, player)))
+        .map(|player| (player.id.clone(), view.knowledge(player)))
         .collect()
 }
 
@@ -145,7 +283,6 @@ pub fn players_knowledge(game: &Game, player_ids: &[String]) -> HashMap<String, 
 mod tests {
     use super::*;
     use crate::clock::GameClock;
-    use crate::game::ScoutedPlayer;
     use crate::test_support::uniform_attributes;
     use chrono::{TimeZone, Utc};
     use domain::league::League;
@@ -186,6 +323,14 @@ mod tests {
     fn division(id: &str, clubs: &[&str]) -> League {
         let clubs: Vec<String> = clubs.iter().map(|club| club.to_string()).collect();
         League::new(id.to_string(), id.to_string(), 2026, &clubs)
+    }
+
+    /// A knockout cup: a competition that is not anyone's division.
+    fn cup(id: &str, clubs: &[&str]) -> League {
+        let mut cup = division(id, clubs);
+        cup.kind = domain::league::CompetitionType::Cup;
+        cup.rules.format = domain::league::CompetitionFormat::Knockout;
+        cup
     }
 
     /// My club and "rival" play in division one; "faraway" plays in division two.
@@ -274,6 +419,35 @@ mod tests {
         assert_eq!(knowledge_of(&game, "p"), PlayerKnowledge::Unknown);
     }
 
+    /// Given "mover", still in division one's standings but now playing division two (its table
+    ///      with the later finished fixture, which is the one a club's division is read from)
+    /// When the club's knowledge of a mover player is asked
+    /// Then he is unknown: a club is known by the division it plays in now, not by a table it
+    ///      still appears in
+    #[test]
+    fn a_club_listed_in_the_division_but_playing_another_is_not_known() {
+        let mut game = world(Some(MY_CLUB), vec![player("m", Some("mover"))]);
+        game.competitions[0]
+            .standings
+            .push(domain::league::StandingEntry {
+                team_id: "mover".to_string(),
+                played: 0,
+                won: 0,
+                drawn: 0,
+                lost: 0,
+                goals_for: 0,
+                goals_against: 0,
+                points: 0,
+            });
+        game.competitions[1]
+            .participant_ids
+            .push("mover".to_string());
+        fixture_in(&mut game, "division-two", "2026-09-01", "mover", "faraway");
+        game.competitions[1].fixtures[0].status = domain::league::FixtureStatus::Completed;
+
+        assert_eq!(knowledge_of(&game, "m"), PlayerKnowledge::Unknown);
+    }
+
     /// Given a player in another division whom a scout reported on
     /// When the club's knowledge of him is asked
     /// Then it is the scout's report, dated, current or not exactly as the report itself says
@@ -296,6 +470,44 @@ mod tests {
                 }
             );
         }
+    }
+
+    /// Given three players in another division after the season ended on 25 May: one scouted in
+    ///       March, before it, one scouted in September, after it, and one never scouted
+    /// When one view is asked about each of them, as a list asks about every row
+    /// Then each is answered from his own report: out of date, current, and unknown
+    #[test]
+    fn one_view_answers_each_scouted_player_from_his_own_report() {
+        let mut game = world(
+            Some(MY_CLUB),
+            vec![
+                player("stale", Some("faraway")),
+                player("fresh", Some("faraway")),
+                player("never", Some("faraway")),
+            ],
+        );
+        game.last_season_rollover_on = Some("2026-05-25".to_string());
+        scouted(&mut game, "stale", "2026-03-10");
+        scouted(&mut game, "fresh", "2026-09-01");
+        let view = KnowledgeView::of(&game);
+        let knowledge_of =
+            |id: &str| view.knowledge(game.players.iter().find(|p| p.id == id).unwrap());
+
+        assert_eq!(
+            knowledge_of("stale"),
+            PlayerKnowledge::Scouted {
+                scouted_on: "2026-03-10".to_string(),
+                current: false,
+            }
+        );
+        assert_eq!(
+            knowledge_of("fresh"),
+            PlayerKnowledge::Scouted {
+                scouted_on: "2026-09-01".to_string(),
+                current: true,
+            }
+        );
+        assert_eq!(knowledge_of("never"), PlayerKnowledge::Unknown);
     }
 
     /// Given a free agent, never scouted, and one a scout reported on
@@ -343,6 +555,44 @@ mod tests {
         game.league = Some(division("legacy", &["homeless", "neighbour"]));
 
         assert_eq!(knowledge_of(&game, "p"), PlayerKnowledge::Unknown);
+    }
+
+    /// Given the manager's club, a rival in his division and a club in another division
+    /// When the view is asked whether the club knows each squad
+    /// Then it knows its own and its rival's, and not the other division's
+    #[test]
+    fn the_club_knows_its_own_squad_and_its_division_rivals() {
+        let game = world(Some(MY_CLUB), vec![]);
+        let view = KnowledgeView::of(&game);
+
+        assert!(view.knows_squad_at(MY_CLUB));
+        assert!(view.knows_squad_at("rival"));
+        assert!(!view.knows_squad_at("faraway"));
+    }
+
+    /// Given a club in no league table, as a legacy save can have
+    /// When the view is asked whether the club knows its own squad
+    /// Then it does: no division is needed to know one's own players
+    #[test]
+    fn a_club_outside_every_table_still_knows_its_own_squad() {
+        let game = world(Some("homeless"), vec![]);
+        let view = KnowledgeView::of(&game);
+
+        assert!(view.knows_squad_at("homeless"));
+        assert!(!view.knows_squad_at("rival"));
+    }
+
+    /// Given a manager without a club
+    /// When the view is asked whether the club knows any squad
+    /// Then it knows none
+    #[test]
+    fn an_unemployed_manager_knows_no_squad() {
+        let game = world(None, vec![]);
+        let view = KnowledgeView::of(&game);
+
+        for club in [MY_CLUB, "rival", "faraway"] {
+            assert!(!view.knows_squad_at(club), "{club}");
+        }
     }
 
     fn paid(mut player: Player, weekly: u32) -> Player {
@@ -438,5 +688,279 @@ mod tests {
         assert_eq!(answer.len(), 2);
         assert_eq!(answer["own"], PlayerKnowledge::Own);
         assert_eq!(answer["rival-player"], PlayerKnowledge::Known);
+    }
+
+    /// A player on `condition`.
+    fn tired(mut player: Player, condition: u8) -> Player {
+        player.condition = condition;
+        player
+    }
+
+    /// Schedules `home` against `away` in division one on `date`.
+    fn fixture_on(game: &mut Game, date: &str, home: &str, away: &str) {
+        fixture_in(game, "division-one", date, home, away);
+    }
+
+    /// Schedules `home` against `away` in `competition_id` on `date`.
+    fn fixture_in(game: &mut Game, competition_id: &str, date: &str, home: &str, away: &str) {
+        let competition = game
+            .competitions
+            .iter_mut()
+            .find(|competition| competition.id == competition_id)
+            .unwrap();
+        competition.fixtures.push(domain::league::Fixture {
+            id: format!("{home}-{away}-{date}"),
+            competition_id: competition_id.to_string(),
+            matchday: 1,
+            date: date.to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            competition: domain::league::FixtureCompetition::League,
+            status: domain::league::FixtureStatus::Scheduled,
+            result: None,
+            postponement: None,
+        });
+    }
+
+    fn condition_of(game: &Game, player_id: &str) -> Option<u8> {
+        let player = game.players.iter().find(|p| p.id == player_id).unwrap();
+        visible_condition(game, player)
+    }
+
+    /// Given the club's own player on 64% condition, with no match today
+    /// When his condition is asked
+    /// Then it shows: the club's own player's condition is always the club's to see
+    #[test]
+    fn the_clubs_own_players_condition_always_shows() {
+        let game = world(Some(MY_CLUB), vec![tired(player("p", Some(MY_CLUB)), 64)]);
+
+        assert_eq!(condition_of(&game, "p"), Some(64));
+    }
+
+    /// Given "rival" playing the club today (15 Sep, away), and one of rival's players on 71%
+    /// When his condition is asked
+    /// Then it shows, as the team sheet and the warm-up would show it
+    #[test]
+    fn an_opponents_condition_shows_on_the_day_they_meet() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("r", Some("rival")), 71)]);
+        fixture_on(&mut game, "2026-09-15", "rival", MY_CLUB);
+
+        assert_eq!(condition_of(&game, "r"), Some(71));
+    }
+
+    /// Given the club drawn at home today against "faraway", a club from another division, in a
+    ///      cup (a competition other than the club's division), and one of faraway's players on 58%
+    /// When his condition is asked
+    /// Then it shows: any competition's matchday hands over the team sheet, not the league's alone
+    #[test]
+    fn an_opponents_condition_shows_on_a_cup_tie_too() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("f", Some("faraway")), 58)]);
+        game.competitions
+            .push(cup("cup", &[MY_CLUB, "rival", "faraway", "other"]));
+        fixture_in(&mut game, "cup", "2026-09-15", MY_CLUB, "faraway");
+
+        assert_eq!(condition_of(&game, "f"), Some(58));
+    }
+
+    /// Given "rival" playing the club tomorrow, not today
+    /// When one of rival's players' condition is asked today
+    /// Then it does not show: a division rival is known, but his condition is his club's business
+    #[test]
+    fn an_opponents_condition_is_hidden_before_matchday() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("r", Some("rival")), 71)]);
+        fixture_on(&mut game, "2026-09-16", MY_CLUB, "rival");
+
+        assert_eq!(condition_of(&game, "r"), None);
+    }
+
+    /// Given the club meeting "rival" today
+    /// When a player of "faraway", which the club does not meet, is asked about
+    /// Then his condition stays hidden: a matchday hands over the opponent's team sheet only, not
+    ///      every club's
+    #[test]
+    fn a_matchday_shows_only_the_opponents_condition() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("f", Some("faraway")), 71)]);
+        fixture_on(&mut game, "2026-09-15", MY_CLUB, "rival");
+
+        assert_eq!(condition_of(&game, "f"), None);
+    }
+
+    /// Given "rival" and "faraway" meeting each other today, the club not playing them
+    /// When a "faraway" player's condition is asked
+    /// Then it does not show: only the club's own opponent's team sheet is in its hands
+    #[test]
+    fn a_matchday_between_two_other_clubs_shows_nothing() {
+        let mut game = world(Some(MY_CLUB), vec![tired(player("f", Some("faraway")), 71)]);
+        fixture_on(&mut game, "2026-09-15", "rival", "faraway");
+
+        assert_eq!(condition_of(&game, "f"), None);
+    }
+
+    /// Given a manager with no club, and "rival" playing "faraway" today
+    /// When a rival player's condition is asked
+    /// Then it does not show: a manager without a club has no opponent
+    #[test]
+    fn an_unemployed_manager_sees_no_opponents_condition() {
+        let mut game = world(None, vec![tired(player("r", Some("rival")), 71)]);
+        fixture_on(&mut game, "2026-09-15", "rival", "faraway");
+
+        assert_eq!(condition_of(&game, "r"), None);
+    }
+
+    /// A player rated `ovr` on `weekly` a week and 64% condition.
+    fn rated(id: &str, team_id: Option<&str>, ovr: u8, weekly: u32) -> Player {
+        let mut player = tired(paid(player(id, team_id), weekly), 64);
+        player.ovr = ovr;
+        player
+    }
+
+    fn visibility_of(game: &Game, player_id: &str) -> PlayerVisibility {
+        let player = game.players.iter().find(|p| p.id == player_id).unwrap();
+        KnowledgeView::of(game).of_player(player)
+    }
+
+    /// Given the club's own player, rated 74 on 15,843 a week and 64% condition
+    /// When a list row asks what it may show
+    /// Then everything: his rating, his exact wage and his condition
+    #[test]
+    fn a_list_row_shows_everything_about_the_clubs_own_player() {
+        let game = world(Some(MY_CLUB), vec![rated("p", Some(MY_CLUB), 74, 15_843)]);
+
+        assert_eq!(
+            visibility_of(&game, "p"),
+            PlayerVisibility {
+                knowledge: PlayerKnowledge::Own,
+                ovr: Some(74),
+                wage: VisibleWage::Exact { weekly: 15_843 },
+                condition: Some(64),
+            }
+        );
+    }
+
+    /// Given a division rival rated 74
+    /// When a list row asks what it may show
+    /// Then his rating, but not his wage or condition
+    #[test]
+    fn a_list_row_shows_a_known_rivals_rating_only() {
+        let game = world(Some(MY_CLUB), vec![rated("r", Some("rival"), 74, 15_843)]);
+
+        assert_eq!(
+            visibility_of(&game, "r"),
+            PlayerVisibility {
+                knowledge: PlayerKnowledge::Known,
+                ovr: Some(74),
+                wage: VisibleWage::Hidden,
+                condition: None,
+            }
+        );
+    }
+
+    /// Given a player in another division whom a scout reported on
+    /// When a list row asks what it may show
+    /// Then his wage as about the figure, but no rating (until a scout's estimate exists) and no
+    ///      condition
+    #[test]
+    fn a_list_row_shows_a_scouted_players_approximate_wage_only() {
+        let mut game = world(Some(MY_CLUB), vec![rated("f", Some("faraway"), 74, 15_843)]);
+        scouted(&mut game, "f", "2026-09-01");
+
+        let visibility = visibility_of(&game, "f");
+
+        assert_eq!(visibility.ovr, None);
+        assert_eq!(visibility.wage, VisibleWage::Approximate { weekly: 16_000 });
+        assert_eq!(visibility.condition, None);
+    }
+
+    /// Given a player in another division, never scouted
+    /// When a list row asks what it may show
+    /// Then nothing beyond what is public
+    #[test]
+    fn a_list_row_shows_nothing_private_about_an_unknown_player() {
+        let game = world(Some(MY_CLUB), vec![rated("f", Some("faraway"), 74, 15_843)]);
+
+        assert_eq!(
+            visibility_of(&game, "f"),
+            PlayerVisibility {
+                knowledge: PlayerKnowledge::Unknown,
+                ovr: None,
+                wage: VisibleWage::Hidden,
+                condition: None,
+            }
+        );
+    }
+
+    /// Given the club meeting "faraway" today
+    /// When a list row asks what it may show about one of faraway's players
+    /// Then his condition, as the team sheet shows it, but still no rating or wage
+    #[test]
+    fn a_list_row_shows_an_opponents_condition_on_matchday() {
+        let mut game = world(Some(MY_CLUB), vec![rated("f", Some("faraway"), 74, 15_843)]);
+        game.competitions.push(cup("cup", &[MY_CLUB, "faraway"]));
+        fixture_in(&mut game, "cup", "2026-09-15", "faraway", MY_CLUB);
+
+        let visibility = visibility_of(&game, "f");
+
+        assert_eq!(visibility.condition, Some(64));
+        assert_eq!(visibility.ovr, None);
+        assert_eq!(visibility.wage, VisibleWage::Hidden);
+    }
+
+    /// Given an exact, an approximate and a hidden wage
+    /// When their figure is asked
+    /// Then the first two give theirs and the hidden one gives none
+    #[test]
+    fn a_visible_wage_gives_its_figure_unless_hidden() {
+        assert_eq!(VisibleWage::Exact { weekly: 15_843 }.value(), Some(15_843));
+        assert_eq!(
+            VisibleWage::Approximate { weekly: 16_000 }.value(),
+            Some(16_000)
+        );
+        assert_eq!(VisibleWage::Hidden.value(), None);
+    }
+
+    /// Given a min/max rating filter
+    /// When a known and an unknown rating are tested against it
+    /// Then the known one passes inside the bounds and fails outside; the unknown one fails any set
+    ///      bound and passes only when none is set
+    #[test]
+    fn an_unknown_rating_fails_any_set_rating_bound() {
+        assert!(passes_ovr_filter(Some(74), Some(70), Some(80)));
+        assert!(!passes_ovr_filter(Some(69), Some(70), None));
+        assert!(!passes_ovr_filter(Some(81), None, Some(80)));
+        assert!(!passes_ovr_filter(None, Some(1), None));
+        assert!(!passes_ovr_filter(None, None, Some(99)));
+        assert!(passes_ovr_filter(None, None, None));
+    }
+
+    /// Given a maximum wage filter
+    /// When exact, approximate and hidden wages are tested against it
+    /// Then a visible figure passes at or under the maximum; a hidden wage fails any set maximum
+    ///      and passes only when none is set
+    #[test]
+    fn a_hidden_wage_fails_a_set_wage_maximum() {
+        assert!(passes_wage_filter(
+            &VisibleWage::Exact { weekly: 15_000 },
+            Some(15_000)
+        ));
+        assert!(!passes_wage_filter(
+            &VisibleWage::Approximate { weekly: 16_000 },
+            Some(15_000)
+        ));
+        assert!(!passes_wage_filter(&VisibleWage::Hidden, Some(1_000_000)));
+        assert!(passes_wage_filter(&VisibleWage::Hidden, None));
+    }
+
+    /// Given ratings 80, unknown and 70
+    /// When they are sorted by rating, descending and then ascending
+    /// Then the known ones run in that direction and the unknown one comes last both times
+    #[test]
+    fn an_unknown_rating_sorts_after_every_known_one_either_way() {
+        let mut ratings = vec![Some(70), None, Some(80)];
+
+        ratings.sort_by(|a, b| compare_visible_ovr(*a, *b, false));
+        assert_eq!(ratings, vec![Some(80), Some(70), None]);
+
+        ratings.sort_by(|a, b| compare_visible_ovr(*a, *b, true));
+        assert_eq!(ratings, vec![Some(70), Some(80), None]);
     }
 }

@@ -126,6 +126,7 @@ pub struct App {
     dir: Option<TempDir>,
     log: PathBuf,
     client: Option<Client>,
+    mode: Mode,
 }
 
 impl App {
@@ -167,6 +168,11 @@ impl App {
             "--auto-save-interval-days".to_string(),
             "0".to_string(),
         ];
+        // The harness reads the whole game through `dev_full_game_state`, which only a sandbox
+        // server may offer: the app refuses the flag in competition mode.
+        if config.mode == Mode::Sandbox {
+            args.push("--dev-full-state".to_string());
+        }
         args.extend(config.extra_args.iter().cloned());
 
         let child = app_command(&binary, &args, dir.path())
@@ -188,6 +194,7 @@ impl App {
             dir: Some(dir),
             log,
             client: None,
+            mode: config.mode,
         };
         match app.wait_until_ready() {
             Ok(client) => {
@@ -200,6 +207,11 @@ impl App {
                 Err(LaunchError::NotReady(bundle))
             }
         }
+    }
+
+    /// The mode the app was started in. A competition server has no state oracle by design.
+    pub fn mode(&self) -> Mode {
+        self.mode
     }
 
     /// The binary this app was started from.
@@ -304,7 +316,7 @@ impl App {
         // A fresh short-lived session: the scenario's own client may be the one that hung.
         let state_file = dir.join("game-state.json");
         let state = Client::connect(&self.url(), STATE_CAPTURE_TIMEOUT)
-            .and_then(|probe| probe.call_value("info_game_state", serde_json::json!({})));
+            .and_then(|probe| probe.call_value("dev_full_game_state", serde_json::json!({})));
         let state_note = match state {
             Ok(state) => match fs::write(&state_file, state.to_string()) {
                 Ok(()) => state_file.display().to_string(),
@@ -947,15 +959,57 @@ mod tests {
         );
     }
 
-    /// Whether a process is still running (a zombie waiting to be reaped is not).
-    fn process_is_running(pid: u32) -> bool {
-        std::fs::read_to_string(format!("/proc/{pid}/stat"))
-            .ok()
-            .and_then(|stat| {
-                stat.rsplit_once(')')
-                    .map(|(_, rest)| rest.trim_start().to_string())
-            })
-            .is_some_and(|rest| !rest.starts_with('Z'))
+    /// What one look at a process says.
+    #[derive(Debug, PartialEq, Eq)]
+    enum Process {
+        Running,
+        Gone,
+    }
+
+    /// Reads a process's `/proc/<pid>/stat` result. A process is gone when its stat file does not
+    /// exist or it is a zombie waiting to be reaped. A read that fails for any other reason (too
+    /// many open files in a busy parallel test run, say) says nothing about the process, so it is
+    /// not "gone": the caller looks again. Counting it as gone made the test read the helper as
+    /// dead and then, on the next read, as alive.
+    fn observe(stat: std::io::Result<String>) -> Process {
+        match stat {
+            Ok(stat) => match stat.rsplit_once(')') {
+                Some((_, rest)) if rest.trim_start().starts_with('Z') => Process::Gone,
+                _ => Process::Running,
+            },
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Process::Gone,
+            Err(_) => Process::Running,
+        }
+    }
+
+    /// Looks at the process until it is gone or `within` has passed. The answer is the last look,
+    /// never a second one: a test that polls with one read and asserts with another can see the
+    /// process change between them.
+    fn wait_until_gone(pid: u32, within: Duration) -> Process {
+        let deadline = std::time::Instant::now() + within;
+        loop {
+            let seen = observe(std::fs::read_to_string(format!("/proc/{pid}/stat")));
+            if seen == Process::Gone || std::time::Instant::now() >= deadline {
+                return seen;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    /// Given the four things a stat read can answer (a running process, a zombie, no such file,
+    ///       and a failure that says nothing)
+    /// When each is observed
+    /// Then only the zombie and the missing file are "gone": a failed read is not evidence of death.
+    #[test]
+    fn only_a_zombie_or_a_missing_file_is_gone() {
+        let stat = |state: &str| Ok(format!("123 (sleep) {state} 1 123 123 0 -1 4194560"));
+        let not_found = std::io::Error::from(std::io::ErrorKind::NotFound);
+        let transient = std::io::Error::other("Too many open files");
+
+        assert_eq!(observe(stat("S")), Process::Running);
+        assert_eq!(observe(stat("Z")), Process::Gone);
+        assert_eq!(observe(Err(not_found)), Process::Gone);
+        assert_eq!(observe(Err(transient)), Process::Running);
     }
 
     /// Given a binary that starts a helper process of its own before it prints its version, as the
@@ -983,12 +1037,9 @@ mod tests {
             .trim()
             .parse()
             .unwrap();
-        let deadline = std::time::Instant::now() + Duration::from_secs(5);
-        while process_is_running(helper) && std::time::Instant::now() < deadline {
-            std::thread::sleep(Duration::from_millis(50));
-        }
-        assert!(
-            !process_is_running(helper),
+        assert_eq!(
+            wait_until_gone(helper, Duration::from_secs(5)),
+            Process::Gone,
             "the helper process {helper} outlived the probe"
         );
     }

@@ -28,6 +28,7 @@ describe("inboxService", () => {
 
     await expect(markMessageRead("m1")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("mark_message_read", {
+      careerToken: 0,
       messageId: "m1",
     });
   });
@@ -38,6 +39,7 @@ describe("inboxService", () => {
 
     await expect(resolveMessageAction("m1", "a1", "o1")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("resolve_message_action", {
+      careerToken: 0,
       messageId: "m1",
       actionId: "a1",
       optionId: "o1",
@@ -49,7 +51,7 @@ describe("inboxService", () => {
     mockedInvoke.mockResolvedValueOnce(response);
 
     await expect(markAllMessagesRead()).resolves.toBe(response);
-    expect(mockedInvoke).toHaveBeenCalledWith("mark_all_messages_read");
+    expect(mockedInvoke).toHaveBeenCalledWith("mark_all_messages_read", { careerToken: 0 });
   });
 
   it("clears old messages", async () => {
@@ -57,7 +59,7 @@ describe("inboxService", () => {
     mockedInvoke.mockResolvedValueOnce(response);
 
     await expect(clearOldMessages()).resolves.toBe(response);
-    expect(mockedInvoke).toHaveBeenCalledWith("clear_old_messages");
+    expect(mockedInvoke).toHaveBeenCalledWith("clear_old_messages", { careerToken: 0 });
   });
 
   it("deletes a single message", async () => {
@@ -66,6 +68,7 @@ describe("inboxService", () => {
 
     await expect(deleteMessage("m1")).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("delete_message", {
+      careerToken: 0,
       messageId: "m1",
     });
   });
@@ -76,6 +79,7 @@ describe("inboxService", () => {
 
     await expect(deleteMessages(["m1", "m2"])).resolves.toBe(response);
     expect(mockedInvoke).toHaveBeenCalledWith("delete_messages", {
+      careerToken: 0,
       messageIds: ["m1", "m2"],
     });
   });

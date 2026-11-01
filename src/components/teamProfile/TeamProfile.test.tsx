@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { PlayerKnowledge } from "../../services/scoutingService";
 import { ratingTierClass } from "../../lib/ratingTier";
 import TeamProfile from "./TeamProfile";
 import { createSeasonContext } from "../../test-utils/factories";
@@ -14,6 +15,17 @@ vi.mock("../../hooks/useRatingTiers", async () => {
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+}));
+
+// What the club knows about each player, as the backend's `player_knowledge` would answer, by id.
+// Everyone not named reads as the club's own, which most of these tests render.
+const knowledge = vi.hoisted(() => ({
+  current: {} as Record<string, PlayerKnowledge>,
+}));
+
+vi.mock("../../hooks/usePlayerKnowledge", () => ({
+  usePlayerKnowledge: () => (playerId: string) =>
+    knowledge.current[playerId] ?? ({ kind: "own" } as const),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -237,6 +249,7 @@ function createGameState(team: TeamData): GameStateData {
 
 describe("TeamProfile", () => {
   beforeEach(() => {
+    knowledge.current = {};
     vi.mocked(invoke).mockReset();
     vi.mocked(invoke).mockResolvedValue(null);
   });
@@ -395,6 +408,73 @@ describe("TeamProfile", () => {
     );
   });
 
+  // A rival club's profile opened from the user's club: one rival player rated 77.
+  function renderRivalWith(playerKnowledge: PlayerKnowledge) {
+    const mine = createTeam({ id: "mine", name: "Mine FC" });
+    const rival = createTeam({ id: "rival", name: "Rival FC" });
+    const state = createGameState(mine);
+    state.teams = [mine, rival];
+    state.players = [
+      createPlayer({
+        id: "r-77",
+        full_name: "Rival Seventy Seven",
+        match_name: "R. Seven",
+        ovr: 77,
+        team_id: "rival",
+      }),
+    ];
+    knowledge.current = { "r-77": playerKnowledge };
+
+    render(<TeamProfile team={rival} gameState={state} isOwnTeam={false} />);
+    // His row's cell under the roster's OVR column, found by role and name, not by test id.
+    return async () => {
+      const row = (await screen.findByText("Rival Seventy Seven")).closest("tr") as HTMLElement;
+      const headers = within(row.closest("table") as HTMLElement).getAllByRole("columnheader");
+      const ovrColumn = headers.findIndex((header) => header.textContent === "OVR");
+      return within(row).getAllByRole("cell")[ovrColumn].firstElementChild as HTMLElement;
+    };
+  }
+
+  /**
+   * Given a rival club in the user's own division, its player rated 77
+   * When its roster renders
+   * Then his rating shows, in its backend tier's colour, as the staff see him every season
+   */
+  it("shows a known rival's rating on his club's roster", async () => {
+    const rating = await renderRivalWith({ kind: "known" })();
+
+    expect(rating).toHaveTextContent("77");
+    expect(rating).toHaveClass(...ratingTierClass("A", "text").split(" "));
+  });
+
+  /**
+   * Given a rival club in another division, its player never scouted
+   * When its roster renders
+   * Then his rating reads "–", as on his profile: nothing the club could not know
+   */
+  it("shows an unknown rival's rating as a dash on his club's roster", async () => {
+    const rating = await renderRivalWith({ kind: "unknown" })();
+
+    expect(rating).toHaveTextContent("–");
+    expect(rating).not.toHaveTextContent("77");
+  });
+
+  /**
+   * Given a rival club in another division, its player scouted (the report holds his attributes,
+   *      not a rating)
+   * When its roster renders
+   * Then his rating reads "–", as on his profile until a scout's estimate exists
+   */
+  it("shows a scouted rival's rating as a dash on his club's roster", async () => {
+    const rating = await renderRivalWith({
+      kind: "scouted",
+      scouted_on: "2026-07-20",
+      current: true,
+    })();
+
+    expect(rating).toHaveTextContent("–");
+  });
+
   it("offers a roster context menu action to view the player profile", async () => {
     const team = createTeam();
     const onSelectPlayer = vi.fn();
@@ -422,5 +502,95 @@ describe("TeamProfile", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "View profile" }));
 
     expect(onSelectPlayer).toHaveBeenCalledWith("player-1");
+  });
+});
+
+describe("the team profile's average rating", () => {
+  beforeEach(() => {
+    knowledge.current = {};
+    vi.mocked(invoke).mockReset();
+  });
+
+  // A rival club, its one player rated 61, so an average worked out on screen would read 61; the
+  // backend's card says 73 when the club may see it.
+  const rival = createTeam({ id: "rival", name: "Rival FC", reputation: 64 });
+  const rivalState = (): GameStateData => {
+    const state = createGameState(createTeam());
+    return { ...state, players: [createPlayer({ team_id: rival.id, ovr: 61 })] };
+  };
+
+  /** The card the backend sends for the rival, with `avgOvr` as its average (null: withheld). */
+  function answerCard(avgOvr: number | null) {
+    vi.mocked(invoke).mockImplementation(async (command: string, args?: unknown) => {
+      if (command !== "get_team_card") return null;
+      expect(args).toEqual({ teamId: rival.id });
+      return { team: { id: rival.id, reputation: rival.reputation }, avg_ovr: avgOvr };
+    });
+  }
+
+  /** Every average the profile shows: the hero's (wide and narrow layouts) and the summary's. */
+  const shownAverages = () =>
+    screen.getAllByText("Avg OVR").map((label) => label.nextElementSibling?.textContent);
+
+  /** The summary card: its heading sits in the card's header, which sits in the card. */
+  const summaryCard = (): HTMLElement => {
+    const card = screen.getByRole("heading", { name: "Squad Overview" }).parentElement
+      ?.parentElement;
+    if (!card) throw new Error("no summary card");
+    return card;
+  };
+
+  /**
+   * Given a rival in the manager's division, whose card the backend sends with an average of 73
+   * When his club's profile opens
+   * Then the hero and the summary show the backend's 73, not an average worked out on screen
+   */
+  it("shows the average the backend gives for a club in the manager's division", async () => {
+    answerCard(73);
+
+    render(<TeamProfile team={rival} gameState={rivalState()} isOwnTeam={false} />);
+
+    await waitFor(() => expect(shownAverages()).toEqual(["73", "73", "73"]));
+  });
+
+  /**
+   * Given a club outside the manager's division, whose card the backend sends with no average
+   * When its profile opens
+   * Then the hero shows "–" for the average, and the summary shows the club's reputation instead
+   */
+  it("shows a dash, and the reputation in the summary, for a club outside the division", async () => {
+    answerCard(null);
+
+    render(<TeamProfile team={rival} gameState={rivalState()} isOwnTeam={false} />);
+
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("get_team_card", { teamId: "rival" }));
+    expect(shownAverages()).toEqual(["–", "–"]);
+    const summary = within(summaryCard());
+    expect(summary.queryByText("Avg OVR")).not.toBeInTheDocument();
+    expect(summary.getByText("Reputation").nextElementSibling).toHaveTextContent(/^64$/);
+  });
+
+  /**
+   * Given a rival's profile showing his club's average of 73
+   * When the manager takes a job at another club and the card for the new club's view is still
+   *      on its way
+   * Then the average reads "–": the old club's answer is not the new club's
+   */
+  it("hides the old club's average while the new club's card is on its way", async () => {
+    answerCard(73);
+    const before = rivalState();
+    const { rerender } = render(<TeamProfile team={rival} gameState={before} isOwnTeam={false} />);
+    await waitFor(() => expect(shownAverages()).toEqual(["73", "73", "73"]));
+    vi.mocked(invoke).mockImplementation(() => new Promise(() => {}));
+
+    rerender(
+      <TeamProfile
+        team={rival}
+        gameState={{ ...before, manager: { ...before.manager, team_id: "elsewhere" } }}
+        isOwnTeam={false}
+      />,
+    );
+
+    await waitFor(() => expect(shownAverages()).toEqual(["–", "–"]));
   });
 });
