@@ -71,15 +71,17 @@ export function EntityCard({
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h3
             id={nameId}
-            className={`font-heading font-extrabold uppercase leading-tight tracking-label ${
-              compact ? "text-lead" : "text-heading"
+            // Uppercase only at heading size: a compact card's name is lead-sized text.
+            className={`font-heading font-extrabold leading-tight ${
+              compact ? "text-lead" : "text-heading uppercase tracking-label"
             }`}
           >
             {onOpen ? (
               <button
                 type="button"
                 onClick={onOpen}
-                className="rounded-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                // The offset keeps the ring clear of the kit-washed header behind the name.
+                className="rounded-sm text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
               >
                 {name}
               </button>

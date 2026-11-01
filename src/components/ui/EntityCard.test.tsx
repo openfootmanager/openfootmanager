@@ -80,6 +80,27 @@ describe("EntityCard", () => {
     expect(within(card).getByText("79")).toBeInTheDocument();
     expect(within(card).queryByText("Value")).toBeNull();
     expect(within(card).queryByRole("button", { name: "Renew" })).toBeNull();
+    // A compact name is lead-sized text, so it keeps its own case; only a heading-size name is set
+    // in capitals.
+    expect(within(card).getByRole("heading", { name: "Gonzalez" })).not.toHaveClass("uppercase");
+  });
+
+  /**
+   * Given a full-size card that opens
+   * When its name button takes keyboard focus
+   * Then it shows the full focus ring, offset from the kit-washed header behind it, and the name
+   * is set in capitals at heading size.
+   */
+  it("draws the full focus ring on the name button, clear of the kit wash", () => {
+    renderCard({ onOpen: vi.fn() });
+    const open = screen.getByRole("button", { name: "Gonzalez" });
+    expect(open).toHaveClass(
+      "focus-visible:ring-2",
+      "focus-visible:ring-focus",
+      "focus-visible:ring-offset-2",
+      "focus-visible:ring-offset-panel",
+    );
+    expect(screen.getByRole("heading", { name: "Gonzalez" })).toHaveClass("uppercase");
   });
 
   /**
