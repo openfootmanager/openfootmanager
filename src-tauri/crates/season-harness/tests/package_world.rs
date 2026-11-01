@@ -115,3 +115,25 @@ fn a_package_world_is_prepared_for_a_career_as_the_app_prepares_one() {
         "the staff market is stocked"
     );
 }
+
+/// Given the package in which every player is authored,
+/// When a world is built from it,
+/// Then it holds exactly the authored players and no generated one, so nothing in it depends on
+///      the generator's rating bell.
+#[test]
+fn an_authored_only_package_builds_no_generated_player() {
+    let game = WorldSpec::authored_only_package(11)
+        .build()
+        .expect("the package builds");
+
+    assert_eq!(game.teams.len(), 4);
+    assert_eq!(game.players.len(), 96, "four clubs of 24 authored players");
+    let strangers: Vec<&str> = game
+        .players
+        .iter()
+        .filter(|player| !player.id.contains("-fc-p"))
+        .map(|player| player.id.as_str())
+        .take(3)
+        .collect();
+    assert!(strangers.is_empty(), "generated players: {strangers:?}");
+}

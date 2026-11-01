@@ -1,0 +1,15 @@
+{
+  "schema": "world",
+  "id": "harness-authored-only",
+  "name": "Harness Authored Only",
+  "description": "Four fictional English clubs whose every player is authored (rating, ceiling, wage, contract): a package world in which the rating bell of the generator draws nothing, so its fingerprint must not move when the bell does.",
+  "version": "1.0.0",
+  "author": "OpenFoot Manager",
+  "license": "CC0-1.0",
+  "packageType": "database",
+  "gameMinVersion": "0.3.0",
+  "formatVersion": 1,
+  "baseYear": 2033,
+  "defaultActiveRegions": [],
+  "defaultActiveCompetitions": []
+}

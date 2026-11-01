@@ -43,6 +43,15 @@ fn the_fingerprint_hash_of_fixed_runs() {
             play(&WorldSpec::gate(seed), 2)
         );
     }
+    // A package of authored players only: the generator's rating bell draws nothing for it, so
+    // this line must be the same before and after a change to the bell.
+    let authored = WorldSpec::authored_only_package(1)
+        .build()
+        .expect("the package builds");
+    eprintln!(
+        "FINGERPRINT authored-only package opening {:016x}",
+        hash_of(&fingerprint(&authored))
+    );
     let shipped_seed = 1;
     eprintln!(
         "FINGERPRINT shipped seed {shipped_seed} one season {:016x}",
