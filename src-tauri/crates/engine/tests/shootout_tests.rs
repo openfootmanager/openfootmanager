@@ -6,7 +6,7 @@
 use engine::live_match::LiveMatchState;
 use engine::{
     EventType, MatchCommand, MatchConfig, MatchPhase, PlayStyle, PlayerData, PlayerRole, Position,
-    Side, TacticsConfig, TeamData,
+    ShootoutOrderSnapshot, Side, TacticsConfig, TeamData,
 };
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -66,8 +66,8 @@ const PENALTY_SKILLS: [(u8, u8); 10] = [
 ];
 
 /// A 4-4-2 of outfield players `{prefix}1`..`{prefix}10` with the skills above. The goalkeeper
-/// `{prefix}_gk` is the best penalty taker of all, so a keeper who kicks last does so because he
-/// is the keeper, not because he is poor at it.
+/// `{prefix}_gk` is the best penalty taker of all, so a keeper who kicks last does so for being
+/// the keeper, not for poor penalty skill.
 fn side(prefix: &str) -> TeamData {
     let mut players = vec![player(
         &format!("{prefix}_gk"),
@@ -178,6 +178,22 @@ fn shootout(
     Some(play_out(state, rng))
 }
 
+/// Plays seed `seed` to the start of a shootout: the phase is `PenaltyShootout` and no kick has
+/// been taken. `None` when the referee sent anyone off.
+fn to_the_shootout(
+    seed: u64,
+    before_kick_off: &dyn Fn(&mut LiveMatchState),
+    at_the_final_whistle: &dyn Fn(&mut LiveMatchState),
+) -> Option<(LiveMatchState, StdRng)> {
+    let mut state = kick_off(vec![]);
+    before_kick_off(&mut state);
+    let (mut state, mut rng) = to_the_final_whistle(seed, state)?;
+    at_the_final_whistle(&mut state);
+    state.step_minute(&mut rng);
+    assert_eq!(state.phase(), MatchPhase::PenaltyShootout);
+    Some((state, rng))
+}
+
 fn shootouts(
     before_kick_off: &dyn Fn(&mut LiveMatchState),
     at_the_final_whistle: &dyn Fn(&mut LiveMatchState),
@@ -237,8 +253,8 @@ fn five_different_players_take_a_full_sides_regulation_kicks() {
 
 /// Given a side whose designated penalty taker is its weakest penalty taker,
 /// When the shootout comes,
-/// Then he kicks first, the rest follow from the best penalty taker down, and the goalkeeper
-/// kicks last, though he is the best of all. The side with no designated taker starts from its
+/// Then that player kicks first, the rest follow from the best penalty taker down, and the goalkeeper
+/// kicks last, though the best of all. The side with no designated taker starts from its
 /// best.
 #[test]
 fn the_automatic_order_is_the_designated_taker_then_penalty_skill_then_the_keeper() {
@@ -305,7 +321,7 @@ fn in_sudden_death_the_order_starts_again_from_the_top() {
 
 /// Given a side whose designated penalty taker and best penalty taker was sent off,
 /// When the shootout comes,
-/// Then he never kicks.
+/// Then that player never kicks.
 #[test]
 fn a_sent_off_player_never_kicks() {
     let designate_h4 = |state: &mut LiveMatchState| {
@@ -320,7 +336,7 @@ fn a_sent_off_player_never_kicks() {
     for kickers in shootouts(&designate_h4, &h4_off) {
         assert!(
             !kickers.home.iter().any(|kicker| kicker == "h4"),
-            "h4 kicked after his red card: {:?}",
+            "h4 kicked after a red card: {:?}",
             kickers.home
         );
     }
@@ -446,4 +462,207 @@ fn a_substitution_before_the_final_whistle_of_extra_time_still_counts() {
         return;
     }
     panic!("no seed reached the final whistle of extra time without a red card");
+}
+
+// ---------------------------------------------------------------------------
+// A manager's own order
+// ---------------------------------------------------------------------------
+
+const NOT_NOW: &str = "be.error.liveMatch.shootoutOrderNotNow";
+const NOT_ELIGIBLE: &str = "be.error.liveMatch.shootoutOrderNotEligible";
+
+/// Everyone in a full side, in the automatic order.
+const FULL_HOME_ORDER: [&str; 11] = [
+    "h4", "h6", "h2", "h1", "h5", "h3", "h8", "h10", "h9", "h7", "h_gk",
+];
+
+/// A full side's order that is not the automatic one: the keeper first, the best penalty taker
+/// last.
+const CHOSEN_HOME_ORDER: [&str; 11] = [
+    "h_gk", "h7", "h9", "h10", "h8", "h3", "h5", "h1", "h2", "h6", "h4",
+];
+
+fn set_order(state: &mut LiveMatchState, side: Side, names: &[&str]) -> Result<(), String> {
+    state.apply_command(MatchCommand::SetShootoutOrder {
+        side,
+        player_ids: ids(names),
+    })
+}
+
+/// The first seed that reaches a shootout with nobody sent off by the referee.
+fn first_shootout(at_the_final_whistle: &dyn Fn(&mut LiveMatchState)) -> (LiveMatchState, StdRng) {
+    (0..SEEDS)
+        .find_map(|seed| to_the_shootout(seed, &nothing, at_the_final_whistle))
+        .expect("some seed reaches a shootout without a red card")
+}
+
+/// Given two full sides at the start of a shootout,
+/// When the engine is asked for each side's order,
+/// Then it lists all eleven in the automatic order, and all eleven kick.
+#[test]
+fn the_engine_reports_each_sides_order_at_the_start_of_the_shootout() {
+    let (state, _) = first_shootout(&nothing);
+    assert_eq!(
+        state.shootout_order(Side::Home),
+        Some(ShootoutOrderSnapshot {
+            player_ids: ids(&FULL_HOME_ORDER),
+            kickers: 11,
+        })
+    );
+    assert_eq!(
+        state.shootout_order(Side::Away).map(|order| order.kickers),
+        Some(11)
+    );
+}
+
+/// Given a full side against a side with seven players left,
+/// When the engine is asked for each side's order,
+/// Then the full side's lists all eleven, so the manager can choose who sits out, but only
+/// seven kick on either side.
+#[test]
+fn a_full_side_against_seven_lists_all_eleven_but_seven_kick() {
+    let (state, _) = first_shootout(&send_off(&["a7", "a8", "a9", "a10"]));
+    assert_eq!(
+        state.shootout_order(Side::Home),
+        Some(ShootoutOrderSnapshot {
+            player_ids: ids(&FULL_HOME_ORDER),
+            kickers: 7,
+        })
+    );
+    assert_eq!(
+        state.shootout_order(Side::Away),
+        Some(ShootoutOrderSnapshot {
+            player_ids: ids(&["a4", "a6", "a2", "a1", "a5", "a3", "a_gk"]),
+            kickers: 7,
+        })
+    );
+}
+
+/// Given a match that has not reached a shootout,
+/// When the engine is asked for an order,
+/// Then there is none.
+#[test]
+fn there_is_no_order_before_the_shootout() {
+    assert_eq!(kick_off(vec![]).shootout_order(Side::Home), None);
+}
+
+/// Given the start of a shootout,
+/// When a manager sets their own order before the first kick,
+/// Then the engine reports that order, and the side kicks in it, starting again from the top in
+/// sudden death.
+#[test]
+fn a_side_kicks_in_the_order_its_manager_sets() {
+    for seed in 0..SEEDS {
+        let Some((mut state, rng)) = to_the_shootout(seed, &nothing, &nothing) else {
+            continue;
+        };
+        set_order(&mut state, Side::Home, &CHOSEN_HOME_ORDER)
+            .expect("the order is the eligible players");
+        assert_eq!(
+            state.shootout_order(Side::Home),
+            Some(ShootoutOrderSnapshot {
+                player_ids: ids(&CHOSEN_HOME_ORDER),
+                kickers: 11,
+            })
+        );
+        assert_follows(&play_out(state, rng).home, &ids(&CHOSEN_HOME_ORDER));
+    }
+}
+
+/// Given a full side against a side with seven players left,
+/// When the full side's manager puts the best penalty taker last,
+/// Then that player sits out, and the order starts again after the seventh kick.
+#[test]
+fn a_player_put_past_the_kicker_count_sits_out() {
+    let away_seven = send_off(&["a7", "a8", "a9", "a10"]);
+    let mut wrapped = 0;
+    for seed in 0..SEEDS {
+        let Some((mut state, rng)) = to_the_shootout(seed, &nothing, &away_seven) else {
+            continue;
+        };
+        set_order(&mut state, Side::Home, &CHOSEN_HOME_ORDER)
+            .expect("the order is the eligible players");
+        let kicked = play_out(state, rng).home;
+        assert_follows(&kicked, &ids(&CHOSEN_HOME_ORDER[..7]));
+        wrapped += usize::from(kicked.len() >= 8);
+    }
+    assert!(
+        wrapped > 2,
+        "only {wrapped} shootouts went past seven kicks"
+    );
+}
+
+/// Given a shootout in which the first kick has been taken,
+/// When the other side's manager tries to set an order,
+/// Then it is refused and the order stands.
+#[test]
+fn an_order_is_refused_once_a_kick_has_been_taken() {
+    let (mut state, mut rng) = first_shootout(&nothing);
+    let before = state.shootout_order(Side::Away);
+    state.step_minute(&mut rng);
+    let reversed = [
+        "a_gk", "a7", "a9", "a10", "a8", "a3", "a5", "a1", "a2", "a6", "a4",
+    ];
+    assert_eq!(
+        set_order(&mut state, Side::Away, &reversed),
+        Err(NOT_NOW.to_string())
+    );
+    assert_eq!(state.shootout_order(Side::Away), before);
+}
+
+/// Given a match before kick-off,
+/// When a manager tries to set a shootout order,
+/// Then it is refused: there is no shootout to order yet.
+#[test]
+fn an_order_is_refused_before_the_shootout() {
+    let mut state = kick_off(vec![]);
+    assert_eq!(
+        set_order(&mut state, Side::Home, &FULL_HOME_ORDER),
+        Err(NOT_NOW.to_string())
+    );
+}
+
+/// Given the start of a shootout with h1 sent off,
+/// When a manager sends an order that is not exactly the side's eligible players (one missing, one
+/// twice, the sent-off player, a stranger),
+/// Then each is refused and the automatic order stands; the eligible players reordered are
+/// accepted.
+#[test]
+fn an_order_that_is_not_exactly_the_eligible_players_is_refused() {
+    let (mut state, _) = first_shootout(&send_off(&["h1"]));
+    let automatic = state.shootout_order(Side::Home);
+    let eligible = [
+        "h_gk", "h6", "h2", "h5", "h3", "h8", "h10", "h9", "h7", "h4",
+    ];
+    let missing_one = &eligible[1..];
+    let twice = [
+        "h4", "h4", "h2", "h5", "h3", "h8", "h10", "h9", "h7", "h_gk",
+    ];
+    let sent_off = [
+        "h1", "h6", "h2", "h5", "h3", "h8", "h10", "h9", "h7", "h_gk",
+    ];
+    let stranger = [
+        "a4", "h6", "h2", "h5", "h3", "h8", "h10", "h9", "h7", "h_gk",
+    ];
+    for order in [missing_one, &twice[..], &sent_off[..], &stranger[..]] {
+        assert_eq!(
+            set_order(&mut state, Side::Home, order),
+            Err(NOT_ELIGIBLE.to_string()),
+            "{order:?} was accepted"
+        );
+        assert_eq!(state.shootout_order(Side::Home), automatic);
+    }
+    assert_eq!(set_order(&mut state, Side::Home, &eligible), Ok(()));
+}
+
+/// Given the start of a shootout,
+/// When the engine's own snapshot is taken,
+/// Then it carries neither side's order: what a viewer may see of an order is the session's
+/// decision, which shows a manager only their own.
+#[test]
+fn the_engine_snapshot_never_carries_an_order() {
+    let (state, _) = first_shootout(&nothing);
+    let shootout = state.snapshot().penalty_shootout.expect("a shootout is on");
+    assert_eq!(shootout.home_order, None);
+    assert_eq!(shootout.away_order, None);
 }

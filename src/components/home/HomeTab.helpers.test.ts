@@ -500,7 +500,8 @@ describe("HomeTab.helpers", (): void => {
 
     const result = getHomeRosterOverview(roster);
 
-    expect(result.avgOvr).toBe(65);
+    // (72 + 58 + 64) / 3 = 64.67, rounded down as the clubs directory and the team profile do.
+    expect(result.avgOvr).toBe(64);
     expect(result.unavailablePlayers.map((player) => player.id)).toEqual(["player-injured"]);
     expect(result.hotPlayers.map((player) => player.id)).toEqual(["player-hot"]);
     expect(result.coldPlayers.map((player) => player.id)).toEqual(["player-cold"]);

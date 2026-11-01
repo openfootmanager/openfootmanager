@@ -379,4 +379,22 @@ mod tests {
         assert_eq!(next_reputation(995, 0.5, 1, 10), 1000);
         assert_eq!(next_reputation(5, -0.5, 10, 10), 0);
     }
+
+    /// Given a club of reputation 500 in a ten-club league that finishes third, 0.2 points a game
+    ///       above what its reputation predicted
+    /// When reputations are updated at the season's end
+    /// Then its reputation rises to 530: 150 a point per game above expectation, with no bonus
+    ///      or penalty for a place in mid-table
+    #[test]
+    fn a_mid_table_finish_beating_expectation_gains_150_a_point_per_game() {
+        assert_eq!(next_reputation(500, 0.2, 3, 10), 530);
+    }
+
+    /// Given the same club winning the league, 0.2 points a game above expectation
+    /// When reputations are updated at the season's end
+    /// Then its reputation rises to 542: 30 for beating its expectation, and the champion's bonus
+    #[test]
+    fn winning_the_league_adds_the_champions_bonus_to_the_performance() {
+        assert_eq!(next_reputation(500, 0.2, 1, 10), 542);
+    }
 }

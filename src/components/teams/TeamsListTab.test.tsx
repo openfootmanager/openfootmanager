@@ -99,6 +99,7 @@ function buildCard(overrides: {
   play_style?: string;
   league_pos: number;
   points?: number;
+  avg_ovr?: number | null;
 }): TeamCard {
   return {
     team: {
@@ -115,7 +116,7 @@ function buildCard(overrides: {
       media: { logo: null },
     },
     roster_size: 22,
-    avg_ovr: 65,
+    avg_ovr: overrides.avg_ovr === undefined ? 65 : overrides.avg_ovr,
     total_value: 1_000_000,
     league_pos: overrides.league_pos,
     standing:
@@ -192,6 +193,27 @@ describe("TeamsListTab", () => {
     expect(headings[0]).toHaveTextContent("Beta FC");
     expect(headings[1]).toHaveTextContent("Alpha FC");
     expect(screen.getByText("Your Team")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a division rival whose card carries an average of 71, and a club in another division
+   *       whose card the backend sends with no average
+   * When the clubs list shows them
+   * Then the rival's card shows 71 and the other's "–", beside its reputation
+   */
+  it("shows a dash for the average of a club outside the manager's division", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "rival", name: "Rival FC", league_pos: 1, avg_ovr: 71 }),
+      buildCard({ id: "faraway", name: "Faraway FC", league_pos: 2, avg_ovr: null }),
+    ]);
+
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("rival")} onSelectTeam={vi.fn()} />);
+
+    await screen.findByText("Faraway FC");
+    const averages = screen
+      .getAllByText("Avg OVR")
+      .map((label) => label.nextElementSibling?.textContent);
+    expect(averages).toEqual(["71", "–"]);
   });
 
   it("filters clubs by name via the search box", async () => {

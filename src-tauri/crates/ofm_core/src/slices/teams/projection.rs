@@ -1,5 +1,6 @@
 use super::indices::StandingByTeam;
 use super::{TeamCard, TeamCardColors, TeamCardMedia, TeamCardTeam, TeamStanding};
+use crate::player_knowledge::KnowledgeView;
 use domain::league::StandingEntry;
 use domain::player::Player;
 use domain::team::{PlayStyle, Team};
@@ -9,6 +10,7 @@ pub(super) fn project_card(
     team: &Team,
     players_by_team: &HashMap<&str, Vec<&Player>>,
     standing_by_team: &StandingByTeam,
+    view: &KnowledgeView,
 ) -> TeamCard {
     let roster: &[&Player] = players_by_team
         .get(team.id.as_str())
@@ -16,12 +18,11 @@ pub(super) fn project_card(
         .unwrap_or(&[]);
     let roster_size = roster.len();
     let total_value: u64 = roster.iter().map(|p| p.market_value).sum();
-    let avg_ovr = if roster.is_empty() {
-        0
-    } else {
-        let total: u32 = roster.iter().map(|p| u32::from(p.ovr)).sum();
-        (total / roster.len() as u32) as u8
-    };
+    // The average of a squad the club does not know is withheld, never averaged from the few
+    // players it has scouted (maintainer, L2c).
+    let avg_ovr = view
+        .knows_squad_at(&team.id)
+        .then(|| average_rating(roster));
 
     let (league_pos, standing) = match standing_by_team.get(team.id.as_str()) {
         Some((pos, entry)) => (*pos, Some(project_standing(entry))),
@@ -36,6 +37,15 @@ pub(super) fn project_card(
         league_pos,
         standing,
     }
+}
+
+/// The squad's mean rating, rounded down; 0 for an empty squad.
+fn average_rating(roster: &[&Player]) -> u8 {
+    if roster.is_empty() {
+        return 0;
+    }
+    let total: u32 = roster.iter().map(|p| u32::from(p.ovr)).sum();
+    (total / roster.len() as u32) as u8
 }
 
 fn project_team_data(team: &Team) -> TeamCardTeam {

@@ -1,5 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import type { VisibleWage } from "./scoutingService";
+
 export type PlayerSortKey = "name" | "position" | "age" | "ovr" | "value" | "team";
 
 export type PlayerStatusFilter = "all" | "transfer" | "loan" | "free_agent" | "available";
@@ -43,15 +45,16 @@ export interface PlayerSummary {
   date_of_birth: string;
   /** Whole years on the game's current date. */
   age: number;
-  /** Weekly wage. */
-  wage: number;
+  /** Weekly wage as the club may see it: exact (own), about the figure (scouted), or hidden. */
+  wage: VisibleWage;
   nationality: string;
   position: string;
   natural_position: string;
   team_id: string | null;
   team_name: string | null;
   market_value: number;
-  ovr: number;
+  /** His rating when the club knows it (its own player, a division rival); null otherwise. */
+  ovr: number | null;
   transfer_listed: boolean;
   loan_listed: boolean;
   injured: boolean;

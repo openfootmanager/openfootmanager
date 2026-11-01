@@ -275,6 +275,10 @@ Users (and AI) can inject commands between minutes:
 
 In live mode, player condition depletes each minute based on `fatigue_per_minute`. A `condition_adjusted_skill()` function scales all attribute checks by the player's current condition, so fatigued players perform worse. This makes substitutions tactically meaningful.
 
+### In-match penalties
+
+A penalty awarded during play is taken by the side's designated penalty taker while that player is on the pitch. Otherwise, or when the taker has been sent off or substituted off, it goes to a forward. With no forward left it goes to a midfielder, then a defender, and the goalkeeper takes it only when nobody else is left.
+
 ### Penalty Shootout
 
 If a match is drawn after extra time (when allowed), a penalty shootout is resolved:
@@ -284,6 +288,7 @@ If a match is drawn after extra time (when allowed), a penalty shootout is resol
 - Both sides use only as many kickers as the side with fewer players on the pitch; the side with more drops the end of its order
 - A side with nobody left on the pitch does not hold the other side to nobody: the other then kicks in its full order
 - No substitutions are allowed from the final whistle of extra time, so the players who kick are the ones on the pitch when it blew
+- Before the first kick, a manager may reorder their own side with `MatchCommand::SetShootoutOrder` (every eligible player, reordered; the players past the kicker count sit out). AI managers keep the automatic order. The live session shows a manager only their own side's order (`PenaltyShootoutSnapshot.home_order` / `away_order`); the opponent's stays hidden until each kick is taken
 
 ### Match Snapshot
 

@@ -326,6 +326,41 @@ mod tests {
         }
     }
 
+    /// Given a finished group cup whose bracket was drawn the old way (group winner against group
+    ///       winner, runner-up against runner-up), as saves written before the draw changed hold,
+    /// When completion is verified,
+    /// Then it still verifies: the check reads the qualifiers as a set, not as a pairing.
+    #[test]
+    fn a_bracket_drawn_with_winners_against_winners_still_verifies() {
+        let mut competition = group_cup();
+        let place = |group: usize, place: usize| {
+            crate::group_stage::sorted_group_standings(&competition.groups[group])[place]
+                .team_id
+                .clone()
+        };
+        let (a1, a2, b1, b2) = (place(0, 0), place(0, 1), place(1, 0), place(1, 1));
+        let semifinals = competition.knockout_rounds[0].fixture_ids.clone();
+        let final_id = competition.knockout_rounds[1].fixture_ids[0].clone();
+        let mut redraw = |id: &str, home: &str, away: &str| {
+            let fixture = competition
+                .fixtures
+                .iter_mut()
+                .find(|fixture| fixture.id == id)
+                .unwrap();
+            fixture.home_team_id = home.to_string();
+            fixture.away_team_id = away.to_string();
+        };
+        // Home sides won every tie, so A1 and A2 advance to the final.
+        redraw(&semifinals[0], &a1, &b1);
+        redraw(&semifinals[1], &a2, &b2);
+        redraw(&final_id, &a1, &a2);
+
+        assert_eq!(
+            verify_completed_edition(&competition, None).map(|p| p.champion_id),
+            Ok(Some(a1))
+        );
+    }
+
     /// Given a finished cup that also holds a friendly-cup tie nobody played
     /// When completion is verified
     /// Then the cup is complete: a friendly cup is not competitive, so its unplayed tie does not
