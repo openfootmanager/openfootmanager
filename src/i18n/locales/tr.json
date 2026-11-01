@@ -3020,7 +3020,8 @@
         "invalidFormation": "Oyun bu diziliş şemasını tanımıyor.",
         "invalidPlayStyle": "Oyun bu oyun tarzını tanımıyor.",
         "notFound": "Bu taktik artık yok."
-      }
+      },
+      "anotherClubsSquad": "Bu kadro başka bir kulübe ait."
     },
     "sender": {
       "boardOfDirectors": "Yönetim Kurulu",
