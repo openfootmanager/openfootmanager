@@ -133,7 +133,9 @@ fn the_file_on_disk_holds_what_the_game_holds() {
     let mut saves = db::save_manager::SaveManager::init(&app.saves_dir().unwrap()).unwrap();
     let on_disk = saves.load_game(&career.save_id).unwrap();
 
-    let on_disk = by_national_team_id(serde_json::to_value(&on_disk).unwrap());
+    // The truthful form, as `dev_full_game_state` gives the live game: a reader's copy has no
+    // potentials, and the comparison must still see that column.
+    let on_disk = by_national_team_id(ofm_core::wire::truthful_value(&on_disk).unwrap());
     let unexplained = unexplained_differences(&live, &on_disk);
     assert!(
         unexplained.is_empty(),

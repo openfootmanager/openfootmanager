@@ -328,6 +328,41 @@ mod tests {
         assert_eq!(all[0].context.youth_prospect_opinions, Some(vec![opinion]));
     }
 
+    /// Given a youth report naming a prospect whose true potential is 91
+    /// When it is saved and loaded
+    /// Then he still has it: only a reader's copy of the game leaves potential out, never the save
+    #[test]
+    fn a_youth_reports_prospect_keeps_his_true_potential_in_the_save() {
+        let db = test_db();
+        let attributes: domain::player::PlayerAttributes =
+            serde_json::from_value(serde_json::json!({
+                "pace": 50, "stamina": 50, "strength": 50, "agility": 50, "passing": 50,
+                "shooting": 50, "tackling": 50, "dribbling": 50, "defending": 50,
+                "positioning": 50, "vision": 50, "decisions": 50, "composure": 50,
+                "aggression": 50, "teamwork": 50, "leadership": 50,
+                "handling": 50, "reflexes": 50, "aerial": 50
+            }))
+            .unwrap();
+        let mut prospect = domain::player::Player::new(
+            "prospect-1".to_string(),
+            "P".to_string(),
+            "P".to_string(),
+            "2010-01-01".to_string(),
+            "GB".to_string(),
+            domain::player::Position::Midfielder,
+            attributes,
+        );
+        prospect.potential = 91;
+        let mut msg = sample_message("msg-001");
+        msg.context.youth_prospects = Some(vec![prospect]);
+
+        upsert_message(db.conn(), &msg).unwrap();
+        let all = load_all_messages(db.conn()).unwrap();
+
+        let loaded = &all[0].context.youth_prospects.as_ref().unwrap()[0];
+        assert_eq!(loaded.potential, 91);
+    }
+
     #[test]
     fn test_message_i18n_roundtrip() {
         let db = test_db();

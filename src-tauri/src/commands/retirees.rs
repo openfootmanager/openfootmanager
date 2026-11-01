@@ -31,6 +31,7 @@ pub fn get_retired_player_internal(
     state
         .get_game(|game| ofm_core::retirees::find_retiree(game, player_id))
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())?
+        .map(ofm_core::wire::without_potential)
         .ok_or_else(|| PLAYER_NOT_FOUND.to_string())
 }
 
@@ -83,6 +84,21 @@ mod tests {
         let state = StateManager::new();
         state.set_game(game);
         state
+    }
+
+    /// Given an archived veteran whose true potential was 78
+    /// When his page asks for him
+    /// Then he comes without it: his potential reads 0
+    #[test]
+    fn an_archived_players_page_never_receives_his_potential() {
+        let state = state_with_an_archived_veteran();
+        state
+            .update_game(|game| game.retired_players[0].potential = 78)
+            .unwrap();
+
+        let veteran = get_retired_player_internal(&state, "p-veteran").unwrap();
+
+        assert_eq!(veteran.potential, 0);
     }
 
     /// Given an archived veteran, when the Hall of Fame is requested, then he is listed.

@@ -1339,3 +1339,45 @@ fn a_youth_report_saved_before_opinions_still_reads() {
 
     assert!(context.youth_prospect_opinions.is_none());
 }
+
+/// Given a youth report's prospect, his true potential stored with the report
+/// When the game is copied for a reader, and then he is signed
+/// Then the copy shows his potential as 0, and the signed player has his true potential
+#[test]
+fn signing_a_prospect_keeps_his_true_potential_though_no_reader_sees_it() {
+    let (mut game, message_id, action_id, prospect_id) = youth_report_with_a_prospect();
+    let truth = message(&game, &message_id)
+        .context
+        .youth_prospects
+        .as_ref()
+        .unwrap()
+        .iter()
+        .find(|prospect| prospect.id == prospect_id)
+        .unwrap()
+        .potential;
+    assert!(truth > 0, "the prospect has a potential");
+
+    let copy = serde_json::to_value(&game).unwrap();
+    let report = copy["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|message| message["id"] == message_id.as_str())
+        .unwrap();
+    assert!(
+        report["context"]["youth_prospects"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|prospect| prospect["potential"] == 0)
+    );
+
+    apply_youth_recruitment_response(&mut game, &message_id, &action_id, "sign").unwrap();
+
+    let signed = game
+        .players
+        .iter()
+        .find(|player| player.id == prospect_id)
+        .unwrap();
+    assert_eq!(signed.potential, truth);
+}
