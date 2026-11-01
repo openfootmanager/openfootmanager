@@ -1,13 +1,18 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { createInstance } from "i18next";
 import en from "../../i18n/locales/en.json";
 import TransfersTab from "./TransfersTab";
 import { invoke } from "@tauri-apps/api/core";
-import { formatWeeklyWage } from "../../lib/helpers";
+import { formatExactMoney, formatWeeklyWage } from "../../lib/helpers";
 import type { VisibleFigures } from "../../lib/playerKnowledge";
 import type { GameStateData, PlayerData } from "../../store/gameStore";
-import { createGameState, createPlayer, marketPageOf } from "./TransfersTab.testFixtures";
+import {
+  createGameState,
+  createPlayer,
+  marketPageOf,
+  playersOfScope,
+} from "./TransfersTab.testFixtures";
 
 const translations = createInstance();
 await translations.init({
@@ -57,7 +62,43 @@ const ownListed = createPlayer({
   transfer_listed: true,
   wage: REAL_WAGE,
 });
-const MARKET = [unscouted, scouted, rival, ownListed];
+const loanUnscouted = createPlayer({
+  id: "loan-unscouted",
+  full_name: "Loan Unscouted",
+  team_id: "team-2",
+  transfer_listed: false,
+  loan_listed: true,
+  wage: REAL_WAGE,
+});
+const loanScouted = createPlayer({
+  id: "loan-scouted",
+  full_name: "Loan Scouted",
+  team_id: "team-2",
+  transfer_listed: false,
+  loan_listed: true,
+  wage: REAL_WAGE,
+});
+// The user's own player, with another club's loan offer waiting for an answer.
+const ownWithLoanOffer = createPlayer({
+  id: "own-loan-offer",
+  full_name: "Own Wanted",
+  team_id: "team-1",
+  wage: REAL_WAGE,
+  loan_offers: [
+    {
+      id: "incoming-loan",
+      from_team_id: "team-2",
+      parent_team_id: "team-1",
+      start_date: "2026-08-01",
+      end_date: "2027-01-28",
+      wage_contribution_pct: 100,
+      buy_option_fee: null,
+      status: "Pending",
+      date: "2026-08-01",
+    },
+  ],
+});
+const MARKET = [unscouted, scouted, rival, ownListed, loanUnscouted, loanScouted];
 
 // What the backend's projection lets the club see of each of them (`KnowledgeView::of_player`):
 // a rating only for its own player and a division rival, so a scouted player's is unknown until a
@@ -67,6 +108,9 @@ const FIGURES: Record<string, VisibleFigures> = {
   scouted: { ovr: null, wage: { kind: "approximate", weekly: 12000 } },
   rival: { ovr: 71, wage: { kind: "hidden" } },
   "own-listed": { ovr: 72, wage: { kind: "exact", weekly: REAL_WAGE } },
+  "loan-unscouted": { ovr: null, wage: { kind: "hidden" } },
+  "loan-scouted": { ovr: null, wage: { kind: "approximate", weekly: 12000 } },
+  "own-loan-offer": { ovr: 72, wage: { kind: "exact", weekly: REAL_WAGE } },
 };
 
 function pageWithFigures(players: PlayerData[]) {
@@ -79,15 +123,23 @@ function pageWithFigures(players: PlayerData[]) {
 
 beforeEach(() => {
   vi.mocked(invoke).mockReset();
-  vi.mocked(invoke).mockImplementation(async (command: string) =>
-    command === "get_players_page" ? pageWithFigures(MARKET) : {},
+  vi.mocked(invoke).mockImplementation(async (command: string, payload?: unknown) =>
+    command === "get_players_page"
+      ? pageWithFigures(
+          playersOfScope(payload, {
+            market: MARKET,
+            user_listed: [],
+            with_offers: [ownWithLoanOffer],
+          }),
+        )
+      : {},
   );
 });
 
 const renderCentre = () =>
   render(
     <TransfersTab
-      gameState={createGameState(MARKET)}
+      gameState={createGameState([...MARKET, ownWithLoanOffer])}
       onSelectPlayer={vi.fn()}
       onSelectTeam={vi.fn()}
       onGameUpdate={vi.fn()}
@@ -259,4 +311,92 @@ it("keeps a sold player's figures hidden when the page after the sale fails", as
 
   await waitFor(() => expect(within(rowNow("Own Listed")).queryByText("72")).toBeNull());
   expect(within(rowNow("Own Listed")).getAllByText("–")).toHaveLength(2);
+});
+
+/**
+ * Given the unscouted rival on the market
+ * When the user opens his deal workspace from his row
+ * Then its figures show "–" for his rating and his current wage, as his row did.
+ */
+it("opens an unscouted rival's deal workspace with his rating and wage hidden", async () => {
+  renderCentre();
+  const row = await rowOf("Never Scouted");
+
+  fireEvent.click(within(row).getByRole("button", { name: /^bid$/i }));
+
+  const workspace = await screen.findByRole("dialog", { name: "Never Scouted" });
+  expect(within(workspace).getByText("OVR").nextElementSibling).toHaveTextContent(/^–$/);
+  expect(within(workspace).getByText("Current Wage").nextElementSibling).toHaveTextContent(/^–$/);
+  expect(within(workspace).queryByText(formatWeeklyWage(REAL_WAGE))).not.toBeInTheDocument();
+});
+
+/**
+ * Given another club's loan-listed player whom the club has not scouted
+ * When the user opens a loan offer for him
+ * Then the share of his wage the club would cover is written "–", not worked out from his real wage.
+ */
+it("hides the wage share of a loan offer for an unscouted player", async () => {
+  renderCentre();
+  const row = await rowOf("Loan Unscouted");
+
+  fireEvent.click(within(row).getByRole("button", { name: /^loan offer$/i }));
+
+  expect(
+    await screen.findByText("Your club would cover 100% of the player's wages: –."),
+  ).toBeInTheDocument();
+});
+
+/**
+ * Given the scouted player on the market, whose wage the page puts at about €12,000 and whose
+ *       rating it does not send
+ * When the user opens his deal workspace from his row
+ * Then its figures show "about €12,000/wk" and "–" for his rating, as his row did.
+ */
+it("opens a scouted player's deal workspace with his wage as about and no rating", async () => {
+  renderCentre();
+  const row = await rowOf("Once Scouted");
+
+  fireEvent.click(within(row).getByRole("button", { name: /^bid$/i }));
+
+  const workspace = await screen.findByRole("dialog", { name: "Once Scouted" });
+  expect(within(workspace).getByText("OVR").nextElementSibling).toHaveTextContent(/^–$/);
+  expect(within(workspace).getByText("Current Wage").nextElementSibling).toHaveTextContent(
+    `about ${formatWeeklyWage(12000)}`,
+  );
+});
+
+/**
+ * Given a scouted loan-listed player whose wage the club puts at about €12,000 a week
+ * When the user opens a loan offer for him
+ * Then the share the club would cover is the whole of that visible wage, written as "about".
+ */
+it("writes the wage share of a loan offer for a scouted player as about", async () => {
+  renderCentre();
+  const row = await rowOf("Loan Scouted");
+
+  fireEvent.click(within(row).getByRole("button", { name: /^loan offer$/i }));
+
+  expect(
+    await screen.findByText(
+      `Your club would cover 100% of the player's wages: about ${formatExactMoney(12000)}.`,
+    ),
+  ).toBeInTheDocument();
+});
+
+/**
+ * Given the user's own player on €12,345 a week, with another club's loan offer waiting
+ * When the user counters that offer from the Offers view
+ * Then the counter form works the wage share out from his exact wage.
+ */
+it("writes the exact wage share when countering a loan offer for the club's own player", async () => {
+  renderCentre();
+  fireEvent.click(screen.getByRole("button", { name: /offers/i }));
+
+  fireEvent.click(await screen.findByRole("button", { name: /counter loan offer/i }));
+
+  expect(
+    await screen.findByText(
+      `Your club would cover 100% of the player's wages: ${formatExactMoney(REAL_WAGE)}.`,
+    ),
+  ).toBeInTheDocument();
 });

@@ -887,4 +887,71 @@ mod tests {
         assert!(player.potential >= player.ovr.saturating_add(14));
         assert!(!player.traits.contains(&PlayerTrait::Wonderkid));
     }
+
+    /// Given the 3-5-2 formation
+    /// When its slots are laid out
+    /// Then the five in midfield are left, defensive, central, attacking and right midfielders
+    #[test]
+    fn formation_slots_352_lays_out_a_five_man_midfield() {
+        assert_eq!(
+            formation_slots("3-5-2")[4..9],
+            [
+                Position::LeftMidfielder,
+                Position::DefensiveMidfielder,
+                Position::CentralMidfielder,
+                Position::AttackingMidfielder,
+                Position::RightMidfielder,
+            ]
+        );
+    }
+
+    fn footed(footedness: Footedness, weak_foot: u8) -> Player {
+        let mut player = make_player(Position::LeftBack);
+        player.footedness = footedness;
+        player.weak_foot = weak_foot;
+        player
+    }
+
+    /// Given right-footed players with weak-foot ratings 1 to 5
+    /// When each plays left back
+    /// Then the wrong foot costs 10 less twice the weak-foot rating: 8, 6, 4, 2 and 0
+    #[test]
+    fn the_wrong_foot_costs_ten_less_twice_the_weak_foot_rating() {
+        let penalties: Vec<f64> = (1..=5)
+            .map(|weak_foot| {
+                footedness_penalty(&footed(Footedness::Right, weak_foot), &Position::LeftBack)
+            })
+            .collect();
+
+        assert_eq!(penalties, vec![8.0, 6.0, 4.0, 2.0, 0.0]);
+    }
+
+    /// Given a right-footed player at right back and a left-footed one at left back, both with the
+    ///       poorest weak foot
+    /// When their foot penalty is worked out
+    /// Then neither pays one: each plays on his strong side
+    #[test]
+    fn a_player_on_his_strong_side_pays_no_foot_penalty() {
+        assert_eq!(
+            (
+                footedness_penalty(&footed(Footedness::Right, 1), &Position::RightBack),
+                footedness_penalty(&footed(Footedness::Left, 1), &Position::LeftBack)
+            ),
+            (0.0, 0.0)
+        );
+    }
+
+    /// Given a two-footed player with the poorest weak-foot rating
+    /// When he plays left back and right back
+    /// Then he pays no foot penalty on either side
+    #[test]
+    fn a_two_footed_player_pays_no_foot_penalty_on_either_side() {
+        assert_eq!(
+            (
+                footedness_penalty(&footed(Footedness::Both, 1), &Position::LeftBack),
+                footedness_penalty(&footed(Footedness::Both, 1), &Position::RightBack)
+            ),
+            (0.0, 0.0)
+        );
+    }
 }

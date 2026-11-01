@@ -415,6 +415,9 @@
     "detailsFor": "Подробности: {{name}}",
     "overallRating": "Общий уровень {{value}}",
     "overallRatingTier": "Общий уровень {{value}}, категория {{tier}}",
+    "listViewLabel": "Показать как",
+    "listViewTable": "Таблица",
+    "listViewCards": "Карточки",
     "noResults": "Ничего не найдено.",
     "place": {
       "1": "1-е",

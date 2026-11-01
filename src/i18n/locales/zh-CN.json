@@ -415,6 +415,9 @@
     "detailsFor": "{{name}} 的详情",
     "overallRating": "综合实力 {{value}}",
     "overallRatingTier": "综合实力 {{value}}，等级 {{tier}}",
+    "listViewLabel": "显示方式",
+    "listViewTable": "表格",
+    "listViewCards": "卡片",
     "noResults": "未找到结果。",
     "place": {
       "1": "第1",
