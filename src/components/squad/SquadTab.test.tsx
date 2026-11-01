@@ -294,6 +294,43 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given a squad numbered 1 to 11, and a bench defender with no shirt number
+   * When the roster is sorted by number, up and then down
+   * Then the numbered players run 1 to 11 and then 11 to 1, and the bench defender is the last row
+   *      both times, not the first going down.
+   */
+  it("keeps a player with no shirt number at the foot of the roster in both directions", () => {
+    const state = makeGameState();
+    state.players = state.players.map((player, index) => ({
+      ...player,
+      jersey_number: player.id === "d5" ? null : index + 1,
+    }));
+    const roster = (sortDir: "asc" | "desc") => (
+      <SquadTab
+        gameState={state}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "jersey", sortDir }}
+        onSortStateChange={vi.fn()}
+      />
+    );
+    const rowNames = () =>
+      within(screen.getByRole("table", { name: "squad.title" }))
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("button")[0].getAttribute("aria-label"));
+
+    const { rerender } = render(roster("asc"));
+    expect(rowNames()[0]).toBe("GK1");
+    expect(rowNames()[rowNames().length - 1]).toBe("Bench DEF");
+
+    rerender(roster("desc"));
+    expect(rowNames()[0]).toBe("F2");
+    expect(rowNames()[rowNames().length - 1]).toBe("Bench DEF");
+  });
+
+  /**
    * Given a starter, an injured bench player and a fit bench player
    * When the roster renders
    * Then the starter's row carries the starter accent, the injured player's the can't-play one,
