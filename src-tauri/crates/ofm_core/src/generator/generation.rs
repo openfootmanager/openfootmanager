@@ -1540,6 +1540,22 @@ mod tests {
         );
     }
 
+    fn normal_cdf(z: f64) -> f64 {
+        // Abramowitz and Stegun 7.1.26 (|error| < 1.5e-7).
+        let x = z.abs() / std::f64::consts::SQRT_2;
+        let t = 1.0 / (1.0 + 0.327_591_1 * x);
+        let poly = t
+            * (0.254_829_592
+                + t * (-0.284_496_736
+                    + t * (1.421_413_741 + t * (-1.453_152_027 + t * 1.061_405_429))));
+        let erf = 1.0 - poly * (-x * x).exp();
+        if z >= 0.0 {
+            0.5 * (1.0 + erf)
+        } else {
+            0.5 * (1.0 - erf)
+        }
+    }
+
     /// Prints the table `ROLLED_AT_Z` is baked from: for each position group, the rolled rating at
     /// the standard-normal quantiles of a z grid from -3.5 to 3.5 in steps of 0.25, from four
     /// million seeded draws of [`roll_attributes`] rated by `ovr_from_attributes`.
@@ -1550,22 +1566,6 @@ mod tests {
     fn print_the_rolled_quantile_table() {
         use rand::SeedableRng;
         const SAMPLES: usize = 4_000_000;
-
-        fn normal_cdf(z: f64) -> f64 {
-            // Abramowitz and Stegun 7.1.26 (|error| < 1.5e-7).
-            let x = z.abs() / std::f64::consts::SQRT_2;
-            let t = 1.0 / (1.0 + 0.327_591_1 * x);
-            let poly = t
-                * (0.254_829_592
-                    + t * (-0.284_496_736
-                        + t * (1.421_413_741 + t * (-1.453_152_027 + t * 1.061_405_429))));
-            let erf = 1.0 - poly * (-x * x).exp();
-            if z >= 0.0 {
-                0.5 * (1.0 + erf)
-            } else {
-                0.5 * (1.0 - erf)
-            }
-        }
 
         for (index, group) in [
             Position::Goalkeeper,
@@ -1592,6 +1592,51 @@ mod tests {
                 })
                 .collect();
             eprintln!("TABLE {group:?}: [{}],", cells.join(", "));
+        }
+    }
+
+    /// Given generated players aged 28, whose ceiling is their rating (no headroom left),
+    /// When the share of ceilings 2.0 and 2.5 standard deviations above the mean is counted,
+    /// Then each is within 15% of what a normal bell of the same mean and spread has there: the S
+    ///      tier sits in this tail, and a bell that is light in it makes every shift fall short.
+    #[test]
+    fn the_ceiling_bell_has_a_normal_tail() {
+        use rand::SeedableRng;
+        const PLAYERS: usize = 160_000;
+        let names_def = super::super::definitions::default_names_definition();
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0x7A11);
+        let ceilings: Vec<f64> = (0..PLAYERS)
+            .map(|n| {
+                f64::from(
+                    generate_random_player_from_def(
+                        "club-id",
+                        senior_slot(n % 23),
+                        "ENG",
+                        2026,
+                        Some(28),
+                        &names_def,
+                        &mut rng,
+                    )
+                    .potential,
+                )
+            })
+            .collect();
+        let mean = ceilings.iter().sum::<f64>() / PLAYERS as f64;
+        let sd = (ceilings.iter().map(|c| (c - mean).powi(2)).sum::<f64>() / PLAYERS as f64).sqrt();
+
+        for z in [2.0, 2.5] {
+            // Ceilings are whole numbers: compare the share at or above the first whole number
+            // past the line with the normal's share of that whole number's interval.
+            let line = (mean + z * sd).ceil();
+            let observed = ceilings.iter().filter(|c| **c >= line).count() as f64 / PLAYERS as f64;
+            let normal = 1.0 - normal_cdf((line - 0.5 - mean) / sd);
+            let ratio = observed / normal;
+            assert!(
+                (0.85..=1.15).contains(&ratio),
+                "{z} sd above the mean ({mean:.2}, sd {sd:.2}): {:.3}% of ceilings against {:.3}% for a normal bell (ratio {ratio:.2})",
+                observed * 100.0,
+                normal * 100.0
+            );
         }
     }
 

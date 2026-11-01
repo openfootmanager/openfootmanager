@@ -47,8 +47,8 @@ fn every_player_opens_at_the_rating_the_game_computes_for_him() {
 
 /// Given the shipped world on its opening day,
 /// When the whole world is read,
-/// Then it opens at the ratings the game really computes: senior S 1 to 3%, A 8 to 11% and a mean
-///      of 69 to 70.2 (the figures a world showed on day 1 before, S 1.2%, A 6.5% and 68.2, were
+/// Then it opens at the ratings the game really computes: senior S 1.9 to 2.6%, A 9.3 to 10.5% and a
+///      mean of 69.4 to 69.8 (the figures a world showed on day 1 before, S 1.2%, A 6.5% and 68.2, were
 ///      1.4 points low), and the wonderkids no more common than the maintainer's rare rate
 ///      (develop opened at 0.34% and 0.29% on these seeds). The settled world, which is what the
 ///      tier targets are about, is unchanged: this only stops the opening from understating it.
@@ -67,19 +67,19 @@ fn the_opening_world_keeps_its_tiers_mean_and_rare_wonderkids() {
         eprintln!("OPENING {message}");
 
         assert!(
-            (0.01..=0.03).contains(&world.senior_ovr_s_share),
+            (0.019..=0.026).contains(&world.senior_ovr_s_share),
             "S share; {message}"
         );
         assert!(
-            (0.08..=0.11).contains(&world.senior_ovr_a_share),
+            (0.093..=0.105).contains(&world.senior_ovr_a_share),
             "A share; {message}"
         );
         assert!(
-            (69.0..=70.2).contains(&world.mean_senior_ovr),
+            (69.4..=69.8).contains(&world.mean_senior_ovr),
             "mean rating; {message}"
         );
         assert!(
-            (0.0015..=0.0035).contains(&world.wonderkid_share),
+            (0.0028..=0.0036).contains(&world.wonderkid_share),
             "wonderkids; {message}"
         );
     }
