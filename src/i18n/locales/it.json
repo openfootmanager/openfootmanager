@@ -731,6 +731,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Panchina {{bench}}",
     "bestRole": "Ruolo migliore",
     "startingXi": "Undici titolare",
+    "notMatchDayEligible": "Non disponibile per la convocazione",
     "starter": "Titolare",
     "benchOption": "Panchina",
     "naturalFit": "Ruolo naturale",

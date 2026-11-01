@@ -685,6 +685,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Bench {{bench}}",
     "bestRole": "Best role",
     "startingXi": "Starting XI",
+    "notMatchDayEligible": "Not available for selection",
     "starter": "Starter",
     "benchOption": "Bench",
     "naturalFit": "Natural position",

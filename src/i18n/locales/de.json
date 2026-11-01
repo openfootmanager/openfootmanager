@@ -712,6 +712,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Bank {{bench}}",
     "bestRole": "Beste Rolle",
     "startingXi": "Startelf",
+    "notMatchDayEligible": "Nicht für den Kader verfügbar",
     "starter": "Startelf",
     "benchOption": "Bank",
     "naturalFit": "Natürliche Position",

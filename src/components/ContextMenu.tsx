@@ -10,6 +10,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { contextMenuPoint } from "../lib/contextMenuPoint";
+
 export interface ContextMenuItem {
   label: string;
   icon?: React.ReactNode;
@@ -79,7 +81,9 @@ const ContextMenu = forwardRef<ContextMenuHandle, ContextMenuProps>(function Con
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      openAt(e.clientX, e.clientY);
+      // From the keyboard, under the focused control: the trigger may be a box-less wrapper.
+      const point = contextMenuPoint(e, e.target instanceof Element ? e.target : e.currentTarget);
+      openAt(point.x, point.y);
     },
     [openAt],
   );
