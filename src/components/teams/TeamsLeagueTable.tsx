@@ -5,7 +5,7 @@ import { formatVal } from "../../lib/helpers";
 import { visibleRatingText } from "../../lib/playerKnowledge";
 import { type SortDirection, type SortState, type SortValue, sortRows } from "../../lib/sortRows";
 import type { TeamCard } from "../../services/teamsService";
-import { Badge, CountryFlag, DataTable, type DataTableColumn, TeamLogo } from "../ui";
+import { Badge, DataTable, type DataTableColumn, TeamLocation, TeamLogo } from "../ui";
 
 export type TeamsSortKey =
   | "position"
@@ -159,10 +159,15 @@ export default function TeamsLeagueTable({
       rowAccent={(card) => (card.team.id === userTeamId ? "selected" : null)}
       primaryAside={(card) => (
         <>
-          <CountryFlag
-            code={card.team.country}
+          {/* The city as the card shows it: the search matches it, so a row found by its city
+              shows why. */}
+          <TeamLocation
+            city={card.team.city}
+            countryCode={card.team.country}
             locale={i18n.language}
-            className="text-body leading-none"
+            className="text-caption text-fg-muted"
+            iconClassName="h-3 w-3"
+            flagClassName="text-caption leading-none"
           />
           {card.team.id === userTeamId ? (
             <Badge variant="accent" size="sm">

@@ -85,6 +85,20 @@ describe("sortRows", () => {
   });
 
   /**
+   * Given "Málaga" listed before "Malaga"
+   * When they are sorted by name, up and then down
+   * Then they take the language's order for an accent (the plain letter first going up), not the
+   *      order they arrived in, as they would if an accent counted for nothing.
+   */
+  it("tells names apart by their accents, in the language's order", () => {
+    const pair = [{ name: "Málaga" }, { name: "Malaga" }];
+    const byName = (direction: "asc" | "desc") =>
+      sortRows(pair, (club) => club.name, direction, "es").map((club) => club.name);
+    expect(byName("asc")).toEqual(["Malaga", "Málaga"]);
+    expect(byName("desc")).toEqual(["Málaga", "Malaga"]);
+  });
+
+  /**
    * Given a list
    * When it is sorted
    * Then the list itself is left as it was: a sort returns a new one.
