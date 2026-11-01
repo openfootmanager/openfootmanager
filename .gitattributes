@@ -1,3 +1,7 @@
 # Written by ts-rs from the Rust wire types (src-tauri/tests/wire_types.rs byte-compares them).
 # LF everywhere, or a Windows checkout with autocrlf fails that comparison.
 src/store/generated/** linguist-generated=true eol=lf
+
+# Written by page_fixture.rs (npm run fixture:pages); its freshness test byte-compares the file,
+# so it too must stay LF on a Windows checkout with autocrlf.
+src/dev/pageHarness/fixture.generated.ts linguist-generated=true eol=lf
