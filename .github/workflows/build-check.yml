@@ -66,6 +66,14 @@ jobs:
       - name: Check the AppImage library check still rejects violations
         run: ./scripts/check-appimage-libs.test.sh
 
+      # Every job's timeout-minutes, guarded the same way: the fixtures first, because the real
+      # file is correct and a check that had stopped working would pass on it.
+      - name: Check the job-timeout check still rejects violations
+        run: ./scripts/check-job-timeouts.test.sh
+
+      - name: Check every build-check job has a timeout
+        run: ./scripts/check-job-timeouts.sh .github/workflows/build-check.yml
+
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
