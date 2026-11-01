@@ -7,6 +7,7 @@ import { nextSort, type SortState } from "../../lib/sortRows";
 import { buildRegionLabel } from "../../lib/teamRegions";
 import { competitionDisplayName } from "../../lib/competitionName";
 import type { GameStateData } from "../../store/gameStore";
+import type { ListView } from "../../store/settingsStore";
 import {
   fetchTeamsDirectory,
   UNGROUPED_LEAGUE_ID,
@@ -205,33 +206,16 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
                         </Badge>
                       </button>
 
-                      {leagueOpen && view === "table" ? (
-                        <div className="ml-2 overflow-hidden rounded-lg border border-line bg-panel">
-                          <TeamsLeagueTable
-                            label={league.name}
-                            cards={league.teams}
-                            userTeamId={userTeamId}
-                            sort={sort}
-                            onSort={sortBy}
-                            onSelectTeam={onSelectTeam}
-                          />
-                        </div>
+                      {leagueOpen ? (
+                        <LeagueClubs
+                          league={league}
+                          view={view}
+                          userTeamId={userTeamId}
+                          sort={sort}
+                          onSort={sortBy}
+                          onSelectTeam={onSelectTeam}
+                        />
                       ) : null}
-                      {leagueOpen && view === "cards" && (
-                        <div className="pl-2">
-                          <CardGrid>
-                            {league.teams.map((card) => (
-                              <li key={card.team.id} className="min-w-0">
-                                <TeamCard
-                                  card={card}
-                                  isUser={card.team.id === userTeamId}
-                                  onOpen={() => onSelectTeam(card.team.id)}
-                                />
-                              </li>
-                            ))}
-                          </CardGrid>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -239,6 +223,53 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
           );
         })
       )}
+    </div>
+  );
+}
+
+/** An open league's clubs, as the list view has it: one table, or a grid of cards. */
+function LeagueClubs({
+  league,
+  view,
+  userTeamId,
+  sort,
+  onSort,
+  onSelectTeam,
+}: {
+  league: DisplayLeague;
+  view: ListView;
+  userTeamId: string | null;
+  sort: SortState<TeamsSortKey>;
+  onSort: (key: TeamsSortKey) => void;
+  onSelectTeam: (id: string) => void;
+}) {
+  if (view === "table") {
+    return (
+      <div className="ml-2 overflow-hidden rounded-lg border border-line bg-panel">
+        <TeamsLeagueTable
+          label={league.name}
+          cards={league.teams}
+          userTeamId={userTeamId}
+          sort={sort}
+          onSort={onSort}
+          onSelectTeam={onSelectTeam}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="pl-2">
+      <CardGrid>
+        {league.teams.map((card) => (
+          <li key={card.team.id} className="min-w-0">
+            <TeamCard
+              card={card}
+              isUser={card.team.id === userTeamId}
+              onOpen={() => onSelectTeam(card.team.id)}
+            />
+          </li>
+        ))}
+      </CardGrid>
     </div>
   );
 }
