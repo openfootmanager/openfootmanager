@@ -99,37 +99,16 @@ export default function PlayersListTab({
         }
       />
 
-      <p className="text-xs text-gray-400 dark:text-gray-500 mb-3 font-heading uppercase tracking-wider">
+      <p className="mb-3 font-heading text-caption font-bold uppercase tracking-label text-fg-subtle">
         <Filter className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />
         {t("players.nPlayersFound", { count: total })}
       </p>
 
-      {fetchError ? (
-        <p
-          role="alert"
-          className="mb-3 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
-        >
-          {fetchError}
-        </p>
-      ) : null}
+      {fetchError ? <ListAlert message={fetchError} /> : null}
 
-      {scoutError ? (
-        <p
-          role="alert"
-          className="mb-3 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
-        >
-          {scoutError}
-        </p>
-      ) : null}
+      {scoutError ? <ListAlert message={scoutError} /> : null}
 
-      {listingError ? (
-        <p
-          role="alert"
-          className="mb-3 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
-        >
-          {listingError}
-        </p>
-      ) : null}
+      {listingError ? <ListAlert message={listingError} /> : null}
 
       {view === "cards" ? (
         <PlayersCardsView
@@ -142,5 +121,17 @@ export default function PlayersListTab({
       )}
       <PlayersDealModals teams={gameState.teams} bidFlow={bidFlow} contractFlow={contractFlow} />
     </div>
+  );
+}
+
+/** A failure above the list: a sentence on the danger tint, so it is read as a warning in both themes. */
+function ListAlert({ message }: { message: string }) {
+  return (
+    <p
+      role="alert"
+      className="mb-3 rounded-lg border border-line bg-danger-tint px-4 py-2 text-body font-medium text-danger"
+    >
+      {message}
+    </p>
   );
 }
