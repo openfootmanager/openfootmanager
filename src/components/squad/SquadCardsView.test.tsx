@@ -388,6 +388,28 @@ describe("SquadRosterView cards", () => {
   });
 
   /**
+   * Given the same swapped XI and a keeper the backend's projection does not hold
+   * When the cards render
+   * Then the forward's card is marked out of position and the keeper's card says nothing of the
+   *      kind: a missing grade is not a verdict.
+   */
+  it("marks no fit on a card for a player missing from the projection", () => {
+    const swapped = createTeam({
+      id: "team1",
+      name: "Test FC",
+      starting_xi_ids: ["f1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "gk1", "f2"],
+    });
+    const squad = makeSquad();
+    familiarityPlayers.delete("gk1");
+    renderRoster(squad, vi.fn(), swapped);
+
+    const outOfPosition = (name: string) =>
+      within(screen.getByRole("article", { name })).queryAllByText(/, squad\.outOfPosition$/);
+    expect(outOfPosition("F1")).toHaveLength(1);
+    expect(outOfPosition("GK1")).toHaveLength(0);
+  });
+
+  /**
    * Given the bench defender's card, its name's button focused
    * When the Menu key (or Shift+F10) opens the menu, which reports its right-click at 0,0
    * Then the menu opens under the focused button, as a row's does under the row, not in the

@@ -142,7 +142,7 @@ export default function TacticsTab({
 
       {positionTable.loaded ? null : (
         <p role="status" className="text-caption text-fg-muted">
-          {t("tactics.positionsLoading")}
+          {t("common.lineupLoading")}
         </p>
       )}
 

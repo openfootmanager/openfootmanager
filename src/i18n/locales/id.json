@@ -635,7 +635,8 @@
     "nextPage": "Halaman berikutnya",
     "lastPage": "Halaman terakhir",
     "sortBy": "Urutkan berdasarkan",
-    "sortAscending": "Naik"
+    "sortAscending": "Naik",
+    "lineupLoading": "Data posisi masih dimuat, sehingga perubahan susunan pemain belum tersedia."
   },
   "teamSelection": {
     "title": "Pilih Klub",
@@ -917,8 +918,7 @@
       "ready": "Siap",
       "adjusted": "Disesuaikan",
       "risk": "Berisiko"
-    },
-    "positionsLoading": "Data posisi masih dimuat, sehingga perubahan susunan pemain belum tersedia."
+    }
   },
   "training": {
     "weeklySchedule": "Jadwal Mingguan",

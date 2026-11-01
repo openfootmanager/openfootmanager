@@ -635,7 +635,8 @@
     "nextPage": "Page suivante",
     "lastPage": "Dernière page",
     "sortBy": "Trier par",
-    "sortAscending": "Croissant"
+    "sortAscending": "Croissant",
+    "lineupLoading": "Les données de postes sont encore en cours de chargement : les changements de composition ne sont pas encore disponibles."
   },
   "teamSelection": {
     "title": "Choisissez Votre Club",
@@ -917,8 +918,7 @@
       "sharp": "Affûté",
       "managing": "À gérer",
       "risk": "Risque"
-    },
-    "positionsLoading": "Les données de postes sont encore en cours de chargement : les changements de composition ne sont pas encore disponibles."
+    }
   },
   "training": {
     "weeklySchedule": "Calendrier Hebdomadaire",

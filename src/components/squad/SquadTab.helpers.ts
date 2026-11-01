@@ -466,8 +466,15 @@ export function getSquadTacticalFit(
   currentPos: string,
   positionTable: PositionTable,
   familiarity?: FamiliarityTable,
-): SquadTacticalFit {
-  if (isPlayerExactForSlot(player, currentPos, familiarity)) {
+): SquadTacticalFit | null {
+  if (familiarity) {
+    // No grade (not loaded, a player outside the club) is no verdict, not "adapted".
+    const word = familiarity.familiarityOf(player.id, canonicalPosition(currentPos));
+    if (word === null) return null;
+    if (word === "natural") return "natural";
+    return word === "out_of_position" ? "out" : "adapted";
+  }
+  if (isPlayerExactForSlot(player, currentPos)) {
     return "natural";
   }
 
@@ -615,6 +622,7 @@ function getFitScore(
 
   if (fit === "natural") return 2;
   if (fit === "adapted") return 1;
+  // Out of position, or no grade: nothing is picked on a missing one (the builders wait for it).
   return 0;
 }
 

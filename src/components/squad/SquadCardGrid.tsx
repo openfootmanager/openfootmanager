@@ -25,7 +25,8 @@ import { Badge, CardGrid, ConditionMeter, InjuryBadge, PositionBadge } from "../
 /** A starter's slot in the XI and how it suits him. */
 export interface DeployedPosition {
   position: string;
-  familiarity: SquadTacticalFit;
+  /** Null while the backend has no grade for him: the card then claims nothing. */
+  familiarity: SquadTacticalFit | null;
 }
 
 interface SquadCardGridProps {
@@ -228,7 +229,7 @@ function SquadCardStatus({
           </Badge>
         ) : null}
         {/* A natural slot is the quiet default, as on the row: only a slot that isn't is marked. */}
-        {deployed && deployed.familiarity !== "natural" ? (
+        {deployed?.familiarity && deployed.familiarity !== "natural" ? (
           <PositionBadge
             position={deployed.position}
             label={translatePositionAbbreviation(t, deployed.position)}

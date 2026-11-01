@@ -396,7 +396,7 @@ export default function SquadRosterView({
         natural={natural}
         alternates={alternates}
         deployed={deployed?.position}
-        familiarity={deployed?.familiarity}
+        familiarity={deployed?.familiarity ?? undefined}
         describe={(position) => ({
           label: translatePositionAbbreviation(t, position),
           name: translatePositionLabel(t, position),
@@ -517,18 +517,22 @@ export default function SquadRosterView({
           <Badge variant="neutral" size="sm">
             {benchCount} {t("squad.benchOption")}
           </Badge>
-          <Badge variant="success" size="sm">
-            {naturalFitCount} {t("squad.naturalFit")}
-          </Badge>
+          {canGradeLineup ? (
+            <Badge variant="success" size="sm">
+              {naturalFitCount} {t("squad.naturalFit")}
+            </Badge>
+          ) : null}
           {/* Coverage counts natural starters by the backend's grade: nothing is claimed before it. */}
           {canGradeLineup ? (
             <Badge variant={thinCoverageCount > 0 ? "accent" : "success"} size="sm">
               {thinCoverageCount} {t("squad.needsCover")}
             </Badge>
           ) : null}
-          <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
-            {outOfPositionCount} {t("squad.outOfPosition")}
-          </Badge>
+          {canGradeLineup ? (
+            <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
+              {outOfPositionCount} {t("squad.outOfPosition")}
+            </Badge>
+          ) : null}
           <Badge variant={injuredCount > 0 ? "danger" : "neutral"} size="sm">
             {injuredCount} {t("common.injured")}
           </Badge>
@@ -536,6 +540,12 @@ export default function SquadRosterView({
             {filteredRoster.length} {t("squad.playersLabel")}
           </Badge>
         </div>
+        {/* Why the lineup actions are disabled, so they are not silent. */}
+        {canGradeLineup ? null : (
+          <p role="status" className="px-4 pb-4 text-caption text-fg-muted">
+            {t("common.lineupLoading")}
+          </p>
+        )}
       </Card>
 
       <Card>
