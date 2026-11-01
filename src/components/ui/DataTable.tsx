@@ -83,6 +83,9 @@ const ACCENT: Record<RowAccent | "none", string> = {
  * The button inside a sortable column header: reachable by Tab, pressed by Enter or Space, with
  * the sort arrow shown on the sorted column. The `<th>` around it carries `aria-sort`. Every
  * table that sorts by its headers uses this one, so they all behave and look alike.
+ *
+ * It fills its cell and carries the cell's padding (`className`), so a click anywhere in the
+ * header sorts; the `<th>` then has no padding of its own, or it would be doubled.
  */
 export function SortHeaderButton({
   header,
@@ -90,6 +93,7 @@ export function SortHeaderButton({
   numeric = false,
   direction,
   onSort,
+  className = "",
 }: {
   header: ReactNode;
   /** The header's spoken name, when its visible content is not enough (an icon, say). */
@@ -97,6 +101,8 @@ export function SortHeaderButton({
   numeric?: boolean;
   direction: SortDirection | null;
   onSort: () => void;
+  /** The cell's padding (and height), since the button is the whole cell. */
+  className?: string;
 }) {
   const Arrow = direction === "asc" ? ChevronUp : ChevronDown;
   return (
@@ -104,7 +110,7 @@ export function SortHeaderButton({
       type="button"
       onClick={onSort}
       aria-label={headerLabel}
-      className={`inline-flex items-center gap-1 ${numeric ? "flex-row-reverse" : ""} ${CONTROL_FOCUS}`}
+      className={`inline-flex w-full items-center gap-1 ${numeric ? "flex-row-reverse" : ""} ${CONTROL_FOCUS} ${className}`}
     >
       {header}
       {direction ? <Arrow aria-hidden="true" className="h-3 w-3" /> : null}
@@ -116,10 +122,13 @@ function SortableHeader({
   column,
   direction,
   onSortChange,
+  first,
 }: {
   column: DataTableColumn<unknown>;
   direction: SortDirection | null;
   onSortChange: (key: string) => void;
+  /** The first column's cells are padded wider, so the names line up. */
+  first: boolean;
 }) {
   return (
     <SortHeaderButton
@@ -128,6 +137,7 @@ function SortableHeader({
       numeric={column.numeric}
       direction={direction}
       onSort={() => onSortChange(column.key)}
+      className={`h-8 px-2 ${first ? "pl-3.5" : ""}`}
     />
   );
 }
@@ -190,8 +200,9 @@ export function DataTable<Row>({
       >
         <thead>
           <tr>
-            {columns.map((column) => {
+            {columns.map((column, columnIndex) => {
               const direction = sort?.key === column.key ? sort.direction : null;
+              const sortableHere = Boolean(column.sortable && onSortChange);
               return (
                 <th
                   key={column.key}
@@ -200,7 +211,9 @@ export function DataTable<Row>({
                   aria-sort={
                     direction ? (direction === "asc" ? "ascending" : "descending") : undefined
                   }
-                  className={`h-8 whitespace-nowrap border-b border-line-strong bg-panel px-2 text-caption first:border-l-3 first:border-l-transparent first:pl-3.5 ${
+                  className={`h-8 whitespace-nowrap border-b border-line-strong bg-panel text-caption first:border-l-3 first:border-l-transparent ${
+                    sortableHere ? "" : "px-2 first:pl-3.5"
+                  } ${
                     column.numeric ? "text-right" : "text-left"
                   } ${direction ? "font-semibold text-fg" : "font-medium text-fg-subtle"} ${
                     column.drawer ? FOLDED : ""
@@ -211,6 +224,7 @@ export function DataTable<Row>({
                       column={column as DataTableColumn<unknown>}
                       direction={direction}
                       onSortChange={onSortChange}
+                      first={columnIndex === 0}
                     />
                   ) : (
                     column.header

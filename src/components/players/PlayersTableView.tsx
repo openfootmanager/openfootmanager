@@ -230,9 +230,14 @@ function SortHeader({
     <th
       scope="col"
       aria-sort={direction ? (direction === "asc" ? "ascending" : "descending") : undefined}
-      className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+      className="font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
     >
-      <SortHeaderButton header={label} direction={direction} onSort={() => onClick(sortKey)} />
+      <SortHeaderButton
+        header={label}
+        direction={direction}
+        onSort={() => onClick(sortKey)}
+        className="px-4 py-3"
+      />
     </th>
   );
 }
