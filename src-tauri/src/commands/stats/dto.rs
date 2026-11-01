@@ -36,6 +36,8 @@ pub struct PeerGroupDto {
     pub competition_name: String,
     pub competition_name_key: Option<String>,
     pub country_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub division_tier: Option<u32>,
     /// The natural position the peers share, as `Position`'s name (e.g. `Striker`).
     pub position: String,
 }
@@ -127,4 +129,34 @@ pub struct TeamStatsOverviewDto {
     pub goal_difference: i32,
     pub possession_average: Option<f32>,
     pub metrics: TeamStatsOverviewMetricsDto,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PeerGroupDto;
+    use serde_json::json;
+
+    #[test]
+    fn peer_group_serializes_division_metadata_for_frontend_display() {
+        let peer_group = PeerGroupDto {
+            competition_id: "arg-tier-3".to_string(),
+            competition_name: "Argentina League".to_string(),
+            competition_name_key: Some("tournaments.competitions.tierDivision".to_string()),
+            country_id: Some("ARG".to_string()),
+            division_tier: Some(3),
+            position: "Striker".to_string(),
+        };
+
+        assert_eq!(
+            serde_json::to_value(peer_group).unwrap(),
+            json!({
+                "competitionId": "arg-tier-3",
+                "competitionName": "Argentina League",
+                "competitionNameKey": "tournaments.competitions.tierDivision",
+                "countryId": "ARG",
+                "divisionTier": 3,
+                "position": "Striker"
+            })
+        );
+    }
 }

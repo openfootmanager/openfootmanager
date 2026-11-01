@@ -54,6 +54,7 @@ export interface LeagueGroup {
   name: string;
   name_key?: string | null;
   country_id?: string | null;
+  division_tier?: number | null;
   teams: TeamCard[];
 }
 

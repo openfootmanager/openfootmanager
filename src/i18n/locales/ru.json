@@ -1604,6 +1604,7 @@
       "league": "{{country}} Лига",
       "firstDivision": "{{country}} Первый дивизион",
       "secondDivision": "{{country}} Второй дивизион",
+      "tierDivision": "Дивизион {{tier}} ({{country}})",
       "nationalCup": "{{country}} Кубок",
       "continentalChampionsCup": "Континентальный кубок чемпионов",
       "premierDivision": "Премьер-дивизион"

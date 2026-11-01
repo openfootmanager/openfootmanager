@@ -1604,6 +1604,7 @@
       "league": "Championnat de {{country}}",
       "firstDivision": "Première Division de {{country}}",
       "secondDivision": "Deuxième Division de {{country}}",
+      "tierDivision": "{{tier}}e Division de {{country}}",
       "nationalCup": "Coupe de {{country}}",
       "continentalChampionsCup": "Coupe Continentale des Champions",
       "premierDivision": "Première Division"
