@@ -40,6 +40,7 @@ export function harnessSettings(
       ui_scale: options.scale,
       high_contrast: options.highContrast,
       language,
+      list_view: options.listView,
     },
     currency,
     supported_currencies: [currency],

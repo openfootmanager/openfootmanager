@@ -21,6 +21,8 @@ describe("the Node check", () => {
 const clean = {
   scrollWidth: 960,
   innerWidth: 960,
+  scrollHeight: 640,
+  innerHeight: 640,
   unanswered: [],
   pastEdge: [],
   rendered: true,
@@ -198,6 +200,36 @@ describe("page layout check", () => {
     expect(judge({ ...clean, scrollWidth: 1003 })).toEqual([
       "the page scrolls sideways (1003 > 960)",
     ]);
+  });
+
+  /**
+   * Given a harness page taller than the window (a card's screen-reader-only text escaping the
+   * card stretched the Teams page to 852px at 1280×800)
+   * When the case is judged
+   * Then it fails: the app's pages scroll inside their panels, never the whole window.
+   */
+  it("fails a harness page that scrolls down", () => {
+    expect(judge({ ...clean, page: "players", scrollHeight: 852 })).toEqual([
+      "the page scrolls down (852 > 640)",
+    ]);
+  });
+
+  /** Given the style guide, a long document, taller than the window, then that is no problem. */
+  it("lets the style guide scroll down", () => {
+    expect(judge({ ...clean, page: undefined, scrollHeight: 4200 })).toEqual([]);
+  });
+
+  /**
+   * Given the cases, then the lists whose cards draw on the shared card shell are measured in their
+   * cards view too, at the desktop and the minimum window.
+   */
+  it("measures the card views of Players and Squad", () => {
+    const cards = CASES.filter((c) => c.view === "cards").map(
+      (c) => `${c.page} ${c.width}×${c.height}`,
+    );
+    expect(cards.sort()).toEqual(
+      ["players 1280×800", "players 960×640", "squad 1280×800", "squad 960×640"].sort(),
+    );
   });
 
   /** Given elements past the right edge, then each is named. */
