@@ -213,6 +213,11 @@ describe("PenaltyShootoutScreen: when the order picker shows", () => {
     });
     expect(linePlace()).toBe(3);
     expect(line).not.toHaveAttribute("tabindex");
+    // Not every screen reader announces a separator inside a list, so the same words are text in
+    // the line's entry too, and a long name cut short keeps its whole text as a tooltip.
+    const lineEntry = line.closest("li") as HTMLElement;
+    expect(within(lineEntry).getByText("match.shootout.sitsOutLine:1,3")).toHaveClass("sr-only");
+    expect(within(orderList()).getByText("Alice")).toHaveAttribute("title", "Alice");
 
     expect(homeSheetColumn()).toEqual([
       "1Alicematch.shootout.toCome",
