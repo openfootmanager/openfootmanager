@@ -459,7 +459,7 @@ describe("TacticsTab", () => {
       const { unmount } = render(
         <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
       );
-      expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+      expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
       unmount();
     } finally {
       positionTableState.arrived = true;
@@ -468,7 +468,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
-    expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
+    expect(screen.queryByText("common.lineupLoading")).toBeNull();
   });
 
   it("saves no lineup change before the position table has loaded", async () => {

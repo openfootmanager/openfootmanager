@@ -581,6 +581,53 @@ describe("SquadTab", () => {
     expect(warned).toHaveLength(2);
   });
 
+  const swappedXi = ["f1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "gk1", "f2"];
+
+  /**
+   * Given a starting XI in which the keeper and a forward have swapped slots, and a familiarity
+   *       that has not arrived (as on every refetch after a squad change)
+   * When the roster renders
+   * Then no player wears a fit mark, neither the swapped pair's warning nor an "adapted" one, no
+   *      count claims a number, and one status line says why lineup changes wait.
+   */
+  it("claims no fit before the familiarity has loaded", () => {
+    familiarityState.arrived = false;
+    try {
+      const state = makeGameState();
+      state.teams[0].starting_xi_ids = swappedXi;
+      renderSquadTab(state);
+
+      expect(screen.queryAllByTestId("familiarity-dot")).toHaveLength(0);
+      expect(screen.queryAllByText(/, squad\.outOfPosition$/)).toHaveLength(0);
+      expect(screen.queryByText(/^\d+ squad\.outOfPosition$/)).toBeNull();
+      expect(screen.queryByText(/^\d+ squad\.naturalFit$/)).toBeNull();
+      expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
+    } finally {
+      familiarityState.arrived = true;
+    }
+
+    cleanup();
+    renderSquadTab(makeGameState());
+    expect(screen.queryByText("common.lineupLoading")).toBeNull();
+  });
+
+  /**
+   * Given the same swapped XI and a keeper the backend's projection does not hold
+   * When the roster renders
+   * Then the forward is still warned, and the keeper wears no mark: a missing grade is not a verdict.
+   */
+  it("shows no fit mark for a player missing from the projection", () => {
+    const state = makeGameState();
+    state.teams[0].starting_xi_ids = swappedXi;
+    familiarityState.players.delete("gk1");
+
+    renderSquadTab(state);
+
+    expect(screen.getAllByText(/, squad\.outOfPosition$/)).toHaveLength(1);
+    const keeperRow = screen.getByRole("row", { name: /GK1/ });
+    expect(within(keeperRow).queryByTestId("familiarity-dot")).toBeNull();
+  });
+
   it("shows progressive injury details in the roster", () => {
     const gameState = makeGameState();
     gameState.players[0] = makePlayer("gk1", "Goalkeeper", {
@@ -985,10 +1032,10 @@ describe("SquadTab", () => {
   /**
    * Given a squad whose starters are all in their natural slots
    * When the familiarity has arrived and when it has not
-   * Then the natural-fit count is the backend's, and zero before it arrives: the screen does not
-   *      grade the lineup itself while it waits.
+   * Then the natural-fit count is the backend's, and absent (not "0") before it arrives: the
+   *      screen neither grades the lineup itself nor claims a count while it waits.
    */
-  it("counts natural fits from the backend's familiarity, and none before it arrives", () => {
+  it("counts natural fits from the backend's familiarity, and claims no count before it arrives", () => {
     const { unmount } = render(
       <SquadTab
         gameState={makeGameState()}
@@ -1013,7 +1060,7 @@ describe("SquadTab", () => {
         />,
       );
 
-      expect(screen.getByText("0 squad.naturalFit")).toBeInTheDocument();
+      expect(screen.queryByText(/^\d+ squad\.naturalFit$/)).toBeNull();
     } finally {
       familiarityState.arrived = true;
     }

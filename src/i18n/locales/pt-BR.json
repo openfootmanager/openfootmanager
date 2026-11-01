@@ -635,7 +635,8 @@
     "nextPage": "Próxima página",
     "lastPage": "Última página",
     "sortBy": "Ordenar por",
-    "sortAscending": "Crescente"
+    "sortAscending": "Crescente",
+    "lineupLoading": "Os dados de posições ainda estão carregando, então as alterações na escalação ainda não estão disponíveis."
   },
   "teamSelection": {
     "title": "Escolha Seu Clube",
@@ -917,8 +918,7 @@
       "sharp": "Afiado",
       "managing": "Gerenciando",
       "risk": "Risco"
-    },
-    "positionsLoading": "Os dados de posições ainda estão carregando, então as alterações na escalação ainda não estão disponíveis."
+    }
   },
   "training": {
     "weeklySchedule": "Calendário Semanal",

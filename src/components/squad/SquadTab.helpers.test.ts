@@ -849,6 +849,17 @@ describe("getDeployedPosition", () => {
     });
 
     /**
+     * Given a table with no grade for the player (not loaded, or not in the club)
+     * When he is graded for a slot
+     * Then there is no verdict: not "adapted", which would read as a mark.
+     */
+    it("gives no verdict when the table has no grade for the player", () => {
+      expect(
+        getSquadTacticalFit(leftBack, "LeftBack", cannedPositionTable(), saying(null)),
+      ).toBeNull();
+    });
+
+    /**
      * Given a table that has not arrived
      * When a lineup action is asked for
      * Then nothing is picked: the squad is returned as it was, even with the position table loaded.
