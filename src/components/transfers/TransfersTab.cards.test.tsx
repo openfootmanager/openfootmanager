@@ -60,9 +60,9 @@ const offered = createPlayer({
       last_manager_fee: null,
       negotiation_round: 1,
       suggested_counter_fee: null,
-      status: "Pending",
+      status: "PendingRegistration",
       date: "2026-12-20",
-      registration_date: null,
+      registration_date: "2027-01-02",
     },
   ],
 });
@@ -151,7 +151,7 @@ it("opens a player from his card and from its context menu", async () => {
 });
 
 /**
- * Given a player with a pending bid from the club, in the Offers tab's cards
+ * Given a player with the club's accepted bid awaiting registration, in the Offers tab's cards
  * When his card is read
  * Then it shows the offer's fee and its offer-history button.
  */
