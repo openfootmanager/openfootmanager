@@ -50,9 +50,10 @@ pub fn familiarity_projection(game: &Game) -> Result<FamiliarityProjection, Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::uniform_attributes;
     use chrono::{TimeZone, Utc};
     use domain::manager::Manager;
-    use domain::player::{Player, PlayerAttributes};
+    use domain::player::Player;
 
     fn player(id: &str, team_id: &str, natural: Position, alternates: Vec<Position>) -> Player {
         let mut player = Player::new(
@@ -62,7 +63,7 @@ mod tests {
             "2000-01-01".to_string(),
             "GB".to_string(),
             Position::Midfielder,
-            PlayerAttributes::default(),
+            uniform_attributes(60),
         );
         player.natural_position = natural;
         player.alternate_positions = alternates;
