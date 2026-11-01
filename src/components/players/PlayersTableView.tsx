@@ -1,4 +1,3 @@
-import { ArrowUpDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useRatingTiers } from "../../hooks/useRatingTiers";
@@ -10,6 +9,7 @@ import type { PlayerSortKey, PlayerSummary, PlayersPageQuery } from "../../servi
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import PlayerPositionBadge from "../PlayerPositionBadge";
 import { Badge, Card, CardBody, CountryFlag, PlayerAvatar } from "../ui";
+import { SortHeaderButton } from "../ui/DataTable";
 import PlayersPagination from "./PlayersPagination";
 
 interface PlayersTableViewProps {
@@ -216,6 +216,7 @@ function SortHeader({
   label,
   sortKey,
   current,
+  asc,
   onClick,
 }: {
   label: string;
@@ -224,18 +225,19 @@ function SortHeader({
   asc: boolean;
   onClick: (k: PlayerSortKey) => void;
 }) {
-  const isActive = current === sortKey;
+  const direction = current === sortKey ? (asc ? "asc" : "desc") : null;
   return (
     <th
-      onClick={() => onClick(sortKey)}
-      className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors select-none"
+      scope="col"
+      aria-sort={direction ? (direction === "asc" ? "ascending" : "descending") : undefined}
+      className="font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
     >
-      <span className="flex items-center gap-1">
-        {label}
-        <ArrowUpDown
-          className={`w-3 h-3 ${isActive ? "text-primary-500" : "text-gray-300 dark:text-navy-600"}`}
-        />
-      </span>
+      <SortHeaderButton
+        header={label}
+        direction={direction}
+        onSort={() => onClick(sortKey)}
+        className="px-4 py-3"
+      />
     </th>
   );
 }
