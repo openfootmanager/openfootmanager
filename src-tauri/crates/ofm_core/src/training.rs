@@ -1243,6 +1243,32 @@ mod tests {
         );
     }
 
+    /// Given morale either side of each band: 39, 40, 69 and 70
+    /// When the recovery factor for morale is read
+    /// Then it steps up from 0.90 to 1.00 at 40 and to 1.10 at 70
+    #[test]
+    fn players_in_good_spirits_recover_faster_band_by_band() {
+        let factors: Vec<f64> = [39, 40, 69, 70]
+            .into_iter()
+            .map(recovery_factor_from_morale)
+            .collect();
+
+        assert_eq!(factors, vec![0.90, 1.00, 1.00, 1.10]);
+    }
+
+    /// Given condition either side of each band: 29, 30, 49 and 50
+    /// When the recovery factor for condition is read
+    /// Then it steps up from 0.80 to 0.90 at 30 and to 1.00 at 50
+    #[test]
+    fn exhausted_players_recover_slower_band_by_band() {
+        let factors: Vec<f64> = [29, 30, 49, 50]
+            .into_iter()
+            .map(recovery_factor_from_condition)
+            .collect();
+
+        assert_eq!(factors, vec![0.80, 0.90, 0.90, 1.00]);
+    }
+
     /// Given a club with no staff and a level-three medical centre (1.2), and a player whose
     ///       recovery factors are all 1.0
     /// When the club's rest day is processed
@@ -1534,6 +1560,17 @@ mod tests {
     fn fitness_of_eighty_five_needs_no_maintaining() {
         assert_eq!(
             fitness_after(85, TrainingFocus::Technical, Roll::at(0.0)),
+            85
+        );
+    }
+
+    /// Given a player at fitness 86 in a technical session and a roll of 0
+    /// When the session ends
+    /// Then he is at 85: from 86 up, fitness needs maintaining
+    #[test]
+    fn fitness_of_eighty_six_needs_maintaining() {
+        assert_eq!(
+            fitness_after(86, TrainingFocus::Technical, Roll::at(0.0)),
             85
         );
     }
