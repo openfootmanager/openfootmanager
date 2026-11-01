@@ -62,6 +62,31 @@ describe("EntityCard", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * Given a card whose status holds a control that is one by ARIA role, not a native button
+   * When the player clicks that control
+   * Then the click is the control's alone, and the card does not open.
+   */
+  it("keeps a click on a role-based control from opening the card", () => {
+    const onOpen = vi.fn();
+    renderCard({
+      onOpen,
+      status: (
+        <div role="button" tabIndex={0}>
+          Shortlist
+        </div>
+      ),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Shortlist" }));
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  /** Given a hero number of 0 (a new player's rating, a count), then it is drawn, not dropped. */
+  it("draws a hero of 0", () => {
+    renderCard({ hero: 0 });
+    expect(screen.getByText("0")).toBeInTheDocument();
+  });
+
   /** Given a card that opens nothing, then its name is a heading's plain text, not a button. */
   it("draws no button when the card opens nothing", () => {
     renderCard({ onOpen: undefined });

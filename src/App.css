@@ -270,7 +270,8 @@
   --color-kit: var(--kit, var(--color-line-strong));
   --color-kit-wash: color-mix(
     in srgb,
-    var(--kit, var(--color-panel)) var(--kit-wash-mix),
+    /* A pale kit takes a smaller share (kitStyle's --kit-wash-scale), so a dark header stays readable. */
+    var(--kit, var(--color-panel)) calc(var(--kit-wash-mix) * var(--kit-wash-scale, 1)),
     var(--color-panel)
   );
 }
