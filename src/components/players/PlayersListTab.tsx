@@ -487,6 +487,7 @@ export default function PlayersListTab({
               )}
             </div>
             <PlayersPagination
+              surface="panel"
               page={page}
               pageSize={pageSize}
               total={total}
