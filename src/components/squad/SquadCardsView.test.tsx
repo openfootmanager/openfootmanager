@@ -32,6 +32,16 @@ vi.mock("../../hooks/usePositionGroups", async () => {
   };
 });
 
+// The players the backend's familiarity grades (every one built here).
+const familiarityPlayers = vi.hoisted(() => new Map<string, unknown>());
+
+vi.mock("../../hooks/useFamiliarity", async () => {
+  const { cannedFamiliarityModule } = await import("../../test-utils/familiarity");
+  return cannedFamiliarityModule(
+    (playerId) => familiarityPlayers.get(playerId) as PlayerData | undefined,
+  );
+});
+
 vi.mock("../../hooks/useContractWarningStages", () => ({
   useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
 }));
@@ -61,8 +71,8 @@ const makePlayer = (
   id: string,
   position: string,
   overrides: Partial<PlayerData> = {},
-): PlayerData =>
-  createPlayer({
+): PlayerData => {
+  const player = createPlayer({
     id,
     match_name: id.toUpperCase(),
     full_name: `Player ${id}`,
@@ -79,6 +89,10 @@ const makePlayer = (
     match_day_eligible: true,
     ...overrides,
   });
+  // The backend would grade him; the stand-in finds him here.
+  familiarityPlayers.set(player.id, player);
+  return player;
+};
 
 const STARTER_IDS = ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"];
 
