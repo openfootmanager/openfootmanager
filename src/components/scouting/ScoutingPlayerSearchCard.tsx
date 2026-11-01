@@ -4,9 +4,10 @@ import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
 import { calcAge, formatVal, getTeamName } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
-import type { PlayerSortKey, PlayersPageQuery } from "../../services/playersService";
+import type { PlayersPageQuery } from "../../services/playersService";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import PlayerListFilters from "../players/PlayerListFilters";
+import { PLAYER_SORT_OPTIONS } from "../players/playerSortOptions";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import {
   buildDividerMenuItem,
@@ -28,16 +29,6 @@ import {
 import { useListView } from "../../hooks/useListView";
 import ScoutingPlayerCards, { ScoutAction } from "./ScoutingPlayerCards";
 import PlayerPositionBadge from "../PlayerPositionBadge";
-
-/** The fields the search sorts by, offered by the card view's sort control (the table has no headers to sort by). */
-const SCOUT_SORT_OPTIONS: readonly { key: PlayerSortKey; labelKey: string }[] = [
-  { key: "name", labelKey: "common.name" },
-  { key: "position", labelKey: "common.position" },
-  { key: "age", labelKey: "common.age" },
-  { key: "team", labelKey: "common.team" },
-  { key: "value", labelKey: "common.value" },
-  { key: "ovr", labelKey: "common.ovr" },
-];
 
 interface ScoutingPlayerSearchCardProps {
   players: PlayerData[];
@@ -159,7 +150,7 @@ export default function ScoutingPlayerSearchCard({
           <>
             <div className="mb-3 flex justify-end">
               <SortControl
-                options={SCOUT_SORT_OPTIONS.map(({ key, labelKey }) => ({
+                options={PLAYER_SORT_OPTIONS.map(({ key, labelKey }) => ({
                   key,
                   label: t(labelKey),
                 }))}
