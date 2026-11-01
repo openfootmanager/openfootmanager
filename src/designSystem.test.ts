@@ -16,6 +16,9 @@ const FINISHED_FOLDERS = [
   "./components/dashboard/DashboardSidebar.tsx",
   "./components/dashboard/DashboardWorkspaceContent.tsx",
   "./pages/Dashboard.tsx",
+  // The penalty shootout's kick sheet (shootout redesign B, approved 31 Oct 2026).
+  "./components/match/KickSheet.tsx",
+  "./components/match/PenaltyShootoutScreen.tsx",
 ];
 
 /**

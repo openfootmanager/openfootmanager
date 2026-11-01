@@ -1,17 +1,20 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { getMatchSnapshot, stepLiveMatch } from "../../services/liveMatchService";
 import type { GameStateData } from "../../store/gameStore";
+import { Button, TeamLogo } from "../ui";
+import { KickSheet } from "./KickSheet";
+import { MatchSpeedControl } from "./MatchSpeedControl";
 import {
-  type MatchSnapshot,
-  type MatchEvent,
-  type MinuteResult,
-  type SimSpeed,
-  SPEED_MS,
-} from "./types";
-import { Play, Pause, FastForward, SkipForward } from "lucide-react";
-import { TeamLogo } from "../ui";
-import { invokeForCareer } from "../../services/careerInvoke";
+  buildKickSheet,
+  isShootoutKick,
+  type KickSheet as Sheet,
+  REGULAR_ROUNDS,
+  sideKicks,
+} from "./shootoutSheet";
+import { type MatchEvent, type MatchSnapshot, SPEED_MS } from "./types";
+import { useMatchPace } from "./useMatchPace";
 
 interface PenaltyShootoutScreenProps {
   snapshot: MatchSnapshot;
@@ -24,10 +27,11 @@ interface PenaltyShootoutScreenProps {
   onFullTime: () => void;
 }
 
-// Only true shootout kicks: an in-match PenaltyAwarded from regulation/ET
-// lives in the same snapshot.events log and must not appear in this feed.
-const SHOOTOUT_EVENTS = new Set(["ShootoutGoal", "ShootoutMiss"]);
-
+/**
+ * The penalty shootout, as a kick sheet: the score band with each side's kicks at a glance, the
+ * sheet with every kicker and result round by round, and the live match's own speed control. It
+ * steps one kick at a time, never batched, because watching each one is the point.
+ */
 export default function PenaltyShootoutScreen({
   snapshot,
   gameState,
@@ -36,199 +40,267 @@ export default function PenaltyShootoutScreen({
   onFullTime,
 }: PenaltyShootoutScreenProps) {
   const { t } = useTranslation();
-  const [speed, setSpeed] = useState<SimSpeed>("normal");
-  const [isRunning, setIsRunning] = useState(true);
+  const { pace, isRunning, pause, togglePause, selectPace } = useMatchPace("normal");
+  const [stepFailed, setStepFailed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const signaledRef = useRef(false);
+  const finishedRef = useRef(false);
+  // Set while a step is awaiting the engine. A second step then (a double-click on Next kick, or
+  // Retry over the timer's step) would take two kicks at once, or ask for a kick after the last.
+  const stepInFlightRef = useRef(false);
+  // A kick the engine took whose snapshot never arrived (the read failed): Retry reads it again
+  // rather than kicking again, and whether that kick ended the shootout is kept for then.
+  const unreadKickRef = useRef<{ endedShootout: boolean } | null>(null);
+  const [finished, setFinished] = useState(false);
 
   const homeFullTeam = gameState.teams.find((tm) => tm.id === snapshot.home_team.id);
   const awayFullTeam = gameState.teams.find((tm) => tm.id === snapshot.away_team.id);
-
+  const homeName = snapshot.home_team.name;
+  const awayName = snapshot.away_team.name;
   const ps = snapshot.penalty_shootout;
-  const roundNumber = ps ? Math.max(ps.home_taken, ps.away_taken) : 0;
+  const sheet = useMemo(() => buildKickSheet(snapshot), [snapshot]);
 
   const stepMatch = useCallback(async () => {
+    if (finishedRef.current || stepInFlightRef.current) return;
+    stepInFlightRef.current = true;
     try {
-      // Always one at a time, never batched like the live match: here a "minute" is a single
-      // penalty, and the whole point of the screen is watching each one.
-      const results = await invokeForCareer<MinuteResult[]>("step_live_match", {
-        minutes: 1,
-      });
-      if (results.length > 0) {
-        for (const r of results) {
-          for (const evt of r.events) {
-            if (SHOOTOUT_EVENTS.has(evt.event_type)) {
+      if (!unreadKickRef.current) {
+        const results = await stepLiveMatch(1);
+        for (const result of results) {
+          for (const evt of result.events) {
+            if (isShootoutKick(evt)) {
               onImportantEvent(evt);
             }
           }
         }
-
-        const snap = await invoke<MatchSnapshot>("get_match_snapshot");
-        onSnapshotUpdate(snap);
-
-        const lastResult = results[results.length - 1];
-        if (lastResult.is_finished && !signaledRef.current) {
-          signaledRef.current = true;
-          setIsRunning(false);
-          setSpeed("paused");
-          setTimeout(() => onFullTime(), 800);
-        }
+        unreadKickRef.current = {
+          endedShootout: results[results.length - 1]?.is_finished === true,
+        };
       }
-    } catch (err) {
-      console.error("Failed to step penalty shootout:", err);
-      setIsRunning(false);
+      onSnapshotUpdate(await getMatchSnapshot());
+      const { endedShootout } = unreadKickRef.current;
+      unreadKickRef.current = null;
+      setStepFailed(false);
+      if (endedShootout) {
+        finishedRef.current = true;
+        setFinished(true);
+        pause();
+        setTimeout(() => onFullTime(), 800);
+      }
+    } catch {
+      // The shootout can't go on without the engine; say so and let the player try again, rather
+      // than stopping with nothing on screen.
+      setStepFailed(true);
+      pause();
+    } finally {
+      stepInFlightRef.current = false;
     }
-  }, [onSnapshotUpdate, onImportantEvent, onFullTime]);
+  }, [onSnapshotUpdate, onImportantEvent, onFullTime, pause]);
+
+  // Resuming after a failed step is a retry too, so it clears the message.
+  const resumeOrPause = useCallback(() => {
+    setStepFailed(false);
+    togglePause();
+  }, [togglePause]);
+
+  // Choosing a speed plays the shootout on, so it clears a failed step's message too.
+  const choosePace = useCallback(
+    (next: Parameters<typeof selectPace>[0]) => {
+      setStepFailed(false);
+      selectPace(next);
+    },
+    [selectPace],
+  );
+
+  const retry = useCallback(() => {
+    setStepFailed(false);
+    void stepMatch();
+  }, [stepMatch]);
 
   useEffect(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-
-    if (isRunning && speed !== "paused") {
-      timerRef.current = setTimeout(async () => {
-        await stepMatch();
-      }, SPEED_MS[speed]);
-    }
-
+    if (!isRunning || stepFailed || finished) return;
+    timerRef.current = setTimeout(() => void stepMatch(), SPEED_MS[pace]);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isRunning, speed, snapshot.current_minute, snapshot.phase, stepMatch]);
+  }, [
+    isRunning,
+    stepFailed,
+    finished,
+    pace,
+    snapshot.current_minute,
+    snapshot.events.length,
+    stepMatch,
+  ]);
 
-  const shootoutEvents = snapshot.events.filter((e) => SHOOTOUT_EVENTS.has(e.event_type));
+  const status = ps?.sudden_death
+    ? t("match.shootout.suddenDeath")
+    : sheet.currentRound !== null && sheet.currentRound <= REGULAR_ROUNDS
+      ? t("match.shootout.round", { n: sheet.currentRound })
+      : null;
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-navy-900 flex flex-col items-center justify-center px-4 py-8 transition-colors duration-300">
-      {/* Header */}
-      <div className="w-full max-w-lg mb-6 text-center">
-        <p className="text-xs font-heading uppercase tracking-widest text-accent-600 dark:text-accent-400 mb-1">
-          {ps?.sudden_death
-            ? t("match.shootout.suddenDeath")
-            : roundNumber > 0
-              ? t("match.shootout.round", { n: roundNumber })
-              : t("match.penaltyShootout")}
-        </p>
-        <h1 className="text-2xl font-heading font-bold text-gray-900 dark:text-white">
-          {t("match.penaltyShootout")}
-        </h1>
-      </div>
+    <div className="flex min-h-screen flex-col bg-page text-fg">
+      <ScoreBand
+        snapshot={snapshot}
+        sheet={sheet}
+        homeLogo={homeFullTeam && <TeamLogo team={homeFullTeam} />}
+        awayLogo={awayFullTeam && <TeamLogo team={awayFullTeam} />}
+        status={status}
+      />
+      <LastKickAnnouncement snapshot={snapshot} sheet={sheet} />
 
-      {/* Score card */}
-      <div className="w-full max-w-lg bg-white dark:bg-navy-800 rounded-2xl shadow-lg p-6 mb-4">
-        <div className="flex items-center justify-between gap-4">
-          {/* Home */}
-          <div className="flex flex-col items-center gap-2 flex-1">
-            {homeFullTeam && <TeamLogo team={homeFullTeam} />}
-            <span className="font-heading font-semibold text-gray-900 dark:text-white text-sm text-center">
-              {snapshot.home_team.name}
-            </span>
-            <span className="text-3xl font-heading font-bold text-gray-900 dark:text-white tabular-nums">
-              {ps?.home_scored ?? 0}
-            </span>
-          </div>
+      <div className="mx-auto grid w-full max-w-page flex-1 items-start gap-4 p-4 md:grid-cols-[minmax(0,1fr)_18rem] lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <section
+          aria-labelledby="kick-sheet-heading"
+          className="overflow-hidden rounded-xl bg-panel shadow-sm"
+        >
+          <h2
+            id="kick-sheet-heading"
+            className="flex h-panel-header items-center border-b border-line px-4 font-heading text-heading font-bold text-fg"
+          >
+            {t("match.shootout.kickSheet")}
+          </h2>
+          <KickSheet sheet={sheet} homeName={homeName} awayName={awayName} />
+        </section>
 
-          {/* vs */}
-          <div className="text-gray-400 dark:text-gray-500 font-heading font-bold text-xl">–</div>
-
-          {/* Away */}
-          <div className="flex flex-col items-center gap-2 flex-1">
-            {awayFullTeam && <TeamLogo team={awayFullTeam} />}
-            <span className="font-heading font-semibold text-gray-900 dark:text-white text-sm text-center">
-              {snapshot.away_team.name}
-            </span>
-            <span className="text-3xl font-heading font-bold text-gray-900 dark:text-white tabular-nums">
-              {ps?.away_scored ?? 0}
-            </span>
-          </div>
-        </div>
-
-        {/* Kick grid */}
-        {ps && (
-          <div className="mt-6 space-y-3">
-            <KickRow
-              label={snapshot.home_team.name}
-              kicks={sideKicks(shootoutEvents, "Home")}
-              maxRounds={ps.sudden_death ? ps.home_taken + 1 : 5}
-            />
-            <KickRow
-              label={snapshot.away_team.name}
-              kicks={sideKicks(shootoutEvents, "Away")}
-              maxRounds={ps.sudden_death ? ps.away_taken + 1 : 5}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Event feed */}
-      {shootoutEvents.length > 0 && (
-        <div className="w-full max-w-lg bg-white dark:bg-navy-800 rounded-xl p-4 mb-4 space-y-1">
-          {shootoutEvents.slice(-8).map((evt, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"
-            >
-              <span className="text-gray-400 dark:text-gray-500 tabular-nums w-6 text-right">
-                {evt.minute}&apos;
-              </span>
-              <span
-                className={
-                  evt.event_type === "ShootoutGoal"
-                    ? "text-green-600 dark:text-green-400 font-semibold"
-                    : "text-red-500 dark:text-red-400"
-                }
-              >
-                {evt.event_type === "ShootoutGoal" ? "⚽" : "✗"}
-              </span>
-              <span>{evt.side === "Home" ? snapshot.home_team.name : snapshot.away_team.name}</span>
+        <aside className="flex flex-col gap-4 rounded-xl bg-panel p-4 shadow-sm">
+          {stepFailed && (
+            <div role="alert" className="flex flex-col gap-2 rounded-lg bg-danger-tint p-3">
+              <p className="text-body font-semibold text-danger">
+                {t("match.shootout.stepFailed")}
+              </p>
+              <Button variant="outline" size="sm" onClick={retry} className="self-start">
+                {t("common.retry")}
+              </Button>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Speed controls */}
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setIsRunning((r) => !r);
-            if (!isRunning) setSpeed("normal");
-            else setSpeed("paused");
-          }}
-          className="p-2 rounded-full bg-white dark:bg-navy-700 shadow hover:shadow-md transition-all"
-          aria-label={isRunning ? t("match.pause") : t("match.live")}
-        >
-          {isRunning ? (
-            <Pause className="w-5 h-5 text-gray-700 dark:text-gray-200" />
-          ) : (
-            <Play className="w-5 h-5 text-gray-700 dark:text-gray-200" />
           )}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setSpeed("fast");
-            setIsRunning(true);
-          }}
-          className="p-2 rounded-full bg-white dark:bg-navy-700 shadow hover:shadow-md transition-all"
-          aria-label={t("match.fast")}
-        >
-          <FastForward className="w-5 h-5 text-gray-700 dark:text-gray-200" />
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            setIsRunning(false);
-            await stepMatch();
-          }}
-          className="p-2 rounded-full bg-white dark:bg-navy-700 shadow hover:shadow-md transition-all"
-          aria-label={t("match.step1Min")}
-        >
-          <SkipForward className="w-5 h-5 text-gray-700 dark:text-gray-200" />
-        </button>
+          {/* Nothing is left to play once the last kick is in: the screen hands over to full time. */}
+          {!finished && (
+            <MatchSpeedControl
+              paused={!isRunning}
+              pace={pace}
+              onTogglePause={resumeOrPause}
+              onSelectPace={choosePace}
+              onStep={() => void stepMatch()}
+              stepLabel={t("match.shootout.nextKick")}
+            />
+          )}
+        </aside>
       </div>
     </div>
+  );
+}
+
+/** The always-dark band: both clubs, the shootout score, each side's kicks, and where it stands. */
+function ScoreBand({
+  snapshot,
+  sheet,
+  homeLogo,
+  awayLogo,
+  status,
+}: {
+  snapshot: MatchSnapshot;
+  sheet: Sheet;
+  homeLogo: ReactNode;
+  awayLogo: ReactNode;
+  status: string | null;
+}) {
+  const { t } = useTranslation();
+  const ps = snapshot.penalty_shootout;
+  const home = ps?.home_scored ?? 0;
+  const away = ps?.away_scored ?? 0;
+  const live = snapshot.phase === "PenaltyShootout";
+  const homeKicks = sideKicks(snapshot.events, "Home").map((e) => e.event_type === "ShootoutGoal");
+  const awayKicks = sideKicks(snapshot.events, "Away").map((e) => e.event_type === "ShootoutGoal");
+  // As many cells as the sheet has rounds while the shootout is on; once over, only kicks taken.
+  const cells = (kicks: boolean[]) => (live ? sheet.rows.length : kicks.length);
+
+  return (
+    <header className="bg-chrome text-chrome-fg">
+      <div className="mx-auto grid w-full max-w-page grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {homeLogo}
+          <div className="flex min-w-0 flex-col gap-1.5">
+            <span className="truncate font-heading text-heading font-bold">
+              {snapshot.home_team.name}
+            </span>
+            <KickRow
+              label={snapshot.home_team.name}
+              kicks={homeKicks}
+              maxRounds={cells(homeKicks)}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h1 className="font-heading text-caption font-bold uppercase tracking-label text-chrome-fg-muted">
+            {t("match.penaltyShootout")}
+          </h1>
+          <p className="font-heading text-display font-bold tabular-nums">
+            <span className="sr-only">
+              {t("match.shootout.shootoutScore", { h: home, a: away })}
+            </span>
+            <span aria-hidden="true">
+              {home} – {away}
+            </span>
+          </p>
+          <p className="text-caption text-chrome-fg-muted">
+            {t("match.shootout.afterExtraTime", {
+              home: snapshot.home_score,
+              away: snapshot.away_score,
+            })}
+          </p>
+          {status && (
+            <p
+              className={`rounded-full px-2 py-0.5 font-heading text-caption font-bold uppercase tracking-label ${
+                snapshot.penalty_shootout?.sudden_death
+                  ? "bg-warning-tint text-warning"
+                  : "text-chrome-fg-muted"
+              }`}
+            >
+              {status}
+            </p>
+          )}
+        </div>
+        <div className="flex min-w-0 items-center justify-end gap-3 text-right">
+          <div className="flex min-w-0 flex-col items-end gap-1.5">
+            <span className="truncate font-heading text-heading font-bold">
+              {snapshot.away_team.name}
+            </span>
+            <KickRow
+              label={snapshot.away_team.name}
+              kicks={awayKicks}
+              maxRounds={cells(awayKicks)}
+            />
+          </div>
+          {awayLogo}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/** Reads each kick out once, as it lands: "Kick 6, Beta FC: Bob missed." */
+function LastKickAnnouncement({ snapshot, sheet }: { snapshot: MatchSnapshot; sheet: Sheet }) {
+  const { t } = useTranslation();
+  const kicks = snapshot.events.filter(isShootoutKick);
+  const last = kicks[kicks.length - 1];
+  let message = "";
+  if (last) {
+    const n = sideKicks(snapshot.events, last.side).length;
+    const cell = sheet.rows[n - 1]?.[last.side === "Home" ? "home" : "away"];
+    const team = last.side === "Home" ? snapshot.home_team.name : snapshot.away_team.name;
+    const kicker = cell && "kickerName" in cell && cell.kickerName ? cell.kickerName : team;
+    message = t(
+      last.event_type === "ShootoutGoal"
+        ? "match.shootout.kickAnnounceScored"
+        : "match.shootout.kickAnnounceMissed",
+      { n, team, kicker },
+    );
+  }
+  return (
+    <p role="status" className="sr-only">
+      {message}
+    </p>
   );
 }
 
@@ -250,50 +322,35 @@ export function KickRow({
   const cells = Math.max(maxRounds, kicks.length);
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="text-xs text-gray-500 dark:text-gray-400 w-20 truncate text-right">
-        {label}
-      </span>
-      {/* Named for its club, so "Kick 1, missed" is heard as that club's kick, not the other's. */}
-      <div role="group" aria-label={label} className="flex gap-1.5 flex-wrap">
-        {Array.from({ length: cells }).map((_, i) => {
-          const n = i + 1;
-          if (i >= kicks.length) {
-            return (
-              <span
-                key={n}
-                role="img"
-                aria-label={t("match.shootout.kickToCome", { n })}
-                className="w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-600 flex items-center justify-center text-xs text-gray-300"
-              >
-                <span aria-hidden="true">?</span>
-              </span>
-            );
-          }
-          const scored = kicks[i];
+    <span role="group" aria-label={label} className="flex flex-wrap gap-1">
+      {Array.from({ length: cells }).map((_, i) => {
+        const n = i + 1;
+        if (i >= kicks.length) {
           return (
             <span
               key={n}
               role="img"
-              aria-label={t(scored ? "match.shootout.kickScored" : "match.shootout.kickMissed", {
-                n,
-              })}
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-sm ${
-                scored
-                  ? "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400"
-                  : "bg-red-100 dark:bg-red-900/40 text-red-500 dark:text-red-400"
-              }`}
-            >
-              <span aria-hidden="true">{scored ? "⚽" : "✗"}</span>
-            </span>
+              aria-label={t("match.shootout.kickToCome", { n })}
+              className="size-4 rounded-full border-2 border-chrome-fg-muted"
+            />
           );
-        })}
-      </div>
-    </div>
+        }
+        const scored = kicks[i];
+        return (
+          <span
+            key={n}
+            role="img"
+            aria-label={t(scored ? "match.shootout.kickScored" : "match.shootout.kickMissed", {
+              n,
+            })}
+            className={`grid size-4 place-items-center rounded-full font-heading text-caption font-bold leading-none ${
+              scored ? "bg-positive-tint text-positive" : "bg-danger-tint text-danger"
+            }`}
+          >
+            <span aria-hidden="true">{scored ? "✓" : "✗"}</span>
+          </span>
+        );
+      })}
+    </span>
   );
-}
-
-/** One side's shootout kicks, in the order taken, from the kick events (true: scored). */
-function sideKicks(events: readonly MatchEvent[], side: "Home" | "Away"): boolean[] {
-  return events.filter((evt) => evt.side === side).map((evt) => evt.event_type === "ShootoutGoal");
 }
