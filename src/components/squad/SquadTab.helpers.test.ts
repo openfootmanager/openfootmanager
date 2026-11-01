@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerData } from "../../store/gameStore";
 import { createPositionTable } from "../../lib/positionTable";
+import type { FamiliarityTable } from "../../hooks/useFamiliarity";
+import type { Familiarity } from "../../store/generated/Familiarity";
+import { pendingFamiliarityTable } from "../../test-utils/familiarity";
 import { cannedPositionTable } from "../../test-utils/positionTable";
 import {
   applyLineupDrop,
@@ -17,6 +20,7 @@ import {
   buildPromoteToStartingXi,
   buildStartingXIIds,
   getSquadTacticalFit,
+  lineupReady,
   getPitchSlotWidth,
   getPreferredPositions,
   isPlayerOutOfPosition,
@@ -792,6 +796,80 @@ describe("getDeployedPosition", () => {
       const forward = makePlayer("fwd", "Forward", { natural_position: "Forward" });
 
       expect(getSquadTacticalFit(forward, "CenterBack", notLoaded())).not.toBe("out");
+    });
+  });
+
+  describe("when the screen reads the backend's familiarity", () => {
+    // A table that says what the test says, whatever the player's own positions are: it proves the
+    // helpers read the table and do not grade the player themselves.
+    const saying = (word: Familiarity | null): FamiliarityTable => ({
+      loaded: true,
+      familiarityOf: () => word,
+    });
+    const leftBack = makePlayer("p1", "Left Back", { natural_position: "LeftBack" });
+
+    /**
+     * Given a left back whom the backend calls out of position at left back (contrary to his
+     *       own positions)
+     * When he is graded for that slot
+     * Then he is out, not natural: the backend's word wins.
+     */
+    it("grades out of position when the backend says so", () => {
+      const familiarity = saying("out_of_position");
+
+      expect(getSquadTacticalFit(leftBack, "LeftBack", cannedPositionTable(), familiarity)).toBe(
+        "out",
+      );
+      expect(isPlayerOutOfPosition(leftBack, "LeftBack", cannedPositionTable(), familiarity)).toBe(
+        true,
+      );
+    });
+
+    /**
+     * Given a left back whom the backend calls natural at a slot he could not play by his own
+     *       positions
+     * When he is graded for it
+     * Then he is natural.
+     */
+    it("grades natural when the backend says so", () => {
+      expect(
+        getSquadTacticalFit(leftBack, "Striker", cannedPositionTable(), saying("natural")),
+      ).toBe("natural");
+    });
+
+    /**
+     * Given a backend word of can play
+     * When he is graded
+     * Then he is adapted.
+     */
+    it("grades adapted for can play", () => {
+      expect(
+        getSquadTacticalFit(leftBack, "Striker", cannedPositionTable(), saying("can_play")),
+      ).toBe("adapted");
+    });
+
+    /**
+     * Given a table that has not arrived
+     * When a lineup action is asked for
+     * Then nothing is picked: the squad is returned as it was, even with the position table loaded.
+     */
+    it("picks nothing until the familiarity has loaded", () => {
+      const xi = ["a", "b"];
+      const byId = new Map([["a", makePlayer("a", "Goalkeeper")]]);
+
+      expect(
+        buildPromoteToStartingXi(
+          xi,
+          byId,
+          "4-4-2",
+          "a",
+          cannedPositionTable(),
+          pendingFamiliarityTable(),
+        ),
+      ).toBe(xi);
+      expect(lineupReady(cannedPositionTable(), pendingFamiliarityTable())).toBe(false);
+      expect(lineupReady(cannedPositionTable(), saying("natural"))).toBe(true);
+      expect(lineupReady(createPositionTable([]), saying("natural"))).toBe(false);
     });
   });
 });
