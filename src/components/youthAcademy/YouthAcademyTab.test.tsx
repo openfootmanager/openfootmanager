@@ -441,26 +441,60 @@ describe("YouthAcademyTab", () => {
   // response, or the promoted player lingers in the list until the user
   // switches pages.
   /**
-   * Given youth prospects with ceilings of 81 (S), 77 (A), 76 (B) and 60 (the rest)
+   * Given youth prospects rated 50 whose ceilings are 81 (S) and 77 (A)
    * When the academy lists them
-   * Then each ceiling carries its backend tier's letter (none for the rest), and the "high potential"
-   *      count is the S and A prospects: two.
+   * Then no ceiling shows: no number, tier letter or growth bar in the table, and no average
+   *      potential or high-potential count above it. Potential is only ever an opinion, on the
+   *      player's profile (maintainer, 21 Oct).
    */
-  it("shows each prospect's ceiling as its backend tier", async () => {
+  it("never shows a prospect's potential", async () => {
     const prospect = (id: string, potential: number) =>
       createPlayer({
         id,
-        full_name: `Prospect ${potential}`,
+        full_name: `Prospect ${id}`,
         date_of_birth: "2008-01-01",
         squad_role: "Youth",
         potential,
         ovr: 50,
       });
+    const state = createGameState([prospect("s", 81), prospect("a", 77)]);
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
+      if (command === "get_staff") return makeEmptyStaffSlice();
+      return state;
+    });
+
+    render(<YouthAcademyTab gameState={state} />);
+
+    const row = within(await screen.findByRole("row", { name: /Prospect s\b/ }));
+    expect(row.queryByText("81")).not.toBeInTheDocument();
+    expect(row.queryByText("S")).not.toBeInTheDocument();
+    expect(screen.queryByText("77")).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Potential" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Growth" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Avg Potential")).not.toBeInTheDocument();
+    expect(screen.queryByText("High Potential")).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given prospects rated 55, 62 and 48, whose ceilings run the other way
+   * When the academy lists them
+   * Then they come best-rated first (62, 55, 48): the order no longer tells their ceilings
+   */
+  it("lists prospects best-rated first", async () => {
+    const prospect = (id: string, ovr: number, potential: number) =>
+      createPlayer({
+        id,
+        full_name: `Prospect ${id}`,
+        date_of_birth: "2008-01-01",
+        squad_role: "Youth",
+        potential,
+        ovr,
+      });
     const state = createGameState([
-      prospect("s", 81),
-      prospect("a", 77),
-      prospect("b", 76),
-      prospect("r", 60),
+      prospect("mid", 55, 70),
+      prospect("top", 62, 66),
+      prospect("low", 48, 90),
     ]);
     mockedInvoke.mockImplementation(async (command: string) => {
       if (command === "get_squad") return state.players.filter((p) => p.team_id === "team-1");
@@ -470,14 +504,13 @@ describe("YouthAcademyTab", () => {
 
     render(<YouthAcademyTab gameState={state} />);
 
-    // The ceiling cell reads as its number and, for a tiered prospect, the tier letter: "81 S".
-    const ceilingOf = async (potential: number) =>
-      within(await screen.findByRole("row", { name: new RegExp(`Prospect ${potential}\\b`) }));
-    expect((await ceilingOf(81)).getByRole("cell", { name: "81 S" })).toBeInTheDocument();
-    expect((await ceilingOf(77)).getByRole("cell", { name: "77 A" })).toBeInTheDocument();
-    expect((await ceilingOf(76)).getByRole("cell", { name: "76 B" })).toBeInTheDocument();
-    expect((await ceilingOf(60)).getByRole("cell", { name: "60" })).toBeInTheDocument();
-    expect(screen.getByText("High Potential").previousElementSibling).toHaveTextContent("2");
+    await screen.findByRole("row", { name: /Prospect top\b/ });
+    const rows = screen.getAllByRole("row");
+    const rowOf = (id: string) =>
+      rows.findIndex((row) => row.textContent?.includes(`Prospect ${id}`) ?? false);
+    expect(rowOf("top")).toBeGreaterThan(-1);
+    expect(rowOf("top")).toBeLessThan(rowOf("mid"));
+    expect(rowOf("mid")).toBeLessThan(rowOf("low"));
   });
 
   it("removes a promoted player from the prospects list without a refetch", async () => {
