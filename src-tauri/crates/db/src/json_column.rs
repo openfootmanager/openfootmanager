@@ -38,6 +38,18 @@ pub fn read<T: DeserializeOwned + Default>(conn: &Connection, cell: Cell<'_>, te
     read_or_else(conn, cell, text, T::default)
 }
 
+/// The cell's value, or None when it does not parse (the cell then quarantined): for a caller that
+/// must repair what the lost cell held, rather than carry on with a default.
+pub fn try_read<T: DeserializeOwned>(conn: &Connection, cell: Cell<'_>, text: &str) -> Option<T> {
+    match serde_json::from_str(text) {
+        Ok(value) => Some(value),
+        Err(error) => {
+            quarantine(conn, cell, text, &error.to_string());
+            None
+        }
+    }
+}
+
 /// The cell's value, or `fallback()` when it does not parse (the cell then quarantined).
 pub fn read_or_else<T: DeserializeOwned>(
     conn: &Connection,
@@ -45,13 +57,7 @@ pub fn read_or_else<T: DeserializeOwned>(
     text: &str,
     fallback: impl FnOnce() -> T,
 ) -> T {
-    match serde_json::from_str(text) {
-        Ok(value) => value,
-        Err(error) => {
-            quarantine(conn, cell, text, &error.to_string());
-            fallback()
-        }
-    }
+    try_read(conn, cell, text).unwrap_or_else(fallback)
 }
 
 /// A nullable cell's value: None when it is NULL, and None when it does not parse (the cell then
@@ -366,6 +372,28 @@ mod tests {
             .collect();
 
         assert!(found.is_empty(), "outside json_column: {found:?}");
+    }
+
+    /// Given one cell that parses and one that does not
+    /// When each is read for a caller that repairs a lost cell
+    /// Then the first is its value, the second None and kept: the caller knows to repair it
+    #[test]
+    fn a_cell_read_to_be_repaired_says_whether_it_was_lost() {
+        let db = GameDatabase::open_in_memory().unwrap();
+
+        let fine: Option<Vec<u32>> = try_read(db.conn(), Cell::new("t", "r", "fine"), "[1]");
+        let lost: Option<Vec<u32>> = try_read(db.conn(), Cell::new("t", "r", "lost"), "[1,");
+
+        assert_eq!(fine, Some(vec![1]));
+        assert_eq!(lost, None);
+        assert_eq!(
+            unreadable_cells(db.conn()).unwrap(),
+            vec![UnreadableCell {
+                table: "t".into(),
+                row_id: "r".into(),
+                column: "lost".into(),
+            }]
+        );
     }
 
     /// Given a cell that parses
