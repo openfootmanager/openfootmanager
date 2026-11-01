@@ -374,33 +374,34 @@ mod tests {
         assert!(found.is_empty(), "outside json_column: {found:?}");
     }
 
-    /// Whether a migration's SQL names the quarantine table, its `--` comments left out.
+    /// Whether a migration's SQL names the quarantine table anywhere, comments included: stripping
+    /// comments would need an SQL parser (a quoted `--` is not one), and a migration has no reason
+    /// to name the table at all.
     fn sql_names_the_quarantine_table(sql: &str) -> bool {
-        sql.lines()
-            .map(|line| line.split("--").next().unwrap_or(""))
-            .any(|code| code.to_ascii_lowercase().contains("unreadable_records"))
+        sql.to_ascii_lowercase().contains("unreadable_records")
     }
 
-    /// Given SQL that deletes from the quarantine table, and SQL that only mentions it in a comment
+    /// Given SQL that deletes from the quarantine table (once behind a quoted `--`), SQL that drops
+    ///       it, and SQL that names only another table
     /// When the migration scan reads each
-    /// Then it sees the first and not the second: the guard below would catch a migration that
+    /// Then it sees the first two and not the third: the guard below would catch a migration that
     ///      empties or drops the table
     #[test]
-    fn the_migration_scan_sees_sql_and_not_comments() {
+    fn the_migration_scan_sees_every_mention_of_the_table() {
         assert!(sql_names_the_quarantine_table(
-            "-- tidy up\nDELETE FROM unreadable_records;"
+            "SELECT '--' AS marker; DELETE FROM unreadable_records;"
         ));
         assert!(sql_names_the_quarantine_table(
             "drop table UNREADABLE_RECORDS;"
         ));
         assert!(!sql_names_the_quarantine_table(
-            "-- unreadable_records is json_column's\nCREATE TABLE other (id TEXT);"
+            "-- a tidy-up\nDELETE FROM other_records;"
         ));
     }
 
     /// Given every migration but the one that creates the quarantine table
     /// When their SQL is read
-    /// Then none touches it: a migration that deleted, dropped or rewrote kept cells would lose
+    /// Then none names it: a migration that deleted, dropped or rewrote kept cells would lose
     ///      them, and the set-aside notice's count, which assumes the table only grows, would
     ///      repeat old notices
     #[test]
