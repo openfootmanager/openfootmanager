@@ -281,6 +281,27 @@ describe("PenaltyShootoutScreen", (): void => {
   });
 
   /**
+   * Given a paused shootout and a kick the engine has not answered yet
+   * When the player presses Next kick again
+   * Then no second kick is asked for: one kick at a time is the point of the screen.
+   */
+  it("asks for one kick at a time, however fast Next kick is pressed", async (): Promise<void> => {
+    mockedInvoke.mockImplementation(() => new Promise(() => {}));
+    renderScreen(shootoutSnapshot([]));
+    fireEvent.click(screen.getByRole("button", { name: "match.pause" }));
+
+    const nextKick = screen.getByRole("button", { name: "match.shootout.nextKick" });
+    await act(async () => {
+      fireEvent.click(nextKick);
+      fireEvent.click(nextKick);
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(
+      mockedInvoke.mock.calls.filter(([command]) => command === "step_live_match"),
+    ).toHaveLength(1);
+  });
+
+  /**
    * Given the engine's step ends the shootout
    * When the step's snapshot arrives
    * Then the screen hands over to full time once, and steps no further.
