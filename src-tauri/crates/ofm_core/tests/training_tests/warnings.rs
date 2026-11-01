@@ -126,3 +126,21 @@ fn the_warning_carries_the_users_own_physios_name() {
 
     assert_eq!(warning.sender, "Staff physio1");
 }
+
+/// Given every player of the user's squad at condition 20, so the warning is the critical one
+/// When it is sent
+/// Then its parameters are exactly the ones its text interpolates: criticalCount, players,
+///      avgCondition and schedule
+#[test]
+fn the_critical_warning_carries_only_the_parameters_its_text_reads() {
+    let mut game = make_game();
+
+    let warning = warning_with_squad_at(&mut game, 20).expect("a squad at 20 is critical");
+
+    let mut keys: Vec<&str> = warning.i18n_params.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        vec!["avgCondition", "criticalCount", "players", "schedule"]
+    );
+}
