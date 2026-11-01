@@ -1,7 +1,7 @@
 //! What a red card does to a club match on the shipped world: how often one is shown, how each
 //! side scores after it, and the points the side that receives it takes.
 //!
-//! `OUTCOME_SEED=<n> cargo test --release -p season-harness --test measure_red_cards -- --ignored --nocapture`
+//! `OUTCOME_SEED=<n> cargo test --release --manifest-path src-tauri/Cargo.toml -p season-harness --test measure_red_cards -- --ignored --nocapture`
 //!
 //! Scoring after a red card is compared with what sides score over the same minutes of matches
 //! without one, so a red shown late is not credited with the late goals every match has. The
@@ -46,6 +46,11 @@ struct Watch {
     red_matches: Vec<RedMatch>,
     points_sanctioned: u32,
     points_opponent: u32,
+    wins_sanctioned: u32,
+    wins_opponent: u32,
+    /// Wins over all sides of matches without a red card, and how many such sides there were.
+    wins_without_a_red: u32,
+    sides_without_a_red: u32,
 }
 
 struct RedMatch {
@@ -67,6 +72,8 @@ impl Watch {
             .collect();
         self.dismissals += reds.len() as u64;
         let Some(first) = reds.first() else {
+            self.sides_without_a_red += 2;
+            self.wins_without_a_red += u32::from(result.home_goals != result.away_goals);
             for minute in 1..=end {
                 self.sides_at[minute] += 2.0;
             }
@@ -102,6 +109,8 @@ impl Watch {
         };
         self.points_sanctioned += sanctioned_points;
         self.points_opponent += opponent_points;
+        self.wins_sanctioned += u32::from(sanctioned_points == 3);
+        self.wins_opponent += u32::from(opponent_points == 3);
         self.red_matches.push(RedMatch {
             from,
             to,
@@ -172,7 +181,7 @@ fn red_cards_in_the_shipped_world() {
         }
         let with_one = watch.matches_with_one.max(1) as f64;
         println!(
-            "RED_CARDS seed {seed}: matches {} | dismissals {} ({:.4} per match) | matches with one {} | after it, sanctioned side scored {sanctioned} against {expected:.1} expected ({:.3}x) and the other side {opponent} ({:.3}x) | points per match: sanctioned {:.3}, other side {:.3}",
+            "RED_CARDS seed {seed}: matches {} | dismissals {} ({:.4} per match) | matches with one {} | after it, sanctioned side scored {sanctioned} against {expected:.1} expected ({:.3}x) and the other side {opponent} ({:.3}x) | points per match: sanctioned {:.3}, other side {:.3} | wins: sanctioned {:.1}%, other side {:.1}%, a side in a match without a red {:.1}%",
             watch.matches,
             watch.dismissals,
             watch.dismissals as f64 / watch.matches.max(1) as f64,
@@ -181,6 +190,10 @@ fn red_cards_in_the_shipped_world() {
             f64::from(opponent) / expected.max(f64::MIN_POSITIVE),
             f64::from(watch.points_sanctioned) / with_one,
             f64::from(watch.points_opponent) / with_one,
+            100.0 * f64::from(watch.wins_sanctioned) / with_one,
+            100.0 * f64::from(watch.wins_opponent) / with_one,
+            100.0 * f64::from(watch.wins_without_a_red)
+                / f64::from(watch.sides_without_a_red.max(1)),
         );
     }
 }
