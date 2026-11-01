@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use chrono::NaiveDate;
 use domain::player::{Player, PlayerMovementEntry, PlayerMovementKind};
+use domain::staff::StaffRole;
 use serde::Serialize;
 
 use crate::game::{Game, ScoutedPlayer};
@@ -287,8 +288,9 @@ pub const COACHES_OPINION_AFTER_DAYS: i64 = 42;
 
 /// What the club may read of a player's potential: an opinion, as a range, never the number.
 ///
-/// The club's staff hold one about a player who has trained with the club for six weeks (judged by
-/// its best eye for potential, worked out from today's potential, so it follows his development).
+/// The club's coaching staff (its coaches and assistant manager) hold one about a player who has
+/// trained with the club for six weeks (judged by their best eye for potential, worked out from
+/// today's potential, so it follows his development).
 /// Otherwise it is the opinion a scout wrote into his report, as of the report's date. Nobody else
 /// is judged: knowing a division rival's rating is not knowing his potential. A player whose
 /// potential is not stored (0) has none.
@@ -307,12 +309,14 @@ fn coaches_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
     if (today - since).num_days() < COACHES_OPINION_AFTER_DAYS {
         return None;
     }
-    // The club's best eye; between equals the first by id, so the judge (whose id seeds the
-    // range) never depends on the order a save lists the staff in.
+    // The coaching staff's best eye (the maintainer's "coaches' opinion": not a scout's or a
+    // physio's); between equals the first by id, so the judge (whose id seeds the range) never
+    // depends on the order a save lists the staff in.
     let judge = game
         .staff
         .iter()
         .filter(|staff| staff.team_id.as_deref() == Some(club))
+        .filter(|staff| matches!(staff.role, StaffRole::Coach | StaffRole::AssistantManager))
         .max_by(|left, right| {
             left.attributes
                 .judging_potential
@@ -421,7 +425,7 @@ mod tests {
     use domain::league::League;
     use domain::manager::Manager;
     use domain::player::{ActiveLoan, Position};
-    use domain::staff::{Staff, StaffAttributes, StaffRole};
+    use domain::staff::{Staff, StaffAttributes};
 
     const MY_CLUB: &str = "mine";
 
@@ -1118,12 +1122,17 @@ mod tests {
 
     /// A coach at `club` whose eye for potential is `judging_potential`.
     fn staff_at(id: &str, club: &str, judging_potential: u8) -> Staff {
+        staff_in_role(id, club, StaffRole::Coach, judging_potential)
+    }
+
+    /// A member of `club`'s staff in `role`, whose eye for potential is `judging_potential`.
+    fn staff_in_role(id: &str, club: &str, role: StaffRole, judging_potential: u8) -> Staff {
         let mut staff = Staff::new(
             id.to_string(),
             id.to_string(),
             id.to_string(),
             "1970-01-01".to_string(),
-            StaffRole::Coach,
+            role,
             StaffAttributes {
                 coaching: 50,
                 judging_ability: 50,
@@ -1539,5 +1548,54 @@ mod tests {
             opinion_of(&game, "bought").map(|opinion| opinion.source),
             Some(OpinionSource::Coaches)
         );
+    }
+
+    /// Given the club's own player of six weeks, its coach with an eye of 30, and its scout and
+    ///       physio with eyes of 90 and 85
+    /// When the club's opinion of his potential is asked
+    /// Then it is the coach's, 18 points wide: the coaches' opinion is the coaching staff's, and a
+    ///      scout or a physio does not set it however sharp his eye
+    #[test]
+    fn a_scout_who_out_judges_the_coach_does_not_set_the_coaches_opinion() {
+        let own = arrived(player("own", Some(MY_CLUB)), MY_CLUB, SIX_WEEKS_AGO, 80);
+        let mut game = world(Some(MY_CLUB), vec![own]);
+        game.staff = vec![
+            staff_at("coach", MY_CLUB, 30),
+            staff_in_role("scout", MY_CLUB, StaffRole::Scout, 90),
+            staff_in_role("physio", MY_CLUB, StaffRole::Physio, 85),
+        ];
+
+        assert_eq!(width(&opinion_of(&game, "own").unwrap()), 18);
+    }
+
+    /// Given the club's own player of six weeks, its coach with an eye of 30 and its assistant
+    ///       manager with an eye of 70
+    /// When the club's opinion of his potential is asked
+    /// Then it is the assistant manager's, 8 points wide: he is coaching staff too
+    #[test]
+    fn the_assistant_manager_judges_with_the_coaches() {
+        let own = arrived(player("own", Some(MY_CLUB)), MY_CLUB, SIX_WEEKS_AGO, 80);
+        let mut game = world(Some(MY_CLUB), vec![own]);
+        game.staff = vec![
+            staff_at("coach", MY_CLUB, 30),
+            staff_in_role("assistant", MY_CLUB, StaffRole::AssistantManager, 70),
+        ];
+
+        assert_eq!(width(&opinion_of(&game, "own").unwrap()), 8);
+    }
+
+    /// Given the club's own player of six weeks, at a club whose staff are a scout and a physio
+    /// When the club's opinion of his potential is asked
+    /// Then there is none: no coaching staff, no coaches' opinion
+    #[test]
+    fn a_club_with_no_coaching_staff_holds_no_coaches_opinion() {
+        let own = arrived(player("own", Some(MY_CLUB)), MY_CLUB, SIX_WEEKS_AGO, 80);
+        let mut game = world(Some(MY_CLUB), vec![own]);
+        game.staff = vec![
+            staff_in_role("scout", MY_CLUB, StaffRole::Scout, 90),
+            staff_in_role("physio", MY_CLUB, StaffRole::Physio, 85),
+        ];
+
+        assert_eq!(opinion_of(&game, "own"), None);
     }
 }
