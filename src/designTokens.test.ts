@@ -142,9 +142,11 @@ const READABLE_PAIRS: Array<[string, string[]]> = [
     status,
     ["panel", `${status}-tint`],
   ]),
+  // A rated value on a sunken inset too: the profile's opinion of a player's potential paints its
+  // band in the tone on bg-sunken.
   ...["top", "good", "fair", "low", "bad"].map((tone): [string, string[]] => [
     `tone-${tone}`,
-    ["panel", `tone-${tone}-tint`],
+    ["panel", "sunken", `tone-${tone}-tint`],
   ]),
 ];
 
