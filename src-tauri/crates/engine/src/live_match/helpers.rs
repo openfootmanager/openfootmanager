@@ -46,15 +46,16 @@ impl LiveMatchState {
     }
 
     /// Adjust a skill value based on the player's current in-match condition.
-    pub(super) fn condition_adjusted_skill(&self, player_id: &str, base_skill: f64) -> f64 {
+    pub(super) fn condition_adjusted_skill(&self, player: &PlayerSnap, base_skill: f64) -> f64 {
         let condition = self
             .player_conditions
-            .get(player_id)
+            .get(&player.id)
             .copied()
             .unwrap_or(50.0);
         // At 100% condition: full skill. At 50%: ~80% skill. At 0%: ~60% skill.
         let factor = 0.6 + 0.4 * (condition / 100.0);
-        base_skill * factor
+        // Out of position, he plays like a weaker player (`PlayerData::line_familiarity`).
+        base_skill * factor * player.familiarity
     }
 
     // -----------------------------------------------------------------------
@@ -321,6 +322,7 @@ mod commentary_detail_tests {
             condition: 90,
             fitness: 75,
             injury_risk: 1.0,
+            line_familiarity: [1.0; 4],
             pace: 70,
             stamina: 70,
             strength: 70,
@@ -479,6 +481,7 @@ mod short_handed_line_tests {
             condition: 100,
             fitness: 100,
             injury_risk: 1.0,
+            line_familiarity: [1.0; 4],
             pace: 70,
             stamina: 70,
             strength: 70,
@@ -534,6 +537,27 @@ mod short_handed_line_tests {
             vec![],
             false,
         )
+    }
+
+    /// Given a home defender at condition 50 who carries 0.9 in defence,
+    /// When his skill of 70 is read for a duel,
+    /// Then it is 70 x 0.8 (half fit: 0.6 + 0.4 x 0.5) x 0.9 (his familiarity with his line).
+    #[test]
+    fn a_duel_reads_a_players_condition_and_his_familiarity_with_his_line() {
+        let mut home = side("h");
+        home.players[1].condition = 50;
+        home.players[1].line_familiarity[1] = 0.9;
+        let defender = crate::shared::PlayerSnap::from(&home.players[1]);
+        let state = LiveMatchState::new(
+            home,
+            side("a"),
+            MatchConfig::default(),
+            vec![],
+            vec![],
+            false,
+        );
+        let skill = state.condition_adjusted_skill(&defender, 70.0);
+        assert!((skill - 70.0 * 0.8 * 0.9).abs() < 1e-9, "{skill}");
     }
 
     /// Given a full side whose midfielders have stamina 60, tackling 70 and pace 80,
