@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use std::collections::HashMap;
 
 use domain::player::{Footedness, Player, PlayerAttributes, PlayerMedia, Position, SquadRole};
@@ -269,7 +270,7 @@ pub fn load_all_players(conn: &Connection) -> Result<Vec<Player>, String> {
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
-        .query_map([], row_to_player)
+        .query_map([], |row| row_to_player(conn, row))
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut players = Vec::new();
@@ -297,7 +298,7 @@ pub fn load_players_by_team(conn: &Connection, team_id: &str) -> Result<Vec<Play
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
-        .query_map(params![team_id], row_to_player)
+        .query_map(params![team_id], |row| row_to_player(conn, row))
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut players = Vec::new();
@@ -307,7 +308,11 @@ pub fn load_players_by_team(conn: &Connection, team_id: &str) -> Result<Vec<Play
     Ok(players)
 }
 
-fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
+fn row_to_player(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Player> {
+    let id: String = row.get(0)?;
+    // A JSON column that does not parse reads as its default and is kept in unreadable_records,
+    // never silently lost (`json_column`).
+    let cell = |column: &'static str| Cell::new("players", &id, column);
     let position_str: String = row.get(7)?;
     let attrs_json: String = row.get(8)?;
     let injury_json: Option<String> = row.get(11)?;
@@ -356,57 +361,68 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
     };
 
     let mut player = Player {
-        id: row.get(0)?,
+        id: id.clone(),
         match_name: row.get(1)?,
         full_name: row.get(2)?,
         date_of_birth: row.get(3)?,
         nationality: row.get(4)?,
         football_nation: row.get(5)?,
         birth_country: row.get(6)?,
-        media: serde_json::from_str(&media_json).unwrap_or_else(|_| PlayerMedia::default()),
+        media: json_column::read_or_else(
+            conn,
+            cell("media_json"),
+            &media_json,
+            PlayerMedia::default,
+        ),
         position,
         natural_position,
-        alternate_positions: serde_json::from_str(&alt_positions_json).unwrap_or_default(),
+        alternate_positions: json_column::read(
+            conn,
+            cell("alternate_positions"),
+            &alt_positions_json,
+        ),
         footedness: parse_footedness(&footedness_str),
         weak_foot,
-        attributes: serde_json::from_str(&attrs_json).unwrap_or(PlayerAttributes {
-            pace: 50,
-            stamina: 50,
-            strength: 50,
-            agility: 50,
-            passing: 50,
-            shooting: 50,
-            tackling: 50,
-            dribbling: 50,
-            defending: 50,
-            positioning: 50,
-            vision: 50,
-            decisions: 50,
-            composure: 50,
-            aggression: 50,
-            teamwork: 50,
-            leadership: 50,
-            handling: 50,
-            reflexes: 50,
-            aerial: 50,
+        attributes: json_column::read_or_else(conn, cell("attributes"), &attrs_json, || {
+            PlayerAttributes {
+                pace: 50,
+                stamina: 50,
+                strength: 50,
+                agility: 50,
+                passing: 50,
+                shooting: 50,
+                tackling: 50,
+                dribbling: 50,
+                defending: 50,
+                positioning: 50,
+                vision: 50,
+                decisions: 50,
+                composure: 50,
+                aggression: 50,
+                teamwork: 50,
+                leadership: 50,
+                handling: 50,
+                reflexes: 50,
+                aerial: 50,
+            }
         }),
         condition: row.get(9)?,
         morale: row.get(10)?,
         fitness,
-        injury: injury_json.and_then(|j| serde_json::from_str(&j).ok()),
+        injury: json_column::read_optional(conn, cell("injury"), injury_json.as_deref()),
         team_id: row.get(12)?,
         retired: retired != 0,
         squad_role: parse_squad_role(&squad_role_str),
-        traits: serde_json::from_str(&traits_json).unwrap_or_default(),
+        traits: json_column::read(conn, cell("traits"), &traits_json),
         ovr,
         potential,
         market_value: market_value_i64 as u64,
-        stats: serde_json::from_str(&stats_json).unwrap_or_default(),
-        career: serde_json::from_str(&career_json).unwrap_or_default(),
+        stats: json_column::read(conn, cell("stats"), &stats_json),
+        career: json_column::read(conn, cell("career"), &career_json),
         // The contract columns are read only as a legacy input: they describe a contract
         // for a save from before the ledger, and are ignored once the entries hold one.
         movement_history: domain::contract_ledger::MovementLedger::restore(
-            serde_json::from_str(&movement_history_json).unwrap_or_default(),
+            json_column::read(conn, cell("movement_history"), &movement_history_json),
             row.get(38)?,
             row.get(15)?,
             row.get(16)?,
@@ -414,10 +430,14 @@ fn row_to_player(row: &rusqlite::Row) -> rusqlite::Result<Player> {
         training_focus: training_focus_str.and_then(|s| parse_training_focus(&s)),
         transfer_listed: transfer_listed_int != 0,
         loan_listed: loan_listed_int != 0,
-        transfer_offers: serde_json::from_str(&offers_json).unwrap_or_default(),
-        loan_offers: serde_json::from_str(&loan_offers_json).unwrap_or_default(),
-        active_loan: active_loan_json.and_then(|json| serde_json::from_str(&json).ok()),
-        morale_core: serde_json::from_str(&morale_core_json).unwrap_or_default(),
+        transfer_offers: json_column::read(conn, cell("transfer_offers"), &offers_json),
+        loan_offers: json_column::read(conn, cell("loan_offers"), &loan_offers_json),
+        active_loan: json_column::read_optional(
+            conn,
+            cell("active_loan"),
+            active_loan_json.as_deref(),
+        ),
+        morale_core: json_column::read(conn, cell("morale_core"), &morale_core_json),
         jersey_number,
     };
     // The flat contract fields are derived from the ledger, so a save from before
@@ -439,6 +459,77 @@ mod tests {
 
     /// Pins the stored name of every position.
     /// The case list also generates an exhaustive match for new variants.
+    /// The cells kept in unreadable_records: (table, row, column, raw text).
+    fn kept_cells(conn: &Connection) -> Vec<(String, String, String, String)> {
+        let mut statement = conn
+            .prepare("SELECT table_name, row_id, column_name, raw FROM unreadable_records")
+            .unwrap();
+        statement
+            .query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    }
+
+    /// Given a player whose career column does not parse
+    /// When he is loaded, saved back and loaded again
+    /// Then the career reads as empty so the save still plays, but its text is kept, with the
+    ///      player and the column, and the save that writes the empty career over the column does
+    ///      not lose it
+    #[test]
+    fn a_career_that_does_not_parse_is_kept_not_lost() {
+        let db = test_db();
+        let player = sample_player("p-corrupt", Some("team-1"));
+        upsert_player(db.conn(), &player).unwrap();
+        let corrupt = r#"[{"season": 2024, "appearances": oops"#;
+        db.conn()
+            .execute(
+                "UPDATE players SET career = ?1 WHERE id = 'p-corrupt'",
+                [corrupt],
+            )
+            .unwrap();
+
+        let loaded = load_all_players(db.conn()).unwrap().remove(0);
+        assert!(loaded.career.is_empty(), "the save still loads and plays");
+        upsert_player(db.conn(), &loaded).unwrap();
+        load_all_players(db.conn()).unwrap();
+
+        let stored: String = db
+            .conn()
+            .query_row(
+                "SELECT career FROM players WHERE id = 'p-corrupt'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(stored, "[]", "the save wrote the default over the column");
+        assert_eq!(
+            kept_cells(db.conn()),
+            vec![(
+                "players".to_string(),
+                "p-corrupt".to_string(),
+                "career".to_string(),
+                corrupt.to_string()
+            )],
+            "and the original is kept, once"
+        );
+    }
+
+    /// Given a player whose every JSON column parses
+    /// When he is loaded
+    /// Then nothing is kept in unreadable_records
+    #[test]
+    fn a_player_who_reads_keeps_nothing() {
+        let db = test_db();
+        upsert_player(db.conn(), &sample_player("p-fine", Some("team-1"))).unwrap();
+
+        load_all_players(db.conn()).unwrap();
+
+        assert!(kept_cells(db.conn()).is_empty());
+    }
+
     #[test]
     fn positions_are_stored_by_name() {
         use Position as P;

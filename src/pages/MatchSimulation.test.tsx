@@ -13,6 +13,11 @@ let gameStoreState: {
   setGameState: typeof setGameStateMock;
 };
 
+vi.mock("../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("../components/match/matchCommands", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../components/match/matchCommands")>();
   return { ...actual, resetMatchCommands: vi.fn(actual.resetMatchCommands) };

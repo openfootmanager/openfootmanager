@@ -11,9 +11,9 @@ const { getPositionGroups } = await import("../../services/positionService");
 
 /** The backend's table, with one position moved to the wrong group on purpose (see below). */
 const groups = [
-  { position: "Striker", group: "Forward" },
-  { position: "RightWinger", group: "Defender" },
-  { position: "CenterBack", group: "Defender" },
+  { position: "Striker", group: "Forward", rank: 0 },
+  { position: "RightWinger", group: "Defender", rank: 0 },
+  { position: "CenterBack", group: "Defender", rank: 0 },
 ];
 
 beforeEach(() => {

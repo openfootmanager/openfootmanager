@@ -1,0 +1,334 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import { createInstance } from "i18next";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
+
+import en from "../../i18n/locales/en.json";
+import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { PotentialOpinion } from "../../store/generated/PotentialOpinion";
+import { createPlayer, createSeasonContext, createTeam } from "../../test-utils/factories";
+import PlayerProfile from "./PlayerProfile";
+
+const translations = createInstance();
+await translations.init({
+  lng: "en",
+  resources: { en: { translation: en } },
+  interpolation: { escapeValue: false },
+});
+vi.mock("react-i18next", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-i18next")>()),
+  useTranslation: () => ({ t: translations.t.bind(translations), i18n: translations }),
+}));
+
+// The other answers about the player have their own hooks and tests; here he is the club's own
+// player on his wage, at no contract risk. The opinion of his potential goes through the real hook.
+vi.mock("../../hooks/useContractWarningStages", () => ({
+  useContractRiskLevels: () => () => "stable",
+}));
+vi.mock("../../hooks/usePlayerKnowledge", () => ({
+  usePlayerKnowledge: () => () => ({ kind: "own" }),
+}));
+vi.mock("../../hooks/useVisibleWage", () => ({
+  useVisibleWage: () => ({ status: "answered", value: { kind: "exact", weekly: 12_000 } }),
+}));
+vi.mock("../../hooks/useRatingTiers", async () => {
+  const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
+  return cannedRatingTiersModule();
+});
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+
+const emptyStatsOverview = {
+  percentileEligible: false,
+  metrics: {
+    shots: { total: 0, per90: null, percentile: null },
+    shotsOnTarget: { total: 0, per90: null, percentile: null },
+    passes: { completed: 0, attempted: 0, accuracy: null, percentile: null },
+    tacklesWon: { total: 0, per90: null, percentile: null },
+    interceptions: { total: 0, per90: null, percentile: null },
+    foulsCommitted: { total: 0, per90: null, percentile: null },
+  },
+};
+
+function gameWith(player: PlayerData): GameStateData {
+  return {
+    season_context: createSeasonContext(),
+    clock: { current_date: "2026-09-15T00:00:00Z", start_date: "2026-07-01T00:00:00Z" },
+    manager: {
+      display_name: "Jane Doe",
+      id: "manager-1",
+      first_name: "Jane",
+      last_name: "Doe",
+      date_of_birth: "1980-01-01",
+      nationality: "GB",
+      reputation: 50,
+      satisfaction: 50,
+      fan_approval: 50,
+      team_id: "team-1",
+      career_stats: {
+        matches_managed: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        trophies: 0,
+        best_finish: null,
+      },
+      career_history: [],
+    },
+    teams: [createTeam()],
+    players: [player],
+    staff: [],
+    messages: [],
+    news: [],
+    league: { id: "league-1", name: "League", season: 1, fixtures: [], standings: [] },
+    scouting_assignments: [],
+    board_objectives: [],
+  };
+}
+
+/** The backend answering the profile, with `opinion` as the club's opinion of his potential. */
+function backendWith(opinion: PotentialOpinion | null) {
+  vi.mocked(invoke).mockImplementation(async (command: string) => {
+    if (command === "get_potential_opinion") return opinion;
+    if (command === "get_player_stats_overview") return emptyStatsOverview;
+    if (command === "get_player_match_history") return [];
+    return null;
+  });
+}
+
+const renderProfile = (traits: string[] = []) => {
+  const player = createPlayer({ id: "player-1", team_id: "team-1", traits });
+  render(<PlayerProfile player={player} gameState={gameWith(player)} isOwnClub />);
+};
+
+/** The coaches' elite opinion of him, 80-82, and whether it calls him a wonderkid. */
+const eliteOpinion = (wonderkid: boolean): PotentialOpinion => ({
+  low: 80,
+  high: 82,
+  band: "S",
+  certainty: "confident",
+  source: { kind: "coaches" },
+  wonderkid,
+});
+
+beforeEach(() => {
+  vi.mocked(invoke).mockReset();
+});
+
+describe("the player profile's opinion of his potential", () => {
+  /**
+   * Given the club's own player, of whom the backend's coaches hold the opinion 76-84, band A
+   * When his profile opens
+   * Then it shows the coaches' opinion, the band's words and the range, asked of the backend for
+   *      him
+   */
+  it("shows the coaches' opinion the backend holds of the player", async () => {
+    backendWith({
+      low: 76,
+      high: 84,
+      band: "A",
+      certainty: "fairly_sure",
+      source: { kind: "coaches" },
+      wonderkid: false,
+    });
+
+    renderProfile();
+
+    const opinion = within(await screen.findByRole("region", { name: "Coaches' opinion" }));
+    expect(opinion.getByText("Could become a first-team regular")).toBeInTheDocument();
+    expect(opinion.getByText("Potential 76–84")).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith("get_potential_opinion", { playerId: "player-1" });
+  });
+
+  /**
+   * Given a player of whom the club holds no opinion
+   * When his profile opens
+   * Then nothing about his potential is shown
+   */
+  it("shows nothing of his potential when the club holds no opinion", async () => {
+    backendWith(null);
+
+    renderProfile();
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("get_potential_opinion", { playerId: "player-1" }),
+    );
+    expect(screen.queryByRole("region", { name: "Coaches' opinion" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Scout's opinion" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Potential /)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a player whose scout's report is from before the last season ended
+   * When his profile opens
+   * Then the scout's opinion shows, marked out of date
+   */
+  it("shows an old scout's opinion as out of date", async () => {
+    backendWith({
+      low: 58,
+      high: 76,
+      band: "Rest",
+      certainty: "guess",
+      source: { kind: "scout", scout_name: "Ann Scout", scouted_on: "2026-03-10", current: false },
+      wonderkid: false,
+    });
+
+    renderProfile();
+
+    const opinion = within(await screen.findByRole("region", { name: "Scout's opinion" }));
+    expect(opinion.getByText("A guess")).toBeInTheDocument();
+    expect(opinion.getByText("Out of date")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player whose own traits hold no Wonderkid tag, and the coaches' opinion that calls him
+   *       one
+   * When his profile opens
+   * Then the Wonderkid tag shows: it is the club's verdict, asked of the backend
+   */
+  it("tags the player a wonderkid when the club's opinion calls him one", async () => {
+    backendWith(eliteOpinion(true));
+
+    renderProfile();
+
+    await screen.findByRole("region", { name: "Coaches' opinion" });
+    expect(screen.getByText("Wonderkid")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player who carries the Wonderkid tag, and the coaches' opinion that does not call him
+   *       one
+   * When his profile opens
+   * Then the Wonderkid tag is not shown: his own tag tells his true potential
+   */
+  it("hides the player's own Wonderkid tag when the club's opinion does not call him one", async () => {
+    backendWith(eliteOpinion(false));
+
+    renderProfile(["Wonderkid"]);
+
+    await screen.findByRole("region", { name: "Coaches' opinion" });
+    expect(screen.queryByText("Wonderkid")).not.toBeInTheDocument();
+  });
+});
+
+describe("the player profile's ratings at his positions", () => {
+  /**
+   * Given the club's own player, whom the backend rates 77 at central midfield and 61 at right
+   *       back, where he is played
+   * When his profile opens
+   * Then it shows those ratings, asked of the backend for him
+   */
+  it("shows the position ratings the backend gives", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_position_ratings") {
+        return {
+          source: { kind: "live" },
+          rows: [
+            {
+              position: "CentralMidfielder",
+              rating: 77,
+              familiarity: "natural",
+              deployed: false,
+              key_attributes: [],
+            },
+            {
+              position: "RightBack",
+              rating: 61,
+              familiarity: "out_of_position",
+              deployed: true,
+              key_attributes: [],
+            },
+          ],
+        };
+      }
+      if (command === "get_player_stats_overview") return emptyStatsOverview;
+      if (command === "get_player_match_history") return [];
+      return null;
+    });
+
+    renderProfile();
+
+    const positions = within(await screen.findByRole("region", { name: "Positions" }));
+    expect(positions.getByText("Out of position (where you play him)")).toBeInTheDocument();
+    expect(positions.getByText("61")).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith("get_position_ratings", { playerId: "player-1" });
+  });
+
+  /**
+   * Given the club's own player started at right back, so the backend marks that row as where he
+   *       is played
+   * When the manager benches him from the profile, and then starts him at right back again
+   * Then the "where you play him" row leaves, and comes back: the profile asks again whenever the
+   *      lineup moves, though the game's knowledge has not
+   */
+  it("follows the lineup when he is benched and started again", async () => {
+    const player = createPlayer({ id: "player-1", team_id: "team-1" });
+    // The backend derives the played-in slot from the manager's XI, as this mock does.
+    let startingXi = ["gk", "lb", "cb1", "cb2", "player-1"];
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_position_ratings") {
+        const startsAtRightBack = startingXi[4] === "player-1";
+        return {
+          source: { kind: "live" },
+          rows: [
+            {
+              position: "CentralMidfielder",
+              rating: 77,
+              familiarity: "natural",
+              deployed: false,
+              key_attributes: [],
+            },
+            ...(startsAtRightBack
+              ? [
+                  {
+                    position: "RightBack",
+                    rating: 61,
+                    familiarity: "out_of_position",
+                    deployed: true,
+                    key_attributes: [],
+                  },
+                ]
+              : []),
+          ],
+        };
+      }
+      if (command === "get_player_stats_overview") return emptyStatsOverview;
+      if (command === "get_player_match_history") return [];
+      return null;
+    });
+    const stateWith = (xi: string[]): GameStateData => {
+      const state = gameWith(player);
+      return { ...state, teams: [{ ...createTeam(), starting_xi_ids: xi }] };
+    };
+    const wherePlayed = "Out of position (where you play him)";
+
+    const { rerender } = render(
+      <PlayerProfile player={player} gameState={stateWith(startingXi)} isOwnClub />,
+    );
+    expect(await screen.findByText(wherePlayed)).toBeInTheDocument();
+
+    startingXi = ["gk", "lb", "cb1", "cb2", "rb"];
+    rerender(<PlayerProfile player={player} gameState={stateWith(startingXi)} isOwnClub />);
+    await waitFor(() => expect(screen.queryByText(wherePlayed)).not.toBeInTheDocument());
+    expect(await screen.findByRole("region", { name: "Positions" })).toBeInTheDocument();
+
+    startingXi = ["gk", "lb", "cb1", "cb2", "player-1"];
+    rerender(<PlayerProfile player={player} gameState={stateWith(startingXi)} isOwnClub />);
+    expect(await screen.findByText(wherePlayed)).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player the club knows nothing of (the backend answers null)
+   * When his profile opens
+   * Then no positions section shows
+   */
+  it("shows no positions for a player the club knows nothing of", async () => {
+    backendWith(null);
+
+    renderProfile();
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("get_position_ratings", { playerId: "player-1" }),
+    );
+    expect(screen.queryByRole("region", { name: "Positions" })).not.toBeInTheDocument();
+  });
+});

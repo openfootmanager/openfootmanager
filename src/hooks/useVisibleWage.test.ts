@@ -1,92 +1,111 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getVisibleWage } from "../services/scoutingService";
 import { useVisibleWage } from "./useVisibleWage";
 
 vi.mock("../services/scoutingService", () => ({ getVisibleWage: vi.fn() }));
+const mocked = vi.mocked(getVisibleWage);
 
-const { getVisibleWage } = await import("../services/scoutingService");
-const mockedWage = vi.mocked(getVisibleWage);
+/** A scouted player's wage, about 16,000 a week. */
+const answer = { kind: "approximate", weekly: 16_000 } as const;
 
 beforeEach(() => {
-  mockedWage.mockReset();
+  mocked.mockReset();
+  vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
 
 describe("useVisibleWage", () => {
   /**
-   * Given the backend shows a scouted player's wage as about 16,000
+   * Given the backend's answer about a player
    * When the hook mounts
-   * Then it reads hidden until the answer arrives, so the exact figure never flashes, then as the
-   *      backend says
+   * Then it reads loading, then the backend's answer, asked for him
    */
-  it("reads the wage as hidden until the backend answers, then as it says", async () => {
-    mockedWage.mockResolvedValue({ kind: "approximate", weekly: 16_000 });
+  it("reads loading, then the backend's answer", async () => {
+    mocked.mockResolvedValue(answer);
 
-    const { result } = renderHook(() => useVisibleWage("p1", "2026-09-15"));
+    const { result } = renderHook(() => useVisibleWage("p1", "r1"));
 
-    expect(result.current).toEqual({ kind: "hidden" });
-    await waitFor(() => expect(result.current).toEqual({ kind: "approximate", weekly: 16_000 }));
+    expect(result.current.status).toBe("loading");
+    await waitFor(() => expect(result.current).toEqual({ status: "answered", value: answer }));
+    expect(mocked).toHaveBeenCalledWith("p1");
   });
 
   /**
-   * Given the profile shows the club's own player's exact wage
-   * When it moves on to a rival whose answer has not arrived yet
-   * Then it reads hidden meanwhile, never the previous player's figure
+   * Given a player the club knows nothing about (the backend answers null), and another whose request fails
+   * When each is asked for
+   * Then the first reads answered with a hidden wage, the second reads failed with no data: a
+   *      failed load is never "nothing known"
    */
-  it("never shows the previous player's wage while the next one's is asked", async () => {
-    mockedWage.mockResolvedValueOnce({ kind: "exact", weekly: 15_843 });
-    mockedWage.mockReturnValueOnce(new Promise<never>(() => undefined));
+  it("tells a failed load from nothing known", async () => {
+    mocked.mockResolvedValueOnce(null);
+    mocked.mockRejectedValueOnce("be.error.noActiveGameSession");
 
-    const { result, rerender } = renderHook(
-      ({ playerId }) => useVisibleWage(playerId, "2026-09-15"),
-      {
-        initialProps: { playerId: "own-player" },
-      },
+    const unknown = renderHook(() => useVisibleWage("unknown", "r1"));
+    const failed = renderHook(() => useVisibleWage("failing", "r1"));
+
+    await waitFor(() =>
+      expect(unknown.result.current).toEqual({ status: "answered", value: { kind: "hidden" } }),
     );
-    await waitFor(() => expect(result.current).toEqual({ kind: "exact", weekly: 15_843 }));
-
-    rerender({ playerId: "rival" });
-
-    expect(result.current).toEqual({ kind: "hidden" });
+    await waitFor(() => expect(failed.result.current.status).toBe("failed"));
+    expect(failed.result.current).not.toHaveProperty("value");
   });
 
   /**
-   * Given the club's own player's exact wage on screen
-   * When the game moves on (another career installed, say) and the backend's next answer is
-   *      still on its way, and then fails
-   * Then the wage reads hidden meanwhile and after the failure, never the last answer's figure
+   * Given a failed load
+   * When the retry is asked for and the backend answers this time
+   * Then it asks again and reads the answer
    */
-  it("reads hidden, not the last answer, until the game's next answer arrives", async () => {
-    mockedWage.mockResolvedValueOnce({ kind: "exact", weekly: 15_843 });
+  it("asks again on retry and reads the answer", async () => {
+    mocked.mockRejectedValueOnce("down");
+    mocked.mockResolvedValueOnce(answer);
+    const { result } = renderHook(() => useVisibleWage("p1", "r1"));
+    await waitFor(() => expect(result.current.status).toBe("failed"));
+
+    act(() => {
+      if (result.current.status === "failed") result.current.retry();
+    });
+
+    await waitFor(() => expect(result.current).toEqual({ status: "answered", value: answer }));
+    expect(mocked).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * Given one player's answer on screen
+   * When another player's profile opens, whose answer has not arrived
+   * Then it reads loading, never the previous player's answer
+   */
+  it("never shows the previous player's answer", async () => {
+    mocked.mockResolvedValueOnce(answer);
+    mocked.mockReturnValueOnce(new Promise<never>(() => undefined));
+    const { result, rerender } = renderHook(({ id }) => useVisibleWage(id, "r1"), {
+      initialProps: { id: "p1" },
+    });
+    await waitFor(() => expect(result.current.status).toBe("answered"));
+
+    rerender({ id: "p2" });
+
+    expect(result.current.status).toBe("loading");
+  });
+
+  /**
+   * Given an answer on screen
+   * When the game moves on (a new revision) and the next request fails
+   * Then it reads loading, then failed: never the last answer
+   */
+  it("carries no data after the game moves on and the next request fails", async () => {
+    mocked.mockResolvedValueOnce(answer);
+    mocked.mockRejectedValueOnce("be.error.noActiveGameSession");
     const { result, rerender } = renderHook(({ revision }) => useVisibleWage("p1", revision), {
-      initialProps: { revision: "career-1" },
+      initialProps: { revision: "r1" },
     });
-    await waitFor(() => expect(result.current).toEqual({ kind: "exact", weekly: 15_843 }));
+    await waitFor(() => expect(result.current.status).toBe("answered"));
 
-    mockedWage.mockRejectedValueOnce(new Error("no game"));
-    rerender({ revision: "career-2" });
+    rerender({ revision: "r2" });
 
-    expect(result.current).toEqual({ kind: "hidden" });
-    await waitFor(() => expect(mockedWage).toHaveBeenCalledTimes(2));
-    await Promise.resolve();
-    expect(result.current).toEqual({ kind: "hidden" });
-  });
-
-  /**
-   * Given the hook has its answer
-   * When the game moves on (a renewal, a transfer, a scout's report)
-   * Then it asks the backend again
-   */
-  it("asks again when the game moves on", async () => {
-    mockedWage.mockResolvedValue({ kind: "hidden" });
-
-    const { rerender } = renderHook(({ revision }) => useVisibleWage("p1", revision), {
-      initialProps: { revision: "2026-09-15" },
-    });
-    await waitFor(() => expect(mockedWage).toHaveBeenCalledTimes(1));
-
-    rerender({ revision: "2026-09-16" });
-
-    await waitFor(() => expect(mockedWage).toHaveBeenCalledTimes(2));
+    expect(result.current.status).toBe("loading");
+    await waitFor(() => expect(result.current.status).toBe("failed"));
+    expect(result.current).not.toHaveProperty("value");
+    expect(mocked).toHaveBeenCalledTimes(2);
   });
 });

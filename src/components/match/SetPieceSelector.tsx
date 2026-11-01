@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { PlayerData } from "../../store/gameStore";
 import { getAttributeValueClassName } from "../../lib/playerAttributeDisplay";
-import { normalisePosition } from "../squad/SquadTab.helpers";
 import { Badge } from "../ui";
 import { ArrowUpDown, Check } from "lucide-react";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 function getStatAttributeKey(label: string): string | null {
   switch (label) {
@@ -95,6 +95,7 @@ export default function SetPieceSelector({
   onSelect: (id: string) => void;
 }) {
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const [expanded, setExpanded] = useState(false);
   const currentPlayer = players.find((p) => p.id === currentId);
   const currentSquad = allSquad.find((sp) => sp.id === currentId);
@@ -120,7 +121,7 @@ export default function SetPieceSelector({
   }
 
   function getTranslatedPositionAbbreviation(position: string): string {
-    const normalizedPosition = normalisePosition(position);
+    const normalizedPosition = positions.groupOf(position);
 
     return t(`common.posAbbr.${normalizedPosition}`, {
       defaultValue: normalizedPosition.substring(0, 3).toUpperCase(),

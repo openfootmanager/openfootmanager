@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use chrono::Utc;
 use domain::stats::StatsState;
 use domain::world_history::WorldHistoryArchive;
@@ -5,7 +6,7 @@ use rusqlite::Connection;
 
 use ofm_core::clock::GameClock;
 use ofm_core::game::{
-    BoardObjective, Game, ObjectiveType, ScoutedPlayer, ScoutingAssignment,
+    BoardObjective, Game, ObjectiveType, PotentialRange, ScoutedPlayer, ScoutingAssignment,
     YouthScoutingAssignment, YouthScoutingObjective, YouthScoutingRegion,
 };
 
@@ -199,6 +200,9 @@ fn write_game_to_connection(
                 scouted_on: scouted.scouted_on.clone(),
                 attributes_json: serde_json::to_string(&scouted.attributes)
                     .map_err(|_| game_persistence_write_error())?,
+                potential_low: scouted.potential.map(|range| range.low),
+                potential_high: scouted.potential.map(|range| range.high),
+                scout_name: scouted.scout_name.clone(),
             })
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -263,6 +267,9 @@ fn game_persistence_load_error() -> String {
 impl GamePersistenceReader {
     pub fn read_game(db: &GameDatabase) -> Result<Game, String> {
         let conn = db.conn();
+        // The meta row's JSON columns: one that does not parse reads as its default and is kept in
+        // unreadable_records, never silently lost (`json_column`).
+        let meta_cell = |column: &'static str| Cell::new("game_meta", "singleton", column);
 
         let meta = meta_repo::load_meta(conn)?.ok_or_else(game_meta_missing_error)?;
 
@@ -333,6 +340,12 @@ impl GamePersistenceReader {
                     scouted_on: row.scouted_on,
                     attributes: serde_json::from_str(&row.attributes_json)
                         .map_err(|_| game_persistence_load_error())?,
+                    // Both ends or neither: a half-written range is no opinion.
+                    potential: row
+                        .potential_low
+                        .zip(row.potential_high)
+                        .map(|(low, high)| PotentialRange { low, high }),
+                    scout_name: row.scout_name,
                 })
             })
             .collect::<Result<Vec<_>, String>>()?;
@@ -372,10 +385,16 @@ impl GamePersistenceReader {
             news,
             competitions,
             national_teams,
-            active_region_ids: serde_json::from_str(&meta.active_region_ids_json)
-                .unwrap_or_default(),
-            active_competition_ids: serde_json::from_str(&meta.active_competition_ids_json)
-                .unwrap_or_default(),
+            active_region_ids: json_column::read(
+                conn,
+                meta_cell("active_region_ids_json"),
+                &meta.active_region_ids_json,
+            ),
+            active_competition_ids: json_column::read(
+                conn,
+                meta_cell("active_competition_ids_json"),
+                &meta.active_competition_ids_json,
+            ),
             league,
             scouting_assignments,
             youth_scouting_assignments,
@@ -385,7 +404,11 @@ impl GamePersistenceReader {
             days_since_last_job_offer: None,
             available_staff_market_last_activity_date: meta
                 .available_staff_market_last_activity_date,
-            vacant_team_days: serde_json::from_str(&meta.vacant_team_days_json).unwrap_or_default(),
+            vacant_team_days: json_column::read(
+                conn,
+                meta_cell("vacant_team_days_json"),
+                &meta.vacant_team_days_json,
+            ),
             edition_archive,
             custom_tactics,
             retired_players,
@@ -393,23 +416,29 @@ impl GamePersistenceReader {
             day_start: None,
             retired_managers,
             archived_messages,
-            world_history: serde_json::from_str(&meta.world_history_json)
-                .unwrap_or_else(|_| WorldHistoryArchive::default()),
-            // A malformed ledger degrades to the legacy-save path rather than
-            // failing the load: `seed_ledger_from_save` below re-seeds it from
-            // the inbox, which is exactly what a pre-v043 save does. Refusing to
-            // open an entire career over one bookkeeping column would be the
-            // worse trade — but it is not silent, because a repeat announcement
-            // months later is impossible to trace back to this line otherwise.
-            emitted_events: serde_json::from_str(&meta.emitted_events_json).unwrap_or_else(|_| {
-                log::warn!(
-                    "[load] sent-ledger JSON is malformed; reseeding it from the inbox. \
-                     Events whose messages were already deleted may be announced once more."
-                );
-                Default::default()
-            }),
-            extra_translations: serde_json::from_str(&meta.extra_translations_json)
-                .unwrap_or_default(),
+            world_history: json_column::read_or_else(
+                conn,
+                meta_cell("world_history_json"),
+                &meta.world_history_json,
+                WorldHistoryArchive::default,
+            ),
+            // A malformed ledger reads as empty rather than failing the load:
+            // refusing to open an entire career over one bookkeeping column would
+            // be the worse trade. It is NOT re-seeded: `SaveManager::load_game`
+            // seeds from the inbox only for a save older than format 5, so on a
+            // current save the next advance may announce events once more. The
+            // cell is logged and kept in unreadable_records, because a repeat
+            // announcement months later is impossible to trace back otherwise.
+            emitted_events: json_column::read(
+                conn,
+                meta_cell("emitted_events_json"),
+                &meta.emitted_events_json,
+            ),
+            extra_translations: json_column::read(
+                conn,
+                meta_cell("extra_translations_json"),
+                &meta.extra_translations_json,
+            ),
             package_lockfile: if meta.package_lockfile_json.trim().is_empty() {
                 Vec::new()
             } else {

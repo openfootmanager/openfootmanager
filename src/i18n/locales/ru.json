@@ -629,7 +629,13 @@
     "center": "Центр",
     "right": "Правый",
     "competition": "Соревнование",
-    "confirmDelete": "Подтвердить удаление"
+    "confirmDelete": "Подтвердить удаление",
+    "firstPage": "Первая страница",
+    "previousPage": "Предыдущая страница",
+    "nextPage": "Следующая страница",
+    "lastPage": "Последняя страница",
+    "sortBy": "Сортировать по",
+    "sortAscending": "По возрастанию"
   },
   "teamSelection": {
     "title": "Выберите клуб",
@@ -910,7 +916,8 @@
       "sharp": "В тонусе",
       "managing": "Под нагрузкой",
       "risk": "Риск"
-    }
+    },
+    "positionsLoading": "Данные о позициях ещё загружаются, поэтому изменить состав пока нельзя."
   },
   "training": {
     "weeklySchedule": "Недельный график",
@@ -1743,7 +1750,27 @@
     "renewalProjectionWageBill": "Недельный фонд зарплат {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Использование зарплатного бюджета {{before}}% → {{after}}%",
     "renewalProjectionRunway": "Финансовый запас {{before}} → {{after}}",
-    "ratingTrend": "Динамика рейтинга"
+    "ratingTrend": "Динамика рейтинга",
+    "potentialOpinion": {
+      "scoutsOpinion": "Мнение скаута",
+      "coachesOpinion": "Мнение тренерского штаба",
+      "bandS": "Может стать одним из лучших",
+      "bandA": "Может стать игроком основы",
+      "bandB": "Может быть полезным игроком ротации",
+      "bandRest": "Вряд ли заметно прибавит",
+      "range": "Потенциал {{low}}–{{high}}",
+      "confident": "Уверенная оценка",
+      "fairlySure": "Довольно уверенная оценка",
+      "unsure": "Неуверенная оценка",
+      "guess": "Догадка",
+      "byScout": "Оценён скаутом {{scout}} {{date}}"
+    },
+    "positions": {
+      "title": "Позиции",
+      "wherePlayed": "где вы его используете"
+    },
+    "loadFailed": "Не удалось загрузить",
+    "retryWage": "Повторить загрузку зарплаты"
   },
   "teamProfile": {
     "clubInfo": "Информация о клубе",

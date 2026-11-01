@@ -1021,6 +1021,8 @@ mod player_profile_tests {
             player_id: "p".to_string(),
             scouted_on: "2026-09-01".to_string(),
             attributes: attributes(55),
+            potential: None,
+            scout_name: None,
         });
 
         let detail = detail_of(&game, "p");

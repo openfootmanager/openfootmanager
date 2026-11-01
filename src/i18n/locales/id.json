@@ -629,7 +629,13 @@
     "listView": "Daftar",
     "radarView": "Radar",
     "competition": "Kompetisi",
-    "confirmDelete": "Konfirmasi penghapusan"
+    "confirmDelete": "Konfirmasi penghapusan",
+    "firstPage": "Halaman pertama",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "lastPage": "Halaman terakhir",
+    "sortBy": "Urutkan berdasarkan",
+    "sortAscending": "Naik"
   },
   "teamSelection": {
     "title": "Pilih Klub",
@@ -910,7 +916,8 @@
       "ready": "Siap",
       "adjusted": "Disesuaikan",
       "risk": "Berisiko"
-    }
+    },
+    "positionsLoading": "Data posisi masih dimuat, sehingga perubahan susunan pemain belum tersedia."
   },
   "training": {
     "weeklySchedule": "Jadwal Mingguan",
@@ -1743,7 +1750,27 @@
     "renewalProjectionTitle": "Perkiraan dampak finansial",
     "renewalProjectionWageBill": "Beban gaji mingguan {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Penggunaan anggaran gaji {{before}}% → {{after}}%",
-    "renewalProjectionRunway": "Jarak kas {{before}} → {{after}}"
+    "renewalProjectionRunway": "Jarak kas {{before}} → {{after}}",
+    "potentialOpinion": {
+      "scoutsOpinion": "Pendapat pemandu bakat",
+      "coachesOpinion": "Pendapat staf pelatih",
+      "bandS": "Bisa menjadi salah satu yang terbaik",
+      "bandA": "Bisa menjadi pemain inti",
+      "bandB": "Bisa menjadi pemain pelapis yang berguna",
+      "bandRest": "Kecil kemungkinan berkembang jauh lagi",
+      "range": "Potensi {{low}}–{{high}}",
+      "confident": "Yakin",
+      "fairlySure": "Cukup yakin",
+      "unsure": "Kurang yakin",
+      "guess": "Tebakan",
+      "byScout": "Diamati oleh {{scout}} pada {{date}}"
+    },
+    "positions": {
+      "title": "Posisi",
+      "wherePlayed": "tempat kamu memainkannya"
+    },
+    "loadFailed": "Gagal memuat",
+    "retryWage": "Coba muat gaji lagi"
   },
   "teamProfile": {
     "clubInfo": "Informasi Klub",

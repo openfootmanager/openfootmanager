@@ -3,9 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   gameKnowledgeRevision,
   knowledgeRevision,
+  ownLineupRevision,
   visibleRatingText,
+  visibleTraits,
   visibleWageText,
 } from "./playerKnowledge";
+import type { PotentialOpinion } from "../store/generated/PotentialOpinion";
 
 describe("visibleWageText", () => {
   const format = (weekly: number) => `€${weekly}/wk`;
@@ -153,5 +156,82 @@ describe("gameKnowledgeRevision", () => {
         wage: 12_000,
       }),
     );
+  });
+});
+
+describe("visibleTraits", () => {
+  const opinion = (wonderkid: boolean): PotentialOpinion => ({
+    low: 80,
+    high: 82,
+    band: "S",
+    certainty: "confident",
+    source: { kind: "coaches" },
+    wonderkid,
+  });
+
+  /**
+   * Given a player whose own traits hold no Wonderkid tag, and an opinion that calls him one
+   * When the traits the club may see are read
+   * Then Wonderkid shows, after his attribute traits: the tag is the club's verdict
+   */
+  it("shows Wonderkid when the club's opinion calls him one, whatever his own tag", () => {
+    expect(visibleTraits(["Speedster"], opinion(true))).toEqual(["Speedster", "Wonderkid"]);
+  });
+
+  /**
+   * Given a player who carries the Wonderkid tag, and an opinion that does not call him one
+   * When the traits the club may see are read
+   * Then Wonderkid is not shown, and his attribute traits are
+   */
+  it("hides his own Wonderkid tag when the club's opinion does not call him one", () => {
+    expect(visibleTraits(["Wonderkid", "Speedster"], opinion(false))).toEqual(["Speedster"]);
+  });
+
+  /**
+   * Given a player who carries the Wonderkid tag, and no opinion of his potential
+   * When the traits the club may see are read
+   * Then Wonderkid is not shown: no opinion, no tag
+   */
+  it("shows no Wonderkid tag without an opinion", () => {
+    expect(visibleTraits(["Speedster", "Wonderkid"], null)).toEqual(["Speedster"]);
+  });
+
+  /**
+   * Given a player who carries the Wonderkid tag, and an opinion that calls him one
+   * When the traits the club may see are read
+   * Then Wonderkid shows once
+   */
+  it("shows Wonderkid once when both his tag and the opinion say so", () => {
+    expect(visibleTraits(["Wonderkid", "Speedster"], opinion(true))).toEqual([
+      "Speedster",
+      "Wonderkid",
+    ]);
+  });
+});
+
+describe("ownLineupRevision", () => {
+  const game = (formation: string, startingXi: string[]) => ({
+    manager: { team_id: "mine" },
+    teams: [
+      { id: "mine", formation, starting_xi_ids: startingXi },
+      { id: "rival", formation: "4-4-2", starting_xi_ids: ["r1"] },
+    ],
+  });
+
+  /**
+   * Given the manager's lineup
+   * When a player is benched, the formation changes, or nothing changes
+   * Then the revision moves for the first two and stays for the third; a rival's lineup never
+   *      moves it
+   */
+  it("moves with the manager's formation and starting XI only", () => {
+    const before = ownLineupRevision(game("4-4-2", ["a", "b"]));
+
+    expect(ownLineupRevision(game("4-4-2", ["a"]))).not.toBe(before);
+    expect(ownLineupRevision(game("4-3-3", ["a", "b"]))).not.toBe(before);
+    expect(ownLineupRevision(game("4-4-2", ["a", "b"]))).toBe(before);
+    const rivalChanged = game("4-4-2", ["a", "b"]);
+    rivalChanged.teams[1].starting_xi_ids = ["r2"];
+    expect(ownLineupRevision(rivalChanged)).toBe(before);
   });
 });
