@@ -2477,21 +2477,23 @@ mod tests {
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
     }
 
-    /// Given a save whose club still carries the legacy "GB" identity, so the manager it is given on
-    ///       load is resolved to a home nation through the club
+    /// Given a save written before identities were upgraded: a "British" manager at a "GB" club,
+    ///       neither with a football nation or birth country yet
     /// When it is loaded, and then loaded again
-    /// Then the second load writes nothing: one load settles every identity, birth country
-    ///      included, not one load per field
+    /// Then the first load resolves the manager to "ENG" through his club, birth country included,
+    ///      and the second writes nothing: one load settles it, not one load per field
     #[test]
     fn one_load_settles_a_legacy_gb_identity() {
         let dir = tempfile::tempdir().unwrap();
         let saves_dir = dir.path().join("saves");
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
-        // Between jobs: the warning about the user's short club keeps its own state and is not
-        // under test here.
-        game.manager.team_id = None;
-        assert_eq!(game.teams[0].country, "GB", "the legacy club under test");
+        // `Game::new` upgrades identities itself, so the legacy fields are set back after it, as a
+        // save from before the upgrade holds them.
+        game.manager.nationality = "British".to_string();
+        game.manager.football_nation.clear();
+        game.manager.birth_country = None;
+        game.teams[0].football_nation.clear();
         let save_id = sm.create_save(&game, "Legacy GB").unwrap();
         let db_path = saves_dir.join(format!("{save_id}.db"));
 
@@ -2499,7 +2501,8 @@ mod tests {
         let settled = compute_checksum(&db_path).unwrap();
         sm.load_game(&save_id).unwrap();
 
-        assert_eq!(first.teams[0].football_nation, "ENG");
+        assert_eq!(first.manager.nationality, "ENG");
+        assert_eq!(first.manager.birth_country.as_deref(), Some("ENG"));
         assert_eq!(
             compute_checksum(&db_path).unwrap(),
             settled,
