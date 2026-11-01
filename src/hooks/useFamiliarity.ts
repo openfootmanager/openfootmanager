@@ -48,7 +48,8 @@ export function useFamiliarityRevision(): string {
   return useMemo(() => {
     // No club (no game, or a manager without a job): the backend has nothing to project.
     if (clubId === "") return "";
-    const squad = (players ?? [])
+    // A screen test's stand-in game may carry no player list.
+    const squad = (Array.isArray(players) ? players : [])
       .filter((player) => player.team_id === clubId)
       .map(
         (player) =>
