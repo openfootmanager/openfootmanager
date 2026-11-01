@@ -274,3 +274,59 @@ fn the_side_left_with_eleven_wins_more_attacking_duels() {
         "the side left with eleven won {after:.3} of its attacking duels, from {before:.3}; the cover predicts {predicted:.3}"
     );
 }
+
+/// A midfield of four whose passing, vision, decisions and stamina are each `skills[i]`.
+fn midfield_of(skills: [u8; 4]) -> TeamData {
+    let mut team = side("t");
+    for (index, skill) in skills.into_iter().enumerate() {
+        let midfielder = &mut team.players[5 + index];
+        midfielder.passing = skill;
+        midfielder.vision = skill;
+        midfielder.decisions = skill;
+        midfielder.stamina = skill;
+    }
+    team
+}
+
+fn midfield_skill(p: &PlayerData) -> u8 {
+    ((p.passing as u16 + p.vision as u16 + p.decisions as u16 + p.stamina as u16) / 4) as u8
+}
+
+/// Given a four-man midfield rated 60, 70, 80 and 90,
+/// When the 90 is sent off,
+/// Then the line loses exactly that player's 90 over its four slots: an empty slot, not a smaller line.
+#[test]
+fn a_line_that_loses_a_player_loses_that_players_share_of_its_slots() {
+    let team = midfield_of([60, 70, 80, 90]);
+    let full = team.line_strength(Position::Midfielder, midfield_skill, &|_| false, 4);
+    let short = team.line_strength(Position::Midfielder, midfield_skill, &|id| id == "t_8", 4);
+    assert_eq!(full, 75.0);
+    assert_eq!(short - full, -90.0 / 4.0);
+}
+
+/// Given the same midfield with the 90 sent off,
+/// When the side's shape gives the midfield only three slots,
+/// Then the line is whole again: a change of shape fills the empty slot.
+#[test]
+fn a_change_of_shape_fills_the_empty_slot() {
+    let team = midfield_of([60, 70, 80, 90]);
+    let short = team.line_strength(Position::Midfielder, midfield_skill, &|id| id == "t_8", 4);
+    let reshaped = team.line_strength(Position::Midfielder, midfield_skill, &|id| id == "t_8", 3);
+    assert_eq!(reshaped, 70.0);
+    assert_eq!(reshaped - short, 70.0 - 210.0 / 4.0);
+}
+
+/// Given a full four-man midfield rated 60, 70, 80 and 90,
+/// When its shape says four midfield slots, or five (a 4-1-4-1 counts five),
+/// Then the line is its plain average either way: only a player who leaves the pitch empties a
+/// slot, so a match without a sending-off plays as it did.
+#[test]
+fn a_line_with_nobody_off_is_its_plain_average_whatever_the_shape() {
+    let team = midfield_of([60, 70, 80, 90]);
+    for slots in [4, 5] {
+        assert_eq!(
+            team.line_strength(Position::Midfielder, midfield_skill, &|_| false, slots),
+            team.midfield_rating()
+        );
+    }
+}

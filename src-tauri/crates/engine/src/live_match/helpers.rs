@@ -7,6 +7,9 @@ use crate::shared::{
 };
 use crate::types::{PlayerData, Position, Side, TeamData};
 
+/// The ground each missing player adds to what the rest of a side must cover when it defends.
+const SHORT_HANDED_COST: f64 = 0.7;
+
 use super::{LiveMatchState, SetPieceTakers};
 
 // ---------------------------------------------------------------------------
@@ -105,7 +108,10 @@ impl LiveMatchState {
     // -----------------------------------------------------------------------
 
     pub(super) fn effective_midfield(&self, side: Side) -> f64 {
-        let base = self.team_ref(side).midfield_rating();
+        let base = self.team_ref(side).midfield_rating_on_the_pitch(
+            &|id| !self.is_on_the_pitch(side, id),
+            self.midfield_slots(side),
+        );
         let modifier = play_style_modifier(
             self.team_ref(side).play_style,
             PlayStylePhase::Midfield,
@@ -116,13 +122,37 @@ impl LiveMatchState {
 
     pub(super) fn effective_press(&self, pressing_side: Side) -> f64 {
         let team = self.team_ref(pressing_side);
-        let base = team.position_attr_avg(Position::Midfielder, |p| {
-            ((p.stamina as u16 + p.tackling as u16 + p.pace as u16) / 3) as u8
-        });
+        let base = team.line_strength(
+            Position::Midfielder,
+            |p| ((p.stamina as u16 + p.tackling as u16 + p.pace as u16) / 3) as u8,
+            &|id| !self.is_on_the_pitch(pressing_side, id),
+            self.midfield_slots(pressing_side),
+        );
         let modifier = play_style_modifier(team.play_style, PlayStylePhase::Press, true);
         base * modifier
+            * self.short_handed_cover(pressing_side)
             * tactics_pressing_press(&team.tactics)
             * home_mod(pressing_side, &self.config)
+    }
+
+    /// The midfield slots in `side`'s current shape.
+    fn midfield_slots(&self, side: Side) -> usize {
+        Self::parse_formation(&self.team_ref(side).formation).1
+    }
+
+    /// How well a side short of players still covers the ground when it defends: each player it
+    /// is missing adds `SHORT_HANDED_COST` to the ground the rest must cover. It weakens the
+    /// side's press and tackles and leaves the chances against it cleaner; its attacking is left
+    /// alone, as the literature finds a side down to ten concedes far more but scores about as
+    /// often (`tests/short_handed_tests.rs`).
+    pub(super) fn short_handed_cover(&self, side: Side) -> f64 {
+        let missing = self
+            .team_ref(side)
+            .players
+            .iter()
+            .filter(|p| !self.is_on_the_pitch(side, &p.id))
+            .count();
+        1.0 / (1.0 + SHORT_HANDED_COST * missing as f64)
     }
 
     // -----------------------------------------------------------------------
@@ -167,7 +197,9 @@ impl LiveMatchState {
     }
 
     /// Whether `player_id` is on `side`'s pitch: in the side's players and not sent off. A
-    /// substituted-off player is no longer in the side's players.
+    /// substituted-off player is no longer in the side's players. The one test for being on the
+    /// pitch: a player who has left it leaves an empty slot in their line and their side
+    /// short-handed, so any other way of leaving it belongs here.
     pub(super) fn is_on_the_pitch(&self, side: Side, player_id: &str) -> bool {
         !self.sent_off.contains(player_id)
             && self
