@@ -373,7 +373,9 @@ pub(crate) fn primary_position(player: &Player) -> Position {
     canonical_position(&preferred)
 }
 
-fn canonical_position(position: &Position) -> Position {
+/// A legacy bucket as the granular position it is scored as; any other position as it is.
+/// `pub(crate)` for the position ratings (`crate::position_ratings`).
+pub(crate) fn canonical_position(position: &Position) -> Position {
     match position {
         Position::Goalkeeper => Position::Goalkeeper,
         Position::Defender => Position::CenterBack,
