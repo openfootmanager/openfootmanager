@@ -1,0 +1,1314 @@
+[
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "natural",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "Goalkeeper",
+    "position": "Goalkeeper"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "natural",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "Goalkeeper",
+    "position": "Goalkeeper"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "natural",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "Goalkeeper",
+    "position": "Goalkeeper"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "natural",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "natural",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "Defender",
+    "position": "Defender"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "natural",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "natural",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "Defender",
+    "position": "Defender"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "natural",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "natural",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "Defender",
+    "position": "Defender"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "natural",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "natural",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "Midfielder",
+    "position": "Midfielder"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "natural",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "natural",
+      "RightBack": "can_play",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "Midfielder",
+    "position": "Midfielder"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "natural",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "natural",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "Midfielder",
+    "position": "Midfielder"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "natural",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "can_play",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "can_play",
+      "Striker": "natural"
+    },
+    "natural_position": "Forward",
+    "position": "Forward"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "natural",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "can_play",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "can_play",
+      "Striker": "natural"
+    },
+    "natural_position": "Forward",
+    "position": "Forward"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "natural",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "can_play",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "can_play",
+      "Striker": "natural"
+    },
+    "natural_position": "Forward",
+    "position": "Forward"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "natural",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "RightBack",
+    "position": "RightBack"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "natural",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "RightBack",
+    "position": "RightBack"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "natural",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "natural",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "CenterBack",
+    "position": "CenterBack"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "natural",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "natural",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "CenterBack",
+    "position": "CenterBack"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "natural",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "natural",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "CenterBack",
+    "position": "CenterBack"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "natural",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "LeftBack",
+    "position": "LeftBack"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "natural",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "LeftBack",
+    "position": "LeftBack"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "natural",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "LeftBack",
+    "position": "LeftBack"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "natural",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "RightWingBack",
+    "position": "RightWingBack"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "natural",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "RightWingBack",
+    "position": "RightWingBack"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "natural",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "RightWingBack",
+    "position": "RightWingBack"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "natural",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "LeftWingBack",
+    "position": "LeftWingBack"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "natural",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "LeftWingBack",
+    "position": "LeftWingBack"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "natural",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "LeftWingBack",
+    "position": "LeftWingBack"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "natural",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "DefensiveMidfielder",
+    "position": "DefensiveMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "natural",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "can_play",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "DefensiveMidfielder",
+    "position": "DefensiveMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "natural",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "DefensiveMidfielder",
+    "position": "DefensiveMidfielder"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "natural",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "natural",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "CentralMidfielder",
+    "position": "CentralMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "natural",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "natural",
+      "RightBack": "can_play",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "CentralMidfielder",
+    "position": "CentralMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "natural",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "natural",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "CentralMidfielder",
+    "position": "CentralMidfielder"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "natural",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "AttackingMidfielder",
+    "position": "AttackingMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "natural",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "can_play",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "AttackingMidfielder",
+    "position": "AttackingMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "natural",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "AttackingMidfielder",
+    "position": "AttackingMidfielder"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "natural",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "RightMidfielder",
+    "position": "RightMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "can_play",
+      "RightMidfielder": "natural",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "RightMidfielder",
+    "position": "RightMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "natural",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "RightMidfielder",
+    "position": "RightMidfielder"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "natural",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "LeftMidfielder",
+    "position": "LeftMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "natural",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "can_play",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "LeftMidfielder",
+    "position": "LeftMidfielder"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "can_play",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "natural",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "can_play"
+    },
+    "natural_position": "LeftMidfielder",
+    "position": "LeftMidfielder"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "can_play",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "natural",
+      "Striker": "can_play"
+    },
+    "natural_position": "RightWinger",
+    "position": "RightWinger"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "can_play",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "natural",
+      "Striker": "can_play"
+    },
+    "natural_position": "RightWinger",
+    "position": "RightWinger"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "can_play",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "natural",
+      "Striker": "can_play"
+    },
+    "natural_position": "RightWinger",
+    "position": "RightWinger"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "natural",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "can_play",
+      "Striker": "can_play"
+    },
+    "natural_position": "LeftWinger",
+    "position": "LeftWinger"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "natural",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "can_play",
+      "Striker": "can_play"
+    },
+    "natural_position": "LeftWinger",
+    "position": "LeftWinger"
+  },
+  {
+    "alternate_positions": [
+      "Striker"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "natural",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "can_play",
+      "Striker": "can_play"
+    },
+    "natural_position": "LeftWinger",
+    "position": "LeftWinger"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "natural",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "can_play",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "can_play",
+      "Striker": "natural"
+    },
+    "natural_position": "Striker",
+    "position": "Striker"
+  },
+  {
+    "alternate_positions": [
+      "RightBack"
+    ],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "natural",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "can_play",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "can_play",
+      "Striker": "natural"
+    },
+    "natural_position": "Striker",
+    "position": "Striker"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "can_play",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "can_play",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "natural",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "Defender",
+    "position": "LeftBack"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "can_play",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "can_play",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "natural",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "can_play",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "can_play",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "can_play",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "Midfielder",
+    "position": "DefensiveMidfielder"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "out_of_position",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "out_of_position",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "can_play",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "out_of_position",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "out_of_position",
+      "LeftWinger": "can_play",
+      "Midfielder": "out_of_position",
+      "RightBack": "out_of_position",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "out_of_position",
+      "RightWinger": "natural",
+      "Striker": "can_play"
+    },
+    "natural_position": "Forward",
+    "position": "RightWinger"
+  }
+]
