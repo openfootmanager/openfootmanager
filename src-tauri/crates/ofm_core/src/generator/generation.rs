@@ -503,24 +503,75 @@ const BETWEEN_CLUB_SD: f64 = 2.25;
 /// variance, so without this the S tier and the wonderkids would come out more often than the
 /// maintainer's targets allow.
 const WITHIN_CLUB_TIGHTEN: f64 = 0.8;
-/// The reputation a club of average standing has, and the spread of reputations (measured on the
-/// shipped world's 440 clubs), which turn a reputation into a standard score.
-const REPUTATION_CENTRE: f64 = 500.0;
-const REPUTATION_SD: f64 = 150.0;
 /// A club's standard score is capped here, so one outlier reputation cannot buy a squad of stars.
 const REPUTATION_Z_CAP: f64 = 2.5;
 /// Lifts every club's players a little, to pay for the unattached pool sitting below them, so the
 /// world's mean rating stays where it was.
-const CLUB_LIFT: f64 = 1.1;
+const CLUB_LIFT: f64 = 1.5;
 /// Where the unattached pool's ceilings centre, below the world's: a player no club has signed is
 /// mostly one no club wanted.
 const FREE_AGENT_SHIFT: f64 = -3.0;
 /// A player young enough to be a wonderkid keeps this fraction of his club's spread, and
 /// [`YOUNG_SHIFT_KEPT`] of its shift: the stars gather at the big clubs among the grown players,
 /// but the young high-ceiling tail is the one the maintainer wants rare, and a mixture of club
-/// standards would otherwise fatten exactly that tail.
-const YOUNG_SPREAD_KEPT: f64 = 0.88;
+/// standards would otherwise fatten exactly that tail. Both are 1.0 for the opening squads now that
+/// the standard score is centred on the world's own reputations: the wonderkid rate (0.32% and
+/// 0.27%, against 0.34% and 0.30% without this change) needs no damping there. They remain knobs
+/// for a younger feature that does (the academy intake).
+const YOUNG_SPREAD_KEPT: f64 = 1.0;
 const YOUNG_SHIFT_KEPT: f64 = 1.0;
+
+/// How club reputations are spread in the world being generated: the centre and spread that turn
+/// a club's reputation into a standard score. Computed from the world's own clubs, not fixed: a
+/// package world (a historical league, a modder's one) has its own spread, and fixed figures
+/// would only move the mis-centring there.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct ReputationScale {
+    mean: f64,
+    sd: f64,
+}
+
+impl ReputationScale {
+    #[cfg(test)]
+    pub(super) fn new(mean: f64, sd: f64) -> Self {
+        Self { mean, sd }
+    }
+
+    /// The scale of a world whose clubs draw their reputation uniformly from `ranges` (one range
+    /// per club, `[low, high]` in either order): the mean of the clubs' expected reputations, and
+    /// the spread that adds the ranges' own variance to the variance between clubs.
+    pub(super) fn of_ranges(ranges: impl IntoIterator<Item = [u32; 2]>) -> Self {
+        let clubs: Vec<(f64, f64)> = ranges
+            .into_iter()
+            .map(|[a, b]| {
+                let (low, high) = (f64::from(a.min(b)), f64::from(a.max(b)));
+                ((low + high) / 2.0, (high - low).powi(2) / 12.0)
+            })
+            .collect();
+        if clubs.is_empty() {
+            return Self { mean: 0.0, sd: 0.0 };
+        }
+        let count = clubs.len() as f64;
+        let mean = clubs.iter().map(|(centre, _)| centre).sum::<f64>() / count;
+        let variance = clubs
+            .iter()
+            .map(|(centre, own)| own + (centre - mean).powi(2))
+            .sum::<f64>()
+            / count;
+        Self {
+            mean,
+            sd: variance.sqrt(),
+        }
+    }
+
+    /// `reputation` in standard deviations from the world's mean; 0 when the clubs do not differ.
+    fn standard_score(&self, reputation: u32) -> f64 {
+        if self.sd < 1.0 {
+            return 0.0;
+        }
+        (f64::from(reputation) - self.mean) / self.sd
+    }
+}
 
 /// The bell a player's ceiling is drawn from when it is not the single world-wide one.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -558,8 +609,9 @@ impl PlayerRoll {
     }
 
     /// A player of a club of `reputation`, at the slot's age.
-    pub(super) fn for_club(reputation: u32) -> Self {
-        let z = ((f64::from(reputation) - REPUTATION_CENTRE) / REPUTATION_SD)
+    pub(super) fn for_club(reputation: u32, scale: &ReputationScale) -> Self {
+        let z = scale
+            .standard_score(reputation)
             .clamp(-REPUTATION_Z_CAP, REPUTATION_Z_CAP);
         Self {
             age: None,
@@ -1658,7 +1710,7 @@ mod tests {
                     2026,
                     PlayerRoll {
                         age: Some(27),
-                        ..PlayerRoll::for_club(reputation)
+                        ..PlayerRoll::for_club(reputation, &ReputationScale::new(500.0, 150.0))
                     },
                     &names_def,
                     &mut rng,
@@ -1696,10 +1748,49 @@ mod tests {
     /// Then it is the same as a club at the cap, so one outlier cannot buy a squad of stars.
     #[test]
     fn an_outlier_reputation_does_not_run_away() {
+        let scale = ReputationScale::new(500.0, 150.0);
         assert_eq!(
-            PlayerRoll::for_club(2000).standard,
-            PlayerRoll::for_club(1000).standard
+            PlayerRoll::for_club(2000, &scale).standard,
+            PlayerRoll::for_club(1000, &scale).standard
         );
+    }
+
+    /// Given a world whose clubs all share one pinned reputation,
+    /// When a club's standard score is read,
+    /// Then it is 0: clubs that do not differ get no standard to spread.
+    #[test]
+    fn a_world_of_equal_clubs_has_no_standard_to_spread() {
+        let scale = ReputationScale::of_ranges([[640, 640], [640, 640], [640, 640]]);
+
+        assert_eq!(scale.standard_score(640), 0.0);
+        assert_eq!(scale.standard_score(900), 0.0);
+    }
+
+    /// Given a default-range world (clubs anywhere in 300 to 900) and a package world whose clubs
+    ///       all sit in 800 to 900,
+    /// When the same reputation of 850 is scored in each,
+    /// Then it is above the first world's mean and at the second world's: the scale is the world's
+    ///      own, not one world's figures applied to every world.
+    #[test]
+    fn the_scale_follows_the_world_being_generated() {
+        let broad = ReputationScale::of_ranges([[300, 900]; 40]);
+        let elite = ReputationScale::of_ranges([[800, 900]; 40]);
+
+        assert!(broad.standard_score(850) > 0.5);
+        assert!(elite.standard_score(850).abs() < 1e-9);
+    }
+
+    /// Given clubs whose midpoints differ and whose own ranges add spread,
+    /// When the scale is built,
+    /// Then its spread is the root of the variance between the midpoints plus the ranges' own.
+    #[test]
+    fn the_scale_adds_the_ranges_own_variance_to_the_variance_between_clubs() {
+        // Midpoints 400 and 600 (variance between: 100^2); each range 200 wide (200^2 / 12 own).
+        let scale = ReputationScale::of_ranges([[300, 500], [500, 700]]);
+
+        let expected = (100.0_f64.powi(2) + 200.0_f64.powi(2) / 12.0).sqrt();
+        assert!((scale.standard_score(500) - 0.0).abs() < 1e-9);
+        assert!((scale.standard_score(600) - 100.0 / expected).abs() < 1e-9);
     }
 
     /// Given a roll with no club standard,
