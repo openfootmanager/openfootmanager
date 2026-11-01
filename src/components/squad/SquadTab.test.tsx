@@ -961,15 +961,18 @@ describe("SquadTab", () => {
    *      grade the lineup itself while it waits.
    */
   it("counts natural fits from the backend's familiarity, and none before it arrives", () => {
+    const arrivedState = makeGameState();
     const { unmount } = render(
       <SquadTab
-        gameState={makeGameState()}
+        gameState={arrivedState}
         managerId="mgr1"
         onSelectPlayer={vi.fn()}
         onGameUpdate={vi.fn()}
       />,
     );
-    expect(screen.queryByText("0 squad.naturalFit")).toBeNull();
+    // Everyone sits in his natural slot or, on the bench, at his natural position: all are natural.
+    const naturalCount = arrivedState.players.filter((player) => player.team_id === "team1").length;
+    expect(screen.getByText(`${naturalCount} squad.naturalFit`)).toBeInTheDocument();
     unmount();
 
     familiarityState.arrived = false;
@@ -1103,6 +1106,37 @@ describe("SquadTab", () => {
     renderSquadTab(makeGameState());
     fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
     expect(screen.getByRole("option", { name: "squad.needsCover" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given the position table has arrived but the backend's familiarity has not
+   * When Squad is drawn
+   * Then no coverage is claimed (the badges, the panel and the "needs cover" filter wait), because
+   *      natural starters are counted by that grade and every role would read as thin.
+   */
+  it("claims no coverage until the familiarity has loaded", () => {
+    familiarityState.arrived = false;
+    try {
+      render(
+        <SquadTab
+          gameState={makeGameState()}
+          managerId="mgr1"
+          onSelectPlayer={vi.fn()}
+          onGameUpdate={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByText("squad.coverageTitle")).toBeNull();
+      expect(screen.queryByText(/squad\.needsCover$/)).toBeNull();
+      fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
+      expect(screen.queryByRole("option", { name: "squad.needsCover" })).toBeNull();
+    } finally {
+      familiarityState.arrived = true;
+    }
+
+    cleanup();
+    renderSquadTab(makeGameState());
+    expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
   });
 
   it("names each roster filter after its visible label", async () => {

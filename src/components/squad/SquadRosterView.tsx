@@ -465,9 +465,7 @@ export default function SquadRosterView({
               <option value="naturalFit">{t("squad.naturalFit")}</option>
               {/* A role needs cover by the backend's lines; until they arrive the filter would drop
                   players it should keep, so it is not offered yet. */}
-              {positionTable.loaded ? (
-                <option value="needsCover">{t("squad.needsCover")}</option>
-              ) : null}
+              {canGradeLineup ? <option value="needsCover">{t("squad.needsCover")}</option> : null}
               <option value="outOfPosition">{t("squad.outOfPosition")}</option>
               <option value="injured">{t("common.injured")}</option>
             </Select>
@@ -499,9 +497,12 @@ export default function SquadRosterView({
           <Badge variant="success" size="sm">
             {naturalFitCount} {t("squad.naturalFit")}
           </Badge>
-          <Badge variant={thinCoverageCount > 0 ? "accent" : "success"} size="sm">
-            {thinCoverageCount} {t("squad.needsCover")}
-          </Badge>
+          {/* Coverage counts natural starters by the backend's grade: nothing is claimed before it. */}
+          {canGradeLineup ? (
+            <Badge variant={thinCoverageCount > 0 ? "accent" : "success"} size="sm">
+              {thinCoverageCount} {t("squad.needsCover")}
+            </Badge>
+          ) : null}
           <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
             {outOfPositionCount} {t("squad.outOfPosition")}
           </Badge>
@@ -529,45 +530,47 @@ export default function SquadRosterView({
               ? t(`tactics.presetNames.${currentPreset.id}`, currentPreset.id)
               : t(`common.playStyles.${activePlayStyle}`, activePlayStyle)}
           </p>
-          <div className="mt-3 flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-300">
-                {t("squad.coverageTitle")}
-              </span>
-              <Badge variant={thinCoverageCount > 0 ? "danger" : "success"} size="sm">
-                {thinCoverageCount > 0
-                  ? t("squad.coverageNeedsAttention", {
-                      count: thinCoverageCount,
-                    })
-                  : t("squad.coverageStable")}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {roleCoverage.map((coverage) => (
-                <Badge
-                  key={coverage.role}
-                  variant={
-                    coverage.status === "covered"
-                      ? "success"
-                      : coverage.status === "thin"
-                        ? "accent"
-                        : "danger"
-                  }
-                  size="sm"
-                  className="gap-1"
-                >
-                  <span>{translatePositionAbbreviation(t, coverage.role)}</span>
-                  <span>
-                    {t("squad.coverageBadge", {
-                      starters: coverage.naturalStarters,
-                      required: coverage.requiredSlots,
-                      bench: coverage.benchOptions,
-                    })}
-                  </span>
+          {canGradeLineup ? (
+            <div className="mt-3 flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-300">
+                  {t("squad.coverageTitle")}
+                </span>
+                <Badge variant={thinCoverageCount > 0 ? "danger" : "success"} size="sm">
+                  {thinCoverageCount > 0
+                    ? t("squad.coverageNeedsAttention", {
+                        count: thinCoverageCount,
+                      })
+                    : t("squad.coverageStable")}
                 </Badge>
-              ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {roleCoverage.map((coverage) => (
+                  <Badge
+                    key={coverage.role}
+                    variant={
+                      coverage.status === "covered"
+                        ? "success"
+                        : coverage.status === "thin"
+                          ? "accent"
+                          : "danger"
+                    }
+                    size="sm"
+                    className="gap-1"
+                  >
+                    <span>{translatePositionAbbreviation(t, coverage.role)}</span>
+                    <span>
+                      {t("squad.coverageBadge", {
+                        starters: coverage.naturalStarters,
+                        required: coverage.requiredSlots,
+                        bench: coverage.benchOptions,
+                      })}
+                    </span>
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
         <DataTable
           label={t("squad.title", { team: team.name })}
