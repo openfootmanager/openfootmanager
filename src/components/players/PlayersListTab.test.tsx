@@ -910,9 +910,11 @@ describe("PlayersListTab paging", () => {
     );
     expect(await screen.findByText("1 / 2")).toBeInTheDocument();
 
-    fireEvent.click(
-      screen.getAllByRole("button").filter((b) => b.querySelector(".lucide-chevron-right"))[0],
-    );
+    // Four icon-only buttons, each named for a screen reader.
+    for (const name of ["common.firstPage", "common.previousPage", "common.lastPage"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "common.nextPage" }));
 
     await waitFor(() => expect(requested).toContain(2));
   });

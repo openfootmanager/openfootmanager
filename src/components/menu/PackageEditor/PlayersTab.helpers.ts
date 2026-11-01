@@ -1,4 +1,5 @@
-import { CORE_POSITIONS, normalisePosition } from "../../squad/SquadTab.helpers";
+import type { PositionTable } from "../../../lib/positionTable";
+import { CORE_POSITIONS } from "../../squad/SquadTab.helpers";
 import { POSITIONS } from "./helpers";
 import type { PlayerDef, Position } from "./types";
 
@@ -17,12 +18,21 @@ export type PositionFilter = "All" | `group:${CorePosition}` | Position;
 
 const GROUP_PREFIX = "group:";
 
-export function matchesPositionFilter(position: Position, filter: PositionFilter): boolean {
+/** Whether a position filter value picks a whole group rather than one position. */
+export function isGroupFilter(filter: string): boolean {
+  return filter.startsWith(GROUP_PREFIX);
+}
+
+export function matchesPositionFilter(
+  position: Position,
+  filter: PositionFilter,
+  positions: PositionTable,
+): boolean {
   if (filter === "All") {
     return true;
   }
   if (filter.startsWith(GROUP_PREFIX)) {
-    return normalisePosition(position) === filter.slice(GROUP_PREFIX.length);
+    return positions.groupOf(position) === filter.slice(GROUP_PREFIX.length);
   }
   return position === filter;
 }
@@ -75,6 +85,7 @@ export interface FilterPlayerRowsParams {
   positionFilter?: PositionFilter;
   query: string;
   teamNames: Map<string, string>;
+  positions: PositionTable;
 }
 
 export interface FilteredPlayerRows {
@@ -104,6 +115,7 @@ export function filterPlayerRows({
   positionFilter = "All",
   query,
   teamNames,
+  positions,
 }: FilterPlayerRowsParams): FilteredPlayerRows {
   const scoped: IndexedPlayer[] = [];
   for (let i = 0; i < players.length; i += 1) {
@@ -119,7 +131,9 @@ export function filterPlayerRows({
   const byPosition =
     positionFilter === "All"
       ? scoped
-      : scoped.filter(({ player }) => matchesPositionFilter(player.position, positionFilter));
+      : scoped.filter(({ player }) =>
+          matchesPositionFilter(player.position, positionFilter, positions),
+        );
 
   const q = query.trim().toLowerCase();
   if (!q) {

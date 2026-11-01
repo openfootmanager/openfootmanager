@@ -629,7 +629,11 @@
     "center": "Центр",
     "right": "Правый",
     "competition": "Соревнование",
-    "confirmDelete": "Подтвердить удаление"
+    "confirmDelete": "Подтвердить удаление",
+    "firstPage": "Первая страница",
+    "previousPage": "Предыдущая страница",
+    "nextPage": "Следующая страница",
+    "lastPage": "Последняя страница"
   },
   "teamSelection": {
     "title": "Выберите клуб",

@@ -6,6 +6,12 @@ import PreMatchLineup from "./PreMatchLineup";
 import { SubPanel } from "./SubPanel";
 import { sortByPositionGroup } from "./SubPanel.helpers";
 import type { EnginePlayerData, MatchSnapshot } from "./types";
+import { cannedPositionTable } from "../../test-utils/positionTable";
+
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
 
 /**
  * #371 — the bench is listed in the same goalkeeper → defence → midfield →
@@ -105,7 +111,7 @@ describe("sortByPositionGroup", () => {
     ];
     const snapshot = input.map((p) => p.id);
 
-    const sorted = sortByPositionGroup(input);
+    const sorted = sortByPositionGroup(input, cannedPositionTable());
 
     expect(sorted.map((p) => p.id)).toEqual(["g", "d1", "d2", "m", "f"]);
     expect(input.map((p) => p.id)).toEqual(snapshot);

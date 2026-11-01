@@ -7,9 +7,15 @@ import { POSITION_COLOR, entityRowKey } from "./helpers";
 import { EntityListFooter, EntityListShell, EntityRow, ExportCsvButton } from "./shared";
 import { ENTITY_LIST_PAGE_SIZE, buildTeamNameMap, capRows } from "./entityList.helpers";
 import { useKeepRevealed } from "./entityList.reveal";
-import { filterPlayerRows, positionFilterGroups, type PositionFilter } from "./PlayersTab.helpers";
+import {
+  filterPlayerRows,
+  isGroupFilter,
+  positionFilterGroups,
+  type PositionFilter,
+} from "./PlayersTab.helpers";
 import { Select } from "../../ui/Select";
 import type { PlayerDef, Position, TeamDef } from "./types";
+import { usePositionTable } from "../../../hooks/usePositionGroups";
 
 interface PlayerAvatarCellProps {
   player: PlayerDef;
@@ -75,6 +81,7 @@ export function PlayersTab({
   youthOnly,
 }: PlayersTabProps) {
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const positionFilterId = useId();
   const positionFilterCaptionId = useId();
   const [query, setQuery] = useState("");
@@ -84,8 +91,8 @@ export function PlayersTab({
 
   const teamNames = useMemo(() => buildTeamNameMap(teams), [teams]);
   const { scoped, filtered } = useMemo(
-    () => filterPlayerRows({ players, youthOnly, positionFilter, query, teamNames }),
-    [players, youthOnly, positionFilter, query, teamNames],
+    () => filterPlayerRows({ players, youthOnly, positionFilter, query, teamNames, positions }),
+    [players, youthOnly, positionFilter, query, teamNames, positions],
   );
   const { visible } = capRows(
     filtered,
@@ -161,7 +168,13 @@ export function PlayersTab({
                   {positionFilterGroups().map((group) => (
                     <optgroup key={group.labelKey} label={t(group.labelKey)}>
                       {group.options.map((option) => (
-                        <option key={option.value} value={option.value}>
+                        // A group matches by the backend's table, so until it arrives a group
+                        // would show no one; the exact positions do not depend on it.
+                        <option
+                          key={option.value}
+                          value={option.value}
+                          disabled={isGroupFilter(option.value) && !positions.loaded}
+                        >
                           {t(option.labelKey)}
                         </option>
                       ))}

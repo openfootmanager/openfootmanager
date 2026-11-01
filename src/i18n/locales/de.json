@@ -629,7 +629,11 @@
     "center": "Zentrum",
     "right": "Rechts",
     "competition": "Wettbewerb",
-    "confirmDelete": "Löschen bestätigen"
+    "confirmDelete": "Löschen bestätigen",
+    "firstPage": "Erste Seite",
+    "previousPage": "Vorherige Seite",
+    "nextPage": "Nächste Seite",
+    "lastPage": "Letzte Seite"
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",
