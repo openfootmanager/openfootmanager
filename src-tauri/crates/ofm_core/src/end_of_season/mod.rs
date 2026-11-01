@@ -1105,7 +1105,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                 ovr: Some(player.ovr),
                 // A player whose potential is not stored (0) has none recorded.
                 potential: (player.potential > 0).then_some(player.potential),
-                minutes: player.stats.minutes_played,
+                minutes: Some(player.stats.minutes_played),
                 average_rating: (player.stats.rated_appearances > 0)
                     .then_some(player.stats.avg_rating),
             });

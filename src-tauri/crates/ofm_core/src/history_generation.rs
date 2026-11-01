@@ -599,7 +599,7 @@ fn upsert_player_career(game: &mut Game, season: u32, standings: &[StandingEntry
             assists: player.stats.assists,
             // The synthesized season's minutes. Its rating and potential stay unrecorded: the past
             // is generated, and the player's ratings today are not what they were then.
-            minutes: player.stats.minutes_played,
+            minutes: Some(player.stats.minutes_played),
             average_rating: (player.stats.rated_appearances > 0).then_some(player.stats.avg_rating),
             ..Default::default()
         };
@@ -1078,7 +1078,7 @@ mod tests {
         let seasons = &game.players[0].career;
         assert!(!seasons.is_empty(), "a generated career");
         for season in seasons {
-            assert_eq!(season.minutes, season.appearances * 90, "{season:?}");
+            assert_eq!(season.minutes, Some(season.appearances * 90), "{season:?}");
             assert!(season.appearances > 0);
             assert_eq!((season.ovr, season.potential), (None, None));
         }

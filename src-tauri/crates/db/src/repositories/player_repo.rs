@@ -914,7 +914,7 @@ mod tests {
             assists: 6,
             ovr: Some(74),
             potential: Some(82),
-            minutes: 2430,
+            minutes: Some(2430),
             average_rating: Some(7.25),
         };
         player.career = vec![season.clone()];
@@ -944,6 +944,10 @@ mod tests {
         assert_eq!(stored.career.len(), 1);
         assert_eq!(stored.career[0].appearances, 12);
         assert_eq!(stored.career[0].ovr, None);
+        assert_eq!(
+            stored.career[0].minutes, None,
+            "not recorded, which is not 0 minutes"
+        );
         assert_eq!(stored.career[0].average_rating, None);
     }
 

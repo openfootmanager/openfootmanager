@@ -586,8 +586,11 @@ pub struct CareerEntry {
     /// (`ofm_core::wire`).
     #[serde(default)]
     pub potential: Option<u8>,
+    /// The minutes he played that season; None when they were not recorded (a row from before
+    /// seasons kept them, or one a package wrote), which is not the same as Some(0), a season he
+    /// was there and did not play.
     #[serde(default)]
-    pub minutes: u32,
+    pub minutes: Option<u32>,
     /// His average match rating over the season's rated matches; None when none was rated. Kept
     /// as computed: a screen rounds it where it shows it.
     #[serde(default)]

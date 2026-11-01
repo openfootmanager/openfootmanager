@@ -14,7 +14,13 @@ ovr: number | null,
  * His true potential at the season's end: the game's record, never sent to a reader
  * (`ofm_core::wire`).
  */
-potential: number | null, minutes: number, 
+potential: number | null, 
+/**
+ * The minutes he played that season; None when they were not recorded (a row from before
+ * seasons kept them, or one a package wrote), which is not the same as Some(0), a season he
+ * was there and did not play.
+ */
+minutes: number | null, 
 /**
  * His average match rating over the season's rated matches; None when none was rated. Kept
  * as computed: a screen rounds it where it shows it.

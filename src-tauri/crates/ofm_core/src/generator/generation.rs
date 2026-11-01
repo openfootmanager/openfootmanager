@@ -2001,6 +2001,8 @@ mod tests {
         assert_eq!(player.career[0].team_name, "Juventus");
         assert_eq!(player.career[0].goals, 10);
         assert_eq!(player.career[1].team_id, "club-x");
+        // A package records no minutes: 30 appearances with none recorded, not 30 with 0 played.
+        assert_eq!(player.career[0].minutes, None);
     }
 
     /// Everything here is optional, and leaving it out must change nothing: every

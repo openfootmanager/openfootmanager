@@ -2212,7 +2212,8 @@ fn season_end_ages_players_and_retires_out_of_contract_veterans() {
 
 /// Given a senior player at a club who did not play all season (an injured season, say)
 /// When the season ends
-/// Then he gets the season's row anyway, with 0 appearances: no gap in his record (R2-Q5)
+/// Then he gets the season's row anyway, with 0 appearances and 0 minutes recorded (not "not
+///      recorded"): no gap in his record (R2-Q5)
 #[test]
 fn a_senior_who_did_not_play_still_gets_the_seasons_row() {
     let mut game = make_completed_season_game();
@@ -2224,6 +2225,11 @@ fn a_senior_who_did_not_play_still_gets_the_seasons_row() {
     let p3 = game.players.iter().find(|p| p.id == "p3").unwrap();
     assert_eq!(p3.career.len(), 1, "a row for the season he missed");
     assert_eq!(p3.career[0].appearances, 0);
+    assert_eq!(
+        p3.career[0].minutes,
+        Some(0),
+        "played none, recorded as none"
+    );
     assert_eq!(
         p3.career[0].average_rating, None,
         "no rated match, no average"
@@ -2272,7 +2278,7 @@ fn a_seasons_row_keeps_his_snapshot() {
     let entry = &game.players.iter().find(|p| p.id == "p1").unwrap().career[0];
     assert_eq!(entry.ovr, Some(rating));
     assert_eq!(entry.potential, Some(84));
-    assert_eq!(entry.minutes, 2700);
+    assert_eq!(entry.minutes, Some(2700));
     assert_eq!(entry.average_rating, Some(7.5));
 }
 
@@ -2333,7 +2339,7 @@ fn a_player_who_retires_at_the_seasons_end_keeps_his_final_seasons_row() {
     let last = record.career.last().expect("his final season");
     assert_eq!(last.season, 1);
     assert_eq!(last.appearances, 30);
-    assert_eq!(last.minutes, 2700);
+    assert_eq!(last.minutes, Some(2700));
     assert!(last.ovr.is_some(), "with the season's snapshot");
 }
 

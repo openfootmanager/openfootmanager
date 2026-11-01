@@ -225,7 +225,8 @@ export interface CareerEntry {
   ovr?: number | null;
   /** Always null on screen: the game keeps it, and never sends it (`ofm_core::wire`). */
   potential?: number | null;
-  minutes?: number;
+  /** The minutes he played; null when not recorded (an older row, or a package's). */
+  minutes?: number | null;
   /** His average over the season's rated matches, unrounded; null when none was rated. */
   average_rating?: number | null;
 }
