@@ -935,6 +935,7 @@ describe("PlayersListTab sort and load errors", () => {
       .filter(([command]) => command === "get_players_page")
       .map(([, args]) => (args as { query: PlayersPageQuery }).query);
   }
+  const lastQuery = () => requestedQueries().slice(-1)[0];
 
   /**
    * Given the cards view, which has no column headers
@@ -952,12 +953,12 @@ describe("PlayersListTab sort and load errors", () => {
 
     fireEvent.click(screen.getByRole("combobox", { name: "common.sortBy" }));
     fireEvent.click(screen.getByRole("option", { name: "Age" }));
-    await waitFor(() => expect(requestedQueries().at(-1)?.sort_key).toBe("age"));
-    expect(requestedQueries().at(-1)?.sort_asc).toBe(false);
+    await waitFor(() => expect(lastQuery()?.sort_key).toBe("age"));
+    expect(lastQuery()?.sort_asc).toBe(false);
 
     fireEvent.click(screen.getByRole("button", { name: "common.sortDescending" }));
-    await waitFor(() => expect(requestedQueries().at(-1)?.sort_asc).toBe(true));
-    expect(requestedQueries().at(-1)?.sort_key).toBe("age");
+    await waitFor(() => expect(lastQuery()?.sort_asc).toBe(true));
+    expect(lastQuery()?.sort_key).toBe("age");
   });
 
   /**
@@ -975,12 +976,12 @@ describe("PlayersListTab sort and load errors", () => {
     await screen.findAllByRole("article");
     fireEvent.click(screen.getByRole("combobox", { name: "common.sortBy" }));
     fireEvent.click(screen.getByRole("option", { name: "Age" }));
-    await waitFor(() => expect(requestedQueries().at(-1)?.sort_key).toBe("age"));
+    await waitFor(() => expect(lastQuery()?.sort_key).toBe("age"));
 
     fireEvent.click(screen.getByRole("radio", { name: "common.listViewTable" }));
     await screen.findByRole("table");
 
-    expect(requestedQueries().at(-1)?.sort_key).toBe("age");
+    expect(lastQuery()?.sort_key).toBe("age");
   });
 
   /**

@@ -29,6 +29,7 @@ import {
   RatingChip,
   SegmentedControl,
   Select,
+  SortControl,
   type SortDirection,
   Switch,
   TabPanel,
@@ -663,6 +664,10 @@ function NavigationSection() {
   const [pace, setPace] = useState("normal");
   const [density, setDensity] = useState("comfortable");
   const [listView, setListView] = useState<ListView>("table");
+  const [cardSort, setCardSort] = useState<{ key: "name" | "age" | "ovr"; ascending: boolean }>({
+    key: "ovr",
+    ascending: false,
+  });
   return (
     <Section title="Navigation">
       <PageToolbar
@@ -765,6 +770,20 @@ function NavigationSection() {
       <PageToolbar action={<Button size="sm">Hire</Button>} />
       {/* A list's toolbar: the Table/Cards switch at its end, bound to the one global setting. */}
       <PageToolbar action={<ViewSwitch value={listView} onChange={setListView} />} />
+      {/* A card list has no column headers, so its sort is a field and a direction. */}
+      <Row>
+        <SortControl
+          options={[
+            { key: "name", label: "Name" },
+            { key: "age", label: "Age" },
+            { key: "ovr", label: "OVR" },
+          ]}
+          sortKey={cardSort.key}
+          ascending={cardSort.ascending}
+          defaultAscending={(key) => key === "name"}
+          onChange={(key, ascending) => setCardSort({ key, ascending })}
+        />
+      </Row>
     </Section>
   );
 }
