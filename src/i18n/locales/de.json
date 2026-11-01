@@ -1764,6 +1764,10 @@
       "unsure": "Unsicher",
       "guess": "Eine Vermutung",
       "byScout": "Beobachtet von {{scout}} am {{date}}"
+    },
+    "positions": {
+      "title": "Positionen",
+      "wherePlayed": "wo du ihn einsetzt"
     }
   },
   "teamProfile": {

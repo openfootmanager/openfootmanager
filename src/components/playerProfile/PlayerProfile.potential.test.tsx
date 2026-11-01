@@ -209,3 +209,63 @@ describe("the player profile's opinion of his potential", () => {
     expect(screen.queryByText("Wonderkid")).not.toBeInTheDocument();
   });
 });
+
+describe("the player profile's ratings at his positions", () => {
+  /**
+   * Given the club's own player, whom the backend rates 77 at central midfield and 61 at right
+   *       back, where he is played
+   * When his profile opens
+   * Then it shows those ratings, asked of the backend for him
+   */
+  it("shows the position ratings the backend gives", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_position_ratings") {
+        return {
+          source: { kind: "live" },
+          rows: [
+            {
+              position: "CentralMidfielder",
+              rating: 77,
+              familiarity: "natural",
+              deployed: false,
+              key_attributes: [],
+            },
+            {
+              position: "RightBack",
+              rating: 61,
+              familiarity: "out_of_position",
+              deployed: true,
+              key_attributes: [],
+            },
+          ],
+        };
+      }
+      if (command === "get_player_stats_overview") return emptyStatsOverview;
+      if (command === "get_player_match_history") return [];
+      return null;
+    });
+
+    renderProfile();
+
+    const positions = within(await screen.findByRole("region", { name: "Positions" }));
+    expect(positions.getByText("Out of position (where you play him)")).toBeInTheDocument();
+    expect(positions.getByText("61")).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith("get_position_ratings", { playerId: "player-1" });
+  });
+
+  /**
+   * Given a player the club knows nothing of (the backend answers null)
+   * When his profile opens
+   * Then no positions section shows
+   */
+  it("shows no positions for a player the club knows nothing of", async () => {
+    backendWith(null);
+
+    renderProfile();
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("get_position_ratings", { playerId: "player-1" }),
+    );
+    expect(screen.queryByRole("region", { name: "Positions" })).not.toBeInTheDocument();
+  });
+});

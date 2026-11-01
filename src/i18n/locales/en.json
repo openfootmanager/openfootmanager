@@ -1764,6 +1764,10 @@
       "unsure": "Unsure",
       "guess": "A guess",
       "byScout": "Scouted by {{scout}} on {{date}}"
+    },
+    "positions": {
+      "title": "Positions",
+      "wherePlayed": "where you play him"
     }
   },
   "teamProfile": {

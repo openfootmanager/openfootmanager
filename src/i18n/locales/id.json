@@ -1764,6 +1764,10 @@
       "unsure": "Kurang yakin",
       "guess": "Tebakan",
       "byScout": "Diamati oleh {{scout}} pada {{date}}"
+    },
+    "positions": {
+      "title": "Posisi",
+      "wherePlayed": "tempat kamu memainkannya"
     }
   },
   "teamProfile": {
