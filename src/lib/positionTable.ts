@@ -18,6 +18,8 @@ const UNRANKED = 999;
  * only reads it. Until it arrives it is empty, so groups are unknown and every rank ties.
  */
 export interface PositionTable {
+  /** False until the table arrives; a screen that writes a selection back waits for it. */
+  loaded: boolean;
   /** The group a position (or an alias such as "RB") belongs to; the position itself if unknown. */
   groupOf(position: string): string;
   /** Where the position sorts in a squad list. */
@@ -36,6 +38,7 @@ export function createPositionTable(entries: readonly PositionEntry[]): Position
     return byPosition.get(canonical)?.group ?? canonical;
   };
   return {
+    loaded: entries.length > 0,
     groupOf,
     rankOf: (position) => entryOf(position)?.rank ?? UNRANKED,
     lineRankOf: (position) => byPosition.get(groupOf(position))?.rank ?? UNRANKED,

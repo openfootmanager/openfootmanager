@@ -64,6 +64,8 @@ describe("createPositionTable", () => {
   it("answers nothing invented before the table arrives", () => {
     const empty = createPositionTable([]);
 
+    expect(empty.loaded).toBe(false);
+    expect(table.loaded).toBe(true);
     expect(empty.groupOf("CenterBack")).toBe("CenterBack");
     expect(empty.lineRankOf("CenterBack")).toBe(999);
     expect(empty.membersOf("Defender")).toEqual(["Defender"]);

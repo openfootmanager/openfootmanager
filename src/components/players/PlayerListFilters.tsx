@@ -60,7 +60,8 @@ interface PositionGroupChipProps {
 
 function PositionGroupChip({ group, chosen, open, onPress, onToggle }: PositionGroupChipProps) {
   const { t } = useTranslation();
-  const members = usePositionTable().membersOf(group);
+  const table = usePositionTable();
+  const members = table.membersOf(group);
   const refinable = members.length > 1;
   const selected = members.filter((member) => chosen.has(member)).length;
   const active = selected > 0;
@@ -72,6 +73,9 @@ function PositionGroupChip({ group, chosen, open, onPress, onToggle }: PositionG
       <button
         type="button"
         onClick={onPress}
+        // Until the table arrives a group has no members to select, and writing a selection back
+        // would drop the detailed positions already chosen.
+        disabled={!table.loaded}
         aria-expanded={refinable ? open : undefined}
         aria-pressed={partial ? "mixed" : active}
         aria-label={
@@ -83,7 +87,7 @@ function PositionGroupChip({ group, chosen, open, onPress, onToggle }: PositionG
               })
             : label
         }
-        className={`${chip} inline-flex items-center gap-1 ${active ? chipOn : chipOff}`}
+        className={`${chip} inline-flex items-center gap-1 ${active ? chipOn : chipOff} disabled:cursor-not-allowed disabled:opacity-50`}
       >
         {t(`common.posAbbr.${group}`)}
         {partial && (

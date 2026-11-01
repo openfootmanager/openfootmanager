@@ -5,9 +5,17 @@ import { describe, expect, it, vi } from "vitest";
 import type { PlayersPageQuery } from "../../services/playersService";
 import PlayerListFilters from "./PlayerListFilters";
 
+const positionTableState = vi.hoisted(() => ({ arrived: true }));
+
 vi.mock("../../hooks/usePositionGroups", async () => {
   const { cannedPositionsModule } = await import("../../test-utils/positionTable");
-  return cannedPositionsModule();
+  const { createPositionTable } = await import("../../lib/positionTable");
+  const canned = cannedPositionsModule();
+  return {
+    ...canned,
+    usePositionTable: () =>
+      positionTableState.arrived ? canned.usePositionTable() : createPositionTable([]),
+  };
 });
 
 vi.mock("react-i18next", () => ({
@@ -249,5 +257,23 @@ describe("PlayerListFilters", () => {
     fireEvent.click(screen.getByRole("button", { name: "transfers.loan" }));
 
     expect(onChange).toHaveBeenCalledWith({ status: "loan" });
+  });
+
+  /**
+   * Given the position table has not arrived, so a group has no detailed members to select
+   * When the filters render
+   * Then the position chips are disabled (pressing one would write a selection back without the
+   *      detailed positions already chosen), and the All chip still works.
+   */
+  it("waits for the position table before the position chips work", () => {
+    positionTableState.arrived = false;
+    try {
+      renderFilters({ positions: [{ exact: "CenterBack" }] });
+
+      expect(screen.getByRole("button", { name: "common.positionGroups.Defender" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "transfers.allPositions" })).toBeEnabled();
+    } finally {
+      positionTableState.arrived = true;
+    }
   });
 });
