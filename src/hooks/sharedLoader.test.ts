@@ -45,18 +45,22 @@ describe("a loader with more than one key", () => {
     const fetchValue = vi
       .fn<(key: string) => Promise<string>>()
       .mockRejectedValueOnce(new Error("offline"))
-      .mockImplementation(async (key) => `value of ${key}`);
+      .mockImplementation(async (key) => {
+        // Later than a's failure, so the success is what meets a waiting retry timer.
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return `value of ${key}`;
+      });
     const loader = createSharedLoader(fetchValue, "test value");
     const shownA = vi.fn();
     loader.subscribe("a", shownA);
     loader.subscribe("b", () => {});
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(20);
     });
     expect(shownA).not.toHaveBeenCalled();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1_000);
+      await vi.advanceTimersByTimeAsync(1_100);
     });
 
     expect(shownA).toHaveBeenCalledWith("value of a");
