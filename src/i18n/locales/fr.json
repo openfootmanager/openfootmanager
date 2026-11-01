@@ -916,7 +916,8 @@
       "sharp": "Affûté",
       "managing": "À gérer",
       "risk": "Risque"
-    }
+    },
+    "positionsLoading": "Les données de postes sont encore en cours de chargement : les changements de composition ne sont pas encore disponibles."
   },
   "training": {
     "weeklySchedule": "Calendrier Hebdomadaire",

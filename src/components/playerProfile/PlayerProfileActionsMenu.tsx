@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import { ChevronDown, Repeat, RotateCcw, TimerOff, Trash2, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -67,6 +68,7 @@ export default function PlayerProfileActionsMenu({
   onError,
 }: PlayerProfileActionsMenuProps) {
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
   const menuRef = useRef<ContextMenuHandle>(null);
   const [mutationPending, setMutationPending] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -106,12 +108,14 @@ export default function PlayerProfileActionsMenu({
       available,
       managerTeam.starting_xi_ids ?? [],
       formation,
+      positionTable,
     );
     const inXI = startingXiIds.includes(player.id);
     const playersById = new Map(available.map((candidate) => [candidate.id, candidate]));
 
     const persistStartingXi = (nextXiIds: string[] | null): void => {
-      if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
+      // Nothing is saved from a lineup worked out before the position table has loaded.
+      if (!positionTable.loaded || !nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
         return;
       }
       void runMutation(() => setStartingXi(nextXiIds));
@@ -123,20 +127,33 @@ export default function PlayerProfileActionsMenu({
             label: t("squad.sendToBench"),
             icon: <RotateCcw className="w-4 h-4" />,
             disabled:
+              !positionTable.loaded ||
               actionBusy ||
               available.filter((candidate) => !startingXiIds.includes(candidate.id)).length === 0,
             onClick: () =>
               persistStartingXi(
-                buildDemoteFromStartingXi(startingXiIds, available, formation, player.id),
+                buildDemoteFromStartingXi(
+                  startingXiIds,
+                  available,
+                  formation,
+                  player.id,
+                  positionTable,
+                ),
               ),
           }
         : {
             label: t("squad.makeStarter"),
             icon: <Users className="w-4 h-4" />,
-            disabled: actionBusy || Boolean(player.injury),
+            disabled: !positionTable.loaded || actionBusy || Boolean(player.injury),
             onClick: () =>
               persistStartingXi(
-                buildPromoteToStartingXi(startingXiIds, playersById, formation, player.id),
+                buildPromoteToStartingXi(
+                  startingXiIds,
+                  playersById,
+                  formation,
+                  player.id,
+                  positionTable,
+                ),
               ),
           },
       buildDividerMenuItem(),

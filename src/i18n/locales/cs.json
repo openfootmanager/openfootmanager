@@ -916,7 +916,8 @@
       "ready": "Připraven",
       "adjusted": "Upraveno",
       "risk": "Riziko"
-    }
+    },
+    "positionsLoading": "Údaje o postech se ještě načítají, změny sestavy proto zatím nejsou dostupné."
   },
   "training": {
     "weeklySchedule": "Týdenní plán",
