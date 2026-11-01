@@ -27,6 +27,33 @@ function renderCard(props: Partial<Parameters<typeof PlayerProfileAttributesCard
 
 describe("PlayerProfileAttributesCard", () => {
   /**
+   * Given a player whose attributes the club may not see, and a positions inset handed in anyway
+   *       (an answer still in flight, or a failed report request)
+   * When the card renders
+   * Then the inset does not show: no key attribute values under "scout to view"
+   */
+  it("shows no positions inset while the attributes are hidden", () => {
+    renderCard({ positionRatings: <section aria-label="Positions">Passing 72</section> });
+
+    expect(screen.getByText("Attributes Hidden")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Positions" })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Given a player whose attributes the club sees, and his positions inset
+   * When the card renders
+   * Then the inset shows
+   */
+  it("shows the positions inset with the attributes", () => {
+    renderCard({
+      attributesVisible: true,
+      positionRatings: <section aria-label="Positions">Passing 72</section>,
+    });
+
+    expect(screen.getByRole("region", { name: "Positions" })).toBeInTheDocument();
+  });
+
+  /**
    * Given a player nobody has scouted or signed
    * When the card renders
    * Then the attributes are hidden behind the placeholder

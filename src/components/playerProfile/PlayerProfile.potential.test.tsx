@@ -209,3 +209,126 @@ describe("the player profile's opinion of his potential", () => {
     expect(screen.queryByText("Wonderkid")).not.toBeInTheDocument();
   });
 });
+
+describe("the player profile's ratings at his positions", () => {
+  /**
+   * Given the club's own player, whom the backend rates 77 at central midfield and 61 at right
+   *       back, where he is played
+   * When his profile opens
+   * Then it shows those ratings, asked of the backend for him
+   */
+  it("shows the position ratings the backend gives", async () => {
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_position_ratings") {
+        return {
+          source: { kind: "live" },
+          rows: [
+            {
+              position: "CentralMidfielder",
+              rating: 77,
+              familiarity: "natural",
+              deployed: false,
+              key_attributes: [],
+            },
+            {
+              position: "RightBack",
+              rating: 61,
+              familiarity: "out_of_position",
+              deployed: true,
+              key_attributes: [],
+            },
+          ],
+        };
+      }
+      if (command === "get_player_stats_overview") return emptyStatsOverview;
+      if (command === "get_player_match_history") return [];
+      return null;
+    });
+
+    renderProfile();
+
+    const positions = within(await screen.findByRole("region", { name: "Positions" }));
+    expect(positions.getByText("Out of position (where you play him)")).toBeInTheDocument();
+    expect(positions.getByText("61")).toBeInTheDocument();
+    expect(invoke).toHaveBeenCalledWith("get_position_ratings", { playerId: "player-1" });
+  });
+
+  /**
+   * Given the club's own player started at right back, so the backend marks that row as where he
+   *       is played
+   * When the manager benches him from the profile, and then starts him at right back again
+   * Then the "where you play him" row leaves, and comes back: the profile asks again whenever the
+   *      lineup moves, though the game's knowledge has not
+   */
+  it("follows the lineup when he is benched and started again", async () => {
+    const player = createPlayer({ id: "player-1", team_id: "team-1" });
+    // The backend derives the played-in slot from the manager's XI, as this mock does.
+    let startingXi = ["gk", "lb", "cb1", "cb2", "player-1"];
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "get_position_ratings") {
+        const startsAtRightBack = startingXi[4] === "player-1";
+        return {
+          source: { kind: "live" },
+          rows: [
+            {
+              position: "CentralMidfielder",
+              rating: 77,
+              familiarity: "natural",
+              deployed: false,
+              key_attributes: [],
+            },
+            ...(startsAtRightBack
+              ? [
+                  {
+                    position: "RightBack",
+                    rating: 61,
+                    familiarity: "out_of_position",
+                    deployed: true,
+                    key_attributes: [],
+                  },
+                ]
+              : []),
+          ],
+        };
+      }
+      if (command === "get_player_stats_overview") return emptyStatsOverview;
+      if (command === "get_player_match_history") return [];
+      return null;
+    });
+    const stateWith = (xi: string[]): GameStateData => {
+      const state = gameWith(player);
+      return { ...state, teams: [{ ...createTeam(), starting_xi_ids: xi }] };
+    };
+    const wherePlayed = "Out of position (where you play him)";
+
+    const { rerender } = render(
+      <PlayerProfile player={player} gameState={stateWith(startingXi)} isOwnClub />,
+    );
+    expect(await screen.findByText(wherePlayed)).toBeInTheDocument();
+
+    startingXi = ["gk", "lb", "cb1", "cb2", "rb"];
+    rerender(<PlayerProfile player={player} gameState={stateWith(startingXi)} isOwnClub />);
+    await waitFor(() => expect(screen.queryByText(wherePlayed)).not.toBeInTheDocument());
+    expect(await screen.findByRole("region", { name: "Positions" })).toBeInTheDocument();
+
+    startingXi = ["gk", "lb", "cb1", "cb2", "player-1"];
+    rerender(<PlayerProfile player={player} gameState={stateWith(startingXi)} isOwnClub />);
+    expect(await screen.findByText(wherePlayed)).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player the club knows nothing of (the backend answers null)
+   * When his profile opens
+   * Then no positions section shows
+   */
+  it("shows no positions for a player the club knows nothing of", async () => {
+    backendWith(null);
+
+    renderProfile();
+
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("get_position_ratings", { playerId: "player-1" }),
+    );
+    expect(screen.queryByRole("region", { name: "Positions" })).not.toBeInTheDocument();
+  });
+});

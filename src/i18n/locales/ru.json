@@ -1764,6 +1764,10 @@
       "unsure": "Неуверенная оценка",
       "guess": "Догадка",
       "byScout": "Оценён скаутом {{scout}} {{date}}"
+    },
+    "positions": {
+      "title": "Позиции",
+      "wherePlayed": "где вы его используете"
     }
   },
   "teamProfile": {

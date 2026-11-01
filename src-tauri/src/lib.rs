@@ -248,6 +248,7 @@ pub fn run() {
             get_player_knowledge,
             get_visible_wage,
             get_potential_opinion,
+            get_position_ratings,
             get_squad,
             get_staff,
             get_active_save_id,

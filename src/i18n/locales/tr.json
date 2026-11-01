@@ -1764,6 +1764,10 @@
       "unsure": "Emin değil",
       "guess": "Tahmin",
       "byScout": "{{scout}} tarafından {{date}} tarihinde izlendi"
+    },
+    "positions": {
+      "title": "Mevkiler",
+      "wherePlayed": "onu oynattığınız yer"
     }
   },
   "teamProfile": {
