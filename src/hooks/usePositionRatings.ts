@@ -1,34 +1,18 @@
-import { useEffect, useState } from "react";
-
 import { getPositionRatings } from "../services/positionService";
 import type { PositionRatings } from "../store/generated/PositionRatings";
+import { type KnowledgeAnswer, useKnowledgeAnswer } from "./useKnowledgeAnswer";
 
 /**
  * One player's ratings at the positions he plays, from the backend's one rule, or null when the
- * club knows nothing of his attributes. It asks again when `revision` changes (see
- * `gameKnowledgeRevision`), and reads null until the answer for this player and this revision
- * arrives, so another player's ratings never show meanwhile or after a failed request.
+ * club knows nothing of his attributes. Asked again when `revision` changes (see
+ * `gameKnowledgeRevision`); loading and failed carry no ratings, so another player's never shows,
+ * and a failed load is never "nothing known" (`useKnowledgeAnswer`).
  */
-export function usePositionRatings(playerId: string, revision: string): PositionRatings | null {
-  const [answer, setAnswer] = useState<{
-    playerId: string;
-    revision: string;
-    ratings: PositionRatings | null;
-  } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getPositionRatings(playerId)
-      .then((ratings) => {
-        if (!cancelled) setAnswer({ playerId, revision, ratings: ratings ?? null });
-      })
-      .catch((error: unknown) => {
-        console.error("Failed to read the player's position ratings:", error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [playerId, revision]);
-
-  return answer?.playerId === playerId && answer.revision === revision ? answer.ratings : null;
+export function usePositionRatings(
+  playerId: string,
+  revision: string,
+): KnowledgeAnswer<PositionRatings | null> {
+  return useKnowledgeAnswer(`positions|${playerId}|${revision}`, () =>
+    getPositionRatings(playerId).then((ratings) => ratings ?? null),
+  );
 }

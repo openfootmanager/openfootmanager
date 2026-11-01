@@ -1768,7 +1768,9 @@
     "positions": {
       "title": "位置",
       "wherePlayed": "您安排他踢的位置"
-    }
+    },
+    "loadFailed": "无法加载",
+    "retryWage": "重新加载工资"
   },
   "teamProfile": {
     "clubInfo": "俱乐部信息",

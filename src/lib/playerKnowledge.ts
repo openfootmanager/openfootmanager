@@ -30,6 +30,9 @@ export function visibleWageText(
   return "–";
 }
 
+/** The wage a screen shows while it has no answer to show: hidden, never a figure. */
+export const HIDDEN_WAGE: VisibleWage = { kind: "hidden" };
+
 /** What the club's knowledge of players, and the wages it may see, are asked again on. */
 export interface KnowledgeRevisionInputs {
   /** The career this game was installed as: another career's answers are never kept. */

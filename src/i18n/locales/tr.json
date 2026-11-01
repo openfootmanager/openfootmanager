@@ -1768,7 +1768,9 @@
     "positions": {
       "title": "Mevkiler",
       "wherePlayed": "onu oynattığınız yer"
-    }
+    },
+    "loadFailed": "Yüklenemedi",
+    "retryWage": "Maaşı yeniden yüklemeyi dene"
   },
   "teamProfile": {
     "clubInfo": "Kulüp Bilgisi",

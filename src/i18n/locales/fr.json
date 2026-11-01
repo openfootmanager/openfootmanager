@@ -1768,7 +1768,9 @@
     "positions": {
       "title": "Postes",
       "wherePlayed": "là où vous le faites jouer"
-    }
+    },
+    "loadFailed": "Chargement impossible",
+    "retryWage": "Recharger le salaire"
   },
   "teamProfile": {
     "clubInfo": "Informations du Club",

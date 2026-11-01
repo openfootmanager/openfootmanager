@@ -18,6 +18,8 @@ import {
   getPlayerTeamName,
 } from "./PlayerProfile.helpers";
 import { useVisibleWage } from "../../hooks/useVisibleWage";
+import { answeredOr } from "../../hooks/useKnowledgeAnswer";
+import ProfileLoadFailed from "./ProfileLoadFailed";
 import { buildPlayerProfileRelationship } from "./PlayerProfile.viewModel";
 import PlayerProfileAdvancedStatsCard from "./PlayerProfileAdvancedStatsCard";
 import { buildPlayerAttributeGroups, isGoalkeeper } from "./PlayerProfile.attributes";
@@ -47,6 +49,7 @@ import { useContractRenewalFlow } from "./useContractRenewalFlow";
 import { naturalPositionOf } from "../../lib/positions";
 import {
   gameKnowledgeRevision,
+  HIDDEN_WAGE,
   knowsPlayerRating,
   knowsPrivateState,
   ownLineupRevision,
@@ -95,14 +98,20 @@ export default function PlayerProfile({
     wage: player.wage,
   });
   const knowledge = usePlayerKnowledge([player.id], revision)(player.id);
-  const visibleWage = useVisibleWage(player.id, revision);
+  // Each answer is loading, answered or failed; a failed one shows "Couldn't load" and a retry,
+  // never the empty state that means the club knows nothing (#1108).
+  const wageAnswer = useVisibleWage(player.id, revision);
+  const visibleWage = answeredOr(wageAnswer, HIDDEN_WAGE);
+  const wageRetry = wageAnswer.status === "failed" ? wageAnswer.retry : undefined;
   // The club's opinion of his potential: a range from his scout or his coaches, never the number.
-  const potentialOpinion = usePotentialOpinion(player.id, revision);
+  const opinionAnswer = usePotentialOpinion(player.id, revision);
+  const potentialOpinion = answeredOr(opinionAnswer, null);
   // The slot he is played in moves with the lineup, which the knowledge revision does not follow.
-  const positionRatings = usePositionRatings(
+  const ratingsAnswer = usePositionRatings(
     player.id,
     `${revision}|${ownLineupRevision(gameState)}`,
   );
+  const positionRatings = answeredOr(ratingsAnswer, null);
   const showsPrivateState = knowsPrivateState(knowledge);
   const playerTeam = gameState.teams.find((team) => team.id === player.team_id);
   const currentTacticalRole: PlayerRole = playerTeam?.player_roles?.[player.id] ?? "Standard";
@@ -278,7 +287,12 @@ export default function PlayerProfile({
       <PlayerProfileHeroCard
         player={player}
         ovr={knowsPlayerRating(knowledge) ? ovr : null}
-        wageText={visibleWageText(visibleWage, formatPlayerWageCompact, t)}
+        wageText={
+          wageRetry
+            ? t("playerProfile.loadFailed")
+            : visibleWageText(visibleWage, formatPlayerWageCompact, t)
+        }
+        wageRetry={wageRetry}
         primaryPosition={primaryPosition}
         age={age}
         teamName={teamName}
@@ -341,7 +355,12 @@ export default function PlayerProfile({
           condition={showsPrivateState ? player.condition : null}
           morale={showsPrivateState ? player.morale : null}
           marketValue={player.market_value}
-          wageText={visibleWageText(visibleWage, formatPlayerWage, t)}
+          wageText={
+            wageRetry
+              ? t("playerProfile.loadFailed")
+              : visibleWageText(visibleWage, formatPlayerWage, t)
+          }
+          wageRetry={wageRetry}
           language={i18n.language}
           contractRiskLevel={contractRiskLevel}
           contractRiskLabel={contractRiskLabel}
@@ -386,7 +405,9 @@ export default function PlayerProfile({
           listLabel={t("common.listView")}
           radarLabel={t("common.radarView")}
           potentialOpinion={
-            potentialOpinion ? (
+            opinionAnswer.status === "failed" ? (
+              <ProfileLoadFailed t={t} onRetry={opinionAnswer.retry} />
+            ) : potentialOpinion ? (
               <PlayerProfilePotentialOpinion
                 opinion={potentialOpinion}
                 locale={i18n.language}
@@ -395,7 +416,9 @@ export default function PlayerProfile({
             ) : null
           }
           positionRatings={
-            positionRatings ? (
+            ratingsAnswer.status === "failed" ? (
+              <ProfileLoadFailed t={t} onRetry={ratingsAnswer.retry} />
+            ) : positionRatings ? (
               <PlayerProfilePositionRatings
                 ratings={positionRatings}
                 locale={i18n.language}

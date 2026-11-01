@@ -1,36 +1,15 @@
-import { useEffect, useState } from "react";
-
+import { HIDDEN_WAGE } from "../lib/playerKnowledge";
 import { getVisibleWage, type VisibleWage } from "../services/scoutingService";
-
-const HIDDEN: VisibleWage = { kind: "hidden" };
+import { type KnowledgeAnswer, useKnowledgeAnswer } from "./useKnowledgeAnswer";
 
 /**
- * One player's weekly wage as the club may see it (exact, approximate or hidden), from the backend.
- * It asks again when `revision` changes, and reads hidden until the answer to the current question
- * arrives, so an exact figure from another player, career or day never flashes on screen, while
- * the next answer is on its way or after it fails.
+ * One player's weekly wage as the club may see it (exact, approximate or hidden), from the backend,
+ * asked again when `revision` changes. While the answer is on its way the state is loading and
+ * after a failure it is failed (with a retry): neither carries a figure, so another player's,
+ * career's or day's never flashes on screen, and neither reads as hidden (`useKnowledgeAnswer`).
  */
-export function useVisibleWage(playerId: string, revision: string): VisibleWage {
-  const [wage, setWage] = useState<{
-    playerId: string;
-    revision: string;
-    wage: VisibleWage;
-  } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getVisibleWage(playerId)
-      .then((answer) => {
-        if (!cancelled) setWage({ playerId, revision, wage: answer ?? HIDDEN });
-      })
-      .catch((error: unknown) => {
-        console.error("Failed to read the wage the club may see:", error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [playerId, revision]);
-
-  // The answer belongs to the question it was asked for: another player's never shows meanwhile.
-  return wage?.playerId === playerId && wage.revision === revision ? wage.wage : HIDDEN;
+export function useVisibleWage(playerId: string, revision: string): KnowledgeAnswer<VisibleWage> {
+  return useKnowledgeAnswer(`wage|${playerId}|${revision}`, () =>
+    getVisibleWage(playerId).then((answer) => answer ?? HIDDEN_WAGE),
+  );
 }
