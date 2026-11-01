@@ -1417,6 +1417,8 @@ mod tests {
         let born = format!("{}-01-01", today.year() - 19);
         let ids: Vec<String> = game.players.iter().take(2).map(|p| p.id.clone()).collect();
         for (n, player) in game.players.iter_mut().take(2).enumerate() {
+            // Their identity is already upgraded, so loading leaves the ratings below as set.
+            ofm_core::player_identity::upgrade_player_identity(player, None);
             player.date_of_birth = born.clone();
             player.traits.retain(|t| *t != PlayerTrait::Wonderkid);
             if n == 0 {
