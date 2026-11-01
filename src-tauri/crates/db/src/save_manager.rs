@@ -2552,6 +2552,34 @@ mod tests {
         assert_eq!(kept[0].column, "emitted_events_json");
     }
 
+    /// Given a current-format save whose sent-ledger reads, and whose inbox holds a message the
+    ///       ledger does not (not every message is sent through it)
+    /// When it is loaded
+    /// Then the ledger is left as stored: only a ledger that was lost is rebuilt
+    #[test]
+    fn a_ledger_that_reads_is_not_rebuilt() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        game.messages.push(domain::message::InboxMessage::new(
+            "unledgered_note".to_string(),
+            String::new(),
+            String::new(),
+            String::new(),
+            "2032-05-30".to_string(),
+        ));
+        let save_id = sm.create_save(&game, "Ledger Reads").unwrap();
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert!(
+            !loaded.emitted_events.contains("unledgered_note"),
+            "{:?}",
+            loaded.emitted_events
+        );
+    }
+
     /// Given a save written before games had a seed,
     /// When it is loaded, twice,
     /// Then it has a seed — the same one both times, derived from the save, so
