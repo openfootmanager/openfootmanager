@@ -597,6 +597,10 @@ fn upsert_player_career(game: &mut Game, season: u32, standings: &[StandingEntry
             appearances: player.stats.appearances,
             goals: player.stats.goals,
             assists: player.stats.assists,
+            // The synthesized season's minutes. Its rating and potential stay unrecorded: the past
+            // is generated, and the player's ratings today are not what they were then.
+            minutes: player.stats.minutes_played,
+            average_rating: (player.stats.rated_appearances > 0).then_some(player.stats.avg_rating),
             ..Default::default()
         };
 
@@ -1059,6 +1063,25 @@ mod tests {
             .iter()
             .map(|entry| entry.season)
             .collect()
+    }
+
+    /// Given a world whose past is generated
+    /// When a player's generated seasons are read
+    /// Then each records the synthesized minutes (90 a game) and no rating or potential: the past
+    ///      is generated, not remembered
+    #[test]
+    fn a_generated_season_records_its_minutes_and_no_snapshot() {
+        let mut game = make_game();
+
+        generate_past_world_history(&mut game, 2032, 3);
+
+        let seasons = &game.players[0].career;
+        assert!(!seasons.is_empty(), "a generated career");
+        for season in seasons {
+            assert_eq!(season.minutes, season.appearances * 90, "{season:?}");
+            assert!(season.appearances > 0);
+            assert_eq!((season.ovr, season.potential), (None, None));
+        }
     }
 
     #[test]
