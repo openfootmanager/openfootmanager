@@ -5,6 +5,11 @@ import type { PlayersPageQuery } from "../../services/playersService";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import ScoutingPlayerSearchCard from "./ScoutingPlayerSearchCard";
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, string | number>) => {

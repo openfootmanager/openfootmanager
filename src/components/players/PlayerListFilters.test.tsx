@@ -13,8 +13,10 @@ vi.mock("../../hooks/usePositionGroups", async () => {
   const canned = cannedPositionsModule();
   return {
     ...canned,
-    usePositionTable: () =>
-      positionTableState.arrived ? canned.usePositionTable() : createPositionTable([]),
+    usePositionTable: () => {
+      const arrived = canned.usePositionTable();
+      return positionTableState.arrived ? arrived : createPositionTable([]);
+    },
   };
 });
 
