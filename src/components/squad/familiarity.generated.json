@@ -1310,5 +1310,29 @@
     },
     "natural_position": "Forward",
     "position": "RightWinger"
+  },
+  {
+    "alternate_positions": [],
+    "familiarity": {
+      "AttackingMidfielder": "out_of_position",
+      "CenterBack": "natural",
+      "CentralMidfielder": "out_of_position",
+      "Defender": "natural",
+      "DefensiveMidfielder": "out_of_position",
+      "Forward": "out_of_position",
+      "Goalkeeper": "out_of_position",
+      "LeftBack": "can_play",
+      "LeftMidfielder": "out_of_position",
+      "LeftWingBack": "can_play",
+      "LeftWinger": "out_of_position",
+      "Midfielder": "out_of_position",
+      "RightBack": "can_play",
+      "RightMidfielder": "out_of_position",
+      "RightWingBack": "can_play",
+      "RightWinger": "out_of_position",
+      "Striker": "out_of_position"
+    },
+    "natural_position": "Goalkeeper",
+    "position": "CenterBack"
   }
 ]
