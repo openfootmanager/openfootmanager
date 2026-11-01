@@ -273,7 +273,7 @@ describe("DashboardHeader", () => {
     "badges a %s the same way the rest of the app does",
     async (position, abbreviation, expectedClass, group) => {
       resetPositionGroupsCache();
-      vi.mocked(getPositionGroups).mockResolvedValue([{ position, group }]);
+      vi.mocked(getPositionGroups).mockResolvedValue([{ position, group, rank: 0 }]);
       const teams = [createTeam()];
 
       render(

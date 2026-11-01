@@ -10,6 +10,11 @@ import type { MatchSnapshot } from "./types";
 
 // Mock the few external dependencies PreMatchSetup pulls in at render time so we
 // can exercise the real component tree (the opponent scout panel in particular).
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("../../hooks/useRatingTiers", async () => {
   const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
   return cannedRatingTiersModule();
