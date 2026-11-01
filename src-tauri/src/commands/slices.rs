@@ -391,8 +391,9 @@ mod tests {
     /// Given a player in the live session whose scout, Ann Scout, wrote 76-84 on 1 Sep, a player
     ///       nobody has judged, and an id no player has
     /// When the potential opinion adapter reads each
-    /// Then the first comes as the shape the profile reads (the range, the band, the certainty and
-    ///      a tagged source naming the scout and the date), and the other two as null
+    /// Then the first comes as the shape the profile reads (the range, the band, the certainty, a
+    ///      tagged source naming the scout and the date, and the wonderkid verdict), and the other
+    ///      two as null
     #[test]
     fn the_potential_opinion_adapter_sends_the_opinion_or_null() {
         use chrono::TimeZone;
@@ -462,7 +463,8 @@ mod tests {
                     "scout_name": "Ann Scout",
                     "scouted_on": "2026-09-01",
                     "current": true
-                }
+                },
+                "wonderkid": false
             })
         );
         assert!(get_potential_opinion_internal(&state, "unjudged")

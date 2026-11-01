@@ -284,7 +284,7 @@ export default function PlayerProfile({
         onScout={sendScout}
         onSelectTeam={onSelectTeam}
         team={playerTeam}
-        traits={visibleTraits(player.traits ?? [], knowledge)}
+        traits={visibleTraits(player.traits ?? [], potentialOpinion)}
         showsPrivateState={showsPrivateState}
         t={t}
       />

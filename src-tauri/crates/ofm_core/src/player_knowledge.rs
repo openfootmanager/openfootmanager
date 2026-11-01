@@ -9,7 +9,8 @@ use domain::staff::StaffRole;
 use serde::Serialize;
 
 use crate::game::{Game, ScoutedPlayer};
-use crate::potential_opinion::{OpinionSource, PotentialOpinion, judged_range};
+use crate::player_rating::natural_rating_from;
+use crate::potential_opinion::{OpinionSource, PotentialOpinion, SeenPlayer, judged_range};
 use crate::slices::scouted_report::is_out_of_date;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -294,6 +295,9 @@ pub const COACHES_OPINION_AFTER_DAYS: i64 = 42;
 /// Otherwise it is the opinion a scout wrote into his report, as of the report's date. Nobody else
 /// is judged: knowing a division rival's rating is not knowing his potential. A player whose
 /// potential is not stored (0) has none.
+///
+/// Whether the opinion makes him a wonderkid is read against his age today and the rating the
+/// club sees: his own for its player, the report's figure for a scouted one.
 pub fn potential_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
     if player.potential == 0 {
         return None;
@@ -329,7 +333,19 @@ fn coaches_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
         player.potential,
         judge.attributes.judging_potential,
     );
-    Some(PotentialOpinion::of(range, OpinionSource::Coaches))
+    // The club's own player: it knows his rating exactly.
+    let seen = seen_today(game, player, player.ovr);
+    Some(PotentialOpinion::of(range, OpinionSource::Coaches, seen))
+}
+
+/// The player as the club sees him today, rated `rating`. His age is today's, whatever day the
+/// opinion was formed: a player who has outgrown wonderkid age since his report is not one.
+fn seen_today(game: &Game, player: &Player, rating: u8) -> SeenPlayer {
+    let today = game.clock.current_date.date_naive();
+    SeenPlayer {
+        age: domain::age::playing_age(today, &player.date_of_birth),
+        rating,
+    }
 }
 
 /// The day since which the player has trained with `club` every day: the day he arrived, or for a
@@ -405,6 +421,13 @@ fn scouts_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
         .iter()
         .find(|report| report.player_id == player.id)?;
     let range = report.potential?;
+    // The figure the report's attributes rate him at, never his true rating, which the club does
+    // not know (maintainer, B3c).
+    let seen = seen_today(
+        game,
+        player,
+        natural_rating_from(player, &report.attributes),
+    );
     // An old report is still the scout's opinion, read as an old report: it says so.
     Some(PotentialOpinion::of(
         range,
@@ -413,6 +436,7 @@ fn scouts_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
             scouted_on: report.scouted_on.clone(),
             current: !is_out_of_date(report, game.last_season_rollover_on.as_deref()),
         },
+        seen,
     ))
 }
 
@@ -1191,6 +1215,7 @@ mod tests {
                     scouted_on: "2026-09-01".to_string(),
                     current: true,
                 },
+                wonderkid: false,
             })
         );
     }
@@ -1597,5 +1622,173 @@ mod tests {
         ];
 
         assert_eq!(opinion_of(&game, "own"), None);
+    }
+
+    // --- The wonderkid verdict: the club's opinion, read against what it sees (B3c) ---
+
+    /// Born 1 Mar 2008: 18 on the world's date.
+    const BORN_AN_18_YEAR_OLD: &str = "2008-03-01";
+
+    /// The lowest elite potential.
+    const ELITE: u8 = crate::player_tier::S_TIER_MIN_RATING;
+
+    /// A world holding "far", 18, in another division: truly potential 70 and rated 60, so the
+    /// game's rule does not call him a wonderkid. His scout, on 1 Sep, rated his attributes 60
+    /// everywhere and judged his potential `low`-`high`.
+    fn scouted_youngster(low: u8, high: u8) -> Game {
+        let mut far = player("far", Some("faraway"));
+        far.date_of_birth = BORN_AN_18_YEAR_OLD.to_string();
+        far.potential = 70;
+        far.ovr = 60;
+        let mut game = world(Some(MY_CLUB), vec![far]);
+        game.scouted_players.push(ScoutedPlayer {
+            player_id: "far".to_string(),
+            scouted_on: "2026-09-01".to_string(),
+            attributes: uniform_attributes(60),
+            potential: Some(crate::game::PotentialRange { low, high }),
+            scout_name: Some("Ann Scout".to_string()),
+        });
+        game
+    }
+
+    /// The rating the report on "far" rates him at: its attributes at his natural position.
+    fn report_rating(game: &Game) -> u8 {
+        natural_rating_from(&game.players[0], &game.scouted_players[0].attributes)
+    }
+
+    /// Whether the game's own rule calls "far" a wonderkid, from his true potential and rating.
+    fn truly_a_wonderkid(game: &Game) -> bool {
+        let far = &game.players[0];
+        let today = game.clock.current_date.date_naive();
+        let age = domain::age::playing_age(today, &far.date_of_birth);
+        crate::player_rating::qualifies_for_wonderkid(age, far.potential, far.ovr)
+    }
+
+    fn wonderkid_verdict(game: &Game, player_id: &str) -> bool {
+        opinion_of(game, player_id).expect("an opinion").wonderkid
+    }
+
+    /// Given an 18-year-old whose true potential (70) is no wonderkid's, but whose scout judged him
+    ///       elite (a range whose middle is the lowest elite potential), with room to grow above the
+    ///       report's rating
+    /// When the club's opinion of him is asked
+    /// Then it calls him a wonderkid: the tag follows what the club thinks, not what is true
+    #[test]
+    fn a_scout_who_judges_a_youngster_elite_makes_him_a_wonderkid_whatever_his_truth() {
+        let game = scouted_youngster(ELITE - 1, ELITE + 1);
+
+        assert!(
+            !truly_a_wonderkid(&game),
+            "the fixture is no wonderkid in truth"
+        );
+        assert!(wonderkid_verdict(&game, "far"));
+    }
+
+    /// Given an 18-year-old who truly is a wonderkid (potential 95, rated 60), whose scout's range
+    ///       reaches elite at its top but whose middle falls one short
+    /// When the club's opinion of him is asked
+    /// Then it does not call him a wonderkid: a vague scout can miss one
+    #[test]
+    fn a_scout_whose_range_falls_short_of_elite_misses_a_true_wonderkid() {
+        let mut game = scouted_youngster(ELITE - 3, ELITE + 1);
+        game.players[0].potential = 95;
+
+        assert!(
+            truly_a_wonderkid(&game),
+            "the fixture is a wonderkid in truth"
+        );
+        assert!(!wonderkid_verdict(&game, "far"));
+    }
+
+    /// Given a scouted 18-year-old judged elite, whose report rates his attributes 75 everywhere
+    ///       (too close to the opinion's middle to leave a wonderkid's room) though he is truly
+    ///       rated 55
+    /// When the club's opinion of him is asked
+    /// Then it does not call him a wonderkid: his room to grow is measured from the report's
+    ///      figure, never his true rating, which the club does not know
+    #[test]
+    fn a_scouted_players_room_to_grow_is_measured_from_the_reports_rating() {
+        let mut game = scouted_youngster(ELITE - 1, ELITE + 1);
+        game.players[0].ovr = 55;
+        game.scouted_players[0].attributes = uniform_attributes(75);
+        let room = crate::player_rating::WONDERKID_MIN_GROWTH_ROOM;
+
+        assert!(
+            ELITE.saturating_sub(report_rating(&game)) < room,
+            "the report leaves less than a wonderkid's room"
+        );
+        assert!(ELITE - game.players[0].ovr >= room, "his truth leaves room");
+        assert!(!wonderkid_verdict(&game, "far"));
+    }
+
+    /// Given a player judged elite by a scout on 10 Mar, when he was still of wonderkid age, who is
+    ///       one year past it on the world's date
+    /// When the club's opinion of him is asked
+    /// Then it does not call him a wonderkid: his age is today's, not the report's day's
+    #[test]
+    fn a_scouted_player_who_has_outgrown_wonderkid_age_since_his_report_is_not_one() {
+        let mut game = scouted_youngster(ELITE - 1, ELITE + 1);
+        game.players[0].date_of_birth = "2005-06-01".to_string();
+        game.scouted_players[0].scouted_on = "2026-03-10".to_string();
+        let max_age = crate::player_rating::WONDERKID_MAX_AGE;
+        let age_on = |date: &str| {
+            let on = NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap();
+            domain::age::playing_age(on, "2005-06-01")
+        };
+
+        assert_eq!(
+            age_on("2026-03-10"),
+            max_age,
+            "of wonderkid age on the report's day"
+        );
+        assert_eq!(age_on("2026-09-15"), max_age + 1, "past it today");
+        assert!(!wonderkid_verdict(&game, "far"));
+    }
+
+    /// The club's own 18-year-old of six weeks, truly potential `ELITE + 2` and rated `ovr`, judged
+    /// by a coach whose eye (90) reaches two either side: the coaches' middle is elite however the
+    /// coach's range falls.
+    fn coached_youngster(ovr: u8) -> Game {
+        let mut own = arrived(
+            player("own", Some(MY_CLUB)),
+            MY_CLUB,
+            SIX_WEEKS_AGO,
+            ELITE + 2,
+        );
+        own.date_of_birth = BORN_AN_18_YEAR_OLD.to_string();
+        own.ovr = ovr;
+        let mut game = world(Some(MY_CLUB), vec![own]);
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+        game
+    }
+
+    /// Given the club's own 18-year-old judged elite by his coaches, rated a wonderkid's growth room
+    ///       below the lowest elite potential
+    /// When the club's opinion of him is asked
+    /// Then the coaches call him a wonderkid
+    #[test]
+    fn the_coaches_call_their_own_elite_youngster_a_wonderkid() {
+        let game = coached_youngster(ELITE - crate::player_rating::WONDERKID_MIN_GROWTH_ROOM);
+
+        assert_eq!(
+            opinion_of(&game, "own").unwrap().band,
+            crate::player_tier::PlayerTier::S
+        );
+        assert!(wonderkid_verdict(&game, "own"));
+    }
+
+    /// Given the same youngster rated five points higher, so that even the coaches' highest middle
+    ///       leaves him less than a wonderkid's room
+    /// When the club's opinion of him is asked
+    /// Then the coaches do not call him one: they measure from his exact rating
+    #[test]
+    fn the_coaches_measure_their_own_players_room_from_his_exact_rating() {
+        let game = coached_youngster(ELITE - crate::player_rating::WONDERKID_MIN_GROWTH_ROOM + 5);
+
+        assert_eq!(
+            opinion_of(&game, "own").unwrap().band,
+            crate::player_tier::PlayerTier::S
+        );
+        assert!(!wonderkid_verdict(&game, "own"));
     }
 }

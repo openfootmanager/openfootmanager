@@ -95,10 +95,20 @@ function backendWith(opinion: PotentialOpinion | null) {
   });
 }
 
-const renderProfile = () => {
-  const player = createPlayer({ id: "player-1", team_id: "team-1" });
+const renderProfile = (traits: string[] = []) => {
+  const player = createPlayer({ id: "player-1", team_id: "team-1", traits });
   render(<PlayerProfile player={player} gameState={gameWith(player)} isOwnClub />);
 };
+
+/** The coaches' elite opinion of him, 80-82, and whether it calls him a wonderkid. */
+const eliteOpinion = (wonderkid: boolean): PotentialOpinion => ({
+  low: 80,
+  high: 82,
+  band: "S",
+  certainty: "confident",
+  source: { kind: "coaches" },
+  wonderkid,
+});
 
 beforeEach(() => {
   vi.mocked(invoke).mockReset();
@@ -118,6 +128,7 @@ describe("the player profile's opinion of his potential", () => {
       band: "A",
       certainty: "fairly_sure",
       source: { kind: "coaches" },
+      wonderkid: false,
     });
 
     renderProfile();
@@ -158,6 +169,7 @@ describe("the player profile's opinion of his potential", () => {
       band: "Rest",
       certainty: "guess",
       source: { kind: "scout", scout_name: "Ann Scout", scouted_on: "2026-03-10", current: false },
+      wonderkid: false,
     });
 
     renderProfile();
@@ -165,5 +177,35 @@ describe("the player profile's opinion of his potential", () => {
     const opinion = within(await screen.findByRole("region", { name: "Scout's opinion" }));
     expect(opinion.getByText("A guess")).toBeInTheDocument();
     expect(opinion.getByText("Out of date")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player whose own traits hold no Wonderkid tag, and the coaches' opinion that calls him
+   *       one
+   * When his profile opens
+   * Then the Wonderkid tag shows: it is the club's verdict, asked of the backend
+   */
+  it("tags the player a wonderkid when the club's opinion calls him one", async () => {
+    backendWith(eliteOpinion(true));
+
+    renderProfile();
+
+    await screen.findByRole("region", { name: "Coaches' opinion" });
+    expect(screen.getByText("Wonderkid")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a player who carries the Wonderkid tag, and the coaches' opinion that does not call him
+   *       one
+   * When his profile opens
+   * Then the Wonderkid tag is not shown: his own tag tells his true potential
+   */
+  it("hides the player's own Wonderkid tag when the club's opinion does not call him one", async () => {
+    backendWith(eliteOpinion(false));
+
+    renderProfile(["Wonderkid"]);
+
+    await screen.findByRole("region", { name: "Coaches' opinion" });
+    expect(screen.queryByText("Wonderkid")).not.toBeInTheDocument();
   });
 });

@@ -5,9 +5,16 @@ import type { PlayerTier } from "./PlayerTier";
 
 /**
  * What the club may read of a player's potential: the range, the band its middle falls in (the
- * backend's tier, so the screen picks no threshold), how sure the judge is, and whose opinion it
- * is. Never the true potential. The range held the true value when it was formed: the coaches'
- * is formed today, a scout's on the day of his report, so an out-of-date report's range may no
- * longer hold it.
+ * backend's tier, so the screen picks no threshold), how sure the judge is, whose opinion it is,
+ * and whether that opinion makes him a wonderkid. Never the true potential. The range held the
+ * true value when it was formed: the coaches' is formed today, a scout's on the day of his report,
+ * so an out-of-date report's range may no longer hold it.
  */
-export type PotentialOpinion = { low: number, high: number, band: PlayerTier, certainty: Certainty, source: OpinionSource, };
+export type PotentialOpinion = { low: number, high: number, band: PlayerTier, certainty: Certainty, source: OpinionSource, 
+/**
+ * The game's wonderkid rule (`qualifies_for_wonderkid`) applied to what the club sees: the
+ * range's middle as his potential, against his age and the rating it knows. The tag a player
+ * carries follows this, not his true potential, so a vague range can call a player a wonderkid
+ * who is not one, and miss one who is.
+ */
+wonderkid: boolean, };
