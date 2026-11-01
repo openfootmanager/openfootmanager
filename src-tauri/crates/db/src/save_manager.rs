@@ -2475,6 +2475,53 @@ mod tests {
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
     }
 
+    /// Given a current-format save whose inbox holds an announcement, and whose sent-ledger cell
+    ///       no longer parses
+    /// When it is loaded, and the day's generators send that announcement again
+    /// Then it is not sent twice: the ledger was rebuilt from the inbox, and its cell kept
+    #[test]
+    fn an_unreadable_ledger_is_rebuilt_so_nothing_is_announced_twice() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        let announcement = || {
+            domain::message::InboxMessage::new(
+                "promotion_2032".to_string(),
+                String::new(),
+                String::new(),
+                String::new(),
+                "2032-05-30".to_string(),
+            )
+        };
+        assert!(ofm_core::inbox::emit(&mut game, announcement()));
+        let save_id = sm.create_save(&game, "Lost Ledger").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        {
+            let db = GameDatabase::open(&db_path).unwrap();
+            let meta = meta_repo::load_meta(db.conn()).unwrap().unwrap();
+            assert!(meta.save_format_version >= 5, "a save that has a ledger");
+            db.conn()
+                .execute("UPDATE game_meta SET emitted_events_json = '[\"promo'", [])
+                .unwrap();
+        }
+
+        let mut loaded = sm.load_game(&save_id).unwrap();
+        let sent_again = ofm_core::inbox::emit(&mut loaded, announcement());
+
+        assert!(!sent_again, "the announcement went out a second time");
+        let copies = loaded
+            .messages
+            .iter()
+            .filter(|message| message.id == "promotion_2032")
+            .count();
+        assert_eq!(copies, 1);
+        let db = GameDatabase::open(&db_path).unwrap();
+        let kept = crate::json_column::unreadable_cells(db.conn()).unwrap();
+        assert_eq!(kept.len(), 1, "{kept:?}");
+        assert_eq!(kept[0].column, "emitted_events_json");
+    }
+
     /// Given a save written before games had a seed,
     /// When it is loaded, twice,
     /// Then it has a seed — the same one both times, derived from the save, so
