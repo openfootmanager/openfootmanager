@@ -13,8 +13,7 @@ export type KickCell =
   | { state: "toCome" }
   /**
    * Over, and this kick was never taken: under the Laws a shootout ends as soon as one side can't
-   * catch up, so the away side can finish a kick short. The engine decides only at equal kick
-   * counts today (penalty.rs `decided`); tactics-match's planned change makes this reachable.
+   * catch up (penalty.rs `decided`), so the away side can finish a kick short, whichever side wins.
    */
   | { state: "notTaken" };
 

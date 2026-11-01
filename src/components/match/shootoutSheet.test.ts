@@ -157,4 +157,60 @@ describe("buildKickSheet", () => {
     ]);
     expect(sheet.currentRound).toBeNull();
   });
+
+  /**
+   * Given a shootout ended mid-round, as the Laws end it (#1077): the home side leads 4-1 after its
+   * fourth kick, so the away side can no longer catch up and never takes its fourth
+   * When the sheet is built after the final whistle
+   * Then it ends at round 4, the away side's fourth kick reads "not taken" (not missed), and no
+   * fifth round is drawn.
+   */
+  it("marks the away side's untaken kick when the home side wins a kick short", () => {
+    const events = [
+      kick("Home", "ShootoutGoal", "p1"),
+      kick("Away", "ShootoutGoal", "p2"),
+      kick("Home", "ShootoutGoal", "p1"),
+      kick("Away", "ShootoutMiss", "p2"),
+      kick("Home", "ShootoutGoal", "p1"),
+      kick("Away", "ShootoutMiss", "p2"),
+      kick("Home", "ShootoutGoal", "p1"),
+    ];
+    const sheet = buildKickSheet(shootout(events, "Finished"));
+
+    expect(sheet.rows).toHaveLength(4);
+    expect(sheet.rows[3]).toEqual({
+      round: 4,
+      home: { state: "scored", kickerName: "Alice" },
+      away: { state: "notTaken" },
+    });
+    expect(sheet.currentRound).toBeNull();
+  });
+
+  /**
+   * Given a shootout the away side wins a kick short: 1-3 after the home side's fourth kick, so the
+   * home side can no longer catch up and the away side never needs its fourth
+   * When the sheet is built after the final whistle
+   * Then round 4 holds the home side's miss and the away side's kick not taken: an away win reads
+   * the same way, its last cell not drawn as a miss.
+   */
+  it("marks the away side's untaken kick when the away side wins a kick short", () => {
+    const events = [
+      kick("Home", "ShootoutGoal", "p1"),
+      kick("Away", "ShootoutGoal", "p2"),
+      kick("Home", "ShootoutMiss", "p1"),
+      kick("Away", "ShootoutGoal", "p2"),
+      kick("Home", "ShootoutMiss", "p1"),
+      kick("Away", "ShootoutGoal", "p2"),
+      kick("Home", "ShootoutMiss", "p1"),
+    ];
+    const sheet = buildKickSheet(shootout(events, "Finished"));
+
+    expect(sheet.rows.map((row) => [row.home.state, row.away.state])).toEqual([
+      ["scored", "scored"],
+      ["missed", "scored"],
+      ["missed", "scored"],
+      ["missed", "notTaken"],
+    ]);
+    expect(sheet.currentRound).toBeNull();
+  });
 });
