@@ -1093,8 +1093,10 @@ mod tests {
         assert!(game.players[0].attributes.handling > 49);
         assert!(game.players[0].attributes.reflexes > 53);
         let checkpoint = attributes(&game.players[0]);
+        // Through the truthful form, which keeps what a save keeps: a reader's copy of the game
+        // has no potentials (`crate::wire`), and a keeper's potential shapes his growth.
         let mut restored: Game =
-            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         assert_eq!(restored.seed, 20261006);
         assert_eq!(attributes(&restored.players[0]), checkpoint);
         assert_eq!(restored.clock.current_date, game.clock.current_date);

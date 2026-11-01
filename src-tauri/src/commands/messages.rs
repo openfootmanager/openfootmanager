@@ -55,7 +55,7 @@ pub fn mark_message_read_internal(
         if let Some(msg) = game.messages.iter_mut().find(|m| m.id == message_id) {
             msg.read = true;
         }
-        game.messages.clone()
+        ofm_core::wire::messages_for_readers(&game.messages)
     })
 }
 
@@ -76,7 +76,7 @@ pub fn delete_message_internal(
     log::debug!("[cmd] delete_message: {}", message_id);
     state.update_game_for(career, |game| {
         game.messages.retain(|message| message.id != message_id);
-        game.messages.clone()
+        ofm_core::wire::messages_for_readers(&game.messages)
     })
 }
 
@@ -99,7 +99,7 @@ pub fn delete_messages_internal(
     state.update_game_for(career, |game| {
         game.messages
             .retain(|message| !message_ids.contains(&message.id));
-        game.messages.clone()
+        ofm_core::wire::messages_for_readers(&game.messages)
     })
 }
 
@@ -120,7 +120,7 @@ pub fn mark_all_messages_read_internal(
         for msg in game.messages.iter_mut() {
             msg.read = true;
         }
-        game.messages.clone()
+        ofm_core::wire::messages_for_readers(&game.messages)
     })
 }
 
@@ -163,7 +163,7 @@ pub fn clear_old_messages_internal(
             }
             false
         });
-        game.messages.clone()
+        ofm_core::wire::messages_for_readers(&game.messages)
     })
 }
 
@@ -671,6 +671,54 @@ mod tests {
                 .expect("stored message should exist")
                 .read
         );
+    }
+
+    /// Given a youth report whose prospect's true potential is 91
+    /// When the screen marks it read, and the command answers with the inbox
+    /// Then the answer gives the prospect with potential 0, and the game still holds 91
+    #[test]
+    fn an_inbox_answer_never_sends_a_prospects_potential() {
+        let mut game = make_game();
+        let mut prospect = domain::player::Player::new(
+            "prospect-1".to_string(),
+            "P".to_string(),
+            "P".to_string(),
+            "2010-01-01".to_string(),
+            "GB".to_string(),
+            domain::player::Position::Midfielder,
+            game_test_attributes(),
+        );
+        prospect.potential = 91;
+        let mut report = unread_message("youth-scout-1", "2026-08-01");
+        report.context.youth_prospects = Some(vec![prospect]);
+        game.messages.push(report);
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let response =
+            mark_message_read_internal(&state, Career::Active, "youth-scout-1").expect("response");
+
+        let prospect_in = |messages: &[InboxMessage]| {
+            messages
+                .iter()
+                .find(|message| message.id == "youth-scout-1")
+                .and_then(|message| message.context.youth_prospects.as_ref())
+                .map(|prospects| prospects[0].potential)
+        };
+        assert_eq!(prospect_in(&response), Some(0));
+        let stored = state.get_game(|game| prospect_in(&game.messages)).unwrap();
+        assert_eq!(stored, Some(91));
+    }
+
+    fn game_test_attributes() -> domain::player::PlayerAttributes {
+        serde_json::from_value(serde_json::json!({
+            "pace": 50, "stamina": 50, "strength": 50, "agility": 50, "passing": 50,
+            "shooting": 50, "tackling": 50, "dribbling": 50, "defending": 50,
+            "positioning": 50, "vision": 50, "decisions": 50, "composure": 50,
+            "aggression": 50, "teamwork": 50, "leadership": 50,
+            "handling": 50, "reflexes": 50, "aerial": 50
+        }))
+        .unwrap()
     }
 
     #[test]

@@ -88,7 +88,10 @@ fn finance_figures(snapshot: &ofm_core::finances::TeamFinanceSnapshot) -> Financ
 /// club's players and finances, and competition agents follow the same knowledge rule as players.
 /// A projection of it through `ofm_core::player_knowledge` for sandbox mode is the next change.
 pub fn info_game_state(ctx: Arc<McpContext>) -> Result<GameState, String> {
-    full_game_state(&ctx.state_manager)
+    let game = require_game(&ctx.state_manager)?;
+    let game = serde_json::to_value(&game)
+        .map_err(|e| format!("Failed to serialize game state: {}", e))?;
+    Ok(GameState { game })
 }
 
 /// The same dump for the end-to-end harness, which compares live state with the saved database and
@@ -98,9 +101,12 @@ pub fn dev_full_game_state(ctx: Arc<McpContext>) -> Result<GameState, String> {
     full_game_state(&ctx.state_manager)
 }
 
+/// The whole game with every true potential, for the developers' dump only: the harness compares
+/// it with a saved game, so it must hold what the save holds (`ofm_core::wire::truthful_value`).
+/// A competition server never offers it.
 fn full_game_state(state: &StateManager) -> Result<GameState, String> {
     let game = require_game(state)?;
-    let game = serde_json::to_value(&game)
+    let game = ofm_core::wire::truthful_value(&game)
         .map_err(|e| format!("Failed to serialize game state: {}", e))?;
     Ok(GameState { game })
 }

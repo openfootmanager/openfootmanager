@@ -2617,6 +2617,7 @@ dependencies = [
  "chrono",
  "db",
  "mcp-results",
+ "ofm_core",
  "reqwest",
  "serde",
  "serde_json",

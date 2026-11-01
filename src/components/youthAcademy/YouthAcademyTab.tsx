@@ -1,22 +1,12 @@
-import { useRatingTiers } from "../../hooks/useRatingTiers";
-import { isEliteTier, ratingTierClass, ratingTierLetterKey } from "../../lib/ratingTier";
 import { useEffect, useRef, useState } from "react";
 import type { GameStateData } from "../../store/gameStore";
 import { useGameStore } from "../../store/gameStore";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import { getStaff, type StaffSlice } from "../../services/staffService";
-import {
-  Card,
-  CardHeader,
-  CardBody,
-  Badge,
-  ProgressBar,
-  CountryFlag,
-  Button,
-  PlayerAvatar,
-} from "../ui";
+import { Card, CardHeader, CardBody, Badge, CountryFlag, Button, PlayerAvatar } from "../ui";
 import { calcAge } from "../../lib/helpers";
 import { canDelegateToYouthAcademy, isYouthAcademyPlayer } from "../../lib/playerSquad";
+import { traitsForLists } from "../../lib/playerKnowledge";
 import { TraitList } from "../TraitBadge";
 import { useTranslation } from "react-i18next";
 import { countryName } from "../../lib/countries";
@@ -32,15 +22,7 @@ import {
   reassignYouthScouting,
   startYouthScouting,
 } from "../../services/scoutingService";
-import {
-  GraduationCap,
-  ScanSearch,
-  TrendingUp,
-  Star,
-  Users,
-  Sparkles,
-  MoreVertical,
-} from "lucide-react";
+import { GraduationCap, ScanSearch, Star, Users, MoreVertical } from "lucide-react";
 import type { DashboardNavigateContext } from "../dashboard/dashboardProfileNavigation";
 import type { PlayerSquadRole } from "../../store/types";
 import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
@@ -61,7 +43,6 @@ export default function YouthAcademyTab({
   onGameUpdate,
   onNavigate,
 }: YouthAcademyTabProps) {
-  const tierOf = useRatingTiers();
   const { t, i18n } = useTranslation();
   const { sessionState } = useGameStore();
   const [fetchedStaff, setFetchedStaff] = useState<StaffSlice | null>(null);
@@ -122,9 +103,9 @@ export default function YouthAcademyTab({
       ...p,
       age: calcAge(p.date_of_birth),
       ovr: p.ovr ?? 0,
-      potential: p.potential ?? 1,
     }))
-    .sort((a, b) => b.potential - a.potential);
+    // Best-rated first: an order by potential would tell what only an opinion may (21 Oct).
+    .sort((a, b) => b.ovr - a.ovr || a.full_name.localeCompare(b.full_name));
   const eligibleSeniorPlayers = roster
     .filter((player) => canDelegateToYouthAcademy(player))
     .map((player) => ({
@@ -137,11 +118,6 @@ export default function YouthAcademyTab({
     youthPlayers.length > 0
       ? Math.round(youthPlayers.reduce((s, p) => s + p.ovr, 0) / youthPlayers.length)
       : 0;
-  const avgPotential =
-    youthPlayers.length > 0
-      ? Math.round(youthPlayers.reduce((s, p) => s + p.potential, 0) / youthPlayers.length)
-      : 0;
-  const highPotential = youthPlayers.filter((p) => isEliteTier(tierOf(p.potential))).length;
 
   // Youth development staff
   const youthCoach =
@@ -228,7 +204,7 @@ export default function YouthAcademyTab({
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardBody>
             <div className="text-center">
@@ -251,30 +227,6 @@ export default function YouthAcademyTab({
               </p>
               <p className="text-[10px] text-gray-400 dark:text-gray-500 font-heading uppercase tracking-wider">
                 {t("youthAcademy.avgOvr")}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody>
-            <div className="text-center">
-              <TrendingUp className="w-5 h-5 text-green-500 mx-auto mb-1" />
-              <p className="font-heading font-bold text-2xl text-gray-800 dark:text-gray-100">
-                {avgPotential}
-              </p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 font-heading uppercase tracking-wider">
-                {t("youthAcademy.avgPotential")}
-              </p>
-            </div>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody>
-            <div className="text-center">
-              <Sparkles className="w-5 h-5 text-accent-400 mx-auto mb-1" />
-              <p className="font-heading font-bold text-2xl text-accent-500">{highPotential}</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 font-heading uppercase tracking-wider">
-                {t("youthAcademy.highPotential")}
               </p>
             </div>
           </CardBody>
@@ -429,12 +381,6 @@ export default function YouthAcademyTab({
                   <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
                     {t("youthAcademy.ovr")}
                   </th>
-                  <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 text-center">
-                    {t("youthAcademy.potential")}
-                  </th>
-                  <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {t("youthAcademy.growth")}
-                  </th>
                   <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t("youthAcademy.traits")}
                   </th>
@@ -448,9 +394,6 @@ export default function YouthAcademyTab({
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
                 {youthPlayers.map((player) => {
-                  const potTier = tierOf(player.potential);
-                  const potLetterKey = ratingTierLetterKey(potTier);
-                  const growthRoom = player.potential - player.ovr;
                   const contextItems = [
                     buildViewProfileMenuItem(t, () => onSelectPlayer?.(player.id)),
                     buildPromoteToSeniorSquadMenuItem(t, () => {
@@ -508,36 +451,8 @@ export default function YouthAcademyTab({
                             {player.ovr}
                           </span>
                         </td>
-                        <td className="py-2.5 px-4 text-center">
-                          <span
-                            className={`text-sm font-heading font-bold tabular-nums ${ratingTierClass(potTier, "text")}`}
-                          >
-                            {player.potential}
-                          </span>
-                          {potLetterKey && (
-                            <p
-                              className={`text-caption font-heading uppercase tracking-wider ${ratingTierClass(potTier, "text")}`}
-                            >
-                              {t(potLetterKey)}
-                            </p>
-                          )}
-                        </td>
                         <td className="py-2.5 px-4">
-                          <div className="flex items-center gap-2">
-                            <ProgressBar
-                              value={Math.min(100, (player.ovr / player.potential) * 100)}
-                              variant={
-                                growthRoom > 15 ? "accent" : growthRoom > 5 ? "primary" : "auto"
-                              }
-                              size="sm"
-                            />
-                            <span className="text-[10px] font-heading font-bold text-gray-500 tabular-nums w-6">
-                              +{growthRoom}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <TraitList traits={player.traits || []} max={2} />
+                          <TraitList traits={traitsForLists(player.traits || [])} max={2} />
                         </td>
                         <td className="py-2.5 px-4 text-center">
                           <span

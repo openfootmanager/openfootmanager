@@ -4,6 +4,7 @@ import {
   gameKnowledgeRevision,
   knowledgeRevision,
   visibleRatingText,
+  traitsForLists,
   visibleTraits,
   visibleWageText,
 } from "./playerKnowledge";
@@ -205,5 +206,16 @@ describe("visibleTraits", () => {
       "Speedster",
       "Wonderkid",
     ]);
+  });
+});
+
+describe("traitsForLists", () => {
+  /**
+   * Given a player who carries the Wonderkid tag beside an attribute trait
+   * When a list row reads his traits
+   * Then it gets the attribute trait only: a list never carries the Wonderkid opinion
+   */
+  it("leaves the Wonderkid tag off a list row", () => {
+    expect(traitsForLists(["Wonderkid", "Speedster"])).toEqual(["Speedster"]);
   });
 });

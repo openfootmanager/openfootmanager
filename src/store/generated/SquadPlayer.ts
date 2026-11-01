@@ -35,6 +35,8 @@ fitness: number, injury: Injury | null, team_id: string | null, retired: boolean
 ovr: number, 
 /**
  * Player's ceiling rating (1–99). Set at generation; higher than ovr for young players.
+ * The game's hidden truth: a screen always receives 0 here (`ofm_core::wire`), and reads the
+ * club's opinion of it from `get_potential_opinion` instead.
  */
 potential: number, market_value: number, stats: PlayerSeasonStats, career: Array<CareerEntry>, training_focus: TrainingFocus | null, transfer_listed: boolean, loan_listed: boolean, transfer_offers: Array<TransferOffer>, loan_offers: Array<LoanOffer>, active_loan?: ActiveLoan | null, morale_core: PlayerMoraleCore, 
 /**

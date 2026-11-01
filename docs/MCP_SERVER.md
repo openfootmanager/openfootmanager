@@ -121,8 +121,8 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 | Tool | Description |
 |------|-------------|
 | `info_game_summary` | High-level overview: date, league position, finances, next match, unread messages |
-| `info_game_state` | Full game state as JSON (programmatic access); not available in competition mode |
-| `dev_full_game_state` | Test infrastructure: the whole game as JSON. Only with `--dev-full-state`; never in competition mode |
+| `info_game_state` | Full game state as JSON (programmatic access), as the screens receive it: no player's potential (each reads 0; see `ofm_core::wire`); not available in competition mode |
+| `dev_full_game_state` | Test infrastructure: the whole game as JSON, true potentials included (`ofm_core::wire::truthful_value`), so the harness can compare it with a saved game. Only with `--dev-full-state`; never in competition mode |
 | `info_standings` | Full league table with goal difference |
 | `info_fixtures` | Upcoming fixtures and recent results for your team |
 | `info_match_preview` | Next opponent details, form, and standings comparison |

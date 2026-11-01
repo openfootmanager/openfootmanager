@@ -28,7 +28,8 @@ pub fn query_messages(game: &Game, _query: &MessagesQuery) -> Vec<InboxMessage> 
     game.messages
         .iter()
         .filter(|message| message_is_visible(&message.date, &today))
-        .cloned()
+        // A copy for the screens: a youth report's prospects without potential (`crate::wire`).
+        .map(crate::wire::message_for_readers)
         .collect()
 }
 

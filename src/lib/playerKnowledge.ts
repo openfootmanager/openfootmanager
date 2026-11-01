@@ -116,3 +116,12 @@ export function visibleTraits(traits: string[], opinion: PotentialOpinion | null
   const attributeTraits = traits.filter((trait) => trait !== WONDERKID);
   return opinion?.wonderkid ? [...attributeTraits, WONDERKID] : attributeTraits;
 }
+
+/**
+ * The traits a list row shows: his attribute traits only. Wonderkid is an opinion of his potential,
+ * and a list never carries one; the profile alone shows it, as the club's verdict
+ * (`visibleTraits`; maintainer, 1 Nov).
+ */
+export function traitsForLists(traits: string[]): string[] {
+  return traits.filter((trait) => trait !== WONDERKID);
+}

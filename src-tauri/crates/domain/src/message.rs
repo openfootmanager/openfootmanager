@@ -108,10 +108,26 @@ pub struct MessageContext {
     pub youth_search_objective: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub youth_prospects: Option<Vec<Player>>,
+    /// The reporting scout's opinion of each prospect's potential, written with the report. None
+    /// for a report written before reports carried one: its prospects show no opinion.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub youth_prospect_opinions: Option<Vec<ProspectOpinion>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scout_report: Option<ScoutReportData>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delegated_renewal_report: Option<DelegatedRenewalReportData>,
+}
+
+/// A scout's opinion of a youth prospect's potential, as his youth scouting report gives it: a
+/// range on the 1-99 scale, both ends inclusive, and who judged it on which day. Kept as written,
+/// so the prospect's profile shows the same opinion once he is signed (`ofm_core::scouting`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ProspectOpinion {
+    pub prospect_id: String,
+    pub low: u8,
+    pub high: u8,
+    pub scout_name: String,
+    pub scouted_on: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
