@@ -106,4 +106,16 @@ describe("PlayerCard", () => {
     expect(screen.getByText("Wage")).toBeInTheDocument();
     expect(screen.getByText("£10K")).toBeInTheDocument();
   });
+
+  /**
+   * Given a list that shows no ratings at all (its rating left out, not hidden)
+   * When the card is drawn
+   * Then no hero is drawn: not a chip, and not the hidden-rating dash.
+   */
+  it("draws no hero when the list shows no ratings", () => {
+    renderCard({ ovr: undefined, tier: undefined });
+    const card = screen.getByRole("article", { name: "Diego Gonzalez" });
+    expect(within(card).queryByText("–")).toBeNull();
+    expect(within(card).queryByTitle(/common\.overallRating/)).toBeNull();
+  });
 });

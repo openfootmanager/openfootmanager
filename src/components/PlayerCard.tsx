@@ -18,16 +18,16 @@ interface PlayerCardProps {
   /** His club's name; null for a free agent, which draws no club. */
   teamName: string | null;
   onSelectTeam?: () => void;
-  /** His rating as the club may see it; null when hidden. */
-  ovr: number | null;
+  /** His rating as the club may see it; null when hidden; left out when the list shows no ratings. */
+  ovr?: number | null;
   /** The backend's tier for the rating (`useRatingTiers`); null when the rating is hidden. */
-  tier: RatingTier | null;
+  tier?: RatingTier | null;
   /** His club's kit; null for a free agent, which gets the neutral card. */
   kit?: TeamColors | null;
   /** Listing, injury and contract chips, if the list has any to show. */
   status?: ReactNode;
   /** The two facts the list chooses: its own figures, or the club's view of another's. */
-  facts: ComponentProps<typeof EntityCard>["facts"];
+  facts?: ComponentProps<typeof EntityCard>["facts"];
   onOpen?: () => void;
 }
 
@@ -81,7 +81,7 @@ export default function PlayerCard({
         </>
       }
       hero={
-        ovr !== null && tier !== null ? (
+        ovr === undefined ? null : ovr !== null && tier ? (
           <RatingChip value={ovr} tier={tier} size="md" />
         ) : (
           <span className="text-fg-muted">{visibleRatingText(null)}</span>
