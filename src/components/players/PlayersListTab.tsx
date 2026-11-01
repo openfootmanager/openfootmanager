@@ -39,7 +39,7 @@ export default function PlayersListTab({
     error: fetchError,
     refetch: refetchSlice,
   } = usePlayersPage(PLAYERS_OPENING_QUERY, t);
-  const { contextItemsFor, scoutError, bidFlow, contractFlow } = usePlayersListActions({
+  const { contextItemsFor, actionError, bidFlow, contractFlow } = usePlayersListActions({
     gameState,
     onGameUpdate,
     onSelectPlayer,
@@ -112,12 +112,12 @@ export default function PlayersListTab({
         </p>
       ) : null}
 
-      {scoutError ? (
+      {actionError ? (
         <p
           role="alert"
           className="mb-3 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
         >
-          {scoutError}
+          {actionError}
         </p>
       ) : null}
 

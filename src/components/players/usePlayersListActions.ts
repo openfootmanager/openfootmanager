@@ -45,7 +45,9 @@ export function usePlayersListActions({
 }: UsePlayersListActionsArgs) {
   const { t } = useTranslation();
   const [sendingPlayerId, setSendingPlayerId] = useState<string | null>(null);
-  const [scoutError, setScoutError] = useState<string | null>(null);
+  // The last action to fail, shown above the list: a scout that could not be sent, or a listing
+  // that was not saved. The next action that succeeds clears it.
+  const [actionError, setActionError] = useState<string | null>(null);
   const managerTeamId = gameState.manager.team_id ?? "";
 
   const handleGameUpdate = useCallback(
@@ -81,23 +83,33 @@ export function usePlayersListActions({
 
   const handleScoutPlayer = async (playerId: string): Promise<void> => {
     if (availableScouts.length === 0) {
-      setScoutError(null);
+      setActionError(null);
       return;
     }
 
     const scout = availableScouts[0];
-    setScoutError(null);
+    setActionError(null);
     setSendingPlayerId(playerId);
 
     try {
       const updated = await sendScout(scout.id, playerId);
-      setScoutError(null);
+      setActionError(null);
       handleGameUpdate(updated);
     } catch (error) {
       console.error("Failed to send scout:", error);
-      setScoutError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      setActionError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
     } finally {
       setSendingPlayerId(null);
+    }
+  };
+
+  const toggleListing = async (toggle: () => Promise<GameStateData>): Promise<void> => {
+    setActionError(null);
+    try {
+      handleGameUpdate(await toggle());
+    } catch (error) {
+      console.error("Failed to change the player's listing:", error);
+      setActionError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
     }
   };
 
@@ -123,24 +135,14 @@ export function usePlayersListActions({
     if (summary.team_id === managerTeamId) {
       contextItems.push(buildDividerMenuItem());
       contextItems.push(
-        buildToggleTransferListMenuItem(t, summary.transfer_listed, async () => {
-          try {
-            const updated = await toggleTransferList(summary.id);
-            handleGameUpdate(updated);
-          } catch {
-            return;
-          }
-        }),
+        buildToggleTransferListMenuItem(t, summary.transfer_listed, () =>
+          toggleListing(() => toggleTransferList(summary.id)),
+        ),
       );
       contextItems.push(
-        buildToggleLoanListMenuItem(t, summary.loan_listed, async () => {
-          try {
-            const updated = await toggleLoanList(summary.id);
-            handleGameUpdate(updated);
-          } catch {
-            return;
-          }
-        }),
+        buildToggleLoanListMenuItem(t, summary.loan_listed, () =>
+          toggleListing(() => toggleLoanList(summary.id)),
+        ),
       );
     } else {
       const playerActions = summary.team_id
@@ -173,5 +175,5 @@ export function usePlayersListActions({
     return contextItems;
   };
 
-  return { contextItemsFor, scoutError, bidFlow, contractFlow };
+  return { contextItemsFor, actionError, bidFlow, contractFlow };
 }
