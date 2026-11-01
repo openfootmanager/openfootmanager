@@ -1,12 +1,7 @@
-import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { useRatingTiers } from "../../hooks/useRatingTiers";
-import {
-  type ContractRiskLevel,
-  contractExpiryLabel,
-  getContractRiskBadgeVariant,
-} from "../../lib/contractUtils";
+import { type ContractRiskLevel, contractExpiryLabel } from "../../lib/contractUtils";
 import { formatDate } from "../../lib/dateFormatting";
 import { calcAge, formatWeeklyWage, getPlayerOvr } from "../../lib/helpers";
 import { visibleWageText } from "../../lib/playerKnowledge";
@@ -17,6 +12,7 @@ import type { TeamColors } from "../../store/types";
 import type { ContextMenuItem } from "../ContextMenu";
 import ContextMenu from "../ContextMenu";
 import PlayerCard from "../PlayerCard";
+import { contractChip } from "./SquadRosterView.columns";
 import { Badge, CardGrid, ConditionMeter, InjuryBadge } from "../ui";
 
 interface SquadCardGridProps {
@@ -163,23 +159,4 @@ function SquadCardStatus({
       </div>
     </>
   );
-}
-
-/**
- * The contract's one chip, in the roster table's order: an expiring or critical contract first (it
- * needs the manager), then a transfer or loan listing, then a stable contract. A copy of the
- * table's private `contractChip` in SquadRosterView.columns.tsx, kept identical until the two share
- * one export.
- */
-function contractChip(player: PlayerData, risk: ContractRiskLevel, t: TFunction) {
-  if (risk === "critical")
-    return {
-      variant: getContractRiskBadgeVariant(risk),
-      label: t("finances.contractRiskCritical"),
-    };
-  if (risk === "warning")
-    return { variant: getContractRiskBadgeVariant(risk), label: t("finances.contractRiskWarning") };
-  if (player.transfer_listed) return { variant: "accent" as const, label: t("transfers.transfer") };
-  if (player.loan_listed) return { variant: "primary" as const, label: t("transfers.loan") };
-  return { variant: getContractRiskBadgeVariant(risk), label: t("finances.contractRiskStable") };
 }
