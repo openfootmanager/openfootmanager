@@ -167,7 +167,14 @@ describe("usePlayersListActions list toggles", () => {
     vi.mocked(sendScout).mockResolvedValueOnce({} as GameStateData);
     const gameWithScout = {
       ...gameState,
-      staff: [{ id: "scout-1", role: "Scout", team_id: "mine" }],
+      staff: [
+        {
+          id: "scout-1",
+          role: "Scout",
+          team_id: "mine",
+          attributes: { judgingAbility: 70, judgingPotential: 70 },
+        },
+      ],
     } as unknown as GameStateData;
     const hook = renderHook(() =>
       usePlayersListActions({
