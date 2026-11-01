@@ -80,6 +80,21 @@ export interface PenaltyShootoutSnapshot {
   home_scored: number;
   away_scored: number;
   sudden_death: boolean;
+  /**
+   * The user's own side's order, before and during the shootout; the opponent's is always null
+   * (hidden until each kick), and both are null when the user manages neither club.
+   */
+  home_order?: ShootoutOrder | null;
+  away_order?: ShootoutOrder | null;
+}
+
+/**
+ * One side's shootout order: everyone eligible to kick, in the order they kick. The first
+ * `kickers` kick and the rest sit out; `kickers` is fixed by the side with fewer players.
+ */
+export interface ShootoutOrder {
+  player_ids: string[];
+  kickers: number;
 }
 
 export interface MatchSnapshot {

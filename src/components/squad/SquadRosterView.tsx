@@ -543,7 +543,7 @@ export default function SquadRosterView({
           onSortChange={(key) => toggleSort(key as SquadListSortKey)}
           onOpen={(player) => onSelectPlayer(player.id)}
           rowAccent={(player) =>
-            xiIds.has(player.id) ? "positive" : isMatchDayEligible(player) ? null : "danger"
+            xiIds.has(player.id) ? "selected" : isMatchDayEligible(player) ? null : "danger"
           }
           onRowContextMenu={(player, event) => {
             // The Menu key and Shift+F10 send a right-click at 0,0: open it at the row instead.

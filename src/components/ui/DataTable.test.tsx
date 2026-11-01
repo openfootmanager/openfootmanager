@@ -266,25 +266,27 @@ describe("DataTable", () => {
    */
   it("keeps the accented first column when it asks to fold", () => {
     const firstFolds = [{ ...COLUMNS[1], drawer: true }, COLUMNS[0], COLUMNS[2]];
-    renderTable({ columns: firstFolds, rowAccent: (p) => (p.starter ? "positive" : null) });
+    renderTable({ columns: firstFolds, rowAccent: (p) => (p.starter ? "selected" : null) });
     const firstCell = within(screen.getByRole("row", { name: /Anderson/ })).getByText("31");
-    expect(firstCell.closest("td")).toHaveClass("border-l-positive");
+    expect(firstCell.closest("td")).toHaveClass("border-l-selected");
     expect(firstCell.closest("td")).not.toHaveClass("@max-3xl:hidden");
     expect(screen.getByRole("columnheader", { name: "Age" })).not.toHaveClass("@max-3xl:hidden");
   });
 
-  /** Given starters, then their rows carry the starter accent, and the others don't. */
+  /**
+   * Given starters, then their rows carry the starter accent, and the others don't. The edge is
+   * the selected role (a chosen row is never "positive", maintainer 28 Oct), in its text strength.
+   */
   it("marks a row with its accent", () => {
-    renderTable({ rowAccent: (p) => (p.starter ? "positive" : null) });
+    renderTable({ rowAccent: (p) => (p.starter ? "selected" : null) });
     expect(screen.getByRole("row", { name: /Anderson/ })).toHaveAttribute(
       "data-accent",
-      "positive",
+      "selected",
     );
     expect(screen.getByRole("row", { name: /Navarro/ })).not.toHaveAttribute("data-accent");
-    // The starter edge is the positive text colour (5.5:1 on a panel), not the solid (2.5:1).
-    expect(
-      within(screen.getByRole("row", { name: /Anderson/ })).getAllByRole("cell")[0],
-    ).toHaveClass("border-l-positive");
+    const edge = within(screen.getByRole("row", { name: /Anderson/ })).getAllByRole("cell")[0];
+    expect(edge).toHaveClass("border-l-selected");
+    expect(edge).not.toHaveClass("border-l-positive");
   });
 
   /**
