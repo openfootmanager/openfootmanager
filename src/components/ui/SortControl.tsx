@@ -52,7 +52,8 @@ export function SortControl<Key extends string>({
       </Select>
       <button
         type="button"
-        aria-label={ascending ? t("common.sortAscending") : t("common.sortDescending")}
+        aria-label={t("common.sortAscending")}
+        aria-pressed={ascending}
         onClick={() => onChange(sortKey, !ascending)}
         className="grid size-8 place-items-center rounded-lg border border-line bg-panel text-fg-muted hover:bg-hover hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
       >

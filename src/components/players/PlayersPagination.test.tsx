@@ -60,4 +60,32 @@ describe("PlayersPagination", () => {
     );
     expect(container).toBeEmptyDOMElement();
   });
+
+  /**
+   * Given a pager on the page (the cards view) and one inside a panel (the table's card)
+   * When their buttons are drawn
+   * Then each focus ring is offset onto the colour it sits on: the page, or the panel.
+   */
+  it("offsets its focus ring onto the surface it sits on", () => {
+    const { rerender } = render(
+      <PlayersPagination page={2} pageSize={30} total={90} totalPages={3} onPage={vi.fn()} />,
+    );
+    for (const button of screen.getAllByRole("button")) {
+      expect(button).toHaveClass("focus-visible:ring-offset-page");
+    }
+
+    rerender(
+      <PlayersPagination
+        page={2}
+        pageSize={30}
+        total={90}
+        totalPages={3}
+        onPage={vi.fn()}
+        surface="panel"
+      />,
+    );
+    for (const button of screen.getAllByRole("button")) {
+      expect(button).toHaveClass("focus-visible:ring-offset-panel");
+    }
+  });
 });

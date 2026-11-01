@@ -46,20 +46,36 @@ describe("SortControl", () => {
   /**
    * Given the list sorted by OVR, descending
    * When the direction button is chosen
-   * Then the same field is asked for in the other direction, and the button names the direction
-   *      now shown.
+   * Then the same field is asked for in the other direction.
    */
-  it("flips the direction of the current field, and names the direction shown", () => {
+  it("flips the direction of the current field", () => {
     const onChange = renderControl();
 
-    fireEvent.click(screen.getByRole("button", { name: "common.sortDescending" }));
+    fireEvent.click(screen.getByRole("button", { name: "common.sortAscending" }));
 
     expect(onChange).toHaveBeenCalledWith("ovr", true);
   });
 
-  it("names an ascending sort as ascending", () => {
-    renderControl({ ascending: true });
-    expect(screen.getByRole("button", { name: "common.sortAscending" })).toBeInTheDocument();
+  /**
+   * Given a list sorted descending, and one sorted ascending
+   * When the direction toggle is read
+   * Then it is one control named "Ascending" whose pressed state is the direction (not pressed
+   *      when descending), so a screen reader hears the state as well as the action.
+   */
+  it("states the direction as the toggle's pressed state", () => {
+    const { rerender } = render(
+      <SortControl options={OPTIONS} sortKey="ovr" ascending={false} onChange={vi.fn()} />,
+    );
+    expect(screen.getByRole("button", { name: "common.sortAscending" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+
+    rerender(<SortControl options={OPTIONS} sortKey="ovr" ascending onChange={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "common.sortAscending" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   /**

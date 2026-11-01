@@ -106,11 +106,18 @@ interface SettingsStore {
 }
 
 /**
- * What `updateSettings` changed while `get_settings` was still in flight, or null when no load is
+ * What `updateSettings` changed while `get_settings` was in flight, or null when no load is
  * pending. The load's answer is older than these, so it must not overwrite them: a view the
  * player picked a moment after the screen opened would otherwise flip back.
  */
 let changedDuringLoad: Partial<AppSettings> | null = null;
+
+/**
+ * The load in flight, if any. Several screens ask for the settings while they are not loaded
+ * (and StrictMode asks twice), so overlapping calls share one request: a second request would
+ * reset what the first had recorded, and the first answer would stop the recording early.
+ */
+let inFlightLoad: Promise<void> | null = null;
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   settings: mergeWithDefaultSettings(),
@@ -118,29 +125,34 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   supportedCurrencies: indexSupportedCurrencies(),
   loaded: false,
 
-  loadSettings: async () => {
+  loadSettings: () => {
+    if (inFlightLoad) return inFlightLoad;
     changedDuringLoad = {};
-    try {
-      const response = await invoke<SettingsResponse>("get_settings");
-      const settings = mergeWithDefaultSettings({ ...response.settings, ...changedDuringLoad });
-      const supportedCurrencies = indexSupportedCurrencies(response.supported_currencies);
+    inFlightLoad = (async () => {
+      try {
+        const response = await invoke<SettingsResponse>("get_settings");
+        const settings = mergeWithDefaultSettings({ ...response.settings, ...changedDuringLoad });
+        const supportedCurrencies = indexSupportedCurrencies(response.supported_currencies);
 
-      set({
-        settings,
-        currency: resolveCurrency(settings.currency, supportedCurrencies),
-        supportedCurrencies,
-        loaded: true,
-      });
-    } catch {
-      set({
-        settings: mergeWithDefaultSettings(changedDuringLoad ?? {}),
-        currency: DEFAULT_CURRENCY,
-        supportedCurrencies: indexSupportedCurrencies(),
-        loaded: true,
-      });
-    } finally {
-      changedDuringLoad = null;
-    }
+        set({
+          settings,
+          currency: resolveCurrency(settings.currency, supportedCurrencies),
+          supportedCurrencies,
+          loaded: true,
+        });
+      } catch {
+        set({
+          settings: mergeWithDefaultSettings(changedDuringLoad ?? {}),
+          currency: DEFAULT_CURRENCY,
+          supportedCurrencies: indexSupportedCurrencies(),
+          loaded: true,
+        });
+      } finally {
+        changedDuringLoad = null;
+        inFlightLoad = null;
+      }
+    })();
+    return inFlightLoad;
   },
 
   updateSettings: async (partial) => {
@@ -154,6 +166,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     try {
       await persistSettings(merged);
     } catch (err) {
+      // A change that was not saved must not be re-applied by a load that is still in flight.
+      if (changedDuringLoad) {
+        for (const key of Object.keys(partial) as (keyof AppSettings)[]) {
+          if (changedDuringLoad[key] === partial[key]) delete changedDuringLoad[key];
+        }
+      }
       set({
         settings: previousSettings,
         currency: previousState.currency,
