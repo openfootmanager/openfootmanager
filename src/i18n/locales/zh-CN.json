@@ -629,7 +629,11 @@
     "center": "中路",
     "right": "右侧",
     "competition": "赛事",
-    "confirmDelete": "确认删除"
+    "confirmDelete": "确认删除",
+    "firstPage": "第一页",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "lastPage": "最后一页"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",

@@ -629,7 +629,11 @@
     "listView": "Seznam",
     "radarView": "Radar",
     "competition": "Soutěž",
-    "confirmDelete": "Potvrdit smazání"
+    "confirmDelete": "Potvrdit smazání",
+    "firstPage": "První stránka",
+    "previousPage": "Předchozí stránka",
+    "nextPage": "Další stránka",
+    "lastPage": "Poslední stránka"
   },
   "teamSelection": {
     "title": "Vyberte si klub",

@@ -629,7 +629,11 @@
     "listView": "Daftar",
     "radarView": "Radar",
     "competition": "Kompetisi",
-    "confirmDelete": "Konfirmasi penghapusan"
+    "confirmDelete": "Konfirmasi penghapusan",
+    "firstPage": "Halaman pertama",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "lastPage": "Halaman terakhir"
   },
   "teamSelection": {
     "title": "Pilih Klub",

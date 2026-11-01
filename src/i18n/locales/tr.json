@@ -629,7 +629,11 @@
     "listView": "Liste",
     "radarView": "Radar",
     "competition": "Turnuva",
-    "confirmDelete": "Silmeyi onayla"
+    "confirmDelete": "Silmeyi onayla",
+    "firstPage": "İlk sayfa",
+    "previousPage": "Önceki sayfa",
+    "nextPage": "Sonraki sayfa",
+    "lastPage": "Son sayfa"
   },
   "teamSelection": {
     "title": "Kulübünü Seç",
