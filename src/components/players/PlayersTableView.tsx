@@ -8,8 +8,7 @@ import { ratingTierClass } from "../../lib/ratingTier";
 import type { PlayerSortKey, PlayerSummary, PlayersPageQuery } from "../../services/playersService";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import PlayerPositionBadge from "../PlayerPositionBadge";
-import { Badge, Card, CardBody, CountryFlag, PlayerAvatar } from "../ui";
-import { SortHeaderButton } from "../ui/DataTable";
+import { Badge, Card, CardBody, CountryFlag, PlayerAvatar, SortHeaderButton } from "../ui";
 import PlayersPagination from "./PlayersPagination";
 
 interface PlayersTableViewProps {
@@ -52,7 +51,7 @@ export default function PlayersTableView({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-gray-50 dark:bg-navy-800 border-b border-gray-200 dark:border-navy-600 text-xs">
+              <tr className="border-b border-line-strong bg-panel text-caption">
                 <SortHeader
                   label={t("common.position")}
                   sortKey="position"
@@ -74,7 +73,10 @@ export default function PlayersTableView({
                   asc={query.sort_asc}
                   onClick={onSort}
                 />
-                <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-caption font-medium text-fg-subtle"
+                >
                   {t("common.nationality")}
                 </th>
                 <SortHeader
@@ -98,12 +100,15 @@ export default function PlayersTableView({
                   asc={query.sort_asc}
                   onClick={onSort}
                 />
-                <th className="py-3 px-4 font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                <th
+                  scope="col"
+                  className="px-4 py-3 text-left text-caption font-medium text-fg-subtle"
+                >
                   {t("common.status")}
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
+            <tbody className="divide-y divide-line">
               {items.map((summary) => {
                 const contextItems = contextItemsFor(summary);
 
@@ -112,7 +117,7 @@ export default function PlayersTableView({
                   <tr
                     key={summary.id}
                     onClick={() => onSelectPlayer(summary.id)}
-                    className="hover:bg-gray-50 dark:hover:bg-navy-700/50 transition-colors cursor-pointer group"
+                    className="hover:bg-hover transition-colors cursor-pointer group"
                   >
                     <td className="py-2.5 px-4">
                       <PlayerPositionBadge position={naturalPositionOf(summary)} />
@@ -120,19 +125,19 @@ export default function PlayersTableView({
                     <td className="py-2.5 px-4">
                       <div className="flex items-center gap-3">
                         <PlayerAvatar player={summary} />
-                        <span className="font-semibold text-sm text-gray-800 dark:text-gray-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                        <span className="font-semibold text-body text-fg group-hover:text-selected transition-colors">
                           {summary.match_name}
                         </span>
                       </div>
                     </td>
-                    <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 tabular-nums">
+                    <td className="py-2.5 px-4 text-body text-fg-muted tabular-nums">
                       {summary.age}
                     </td>
-                    <td
-                      className="py-2.5 px-4 text-sm text-gray-500 dark:text-gray-400"
-                      title={summary.nationality}
-                    >
-                      <CountryFlag code={summary.nationality} className="text-lg leading-none" />
+                    <td className="py-2.5 px-4 text-body text-fg-muted" title={summary.nationality}>
+                      <CountryFlag
+                        code={summary.nationality}
+                        className="text-heading leading-none"
+                      />
                     </td>
                     <td className="py-2.5 px-4">
                       {summary.team_id ? (
@@ -142,22 +147,20 @@ export default function PlayersTableView({
                             e.stopPropagation();
                             onSelectTeam(summary.team_id!);
                           }}
-                          className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 hover:underline transition-colors"
+                          className="rounded-sm text-body text-fg-muted hover:text-fg hover:underline transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
                         >
                           {summary.team_name ?? ""}
                         </button>
                       ) : (
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {t("common.freeAgent")}
-                        </span>
+                        <span className="text-body text-fg-muted">{t("common.freeAgent")}</span>
                       )}
                     </td>
-                    <td className="py-2.5 px-4 text-sm text-gray-600 dark:text-gray-400 font-medium">
+                    <td className="py-2.5 px-4 text-body text-fg-muted font-medium">
                       {formatVal(summary.market_value)}
                     </td>
                     <td className="py-2.5 px-4">
                       <span
-                        className={`font-heading font-bold text-base tabular-nums ${ratingTierClass(
+                        className={`font-heading font-bold text-lead tabular-nums ${ratingTierClass(
                           ovr === null ? "Rest" : tierOf(ovr),
                           "text",
                         )}`}
@@ -194,9 +197,7 @@ export default function PlayersTableView({
             </tbody>
           </table>
           {total === 0 && !fetchError && (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-sm">
-              {t("players.noMatch")}
-            </div>
+            <div className="p-8 text-center text-fg-muted text-body">{t("players.noMatch")}</div>
           )}
         </div>
         <PlayersPagination
@@ -230,7 +231,9 @@ function SortHeader({
     <th
       scope="col"
       aria-sort={direction ? (direction === "asc" ? "ascending" : "descending") : undefined}
-      className="font-heading font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+      className={`text-left text-caption ${
+        direction ? "font-semibold text-fg" : "font-medium text-fg-subtle"
+      }`}
     >
       <SortHeaderButton
         header={label}

@@ -13,10 +13,9 @@ import { usePositionTable } from "../../hooks/usePositionGroups";
 import type { PositionTable } from "../../lib/positionTable";
 
 const chip =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-800 motion-reduce:transition-none px-3 py-1.5 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all";
-const chipOn = "bg-primary-700 text-white shadow-sm";
-const chipOff =
-  "bg-white dark:bg-navy-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-navy-600";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page motion-reduce:transition-none px-3 py-1.5 rounded-lg text-caption font-heading font-bold uppercase tracking-label transition-all";
+const chipOn = "bg-selected-fill text-on-brand shadow-sm";
+const chipOff = "bg-panel text-fg-muted border border-line hover:text-fg";
 
 const STATUS_LABEL_KEY: Record<PlayerStatusFilter, string> = {
   all: "common.all",
@@ -89,7 +88,7 @@ function PositionGroupChip({ group, chosen, open, onPress, onToggle }: PositionG
         {partial && (
           <span
             aria-hidden="true"
-            className="bg-white/20 text-xs px-1.5 py-0.5 rounded-full leading-none"
+            className="bg-on-brand/20 text-caption px-1.5 py-0.5 rounded-full leading-none"
           >
             {selected}/{members.length}
           </span>
@@ -99,7 +98,7 @@ function PositionGroupChip({ group, chosen, open, onPress, onToggle }: PositionG
         <div
           role="group"
           aria-label={t("transfers.refinePositionGroup", { group: label })}
-          className="absolute left-0 top-full mt-1 z-20 min-w-[180px] p-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 shadow-lg"
+          className="absolute left-0 top-full mt-1 z-20 min-w-[180px] p-2 rounded-lg bg-panel border border-line shadow-lg"
         >
           <div className="flex flex-wrap gap-1.5">
             {members.map((position) => {
@@ -113,7 +112,7 @@ function PositionGroupChip({ group, chosen, open, onPress, onToggle }: PositionG
                   aria-pressed={on}
                   aria-label={name}
                   title={name}
-                  className={`${chip} px-2.5 py-1 rounded-md ${on ? chipOn : `${chipOff} hover:text-gray-700 dark:hover:text-gray-200`}`}
+                  className={`${chip} px-2.5 py-1 rounded-md ${on ? chipOn : chipOff}`}
                 >
                   {t(`common.posAbbr.${position}`)}
                 </button>
@@ -158,7 +157,7 @@ function RangeInput({ label, value, onChange }: RangeInputProps) {
       onChange={(event) => {
         onChange(toRangeBound(event.target.value));
       }}
-      className="w-24 px-2 py-1.5 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
+      className="w-24 px-2 py-1.5 rounded-lg bg-sunken border border-line text-caption text-fg placeholder:text-fg-subtle outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
     />
   );
 }
@@ -256,13 +255,13 @@ export default function PlayerListFilters({
   return (
     <div className="flex flex-wrap gap-3 mb-4 items-center">
       <div className="relative flex-1 min-w-[200px] max-w-sm">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
         <input
           type="text"
           placeholder={searchPlaceholder ?? t("players.searchPlaceholder")}
           value={query.search ?? ""}
           onChange={(event) => onChange({ search: event.target.value || null })}
-          className="w-full pl-9 pr-3 py-2 rounded-lg bg-white dark:bg-navy-800 border border-gray-200 dark:border-navy-600 text-sm text-gray-800 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:ring-offset-2 dark:focus:ring-offset-navy-800"
+          className="w-full pl-9 pr-3 py-2 rounded-lg bg-sunken border border-line text-body text-fg placeholder:text-fg-subtle outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page"
         />
       </div>
 
@@ -298,7 +297,7 @@ export default function PlayerListFilters({
             key={status}
             onClick={() => onChange({ status })}
             aria-pressed={query.status === status}
-            className={`${chip} ${query.status === status ? "bg-accent-500 text-navy-900 shadow-sm" : chipOff}`}
+            className={`${chip} ${query.status === status ? chipOn : chipOff}`}
           >
             {t(STATUS_LABEL_KEY[status])}
             {statusCounts ? ` (${statusCounts[status]})` : ""}

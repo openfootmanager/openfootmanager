@@ -26,7 +26,7 @@ export default function PlayersPagination({
     surface === "panel" ? "focus-visible:ring-offset-panel" : "focus-visible:ring-offset-page";
   return (
     <div className="flex items-center justify-between px-4 py-3 border-t border-line">
-      <p className="text-xs text-fg-muted font-heading">
+      <p className="text-caption text-fg-muted font-heading">
         {t("players.showingRange", {
           from: (page - 1) * pageSize + 1,
           to: Math.min(page * pageSize, total),
@@ -52,7 +52,7 @@ export default function PlayersPagination({
         >
           <ChevronLeft aria-hidden="true" className="w-4 h-4" />
         </button>
-        <span className="px-3 py-1 text-xs font-heading font-bold text-fg-muted">
+        <span className="px-3 py-1 text-caption font-heading font-bold text-fg-muted">
           {page} / {totalPages}
         </span>
         <button
