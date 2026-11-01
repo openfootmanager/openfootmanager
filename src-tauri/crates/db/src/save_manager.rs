@@ -548,7 +548,7 @@ impl SaveManager {
             });
         if ledger_lost {
             log::warn!(
-                "[save_manager] the sent-ledger of save {save_id} did not read; rebuilt from the inbox"
+                "[save_manager] the sent-ledger of save {save_id} did not read; rebuilt from its mail"
             );
             ofm_core::inbox::rebuild_lost_ledger(&mut game);
             needs_resave = true;

@@ -337,7 +337,7 @@ mod tests {
     /// Then the announcement counts as sent and the champion does not: an inherited World Cup is
     ///      never silenced
     #[test]
-    fn a_lost_ledger_is_rebuilt_from_the_inbox_and_not_the_archive() {
+    fn a_lost_ledger_is_rebuilt_from_the_mail_and_not_the_world_cup_archive() {
         let mut game = game();
         game.messages.push(message("promotion_2032"));
         game.world_history
