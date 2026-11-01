@@ -72,8 +72,8 @@ export default function TeamsLeagueTable({
 }: TeamsLeagueTableProps) {
   const { t, i18n } = useTranslation();
   const rows = useMemo(
-    () => sortRows(cards, (card) => sortValueOf(card, sort.key), sort.direction),
-    [cards, sort],
+    () => sortRows(cards, (card) => sortValueOf(card, sort.key), sort.direction, i18n.language),
+    [cards, sort, i18n.language],
   );
 
   const columns: DataTableColumn<TeamCard>[] = [

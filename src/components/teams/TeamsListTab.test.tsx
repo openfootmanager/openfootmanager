@@ -449,6 +449,27 @@ describe("TeamsListTab as a table", () => {
   });
 
   /**
+   * Given a league whose table has two ranked clubs and one not yet ranked (position 0)
+   * When the table opens in league order, and then the # header turns the order round
+   * Then the unranked club reads "—" and comes last both times, under the ranked ones.
+   */
+  it("puts a club with no league position last in both directions", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "first", name: "First FC", league_pos: 1 }),
+      buildCard({ id: "second", name: "Second FC", league_pos: 2 }),
+      buildCard({ id: "new", name: "New FC", league_pos: 0 }),
+    ]);
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("first")} onSelectTeam={vi.fn()} />);
+    await screen.findByRole("table", { name: "League" });
+    expect(tableClubs()).toEqual(["First FC", "Second FC", "New FC"]);
+    expect(rowCells("New FC").Position).toBe("—");
+
+    fireEvent.click(screen.getByRole("button", { name: "Position" }));
+
+    expect(tableClubs()).toEqual(["Second FC", "First FC", "New FC"]);
+  });
+
+  /**
    * Given the table
    * When a club's name is pressed (the row's button, which Enter presses too)
    * Then that club's profile opens.

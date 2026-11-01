@@ -12,12 +12,14 @@ export interface SortState<Key extends string> {
 /**
  * A list's rows in a column's order, for a table the client sorts (the backend sends the whole
  * list). Rows with no value go last in both directions, so a withheld figure ("–") never heads its
- * column; ties keep the order the rows arrived in. Text sorts alphabetically, ignoring case.
+ * column; ties keep the order the rows arrived in. Text sorts in the alphabet of `locale`, the
+ * game's language (not the machine's), ignoring case.
  */
 export function sortRows<Row>(
   rows: readonly Row[],
   sortValueOf: (row: Row) => SortValue,
   direction: SortDirection,
+  locale: string,
 ): Row[] {
   const sign = direction === "asc" ? 1 : -1;
   return [...rows].sort((left, right) => {
@@ -25,7 +27,7 @@ export function sortRows<Row>(
     const b = sortValueOf(right);
     if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1;
     if (typeof a === "number" && typeof b === "number") return sign * (a - b);
-    return sign * String(a).localeCompare(String(b), undefined, { sensitivity: "base" });
+    return sign * String(a).localeCompare(String(b), locale, { sensitivity: "base" });
   });
 }
 

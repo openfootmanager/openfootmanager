@@ -25,14 +25,14 @@ describe("sortRows", () => {
    *      so a club the manager doesn't know never heads the column.
    */
   it("puts rows with no value last in both directions", () => {
-    expect(names(sortRows(clubs, (club) => club.average, "asc"))).toEqual([
+    expect(names(sortRows(clubs, (club) => club.average, "asc", "en"))).toEqual([
       "alpha",
       "Beta",
       "Gamma",
       "Withheld A",
       "Withheld B",
     ]);
-    expect(names(sortRows(clubs, (club) => club.average, "desc"))).toEqual([
+    expect(names(sortRows(clubs, (club) => club.average, "desc", "en"))).toEqual([
       "Beta",
       "Gamma",
       "alpha",
@@ -48,7 +48,7 @@ describe("sortRows", () => {
    */
   it("keeps tied rows in the order they arrived, in either direction", () => {
     const tied = (direction: "asc" | "desc") =>
-      names(sortRows(clubs, (club) => club.average, direction)).filter((name) =>
+      names(sortRows(clubs, (club) => club.average, direction, "en")).filter((name) =>
         ["Beta", "Gamma"].includes(name),
       );
     expect(tied("asc")).toEqual(["Beta", "Gamma"]);
@@ -61,7 +61,7 @@ describe("sortRows", () => {
    * Then they run in the reader's alphabetical order, not by character code ("alpha" first).
    */
   it("sorts text alphabetically, ignoring case", () => {
-    expect(names(sortRows(clubs, (club) => club.name, "asc"))).toEqual([
+    expect(names(sortRows(clubs, (club) => club.name, "asc", "en"))).toEqual([
       "alpha",
       "Beta",
       "Gamma",
@@ -71,13 +71,27 @@ describe("sortRows", () => {
   });
 
   /**
+   * Given "Zenit" and "Örebro"
+   * When they are sorted by name in Swedish, and then in German
+   * Then Swedish puts Ö after Z, as its alphabet does, and German puts it with O: the order is the
+   *      game language's, not the machine's.
+   */
+  it("sorts text in the alphabet of the language it is given", () => {
+    const pair = [{ name: "Zenit" }, { name: "Örebro" }];
+    const byName = (locale: string) =>
+      sortRows(pair, (club) => club.name, "asc", locale).map((club) => club.name);
+    expect(byName("sv")).toEqual(["Zenit", "Örebro"]);
+    expect(byName("de")).toEqual(["Örebro", "Zenit"]);
+  });
+
+  /**
    * Given a list
    * When it is sorted
    * Then the list itself is left as it was: a sort returns a new one.
    */
   it("leaves the list it was given untouched", () => {
     const before = names(clubs);
-    sortRows(clubs, (club) => club.average, "desc");
+    sortRows(clubs, (club) => club.average, "desc", "en");
     expect(names(clubs)).toEqual(before);
   });
 });
