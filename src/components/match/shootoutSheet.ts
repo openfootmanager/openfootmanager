@@ -12,9 +12,9 @@ export type KickCell =
   /** The shootout is still on and this kick hasn't been taken. */
   | { state: "toCome" }
   /**
-   * Over, and this kick was never taken. The engine decides a shootout only at equal kick counts
-   * (penalty.rs `decided`), so a finished sheet never has one today; it guards a snapshot that
-   * ends mid-round rather than drawing a kick to come in a finished shootout.
+   * Over, and this kick was never taken: under the Laws a shootout ends as soon as one side can't
+   * catch up, so the away side can finish a kick short. The engine decides only at equal kick
+   * counts today (penalty.rs `decided`); tactics-match's planned change makes this reachable.
    */
   | { state: "notTaken" };
 
