@@ -1337,9 +1337,9 @@ mod tests {
 
     /// Given a vacant AI club whose assistant has coaching 60
     /// When the assistant steps up
-    /// Then the stand-in's standing is 500: 200, plus 5 a point of coaching
+    /// Then the stand-in's reputation is 500: 200, plus 5 a point of coaching
     #[test]
-    fn a_stand_ins_standing_comes_from_their_coaching() {
+    fn a_stand_ins_reputation_comes_from_their_coaching() {
         let mut game = make_game();
         vacant_long_enough(&mut game, "team2");
 
