@@ -24,6 +24,10 @@ const FINISHED_FOLDERS = [
   "./components/match/shootoutOrder.ts",
   // The Players list: its table, cards, filters, pager and alerts.
   "./components/players/",
+  // The Squad roster's cards view. The rest of components/squad joins when its table and filters
+  // are redrawn.
+  "./components/squad/SquadCardsView.tsx",
+  "./components/squad/SquadCardGrid.tsx",
 ];
 
 /**
