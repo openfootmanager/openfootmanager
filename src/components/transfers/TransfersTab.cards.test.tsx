@@ -66,6 +66,28 @@ const offered = createPlayer({
     },
   ],
 });
+// A rival's listed player the club can still bid for: its only offer was rejected, so the Offers
+// tab lists him, and starting a deal for him (not reading his history) would open a bid.
+const startable = createPlayer({
+  id: "startable",
+  full_name: "Startable Rival",
+  team_id: "team-2",
+  transfer_listed: true,
+  transfer_offers: [
+    {
+      id: "bid-rejected",
+      from_team_id: "team-1",
+      fee: 500000,
+      wage_offered: 0,
+      last_manager_fee: null,
+      negotiation_round: 1,
+      suggested_counter_fee: null,
+      status: "Rejected",
+      date: "2026-07-20",
+      registration_date: null,
+    },
+  ],
+});
 const MARKET = [unscouted, ownListed];
 
 // What the market page lets the club see of each: nothing of an unscouted rival, everything of its own.
@@ -73,6 +95,7 @@ const FIGURES: Record<string, VisibleFigures> = {
   unscouted: { ovr: null, wage: { kind: "hidden" } },
   "own-listed": { ovr: 72, wage: { kind: "exact", weekly: REAL_WAGE } },
   offered: { ovr: 70, wage: { kind: "hidden" } },
+  startable: { ovr: 68, wage: { kind: "hidden" } },
 };
 
 function withFigures(players: typeof MARKET) {
@@ -94,7 +117,7 @@ beforeEach(() => {
           playersOfScope(payload, {
             market: MARKET,
             user_listed: [],
-            with_offers: [offered],
+            with_offers: [offered, startable],
           }),
         )
       : {},
@@ -106,7 +129,7 @@ afterEach(() => setListView("table"));
 const renderCentre = (onSelectPlayer = vi.fn()) =>
   render(
     <TransfersTab
-      gameState={createGameState([...MARKET, offered])}
+      gameState={createGameState([...MARKET, offered, startable])}
       onSelectPlayer={onSelectPlayer}
       onSelectTeam={vi.fn()}
       onGameUpdate={vi.fn()}
@@ -243,4 +266,26 @@ it("draws the deal button's focus ring in the standard tokens", async () => {
 
   expect(button).toHaveClass("focus-visible:ring-focus", "focus-visible:ring-offset-page");
   expect(button.className).not.toContain("ring-primary");
+});
+
+/**
+ * Given a rival's player the club can still bid for (his only offer was rejected), in the
+ *       Offers tab's cards
+ * When the card's offer-history button is chosen
+ * Then the history opens and no bid is started: nothing is priced and the dialog is the history
+ *      (starting a deal for him instead would open the bid negotiation and price a bid).
+ */
+it("reads the history of a player the club could bid for without starting a bid", async () => {
+  renderCentre();
+  fireEvent.click(await screen.findByRole("button", { name: /^Offers/ }));
+  const card = await screen.findByRole("article", { name: "Startable Rival" });
+
+  fireEvent.click(within(card).getByRole("button", { name: "View offer history" }));
+
+  const dialog = await screen.findByRole("dialog", { name: "Startable Rival" });
+  expect(within(dialog).getByRole("region", { name: "Offer history" })).toBeInTheDocument();
+  expect(vi.mocked(invoke)).not.toHaveBeenCalledWith(
+    "preview_transfer_bid_financial_impact",
+    expect.anything(),
+  );
 });
