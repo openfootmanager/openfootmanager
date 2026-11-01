@@ -305,6 +305,29 @@ mod tests {
         assert!(all[0].read);
     }
 
+    /// Given a youth scouting report giving its scout's opinion of a prospect (74-82, by Ann Scout
+    ///       on 3 Aug)
+    /// When it is saved and loaded
+    /// Then the opinion reads back as written
+    #[test]
+    fn a_youth_reports_opinions_survive_a_round_trip() {
+        let db = test_db();
+        let opinion = domain::message::ProspectOpinion {
+            prospect_id: "prospect-1".to_string(),
+            low: 74,
+            high: 82,
+            scout_name: "Ann Scout".to_string(),
+            scouted_on: "2026-08-03".to_string(),
+        };
+        let mut msg = sample_message("msg-001");
+        msg.context.youth_prospect_opinions = Some(vec![opinion.clone()]);
+
+        upsert_message(db.conn(), &msg).unwrap();
+        let all = load_all_messages(db.conn()).unwrap();
+
+        assert_eq!(all[0].context.youth_prospect_opinions, Some(vec![opinion]));
+    }
+
     #[test]
     fn test_message_i18n_roundtrip() {
         let db = test_db();

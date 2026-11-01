@@ -5,7 +5,8 @@ use tauri::State;
 
 use domain::message::InboxMessage;
 use ofm_core::player_knowledge::{
-    players_knowledge, potential_opinion, visible_wage, PlayerKnowledge, VisibleWage,
+    players_knowledge, potential_opinion, visible_wage, youth_prospect_opinions, PlayerKnowledge,
+    VisibleWage,
 };
 use ofm_core::potential_opinion::PotentialOpinion;
 use ofm_core::slices::competitions::{query_competitions, CompetitionsQuery, CompetitionsView};
@@ -218,6 +219,25 @@ pub async fn get_staff(
 ) -> Result<StaffSlice, String> {
     state
         .get_game(|game| query_staff(game, &team_id))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+/// The reporting scout's opinion of each prospect in one youth scouting report, by prospect id,
+/// for the report's screen. Empty for a report that gave none, or an id that names no such report.
+#[tauri::command]
+pub async fn get_youth_prospect_opinions(
+    state: State<'_, Arc<StateManager>>,
+    message_id: String,
+) -> Result<HashMap<String, PotentialOpinion>, String> {
+    get_youth_prospect_opinions_internal(&state, &message_id)
+}
+
+fn get_youth_prospect_opinions_internal(
+    state: &StateManager,
+    message_id: &str,
+) -> Result<HashMap<String, PotentialOpinion>, String> {
+    state
+        .get_game(|game| youth_prospect_opinions(game, message_id))
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
@@ -632,5 +652,104 @@ mod tests {
             serde_json::json!({ "kind": "approximate", "weekly": 16_000 })
         );
         assert_eq!(wage_of("nobody"), serde_json::Value::Null);
+    }
+
+    /// Given a youth report giving Ann Scout's opinion (76-84, on 1 Sep) of one of its two
+    ///       prospects, and an id that names no message
+    /// When the youth prospect opinions adapter reads each
+    /// Then the report's comes keyed by the judged prospect, in the profile's opinion shape; the
+    ///      other prospect and the unknown id give nothing
+    #[test]
+    fn the_youth_prospect_opinions_adapter_sends_each_opinion_by_prospect() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        use domain::message::{MessageContext, ProspectOpinion};
+        use domain::player::{Player, PlayerAttributes, Position};
+        let attrs: PlayerAttributes = serde_json::from_value(serde_json::json!({
+            "pace": 60, "stamina": 60, "strength": 60, "agility": 60, "passing": 60,
+            "shooting": 60, "tackling": 60, "dribbling": 60, "defending": 60,
+            "positioning": 60, "vision": 60, "decisions": 60, "composure": 60,
+            "aggression": 60, "teamwork": 60, "leadership": 60,
+            "handling": 60, "reflexes": 60, "aerial": 60
+        }))
+        .unwrap();
+        let prospect = |id: &str| {
+            let mut player = Player::new(
+                id.into(),
+                id.into(),
+                id.into(),
+                "2009-01-01".into(),
+                "GB".into(),
+                Position::Midfielder,
+                attrs.clone(),
+            );
+            player.potential = 80;
+            player
+        };
+        let mut game = ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
+            ),
+            Manager::new(
+                "m".into(),
+                "M".into(),
+                "Gr".into(),
+                "1980-01-01".into(),
+                "GB".into(),
+            ),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        game.messages.push(
+            InboxMessage::new(
+                "youth-scout-1".into(),
+                String::new(),
+                String::new(),
+                "Ann Scout".into(),
+                "2026-09-01".into(),
+            )
+            .with_context(MessageContext {
+                youth_prospects: Some(vec![prospect("judged"), prospect("unjudged")]),
+                youth_prospect_opinions: Some(vec![ProspectOpinion {
+                    prospect_id: "judged".into(),
+                    low: 76,
+                    high: 84,
+                    scout_name: "Ann Scout".into(),
+                    scouted_on: "2026-09-01".into(),
+                }]),
+                ..MessageContext::default()
+            }),
+        );
+        let state = StateManager::new();
+        state.set_game(game);
+
+        let opinions = serde_json::to_value(
+            get_youth_prospect_opinions_internal(&state, "youth-scout-1").unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            opinions,
+            serde_json::json!({
+                "judged": {
+                    "low": 76,
+                    "high": 84,
+                    "band": "A",
+                    "certainty": "fairly_sure",
+                    "source": {
+                        "kind": "scout",
+                        "scout_name": "Ann Scout",
+                        "scouted_on": "2026-09-01",
+                        "current": true
+                    },
+                    "wonderkid": false
+                }
+            })
+        );
+        assert!(get_youth_prospect_opinions_internal(&state, "nothing")
+            .unwrap()
+            .is_empty());
     }
 }
