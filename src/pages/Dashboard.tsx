@@ -1,4 +1,5 @@
 import { useSquadFitness } from "../hooks/useSquadFitness";
+import { prefetchFamiliarity, useFamiliarityRevision } from "../hooks/useFamiliarity";
 import { usePositionTable } from "../hooks/usePositionGroups";
 import { routeForActiveCareer } from "../services/careerService";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -114,6 +115,9 @@ export default function Dashboard({ initialTab = "Home" }: DashboardProps): JSX.
   } = useGameStore();
   const { t } = useTranslation();
   const positionTable = usePositionTable();
+  // Asked for at mount, next to the position table, so the squad and tactics screens find it there.
+  const familiarityRevision = useFamiliarityRevision();
+  useEffect(() => prefetchFamiliarity(familiarityRevision), [familiarityRevision]);
   const { settings, loaded: settingsLoaded, loadSettings, updateSettings } = useSettingsStore();
   const latestGameStateRef = useRef<GameStateData | null>(null);
   latestGameStateRef.current = gameState ?? null;
