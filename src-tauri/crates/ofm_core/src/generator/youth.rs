@@ -80,7 +80,7 @@ fn youth_recruit(
         slot_index,
         &nationality,
         current_year,
-        age,
+        PlayerRoll::unscaled(age),
         &names_def,
         rng,
     );
