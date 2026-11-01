@@ -129,7 +129,7 @@ fn the_match_uses_each_clubs_saved_set_piece_takers() {
 fn a_saved_captain_who_does_not_start_gives_way_to_the_auto_pick() {
     let mut game = make_game_with_fixture();
     let (starters, [auto_captain, ..]) = starters_and_auto_takers(&game, true);
-    game.teams[0].match_roles.captain = Some(reserve_keeper(&starters));
+    game.teams[0].match_roles.captain = Some(reserve_keeper(&starters, "team1"));
 
     let snapshot = create(&game).snapshot();
 
@@ -143,20 +143,50 @@ fn a_saved_captain_who_does_not_start_gives_way_to_the_auto_pick() {
 fn a_saved_penalty_taker_who_does_not_start_gives_way_to_the_auto_pick() {
     let mut game = make_game_with_fixture();
     let (starters, [_, auto_penalty, ..]) = starters_and_auto_takers(&game, true);
-    game.teams[0].match_roles.penalty_taker = Some(reserve_keeper(&starters));
+    game.teams[0].match_roles.penalty_taker = Some(reserve_keeper(&starters, "team1"));
 
     let snapshot = create(&game).snapshot();
 
     assert_eq!(snapshot.home_set_pieces.penalty_taker, Some(auto_penalty));
 }
 
-/// The home club's goalkeeper who is not in `starters`.
-fn reserve_keeper(starters: &[String]) -> String {
-    ["team1_gk0", "team1_gk1"]
+/// Given the home club saved as free-kick taker its reserve goalkeeper, who does not start
+/// When the match is created
+/// Then the free-kick taker is the one the game would have picked
+#[test]
+fn a_saved_free_kick_taker_who_does_not_start_gives_way_to_the_auto_pick() {
+    let mut game = make_game_with_fixture();
+    let (starters, [_, _, auto_free_kick, _]) = starters_and_auto_takers(&game, true);
+    game.teams[0].match_roles.free_kick_taker = Some(reserve_keeper(&starters, "team1"));
+
+    let snapshot = create(&game).snapshot();
+
+    assert_eq!(
+        snapshot.home_set_pieces.free_kick_taker,
+        Some(auto_free_kick)
+    );
+}
+
+/// Given the away club saved as captain its reserve goalkeeper, who does not start
+/// When the match is created
+/// Then the away captain is the one the game would have picked: the rule holds for both sides
+#[test]
+fn an_away_sides_saved_captain_who_does_not_start_gives_way_to_the_auto_pick() {
+    let mut game = make_game_with_fixture();
+    let (starters, [auto_captain, ..]) = starters_and_auto_takers(&game, false);
+    game.teams[1].match_roles.captain = Some(reserve_keeper(&starters, "team2"));
+
+    let snapshot = create(&game).snapshot();
+
+    assert_eq!(snapshot.away_set_pieces.captain, Some(auto_captain));
+}
+
+/// The club's goalkeeper who is not in `starters`.
+fn reserve_keeper(starters: &[String], club: &str) -> String {
+    [format!("{club}_gk0"), format!("{club}_gk1")]
         .into_iter()
         .find(|id| !starters.iter().any(|starter| starter == id))
         .expect("one keeper is on the bench")
-        .to_string()
 }
 
 fn record(matches_managed: u32, wins: u32) -> ManagerCareerStats {
