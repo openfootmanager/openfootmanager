@@ -32,13 +32,8 @@ import {
   translatePositionAbbreviation,
   translatePositionLabel,
 } from "./SquadTab.helpers";
-import {
-  CORE_POSITIONS,
-  naturalPositionOf,
-  normalisePosition,
-  positionGroupRank,
-  positionSortRank,
-} from "../../lib/positions";
+import { naturalPositionOf } from "../../lib/positions";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
 import { SquadNameAside, squadRosterColumns } from "./SquadRosterView.columns";
 import { squadRowMenuItems } from "./SquadRosterView.menu";
@@ -93,11 +88,12 @@ export default function SquadRosterView({
   const menuRefs = useRef<Map<string, ContextMenuHandle>>(new Map());
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
+  const positionTable = usePositionTable();
   const roster = players
     .filter((player) => isFirstTeamSquadPlayer(player))
     .sort(
       (a, b) =>
-        positionGroupRank(a.position) - positionGroupRank(b.position) ||
+        positionTable.lineRankOf(a.position) - positionTable.lineRankOf(b.position) ||
         getPlayerOvr(b) - getPlayerOvr(a),
     );
 
@@ -162,17 +158,17 @@ export default function SquadRosterView({
   const isOutOfPosition = (player: PlayerData): boolean => {
     return (
       xiIds.has(player.id) &&
-      isPlayerOutOfPosition(player, getCurrentPosition(player, xiActivePosition))
+      isPlayerOutOfPosition(player, getCurrentPosition(player, xiActivePosition), positionTable)
     );
   };
 
   const getTacticalFit = (player: PlayerData) => {
-    return getSquadTacticalFit(player, getCurrentPosition(player, xiActivePosition));
+    return getSquadTacticalFit(player, getCurrentPosition(player, xiActivePosition), positionTable);
   };
 
   const matchesFilters = (player: PlayerData): boolean => {
     const inXI = xiIds.has(player.id);
-    const currentPos = normalisePosition(getCurrentPosition(player, xiActivePosition));
+    const currentPos = positionTable.groupOf(getCurrentPosition(player, xiActivePosition));
     const preferredPositions = getPreferredPositions(player);
     const search = playerSearch.trim().toLowerCase();
 
@@ -205,7 +201,7 @@ export default function SquadRosterView({
       case "naturalFit":
         return getTacticalFit(player) === "natural";
       case "needsCover":
-        return rolesNeedingCover.has(getBestRoleForFormation(player, formation));
+        return rolesNeedingCover.has(getBestRoleForFormation(player, formation, positionTable));
       case "outOfPosition":
         return isOutOfPosition(player);
       case "injured":
@@ -236,8 +232,8 @@ export default function SquadRosterView({
           const bXi = xiIds.has(b.id) ? 0 : 1;
           if (aXi !== bXi) return aXi - bXi;
 
-          const aRank = positionSortRank(naturalPositionOf(a));
-          const bRank = positionSortRank(naturalPositionOf(b));
+          const aRank = positionTable.rankOf(naturalPositionOf(a));
+          const bRank = positionTable.rankOf(naturalPositionOf(b));
           if (aRank !== bRank) return aRank - bRank;
 
           return getPlayerOvr(b) - getPlayerOvr(a);
@@ -407,7 +403,7 @@ export default function SquadRosterView({
               fullWidth
             >
               <option value="All">{t("common.all")}</option>
-              {CORE_POSITIONS.map((position) => (
+              {positionTable.lines().map((position) => (
                 <option key={position} value={position}>
                   {translatePositionAbbreviation(t, position)}
                 </option>

@@ -1,5 +1,6 @@
 export { CORE_POSITIONS, normalisePosition } from "../../lib/positions";
-import { canonicalPosition, naturalPositionOf, normalisePosition } from "../../lib/positions";
+import { canonicalPosition, naturalPositionOf } from "../../lib/positions";
+import type { PositionTable } from "../../lib/positionTable";
 
 import type { PlayerData } from "../../store/gameStore";
 import { getPlayerOvr } from "../../lib/helpers";
@@ -383,12 +384,22 @@ export function buildActivePositionMap(pitchSlotRows: PitchSlotRow[]): Map<strin
   return map;
 }
 
-export function isPlayerOutOfPosition(player: PlayerData, currentPos: string): boolean {
+/**
+ * Whether none of the player's preferred positions is the slot's position or in its line. Until
+ * the backend's position table has loaded no line is known, and "out of position" would be a guess
+ * that reads every granular player as out, so it says no.
+ */
+export function isPlayerOutOfPosition(
+  player: PlayerData,
+  currentPos: string,
+  positionTable: PositionTable,
+): boolean {
+  if (!positionTable.loaded) return false;
   const canonicalCurrentPos = canonicalPosition(currentPos);
-  const normalizedCurrentPos = normalisePosition(currentPos);
+  const currentGroup = positionTable.groupOf(currentPos);
   return !getPreferredPositions(player).some(
     (position) =>
-      position === canonicalCurrentPos || normalisePosition(position) === normalizedCurrentPos,
+      position === canonicalCurrentPos || positionTable.groupOf(position) === currentGroup,
   );
 }
 
@@ -396,19 +407,27 @@ export function isPlayerExactForSlot(player: PlayerData, currentPos: string): bo
   return canonicalPosition(naturalPositionOf(player)) === canonicalPosition(currentPos);
 }
 
-export function getSquadTacticalFit(player: PlayerData, currentPos: string): SquadTacticalFit {
+export function getSquadTacticalFit(
+  player: PlayerData,
+  currentPos: string,
+  positionTable: PositionTable,
+): SquadTacticalFit {
   if (isPlayerExactForSlot(player, currentPos)) {
     return "natural";
   }
 
-  if (isPlayerOutOfPosition(player, currentPos)) {
+  if (isPlayerOutOfPosition(player, currentPos, positionTable)) {
     return "out";
   }
 
   return "adapted";
 }
 
-export function getBestRoleForFormation(player: PlayerData, formation: string): string {
+export function getBestRoleForFormation(
+  player: PlayerData,
+  formation: string,
+  positionTable: PositionTable,
+): string {
   const formationSlots = buildPitchRows(formation).flatMap((row) => row.positions);
   // Best role is an ability recommendation, so it is driven by the player's
   // natural position (not player.position, which is only a coarse bucket).
@@ -423,7 +442,7 @@ export function getBestRoleForFormation(player: PlayerData, formation: string): 
   // 2. The closest role within the player's primary position group. This is
   //    preferred over tangential alternates so a DM in a DM-less formation
   //    resolves to CM, never to an unrelated alternate such as RB.
-  const playerGroup = normalisePosition(naturalPosition);
+  const playerGroup = positionTable.groupOf(naturalPosition);
   const groupRolePreferences = GROUP_ROLE_PREFERENCES[playerGroup] ?? [];
   const preferredGroupRole = groupRolePreferences.find((position) =>
     formationSlots.includes(position),
@@ -442,7 +461,7 @@ export function getBestRoleForFormation(player: PlayerData, formation: string): 
 
   // 4. Fallbacks: any slot in the player's group, else first preferred position.
   const firstGroupRole = formationSlots.find(
-    (position) => normalisePosition(position) === playerGroup,
+    (position) => positionTable.groupOf(position) === playerGroup,
   );
 
   return firstGroupRole ?? getPreferredPositions(player)[0] ?? naturalPosition;

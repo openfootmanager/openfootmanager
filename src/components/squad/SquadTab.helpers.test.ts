@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerData } from "../../store/gameStore";
+import { createPositionTable } from "../../lib/positionTable";
+import { cannedPositionTable } from "../../test-utils/positionTable";
 import {
   applyLineupDrop,
   applyLineupSwap,
@@ -112,8 +114,8 @@ describe("SquadTab helpers", () => {
       alternate_positions: ["Right Wing Back"],
     });
 
-    expect(isPlayerOutOfPosition(defender, "Defender")).toBe(false);
-    expect(isPlayerOutOfPosition(defender, "Midfielder")).toBe(true);
+    expect(isPlayerOutOfPosition(defender, "Defender", cannedPositionTable())).toBe(false);
+    expect(isPlayerOutOfPosition(defender, "Midfielder", cannedPositionTable())).toBe(true);
   });
 
   it("parses 4-part formations correctly", () => {
@@ -398,6 +400,7 @@ describe("SquadTab helpers", () => {
       getSquadTacticalFit(
         makePlayer("lb", "Left Back", { natural_position: "Left Back" }),
         "LeftBack",
+        cannedPositionTable(),
       ),
     ).toBe("natural");
 
@@ -405,6 +408,7 @@ describe("SquadTab helpers", () => {
       getSquadTacticalFit(
         makePlayer("def", "Defender", { natural_position: "Defender" }),
         "CenterBack",
+        cannedPositionTable(),
       ),
     ).toBe("adapted");
 
@@ -412,6 +416,7 @@ describe("SquadTab helpers", () => {
       getSquadTacticalFit(
         makePlayer("fwd", "Forward", { natural_position: "Forward" }),
         "CenterBack",
+        cannedPositionTable(),
       ),
     ).toBe("out");
   });
@@ -515,6 +520,7 @@ describe("SquadTab helpers", () => {
       getBestRoleForFormation(
         makePlayer("lb", "Left Back", { natural_position: "Left Back" }),
         "4-4-2",
+        cannedPositionTable(),
       ),
     ).toBe("LeftBack");
 
@@ -522,6 +528,7 @@ describe("SquadTab helpers", () => {
       getBestRoleForFormation(
         makePlayer("mid", "Midfielder", { natural_position: "Midfielder" }),
         "4-2-3-1",
+        cannedPositionTable(),
       ),
     ).toBe("CentralMidfielder");
   });
@@ -536,6 +543,7 @@ describe("SquadTab helpers", () => {
           alternate_positions: ["Right Back"],
         }),
         "4-4-2",
+        cannedPositionTable(),
       ),
     ).toBe("CentralMidfielder");
 
@@ -547,6 +555,7 @@ describe("SquadTab helpers", () => {
           alternate_positions: ["Right Back"],
         }),
         "4-0-0",
+        cannedPositionTable(),
       ),
     ).toBe("RightBack");
   });
@@ -685,5 +694,31 @@ describe("getDeployedPosition", () => {
 
   it("returns null for players outside the starting XI", () => {
     expect(getDeployedPosition(team, "bench-player")).toBeNull();
+  });
+
+  describe("before the position table has loaded", () => {
+    const notLoaded = () => createPositionTable([]);
+
+    /**
+     * Given a left back and a table that has not arrived (no line is known)
+     * When he is asked about in a slot of another line
+     * Then he is not called out of position: with no lines known the answer would be a guess.
+     */
+    it("does not call a player out of position", () => {
+      const leftBack = makePlayer("lb", "Left Back", { natural_position: "Left Back" });
+
+      expect(isPlayerOutOfPosition(leftBack, "Forward", notLoaded())).toBe(false);
+    });
+
+    /**
+     * Given a forward put in a back's slot, and a table that has not arrived
+     * When his tactical fit is asked for
+     * Then it is not "out": exact and adapted are the only answers it can give.
+     */
+    it("does not grade a fit as out", () => {
+      const forward = makePlayer("fwd", "Forward", { natural_position: "Forward" });
+
+      expect(getSquadTacticalFit(forward, "CenterBack", notLoaded())).not.toBe("out");
+    });
   });
 });

@@ -18,6 +18,11 @@ const riskLevels = vi.hoisted(() => ({
   current: {} as Record<string, "critical" | "warning" | "stable">,
 }));
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("../../hooks/useContractWarningStages", () => ({
   useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
 }));

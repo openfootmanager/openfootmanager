@@ -1,6 +1,7 @@
 import { getPlayerOvr } from "../../lib/helpers";
 import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { naturalPositionOf, normalisePosition, positionGroupRank } from "../../lib/positions";
+import type { PositionTable } from "../../lib/positionTable";
 import type { PlayerData } from "../../store/gameStore";
 import {
   buildPitchRows,
@@ -232,11 +233,12 @@ export function filterAndSortTacticsPlayers(
 export function countOutOfPositionPlayers(
   startingPlayers: PlayerData[],
   xiActivePosition: Map<string, string>,
+  positionTable: PositionTable,
 ): number {
   return startingPlayers.filter((player) => {
     const currentPosition = xiActivePosition.get(player.id) ?? player.position;
 
-    return isPlayerOutOfPosition(player, currentPosition);
+    return isPlayerOutOfPosition(player, currentPosition, positionTable);
   }).length;
 }
 

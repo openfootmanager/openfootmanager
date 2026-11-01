@@ -12,6 +12,7 @@ import {
   setTeamMatchRoles,
 } from "../../services/squadService";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import { useAutoSetPieces } from "../../hooks/useAutoSetPieces";
 import type { TacticsPhaseSettings } from "../../store/types";
 
@@ -53,6 +54,7 @@ function isPlayerEligibleForLineup(player: PlayerData | null | undefined): boole
 
 export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupArgs) {
   const { sessionState } = useGameStore();
+  const positionTable = usePositionTable();
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const [fetchedSquad] = useFetchedSquad(teamId, clockDate, sessionState ?? gameState);
@@ -164,7 +166,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     startingXiIds,
   ]);
 
-  const outOfPositionCount = countOutOfPositionPlayers(startingXI, xiActivePosition);
+  const outOfPositionCount = countOutOfPositionPlayers(startingXI, xiActivePosition, positionTable);
   const autoSetPieces = useAutoSetPieces(startingXiIds, sessionState ?? gameState);
   const effectiveMatchRoles = useMemo(
     () => resolveEffectiveMatchRoles(startingXI, team?.match_roles, autoSetPieces),
