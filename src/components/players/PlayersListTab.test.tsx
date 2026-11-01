@@ -605,6 +605,11 @@ describe("PlayersListTab", () => {
       await waitFor(() => {
         expect(screen.getByRole("alert")).toHaveTextContent("Could not save the listing.");
       });
+      // The new alert follows the design system: the danger token and a role size, in sentence
+      // case, with no raw palette colour or fixed text size.
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveClass("text-danger", "bg-danger-tint", "text-body");
+      expect(alert.className).not.toMatch(/text-red|text-xs|uppercase/);
       expect(onGameUpdate).not.toHaveBeenCalled();
     } finally {
       consoleErrorSpy.mockRestore();
