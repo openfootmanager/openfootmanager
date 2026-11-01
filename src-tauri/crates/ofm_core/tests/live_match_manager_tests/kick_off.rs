@@ -182,8 +182,8 @@ fn an_away_sides_saved_captain_who_does_not_start_gives_way_to_the_auto_pick() {
 }
 
 /// The club's goalkeeper who is not in `starters`.
-fn reserve_keeper(starters: &[String], club: &str) -> String {
-    [format!("{club}_gk0"), format!("{club}_gk1")]
+fn reserve_keeper(starters: &[String], club_id: &str) -> String {
+    [format!("{club_id}_gk0"), format!("{club_id}_gk1")]
         .into_iter()
         .find(|id| !starters.iter().any(|starter| starter == id))
         .expect("one keeper is on the bench")
