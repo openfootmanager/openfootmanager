@@ -208,7 +208,7 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
     const groups = positionTable.loaded
       ? positionTable.lines().map((pos) => ({
           key: pos,
-          label: `${pos}s`,
+          label: t(`common.positionGroups.${pos}`, { defaultValue: pos }),
           players: team.players.filter((p) => p.position === pos),
         }))
       : [{ key: "all", label: null, players: team.players }];
