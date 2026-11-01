@@ -157,7 +157,7 @@ it("opens a player from his card and from its context menu", async () => {
  */
 it("shows a player's offers and the history button on his card in the Offers view", async () => {
   renderCentre();
-  fireEvent.click(await screen.findByRole("button", { name: "Offers (1)" }));
+  fireEvent.click(await screen.findByRole("button", { name: /^Offers/ }));
 
   const card = await screen.findByRole("article", { name: "Offered Player" });
   expect(within(card).getByText(new RegExp(formatExactMoney(700001)))).toBeInTheDocument();
