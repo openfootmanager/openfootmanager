@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use domain::message::{InboxMessage, MessageCategory, MessagePriority};
 use rusqlite::{Connection, params};
 
@@ -109,7 +110,7 @@ pub fn load_all_messages(conn: &Connection) -> Result<Vec<InboxMessage>, String>
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
-        .query_map([], row_to_message)
+        .query_map([], |row| row_to_message(conn, row))
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut messages = Vec::new();
@@ -119,7 +120,11 @@ pub fn load_all_messages(conn: &Connection) -> Result<Vec<InboxMessage>, String>
     Ok(messages)
 }
 
-fn row_to_message(row: &rusqlite::Row) -> rusqlite::Result<InboxMessage> {
+fn row_to_message(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<InboxMessage> {
+    let id: String = row.get(0)?;
+    // A JSON column that does not parse reads as its default and is kept in unreadable_records,
+    // never silently lost (`json_column`).
+    let cell = |column: &'static str| Cell::new("messages", &id, column);
     let read_int: i32 = row.get(6)?;
     let category_str: String = row.get(7)?;
     let priority_str: String = row.get(8)?;
@@ -127,10 +132,10 @@ fn row_to_message(row: &rusqlite::Row) -> rusqlite::Result<InboxMessage> {
     let context_json: String = row.get(10)?;
     let i18n_json: String = row.get(11)?;
 
-    let i18n: serde_json::Value = serde_json::from_str(&i18n_json).unwrap_or_default();
+    let i18n: serde_json::Value = json_column::read(conn, cell("i18n"), &i18n_json);
 
     Ok(InboxMessage {
-        id: row.get(0)?,
+        id: id.clone(),
         subject: row.get(1)?,
         body: row.get(2)?,
         sender: row.get(3)?,
@@ -139,8 +144,8 @@ fn row_to_message(row: &rusqlite::Row) -> rusqlite::Result<InboxMessage> {
         read: read_int != 0,
         category: parse_category(&category_str),
         priority: parse_priority(&priority_str),
-        actions: serde_json::from_str(&actions_json).unwrap_or_default(),
-        context: serde_json::from_str(&context_json).unwrap_or_default(),
+        actions: json_column::read(conn, cell("actions"), &actions_json),
+        context: json_column::read(conn, cell("context"), &context_json),
         subject_key: i18n
             .get("subject_key")
             .and_then(|v| v.as_str())
@@ -157,10 +162,7 @@ fn row_to_message(row: &rusqlite::Row) -> rusqlite::Result<InboxMessage> {
             .get("sender_role_key")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
-        i18n_params: i18n
-            .get("i18n_params")
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
-            .unwrap_or_default(),
+        i18n_params: json_column::read_member(conn, cell("i18n"), &i18n_json, &i18n, "i18n_params"),
     })
 }
 

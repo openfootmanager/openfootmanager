@@ -8,9 +8,11 @@ const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
 /**
  * Kits no brighter than this wash a card header at the full --kit-wash-mix. A paler kit washes it
  * at a share scaled down by its luminance: on a dark panel, a white, yellow or lime kit at the full
- * share would lift the header so far that its meta line (fg-muted) dropped under 4.5:1.
+ * share would lift the header so far that its meta line (fg-muted) dropped under 4.5:1. 0.27
+ * keeps the green the approved mock was drawn in (#16a34a, 0.269) at its full wash; white still
+ * holds about 5.5:1.
  */
-const FULL_WASH_LUMINANCE = 0.25;
+const FULL_WASH_LUMINANCE = 0.27;
 
 /** How much of the --kit-wash-mix share a kit's header wash takes: 1, or less for a pale kit. */
 export function kitWashScale(primary: string): number {

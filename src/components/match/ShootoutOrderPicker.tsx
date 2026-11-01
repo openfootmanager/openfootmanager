@@ -1,6 +1,13 @@
 import type { TFunction } from "i18next";
 import { ArrowUpDown, GripVertical, RotateCcw, Target } from "lucide-react";
-import { type DragEvent, type KeyboardEvent, useLayoutEffect, useRef, useState } from "react";
+import {
+  type DragEvent,
+  type KeyboardEvent,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import { useRatingTiers } from "../../hooks/useRatingTiers";
@@ -129,7 +136,11 @@ function OrderRow({
         ) : null}
       </span>
       <span className="flex min-w-0 items-center gap-2">
-        <span className={`truncate font-semibold ${kick === null ? "text-fg-muted" : "text-fg"}`}>
+        {/* A long name is cut short on a narrow window; the tooltip keeps it whole. */}
+        <span
+          className={`truncate font-semibold ${kick === null ? "text-fg-muted" : "text-fg"}`}
+          title={name}
+        >
           {name}
         </span>
         {isPenaltyTaker ? (
@@ -166,12 +177,17 @@ function OrderRow({
 
 /**
  * The fixed line after the kickers. The rule is the separator a screen reader hears, named with how
- * many sit out and why; the words beside it are for the eye.
+ * many sit out and why. Not every screen reader announces a separator inside a list, so the same
+ * words are also text in the entry, which names the rule; the words beside it are for the eye.
  */
 function SitsOutLine({ sittingOut, kickers }: { sittingOut: number; kickers: number }) {
   const { t } = useTranslation();
+  const wordsId = useId();
   return (
     <li role="none" className="flex items-center gap-3 border-b border-line bg-sunken px-3 py-1.5">
+      <span id={wordsId} className="sr-only">
+        {t("match.shootout.sitsOutLine", { n: sittingOut, k: kickers })}
+      </span>
       <span
         aria-hidden="true"
         className="font-heading text-caption font-bold uppercase tracking-label text-warning"
@@ -179,7 +195,7 @@ function SitsOutLine({ sittingOut, kickers }: { sittingOut: number; kickers: num
         {t("match.shootout.sitsOut")}
       </span>
       <hr
-        aria-label={t("match.shootout.sitsOutLine", { n: sittingOut, k: kickers })}
+        aria-labelledby={wordsId}
         className="min-w-4 flex-1 border-0 border-t-2 border-dashed border-warning-solid"
       />
       <span aria-hidden="true" className="text-caption text-fg-muted">

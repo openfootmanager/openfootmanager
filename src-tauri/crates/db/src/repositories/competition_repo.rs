@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use domain::league::{
     CompetitionRules, CompetitionScope, CompetitionState, CompetitionType, GroupState,
     KnockoutRoundState, StandingEntry,
@@ -129,6 +130,10 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
 
     let rows = stmt
         .query_map([], |row| {
+            let id: String = row.get(0)?;
+            // A JSON column that does not parse reads as its default and is kept in
+            // unreadable_records, never silently lost (`json_column`).
+            let cell = |column: &'static str| Cell::new("competitions", &id, column);
             let required_region_ids_json: String = row.get(7)?;
             let participant_ids_json: String = row.get(8)?;
             let rules_json: String = row.get(9)?;
@@ -157,29 +162,52 @@ pub fn load_competitions(conn: &Connection) -> Result<Vec<CompetitionState>, Str
                             )
                         })?
                         .flatten(),
-                id: row.get(0)?,
+                id: id.clone(),
                 name: row.get(1)?,
                 kind: parse_competition_type(&row.get::<_, String>(2)?),
                 scope: parse_competition_scope(&row.get::<_, String>(3)?),
                 season: row.get(4)?,
                 region_id: row.get(5)?,
                 country_id: row.get(6)?,
-                required_region_ids: serde_json::from_str(&required_region_ids_json)
-                    .unwrap_or_default(),
-                participant_ids: serde_json::from_str(&participant_ids_json).unwrap_or_default(),
-                rules: serde_json::from_str::<CompetitionRules>(&rules_json).unwrap_or_default(),
+                required_region_ids: json_column::read(
+                    conn,
+                    cell("required_region_ids_json"),
+                    &required_region_ids_json,
+                ),
+                participant_ids: json_column::read(
+                    conn,
+                    cell("participant_ids_json"),
+                    &participant_ids_json,
+                ),
+                rules: json_column::read::<CompetitionRules>(conn, cell("rules_json"), &rules_json),
                 fixtures: super::stored_fixtures::parse_fixtures(10, &fixtures_json)?,
-                standings: serde_json::from_str::<Vec<StandingEntry>>(&standings_json)
-                    .unwrap_or_default(),
-                groups: serde_json::from_str::<Vec<GroupState>>(&groups_json).unwrap_or_default(),
-                knockout_rounds: serde_json::from_str::<Vec<KnockoutRoundState>>(
+                standings: json_column::read::<Vec<StandingEntry>>(
+                    conn,
+                    cell("standings_json"),
+                    &standings_json,
+                ),
+                groups: json_column::read::<Vec<GroupState>>(
+                    conn,
+                    cell("groups_json"),
+                    &groups_json,
+                ),
+                knockout_rounds: json_column::read::<Vec<KnockoutRoundState>>(
+                    conn,
+                    cell("knockout_rounds_json"),
                     &knockout_rounds_json,
-                )
-                .unwrap_or_default(),
-                transfer_log: serde_json::from_str(&transfer_log_json).unwrap_or_default(),
-                transfer_rumours: serde_json::from_str(&transfer_rumours_json).unwrap_or_default(),
+                ),
+                transfer_log: json_column::read(
+                    conn,
+                    cell("transfer_log_json"),
+                    &transfer_log_json,
+                ),
+                transfer_rumours: json_column::read(
+                    conn,
+                    cell("transfer_rumours_json"),
+                    &transfer_rumours_json,
+                ),
                 priority: row.get::<_, i64>(16).unwrap_or_default() as u32,
-                berths: serde_json::from_str(&berths_json).unwrap_or_default(),
+                berths: json_column::read(conn, cell("berths_json"), &berths_json),
                 season_start_month: row.get::<_, i64>(18).unwrap_or(8) as u8,
                 season_start_day: row.get::<_, i64>(19).unwrap_or(1) as u8,
                 name_key: row.get(21)?,

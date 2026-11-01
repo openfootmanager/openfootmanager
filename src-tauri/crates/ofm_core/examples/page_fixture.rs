@@ -246,3 +246,151 @@ fn write_layout(out: &mut String, value: &Value, depth: usize) -> Result<(), Str
         }
     }
 }
+
+/// The first line where two texts part, 1-based, with each side's line (`None` past its end, so a
+/// missing line is told apart from an empty one); `None` when they are the same.
+#[cfg(test)]
+fn first_difference<'a>(
+    checked_in: &'a str,
+    fresh: &'a str,
+) -> Option<(usize, Option<&'a str>, Option<&'a str>)> {
+    let mut checked_in_lines = checked_in.split('\n');
+    let mut fresh_lines = fresh.split('\n');
+    let mut number = 0;
+    loop {
+        number += 1;
+        match (checked_in_lines.next(), fresh_lines.next()) {
+            (None, None) => return None,
+            (old, new) if old != new => return Some((number, old, new)),
+            _ => {}
+        }
+    }
+}
+
+/// The 1-based column of the first character where two lines differ (1 when either is missing).
+#[cfg(test)]
+fn first_differing_column(old: Option<&str>, new: Option<&str>) -> usize {
+    match (old, new) {
+        (Some(old), Some(new)) => {
+            old.chars()
+                .zip(new.chars())
+                .take_while(|(a, b)| a == b)
+                .count()
+                + 1
+        }
+        _ => 1,
+    }
+}
+
+/// Up to `EXCERPT_REACH` characters either side of `column` in a line, with an ellipsis where it is
+/// cut: the fixture's lines run to thousands of characters, and the change may sit far into one.
+#[cfg(test)]
+fn excerpt(line: Option<&str>, column: usize) -> String {
+    const EXCERPT_REACH: usize = 80;
+    let Some(line) = line else {
+        return "<end of file>".to_string();
+    };
+    let chars: Vec<char> = line.chars().collect();
+    let centre = column.saturating_sub(1).min(chars.len());
+    let start = centre.saturating_sub(EXCERPT_REACH);
+    let end = (centre + EXCERPT_REACH).min(chars.len());
+    let mut out = String::new();
+    if start > 0 {
+        out.push('…');
+    }
+    out.extend(&chars[start..end]);
+    if end < chars.len() {
+        out.push('…');
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The checked-in module, where `npm run fixture:pages` writes it from the repository root.
+    const CHECKED_IN: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../src/dev/pageHarness/fixture.generated.ts"
+    );
+
+    /// Given page_fixture.rs, the world generator and the commands' answers as they stand
+    /// When the page harness's career is generated afresh
+    /// Then it is byte for byte the checked-in fixture.generated.ts, so a change on the Rust side
+    /// can't land without the regenerated file the frontend's pages are mounted on.
+    #[test]
+    fn the_checked_in_fixture_matches_a_fresh_generation() {
+        let checked_in = std::fs::read_to_string(CHECKED_IN).expect("read fixture.generated.ts");
+        let game = build_career().expect("build the page harness career");
+        let fresh = render_module(&game).expect("render the fixture module");
+
+        if let Some((line, old, new)) = first_difference(&checked_in, &fresh) {
+            let column = first_differing_column(old, new);
+            panic!(
+                "src/dev/pageHarness/fixture.generated.ts is stale: run `npm run fixture:pages` \
+                 and commit it.\nFirst difference, line {line}, column {column}:\n  checked in: {}\n  \
+                 fresh:      {}",
+                excerpt(old, column),
+                excerpt(new, column),
+            );
+        }
+    }
+
+    /// Given two texts that part on their second line
+    /// When they are compared
+    /// Then the second line is reported, with each side's text.
+    #[test]
+    fn the_first_differing_line_is_reported() {
+        assert_eq!(
+            first_difference("a\nb\nc", "a\nB\nc"),
+            Some((2, Some("b"), Some("B")))
+        );
+    }
+
+    /// Given one text that is the other with a line added at its end
+    /// When they are compared
+    /// Then the added line is reported against the empty line that ended the shorter one.
+    #[test]
+    fn a_line_added_at_the_end_is_reported() {
+        assert_eq!(
+            first_difference("a\n", "a\nb\n"),
+            Some((2, Some(""), Some("b")))
+        );
+    }
+
+    /// Given one text with a final newline and the same text without it
+    /// When they are compared
+    /// Then the line past the shorter text is reported as missing, not as an empty line, and the
+    /// message says "<end of file>" rather than printing two blanks.
+    #[test]
+    fn a_missing_line_is_told_apart_from_an_empty_one() {
+        let difference = first_difference("a\nb\n", "a\nb");
+        assert_eq!(difference, Some((3, Some(""), None)));
+        assert_eq!(excerpt(None, 1), "<end of file>");
+    }
+
+    /// Given two long lines that agree for their first 300 characters
+    /// When the message shows them
+    /// Then it shows the stretch around column 301, where they part, not their identical start.
+    #[test]
+    fn the_message_shows_where_a_long_line_differs() {
+        let same = "x".repeat(300);
+        let old = format!("{same}OLD{same}");
+        let new = format!("{same}NEW{same}");
+        let column = first_differing_column(Some(&old), Some(&new));
+        assert_eq!(column, 301);
+        let shown = excerpt(Some(&old), column);
+        assert!(shown.starts_with('…') && shown.ends_with('…'));
+        assert!(shown.contains("OLD"));
+        assert!(excerpt(Some(&new), column).contains("NEW"));
+    }
+
+    /// Given two identical texts
+    /// When they are compared
+    /// Then no difference is reported.
+    #[test]
+    fn identical_texts_have_no_difference() {
+        assert_eq!(first_difference("a\nb\n", "a\nb\n"), None);
+    }
+}

@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use domain::team::{
     Facilities, FinancialTransaction, PlayStyle, PlayerRole, Sponsorship, TacticsPhaseSettings,
     Team, TeamColors, TeamMedia, TrainingFocus, TrainingIntensity, TrainingSchedule,
@@ -135,7 +136,11 @@ fn parse_training_schedule(s: &str) -> TrainingSchedule {
     }
 }
 
-fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
+fn row_to_team(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Team> {
+    let id: String = row.get(0)?;
+    // A JSON column that does not parse reads as its default and is kept in unreadable_records,
+    // never silently lost (`json_column`).
+    let cell = |column: &'static str| Cell::new("teams", &id, column);
     let starting_xi_json: String = row.get(23)?;
     let match_roles_json: String = row.get(24)?;
     let form_json: String = row.get(25)?;
@@ -154,7 +159,7 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
     let tactics_phase_json: String = row.get(34).unwrap_or_else(|_| "{}".to_string());
 
     Ok(Team {
-        id: row.get(0)?,
+        id: id.clone(),
         name: row.get(1)?,
         short_name: row.get(2)?,
         country: row.get(3)?,
@@ -169,17 +174,23 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
         transfer_budget: row.get(12)?,
         season_income: row.get(13)?,
         season_expenses: row.get(14)?,
-        financial_ledger: serde_json::from_str::<Vec<FinancialTransaction>>(&financial_ledger_json)
-            .unwrap_or_default(),
-        sponsorship: serde_json::from_str::<Option<Sponsorship>>(&sponsorship_json)
-            .unwrap_or_default(),
-        facilities: serde_json::from_str::<Facilities>(&facilities_json).unwrap_or_default(),
+        financial_ledger: json_column::read::<Vec<FinancialTransaction>>(
+            conn,
+            cell("financial_ledger"),
+            &financial_ledger_json,
+        ),
+        sponsorship: json_column::read::<Option<Sponsorship>>(
+            conn,
+            cell("sponsorship"),
+            &sponsorship_json,
+        ),
+        facilities: json_column::read::<Facilities>(conn, cell("facilities"), &facilities_json),
         formation: row.get(15)?,
         play_style: parse_play_style(&play_style_str),
         training_focus: parse_training_focus(&training_focus_str),
         training_intensity: parse_training_intensity(&training_intensity_str),
         training_schedule: parse_training_schedule(&training_schedule_str),
-        training_groups: serde_json::from_str(&training_groups_json).unwrap_or_default(),
+        training_groups: json_column::read(conn, cell("training_groups"), &training_groups_json),
         founded_year: row.get(20)?,
         colors: TeamColors {
             primary: row.get(21)?,
@@ -195,59 +206,88 @@ fn row_to_team(row: &rusqlite::Row) -> rusqlite::Result<Team> {
                 )),
             )
         })?,
-        media: serde_json::from_str(&media_json).unwrap_or_else(|_| TeamMedia::default()),
-        starting_xi_ids: serde_json::from_str(&starting_xi_json).unwrap_or_default(),
-        match_roles: serde_json::from_str(&match_roles_json).unwrap_or_default(),
-        player_roles: serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(
-            &player_roles_json,
-        )
-        .unwrap_or_default()
-        .into_iter()
-        .filter_map(|(k, v)| serde_json::from_value::<PlayerRole>(v).ok().map(|r| (k, r)))
-        .collect(),
-        tactics_phase: {
-            let raw: serde_json::Value =
-                serde_json::from_str(&tactics_phase_json).unwrap_or_default();
-            TacticsPhaseSettings {
-                build_up_style: serde_json::from_value(
-                    raw.get("build_up_style").cloned().unwrap_or_default(),
-                )
-                .unwrap_or_default(),
-                width: serde_json::from_value(raw.get("width").cloned().unwrap_or_default())
-                    .unwrap_or_default(),
-                tempo: serde_json::from_value(raw.get("tempo").cloned().unwrap_or_default())
-                    .unwrap_or_default(),
-                defensive_line: serde_json::from_value(
-                    raw.get("defensive_line").cloned().unwrap_or_default(),
-                )
-                .unwrap_or_default(),
-                pressing_intensity: serde_json::from_value(
-                    raw.get("pressing_intensity").cloned().unwrap_or_default(),
-                )
-                .unwrap_or_default(),
-                defensive_shape: serde_json::from_value(
-                    raw.get("defensive_shape").cloned().unwrap_or_default(),
-                )
-                .unwrap_or_default(),
-                marking_style: serde_json::from_value(
-                    raw.get("marking_style").cloned().unwrap_or_default(),
-                )
-                .unwrap_or_default(),
-                counter_press_duration: serde_json::from_value(
-                    raw.get("counter_press_duration")
-                        .cloned()
-                        .unwrap_or_default(),
-                )
-                .unwrap_or_default(),
-                break_speed: serde_json::from_value(
-                    raw.get("break_speed").cloned().unwrap_or_default(),
-                )
-                .unwrap_or_default(),
-            }
-        },
-        form: serde_json::from_str(&form_json).unwrap_or_default(),
-        history: serde_json::from_str(&history_json).unwrap_or_default(),
+        media: json_column::read_or_else(conn, cell("media_json"), &media_json, TeamMedia::default),
+        starting_xi_ids: json_column::read(conn, cell("starting_xi_ids"), &starting_xi_json),
+        match_roles: json_column::read(conn, cell("match_roles"), &match_roles_json),
+        player_roles: read_player_roles(conn, cell("player_roles_json"), &player_roles_json),
+        tactics_phase: read_tactics_phase(conn, cell("tactics_phase_json"), &tactics_phase_json),
+        form: json_column::read(conn, cell("form"), &form_json),
+        history: json_column::read(conn, cell("history"), &history_json),
     })
+}
+
+/// A team's role for each player, as stored: a map of player id to role. A role that does not
+/// read is left out, as before, but then the whole cell is kept in unreadable_records, so the
+/// dropped role can be recovered (`json_column::quarantine`).
+fn read_player_roles(
+    conn: &Connection,
+    cell: Cell<'_>,
+    text: &str,
+) -> std::collections::HashMap<String, PlayerRole> {
+    let raw: std::collections::HashMap<String, serde_json::Value> =
+        json_column::read(conn, cell, text);
+    let mut roles = std::collections::HashMap::new();
+    let mut dropped = Vec::new();
+    for (player_id, value) in raw {
+        match serde_json::from_value::<PlayerRole>(value) {
+            Ok(role) => {
+                roles.insert(player_id, role);
+            }
+            Err(_) => dropped.push(player_id),
+        }
+    }
+    if !dropped.is_empty() {
+        dropped.sort();
+        let error = format!(
+            "roles that did not read, for players: {}",
+            dropped.join(", ")
+        );
+        json_column::quarantine(conn, cell, text, &error);
+    }
+    roles
+}
+
+/// A team's tactics phase settings, read setting by setting: a setting a save from before it does
+/// not hold reads as its default. One that is there but does not read also reads as its default,
+/// and then the whole cell is kept in unreadable_records (`json_column::quarantine`).
+fn read_tactics_phase(conn: &Connection, cell: Cell<'_>, text: &str) -> TacticsPhaseSettings {
+    let raw: serde_json::Value = json_column::read(conn, cell, text);
+    let mut dropped: Vec<&'static str> = Vec::new();
+    let settings = TacticsPhaseSettings {
+        build_up_style: phase_setting(&raw, "build_up_style", &mut dropped),
+        width: phase_setting(&raw, "width", &mut dropped),
+        tempo: phase_setting(&raw, "tempo", &mut dropped),
+        defensive_line: phase_setting(&raw, "defensive_line", &mut dropped),
+        pressing_intensity: phase_setting(&raw, "pressing_intensity", &mut dropped),
+        defensive_shape: phase_setting(&raw, "defensive_shape", &mut dropped),
+        marking_style: phase_setting(&raw, "marking_style", &mut dropped),
+        counter_press_duration: phase_setting(&raw, "counter_press_duration", &mut dropped),
+        break_speed: phase_setting(&raw, "break_speed", &mut dropped),
+    };
+    if !dropped.is_empty() {
+        let error = format!("settings that did not read: {}", dropped.join(", "));
+        json_column::quarantine(conn, cell, text, &error);
+    }
+    settings
+}
+
+/// One tactics phase setting: its default when absent, and its default (named in `dropped`) when
+/// present but unreadable.
+fn phase_setting<T: serde::de::DeserializeOwned + Default>(
+    raw: &serde_json::Value,
+    name: &'static str,
+    dropped: &mut Vec<&'static str>,
+) -> T {
+    let Some(value) = raw.get(name) else {
+        return T::default();
+    };
+    match serde_json::from_value(value.clone()) {
+        Ok(setting) => setting,
+        Err(_) => {
+            dropped.push(name);
+            T::default()
+        }
+    }
 }
 
 /// Load all teams.
@@ -267,7 +307,7 @@ pub fn load_all_teams(conn: &Connection) -> Result<Vec<Team>, String> {
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
-        .query_map([], row_to_team)
+        .query_map([], |row| row_to_team(conn, row))
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut teams = Vec::new();
@@ -294,7 +334,7 @@ pub fn load_team(conn: &Connection, id: &str) -> Result<Option<Team>, String> {
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut rows = stmt
-        .query_map(params![id], row_to_team)
+        .query_map(params![id], |row| row_to_team(conn, row))
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     match rows.next() {
@@ -313,6 +353,116 @@ mod tests {
 
     /// Pins the stored name of every play style.
     /// The case list also generates an exhaustive match for new variants.
+    /// The cells kept in unreadable_records: (table, row, column, raw text).
+    fn kept_cells(conn: &Connection) -> Vec<(String, String, String, String)> {
+        let mut statement = conn
+            .prepare("SELECT table_name, row_id, column_name, raw FROM unreadable_records")
+            .unwrap();
+        statement
+            .query_map([], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    }
+
+    /// Given a team whose form column does not parse
+    /// When it is loaded
+    /// Then its form reads as empty and the text is kept: the same helper serves every table
+    #[test]
+    fn a_teams_form_that_does_not_parse_is_kept() {
+        let db = test_db();
+        upsert_team(db.conn(), &sample_team("t-corrupt", "Corrupt FC")).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE teams SET form = '[\"W\", oops' WHERE id = 't-corrupt'",
+                [],
+            )
+            .unwrap();
+
+        let team = load_all_teams(db.conn()).unwrap().remove(0);
+
+        assert!(team.form.is_empty());
+        assert_eq!(kept_cells(db.conn())[0].0, "teams");
+        assert_eq!(kept_cells(db.conn())[0].2, "form");
+    }
+
+    /// Given a team whose stored roles hold one role that does not read beside one that does
+    /// When it is loaded
+    /// Then the good role reads, the bad one is left out as before, and the whole cell is kept so
+    ///      the dropped role can be recovered
+    #[test]
+    fn a_role_that_does_not_read_keeps_the_whole_cell() {
+        let db = test_db();
+        let mut team = sample_team("t-roles", "Roles FC");
+        team.player_roles
+            .insert("p-good".to_string(), PlayerRole::default());
+        upsert_team(db.conn(), &team).unwrap();
+        let stored: String = db
+            .conn()
+            .query_row(
+                "SELECT player_roles_json FROM teams WHERE id = 't-roles'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let mut roles: serde_json::Value = serde_json::from_str(&stored).unwrap();
+        roles["p-bad"] = serde_json::json!("NotARole");
+        let corrupt = roles.to_string();
+        db.conn()
+            .execute(
+                "UPDATE teams SET player_roles_json = ?1 WHERE id = 't-roles'",
+                [&corrupt],
+            )
+            .unwrap();
+
+        let loaded = load_all_teams(db.conn()).unwrap().remove(0);
+
+        assert!(loaded.player_roles.contains_key("p-good"));
+        assert!(!loaded.player_roles.contains_key("p-bad"));
+        let kept = kept_cells(db.conn());
+        assert_eq!(kept.len(), 1);
+        assert_eq!(
+            (kept[0].2.as_str(), kept[0].3.as_str()),
+            ("player_roles_json", corrupt.as_str())
+        );
+    }
+
+    /// Given a team whose tactics phase holds one setting that does not read, and another team
+    ///       whose tactics phase lacks a setting (a save from before it)
+    /// When both are loaded
+    /// Then each unreadable or missing setting reads as its default, and only the unreadable one's
+    ///      cell is kept: a missing setting is no loss
+    #[test]
+    fn a_tactics_setting_that_does_not_read_keeps_the_cell_and_a_missing_one_does_not() {
+        let db = test_db();
+        upsert_team(db.conn(), &sample_team("t-bad", "Bad FC")).unwrap();
+        upsert_team(db.conn(), &sample_team("t-old", "Old FC")).unwrap();
+        db.conn()
+            .execute(
+                "UPDATE teams SET tactics_phase_json = '{\"width\": \"NotAWidth\"}' WHERE id = 't-bad'",
+                [],
+            )
+            .unwrap();
+        db.conn()
+            .execute(
+                "UPDATE teams SET tactics_phase_json = '{}' WHERE id = 't-old'",
+                [],
+            )
+            .unwrap();
+
+        let teams = load_all_teams(db.conn()).unwrap();
+
+        assert_eq!(teams.len(), 2);
+        let kept = kept_cells(db.conn());
+        assert_eq!(kept.len(), 1, "{kept:?}");
+        assert_eq!(
+            (kept[0].1.as_str(), kept[0].2.as_str()),
+            ("t-bad", "tactics_phase_json")
+        );
+    }
+
     #[test]
     fn play_styles_are_stored_by_name() {
         use PlayStyle as S;

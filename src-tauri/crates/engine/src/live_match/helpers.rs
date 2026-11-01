@@ -7,6 +7,9 @@ use crate::shared::{
 };
 use crate::types::{PlayerData, Position, Side, TeamData};
 
+/// The ground each missing player adds to what the rest of a side must cover when it defends.
+const SHORT_HANDED_COST: f64 = 0.7;
+
 use super::{LiveMatchState, SetPieceTakers};
 
 // ---------------------------------------------------------------------------
@@ -105,7 +108,10 @@ impl LiveMatchState {
     // -----------------------------------------------------------------------
 
     pub(super) fn effective_midfield(&self, side: Side) -> f64 {
-        let base = self.team_ref(side).midfield_rating();
+        let base = self.team_ref(side).midfield_rating_on_the_pitch(
+            &|id| !self.is_on_the_pitch(side, id),
+            self.midfield_slots(side),
+        );
         let modifier = play_style_modifier(
             self.team_ref(side).play_style,
             PlayStylePhase::Midfield,
@@ -116,13 +122,37 @@ impl LiveMatchState {
 
     pub(super) fn effective_press(&self, pressing_side: Side) -> f64 {
         let team = self.team_ref(pressing_side);
-        let base = team.position_attr_avg(Position::Midfielder, |p| {
-            ((p.stamina as u16 + p.tackling as u16 + p.pace as u16) / 3) as u8
-        });
+        let base = team.line_strength(
+            Position::Midfielder,
+            |p| ((p.stamina as u16 + p.tackling as u16 + p.pace as u16) / 3) as u8,
+            &|id| !self.is_on_the_pitch(pressing_side, id),
+            self.midfield_slots(pressing_side),
+        );
         let modifier = play_style_modifier(team.play_style, PlayStylePhase::Press, true);
         base * modifier
+            * self.short_handed_cover(pressing_side)
             * tactics_pressing_press(&team.tactics)
             * home_mod(pressing_side, &self.config)
+    }
+
+    /// The midfield slots in `side`'s current shape.
+    fn midfield_slots(&self, side: Side) -> usize {
+        Self::parse_formation(&self.team_ref(side).formation).1
+    }
+
+    /// How well a side short of players still covers the ground when it defends: each player it
+    /// is missing adds `SHORT_HANDED_COST` to the ground the rest must cover. It weakens the
+    /// side's press and tackles and leaves the chances against it cleaner; its attacking is left
+    /// alone, as the literature finds a side down to ten concedes far more but scores about as
+    /// often (`tests/short_handed_tests.rs`).
+    pub(super) fn short_handed_cover(&self, side: Side) -> f64 {
+        let missing = self
+            .team_ref(side)
+            .players
+            .iter()
+            .filter(|p| !self.is_on_the_pitch(side, &p.id))
+            .count();
+        1.0 / (1.0 + SHORT_HANDED_COST * missing as f64)
     }
 
     // -----------------------------------------------------------------------
@@ -167,7 +197,9 @@ impl LiveMatchState {
     }
 
     /// Whether `player_id` is on `side`'s pitch: in the side's players and not sent off. A
-    /// substituted-off player is no longer in the side's players.
+    /// substituted-off player is no longer in the side's players. The one test for being on the
+    /// pitch: a player who has left it leaves an empty slot in their line and their side
+    /// short-handed, so any other way of leaving it belongs here.
     pub(super) fn is_on_the_pitch(&self, side: Side, player_id: &str) -> bool {
         !self.sent_off.contains(player_id)
             && self
@@ -427,5 +459,123 @@ mod empty_squad_tests {
         let keeper = state.pick_goalkeeper(Side::Home);
 
         assert!(keeper.id.is_empty(), "nobody is available to keep goal");
+    }
+}
+
+#[cfg(test)]
+mod short_handed_line_tests {
+    use crate::live_match::LiveMatchState;
+    use crate::shared::{PlayStylePhase, home_mod, play_style_modifier, tactics_pressing_press};
+    use crate::types::{
+        MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticsConfig, TeamData,
+    };
+
+    fn player(id: &str, position: Position) -> PlayerData {
+        PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position,
+            ovr: 70,
+            condition: 100,
+            fitness: 100,
+            injury_risk: 1.0,
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 70,
+            reflexes: 70,
+            aerial: 70,
+            traits: vec![],
+            role: PlayerRole::Standard,
+        }
+    }
+
+    /// A 4-4-2 whose midfielders, `{prefix}_m1` .. `{prefix}_m4`, have stamina 60, tackling 70
+    /// and pace 80, so a press that read the wrong mix of them would not come to 70.
+    fn side(prefix: &str) -> TeamData {
+        let mut players = vec![player(&format!("{prefix}_gk"), Position::Goalkeeper)];
+        players.extend((1..=4).map(|n| player(&format!("{prefix}_d{n}"), Position::Defender)));
+        players.extend((1..=4).map(|n| {
+            let mut midfielder = player(&format!("{prefix}_m{n}"), Position::Midfielder);
+            midfielder.stamina = 60;
+            midfielder.pace = 80;
+            midfielder
+        }));
+        players.extend((1..=2).map(|n| player(&format!("{prefix}_f{n}"), Position::Forward)));
+        TeamData {
+            id: prefix.to_string(),
+            name: prefix.to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: PlayStyle::Balanced,
+            tactics: TacticsConfig::default(),
+            players,
+        }
+    }
+
+    fn kick_off() -> LiveMatchState {
+        LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![],
+            vec![],
+            false,
+        )
+    }
+
+    /// Given a full side whose midfielders have stamina 60, tackling 70 and pace 80,
+    /// When its press is read,
+    /// Then it is the midfield's average of the three, 70, times the side's press modifiers.
+    #[test]
+    fn the_press_reads_its_midfielders_stamina_tackling_and_pace() {
+        let state = kick_off();
+        let modifiers = play_style_modifier(PlayStyle::Balanced, PlayStylePhase::Press, true)
+            * tactics_pressing_press(&TacticsConfig::default())
+            * home_mod(Side::Home, &MatchConfig::default());
+        assert!((state.effective_press(Side::Home) - 70.0 * modifiers).abs() < 1e-9);
+    }
+
+    /// Given a full four-man midfield,
+    /// When one midfielder is sent off,
+    /// Then the side's midfield is three quarters of what it was: his slot is empty.
+    #[test]
+    fn a_midfielder_sent_off_leaves_the_midfield_three_quarters_strong() {
+        let mut state = kick_off();
+        let full = state.effective_midfield(Side::Home);
+        state.test_send_off("h_m1");
+        let ratio = state.effective_midfield(Side::Home) / full;
+        assert!(
+            (ratio - 0.75).abs() < 1e-12,
+            "the midfield kept {ratio} of its strength"
+        );
+    }
+
+    /// Given a full four-man midfield,
+    /// When one midfielder is sent off,
+    /// Then the side's press keeps three quarters for his empty slot, and of that the cover a
+    /// side one short keeps, 1 / (1 + 0.7).
+    #[test]
+    fn a_midfielder_sent_off_costs_the_press_his_slot_and_the_sides_cover() {
+        let mut state = kick_off();
+        let full = state.effective_press(Side::Home);
+        state.test_send_off("h_m1");
+        let ratio = state.effective_press(Side::Home) / full;
+        assert!(
+            (ratio - 0.75 / 1.7).abs() < 1e-12,
+            "the press kept {ratio} of its strength"
+        );
     }
 }
