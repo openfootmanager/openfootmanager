@@ -686,10 +686,12 @@ impl SaveManager {
             needs_resave = true;
         }
 
-        // After `read_game`, which rebuilt a sent-ledger whose cell was lost, and after the version
-        // seeding and every repair above: the notice is deduped by that ledger, so it must read the
-        // finished one. Not a reason to resave: the next save keeps the notice, and a load that is
-        // never saved tells the player again, since they never kept it.
+        // After the rebuild of a lost sent-ledger above, the version seeding and every repair, so
+        // the notice is judged against the finished ledger. (Sent before the rebuild, it would be
+        // deduped the same way, since the rebuild adopts the inbox the notice is in; after is
+        // simply the order that needs no such argument.) Not a reason to resave: the next save
+        // keeps the notice, and a load that is never saved tells the player again, since they
+        // never kept it.
         let kept_cells = crate::json_column::unreadable_cells(db.conn()).unwrap_or_else(|error| {
             log::warn!("[save_manager] could not count the save's set-aside cells: {error}");
             Vec::new()
