@@ -789,6 +789,101 @@ mod tests {
         );
     }
 
+    /// Where the screens' copy of this grid lives: the frontend reads it to check that the
+    /// helpers it still has for the squad and tactics tones grade a player the way `familiarity`
+    /// does, until those helpers are replaced by the backend's answer.
+    const FAMILIARITY_FIXTURE: &str = "src/components/squad/familiarity.generated.json";
+
+    /// The players the fixture grades: every position as a natural position, each with no
+    /// alternate, a right back as his alternate and a striker as his alternate, and a few legacy
+    /// buckets (the old coarse natural position, with a granular `position` or without).
+    fn familiarity_fixture_players() -> Vec<Player> {
+        let mut players = Vec::new();
+        for natural in Position::ALL {
+            let alternates: [Vec<Position>; 3] =
+                [vec![], vec![Position::RightBack], vec![Position::Striker]];
+            for alternate_positions in alternates {
+                if alternate_positions.contains(&natural) {
+                    continue;
+                }
+                let mut player = make_player(natural.clone());
+                player.natural_position = natural.clone();
+                player.alternate_positions = alternate_positions;
+                players.push(player);
+            }
+        }
+        for (position, natural) in [
+            (Position::LeftBack, Position::Defender),
+            (Position::DefensiveMidfielder, Position::Midfielder),
+            (Position::RightWinger, Position::Forward),
+        ] {
+            let mut player = make_player(position);
+            player.natural_position = natural;
+            players.push(player);
+        }
+        players
+    }
+
+    /// Given every position as a natural position (with and without an alternate) and every
+    ///       position as a slot
+    /// When `familiarity` is read for each pair
+    /// Then it is exactly what the frontend's fixture records
+    ///
+    /// Regenerate with:
+    ///   OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test -p ofm_core --lib the_familiarity_fixture
+    #[test]
+    fn the_familiarity_fixture_is_what_the_backend_says() {
+        let rows: Vec<serde_json::Value> = familiarity_fixture_players()
+            .iter()
+            .map(|player| {
+                let mut by_slot = serde_json::Map::new();
+                for slot in Position::ALL {
+                    by_slot.insert(
+                        serde_json::to_value(&slot)
+                            .map(|v| v.as_str().unwrap_or_default().to_string())
+                            .expect("a position serializes"),
+                        serde_json::to_value(familiarity(player, &slot))
+                            .expect("a familiarity serializes"),
+                    );
+                }
+                serde_json::json!({
+                    "position": player.position,
+                    "natural_position": player.natural_position,
+                    "alternate_positions": player.alternate_positions,
+                    "familiarity": by_slot,
+                })
+            })
+            .collect();
+        let rendered = format!(
+            "{}\n",
+            serde_json::to_string_pretty(&rows).expect("the fixture serializes")
+        );
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../")
+            .join(FAMILIARITY_FIXTURE);
+
+        if std::env::var("OFM_UPDATE_FAMILIARITY_FIXTURE").is_ok() {
+            std::fs::create_dir_all(path.parent().expect("has a parent")).ok();
+            std::fs::write(&path, &rendered).expect("the fixture is writable");
+            return;
+        }
+
+        let on_disk = std::fs::read_to_string(&path).unwrap_or_else(|e| {
+            panic!(
+                "cannot read {} ({e}). Regenerate with \
+                 OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test -p ofm_core --lib the_familiarity_fixture",
+                path.display()
+            )
+        });
+        assert_eq!(
+            on_disk.trim(),
+            rendered.trim(),
+            "familiarity changed but {FAMILIARITY_FIXTURE} is stale. Regenerate with \
+             OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test -p ofm_core --lib the_familiarity_fixture, \
+             then check the frontend's parity test."
+        );
+    }
+
     /// A specialist keeper: elite at keeping, poor at everything an outfielder
     /// does. The flat attribute average buries him; the weighted OVR does not.
     fn make_specialist_keeper() -> Player {
