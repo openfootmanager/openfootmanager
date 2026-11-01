@@ -633,7 +633,10 @@
     "firstPage": "Halaman pertama",
     "previousPage": "Halaman sebelumnya",
     "nextPage": "Halaman berikutnya",
-    "lastPage": "Halaman terakhir"
+    "lastPage": "Halaman terakhir",
+    "sortBy": "Urutkan berdasarkan",
+    "sortAscending": "Naik",
+    "sortDescending": "Turun"
   },
   "teamSelection": {
     "title": "Pilih Klub",

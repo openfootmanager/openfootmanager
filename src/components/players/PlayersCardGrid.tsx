@@ -9,7 +9,7 @@ import type { TeamColors } from "../../store/types";
 import type { ContextMenuItem } from "../ContextMenu";
 import ContextMenu from "../ContextMenu";
 import PlayerCard from "../PlayerCard";
-import { Badge } from "../ui";
+import { Badge, CardGrid } from "../ui";
 
 interface PlayersCardGridProps {
   items: readonly PlayerSummary[];
@@ -38,7 +38,7 @@ export default function PlayersCardGrid({
 }: PlayersCardGridProps) {
   const { t } = useTranslation();
   return (
-    <ul className="grid list-none grid-cols-[repeat(auto-fill,minmax(20rem,1fr))] gap-3 p-0">
+    <CardGrid>
       {items.map((summary) => {
         const hasStatus = summary.transfer_listed || summary.loan_listed || summary.injured;
         return (
@@ -97,6 +97,6 @@ export default function PlayersCardGrid({
           </li>
         );
       })}
-    </ul>
+    </CardGrid>
   );
 }

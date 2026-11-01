@@ -633,7 +633,10 @@
     "firstPage": "İlk sayfa",
     "previousPage": "Önceki sayfa",
     "nextPage": "Sonraki sayfa",
-    "lastPage": "Son sayfa"
+    "lastPage": "Son sayfa",
+    "sortBy": "Sırala",
+    "sortAscending": "Artan",
+    "sortDescending": "Azalan"
   },
   "teamSelection": {
     "title": "Kulübünü Seç",

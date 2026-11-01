@@ -96,6 +96,7 @@ vi.mock("react-i18next", () => ({
       }
       return key;
     },
+    i18n: { language: "en" },
   }),
 }));
 
@@ -918,4 +919,88 @@ describe("PlayersListTab paging", () => {
 
     await waitFor(() => expect(requested).toContain(2));
   });
+});
+
+describe("PlayersListTab sort and load errors", () => {
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+    resetPackageAssetRoot();
+  });
+
+  afterEach(() => setListView("table"));
+
+  /** The queries the list has asked the backend for, in order. */
+  function requestedQueries(): PlayersPageQuery[] {
+    return mockedInvoke.mock.calls
+      .filter(([command]) => command === "get_players_page")
+      .map(([, args]) => (args as { query: PlayersPageQuery }).query);
+  }
+  const lastQuery = () => requestedQueries().slice(-1)[0];
+
+  /**
+   * Given the cards view, which has no column headers
+   * When the sort field is changed to Age, and then the direction is flipped
+   * Then the list asks the backend for that field, and then for the other direction.
+   */
+  it("sorts the cards by the field and direction the sort control picks", async () => {
+    setListView("cards");
+    const gameState = createGameState();
+    setupSliceMock(gameState);
+    render(
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
+    );
+    await screen.findAllByRole("article");
+
+    fireEvent.click(screen.getByRole("combobox", { name: "common.sortBy" }));
+    fireEvent.click(screen.getByRole("option", { name: "Age" }));
+    await waitFor(() => expect(lastQuery()?.sort_key).toBe("age"));
+    expect(lastQuery()?.sort_asc).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "common.sortDescending" }));
+    await waitFor(() => expect(lastQuery()?.sort_asc).toBe(true));
+    expect(lastQuery()?.sort_key).toBe("age");
+  });
+
+  /**
+   * Given a sort picked in the cards view
+   * When the player switches to the table
+   * Then the table keeps that sort: it is one query, written by both controls.
+   */
+  it("keeps the sort when the view changes", async () => {
+    setListView("cards");
+    const gameState = createGameState();
+    setupSliceMock(gameState);
+    render(
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
+    );
+    await screen.findAllByRole("article");
+    fireEvent.click(screen.getByRole("combobox", { name: "common.sortBy" }));
+    fireEvent.click(screen.getByRole("option", { name: "Age" }));
+    await waitFor(() => expect(lastQuery()?.sort_key).toBe("age"));
+
+    fireEvent.click(screen.getByRole("radio", { name: "common.listViewTable" }));
+    await screen.findByRole("table");
+
+    expect(lastQuery()?.sort_key).toBe("age");
+  });
+
+  /**
+   * Given the first page of players fails to load
+   * When the list renders, in the table and in the cards
+   * Then the error is shown alone: no "No matches", which would say the search found no one.
+   */
+  it.each(["table", "cards"] as const)(
+    "shows the load error without a no-match message in the %s view",
+    async (view) => {
+      setListView(view);
+      const gameState = createGameState();
+      setupSliceMock(gameState, { get_players_page: () => new Error("backend down") });
+      render(
+        <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
+      );
+
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+      expect(screen.queryByText("No matches")).toBeNull();
+    },
+  );
 });
