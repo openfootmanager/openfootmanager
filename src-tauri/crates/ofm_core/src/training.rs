@@ -608,41 +608,41 @@ mod tests {
     use chrono::{Datelike, TimeZone, Utc};
     use domain::player::{Injury, PlayerTrait, Position};
 
-    /// Zero lies below every positive gain probability, so these scenarios have no lucky-roll dependency.
-    struct LowestRoll;
+    /// Every draw reads as the same point of the unit interval, so a test can set where a roll
+    /// lands against a rate.
+    struct Roll(u64);
 
-    impl rand::TryRng for LowestRoll {
+    impl Roll {
+        fn at(fraction: f64) -> Self {
+            Self((fraction * u64::MAX as f64) as u64)
+        }
+    }
+
+    impl rand::TryRng for Roll {
         type Error = std::convert::Infallible;
         fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            Ok(0)
+            Ok((self.0 >> 32) as u32)
         }
         fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(0)
+            Ok(self.0)
         }
         fn try_fill_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Self::Error> {
-            bytes.fill(0);
+            for chunk in bytes.chunks_mut(8) {
+                chunk.copy_from_slice(&self.0.to_le_bytes()[..chunk.len()]);
+            }
             Ok(())
         }
     }
 
+    /// Zero lies below every positive gain probability, so these scenarios have no lucky-roll dependency.
+    fn lowest_roll() -> Roll {
+        Roll(0)
+    }
+
     /// One thirty-second succeeds at the primary rate (about 0.05 for a young player far from his
     /// ceiling, after training's share of development) and fails at the secondary (about 0.025).
-    struct BetweenGainRates;
-
-    impl rand::TryRng for BetweenGainRates {
-        type Error = std::convert::Infallible;
-        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            Ok(u32::MAX / 32)
-        }
-        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(u64::MAX / 32)
-        }
-        fn try_fill_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Self::Error> {
-            for chunk in bytes.chunks_mut(8) {
-                chunk.copy_from_slice(&(u64::MAX / 32).to_le_bytes()[..chunk.len()]);
-            }
-            Ok(())
-        }
+    fn between_gain_rates() -> Roll {
+        Roll(u64::MAX / 32)
     }
 
     fn keeper(team_id: &str) -> Player {
@@ -685,7 +685,7 @@ mod tests {
                 date: domain::age::season_midpoint(2026),
                 world_seed: 1,
             },
-            &mut LowestRoll,
+            &mut lowest_roll(),
         );
     }
 
@@ -762,7 +762,7 @@ mod tests {
                 date: domain::age::season_midpoint(2026),
                 world_seed: 1,
             },
-            &mut BetweenGainRates,
+            &mut between_gain_rates(),
         );
         assert_eq!(attributes(&player), serde_json::to_value(expected).unwrap());
     }
@@ -984,7 +984,7 @@ mod tests {
                     date: chrono::NaiveDate::from_ymd_opt(2026, 3, 1).unwrap(),
                     world_seed: 1,
                 },
-                &mut LowestRoll,
+                &mut lowest_roll(),
             );
             player.condition - 40
         };
@@ -1106,32 +1106,6 @@ mod tests {
             serde_json::to_value(&restored.players).unwrap(),
             serde_json::to_value(&game.players).unwrap()
         );
-    }
-
-    /// Every draw reads as the same point of the unit interval, so a test can set where a roll
-    /// lands against a rate.
-    struct Roll(u64);
-
-    impl Roll {
-        fn at(fraction: f64) -> Self {
-            Self((fraction * u64::MAX as f64) as u64)
-        }
-    }
-
-    impl rand::TryRng for Roll {
-        type Error = std::convert::Infallible;
-        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            Ok((self.0 >> 32) as u32)
-        }
-        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            Ok(self.0)
-        }
-        fn try_fill_bytes(&mut self, bytes: &mut [u8]) -> Result<(), Self::Error> {
-            for chunk in bytes.chunks_mut(8) {
-                chunk.copy_from_slice(&self.0.to_le_bytes()[..chunk.len()]);
-            }
-            Ok(())
-        }
     }
 
     /// Wednesday: a rest day on the Balanced schedule.
@@ -1330,12 +1304,9 @@ mod tests {
         );
     }
 
-    /// Given one club whose only coach specialises in fitness, and another whose only coach has no
-    ///       speciality
-    /// When their specialist bonus is read for physical and for technical training
-    /// Then only the fitness specialist's physical training gets 1.25: (1.25, 1.0, 1.0)
-    #[test]
-    fn a_coach_specialised_in_the_focus_adds_a_quarter() {
+    /// The specialist bonus for `focus` at `team`, in a world where team1's only coach specialises in
+    /// fitness and team2's only coach has no speciality.
+    fn specialist_bonus(team: &str, focus: TrainingFocus) -> f64 {
         let mut fitness_coach = staff("fitness-coach", Some("team1"), StaffRole::Coach, 50);
         fitness_coach.specialization = Some(CoachingSpecialization::Fitness);
         let mut game = training_game("team1");
@@ -1343,19 +1314,31 @@ mod tests {
             fitness_coach,
             staff("plain-coach", Some("team2"), StaffRole::Coach, 50),
         ];
+        compute_coaching_bonus(&game, team, &focus).specialization_mult
+    }
 
-        let specialist = |team: &str, focus: TrainingFocus| {
-            compute_coaching_bonus(&game, team, &focus).specialization_mult
-        };
+    /// Given a club whose only coach specialises in fitness
+    /// When its specialist bonus is read for physical training
+    /// Then it is 1.25: a specialist in the session's focus adds a quarter
+    #[test]
+    fn a_fitness_specialist_adds_a_quarter_to_physical_training() {
+        assert_eq!(specialist_bonus("team1", TrainingFocus::Physical), 1.25);
+    }
 
-        assert_eq!(
-            (
-                specialist("team1", TrainingFocus::Physical),
-                specialist("team1", TrainingFocus::Technical),
-                specialist("team2", TrainingFocus::Physical)
-            ),
-            (1.25, 1.0, 1.0)
-        );
+    /// Given the same club
+    /// When its specialist bonus is read for technical training
+    /// Then it is 1.0: his speciality is not the session's focus
+    #[test]
+    fn a_fitness_specialist_adds_nothing_to_technical_training() {
+        assert_eq!(specialist_bonus("team1", TrainingFocus::Technical), 1.0);
+    }
+
+    /// Given a club whose only coach has no speciality
+    /// When its specialist bonus is read for physical training
+    /// Then it is 1.0
+    #[test]
+    fn a_coach_without_a_speciality_adds_nothing() {
+        assert_eq!(specialist_bonus("team2", TrainingFocus::Physical), 1.0);
     }
 
     fn coached_plan(coaching_mult: f64, specialization_mult: f64) -> TeamTrainingPlan {
@@ -1445,44 +1428,68 @@ mod tests {
     }
 
     /// Given a player at fitness 80 in a medium physical session, a 1.5% chance of a point
-    /// When the roll is 0, and then when it is 0.02
-    /// Then he gains a point on the first and none on the second
+    /// When the roll is 0
+    /// Then he gains a point
     #[test]
-    fn physical_training_raises_fitness_only_on_a_roll_under_its_rate() {
+    fn physical_training_adds_a_fitness_point_on_a_roll_under_its_rate() {
         assert_eq!(
-            (
-                fitness_after(80, TrainingFocus::Physical, Roll::at(0.0)),
-                fitness_after(80, TrainingFocus::Physical, Roll::at(0.02))
-            ),
-            (81, 80)
+            fitness_after(80, TrainingFocus::Physical, Roll::at(0.0)),
+            81
+        );
+    }
+
+    /// Given the same session
+    /// When the roll is 0.02, above the 1.5%
+    /// Then he gains nothing
+    #[test]
+    fn physical_training_adds_nothing_on_a_roll_above_its_rate() {
+        assert_eq!(
+            fitness_after(80, TrainingFocus::Physical, Roll::at(0.02)),
+            80
         );
     }
 
     /// Given a player at fitness 80 in a recovery session, a 5% chance of a point
-    /// When the roll is 0, and then when it is 0.06
-    /// Then he gains a point on the first and none on the second
+    /// When the roll is 0
+    /// Then he gains a point
     #[test]
-    fn a_recovery_session_nudges_fitness_only_on_a_roll_under_one_in_twenty() {
+    fn a_recovery_session_adds_a_fitness_point_on_a_roll_under_one_in_twenty() {
         assert_eq!(
-            (
-                fitness_after(80, TrainingFocus::Recovery, Roll::at(0.0)),
-                fitness_after(80, TrainingFocus::Recovery, Roll::at(0.06))
-            ),
-            (81, 80)
+            fitness_after(80, TrainingFocus::Recovery, Roll::at(0.0)),
+            81
+        );
+    }
+
+    /// Given the same session
+    /// When the roll is 0.06, above the 5%
+    /// Then he gains nothing
+    #[test]
+    fn a_recovery_session_adds_nothing_on_a_roll_above_one_in_twenty() {
+        assert_eq!(
+            fitness_after(80, TrainingFocus::Recovery, Roll::at(0.06)),
+            80
         );
     }
 
     /// Given a player at fitness 100 and a roll of 0
-    /// When he has a physical session, and then a recovery one
-    /// Then he stays at 100 after both
+    /// When he has a physical session
+    /// Then he stays at 100
     #[test]
-    fn training_never_lifts_fitness_past_one_hundred() {
+    fn physical_training_never_lifts_fitness_past_one_hundred() {
         assert_eq!(
-            (
-                fitness_after(100, TrainingFocus::Physical, Roll::at(0.0)),
-                fitness_after(100, TrainingFocus::Recovery, Roll::at(0.0))
-            ),
-            (100, 100)
+            fitness_after(100, TrainingFocus::Physical, Roll::at(0.0)),
+            100
+        );
+    }
+
+    /// Given a player at fitness 100 and a roll of 0
+    /// When he has a recovery session
+    /// Then he stays at 100
+    #[test]
+    fn a_recovery_session_never_lifts_fitness_past_one_hundred() {
+        assert_eq!(
+            fitness_after(100, TrainingFocus::Recovery, Roll::at(0.0)),
+            100
         );
     }
 
@@ -1499,16 +1506,24 @@ mod tests {
     }
 
     /// Given a player at fitness 90 in a technical session, a 5% chance of losing a point
-    /// When the roll is 0, and then when it is 0.06
-    /// Then he loses a point on the first and none on the second
+    /// When the roll is 0
+    /// Then he loses a point
     #[test]
-    fn a_very_fit_player_loses_sharpness_only_on_a_roll_under_one_in_twenty() {
+    fn a_very_fit_player_loses_a_point_on_a_roll_under_one_in_twenty() {
         assert_eq!(
-            (
-                fitness_after(90, TrainingFocus::Technical, Roll::at(0.0)),
-                fitness_after(90, TrainingFocus::Technical, Roll::at(0.06))
-            ),
-            (89, 90)
+            fitness_after(90, TrainingFocus::Technical, Roll::at(0.0)),
+            89
+        );
+    }
+
+    /// Given the same session
+    /// When the roll is 0.06, above the 5%
+    /// Then he keeps all 90
+    #[test]
+    fn a_very_fit_player_keeps_his_fitness_on_a_roll_above_one_in_twenty() {
+        assert_eq!(
+            fitness_after(90, TrainingFocus::Technical, Roll::at(0.06)),
+            90
         );
     }
 
@@ -1595,21 +1610,26 @@ mod tests {
         assert_eq!(condition_change_over_a_session(TrainingFocus::Technical), 1);
     }
 
-    /// Given two players on a training day, one at condition 40 and one at 39
-    /// When their session is planned
-    /// Then the one at 40 trains as planned and the one at 39 is rested: the guard is below 40
-    #[test]
-    fn the_fatigue_guard_rests_only_a_player_below_forty() {
-        let focus_at = |condition: u8| {
-            let mut player = neutral_player();
-            player.condition = condition;
-            player_training_session(&player, &plan(TrainingFocus::Technical), A_TRAINING_DAY).focus
-        };
+    fn planned_focus_at_condition(condition: u8) -> TrainingFocus {
+        let mut player = neutral_player();
+        player.condition = condition;
+        player_training_session(&player, &plan(TrainingFocus::Technical), A_TRAINING_DAY).focus
+    }
 
-        assert_eq!(
-            (focus_at(40), focus_at(39)),
-            (TrainingFocus::Technical, TrainingFocus::Recovery)
-        );
+    /// Given a player at condition exactly 40 on a technical training day
+    /// When his session is planned
+    /// Then he trains as planned: the fatigue guard is below 40
+    #[test]
+    fn a_player_at_forty_condition_trains_as_planned() {
+        assert_eq!(planned_focus_at_condition(40), TrainingFocus::Technical);
+    }
+
+    /// Given a player at condition 39 on the same day
+    /// When his session is planned
+    /// Then he is rested: his session becomes recovery work
+    #[test]
+    fn a_player_below_forty_condition_is_rested() {
+        assert_eq!(planned_focus_at_condition(39), TrainingFocus::Recovery);
     }
 
     fn intensity_plan(intensity: TrainingIntensity) -> TeamTrainingPlan {
