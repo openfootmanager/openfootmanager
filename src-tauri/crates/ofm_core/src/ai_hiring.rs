@@ -1208,4 +1208,188 @@ mod tests {
             Some(today.as_str())
         );
     }
+
+    /// An AI manager's standing from a form written as a string of results, e.g. "WDL".
+    fn standing(results: &str) -> i32 {
+        let form: Vec<String> = results.chars().map(String::from).collect();
+        i32::from(super::ai_manager_satisfaction(&form))
+    }
+
+    /// Given an AI club with no results yet, as every club is after the season's reset
+    /// When its manager's standing is worked out
+    /// Then it is the 50 they were appointed with: an empty form is not a losing run
+    #[test]
+    fn an_ai_manager_with_no_results_yet_keeps_the_standing_they_were_appointed_with() {
+        assert_eq!(standing(""), 50);
+    }
+
+    /// Given a form of one win
+    /// When the manager's standing is worked out
+    /// Then it is 8 better than with no results
+    #[test]
+    fn a_win_lifts_an_ai_managers_standing_by_eight() {
+        assert_eq!(standing("W") - standing(""), 8);
+    }
+
+    /// Given a form of one draw
+    /// When the manager's standing is worked out
+    /// Then it is 1 better than with no results
+    #[test]
+    fn a_draw_lifts_an_ai_managers_standing_by_one() {
+        assert_eq!(standing("D") - standing(""), 1);
+    }
+
+    /// Given a form of one defeat
+    /// When the manager's standing is worked out
+    /// Then it is 12 worse than with no results
+    #[test]
+    fn a_defeat_costs_an_ai_manager_twelve() {
+        assert_eq!(standing("L") - standing(""), -12);
+    }
+
+    /// Given four straight wins
+    /// When the manager's standing is worked out
+    /// Then it is 32 better than with no results: four wins, and no losing-run penalty
+    #[test]
+    fn four_straight_wins_earn_no_losing_run_penalty() {
+        assert_eq!(standing("WWWW") - standing(""), 32);
+    }
+
+    /// A completed match played on 1 July 2026, the fixture's day.
+    fn played(home: &str, away: &str, home_goals: u8, away_goals: u8) -> Fixture {
+        Fixture {
+            id: format!("{home}-v-{away}"),
+            matchday: 1,
+            date: "2026-07-01".to_string(),
+            home_team_id: home.to_string(),
+            away_team_id: away.to_string(),
+            status: FixtureStatus::Completed,
+            result: Some(MatchResult {
+                home_goals,
+                away_goals,
+                ..MatchResult::default()
+            }),
+            ..Fixture::default()
+        }
+    }
+
+    /// The AI club team2's rivalry penalty on 1 July 2026, with these matches in the league.
+    fn rivalry_penalty_with(fixtures: Vec<Fixture>) -> i32 {
+        let mut game = make_game();
+        game.league = Some(League {
+            fixtures,
+            ..Default::default()
+        });
+        super::recent_loss_to_user_penalty(&game, "team2")
+    }
+
+    /// The game on 1 July 2026 with a completed league match that day: the AI club, team2, away
+    /// at the user's club, team1.
+    fn rival_away_at_the_user(home_goals: u8, away_goals: u8) -> Game {
+        let mut game = make_game();
+        game.league = Some(League {
+            fixtures: vec![played("team1", "team2", home_goals, away_goals)],
+            ..Default::default()
+        });
+        game
+    }
+
+    /// Given the AI club beaten 1-0 away at the user's club today
+    /// When its rivalry penalty is worked out
+    /// Then it is 10: a defeat to the user counts away from home too
+    #[test]
+    fn an_ai_club_beaten_away_by_the_user_is_penalised() {
+        assert_eq!(
+            super::recent_loss_to_user_penalty(&rival_away_at_the_user(1, 0), "team2"),
+            10
+        );
+    }
+
+    /// Given the AI club held 1-1 away at the user's club today
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: a draw is not a defeat
+    #[test]
+    fn an_ai_club_held_to_a_draw_away_at_the_user_is_not_penalised() {
+        assert_eq!(
+            super::recent_loss_to_user_penalty(&rival_away_at_the_user(1, 1), "team2"),
+            0
+        );
+    }
+
+    /// Given a vacant AI club with an assistant, whose stand-in id and the one after it are both
+    ///       on record
+    /// When the vacancy is filled
+    /// Then the stand-in takes the third: `mgr_team2_staff2_3`
+    #[test]
+    fn a_third_stand_in_takes_the_next_free_id_after_two_on_record() {
+        let mut game = make_game();
+        on_record(&mut game, "mgr_team2_staff2");
+        on_record(&mut game, "mgr_team2_staff2_2");
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        assert_eq!(
+            manager_id_of(&game, "team2").as_deref(),
+            Some("mgr_team2_staff2_3")
+        );
+    }
+
+    /// Given a vacant AI club whose assistant has coaching 60
+    /// When the assistant steps up
+    /// Then the stand-in's reputation is 500: 200, plus 5 a point of coaching
+    #[test]
+    fn a_stand_ins_reputation_comes_from_their_coaching() {
+        let mut game = make_game();
+        vacant_long_enough(&mut game, "team2");
+
+        process_vacant_ai_clubs(&mut game);
+
+        let stand_in = manager_id_of(&game, "team2").expect("the assistant stepped up");
+        let reputation = game
+            .managers
+            .iter()
+            .find(|manager| manager.id == stand_in)
+            .map(|manager| manager.reputation);
+        assert_eq!(reputation, Some(500));
+    }
+
+    /// Given the AI club held 1-1 at home by the user's club today
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: a draw is not a defeat at home either
+    #[test]
+    fn an_ai_club_held_to_a_draw_at_home_by_the_user_is_not_penalised() {
+        assert_eq!(
+            rivalry_penalty_with(vec![played("team2", "team1", 1, 1)]),
+            0
+        );
+    }
+
+    /// Given the AI club beaten 1-0 away by the user's club today, in the cup
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: only league defeats to the user count
+    #[test]
+    fn a_cup_defeat_to_the_user_carries_no_rivalry_penalty() {
+        let cup_tie = Fixture {
+            competition: domain::league::FixtureCompetition::Cup,
+            ..played("team1", "team2", 1, 0)
+        };
+
+        assert_eq!(rivalry_penalty_with(vec![cup_tie]), 0);
+    }
+
+    /// Given the AI club beaten today by a third club, once at home and once away, and never by
+    ///       the user
+    /// When its rivalry penalty is worked out
+    /// Then it is 0: only a defeat to the user's club counts
+    #[test]
+    fn a_defeat_to_another_club_carries_no_rivalry_penalty() {
+        assert_eq!(
+            rivalry_penalty_with(vec![
+                played("team2", "team3", 0, 1),
+                played("team3", "team2", 1, 0),
+            ]),
+            0
+        );
+    }
 }

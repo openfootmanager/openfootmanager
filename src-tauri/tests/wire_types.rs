@@ -26,6 +26,8 @@ const REGENERATE_VAR: &str = "OFM_UPDATE_TS_TYPES";
 fn visit_wire_roots(visitor: &mut impl TypeVisitor) {
     visitor.visit::<ofm_core::game::Game>();
     visitor.visit::<ofm_core::slices::squad::SquadPlayer>();
+    // `get_potential_opinion` returns it; nothing in `Game` reaches it.
+    visitor.visit::<ofm_core::potential_opinion::PotentialOpinion>();
 }
 
 /// `u64` would otherwise be `bigint`, but `JSON.parse` hands the screen a `number`.

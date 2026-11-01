@@ -14,7 +14,7 @@ pub const A_TIER_MIN_RATING: u8 = 77;
 /// screens call good.
 pub const B_TIER_MIN_RATING: u8 = 70;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 pub enum PlayerTier {
     S,
     A,
