@@ -127,10 +127,12 @@ fn legend_of(
     retiree: &RetiredPlayer,
     championships: &HashMap<&str, HashSet<u32>>,
 ) -> HallOfFameLegend {
-    let latest = retiree.career.iter().max_by_key(|entry| entry.season);
-    let titles = retiree
-        .career
-        .iter()
+    // A season he was on a club's books without playing a match is no medal and no farewell: the
+    // titles, the last club and the final season come from the seasons he played. His totals sum
+    // every row, and an idle one adds nothing to them.
+    let played = || retiree.career.iter().filter(|entry| entry.appearances > 0);
+    let latest = played().max_by_key(|entry| entry.season);
+    let titles = played()
         .filter(|entry| {
             championships
                 .get(entry.team_id.as_str())
@@ -346,6 +348,46 @@ mod tests {
         let game = game_with(vec![vale], teams);
 
         assert_eq!(hall_of_fame_legends(&game)[0].titles, 2);
+    }
+
+    /// Given a legend whose club won the league in a season he was on its books without playing a
+    ///       match, and in a season he played
+    /// When legends are listed
+    /// Then only the season he played is a title: a medal needs a match
+    #[test]
+    fn a_title_season_he_did_not_play_is_no_medal() {
+        let vale = veteran(
+            "p-vale",
+            "Victor Vale",
+            vec![
+                career(1, "t-a", "Alpha FC", 30, 10),
+                career(2, "t-a", "Alpha FC", 0, 0),
+            ],
+        );
+        let game = game_with(vec![vale], vec![champion_team("t-a", "Alpha FC", &[1, 2])]);
+
+        assert_eq!(hall_of_fame_legends(&game)[0].titles, 1);
+    }
+
+    /// Given a legend whose last season on record is at a club he never played for
+    /// When legends are listed
+    /// Then his last club and final season are the last he played: an idle season is no farewell
+    #[test]
+    fn his_last_club_is_the_last_he_played_for() {
+        let vale = veteran(
+            "p-vale",
+            "Victor Vale",
+            vec![
+                career(1, "t-a", "Alpha FC", 30, 10),
+                career(2, "t-b", "Beta United", 0, 0),
+            ],
+        );
+        let game = game_with(vec![vale], vec![]);
+
+        let legend = &hall_of_fame_legends(&game)[0];
+
+        assert_eq!(legend.last_club_name.as_deref(), Some("Alpha FC"));
+        assert_eq!(legend.final_season, Some(1));
     }
 
     /// Given three legends, when listed, then more titles come first, then appearances, goals,
