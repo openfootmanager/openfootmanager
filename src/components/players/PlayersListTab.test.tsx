@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
@@ -9,6 +9,12 @@ import { resetPackageAssetRoot } from "../../hooks/usePackageAssetSrc";
 import PlayersListTab from "./PlayersListTab";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { createSeasonContext } from "../../test-utils/factories";
+import { useSettingsStore } from "../../store/settingsStore";
+
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
 
 vi.mock("../../hooks/useRatingTiers", async () => {
   const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");
@@ -736,5 +742,183 @@ describe("PlayersListTab rating tiers", () => {
     expect(rating).toHaveTextContent("–");
     expect(rating).not.toHaveTextContent("88");
     expect(rating.firstElementChild).toHaveClass(...ratingTierClass("Rest", "text").split(" "));
+  });
+});
+
+function setListView(view: "table" | "cards") {
+  useSettingsStore.setState({
+    settings: { ...useSettingsStore.getState().settings, list_view: view },
+  });
+}
+
+describe("PlayersListTab cards view", () => {
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+    resetPackageAssetRoot();
+    setListView("cards");
+  });
+
+  afterEach(() => setListView("table"));
+
+  /**
+   * Given list_view is "cards"
+   * When the players list renders
+   * Then each player is a card named for him, there is no table, and the card's name opens his
+   *      profile while his club's button selects the club without opening him.
+   */
+  it("draws one card per player, and keeps the club button apart from the card", async () => {
+    const onSelectPlayer = vi.fn();
+    const onSelectTeam = vi.fn();
+    const gameState = createGameState();
+    setupSliceMock(gameState);
+
+    render(
+      <PlayersListTab
+        gameState={gameState}
+        onSelectPlayer={onSelectPlayer}
+        onSelectTeam={onSelectTeam}
+      />,
+    );
+
+    const card = await screen.findByRole("article", { name: "A. Keeper" });
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.getAllByRole("article")).toHaveLength(gameState.players.length);
+
+    fireEvent.click(within(card).getByRole("button", { name: "Alpha FC" }));
+    expect(onSelectTeam).toHaveBeenCalledWith("team-1");
+    expect(onSelectPlayer).not.toHaveBeenCalled();
+
+    fireEvent.click(within(card).getByRole("button", { name: "A. Keeper" }));
+    expect(onSelectPlayer).toHaveBeenCalledWith(gameState.players[0].id);
+  });
+
+  /**
+   * Given a transfer-listed, injured free agent whose rating and wage the club may not see
+   * When his card renders
+   * Then it shows a dash for the rating, a dash for the wage, the free-agent label, and his
+   *      listing and injury as status badges.
+   */
+  it("shows hidden figures as dashes and the listing and injury as status", async () => {
+    const stranger = createPlayer({
+      id: "p-far",
+      full_name: "Far Stranger",
+      match_name: "F. Stranger",
+      team_id: null,
+      ovr: 88,
+    });
+    const gameState: GameStateData = { ...createGameState(), players: [stranger] };
+    setupSliceMock(gameState, {
+      get_players_page: (args) =>
+        applyQuery(
+          [
+            {
+              ...summaryFrom(stranger, gameState.teams),
+              ovr: null,
+              wage: { kind: "hidden" },
+              transfer_listed: true,
+              injured: true,
+            },
+          ],
+          (args as { query: PlayersPageQuery }).query,
+        ),
+    });
+
+    render(
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
+    );
+
+    const card = await screen.findByRole("article", { name: "F. Stranger" });
+    expect(within(card).getByText("Free Agent")).toBeInTheDocument();
+    expect(within(card).queryByText("88")).toBeNull();
+    expect(within(card).getAllByText("–")).toHaveLength(2);
+    expect(within(card).getByText("Transfer")).toBeInTheDocument();
+    expect(within(card).getByText("Injured")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the table view is showing
+   * When the player picks Cards in the view switch
+   * Then the list becomes cards and the choice is saved as list_view.
+   */
+  it("switches to cards and saves the choice", async () => {
+    setListView("table");
+    const gameState = createGameState();
+    setupSliceMock(gameState);
+
+    render(
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
+    );
+    await screen.findByRole("table");
+
+    fireEvent.click(screen.getByRole("radio", { name: "common.listViewCards" }));
+
+    expect(await screen.findAllByRole("article")).not.toHaveLength(0);
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(mockedInvoke).toHaveBeenCalledWith(
+      "save_settings",
+      expect.objectContaining({ settings: expect.objectContaining({ list_view: "cards" }) }),
+    );
+  });
+
+  /**
+   * Given a card
+   * When it is right-clicked
+   * Then the same context menu as the table row opens, with its View profile action.
+   */
+  it("opens the row's context menu from a card", async () => {
+    const onSelectPlayer = vi.fn();
+    const gameState = createGameState();
+    setupSliceMock(gameState);
+
+    render(
+      <PlayersListTab
+        gameState={gameState}
+        onSelectPlayer={onSelectPlayer}
+        onSelectTeam={vi.fn()}
+      />,
+    );
+    const card = await screen.findByRole("article", { name: "A. Keeper" });
+    fireEvent.contextMenu(card);
+    fireEvent.click(await screen.findByText("View profile"));
+
+    expect(onSelectPlayer).toHaveBeenCalledWith(gameState.players[0].id);
+  });
+});
+
+describe("PlayersListTab paging", () => {
+  beforeEach(() => {
+    mockedInvoke.mockReset();
+    resetPackageAssetRoot();
+  });
+
+  afterEach(() => setListView("table"));
+
+  /**
+   * Given a result of 60 players at 30 a page
+   * When the next page is chosen, in the table view and in the cards view
+   * Then the footer reads "1 / 2" and the backend is asked for page 2.
+   */
+  it.each(["table", "cards"] as const)("pages through the %s view", async (view) => {
+    setListView(view);
+    const gameState = createGameState();
+    const requested: number[] = [];
+    setupSliceMock(gameState, {
+      get_players_page: (args) => {
+        const query = (args as { query: PlayersPageQuery }).query;
+        requested.push(query.page);
+        return { ...applyQuery([], query), total: 60, page_size: 30 };
+      },
+    });
+
+    render(
+      <PlayersListTab gameState={gameState} onSelectPlayer={vi.fn()} onSelectTeam={vi.fn()} />,
+    );
+    expect(await screen.findByText("1 / 2")).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getAllByRole("button").filter((b) => b.querySelector(".lucide-chevron-right"))[0],
+    );
+
+    await waitFor(() => expect(requested).toContain(2));
   });
 });
