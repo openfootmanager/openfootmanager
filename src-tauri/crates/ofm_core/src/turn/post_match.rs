@@ -1041,4 +1041,46 @@ mod tests {
             }
         }
     }
+
+    /// The report of a match in which `home-12` is booked at 20' and then sent off at 60' with
+    /// `sending_off`, a straight red or a second yellow.
+    fn report_with_sending_off(sending_off: engine::EventType) -> MatchReport {
+        let card = |minute, event_type| {
+            engine::MatchEvent::new(
+                minute,
+                event_type,
+                engine::Side::Home,
+                engine::Zone::Midfield,
+            )
+            .with_player("home-12")
+        };
+        MatchReport::from_events(
+            vec![
+                card(20, engine::EventType::YellowCard),
+                card(60, sending_off),
+            ],
+            50,
+            50,
+            90,
+        )
+    }
+
+    /// Given two matches that differ only in how a home player is sent off after an earlier
+    /// booking, a straight red or a second yellow,
+    /// When morale is applied,
+    /// Then he takes the same hit for both: a second yellow is a sending-off.
+    #[test]
+    fn a_player_sent_off_on_a_second_yellow_loses_the_morale_of_a_red_card() {
+        let mut after_a_red = match_game();
+        let mut after_a_second_yellow = after_a_red.clone();
+        settle_morale(
+            &mut after_a_red,
+            &report_with_sending_off(engine::EventType::RedCard),
+        );
+        settle_morale(
+            &mut after_a_second_yellow,
+            &report_with_sending_off(engine::EventType::SecondYellow),
+        );
+        assert_eq!(morales(&after_a_second_yellow), morales(&after_a_red));
+    }
 }

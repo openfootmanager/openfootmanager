@@ -368,4 +368,18 @@ mod tests {
         assert_eq!(rated(MIN_RATED_MINUTES), 0.0);
         assert!(rated(90) > 0.0);
     }
+
+    /// Given a player sent off on a second yellow, recorded as two yellows and a red,
+    /// When rated,
+    /// Then his mark is a straight red's: the sending-off is punished once, and the yellow that
+    /// caused it is not punished again.
+    #[test]
+    fn a_second_yellow_dismissal_is_rated_as_a_straight_red() {
+        let mut straight_red = stats(60);
+        straight_red.red_cards = 1;
+        let mut second_yellow = stats(60);
+        second_yellow.yellow_cards = 2;
+        second_yellow.red_cards = 1;
+        assert_eq!(mid(&second_yellow), mid(&straight_red));
+    }
 }
