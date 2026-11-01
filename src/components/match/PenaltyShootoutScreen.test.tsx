@@ -188,6 +188,8 @@ describe("PenaltyShootoutScreen", (): void => {
       .map((cell) => cell.textContent);
     expect(round2Cells).toEqual(["Alicematch.shootout.scored", "2match.shootout.toCome"]);
     expect(round2).toHaveAttribute("aria-current", "step");
+    // A long name cut short on a narrow sheet keeps its whole text as a tooltip.
+    expect(within(round1).getByText("Alice")).toHaveAttribute("title", "Alice");
     expect(round1).not.toHaveAttribute("aria-current");
   });
 
@@ -321,5 +323,71 @@ describe("PenaltyShootoutScreen", (): void => {
     expect(
       mockedInvoke.mock.calls.filter(([command]) => command === "step_live_match"),
     ).toHaveLength(1);
+    // Nothing is left to play: no Next kick, and no speed to choose.
+    expect(screen.queryByRole("button", { name: "match.shootout.nextKick" })).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "match.simSpeed" })).toBeNull();
+  });
+
+  /**
+   * Given a kick the engine took, but whose snapshot could not be read
+   * When the player presses Retry
+   * Then the snapshot is read again and no second kick is taken, and the message goes once the
+   * read succeeds.
+   */
+  it("reads a taken kick again on Retry instead of kicking again", async (): Promise<void> => {
+    let snapshotReads = 0;
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "step_live_match") {
+        return [{ minute: 121, phase: "PenaltyShootout", events: [], is_finished: false }];
+      }
+      snapshotReads += 1;
+      if (snapshotReads === 1) throw new Error("be.error.noLiveMatch");
+      return shootoutSnapshot([]);
+    });
+    renderScreen(shootoutSnapshot([]));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+    const alert = screen.getByRole("alert");
+    await act(async () => {
+      fireEvent.click(within(alert).getByRole("button", { name: "common.retry" }));
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    const calls = (name: string) => mockedInvoke.mock.calls.filter(([command]) => command === name);
+    expect(calls("step_live_match")).toHaveLength(1);
+    expect(calls("get_match_snapshot")).toHaveLength(2);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  /**
+   * Given a step that failed and paused the shootout
+   * When the player picks a speed
+   * Then the message goes and the shootout plays on at that speed.
+   */
+  it("plays on, without the message, when a speed is chosen after a failed step", async (): Promise<void> => {
+    let steps = 0;
+    mockedInvoke.mockImplementation(async (command: string) => {
+      if (command === "step_live_match") {
+        steps += 1;
+        if (steps === 1) throw new Error("be.error.noLiveMatch");
+        return [{ minute: 121, phase: "PenaltyShootout", events: [], is_finished: false }];
+      }
+      return new Promise(() => {});
+    });
+    renderScreen(shootoutSnapshot([]));
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "match.fast" }));
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(steps).toBe(2);
   });
 });

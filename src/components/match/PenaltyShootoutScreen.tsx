@@ -47,6 +47,9 @@ export default function PenaltyShootoutScreen({
   // Set while a step is awaiting the engine. A second step then (a double-click on Next kick, or
   // Retry over the timer's step) would take two kicks at once, or ask for a kick after the last.
   const stepInFlightRef = useRef(false);
+  // A kick the engine took whose snapshot never arrived (the read failed): Retry reads it again
+  // rather than kicking again, and whether that kick ended the shootout is kept for then.
+  const unreadKickRef = useRef<{ endedShootout: boolean } | null>(null);
   const [finished, setFinished] = useState(false);
 
   const homeFullTeam = gameState.teams.find((tm) => tm.id === snapshot.home_team.id);
@@ -60,16 +63,24 @@ export default function PenaltyShootoutScreen({
     if (finishedRef.current || stepInFlightRef.current) return;
     stepInFlightRef.current = true;
     try {
-      const results = await stepLiveMatch(1);
-      for (const result of results) {
-        for (const evt of result.events) {
-          if (isShootoutKick(evt)) {
-            onImportantEvent(evt);
+      if (!unreadKickRef.current) {
+        const results = await stepLiveMatch(1);
+        for (const result of results) {
+          for (const evt of result.events) {
+            if (isShootoutKick(evt)) {
+              onImportantEvent(evt);
+            }
           }
         }
+        unreadKickRef.current = {
+          endedShootout: results[results.length - 1]?.is_finished === true,
+        };
       }
       onSnapshotUpdate(await getMatchSnapshot());
-      if (results[results.length - 1]?.is_finished) {
+      const { endedShootout } = unreadKickRef.current;
+      unreadKickRef.current = null;
+      setStepFailed(false);
+      if (endedShootout) {
         finishedRef.current = true;
         setFinished(true);
         pause();
@@ -90,6 +101,15 @@ export default function PenaltyShootoutScreen({
     setStepFailed(false);
     togglePause();
   }, [togglePause]);
+
+  // Choosing a speed plays the shootout on, so it clears a failed step's message too.
+  const choosePace = useCallback(
+    (next: Parameters<typeof selectPace>[0]) => {
+      setStepFailed(false);
+      selectPace(next);
+    },
+    [selectPace],
+  );
 
   const retry = useCallback(() => {
     setStepFailed(false);
@@ -154,15 +174,17 @@ export default function PenaltyShootoutScreen({
               </Button>
             </div>
           )}
-          <MatchSpeedControl
-            paused={!isRunning}
-            pace={pace}
-            onTogglePause={resumeOrPause}
-            onSelectPace={selectPace}
-            onStep={() => void stepMatch()}
-            stepLabel={t("match.shootout.nextKick")}
-            enabled={!finished}
-          />
+          {/* Nothing is left to play once the last kick is in: the screen hands over to full time. */}
+          {!finished && (
+            <MatchSpeedControl
+              paused={!isRunning}
+              pace={pace}
+              onTogglePause={resumeOrPause}
+              onSelectPace={choosePace}
+              onStep={() => void stepMatch()}
+              stepLabel={t("match.shootout.nextKick")}
+            />
+          )}
         </aside>
       </div>
     </div>

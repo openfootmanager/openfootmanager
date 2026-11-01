@@ -11,7 +11,11 @@ export type KickCell =
   | { state: "scored" | "missed"; kickerName: string | null }
   /** The shootout is still on and this kick hasn't been taken. */
   | { state: "toCome" }
-  /** The shootout was decided before this kick was needed. */
+  /**
+   * Over, and this kick was never taken. The engine decides a shootout only at equal kick counts
+   * (penalty.rs `decided`), so a finished sheet never has one today; it guards a snapshot that
+   * ends mid-round rather than drawing a kick to come in a finished shootout.
+   */
   | { state: "notTaken" };
 
 interface KickSheetRow {

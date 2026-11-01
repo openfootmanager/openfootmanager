@@ -137,21 +137,24 @@ describe("buildKickSheet", () => {
   });
 
   /**
-   * Given a shootout decided in round 4, before the away side's fourth kick
+   * Given a shootout the engine decides after round 3: the home side scored all three and the away
+   * side missed all three, so two kicks could not bring them level
    * When the sheet is built after the final whistle
-   * Then it ends at round 4, the away cell is marked not taken, and no round is under way.
+   * Then it ends at round 3, every cell holds a kick taken, and no round is under way: the rounds
+   * never needed are not drawn as still to come.
    */
   it("ends at the deciding round once the shootout is over", () => {
-    const events = [
-      ...levelKicks(3).map((evt) =>
-        evt.side === "Away" ? { ...evt, event_type: "ShootoutMiss" } : evt,
-      ),
-      kick("Home", "ShootoutGoal", "p1"),
-    ];
+    const events = levelKicks(3).map((evt) =>
+      evt.side === "Away" ? { ...evt, event_type: "ShootoutMiss" } : evt,
+    );
     const sheet = buildKickSheet(shootout(events, "Finished"));
 
-    expect(sheet.rows).toHaveLength(4);
-    expect(sheet.rows[3].away).toEqual({ state: "notTaken" });
+    expect(sheet.rows).toHaveLength(3);
+    expect(sheet.rows.map((row) => [row.home.state, row.away.state])).toEqual([
+      ["scored", "missed"],
+      ["scored", "missed"],
+      ["scored", "missed"],
+    ]);
     expect(sheet.currentRound).toBeNull();
   });
 });
