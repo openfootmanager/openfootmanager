@@ -3626,6 +3626,10 @@
       "matchesMoved": {
         "subject": "Jogos reagendados",
         "body": "Alguns dos seus jogos foram alterados para que seus jogadores mantenham o descanso e as datas FIFA sejam respeitadas:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Alguns dados salvos foram separados",
+        "body": "Uma parte deste jogo salvo não pôde ser lida ao carregar. Ela foi separada em vez de perdida, e sua carreira continua. Se algo parecer estar faltando, um relatório de bug ({{settings}} → {{reportBug}}, com o jogo salvo anexado) nos permite investigar."
       }
     },
     "news": {

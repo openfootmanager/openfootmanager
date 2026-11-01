@@ -3626,6 +3626,10 @@
       "matchesMoved": {
         "subject": "Maçlar yeniden planlandı",
         "body": "Oyuncularınızın dinlenme süresini korumak ve milli maç aralarına uyabilmek için bazı maçlarınızın tarihi değiştirildi:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Bazı kayıtlı veriler bir kenara ayrıldı",
+        "body": "Bu kaydın bir kısmı yüklenirken okunamadı. Kaybolmak yerine bir kenara ayrıldı ve kariyeriniz devam ediyor. Eksik bir şey görürseniz, kaydın eklendiği bir hata raporu ({{settings}} → {{reportBug}}) incelememizi sağlar."
       }
     },
     "news": {

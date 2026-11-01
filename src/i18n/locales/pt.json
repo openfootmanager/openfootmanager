@@ -3626,6 +3626,10 @@
       "matchesMoved": {
         "subject": "Jogos reagendados",
         "body": "Alguns dos seus jogos foram alterados para que os seus jogadores mantenham o descanso e as pausas internacionais sejam respeitadas:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Alguns dados guardados foram postos de parte",
+        "body": "Uma parte deste jogo guardado não pôde ser lida ao carregar. Foi posta de parte em vez de se perder, e a sua carreira continua. Se faltar alguma coisa, um relatório de erro ({{settings}} → {{reportBug}}, com o jogo guardado em anexo) permite-nos analisá-lo."
       }
     },
     "news": {

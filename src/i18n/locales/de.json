@@ -3626,6 +3626,10 @@
       "matchesMoved": {
         "subject": "Spiele verlegt",
         "body": "Einige Ihrer Spiele wurden verlegt, damit Ihre Spieler ihre Ruhezeit behalten und die Länderspielpausen eingehalten werden:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Einige gespeicherte Daten wurden beiseitegelegt",
+        "body": "Ein Teil dieses Spielstands konnte beim Laden nicht gelesen werden. Er wurde beiseitegelegt statt verloren, und Ihre Karriere geht weiter. Falls etwas fehlt, hilft uns ein Fehlerbericht ({{settings}} → {{reportBug}}, mit angehängtem Spielstand), der Sache nachzugehen."
       }
     },
     "news": {

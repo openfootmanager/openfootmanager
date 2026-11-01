@@ -686,6 +686,16 @@ impl SaveManager {
             needs_resave = true;
         }
 
+        // After `read_game`, which rebuilt a sent-ledger whose cell was lost, and after the version
+        // seeding and every repair above: the notice is deduped by that ledger, so it must read the
+        // finished one. Not a reason to resave: the next save keeps the notice, and a load that is
+        // never saved tells the player again, since they never kept it.
+        let kept_cells = crate::json_column::unreadable_cells(db.conn()).unwrap_or_else(|error| {
+            log::warn!("[save_manager] could not count the save's set-aside cells: {error}");
+            Vec::new()
+        });
+        ofm_core::save_notice::announce_set_aside_data(&mut game, kept_cells.len());
+
         if league_repo::needs_cleanup(
             db.conn(),
             game.league.as_ref().map(|league| league.id.as_str()),
@@ -2585,6 +2595,118 @@ mod tests {
             "{:?}",
             loaded.emitted_events
         );
+    }
+
+    /// The set-aside-data notices in a loaded game.
+    fn set_aside_notices(game: &Game) -> usize {
+        game.messages
+            .iter()
+            .filter(|message| {
+                message.subject_key.as_deref() == Some("be.msg.savedDataSetAside.subject")
+            })
+            .count()
+    }
+
+    /// A save on disk, its id and its file.
+    fn saved(game: &Game) -> (tempfile::TempDir, SaveManager, String, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let save_id = sm.create_save(game, "Damaged").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+        (dir, sm, save_id, db_path)
+    }
+
+    fn corrupt(db_path: &std::path::Path, sql: &str) {
+        GameDatabase::open(db_path)
+            .unwrap()
+            .conn()
+            .execute(sql, [])
+            .unwrap();
+    }
+
+    /// Given a save whose player career no longer parses
+    /// When it is loaded, saved, and loaded again
+    /// Then the first load tells the user once, and the second, of a save that kept the notice,
+    ///      does not
+    #[test]
+    fn a_load_that_sets_data_aside_tells_the_user_once() {
+        let (_dir, mut sm, save_id, db_path) = saved(&sample_game());
+        corrupt(&db_path, "UPDATE players SET career = '[oops'");
+
+        let first = sm.load_game(&save_id).unwrap();
+        assert_eq!(set_aside_notices(&first), 1);
+        sm.save_game(&first, &save_id).unwrap();
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(
+            set_aside_notices(&second),
+            1,
+            "the same notice, not a new one"
+        );
+    }
+
+    /// Given a save with nothing unreadable
+    /// When it is loaded
+    /// Then no notice is sent
+    #[test]
+    fn a_clean_load_tells_the_user_nothing() {
+        let (_dir, mut sm, save_id, _db_path) = saved(&sample_game());
+
+        let loaded = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(set_aside_notices(&loaded), 0);
+    }
+
+    /// Given a save that set a cell aside and kept the notice, and later a second cell that no
+    ///       longer parses
+    /// When it is loaded again
+    /// Then one more notice is sent: a new loss is told
+    #[test]
+    fn a_later_loss_is_told_again() {
+        let (_dir, mut sm, save_id, db_path) = saved(&sample_game());
+        corrupt(&db_path, "UPDATE players SET career = '[oops'");
+        let first = sm.load_game(&save_id).unwrap();
+        sm.save_game(&first, &save_id).unwrap();
+        corrupt(&db_path, "UPDATE teams SET form = '[oops'");
+
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(set_aside_notices(&second), 2);
+    }
+
+    /// Given a save whose sent-ledger itself no longer parses
+    /// When it is loaded, saved, and loaded again
+    /// Then the first load tells the user once (after the ledger was rebuilt), and the next none
+    #[test]
+    fn a_lost_ledger_is_told_once_too() {
+        let (_dir, mut sm, save_id, db_path) = saved(&sample_game());
+        corrupt(
+            &db_path,
+            "UPDATE game_meta SET emitted_events_json = '[oops'",
+        );
+
+        let first = sm.load_game(&save_id).unwrap();
+        assert_eq!(set_aside_notices(&first), 1);
+        sm.save_game(&first, &save_id).unwrap();
+        let second = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(set_aside_notices(&second), 1);
+    }
+
+    /// Given a save that set a cell aside, loaded and then left without an explicit save
+    /// When it is loaded again
+    /// Then it shows one notice, never two: either the load's own repair resave kept the first,
+    ///      or it was never kept and is told again
+    #[test]
+    fn a_reload_without_saving_still_shows_one_notice() {
+        let (_dir, mut sm, save_id, db_path) = saved(&sample_game());
+        corrupt(&db_path, "UPDATE players SET career = '[oops'");
+        sm.load_game(&save_id).unwrap();
+
+        let again = sm.load_game(&save_id).unwrap();
+
+        assert_eq!(set_aside_notices(&again), 1);
     }
 
     /// Given a save written before games had a seed,

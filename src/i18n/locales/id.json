@@ -3626,6 +3626,10 @@
       "matchesMoved": {
         "subject": "Jadwal pertandingan diubah",
         "body": "Beberapa pertandingan kamu dipindahkan agar para pemain kamu tetap mendapat waktu istirahat dan jeda internasional dihormati:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Sebagian data simpanan disisihkan",
+        "body": "Sebagian dari simpanan ini tidak dapat dibaca saat dimuat. Bagian itu disisihkan, bukan hilang, dan kariermu tetap berlanjut. Jika ada yang terasa hilang, laporan bug ({{settings}} → {{reportBug}}, dengan simpanan terlampir) membantu kami memeriksanya."
       }
     },
     "news": {

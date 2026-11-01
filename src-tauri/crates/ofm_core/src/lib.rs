@@ -67,6 +67,7 @@ pub mod rated_tone;
 pub mod reputation;
 pub mod retirees;
 pub mod roster;
+pub mod save_notice;
 pub mod schedule;
 pub mod scouting;
 pub mod season_awards;
