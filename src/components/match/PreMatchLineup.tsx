@@ -204,9 +204,10 @@ export default function PreMatchLineup({
         <button
           type="button"
           onClick={onAutoSelect}
-          disabled={isAutoSelecting}
+          // Until the table arrives there are no lines to pick from, and the pick would ignore position.
+          disabled={isAutoSelecting || !positionTable.loaded}
           className={`flex w-full items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all ${
-            isAutoSelecting
+            isAutoSelecting || !positionTable.loaded
               ? "bg-gray-200 dark:bg-navy-700 text-gray-600 dark:text-gray-400 cursor-wait"
               : "bg-accent-100 text-accent-700 hover:bg-accent-200 dark:bg-accent-500/20 dark:text-accent-300 dark:hover:bg-accent-500/30"
           }`}

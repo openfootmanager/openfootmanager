@@ -301,6 +301,7 @@ export default function PreMatchSetup({
   };
 
   const handleAutoSelect = async () => {
+    if (!positionTable.loaded) return;
     setIsAutoSelecting(true);
     try {
       const pool = [...userTeam.players, ...userBench];

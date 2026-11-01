@@ -37,13 +37,7 @@ const engineDefender = {
 };
 
 describe("PreMatchSetup before the position table loads", () => {
-  /**
-   * Given a right back in a lineup that is too short for slot alignment, and a table that has
-   *       not arrived (every group unknown)
-   * When the pre-match pitch draws his token
-   * Then he is not drawn out of position: the red ring waits for a verdict the table can give.
-   */
-  it("does not draw a granular-position player out of position", () => {
+  function renderNotLoaded() {
     const snapshot = {
       home_team: {
         id: "home1",
@@ -99,9 +93,28 @@ describe("PreMatchSetup before the position table loads", () => {
         onUpdateSnapshot={vi.fn()}
       />,
     );
+  }
 
+  /**
+   * Given a right back in a lineup that is too short for slot alignment, and a table that has
+   *       not arrived (every group unknown)
+   * When the pre-match pitch draws his token
+   * Then he is not drawn out of position: the red ring waits for a verdict the table can give.
+   */
+  it("does not draw a granular-position player out of position", () => {
+    renderNotLoaded();
     const token = screen.getByRole("button", { name: "Home RB" });
     expect(token.querySelector(".ring-warning-solid")).toBeNull();
     expect(token.querySelector(".ring-1")).not.toBeNull();
+  });
+
+  /**
+   * Given a table that has not arrived, so no line is known
+   * When the lineup panel draws its Auto-select button
+   * Then it is disabled: a pick now would ignore position and could leave no goalkeeper.
+   */
+  it("keeps Auto-select disabled until the table arrives", () => {
+    renderNotLoaded();
+    expect(screen.getByRole("button", { name: "match.autoSelectXI" })).toBeDisabled();
   });
 });
