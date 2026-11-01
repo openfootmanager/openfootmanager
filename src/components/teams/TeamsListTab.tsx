@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, Search, Trophy, Users } from "lucide-react";
 
+import { useListView } from "../../hooks/useListView";
 import { formatVal } from "../../lib/helpers";
 import { visibleRatingText } from "../../lib/playerKnowledge";
+import { nextSort, type SortState } from "../../lib/sortRows";
 import { buildRegionLabel } from "../../lib/teamRegions";
 import { competitionDisplayName } from "../../lib/competitionName";
 import type { GameStateData } from "../../store/gameStore";
@@ -14,7 +16,12 @@ import {
   type TeamsDirectory,
 } from "../../services/teamsService";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
-import { Badge, Card, CardBody, TeamLocation, TeamLogo } from "../ui";
+import { Badge, Card, CardBody, TeamLocation, TeamLogo, ViewSwitch } from "../ui";
+import TeamsLeagueTable, {
+  TEAMS_DEFAULT_SORT,
+  type TeamsSortKey,
+  teamsSortFirstDirection,
+} from "./TeamsLeagueTable";
 
 interface TeamsListTabProps {
   gameState: GameStateData;
@@ -44,6 +51,11 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [expandedRegions, setExpandedRegions] = useState<Set<string>>(new Set());
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
+  const [view, setView] = useListView();
+  // One sort for every league's table, kept for the session as the leagues open and close.
+  const [sort, setSort] = useState<SortState<TeamsSortKey>>(TEAMS_DEFAULT_SORT);
+  const sortBy = (key: TeamsSortKey) =>
+    setSort((current) => nextSort(current, key, teamsSortFirstDirection(key)));
 
   useEffect(() => {
     let cancelled = false;
@@ -116,15 +128,18 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={t("teams.searchPlaceholder")}
-          className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 py-2.5 pl-10 pr-4 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
-        />
+      <div className="flex items-center gap-3">
+        <div className="relative min-w-0 flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t("teams.searchPlaceholder")}
+            className="w-full rounded-lg border border-gray-200 dark:border-navy-600 bg-white dark:bg-navy-800 py-2.5 pl-10 pr-4 text-sm text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+          />
+        </div>
+        <ViewSwitch value={view} onChange={setView} />
       </div>
 
       {fetchError ? (
@@ -184,7 +199,19 @@ export default function TeamsListTab({ gameState, onSelectTeam }: TeamsListTabPr
                         </Badge>
                       </button>
 
-                      {leagueOpen && (
+                      {leagueOpen && view === "table" ? (
+                        <div className="ml-2 overflow-hidden rounded-lg border border-line bg-panel">
+                          <TeamsLeagueTable
+                            label={league.name}
+                            cards={league.teams}
+                            userTeamId={userTeamId}
+                            sort={sort}
+                            onSort={sortBy}
+                            onSelectTeam={onSelectTeam}
+                          />
+                        </div>
+                      ) : null}
+                      {leagueOpen && view === "cards" && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-2">
                           {league.teams.map((card) => (
                             <TeamCardView
