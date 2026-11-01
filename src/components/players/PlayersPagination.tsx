@@ -20,8 +20,8 @@ export default function PlayersPagination({
   const { t } = useTranslation();
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 dark:border-navy-600">
-      <p className="text-xs text-gray-400 dark:text-gray-500 font-heading">
+    <div className="flex items-center justify-between px-4 py-3 border-t border-line">
+      <p className="text-xs text-fg-muted font-heading">
         {t("players.showingRange", {
           from: (page - 1) * pageSize + 1,
           to: Math.min(page * pageSize, total),
@@ -34,7 +34,7 @@ export default function PlayersPagination({
           onClick={() => onPage(1)}
           aria-label={t("common.firstPage")}
           disabled={page === 1}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          className="p-1.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page text-fg-muted hover:text-fg hover:bg-hover disabled:opacity-30 disabled:pointer-events-none transition-colors"
         >
           <ChevronsLeft aria-hidden="true" className="w-4 h-4" />
         </button>
@@ -43,11 +43,11 @@ export default function PlayersPagination({
           onClick={() => onPage(Math.max(1, page - 1))}
           aria-label={t("common.previousPage")}
           disabled={page === 1}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          className="p-1.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page text-fg-muted hover:text-fg hover:bg-hover disabled:opacity-30 disabled:pointer-events-none transition-colors"
         >
           <ChevronLeft aria-hidden="true" className="w-4 h-4" />
         </button>
-        <span className="px-3 py-1 text-xs font-heading font-bold text-gray-600 dark:text-gray-300">
+        <span className="px-3 py-1 text-xs font-heading font-bold text-fg-muted">
           {page} / {totalPages}
         </span>
         <button
@@ -55,7 +55,7 @@ export default function PlayersPagination({
           onClick={() => onPage(Math.min(totalPages, page + 1))}
           aria-label={t("common.nextPage")}
           disabled={page === totalPages}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          className="p-1.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page text-fg-muted hover:text-fg hover:bg-hover disabled:opacity-30 disabled:pointer-events-none transition-colors"
         >
           <ChevronRight aria-hidden="true" className="w-4 h-4" />
         </button>
@@ -64,7 +64,7 @@ export default function PlayersPagination({
           onClick={() => onPage(totalPages)}
           aria-label={t("common.lastPage")}
           disabled={page === totalPages}
-          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-navy-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          className="p-1.5 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-page text-fg-muted hover:text-fg hover:bg-hover disabled:opacity-30 disabled:pointer-events-none transition-colors"
         >
           <ChevronsRight aria-hidden="true" className="w-4 h-4" />
         </button>

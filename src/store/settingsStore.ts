@@ -105,6 +105,13 @@ interface SettingsStore {
   updateSettings: (partial: Partial<AppSettings>) => Promise<void>;
 }
 
+/**
+ * What `updateSettings` changed while `get_settings` was still in flight, or null when no load is
+ * pending. The load's answer is older than these, so it must not overwrite them: a view the
+ * player picked a moment after the screen opened would otherwise flip back.
+ */
+let changedDuringLoad: Partial<AppSettings> | null = null;
+
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   settings: mergeWithDefaultSettings(),
   currency: DEFAULT_CURRENCY,
@@ -112,9 +119,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   loaded: false,
 
   loadSettings: async () => {
+    changedDuringLoad = {};
     try {
       const response = await invoke<SettingsResponse>("get_settings");
-      const settings = mergeWithDefaultSettings(response.settings);
+      const settings = mergeWithDefaultSettings({ ...response.settings, ...changedDuringLoad });
       const supportedCurrencies = indexSupportedCurrencies(response.supported_currencies);
 
       set({
@@ -125,15 +133,18 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       });
     } catch {
       set({
-        settings: mergeWithDefaultSettings(),
+        settings: mergeWithDefaultSettings(changedDuringLoad ?? {}),
         currency: DEFAULT_CURRENCY,
         supportedCurrencies: indexSupportedCurrencies(),
         loaded: true,
       });
+    } finally {
+      changedDuringLoad = null;
     }
   },
 
   updateSettings: async (partial) => {
+    if (changedDuringLoad) Object.assign(changedDuringLoad, partial);
     const previousState = get();
     const previousSettings = previousState.settings;
     const merged = mergeWithDefaultSettings({ ...previousSettings, ...partial });

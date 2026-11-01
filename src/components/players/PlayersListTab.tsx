@@ -4,7 +4,16 @@ import { ratingTierClass } from "../../lib/ratingTier";
 import { useCallback, useState } from "react";
 import type { GameStateData, PlayerSelectionOptions } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
-import { Card, CardBody, Badge, Select, CountryFlag, PlayerAvatar, ViewSwitch } from "../ui";
+import {
+  Card,
+  CardBody,
+  Badge,
+  Select,
+  CountryFlag,
+  PlayerAvatar,
+  SortControl,
+  ViewSwitch,
+} from "../ui";
 import { useListView } from "../../hooks/useListView";
 import PlayersCardGrid from "./PlayersCardGrid";
 import PlayersPagination from "./PlayersPagination";
@@ -36,6 +45,16 @@ import { useFreeAgentContractFlow } from "../transfers/useFreeAgentContractFlow"
 import { useTransferBidFlow } from "../transfers/useTransferBidFlow";
 import { naturalPositionOf } from "../../lib/positions";
 import PlayerPositionBadge from "../PlayerPositionBadge";
+
+/** The fields the list sorts by, as the card view's sort control offers them (the table's headers). */
+const PLAYER_SORT_OPTIONS: readonly { key: PlayerSortKey; labelKey: string }[] = [
+  { key: "name", labelKey: "common.name" },
+  { key: "position", labelKey: "common.position" },
+  { key: "age", labelKey: "common.age" },
+  { key: "team", labelKey: "common.team" },
+  { key: "value", labelKey: "common.value" },
+  { key: "ovr", labelKey: "common.ovr" },
+];
 
 interface PlayersListTabProps {
   gameState: GameStateData;
@@ -286,10 +305,22 @@ export default function PlayersListTab({
 
       {view === "cards" ? (
         <>
+          <div className="mb-3 flex justify-end">
+            <SortControl
+              options={PLAYER_SORT_OPTIONS.map(({ key, labelKey }) => ({
+                key,
+                label: t(labelKey),
+              }))}
+              sortKey={query.sort_key}
+              ascending={query.sort_asc}
+              defaultAscending={(key) => key === "name"}
+              onChange={(key, ascending) => patchQuery({ sort_key: key, sort_asc: ascending })}
+            />
+          </div>
           {total === 0 ? (
-            <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-sm">
-              {t("players.noMatch")}
-            </div>
+            fetchError ? null : (
+              <div className="p-8 text-center text-fg-muted text-sm">{t("players.noMatch")}</div>
+            )
           ) : (
             <PlayersCardGrid
               items={items}
@@ -458,7 +489,7 @@ export default function PlayersListTab({
                   })}
                 </tbody>
               </table>
-              {total === 0 && (
+              {total === 0 && !fetchError && (
                 <div className="p-8 text-center text-gray-500 dark:text-gray-400 text-sm">
                   {t("players.noMatch")}
                 </div>

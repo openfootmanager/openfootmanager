@@ -118,4 +118,41 @@ describe("PlayerCard", () => {
     expect(within(card).queryByText("–")).toBeNull();
     expect(within(card).queryByTitle(/common\.overallRating/)).toBeNull();
   });
+
+  /**
+   * Given a card whose portrait is a square image
+   * When it is drawn
+   * Then the portrait is clipped to its circle (overflow hidden on the rounded wrapper).
+   */
+  it("clips the portrait to its circle", () => {
+    renderCard();
+    const circle = screen
+      .getByRole("article", { name: "Diego Gonzalez" })
+      .querySelector(".rounded-full");
+    expect(circle).toHaveClass("overflow-hidden");
+  });
+
+  /**
+   * Given the card, whose only nationality signal is the flag
+   * When a screen reader reads it
+   * Then the flag is named for its country, not hidden as decoration.
+   */
+  it("names the flag for his country", () => {
+    renderCard({ nationality: "AR" });
+    const card = screen.getByRole("article", { name: "Diego Gonzalez" });
+    expect(within(card).getByRole("img", { name: "Argentina" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given the club button in a card whose header wears the kit's wash
+   * When it takes keyboard focus
+   * Then its ring sits off the wash, with the panel-coloured offset the name button has.
+   */
+  it("gives the club button a focus ring offset from the wash", () => {
+    renderCard({ onSelectTeam: vi.fn() });
+    expect(screen.getByRole("button", { name: "Rovers" })).toHaveClass(
+      "focus-visible:ring-offset-2",
+      "focus-visible:ring-offset-panel",
+    );
+  });
 });

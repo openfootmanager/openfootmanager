@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardBody,
+  CardGrid,
   CardHeader,
   Checkbox,
   ConditionMeter,
@@ -29,6 +30,7 @@ import {
   RatingChip,
   SegmentedControl,
   Select,
+  SortControl,
   type SortDirection,
   Switch,
   TabPanel,
@@ -423,29 +425,30 @@ function CardsSection() {
         <ChartContainer isEmpty height={120} />
       </div>
       {/* Entity cards: the kit stripe and wash, the name as the one button, the status and facts. */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-3">
+      <CardGrid>
         {CARD_KITS.map(({ name, country, kit }) => (
-          <EntityCard
-            key={name}
-            kit={kit}
-            media={<PlayerAvatar player={{ id: name, match_name: name, full_name: name }} />}
-            name={name}
-            meta={
-              <>
-                <CountryFlag code={country} />
-                <span>CM · 30</span>
-              </>
-            }
-            hero={<span className={TONE_TEXT.good}>79</span>}
-            status={<ProgressBar value={80} tone="good" showLabel label="Condition" />}
-            facts={[
-              { label: "Value", value: "€2.5M" },
-              { label: "Morale", value: "75" },
-            ]}
-            onOpen={() => undefined}
-          />
+          <li key={name} className="min-w-0">
+            <EntityCard
+              kit={kit}
+              media={<PlayerAvatar player={{ id: name, match_name: name, full_name: name }} />}
+              name={name}
+              meta={
+                <>
+                  <CountryFlag code={country} />
+                  <span>CM · 30</span>
+                </>
+              }
+              hero={<span className={TONE_TEXT.good}>79</span>}
+              status={<ProgressBar value={80} tone="good" showLabel label="Condition" />}
+              facts={[
+                { label: "Value", value: "€2.5M" },
+                { label: "Morale", value: "75" },
+              ]}
+              onOpen={() => undefined}
+            />
+          </li>
         ))}
-      </div>
+      </CardGrid>
       <div className="flex max-w-xl flex-col gap-2">
         {CARD_KITS.slice(0, 2).map(({ name, country, kit }) => (
           <EntityCard
@@ -663,6 +666,10 @@ function NavigationSection() {
   const [pace, setPace] = useState("normal");
   const [density, setDensity] = useState("comfortable");
   const [listView, setListView] = useState<ListView>("table");
+  const [cardSort, setCardSort] = useState<{ key: "name" | "age" | "ovr"; ascending: boolean }>({
+    key: "ovr",
+    ascending: false,
+  });
   return (
     <Section title="Navigation">
       <PageToolbar
@@ -765,6 +772,20 @@ function NavigationSection() {
       <PageToolbar action={<Button size="sm">Hire</Button>} />
       {/* A list's toolbar: the Table/Cards switch at its end, bound to the one global setting. */}
       <PageToolbar action={<ViewSwitch value={listView} onChange={setListView} />} />
+      {/* A card list has no column headers, so its sort is a field and a direction. */}
+      <Row>
+        <SortControl
+          options={[
+            { key: "name", label: "Name" },
+            { key: "age", label: "Age" },
+            { key: "ovr", label: "OVR" },
+          ]}
+          sortKey={cardSort.key}
+          ascending={cardSort.ascending}
+          defaultAscending={(key) => key === "name"}
+          onChange={(key, ascending) => setCardSort({ key, ascending })}
+        />
+      </Row>
     </Section>
   );
 }

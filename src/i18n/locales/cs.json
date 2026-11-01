@@ -633,7 +633,10 @@
     "firstPage": "První stránka",
     "previousPage": "Předchozí stránka",
     "nextPage": "Další stránka",
-    "lastPage": "Poslední stránka"
+    "lastPage": "Poslední stránka",
+    "sortBy": "Seřadit podle",
+    "sortAscending": "Vzestupně",
+    "sortDescending": "Sestupně"
   },
   "teamSelection": {
     "title": "Vyberte si klub",

@@ -51,16 +51,21 @@ export default function PlayerCard({
   facts,
   onOpen,
 }: PlayerCardProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <EntityCard
       kit={kit}
-      media={<PlayerAvatar player={portrait} className="size-12 rounded-full" />}
+      media={
+        <PlayerAvatar
+          player={portrait}
+          className="size-12 shrink-0 overflow-hidden rounded-full bg-sunken flex items-center justify-center text-caption font-heading font-bold text-fg-muted"
+        />
+      }
       name={name}
       meta={
         <>
           <PlayerPositionBadge position={position} />
-          <CountryFlag code={nationality} decorative />
+          <CountryFlag code={nationality} locale={i18n.language} />
           <span>
             <span className="sr-only">{t("common.age")} </span>
             {age}
@@ -70,7 +75,7 @@ export default function PlayerCard({
               <button
                 type="button"
                 onClick={onSelectTeam}
-                className="rounded-sm hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+                className="rounded-sm hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
               >
                 {teamName}
               </button>
