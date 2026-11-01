@@ -359,6 +359,19 @@ export default function Settings() {
               />
             )}
           </SettingRow>
+
+          <SettingRow
+            label={t("settings.skipShootoutPicker")}
+            description={t("settings.skipShootoutPickerDesc")}
+          >
+            {(labelId) => (
+              <Switch
+                labelledBy={labelId}
+                checked={settings.skip_shootout_picker}
+                onChange={(skip_shootout_picker) => handleUpdate({ skip_shootout_picker })}
+              />
+            )}
+          </SettingRow>
         </Section>
 
         {/* ─── Saves & Data ─── */}

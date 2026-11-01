@@ -282,8 +282,8 @@ A penalty awarded during play is taken by the side's designated penalty taker wh
 ### Penalty Shootout
 
 If a match is drawn after extra time (when allowed), a penalty shootout is resolved:
-- 5 rounds of alternating penalties
-- If still tied, sudden death rounds continue until one team leads after equal attempts
+- 5 rounds of alternating penalties, home first. Within them, the shootout ends as soon as one side can no longer catch up, even mid-round: its remaining kicks, all scored, would still leave it behind (the Laws of the Game). The away side can then end one kick short
+- If still tied, sudden death rounds continue until one team leads after equal attempts: a sudden-death round is always completed
 - Each side kicks in an order fixed at the final whistle: the players on the pitch who were not sent off, with the designated penalty taker first, then the rest by penalty skill (shooting + composure, what the kick uses), and the goalkeeper last. Everyone kicks once before anyone kicks twice: the order carries on through sudden death and wraps to the top only after the last kicker has kicked
 - Both sides use only as many kickers as the side with fewer players on the pitch; the side with more drops the end of its order
 - A side with nobody left on the pitch does not hold the other side to nobody: the other then kicks in its full order

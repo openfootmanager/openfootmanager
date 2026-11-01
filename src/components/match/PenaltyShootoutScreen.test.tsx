@@ -8,6 +8,7 @@ import type { MatchEvent, MatchSnapshot } from "./types";
 const mockedInvoke = vi.hoisted(() => vi.fn());
 vi.mock("@tauri-apps/api/core", () => ({ invoke: mockedInvoke }));
 vi.mock("react-i18next", () => ({
+  initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({
     t: (k: string, params?: Record<string, unknown>) =>
       params && Object.keys(params).length > 0 ? `${k}:${Object.values(params).join(",")}` : k,
@@ -238,6 +239,38 @@ describe("PenaltyShootoutScreen", (): void => {
    * When the band is read by a screen reader
    * Then it reads the penalties score as words, and the match score after extra time.
    */
+  /**
+   * Given an away win a kick short (1-3 after the home side's fourth kick), after the final whistle
+   * When the screen draws it
+   * Then the band reads the away win, and the sheet's round 4 reads the home miss and the away
+   * kick not taken, in words.
+   */
+  it("reads an away win a kick short, its last kick not taken", (): void => {
+    renderScreen(
+      shootoutSnapshot(
+        [
+          kick("Home", "ShootoutGoal", "p1"),
+          kick("Away", "ShootoutGoal", "p2"),
+          kick("Home", "ShootoutMiss", "p1"),
+          kick("Away", "ShootoutGoal", "p2"),
+          kick("Home", "ShootoutMiss", "p1"),
+          kick("Away", "ShootoutGoal", "p2"),
+          kick("Home", "ShootoutMiss", "p1"),
+        ],
+        { phase: "Finished" },
+      ),
+    );
+
+    expect(screen.getByText("match.shootout.shootoutScore:1,3")).toBeInTheDocument();
+    const sheet = screen.getByRole("table", { name: "match.shootout.sheetCaption" });
+    const round4 = within(sheet).getAllByRole("row")[4];
+    expect(
+      within(round4)
+        .getAllByRole("cell")
+        .map((cell) => cell.textContent),
+    ).toEqual(["Alicematch.shootout.missed", "match.shootout.notTaken"]);
+  });
+
   it("reads the penalties score and the score after extra time", (): void => {
     renderScreen(
       shootoutSnapshot([kick("Home", "ShootoutGoal", "p1"), kick("Away", "ShootoutMiss", "p2")]),
