@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlayerSummary } from "../../services/playersService";
+import { sendScout } from "../../services/scoutingService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 import type { GameStateData } from "../../store/gameStore";
 import { usePlayersListActions } from "./usePlayersListActions";
@@ -134,7 +135,7 @@ describe("usePlayersListActions list toggles", () => {
 
     await press(label);
 
-    expect(hook.result.current.actionError).toBe("disk full");
+    expect(hook.result.current.listingError).toBe("disk full");
     expect(onGameUpdate).not.toHaveBeenCalled();
   });
 
@@ -149,10 +150,46 @@ describe("usePlayersListActions list toggles", () => {
     const { hook, press, refetchSlice } = setup();
 
     await press("squad.addToTransferList");
-    expect(hook.result.current.actionError).toBe("disk full");
+    expect(hook.result.current.listingError).toBe("disk full");
     await press("squad.addToTransferList");
 
-    expect(hook.result.current.actionError).toBeNull();
+    expect(hook.result.current.listingError).toBeNull();
     expect(refetchSlice).toHaveBeenCalled();
+  });
+
+  /**
+   * Given a listing failure on screen
+   * When a scout is sent and succeeds
+   * Then the listing failure is still shown: each alert belongs to its own action.
+   */
+  it("keeps a listing failure when a scout succeeds", async () => {
+    vi.mocked(toggleTransferList).mockRejectedValueOnce(new Error("disk full"));
+    vi.mocked(sendScout).mockResolvedValueOnce({} as GameStateData);
+    const gameWithScout = {
+      ...gameState,
+      staff: [{ id: "scout-1", role: "Scout", team_id: "mine" }],
+    } as unknown as GameStateData;
+    const hook = renderHook(() =>
+      usePlayersListActions({
+        gameState: gameWithScout,
+        onSelectPlayer: vi.fn(),
+        onSelectTeam: vi.fn(),
+        refetchSlice: vi.fn(),
+      }),
+    );
+    const press = async (player: PlayerSummary, label: string) => {
+      const item = hook.result.current
+        .contextItemsFor(player)
+        .find((entry) => entry.label === label);
+      await act(async () => {
+        await item?.onClick?.();
+      });
+    };
+
+    await press(summary({ team_id: "mine" }), "squad.addToTransferList");
+    await press(summary({ id: "p2", team_id: "rivals" }), "scouting.scoutBtn");
+
+    expect(hook.result.current.listingError).toBe("disk full");
+    expect(hook.result.current.scoutError).toBeNull();
   });
 });

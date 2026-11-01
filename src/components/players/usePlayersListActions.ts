@@ -45,9 +45,10 @@ export function usePlayersListActions({
 }: UsePlayersListActionsArgs) {
   const { t } = useTranslation();
   const [sendingPlayerId, setSendingPlayerId] = useState<string | null>(null);
-  // The last action to fail, shown above the list: a scout that could not be sent, or a listing
-  // that was not saved. The next action that succeeds clears it.
-  const [actionError, setActionError] = useState<string | null>(null);
+  // The last scout that could not be sent, and the last listing that was not saved: two alerts
+  // above the list, so one action succeeding never hides the other's failure.
+  const [scoutError, setScoutError] = useState<string | null>(null);
+  const [listingError, setListingError] = useState<string | null>(null);
   const managerTeamId = gameState.manager.team_id ?? "";
 
   const handleGameUpdate = useCallback(
@@ -83,33 +84,33 @@ export function usePlayersListActions({
 
   const handleScoutPlayer = async (playerId: string): Promise<void> => {
     if (availableScouts.length === 0) {
-      setActionError(null);
+      setScoutError(null);
       return;
     }
 
     const scout = availableScouts[0];
-    setActionError(null);
+    setScoutError(null);
     setSendingPlayerId(playerId);
 
     try {
       const updated = await sendScout(scout.id, playerId);
-      setActionError(null);
+      setScoutError(null);
       handleGameUpdate(updated);
     } catch (error) {
       console.error("Failed to send scout:", error);
-      setActionError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      setScoutError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
     } finally {
       setSendingPlayerId(null);
     }
   };
 
   const toggleListing = async (toggle: () => Promise<GameStateData>): Promise<void> => {
-    setActionError(null);
+    setListingError(null);
     try {
       handleGameUpdate(await toggle());
     } catch (error) {
       console.error("Failed to change the player's listing:", error);
-      setActionError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
     }
   };
 
@@ -175,5 +176,5 @@ export function usePlayersListActions({
     return contextItems;
   };
 
-  return { contextItemsFor, actionError, bidFlow, contractFlow };
+  return { contextItemsFor, scoutError, listingError, bidFlow, contractFlow };
 }

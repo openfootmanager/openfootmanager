@@ -598,8 +598,8 @@ describe("PlayersListTab", () => {
         />,
       );
 
-      const playerRow = (await screen.findByText("J. Smith")).closest("tr");
-      fireEvent.contextMenu(playerRow as HTMLTableRowElement);
+      const playerRow = await screen.findByRole("row", { name: /J\. Smith/ });
+      fireEvent.contextMenu(playerRow);
       fireEvent.click(screen.getByRole("menuitem", { name: "Add to transfer list" }));
 
       await waitFor(() => {

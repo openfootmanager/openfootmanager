@@ -39,13 +39,14 @@ export default function PlayersListTab({
     error: fetchError,
     refetch: refetchSlice,
   } = usePlayersPage(PLAYERS_OPENING_QUERY, t);
-  const { contextItemsFor, actionError, bidFlow, contractFlow } = usePlayersListActions({
-    gameState,
-    onGameUpdate,
-    onSelectPlayer,
-    onSelectTeam,
-    refetchSlice,
-  });
+  const { contextItemsFor, scoutError, listingError, bidFlow, contractFlow } =
+    usePlayersListActions({
+      gameState,
+      onGameUpdate,
+      onSelectPlayer,
+      onSelectTeam,
+      refetchSlice,
+    });
 
   const handleSort = (key: PlayerSortKey) => {
     if (query.sort_key === key) {
@@ -112,12 +113,21 @@ export default function PlayersListTab({
         </p>
       ) : null}
 
-      {actionError ? (
+      {scoutError ? (
         <p
           role="alert"
           className="mb-3 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
         >
-          {actionError}
+          {scoutError}
+        </p>
+      ) : null}
+
+      {listingError ? (
+        <p
+          role="alert"
+          className="mb-3 text-xs font-heading font-bold uppercase tracking-wider text-red-500"
+        >
+          {listingError}
         </p>
       ) : null}
 
