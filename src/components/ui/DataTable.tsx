@@ -5,8 +5,8 @@ import { isOnControl } from "./clickTarget";
 
 export type SortDirection = "asc" | "desc";
 
-/** A row's left accent: `positive` for a starter, `danger` for a player who can't play. */
-type RowAccent = "positive" | "danger";
+/** A row's left accent: `selected` for a starter, `danger` for a player who can't play. */
+type RowAccent = "selected" | "danger";
 
 export interface DataTableColumn<Row> {
   key: string;
@@ -73,7 +73,9 @@ const UNFOLDED_ONLY = "@3xl:hidden";
 const ACCENT_EDGE = "border-l-3";
 const ACCENT: Record<RowAccent | "none", string> = {
   none: "border-l-transparent",
-  positive: "border-l-positive",
+  // A row the user has chosen (a starter in the XI): the selected role, never "positive", which
+  // is a good outcome. Text-strength, 5.5:1 on a panel, so the 3px edge reads.
+  selected: "border-l-selected",
   danger: "border-l-danger-solid",
 };
 

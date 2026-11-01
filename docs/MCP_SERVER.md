@@ -171,9 +171,9 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 
 | Tool | Description |
 |------|-------------|
-| `transfer_market_browse` | Browse players with optional position, max price, and listed-only filters. Each row shows only what the club knows (`ofm_core::player_knowledge`): the rating of a player in the club's own division (`?` for anyone else), and a wage only for a player a scout reported on, rounded to two significant figures (`~16000`; `?` otherwise). `max_price` is an annual figure compared with the weekly wage the club may see, so a player whose wage is hidden never matches it |
-| `transfer_make_bid` | Make a transfer bid. Returns negotiation feedback (mood, tension, patience, suggested fee). |
-| `transfer_preview_bid` | Preview financial impact of a bid without making it |
+| `transfer_market_browse` | Browse players with optional position, max price, and listed-only filters. Each row shows only what the club knows (`ofm_core::player_knowledge`): the rating of a player in the club's own division (`?` for anyone else), and a wage only for a player a scout reported on outside the club's division, rounded to two significant figures (`~16000`; `?` otherwise). `max_price` is an annual figure compared with the weekly wage the club may see, so a player whose wage is hidden never matches it |
+| `transfer_make_bid` | Make a transfer bid. Returns negotiation feedback (mood, tension, patience, suggested fee). The suggested fee is withheld for a player the club does not know. |
+| `transfer_preview_bid` | Preview financial impact of a bid without making it. Wage-derived figures show as `?` when the club cannot see the player's exact wage |
 | `transfer_respond_to_offer` | Accept or reject an incoming transfer offer |
 | `transfer_counter_offer` | Counter an incoming offer with a different fee |
 | `transfer_toggle_listed` | Toggle a player's transfer-listed status |

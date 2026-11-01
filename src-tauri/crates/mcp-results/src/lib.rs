@@ -361,6 +361,38 @@ mod tests {
         round_trips(market);
     }
 
+    /// Given a bid preview whose wage-derived figures the club may not see
+    /// When it is rendered
+    /// Then they show as "?", the rounded wage with a "~", and it survives a round trip.
+    #[test]
+    fn a_preview_without_the_wage_renders_question_marks() {
+        let preview = transfers::BidPreview {
+            player_name: "P".to_string(),
+            fee: 1_000_000,
+            transfer_budget_before: 5,
+            transfer_budget_after: 4,
+            finance_before: 9,
+            finance_after: 8,
+            current_weekly_wage_spend: 50_000,
+            projected_weekly_wage_spend: None,
+            weekly_wage_budget: 67_307,
+            projected_wage_budget_usage_pct: None,
+            exceeds_transfer_budget: false,
+            exceeds_finance: false,
+            blocked_by_wage_policy: None,
+            incoming_weekly_wage: Some(7_700),
+            incoming_wage_is_approximate: true,
+        };
+
+        let text = preview.to_string();
+
+        assert!(text.contains("| Weekly Wage Bill After | ? |"), "{text}");
+        assert!(text.contains("| Projected Wage Usage | ? |"), "{text}");
+        assert!(text.contains("| Blocked By Wage Policy | ? |"), "{text}");
+        assert!(text.contains("| His Weekly Wage | ~7700 |"), "{text}");
+        round_trips(preview);
+    }
+
     /// Given no blockers, and then a live match with one real blocker
     /// When the blockers are rendered
     /// Then the first says time can advance, and the second lists the live match and the blocker

@@ -519,7 +519,7 @@ function TablesSection() {
               }))
             }
             onOpen={() => undefined}
-            rowAccent={(row) => (row.injured ? "danger" : row.starter ? "positive" : null)}
+            rowAccent={(row) => (row.injured ? "danger" : row.starter ? "selected" : null)}
             rowAction={{
               header: "Actions",
               cell: (row) => (

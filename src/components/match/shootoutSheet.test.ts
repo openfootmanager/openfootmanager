@@ -157,4 +157,117 @@ describe("buildKickSheet", () => {
     ]);
     expect(sheet.currentRound).toBeNull();
   });
+
+  /**
+   * Given a shootout ended mid-round, as the Laws end it (#1077): the home side leads 4-1 after its
+   * fourth kick, so the away side can no longer catch up and never takes its fourth
+   * When the sheet is built after the final whistle
+   * Then it ends at round 4, the away side's fourth kick reads "not taken" (not missed), and no
+   * fifth round is drawn.
+   */
+  it("marks the away side's untaken kick when the home side wins a kick short", () => {
+    const events = [
+      kick("Home", "ShootoutGoal", "p1"),
+      kick("Away", "ShootoutGoal", "p2"),
+      kick("Home", "ShootoutGoal", "p1"),
+      kick("Away", "ShootoutMiss", "p2"),
+      kick("Home", "ShootoutGoal", "p1"),
+      kick("Away", "ShootoutMiss", "p2"),
+      kick("Home", "ShootoutGoal", "p1"),
+    ];
+    const sheet = buildKickSheet(shootout(events, "Finished"));
+
+    expect(sheet.rows).toHaveLength(4);
+    expect(sheet.rows[3]).toEqual({
+      round: 4,
+      home: { state: "scored", kickerName: "Alice" },
+      away: { state: "notTaken" },
+    });
+    expect(sheet.currentRound).toBeNull();
+  });
+
+  /**
+   * Given a shootout the away side wins a kick short: 1-3 after the home side's fourth kick, so the
+   * home side can no longer catch up and the away side never needs its fourth
+   * When the sheet is built after the final whistle
+   * Then round 4 holds the home side's miss and the away side's kick not taken: an away win reads
+   * the same way, its last cell not drawn as a miss.
+   */
+  it("marks the away side's untaken kick when the away side wins a kick short", () => {
+    const events = [
+      kick("Home", "ShootoutGoal", "p1"),
+      kick("Away", "ShootoutGoal", "p2"),
+      kick("Home", "ShootoutMiss", "p1"),
+      kick("Away", "ShootoutGoal", "p2"),
+      kick("Home", "ShootoutMiss", "p1"),
+      kick("Away", "ShootoutGoal", "p2"),
+      kick("Home", "ShootoutMiss", "p1"),
+    ];
+    const sheet = buildKickSheet(shootout(events, "Finished"));
+
+    expect(sheet.rows.map((row) => [row.home.state, row.away.state])).toEqual([
+      ["scored", "scored"],
+      ["missed", "scored"],
+      ["missed", "scored"],
+      ["missed", "notTaken"],
+    ]);
+    expect(sheet.currentRound).toBeNull();
+  });
+});
+
+describe("buildKickSheet with a planned order", () => {
+  /** Alpha FC with Carol (p3) and Dan (p4) beside Alice (p1); Beta FC as before. */
+  function withThreeHomePlayers(): MatchSnapshot {
+    const base = shootout([]);
+    const alice = base.home_team.players[0];
+    const named = (id: string, name: string): EnginePlayerData => ({ ...alice, id, name });
+    return {
+      ...base,
+      home_team: { ...base.home_team, players: [alice, named("p3", "Carol")] },
+      // A kicker may be listed from the bench, as the sheet's own names are.
+      home_bench: [named("p4", "Dan")],
+    };
+  }
+
+  /**
+   * Given the home manager's order Dan, Carol, Alice, with three kickers a side, before any kick
+   * When the sheet is built with that plan
+   * Then the home column names who will take each kick, starting again from Dan at kick 4, and the
+   * away column names nobody: the opponent's order stays hidden.
+   */
+  it("names each planned kicker in the planning side's column only", () => {
+    const sheet = buildKickSheet(withThreeHomePlayers(), {
+      side: "Home",
+      order: ["p4", "p3", "p1"],
+      kickers: 3,
+    });
+
+    expect(sheet.rows.map((row) => row.home)).toEqual([
+      { state: "toCome", plannedKickerName: "Dan" },
+      { state: "toCome", plannedKickerName: "Carol" },
+      { state: "toCome", plannedKickerName: "Alice" },
+      { state: "toCome", plannedKickerName: "Dan" },
+      { state: "toCome", plannedKickerName: "Carol" },
+    ]);
+    expect(sheet.rows.every((row) => row.away.state === "toCome")).toBe(true);
+    expect(sheet.rows.some((row) => "plannedKickerName" in row.away)).toBe(false);
+  });
+
+  /**
+   * Given an away order of four with three kickers
+   * When the sheet is built with that plan
+   * Then the fourth player, who sits out, is never on the sheet.
+   */
+  it("leaves the players who sit out off the sheet", () => {
+    const sheet = buildKickSheet(withThreeHomePlayers(), {
+      side: "Away",
+      order: ["p2", "p4", "p3", "p1"],
+      kickers: 3,
+    });
+
+    const planned = sheet.rows.map((row) =>
+      row.away.state === "toCome" ? row.away.plannedKickerName : null,
+    );
+    expect(planned).toEqual(["Bob", "Dan", "Carol", "Bob", "Dan"]);
+  });
 });
