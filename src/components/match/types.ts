@@ -13,9 +13,6 @@ export type {
   MatchEvent,
   EnginePlayerData,
   EngineTeamData,
-  SetPieceTakers,
-  SubstitutionRecord,
-  PenaltyShootoutSnapshot,
   MatchSnapshot,
   MinuteResult,
 } from "../../store/liveMatchTypes";
