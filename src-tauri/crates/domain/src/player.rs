@@ -58,6 +58,8 @@ pub struct Player {
     #[serde(default)]
     pub ovr: u8,
     /// Player's ceiling rating (1–99). Set at generation; higher than ovr for young players.
+    /// The game's hidden truth: a screen always receives 0 here (`ofm_core::wire`), and reads the
+    /// club's opinion of it from `get_potential_opinion` instead.
     #[serde(default)]
     pub potential: u8,
 

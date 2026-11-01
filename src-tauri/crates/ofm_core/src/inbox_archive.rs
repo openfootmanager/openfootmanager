@@ -107,7 +107,11 @@ pub fn page(game: &Game, before: Option<&ArchiveCursor>, limit: usize) -> Archiv
             id: last.id.clone(),
         });
     ArchivedMessagesPage {
-        items: newest_first.into_iter().cloned().collect(),
+        // A copy for the screens: a youth report's prospects without potential (`crate::wire`).
+        items: newest_first
+            .into_iter()
+            .map(crate::wire::message_for_readers)
+            .collect(),
         next_before,
     }
 }

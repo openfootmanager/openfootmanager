@@ -18,7 +18,15 @@ import type { WorldHistoryArchive } from "./WorldHistoryArchive";
 import type { YouthScoutingAssignment } from "./YouthScoutingAssignment";
 import type { JsonValue } from "./serde_json/JsonValue";
 
-export type Game = { clock: GameClock, manager: Manager, manager_id: string, managers: Array<Manager>, teams: Array<Team>, players: Array<Player>, staff: Array<Staff>, messages: Array<InboxMessage>, news: Array<NewsArticle>, competitions: Array<League>, national_teams: Array<NationalTeam>, active_region_ids: Array<string>, active_competition_ids: Array<string>, 
+export type Game = { clock: GameClock, manager: Manager, manager_id: string, managers: Array<Manager>, teams: Array<Team>, 
+/**
+ * Serialized without potential: the game's JSON only ever goes to a reader (`crate::wire`).
+ */
+players: Array<Player>, staff: Array<Staff>, 
+/**
+ * Serialized with a youth report's prospects' potential left out, as `players` is.
+ */
+messages: Array<InboxMessage>, news: Array<NewsArticle>, competitions: Array<League>, national_teams: Array<NationalTeam>, active_region_ids: Array<string>, active_competition_ids: Array<string>, 
 /**
  * DEPRECATED (legacy, back-compat only). Superseded by `competitions`, which
  * is the single source of truth. Retained for two reasons: loading saves

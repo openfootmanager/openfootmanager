@@ -14,6 +14,9 @@ reqwest = { version = "0.13", default-features = false, features = ["blocking", 
 
 [dev-dependencies]
 db = { path = "../db" }
+# The save-fidelity check writes the loaded save in the truthful form (`ofm_core::wire`), the form
+# `dev_full_game_state` reports, so a lost potential column still fails it.
+ofm_core = { path = "../ofm_core" }
 chrono = { version = "0.4", default-features = false }
 
 [lints]

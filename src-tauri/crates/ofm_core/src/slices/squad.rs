@@ -28,7 +28,8 @@ pub fn query_squad(game: &Game, team_id: &str) -> Vec<SquadPlayer> {
         .iter()
         .filter(|p| p.team_id.as_deref() == Some(team_id))
         .map(|p| SquadPlayer {
-            player: p.clone(),
+            // A copy for the screens: never the potential (`crate::wire`).
+            player: crate::wire::without_potential(p.clone()),
             match_day_eligible: eligible.contains(p.id.as_str()),
             condition_status: condition_status(p.condition),
         })
@@ -53,6 +54,27 @@ mod tests {
         assert_eq!(row("youth-02")["squad_role"], "Youth");
         assert_eq!(rows.len(), 20);
     }
+    /// Given a squad whose players all have a true potential
+    /// When the squad is projected for the screens
+    /// Then no row carries it: every potential reads 0
+    #[test]
+    fn the_squad_projection_never_sends_a_players_potential() {
+        let mut game = match_day_game(true, 17, 3);
+        for player in &mut game.players {
+            player.potential = 85;
+        }
+
+        let value = serde_json::to_value(query_squad(&game, "club")).unwrap();
+
+        let potentials = crate::wire::potentials_in(&value);
+        assert_eq!(potentials.len(), 20, "every row was looked at");
+        assert!(
+            potentials.iter().all(|(_, potential)| *potential == 0),
+            "{potentials:?}"
+        );
+        assert!(game.players.iter().all(|player| player.potential == 85));
+    }
+
     /// Given a player on 74 and one on 75, either side of the fresh line,
     /// when the squad is projected for the screens,
     /// then each row carries its condition band with the word key and the tone to paint it in,

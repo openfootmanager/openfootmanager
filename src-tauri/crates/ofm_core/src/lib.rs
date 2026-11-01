@@ -81,6 +81,7 @@ mod test_support;
 pub mod training;
 pub mod transfers;
 pub mod turn;
+pub mod wire;
 pub mod world;
 pub mod world_cup;
 pub mod youth_intake;

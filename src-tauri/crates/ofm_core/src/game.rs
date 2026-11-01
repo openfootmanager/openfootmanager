@@ -110,8 +110,12 @@ pub struct Game {
     #[serde(default)]
     pub managers: Vec<Manager>,
     pub teams: Vec<Team>,
+    /// Serialized without potential: the game's JSON only ever goes to a reader (`crate::wire`).
+    #[serde(serialize_with = "crate::wire::players_without_potential")]
     pub players: Vec<Player>,
     pub staff: Vec<Staff>,
+    /// Serialized with a youth report's prospects' potential left out, as `players` is.
+    #[serde(serialize_with = "crate::wire::messages_without_potential")]
     pub messages: Vec<InboxMessage>,
     #[serde(default)]
     pub news: Vec<NewsArticle>,
