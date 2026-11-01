@@ -133,8 +133,24 @@ fn collect(
         has_active_save,
         log_files,
         save_bytes,
-        unreadable_records,
+        unreadable_records: redact_cells(redactor, unreadable_records),
     }
+}
+
+/// The kept cells as the report carries them. A row id is whatever the save keyed the row by, a
+/// name or a path among them, so it goes through the redactor like every other string here; the
+/// table and column are the game's own names.
+fn redact_cells(
+    redactor: &Redactor,
+    cells: Vec<db::json_column::UnreadableCell>,
+) -> Vec<db::json_column::UnreadableCell> {
+    cells
+        .into_iter()
+        .map(|cell| db::json_column::UnreadableCell {
+            row_id: redactor.apply(&cell.row_id),
+            ..cell
+        })
+        .collect()
 }
 
 /// Size of the active save on disk, or `None` when there is no career or no file behind it.
@@ -1110,6 +1126,27 @@ mod tests {
         assert_eq!(out[0], "it died loading ~/saves/a.db");
         assert!(!out[1].contains("srobot"), "{out:?}");
         assert_eq!(out[2], "logs at ~/today.log");
+    }
+
+    /// Given a kept cell whose row id holds the player's home path
+    /// When the report lists it
+    /// Then the row id comes out redacted, and the table and column as they were
+    #[test]
+    fn a_kept_cells_row_id_is_redacted() {
+        let redactor = Redactor::new(Some("/home/srobot"), Some("srobot"), None);
+        let cells = vec![db::json_column::UnreadableCell {
+            table: "players".to_owned(),
+            row_id: "/home/srobot/mods/p1".to_owned(),
+            column: "career".to_owned(),
+        }];
+
+        let listed = redact_cells(&redactor, cells);
+
+        assert_eq!(listed[0].row_id, "~/mods/p1");
+        assert_eq!(
+            (listed[0].table.as_str(), listed[0].column.as_str()),
+            ("players", "career")
+        );
     }
 
     #[test]

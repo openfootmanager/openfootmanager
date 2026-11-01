@@ -176,45 +176,92 @@ mod tests {
             .unwrap()
     }
 
-    /// Every `serde_json::from_*` call in the db crate's production code (before its tests), each
-    /// with the text that follows its closing parenthesis.
-    fn parse_calls() -> Vec<(String, String)> {
+    /// The text with every `#[cfg(test)]` item taken out: a module or function up to its matching
+    /// brace, or a one-line item up to its `;`. Code after a test module is still production code,
+    /// so it is kept and scanned.
+    fn production_code(text: &str) -> String {
+        const MARK: &str = "#[cfg(test)]";
+        let mut kept = String::new();
+        let mut rest = text;
+        while let Some(at) = rest.find(MARK) {
+            kept.push_str(&rest[..at]);
+            let item = &rest[at + MARK.len()..];
+            let end = match (item.find('{'), item.find(';')) {
+                (Some(open), Some(stop)) if stop < open => stop + 1,
+                (Some(open), _) => matching_close(item, open).map_or(item.len(), |close| close + 1),
+                (None, Some(stop)) => stop + 1,
+                (None, None) => item.len(),
+            };
+            rest = &item[end..];
+        }
+        kept.push_str(rest);
+        kept
+    }
+
+    /// Where the bracket at `open` (`(` or `{`) is closed, counting the nesting in between.
+    fn matching_close(text: &str, open: usize) -> Option<usize> {
+        let (opening, closing) = match text[open..].chars().next()? {
+            '(' => ('(', ')'),
+            _ => ('{', '}'),
+        };
+        let mut depth = 0usize;
+        for (offset, ch) in text[open..].char_indices() {
+            if ch == opening {
+                depth += 1;
+            } else if ch == closing {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(open + offset);
+                }
+            }
+        }
+        None
+    }
+
+    /// The methods chained onto a call, read from the text just after its closing parenthesis:
+    /// `.map_err(..)?.unwrap_or_default()` is `["map_err", "unwrap_or_default"]`.
+    fn chained_methods(after: &str) -> Vec<String> {
+        let mut methods = Vec::new();
+        let mut rest = after;
+        loop {
+            rest = rest.trim_start().trim_start_matches('?').trim_start();
+            let Some(chain) = rest.strip_prefix('.') else {
+                break;
+            };
+            let name: String = chain
+                .chars()
+                .take_while(|ch| ch.is_alphanumeric() || *ch == '_')
+                .collect();
+            if name.is_empty() {
+                break;
+            }
+            let tail = &chain[name.len()..];
+            methods.push(name);
+            let args = tail.len() - tail.trim_start().len();
+            if !tail.trim_start().starts_with('(') {
+                rest = tail;
+                continue;
+            }
+            let Some(close) = matching_close(tail, args) else {
+                break;
+            };
+            rest = &tail[close + 1..];
+        }
+        methods
+    }
+
+    /// Each production source file of the db crate but this one, its tests taken out.
+    fn production_sources() -> Vec<(String, String)> {
         fn walk(dir: &std::path::Path, found: &mut Vec<(String, String)>) {
             for entry in std::fs::read_dir(dir).unwrap() {
                 let path = entry.unwrap().path();
                 if path.is_dir() {
                     walk(&path, found);
-                    continue;
-                }
-                if path.extension().and_then(|ext| ext.to_str()) != Some("rs")
-                    || path.ends_with("json_column.rs")
+                } else if path.extension().and_then(|ext| ext.to_str()) == Some("rs")
+                    && !path.ends_with("json_column.rs")
                 {
-                    continue;
-                }
-                let text = std::fs::read_to_string(&path).unwrap();
-                let production = text.split("#[cfg(test)]").next().unwrap_or("");
-                let mut rest = production;
-                while let Some(at) = rest.find("serde_json::from_") {
-                    let call = &rest[at..];
-                    let Some(open) = call.find('(') else { break };
-                    let mut depth = 0;
-                    let mut close = open;
-                    for (offset, ch) in call[open..].char_indices() {
-                        match ch {
-                            '(' => depth += 1,
-                            ')' => {
-                                depth -= 1;
-                                if depth == 0 {
-                                    close = open + offset;
-                                    break;
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                    let after: String = call[close + 1..].chars().take(40).collect();
-                    found.push((path.display().to_string(), after));
-                    rest = &call[close + 1..];
+                    let text = std::fs::read_to_string(&path).unwrap();
+                    found.push((path.display().to_string(), production_code(&text)));
                 }
             }
         }
@@ -226,25 +273,71 @@ mod tests {
         found
     }
 
+    /// Every `serde_json::from_*` call in the given code, with the methods chained onto it.
+    fn parse_calls_in(code: &str) -> Vec<Vec<String>> {
+        let mut calls = Vec::new();
+        let mut rest = code;
+        while let Some(at) = rest.find("serde_json::from_") {
+            let call = &rest[at..];
+            let Some(open) = call.find('(') else { break };
+            let Some(close) = matching_close(call, open) else {
+                break;
+            };
+            calls.push(chained_methods(&call[close + 1..]));
+            rest = &call[close + 1..];
+        }
+        calls
+    }
+
+    /// Whether a chain falls back to a value of its own on a failed parse.
+    fn defaults_silently(methods: &[String]) -> bool {
+        methods
+            .iter()
+            .any(|method| method.starts_with("unwrap_or") || method == "ok")
+    }
+
+    /// Given a fallback chained after another method, and code after a test module
+    /// When the scan reads them
+    /// Then it sees both: the guard below would catch either
+    #[test]
+    fn the_scan_reads_the_whole_chain_and_past_a_test_module() {
+        let chained = "let x: Vec<u8> = serde_json::from_str(&raw)\n    .map_err(|e| e)\n    .unwrap_or_default();";
+        assert!(defaults_silently(&parse_calls_in(chained)[0]));
+        let loud = "serde_json::from_str(&raw).map_err(|_| KEY.to_string())?";
+        assert!(!defaults_silently(&parse_calls_in(loud)[0]));
+
+        let after_tests = "fn a() {}\n#[cfg(test)]\nmod tests { fn t() { let _ = 1; } }\nfn b() { serde_json::from_str(&raw).ok(); }";
+        let code = production_code(after_tests);
+        assert!(!code.contains("mod tests"), "{code}");
+        assert!(code.contains("fn b()"), "{code}");
+        assert!(defaults_silently(&parse_calls_in(&code)[0]));
+    }
+
     /// Given every JSON parse in the db crate's production code
-    /// When what follows each is read
-    /// Then none falls back to a default on its own (`.unwrap_or…`, `.ok()`): a cell that does not
-    ///      parse either goes through this module, which keeps it, or fails the load
+    /// When the methods chained onto each are read
+    /// Then none falls back to a default on its own (`.unwrap_or…`, `.ok()`, anywhere in the
+    ///      chain): a cell that does not parse either goes through this module, which keeps it, or
+    ///      fails the load. A `match` on a parse is left to review: the two in team_repo quarantine
+    ///      in their error arms
     #[test]
     fn no_json_column_falls_back_to_a_default_by_itself() {
-        let calls = parse_calls();
+        let calls: Vec<(String, Vec<String>)> = production_sources()
+            .into_iter()
+            .flat_map(|(path, code)| {
+                parse_calls_in(&code)
+                    .into_iter()
+                    .map(move |methods| (path.clone(), methods))
+            })
+            .collect();
         assert!(
             calls.len() > 10,
             "the scan found the parses: {}",
             calls.len()
         );
 
-        let silent: Vec<&(String, String)> = calls
+        let silent: Vec<&(String, Vec<String>)> = calls
             .iter()
-            .filter(|(_, after)| {
-                let after = after.trim_start();
-                after.starts_with(".unwrap_or") || after.starts_with(".ok()")
-            })
+            .filter(|(_, methods)| defaults_silently(methods))
             .collect();
 
         assert!(
@@ -259,36 +352,18 @@ mod tests {
     ///      file): no save, delete or rewrite can touch a kept cell
     #[test]
     fn only_this_module_writes_the_quarantine_table() {
-        fn walk(dir: &std::path::Path, found: &mut Vec<String>) {
-            for entry in std::fs::read_dir(dir).unwrap() {
-                let path = entry.unwrap().path();
-                if path.is_dir() {
-                    walk(&path, found);
-                } else if path.extension().and_then(|ext| ext.to_str()) == Some("rs")
-                    && !path.ends_with("json_column.rs")
-                {
-                    let text = std::fs::read_to_string(&path).unwrap();
-                    let production = text.split("#[cfg(test)]").next().unwrap_or("");
-                    // SQL that touches the table, not a comment that names it.
-                    let touches = [
-                        "INTO unreadable_records",
-                        "FROM unreadable_records",
-                        "UPDATE unreadable_records",
-                        "TABLE unreadable_records",
-                    ]
-                    .iter()
-                    .any(|statement| production.contains(statement));
-                    if touches {
-                        found.push(path.display().to_string());
-                    }
-                }
-            }
-        }
-        let mut found = Vec::new();
-        walk(
-            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
-            &mut found,
-        );
+        // SQL that touches the table, not a comment that names it.
+        let statements = [
+            "INTO unreadable_records",
+            "FROM unreadable_records",
+            "UPDATE unreadable_records",
+            "TABLE unreadable_records",
+        ];
+        let found: Vec<String> = production_sources()
+            .into_iter()
+            .filter(|(_, code)| statements.iter().any(|statement| code.contains(statement)))
+            .map(|(path, _)| path)
+            .collect();
 
         assert!(found.is_empty(), "outside json_column: {found:?}");
     }
