@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { formatWeeklyWage } from "../../lib/helpers";
 import type { PlayersPageQuery } from "../../services/playersService";
 import type { PlayerData, TeamData } from "../../store/gameStore";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -320,6 +321,22 @@ describe("ScoutingPlayerSearchCard cards view", () => {
     expect(within(card).getByText("Beta FC")).toBeInTheDocument();
     expect(within(card).queryByText("–")).toBeNull();
     expect(screen.getByRole("article", { name: "Free Man" })).toHaveTextContent("Free Agent");
+  });
+
+  /**
+   * Given a player whose rating (77) and weekly wage (12,000) are on the record the search holds
+   * When his card is drawn
+   * Then neither shows: the club has not scouted him, so the search card carries his value and
+   *      nothing of his rating or wage (as the table does).
+   */
+  it("does not show a rating or a wage the club has not scouted", () => {
+    setListView("cards");
+    renderCards({ players: [createPlayer({ id: "known", ovr: 77, wage: 12000 })] });
+    const card = screen.getByRole("article", { name: "John Smith" });
+
+    expect(within(card).queryByText("77")).toBeNull();
+    expect(within(card).queryByText(formatWeeklyWage(12000, "compact"))).toBeNull();
+    expect(within(card).queryByText("Wage")).toBeNull();
   });
 
   /**
