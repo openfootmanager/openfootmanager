@@ -473,38 +473,99 @@ pub(super) fn senior_slot(slot: usize) -> usize {
     }
 }
 
-/// The mean rating of the attributes the generator rolls.
-const ROLLED_RATING_MEAN: f64 = 67.6;
 /// Where the generated ceilings centre. Young players open below their ceiling, so the ceilings
 /// sit above the mean rating a world should open at (about 68).
 ///
 /// 70.1 since the ceiling follows a falling player's rating (#869): that rule takes the room
 /// veterans used to train into, and S by rating settled at 0.8 to 0.9% of seniors, under its 1%
-/// floor. +0.5 on the centre (it was 69.6) brings the shipped world back to S 1.0 to 1.8% and A 5.9
-/// to 8.2% in every one of 20 seasons on two seeds. At the opening of a new world that raises S by
-/// rating from 1.0% to 1.2%, A from 5.2% to 6.5% and the mean senior rating from 67.7 to 68.2;
-/// wonderkids stay at 0.3%.
+/// floor. +0.5 on the centre (it was 69.6) brought the shipped world back to S 1.0 to 1.8% and A
+/// 5.9 to 8.2% in every one of 20 seasons on two seeds.
 const CEILING_MEAN: f64 = 70.1;
-/// How much of the rolled spread the ceilings keep. Lifting the centre alone would push the S tier
-/// past its 1 to 3% target, so the bell is narrowed as it is lifted.
-const CEILING_SPREAD: f64 = 0.80;
 
 /// The spread (standard deviation) of the ceilings a world holds at 25, once every ceiling has
 /// stopped drifting.
 const CEILING_SD: f64 = 5.0;
 
-/// The ceiling a rolled rating becomes for a player of `age`: the same ranking, on the bell the
-/// world is meant to have at 25. A young player's ceiling will still drift (`development`), so he
-/// is drawn from a bell narrower by the variance that drift will add; by 25 everyone's ceiling
-/// follows one bell, and a teenager's ceiling stays a good guide to where he ends up.
+/// The z grid [`ROLLED_AT_Z`] is tabulated on: -3.5 to 3.5 in steps of 0.25.
+const ROLLED_Z_MIN: f64 = -3.5;
+const ROLLED_Z_STEP: f64 = 0.25;
+
+/// For each position group (goalkeeper, defender, midfielder, forward), the rolled rating
+/// `ovr_from_attributes` gives at the standard-normal quantile of each grid point of
+/// [`ROLLED_Z_MIN`] and [`ROLLED_Z_STEP`].
+///
+/// A rolled rating is a weighted mean of bounded uniform draws, so its tail is lighter than a
+/// normal's (the S tier, in the tail, came out at 0.56 to 0.72 of a normal bell's share). Mapping a
+/// rolled rating through this table to the z of a standard normal gives ceilings a true normal
+/// bell, so a shift of the bell (a club's standard) moves the tail as normal maths says.
+///
+/// Baked from four million seeded draws per group; regenerate with
+/// `cargo test --release -p ofm_core --lib print_the_rolled_quantile_table -- --ignored --nocapture`
+/// whenever `roll_attributes` or the rating formula change, and paste the four `TABLE` lines here.
+const ROLLED_AT_Z: [[f64; 29]; 4] = [
+    // Goalkeeper
+    [
+        51.100, 52.200, 53.350, 54.530, 55.750, 57.000, 58.310, 59.660, 61.060, 62.530, 64.050,
+        65.600, 67.180, 68.770, 70.360, 71.950, 73.530, 75.100, 76.630, 78.130, 79.580, 80.950,
+        82.250, 83.470, 84.630, 85.710, 86.720, 87.640, 88.490,
+    ],
+    // Defender
+    [
+        48.300, 49.420, 50.620, 51.880, 53.220, 54.640, 56.100, 57.600, 59.140, 60.680, 62.260,
+        63.840, 65.420, 67.000, 68.580, 70.140, 71.680, 73.200, 74.700, 76.160, 77.600, 78.980,
+        80.320, 81.620, 82.860, 84.040, 85.120, 86.180, 87.120,
+    ],
+    // Midfielder
+    [
+        46.130, 47.290, 48.510, 49.790, 51.150, 52.580, 54.070, 55.600, 57.170, 58.780, 60.390,
+        62.020, 63.650, 65.270, 66.890, 68.480, 70.060, 71.610, 73.130, 74.620, 76.070, 77.470,
+        78.840, 80.150, 81.430, 82.650, 83.810, 84.930, 85.980,
+    ],
+    // Forward
+    [
+        44.420, 45.580, 46.800, 48.060, 49.440, 50.900, 52.420, 54.000, 55.640, 57.320, 59.060,
+        60.800, 62.560, 64.320, 66.080, 67.800, 69.520, 71.180, 72.820, 74.400, 75.920, 77.380,
+        78.780, 80.120, 81.380, 82.580, 83.740, 84.820, 85.860,
+    ],
+];
+
+/// The standard-normal z a rolled rating of `group` stands at: its place in [`ROLLED_AT_Z`], read
+/// by linear interpolation, and extended past the table's ends at the end slopes.
+fn rolled_to_z(group: &Position, rolled: f64) -> f64 {
+    let row = match group {
+        Position::Goalkeeper => 0,
+        Position::Defender => 1,
+        Position::Midfielder => 2,
+        _ => 3,
+    };
+    let table = &ROLLED_AT_Z[row];
+    let last = table.len() - 1;
+    if rolled <= table[0] {
+        return ROLLED_Z_MIN - (table[0] - rolled) / (table[1] - table[0]) * ROLLED_Z_STEP;
+    }
+    if rolled >= table[last] {
+        let z_max = ROLLED_Z_MIN + last as f64 * ROLLED_Z_STEP;
+        return z_max + (rolled - table[last]) / (table[last] - table[last - 1]) * ROLLED_Z_STEP;
+    }
+    let upper = table.partition_point(|value| *value <= rolled);
+    let lower = upper - 1;
+    let fraction = (rolled - table[lower]) / (table[upper] - table[lower]);
+    ROLLED_Z_MIN + (lower as f64 + fraction) * ROLLED_Z_STEP
+}
+
+/// The ceiling a rolled rating becomes for a player of `group` and `age`: the same ranking, on the
+/// normal bell the world is meant to have at 25. A young player's ceiling will still drift
+/// (`development`), so he is drawn from a bell narrower by the variance that drift will add; by 25
+/// everyone's ceiling follows one bell, and a teenager's ceiling stays a good guide to where he
+/// ends up.
 ///
 /// The centre is not raised for the drift's small pull down: a player closes the gap to his
 /// ceiling by 19 to 21, after which his rating holds the ceiling up, so the pull is mostly absorbed
 /// (measured on the shipped world: ceilings of 72.2 at 16 are 72.4 at 25).
-fn shaped_ceiling(rolled: f64, age: u32) -> u8 {
+fn shaped_ceiling(group: &Position, rolled: f64, age: u32) -> u8 {
     let (_, drift_variance) = crate::development::ceiling_drift_still_to_come(age);
     let narrowing = (1.0 - drift_variance / CEILING_SD.powi(2)).max(0.0).sqrt();
-    (CEILING_MEAN + narrowing * CEILING_SPREAD * (rolled - ROLLED_RATING_MEAN))
+    (CEILING_MEAN + narrowing * CEILING_SD * rolled_to_z(group, rolled))
         .round()
         .clamp(1.0, 99.0) as u8
 }
@@ -617,7 +678,7 @@ pub(super) fn generate_random_player_from_def(
     // who has years of growth left is lowered from it by the headroom for his age. Ceiling
     // first, rating second, so the whole world's ceilings follow one bell and a teenager is an
     // earlier version of a prime-age player rather than a better one.
-    let ceiling = shaped_ceiling(ovr_from_attributes(&attributes, &position), age);
+    let ceiling = shaped_ceiling(&group, ovr_from_attributes(&attributes, &position), age);
     let headroom = roll_growth_headroom(age, rng);
     move_attributes_to(&mut attributes, &position, ceiling.saturating_sub(headroom));
     // Size market value and wage from the same position-weighted rating the
@@ -1371,30 +1432,59 @@ mod tests {
     /// Then the mean maps to the bell's centre and a distance from it is kept at the spread.
     #[test]
     fn a_rolled_rating_is_shaped_onto_the_ceiling_bell() {
-        assert_eq!(
-            shaped_ceiling(ROLLED_RATING_MEAN, 25),
-            CEILING_MEAN.round() as u8
-        );
-        let above = shaped_ceiling(ROLLED_RATING_MEAN + 10.0, 25);
-        let below = shaped_ceiling(ROLLED_RATING_MEAN - 10.0, 25);
-        let centre = CEILING_MEAN.round() as u8;
-        assert_eq!(above - centre, (10.0 * CEILING_SPREAD).round() as u8);
-        assert_eq!(centre - below, (10.0 * CEILING_SPREAD).round() as u8);
+        // The grid point z = 0 is index 14; z = +-2 are indices 22 and 6.
+        for (row, group) in [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Forward,
+        ]
+        .iter()
+        .enumerate()
+        {
+            let centre = CEILING_MEAN.round() as u8;
+            assert_eq!(shaped_ceiling(group, ROLLED_AT_Z[row][14], 25), centre);
+            let two_sd = (2.0 * CEILING_SD).round() as u8;
+            assert_eq!(
+                shaped_ceiling(group, ROLLED_AT_Z[row][22], 25),
+                centre + two_sd
+            );
+            assert_eq!(
+                shaped_ceiling(group, ROLLED_AT_Z[row][6], 25),
+                centre - two_sd
+            );
+        }
     }
 
-    /// Given the same rolled rating far above the mean for a teenager and for a prime-age player,
+    /// Given the rolled rating two standard deviations up for a teenager and for a prime-age player,
     /// When it is shaped onto the ceiling bell,
     /// Then the teenager's ceiling is closer to the centre (his bell is narrower) and the centre
     /// itself is the same.
     #[test]
     fn a_teenagers_ceiling_bell_is_narrower_than_a_prime_players() {
-        let prime = shaped_ceiling(ROLLED_RATING_MEAN + 20.0, 25);
-        let teenager = shaped_ceiling(ROLLED_RATING_MEAN + 20.0, 16);
+        let group = Position::Midfielder;
+        let prime = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 25);
+        let teenager = shaped_ceiling(&group, ROLLED_AT_Z[2][24], 16);
         assert!(teenager < prime, "{teenager} vs {prime}");
         assert_eq!(
-            shaped_ceiling(ROLLED_RATING_MEAN, 16),
-            shaped_ceiling(ROLLED_RATING_MEAN, 25)
+            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 16),
+            shaped_ceiling(&group, ROLLED_AT_Z[2][14], 25)
         );
+    }
+
+    /// Given a rolled rating between two grid points of the table, and one beyond each end,
+    /// When it is mapped to a z,
+    /// Then the z is interpolated between the points, and beyond the ends it keeps rising.
+    #[test]
+    fn the_rolled_rating_map_interpolates_and_extends_past_the_table() {
+        let group = Position::Defender;
+        let (low, high) = (ROLLED_AT_Z[1][14], ROLLED_AT_Z[1][15]);
+
+        let half = rolled_to_z(&group, (low + high) / 2.0);
+        assert!((half - 0.125).abs() < 1e-9, "{half}");
+        assert!(rolled_to_z(&group, ROLLED_AT_Z[1][28] + 3.0) > 3.5);
+        assert!(rolled_to_z(&group, ROLLED_AT_Z[1][0] - 3.0) < -3.5);
+        assert!(rolled_to_z(&group, 60.0) < rolled_to_z(&group, 61.0));
     }
 
     /// Given generated teenagers (18 or younger),
