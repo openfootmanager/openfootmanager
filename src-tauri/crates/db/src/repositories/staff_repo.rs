@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use domain::staff::{CoachingSpecialization, Staff, StaffAttributes, StaffRole};
 use rusqlite::{Connection, params};
 
@@ -94,7 +95,7 @@ pub fn load_all_staff(conn: &Connection) -> Result<Vec<Staff>, String> {
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
-        .query_map([], row_to_staff)
+        .query_map([], |row| row_to_staff(conn, row))
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut staff = Vec::new();
@@ -104,13 +105,27 @@ pub fn load_all_staff(conn: &Connection) -> Result<Vec<Staff>, String> {
     Ok(staff)
 }
 
-fn row_to_staff(row: &rusqlite::Row) -> rusqlite::Result<Staff> {
+fn row_to_staff(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<Staff> {
+    let id: String = row.get(0)?;
     let role_str: String = row.get(7)?;
     let attrs_json: String = row.get(8)?;
     let spec_str: Option<String> = row.get(10)?;
 
     let mut staff = Staff {
-        id: row.get(0)?,
+        // Attributes that do not parse read as an average block and are kept in
+        // unreadable_records, never silently lost (`json_column`).
+        attributes: json_column::read_or_else(
+            conn,
+            Cell::new("staff", &id, "attributes"),
+            &attrs_json,
+            || StaffAttributes {
+                coaching: 50,
+                judging_ability: 50,
+                judging_potential: 50,
+                physiotherapy: 50,
+            },
+        ),
+        id,
         first_name: row.get(1)?,
         last_name: row.get(2)?,
         date_of_birth: row.get(3)?,
@@ -118,12 +133,6 @@ fn row_to_staff(row: &rusqlite::Row) -> rusqlite::Result<Staff> {
         football_nation: row.get(5)?,
         birth_country: row.get(6)?,
         role: parse_role(&role_str),
-        attributes: serde_json::from_str(&attrs_json).unwrap_or(StaffAttributes {
-            coaching: 50,
-            judging_ability: 50,
-            judging_potential: 50,
-            physiotherapy: 50,
-        }),
         team_id: row.get(9)?,
         specialization: spec_str.and_then(|s| parse_specialization(&s)),
         wage: row.get(11)?,

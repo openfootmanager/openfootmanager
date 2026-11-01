@@ -1,3 +1,4 @@
+use crate::json_column::{self, Cell};
 use domain::news::{NewsArticle, NewsCategory};
 use rusqlite::{Connection, params};
 
@@ -127,7 +128,7 @@ pub fn load_all_news(conn: &Connection) -> Result<Vec<NewsArticle>, String> {
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let rows = stmt
-        .query_map([], row_to_news)
+        .query_map([], |row| row_to_news(conn, row))
         .map_err(|_| GAME_PERSISTENCE_LOAD_ERROR.to_string())?;
 
     let mut articles = Vec::new();
@@ -137,7 +138,11 @@ pub fn load_all_news(conn: &Connection) -> Result<Vec<NewsArticle>, String> {
     Ok(articles)
 }
 
-fn row_to_news(row: &rusqlite::Row) -> rusqlite::Result<NewsArticle> {
+fn row_to_news(conn: &Connection, row: &rusqlite::Row) -> rusqlite::Result<NewsArticle> {
+    let id: String = row.get(0)?;
+    // A JSON column that does not parse reads as its default and is kept in unreadable_records,
+    // never silently lost (`json_column`).
+    let cell = |column: &'static str| Cell::new("news", &id, column);
     let category_str: String = row.get(5)?;
     let team_ids_json: String = row.get(6)?;
     let player_ids_json: String = row.get(7)?;
@@ -145,18 +150,22 @@ fn row_to_news(row: &rusqlite::Row) -> rusqlite::Result<NewsArticle> {
     let read_int: i32 = row.get(9)?;
     let i18n_json: String = row.get(10)?;
 
-    let i18n: serde_json::Value = serde_json::from_str(&i18n_json).unwrap_or_default();
+    let i18n: serde_json::Value = json_column::read(conn, cell("i18n"), &i18n_json);
 
     Ok(NewsArticle {
-        id: row.get(0)?,
+        id: id.clone(),
         headline: row.get(1)?,
         body: row.get(2)?,
         source: row.get(3)?,
         date: row.get(4)?,
         category: parse_news_category(&category_str),
-        team_ids: serde_json::from_str(&team_ids_json).unwrap_or_default(),
-        player_ids: serde_json::from_str(&player_ids_json).unwrap_or_default(),
-        match_score: match_score_json.and_then(|j| serde_json::from_str(&j).ok()),
+        team_ids: json_column::read(conn, cell("team_ids"), &team_ids_json),
+        player_ids: json_column::read(conn, cell("player_ids"), &player_ids_json),
+        match_score: json_column::read_optional(
+            conn,
+            cell("match_score"),
+            match_score_json.as_deref(),
+        ),
         read: read_int != 0,
         headline_key: i18n
             .get("headline_key")
@@ -170,10 +179,7 @@ fn row_to_news(row: &rusqlite::Row) -> rusqlite::Result<NewsArticle> {
             .get("source_key")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string()),
-        i18n_params: i18n
-            .get("i18n_params")
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
-            .unwrap_or_default(),
+        i18n_params: json_column::read_member(conn, cell("i18n"), &i18n_json, &i18n, "i18n_params"),
     })
 }
 

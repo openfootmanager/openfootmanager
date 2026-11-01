@@ -64,6 +64,10 @@ pub struct DiagnosticsReport {
     /// This is the number that actually changes a decision: a career database is the largest
     /// thing in the bundle by a wide margin, and it is the one part the player chooses.
     pub save_bytes: Option<u64>,
+    /// JSON cells of the active save that did not read when it was loaded, kept as they were in its
+    /// `unreadable_records` table (`db::json_column`): where each is, never its text, which stays in
+    /// the save the player may choose to attach.
+    pub unreadable_records: Vec<db::json_column::UnreadableCell>,
 }
 
 fn log_dir(app_handle: &tauri::AppHandle) -> Option<PathBuf> {
@@ -98,6 +102,7 @@ fn collect(
     has_active_save: bool,
     crash_on_previous_run: bool,
     save_bytes: Option<u64>,
+    unreadable_records: Vec<db::json_column::UnreadableCell>,
 ) -> DiagnosticsReport {
     let log_files = log_dir(app_handle)
         .map(|dir| {
@@ -128,6 +133,7 @@ fn collect(
         has_active_save,
         log_files,
         save_bytes,
+        unreadable_records,
     }
 }
 
@@ -140,6 +146,25 @@ fn active_save_bytes(state: &StateManager, save_manager: &SaveManagerState) -> O
     let manager = save_manager.0.lock().ok()?;
     let path = manager.save_db_path(&save_id)?;
     std::fs::metadata(path).ok().map(|meta| meta.len())
+}
+
+/// The active save's cells that did not read on load; none when no career is open.
+fn active_save_unreadable_records(
+    state: &StateManager,
+    save_manager: &SaveManagerState,
+) -> Vec<db::json_column::UnreadableCell> {
+    let Some(save_id) = state.get_save_id() else {
+        return Vec::new();
+    };
+    let Some(path) = save_manager
+        .0
+        .lock()
+        .ok()
+        .and_then(|manager| manager.save_db_path(&save_id))
+    else {
+        return Vec::new();
+    };
+    db::json_column::unreadable_cells_in_save(&path)
 }
 
 #[tauri::command]
@@ -155,6 +180,7 @@ pub fn collect_diagnostics(
         state.get_save_id().is_some(),
         previous_crash.0.is_some(),
         active_save_bytes(&state, &save_manager),
+        active_save_unreadable_records(&state, &save_manager),
     )
 }
 
@@ -295,6 +321,7 @@ fn snapshot_diagnostics(
         state.get_save_id().is_some(),
         crash_on_previous_run,
         active_save_bytes(state, save_manager),
+        active_save_unreadable_records(state, save_manager),
     );
     (redactor, diagnostics)
 }
