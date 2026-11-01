@@ -2508,6 +2508,10 @@ mod tests {
         let saves_dir = dir.path().join("saves");
         let mut sm = SaveManager::init(&saves_dir).unwrap();
         let mut game = sample_game();
+        // Between jobs: the sample club is short of the squad floor, and the warning about the
+        // user's club keeps its state in the ledger too, so a lost ledger would make the load save
+        // for that reason as well. Without a club, the lost ledger is the only reason.
+        game.manager.team_id = None;
         let announcement = || {
             domain::message::InboxMessage::new(
                 "promotion_2032".to_string(),
