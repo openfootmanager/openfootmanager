@@ -33,7 +33,7 @@ const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
  * lets its contents out stretches the page, as the cards' screen-reader text did before the card
  * was positioned.
  */
-const CARD_VIEWS = ["players", "squad"];
+const CARD_VIEWS = ["players", "squad", "teams"];
 const CARD_WINDOWS = WINDOWS.filter((window) => window.scale === "normal" && window.lang === "en");
 
 /** Every page at every window; `page: undefined` is the style guide itself. */
