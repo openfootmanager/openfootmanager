@@ -407,6 +407,12 @@ describe("SquadRosterView cards", () => {
       within(screen.getByRole("article", { name })).queryAllByText(/, squad\.outOfPosition$/);
     expect(outOfPosition("F1")).toHaveLength(1);
     expect(outOfPosition("GK1")).toHaveLength(0);
+    // The slot chip: the forward wears the keeper slot's, the keeper (no grade) wears none at all,
+    // not even one without a mark.
+    const slotChips = (name: string, slot: RegExp) =>
+      within(screen.getByRole("article", { name })).queryAllByTitle(slot);
+    expect(slotChips("F1", /Goalkeeper/)).toHaveLength(1);
+    expect(slotChips("GK1", /Striker/)).toHaveLength(0);
   });
 
   /**
