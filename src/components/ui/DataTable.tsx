@@ -1,9 +1,10 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Fragment, type MouseEvent, type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { SortDirection } from "../../lib/sortRows";
 import { isOnControl } from "./clickTarget";
 
-export type SortDirection = "asc" | "desc";
+export type { SortDirection };
 
 /** A row's left accent: `selected` for a starter, `danger` for a player who can't play. */
 type RowAccent = "selected" | "danger";
