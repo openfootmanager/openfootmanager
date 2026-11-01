@@ -102,3 +102,19 @@ fn the_warning_carries_the_users_own_assistant_managers_name() {
 
     assert_eq!(warning.sender, "Staff assistant");
 }
+
+/// Given the user's club with its own physio, and another club's physio listed before him
+/// When a squad averaging 40 gets its warning
+/// Then it carries the name of the user's own physio
+#[test]
+fn the_warning_carries_the_users_own_physios_name() {
+    let mut game = make_game();
+    game.staff.insert(
+        0,
+        make_staff("their-physio", "team0", StaffRole::Physio, 30, 80),
+    );
+
+    let warning = warning_with_squad_at(&mut game, 40).expect("an average of 40 is a warning");
+
+    assert_eq!(warning.sender, "Staff physio1");
+}
