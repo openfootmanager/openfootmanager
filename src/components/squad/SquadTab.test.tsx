@@ -955,6 +955,41 @@ describe("SquadTab", () => {
     });
   });
   /**
+   * Given a squad whose starters are all in their natural slots
+   * When the familiarity has arrived and when it has not
+   * Then the natural-fit count is the backend's, and zero before it arrives: the screen does not
+   *      grade the lineup itself while it waits.
+   */
+  it("counts natural fits from the backend's familiarity, and none before it arrives", () => {
+    const { unmount } = render(
+      <SquadTab
+        gameState={makeGameState()}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText("0 squad.naturalFit")).toBeNull();
+    unmount();
+
+    familiarityState.arrived = false;
+    try {
+      render(
+        <SquadTab
+          gameState={makeGameState()}
+          managerId="mgr1"
+          onSelectPlayer={vi.fn()}
+          onGameUpdate={vi.fn()}
+        />,
+      );
+
+      expect(screen.getByText("0 squad.naturalFit")).toBeInTheDocument();
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
+  /**
    * Given the backend's familiarity has not arrived (the position table has)
    * When a bench player is made a starter from the roster context menu
    * Then nothing is saved and the item is disabled: a lineup worked out without the grade must

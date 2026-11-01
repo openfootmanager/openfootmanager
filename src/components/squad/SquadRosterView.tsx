@@ -306,9 +306,6 @@ export default function SquadRosterView({
   };
 
   const persistStartingXi = async (playerIds: string[]): Promise<void> => {
-    // Nothing is saved from a lineup worked out before the backend's position table and
-    // familiarity have loaded.
-    if (!canGradeLineup) return;
     const updated = await setStartingXi(playerIds);
     completeMutation(updated);
   };
