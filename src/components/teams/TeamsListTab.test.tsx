@@ -12,8 +12,10 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
 }));
 
-vi.mock("react-i18next", () => ({
-  useTranslation: () => ({
+// One `t` for every render, as react-i18next keeps it while the language holds: the list refetches
+// when `t` changes, so a new one each render would refetch without end.
+vi.mock("react-i18next", () => {
+  const translation = {
     t: (key: string, fallback?: string | { defaultValue?: string }) => {
       const labels: Record<string, string> = {
         "teams.yourTeam": "Your Team",
@@ -41,8 +43,9 @@ vi.mock("react-i18next", () => ({
       return fallback ?? key;
     },
     i18n: { language: "en" },
-  }),
-}));
+  };
+  return { useTranslation: () => translation };
+});
 
 vi.mock("../ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../ui")>();
