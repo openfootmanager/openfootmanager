@@ -635,7 +635,8 @@
     "nextPage": "Další stránka",
     "lastPage": "Poslední stránka",
     "sortBy": "Seřadit podle",
-    "sortAscending": "Vzestupně"
+    "sortAscending": "Vzestupně",
+    "lineupLoading": "Údaje o postech se ještě načítají, změny sestavy proto zatím nejsou dostupné."
   },
   "teamSelection": {
     "title": "Vyberte si klub",
@@ -917,8 +918,7 @@
       "ready": "Připraven",
       "adjusted": "Upraveno",
       "risk": "Riziko"
-    },
-    "positionsLoading": "Údaje o postech se ještě načítají, změny sestavy proto zatím nejsou dostupné."
+    }
   },
   "training": {
     "weeklySchedule": "Týdenní plán",

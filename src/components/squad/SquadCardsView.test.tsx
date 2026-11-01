@@ -32,6 +32,16 @@ vi.mock("../../hooks/usePositionGroups", async () => {
   };
 });
 
+// The players the backend's familiarity grades (every one built here).
+const familiarityPlayers = vi.hoisted(() => new Map<string, unknown>());
+
+vi.mock("../../hooks/useFamiliarity", async () => {
+  const { cannedFamiliarityModule } = await import("../../test-utils/familiarity");
+  return cannedFamiliarityModule(
+    (playerId) => familiarityPlayers.get(playerId) as PlayerData | undefined,
+  );
+});
+
 vi.mock("../../hooks/useContractWarningStages", () => ({
   useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
 }));
@@ -61,8 +71,8 @@ const makePlayer = (
   id: string,
   position: string,
   overrides: Partial<PlayerData> = {},
-): PlayerData =>
-  createPlayer({
+): PlayerData => {
+  const player = createPlayer({
     id,
     match_name: id.toUpperCase(),
     full_name: `Player ${id}`,
@@ -79,6 +89,10 @@ const makePlayer = (
     match_day_eligible: true,
     ...overrides,
   });
+  // The backend would grade him; the stand-in finds him here.
+  familiarityPlayers.set(player.id, player);
+  return player;
+};
 
 const STARTER_IDS = ["gk1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"];
 
@@ -371,6 +385,34 @@ describe("SquadRosterView cards", () => {
     expect(outOfPosition("F1")).toHaveLength(1);
     expect(outOfPosition("M1")).toHaveLength(0);
     expect(outOfPosition("Bench DEF")).toHaveLength(0);
+  });
+
+  /**
+   * Given the same swapped XI and a keeper the backend's projection does not hold
+   * When the cards render
+   * Then the forward's card is marked out of position and the keeper's card says nothing of the
+   *      kind: a missing grade is not a verdict.
+   */
+  it("marks no fit on a card for a player missing from the projection", () => {
+    const swapped = createTeam({
+      id: "team1",
+      name: "Test FC",
+      starting_xi_ids: ["f1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "gk1", "f2"],
+    });
+    const squad = makeSquad();
+    familiarityPlayers.delete("gk1");
+    renderRoster(squad, vi.fn(), swapped);
+
+    const outOfPosition = (name: string) =>
+      within(screen.getByRole("article", { name })).queryAllByText(/, squad\.outOfPosition$/);
+    expect(outOfPosition("F1")).toHaveLength(1);
+    expect(outOfPosition("GK1")).toHaveLength(0);
+    // The slot chip: the forward wears the keeper slot's, the keeper (no grade) wears none at all,
+    // not even one without a mark.
+    const slotChips = (name: string, slot: RegExp) =>
+      within(screen.getByRole("article", { name })).queryAllByTitle(slot);
+    expect(slotChips("F1", /Goalkeeper/)).toHaveLength(1);
+    expect(slotChips("GK1", /Striker/)).toHaveLength(0);
   });
 
   /**
