@@ -7,6 +7,8 @@
 //! wonderkids a new world opens with (S 1 to 3% and A 8 to 11% of seniors, mean rating 69 to 70.2:
 //! the ratings the game really computes, see `opening_ratings`).
 
+use std::sync::OnceLock;
+
 use season_harness::distribution::{DistributionReport, distribution_report};
 use season_harness::reputation::{ReputationReport, reputation_report};
 use season_harness::worlds::WorldSpec;
@@ -36,11 +38,22 @@ fn summary(reputation: &ReputationReport, world: &DistributionReport) -> String 
     )
 }
 
-fn opening(seed: u64) -> (ReputationReport, DistributionReport) {
-    let game = WorldSpec::shipped(seed).build().expect("the world builds");
-    let (reputation, world) = (reputation_report(&game), distribution_report(&game));
-    eprintln!("OPENING seed {seed}: {}", summary(&reputation, &world));
-    (reputation, world)
+/// The opening world of `seed`, built once for all the tests in this file: building the shipped
+/// world is the cost of a test here, and every test reads the same opening.
+fn opening(seed: u64) -> &'static (ReputationReport, DistributionReport) {
+    static SEED_1: OnceLock<(ReputationReport, DistributionReport)> = OnceLock::new();
+    static SEED_2: OnceLock<(ReputationReport, DistributionReport)> = OnceLock::new();
+    let cell = match seed {
+        1 => &SEED_1,
+        2 => &SEED_2,
+        other => panic!("no cached opening for seed {other}"),
+    };
+    cell.get_or_init(|| {
+        let game = WorldSpec::shipped(seed).build().expect("the world builds");
+        let (reputation, world) = (reputation_report(&game), distribution_report(&game));
+        eprintln!("OPENING seed {seed}: {}", summary(&reputation, &world));
+        (reputation, world)
+    })
 }
 
 /// Given the shipped world generated from a seed,
