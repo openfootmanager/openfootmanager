@@ -316,6 +316,51 @@ mod tests {
         round_trips(known);
     }
 
+    /// Given a market row for a rival (rating only), a scouted player (rounded wage only) and a
+    /// stranger (neither)
+    /// When the market is rendered
+    /// Then a missing rating or wage shows as "?", a rounded wage with a "~", and all survive a round trip.
+    #[test]
+    fn market_rows_show_only_what_the_club_may_see() {
+        let row = |id: &str, ovr: Option<u8>, wage: Option<u32>, approximate: bool| {
+            transfers::MarketPlayer {
+                id: id.to_string(),
+                name: id.to_string(),
+                position: "CM".to_string(),
+                age: "24".to_string(),
+                ovr,
+                team: Some("Reds".to_string()),
+                transfer_listed: false,
+                loan_listed: false,
+                wage,
+                wage_is_approximate: approximate,
+            }
+        };
+        let market = transfers::TransferMarket {
+            players: vec![
+                row("rival", Some(71), None, false),
+                row("scouted", None, Some(16_000), true),
+                row("stranger", None, None, false),
+            ],
+        };
+
+        let text = market.to_string();
+
+        assert!(
+            text.contains("| rival | rival | CM | 24 | 71 | Reds | - | ? |"),
+            "{text}"
+        );
+        assert!(
+            text.contains("| scouted | scouted | CM | 24 | ? | Reds | - | ~16000 |"),
+            "{text}"
+        );
+        assert!(
+            text.contains("| stranger | stranger | CM | 24 | ? | Reds | - | ? |"),
+            "{text}"
+        );
+        round_trips(market);
+    }
+
     /// Given no blockers, and then a live match with one real blocker
     /// When the blockers are rendered
     /// Then the first says time can advance, and the second lists the live match and the blocker

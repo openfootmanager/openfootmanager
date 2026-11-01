@@ -1041,11 +1041,11 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     // transfer_market_browse
     custom_tool!(
         "transfer_market_browse",
-        "Browse transfer/loan market with optional filters",
+        "Browse the transfer/loan market with optional filters; a player shows only the rating and wage your club may see",
         build_schema(
             &[
                 ("position", "string", "Filter by position (e.g. GK, CB, ST)"),
-                ("max_price", "integer", "Max annual cost estimate"),
+                ("max_price", "integer", "Max annual wage (52 x the weekly wage your club may see; a player whose wage is hidden never matches)"),
                 (
                     "listed_only",
                     "boolean",
