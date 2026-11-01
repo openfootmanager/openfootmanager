@@ -43,6 +43,8 @@ import {
   type SquadListSortState,
 } from "./SquadRosterView.state";
 import { useListView } from "../../hooks/useListView";
+import { contextMenuPoint } from "../../lib/contextMenuPoint";
+import type { DeployedPosition } from "./SquadCardGrid";
 import SquadCardsView from "./SquadCardsView";
 
 interface SquadRosterViewProps {
@@ -168,6 +170,15 @@ export default function SquadRosterView({
   const getTacticalFit = (player: PlayerData) => {
     return getSquadTacticalFit(player, getCurrentPosition(player, xiActivePosition), positionTable);
   };
+
+  /** A starter's slot and how it suits him, as his row's badge and his card both say it. */
+  const deployedPositionOf = (player: PlayerData): DeployedPosition | null =>
+    xiIds.has(player.id)
+      ? {
+          position: getCurrentPosition(player, xiActivePosition),
+          familiarity: getTacticalFit(player),
+        }
+      : null;
 
   const matchesFilters = (player: PlayerData): boolean => {
     const inXI = xiIds.has(player.id);
@@ -335,7 +346,7 @@ export default function SquadRosterView({
 
   const renderPreferredPositionMeta = (player: PlayerData) => {
     const [natural, ...alternates] = getPreferredPositions(player);
-    const inXI = xiIds.has(player.id);
+    const deployed = deployedPositionOf(player);
     return (
       <PositionBadges
         // Table C: one line of up to three, the deployed position kept, the rest as "+n".
@@ -343,8 +354,8 @@ export default function SquadRosterView({
         oneLine
         natural={natural}
         alternates={alternates}
-        deployed={inXI ? getCurrentPosition(player, xiActivePosition) : undefined}
-        familiarity={inXI ? getTacticalFit(player) : undefined}
+        deployed={deployed?.position}
+        familiarity={deployed?.familiarity}
         describe={(position) => ({
           label: translatePositionAbbreviation(t, position),
           name: translatePositionLabel(t, position),
@@ -546,6 +557,7 @@ export default function SquadRosterView({
             teamName={team.name}
             kit={team.colors}
             isStarter={(player) => xiIds.has(player.id)}
+            deployedPositionOf={deployedPositionOf}
             riskLevelOf={riskLevelOf}
             menuItemsFor={(player) => squadRowMenuItems(player, menuContextFor(player))}
             onSelectPlayer={onSelectPlayer}
@@ -567,15 +579,8 @@ export default function SquadRosterView({
               xiIds.has(player.id) ? "selected" : isMatchDayEligible(player) ? null : "danger"
             }
             onRowContextMenu={(player, event) => {
-              // The Menu key and Shift+F10 send a right-click at 0,0: open it at the row instead.
-              const fromKeyboard = event.clientX === 0 && event.clientY === 0;
-              const rect = event.currentTarget.getBoundingClientRect();
-              menuRefs.current
-                .get(player.id)
-                ?.open(
-                  fromKeyboard ? rect.left : event.clientX,
-                  fromKeyboard ? rect.bottom : event.clientY,
-                );
+              const point = contextMenuPoint(event, event.currentTarget);
+              menuRefs.current.get(player.id)?.open(point.x, point.y);
             }}
             primaryAside={(player) => (
               <SquadNameAside player={player} starting={xiIds.has(player.id)} t={t} />

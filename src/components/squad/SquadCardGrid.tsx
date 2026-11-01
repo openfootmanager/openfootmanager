@@ -7,7 +7,6 @@ import { type ContractRiskLevel, contractExpiryLabel } from "../../lib/contractU
 import { formatDate } from "../../lib/dateFormatting";
 import { calcAge, formatWeeklyWage, getPlayerOvr } from "../../lib/helpers";
 import { visibleWageText } from "../../lib/playerKnowledge";
-import { isMatchDayEligible } from "../../lib/playerSquad";
 import { naturalPositionOf } from "../../lib/positions";
 import type { RatingTier } from "../../services/squadService";
 import type { PlayerData } from "../../store/gameStore";
@@ -16,7 +15,18 @@ import type { ContextMenuHandle, ContextMenuItem } from "../ContextMenu";
 import ContextMenu from "../ContextMenu";
 import PlayerCard from "../PlayerCard";
 import { contractChip } from "./SquadRosterView.columns";
-import { Badge, CardGrid, ConditionMeter, InjuryBadge } from "../ui";
+import {
+  type SquadTacticalFit,
+  translatePositionAbbreviation,
+  translatePositionLabel,
+} from "./SquadTab.helpers";
+import { Badge, CardGrid, ConditionMeter, InjuryBadge, PositionBadge } from "../ui";
+
+/** A starter's slot in the XI and how it suits him. */
+export interface DeployedPosition {
+  position: string;
+  familiarity: SquadTacticalFit;
+}
 
 interface SquadCardGridProps {
   players: readonly PlayerData[];
@@ -24,6 +34,8 @@ interface SquadCardGridProps {
   teamName: string;
   kit: TeamColors;
   isStarter: (player: PlayerData) => boolean;
+  /** A starter's slot and how it suits him (the row's own reading); null off the XI. */
+  deployedPositionOf: (player: PlayerData) => DeployedPosition | null;
   /** The backend's contract warning stage for a player (`useContractRiskLevels`). */
   riskLevelOf: (playerId: string) => ContractRiskLevel;
   /** A player's context menu: the very items his roster row offers. */
@@ -40,6 +52,7 @@ export default function SquadCardGrid({
   teamName,
   kit,
   isStarter,
+  deployedPositionOf,
   riskLevelOf,
   menuItemsFor,
   onSelectPlayer,
@@ -56,6 +69,7 @@ export default function SquadCardGrid({
                 teamName={teamName}
                 kit={kit}
                 starting={isStarter(player)}
+                deployed={deployedPositionOf(player)}
                 risk={riskLevelOf(player.id)}
                 tierOf={tierOf}
                 actions={actions}
@@ -112,6 +126,7 @@ interface SquadPlayerCardProps {
   teamName: string;
   kit: TeamColors;
   starting: boolean;
+  deployed: DeployedPosition | null;
   risk: ContractRiskLevel;
   tierOf: (ovr: number) => RatingTier;
   /** The button that opens the card's menu without a mouse. */
@@ -128,6 +143,7 @@ function SquadPlayerCard({
   teamName,
   kit,
   starting,
+  deployed,
   risk,
   tierOf,
   actions,
@@ -146,7 +162,15 @@ function SquadPlayerCard({
       ovr={ovr}
       tier={tierOf(ovr)}
       kit={kit}
-      status={<SquadCardStatus player={player} starting={starting} risk={risk} actions={actions} />}
+      status={
+        <SquadCardStatus
+          player={player}
+          starting={starting}
+          deployed={deployed}
+          risk={risk}
+          actions={actions}
+        />
+      }
       facts={[
         {
           label: t("common.wage"),
@@ -174,18 +198,21 @@ function SquadPlayerCard({
 }
 
 /**
- * A card's status band: the condition as the backend bands it, then in words that he starts, his
- * contract's one chip, his injury, and that he can't be picked when the backend says so for any
- * other reason. The table row says these with its accent, chip and badge.
+ * A card's status band: the condition as the backend bands it, then in words that he starts (and
+ * the slot he starts in, when it isn't his natural one), his contract's one chip, his injury, and
+ * that he can't be picked when the backend says so for any other reason. The table row says these
+ * with its position badges, accent, chip and badge.
  */
 function SquadCardStatus({
   player,
   starting,
+  deployed,
   risk,
   actions,
 }: {
   player: PlayerData;
   starting: boolean;
+  deployed: DeployedPosition | null;
   risk: ContractRiskLevel;
   actions: ReactNode;
 }) {
@@ -200,12 +227,22 @@ function SquadCardStatus({
             {t("squad.startingXi")}
           </Badge>
         ) : null}
+        {/* A natural slot is the quiet default, as on the row: only a slot that isn't is marked. */}
+        {deployed && deployed.familiarity !== "natural" ? (
+          <PositionBadge
+            position={deployed.position}
+            label={translatePositionAbbreviation(t, deployed.position)}
+            name={translatePositionLabel(t, deployed.position)}
+            familiarity={deployed.familiarity}
+          />
+        ) : null}
         <Badge variant={chip.variant} size="sm">
           {chip.label}
         </Badge>
         {player.injury ? <InjuryBadge injury={player.injury} /> : null}
-        {/* An injury already says why he is out; this is for the backend's other reasons. */}
-        {!player.injury && !isMatchDayEligible(player) ? (
+        {/* An injury already says why he is out; this is for the backend's other reasons. Only an
+            explicit "no": before the squad is fetched the verdict is absent, which means not yet. */}
+        {!player.injury && player.match_day_eligible === false ? (
           <Badge variant="danger" size="sm">
             {t("squad.notMatchDayEligible")}
           </Badge>

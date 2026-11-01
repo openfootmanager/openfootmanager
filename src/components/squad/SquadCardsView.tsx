@@ -5,7 +5,7 @@ import type { PlayerData } from "../../store/gameStore";
 import type { TeamColors } from "../../store/types";
 import type { ContextMenuItem } from "../ContextMenu";
 import { SortControl } from "../ui";
-import SquadCardGrid from "./SquadCardGrid";
+import SquadCardGrid, { type DeployedPosition } from "./SquadCardGrid";
 import type { SquadListSortKey, SquadListSortState } from "./SquadRosterView.state";
 
 /** The fields the cards sort by: the roster table's sortable columns, named as its headers are. */
@@ -26,6 +26,7 @@ interface SquadCardsViewProps {
   teamName: string;
   kit: TeamColors;
   isStarter: (player: PlayerData) => boolean;
+  deployedPositionOf: (player: PlayerData) => DeployedPosition | null;
   riskLevelOf: (playerId: string) => ContractRiskLevel;
   menuItemsFor: (player: PlayerData) => ContextMenuItem[];
   onSelectPlayer: (id: string) => void;

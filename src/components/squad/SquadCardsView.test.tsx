@@ -113,11 +113,15 @@ function setListView(view: "table" | "cards") {
   });
 }
 
-function renderRoster(players: PlayerData[] = makeSquad(), onSelectPlayer = vi.fn()) {
+function renderRoster(
+  players: PlayerData[] = makeSquad(),
+  onSelectPlayer = vi.fn(),
+  rosterTeam = team,
+) {
   render(
     <SquadRosterView
       players={players}
-      team={team}
+      team={rosterTeam}
       clockDate="2026-08-01"
       onSelectPlayer={onSelectPlayer}
       onMutationComplete={vi.fn()}
@@ -332,6 +336,60 @@ describe("SquadRosterView cards", () => {
     expect(cardSays("Ruled Out")).toBeInTheDocument();
     expect(cardSays("Hurt Forward")).toBeNull();
     expect(cardSays("Bench DEF")).toBeNull();
+  });
+
+  /**
+   * Given the roster drawn before the backend's squad arrives, its players with no match-day
+   *       verdict yet (as the game state's raw players are while the squad loads)
+   * When their cards render
+   * Then none says he can't be picked: an absent verdict means not yet, not no.
+   */
+  it("says nothing of selection before the backend's verdict arrives", () => {
+    renderRoster(makeSquad().map((player) => ({ ...player, match_day_eligible: undefined })));
+
+    expect(screen.getAllByRole("article")).toHaveLength(12);
+    expect(screen.queryByText("squad.notMatchDayEligible")).toBeNull();
+  });
+
+  /**
+   * Given a starting XI in which the goalkeeper and a forward have swapped slots
+   * When their cards render
+   * Then each card marks the slot he is deployed in as out of position, as his row's badge does,
+   *      and a bench player's card and a midfielder's in his own line mark nothing of the kind.
+   */
+  it("marks a starter deployed out of position on his card", () => {
+    const swapped = createTeam({
+      id: "team1",
+      name: "Test FC",
+      starting_xi_ids: ["f1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "gk1", "f2"],
+    });
+    renderRoster(makeSquad(), vi.fn(), swapped);
+
+    const outOfPosition = (name: string) =>
+      within(screen.getByRole("article", { name })).queryAllByText(/, squad\.outOfPosition$/);
+    expect(outOfPosition("GK1")).toHaveLength(1);
+    expect(outOfPosition("F1")).toHaveLength(1);
+    expect(outOfPosition("M1")).toHaveLength(0);
+    expect(outOfPosition("Bench DEF")).toHaveLength(0);
+  });
+
+  /**
+   * Given the bench defender's card, its name's button focused
+   * When the Menu key (or Shift+F10) opens the menu, which reports its right-click at 0,0
+   * Then the menu opens under the focused button, as a row's does under the row, not in the
+   *      viewport's top corner.
+   */
+  it("opens a card's menu from the keyboard under the focused control", () => {
+    renderRoster();
+    const card = screen.getByRole("article", { name: "Bench DEF" });
+    const name = within(card).getByRole("button", { name: "Bench DEF" });
+    name.getBoundingClientRect = () =>
+      ({ left: 120, bottom: 340, top: 300, right: 320, width: 200, height: 40 }) as DOMRect;
+    name.focus();
+
+    fireEvent.contextMenu(name, { clientX: 0, clientY: 0 });
+
+    expect(screen.getByRole("menu")).toHaveStyle({ left: "120px", top: "340px" });
   });
 
   /**
