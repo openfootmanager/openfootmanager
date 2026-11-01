@@ -129,6 +129,28 @@ describe("EntityCard", () => {
   });
 
   /**
+   * Given a card whose meta line or hero carries text only a screen reader reads ("Age",
+   *       "Position"), which `sr-only` places absolutely
+   * When the card is drawn
+   * Then the card itself is the positioned box that text sits in, in both sizes, so the text stays
+   *      inside the card's clipped bounds. Otherwise it falls back to the nearest positioned
+   *      ancestor, outside the card, and stretches the page: a 1280×800 Teams page grew to 852px
+   *      tall and scrolled. jsdom does no layout, so the class is what can be checked here.
+   */
+  it("is the positioned box its screen-reader-only text sits in, in both sizes", () => {
+    renderCard({ hero: <span className="sr-only">Position </span> });
+    expect(screen.getByRole("article", { name: "Gonzalez" })).toHaveClass(
+      "relative",
+      "overflow-hidden",
+    );
+    renderCard({ name: "Compact", size: "compact" });
+    expect(screen.getByRole("article", { name: "Compact" })).toHaveClass(
+      "relative",
+      "overflow-hidden",
+    );
+  });
+
+  /**
    * Given a club's kit colours
    * When the card is drawn
    * Then it carries them as the --kit variables the kit tokens read, and its stripe, header wash
