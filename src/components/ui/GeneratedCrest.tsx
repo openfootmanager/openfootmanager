@@ -71,6 +71,9 @@ export function GeneratedCrest({ name, label, colors, className }: GeneratedCres
         stroke={secondary}
         strokeWidth="2"
       />
+      {/* The halo is 2.5 units of the 64-unit viewBox: about 1 px at the smallest crest drawn (24 px).
+          Below that it would close the letters' counters, so whoever first draws a smaller crest
+          should keep it near 1 px (a non-scaling stroke) or drop the label there. */}
       <text
         x="32"
         y="34"

@@ -125,6 +125,9 @@ describe("readableInk", () => {
    * Then it counts as mid-grey beside the colour that is, instead of deciding the ink alone.
    */
   it("treats an unreadable colour as mid-grey", () => {
+    // Alone, mid-grey calls for the dark ink; skipped (nothing to read) or read as black it would
+    // call for the light one.
+    expect(readableInk(["not a colour"])).toBe(DARK_INK);
     expect(readableInk(["not a colour", "#ffffff"])).toBe(DARK_INK);
     expect(readableInk(["not a colour", "#000000"])).toBe(LIGHT_INK);
   });
