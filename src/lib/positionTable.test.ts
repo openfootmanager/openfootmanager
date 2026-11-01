@@ -85,4 +85,22 @@ describe("createPositionTable", () => {
     ]);
     expect(createPositionTable([]).lines()).toEqual([]);
   });
+
+  /**
+   * Given the spellings packages, the CLI and older saves use for a position
+   * When the table is asked for the group and rank of an alias
+   * Then it answers as for the position the alias means: a player is not sorted to the bottom of a
+   *      roster for how his position was written.
+   */
+  it.each([
+    ["rb", "RightBack"],
+    ["centreback", "CenterBack"],
+    ["st", "Striker"],
+    ["wingback", "Defender"],
+    ["winger", "Forward"],
+  ])("reads the alias %s as %s", (alias, position) => {
+    expect(table.groupOf(alias)).toBe(table.groupOf(position));
+    expect(table.rankOf(alias)).toBe(table.rankOf(position));
+    expect(table.lineRankOf(alias)).toBe(table.lineRankOf(position));
+  });
 });
