@@ -683,7 +683,7 @@ mod tests {
     /// Then each carries only its signed delta: "+4", "-5" and "+0"
     #[test]
     fn effect_params_carry_only_the_signed_morale_delta() {
-        let delta = |d| base_effect_params(d);
+        let delta = base_effect_params;
 
         assert_eq!(
             (delta(4), delta(-5), delta(0)),
