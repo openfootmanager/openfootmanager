@@ -2475,6 +2475,39 @@ mod tests {
         assert!(loaded.emitted_events.contains("world_cup_champion_2030"));
     }
 
+    /// Given a save whose player and club still carry the legacy "GB" identity
+    /// When it is loaded, and then loaded again
+    /// Then the first load brings the player to his current identity, birth country included, and
+    ///      the second writes nothing: one load settles it, not one per missing field
+    #[test]
+    fn one_load_settles_a_legacy_gb_identity() {
+        let dir = tempfile::tempdir().unwrap();
+        let saves_dir = dir.path().join("saves");
+        let mut sm = SaveManager::init(&saves_dir).unwrap();
+        let mut game = sample_game();
+        // Between jobs: the warning about the user's short club keeps its own state and is not
+        // under test here.
+        game.manager.team_id = None;
+        assert_eq!(
+            game.players[0].nationality, "GB",
+            "the legacy identity under test"
+        );
+        let save_id = sm.create_save(&game, "Legacy GB").unwrap();
+        let db_path = saves_dir.join(format!("{save_id}.db"));
+
+        let first = sm.load_game(&save_id).unwrap();
+        let settled = compute_checksum(&db_path).unwrap();
+        sm.load_game(&save_id).unwrap();
+
+        assert_eq!(first.players[0].nationality, "ENG");
+        assert_eq!(first.players[0].birth_country.as_deref(), Some("ENG"));
+        assert_eq!(
+            compute_checksum(&db_path).unwrap(),
+            settled,
+            "the second load wrote the save again"
+        );
+    }
+
     /// Given a save written before games had a seed,
     /// When it is loaded, twice,
     /// Then it has a seed — the same one both times, derived from the save, so
