@@ -1,7 +1,8 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { PlayerSummary } from "../../services/playersService";
+import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 import type { GameStateData } from "../../store/gameStore";
 import { usePlayersListActions } from "./usePlayersListActions";
 
@@ -92,5 +93,66 @@ describe("usePlayersListActions context menu", () => {
     const retired = menuLabels(summary({ team_id: null, retired: true }));
     expect(retired).not.toContain("transfers.offerContract");
     expect(retired).not.toContain("scouting.noScoutsFree");
+  });
+});
+
+describe("usePlayersListActions list toggles", () => {
+  function setup() {
+    const onGameUpdate = vi.fn();
+    const refetchSlice = vi.fn();
+    const hook = renderHook(() =>
+      usePlayersListActions({
+        gameState,
+        onGameUpdate,
+        onSelectPlayer: vi.fn(),
+        onSelectTeam: vi.fn(),
+        refetchSlice,
+      }),
+    );
+    const press = async (label: string) => {
+      const item = hook.result.current
+        .contextItemsFor(summary({ team_id: "mine" }))
+        .find((entry) => entry.label === label);
+      await act(async () => {
+        await item?.onClick?.();
+      });
+    };
+    return { hook, press, onGameUpdate, refetchSlice };
+  }
+
+  /**
+   * Given a save that fails
+   * When the manager lists his player for transfer, and for loan, from the menu
+   * Then the failure is shown to him (it is not swallowed), and nothing is reported as updated.
+   */
+  it.each([
+    ["squad.addToTransferList", toggleTransferList],
+    ["squad.addToLoanList", toggleLoanList],
+  ] as const)("shows the failure of %s", async (label, toggle) => {
+    vi.mocked(toggle).mockRejectedValueOnce(new Error("disk full"));
+    const { hook, press, onGameUpdate } = setup();
+
+    await press(label);
+
+    expect(hook.result.current.actionError).toBe("disk full");
+    expect(onGameUpdate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Given an earlier failure that is on screen
+   * When the next list action succeeds
+   * Then the error is cleared and the list is asked to reload.
+   */
+  it("clears the failure once a later toggle succeeds", async () => {
+    vi.mocked(toggleTransferList).mockRejectedValueOnce(new Error("disk full"));
+    vi.mocked(toggleTransferList).mockResolvedValueOnce({} as GameStateData);
+    const { hook, press, refetchSlice } = setup();
+
+    await press("squad.addToTransferList");
+    expect(hook.result.current.actionError).toBe("disk full");
+    await press("squad.addToTransferList");
+
+    expect(hook.result.current.actionError).toBeNull();
+    expect(refetchSlice).toHaveBeenCalled();
   });
 });
