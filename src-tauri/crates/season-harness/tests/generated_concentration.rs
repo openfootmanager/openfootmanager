@@ -63,7 +63,7 @@ fn opening(seed: u64) -> &'static (ReputationReport, DistributionReport) {
 fn the_top_fifth_of_clubs_holds_half_of_the_stars_at_opening() {
     for seed in [1, 2] {
         let (reputation, world) = opening(seed);
-        let message = summary(&reputation, &world);
+        let message = summary(reputation, world);
 
         assert!(
             reputation.quintiles[4].s_share >= 0.5,
@@ -83,7 +83,7 @@ fn the_top_fifth_of_clubs_holds_half_of_the_stars_at_opening() {
 fn the_free_agents_are_mostly_ordinary_at_opening() {
     for seed in [1, 2] {
         let (reputation, world) = opening(seed);
-        let message = summary(&reputation, &world);
+        let message = summary(reputation, world);
 
         assert!(
             reputation.unattached.s_share <= 0.05,
@@ -103,7 +103,7 @@ fn the_free_agents_are_mostly_ordinary_at_opening() {
 fn a_higher_reputation_fifth_has_a_better_first_team_at_opening() {
     for seed in [1, 2] {
         let (reputation, world) = opening(seed);
-        let message = summary(&reputation, &world);
+        let message = summary(reputation, world);
 
         for pair in reputation.quintiles.windows(2) {
             assert!(
@@ -122,7 +122,7 @@ fn a_higher_reputation_fifth_has_a_better_first_team_at_opening() {
 fn the_worlds_tiers_and_mean_are_unchanged_at_opening() {
     for seed in [1, 2] {
         let (reputation, world) = opening(seed);
-        let message = summary(&reputation, &world);
+        let message = summary(reputation, world);
 
         assert!(
             (0.01..=0.03).contains(&world.senior_ovr_s_share),
