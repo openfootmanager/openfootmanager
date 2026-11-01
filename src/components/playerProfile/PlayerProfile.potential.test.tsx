@@ -29,7 +29,7 @@ vi.mock("../../hooks/usePlayerKnowledge", () => ({
   usePlayerKnowledge: () => () => ({ kind: "own" }),
 }));
 vi.mock("../../hooks/useVisibleWage", () => ({
-  useVisibleWage: () => ({ kind: "exact", weekly: 12_000 }),
+  useVisibleWage: () => ({ status: "answered", value: { kind: "exact", weekly: 12_000 } }),
 }));
 vi.mock("../../hooks/useRatingTiers", async () => {
   const { cannedRatingTiersModule } = await import("../../test-utils/ratingTiers");

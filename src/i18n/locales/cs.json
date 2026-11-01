@@ -1768,7 +1768,9 @@
     "positions": {
       "title": "Pozice",
       "wherePlayed": "kde ho nasazujete"
-    }
+    },
+    "loadFailed": "Nepodařilo se načíst",
+    "retryWage": "Znovu načíst plat"
   },
   "teamProfile": {
     "clubInfo": "Informace o klubu",

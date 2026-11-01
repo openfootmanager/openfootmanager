@@ -1768,7 +1768,9 @@
     "positions": {
       "title": "Positions",
       "wherePlayed": "where you play him"
-    }
+    },
+    "loadFailed": "Couldn't load",
+    "retryWage": "Retry loading the wage"
   },
   "teamProfile": {
     "clubInfo": "Club Information",
