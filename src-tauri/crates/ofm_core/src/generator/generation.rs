@@ -1540,6 +1540,61 @@ mod tests {
         );
     }
 
+    /// Prints the table `ROLLED_AT_Z` is baked from: for each position group, the rolled rating at
+    /// the standard-normal quantiles of a z grid from -3.5 to 3.5 in steps of 0.25, from four
+    /// million seeded draws of [`roll_attributes`] rated by `ovr_from_attributes`.
+    ///
+    /// `cargo test --release -p ofm_core --lib print_the_rolled_quantile_table -- --ignored --nocapture`
+    #[test]
+    #[ignore = "prints the baked quantile table; run it to regenerate the table"]
+    fn print_the_rolled_quantile_table() {
+        use rand::SeedableRng;
+        const SAMPLES: usize = 4_000_000;
+
+        fn normal_cdf(z: f64) -> f64 {
+            // Abramowitz and Stegun 7.1.26 (|error| < 1.5e-7).
+            let x = z.abs() / std::f64::consts::SQRT_2;
+            let t = 1.0 / (1.0 + 0.327_591_1 * x);
+            let poly = t
+                * (0.254_829_592
+                    + t * (-0.284_496_736
+                        + t * (1.421_413_741 + t * (-1.453_152_027 + t * 1.061_405_429))));
+            let erf = 1.0 - poly * (-x * x).exp();
+            if z >= 0.0 {
+                0.5 * (1.0 + erf)
+            } else {
+                0.5 * (1.0 - erf)
+            }
+        }
+
+        for (index, group) in [
+            Position::Goalkeeper,
+            Position::Defender,
+            Position::Midfielder,
+            Position::Forward,
+        ]
+        .iter()
+        .enumerate()
+        {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(0x0F51_0000 + index as u64);
+            let mut rolled: Vec<f64> = (0..SAMPLES)
+                .map(|_| ovr_from_attributes(&roll_attributes(group, &mut rng), group))
+                .collect();
+            rolled.sort_by(f64::total_cmp);
+            let cells: Vec<String> = (0..29)
+                .map(|step| {
+                    let p = normal_cdf(-3.5 + 0.25 * step as f64);
+                    let position = (p * SAMPLES as f64 - 0.5).clamp(0.0, (SAMPLES - 1) as f64);
+                    let (low, fraction) = (position.floor() as usize, position.fract());
+                    let high = (low + 1).min(SAMPLES - 1);
+                    let value = rolled[low] * (1.0 - fraction) + rolled[high] * fraction;
+                    format!("{value:.3}")
+                })
+                .collect();
+            eprintln!("TABLE {group:?}: [{}],", cells.join(", "));
+        }
+    }
+
     /// Given staff authored with and without a `knownAs` name (#557)
     /// When they are generated
     /// Then the one with it is displayed by it, keeping the real name, and the other by first and last.
