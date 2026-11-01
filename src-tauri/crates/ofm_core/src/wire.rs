@@ -20,14 +20,23 @@
 //! (`truthful_value`).
 
 use domain::message::InboxMessage;
-use domain::player::Player;
+use domain::player::{Player, PlayerTrait};
 use serde::ser::{SerializeSeq, Serializer};
 
 use crate::game::Game;
 
-/// `player` as a reader may receive him: everything but his potential, which reads 0.
-pub fn without_potential(mut player: Player) -> Player {
+/// What a reader never receives of a player: his potential, and the Wonderkid tag the game reads off
+/// it (`player_rating::qualifies_for_wonderkid`), which would tell the true potential in one bit.
+/// The club's own verdict reaches the profile as `PotentialOpinion::wonderkid` instead.
+fn redact(player: &mut Player) {
     player.potential = 0;
+    player.traits.retain(|tag| *tag != PlayerTrait::Wonderkid);
+}
+
+/// `player` as a reader may receive him: everything but his potential, which reads 0, and the
+/// Wonderkid tag read from it (`redact`).
+pub fn without_potential(mut player: Player) -> Player {
+    redact(&mut player);
     player
 }
 
@@ -45,12 +54,12 @@ pub(crate) fn players_without_potential<S: Serializer>(
 }
 
 /// `message` as a reader may receive it: a youth scouting report's prospects without their
-/// potential.
+/// potential or the Wonderkid tag read from it.
 pub fn message_for_readers(message: &InboxMessage) -> InboxMessage {
     let mut wire = message.clone();
     if let Some(prospects) = wire.context.youth_prospects.as_mut() {
         for prospect in prospects {
-            prospect.potential = 0;
+            redact(prospect);
         }
     }
     wire
@@ -79,17 +88,18 @@ pub(crate) fn messages_without_potential<S: Serializer>(
     seq.end()
 }
 
-/// The whole game as JSON, potentials included: what the save holds, for the developers' MCP dump
+/// The whole game as JSON, potentials and Wonderkid tags included: what the save holds, for the developers' MCP dump
 /// (`dev_full_game_state`, refused on a competition server) and the harness that compares a save
 /// with the live game through it. Nothing a player reads.
 ///
-/// It is the redacted JSON with each true potential written back, by position: the serializer keeps
-/// the game's own order of players, messages and prospects.
+/// It is the redacted JSON with each true potential and trait list written back, by position: the
+/// serializer keeps the game's own order of players, messages and prospects.
 pub fn truthful_value(game: &Game) -> serde_json::Result<serde_json::Value> {
     let mut value = serde_json::to_value(game)?;
     if let Some(players) = value["players"].as_array_mut() {
         for (json, player) in players.iter_mut().zip(&game.players) {
             json["potential"] = player.potential.into();
+            json["traits"] = serde_json::to_value(&player.traits)?;
         }
     }
     if let Some(messages) = value["messages"].as_array_mut() {
@@ -100,6 +110,7 @@ pub fn truthful_value(game: &Game) -> serde_json::Result<serde_json::Value> {
             if let Some(json_prospects) = json["context"]["youth_prospects"].as_array_mut() {
                 for (json, prospect) in json_prospects.iter_mut().zip(prospects) {
                     json["potential"] = prospect.potential.into();
+                    json["traits"] = serde_json::to_value(&prospect.traits)?;
                 }
             }
         }
@@ -160,6 +171,8 @@ mod tests {
         );
         player.team_id = team_id.map(str::to_string);
         player.potential = potential;
+        // The game's own tag, read from his true potential: no reader may receive it either.
+        player.traits = vec![PlayerTrait::Wonderkid];
         player
     }
 
@@ -218,6 +231,10 @@ mod tests {
             .collect();
         assert_eq!(leaked, vec![]);
         assert_eq!(potentials_in(&value).len(), 4, "every player was looked at");
+        assert!(
+            !value.to_string().contains("\"Wonderkid\""),
+            "a reader's copy carries no Wonderkid tag"
+        );
         assert_eq!(value["scouted_players"][0]["potential"]["low"], 75);
     }
 
@@ -259,7 +276,8 @@ mod tests {
 
     /// Given the same world
     /// When it is written as the truthful form and as a reader's copy
-    /// Then the two differ only in the potentials, which the truthful form gives as they are
+    /// Then the two differ only in the potentials and the Wonderkid tags, which the truthful form
+    ///      gives as they are
     #[test]
     fn the_truthful_form_differs_from_a_readers_only_in_potential() {
         let game = world();
@@ -278,6 +296,11 @@ mod tests {
             redacted["players"][index]["potential"] = player.potential.into();
         }
         redacted["messages"][0]["context"]["youth_prospects"][0]["potential"] = 91.into();
+        let true_tags = serde_json::json!(["Wonderkid"]);
+        for index in 0..game.players.len() {
+            redacted["players"][index]["traits"] = true_tags.clone();
+        }
+        redacted["messages"][0]["context"]["youth_prospects"][0]["traits"] = true_tags;
         assert_eq!(redacted, truthful);
     }
 }

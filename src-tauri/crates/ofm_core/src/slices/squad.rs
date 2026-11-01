@@ -54,17 +54,23 @@ mod tests {
         assert_eq!(row("youth-02")["squad_role"], "Youth");
         assert_eq!(rows.len(), 20);
     }
-    /// Given a squad whose players all have a true potential
+    /// Given a squad whose players all have a true potential, and the Wonderkid tag read from it
     /// When the squad is projected for the screens
-    /// Then no row carries it: every potential reads 0
+    /// Then no row carries either: every potential reads 0, and no Wonderkid tag
     #[test]
     fn the_squad_projection_never_sends_a_players_potential() {
         let mut game = match_day_game(true, 17, 3);
         for player in &mut game.players {
             player.potential = 85;
+            player.traits.push(domain::player::PlayerTrait::Wonderkid);
         }
 
         let value = serde_json::to_value(query_squad(&game, "club")).unwrap();
+
+        assert!(
+            !value.to_string().contains("\"Wonderkid\""),
+            "no row carries the Wonderkid tag read from his potential"
+        );
 
         let potentials = crate::wire::potentials_in(&value);
         assert_eq!(potentials.len(), 20, "every row was looked at");
