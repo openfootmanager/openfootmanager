@@ -2,6 +2,8 @@ import { Card, CardBody } from "../ui";
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import type { TransfersTabController } from "./useTransfersTabController";
 import { TransferPlayerRow } from "./TransfersPlayerRow";
+import { TransfersMarketCards } from "./TransfersMarketCards";
+import { useListView } from "../../hooks/useListView";
 type TransfersMarketPaginationProps = {
   state: Pick<
     TransfersTabController,
@@ -15,46 +17,45 @@ type TransfersMarketPaginationProps = {
     | "marketTotalPages"
   >;
 };
-type TransfersMarketTableProps = {
-  state: Pick<
-    TransfersTabController,
-    | "filteredList"
-    | "t"
-    | "ovrSortDir"
-    | "cycleOvrSort"
-    | "view"
-    | "isScoutingView"
-    | "visibleList"
-    | "alreadyScoutingIds"
-    | "scoutingPlayerId"
-    | "availableScouts"
-    | "onSelectPlayer"
-    | "onSelectTeam"
-    | "handleToggleTransferListing"
-    | "handleToggleLoanListing"
-    | "handleScoutPlayer"
-    | "getDealEntryLabel"
-    | "getDealEntryIcon"
-    | "openDealEntry"
-    | "openDealHistory"
-    | "i18n"
-    | "gameState"
-    | "userTeamId"
-    | "handleRespondOffer"
-    | "openCounterNegotiation"
-    | "handleRespondLoanOffer"
-    | "openLoanCounterOffer"
-    | "handleExerciseLoanBuyOption"
-    | "visibleOf"
-    | "showMarketPagination"
-    | "marketRangeFrom"
-    | "marketRangeTo"
-    | "marketTotal"
-    | "setMarketPage"
-    | "safeMarketPage"
-    | "marketTotalPages"
-  >;
-};
+export type TransfersMarketTableState = Pick<
+  TransfersTabController,
+  | "filteredList"
+  | "t"
+  | "ovrSortDir"
+  | "cycleOvrSort"
+  | "view"
+  | "isScoutingView"
+  | "visibleList"
+  | "alreadyScoutingIds"
+  | "scoutingPlayerId"
+  | "availableScouts"
+  | "onSelectPlayer"
+  | "onSelectTeam"
+  | "handleToggleTransferListing"
+  | "handleToggleLoanListing"
+  | "handleScoutPlayer"
+  | "getDealEntryLabel"
+  | "getDealEntryIcon"
+  | "openDealEntry"
+  | "openDealHistory"
+  | "i18n"
+  | "gameState"
+  | "userTeamId"
+  | "handleRespondOffer"
+  | "openCounterNegotiation"
+  | "handleRespondLoanOffer"
+  | "openLoanCounterOffer"
+  | "handleExerciseLoanBuyOption"
+  | "visibleOf"
+  | "showMarketPagination"
+  | "marketRangeFrom"
+  | "marketRangeTo"
+  | "marketTotal"
+  | "setMarketPage"
+  | "safeMarketPage"
+  | "marketTotalPages"
+>;
+type TransfersMarketTableProps = { state: TransfersMarketTableState };
 
 export function TransfersMarketPagination({ state }: TransfersMarketPaginationProps) {
   const {
@@ -105,6 +106,15 @@ export function TransfersMarketPagination({ state }: TransfersMarketPaginationPr
 
 export function TransfersMarketTable({ state }: TransfersMarketTableProps) {
   const { filteredList, t, ovrSortDir, cycleOvrSort, view, isScoutingView, visibleList } = state;
+  const [listView] = useListView();
+  if (filteredList.length > 0 && listView === "cards") {
+    return (
+      <>
+        <TransfersMarketCards state={state} />
+        <TransfersMarketPagination state={state} />
+      </>
+    );
+  }
   return (
     filteredList.length > 0 && (
       <Card>

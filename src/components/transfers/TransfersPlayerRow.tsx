@@ -82,6 +82,33 @@ type TransferPlayerRowProps = {
   player: PlayerData;
 };
 
+type TransferDealButtonProps = {
+  state: Pick<
+    TransfersTabController,
+    "view" | "t" | "openDealEntry" | "openDealHistory" | "getDealEntryIcon" | "getDealEntryLabel"
+  >;
+  player: PlayerData;
+};
+
+/** The deal button of a scouting or offers row or card: the offer history, or the deal entry. */
+export function TransferDealButton({ state, player }: TransferDealButtonProps) {
+  const { view, t, openDealEntry, openDealHistory, getDealEntryIcon, getDealEntryLabel } = state;
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (view === "offers") openDealHistory(player);
+        else openDealEntry(player);
+      }}
+      className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-800 motion-reduce:transition-none flex items-center gap-1 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-700 dark:text-primary-400 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors"
+    >
+      {view === "offers" ? <History className="w-3 h-3" /> : getDealEntryIcon(player, "w-3 h-3")}
+      {view === "offers" ? t("transfers.viewOfferHistory") : getDealEntryLabel(player)}
+    </button>
+  );
+}
+
 export function PlayerRowDetails({
   state,
   onContextMenu,
@@ -93,19 +120,7 @@ export function PlayerRowDetails({
   loanOffersForThisPlayer,
 }: PlayerRowDetailsProps) {
   const tierOf = useRatingTiers();
-  const {
-    view,
-    onSelectPlayer,
-    t,
-    i18n,
-    onSelectTeam,
-    gameState,
-    isScoutingView,
-    openDealEntry,
-    openDealHistory,
-    getDealEntryIcon,
-    getDealEntryLabel,
-  } = state;
+  const { view, onSelectPlayer, t, i18n, onSelectTeam, gameState, isScoutingView } = state;
   return (
     <tr
       onContextMenu={onContextMenu}
@@ -197,29 +212,18 @@ export function PlayerRowDetails({
       }
       {(isScoutingView || view === "offers") && (
         <td className="py-2.5 px-4">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (view === "offers") openDealHistory(player);
-              else openDealEntry(player);
-            }}
-            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 dark:focus-visible:ring-primary-400 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-navy-800 motion-reduce:transition-none flex items-center gap-1 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 text-primary-700 dark:text-primary-400 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors"
-          >
-            {view === "offers" ? (
-              <History className="w-3 h-3" />
-            ) : (
-              getDealEntryIcon(player, "w-3 h-3")
-            )}
-            {view === "offers" ? t("transfers.viewOfferHistory") : getDealEntryLabel(player)}
-          </button>
+          <TransferDealButton state={state} player={player} />
         </td>
       )}
     </tr>
   );
 }
 
-export function TransferPlayerRow({ state, player }: TransferPlayerRowProps) {
+/**
+ * What one market player's row or card shows beside his own data: his age, the offers that
+ * concern the club, and his context menu. Both views draw from it, so they cannot drift apart.
+ */
+export function transferPlayerRowModel(state: TransferPlayerRowProps["state"], player: PlayerData) {
   const {
     userTeamId,
     alreadyScoutingIds,
@@ -289,21 +293,32 @@ export function TransferPlayerRow({ state, player }: TransferPlayerRowProps) {
       onClick: () => openDealEntry(player),
     });
   }
+  return {
+    age,
+    figures: visibleOf(player.id),
+    hasOffersForThisPlayer,
+    transferOffersForThisPlayer,
+    loanOffersForThisPlayer,
+    contextItems,
+  };
+}
 
+export function TransferPlayerRow({ state, player }: TransferPlayerRowProps) {
+  const model = transferPlayerRowModel(state, player);
   const row = (
     <PlayerRowDetails
       state={state}
       player={player}
-      age={age}
-      figures={visibleOf(player.id)}
-      hasOffersForThisPlayer={hasOffersForThisPlayer}
-      transferOffersForThisPlayer={transferOffersForThisPlayer}
-      loanOffersForThisPlayer={loanOffersForThisPlayer}
+      age={model.age}
+      figures={model.figures}
+      hasOffersForThisPlayer={model.hasOffersForThisPlayer}
+      transferOffersForThisPlayer={model.transferOffersForThisPlayer}
+      loanOffersForThisPlayer={model.loanOffersForThisPlayer}
     />
   );
 
   return (
-    <ContextMenu items={contextItems} key={player.id}>
+    <ContextMenu items={model.contextItems} key={player.id}>
       {row}
     </ContextMenu>
   );
