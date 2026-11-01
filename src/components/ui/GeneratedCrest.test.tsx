@@ -2,6 +2,9 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { GeneratedCrest } from "./GeneratedCrest";
 
+/** The label's <text> node. The crest is hidden from the accessibility tree, so it is read by its text. */
+const crestLabel = () => screen.getByText(/^(AL|BR|CH|DE)$/);
+
 describe("GeneratedCrest", () => {
   it("renders the label inside an svg crest", () => {
     const { container } = render(<GeneratedCrest name="Media FC" label="MFC" />);
@@ -51,7 +54,7 @@ describe("GeneratedCrest", () => {
   ])("keeps the label readable on both halves of a %s and %s crest", (primary, secondary) => {
     render(<GeneratedCrest name="Alpha" label="AL" colors={{ primary, secondary }} />);
 
-    const label = screen.getByTestId("crest-label");
+    const label = crestLabel();
 
     expect(label).toHaveAttribute("fill", "#111827");
     expect(label).toHaveAttribute("stroke", "#ffffff");
@@ -67,7 +70,7 @@ describe("GeneratedCrest", () => {
       <GeneratedCrest name="Bravo" label="BR" colors={{ primary: "#ff0", secondary: "white" }} />,
     );
 
-    expect(screen.getByTestId("crest-label")).toHaveAttribute("fill", "#111827");
+    expect(crestLabel()).toHaveAttribute("fill", "#111827");
   });
 
   /**
@@ -80,7 +83,7 @@ describe("GeneratedCrest", () => {
       <GeneratedCrest name="Delta" label="DE" colors={{ primary: "#003", secondary: "#000" }} />,
     );
 
-    expect(screen.getByTestId("crest-label")).toHaveAttribute("fill", "#ffffff");
+    expect(crestLabel()).toHaveAttribute("fill", "#ffffff");
   });
 
   /**
@@ -97,7 +100,7 @@ describe("GeneratedCrest", () => {
       />,
     );
 
-    const label = screen.getByTestId("crest-label");
+    const label = crestLabel();
 
     expect(label).toHaveAttribute("fill", "#ffffff");
     expect(label).toHaveAttribute("stroke", "#111827");

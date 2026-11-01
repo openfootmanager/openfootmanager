@@ -30,6 +30,42 @@ describe("parseColor", () => {
   });
 });
 
+describe("parseColor, the edges", () => {
+  /**
+   * Given a hex value whose digits are not hexadecimal
+   * When it is parsed
+   * Then it is no colour, instead of black.
+   */
+  it("rejects non-hexadecimal digits", () => {
+    expect(parseColor("#gggggg")).toBeNull();
+    expect(parseColor("#12x")).toBeNull();
+  });
+
+  /**
+   * Given an opaque rgb() written with a percentage alpha
+   * When it is parsed
+   * Then the channels stay numbers: the percent belongs to the alpha, not to them.
+   */
+  it("reads the slash value of rgb() as alpha, not as a unit of the channels", () => {
+    expect(parseColor("rgb(50 50 50 / 100%)")).toEqual({ r: 50, g: 50, b: 50 });
+    expect(parseColor("rgb(100% 0% 0%)")).toEqual({ r: 255, g: 0, b: 0 });
+  });
+
+  /**
+   * Given hsl() hues in other angle units
+   * When they are parsed
+   * Then they mean the same colour as the hue in degrees.
+   */
+  it("converts the hue's unit to degrees", () => {
+    const cyan = parseColor("hsl(180, 100%, 50%)");
+
+    expect(cyan).toEqual({ r: 0, g: 255, b: 255 });
+    expect(parseColor("hsl(0.5turn 100% 50%)")).toEqual(cyan);
+    expect(parseColor("hsl(200grad 100% 50%)")).toEqual(cyan);
+    expect(parseColor("hsl(3.14159rad 100% 50%)")).toEqual(cyan);
+  });
+});
+
 describe("contrast", () => {
   /**
    * Given black and white, and two equal colours
@@ -44,6 +80,9 @@ describe("contrast", () => {
     expect(contrastRatio(black, white)).toBeCloseTo(21, 5);
     expect(contrastRatio(white, black)).toBeCloseTo(21, 5);
     expect(contrastRatio(white, white)).toBeCloseTo(1, 5);
+    // A mid-tone, from the WCAG reference: #777777 on white is 4.48:1 (the well-known "just short of
+    // 4.5" grey), so a slip in the curve between the extremes shows.
+    expect(contrastRatio({ r: 0x77, g: 0x77, b: 0x77 }, white)).toBeCloseTo(4.48, 2);
   });
 });
 

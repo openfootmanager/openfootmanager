@@ -83,7 +83,6 @@ export function GeneratedCrest({ name, label, colors, className }: GeneratedCres
         stroke={haloColor}
         strokeOpacity="0.85"
         strokeWidth="2.5"
-        data-testid="crest-label"
       >
         {text}
       </text>

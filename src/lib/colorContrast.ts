@@ -158,31 +158,54 @@ const NAMED_COLORS: Record<string, string> = {
 };
 
 function fromHex(hex: string): Rgb | null {
+  if (!/^[0-9a-f]+$/.test(hex)) return null;
   const digits = hex.length === 3 || hex.length === 4 ? [...hex].map((c) => c + c).join("") : hex;
   if (digits.length !== 6 && digits.length !== 8) return null;
   const value = Number.parseInt(digits.slice(0, 6), 16);
   return { r: (value >> 16) & 0xff, g: (value >> 8) & 0xff, b: value & 0xff };
 }
 
+/** One channel of rgb(): a number 0 to 255, or a percentage of it. */
+function rgbChannel(token: string): number | null {
+  const value = Number.parseFloat(token);
+  if (Number.isNaN(value)) return null;
+  const scaled = token.endsWith("%") ? (value / 100) * 255 : value;
+  return Math.min(255, Math.max(0, Math.round(scaled)));
+}
+
+/** A hue in degrees, from deg, rad, grad or turn (a bare number is degrees). */
+function hueDegrees(token: string): number | null {
+  const value = Number.parseFloat(token);
+  if (Number.isNaN(value)) return null;
+  if (token.endsWith("grad")) return value * 0.9;
+  if (token.endsWith("rad")) return (value * 180) / Math.PI;
+  if (token.endsWith("turn")) return value * 360;
+  return value;
+}
+
 function fromFunction(name: string, args: string): Rgb | null {
-  const parts = args
-    .split(/[\s,/]+/)
-    .filter(Boolean)
-    .map((part) => Number.parseFloat(part));
-  if (parts.length < 3 || parts.slice(0, 3).some(Number.isNaN)) return null;
-  const [a, b, c] = parts;
+  // The slash starts the alpha, which is no channel of the colour.
+  const [colorPart] = args.split("/");
+  const tokens = colorPart.split(/[\s,]+/).filter(Boolean);
   if (name === "rgb" || name === "rgba") {
-    const percent = args.includes("%");
-    const channel = (value: number) =>
-      Math.min(255, Math.max(0, Math.round(percent ? (value / 100) * 255 : value)));
-    return { r: channel(a), g: channel(b), b: channel(c) };
+    const channels = tokens.slice(0, 3).map(rgbChannel);
+    if (channels.length < 3 || channels.includes(null)) return null;
+    const [r, g, b] = channels as number[];
+    return { r, g, b };
   }
   // hsl(h, s%, l%): the crest derives its own colours in this form.
-  const hue = (((a % 360) + 360) % 360) / 360;
-  const s = Math.min(1, Math.max(0, b / 100));
-  const l = Math.min(1, Math.max(0, c / 100));
-  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-  const p = 2 * l - q;
+  const degrees = tokens.length >= 3 ? hueDegrees(tokens[0]) : null;
+  const s = Number.parseFloat(tokens[1] ?? "");
+  const l = Number.parseFloat(tokens[2] ?? "");
+  if (degrees === null || Number.isNaN(s) || Number.isNaN(l)) return null;
+  const hue = (((degrees % 360) + 360) % 360) / 360;
+  const saturation = Math.min(1, Math.max(0, s / 100));
+  const lightness = Math.min(1, Math.max(0, l / 100));
+  const q =
+    lightness < 0.5
+      ? lightness * (1 + saturation)
+      : lightness + saturation - lightness * saturation;
+  const p = 2 * lightness - q;
   const part = (offset: number) => {
     let t = hue + offset;
     if (t < 0) t += 1;
