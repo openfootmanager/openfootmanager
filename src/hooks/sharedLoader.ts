@@ -57,18 +57,25 @@ export function createSharedLoader<T>(
   }
 
   function load(key: string): Promise<T> {
+    if (resolved.has(key)) return Promise.resolve(resolved.get(key) as T);
     let request = pending.get(key);
     if (request) return request;
     request = fetchValue(key)
       .then((value) => {
         resolved.set(key, value);
-        failures = 0;
-        cancelRetry();
+        // The value is cached now; a finished request left here would answer a later subscribe
+        // with a promise that tells nobody.
+        pending.delete(key);
         // A key no mount shows any more (the club's squad moved on) is not kept.
         const live = mountedKeys();
         for (const stale of resolved.keys())
           if (stale !== key && !live.has(stale)) resolved.delete(stale);
         for (const mount of mounted) if (mount.key === key) mount.show(value);
+        // Another mounted key may still be waiting on its retry: only stop when none is.
+        if ([...live].every((mountedKey) => resolved.has(mountedKey))) {
+          failures = 0;
+          cancelRetry();
+        }
         return value;
       })
       .catch((error: unknown) => {
