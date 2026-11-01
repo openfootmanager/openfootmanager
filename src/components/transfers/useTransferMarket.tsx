@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  gameKnowledgeRevision,
+  NOTHING_VISIBLE,
+  type VisibleFigures,
+} from "../../lib/playerKnowledge";
 import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import type { PlayersPageQuery } from "../../services/playersService";
 import { usePlayersPage } from "../../hooks/usePlayersPage";
@@ -50,14 +55,18 @@ interface Input {
 
 export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
   const [view, setView] = useState<TransferTabView>("players");
+  // What the club knows moves with the career, the manager's club, the date and the season: an
+  // answer asked under another of these never shows its figures (see `visibleOf`).
+  const revision = gameKnowledgeRevision(gameState);
   const {
     query: marketQuery,
     patchQuery: patchMarketQuery,
     slice: answeredSlice,
     answeredQuery,
+    answeredRevision,
     error: marketError,
     refetch: refetchMarket,
-  } = usePlayersPage(MARKET_QUERY, t);
+  } = usePlayersPage(MARKET_QUERY, t, revision);
   const marketSlice = answeredQuery?.scope === marketQuery.scope ? answeredSlice : null;
 
   // Coming back to a view finds its filters as they were left.
@@ -108,6 +117,29 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     [marketSlice, playersById],
   );
   const filteredList = listedPlayers;
+  // The rating and wage the club may see of each listed player, as the page's projection sends
+  // them. A player the page did not list shows nothing private, and neither does any player while
+  // the page answers another revision: after the manager changes club, the old club's answer stays
+  // on screen until the new one lands (or for good, if it fails), and must not show what the old
+  // club knew. The rows themselves stay, so the table does not empty during the refetch.
+  // Nor does a player who has changed clubs since the page answered: a same-day sale moves him
+  // without moving the revision, and his old club's figures are not his new club's to show.
+  const figuresAreCurrent = answeredRevision === revision;
+  const visibilityById = useMemo(
+    () =>
+      new Map<string, VisibleFigures>(
+        figuresAreCurrent
+          ? (marketSlice?.items ?? [])
+              .filter((summary) => playersById.get(summary.id)?.team_id === summary.team_id)
+              .map((summary) => [summary.id, { ovr: summary.ovr, wage: summary.wage }])
+          : [],
+      ),
+    [marketSlice, figuresAreCurrent, playersById],
+  );
+  const visibleOf = useCallback(
+    (playerId: string): VisibleFigures => visibilityById.get(playerId) ?? NOTHING_VISIBLE,
+    [visibilityById],
+  );
 
   const marketTotal = marketSlice?.total ?? 0;
   const marketTotalPages = Math.max(1, Math.ceil(marketTotal / TRANSFER_MARKET_PAGE_SIZE));
@@ -156,6 +188,7 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     marketTotalPages,
     safeMarketPage,
     visibleList: filteredList,
+    visibleOf,
     showMarketPagination,
     marketRangeFrom,
     marketRangeTo,

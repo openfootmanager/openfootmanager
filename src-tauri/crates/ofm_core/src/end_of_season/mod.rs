@@ -295,6 +295,7 @@ fn collapse_repeated_divisions(group: &mut Vec<&League>) {
 /// A division whose season has just been played out: its final table, how far
 /// down its own pyramid it sits, and the season it belongs to.
 struct FinishedDivision {
+    competition_id: String,
     standings: Vec<StandingEntry>,
     tier: u32,
     season: u32,
@@ -313,13 +314,12 @@ struct FinishedDivision {
 /// record with the *user's* season, which mislabels a foreign league running on
 /// another calendar: its 2034 results were recorded as 2035.
 fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
-    use std::collections::BTreeMap;
-
     if game.competitions.is_empty() {
         return game
             .league
             .iter()
             .map(|league| FinishedDivision {
+                competition_id: league.id.clone(),
                 standings: league.sorted_standings(),
                 tier: 0,
                 season: league.season,
@@ -327,51 +327,102 @@ fn division_standings_with_tiers(game: &Game) -> Vec<FinishedDivision> {
             .collect();
     }
 
-    let mut by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
-    let mut standalone: Vec<&League> = Vec::new();
-    // The same predicate the ladder admits on. A cup or a regional side
-    // competition can be scored as a table and share a country, but it is not a
-    // rung of the pyramid: ranked as one it takes a tier number, and because it
-    // often shares a roster with the real division it could win the collapse
-    // below and hand that division's prize money and history to whoever
-    // happened to win it.
-    for league in game
-        .competitions
-        .iter()
-        .filter(|competition| crate::world::ladder::is_ladder_table(competition))
-    {
-        match league.country_id.as_deref() {
-            Some(country) => by_country.entry(country).or_default().push(league),
-            None => standalone.push(league),
-        }
-    }
-
-    let mut divisions: Vec<FinishedDivision> = Vec::new();
-    for mut group in by_country.into_values() {
-        group.sort_by_key(|league| league.priority);
-        collapse_repeated_divisions(&mut group);
-        for (tier, league) in group.into_iter().enumerate() {
-            if !is_league_season_ended(league) {
-                continue; // ranked, but nothing to pay out or record yet
-            }
-            divisions.push(FinishedDivision {
-                standings: league.sorted_standings(),
-                tier: tier as u32,
-                season: league.season,
-            });
-        }
-    }
+    let mut divisions: Vec<FinishedDivision> = ladder_rungs(game)
+        .into_iter()
+        .filter(|(_, league)| is_league_season_ended(league)) // ranked, but nothing to pay out or record yet
+        .map(|(tier, league)| FinishedDivision {
+            competition_id: league.id.clone(),
+            standings: league.sorted_standings(),
+            tier,
+            season: league.season,
+        })
+        .collect();
+    let standalone = standalone_leagues(game);
     for league in standalone {
         if !is_league_season_ended(league) {
             continue;
         }
         divisions.push(FinishedDivision {
+            competition_id: league.id.clone(),
             standings: league.sorted_standings(),
             tier: 0,
             season: league.season,
         });
     }
     divisions
+}
+
+/// The leagues that belong to no country, each its own top flight.
+fn standalone_leagues(game: &Game) -> Vec<&League> {
+    game.competitions
+        .iter()
+        .filter(|competition| crate::world::ladder::is_ladder_table(competition))
+        .filter(|league| league.country_id.is_none())
+        .collect()
+}
+
+/// The tier of every competition on a country's league ladder, top flight 0: the rungs
+/// `ladder_rungs` keeps, and also the older half of a repeated division (an Apertura the Clausura
+/// replaced), which sits on the same rung as the table that replaced it and still has season
+/// records that name it.
+pub(crate) fn ladder_tiers(game: &Game) -> std::collections::HashMap<&str, u32> {
+    let rungs = ladder_rungs(game);
+    let mut tiers: std::collections::HashMap<&str, u32> = rungs
+        .iter()
+        .map(|(tier, league)| (league.id.as_str(), *tier))
+        .collect();
+    for competition in game
+        .competitions
+        .iter()
+        .filter(|competition| crate::world::ladder::is_ladder_table(competition))
+    {
+        if tiers.contains_key(competition.id.as_str()) {
+            continue;
+        }
+        let roster = division_roster(competition);
+        if roster.is_empty() {
+            continue;
+        }
+        if let Some((tier, _)) = rungs.iter().find(|(_, kept)| {
+            kept.country_id == competition.country_id && division_roster(kept) == roster
+        }) {
+            tiers.insert(competition.id.as_str(), *tier);
+        }
+    }
+    tiers
+}
+
+/// Every rung of every country's league ladder as (tier, competition), top flight 0, whether or not
+/// its season has been played. One ranking, shared by the payout and by what counts as a title.
+///
+/// A cup or a regional side competition is not a rung (see `is_ladder_table`), and a table repeated
+/// over the same clubs (an Apertura and its Clausura) is one rung, the half the year ended on.
+pub(crate) fn ladder_rungs(game: &Game) -> Vec<(u32, &League)> {
+    use std::collections::BTreeMap;
+
+    let mut by_country: BTreeMap<&str, Vec<&League>> = BTreeMap::new();
+    for league in game
+        .competitions
+        .iter()
+        .filter(|competition| crate::world::ladder::is_ladder_table(competition))
+    {
+        if let Some(country) = league.country_id.as_deref() {
+            by_country.entry(country).or_default().push(league);
+        }
+    }
+
+    let mut rungs: Vec<(u32, &League)> = Vec::new();
+    for mut group in by_country.into_values() {
+        group.sort_by_key(|league| league.priority);
+        collapse_repeated_divisions(&mut group);
+        rungs.extend(
+            group
+                .into_iter()
+                .enumerate()
+                .map(|(tier, league)| (tier as u32, league)),
+        );
+    }
+    rungs
 }
 
 /// Roll every competition over to the next season: apply promotion/relegation
@@ -950,8 +1001,12 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
         .unwrap_or(0);
     let mut user_prize_posted = false;
     for division in divisions {
-        let (division_standings, tier, season) =
-            (division.standings, division.tier, division.season);
+        let (division_standings, tier, season, competition_id) = (
+            division.standings,
+            division.tier,
+            division.season,
+            division.competition_id,
+        );
         for (idx, standing) in division_standings.iter().enumerate() {
             let position = (idx + 1) as u32;
             let prize_money = division_prize_money(position, tier);
@@ -988,6 +1043,7 @@ pub fn process_end_of_season(game: &mut Game) -> EndOfSeasonSummary {
                     lost: standing.lost,
                     goals_for: standing.goals_for,
                     goals_against: standing.goals_against,
+                    competition_id: competition_id.clone(),
                 });
                 team.form.clear();
 

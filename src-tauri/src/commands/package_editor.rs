@@ -649,6 +649,56 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    /// Given a project whose league lists one of its clubs twice
+    /// When the package editor opens it
+    /// Then it opens, and its issue list names the competition and the repeated
+    /// club, so the author can fix the list where it is written
+    #[test]
+    fn a_project_listing_a_club_twice_opens_with_the_repeat_reported() {
+        let dir = temp_project(
+            "repeated-club",
+            &[
+                (
+                    "package.json",
+                    r#"{"schema":"world","id":"rep","name":"Rep","version":"1.0.0","license":"CC0-1.0"}"#,
+                ),
+                (
+                    "teams.json",
+                    r##"{"schema":"team","items":[
+                        {"id":"a","name":"A","city":"C","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}},
+                        {"id":"b","name":"B","city":"C","country":"ENG","colors":{"primary":"#000000","secondary":"#ffffff"}}]}"##,
+                ),
+                (
+                    "league.json",
+                    r#"{"schema":"competition","id":"rep-league","name":"Rep League","type":"League","scope":"Domestic",
+                        "format":{"kind":"LeagueTable"},"participants":{"explicit":["a","b","a"]}}"#,
+                ),
+            ],
+        );
+
+        let data = read_package_project(dir.to_string_lossy().to_string())
+            .expect("a repeated club is an issue to fix, not a reason to refuse the project");
+        std::fs::remove_dir_all(&dir).ok();
+
+        let repeats: Vec<_> = data
+            .issues
+            .iter()
+            .filter(|issue| issue.code == "be.error.competitionDef.duplicateTeam")
+            .collect();
+        assert_eq!(
+            repeats.len(),
+            1,
+            "{:?}",
+            data.issues.iter().map(|i| &i.code).collect::<Vec<_>>()
+        );
+        assert_eq!(repeats[0].file, "league.json");
+        assert_eq!(repeats[0].params.get("team").map(String::as_str), Some("a"));
+        assert_eq!(
+            repeats[0].params.get("competition").map(String::as_str),
+            Some("rep-league")
+        );
+    }
+
     /// A package whose content is unreadable must still be refused — the guard
     /// narrowed to ignore metadata, not to stop protecting the source.
     #[test]

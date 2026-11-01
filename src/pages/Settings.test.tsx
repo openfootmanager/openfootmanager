@@ -172,6 +172,7 @@ describe("Settings: the choices", () => {
     ["settings.matchCommentary", "show_match_commentary", true],
     ["settings.confirmAdvance", "confirm_advance", false],
     ["settings.continueToNextEvent", "continue_to_next_event", false],
+    ["settings.skipShootoutPicker", "skip_shootout_picker", false],
     ["settings.autoSave", "auto_save", true],
   ] as const)("draws %s as a switch named by its row", async (row, field, byDefault) => {
     const saved = !byDefault;

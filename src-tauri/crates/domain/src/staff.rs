@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Staff {
     pub id: String,
     pub first_name: String,
@@ -37,7 +38,7 @@ pub struct Staff {
     pub display_name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum StaffRole {
     AssistantManager,
     Coach,
@@ -45,7 +46,7 @@ pub enum StaffRole {
     Physio,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
 pub enum CoachingSpecialization {
     Fitness,     // Boosts Physical training
     Technique,   // Boosts Technical training
@@ -56,7 +57,7 @@ pub enum CoachingSpecialization {
     Youth,       // Boosts young player development
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 // camelCase matches the package convention (see SCHEMA_REFERENCE) and the World
 // Editor frontend, so authored staff attributes round-trip both ways. The
 // snake_case aliases keep existing saves (serialized before this change) and

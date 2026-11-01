@@ -740,26 +740,45 @@ fn validate_participants(
             &competition.id,
         )),
         (Some(explicit), None) => {
-            if explicit.len() < 2 {
-                errors.push(DefinitionError::new(
-                    "be.error.competitionDef.tooFewParticipants",
-                    &competition.id,
-                ));
-            }
-            for team_id in explicit {
-                if !ctx.team_ids.contains(team_id.as_str()) {
-                    errors.push(
-                        DefinitionError::new(
-                            "be.error.competitionDef.unknownTeam",
-                            &competition.id,
-                        )
-                        .with("team", team_id.clone()),
-                    );
-                }
-            }
+            validate_explicit_participants(competition, explicit, ctx, errors)
         }
         (None, Some(selector)) => {
             validate_selector(competition, selector, ctx, known_ids, errors);
+        }
+    }
+}
+
+fn validate_explicit_participants(
+    competition: &CompetitionDefinition,
+    explicit: &[String],
+    ctx: &WorldValidationContext,
+    errors: &mut Vec<DefinitionError>,
+) {
+    if explicit.len() < 2 {
+        errors.push(DefinitionError::new(
+            "be.error.competitionDef.tooFewParticipants",
+            &competition.id,
+        ));
+    }
+    for team_id in explicit {
+        if !ctx.team_ids.contains(team_id.as_str()) {
+            errors.push(
+                DefinitionError::new("be.error.competitionDef.unknownTeam", &competition.id)
+                    .with("team", team_id.clone()),
+            );
+        }
+    }
+    // A club listed twice would get two rows in a league table, and its
+    // reputation would be judged once per row. Selectors draw from the world's
+    // clubs, whose ids are unique, so only an authored list can repeat one.
+    let mut seen = HashSet::new();
+    let mut reported = HashSet::new();
+    for team_id in explicit {
+        if !seen.insert(team_id.as_str()) && reported.insert(team_id.as_str()) {
+            errors.push(
+                DefinitionError::new("be.error.competitionDef.duplicateTeam", &competition.id)
+                    .with("team", team_id.clone()),
+            );
         }
     }
 }
@@ -1525,6 +1544,34 @@ mod tests {
         assert!(codes(&errors).contains(&"be.error.competitionDef.unknownTeam"));
         assert!(codes(&errors).contains(&"be.error.competitionDef.unknownCountry"));
         assert!(codes(&errors).contains(&"be.error.competitionDef.unknownRegion"));
+    }
+
+    /// Given a league whose explicit list names one club three times
+    /// When the definitions are validated
+    /// Then the repeat is reported once, naming that club, because a club
+    /// listed twice would be given two rows in the league table
+    #[test]
+    fn a_club_listed_twice_in_an_explicit_list_is_rejected() {
+        let file = CompetitionDefinitionFile {
+            format_version: 1,
+            competitions: vec![explicit(
+                "tr-1",
+                &["team-a", "team-b", "team-a", "team-c", "team-a"],
+            )],
+        };
+
+        let errors = validate_definitions(&file, &ctx());
+
+        let repeats: Vec<_> = errors
+            .iter()
+            .filter(|e| e.code == "be.error.competitionDef.duplicateTeam")
+            .collect();
+        assert_eq!(repeats.len(), 1, "reported once: {:?}", codes(&errors));
+        assert_eq!(repeats[0].competition_id, "tr-1");
+        assert_eq!(
+            repeats[0].params,
+            vec![("team".to_string(), "team-a".to_string())]
+        );
     }
 
     #[test]

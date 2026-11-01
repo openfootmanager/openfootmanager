@@ -127,6 +127,57 @@ pub fn translate_error(key: &str) -> String {
         "be.error.liveMatch.fixtureNotScheduled" => {
             "This fixture is no longer scheduled and cannot be played.".to_string()
         }
+        "be.error.noActiveLiveMatch" => {
+            "No live match is in progress. Start one with `match_start`.".to_string()
+        }
+        "be.error.liveMatch.shootoutOrderNotNow" => {
+            "The shootout order can only be set once the shootout has started, before its first \
+             kick."
+                .to_string()
+        }
+        "be.error.liveMatch.shootoutOrderNotYourSide" => {
+            "You can only set your own side's shootout order.".to_string()
+        }
+        "be.error.liveMatch.shootoutOrderNotEligible" => {
+            "The order must list each player in your current shootout order exactly once \
+             (see `match_snapshot`)."
+                .to_string()
+        }
+        "be.error.liveMatch.noSubstitutionsForShootout" => {
+            "No substitutions once extra time is over: the shootout is taken by the players on \
+             the pitch at the final whistle."
+                .to_string()
+        }
+        "be.error.liveMatch.noLeague" => "No league data is available for this match.".to_string(),
+        "be.error.liveMatch.fixtureNotFound" => {
+            "The selected fixture could not be found. Check the fixture ID and try again."
+                .to_string()
+        }
+        "be.error.liveMatch.emptySquad" => {
+            "One of the teams has no available players, so the match cannot be played.".to_string()
+        }
+        "be.error.liveMatch.maxSubstitutionsReached" => {
+            "Maximum substitutions reached: no more changes are allowed in this match.".to_string()
+        }
+        "be.error.liveMatch.preMatchSwapTooLate" => {
+            "Pre-match swaps are only allowed before kick-off.".to_string()
+        }
+        "be.error.liveMatch.cannotSubstituteSentOffPlayer" => {
+            "A sent-off player cannot be substituted.".to_string()
+        }
+        "be.error.liveMatch.playerNotOnPitch" => {
+            "That player is not on the pitch; check `match_snapshot` for who is.".to_string()
+        }
+        "be.error.liveMatch.playerAlreadySubstitutedOff" => {
+            "That player has already been substituted off and cannot return.".to_string()
+        }
+        "be.error.liveMatch.playerNotOnBench" => {
+            "That player is not on the bench; check `match_snapshot` for the substitutes."
+                .to_string()
+        }
+        "be.error.liveMatch.playerNotInStartingXi" => {
+            "That player is not in the starting XI.".to_string()
+        }
         _ => format!("Error: {}", key),
     }
 }
@@ -149,6 +200,56 @@ mod tests {
     fn the_live_match_refusal_is_renderable() {
         let key = "be.error.liveMatch.inProgress";
         assert!(!translate_error(key).contains(key));
+    }
+
+    /// Given the refusals an agent can meet when it sets its shootout order, substitutes after
+    /// extra time, or acts with no live match, when rendered for the agent, then each is a readable
+    /// message rather than a raw key.
+    #[test]
+    fn the_shootout_order_refusals_are_renderable() {
+        for key in [
+            "be.error.noActiveLiveMatch",
+            "be.error.liveMatch.shootoutOrderNotNow",
+            "be.error.liveMatch.shootoutOrderNotYourSide",
+            "be.error.liveMatch.shootoutOrderNotEligible",
+            "be.error.liveMatch.noSubstitutionsForShootout",
+        ] {
+            let rendered = translate_error(key);
+            assert!(!rendered.contains(key), "{key} renders as {rendered:?}");
+        }
+    }
+
+    /// Every live-match refusal key the screen can show (`be.error.liveMatch.*` in `en.json`, the
+    /// source of the locales) is a readable sentence for an agent, not a raw key: a key added
+    /// there without an arm here fails this test by name.
+    #[test]
+    fn every_live_match_refusal_key_has_a_message() {
+        fn leaves(node: &serde_json::Value, prefix: &str, out: &mut Vec<String>) {
+            match node.as_object() {
+                Some(children) => {
+                    for (name, child) in children {
+                        leaves(child, &format!("{prefix}.{name}"), out);
+                    }
+                }
+                None => out.push(prefix.to_string()),
+            }
+        }
+        let en: serde_json::Value =
+            serde_json::from_str(include_str!("../../../src/i18n/locales/en.json"))
+                .expect("en.json parses");
+        let mut keys = Vec::new();
+        leaves(
+            &en["be"]["error"]["liveMatch"],
+            "be.error.liveMatch",
+            &mut keys,
+        );
+
+        assert!(keys.len() > 10, "found only {keys:?}");
+        let raw: Vec<&String> = keys
+            .iter()
+            .filter(|key| translate_error(key).contains(key.as_str()))
+            .collect();
+        assert!(raw.is_empty(), "no message for {raw:?}");
     }
 
     /// The wrapper renders a key exactly once.

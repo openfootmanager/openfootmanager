@@ -1,4 +1,33 @@
-import type { PlayerKnowledge } from "../services/scoutingService";
+import type { TOptions } from "i18next";
+
+import type { PlayerKnowledge, VisibleWage } from "../services/scoutingService";
+
+type TranslateFn = (key: string, options?: TOptions) => string;
+
+/** A player's rating and wage as the club may see them, from the backend's projection of a list. */
+export interface VisibleFigures {
+  ovr: number | null;
+  wage: VisibleWage;
+}
+
+/** What a screen shows of a player it has no projection for: nothing private. */
+export const NOTHING_VISIBLE: VisibleFigures = { ovr: null, wage: { kind: "hidden" } };
+
+/**
+ * A wage the club may see, written with `format`: as it is, as "about …", or "–". The one place a
+ * visible wage is spelled, so every screen hides and rounds it alike.
+ */
+export function visibleWageText(
+  wage: VisibleWage,
+  format: (weeklyWage: number) => string,
+  t: TranslateFn,
+): string {
+  if (wage.kind === "exact") return format(wage.weekly);
+  if (wage.kind === "approximate") {
+    return t("playerProfile.approximateWage", { wage: format(wage.weekly) });
+  }
+  return "–";
+}
 
 /** What the club's knowledge of players, and the wages it may see, are asked again on. */
 export interface KnowledgeRevisionInputs {
@@ -26,6 +55,32 @@ export function knowledgeRevision(inputs: KnowledgeRevisionInputs): string {
     inputs.seasonStart ?? "",
     inputs.wage ?? 0,
   ]);
+}
+
+/** The parts of the game that what the club knows moves with. */
+export interface KnowledgeGame {
+  career_token?: number;
+  clock: { current_date: string };
+  manager: { team_id?: string | null };
+  season_context?: { season_start?: string | null } | null;
+}
+
+/**
+ * The knowledge revision of the game a screen shows: its career, date, manager's club and season
+ * start, picked here once for every screen, plus a screen's own inputs (a profile's player's club
+ * and wage).
+ */
+export function gameKnowledgeRevision(
+  game: KnowledgeGame,
+  screenInputs: Pick<KnowledgeRevisionInputs, "playerClubId" | "wage"> = {},
+): string {
+  return knowledgeRevision({
+    careerToken: game.career_token,
+    date: game.clock.current_date,
+    managerClubId: game.manager.team_id,
+    seasonStart: game.season_context?.season_start,
+    ...screenInputs,
+  });
 }
 
 /**

@@ -303,6 +303,21 @@ fn match_start_fixture_index(
     }
 }
 
+/// Extract a required array of strings. Returns an error result if missing, if it is not an
+/// array, or if any entry is not a string; nothing is dropped quietly.
+fn require_string_array_param(
+    args: &Option<serde_json::Map<String, serde_json::Value>>,
+    key: &str,
+) -> Result<Vec<String>, CallToolResult> {
+    require_with(args, key, "must be an array of strings", |value| {
+        value
+            .as_array()?
+            .iter()
+            .map(|entry| entry.as_str().map(str::to_string))
+            .collect()
+    })
+}
+
 /// Extract a required bool parameter. Returns an error result if missing.
 fn require_bool_param(
     args: &Option<serde_json::Map<String, serde_json::Value>>,
@@ -543,7 +558,7 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
 
     id_tool!(
         "info_player_profile",
-        "Detailed player card (attributes, stats, contract, morale)",
+        "Player card. What it shows depends on what your club knows: your own players in full, a rival in your division by rating and attributes, a scouted player as the scout reported him, anyone else by identity only",
         player_id_schema(),
         player_id,
         tools_impl::info::info_player_profile
@@ -1026,11 +1041,11 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
     // transfer_market_browse
     custom_tool!(
         "transfer_market_browse",
-        "Browse transfer/loan market with optional filters",
+        "Browse the transfer/loan market with optional filters; a player shows only the rating and wage your club may see",
         build_schema(
             &[
                 ("position", "string", "Filter by position (e.g. GK, CB, ST)"),
-                ("max_price", "integer", "Max annual cost estimate"),
+                ("max_price", "integer", "Max annual wage (52 x the weekly wage your club may see; a player whose wage is hidden never matches)"),
                 (
                     "listed_only",
                     "boolean",
@@ -1817,6 +1832,34 @@ pub fn build_tool_router(context: &Arc<McpContext>, disabled: &[String]) -> OfmT
         tools_impl::live_match::match_snapshot
     );
 
+    // match_set_shootout_order
+    custom_tool!(
+        "match_set_shootout_order",
+        "Set the order your side takes its penalty shootout kicks in. Allowed once the shootout \
+         has started and before its first kick; match_snapshot lists your eligible players in \
+         their current order",
+        build_schema(
+            &[(
+                "player_ids",
+                "array",
+                "Every player in your shootout order, reordered: the same players, none missing or added"
+            )],
+            &["player_ids"]
+        ),
+        ctx,
+        args,
+        {
+            let player_ids = match require_string_array_param(args, "player_ids") {
+                Ok(v) => v,
+                Err(e) => return Ok(e),
+            };
+            match tools_impl::live_match::match_set_shootout_order(ctx, player_ids) {
+                Ok(value) => Ok(success(value)),
+                Err(e) => Ok(err_result(&e)),
+            }
+        }
+    );
+
     // match_finish
     real_tool!(
         "match_finish",
@@ -1947,7 +1990,7 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
         ),
         (
             "info_player_profile",
-            "Detailed player card with attributes and contract",
+            "Player card, limited to what your club knows about the player",
             "Information",
         ),
         (
@@ -2258,6 +2301,11 @@ pub fn tool_catalog() -> Vec<(&'static str, &'static str, &'static str)> {
             "Live Match",
         ),
         (
+            "match_set_shootout_order",
+            "Set your side's penalty shootout order before the first kick",
+            "Live Match",
+        ),
+        (
             "match_finish",
             "Finish the match, apply results",
             "Live Match",
@@ -2367,6 +2415,40 @@ mod tests {
         assert_eq!(
             key_of(require_string_param(&empty, "p").unwrap_err()),
             "be.error.mcp.missingParameter"
+        );
+    }
+
+    /// Given a required array of strings that is absent, null, not an array, or has an entry
+    /// that is not a string,
+    /// When it is read,
+    /// Then absent and null are `missingParameter`, the others `invalidParameter`, and a
+    /// well-formed array is returned whole and in order.
+    #[test]
+    fn a_string_array_parameter_drops_nothing_quietly() {
+        fn key_of(result: CallToolResult) -> String {
+            result.structured_content.unwrap()["error"]["key"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        }
+        for absent in [serde_json::json!({}), serde_json::json!({"p": null})] {
+            assert_eq!(
+                key_of(require_string_array_param(&args(absent), "p").unwrap_err()),
+                "be.error.mcp.missingParameter"
+            );
+        }
+        for wrong in [
+            serde_json::json!({"p": "a"}),
+            serde_json::json!({"p": ["a", 1]}),
+        ] {
+            assert_eq!(
+                key_of(require_string_array_param(&args(wrong), "p").unwrap_err()),
+                "be.error.mcp.invalidParameter"
+            );
+        }
+        assert_eq!(
+            require_string_array_param(&args(serde_json::json!({"p": ["b", "a"]})), "p").ok(),
+            Some(vec!["b".to_string(), "a".to_string()])
         );
     }
 

@@ -17,6 +17,7 @@ import {
   DialogCloseButton,
   InjuryBadge,
   UnreadBadge,
+  ViewSwitch,
   JerseyIcon,
   PageToolbar,
   PitchToken,
@@ -36,6 +37,7 @@ import {
   ThemeToggle,
 } from "../../components/ui";
 import { ChartContainer } from "../../components/ui/charts/ChartContainer";
+import type { ListView } from "../../store/settingsStore";
 import type { StyleGuideOptions } from "./styleGuideOptions";
 
 /*
@@ -352,6 +354,14 @@ function DisplaySection() {
             colors: { primary: "#15803d", secondary: "#ffffff" },
           }}
         />
+        {/* Bright green beside white: the pair whose label used to vanish on the white half. */}
+        <TeamLogo
+          team={{
+            name: "Alpha United",
+            short_name: "AL",
+            colors: { primary: "#00ff00", secondary: "#ffffff" },
+          }}
+        />
         <TeamLogo
           team={{
             name: "Sporting Waregem",
@@ -593,6 +603,7 @@ function NavigationSection() {
   const [view, setView] = useState("list");
   const [pace, setPace] = useState("normal");
   const [density, setDensity] = useState("comfortable");
+  const [listView, setListView] = useState<ListView>("table");
   return (
     <Section title="Navigation">
       <PageToolbar
@@ -693,6 +704,8 @@ function NavigationSection() {
         />
       </Row>
       <PageToolbar action={<Button size="sm">Hire</Button>} />
+      {/* A list's toolbar: the Table/Cards switch at its end, bound to the one global setting. */}
+      <PageToolbar action={<ViewSwitch value={listView} onChange={setListView} />} />
     </Section>
   );
 }

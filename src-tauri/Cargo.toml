@@ -104,6 +104,8 @@ gtk = "0.18"
 # could call, and a mutant that emptied it survived (cloud mutants on #930).
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }
+# Pinned for the reason given in `crates/domain/Cargo.toml`.
+ts-rs = "=12.0.1"
 
 # Dev builds (`tauri dev`) otherwise run the whole simulation unoptimized, which
 # is the dominant cause of the in-app sluggishness. Lightly optimizing our own

@@ -1,17 +1,19 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchHallOfFameLegends } from "../../services/retireesService";
+import { fetchHallOfFameChampions, fetchHallOfFameLegends } from "../../services/retireesService";
 import type { GameStateData, TeamData } from "../../store/gameStore";
-import type { HallOfFameLegendData } from "../../store/types";
+import type { HallOfFameLegendData, PastChampionData } from "../../store/types";
 import HallOfFameWorldTab from "./HallOfFameWorldTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
 vi.mock("../../services/retireesService", () => ({
   fetchHallOfFameLegends: vi.fn(),
+  fetchHallOfFameChampions: vi.fn(),
 }));
 
 const mockedFetchLegends = vi.mocked(fetchHallOfFameLegends);
+const mockedFetchChampions = vi.mocked(fetchHallOfFameChampions);
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -89,6 +91,24 @@ function createLegend(overrides: Partial<HallOfFameLegendData> = {}): HallOfFame
   };
 }
 
+function createTitle(overrides: Partial<PastChampionData> & { team_id: string }): PastChampionData {
+  return {
+    season: 1,
+    record: {
+      season: 1,
+      league_position: 1,
+      played: 38,
+      won: 25,
+      drawn: 8,
+      lost: 5,
+      goals_for: 72,
+      goals_against: 30,
+      competition_id: "div-1",
+    },
+    ...overrides,
+  };
+}
+
 function createGameState(): GameStateData {
   return {
     season_context: createSeasonContext(),
@@ -130,6 +150,7 @@ function createGameState(): GameStateData {
             lost: 5,
             goals_for: 72,
             goals_against: 30,
+            competition_id: "div-1",
           },
         ],
       }),
@@ -148,6 +169,7 @@ function createGameState(): GameStateData {
             lost: 5,
             goals_for: 69,
             goals_against: 28,
+            competition_id: "div-1",
           },
         ],
       }),
@@ -166,14 +188,19 @@ describe("HallOfFameWorldTab", () => {
   beforeEach(() => {
     mockedFetchLegends.mockReset();
     mockedFetchLegends.mockResolvedValue([]);
+    mockedFetchChampions.mockReset();
+    mockedFetchChampions.mockResolvedValue([
+      createTitle({ team_id: "team-1", season: 1 }),
+      createTitle({ team_id: "team-2", season: 2 }),
+    ]);
   });
 
   /**
    * Given a world whose players list holds no retirees (they live in the archive)
    * When the Hall of Fame renders
-   * Then the legends are the ones the backend names, and the champions still come from the clubs
+   * Then the legends and the champions are the ones the backend names
    */
-  it("renders the backend's retired legends and the clubs' past champions", async () => {
+  it("renders the backend's retired legends and past champions", async () => {
     mockedFetchLegends.mockResolvedValue([
       createLegend(),
       createLegend({ player_id: "player-2", full_name: "Nico North", titles: 1 }),
@@ -188,6 +215,40 @@ describe("HallOfFameWorldTab", () => {
     expect(mockedFetchLegends).toHaveBeenCalledTimes(1);
     expect(screen.getByText("Alpha FC")).toBeInTheDocument();
     expect(screen.getByText("Beta United")).toBeInTheDocument();
+  });
+
+  /**
+   * Given a club whose history holds a first place that the backend does not name a title
+   *       (it was won in a second division)
+   * When the Hall of Fame renders
+   * Then only the titles the backend names are listed, and the count follows it.
+   */
+  it("lists the titles the backend names, not every first place in a club's history", async () => {
+    mockedFetchChampions.mockResolvedValue([createTitle({ team_id: "team-2", season: 2 })]);
+
+    render(<HallOfFameWorldTab gameState={createGameState()} />);
+
+    expect(await screen.findByText("Beta United")).toBeInTheDocument();
+    expect(screen.queryByText("Alpha FC")).not.toBeInTheDocument();
+    expect(screen.getByText("1 title-winning seasons")).toBeInTheDocument();
+  });
+
+  /**
+   * Given the Hall of Fame is open on one career
+   * When another career is installed under the same game date (an MCP career switch)
+   * Then the legends and the champions are asked for again, so the old career's do not stay on screen.
+   */
+  it("asks the backend again when the career changes under an unchanged date", async () => {
+    const first = { ...createGameState(), career_token: 1 };
+    const { rerender } = render(<HallOfFameWorldTab gameState={first} />);
+    await screen.findByText("Beta United");
+    expect(mockedFetchChampions).toHaveBeenCalledTimes(1);
+    expect(mockedFetchLegends).toHaveBeenCalledTimes(1);
+
+    rerender(<HallOfFameWorldTab gameState={{ ...first, career_token: 2 }} />);
+
+    await waitFor(() => expect(mockedFetchChampions).toHaveBeenCalledTimes(2));
+    expect(mockedFetchLegends).toHaveBeenCalledTimes(2);
   });
 
   it("says so when the world has no legends yet", async () => {

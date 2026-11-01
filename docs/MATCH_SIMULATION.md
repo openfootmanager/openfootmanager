@@ -275,11 +275,20 @@ Users (and AI) can inject commands between minutes:
 
 In live mode, player condition depletes each minute based on `fatigue_per_minute`. A `condition_adjusted_skill()` function scales all attribute checks by the player's current condition, so fatigued players perform worse. This makes substitutions tactically meaningful.
 
+### In-match penalties
+
+A penalty awarded during play is taken by the side's designated penalty taker while that player is on the pitch. Otherwise, or when the taker has been sent off or substituted off, it goes to a forward. With no forward left it goes to a midfielder, then a defender, and the goalkeeper takes it only when nobody else is left.
+
 ### Penalty Shootout
 
 If a match is drawn after extra time (when allowed), a penalty shootout is resolved:
-- 5 rounds of alternating penalties
-- If still tied, sudden death rounds continue until one team leads after equal attempts
+- 5 rounds of alternating penalties, home first. Within them, the shootout ends as soon as one side can no longer catch up, even mid-round: its remaining kicks, all scored, would still leave it behind (the Laws of the Game). The away side can then end one kick short
+- If still tied, sudden death rounds continue until one team leads after equal attempts: a sudden-death round is always completed
+- Each side kicks in an order fixed at the final whistle: the players on the pitch who were not sent off, with the designated penalty taker first, then the rest by penalty skill (shooting + composure, what the kick uses), and the goalkeeper last. Everyone kicks once before anyone kicks twice: the order carries on through sudden death and wraps to the top only after the last kicker has kicked
+- Both sides use only as many kickers as the side with fewer players on the pitch; the side with more drops the end of its order
+- A side with nobody left on the pitch does not hold the other side to nobody: the other then kicks in its full order
+- No substitutions are allowed from the final whistle of extra time, so the players who kick are the ones on the pitch when it blew
+- Before the first kick, a manager may reorder their own side with `MatchCommand::SetShootoutOrder` (every eligible player, reordered; the players past the kicker count sit out). AI managers keep the automatic order. The live session shows a manager only their own side's order (`PenaltyShootoutSnapshot.home_order` / `away_order`); the opponent's stays hidden until each kick is taken
 
 ### Match Snapshot
 
