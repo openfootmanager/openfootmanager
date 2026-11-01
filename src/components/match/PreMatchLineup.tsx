@@ -160,7 +160,7 @@ export default function PreMatchLineup({
   const tierOf = useRatingTiers();
   const { t } = useTranslation();
   const positionTable = usePositionTable();
-  const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
+  const positions = positionTable.lines();
 
   const jerseyChip = (playerId: string) =>
     jerseyNumberById ? (
@@ -179,7 +179,7 @@ export default function PreMatchLineup({
         </span>
         {formationControls}
         <div className="grid grid-cols-4 gap-1.5">
-          {(["Goalkeeper", "Defender", "Midfielder", "Forward"] as const).map((pos) => {
+          {positions.map((pos) => {
             const needed = formationNeeds[pos] || 0;
             const actual = userTeam.players.filter((p) => p.position === pos).length;
             const ok = actual === needed;

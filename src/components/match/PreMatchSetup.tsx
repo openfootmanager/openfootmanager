@@ -138,7 +138,8 @@ export default function PreMatchSetup({
           : isPlayerOutOfPosition(sp, slotPosition)
             ? "out"
             : "adapted"
-        : positionTable.groupOf(naturalPositionOf(sp)) === player.position
+        : // Until the table arrives every group is unknown and would read as out of position.
+          !positionTable.loaded || positionTable.groupOf(naturalPositionOf(sp)) === player.position
           ? "exact"
           : "out";
     const displayPosition = slotPosition ?? player.position;
@@ -305,7 +306,7 @@ export default function PreMatchSetup({
       const pool = [...userTeam.players, ...userBench];
       const idealIds = new Set<string>();
 
-      for (const pos of ["Goalkeeper", "Defender", "Midfielder", "Forward"]) {
+      for (const pos of positionTable.lines()) {
         const candidates = pool
           .filter((p) => p.position === pos)
           .sort((a, b) => b.ovr * (b.condition / 100) - a.ovr * (a.condition / 100));
@@ -386,7 +387,7 @@ export default function PreMatchSetup({
       .sort((a, b) => b.score - a.score);
   };
 
-  const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
+  const positions = positionTable.lines();
   const oppPositions = positions.filter((pos) => oppTeam.players.some((p) => p.position === pos));
 
   const renderSetPieces = () => (

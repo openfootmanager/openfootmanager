@@ -26,6 +26,8 @@ export interface PositionTable {
   rankOf(position: string): number;
   /** Where the position's line sorts: every position of a line shares the line's rank. */
   lineRankOf(position: string): number;
+  /** The lines in pitch order (goalkeepers first); empty until the table arrives. */
+  lines(): string[];
   /** The detailed positions inside a group, in pitch order; the group itself if it has none. */
   membersOf(group: string): string[];
 }
@@ -42,6 +44,11 @@ export function createPositionTable(entries: readonly PositionEntry[]): Position
     groupOf,
     rankOf: (position) => entryOf(position)?.rank ?? UNRANKED,
     lineRankOf: (position) => byPosition.get(groupOf(position))?.rank ?? UNRANKED,
+    lines: () =>
+      entries
+        .filter((entry) => entry.position === entry.group)
+        .sort((a, b) => a.rank - b.rank)
+        .map((entry) => entry.position),
     membersOf: (group) => {
       const members = entries
         .filter((entry) => entry.group === group && entry.position !== group)

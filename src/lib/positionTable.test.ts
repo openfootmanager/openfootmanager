@@ -70,4 +70,19 @@ describe("createPositionTable", () => {
     expect(empty.lineRankOf("CenterBack")).toBe(999);
     expect(empty.membersOf("Defender")).toEqual(["Defender"]);
   });
+
+  /**
+   * Given a table that arrives in any order, and one that has not arrived
+   * When the lines are asked for
+   * Then they come goalkeeper first by rank, the buckets only; before arrival there are none.
+   */
+  it("lists the lines in pitch order, and none before the table arrives", () => {
+    expect(createPositionTable([...ENTRIES].reverse()).lines()).toEqual([
+      "Goalkeeper",
+      "Defender",
+      "Midfielder",
+      "Forward",
+    ]);
+    expect(createPositionTable([]).lines()).toEqual([]);
+  });
 });
