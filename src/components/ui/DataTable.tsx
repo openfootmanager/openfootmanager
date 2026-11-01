@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 export type SortDirection = "asc" | "desc";
 
-/** A row's left accent: `positive` for a starter, `danger` for a player who can't play. */
+/** A row's left accent: `selected` for a starter, `danger` for a player who can't play. */
 type RowAccent = "selected" | "danger";
 
 export interface DataTableColumn<Row> {
