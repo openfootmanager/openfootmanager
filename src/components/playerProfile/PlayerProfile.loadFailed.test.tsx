@@ -140,16 +140,26 @@ beforeEach(() => {
 describe("a profile answer that fails to load", () => {
   /**
    * Given the backend holds no opinion of him and no ratings (it answers null), and his wage
-   * When his profile opens
+   * When his profile opens and every answer has arrived
    * Then nothing reads "Couldn't load": a real "nothing known" is not a failure
    */
   it("does not mistake nothing known for a failure", async () => {
     backendWhere(null);
+    // The wage answers last, a task after the two nulls, so its figure on screen proves both null
+    // answers were already in when nothing reads "Couldn't load".
+    const answer = vi.mocked(invoke).getMockImplementation();
+    vi.mocked(invoke).mockImplementation(async (command: string, args?: unknown) =>
+      command === "get_visible_wage"
+        ? new Promise((resolve) => setTimeout(() => resolve({ kind: "exact", weekly: 12_000 }), 0))
+        : answer?.(command, args as never),
+    );
 
     renderProfile();
 
-    await waitFor(() => expect(calls("get_position_ratings")).toBe(1));
-    await waitFor(() => expect(calls("get_potential_opinion")).toBe(1));
+    const wageRow = screen.getByText("Weekly Wage").parentElement as HTMLElement;
+    await waitFor(() => expect(wageRow).toHaveTextContent(/12/));
+    expect(calls("get_potential_opinion")).toBe(1);
+    expect(calls("get_position_ratings")).toBe(1);
     expect(screen.queryByText("Couldn't load")).not.toBeInTheDocument();
   });
 
