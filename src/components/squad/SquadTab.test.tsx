@@ -322,6 +322,34 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given the squad not yet fetched, so the roster is the game state's own players, which carry no
+   *       match-day verdict
+   * When the roster renders
+   * Then no row carries the can't-play accent: an absent verdict means not yet, not no.
+   */
+  it("marks no row as unable to play before the backend's verdict arrives", () => {
+    const state = makeGameState();
+    state.players = state.players.map((player) => ({ ...player, match_day_eligible: undefined }));
+    // The squad fetch never answers: the roster stays the one drawn before it.
+    mockedInvoke.mockReturnValueOnce(new Promise(() => {}));
+
+    render(
+      <SquadTab
+        gameState={state}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("row", { name: /Bench DEF/ })).toBeInTheDocument();
+    const redRows = screen
+      .getAllByRole("row")
+      .filter((row) => row.getAttribute("data-accent") === "danger");
+    expect(redRows).toHaveLength(0);
+  });
+
+  /**
    * Given a starter and an injured bench player
    * When a screen reader reads their rows
    * Then the starter's says he starts, the injured player's names his injury, and each names the

@@ -10,7 +10,11 @@ import type {
 import { Badge, Card, DataTable, PositionBadges, Select } from "../ui";
 import { MoreVertical, Users } from "lucide-react";
 import { calcAge, getPlayerOvr } from "../../lib/helpers";
-import { isFirstTeamSquadPlayer, isMatchDayEligible } from "../../lib/playerSquad";
+import {
+  isFirstTeamSquadPlayer,
+  isMatchDayEligible,
+  isRuledOutOfMatchDay,
+} from "../../lib/playerSquad";
 import { useTranslation } from "react-i18next";
 import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
 import { clearContractExitIntent, setContractExitIntent } from "../../services/contractService";
@@ -546,7 +550,7 @@ export default function SquadRosterView({
           onSortChange={(key) => toggleSort(key as SquadListSortKey)}
           onOpen={(player) => onSelectPlayer(player.id)}
           rowAccent={(player) =>
-            xiIds.has(player.id) ? "selected" : isMatchDayEligible(player) ? null : "danger"
+            xiIds.has(player.id) ? "selected" : isRuledOutOfMatchDay(player) ? "danger" : null
           }
           onRowContextMenu={(player, event) => {
             // The Menu key and Shift+F10 send a right-click at 0,0: open it at the row instead.
