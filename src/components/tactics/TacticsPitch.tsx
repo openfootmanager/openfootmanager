@@ -3,6 +3,8 @@ import { Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { getPlayerOvr } from "../../lib/helpers";
+import type { FamiliarityTable } from "../../hooks/useFamiliarity";
+import { useFamiliarity } from "../../hooks/useFamiliarity";
 import type { PositionTable } from "../../lib/positionTable";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
@@ -65,16 +67,17 @@ function getFitTone(
   player: PlayerData | null,
   slotPosition: string,
   positionTable: PositionTable,
+  familiarity: FamiliarityTable,
 ): FitTone {
   if (!player) {
     return "empty";
   }
 
-  if (isPlayerExactForSlot(player, slotPosition)) {
+  if (isPlayerExactForSlot(player, slotPosition, familiarity)) {
     return "exact";
   }
 
-  if (isPlayerOutOfPosition(player, slotPosition, positionTable)) {
+  if (isPlayerOutOfPosition(player, slotPosition, positionTable, familiarity)) {
     return "out";
   }
 
@@ -286,6 +289,7 @@ export default function TacticsPitch({
 }: TacticsPitchProps): JSX.Element {
   const { t } = useTranslation();
   const positionTable = usePositionTable();
+  const familiarity = useFamiliarity();
   const { focusedPlayerId, focusToken, blurToken, getDescriptionId } = usePitchTokenFocus();
   const draggedPlayerId = dragState?.playerId ?? null;
 
@@ -431,7 +435,7 @@ export default function TacticsPitch({
 
             {pitchSlots.map((slot) => {
               const player = slot.player;
-              const fitTone = getFitTone(player, slot.position, positionTable);
+              const fitTone = getFitTone(player, slot.position, positionTable, familiarity);
               const isHovered = hoveredSlot === slot.index;
 
               return (

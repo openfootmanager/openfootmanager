@@ -12,6 +12,7 @@ import {
   setTeamMatchRoles,
 } from "../../services/squadService";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
+import { useFamiliarity } from "../../hooks/useFamiliarity";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import { useAutoSetPieces } from "../../hooks/useAutoSetPieces";
 import type { TacticsPhaseSettings } from "../../store/types";
@@ -28,6 +29,7 @@ import {
   type DragState,
   type PitchSlotRow,
   type SquadSection,
+  lineupReady,
 } from "../squad/SquadTab.helpers";
 import {
   buildTacticsPitchSlots,
@@ -55,6 +57,8 @@ function isPlayerEligibleForLineup(player: PlayerData | null | undefined): boole
 export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupArgs) {
   const { sessionState } = useGameStore();
   const positionTable = usePositionTable();
+  const familiarity = useFamiliarity();
+  const canGradeLineup = lineupReady(positionTable, familiarity);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
   const [fetchedSquad] = useFetchedSquad(teamId, clockDate, sessionState ?? gameState);
@@ -94,6 +98,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
         formation,
         pendingStartingXiIds,
         positionTable,
+        familiarity,
         playersById,
         savedStartingXiIds: team?.starting_xi_ids || [],
       }),
@@ -104,6 +109,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       (pendingStartingXiIds || []).join(","),
       roster.map((player) => player.id).join(","),
       positionTable,
+      familiarity,
     ],
   );
 
@@ -168,7 +174,12 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
     startingXiIds,
   ]);
 
-  const outOfPositionCount = countOutOfPositionPlayers(startingXI, xiActivePosition, positionTable);
+  const outOfPositionCount = countOutOfPositionPlayers(
+    startingXI,
+    xiActivePosition,
+    positionTable,
+    familiarity,
+  );
   const autoSetPieces = useAutoSetPieces(startingXiIds, sessionState ?? gameState);
   const effectiveMatchRoles = useMemo(
     () => resolveEffectiveMatchRoles(startingXI, team?.match_roles, autoSetPieces),
@@ -176,8 +187,9 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   );
 
   async function persistStartingXI(playerIds: string[]): Promise<void> {
-    // Nothing is saved from a lineup worked out before the position table has loaded.
-    if (!positionTable.loaded) return;
+    // Nothing is saved from a lineup worked out before the position table and familiarity have
+    // loaded.
+    if (!canGradeLineup) return;
     setPendingStartingXiIds(playerIds);
     try {
       const updated = await setStartingXi(playerIds);
@@ -231,6 +243,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       formation,
       playerId,
       positionTable,
+      familiarity,
     );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
@@ -252,6 +265,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       formation,
       playerId,
       positionTable,
+      familiarity,
     );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
@@ -269,6 +283,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
       formation,
       playerId,
       positionTable,
+      familiarity,
     );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
@@ -463,6 +478,8 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   }
 
   return {
+    /** The position table and the familiarity have both loaded: a lineup can be graded. */
+    lineupReady: canGradeLineup,
     team,
     formation,
     activePlayStyle,

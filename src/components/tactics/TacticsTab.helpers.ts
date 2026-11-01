@@ -1,6 +1,7 @@
 import { getPlayerOvr } from "../../lib/helpers";
 import { isFirstTeamSquadPlayer } from "../../lib/playerSquad";
 import { naturalPositionOf } from "../../lib/positions";
+import type { FamiliarityTable } from "../../hooks/useFamiliarity";
 import type { PositionTable } from "../../lib/positionTable";
 import type { PlayerData } from "../../store/gameStore";
 import {
@@ -86,6 +87,7 @@ interface TacticsPlayerFilterContext {
 interface ResolveStartingXiIdsOptions {
   availablePlayers: PlayerData[];
   positionTable: PositionTable;
+  familiarity?: FamiliarityTable;
   formation: string;
   pendingStartingXiIds: string[] | null;
   playersById: Map<string, PlayerData>;
@@ -111,6 +113,7 @@ export function buildTacticsRoster(
 export function resolveStartingXiIds({
   availablePlayers,
   positionTable,
+  familiarity,
   formation,
   pendingStartingXiIds,
   playersById,
@@ -121,6 +124,7 @@ export function resolveStartingXiIds({
     savedStartingXiIds,
     formation,
     positionTable,
+    familiarity,
   );
   const slotPositions = buildPitchRows(formation).flatMap((row) => row.positions);
 
@@ -137,7 +141,7 @@ export function resolveStartingXiIds({
     const bestPlayer = availablePlayers
       .filter((player) => !usedPlayerIds.has(player.id))
       .sort((leftPlayer, rightPlayer) =>
-        comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition, positionTable),
+        comparePlayersForSlot(leftPlayer, rightPlayer, slotPosition, positionTable, familiarity),
       )[0];
 
     if (!bestPlayer) break;
@@ -248,11 +252,12 @@ export function countOutOfPositionPlayers(
   startingPlayers: PlayerData[],
   xiActivePosition: Map<string, string>,
   positionTable: PositionTable,
+  familiarity?: FamiliarityTable,
 ): number {
   return startingPlayers.filter((player) => {
     const currentPosition = xiActivePosition.get(player.id) ?? player.position;
 
-    return isPlayerOutOfPosition(player, currentPosition, positionTable);
+    return isPlayerOutOfPosition(player, currentPosition, positionTable, familiarity);
   }).length;
 }
 
