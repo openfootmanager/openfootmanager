@@ -118,6 +118,22 @@ describe("SquadTab helpers", () => {
     expect(isPlayerOutOfPosition(defender, "Midfielder", cannedPositionTable())).toBe(true);
   });
 
+  /**
+   * Given a natural right winger with no alternates
+   * When the screens grade him at right midfield and at left midfield
+   * Then right midfield, his own flank one line back, is a position he can play, and left
+   *      midfield is out of position: the backend's `is_flank_partner`
+   */
+  it("treats a winger at wide midfield on his own flank as a position he can play", () => {
+    const winger = makePlayer("p1", "RightWinger", {
+      natural_position: "RightWinger",
+      alternate_positions: [],
+    });
+
+    expect(isPlayerOutOfPosition(winger, "RightMidfielder", cannedPositionTable())).toBe(false);
+    expect(isPlayerOutOfPosition(winger, "LeftMidfielder", cannedPositionTable())).toBe(true);
+  });
+
   it("parses 4-part formations correctly", () => {
     expect(parseFormationSlots("4-2-3-1")).toEqual({ def: 4, mid: 5, fwd: 1 });
   });

@@ -61,7 +61,8 @@ export function SquadNameAside({
  * The contract's one chip, as table C has it: an expiring or critical contract first (it needs the
  * manager), then a transfer or loan listing, then a stable contract.
  */
-function contractChip(player: PlayerData, risk: ContractRiskLevel, t: TFunction) {
+/** The contract's one chip, as the roster's table row and card both show it. */
+export function contractChip(player: PlayerData, risk: ContractRiskLevel, t: TFunction) {
   if (risk === "critical")
     return {
       variant: getContractRiskBadgeVariant(risk),

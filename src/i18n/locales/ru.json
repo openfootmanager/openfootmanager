@@ -712,6 +712,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Запас {{bench}}",
     "bestRole": "Лучшая роль",
     "startingXi": "Стартовый состав",
+    "notMatchDayEligible": "Недоступен для заявки",
     "starter": "Основа",
     "benchOption": "Запас",
     "naturalFit": "Естественная позиция",
