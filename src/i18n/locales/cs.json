@@ -1764,6 +1764,10 @@
       "unsure": "Nejistě",
       "guess": "Jen odhad",
       "byScout": "Skautská zpráva: {{scout}}, {{date}}"
+    },
+    "positions": {
+      "title": "Pozice",
+      "wherePlayed": "kde ho nasazujete"
     }
   },
   "teamProfile": {

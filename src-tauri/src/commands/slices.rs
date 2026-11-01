@@ -7,6 +7,7 @@ use domain::message::InboxMessage;
 use ofm_core::player_knowledge::{
     players_knowledge, potential_opinion, visible_wage, PlayerKnowledge, VisibleWage,
 };
+use ofm_core::position_ratings::{position_ratings, PositionRatings};
 use ofm_core::potential_opinion::PotentialOpinion;
 use ofm_core::slices::competitions::{query_competitions, CompetitionsQuery, CompetitionsView};
 use ofm_core::slices::inbox::{query_messages, MessagesQuery};
@@ -157,6 +158,30 @@ pub async fn get_potential_opinion(
     player_id: String,
 ) -> Result<Option<PotentialOpinion>, String> {
     get_potential_opinion_internal(&state, &player_id)
+}
+
+/// What one player is worth at each position he plays, for his profile: his rating, familiarity
+/// and key attributes there, or null when the club knows nothing of his attributes.
+#[tauri::command]
+pub async fn get_position_ratings(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<Option<PositionRatings>, String> {
+    get_position_ratings_internal(&state, &player_id)
+}
+
+fn get_position_ratings_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<Option<PositionRatings>, String> {
+    state
+        .get_game(|game| {
+            game.players
+                .iter()
+                .find(|player| player.id == player_id)
+                .and_then(|player| position_ratings(game, player))
+        })
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
 fn get_potential_opinion_internal(
@@ -632,5 +657,34 @@ mod tests {
             serde_json::json!({ "kind": "approximate", "weekly": 16_000 })
         );
         assert_eq!(wage_of("nobody"), serde_json::Value::Null);
+    }
+
+    /// Given an unknown id and no world knowledge of anyone
+    /// When the position ratings adapter reads it
+    /// Then the answer is null, not an error
+    #[test]
+    fn the_position_ratings_adapter_answers_null_for_a_player_it_cannot_find() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        let game = ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
+            ),
+            Manager::new(
+                "m".into(),
+                "M".into(),
+                "Gr".into(),
+                "1980-01-01".into(),
+                "GB".into(),
+            ),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        let state = StateManager::new();
+        state.set_game(game);
+
+        assert_eq!(get_position_ratings_internal(&state, "nobody"), Ok(None));
     }
 }

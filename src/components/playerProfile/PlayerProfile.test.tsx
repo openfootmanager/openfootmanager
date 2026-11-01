@@ -71,6 +71,8 @@ vi.mock("../../hooks/useVisibleWage", () => ({
 // The club holds no opinion of anyone's potential in these tests; PlayerProfile.potential.test.tsx
 // shows one, through the real hook. The hook has its own test.
 vi.mock("../../hooks/usePotentialOpinion", () => ({ usePotentialOpinion: () => null }));
+// Nor its ratings at positions: PlayerProfilePositionRatings and usePositionRatings have their own.
+vi.mock("../../hooks/usePositionRatings", () => ({ usePositionRatings: () => null }));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),

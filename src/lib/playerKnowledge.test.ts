@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   gameKnowledgeRevision,
   knowledgeRevision,
+  ownLineupRevision,
   visibleRatingText,
   visibleTraits,
   visibleWageText,
@@ -205,5 +206,32 @@ describe("visibleTraits", () => {
       "Speedster",
       "Wonderkid",
     ]);
+  });
+});
+
+describe("ownLineupRevision", () => {
+  const game = (formation: string, startingXi: string[]) => ({
+    manager: { team_id: "mine" },
+    teams: [
+      { id: "mine", formation, starting_xi_ids: startingXi },
+      { id: "rival", formation: "4-4-2", starting_xi_ids: ["r1"] },
+    ],
+  });
+
+  /**
+   * Given the manager's lineup
+   * When a player is benched, the formation changes, or nothing changes
+   * Then the revision moves for the first two and stays for the third; a rival's lineup never
+   *      moves it
+   */
+  it("moves with the manager's formation and starting XI only", () => {
+    const before = ownLineupRevision(game("4-4-2", ["a", "b"]));
+
+    expect(ownLineupRevision(game("4-4-2", ["a"]))).not.toBe(before);
+    expect(ownLineupRevision(game("4-3-3", ["a", "b"]))).not.toBe(before);
+    expect(ownLineupRevision(game("4-4-2", ["a", "b"]))).toBe(before);
+    const rivalChanged = game("4-4-2", ["a", "b"]);
+    rivalChanged.teams[1].starting_xi_ids = ["r2"];
+    expect(ownLineupRevision(rivalChanged)).toBe(before);
   });
 });

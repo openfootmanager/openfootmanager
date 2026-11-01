@@ -59,6 +59,7 @@ pub mod player_rating;
 pub mod player_tier;
 pub mod player_wear;
 pub mod position_group;
+pub mod position_ratings;
 pub mod potential_opinion;
 pub mod promotion;
 pub mod random_events;

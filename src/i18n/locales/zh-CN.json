@@ -1764,6 +1764,10 @@
       "unsure": "没有把握",
       "guess": "只是猜测",
       "byScout": "球探 {{scout}} 于 {{date}} 考察"
+    },
+    "positions": {
+      "title": "位置",
+      "wherePlayed": "您安排他踢的位置"
     }
   },
   "teamProfile": {
