@@ -27,6 +27,11 @@ jobs:
   # whose failures are usually about something else entirely.
   toolchain-pin:
     runs-on: ubuntu-latest
+    # Every job has a ceiling, about twice its longest cold-cache run (measured 31 Oct 2026:
+    # backend 28-32 min, tauri-smoke 9-13, frontend about 5, the small jobs under 1). Without one
+    # GitHub waits six hours: a test that hangs, like the stand-in id loop a mutation showed,
+    # would hold the merge queue for six hours instead of failing in an hour.
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -75,6 +80,7 @@ jobs:
   # is not the tip. It is not needed by the format check itself.
   format:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -114,6 +120,7 @@ jobs:
   # `.github/workflows/dependency-advisories.yml`.
   dependencies:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -173,6 +180,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -232,6 +240,7 @@ jobs:
 
   tauri-smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -264,6 +273,7 @@ jobs:
 
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     # Line tables instead of full debug info for every build and test binary here. This job
     # builds the workspace for tests, for tests with `mcp`, for check and for clippy twice, and on
