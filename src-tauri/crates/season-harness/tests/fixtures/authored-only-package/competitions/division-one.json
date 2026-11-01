@@ -11,12 +11,7 @@
     "legs": 2
   },
   "participants": {
-    "explicit": [
-      "ashford-fc",
-      "brackley-fc",
-      "carlow-fc",
-      "dunmore-fc"
-    ]
+    "explicit": ["ashford-fc", "brackley-fc", "carlow-fc", "dunmore-fc"]
   },
   "seasonStartMonth": 8,
   "seasonStartDay": 1

@@ -490,13 +490,13 @@ const CEILING_SD: f64 = 5.0;
 /// made by the intake (everyone alive after about 15 seasons was an intake recruit), and the opening
 /// cohort it replaces carries less of the A tier on a normal bell than the old light-tailed one did,
 /// so an intake on the opening's own centre settles below the band #965 set (S 1.0 to 1.8%, A 5.9
-/// to 8.2%). Swept over 20 seasons on two seeds of the shipped world, 1.2 holds S and A inside the band
-/// at seasons 10, 15 and 20 (A 5.9 to 7.7%); 1.0 dips A under 5.9% at season 10, and 1.4 reaches
-/// 8.2% by season 20.
+/// to 8.2%). Measured over 20 seasons on two seeds of the shipped world with the spread kept at
+/// 0.95: 1.0 misses A at season 10 (5.79%, run qm-9b, floor 5.9%); 1.2 holds S and A at seasons 10,
+/// 15 and 20 (A 5.92 to 7.73%, run qm-10a); 1.4 reaches 8.20% by season 20 (run qm-10b).
 const INTAKE_CEILING_OFFSET: f64 = 1.2;
-/// The fraction of the opening's spread the intake keeps. Alone, the offset doubles the settled
-/// wonderkid rate (0.16 to 0.22% against 0.06 to 0.13% on the old bell); 0.95 brings it back to
-/// 0.10 to 0.12% and costs S about 0.1 points.
+/// The fraction of the opening's spread the intake keeps. The offset alone raises the settled
+/// wonderkid rate; keeping 0.95 of the spread holds it to 0.09 to 0.19% at 1.2 (run qm-10a) against
+/// 0.06 to 0.13% on the old bell, and costs S about 0.1 points.
 const INTAKE_SPREAD_KEPT: f64 = 0.95;
 
 /// How a ceiling bell is moved: `shift` rating points up, keeping `spread_kept` of its spread.
@@ -583,11 +583,22 @@ const ROLLED_AT_Z: [[f64; 29]; 4] = [
 /// The standard-normal z a rolled rating of `group` stands at: its place in [`ROLLED_AT_Z`], read
 /// by linear interpolation, and extended past the table's ends at the end slopes.
 fn rolled_to_z(group: &Position, rolled: f64) -> f64 {
+    // Every variant is listed, so a new position cannot silently take the forwards' row.
     let row = match group {
         Position::Goalkeeper => 0,
-        Position::Defender => 1,
-        Position::Midfielder => 2,
-        _ => 3,
+        Position::Defender
+        | Position::RightBack
+        | Position::CenterBack
+        | Position::LeftBack
+        | Position::RightWingBack
+        | Position::LeftWingBack => 1,
+        Position::Midfielder
+        | Position::DefensiveMidfielder
+        | Position::CentralMidfielder
+        | Position::AttackingMidfielder
+        | Position::RightMidfielder
+        | Position::LeftMidfielder => 2,
+        Position::Forward | Position::RightWinger | Position::LeftWinger | Position::Striker => 3,
     };
     let table = &ROLLED_AT_Z[row];
     let last = table.len() - 1;
