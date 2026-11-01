@@ -859,7 +859,7 @@ mod tests {
     /// Then it is exactly what the frontend's fixture records
     ///
     /// Regenerate with:
-    ///   OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test -p ofm_core --lib the_familiarity_fixture
+    ///   OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test --manifest-path src-tauri/Cargo.toml -p ofm_core --lib the_familiarity_fixture
     #[test]
     fn the_familiarity_fixture_is_what_the_backend_says() {
         let rows: Vec<serde_json::Value> = familiarity_fixture_players()
@@ -900,7 +900,7 @@ mod tests {
         let on_disk = std::fs::read_to_string(&path).unwrap_or_else(|e| {
             panic!(
                 "cannot read {} ({e}). Regenerate with \
-                 OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test -p ofm_core --lib the_familiarity_fixture",
+                 OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test --manifest-path src-tauri/Cargo.toml -p ofm_core --lib the_familiarity_fixture",
                 path.display()
             )
         });
@@ -908,7 +908,7 @@ mod tests {
             on_disk.trim(),
             rendered.trim(),
             "familiarity changed but {FAMILIARITY_FIXTURE} is stale. Regenerate with \
-             OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test -p ofm_core --lib the_familiarity_fixture, \
+             OFM_UPDATE_FAMILIARITY_FIXTURE=1 cargo test --manifest-path src-tauri/Cargo.toml -p ofm_core --lib the_familiarity_fixture, \
              then check the frontend's parity test."
         );
     }
