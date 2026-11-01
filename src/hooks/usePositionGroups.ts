@@ -77,6 +77,12 @@ function usePositionEntries(): PositionGroupEntry[] {
     });
     return () => {
       mounted.delete(setTable);
+      // No screen is waiting any more: a timer left running would fire on a later mount's behalf
+      // at the old deadline, and the old failures would stretch that mount's first retry.
+      if (mounted.size === 0) {
+        cancelRetry();
+        failures = 0;
+      }
     };
   }, []);
 

@@ -140,6 +140,41 @@ describe("usePositionGroups", () => {
     });
 
     /**
+     * Given a failed request whose retry is pending, and its screen leaves and another mounts
+     * When the new mount's own request fails too
+     * Then its retry comes one second after that failure: the old timer is gone, and the old
+     *      failures do not stretch the new mount's first wait.
+     */
+    it("starts a later mount's retries from the first delay", async () => {
+      const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockedGroups.mockRejectedValue(new Error("offline"));
+
+      const first = renderHook(() => usePositionGroups());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      first.unmount();
+      renderHook(() => usePositionGroups());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(mockedGroups).toHaveBeenCalledTimes(2);
+
+      // 500ms later the first mount's old deadline (1s after its failure) would have fired.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(mockedGroups).toHaveBeenCalledTimes(2);
+
+      // One second after the second failure, not two.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(mockedGroups).toHaveBeenCalledTimes(3);
+      quiet.mockRestore();
+    });
+
+    /**
      * Given a request that failed and a screen that then unmounts
      * When the retry delay passes
      * Then nothing asks again: there is no one left to wait for the table.
