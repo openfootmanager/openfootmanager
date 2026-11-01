@@ -14,6 +14,7 @@ import {
   type DataTableColumn,
   DatePicker,
   Dialog,
+  EntityCard,
   DialogCloseButton,
   InjuryBadge,
   UnreadBadge,
@@ -35,6 +36,7 @@ import {
   TeamLocation,
   TeamLogo,
   ThemeToggle,
+  TONE_TEXT,
 } from "../../components/ui";
 import { ChartContainer } from "../../components/ui/charts/ChartContainer";
 import type { ListView } from "../../store/settingsStore";
@@ -55,6 +57,7 @@ const SURFACES = [
   "--color-hover",
   "--color-chrome",
   "--color-overlay",
+  "--color-card-band",
 ];
 const TEXT_AND_LINES = [
   "--color-fg",
@@ -126,6 +129,16 @@ const WIDTHS = [
     token: "--container-split",
     use: "two panels side by side above this container width (@split)",
   },
+];
+const CARD_TOKENS = [
+  { token: "--shadow-card", use: "an entity card's lift (shadow-card)" },
+  { token: "--kit-wash-mix", use: "how much of a club's kit a card's header takes (bg-kit-wash)" },
+];
+// Two fixture clubs' kits, and none: a free agent's card falls back to the neutral stripe.
+const CARD_KITS = [
+  { name: "Gonzalez", country: "AU", kit: { primary: "#16a34a", secondary: "#ffffff" } },
+  { name: "Ferguson", country: "SCO", kit: { primary: "#ea580c", secondary: "#1e3a5f" } },
+  { name: "Aguero", country: "PY", kit: null },
 ];
 const FONTS = [
   { token: "--font-heading", className: "font-heading uppercase tracking-label" },
@@ -409,6 +422,52 @@ function CardsSection() {
         ))}
         <ChartContainer isEmpty height={120} />
       </div>
+      {/* Entity cards: the kit stripe and wash, the name as the one button, the status and facts. */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(18rem,1fr))] gap-3">
+        {CARD_KITS.map(({ name, country, kit }) => (
+          <EntityCard
+            key={name}
+            kit={kit}
+            media={<PlayerAvatar player={{ id: name, match_name: name, full_name: name }} />}
+            name={name}
+            meta={
+              <>
+                <CountryFlag code={country} />
+                <span>CM · 30</span>
+              </>
+            }
+            hero={<span className={TONE_TEXT.good}>79</span>}
+            status={<ProgressBar value={80} tone="good" showLabel label="Condition" />}
+            facts={[
+              { label: "Value", value: "€2.5M" },
+              { label: "Morale", value: "75" },
+            ]}
+            onOpen={() => undefined}
+          />
+        ))}
+      </div>
+      <div className="flex max-w-xl flex-col gap-2">
+        {CARD_KITS.slice(0, 2).map(({ name, country, kit }) => (
+          <EntityCard
+            key={name}
+            size="compact"
+            kit={kit}
+            media={<PlayerAvatar player={{ id: name, match_name: name, full_name: name }} />}
+            name={name}
+            meta={<CountryFlag code={country} />}
+            hero={<span className={TONE_TEXT.good}>79</span>}
+            onOpen={() => undefined}
+          />
+        ))}
+      </div>
+      <dl className="grid gap-1 text-caption">
+        {CARD_TOKENS.map(({ token, use }) => (
+          <div key={token} className="flex gap-2">
+            <dt className="font-semibold text-fg">{token}</dt>
+            <dd className="text-fg-muted">{use}</dd>
+          </div>
+        ))}
+      </dl>
     </Section>
   );
 }

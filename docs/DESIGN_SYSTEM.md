@@ -49,6 +49,8 @@ and a dark value in the `.dark` block below it, so **a component that uses a rol
 | `hover` | the surface under the pointer |
 | `chrome` | the sidebar and the match band; dark in both themes |
 | `overlay` | the backdrop behind a dialog |
+| `card-band`, `shadow-card` | an entity card's status band, a step off the panel, and its lift |
+| `kit`, `kit-wash`, `kit-hairline` | a club's kit on an entity card: the stripe, the header washed in it (`--kit-wash-mix` of the kit over the panel: 14% light, 26% dark) and a faint diagonal in its second colour. They read the `--kit` and `--kit-2` variables `kitStyle()` (`src/lib`) sets from the backend's team colours, so no component holds a colour |
 | `fg`, `fg-muted`, `fg-subtle` | text: strong, secondary, quiet (placeholders, disabled) |
 | `line`, `line-strong` | borders and dividers |
 | `focus` | the focus ring |
@@ -146,6 +148,7 @@ drawn in the style guide.
 | a list as a table (players, clubs, staff) | `DataTable`: column definitions; `aria-sort` headers that ask to sort (it never sorts the rows); rows of `h-row` whose name is the open button (Enter opens; a click on the row too, but not on its action column); a row's menu on right-click (`onRowContextMenu`) as well as on its action button; a `positive` or `danger` edge accent; empty and loading states; under 48rem the `drawer` columns fold into the row's details (never the first column, which keeps the accent and, failing a primary, the name). It draws no panel: put it in a `Card` |
 | a list shown as a table or as cards | `ViewSwitch`, at the end of the list's `PageToolbar`: a `SegmentedControl` of Table and Cards bound to the one global setting, `AppSettings.list_view` (`table` by default), so whatever the player picks on one list is how every list opens (maintainer, 21 Oct) |
 | a player's condition | `ConditionMeter`: the backend's band word (`condition_status`) in its tone, a bar in the same tone and the percentage; without the band, a neutral bar and no word |
+| a player, club, manager or staff member as a card | `EntityCard`: the shell of every list's card view. The kit stripe and washed header; the face, the name and one meta line; the hero number on the right; then (full size) the status band and two facts. The name is the card's one button (its heading's), and everything else stays outside it, so a screen reader reads the meta line, status and facts; a click on the card's body opens it too. `compact` is the identity row alone, for a message or side panel |
 | a player's overall rating | `RatingChip`: the number alone in its tier's tone (the backend's tier, from `useRatingTiers`), named "Overall 79, tier A" for a screen reader and as a tooltip; `sm` for a row, `md` for a card |
 
 More primitives arrive as the migration goes on: empty and loading states outside a table, stat
