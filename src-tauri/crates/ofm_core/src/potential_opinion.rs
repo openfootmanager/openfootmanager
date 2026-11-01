@@ -24,7 +24,7 @@ pub enum Certainty {
 impl Certainty {
     /// The band a judge's eye puts him in: 80 and up, 60 to 79, 40 to 59, and below. These are the
     /// bands the scouting module already reads `judging_potential` by.
-    pub fn of_judge(judging_potential: u8) -> Self {
+    fn of_judge(judging_potential: u8) -> Self {
         if judging_potential >= 80 {
             Certainty::Confident
         } else if judging_potential >= 60 {
@@ -37,7 +37,7 @@ impl Certainty {
     }
 
     /// How far either side of his centre a judge in this band reaches.
-    pub fn half_width(self) -> u8 {
+    fn half_width(self) -> u8 {
         match self {
             Certainty::Confident => 2,
             Certainty::FairlySure => 4,
@@ -48,7 +48,7 @@ impl Certainty {
 
     /// The band a range was drawn in, read off its width: a range always keeps its judge's width
     /// (see [`judged_range`]), so nothing about the judge needs storing beside it.
-    pub fn of_range(range: PotentialRange) -> Self {
+    fn of_range(range: PotentialRange) -> Self {
         match range.high.saturating_sub(range.low) / 2 {
             ..=2 => Certainty::Confident,
             3..=4 => Certainty::FairlySure,

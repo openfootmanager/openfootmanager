@@ -307,11 +307,18 @@ fn coaches_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
     if (today - since).num_days() < COACHES_OPINION_AFTER_DAYS {
         return None;
     }
+    // The club's best eye; between equals the first by id, so the judge (whose id seeds the
+    // range) never depends on the order a save lists the staff in.
     let judge = game
         .staff
         .iter()
         .filter(|staff| staff.team_id.as_deref() == Some(club))
-        .max_by_key(|staff| staff.attributes.judging_potential)?;
+        .max_by(|left, right| {
+            left.attributes
+                .judging_potential
+                .cmp(&right.attributes.judging_potential)
+                .then_with(|| right.id.cmp(&left.id))
+        })?;
     let range = judged_range(
         &player.id,
         &judge.id,
@@ -345,12 +352,30 @@ fn trains_with_club_since<'a>(player: &'a Player, club: &str) -> Option<&'a str>
         })
         .map(|entry| entry.date.as_str())
         .max();
-    // ISO dates order like the days they name, so the later of the two is the larger string.
-    player
+    let arrived = player
         .joined_current_club_on()
-        .into_iter()
-        .chain(last_return)
-        .max()
+        .map(|arrival| opening_contract_start(player, club, arrival).unwrap_or(arrival));
+    // ISO dates order like the days they name, so the later of the two is the larger string.
+    arrived.into_iter().chain(last_return).max()
+}
+
+/// When the arrival on `arrival` is the contract a career opened with, the day that contract
+/// began. The opening entry is dated the career's first day, but a player already at the club
+/// joined when his contract began, so his coaches have known him since then, not since the
+/// career opened. None for any other arrival.
+fn opening_contract_start<'a>(player: &'a Player, club: &str, arrival: &str) -> Option<&'a str> {
+    player
+        .movement_history
+        .iter()
+        .find(|entry| {
+            entry.kind == PlayerMovementKind::InitialContract
+                && entry.date == arrival
+                && entry.to_team_id.as_deref() == Some(club)
+        })?
+        .contract
+        .as_ref()?
+        .start
+        .as_deref()
 }
 
 fn scouts_opinion(game: &Game, player: &Player) -> Option<PotentialOpinion> {
@@ -1328,5 +1353,106 @@ mod tests {
             opinion_of(&game, "settled").map(|opinion| opinion.source),
             Some(OpinionSource::Coaches)
         );
+    }
+
+    /// `player` at `club` when the career opened on `opened_on`, on a contract that began on
+    /// `contract_start`, as `record_opening_contracts` writes it.
+    fn there_when_the_career_opened(
+        mut player: Player,
+        club: &str,
+        opened_on: &str,
+        contract_start: &str,
+    ) -> Player {
+        player.potential = 80;
+        player
+            .record_movement(PlayerMovementEntry {
+                to_team_id: Some(club.to_string()),
+                contract: Some(domain::contract_ledger::ContractRecord {
+                    start: Some(contract_start.to_string()),
+                    end: Some("2029-06-30".to_string()),
+                    weekly_wage: 5_000,
+                    source: domain::contract_ledger::ContractSource::Initial,
+                }),
+                ..PlayerMovementEntry::new(opened_on, PlayerMovementKind::InitialContract)
+            })
+            .unwrap();
+        player
+    }
+
+    /// Given a career that opened five days ago, its club's player on a contract that began in 2024,
+    ///       and another whose contract began a week before the career opened
+    /// When the club's opinion of each one's potential is asked
+    /// Then the first has the coaches' opinion at once: he joined when his contract began, not on
+    ///      the career's first day. The second, at the club for under six weeks, has none yet
+    #[test]
+    fn a_player_at_the_club_when_the_career_opened_counts_from_his_contract_start() {
+        let mut game = world(
+            Some(MY_CLUB),
+            vec![
+                there_when_the_career_opened(
+                    player("veteran", Some(MY_CLUB)),
+                    MY_CLUB,
+                    "2026-09-10",
+                    "2024-07-01",
+                ),
+                there_when_the_career_opened(
+                    player("newcomer", Some(MY_CLUB)),
+                    MY_CLUB,
+                    "2026-09-10",
+                    "2026-09-03",
+                ),
+            ],
+        );
+        game.staff = vec![staff_at("coach", MY_CLUB, 90)];
+
+        assert_eq!(
+            opinion_of(&game, "veteran").map(|opinion| opinion.source),
+            Some(OpinionSource::Coaches)
+        );
+        assert_eq!(opinion_of(&game, "newcomer"), None);
+    }
+
+    /// Given eight of the club's own players, and two coaches with the same eye for potential,
+    ///       listed in either order (as a reload may list them)
+    /// When the club's opinion of each player's potential is asked
+    /// Then it is the same range both ways, the first coach by id's: the judge between equals is
+    ///      picked by id, not by the list's order, so the opinion never shifts on reload
+    #[test]
+    fn equally_good_coaches_give_the_same_opinion_in_any_order() {
+        let ids: Vec<String> = (0..8).map(|n| format!("own-{n}")).collect();
+        // Two judges agree on a player by chance about one time in nine; across eight players
+        // they must differ somewhere, or this test could not tell which of them judged.
+        assert!(
+            ids.iter().any(
+                |id| judged_range(id, "a-coach", 80, 70) != judged_range(id, "b-coach", 80, 70)
+            ),
+            "the two coaches give every player the same range"
+        );
+        let squad = ids
+            .iter()
+            .map(|id| arrived(player(id, Some(MY_CLUB)), MY_CLUB, SIX_WEEKS_AGO, 80))
+            .collect();
+        let mut game = world(Some(MY_CLUB), squad);
+        game.staff = vec![
+            staff_at("b-coach", MY_CLUB, 70),
+            staff_at("a-coach", MY_CLUB, 70),
+        ];
+        let ranges = |game: &Game| -> Vec<(u8, u8)> {
+            ids.iter()
+                .map(|id| opinion_of(game, id).unwrap())
+                .map(|opinion| (opinion.low, opinion.high))
+                .collect()
+        };
+        let one_way = ranges(&game);
+        game.staff.reverse();
+        let other_way = ranges(&game);
+        let first_by_id: Vec<(u8, u8)> = ids
+            .iter()
+            .map(|id| judged_range(id, "a-coach", 80, 70))
+            .map(|range| (range.low, range.high))
+            .collect();
+
+        assert_eq!(one_way, other_way);
+        assert_eq!(one_way, first_by_id, "the coach with the first id judges");
     }
 }
