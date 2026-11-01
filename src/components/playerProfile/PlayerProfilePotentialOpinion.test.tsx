@@ -22,6 +22,7 @@ const coaches: PotentialOpinion = {
   band: "A",
   certainty: "fairly_sure",
   source: { kind: "coaches" },
+  wonderkid: false,
 };
 
 const scouted = (scoutName: string | null, current: boolean): PotentialOpinion => ({

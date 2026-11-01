@@ -15,6 +15,7 @@ const coachesOpinion: PotentialOpinion = {
   band: "A",
   certainty: "fairly_sure",
   source: { kind: "coaches" },
+  wonderkid: false,
 };
 
 beforeEach(() => {

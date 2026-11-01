@@ -8,6 +8,7 @@ use serde::Serialize;
 use ts_rs::TS;
 
 use crate::game::PotentialRange;
+use crate::player_rating::qualifies_for_wonderkid;
 use crate::player_tier::PlayerTier;
 
 /// How sure a judge is, by his `judging_potential`. The band also sets how wide his range is, so
@@ -106,11 +107,20 @@ pub enum OpinionSource {
     Coaches,
 }
 
+/// What the club sees of a player beside an opinion of his potential: his age, and his rating as
+/// the club knows it (exact for its own player, the scout report's figure for a scouted one).
+/// Never his true rating: a wonderkid verdict read from it would tell what the club cannot see.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SeenPlayer {
+    pub age: u32,
+    pub rating: u8,
+}
+
 /// What the club may read of a player's potential: the range, the band its middle falls in (the
-/// backend's tier, so the screen picks no threshold), how sure the judge is, and whose opinion it
-/// is. Never the true potential. The range held the true value when it was formed: the coaches'
-/// is formed today, a scout's on the day of his report, so an out-of-date report's range may no
-/// longer hold it.
+/// backend's tier, so the screen picks no threshold), how sure the judge is, whose opinion it is,
+/// and whether that opinion makes him a wonderkid. Never the true potential. The range held the
+/// true value when it was formed: the coaches' is formed today, a scout's on the day of his report,
+/// so an out-of-date report's range may no longer hold it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct PotentialOpinion {
     pub low: u8,
@@ -118,10 +128,15 @@ pub struct PotentialOpinion {
     pub band: PlayerTier,
     pub certainty: Certainty,
     pub source: OpinionSource,
+    /// The game's wonderkid rule (`qualifies_for_wonderkid`) applied to what the club sees: the
+    /// range's middle as his potential, against his age and the rating it knows. The tag a player
+    /// carries follows this, not his true potential, so a vague range can call a player a wonderkid
+    /// who is not one, and miss one who is.
+    pub wonderkid: bool,
 }
 
 impl PotentialOpinion {
-    pub fn of(range: PotentialRange, source: OpinionSource) -> Self {
+    pub fn of(range: PotentialRange, source: OpinionSource, seen: SeenPlayer) -> Self {
         let middle = u8::try_from((u16::from(range.low) + u16::from(range.high)) / 2).unwrap_or(1);
         Self {
             low: range.low,
@@ -129,6 +144,7 @@ impl PotentialOpinion {
             band: crate::player_tier::player_tier(middle),
             certainty: Certainty::of_range(range),
             source,
+            wonderkid: qualifies_for_wonderkid(seen.age, middle, seen.rating),
         }
     }
 }
@@ -217,10 +233,65 @@ mod tests {
     /// Then its band is the tier of 80 (A), read by the backend's one tier rule
     #[test]
     fn an_opinions_band_is_the_tier_of_its_middle() {
-        let opinion =
-            PotentialOpinion::of(PotentialRange { low: 76, high: 84 }, OpinionSource::Coaches);
+        let opinion = PotentialOpinion::of(
+            PotentialRange { low: 76, high: 84 },
+            OpinionSource::Coaches,
+            SeenPlayer {
+                age: 25,
+                rating: 70,
+            },
+        );
 
         assert_eq!(opinion.band, PlayerTier::A);
         assert_eq!(opinion.certainty, Certainty::FairlySure);
+    }
+
+    /// The lowest elite potential, `S_TIER_MIN_RATING`.
+    const ELITE: u8 = crate::player_tier::S_TIER_MIN_RATING;
+
+    /// A player of the oldest wonderkid age, rated `rating`, judged to have a potential of
+    /// `low`-`high`.
+    fn wonderkid_verdict(low: u8, high: u8, rating: u8) -> bool {
+        PotentialOpinion::of(
+            PotentialRange { low, high },
+            OpinionSource::Coaches,
+            SeenPlayer {
+                age: crate::player_rating::WONDERKID_MAX_AGE,
+                rating,
+            },
+        )
+        .wonderkid
+    }
+
+    /// Given a player of wonderkid age, an opinion whose middle is the lowest elite potential, and
+    ///       a rating exactly the wonderkid growth room below that middle
+    /// When it becomes an opinion
+    /// Then it calls him a wonderkid
+    #[test]
+    fn an_opinion_whose_middle_is_elite_calls_a_young_player_with_room_a_wonderkid() {
+        let room = crate::player_rating::WONDERKID_MIN_GROWTH_ROOM;
+
+        assert!(wonderkid_verdict(ELITE - 1, ELITE + 1, ELITE - room));
+    }
+
+    /// Given the same player, and an opinion one lower, whose top is elite but whose middle is not
+    /// When it becomes an opinion
+    /// Then it does not call him a wonderkid: the opinion's middle is its potential, not its top
+    #[test]
+    fn an_opinion_whose_middle_falls_short_of_elite_calls_nobody_a_wonderkid() {
+        let room = crate::player_rating::WONDERKID_MIN_GROWTH_ROOM;
+
+        assert!(!wonderkid_verdict(ELITE - 2, ELITE, ELITE - room - 1));
+    }
+
+    /// Given the elite opinion, and a rating one closer to its middle than the growth room, though
+    ///       the growth room below the opinion's top
+    /// When it becomes an opinion
+    /// Then it does not call him a wonderkid: his room to grow is measured to the middle
+    #[test]
+    fn an_opinion_measures_the_growth_room_to_its_middle() {
+        let room = crate::player_rating::WONDERKID_MIN_GROWTH_ROOM;
+
+        assert!(!wonderkid_verdict(ELITE - 1, ELITE + 1, ELITE - room + 1));
     }
 }

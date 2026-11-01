@@ -1,6 +1,7 @@
 import type { TOptions } from "i18next";
 
 import type { PlayerKnowledge, VisibleWage } from "../services/scoutingService";
+import type { PotentialOpinion } from "../store/generated/PotentialOpinion";
 
 type TranslateFn = (key: string, options?: TOptions) => string;
 
@@ -101,21 +102,17 @@ export function knowsPrivateState(knowledge: PlayerKnowledge): boolean {
   return knowledge.kind === "own";
 }
 
-// Traits the backend derives from potential rather than from attributes (domain `PlayerTrait`,
-// `ofm_core::player_rating::qualifies_for_wonderkid`): showing one tells the potential.
-const POTENTIAL_DERIVED_TRAITS: readonly string[] = ["Wonderkid"];
+// The one trait the backend derives from potential rather than from attributes (domain
+// `PlayerTrait`, `ofm_core::player_rating::qualifies_for_wonderkid`): the player's own copy is
+// read from his true potential, so it tells what no club can see.
+const WONDERKID = "Wonderkid";
 
 /**
- * His potential is a scout's opinion: the club has one for its own player and for a player it has
- * scouted. Knowing a rival's rating from sharing his division is not enough.
+ * The traits the club may see. Wonderkid is the club's verdict, not the player's truth: it shows
+ * when the club's opinion of his potential calls him one (`PotentialOpinion.wonderkid`), and the
+ * player's own tag is never shown. No opinion, no tag.
  */
-function knowsPotential(knowledge: PlayerKnowledge): boolean {
-  return knowledge.kind === "own" || knowledge.kind === "scouted";
-}
-
-/** The traits the club may see: a potential-derived one only when it has a view of his potential. */
-export function visibleTraits(traits: string[], knowledge: PlayerKnowledge): string[] {
-  return knowsPotential(knowledge)
-    ? traits
-    : traits.filter((trait) => !POTENTIAL_DERIVED_TRAITS.includes(trait));
+export function visibleTraits(traits: string[], opinion: PotentialOpinion | null): string[] {
+  const attributeTraits = traits.filter((trait) => trait !== WONDERKID);
+  return opinion?.wonderkid ? [...attributeTraits, WONDERKID] : attributeTraits;
 }

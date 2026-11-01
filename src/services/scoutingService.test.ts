@@ -140,6 +140,7 @@ describe("scoutingService", () => {
       band: "A",
       certainty: "fairly_sure",
       source: { kind: "scout", scout_name: "Ann Scout", scouted_on: "2026-09-01", current: true },
+      wonderkid: false,
     };
     mockedInvoke.mockResolvedValueOnce(opinion);
 
