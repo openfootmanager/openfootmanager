@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { Fragment, type ReactNode, useId, useState } from "react";
+import { Fragment, type MouseEvent, type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { isOnControl } from "./clickTarget";
 
