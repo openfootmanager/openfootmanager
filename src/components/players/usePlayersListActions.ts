@@ -45,7 +45,10 @@ export function usePlayersListActions({
 }: UsePlayersListActionsArgs) {
   const { t } = useTranslation();
   const [sendingPlayerId, setSendingPlayerId] = useState<string | null>(null);
+  // The last scout that could not be sent, and the last listing that was not saved: two alerts
+  // above the list, so one action succeeding never hides the other's failure.
   const [scoutError, setScoutError] = useState<string | null>(null);
+  const [listingError, setListingError] = useState<string | null>(null);
   const managerTeamId = gameState.manager.team_id ?? "";
 
   const handleGameUpdate = useCallback(
@@ -101,6 +104,16 @@ export function usePlayersListActions({
     }
   };
 
+  const toggleListing = async (toggle: () => Promise<GameStateData>): Promise<void> => {
+    setListingError(null);
+    try {
+      handleGameUpdate(await toggle());
+    } catch (error) {
+      console.error("Failed to change the player's listing:", error);
+      setListingError(resolveTranslatedErrorMessage(getErrorMessage(error), t));
+    }
+  };
+
   const contextItemsFor = (summary: PlayerSummary): ContextMenuItem[] => {
     const scoutState = alreadyScoutingIds.has(summary.id)
       ? "already-assigned"
@@ -123,24 +136,14 @@ export function usePlayersListActions({
     if (summary.team_id === managerTeamId) {
       contextItems.push(buildDividerMenuItem());
       contextItems.push(
-        buildToggleTransferListMenuItem(t, summary.transfer_listed, async () => {
-          try {
-            const updated = await toggleTransferList(summary.id);
-            handleGameUpdate(updated);
-          } catch {
-            return;
-          }
-        }),
+        buildToggleTransferListMenuItem(t, summary.transfer_listed, () =>
+          toggleListing(() => toggleTransferList(summary.id)),
+        ),
       );
       contextItems.push(
-        buildToggleLoanListMenuItem(t, summary.loan_listed, async () => {
-          try {
-            const updated = await toggleLoanList(summary.id);
-            handleGameUpdate(updated);
-          } catch {
-            return;
-          }
-        }),
+        buildToggleLoanListMenuItem(t, summary.loan_listed, () =>
+          toggleListing(() => toggleLoanList(summary.id)),
+        ),
       );
     } else {
       const playerActions = summary.team_id
@@ -173,5 +176,5 @@ export function usePlayersListActions({
     return contextItems;
   };
 
-  return { contextItemsFor, scoutError, bidFlow, contractFlow };
+  return { contextItemsFor, scoutError, listingError, bidFlow, contractFlow };
 }

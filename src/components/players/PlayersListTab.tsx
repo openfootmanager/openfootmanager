@@ -39,13 +39,14 @@ export default function PlayersListTab({
     error: fetchError,
     refetch: refetchSlice,
   } = usePlayersPage(PLAYERS_OPENING_QUERY, t);
-  const { contextItemsFor, scoutError, bidFlow, contractFlow } = usePlayersListActions({
-    gameState,
-    onGameUpdate,
-    onSelectPlayer,
-    onSelectTeam,
-    refetchSlice,
-  });
+  const { contextItemsFor, scoutError, listingError, bidFlow, contractFlow } =
+    usePlayersListActions({
+      gameState,
+      onGameUpdate,
+      onSelectPlayer,
+      onSelectTeam,
+      refetchSlice,
+    });
 
   const handleSort = (key: PlayerSortKey) => {
     if (query.sort_key === key) {
@@ -121,6 +122,8 @@ export default function PlayersListTab({
         </p>
       ) : null}
 
+      {listingError ? <ListingAlert message={listingError} /> : null}
+
       {view === "cards" ? (
         <PlayersCardsView
           {...listView}
@@ -132,5 +135,17 @@ export default function PlayersListTab({
       )}
       <PlayersDealModals teams={gameState.teams} bidFlow={bidFlow} contractFlow={contractFlow} />
     </div>
+  );
+}
+
+/** A listing that was not saved, as a sentence on the danger tint (read as a warning in both themes). */
+function ListingAlert({ message }: { message: string }) {
+  return (
+    <p
+      role="alert"
+      className="mb-3 rounded-lg border border-line bg-danger-tint px-4 py-2 text-body font-medium text-danger"
+    >
+      {message}
+    </p>
   );
 }

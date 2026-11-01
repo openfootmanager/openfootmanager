@@ -575,6 +575,47 @@ describe("PlayersListTab", () => {
     }
   });
 
+  /**
+   * Given the manager's own player and a save that fails
+   * When he lists the player for transfer from the context menu
+   * Then the failure shows above the list, and nothing is reported as updated.
+   */
+  it("shows a failed transfer listing inline", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const onGameUpdate = vi.fn();
+      const gameState = createGameState();
+      setupSliceMock(gameState, {
+        toggle_transfer_list: () => new Error("Could not save the listing."),
+      });
+
+      render(
+        <PlayersListTab
+          gameState={gameState}
+          onGameUpdate={onGameUpdate}
+          onSelectPlayer={vi.fn()}
+          onSelectTeam={vi.fn()}
+        />,
+      );
+
+      const playerRow = await screen.findByRole("row", { name: /J\. Smith/ });
+      fireEvent.contextMenu(playerRow);
+      fireEvent.click(screen.getByRole("menuitem", { name: "Add to transfer list" }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("alert")).toHaveTextContent("Could not save the listing.");
+      });
+      // The new alert follows the design system: the danger token and a role size, in sentence
+      // case, with no raw palette colour or fixed text size.
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveClass("text-danger", "bg-danger-tint", "text-body");
+      expect(alert.className).not.toMatch(/text-red|text-xs|uppercase/);
+      expect(onGameUpdate).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("opens and submits a transfer bid from the player context menu", async () => {
     const onGameUpdate = vi.fn();
     const gameState = createGameState();
