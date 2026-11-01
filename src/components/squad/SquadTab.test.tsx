@@ -914,7 +914,7 @@ describe("SquadTab", () => {
       ...gameState,
       teams: gameState.teams.map((team) => ({
         ...team,
-        starting_xi_ids: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+        starting_xi_ids: ["gk1", "d1", "d5", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       })),
     };
     const onGameUpdate = vi.fn();
@@ -924,13 +924,15 @@ describe("SquadTab", () => {
     const benchRow = screen.getByText("Bench DEF").closest("tr");
     expect(benchRow).not.toBeNull();
     fireEvent.contextMenu(benchRow as HTMLTableRowElement);
+    // d5 is a coarse "Defender", graded as a centre back as the backend reads him: he is natural at
+    // the first centre-back slot (replacing d2), not at the first slot that merely adapts him.
     expect(screen.getByRole("menuitem", { name: "squad.makeStarter" })).toBeEnabled();
     fireEvent.click(screen.getByRole("menuitem", { name: "squad.makeStarter" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
         careerToken: 0,
-        playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+        playerIds: ["gk1", "d1", "d5", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });

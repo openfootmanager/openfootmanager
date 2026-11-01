@@ -958,10 +958,12 @@ describe("TacticsTab", () => {
     fireEvent.contextMenu(benchRow);
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.promoteToLineup" }));
 
+    // d5 is a coarse "Defender", graded as a centre back as the backend reads him: he is natural at
+    // the first centre-back slot (replacing d2), not at the first slot that merely adapts him.
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
         careerToken: 0,
-        playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+        playerIds: ["gk1", "d1", "d5", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
   });

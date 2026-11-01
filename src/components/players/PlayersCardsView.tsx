@@ -60,7 +60,7 @@ export default function PlayersCardsView({
       </div>
       {total === 0 ? (
         fetchError ? null : (
-          <div className="p-8 text-center text-fg-muted text-sm">{t("players.noMatch")}</div>
+          <div className="p-8 text-center text-fg-muted text-body">{t("players.noMatch")}</div>
         )
       ) : (
         <PlayersCardGrid
