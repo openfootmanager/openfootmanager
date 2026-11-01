@@ -1,12 +1,35 @@
 /** Which way a column runs: low to high (A to Z), or high to low. */
 export type SortDirection = "asc" | "desc";
 
-/** What a row sorts by in one column: a number, a text, or null when it isn't known. */
-export type SortValue = number | string | null;
+/** One known value a row sorts by: a number or a text. */
+type SortScalar = number | string;
+
+/**
+ * What a row sorts by in one column: a number, a text, a tuple of them compared item by item (a
+ * column ordered by several things in turn), or null when it isn't known.
+ */
+export type SortValue = SortScalar | readonly SortScalar[] | null;
 
 export interface SortState<Key extends string> {
   key: Key;
   direction: SortDirection;
+}
+
+/** Two known values, low to high: a tuple's first differing item decides, a shorter one first. */
+function compareKnown(
+  a: SortScalar | readonly SortScalar[],
+  b: SortScalar | readonly SortScalar[],
+  locale: string,
+): number {
+  if (Array.isArray(a) && Array.isArray(b)) {
+    for (let index = 0; index < Math.min(a.length, b.length); index++) {
+      const order = compareKnown(a[index], b[index], locale);
+      if (order !== 0) return order;
+    }
+    return a.length - b.length;
+  }
+  if (typeof a === "number" && typeof b === "number") return a - b;
+  return String(a).localeCompare(String(b), locale, { sensitivity: "accent" });
 }
 
 /**
@@ -27,8 +50,7 @@ export function sortRows<Row>(
     const a = sortValueOf(left);
     const b = sortValueOf(right);
     if (a === null || b === null) return a === b ? 0 : a === null ? 1 : -1;
-    if (typeof a === "number" && typeof b === "number") return sign * (a - b);
-    return sign * String(a).localeCompare(String(b), locale, { sensitivity: "accent" });
+    return sign * compareKnown(a, b, locale);
   });
 }
 
