@@ -20,6 +20,18 @@ const handlers = fixtureHandlers(readStyleGuideOptions(""), "en");
 const club = gameState.manager.team_id;
 
 describe("fixture answers", () => {
+  /**
+   * Given a harness URL asking for the cards view (`?view=cards`), and one asking for nothing
+   * When a page asks for the settings
+   * Then the list view is cards for the first and the game's default, table, for the second, so a
+   *      screenshot or layout check can open a list in either view without clicking the switch.
+   */
+  it("answers the list view the URL asked for", () => {
+    const cards = fixtureHandlers(readStyleGuideOptions("?view=cards"), "en");
+    expect(cards.get_settings({})).toMatchObject({ settings: { list_view: "cards" } });
+    expect(handlers.get_settings({})).toMatchObject({ settings: { list_view: "table" } });
+  });
+
   /** Given the user's club, when its squad is asked for, then the fixture's squad comes back. */
   it("answers for the user's club", () => {
     expect(handlers.get_squad({ teamId: club })).toBe(squad);
