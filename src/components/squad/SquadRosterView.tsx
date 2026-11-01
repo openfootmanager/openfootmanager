@@ -484,11 +484,13 @@ export default function SquadRosterView({
               <option value="all">{t("common.allPlayers")}</option>
               <option value="xi">{t("preMatch.startingXI")}</option>
               <option value="bench">{t("preMatch.substitutes")}</option>
-              <option value="naturalFit">{t("squad.naturalFit")}</option>
-              {/* A role needs cover by the backend's lines; until they arrive the filter would drop
-                  players it should keep, so it is not offered yet. */}
+              {/* The fit filters read the backend's lines and grade; until they arrive they would
+                  show an empty list, or drop players they should keep, so they are not offered. */}
+              {canGradeLineup ? <option value="naturalFit">{t("squad.naturalFit")}</option> : null}
               {canGradeLineup ? <option value="needsCover">{t("squad.needsCover")}</option> : null}
-              <option value="outOfPosition">{t("squad.outOfPosition")}</option>
+              {canGradeLineup ? (
+                <option value="outOfPosition">{t("squad.outOfPosition")}</option>
+              ) : null}
               <option value="injured">{t("common.injured")}</option>
             </Select>
           </div>

@@ -1205,7 +1205,7 @@ describe("SquadTab", () => {
       );
       fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
       expect(screen.queryByRole("option", { name: "squad.needsCover" })).toBeNull();
-      expect(screen.getByRole("option", { name: "squad.naturalFit" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "squad.naturalFit" })).toBeNull();
       unmount();
     } finally {
       positionTableState.arrived = true;
@@ -1238,6 +1238,8 @@ describe("SquadTab", () => {
       expect(screen.queryByText(/squad\.needsCover$/)).toBeNull();
       fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
       expect(screen.queryByRole("option", { name: "squad.needsCover" })).toBeNull();
+      expect(screen.queryByRole("option", { name: "squad.naturalFit" })).toBeNull();
+      expect(screen.queryByRole("option", { name: "squad.outOfPosition" })).toBeNull();
     } finally {
       familiarityState.arrived = true;
     }
@@ -1245,6 +1247,9 @@ describe("SquadTab", () => {
     cleanup();
     renderSquadTab(makeGameState());
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
+    expect(screen.getByRole("option", { name: "squad.naturalFit" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "squad.outOfPosition" })).toBeInTheDocument();
   });
 
   it("names each roster filter after its visible label", async () => {
