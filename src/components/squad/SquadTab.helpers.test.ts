@@ -4,6 +4,7 @@ import { createPositionTable } from "../../lib/positionTable";
 import { cannedPositionTable } from "../../test-utils/positionTable";
 import {
   applyLineupDrop,
+  buildAssignBestFitSlot,
   applyLineupSwap,
   buildActivePositionMap,
   buildDemoteFromStartingXi,
@@ -704,6 +705,63 @@ describe("getDeployedPosition", () => {
 
   describe("before the position table has loaded", () => {
     const notLoaded = () => createPositionTable([]);
+
+    const xi = ["gk", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"];
+    const squad = () =>
+      new Map(
+        [
+          makePlayer("gk", "Goalkeeper"),
+          makePlayer("d1", "CenterBack"),
+          makePlayer("d2", "CenterBack"),
+          makePlayer("d3", "LeftBack"),
+          makePlayer("d4", "RightBack"),
+          makePlayer("m1", "CentralMidfielder"),
+          makePlayer("m2", "CentralMidfielder"),
+          makePlayer("m3", "LeftMidfielder"),
+          makePlayer("m4", "RightMidfielder"),
+          makePlayer("f1", "Striker"),
+          makePlayer("f2", "Striker"),
+          makePlayer("rw", "RightWinger"),
+        ].map((player) => [player.id, player] as const),
+      );
+
+    /**
+     * Given a winger in the starting XI and a table that has not arrived (every slot would tie,
+     *       and the lowest slot index, the keeper's, would win)
+     * When his best-fit slot is asked for
+     * Then the XI is left as it is, so no keeper-slot lineup can be saved; with the table loaded
+     *      he is moved.
+     */
+    it("leaves the XI alone when asked for a best-fit slot", () => {
+      const withWinger = ["rw", ...xi.slice(1, 10), "f2"];
+
+      expect(buildAssignBestFitSlot(withWinger, squad(), "4-4-2", "rw", notLoaded())).toEqual(
+        withWinger,
+      );
+      expect(
+        buildAssignBestFitSlot(withWinger, squad(), "4-4-2", "rw", cannedPositionTable()),
+      ).not.toEqual(withWinger);
+    });
+
+    /**
+     * Given a bench defender and a table that has not arrived
+     * When he is promoted, and a starter is demoted
+     * Then the XI is left as it is in both; with the table loaded both change it.
+     */
+    it("leaves the XI alone when a player is promoted or demoted", () => {
+      const players = squad();
+      players.set("bd", makePlayer("bd", "CenterBack"));
+      const bench = [...players.values()].filter((player) => !xi.includes(player.id));
+
+      expect(buildPromoteToStartingXi(xi, players, "4-4-2", "bd", notLoaded())).toEqual(xi);
+      expect(
+        buildPromoteToStartingXi(xi, players, "4-4-2", "bd", cannedPositionTable()),
+      ).not.toEqual(xi);
+      expect(buildDemoteFromStartingXi(xi, bench, "4-4-2", "d1", notLoaded())).toEqual(xi);
+      expect(
+        buildDemoteFromStartingXi(xi, bench, "4-4-2", "d1", cannedPositionTable()),
+      ).not.toEqual(xi);
+    });
 
     /**
      * Given a left back and a table that has not arrived (no line is known)

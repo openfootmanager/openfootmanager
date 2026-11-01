@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type {
@@ -18,9 +18,21 @@ const riskLevels = vi.hoisted(() => ({
   current: {} as Record<string, "critical" | "warning" | "stable">,
 }));
 
+// Whether the backend's position table has arrived; a test says it has not.
+const positionTableState = vi.hoisted(() => ({ arrived: true }));
+
 vi.mock("../../hooks/usePositionGroups", async () => {
   const { cannedPositionsModule } = await import("../../test-utils/positionTable");
-  return cannedPositionsModule();
+  const { createPositionTable } = await import("../../lib/positionTable");
+  const canned = cannedPositionsModule();
+  const notArrived = createPositionTable([]);
+  return {
+    ...canned,
+    usePositionTable: () => {
+      const arrived = canned.usePositionTable();
+      return positionTableState.arrived ? arrived : notArrived;
+    },
+  };
 });
 
 vi.mock("../../hooks/useContractWarningStages", () => ({
@@ -922,6 +934,27 @@ describe("SquadTab", () => {
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
   });
+  /**
+   * Given the position table has not arrived (every slot would tie, and the keeper's is first)
+   * When a bench player is made a starter from the roster context menu
+   * Then nothing is saved: a lineup worked out without the lines must not be written.
+   */
+  it("saves no lineup change before the position table has loaded", async () => {
+    positionTableState.arrived = false;
+    try {
+      renderSquadTab(makeGameState());
+
+      const benchRow = screen.getByText("Bench DEF").closest("tr");
+      fireEvent.contextMenu(benchRow as HTMLTableRowElement);
+      fireEvent.click(screen.getByRole("menuitem", { name: "squad.makeStarter" }));
+      await act(async () => {});
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    } finally {
+      positionTableState.arrived = true;
+    }
+  });
+
   it("names each roster filter after its visible label", async () => {
     renderSquadTab(makeGameState());
 

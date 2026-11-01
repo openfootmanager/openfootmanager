@@ -114,7 +114,8 @@ export default function PlayerProfileActionsMenu({
     const playersById = new Map(available.map((candidate) => [candidate.id, candidate]));
 
     const persistStartingXi = (nextXiIds: string[] | null): void => {
-      if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
+      // Nothing is saved from a lineup worked out before the position table has loaded.
+      if (!positionTable.loaded || !nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
         return;
       }
       void runMutation(() => setStartingXi(nextXiIds));

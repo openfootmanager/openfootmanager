@@ -176,6 +176,8 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   );
 
   async function persistStartingXI(playerIds: string[]): Promise<void> {
+    // Nothing is saved from a lineup worked out before the position table has loaded.
+    if (!positionTable.loaded) return;
     setPendingStartingXiIds(playerIds);
     try {
       const updated = await setStartingXi(playerIds);

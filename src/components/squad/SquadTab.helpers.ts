@@ -561,6 +561,8 @@ export function buildPromoteToStartingXi(
   playerId: string,
   positionTable: PositionTable,
 ): string[] | null {
+  // As for the best-fit slot: no lines known yet means no pick that could be saved.
+  if (!positionTable.loaded) return currentXiIds;
   if (currentXiIds.includes(playerId)) {
     return currentXiIds;
   }
@@ -659,6 +661,9 @@ export function buildAssignBestFitSlot(
   playerId: string,
   positionTable: PositionTable,
 ): string[] | null {
+  // Fit is graded by the backend's lines; without them every slot ties and the lowest index wins,
+  // which is the keeper's. A pick made on that would be saved, so nothing is picked yet.
+  if (!positionTable.loaded) return currentXiIds;
   const currentSlotIndex = currentXiIds.indexOf(playerId);
 
   if (currentSlotIndex < 0) {
@@ -695,6 +700,8 @@ export function buildDemoteFromStartingXi(
   playerId: string,
   positionTable: PositionTable,
 ): string[] | null {
+  // As for the best-fit slot: no lines known yet means no replacement that could be saved.
+  if (!positionTable.loaded) return currentXiIds;
   const slotIndex = currentXiIds.indexOf(playerId);
 
   if (slotIndex < 0) {
