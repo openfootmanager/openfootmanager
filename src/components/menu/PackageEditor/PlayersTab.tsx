@@ -165,7 +165,7 @@ export function PlayersTab({
                   of `children` and does not descend into one.
                 */}
                   <option value="All">{t("worldEditor.allPositions")}</option>
-                  {positionFilterGroups().map((group) => (
+                  {positionFilterGroups(positions.lines()).map((group) => (
                     <optgroup key={group.labelKey} label={t(group.labelKey)}>
                       {group.options.map((option) => (
                         // A group matches by the backend's table, so until it arrives a group

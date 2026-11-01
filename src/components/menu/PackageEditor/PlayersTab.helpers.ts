@@ -1,9 +1,6 @@
 import type { PositionTable } from "../../../lib/positionTable";
-import { CORE_POSITIONS } from "../../squad/SquadTab.helpers";
 import { POSITIONS } from "./helpers";
 import type { PlayerDef, Position } from "./types";
-
-type CorePosition = (typeof CORE_POSITIONS)[number];
 
 /**
  * What the position dropdown is set to: everything, one of the four broad
@@ -14,7 +11,7 @@ type CorePosition = (typeof CORE_POSITIONS)[number];
  * half; choosing "Defender" should find only the players a package left on
  * the broad value. Without the prefix those two are the same string.
  */
-export type PositionFilter = "All" | `group:${CorePosition}` | Position;
+export type PositionFilter = "All" | `group:${string}` | Position;
 
 const GROUP_PREFIX = "group:";
 
@@ -48,7 +45,7 @@ export interface PositionFilterGroup {
 }
 
 /** The dropdown's two sections: the broad groups, then every exact position. */
-export function positionFilterGroups(): PositionFilterGroup[] {
+export function positionFilterGroups(lines: readonly string[]): PositionFilterGroup[] {
   return [
     {
       labelKey: "worldEditor.positionFilterByGroup",
@@ -56,7 +53,7 @@ export function positionFilterGroups(): PositionFilterGroup[] {
       // plurals are byte-identical to four of the seventeen exact positions,
       // so the same label would appear in both sections meaning two different
       // things. These are worded "all <group>" instead.
-      options: CORE_POSITIONS.map((core) => ({
+      options: lines.map((core) => ({
         value: `${GROUP_PREFIX}${core}` as PositionFilter,
         labelKey: `worldEditor.positionGroupFilter.${core}`,
       })),

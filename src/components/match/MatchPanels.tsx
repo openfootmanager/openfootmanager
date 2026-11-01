@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import type { MatchSnapshot, MatchEvent, EnginePlayerData } from "./types";
 import { getEventDisplay, getEventTypeLabel, getPlayerName } from "./helpers";
 import { getCommentary } from "./commentary";
@@ -194,6 +195,7 @@ export function MatchStats({ snapshot }: { snapshot: MatchSnapshot }) {
 
 export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
   const renderTeam = (
     team: MatchSnapshot["home_team"],
     bench: EnginePlayerData[],
@@ -201,7 +203,7 @@ export function Lineups({ snapshot }: { snapshot: MatchSnapshot }) {
     yellows: Record<string, number>,
     sentOff: string[],
   ) => {
-    const positions = ["Goalkeeper", "Defender", "Midfielder", "Forward"];
+    const positions = positionTable.lines();
     const subbedOnIds = new Set(
       snapshot.substitutions.filter((s) => s.side === side).map((s) => s.player_on_id),
     );

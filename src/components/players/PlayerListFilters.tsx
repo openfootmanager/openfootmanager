@@ -2,7 +2,6 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { CORE_POSITIONS } from "../../lib/positions";
 import type {
   PlayerStatusFilter,
   PlayersPageQuery,
@@ -41,7 +40,7 @@ function chosenPositions(positions: PositionFilter[], table: PositionTable): Set
 /** Writes a chosen set back, a fully chosen group as its shorthand so broad stored values match. */
 function toPositionFilters(chosen: Set<string>, table: PositionTable): PositionFilter[] {
   const filters: PositionFilter[] = [];
-  for (const group of CORE_POSITIONS) {
+  for (const group of table.lines()) {
     const members = table.membersOf(group);
     const inGroup = members.filter((member) => chosen.has(member));
     if (inGroup.length === members.length) filters.push({ group });
@@ -283,7 +282,7 @@ export default function PlayerListFilters({
         >
           {t("common.all")}
         </button>
-        {CORE_POSITIONS.map((group) => (
+        {table.lines().map((group) => (
           <PositionGroupChip
             key={group}
             group={group}
