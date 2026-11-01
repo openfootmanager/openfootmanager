@@ -16,6 +16,8 @@ mod fitness;
 mod fixtures;
 #[path = "training_tests/recovery.rs"]
 mod recovery;
+#[path = "training_tests/warnings.rs"]
+mod warnings;
 
 use fixtures::*;
 

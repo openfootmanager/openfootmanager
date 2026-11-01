@@ -1,5 +1,6 @@
 pub mod game_database;
 pub mod game_persistence;
+pub mod json_column;
 pub mod legacy_migration;
 pub mod manager_profile;
 pub mod migrations;

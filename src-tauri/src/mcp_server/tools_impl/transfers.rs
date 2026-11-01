@@ -504,6 +504,8 @@ mod market_tests {
             player_id: "scouted".to_string(),
             scouted_on: "2026-09-01".to_string(),
             attributes: attributes(60),
+            potential: None,
+            scout_name: None,
         });
         game
     }

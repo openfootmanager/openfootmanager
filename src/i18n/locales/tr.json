@@ -629,7 +629,13 @@
     "listView": "Liste",
     "radarView": "Radar",
     "competition": "Turnuva",
-    "confirmDelete": "Silmeyi onayla"
+    "confirmDelete": "Silmeyi onayla",
+    "firstPage": "İlk sayfa",
+    "previousPage": "Önceki sayfa",
+    "nextPage": "Sonraki sayfa",
+    "lastPage": "Son sayfa",
+    "sortBy": "Sırala",
+    "sortAscending": "Artan"
   },
   "teamSelection": {
     "title": "Kulübünü Seç",
@@ -910,7 +916,8 @@
       "ready": "Hazır",
       "adjusted": "Uyarlanmış",
       "risk": "Riskli"
-    }
+    },
+    "positionsLoading": "Pozisyon verileri hâlâ yükleniyor, bu yüzden kadro değişiklikleri henüz kullanılamıyor."
   },
   "training": {
     "weeklySchedule": "Haftalık Program",
@@ -1743,7 +1750,27 @@
     "renewalProjectionTitle": "Öngörülen finansal etki",
     "renewalProjectionWageBill": "Haftalık maaş yükü {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "Maaş bütçesi kullanımı %{{before}} → %{{after}}",
-    "renewalProjectionRunway": "Nakit yeterliliği {{before}} → {{after}}"
+    "renewalProjectionRunway": "Nakit yeterliliği {{before}} → {{after}}",
+    "potentialOpinion": {
+      "scoutsOpinion": "Scout görüşü",
+      "coachesOpinion": "Teknik ekip görüşü",
+      "bandS": "En iyilerden biri olabilir",
+      "bandA": "İlk on birin vazgeçilmezi olabilir",
+      "bandB": "Kadroda işe yarar bir oyuncu olabilir",
+      "bandRest": "Daha fazla gelişmesi pek olası değil",
+      "range": "Potansiyel {{low}}–{{high}}",
+      "confident": "Emin",
+      "fairlySure": "Oldukça emin",
+      "unsure": "Emin değil",
+      "guess": "Tahmin",
+      "byScout": "{{scout}} tarafından {{date}} tarihinde izlendi"
+    },
+    "positions": {
+      "title": "Mevkiler",
+      "wherePlayed": "onu oynattığınız yer"
+    },
+    "loadFailed": "Yüklenemedi",
+    "retryWage": "Maaşı yeniden yüklemeyi dene"
   },
   "teamProfile": {
     "clubInfo": "Kulüp Bilgisi",

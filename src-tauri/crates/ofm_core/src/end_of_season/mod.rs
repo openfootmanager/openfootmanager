@@ -2110,6 +2110,8 @@ mod tests {
             player_id: "scouted".to_string(),
             scouted_on: "2027-03-10".to_string(),
             attributes: crate::test_support::uniform_attributes(60),
+            potential: None,
+            scout_name: None,
         });
         game
     }

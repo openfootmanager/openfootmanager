@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerData } from "../../store/gameStore";
-import { resolveStartingXiIds } from "./TacticsTab.helpers";
+import { createPositionTable } from "../../lib/positionTable";
+import { cannedPositionTable } from "../../test-utils/positionTable";
+import {
+  buildTacticsRoster,
+  countOutOfPositionPlayers,
+  filterAndSortTacticsPlayers,
+  resolveStartingXiIds,
+} from "./TacticsTab.helpers";
 
 const makePlayer = (
   id: string,
@@ -128,6 +135,7 @@ describe("resolveStartingXiIds", () => {
 
     const ids = resolveStartingXiIds({
       availablePlayers,
+      positionTable: cannedPositionTable(),
       formation: "4-4-2",
       pendingStartingXiIds: ["gk"],
       playersById,
@@ -135,5 +143,65 @@ describe("resolveStartingXiIds", () => {
     });
 
     expect(ids[1]).toBe("lb");
+  });
+});
+
+describe("the tactics roster and its lists, by the backend's position table", () => {
+  const roster = () => [
+    makePlayer("fwd", "Striker", { team_id: "t1", match_day_eligible: true }),
+    makePlayer("gk", "Goalkeeper", { team_id: "t1", match_day_eligible: true }),
+    makePlayer("def", "CenterBack", { team_id: "t1", match_day_eligible: true }),
+  ];
+
+  /**
+   * Given a squad listed in no particular order
+   * When the tactics roster is built with the loaded table
+   * Then the lines run keeper, defence, attack: the order is the table's, not the input's.
+   */
+  it("orders the roster by the table's lines", () => {
+    const ids = buildTacticsRoster(roster(), "t1", cannedPositionTable()).map((p) => p.id);
+
+    expect(ids).toEqual(["gk", "def", "fwd"]);
+  });
+
+  /**
+   * Given the same lists and a loaded table
+   * When the XI list is sorted by position
+   * Then it runs keeper, defence, attack too.
+   */
+  it("sorts a list by position along the table's lines", () => {
+    const positionTable = cannedPositionTable();
+    const sorted = filterAndSortTacticsPlayers(
+      roster(),
+      {
+        playerSearch: "",
+        positionFilter: "All",
+        positionTable,
+        section: "bench",
+        xiActivePosition: new Map(),
+      },
+      {
+        positionTable,
+        section: "bench",
+        sortDir: "asc",
+        sortKey: "pos",
+        xiActivePosition: new Map(),
+      },
+    );
+
+    expect(sorted.map((p) => p.id)).toEqual(["gk", "def", "fwd"]);
+  });
+
+  /**
+   * Given a defender put in the forward line, with the table loaded and not loaded
+   * When the out-of-position players are counted
+   * Then he is counted once loaded, and nobody is counted before the table arrives.
+   */
+  it("counts out-of-position starters only once the table has loaded", () => {
+    const xi = [makePlayer("def", "CenterBack", { team_id: "t1" })];
+    const slots = new Map([["def", "Striker"]]);
+
+    expect(countOutOfPositionPlayers(xi, slots, cannedPositionTable())).toBe(1);
+    expect(countOutOfPositionPlayers(xi, slots, createPositionTable([]))).toBe(0);
   });
 });

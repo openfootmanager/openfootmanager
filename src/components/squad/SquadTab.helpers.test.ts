@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { PlayerData } from "../../store/gameStore";
+import { createPositionTable } from "../../lib/positionTable";
+import { cannedPositionTable } from "../../test-utils/positionTable";
 import {
   applyLineupDrop,
+  buildAssignBestFitSlot,
   applyLineupSwap,
   buildActivePositionMap,
   buildDemoteFromStartingXi,
@@ -17,7 +20,6 @@ import {
   getPitchSlotWidth,
   getPreferredPositions,
   isPlayerOutOfPosition,
-  normalisePosition,
   parseFormationSlots,
   positionCode,
   translatePositionAbbreviation,
@@ -87,10 +89,10 @@ const makePlayer = (
 
 describe("SquadTab helpers", () => {
   it("normalises detailed positions into core roles", () => {
-    expect(normalisePosition("Center Back")).toBe("Defender");
-    expect(normalisePosition("Winger")).toBe("Forward");
-    expect(normalisePosition("Striker")).toBe("Forward");
-    expect(normalisePosition("Goalkeeper")).toBe("Goalkeeper");
+    expect(cannedPositionTable().groupOf("Center Back")).toBe("Defender");
+    expect(cannedPositionTable().groupOf("Winger")).toBe("Forward");
+    expect(cannedPositionTable().groupOf("Striker")).toBe("Forward");
+    expect(cannedPositionTable().groupOf("Goalkeeper")).toBe("Goalkeeper");
   });
 
   it("builds preferred positions using normalised natural and alternate roles", () => {
@@ -112,8 +114,8 @@ describe("SquadTab helpers", () => {
       alternate_positions: ["Right Wing Back"],
     });
 
-    expect(isPlayerOutOfPosition(defender, "Defender")).toBe(false);
-    expect(isPlayerOutOfPosition(defender, "Midfielder")).toBe(true);
+    expect(isPlayerOutOfPosition(defender, "Defender", cannedPositionTable())).toBe(false);
+    expect(isPlayerOutOfPosition(defender, "Midfielder", cannedPositionTable())).toBe(true);
   });
 
   it("parses 4-part formations correctly", () => {
@@ -177,6 +179,7 @@ describe("SquadTab helpers", () => {
       available,
       ["gk", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       "4-4-2",
+      cannedPositionTable(),
     );
 
     expect(ids).toEqual(["gk", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"]);
@@ -197,7 +200,7 @@ describe("SquadTab helpers", () => {
       makePlayer("f2", "Forward"),
     ];
 
-    const ids = buildStartingXIIds(available, [], "4-4-2");
+    const ids = buildStartingXIIds(available, [], "4-4-2", cannedPositionTable());
 
     expect(ids).toHaveLength(11);
     expect(ids[0]).toBe("gk");
@@ -265,7 +268,7 @@ describe("SquadTab helpers", () => {
       makePlayer("f2", "Forward"),
     ];
 
-    const ids = buildStartingXIIds(available, [], "4-4-2");
+    const ids = buildStartingXIIds(available, [], "4-4-2", cannedPositionTable());
 
     expect(ids[1]).toBe("lb");
   });
@@ -330,6 +333,7 @@ describe("SquadTab helpers", () => {
       available,
       ["gk", "rb", "cb1", "cb2", "lb", "rm", "cm1", "cm2", "lm", "st1", "st2"],
       "4-4-2",
+      cannedPositionTable(),
     );
 
     expect(ids).toEqual(["gk", "rb", "cb1", "cb2", "lb", "rm", "cm1", "cm2", "lm", "st1", "st2"]);
@@ -398,13 +402,24 @@ describe("SquadTab helpers", () => {
       getSquadTacticalFit(
         makePlayer("lb", "Left Back", { natural_position: "Left Back" }),
         "LeftBack",
+        cannedPositionTable(),
+      ),
+    ).toBe("natural");
+
+    // A player still on the coarse "Defender" is graded as a centre back, as the backend reads him.
+    expect(
+      getSquadTacticalFit(
+        makePlayer("def", "Defender", { natural_position: "Defender" }),
+        "CenterBack",
+        cannedPositionTable(),
       ),
     ).toBe("natural");
 
     expect(
       getSquadTacticalFit(
-        makePlayer("def", "Defender", { natural_position: "Defender" }),
-        "CenterBack",
+        makePlayer("def2", "Defender", { natural_position: "Defender" }),
+        "LeftBack",
+        cannedPositionTable(),
       ),
     ).toBe("adapted");
 
@@ -412,6 +427,7 @@ describe("SquadTab helpers", () => {
       getSquadTacticalFit(
         makePlayer("fwd", "Forward", { natural_position: "Forward" }),
         "CenterBack",
+        cannedPositionTable(),
       ),
     ).toBe("out");
   });
@@ -444,12 +460,14 @@ describe("SquadTab helpers", () => {
       withBench(makePlayer("d5", "Defender", { injury: injured, match_day_eligible: false })),
       "4-4-2",
       "d5",
+      cannedPositionTable(),
     );
     const fielded = buildPromoteToStartingXi(
       xi,
       withBench(makePlayer("d5", "Defender", { injury: injured, match_day_eligible: true })),
       "4-4-2",
       "d5",
+      cannedPositionTable(),
     );
 
     expect(refused).toBeNull();
@@ -480,6 +498,7 @@ describe("SquadTab helpers", () => {
         playersById,
         "4-4-2",
         "lb",
+        cannedPositionTable(),
       ),
     ).toEqual(["gk", "lb", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"]);
   });
@@ -506,6 +525,7 @@ describe("SquadTab helpers", () => {
         players,
         "4-4-2",
         "d1",
+        cannedPositionTable(),
       ),
     ).toEqual(["gk", "lb", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"]);
   });
@@ -515,6 +535,7 @@ describe("SquadTab helpers", () => {
       getBestRoleForFormation(
         makePlayer("lb", "Left Back", { natural_position: "Left Back" }),
         "4-4-2",
+        cannedPositionTable(),
       ),
     ).toBe("LeftBack");
 
@@ -522,6 +543,7 @@ describe("SquadTab helpers", () => {
       getBestRoleForFormation(
         makePlayer("mid", "Midfielder", { natural_position: "Midfielder" }),
         "4-2-3-1",
+        cannedPositionTable(),
       ),
     ).toBe("CentralMidfielder");
   });
@@ -536,6 +558,7 @@ describe("SquadTab helpers", () => {
           alternate_positions: ["Right Back"],
         }),
         "4-4-2",
+        cannedPositionTable(),
       ),
     ).toBe("CentralMidfielder");
 
@@ -547,6 +570,7 @@ describe("SquadTab helpers", () => {
           alternate_positions: ["Right Back"],
         }),
         "4-0-0",
+        cannedPositionTable(),
       ),
     ).toBe("RightBack");
   });
@@ -639,6 +663,7 @@ describe("SquadTab helpers", () => {
       players,
       ["gk", "lb", "cb1", "cb2", "rb", "lm", "cm1", "cm2", "rm", "st1", "st2"],
       "4-4-2",
+      cannedPositionTable(),
     );
 
     expect(coverage.find((role) => role.role === "Goalkeeper")).toMatchObject({
@@ -685,5 +710,88 @@ describe("getDeployedPosition", () => {
 
   it("returns null for players outside the starting XI", () => {
     expect(getDeployedPosition(team, "bench-player")).toBeNull();
+  });
+
+  describe("before the position table has loaded", () => {
+    const notLoaded = () => createPositionTable([]);
+
+    const xi = ["gk", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"];
+    const squad = () =>
+      new Map(
+        [
+          makePlayer("gk", "Goalkeeper"),
+          makePlayer("d1", "CenterBack"),
+          makePlayer("d2", "CenterBack"),
+          makePlayer("d3", "LeftBack"),
+          makePlayer("d4", "RightBack"),
+          makePlayer("m1", "CentralMidfielder"),
+          makePlayer("m2", "CentralMidfielder"),
+          makePlayer("m3", "LeftMidfielder"),
+          makePlayer("m4", "RightMidfielder"),
+          makePlayer("f1", "Striker"),
+          makePlayer("f2", "Striker"),
+          makePlayer("rw", "RightWinger"),
+        ].map((player) => [player.id, player] as const),
+      );
+
+    /**
+     * Given a winger in the starting XI and a table that has not arrived (every slot would tie,
+     *       and the lowest slot index, the keeper's, would win)
+     * When his best-fit slot is asked for
+     * Then the XI is left as it is, so no keeper-slot lineup can be saved; with the table loaded
+     *      he is moved.
+     */
+    it("leaves the XI alone when asked for a best-fit slot", () => {
+      const withWinger = [...xi.slice(0, 10), "rw"];
+
+      expect(buildAssignBestFitSlot(withWinger, squad(), "4-4-2", "rw", notLoaded())).toEqual(
+        withWinger,
+      );
+      expect(
+        buildAssignBestFitSlot(withWinger, squad(), "4-4-2", "rw", cannedPositionTable()),
+      ).not.toEqual(withWinger);
+    });
+
+    /**
+     * Given a bench defender and a table that has not arrived
+     * When he is promoted, and a starter is demoted
+     * Then the XI is left as it is in both; with the table loaded both change it.
+     */
+    it("leaves the XI alone when a player is promoted or demoted", () => {
+      const players = squad();
+      players.set("bd", makePlayer("bd", "CenterBack"));
+      const bench = [...players.values()].filter((player) => !xi.includes(player.id));
+
+      expect(buildPromoteToStartingXi(xi, players, "4-4-2", "bd", notLoaded())).toEqual(xi);
+      expect(
+        buildPromoteToStartingXi(xi, players, "4-4-2", "bd", cannedPositionTable()),
+      ).not.toEqual(xi);
+      expect(buildDemoteFromStartingXi(xi, bench, "4-4-2", "d1", notLoaded())).toEqual(xi);
+      expect(
+        buildDemoteFromStartingXi(xi, bench, "4-4-2", "d1", cannedPositionTable()),
+      ).not.toEqual(xi);
+    });
+
+    /**
+     * Given a left back and a table that has not arrived (no line is known)
+     * When he is asked about in a slot of another line
+     * Then he is not called out of position: with no lines known the answer would be a guess.
+     */
+    it("does not call a player out of position", () => {
+      const leftBack = makePlayer("lb", "Left Back", { natural_position: "Left Back" });
+
+      expect(isPlayerOutOfPosition(leftBack, "Forward", notLoaded())).toBe(false);
+    });
+
+    /**
+     * Given a forward put in a back's slot, and a table that has not arrived
+     * When his tactical fit is asked for
+     * Then it is not "out": exact and adapted are the only answers it can give.
+     */
+    it("does not grade a fit as out", () => {
+      const forward = makePlayer("fwd", "Forward", { natural_position: "Forward" });
+
+      expect(getSquadTacticalFit(forward, "CenterBack", notLoaded())).not.toBe("out");
+    });
   });
 });

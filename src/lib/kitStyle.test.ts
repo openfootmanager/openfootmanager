@@ -20,17 +20,26 @@ describe("kitStyle", () => {
   /**
    * Given a pale kit (white, yellow) and a dark one (navy)
    * When a card asks for its style
-   * Then the pale kit's header wash takes a share scaled down by its luminance (white a quarter),
+   * Then the pale kit's header wash takes a share scaled down by its luminance (white about 0.27 of it),
    * so it can't lift a dark header past readable, and the dark kit takes the full share.
    */
   it("scales a pale kit's header wash down, and leaves a dark kit's whole", () => {
-    expect(kitWashScale("#ffffff")).toBeCloseTo(0.25, 3);
+    expect(kitWashScale("#ffffff")).toBeCloseTo(0.27, 3);
     expect(kitWashScale("#ffff00")).toBeLessThan(0.3);
     expect(kitWashScale("#1e3a8a")).toBe(1);
     expect(kitWashScale("#000000")).toBe(1);
     expect(kitStyle({ primary: "#ffffff", secondary: "#000000" })).toMatchObject({
-      "--kit-wash-scale": "0.25",
+      "--kit-wash-scale": "0.27",
     });
+  });
+
+  /**
+   * Given the green the approved card mock was drawn in (#16a34a, luminance 0.269)
+   * When a card asks for its style
+   * Then it washes the header at the full share, as the maintainer approved it, not a paler one.
+   */
+  it("keeps the approved mock's green at its full wash", () => {
+    expect(kitWashScale("#16a34a")).toBe(1);
   });
 
   /**

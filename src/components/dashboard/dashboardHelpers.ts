@@ -1,4 +1,5 @@
 import type { SquadFitness } from "../../services/squadService";
+import type { PositionTable } from "../../lib/positionTable";
 import type { FixtureData, GameStateData, PlayerData, TeamData } from "../../store/gameStore";
 import { formatVal } from "../../lib/helpers";
 import { competitionDisplayName } from "../../lib/competitionName";
@@ -112,6 +113,7 @@ export function getDashboardSearchResults(
 
 export function getDashboardAlerts(
   gameState: GameStateData,
+  positionTable: PositionTable,
   hasMatchToday: boolean,
   t: DashboardAlertTranslator,
   financeSnapshot?: DashboardFinanceVerdict | null,
@@ -132,7 +134,7 @@ export function getDashboardAlerts(
   }).length;
   const savedStartingXi = myTeam?.starting_xi_ids ?? [];
   const effectiveStartingXi = myTeam
-    ? buildStartingXIIds(roster, savedStartingXi, myTeam.formation)
+    ? buildStartingXIIds(roster, savedStartingXi, myTeam.formation, positionTable)
     : [];
   const xiPlayersOnRoster = effectiveStartingXi.filter((playerId) => {
     return roster.some((player) => player.id === playerId);

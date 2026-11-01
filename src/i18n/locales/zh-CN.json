@@ -629,7 +629,13 @@
     "center": "中路",
     "right": "右侧",
     "competition": "赛事",
-    "confirmDelete": "确认删除"
+    "confirmDelete": "确认删除",
+    "firstPage": "第一页",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "lastPage": "最后一页",
+    "sortBy": "排序方式",
+    "sortAscending": "升序"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -910,7 +916,8 @@
       "sharp": "状态上佳",
       "managing": "需要管理",
       "risk": "风险"
-    }
+    },
+    "positionsLoading": "位置数据仍在加载，暂时无法调整阵容。"
   },
   "training": {
     "weeklySchedule": "每周日程",
@@ -1743,7 +1750,27 @@
     "renewalProjectionWageBill": "周薪总支出 {{before}} → {{after}}",
     "renewalProjectionBudgetUsage": "薪资预算占用 {{before}}% → {{after}}%",
     "renewalProjectionRunway": "现金储备 {{before}} → {{after}}",
-    "ratingTrend": "评分趋势"
+    "ratingTrend": "评分趋势",
+    "potentialOpinion": {
+      "scoutsOpinion": "球探意见",
+      "coachesOpinion": "教练组意见",
+      "bandS": "有望成为顶尖球员",
+      "bandA": "有望成为主力",
+      "bandB": "可以成为有用的轮换球员",
+      "bandRest": "不太可能再有大的进步",
+      "range": "潜力 {{low}}–{{high}}",
+      "confident": "把握很大",
+      "fairlySure": "比较有把握",
+      "unsure": "没有把握",
+      "guess": "只是猜测",
+      "byScout": "球探 {{scout}} 于 {{date}} 考察"
+    },
+    "positions": {
+      "title": "位置",
+      "wherePlayed": "您安排他踢的位置"
+    },
+    "loadFailed": "无法加载",
+    "retryWage": "重新加载工资"
   },
   "teamProfile": {
     "clubInfo": "俱乐部信息",

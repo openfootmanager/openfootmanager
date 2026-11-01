@@ -26,6 +26,13 @@ pub const TWO_TIER_PACKAGE: &str = concat!(
     "/tests/fixtures/two-tier-package"
 );
 
+/// A package in which every player of every club is authored, rating and ceiling included: a world
+/// the generator's rating bell draws nothing for, so what it builds must not move when the bell does.
+pub const AUTHORED_ONLY_PACKAGE: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/tests/fixtures/authored-only-package"
+);
+
 /// The shipped world's nations that between them cover every shape that has
 /// broken the ladder: England's two tiers, Portugal's single tier, and
 /// Argentina's split season, all berthing into one continental cup.
@@ -92,6 +99,15 @@ impl WorldSpec {
         Self {
             nations: &[],
             package: Some(PathBuf::from(TWO_TIER_PACKAGE)),
+            ..Self::gate(seed)
+        }
+    }
+
+    /// The world the app builds from the [`AUTHORED_ONLY_PACKAGE`] fixture, from 2033.
+    pub fn authored_only_package(seed: u64) -> Self {
+        Self {
+            nations: &[],
+            package: Some(PathBuf::from(AUTHORED_ONLY_PACKAGE)),
             ..Self::gate(seed)
         }
     }

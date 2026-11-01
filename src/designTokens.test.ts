@@ -27,6 +27,8 @@ const BOUNDARY_KITS = [
   "#808080",
   "#000000",
   "#0000ff",
+  // The approved mock's green, just under the full-wash threshold: it takes the whole share.
+  "#16a34a",
 ];
 
 /**
@@ -142,9 +144,11 @@ const READABLE_PAIRS: Array<[string, string[]]> = [
     status,
     ["panel", `${status}-tint`],
   ]),
+  // A rated value on a sunken inset too: the profile's opinion of a player's potential paints its
+  // band in the tone on bg-sunken.
   ...["top", "good", "fair", "low", "bad"].map((tone): [string, string[]] => [
     `tone-${tone}`,
-    ["panel", `tone-${tone}-tint`],
+    ["panel", "sunken", `tone-${tone}-tint`],
   ]),
 ];
 

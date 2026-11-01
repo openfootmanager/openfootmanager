@@ -4,6 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import { SubPanel } from "./SubPanel";
 import type { EnginePlayerData, EngineTeamData, MatchSnapshot } from "./types";
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("react-i18next", () => ({
   initReactI18next: { type: "3rdParty", init: () => {} },
   useTranslation: () => ({

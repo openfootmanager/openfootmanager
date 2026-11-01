@@ -32,13 +32,8 @@ import {
   translatePositionAbbreviation,
   translatePositionLabel,
 } from "./SquadTab.helpers";
-import {
-  CORE_POSITIONS,
-  naturalPositionOf,
-  normalisePosition,
-  positionGroupRank,
-  positionSortRank,
-} from "../../lib/positions";
+import { naturalPositionOf } from "../../lib/positions";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
 import { SquadNameAside, squadRosterColumns } from "./SquadRosterView.columns";
 import { squadRowMenuItems } from "./SquadRosterView.menu";
@@ -93,11 +88,12 @@ export default function SquadRosterView({
   const menuRefs = useRef<Map<string, ContextMenuHandle>>(new Map());
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
+  const positionTable = usePositionTable();
   const roster = players
     .filter((player) => isFirstTeamSquadPlayer(player))
     .sort(
       (a, b) =>
-        positionGroupRank(a.position) - positionGroupRank(b.position) ||
+        positionTable.lineRankOf(a.position) - positionTable.lineRankOf(b.position) ||
         getPlayerOvr(b) - getPlayerOvr(a),
     );
 
@@ -109,15 +105,15 @@ export default function SquadRosterView({
   const activePlayStyle = team.play_style || "Balanced";
   const currentPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const startingXiIds = useMemo(
-    () => buildStartingXIIds(available, team.starting_xi_ids || [], formation),
-    [available, team.starting_xi_ids, formation],
+    () => buildStartingXIIds(available, team.starting_xi_ids || [], formation, positionTable),
+    [available, team.starting_xi_ids, formation, positionTable],
   );
   const pitchSlotRows = buildPitchSlotRows(buildPitchRows(formation), startingXiIds, playersById);
   const xiActivePosition = buildActivePositionMap(pitchSlotRows);
   const xiIds = useMemo(() => new Set(startingXiIds), [startingXiIds]);
   const roleCoverage = useMemo(
-    () => buildRoleCoverageSummary(available, startingXiIds, formation),
-    [available, startingXiIds, formation],
+    () => buildRoleCoverageSummary(available, startingXiIds, formation, positionTable),
+    [available, startingXiIds, formation, positionTable],
   );
   const rolesNeedingCover = useMemo(
     () =>
@@ -162,17 +158,17 @@ export default function SquadRosterView({
   const isOutOfPosition = (player: PlayerData): boolean => {
     return (
       xiIds.has(player.id) &&
-      isPlayerOutOfPosition(player, getCurrentPosition(player, xiActivePosition))
+      isPlayerOutOfPosition(player, getCurrentPosition(player, xiActivePosition), positionTable)
     );
   };
 
   const getTacticalFit = (player: PlayerData) => {
-    return getSquadTacticalFit(player, getCurrentPosition(player, xiActivePosition));
+    return getSquadTacticalFit(player, getCurrentPosition(player, xiActivePosition), positionTable);
   };
 
   const matchesFilters = (player: PlayerData): boolean => {
     const inXI = xiIds.has(player.id);
-    const currentPos = normalisePosition(getCurrentPosition(player, xiActivePosition));
+    const currentPos = positionTable.groupOf(getCurrentPosition(player, xiActivePosition));
     const preferredPositions = getPreferredPositions(player);
     const search = playerSearch.trim().toLowerCase();
 
@@ -205,7 +201,7 @@ export default function SquadRosterView({
       case "naturalFit":
         return getTacticalFit(player) === "natural";
       case "needsCover":
-        return rolesNeedingCover.has(getBestRoleForFormation(player, formation));
+        return rolesNeedingCover.has(getBestRoleForFormation(player, formation, positionTable));
       case "outOfPosition":
         return isOutOfPosition(player);
       case "injured":
@@ -236,8 +232,8 @@ export default function SquadRosterView({
           const bXi = xiIds.has(b.id) ? 0 : 1;
           if (aXi !== bXi) return aXi - bXi;
 
-          const aRank = positionSortRank(naturalPositionOf(a));
-          const bRank = positionSortRank(naturalPositionOf(b));
+          const aRank = positionTable.rankOf(naturalPositionOf(a));
+          const bRank = positionTable.rankOf(naturalPositionOf(b));
           if (aRank !== bRank) return aRank - bRank;
 
           return getPlayerOvr(b) - getPlayerOvr(a);
@@ -289,6 +285,8 @@ export default function SquadRosterView({
   };
 
   const persistStartingXi = async (playerIds: string[]): Promise<void> => {
+    // Nothing is saved from a lineup worked out before the backend's position table has loaded.
+    if (!positionTable.loaded) return;
     const updated = await setStartingXi(playerIds);
     completeMutation(updated);
   };
@@ -318,8 +316,8 @@ export default function SquadRosterView({
   ): Promise<void> => {
     const nextXiIds =
       action === "promote"
-        ? buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId)
-        : buildDemoteFromStartingXi(startingXiIds, available, formation, playerId);
+        ? buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId, positionTable)
+        : buildDemoteFromStartingXi(startingXiIds, available, formation, playerId, positionTable);
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -368,6 +366,7 @@ export default function SquadRosterView({
     contractActionPending: contractActionPlayerId === player.id,
     onSelectPlayer,
     onMutationComplete: completeMutation,
+    positionTableLoaded: positionTable.loaded,
     updateSquadPlanning,
     updateContractExitIntent,
     onActionError: (error: unknown) => setContractActionError(resolveBackendError(error)),
@@ -407,7 +406,7 @@ export default function SquadRosterView({
               fullWidth
             >
               <option value="All">{t("common.all")}</option>
-              {CORE_POSITIONS.map((position) => (
+              {positionTable.lines().map((position) => (
                 <option key={position} value={position}>
                   {translatePositionAbbreviation(t, position)}
                 </option>
@@ -431,7 +430,11 @@ export default function SquadRosterView({
               <option value="xi">{t("preMatch.startingXI")}</option>
               <option value="bench">{t("preMatch.substitutes")}</option>
               <option value="naturalFit">{t("squad.naturalFit")}</option>
-              <option value="needsCover">{t("squad.needsCover")}</option>
+              {/* A role needs cover by the backend's lines; until they arrive the filter would drop
+                  players it should keep, so it is not offered yet. */}
+              {positionTable.loaded ? (
+                <option value="needsCover">{t("squad.needsCover")}</option>
+              ) : null}
               <option value="outOfPosition">{t("squad.outOfPosition")}</option>
               <option value="injured">{t("common.injured")}</option>
             </Select>

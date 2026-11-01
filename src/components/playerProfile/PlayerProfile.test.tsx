@@ -61,11 +61,23 @@ const wages = vi.hoisted(() => ({
 vi.mock("../../hooks/useVisibleWage", () => ({
   useVisibleWage: (playerId: string, revision: string) => {
     wages.revisions.push(revision);
-    return (
-      wages.current[playerId] ??
-      ({ kind: "exact", weekly: Number(JSON.parse(revision).at(-1)) } as const)
-    );
+    return {
+      status: "answered" as const,
+      value:
+        wages.current[playerId] ??
+        ({ kind: "exact", weekly: Number(JSON.parse(revision).at(-1)) } as const),
+    };
   },
+}));
+
+// The club holds no opinion of anyone's potential in these tests; PlayerProfile.potential.test.tsx
+// shows one, through the real hook. The hook has its own test.
+vi.mock("../../hooks/usePotentialOpinion", () => ({
+  usePotentialOpinion: () => ({ status: "answered", value: null }),
+}));
+// Nor its ratings at positions: PlayerProfilePositionRatings and usePositionRatings have their own.
+vi.mock("../../hooks/usePositionRatings", () => ({
+  usePositionRatings: () => ({ status: "answered", value: null }),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -2000,8 +2012,9 @@ describe("PlayerProfile shows only what the club knows", () => {
   });
 
   // Condition 80, morale 75, a weekly wage of 12K (also on his contract in the movement history)
-  // and the potential-derived Wonderkid tag: each one something a club only knows about its own
-  // player, or (the tag) about one it has scouted.
+  // and the Wonderkid tag: each one something a club only knows about its own player. The tag
+  // shows only as the club's opinion (PlayerProfile.potential.test.tsx); his own copy, which
+  // tells his true potential, never shows.
   function rival(): PlayerData {
     return createPlayer({
       team_id: "team-2",
@@ -2099,8 +2112,8 @@ describe("PlayerProfile shows only what the club knows", () => {
   /**
    * Given a player in another division whom a scout reported on this season
    * When his profile opens
-   * Then the scout's attributes and the Wonderkid tag (his view of the potential) show and his wage
-   *      reads as about the figure, but not his OVR (no estimate yet), his condition or his morale
+   * Then the scout's attributes show and his wage reads as about the figure, but not his OVR (no
+   *      estimate yet), his condition, his morale or his own Wonderkid tag
    */
   it("shows a scouted player's report but not what the scout could not see", async () => {
     const player = rival();
@@ -2125,7 +2138,7 @@ describe("PlayerProfile shows only what the club knows", () => {
     await waitFor(() => {
       expect(screen.queryByText("playerProfile.attributesHidden")).not.toBeInTheDocument();
     });
-    expect(await screen.findByText(/Wonderkid/)).toBeInTheDocument();
+    expect(screen.queryByText(/Wonderkid/)).not.toBeInTheDocument();
     expect(screen.queryByText("80%")).not.toBeInTheDocument();
     expect(screen.queryByText("77")).not.toBeInTheDocument();
     expect(contractWageValue()).toBe("about €16,000/wk");
@@ -2136,9 +2149,10 @@ describe("PlayerProfile shows only what the club knows", () => {
   /**
    * Given the club's own player
    * When his profile opens
-   * Then everything shows: condition, morale, exact wage and the Wonderkid tag
+   * Then his condition, morale and exact wage show; his own Wonderkid tag does not, as only the
+   *      club's opinion of him tags him
    */
-  it("shows everything about the club's own player", () => {
+  it("shows the club's own player's private state but not his own Wonderkid tag", () => {
     const player = createPlayer({
       ovr: 77,
       condition: 80,
@@ -2156,6 +2170,6 @@ describe("PlayerProfile shows only what the club knows", () => {
     expect(contractWageValue()).not.toBe("–");
     expect(showsMovementWage()).toBe(true);
     expect(screen.getByText("77")).toBeInTheDocument();
-    expect(screen.getByText(/Wonderkid/)).toBeInTheDocument();
+    expect(screen.queryByText(/Wonderkid/)).not.toBeInTheDocument();
   });
 });

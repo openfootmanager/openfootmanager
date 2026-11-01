@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { GameStateData, ScoutedPlayerView } from "../store/gameStore";
+import type { PotentialOpinion } from "../store/generated/PotentialOpinion";
 import { invokeForCareer } from "./careerInvoke";
 
 export interface StartYouthScoutingInput {
@@ -31,6 +32,15 @@ export type VisibleWage =
 
 export async function getVisibleWage(playerId: string): Promise<VisibleWage | null> {
   return invoke<VisibleWage | null>("get_visible_wage", { playerId });
+}
+
+/**
+ * The club's opinion of one player's potential (a range, never the number), as
+ * `ofm_core::player_knowledge::potential_opinion` decides it; null when the club holds none.
+ * For his profile only: no list carries potential.
+ */
+export async function getPotentialOpinion(playerId: string): Promise<PotentialOpinion | null> {
+  return invoke<PotentialOpinion | null>("get_potential_opinion", { playerId });
 }
 
 export async function getScoutedReport(playerId: string): Promise<ScoutedPlayerView | null> {

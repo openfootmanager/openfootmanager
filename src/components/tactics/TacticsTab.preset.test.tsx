@@ -17,6 +17,11 @@ import { createSeasonContext } from "../../test-utils/factories";
  * game the (faked) backend returns.
  */
 
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 const mockedInvoke = vi.mocked(invoke);
 

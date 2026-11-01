@@ -3,6 +3,8 @@ import { Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { getPlayerOvr } from "../../lib/helpers";
+import type { PositionTable } from "../../lib/positionTable";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import type { PlayerData, TeamMatchRolesData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { Badge, Card, PitchToken, Select, usePitchTokenFocus } from "../ui";
@@ -59,7 +61,11 @@ interface RoleMarker {
   toneClassName: string;
 }
 
-function getFitTone(player: PlayerData | null, slotPosition: string): FitTone {
+function getFitTone(
+  player: PlayerData | null,
+  slotPosition: string,
+  positionTable: PositionTable,
+): FitTone {
   if (!player) {
     return "empty";
   }
@@ -68,7 +74,7 @@ function getFitTone(player: PlayerData | null, slotPosition: string): FitTone {
     return "exact";
   }
 
-  if (isPlayerOutOfPosition(player, slotPosition)) {
+  if (isPlayerOutOfPosition(player, slotPosition, positionTable)) {
     return "out";
   }
 
@@ -279,6 +285,7 @@ export default function TacticsPitch({
   selectedPlayerId,
 }: TacticsPitchProps): JSX.Element {
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
   const { focusedPlayerId, focusToken, blurToken, getDescriptionId } = usePitchTokenFocus();
   const draggedPlayerId = dragState?.playerId ?? null;
 
@@ -424,7 +431,7 @@ export default function TacticsPitch({
 
             {pitchSlots.map((slot) => {
               const player = slot.player;
-              const fitTone = getFitTone(player, slot.position);
+              const fitTone = getFitTone(player, slot.position, positionTable);
               const isHovered = hoveredSlot === slot.index;
 
               return (

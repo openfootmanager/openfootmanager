@@ -7,7 +7,7 @@ use domain::manager::Manager;
 use domain::player::{Player, PlayerAttributes, Position};
 use domain::team::Team;
 use ofm_core::clock::GameClock;
-use ofm_core::game::{Game, ScoutedPlayer};
+use ofm_core::game::{Game, PotentialRange, ScoutedPlayer};
 use ofm_core::slices::teams::{
     TeamCard, TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_club_league_standing,
     query_directory, query_team_card,
@@ -184,10 +184,13 @@ fn scouting_a_clubs_players_never_reveals_its_average() {
         "the fixture gives faraway players"
     );
     for player_id in faraway_players {
+        // A full report, opinion of potential included: still no squad average.
         game.scouted_players.push(ScoutedPlayer {
             player_id,
             scouted_on: "2026-06-20".to_string(),
             attributes: default_attrs(),
+            potential: Some(PotentialRange { low: 56, high: 64 }),
+            scout_name: Some("Ann Scout".to_string()),
         });
     }
 

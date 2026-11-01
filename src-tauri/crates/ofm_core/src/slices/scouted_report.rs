@@ -58,6 +58,8 @@ mod tests {
             player_id: "p9".to_string(),
             scouted_on: scouted_on.to_string(),
             attributes: serde_json::from_str(r#"{"pace":50,"stamina":50,"strength":50,"agility":50,"passing":50,"shooting":50,"tackling":50,"dribbling":50,"defending":50,"positioning":50,"vision":50,"decisions":50,"composure":50,"aggression":50,"teamwork":50,"leadership":50,"handling":50,"reflexes":50,"aerial":50}"#).unwrap(),
+            potential: None,
+            scout_name: None,
         });
         game.season_context.season_start = Some("2026-08-01".to_string());
         game.last_season_rollover_on = last_rollover.map(str::to_string);

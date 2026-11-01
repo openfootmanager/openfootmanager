@@ -93,6 +93,15 @@ Fouls can occur after tackles in midfield and the attacking third:
 
 Sent-off players are excluded from all future player selection for their team.
 
+#### A side down to ten
+
+In the live engine a player who has left the pitch (`is_on_the_pitch` is the one test for it) costs his side twice:
+
+- **An empty slot in his line.** The midfield rating and the press divide the line's players on the pitch by the line's slots in the side's current shape, so a line one short plays weaker until a change of shape takes the empty slot away. A substitution can't fill it: a sent-off player can't be replaced, and a substitute takes the line of the player he replaces. A line with nobody off is its plain average, whatever the shape names.
+- **Ground to cover when it defends.** Its press, its tackles in midfield and the attacking third, and the conversion chance of shots against it are scaled by a cover factor `1 / (1 + 0.7 × players missing)`. A change of shape doesn't lift it: the side is still a man down. Its attacking is untouched.
+
+`engine/tests/short_handed_tests.rs` calibrates both against the literature on red cards. After a red at minute 30, the side left with eleven scores about twice as often (Ridder, Cramer and Hopstaken 1994: ×1.88; Červený, van Ours and van Tuijl 2018: ×2.2). The side down to ten scores about 0.9 times as often, the Ridder end of the band (Ridder: unchanged; Červený: ×0.53). The instant engine (sim-bench, the sim lab) does not model it.
+
 ---
 
 ## Player Attributes

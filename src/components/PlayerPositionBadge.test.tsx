@@ -16,7 +16,9 @@ describe("PlayerPositionBadge", () => {
 
   beforeEach(() => {
     resetPositionGroupsCache();
-    vi.mocked(getPositionGroups).mockResolvedValue([{ position: "Striker", group: "Forward" }]);
+    vi.mocked(getPositionGroups).mockResolvedValue([
+      { position: "Striker", group: "Forward", rank: 0 },
+    ]);
   });
 
   /**

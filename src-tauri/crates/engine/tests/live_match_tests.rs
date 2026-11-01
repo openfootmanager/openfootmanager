@@ -2504,3 +2504,52 @@ fn with_only_defenders_and_the_keeper_left_a_defender_takes_the_penalty() {
         "{takers:?}"
     );
 }
+
+/// The home players in `line` who are still on the pitch: every player listed there except
+/// `sent_off`.
+fn home_on_the_pitch_in(state: &LiveMatchState, line: Position, sent_off: &str) -> usize {
+    home_lines(state)
+        .into_iter()
+        .filter(|(id, position)| id != sent_off && *position == line)
+        .count()
+}
+
+/// Given a 4-4-2 that has had a defender sent off,
+/// When the manager switches to 4-3-2 to bring a midfielder back,
+/// Then a midfielder drops into defence: four defend on the pitch again, with three in midfield
+/// and two up front.
+#[test]
+fn a_change_of_shape_after_a_red_refills_the_line_the_red_left_short() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(as_built);
+    state.test_send_off("home_def1");
+
+    change_home_formation(&mut state, "4-3-2");
+
+    let lines = [Position::Defender, Position::Midfielder, Position::Forward]
+        .map(|line| home_on_the_pitch_in(&state, line, "home_def1"));
+    assert_eq!(lines, [4, 3, 2]);
+}
+
+/// Given a 4-4-2 whose best passer at the back, the left centre-back, has been sent off,
+/// When the manager switches to 2-5-3, which takes a defender into midfield,
+/// Then the sent-off player stays where he was: a player off the pitch is never the one who
+/// moves, and two defend on the pitch.
+#[test]
+fn a_player_sent_off_is_never_moved_by_a_change_of_shape() {
+    let mut state = match_with_a_target_man_and_a_slight_left_back(|player| {
+        if player.id == "home_def1" {
+            player.passing = 95;
+            player.vision = 95;
+            player.decisions = 95;
+        }
+    });
+    state.test_send_off("home_def1");
+
+    change_home_formation(&mut state, "2-5-3");
+
+    assert_eq!(home_line_of(&state, "home_def1"), Position::Defender);
+    assert_eq!(
+        home_on_the_pitch_in(&state, Position::Defender, "home_def1"),
+        2
+    );
+}

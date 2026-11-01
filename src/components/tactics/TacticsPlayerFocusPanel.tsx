@@ -5,8 +5,10 @@ import type { PlayerData } from "../../store/gameStore";
 import { Button, Card, CountryFlag } from "../ui";
 import { Eye, GitCompareArrows, X } from "lucide-react";
 import { calcAge, getPlayerOvr } from "../../lib/helpers";
-import { naturalPositionOf, normalisePosition } from "../../lib/positions";
+import { naturalPositionOf } from "../../lib/positions";
+import type { PositionTable } from "../../lib/positionTable";
 import PlayerPositionBadge from "../PlayerPositionBadge";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 
 const ATTRIBUTE_GROUPS: {
   labelKey: string;
@@ -46,8 +48,8 @@ interface TacticsPlayerFocusPanelProps {
   selectedPlayer: PlayerData | null;
 }
 
-function getNormalizedPlayerPosition(player: PlayerData): string {
-  return normalisePosition(naturalPositionOf(player));
+function getNormalizedPlayerPosition(player: PlayerData, positions: PositionTable): string {
+  return positions.groupOf(naturalPositionOf(player));
 }
 
 function PlayerSummary({ label, player }: { label: string; player: PlayerData }) {
@@ -89,7 +91,8 @@ function PlayerSummary({ label, player }: { label: string; player: PlayerData })
 function SinglePlayerAttributes({ player }: { player: PlayerData }) {
   const tierOf = useRatingTiers();
   const { t } = useTranslation();
-  const isGoalkeeper = getNormalizedPlayerPosition(player) === "Goalkeeper";
+  const positions = usePositionTable();
+  const isGoalkeeper = getNormalizedPlayerPosition(player, positions) === "Goalkeeper";
 
   return (
     <div className="space-y-4">
@@ -144,9 +147,10 @@ function CompareAttributes({
 }) {
   const tierOf = useRatingTiers();
   const { t } = useTranslation();
+  const positions = usePositionTable();
   const showGoalkeeperAttrs =
-    getNormalizedPlayerPosition(selectedPlayer) === "Goalkeeper" ||
-    getNormalizedPlayerPosition(comparePlayer) === "Goalkeeper";
+    getNormalizedPlayerPosition(selectedPlayer, positions) === "Goalkeeper" ||
+    getNormalizedPlayerPosition(comparePlayer, positions) === "Goalkeeper";
 
   return (
     <div className="space-y-4">

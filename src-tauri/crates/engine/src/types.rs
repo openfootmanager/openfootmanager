@@ -205,6 +205,11 @@ fn default_engine_attr() -> u8 {
     50
 }
 
+/// What a midfielder brings to the midfield battle.
+fn midfield_skill(p: &PlayerData) -> u8 {
+    ((p.passing as u16 + p.vision as u16 + p.decisions as u16 + p.stamina as u16) / 4) as u8
+}
+
 fn default_fitness() -> u8 {
     75
 }
@@ -412,11 +417,43 @@ impl TeamData {
         def_avg * 0.7 + gk_avg * 0.3
     }
 
+    /// A line's strength with players off the pitch: the attribute summed over the line's
+    /// players still on it, divided by the places they must cover. A player who has left the
+    /// pitch leaves an empty place that weighs the line down until a change of shape takes it
+    /// away. The places are the line's slots in the side's shape, never more than the line has
+    /// players, so a line with nobody off is its plain average whatever the shape says.
+    pub fn line_strength(
+        &self,
+        pos: Position,
+        attr_fn: fn(&PlayerData) -> u8,
+        off_the_pitch: &dyn Fn(&str) -> bool,
+        slots: usize,
+    ) -> f64 {
+        let line: Vec<_> = self.players.iter().filter(|p| p.position == pos).collect();
+        let on_the_pitch: Vec<_> = line
+            .iter()
+            .copied()
+            .filter(|p| !off_the_pitch(&p.id))
+            .collect();
+        let places = slots.min(line.len()).max(on_the_pitch.len());
+        if places == 0 {
+            return 40.0; // fallback
+        }
+        on_the_pitch.iter().map(|p| attr_fn(p) as f64).sum::<f64>() / places as f64
+    }
+
+    /// The composite midfield rating with players off the pitch (see `line_strength`).
+    pub fn midfield_rating_on_the_pitch(
+        &self,
+        off_the_pitch: &dyn Fn(&str) -> bool,
+        slots: usize,
+    ) -> f64 {
+        self.line_strength(Position::Midfielder, midfield_skill, off_the_pitch, slots)
+    }
+
     /// Composite midfield rating.
     pub fn midfield_rating(&self) -> f64 {
-        self.position_attr_avg(Position::Midfielder, |p| {
-            ((p.passing as u16 + p.vision as u16 + p.decisions as u16 + p.stamina as u16) / 4) as u8
-        })
+        self.position_attr_avg(Position::Midfielder, midfield_skill)
     }
 
     /// Composite attack rating (from forwards + midfielders).

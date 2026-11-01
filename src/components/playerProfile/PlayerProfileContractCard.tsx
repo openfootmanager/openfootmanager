@@ -1,3 +1,4 @@
+import { RetryButton } from "./ProfileLoadFailed";
 import {
   Activity,
   Briefcase,
@@ -33,6 +34,8 @@ interface PlayerProfileContractCardProps {
   marketValue: number;
   /** His weekly wage as the club may see it, already written: exact, approximate or "–". */
   wageText: string;
+  /** Set when the wage failed to load: the row then reads "Couldn't load" with a retry. */
+  wageRetry?: () => void;
   language: string;
   contractRiskLevel: "critical" | "warning" | "stable";
   contractRiskLabel: string;
@@ -56,6 +59,7 @@ export default function PlayerProfileContractCard({
   morale,
   marketValue,
   wageText,
+  wageRetry,
   language,
   contractRiskLevel,
   contractRiskLabel,
@@ -111,7 +115,18 @@ export default function PlayerProfileContractCard({
           <InfoRow
             icon={<TrendingUp className="w-4 h-4" />}
             label={t("playerProfile.weeklyWage")}
-            value={wageText}
+            value={
+              wageRetry ? (
+                <span className="inline-flex items-center gap-2">
+                  {t("playerProfile.loadFailed")}
+                  <RetryButton onRetry={wageRetry} description={t("playerProfile.retryWage")}>
+                    {t("common.retry")}
+                  </RetryButton>
+                </span>
+              ) : (
+                wageText
+              )
+            }
           />
           <InfoRow
             icon={<Heart className="w-4 h-4" />}

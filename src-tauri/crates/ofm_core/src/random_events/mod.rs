@@ -51,22 +51,6 @@ fn rival_interest_name(index: usize) -> String {
     [prefix, suffix].join(" ")
 }
 
-/// Injury probability multiplier based on fitness. Less fit players are more
-/// prone to training ground injuries.
-fn injury_probability_from_fitness(fitness: u8) -> f64 {
-    if fitness < 30 {
-        3.0
-    } else if fitness < 50 {
-        2.0
-    } else if fitness < 70 {
-        1.5
-    } else if fitness >= 90 {
-        0.7
-    } else {
-        1.0
-    }
-}
-
 fn action(id: &str, label: &str, label_key: &str, action_type: ActionType) -> MessageAction {
     MessageAction {
         id: id.to_string(),
@@ -129,7 +113,8 @@ pub fn check_random_events(game: &mut Game) {
             if !eligible.is_empty() {
                 let player = eligible[rng.random_range(0..eligible.len())];
                 // Base 2% chance, scaled by fitness: less fit → higher probability
-                let fitness_mult = injury_probability_from_fitness(player.fitness);
+                let fitness_mult =
+                    crate::player_wear::injury_multiplier_from_fitness(player.fitness);
                 let base_prob = 1.0_f64 / 50.0;
                 let injury_prob = (base_prob * fitness_mult).min(1.0);
                 if rng.random_bool(injury_prob) {
@@ -477,22 +462,6 @@ mod tests {
     use super::*;
     use domain::player::{Player, PlayerAttributes, Position};
     use rand::SeedableRng;
-
-    /// Given fitness at each side of every step: 29, 30, 40, 49, 50, 60, 69, 70, 80, 89 and 90
-    /// When the training-injury multiplier is read
-    /// Then it steps 3.0, 2.0, 1.5, 1.0 and 0.7 at 30, 50, 70 and 90
-    #[test]
-    fn injury_multiplier_steps_at_thirty_fifty_seventy_and_ninety() {
-        let multipliers: Vec<f64> = [29, 30, 40, 49, 50, 60, 69, 70, 80, 89, 90]
-            .into_iter()
-            .map(injury_probability_from_fitness)
-            .collect();
-
-        assert_eq!(
-            multipliers,
-            vec![3.0, 2.0, 2.0, 2.0, 1.5, 1.5, 1.5, 1.0, 1.0, 1.0, 0.7]
-        );
-    }
 
     /// Given rival indices 3 and 8
     /// When each is named
