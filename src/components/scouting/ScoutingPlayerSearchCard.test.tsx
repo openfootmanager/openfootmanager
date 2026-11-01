@@ -383,7 +383,7 @@ describe("ScoutingPlayerSearchCard cards view", () => {
     fireEvent.click(screen.getByRole("option", { name: "common.age" }));
     expect(onFilterChange).toHaveBeenCalledWith({ sort_key: "age", sort_asc: false });
 
-    fireEvent.click(screen.getByRole("button", { name: "common.sortDescending" }));
+    fireEvent.click(screen.getByRole("button", { name: "common.sortAscending" }));
     expect(onFilterChange).toHaveBeenCalledWith({ sort_key: "ovr", sort_asc: true });
   });
 
