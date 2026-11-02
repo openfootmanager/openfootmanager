@@ -22,8 +22,11 @@ interface SquadRowMenuContext {
   /** Someone fit is on the bench to take a starter's place. */
   canBench: boolean;
   contractRisk: ContractRiskLevel;
-  /** The backend's position table has arrived: a lineup change is not made without it. */
-  positionTableLoaded: boolean;
+  /**
+   * The backend's position table has arrived and the squad has answered for this revision: a
+   * lineup change is not made without both.
+   */
+  lineupReady: boolean;
   /** A contract action for this player is on its way to the backend. */
   contractActionPending: boolean;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
@@ -58,7 +61,7 @@ export function squadRowMenuItems(
       ? {
           label: t("squad.sendToBench"),
           icon: <RotateCcw className="w-4 h-4" />,
-          disabled: !context.positionTableLoaded || !context.canBench,
+          disabled: !context.lineupReady || !context.canBench,
           onClick: () => {
             void context.updateSquadPlanning(player.id, "demote");
           },
@@ -66,7 +69,7 @@ export function squadRowMenuItems(
       : {
           label: t("squad.makeStarter"),
           icon: <Users className="w-4 h-4" />,
-          disabled: !context.positionTableLoaded || !isMatchDayEligible(player),
+          disabled: !context.lineupReady || !isMatchDayEligible(player),
           onClick: () => {
             void context.updateSquadPlanning(player.id, "promote");
           },
