@@ -35,25 +35,36 @@ pub fn player_knowledge(game: &Game, player: &Player) -> PlayerKnowledge {
 }
 
 /// What the manager's club can see, worked out once per request rather than once per player: the
-/// club, the clubs in its division, the clubs it meets today, and its scouts' reports by player. A
-/// list asks it about every row, so no row searches the reports.
-pub struct KnowledgeView<'a> {
-    club: Option<&'a str>,
-    known_clubs: HashSet<&'a str>,
-    opponents_today: HashSet<&'a str>,
-    reports: HashMap<&'a str, &'a ScoutedPlayer>,
-    last_rollover: Option<&'a str>,
+/// club, the clubs in its division, the clubs it meets today, and what its scouts' reports say of
+/// each player they cover. A list asks it about every row, so no row searches the reports.
+///
+/// It owns what it read, so it outlives the borrow of the game it was made from: the game's JSON
+/// keeps one for the length of a serialization (`crate::wire`).
+pub struct KnowledgeView {
+    club: Option<String>,
+    known_clubs: HashSet<String>,
+    opponents_today: HashSet<String>,
+    reports: HashMap<String, ReportSeen>,
 }
 
-impl<'a> KnowledgeView<'a> {
-    pub fn of(game: &'a Game) -> Self {
+/// What a scout's report tells the club of a player: when it was made, and whether it still
+/// describes him.
+struct ReportSeen {
+    scouted_on: String,
+    current: bool,
+}
+
+impl KnowledgeView {
+    pub fn of(game: &Game) -> Self {
         let club = game.manager.team_id.as_deref();
+        let owned = |clubs: HashSet<&str>| clubs.into_iter().map(str::to_string).collect();
         Self {
-            club,
-            known_clubs: club.map_or_else(HashSet::new, |club| clubs_in_division_of(game, club)),
-            opponents_today: club.map_or_else(HashSet::new, |club| opponents_today(game, club)),
+            club: club.map(str::to_string),
+            known_clubs: club
+                .map_or_else(HashSet::new, |club| owned(clubs_in_division_of(game, club))),
+            opponents_today: club
+                .map_or_else(HashSet::new, |club| owned(opponents_today(game, club))),
             reports: reports_by_player(game),
-            last_rollover: game.last_season_rollover_on.as_deref(),
         }
     }
 
@@ -61,6 +72,7 @@ impl<'a> KnowledgeView<'a> {
     pub fn knowledge(&self, player: &Player) -> PlayerKnowledge {
         if self
             .club
+            .as_deref()
             .is_some_and(|club| is_at_or_owned_by(player, club))
         {
             return PlayerKnowledge::Own;
@@ -75,7 +87,7 @@ impl<'a> KnowledgeView<'a> {
         match self.reports.get(player.id.as_str()) {
             Some(report) => PlayerKnowledge::Scouted {
                 scouted_on: report.scouted_on.clone(),
-                current: !is_out_of_date(report, self.last_rollover),
+                current: report.current,
             },
             None => PlayerKnowledge::Unknown,
         }
@@ -85,7 +97,7 @@ impl<'a> KnowledgeView<'a> {
     /// it sees every season. A figure about a whole squad, such as its average rating, shows only
     /// then; a few scouted players would make a skewed figure that looks authoritative.
     pub fn knows_squad_at(&self, club_id: &str) -> bool {
-        self.club == Some(club_id) || self.known_clubs.contains(club_id)
+        self.club.as_deref() == Some(club_id) || self.known_clubs.contains(club_id)
     }
 
     fn wage_for(&self, knowledge: &PlayerKnowledge, player: &Player) -> VisibleWage {
@@ -163,10 +175,17 @@ fn division_of<'a>(game: &'a Game, club: &str) -> Option<&'a str> {
 
 /// Each scouted player's report. The first report for a player is his, as
 /// `query_scouted_report` reads it; scouting a player again replaces his report anyway.
-fn reports_by_player(game: &Game) -> HashMap<&str, &ScoutedPlayer> {
+/// What each player's report says, the first report kept where a player has several, as before.
+fn reports_by_player(game: &Game) -> HashMap<String, ReportSeen> {
+    let last_rollover = game.last_season_rollover_on.as_deref();
     let mut reports = HashMap::with_capacity(game.scouted_players.len());
     for report in &game.scouted_players {
-        reports.entry(report.player_id.as_str()).or_insert(report);
+        reports
+            .entry(report.player_id.clone())
+            .or_insert_with(|| ReportSeen {
+                scouted_on: report.scouted_on.clone(),
+                current: !is_out_of_date(report, last_rollover),
+            });
     }
     reports
 }
@@ -208,7 +227,7 @@ pub struct PlayerVisibility {
     pub condition: Option<u8>,
 }
 
-impl KnowledgeView<'_> {
+impl KnowledgeView {
     pub fn of_player(&self, player: &Player) -> PlayerVisibility {
         let knowledge = self.knowledge(player);
         let knows_rating = matches!(knowledge, PlayerKnowledge::Own | PlayerKnowledge::Known);
