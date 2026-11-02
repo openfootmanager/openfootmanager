@@ -63,7 +63,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 24 # pinned with the frontend job; see the reason there
       - name: Check stable releases wait for AppImage validation
         run: bash scripts/check-stable-release.test.sh
 
@@ -178,10 +178,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # A pinned major, not `lts/*`. On 2 Nov 2026 `lts/*` moved from Node 24 to Node 26 between one
+      # merge group and the next, with no change in this repository, and a test that spied on
+      # Storage.prototype stopped seeing calls: Node 26 has a global Storage of its own, which is
+      # not jsdom's (#1153). Every PR after it went red. What lets this move: a PR that bumps the
+      # major here and in the toolchain-pin and tauri-smoke jobs, and shows the whole frontend
+      # suite green on the new one.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 24
           cache: npm
 
       - name: Install frontend dependencies
@@ -245,7 +251,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 24 # pinned with the frontend job; see the reason there
           cache: npm
 
       - name: Install frontend dependencies
