@@ -3020,7 +3020,8 @@
         "invalidFormation": "El juego no conoce esa formación.",
         "invalidPlayStyle": "El juego no conoce ese estilo de juego.",
         "notFound": "Esa táctica ya no existe."
-      }
+      },
+      "anotherClubsSquad": "Esa plantilla pertenece a otro club."
     },
     "sender": {
       "boardOfDirectors": "Junta Directiva",
