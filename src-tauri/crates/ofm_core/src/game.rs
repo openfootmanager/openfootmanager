@@ -101,9 +101,10 @@ pub struct DayStart {
     pub bracket_fixtures: std::collections::HashSet<(String, String)>,
 }
 
-/// `Game`'s JSON is written for a reader, never for the save (`crate::wire`), so the derived
-/// serializer is wrapped: `impl Serialize for Game` below sets who the copy is for, then calls it.
-/// `remote = "Self"` turns the derived `serialize`/`deserialize` into inherent functions for that.
+// `Game`'s JSON is written for a reader, never for the save (`crate::wire`), so the derived
+// serializer is wrapped: `impl Serialize for Game` below sets who the copy is for, then calls it.
+// `remote = "Self"` turns the derived `serialize`/`deserialize` into inherent functions for that.
+// A plain comment, not a doc comment: ts-rs would copy a doc comment into the generated `Game.ts`.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(remote = "Self")]
 pub struct Game {
