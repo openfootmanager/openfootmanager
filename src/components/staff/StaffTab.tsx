@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type GameStateData, type StaffData, useGameStore } from "../../store/gameStore";
 import { visibleRatingText } from "../../lib/playerKnowledge";
 import { getStaff, type StaffRow, type StaffSlice } from "../../services/staffService";
@@ -58,6 +58,8 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  /** The newest staff refresh asked for; an older one that answers late is dropped. */
+  const latestRefresh = useRef(0);
 
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
 
@@ -81,8 +83,11 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const applyStaffUpdate = async (updated: GameStateData) => {
     onGameUpdate?.(updated);
     // The slice carries each member's rating, which the game state doesn't: ask for it again, and
-    // fall back to the game state's staff (unrated) only if that fails.
+    // fall back to the game state's staff (unrated) only if that fails. Two hires in quick
+    // succession ask twice; only the newer answer may land, or a late older one would undo it.
+    const refresh = ++latestRefresh.current;
     const refetched = teamId ? await getStaff(teamId).catch(() => null) : null;
+    if (refresh !== latestRefresh.current) return;
     setFetchedStaff(
       refetched ?? {
         team_staff: updated.staff.filter((s) => s.team_id === teamId),
