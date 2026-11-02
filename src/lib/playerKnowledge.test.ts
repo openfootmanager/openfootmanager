@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  asKnownPlayer,
   gameKnowledgeRevision,
   knowledgeRevision,
   visibleRatingText,
@@ -8,6 +9,8 @@ import {
   visibleWageText,
 } from "./playerKnowledge";
 import type { PotentialOpinion } from "../store/generated/PotentialOpinion";
+import type { GamePlayerData } from "../store/types";
+import { createPlayer } from "../test-utils/factories";
 
 describe("visibleWageText", () => {
   const format = (weekly: number) => `€${weekly}/wk`;
@@ -205,5 +208,32 @@ describe("visibleTraits", () => {
       "Speedster",
       "Wonderkid",
     ]);
+  });
+});
+
+describe("asKnownPlayer", () => {
+  // Given a game-state player the club knows (its own, so his rating and attributes came through)
+  // When the squad fallback reads him
+  // Then he is the full player, rating and attributes as sent
+  it("gives back a player the club knows, whole", () => {
+    const own: GamePlayerData = createPlayer({ id: "own", ovr: 71 });
+
+    const player = asKnownPlayer(own);
+
+    expect(player?.ovr).toBe(71);
+    expect(player?.attributes).toEqual(own.attributes);
+  });
+
+  // Given a game-state player the club does not know (his rating and attributes are null)
+  // When the squad fallback reads him
+  // Then there is no full player to give: nothing private was sent to make one from
+  it("gives nothing for a player the club does not know", () => {
+    const stranger: GamePlayerData = {
+      ...createPlayer({ id: "stranger" }),
+      attributes: null,
+      ovr: null,
+    };
+
+    expect(asKnownPlayer(stranger)).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import type { TOptions } from "i18next";
 
 import type { PlayerKnowledge, VisibleWage } from "../services/scoutingService";
 import type { PotentialOpinion } from "../store/generated/PotentialOpinion";
+import type { GamePlayerData, PlayerData } from "../store/types";
 
 type TranslateFn = (key: string, options?: TOptions) => string;
 
@@ -95,6 +96,17 @@ export function visibleRatingText(rating: number | null): string {
 /** The club sees his live rating and attributes: he is its own, or plays in its division. */
 export function knowsPlayerRating(knowledge: PlayerKnowledge): boolean {
   return knowledge.kind === "own" || knowledge.kind === "known";
+}
+
+/**
+ * A game-state player as the full player the squad screens work with, or null when the club does not
+ * know him. The club's own players always come through: the game state hides only what the club
+ * cannot know, and it knows its own squad. For the screens that fall back on the game state while
+ * the squad is fetched.
+ */
+export function asKnownPlayer(player: GamePlayerData): PlayerData | null {
+  if (player.attributes === null) return null;
+  return { ...player, attributes: player.attributes, ovr: player.ovr ?? undefined };
 }
 
 /** Condition, morale and the exact wage are his club's business: only the club's own player shows them. */

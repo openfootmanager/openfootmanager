@@ -389,6 +389,17 @@ export interface PlayerData {
   jersey_number?: number | null;
 }
 
+/**
+ * A player as the game state carries him (`ofm_core::wire::ReaderPlayer`): his rating and attributes
+ * only when the club knows him, its own player or one in its division. Anyone else's are null; a
+ * scouted player's are in the scout's report. `PlayerData` is the full player, as the club's own
+ * squad (`get_squad`) sends him.
+ */
+export interface GamePlayerData extends Omit<PlayerData, "ovr" | "attributes"> {
+  attributes: PlayerData["attributes"] | null;
+  ovr?: number | null;
+}
+
 export interface TransferOfferData {
   id: string;
   from_team_id: string;
@@ -934,7 +945,7 @@ export interface GameStateData {
   manager: ManagerData;
   managers?: ManagerData[];
   teams: TeamData[];
-  players: PlayerData[];
+  players: GamePlayerData[];
   staff: StaffData[];
   messages: MessageData[];
   news: NewsArticle[];
