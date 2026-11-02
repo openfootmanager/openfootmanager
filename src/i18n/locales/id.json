@@ -428,6 +428,11 @@
       "other": "ke-{{n}}"
     },
     "pts": "Poin",
+    "playedFull": "Main",
+    "wonFull": "Menang",
+    "drawnFull": "Seri",
+    "lostFull": "Kalah",
+    "ptsFull": "Poin",
     "played": "M",
     "won": "M",
     "drawn": "S",

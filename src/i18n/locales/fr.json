@@ -428,6 +428,11 @@
       "other": "{{n}}e"
     },
     "pts": "Pts",
+    "playedFull": "Joués",
+    "wonFull": "Victoires",
+    "drawnFull": "Nuls",
+    "lostFull": "Défaites",
+    "ptsFull": "Points",
     "played": "J",
     "won": "V",
     "drawn": "N",

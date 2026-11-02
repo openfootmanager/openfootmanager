@@ -428,6 +428,11 @@
       "other": "{{n}}th"
     },
     "pts": "Pts",
+    "playedFull": "Played",
+    "wonFull": "Won",
+    "drawnFull": "Drawn",
+    "lostFull": "Lost",
+    "ptsFull": "Points",
     "played": "P",
     "won": "W",
     "drawn": "D",

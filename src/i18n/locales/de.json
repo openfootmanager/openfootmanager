@@ -428,6 +428,11 @@
       "other": "{{n}}."
     },
     "pts": "Pkt",
+    "playedFull": "Spiele",
+    "wonFull": "Siege",
+    "drawnFull": "Unentschieden",
+    "lostFull": "Niederlagen",
+    "ptsFull": "Punkte",
     "played": "Sp",
     "won": "S",
     "drawn": "U",

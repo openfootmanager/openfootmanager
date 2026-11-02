@@ -35,6 +35,11 @@ vi.mock("react-i18next", () => {
         "teams.otherClubs": "Other clubs",
         "be.error.noActiveGameSession": "No active game session",
         "common.won": "W",
+        "common.wonFull": "Won",
+        "common.drawnFull": "Drawn",
+        "common.lostFull": "Lost",
+        "common.playedFull": "Played",
+        "common.ptsFull": "Points",
         "common.drawn": "D",
         "common.lost": "L",
       };
@@ -193,11 +198,18 @@ function setListView(view: "table" | "cards") {
 }
 
 /** A card's terms and what each says: its status band's and its two facts'. */
+/** What a screen reader reads of an element: its text, less what is hidden from it. */
+function spoken(element: Element): string {
+  const copy = element.cloneNode(true) as Element;
+  for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+  return copy.textContent?.trim() ?? "";
+}
+
 function cardTerms(card: HTMLElement): Record<string, string | undefined> {
   return Object.fromEntries(
     within(card)
       .getAllByRole("term")
-      .map((term) => [term.textContent ?? "", term.nextElementSibling?.textContent ?? undefined]),
+      .map((term) => [spoken(term), term.nextElementSibling?.textContent ?? undefined]),
   );
 }
 
@@ -331,10 +343,10 @@ describe("TeamsListTab", () => {
 
     const card = await screen.findByRole("article", { name: "Leader FC" });
     expect(cardTerms(card)).toEqual({
-      W: "3",
-      D: "1",
-      L: "0",
-      Pts: "10",
+      Won: "3",
+      Drawn: "1",
+      Lost: "0",
+      Points: "10",
       "Avg OVR": "71",
       Squad: "22",
       Rep: "64",
@@ -354,7 +366,52 @@ describe("TeamsListTab", () => {
 
     const card = await screen.findByRole("article", { name: "New FC" });
     expect(cardHero(card)).toHaveTextContent("Position —");
-    expect(cardTerms(card)).toEqual({ Pts: "—", "Avg OVR": "60", Squad: "22", Rep: "50" });
+    expect(cardTerms(card)).toEqual({ Points: "—", "Avg OVR": "60", Squad: "22", Rep: "50" });
+  });
+
+  /**
+   * Given a club's card and the league's table, whose standing is drawn as letters (W, D, L, P,
+   *       Pts)
+   * When they are read
+   * Then the eye sees the letters and a screen reader hears the words (Won, Drawn, Lost, Played,
+   *      Points), where it would otherwise spell each letter out ("W 3").
+   */
+  it("reads the standing's letters to a screen reader as words", async () => {
+    const leader = buildCard({ id: "lead", name: "Leader FC", league_pos: 1, points: 9 });
+    setupDirectoryMock([leader]);
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("lead")} onSelectTeam={vi.fn()} />);
+
+    const card = await screen.findByRole("article", { name: "Leader FC" });
+    const terms = within(card).getAllByRole("term").slice(0, 4);
+    expect(terms.map((term) => spoken(term))).toEqual(["Won", "Drawn", "Lost", "Points"]);
+    expect(terms.map((term) => term.querySelector('[aria-hidden="true"]')?.textContent)).toEqual([
+      "W",
+      "D",
+      "L",
+      "Pts",
+    ]);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("radio", { name: "Table" }));
+    });
+    const table = screen.getByRole("table", { name: "League" });
+    expect(within(table).getByRole("columnheader", { name: "Played" })).toHaveTextContent("P");
+    expect(within(table).getByRole("columnheader", { name: "Points" })).toHaveTextContent("Pts");
+  });
+
+  /**
+   * Given a club in Leeds, whose name doesn't say so
+   * When its card is drawn
+   * Then the card shows its city, so a club found by its city in the search shows why.
+   */
+  it("shows a club's city on its card", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "white", name: "Whites AFC", city: "Leeds", league_pos: 1 }),
+    ]);
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("white")} onSelectTeam={vi.fn()} />);
+
+    const card = await screen.findByRole("article", { name: "Whites AFC" });
+    expect(within(card).getByText("Leeds")).toBeInTheDocument();
   });
 
   /**
@@ -468,8 +525,8 @@ describe("TeamsListTab as a table", () => {
     expect(Object.keys(rowCells("Leader FC"))).toEqual([
       "Position",
       "Team",
-      "P",
-      "Pts",
+      "Played",
+      "Points",
       "Avg OVR",
       "Rep",
       "Squad",
@@ -477,8 +534,8 @@ describe("TeamsListTab as a table", () => {
     ]);
     expect(rowCells("Leader FC")).toMatchObject({
       Position: "1",
-      P: "1",
-      Pts: "9",
+      Played: "1",
+      Points: "9",
       "Avg OVR": "64",
       Rep: "40",
       Squad: "22",

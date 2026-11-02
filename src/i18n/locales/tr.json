@@ -428,6 +428,11 @@
       "other": "{{n}}."
     },
     "pts": "P",
+    "playedFull": "Oynanan",
+    "wonFull": "Galibiyet",
+    "drawnFull": "Beraberlik",
+    "lostFull": "Mağlubiyet",
+    "ptsFull": "Puan",
     "played": "O",
     "won": "G",
     "drawn": "B",

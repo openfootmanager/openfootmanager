@@ -428,6 +428,11 @@
       "other": "第{{n}}"
     },
     "pts": "积分",
+    "playedFull": "已赛场次",
+    "wonFull": "胜场",
+    "drawnFull": "平局",
+    "lostFull": "负场",
+    "ptsFull": "积分",
     "played": "赛",
     "won": "胜",
     "drawn": "平",

@@ -447,6 +447,11 @@
       "other": "{{n}}°"
     },
     "pts": "Pt",
+    "playedFull": "Giocate",
+    "wonFull": "Vinte",
+    "drawnFull": "Pareggiate",
+    "lostFull": "Perse",
+    "ptsFull": "Punti",
     "played": "G",
     "won": "V",
     "drawn": "N",
