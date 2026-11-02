@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { GameStateData, ManagerData, TeamData } from "../../store/gameStore";
@@ -8,6 +9,7 @@ import { createSeasonContext } from "../../test-utils/factories";
 
 // The view switch saves the choice through the backend; a save that fails puts the view back.
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => undefined) }));
+const mockedInvoke = vi.mocked(invoke);
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -305,24 +307,67 @@ describe("ManagersWorldTab as a table", () => {
 
   /**
    * Given the table in reputation order
-   * When the Manager header is pressed, and then the Trophies header
-   * Then the managers run A to Z by name, then by trophies high to low, then by matches high to
-   *      low, and back to reputation high to low: each column starts in its own direction.
+   * When the Manager header is pressed
+   * Then the managers run A to Z by name: a name column starts from A.
    */
-  it("sorts by the header pressed, each from its own starting direction", () => {
+  it("sorts by name from A", () => {
     render(<ManagersWorldTab gameState={gameStateWithThree()} />);
-
     fireEvent.click(screen.getByRole("button", { name: "Manager" }));
     expect(managerOrder()).toEqual(["Abe Zed", "Jane Doe", "Marco Rossi"]);
+  });
 
+  /**
+   * Given the table in reputation order
+   * When the Trophies header is pressed
+   * Then the managers run from the most trophies (Abe 5, Marco 3, Jane 2): a figure starts from
+   *      the best.
+   */
+  it("sorts by trophies, most first", () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
     fireEvent.click(screen.getByRole("button", { name: "Trophies" }));
     expect(managerOrder()).toEqual(["Abe Zed", "Marco Rossi", "Jane Doe"]);
+  });
 
+  /**
+   * Given the table in reputation order
+   * When the Matches header is pressed
+   * Then the managers run from the most matches (Abe 300, Jane 120, Marco 84).
+   */
+  it("sorts by matches, most first", () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
     fireEvent.click(screen.getByRole("button", { name: "Matches" }));
     expect(managerOrder()).toEqual(["Abe Zed", "Jane Doe", "Marco Rossi"]);
+  });
 
+  /**
+   * Given the table opened on reputation, highest first
+   * When the Reputation header is pressed
+   * Then the order turns round, lowest first.
+   */
+  it("turns the order round when the sorted header is pressed again", () => {
+    render(<ManagersWorldTab gameState={gameStateWithThree()} />);
     fireEvent.click(screen.getByRole("button", { name: "Reputation" }));
+    expect(managerOrder()).toEqual(["Abe Zed", "Marco Rossi", "Jane Doe"]);
+  });
+
+  /**
+   * Given Jane at Alpha FC, Marco at Gamma Athletic and Abe between jobs
+   * When the Current club header is pressed, and then pressed again
+   * Then the clubs run A to Z and then Z to A, and Abe, who has none, is last both times.
+   */
+  it("sorts by club from A, with a manager between jobs last both ways", () => {
+    const state = gameStateWithThree();
+    state.teams.push(createTeam({ id: "team-3", name: "Gamma Athletic", manager_id: "manager-2" }));
+    state.managers = (state.managers ?? []).map((manager) =>
+      manager.id === "manager-2" ? { ...manager, team_id: "team-3" } : manager,
+    );
+    render(<ManagersWorldTab gameState={state} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Current club" }));
     expect(managerOrder()).toEqual(["Jane Doe", "Marco Rossi", "Abe Zed"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Current club" }));
+    expect(managerOrder()).toEqual(["Marco Rossi", "Jane Doe", "Abe Zed"]);
   });
 
   /**
@@ -372,6 +417,9 @@ describe("ManagersWorldTab as a table", () => {
     });
 
     expect(useSettingsStore.getState().settings.list_view).toBe("cards");
+    expect(mockedInvoke).toHaveBeenCalledWith("save_settings", {
+      settings: expect.objectContaining({ list_view: "cards" }),
+    });
     expect(screen.queryByRole("table")).toBeNull();
     expect(screen.getByText("Open role at Beta United")).toBeInTheDocument();
   });
