@@ -84,7 +84,7 @@ fn render_module(game: &Game) -> Result<String, String> {
         .team_id
         .clone()
         .ok_or("the career has no club")?;
-    let squad = ofm_core::slices::squad::query_squad(game, &club);
+    let squad = ofm_core::slices::squad::query_squad(game, &club)?;
     let squad_ids: Vec<String> = squad.iter().map(|entry| entry.player.id.clone()).collect();
 
     let mut module = String::from(HEADER);
