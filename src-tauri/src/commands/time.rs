@@ -1668,6 +1668,12 @@ mod tests {
         let game_date = state
             .get_game(|game| game.clock.current_date.date_naive().to_string())
             .unwrap();
+        assert!(
+            result["game"]["clock"]["current_date"]
+                .as_str()
+                .is_some_and(|date| date.starts_with(&game_date)),
+            "the response the screens read carries the same day"
+        );
         assert_eq!(
             game_date, "2025-06-15",
             "clock must not advance on a match day stop"
@@ -1723,6 +1729,12 @@ mod tests {
         let game_date = state
             .get_game(|game| game.clock.current_date.date_naive().to_string())
             .unwrap();
+        assert!(
+            result["game"]["clock"]["current_date"]
+                .as_str()
+                .is_some_and(|date| date.starts_with(&game_date)),
+            "the response the screens read carries the same day"
+        );
         assert_eq!(game_date, "2025-06-16");
     }
 
@@ -1748,6 +1760,12 @@ mod tests {
         let game_date = state
             .get_game(|game| game.clock.current_date.date_naive().to_string())
             .unwrap();
+        assert!(
+            result["game"]["clock"]["current_date"]
+                .as_str()
+                .is_some_and(|date| date.starts_with(&game_date)),
+            "the response the screens read carries the same day"
+        );
         assert_eq!(game_date, "2025-06-16");
     }
 }
