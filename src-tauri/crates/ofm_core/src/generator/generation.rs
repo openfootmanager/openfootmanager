@@ -491,11 +491,14 @@ const CEILING_SD: f64 = 5.0;
 /// cohort it replaces carries less of the A tier on a normal bell than the old light-tailed one did,
 /// so an intake on the opening's own centre settles below the band #965 set (S 1.0 to 1.8%, A 5.9
 /// to 8.2%). Measured over 20 seasons on two seeds of the shipped world with the spread kept at
-/// 0.95: 1.0 misses A at season 10 (5.79%, run qm-9b, floor 5.9%); 1.2 holds S and A at seasons 10,
-/// 15 and 20 (A 5.92 to 7.73%, run qm-10a); 1.4 reaches 8.20% by season 20 (run qm-10b).
-const INTAKE_CEILING_OFFSET: f64 = 1.2;
+/// 0.95, on the engine of the day: 1.0 misses A at season 10 (5.79%, run qm-9b, floor 5.9%); 1.2
+/// held on an earlier develop (run qm-10a) but missed A at season 10 once the engine changes of
+/// 1 Nov landed (5.82% and 5.86%, runs qm-13 and qm-14); 1.3 holds every checkpoint (A 5.91 to
+/// 8.17%, run qm-15); 1.4 reached 8.20% by season 20 (run qm-10b). A at season 10 (5.91%) and
+/// season 20 (8.17%) sit within 0.03 of the band's edges.
+const INTAKE_CEILING_OFFSET: f64 = 1.3;
 /// The fraction of the opening's spread the intake keeps. The offset alone raises the settled
-/// wonderkid rate; keeping 0.95 of the spread holds it to 0.09 to 0.19% at 1.2 (run qm-10a) against
+/// wonderkid rate; keeping 0.95 of the spread holds it to 0.11 to 0.16% at 1.3 (run qm-15; 0.09 to 0.19% at 1.2, run qm-10a) against
 /// 0.06 to 0.13% on the old bell, and costs S about 0.1 points.
 const INTAKE_SPREAD_KEPT: f64 = 0.95;
 
