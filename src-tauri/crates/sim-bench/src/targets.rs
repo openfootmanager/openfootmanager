@@ -505,6 +505,25 @@ mod tests {
         assert!(!verdict_with(Provenance::Unsourced, None).is_judged());
     }
 
+    /// Given the calibration table,
+    /// When its card bands are read,
+    /// Then they are the Big Five's range from CIES n°57 (3.39 to 5.27 yellows, 0.12 to 0.27
+    /// reds a match), cited rather than unsourced, and shown for orientation, not judged.
+    #[test]
+    fn the_card_bands_are_the_big_fives_cited_range() {
+        let table = all().expect("the calibration table loads");
+        let band = |label: &str| {
+            let target = table
+                .iter()
+                .find(|target| target.label == label)
+                .expect("the band exists");
+            let sourced = !matches!(target.provenance, Provenance::Unsourced);
+            (target.low, target.high, sourced)
+        };
+        assert_eq!(band("Yellow cards/game"), (3.39, 5.27, true));
+        assert_eq!(band("Red cards/game"), (0.12, 0.27, true));
+    }
+
     /// Given a value exactly on a band's edge, and one just outside it,
     /// When each is judged,
     /// Then the edge counts as inside and the other does not.
