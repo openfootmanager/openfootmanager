@@ -38,6 +38,18 @@ pub fn read<T: DeserializeOwned + Default>(conn: &Connection, cell: Cell<'_>, te
     read_or_else(conn, cell, text, T::default)
 }
 
+/// The cell's value, or None when it does not parse (the cell then quarantined): for a caller that
+/// must repair what the lost cell held, rather than carry on with a default.
+pub fn try_read<T: DeserializeOwned>(conn: &Connection, cell: Cell<'_>, text: &str) -> Option<T> {
+    match serde_json::from_str(text) {
+        Ok(value) => Some(value),
+        Err(error) => {
+            quarantine(conn, cell, text, &error.to_string());
+            None
+        }
+    }
+}
+
 /// The cell's value, or `fallback()` when it does not parse (the cell then quarantined).
 pub fn read_or_else<T: DeserializeOwned>(
     conn: &Connection,
@@ -45,13 +57,7 @@ pub fn read_or_else<T: DeserializeOwned>(
     text: &str,
     fallback: impl FnOnce() -> T,
 ) -> T {
-    match serde_json::from_str(text) {
-        Ok(value) => value,
-        Err(error) => {
-            quarantine(conn, cell, text, &error.to_string());
-            fallback()
-        }
-    }
+    try_read(conn, cell, text).unwrap_or_else(fallback)
 }
 
 /// A nullable cell's value: None when it is NULL, and None when it does not parse (the cell then
@@ -366,6 +372,83 @@ mod tests {
             .collect();
 
         assert!(found.is_empty(), "outside json_column: {found:?}");
+    }
+
+    /// Whether a migration's SQL names the quarantine table anywhere, comments included: stripping
+    /// comments would need an SQL parser (a quoted `--` is not one), and a migration has no reason
+    /// to name the table at all.
+    fn sql_names_the_quarantine_table(sql: &str) -> bool {
+        sql.to_ascii_lowercase().contains("unreadable_records")
+    }
+
+    /// Given SQL that deletes from the quarantine table (once behind a quoted `--`), SQL that drops
+    ///       it, and SQL that names only another table
+    /// When the migration scan reads each
+    /// Then it sees the first two and not the third: the guard below would catch a migration that
+    ///      empties or drops the table
+    #[test]
+    fn the_migration_scan_sees_every_mention_of_the_table() {
+        assert!(sql_names_the_quarantine_table(
+            "SELECT '--' AS marker; DELETE FROM unreadable_records;"
+        ));
+        assert!(sql_names_the_quarantine_table(
+            "drop table UNREADABLE_RECORDS;"
+        ));
+        assert!(!sql_names_the_quarantine_table(
+            "-- a tidy-up\nDELETE FROM other_records;"
+        ));
+    }
+
+    /// Given every migration but the one that creates the quarantine table
+    /// When their SQL is read
+    /// Then none names it: a migration that deleted, dropped or rewrote kept cells would lose
+    ///      them, and the set-aside notice's count, which assumes the table only grows, would
+    ///      repeat old notices
+    #[test]
+    fn no_other_migration_touches_the_quarantine_table() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/sql");
+        let mut scanned = 0;
+        let mut found = Vec::new();
+        for entry in std::fs::read_dir(&dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("sql")
+                || path.ends_with("v063_unreadable_records.sql")
+            {
+                continue;
+            }
+            scanned += 1;
+            if sql_names_the_quarantine_table(&std::fs::read_to_string(&path).unwrap()) {
+                found.push(path.display().to_string());
+            }
+        }
+
+        assert!(scanned > 50, "the scan read the migrations: {scanned}");
+        assert!(
+            found.is_empty(),
+            "a migration touches unreadable_records: {found:?}"
+        );
+    }
+
+    /// Given one cell that parses and one that does not
+    /// When each is read for a caller that repairs a lost cell
+    /// Then the first is its value, the second None and kept: the caller knows to repair it
+    #[test]
+    fn a_cell_read_to_be_repaired_says_whether_it_was_lost() {
+        let db = GameDatabase::open_in_memory().unwrap();
+
+        let fine: Option<Vec<u32>> = try_read(db.conn(), Cell::new("t", "r", "fine"), "[1]");
+        let lost: Option<Vec<u32>> = try_read(db.conn(), Cell::new("t", "r", "lost"), "[1,");
+
+        assert_eq!(fine, Some(vec![1]));
+        assert_eq!(lost, None);
+        assert_eq!(
+            unreadable_cells(db.conn()).unwrap(),
+            vec![UnreadableCell {
+                table: "t".into(),
+                row_id: "r".into(),
+                column: "lost".into(),
+            }]
+        );
     }
 
     /// Given a cell that parses
