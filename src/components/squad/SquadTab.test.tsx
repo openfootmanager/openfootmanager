@@ -311,6 +311,45 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given a squad numbered 1 to 11, and a bench defender with no shirt number
+   * When the roster is sorted by number, up and then down
+   * Then the numbered players run 1 to 11 and then 11 to 1, and the bench defender is the last row
+   *      both times, not the first going down.
+   */
+  it("keeps a player with no shirt number at the foot of the roster in both directions", () => {
+    const state = makeGameState();
+    state.players = state.players.map((player, index) => ({
+      ...player,
+      jersey_number: player.id === "d5" ? null : index + 1,
+    }));
+    const roster = (sortDir: "asc" | "desc") => (
+      <SquadTab
+        gameState={state}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "jersey", sortDir }}
+        onSortStateChange={vi.fn()}
+      />
+    );
+    const rowNames = () =>
+      within(screen.getByRole("table", { name: "squad.title" }))
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("button")[0].getAttribute("aria-label"));
+
+    // Numbered 1 to 11 in the fixture's order: the keeper, four defenders, four midfielders, two
+    // forwards.
+    const numbered = ["GK1", "D1", "D2", "D3", "D4", "M1", "M2", "M3", "M4", "F1", "F2"];
+
+    const { rerender } = render(roster("asc"));
+    expect(rowNames()).toEqual([...numbered, "Bench DEF"]);
+
+    rerender(roster("desc"));
+    expect(rowNames()).toEqual([...numbered].reverse().concat("Bench DEF"));
+  });
+
+  /**
    * Given a starter, an injured bench player and a fit bench player
    * When the roster renders
    * Then the starter's row carries the starter accent, the injured player's the can't-play one,
@@ -655,29 +694,19 @@ describe("SquadTab", () => {
     expect(within(keeperRow).getAllByText("10d").length).toBeGreaterThan(0);
   });
 
+  /**
+   * Given an OVR sort, high to low, saved on the dashboard, and two forwards the backend rates 30
+   *       and 90, the weaker listed first
+   * When Squad opens
+   * Then the 90 is drawn above the 30.
+   */
   it("honors a persisted OVR sort state from the dashboard", () => {
     const gameState = makeGameState();
+    // The rating is the backend's `ovr`; the list never derives one from attributes. Without it
+    // both read 0, and the order would rest on how a tie falls.
     gameState.players = [
-      makePlayer("low", "Forward", {
-        match_name: "Low OVR",
-        attributes: {
-          ...makePlayer("base-low", "Forward").attributes,
-          pace: 30,
-          shooting: 30,
-          passing: 30,
-          dribbling: 30,
-        },
-      }),
-      makePlayer("high", "Forward", {
-        match_name: "High OVR",
-        attributes: {
-          ...makePlayer("base-high", "Forward").attributes,
-          pace: 90,
-          shooting: 90,
-          passing: 90,
-          dribbling: 90,
-        },
-      }),
+      makePlayer("low", "Forward", { match_name: "Low OVR", ovr: 30 }),
+      makePlayer("high", "Forward", { match_name: "High OVR", ovr: 90 }),
     ];
 
     render(
