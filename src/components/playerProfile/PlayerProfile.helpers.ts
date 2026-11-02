@@ -1,4 +1,4 @@
-import type { PlayerData, TeamData } from "../../store/gameStore";
+import type { GamePlayerData, TeamData } from "../../store/gameStore";
 import type { TOptions } from "i18next";
 import { weeklyWageAmount } from "../../lib/finance";
 import { formatVal, formatWeeklyWage } from "../../lib/helpers";
@@ -111,7 +111,7 @@ function calculatePassAccuracy(completed: number, attempted: number): number | n
  * rates, no percentiles. Percentiles need a league peer group and each stat's direction, which
  * only the backend defines, so none is guessed here.
  */
-export function buildPlayerAdvancedStats(player: PlayerData): PlayerAdvancedStatsSummary {
+export function buildPlayerAdvancedStats(player: GamePlayerData): PlayerAdvancedStatsSummary {
   const minutesPlayed = statValue(player.stats.minutes_played);
   const shots = statValue(player.stats.shots);
   const shotsOnTarget = statValue(player.stats.shots_on_target);

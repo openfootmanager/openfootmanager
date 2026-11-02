@@ -123,6 +123,7 @@ export type {
   PlayerMovementKind,
   ReleaseReason,
   PlayerData,
+  GamePlayerData,
   TransferOfferData,
   LoanOfferData,
   ActiveLoanData,

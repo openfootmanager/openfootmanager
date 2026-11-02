@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { GameStateData, LoanOfferData, PlayerData } from "../../store/gameStore";
+import type { GameStateData, LoanOfferData, GamePlayerData } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { counterLoanOffer, type LoanOfferResponseData } from "../../services/transfersService";
 import {
@@ -41,7 +41,7 @@ export function useLoanCounterFlow({
     endDate: string;
     buyOptionFee?: number | null;
   } | null>(null);
-  const openLoanCounterOffer = (player: PlayerData, offer: LoanOfferData) => {
+  const openLoanCounterOffer = (player: GamePlayerData, offer: LoanOfferData) => {
     setLoanCounterTarget({ player, offer });
     setLoanCounterPeriodId(
       getLoanPeriodIdForEndDate(

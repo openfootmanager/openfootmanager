@@ -6,7 +6,7 @@ import TransfersTab from "./TransfersTab";
 import { invoke } from "@tauri-apps/api/core";
 import { formatExactMoney, formatWeeklyWage } from "../../lib/helpers";
 import type { VisibleFigures } from "../../lib/playerKnowledge";
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GamePlayerData, GameStateData } from "../../store/gameStore";
 import {
   createGameState,
   createPlayer,
@@ -113,7 +113,7 @@ const FIGURES: Record<string, VisibleFigures> = {
   "own-loan-offer": { ovr: 72, wage: { kind: "exact", weekly: REAL_WAGE } },
 };
 
-function pageWithFigures(players: PlayerData[]) {
+function pageWithFigures(players: GamePlayerData[]) {
   const page = marketPageOf(players);
   return {
     ...page,

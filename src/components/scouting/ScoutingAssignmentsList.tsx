@@ -1,7 +1,12 @@
 import { Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { PlayerData, ScoutingAssignment, StaffData, TeamData } from "../../store/gameStore";
+import type {
+  GamePlayerData,
+  ScoutingAssignment,
+  StaffData,
+  TeamData,
+} from "../../store/gameStore";
 import { getTeamName } from "../../lib/helpers";
 import ContextMenu from "../ContextMenu";
 import {
@@ -15,7 +20,7 @@ import { naturalPositionOf } from "../../lib/positions";
 interface ScoutingAssignmentsListProps {
   assignments: ScoutingAssignment[];
   scouts: StaffData[];
-  players: PlayerData[];
+  players: GamePlayerData[];
   teams: TeamData[];
   onSelectPlayer?: (id: string) => void;
   onSelectTeam?: (id: string) => void;

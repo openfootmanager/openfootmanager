@@ -109,6 +109,14 @@ export function asKnownPlayer(player: GamePlayerData): PlayerData | null {
   return { ...player, attributes: player.attributes, ovr: player.ovr ?? undefined };
 }
 
+/** The game-state players the club knows, as full players, in order: the squad fallbacks' list. */
+export function knownPlayers(players: GamePlayerData[]): PlayerData[] {
+  return players.flatMap((player) => {
+    const known = asKnownPlayer(player);
+    return known ? [known] : [];
+  });
+}
+
 /** Condition, morale and the exact wage are his club's business: only the club's own player shows them. */
 export function knowsPrivateState(knowledge: PlayerKnowledge): boolean {
   return knowledge.kind === "own";

@@ -4,6 +4,7 @@ import type { PlayerSelectionOptions } from "../../store/gameStore";
 import { useFetchedSquad } from "../../hooks/useFetchedSquad";
 import SquadRosterView from "./SquadRosterView";
 import type { SquadListSortState } from "./SquadRosterView.state";
+import { knownPlayers } from "../../lib/playerKnowledge";
 
 interface SquadTabProps {
   gameState: GameStateData | null;
@@ -35,12 +36,13 @@ export default function SquadTab({
 
   const team =
     sessionState?.team ?? gameState?.teams.find((t) => t.manager_id === managerId) ?? null;
-  const players = fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
+  const players =
+    fetchedSquad ?? knownPlayers(gameState?.players.filter((p) => p.team_id === teamId) ?? []);
 
   const handleMutationComplete = (game: GameStateData) => {
     onGameUpdate?.(game);
     if (teamId) {
-      setFetchedSquad(game.players.filter((p) => p.team_id === teamId));
+      setFetchedSquad(knownPlayers(game.players.filter((p) => p.team_id === teamId)));
     }
   };
 

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { LeagueData, PlayerData, TeamData } from "../store/gameStore";
-import { getPlayerOvr } from "../lib/helpers";
+import type { GamePlayerData, LeagueData, TeamData } from "../store/gameStore";
+import { visibleRatingText } from "../lib/playerKnowledge";
 import { naturalPositionOf } from "../lib/positions";
 import { translatePositionLabel } from "../components/squad/SquadTab.helpers";
 import { competitionDisplayName } from "../lib/competitionName";
@@ -11,9 +11,9 @@ import { Globe, Shield, Target, Users } from "lucide-react";
 
 interface TeamSelectionSidebarProps {
   selectedTeam: TeamData | null;
-  selectedTeamXi: PlayerData[];
+  selectedTeamXi: GamePlayerData[];
   selectedTeamCompetitions: LeagueData[];
-  getTeamAvgOvr: (teamId: string) => number;
+  getTeamAvgOvr: (teamId: string) => number | null;
 }
 
 export default function TeamSelectionSidebar({
@@ -54,7 +54,7 @@ export default function TeamSelectionSidebar({
               <DetailTile
                 icon={<Shield className="h-4 w-4" />}
                 label={t("teamSelect.overall")}
-                value={String(getTeamAvgOvr(selectedTeam.id))}
+                value={visibleRatingText(getTeamAvgOvr(selectedTeam.id))}
               />
               <DetailTile
                 icon={<Users className="h-4 w-4" />}
@@ -86,7 +86,7 @@ export default function TeamSelectionSidebar({
                         {translatePositionLabel(t, naturalPositionOf(player))}
                       </p>
                     </div>
-                    <Badge variant="accent">{getPlayerOvr(player)}</Badge>
+                    <Badge variant="accent">{visibleRatingText(player.ovr ?? null)}</Badge>
                   </div>
                 ))}
               </div>

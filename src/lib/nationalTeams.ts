@@ -1,4 +1,4 @@
-import type { FixtureData, GameStateData, PlayerData } from "../store/gameStore";
+import type { FixtureData, GameStateData, GamePlayerData } from "../store/gameStore";
 
 /**
  * All national-team fixtures: window friendlies (stored on the home nation)
@@ -52,7 +52,7 @@ export function getNationalTeamName(
 }
 
 export interface CalledUpPlayer {
-  player: PlayerData;
+  player: GamePlayerData;
   nationalTeamId: string;
   nationalTeamName: string;
   nationalTeamNameKey?: string | null;

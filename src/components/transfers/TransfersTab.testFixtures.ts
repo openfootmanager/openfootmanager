@@ -1,7 +1,13 @@
 import type { Mock } from "vitest";
 import { createSeasonContext } from "../../test-utils/factories";
 import type { PlayersPage, PlayersPageQuery, StatusCounts } from "../../services/playersService";
-import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
+import type {
+  GamePlayerData,
+  GameStateData,
+  PlayerData,
+  StaffData,
+  TeamData,
+} from "../../store/gameStore";
 export function createTeam(overrides: Partial<TeamData> = {}): TeamData {
   return {
     id: "team-1",
@@ -372,13 +378,13 @@ export const transferTestTranslation = (key: string, params?: Record<string, str
  * tested once in Rust, and a test here only decides what the screen does with the answer.
  */
 export interface ListsByScope {
-  market: PlayerData[];
-  user_listed: PlayerData[];
-  with_offers: PlayerData[];
+  market: GamePlayerData[];
+  user_listed: GamePlayerData[];
+  with_offers: GamePlayerData[];
 }
 
 /** The players the backend would answer a `get_players_page` call with, by the list asked for. */
-export function playersOfScope(payload: unknown, lists: ListsByScope): PlayerData[] {
+export function playersOfScope(payload: unknown, lists: ListsByScope): GamePlayerData[] {
   const { scope } = (payload as { query: PlayersPageQuery }).query;
   if (scope === "user_listed") return lists.user_listed;
   if (scope === "with_offers") return lists.with_offers;
@@ -386,7 +392,7 @@ export function playersOfScope(payload: unknown, lists: ListsByScope): PlayerDat
 }
 
 export function marketPageOf(
-  players: PlayerData[],
+  players: GamePlayerData[],
   {
     total = players.length,
     page = 1,

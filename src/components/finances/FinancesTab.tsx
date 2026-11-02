@@ -34,6 +34,7 @@ import {
 } from "./FinancesTab.helpers";
 import FinancesFacilitiesCard from "./FinancesFacilitiesCard";
 import FinancesPayrollTable from "./FinancesPayrollTable";
+import { knownPlayers } from "../../lib/playerKnowledge";
 
 interface FinancesTabProps {
   gameState: GameStateData;
@@ -187,7 +188,7 @@ function FinancesTabLoaded({
     text: string;
   } | null>(null);
 
-  const roster = gameState.players.filter((p) => p.team_id === myTeam.id);
+  const roster = knownPlayers(gameState.players.filter((p) => p.team_id === myTeam.id));
   const recoveryPreviews = previewsCurrent ? financeData.previews : null;
   const financeSnapshot = financeData.snapshot;
   const totalWages = financeSnapshot.weeklyWageSpend;

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { PlayerData, TeamData } from "../../store/gameStore";
+import type { GamePlayerData, TeamData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
 import { calcAge, formatVal, formatWeeklyWage, getTeamName } from "../../lib/helpers";
 import { type VisibleFigures, visibleRatingText, visibleWageText } from "../../lib/playerKnowledge";
@@ -43,7 +43,7 @@ export function DealWorkspaceHeader({
   transferWindowSummary,
   onClose,
 }: {
-  player: PlayerData;
+  player: GamePlayerData;
   teams: TeamData[];
   transferWindowSummary: string;
   onClose: () => void;
@@ -168,7 +168,7 @@ export function DealWorkspaceFacts({
   myTeam,
   offeredWage,
 }: {
-  player: PlayerData;
+  player: GamePlayerData;
   /** His rating and current wage as the club may see them. */
   figures: VisibleFigures;
   myTeam: TeamData | null;

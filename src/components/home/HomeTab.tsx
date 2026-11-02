@@ -39,6 +39,7 @@ import {
 import { useTranslation } from "react-i18next";
 import HomeOnboardingChecklistCard from "./HomeOnboardingChecklistCard";
 import JobOpportunitiesCard from "./JobOpportunitiesCard";
+import { knownPlayers } from "../../lib/playerKnowledge";
 
 interface HomeTabProps {
   gameState: GameStateData;
@@ -74,9 +75,9 @@ export default function HomeTab({
   );
   const league = getUserCompetition(gameState);
   const roster = myTeam
-    ? (fetchedSquad ?? gameState.players).filter(
-        (p) => p.team_id === myTeam.id && isFirstTeamSquadPlayer(p),
-      )
+    ? (
+        fetchedSquad ?? knownPlayers(gameState.players.filter((p) => p.team_id === myTeam.id))
+      ).filter((p) => p.team_id === myTeam.id && isFirstTeamSquadPlayer(p))
     : [];
   const { avgOvr, coldPlayers, hotPlayers, unavailablePlayers } = getHomeRosterOverview(roster);
   // Fitness is the backend's: injured players are not in the squad that can play.

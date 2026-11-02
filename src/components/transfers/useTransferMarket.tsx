@@ -4,7 +4,7 @@ import {
   NOTHING_VISIBLE,
   type VisibleFigures,
 } from "../../lib/playerKnowledge";
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData, TeamData } from "../../store/gameStore";
 import type { PlayersPageQuery } from "../../services/playersService";
 import { usePlayersPage } from "../../hooks/usePlayersPage";
 import {
@@ -113,7 +113,7 @@ export function useTransferMarket({ gameState, userTeamId, t, myTeam }: Input) {
     () =>
       (marketSlice?.items ?? [])
         .map((summary) => playersById.get(summary.id))
-        .filter((player): player is PlayerData => player !== undefined),
+        .filter((player): player is GamePlayerData => player !== undefined),
     [marketSlice, playersById],
   );
   const filteredList = listedPlayers;

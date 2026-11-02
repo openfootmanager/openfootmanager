@@ -4,6 +4,7 @@ import {
   asKnownPlayer,
   gameKnowledgeRevision,
   knowledgeRevision,
+  knownPlayers,
   visibleRatingText,
   visibleTraits,
   visibleWageText,
@@ -235,5 +236,25 @@ describe("asKnownPlayer", () => {
     };
 
     expect(asKnownPlayer(stranger)).toBeNull();
+  });
+});
+
+describe("knownPlayers", () => {
+  // Given game-state players, one the club knows and one it does not
+  // When a squad fallback builds its list from them
+  // Then only the known one comes through, whole, in order
+  it("keeps the players the club knows and drops the rest", () => {
+    const own: GamePlayerData = createPlayer({ id: "own", ovr: 71 });
+    const stranger: GamePlayerData = {
+      ...createPlayer({ id: "stranger" }),
+      attributes: null,
+      ovr: null,
+    };
+    const ownToo: GamePlayerData = createPlayer({ id: "own-too", ovr: 64 });
+
+    const players = knownPlayers([own, stranger, ownToo]);
+
+    expect(players.map((player) => player.id)).toEqual(["own", "own-too"]);
+    expect(players[0].ovr).toBe(71);
   });
 });

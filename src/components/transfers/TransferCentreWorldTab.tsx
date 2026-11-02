@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import type {
   CompletedTransferData,
   GameStateData,
-  PlayerData,
+  GamePlayerData,
   TeamData,
   TransferRumourData,
 } from "../../store/gameStore";
@@ -23,7 +23,7 @@ function sortByDateDesc<T extends { date: string }>(entries: T[]): T[] {
   return [...entries].sort((left, right) => right.date.localeCompare(left.date));
 }
 
-function playerMap(players: PlayerData[]): Map<string, PlayerData> {
+function playerMap(players: GamePlayerData[]): Map<string, GamePlayerData> {
   return new Map(players.map((player) => [player.id, player]));
 }
 
@@ -98,7 +98,7 @@ interface SectionProps {
 
 interface RumoursSectionProps extends SectionProps {
   rumours: TransferRumourData[];
-  playersById: Map<string, PlayerData>;
+  playersById: Map<string, GamePlayerData>;
 }
 
 function TransferRumoursSection({
@@ -180,7 +180,7 @@ function TransferRumoursSection({
 
 interface CompletedDealsSectionProps extends SectionProps {
   deals: CompletedTransferData[];
-  playersById: Map<string, PlayerData>;
+  playersById: Map<string, GamePlayerData>;
   teamsById: Map<string, TeamData>;
 }
 

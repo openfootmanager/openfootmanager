@@ -46,12 +46,12 @@ import {
   routedResponses,
   transferTestTranslation,
 } from "./TransfersTab.testFixtures";
-import type { PlayerData } from "../../store/gameStore";
+import type { GamePlayerData } from "../../store/gameStore";
 
 describe("TransfersTab", (): void => {
-  let marketPlayers: PlayerData[] = [];
-  let listedPlayers: PlayerData[] = [];
-  let offeredPlayers: PlayerData[] = [];
+  let marketPlayers: GamePlayerData[] = [];
+  let listedPlayers: GamePlayerData[] = [];
+  let offeredPlayers: GamePlayerData[] = [];
   let routes: ReturnType<typeof routedResponses>;
   beforeEach(function resetMocks(): void {
     mockedInvoke.mockReset();

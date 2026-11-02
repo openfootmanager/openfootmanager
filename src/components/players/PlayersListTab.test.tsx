@@ -2,7 +2,13 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 
-import type { GameStateData, PlayerData, StaffData, TeamData } from "../../store/gameStore";
+import type {
+  GamePlayerData,
+  GameStateData,
+  PlayerData,
+  StaffData,
+  TeamData,
+} from "../../store/gameStore";
 import { calcAge } from "../../lib/helpers";
 import type { PlayerSummary, PlayersPage, PlayersPageQuery } from "../../services/playersService";
 import { resetPackageAssetRoot } from "../../hooks/usePackageAssetSrc";
@@ -277,7 +283,7 @@ function groupPosition(pos: string): string {
   return "Forward";
 }
 
-function summaryFrom(player: PlayerData, teams: TeamData[]): PlayerSummary {
+function summaryFrom(player: GamePlayerData, teams: TeamData[]): PlayerSummary {
   const team_name = player.team_id
     ? (teams.find((t) => t.id === player.team_id)?.name ?? null)
     : null;

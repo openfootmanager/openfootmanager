@@ -28,6 +28,7 @@ import { calculateAvailableScouts } from "../scouting/ScoutingTab.helpers";
 import ScoutingYouthRecruitmentCard from "../scouting/ScoutingYouthRecruitmentCard";
 import { naturalPositionOf } from "../../lib/positions";
 import PlayerPositionBadge from "../PlayerPositionBadge";
+import { knownPlayers } from "../../lib/playerKnowledge";
 
 interface YouthAcademyTabProps {
   gameState: GameStateData | null;
@@ -144,7 +145,7 @@ export default function YouthAcademyTab({
     try {
       const updated = await setPlayerSquadRole(playerId, squadRole);
       onGameUpdate?.(updated);
-      setFetchedSquad(updated.players.filter((p) => p.team_id === teamId));
+      setFetchedSquad(knownPlayers(updated.players.filter((p) => p.team_id === teamId)));
     } catch {
       return;
     }

@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 
-import type { GameStateData, MessageAction, MessageData } from "../../store/gameStore";
+import type { GameStateData, MessageAction, MessageData, PlayerData } from "../../store/gameStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import InboxTab from "./InboxTab";
 import { createSeasonContext } from "../../test-utils/factories";
@@ -240,7 +240,7 @@ function createGameState(messages: MessageData[]): GameStateData {
   };
 }
 
-function createProspect(overrides: Partial<GameStateData["players"][number]> = {}) {
+function createProspect(overrides: Partial<PlayerData> = {}): PlayerData {
   return {
     id: "prospect-1",
     match_name: "R. Prospect",

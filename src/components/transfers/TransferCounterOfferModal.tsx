@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
-import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
+import type { GamePlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
 import { formatExactMoney, getTeamName } from "../../lib/helpers";
 import type { TransferNegotiationResponseData } from "../../services/transfersService";
 import NegotiationFeedbackPanel, {
@@ -13,7 +13,7 @@ import { parseTransferFeeInput } from "./TransfersTab.helpers";
 import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface TransferCounterTarget {
-  player: PlayerData;
+  player: GamePlayerData;
   offerId: string;
   fromTeamId: string;
   fee: number;

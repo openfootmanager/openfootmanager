@@ -29,6 +29,7 @@ import { ChevronRight, Crown, Footprints, CornerDownRight, CircleDot, Wand2 } fr
 import { naturalPositionOf } from "../../lib/positions";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import { currentCareerToken, invokeForCareer } from "../../services/careerInvoke";
+import { knownPlayers } from "../../lib/playerKnowledge";
 
 interface PreMatchSetupProps {
   snapshot: MatchSnapshot;
@@ -235,7 +236,7 @@ export default function PreMatchSetup({
       )
     : t("match.matchDay");
 
-  const allSquadPlayers = gameState.players.filter((p) => p.team_id === userTeam.id);
+  const allSquadPlayers = knownPlayers(gameState.players.filter((p) => p.team_id === userTeam.id));
   const userBench = userSide === "Home" ? (snapshot.home_bench ?? []) : (snapshot.away_bench ?? []);
 
   const formationNeeds = parseFormationNeeds(userTeam.formation);

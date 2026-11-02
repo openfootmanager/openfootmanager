@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData } from "../../store/gameStore";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
   clearContractExitIntent,
@@ -12,7 +12,7 @@ import {
 } from "../../services/contractService";
 
 interface UseContractActionsFlowArgs {
-  player: PlayerData;
+  player: GamePlayerData;
   onGameUpdate?: (game: GameStateData) => void;
 }
 

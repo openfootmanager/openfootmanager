@@ -1,5 +1,10 @@
 import { useTranslation } from "react-i18next";
-import type { LoanOfferData, PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
+import type {
+  LoanOfferData,
+  GamePlayerData,
+  TeamData,
+  TransferOfferData,
+} from "../../store/gameStore";
 import { formatDate } from "../../lib/dateFormatting";
 import { formatExactMoney, getTeamName } from "../../lib/helpers";
 import { getRelevantTransferOffers, getRelevantLoanOffers } from "./TransfersTab.model";
@@ -15,12 +20,12 @@ type SavedOffer =
   | { kind: "loan"; offer: LoanOfferData };
 
 interface PlayerOfferHistoryProps {
-  player: PlayerData;
+  player: GamePlayerData;
   userTeamId: string | null;
   teams: TeamData[];
 }
 
-function getPlayerOffers(player: PlayerData, userTeamId: string | null): SavedOffer[] {
+function getPlayerOffers(player: GamePlayerData, userTeamId: string | null): SavedOffer[] {
   if (!userTeamId) return [];
   const transfers: SavedOffer[] = getRelevantTransferOffers(player, userTeamId).map((offer) => ({
     kind: "transfer",

@@ -1,6 +1,5 @@
-import { getPlayerOvr } from "../../lib/helpers";
 import { useContractRiskLevels } from "../../hooks/useContractWarningStages";
-import type { PlayerData, GameStateData } from "../../store/gameStore";
+import type { GamePlayerData, GameStateData } from "../../store/gameStore";
 import { useTranslation } from "react-i18next";
 import { Select } from "../ui";
 import { getRoleOptions } from "../../lib/playerRoles";
@@ -53,7 +52,7 @@ import {
 import { usePlayerKnowledge } from "../../hooks/usePlayerKnowledge";
 
 interface PlayerProfileProps {
-  player: PlayerData;
+  player: GamePlayerData;
   gameState: GameStateData;
   isOwnClub: boolean;
   startWithRenewalModal?: boolean;
@@ -85,7 +84,8 @@ export default function PlayerProfile({
     gameState,
     onGameUpdate,
   });
-  const ovr = getPlayerOvr(player);
+  // His rating as the game state carries it: none when the club does not know him.
+  const ovr = player.ovr ?? null;
   const age = calcAgeOnDate(player.date_of_birth, gameState.clock.current_date);
   const revision = gameKnowledgeRevision(gameState, {
     playerClubId: player.team_id,
@@ -194,10 +194,12 @@ export default function PlayerProfile({
     !isManagerSquadProfile,
     gameState.clock.current_date,
   );
-  const attributesPlayer = scoutedReport
-    ? { ...player, attributes: scoutedReport.attributes }
-    : player;
-  const attrGroups = buildPlayerAttributeGroups(attributesPlayer, t);
+  // His attributes as the club may see them: his scout report's, else his own when the club knows
+  // him; none when it does not, and then the card shows no grid.
+  const visibleAttributes = scoutedReport?.attributes ?? player.attributes;
+  const attributesPlayer =
+    visibleAttributes === null ? null : { ...player, attributes: visibleAttributes };
+  const attrGroups = attributesPlayer ? buildPlayerAttributeGroups(attributesPlayer, t) : [];
 
   const {
     contractActionSubmitting,

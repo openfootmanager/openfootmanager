@@ -9,11 +9,14 @@ import {
 } from "recharts";
 import { useChartTheme } from "../ui/charts/chartTheme";
 import { ChartContainer } from "../ui/charts/ChartContainer";
-import type { PlayerData } from "../../store/gameStore";
-import { getPlayerAttributeEntry, type PlayerAttributeKey } from "./PlayerProfile.attributes";
+import {
+  getPlayerAttributeEntry,
+  type AttributedPlayer,
+  type PlayerAttributeKey,
+} from "./PlayerProfile.attributes";
 
 interface PlayerAttributeRadarChartProps {
-  player: PlayerData;
+  player: AttributedPlayer;
   isGk: boolean;
 }
 
@@ -49,7 +52,7 @@ const GK_RADAR_KEYS: readonly PlayerAttributeKey[] = [
 ];
 
 function buildRadarData(
-  player: PlayerData,
+  player: AttributedPlayer,
   keys: readonly PlayerAttributeKey[],
   translate: (key: string) => string,
 ): RadarEntry[] {

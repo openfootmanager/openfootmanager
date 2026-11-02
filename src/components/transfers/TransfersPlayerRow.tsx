@@ -2,7 +2,7 @@ import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { History } from "lucide-react";
 import type { MouseEventHandler } from "react";
-import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
+import type { LoanOfferData, GamePlayerData, TransferOfferData } from "../../store/gameStore";
 import { Badge, CountryFlag, PlayerAvatar } from "../ui";
 import ContextMenu from "../ContextMenu";
 import { getTeamName, calcAge, formatVal, formatWeeklyWage } from "../../lib/helpers";
@@ -42,7 +42,7 @@ type PlayerRowDetailsProps = {
     | "getDealEntryIcon"
     | "getDealEntryLabel"
   >;
-  player: PlayerData;
+  player: GamePlayerData;
   onContextMenu?: MouseEventHandler<HTMLTableRowElement>;
   age: number;
   /** His rating and wage as the club may see them (the market page's projection). */
@@ -79,7 +79,7 @@ type TransferPlayerRowProps = {
     | "handleExerciseLoanBuyOption"
     | "visibleOf"
   >;
-  player: PlayerData;
+  player: GamePlayerData;
 };
 
 export function PlayerRowDetails({

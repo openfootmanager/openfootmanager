@@ -41,6 +41,7 @@ import {
   resolveEffectiveMatchRoles,
 } from "./TacticsRoles.helpers";
 import { isMatchDayEligible } from "../../lib/playerSquad";
+import { knownPlayers } from "../../lib/playerKnowledge";
 
 interface UseTacticsLineupArgs {
   gameState: GameStateData | null;
@@ -75,7 +76,8 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   const dragPreviewRef = useRef<HTMLDivElement | null>(null);
 
   const team = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
-  const players = fetchedSquad ?? gameState?.players ?? [];
+  const players =
+    fetchedSquad ?? knownPlayers((gameState?.players ?? []).filter((p) => p.team_id === teamId));
   const roster = team ? buildTacticsRoster(players, team.id) : [];
 
   const formation = team?.formation || "4-4-2";

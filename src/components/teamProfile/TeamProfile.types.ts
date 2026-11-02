@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData, TeamData } from "../../store/gameStore";
 
 export interface TeamProfileProps {
   team: TeamData;
@@ -30,7 +30,7 @@ export interface ClubLeagueStanding {
 export type LeagueStanding = ClubLeagueStanding["standing"];
 
 export interface TeamProfileViewModel {
-  roster: PlayerData[];
+  roster: GamePlayerData[];
   totalWages: number;
   totalValue: number;
   manager: GameStateData["manager"] | null;

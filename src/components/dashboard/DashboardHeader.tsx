@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 
 import { getTeamName } from "../../lib/helpers";
 import { naturalPositionOf } from "../../lib/positions";
-import type { PlayerData, TeamData } from "../../store/gameStore";
+import type { GamePlayerData, TeamData } from "../../store/gameStore";
 import type { MatchModeType } from "../../hooks/useAdvanceTime";
 import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
 import {
@@ -40,7 +40,7 @@ interface DashboardHeaderProps {
   isUnemployed: boolean;
   isSaving: boolean;
   matchMode: MatchModeType;
-  matchedPlayers: PlayerData[];
+  matchedPlayers: GamePlayerData[];
   matchedTeams: TeamData[];
   modeMeta: Record<MatchModeType, DashboardMatchModeMeta>;
   onBack: () => void;
@@ -141,7 +141,7 @@ function keepFocusInSearch(event: MouseEvent): void {
 }
 
 function renderSearchResults(props: {
-  matchedPlayers: PlayerData[];
+  matchedPlayers: GamePlayerData[];
   matchedTeams: TeamData[];
   onSelectSearchPlayer: (playerId: string) => void;
   onSelectSearchTeam: (teamId: string) => void;

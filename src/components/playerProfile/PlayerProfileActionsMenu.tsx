@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { ChevronDown, Repeat, RotateCcw, TimerOff, Trash2, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData } from "../../store/gameStore";
 import type { ContractRiskLevel } from "../../lib/contractUtils";
 import ContextMenu, { type ContextMenuHandle, type ContextMenuItem } from "../ContextMenu";
 import {
@@ -23,9 +23,10 @@ import { setPlayerSquadRole, setStartingXi } from "../../services/squadService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { Button } from "../ui";
+import { knownPlayers } from "../../lib/playerKnowledge";
 
 interface PlayerProfileActionsMenuProps {
-  player: PlayerData;
+  player: GamePlayerData;
   gameState: GameStateData;
   isManagerOwnedProfile: boolean;
   isFreeAgent: boolean;
@@ -99,7 +100,9 @@ export default function PlayerProfileActionsMenu({
   const isInManagerSquad = isManagerOwnedProfile && managerTeam && player.team_id === managerTeamId;
 
   if (isInManagerSquad) {
-    const roster = gameState.players.filter((candidate) => candidate.team_id === managerTeamId);
+    const roster = knownPlayers(
+      gameState.players.filter((candidate) => candidate.team_id === managerTeamId),
+    );
     const available = roster.filter((candidate) => !candidate.injury);
     const formation = managerTeam.formation || "4-4-2";
     const startingXiIds = buildStartingXIIds(

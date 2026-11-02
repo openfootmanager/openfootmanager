@@ -2,7 +2,7 @@ import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 
 import { findNextFixture } from "../lib/fixtures";
 import { resolveLocalMediaPath } from "../lib/mediaAssets";
-import type { GameStateData, PlayerData } from "../store/gameStore";
+import type { GameStateData, GamePlayerData } from "../store/gameStore";
 
 export interface PlayerPortraitIdentity {
   id?: string | null;
@@ -84,11 +84,11 @@ function toPortraitRequest(player: PlayerPortraitIdentity) {
   };
 }
 
-function isPortraitEligiblePlayer(player: PlayerData): boolean {
+function isPortraitEligiblePlayer(player: GamePlayerData): boolean {
   return !player.retired && !resolveLocalMediaPath(player.media?.face);
 }
 
-export function selectManagerSquadPortraitPlayers(gameState: GameStateData): PlayerData[] {
+export function selectManagerSquadPortraitPlayers(gameState: GameStateData): GamePlayerData[] {
   const teamId = gameState.manager.team_id;
   if (!teamId) {
     return [];
@@ -102,7 +102,7 @@ export function selectManagerSquadPortraitPlayers(gameState: GameStateData): Pla
 export function selectBackgroundPortraitPlayers(
   gameState: GameStateData,
   limit = DEFAULT_BACKGROUND_PREWARM_LIMIT,
-): PlayerData[] {
+): GamePlayerData[] {
   const managerTeamId = gameState.manager.team_id;
   if (!managerTeamId) {
     return [];
@@ -134,7 +134,7 @@ export function selectBackgroundPortraitPlayers(
 
 function backgroundPortraitPrewarmKeyForPlayers(
   gameState: GameStateData,
-  players: PlayerData[],
+  players: GamePlayerData[],
 ): string {
   return [
     gameState.manager.id ?? "-",

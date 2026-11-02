@@ -1,7 +1,7 @@
 import type {
   GameStateData,
   LoanOfferData,
-  PlayerData,
+  GamePlayerData,
   PlayerSelectionOptions,
 } from "../../store/gameStore";
 export interface TransfersTabProps {
@@ -11,12 +11,12 @@ export interface TransfersTabProps {
   onGameUpdate?: (game: GameStateData) => void;
 }
 export type CounterTarget = {
-  player: PlayerData;
+  player: GamePlayerData;
   offerId: string;
   fromTeamId: string;
   fee: number;
 };
 export type LoanCounterTarget = {
-  player: PlayerData;
+  player: GamePlayerData;
   offer: LoanOfferData;
 };

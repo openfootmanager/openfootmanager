@@ -1,6 +1,6 @@
 import type {
   GameStateData,
-  PlayerData,
+  GamePlayerData,
   TransferOfferData,
   LoanOfferData,
 } from "../../store/gameStore";
@@ -8,16 +8,16 @@ import type {
 export type TransferTabView = "my_list" | "players" | "offers";
 
 export interface TransferCollections {
-  myTransferList: PlayerData[];
-  myLoanList: PlayerData[];
-  marketPlayers: PlayerData[];
-  freeAgentPlayers: PlayerData[];
-  loanPlayers: PlayerData[];
-  availablePlayers: PlayerData[];
-  playersWithOffers: PlayerData[];
+  myTransferList: GamePlayerData[];
+  myLoanList: GamePlayerData[];
+  marketPlayers: GamePlayerData[];
+  freeAgentPlayers: GamePlayerData[];
+  loanPlayers: GamePlayerData[];
+  availablePlayers: GamePlayerData[];
+  playersWithOffers: GamePlayerData[];
 }
 
-export function uniquePlayersById(players: PlayerData[]): PlayerData[] {
+export function uniquePlayersById(players: GamePlayerData[]): GamePlayerData[] {
   const seenPlayerIds = new Set<string>();
 
   return players.filter((player) => {
@@ -30,7 +30,7 @@ export function uniquePlayersById(players: PlayerData[]): PlayerData[] {
   });
 }
 
-export function getMyListedPlayers(collections: TransferCollections): PlayerData[] {
+export function getMyListedPlayers(collections: TransferCollections): GamePlayerData[] {
   return uniquePlayersById([...collections.myTransferList, ...collections.myLoanList]);
 }
 
@@ -41,7 +41,7 @@ export function getMyListedPlayers(collections: TransferCollections): PlayerData
  * a new bid — so they are hidden from the approachable lists and the bid flow
  * refuses further offers.
  */
-export function playerHasPendingRegistration(player: PlayerData): boolean {
+export function playerHasPendingRegistration(player: GamePlayerData): boolean {
   return (
     (player.transfer_offers ?? []).some((offer) => offer.status === "PendingRegistration") ||
     (player.loan_offers ?? []).some((offer) => offer.status === "PendingRegistration")
@@ -101,7 +101,7 @@ export function deriveTransferCollections(
 
 /** Saved offer records involving the current club; historical parent IDs keep loans reachable after registration. */
 export function getRelevantTransferOffers(
-  player: PlayerData,
+  player: GamePlayerData,
   userTeamId: string | null,
 ): TransferOfferData[] {
   if (!userTeamId) return [];
@@ -111,7 +111,7 @@ export function getRelevantTransferOffers(
 }
 
 export function getRelevantLoanOffers(
-  player: PlayerData,
+  player: GamePlayerData,
   userTeamId: string | null,
 ): LoanOfferData[] {
   if (!userTeamId) return [];
@@ -121,7 +121,10 @@ export function getRelevantLoanOffers(
 }
 
 /** Availability presentation uses saved facts; backend validation remains authoritative when a deal is submitted. */
-export function getPlayerDealBlocker(player: PlayerData, userTeamId: string | null): string | null {
+export function getPlayerDealBlocker(
+  player: GamePlayerData,
+  userTeamId: string | null,
+): string | null {
   if (player.retired) return "transfers.dealRetired";
   if (playerHasPendingRegistration(player)) return "transfers.dealAlreadyAgreed";
   if (player.active_loan) return "transfers.dealActiveLoan";

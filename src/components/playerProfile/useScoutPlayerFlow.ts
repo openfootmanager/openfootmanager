@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData } from "../../store/gameStore";
 import { sendScout as sendScoutRequest } from "../../services/scoutingService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import {
@@ -11,7 +11,7 @@ import {
 } from "./PlayerProfile.scouting";
 
 interface UseScoutPlayerFlowArgs {
-  player: PlayerData;
+  player: GamePlayerData;
   gameState: GameStateData;
   onGameUpdate?: (game: GameStateData) => void;
 }

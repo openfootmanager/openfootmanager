@@ -1,10 +1,10 @@
 import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { countryName } from "../../lib/countries";
-import { calcAge, formatVal, getPlayerOvr } from "../../lib/helpers";
+import { calcAge, formatVal } from "../../lib/helpers";
 import { knowsPlayerRating, visibleRatingText } from "../../lib/playerKnowledge";
 import type { PlayerKnowledge } from "../../services/scoutingService";
-import type { PlayerData } from "../../store/gameStore";
+import type { GamePlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewProfileMenuItem } from "../playerActions/playerContextMenuItems";
 import { Card, CardBody, CardHeader, CountryFlag, PlayerAvatar, ProgressBar } from "../ui";
@@ -13,7 +13,7 @@ import { naturalPositionOf } from "../../lib/positions";
 import PlayerPositionBadge from "../PlayerPositionBadge";
 
 interface TeamProfileRosterCardProps {
-  roster: PlayerData[];
+  roster: GamePlayerData[];
   /** What the club knows about each player, from the backend's one rule. */
   knowledgeOf: (playerId: string) => PlayerKnowledge;
   isOwnTeam: boolean;
@@ -69,7 +69,7 @@ export default function TeamProfileRosterCard({
             <tbody className="divide-y divide-gray-100 dark:divide-navy-600">
               {roster.map((player) => {
                 // The rating as the club may see it: its own player's, or a division rival's.
-                const ovr = knowsPlayerRating(knowledgeOf(player.id)) ? getPlayerOvr(player) : null;
+                const ovr = knowsPlayerRating(knowledgeOf(player.id)) ? (player.ovr ?? null) : null;
                 const age = calcAge(player.date_of_birth);
                 const contextItems = onSelectPlayer
                   ? [buildViewProfileMenuItem(t, () => onSelectPlayer(player.id))]

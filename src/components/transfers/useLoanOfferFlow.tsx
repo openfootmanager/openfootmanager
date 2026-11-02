@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData } from "../../store/gameStore";
 import { getErrorMessage, resolveTranslatedErrorMessage } from "../../utils/errorMessage";
 import { makeLoanOffer, type LoanOfferResponseData } from "../../services/transfersService";
 import {
@@ -48,7 +48,7 @@ export function useLoanOfferFlow({
     endDate: string;
     buyOptionFee?: number | null;
   } | null>(null);
-  const openLoanOffer = (player: PlayerData) => {
+  const openLoanOffer = (player: GamePlayerData) => {
     setLoanTargetId(player.id);
     setLoanPeriodId(getDefaultLoanPeriodId(loanRegistrationDate, player.contract_end));
     setLoanWageContributionPct(100);

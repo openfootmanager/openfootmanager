@@ -1,10 +1,10 @@
 import type { PositionTable } from "../../lib/positionTable";
 import { getPlayerWeeklyWageCommitment } from "../../lib/finance";
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData, TeamData } from "../../store/gameStore";
 
 import type { ClubLeagueStanding, TeamProfileViewModel } from "./TeamProfile.types";
 
-function sortRoster(players: PlayerData[], positions: PositionTable): PlayerData[] {
+function sortRoster(players: GamePlayerData[], positions: PositionTable): GamePlayerData[] {
   return [...players].sort((leftPlayer, rightPlayer) => {
     return positions.lineRankOf(leftPlayer.position) - positions.lineRankOf(rightPlayer.position);
   });

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
+  GamePlayerData,
   GameStateData,
   PlayerData,
   ScoutingAssignment,
@@ -272,7 +273,7 @@ function createGameState(options?: {
 describe("ScoutingTab", () => {
   // What the backend answers `get_players_page` with, and the other commands' canned answers; each
   // test that shows rows or calls a command says so. Nothing here filters players.
-  let marketPlayers: PlayerData[] = [];
+  let marketPlayers: GamePlayerData[] = [];
   let answers: Map<string, unknown>;
   const answer = (command: string, value: unknown) => answers.set(command, value);
   beforeEach(() => {

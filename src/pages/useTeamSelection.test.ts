@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { GameStateData, LeagueData } from "../store/gameStore";
+import type { GamePlayerData, GameStateData, LeagueData } from "../store/gameStore";
 import { createPlayer, createTeam } from "../test-utils/factories";
 import { useTeamSelection } from "./useTeamSelection";
 
@@ -199,5 +199,45 @@ describe("useTeamSelection home-region club filter", () => {
 
     expect(result.current.selectedHomeRegionId).toBeNull();
     expect(result.current.filteredTeams.map((team) => team.id)).toEqual(["team-gb"]);
+  });
+});
+
+describe("useTeamSelection team ratings", () => {
+  function renderWithPlayers(players: GamePlayerData[]) {
+    const gameState = { ...buildGameState(), players };
+    return renderHook(() =>
+      useTeamSelection({
+        gameState,
+        setGameState: vi.fn(),
+        setGameActive: vi.fn(),
+        navigate: vi.fn(),
+      }),
+    );
+  }
+
+  function hidden(id: string): GamePlayerData {
+    return { ...createPlayer({ id, team_id: "team-1" }), attributes: null, ovr: null };
+  }
+
+  // Given a club with two rated players and one whose rating the game state hides
+  // When the club's average is taken
+  // Then the hidden one is left out, not counted as zero
+  it("leaves a hidden rating out of the club's average", () => {
+    const { result } = renderWithPlayers([
+      createPlayer({ id: "a", team_id: "team-1", ovr: 70 }),
+      createPlayer({ id: "b", team_id: "team-1", ovr: 61 }),
+      hidden("c"),
+    ]);
+
+    expect(result.current.getTeamAvgOvr("team-1")).toBe(66);
+  });
+
+  // Given a club none of whose ratings are known
+  // When the club's average is taken
+  // Then there is no average to show
+  it("has no average for a club whose ratings are all hidden", () => {
+    const { result } = renderWithPlayers([hidden("a"), hidden("b")]);
+
+    expect(result.current.getTeamAvgOvr("team-1")).toBeNull();
   });
 });

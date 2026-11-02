@@ -2,7 +2,7 @@ import { useRatingTiers } from "../../hooks/useRatingTiers";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { Shield } from "lucide-react";
 import { countryName } from "../../lib/countries";
-import type { PlayerData } from "../../store/gameStore";
+import type { GamePlayerData } from "../../store/gameStore";
 import ContextMenu from "../ContextMenu";
 import { buildViewTeamMenuItem } from "../playerActions/playerContextMenuItems";
 import { translatePositionLabel } from "../squad/SquadTab.helpers";
@@ -20,7 +20,7 @@ type TranslateFn = (key: string, options?: Record<string, string | number>) => s
 const NO_DATA = "–";
 
 interface PlayerProfileHeroCardProps {
-  player: PlayerData;
+  player: GamePlayerData;
   /** Null when the club does not know his rating: the tile reads "–" and takes no tier colour. */
   ovr: number | null;
   primaryPosition: string;

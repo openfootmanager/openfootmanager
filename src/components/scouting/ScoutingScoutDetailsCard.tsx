@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import type { PlayerData, ScoutingAssignment, StaffData } from "../../store/gameStore";
+import type { GamePlayerData, ScoutingAssignment, StaffData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
 import { Badge, Card, CardBody, CardHeader, CountryFlag, ProgressBar } from "../ui";
 import { Eye } from "lucide-react";
@@ -9,7 +9,7 @@ import { scoutAssignmentCount, scoutMaxSlots } from "./ScoutingTab.helpers";
 interface ScoutingScoutDetailsCardProps {
   scouts: StaffData[];
   assignments: ScoutingAssignment[];
-  players: PlayerData[];
+  players: GamePlayerData[];
 }
 
 export default function ScoutingScoutDetailsCard({

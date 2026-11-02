@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-import type { PlayerData } from "../../store/gameStore";
+import type { GamePlayerData } from "../../store/gameStore";
 import { buildPlayerAdvancedStats, type PlayerAdvancedStatsSummary } from "./PlayerProfile.helpers";
 import type { PlayerRecentMatchEntry } from "./PlayerProfileRecentMatchesCard";
 
 const RECENT_MATCH_LIMIT = 5;
 
 interface UsePlayerProfileDataArgs {
-  player: PlayerData;
+  player: GamePlayerData;
   /** The game date: the league peer group changes with a transfer or a split season's second half. */
   currentDate: string;
 }

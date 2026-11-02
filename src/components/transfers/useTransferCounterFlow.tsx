@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { GameStateData, PlayerData, TransferOfferData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData, TransferOfferData } from "../../store/gameStore";
 import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import {
   counterOffer,
@@ -27,7 +27,7 @@ export function useTransferCounterFlow({ onGameUpdate, t }: Input) {
     TransferNegotiationResponseData["decision"] | "error" | null
   >(null);
   const [counterFeedback, setCounterFeedback] = useState<NegotiationFeedbackPanelData | null>(null);
-  const openCounterNegotiation = (player: PlayerData, offer: TransferOfferData) => {
+  const openCounterNegotiation = (player: GamePlayerData, offer: TransferOfferData) => {
     setCounterTarget({
       player,
       offerId: offer.id,

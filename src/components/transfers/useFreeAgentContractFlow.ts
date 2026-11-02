@@ -6,7 +6,7 @@ import {
   shouldDisableRenewalSubmit,
   type RenewalStatus,
 } from "../playerProfile/PlayerProfile.renewal";
-import type { GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData, TeamData } from "../../store/gameStore";
 import {
   getFreeAgentOpeningOffer,
   offerFreeAgentContract,
@@ -24,7 +24,7 @@ interface UseFreeAgentContractFlowArgs {
 const MAX_CONTRACT_YEARS = 5;
 
 interface UseFreeAgentContractFlowResult {
-  freeAgentTarget: PlayerData | null;
+  freeAgentTarget: GamePlayerData | null;
   contractWage: string;
   setContractWage: (value: string) => void;
   contractLength: string;
@@ -38,7 +38,7 @@ interface UseFreeAgentContractFlowResult {
   contractStatusMessage: (t: TranslateFn) => string | null;
   contractStatusClassName: string;
   myTeam: TeamData | null;
-  openFreeAgentContract: (player: PlayerData) => void;
+  openFreeAgentContract: (player: GamePlayerData) => void;
   closeFreeAgentContract: () => void;
   submitFreeAgentContract: () => Promise<void>;
 }
@@ -140,7 +140,7 @@ export function useFreeAgentContractFlow({
     };
   }, [freeAgentTargetId]);
 
-  const openFreeAgentContract = (player: PlayerData): void => {
+  const openFreeAgentContract = (player: GamePlayerData): void => {
     setFreeAgentTargetId(player.id);
     setContractWage("");
     setContractLength("");

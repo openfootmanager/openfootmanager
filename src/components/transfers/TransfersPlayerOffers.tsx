@@ -1,4 +1,4 @@
-import type { LoanOfferData, PlayerData, TransferOfferData } from "../../store/gameStore";
+import type { LoanOfferData, GamePlayerData, TransferOfferData } from "../../store/gameStore";
 import { Badge } from "../ui";
 import { ShoppingCart, Gavel, Check, X } from "lucide-react";
 import { getTeamName, formatExactMoney } from "../../lib/helpers";
@@ -10,7 +10,7 @@ type TransferOfferRecordProps = {
     "gameState" | "t" | "userTeamId" | "handleRespondOffer" | "openCounterNegotiation"
   >;
   offer: TransferOfferData;
-  player: PlayerData;
+  player: GamePlayerData;
 };
 type LoanOfferRecordProps = {
   state: Pick<
@@ -23,7 +23,7 @@ type LoanOfferRecordProps = {
     | "handleExerciseLoanBuyOption"
   >;
   offer: LoanOfferData;
-  player: PlayerData;
+  player: GamePlayerData;
 };
 type PlayerOffersCellProps = {
   state: Pick<
@@ -40,7 +40,7 @@ type PlayerOffersCellProps = {
   >;
   hasOffersForThisPlayer: boolean;
   transferOffersForThisPlayer: TransferOfferData[];
-  player: PlayerData;
+  player: GamePlayerData;
   loanOffersForThisPlayer: LoanOfferData[];
 };
 

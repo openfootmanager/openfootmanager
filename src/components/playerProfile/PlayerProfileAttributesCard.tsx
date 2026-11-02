@@ -2,15 +2,15 @@ import { Fragment, useState, type ReactNode } from "react";
 import { Shield } from "lucide-react";
 import { getAttributeColorClass } from "./PlayerProfile.helpers";
 import { getAttributeColors } from "../../lib/playerAttributeDisplay";
-import type { PlayerAttributeGroup } from "./PlayerProfile.attributes";
-import type { PlayerData } from "../../store/gameStore";
+import type { AttributedPlayer, PlayerAttributeGroup } from "./PlayerProfile.attributes";
 import { Card, CardBody, CardHeader, ProgressBar } from "../ui";
 import { PlayerAttributeRadarChart } from "./PlayerAttributeRadarChart";
 import PlayerProfileStatCard from "./PlayerProfileStatCard";
 
 interface PlayerProfileAttributesCardProps {
   attrGroups: PlayerAttributeGroup[];
-  player: PlayerData;
+  /** None when the club does not know his attributes: then the card shows no grid. */
+  player: AttributedPlayer | null;
   attributesVisible: boolean;
   scoutNote?: { scoutedLabel: string; outOfDate: boolean; outOfDateLabel: string };
   /** The club's opinion of his potential, shown above his attributes when it holds one. */
@@ -39,12 +39,13 @@ export default function PlayerProfileAttributesCard({
   radarLabel,
 }: PlayerProfileAttributesCardProps) {
   const [view, setView] = useState<"list" | "radar">("list");
+  const showsAttributes = attributesVisible && player !== null;
 
   return (
     <Card className="lg:col-span-2">
       <CardHeader
         action={
-          attributesVisible ? (
+          showsAttributes ? (
             <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-navy-600 text-[10px] font-heading font-bold uppercase tracking-wider">
               <button
                 type="button"
@@ -70,7 +71,7 @@ export default function PlayerProfileAttributesCard({
       </CardHeader>
       <CardBody>
         {potentialOpinion}
-        {attributesVisible && scoutNote ? (
+        {showsAttributes && scoutNote ? (
           <p className="mb-3 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <span>{scoutNote.scoutedLabel}</span>
             {scoutNote.outOfDate ? (
@@ -80,9 +81,9 @@ export default function PlayerProfileAttributesCard({
             ) : null}
           </p>
         ) : null}
-        {attributesVisible && view === "radar" ? (
+        {showsAttributes && view === "radar" ? (
           <PlayerAttributeRadarChart player={player} isGk={isGk} />
-        ) : attributesVisible ? (
+        ) : showsAttributes ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:auto-rows-fr">
             {attrGroups.map((group) => (
               <PlayerProfileStatCard

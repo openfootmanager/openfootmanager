@@ -1,4 +1,4 @@
-import type { PlayerData } from "../store/gameStore";
+import type { GamePlayerData } from "../store/gameStore";
 
 /** Stored wages and wage budgets are already weekly euros. */
 export function weeklyWageAmount(amount: number): number {
@@ -13,7 +13,10 @@ function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, value));
 }
 
-export function getPlayerWeeklyWageCommitment(player: PlayerData, teamId?: string | null): number {
+export function getPlayerWeeklyWageCommitment(
+  player: GamePlayerData,
+  teamId?: string | null,
+): number {
   const weeklyWage = Math.max(0, player.wage);
 
   if (!teamId) {

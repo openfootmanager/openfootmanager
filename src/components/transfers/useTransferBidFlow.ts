@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData, PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
+import type {
+  GameStateData,
+  GamePlayerData,
+  TeamData,
+  TransferOfferData,
+} from "../../store/gameStore";
 import {
   type BidNegotiationStatusData,
   getBidNegotiationStatus,
@@ -23,7 +28,7 @@ interface UseTransferBidFlowArgs {
 }
 
 interface UseTransferBidFlowResult {
-  bidTarget: PlayerData | null;
+  bidTarget: GamePlayerData | null;
   bidAmount: string;
   setBidAmount: (value: string) => void;
   bidResult: TransferNegotiationResponseData["decision"] | "error" | null;
@@ -39,7 +44,7 @@ interface UseTransferBidFlowResult {
   myTeam: TeamData | null;
   hasExistingOffer: boolean;
   bidSubmitDisabled: boolean;
-  openBidNegotiation: (player: PlayerData) => void;
+  openBidNegotiation: (player: GamePlayerData) => void;
   closeBidNegotiation: () => void;
   handleMakeBid: () => Promise<void>;
 }
@@ -148,7 +153,7 @@ export function useTransferBidFlow({
     };
   }, [bidFee, bidTarget]);
 
-  const openBidNegotiation = (player: PlayerData): void => {
+  const openBidNegotiation = (player: GamePlayerData): void => {
     resumedFor.current = null;
     setOpenings((count) => count + 1);
     setBidTargetId(player.id);

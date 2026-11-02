@@ -1,7 +1,11 @@
 import type { TFunction } from "i18next";
 
-import type { GameStateData, LeagueData, PlayerData, WorldRegionData } from "../store/gameStore";
-import { getPlayerOvr } from "../lib/helpers";
+import type {
+  GamePlayerData,
+  GameStateData,
+  LeagueData,
+  WorldRegionData,
+} from "../store/gameStore";
 import { buildRegionLabel } from "../lib/teamRegions";
 
 export function competitionScopeLabel(t: TFunction, scope?: string): string | null {
@@ -74,8 +78,21 @@ export function teamCompetitions(teamId: string, competitions: LeagueData[]): Le
   );
 }
 
-export function likelyXi(players: PlayerData[]): PlayerData[] {
-  return [...players].sort((left, right) => getPlayerOvr(right) - getPlayerOvr(left)).slice(0, 11);
+/** A rating for sorting best first: a hidden one sorts last, below every known rating. */
+function sortableRating(player: GamePlayerData): number {
+  return player.ovr ?? Number.NEGATIVE_INFINITY;
+}
+
+/** The eleven best-rated players, best first; a player whose rating is hidden comes last. */
+export function likelyXi<P extends GamePlayerData>(players: P[]): P[] {
+  return [...players]
+    .sort((left, right) => {
+      const leftRating = sortableRating(left);
+      const rightRating = sortableRating(right);
+      if (leftRating === rightRating) return 0;
+      return rightRating > leftRating ? 1 : -1;
+    })
+    .slice(0, 11);
 }
 
 export function sortCompetitions(competitions: LeagueData[]): LeagueData[] {

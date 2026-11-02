@@ -1,7 +1,7 @@
 import { BadgeEuro, CalendarClock, CalendarDays, Percent } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { PlayerData, TeamData } from "../../store/gameStore";
+import type { GamePlayerData, TeamData } from "../../store/gameStore";
 import { formatExactMoney, formatVal, getTeamName } from "../../lib/helpers";
 import { visibleWageText } from "../../lib/playerKnowledge";
 import type { VisibleWage } from "../../services/scoutingService";
@@ -12,7 +12,7 @@ import type { LoanPeriodOption, LoanPeriodOptionId } from "./TransfersTab.helper
 import PlayerPositionBadge from "../PlayerPositionBadge";
 
 export interface LoanOfferFormProps {
-  loanTarget: PlayerData;
+  loanTarget: GamePlayerData;
   /** His wage as the club may see it: the share the offer would cover is worked out from this. */
   visibleWage: VisibleWage;
   teams: TeamData[];

@@ -30,4 +30,20 @@ describe("TeamSelectionSidebar", () => {
     expect(screen.getByText("common.positions.LeftBack")).toBeInTheDocument();
     expect(screen.queryByText("Defender")).not.toBeInTheDocument();
   });
+
+  // Given a key player whose rating the game state hides, and a club with no known average
+  // When the sidebar lists them
+  // Then both read "–", not a number
+  it("shows a dash for a hidden rating and for a club with no known average", () => {
+    render(
+      <TeamSelectionSidebar
+        selectedTeam={createTeam()}
+        selectedTeamXi={[{ ...createPlayer({ id: "hidden" }), attributes: null, ovr: null }]}
+        selectedTeamCompetitions={[]}
+        getTeamAvgOvr={() => null}
+      />,
+    );
+
+    expect(screen.getAllByText("–")).toHaveLength(2);
+  });
 });

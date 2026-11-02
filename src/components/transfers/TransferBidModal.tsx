@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { AlertTriangle } from "lucide-react";
 
-import type { PlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
+import type { GamePlayerData, TeamData, TransferOfferData } from "../../store/gameStore";
 import { formatDateFull, formatExactMoney, formatVal, getTeamName } from "../../lib/helpers";
 import type {
   TransferBidProjectionData,
@@ -17,7 +17,7 @@ import { playerHasPendingRegistration } from "./TransfersTab.model";
 import PlayerPositionBadge from "../PlayerPositionBadge";
 
 export interface TransferBidFormProps {
-  bidTarget: PlayerData;
+  bidTarget: GamePlayerData;
   teams: TeamData[];
   bidAmount: string;
   onBidAmountChange: (value: string) => void;

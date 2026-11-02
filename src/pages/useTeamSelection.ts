@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData, LeagueData, PlayerData, TeamData } from "../store/gameStore";
-import { getActiveCompetitions, getPlayerOvr } from "../lib/helpers";
+import type { GameStateData, GamePlayerData, LeagueData, TeamData } from "../store/gameStore";
+import { getActiveCompetitions } from "../lib/helpers";
 import { buildRegionLabel } from "../lib/teamRegions";
 import { competitionDisplayName } from "../lib/competitionName";
 import { resolveBackendError } from "../utils/backendI18n";
@@ -235,15 +235,17 @@ export function useTeamSelection({
     }
   }, [selectedTeamId, teams]);
 
-  const getTeamPlayers = (teamId: string): PlayerData[] =>
+  // Until the team selection projection (plan W0e): before a career no club knows anyone.
+  const getTeamPlayers = (teamId: string): GamePlayerData[] =>
     (gameState?.players ?? []).filter((player) => player.team_id === teamId);
 
-  const getTeamAvgOvr = (teamId: string): number => {
-    const players = getTeamPlayers(teamId);
-    if (players.length === 0) return 0;
-    return Math.round(
-      players.reduce((sum, player) => sum + getPlayerOvr(player), 0) / players.length,
+  /** A club's average rating over the ratings the game state shows; null when it shows none. */
+  const getTeamAvgOvr = (teamId: string): number | null => {
+    const ratings = getTeamPlayers(teamId).flatMap((player) =>
+      player.ovr === null || player.ovr === undefined ? [] : [player.ovr],
     );
+    if (ratings.length === 0) return null;
+    return Math.round(ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length);
   };
 
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0] ?? null;

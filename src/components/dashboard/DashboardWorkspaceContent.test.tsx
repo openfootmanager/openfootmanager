@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchRetiredPlayer } from "../../services/retireesService";
-import type { GameStateData } from "../../store/gameStore";
+import type { GameStateData, PlayerData } from "../../store/gameStore";
 import {
   createDashboardProfileNavigationState,
   selectDashboardPlayer,
@@ -82,6 +82,65 @@ vi.mock("./DashboardTabContent", () => ({
     <div>Tab Content {viewModel.activeTab}</div>
   ),
 }));
+
+/** The club's one player, whole, as `get_squad` or the retirees archive sends him. */
+function createRosterPlayer(): PlayerData {
+  return {
+    id: "player-1",
+    match_name: "J. Smith",
+    full_name: "John Smith",
+    date_of_birth: "2000-01-01",
+    nationality: "GB",
+    position: "Forward",
+    natural_position: "Forward",
+    alternate_positions: [],
+    training_focus: null,
+    attributes: {
+      pace: 60,
+      stamina: 60,
+      strength: 60,
+      agility: 60,
+      passing: 60,
+      shooting: 60,
+      tackling: 60,
+      dribbling: 60,
+      defending: 60,
+      positioning: 60,
+      vision: 60,
+      decisions: 60,
+      composure: 60,
+      aggression: 60,
+      teamwork: 60,
+      leadership: 60,
+      handling: 20,
+      reflexes: 20,
+      aerial: 60,
+    },
+    condition: 80,
+    morale: 75,
+    injury: null,
+    team_id: "team-1",
+    retired: false,
+    contract_end: "2026-10-15",
+    wage: 12000,
+    market_value: 350000,
+    stats: {
+      appearances: 0,
+      goals: 0,
+      assists: 0,
+      clean_sheets: 0,
+      yellow_cards: 0,
+      red_cards: 0,
+      avg_rating: 0,
+      minutes_played: 0,
+    },
+    career: [],
+    transfer_listed: false,
+    loan_listed: false,
+    transfer_offers: [],
+    traits: [],
+  };
+}
 
 function createGameState(): GameStateData {
   return {
@@ -165,63 +224,7 @@ function createGameState(): GameStateData {
         history: [],
       },
     ],
-    players: [
-      {
-        id: "player-1",
-        match_name: "J. Smith",
-        full_name: "John Smith",
-        date_of_birth: "2000-01-01",
-        nationality: "GB",
-        position: "Forward",
-        natural_position: "Forward",
-        alternate_positions: [],
-        training_focus: null,
-        attributes: {
-          pace: 60,
-          stamina: 60,
-          strength: 60,
-          agility: 60,
-          passing: 60,
-          shooting: 60,
-          tackling: 60,
-          dribbling: 60,
-          defending: 60,
-          positioning: 60,
-          vision: 60,
-          decisions: 60,
-          composure: 60,
-          aggression: 60,
-          teamwork: 60,
-          leadership: 60,
-          handling: 20,
-          reflexes: 20,
-          aerial: 60,
-        },
-        condition: 80,
-        morale: 75,
-        injury: null,
-        team_id: "team-1",
-        retired: false,
-        contract_end: "2026-10-15",
-        wage: 12000,
-        market_value: 350000,
-        stats: {
-          appearances: 0,
-          goals: 0,
-          assists: 0,
-          clean_sheets: 0,
-          yellow_cards: 0,
-          red_cards: 0,
-          avg_rating: 0,
-          minutes_played: 0,
-        },
-        career: [],
-        transfer_listed: false,
-        loan_listed: false,
-        transfer_offers: [],
-        traits: [],
-      },
-    ],
+    players: [createRosterPlayer()],
     staff: [],
     messages: [],
     news: [],
@@ -351,7 +354,7 @@ describe("DashboardWorkspaceContent", () => {
    */
   it("opens the profile of a player who is not in the roster by fetching him", async () => {
     const gameState = createGameState();
-    const archived = { ...gameState.players[0], id: "archived-legend", retired: true };
+    const archived = { ...createRosterPlayer(), id: "archived-legend", retired: true };
     mockedFetchRetiredPlayer.mockResolvedValue(archived);
     const profileNavigation = selectDashboardPlayer(
       createDashboardProfileNavigationState("HallOfFame"),

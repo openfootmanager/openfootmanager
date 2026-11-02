@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useTranslation } from "react-i18next";
 
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData } from "../../store/gameStore";
 import { resolveBackendText } from "../../utils/backendI18n";
 import { invokeForCareer } from "../../services/careerInvoke";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
@@ -19,7 +19,7 @@ import {
 } from "./PlayerProfile.renewal";
 
 interface UseContractRenewalFlowArgs {
-  player: PlayerData;
+  player: GamePlayerData;
   gameState: GameStateData;
   /** Whether the manager's club employs an assistant who could take the talks. */
   hasAssistantManager: boolean;

@@ -1,4 +1,4 @@
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData } from "../../store/gameStore";
 
 export interface PlayerProfileRelationship {
   /** The manager's club, or null when they are between jobs. */
@@ -29,7 +29,7 @@ export interface PlayerProfileRelationship {
  * `isManagerSquadProfile` and `isManagerOwnedProfile` are separate answers.
  */
 export function buildPlayerProfileRelationship(
-  player: PlayerData,
+  player: GamePlayerData,
   gameState: GameStateData,
   isOwnClub: boolean,
 ): PlayerProfileRelationship {

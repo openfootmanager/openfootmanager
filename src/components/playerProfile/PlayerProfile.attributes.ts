@@ -15,6 +15,9 @@ export interface PlayerAttributeGroup {
 }
 
 export type PlayerAttributeKey = keyof PlayerData["attributes"];
+
+/** What the attribute grid and radar read of a player: his attributes, and whether he keeps goal. */
+export type AttributedPlayer = Pick<PlayerData, "attributes" | "position" | "natural_position">;
 type AttributeGroupKey = "physical" | "technical" | "mental" | "goalkeeper";
 
 // Single source of truth for the profile display. Every attribute in
@@ -77,11 +80,11 @@ function createAttributeGroup(label: string, attrs: PlayerAttributeEntry[]): Pla
 // radar keys agree on who is a goalkeeper. Prefers natural_position (same as
 // primaryPosition in PlayerProfile) so temporary re-deployments don't hide GK
 // attributes from a natural keeper's card.
-export function isGoalkeeper(player: PlayerData): boolean {
+export function isGoalkeeper(player: Pick<PlayerData, "position" | "natural_position">): boolean {
   return naturalPositionOf(player) === "Goalkeeper";
 }
 
-function isGroupApplicable(group: AttributeGroupKey, player: PlayerData): boolean {
+function isGroupApplicable(group: AttributeGroupKey, player: AttributedPlayer): boolean {
   if (group === "goalkeeper") {
     return isGoalkeeper(player);
   }
@@ -89,7 +92,7 @@ function isGroupApplicable(group: AttributeGroupKey, player: PlayerData): boolea
 }
 
 export function buildPlayerAttributeGroups(
-  player: PlayerData,
+  player: AttributedPlayer,
   translate: TranslateFn,
 ): PlayerAttributeGroup[] {
   const buckets = new Map<AttributeGroupKey, PlayerAttributeEntry[]>();
@@ -121,7 +124,7 @@ export function buildPlayerAttributeGroups(
  * reordering `ATTRIBUTE_META` above doesn't silently swap what they render.
  */
 export function getPlayerAttributeEntry(
-  player: PlayerData,
+  player: AttributedPlayer,
   key: PlayerAttributeKey,
   translate: TranslateFn,
 ): PlayerAttributeEntry {

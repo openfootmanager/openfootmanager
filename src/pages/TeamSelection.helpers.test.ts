@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TFunction } from "i18next";
 
-import type { FixtureData, LeagueData } from "../store/types";
+import type { FixtureData, GamePlayerData, LeagueData } from "../store/types";
 import type { GameStateData } from "../store/gameStore";
 import { getPlayerOvr } from "../lib/helpers";
 import { createPlayer, createTeam } from "../test-utils/factories";
@@ -107,6 +107,24 @@ describe("likelyXi", () => {
     for (let i = 1; i < result.length; i += 1) {
       expect(getPlayerOvr(result[i - 1])).toBeGreaterThanOrEqual(getPlayerOvr(result[i]));
     }
+  });
+
+  // Given a squad in which one player's rating is hidden
+  // When the likely XI is picked
+  // Then the hidden one sorts last, below every known rating
+  it("puts a player whose rating is hidden last", () => {
+    const hiddenPlayer: GamePlayerData = {
+      ...createPlayer({ id: "hidden" }),
+      attributes: null,
+      ovr: null,
+    };
+    const players: GamePlayerData[] = [
+      hiddenPlayer,
+      createPlayer({ id: "low", ovr: 40 }),
+      createPlayer({ id: "high", ovr: 80 }),
+    ];
+
+    expect(likelyXi(players).map((player) => player.id)).toEqual(["high", "low", "hidden"]);
   });
 
   it("returns all players when fewer than 11 are provided", () => {

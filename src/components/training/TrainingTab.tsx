@@ -25,6 +25,7 @@ import { Card, CardBody, CardHeader, ProgressBar, TONE_TEXT } from "../ui";
 import TrainingGroupsCard from "./TrainingGroupsCard";
 import TrainingSettingsPanel from "./TrainingSettingsPanel";
 import { getTrainingStaffAdvice } from "./trainingAdvice";
+import { knownPlayers } from "../../lib/playerKnowledge";
 
 interface TrainingTabProps {
   gameState: GameStateData | null;
@@ -109,7 +110,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
   const currentSchedule = team.training_schedule || "Balanced";
 
   const allSquadPlayers =
-    fetchedSquad ?? gameState?.players.filter((p) => p.team_id === teamId) ?? [];
+    fetchedSquad ?? knownPlayers(gameState?.players.filter((p) => p.team_id === teamId) ?? []);
   const roster = allSquadPlayers.filter(isFirstTeamSquadPlayer);
   // Fitness is the backend's: injured players are not in the squad that can play.
   const avgCondition =
@@ -232,7 +233,7 @@ export default function TrainingTab({ gameState, onGameUpdate }: TrainingTabProp
             // clock-advance or remount. Same pattern the youth-promote fix
             // uses (PR #308).
             if (teamId) {
-              setFetchedSquad(game.players.filter((p) => p.team_id === teamId));
+              setFetchedSquad(knownPlayers(game.players.filter((p) => p.team_id === teamId)));
             }
           }}
           roster={roster}

@@ -1,5 +1,6 @@
 import type { SquadFitness } from "../../services/squadService";
-import type { FixtureData, GameStateData, PlayerData, TeamData } from "../../store/gameStore";
+import type { FixtureData, GameStateData, GamePlayerData, TeamData } from "../../store/gameStore";
+import { knownPlayers } from "../../lib/playerKnowledge";
 import { formatVal } from "../../lib/helpers";
 import { competitionDisplayName } from "../../lib/competitionName";
 import { getAllFixturesAcrossCompetitions } from "../../lib/fixtures";
@@ -16,7 +17,7 @@ export interface DashboardAlert {
 }
 
 export interface DashboardSearchResults {
-  matchedPlayers: PlayerData[];
+  matchedPlayers: GamePlayerData[];
   matchedTeams: TeamData[];
 }
 
@@ -119,7 +120,9 @@ export function getDashboardAlerts(
 ): DashboardAlert[] {
   const alerts: DashboardAlert[] = [];
   const myTeam = gameState.teams.find((team) => team.id === gameState.manager.team_id);
-  const roster = myTeam ? gameState.players.filter((player) => player.team_id === myTeam.id) : [];
+  const roster = myTeam
+    ? knownPlayers(gameState.players.filter((player) => player.team_id === myTeam.id))
+    : [];
   // Players in a critical state, as the backend counts them (injured players are not in the squad
   // that can play).
   const exhaustedCount = fitness?.critical_count ?? 0;

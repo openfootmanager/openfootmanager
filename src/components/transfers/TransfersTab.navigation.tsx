@@ -2,10 +2,10 @@ import { TrendingUp, ShoppingCart, Handshake } from "lucide-react";
 import type { TransferTabView } from "./TransfersTab.model";
 import type { TFunction } from "i18next";
 import type { TransferCollections } from "./TransfersTab.model";
-import type { PlayerData } from "../../store/gameStore";
+import type { GamePlayerData } from "../../store/gameStore";
 interface Input {
   collections: TransferCollections;
-  myListedPlayers: PlayerData[];
+  myListedPlayers: GamePlayerData[];
   t: TFunction<"translation", undefined>;
 }
 export function getTransferNavigation({ collections, myListedPlayers, t }: Input) {

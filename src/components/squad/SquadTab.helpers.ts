@@ -1,7 +1,7 @@
 export { CORE_POSITIONS, normalisePosition } from "../../lib/positions";
 import { canonicalPosition, naturalPositionOf, normalisePosition } from "../../lib/positions";
 
-import type { PlayerData } from "../../store/gameStore";
+import type { GamePlayerData, PlayerData } from "../../store/gameStore";
 import { getPlayerOvr } from "../../lib/helpers";
 import { isMatchDayEligible } from "../../lib/playerSquad";
 
@@ -137,7 +137,7 @@ export function getCurrentPosition(
   return xiActivePosition.get(player.id) || naturalPositionOf(player);
 }
 
-export function getPreferredPositions(player: PlayerData): string[] {
+export function getPreferredPositions(player: GamePlayerData): string[] {
   return [
     ...new Set(
       [naturalPositionOf(player), ...(player.alternate_positions || [])]
@@ -383,7 +383,7 @@ export function buildActivePositionMap(pitchSlotRows: PitchSlotRow[]): Map<strin
   return map;
 }
 
-export function isPlayerOutOfPosition(player: PlayerData, currentPos: string): boolean {
+export function isPlayerOutOfPosition(player: GamePlayerData, currentPos: string): boolean {
   const canonicalCurrentPos = canonicalPosition(currentPos);
   const normalizedCurrentPos = normalisePosition(currentPos);
   return !getPreferredPositions(player).some(
@@ -392,7 +392,7 @@ export function isPlayerOutOfPosition(player: PlayerData, currentPos: string): b
   );
 }
 
-export function isPlayerExactForSlot(player: PlayerData, currentPos: string): boolean {
+export function isPlayerExactForSlot(player: GamePlayerData, currentPos: string): boolean {
   return canonicalPosition(naturalPositionOf(player)) === canonicalPosition(currentPos);
 }
 

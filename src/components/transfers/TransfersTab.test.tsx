@@ -48,7 +48,7 @@ import {
   transferTestTranslation,
 } from "./TransfersTab.testFixtures";
 import type { PlayersPage, PlayersPageQuery } from "../../services/playersService";
-import type { PlayerData } from "../../store/gameStore";
+import type { GamePlayerData } from "../../store/gameStore";
 
 describe("TransfersTab", (): void => {
   // What the backend answers `get_players_page` with; each test that shows market rows says which.
@@ -56,7 +56,7 @@ describe("TransfersTab", (): void => {
   let routes: ReturnType<typeof routedResponses>;
   // The backend answers each list of the centre separately; a test says who is on the one it shows.
   const answerList =
-    (scope: PlayersPageQuery["scope"], players: PlayerData[]) =>
+    (scope: PlayersPageQuery["scope"], players: GamePlayerData[]) =>
     (query: PlayersPageQuery): PlayersPage =>
       marketPageOf(query.scope === scope ? players : []);
   beforeEach(function resetMocks(): void {

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 
-import type { PlayerData, TeamData } from "../../store/gameStore";
+import type { GamePlayerData, TeamData } from "../../store/gameStore";
 import type { FreeAgentContractProjection } from "../../services/freeAgentService";
 import type { NegotiationFeedbackPanelData } from "../NegotiationFeedbackPanel";
 import NegotiationFeedbackPanel from "../NegotiationFeedbackPanel";
@@ -12,7 +12,7 @@ import PlayerPositionBadge from "../PlayerPositionBadge";
 const MAX_CONTRACT_YEARS = 5;
 
 export interface FreeAgentContractFormProps {
-  player: PlayerData;
+  player: GamePlayerData;
   teams: TeamData[];
   wage: string;
   onWageChange: (value: string) => void;

@@ -1,6 +1,6 @@
 import { getPlayerDealBlocker } from "./TransfersTab.model";
 import { useState } from "react";
-import type { GameStateData, PlayerData } from "../../store/gameStore";
+import type { GameStateData, GamePlayerData } from "../../store/gameStore";
 import { Handshake, ArrowRightLeft, Gavel, UserPlus } from "lucide-react";
 import type { DealKind } from "./PlayerDealWorkspace";
 import { useFreeAgentContractFlow } from "./useFreeAgentContractFlow";
@@ -11,8 +11,8 @@ interface Input {
   transferWindowBlocksRegistration: boolean;
   closeBidNegotiation: () => void;
   closeLoanOffer: () => void;
-  openLoanOffer: (player: PlayerData) => void;
-  openBidNegotiation: (player: PlayerData) => void;
+  openLoanOffer: (player: GamePlayerData) => void;
+  openBidNegotiation: (player: GamePlayerData) => void;
   bidLoading: boolean;
   loanLoading: boolean;
   t: TFunction<"translation", undefined>;
@@ -52,7 +52,7 @@ export function useDealWorkspaceFlow({
     gameState,
     onGameUpdate,
   });
-  const getDealKinds = (player: PlayerData): DealKind[] => {
+  const getDealKinds = (player: GamePlayerData): DealKind[] => {
     const kinds: DealKind[] = [];
 
     if (player.team_id !== null && player.transfer_listed) {
@@ -69,9 +69,9 @@ export function useDealWorkspaceFlow({
 
     return kinds;
   };
-  const getStartableDealKinds = (player: PlayerData): DealKind[] =>
+  const getStartableDealKinds = (player: GamePlayerData): DealKind[] =>
     getDealKinds(player).filter((kind) => isDealKindStartable(player, kind));
-  const isDealKindStartable = (player: PlayerData, kind: DealKind): boolean => {
+  const isDealKindStartable = (player: GamePlayerData, kind: DealKind): boolean => {
     if (getPlayerDealBlocker(player, gameState.manager.team_id)) return false;
     if (kind === "transfer") {
       return player.team_id !== null && player.transfer_listed && !transferWindowBlocksRegistration;
@@ -83,7 +83,7 @@ export function useDealWorkspaceFlow({
 
     return player.team_id === null;
   };
-  const selectDealWorkspaceKind = (player: PlayerData, kind: DealKind) => {
+  const selectDealWorkspaceKind = (player: GamePlayerData, kind: DealKind) => {
     setDealWorkspaceKind(kind);
 
     if (kind === "contract") {
@@ -116,7 +116,7 @@ export function useDealWorkspaceFlow({
       closeBidNegotiation();
     }
   };
-  const openDealEntry = (player: PlayerData) => {
+  const openDealEntry = (player: GamePlayerData) => {
     const dealKinds = getDealKinds(player);
     const startableDealKinds = getStartableDealKinds(player);
     const initialKind = startableDealKinds[0] ?? dealKinds[0] ?? "transfer";
@@ -124,7 +124,7 @@ export function useDealWorkspaceFlow({
     setDealWorkspaceTargetId(player.id);
     selectDealWorkspaceKind(player, initialKind);
   };
-  const openDealHistory = (player: PlayerData) => {
+  const openDealHistory = (player: GamePlayerData) => {
     setDealWorkspaceTargetId(player.id);
     setDealWorkspaceKind(getDealKinds(player)[0] ?? "transfer");
     closeBidNegotiation();
@@ -142,7 +142,7 @@ export function useDealWorkspaceFlow({
     closeLoanOffer();
     closeFreeAgentContract();
   };
-  const getDealEntryLabel = (player: PlayerData): string => {
+  const getDealEntryLabel = (player: GamePlayerData): string => {
     const dealKinds = getDealKinds(player);
 
     if (dealKinds.length > 1) {
@@ -159,7 +159,7 @@ export function useDealWorkspaceFlow({
 
     return t("transfers.bid");
   };
-  const getDealEntryIcon = (player: PlayerData, className: string) => {
+  const getDealEntryIcon = (player: GamePlayerData, className: string) => {
     const dealKinds = getDealKinds(player);
 
     if (dealKinds.length > 1) {
