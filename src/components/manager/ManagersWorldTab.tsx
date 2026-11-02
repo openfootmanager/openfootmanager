@@ -4,7 +4,10 @@ import type { ReactNode } from "react";
 
 import type { GameStateData, ManagerData, TeamData } from "../../store/gameStore";
 import { countryName } from "../../lib/countries";
-import { Badge, Card, CardBody, CardHeader, CountryFlag } from "../ui";
+import { useListView } from "../../hooks/useListView";
+import { Badge, Card, CardBody, CardHeader, CountryFlag, ViewSwitch } from "../ui";
+import { managersDirectory } from "./managerRows";
+import ManagersTables from "./ManagersTables";
 
 interface ManagersWorldTabProps {
   gameState: GameStateData;
@@ -84,6 +87,7 @@ function sortDirectory(entries: DirectoryEntry[]): DirectoryEntry[] {
 
 export default function ManagersWorldTab({ gameState, onSelectTeam }: ManagersWorldTabProps) {
   const { t, i18n } = useTranslation();
+  const [view, setView] = useListView();
   const entries = sortDirectory([...managerEntries(gameState), ...vacancyEntries(gameState)]);
 
   return (
@@ -108,11 +112,14 @@ export default function ManagersWorldTab({ gameState, onSelectTeam }: ManagersWo
             <Badge variant="accent" size="md">
               {t("managersWorld.vacancy")}
             </Badge>
+            <ViewSwitch value={view} onChange={setView} />
           </div>
         </CardBody>
       </Card>
 
-      {entries.length === 0 ? (
+      {entries.length > 0 && view === "table" ? (
+        <ManagersTables directory={managersDirectory(gameState)} onSelectTeam={onSelectTeam} />
+      ) : entries.length === 0 ? (
         <Card>
           <CardBody className="py-12 text-center text-sm text-gray-500 dark:text-gray-400">
             {t("managersWorld.noManagers")}
