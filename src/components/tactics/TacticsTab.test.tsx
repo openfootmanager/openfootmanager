@@ -545,6 +545,11 @@ describe("TacticsTab", () => {
 
     expect(screen.getByText("0 squad.outOfPosition")).toBeInTheDocument();
     expect(container.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
+    // And no mid-grade mark either: a player the projection does not hold is not "adapted".
+    for (const id of ["d1", "gk1"]) {
+      const token = screen.getByTestId(`pitch-player-${id}`);
+      expect(within(token).queryByTestId("familiarity-dot")).toBeNull();
+    }
   });
 
   /**
@@ -585,6 +590,11 @@ describe("TacticsTab", () => {
 
       expect(waiting.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
       expect(screen.queryByText(/^\d+ squad\.outOfPosition$/)).toBeNull();
+      // Nor does the swapped pair wear an "adapted" mark: no grade is no verdict, not a mid one.
+      for (const id of ["d1", "gk1"]) {
+        const token = screen.getByTestId(`pitch-player-${id}`);
+        expect(within(token).queryByTestId("familiarity-dot")).toBeNull();
+      }
     } finally {
       familiarityState.arrived = true;
     }
