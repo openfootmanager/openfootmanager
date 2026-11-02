@@ -162,4 +162,68 @@ describe("useFetchedSquad", () => {
     );
     expect(result.current[0]?.[0]?.match_day_eligible).toBe(false);
   });
+
+  describe("whether the squad is the backend's answer for what is asked now", () => {
+    /**
+     * Given a squad that has not been answered yet
+     * When the hook mounts, the answer arrives, and then the revision changes
+     * Then it is not answered at first, answered once the fetch resolves, and not answered again
+     *      from the moment the revision changes until the newer fetch resolves, though the previous
+     *      squad is still served meanwhile.
+     */
+    it("is answered only for the revision the resolved fetch was asked about", async () => {
+      let resolveSecond: (players: PlayerData[]) => void = () => {};
+      mockedGetSquad
+        .mockResolvedValueOnce(squad("p1"))
+        .mockReturnValueOnce(new Promise((resolve) => (resolveSecond = resolve)));
+
+      const { result, rerender } = renderHook(
+        ({ revision }) => useFetchedSquad("team1", "2026-08-01", revision),
+        { initialProps: { revision: { n: 1 } } },
+      );
+      expect(result.current[2]).toBe(false);
+
+      await waitFor(() => expect(result.current[2]).toBe(true));
+
+      rerender({ revision: { n: 2 } });
+      expect(result.current[2]).toBe(false);
+      expect(result.current[0]?.[0]?.id).toBe("p1");
+
+      await act(async () => resolveSecond(squad("p2")));
+      expect(result.current[2]).toBe(true);
+      expect(result.current[0]?.[0]?.id).toBe("p2");
+    });
+
+    /**
+     * Given an answered squad and a mutation that patches it optimistically while the parent's
+     *       revision moves on
+     * When the newer fetch has not resolved
+     * Then the patched squad is not counted as answered: it carries the old verdicts over.
+     */
+    it("does not count an optimistic patch as the backend's answer", async () => {
+      mockedGetSquad.mockResolvedValueOnce(squad("p1")).mockReturnValueOnce(new Promise(() => {}));
+      const { result, rerender } = renderHook(
+        ({ revision }) => useFetchedSquad("team1", "2026-08-01", revision),
+        { initialProps: { revision: { n: 1 } } },
+      );
+      await waitFor(() => expect(result.current[2]).toBe(true));
+
+      rerender({ revision: { n: 2 } });
+      act(() => result.current[1](squad("p1-patched")));
+
+      expect(result.current[0]?.[0]?.id).toBe("p1-patched");
+      expect(result.current[2]).toBe(false);
+    });
+
+    /**
+     * Given no team
+     * When the hook runs
+     * Then it is never answered: there is nothing to answer for.
+     */
+    it("is not answered without a team", () => {
+      const { result } = renderHook(() => useFetchedSquad(null, "2026-08-01"));
+
+      expect(result.current[2]).toBe(false);
+    });
+  });
 });

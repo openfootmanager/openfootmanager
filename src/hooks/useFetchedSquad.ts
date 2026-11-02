@@ -10,20 +10,31 @@ import type { PlayerData } from "../store/gameStore";
  * is advanced — not only when the user switches tabs. A `cancelled` guard drops
  * out-of-order responses.
  *
- * Returns a `[squad, setSquad]` tuple (like `useState`) so callers can also
- * patch the cached squad optimistically after a mutation. `squad` is `null`
- * until the first fetch resolves.
+ * Returns a `[squad, setSquad, answered]` tuple. `setSquad` works like `useState`'s so callers can
+ * also patch the cached squad optimistically after a mutation. `squad` is `null` until the first
+ * fetch resolves, and is kept while a newer fetch is in flight, so it can be one revision old.
+ * `answered` is true only once a fetch has resolved for the team, clock and revision now asked
+ * about: an action that saves a lineup worked out from the squad must wait for it, because the
+ * cached squad's verdicts (eligibility, injuries) are the previous revision's until then, and an
+ * optimistic patch carries them over rather than renewing them.
  */
 export function useFetchedSquad(
   teamId: string | null,
   clockDate: string,
   revision?: unknown,
-): [PlayerData[] | null, Dispatch<SetStateAction<PlayerData[] | null>>] {
+): [PlayerData[] | null, Dispatch<SetStateAction<PlayerData[] | null>>, boolean] {
   const [fetchedSquad, setFetchedSquad] = useState<PlayerData[] | null>(null);
   // The team the cached squad belongs to. Used to scope the cache so switching
   // clubs (or going unemployed) never exposes the previous team's roster while
   // the new fetch is still pending.
   const [fetchedTeamId, setFetchedTeamId] = useState<string | null>(null);
+  // What the last resolved fetch was asked about; the squad is current only if that is what is
+  // asked about now.
+  const [answeredFor, setAnsweredFor] = useState<{
+    teamId: string;
+    clockDate: string;
+    revision: unknown;
+  } | null>(null);
 
   const setSquadForCurrentTeam: Dispatch<SetStateAction<PlayerData[] | null>> = (next) => {
     // With no active team there is nothing to cache — never let an optimistic
@@ -63,6 +74,7 @@ export function useFetchedSquad(
         if (!cancelled) {
           setFetchedTeamId(teamId);
           setFetchedSquad(squad);
+          setAnsweredFor({ teamId, clockDate, revision });
         }
       })
       .catch((error: unknown) => console.error("Failed to fetch squad", error));
@@ -72,5 +84,11 @@ export function useFetchedSquad(
   }, [teamId, clockDate, revision]);
 
   // Only serve the cache for the team currently requested.
-  return [fetchedTeamId === teamId ? fetchedSquad : null, setSquadForCurrentTeam];
+  const answered =
+    teamId !== null &&
+    answeredFor !== null &&
+    answeredFor.teamId === teamId &&
+    answeredFor.clockDate === clockDate &&
+    Object.is(answeredFor.revision, revision);
+  return [fetchedTeamId === teamId ? fetchedSquad : null, setSquadForCurrentTeam, answered];
 }

@@ -603,6 +603,32 @@ describe("SquadTab", () => {
     expect(warned).toHaveLength(2);
   });
 
+  /**
+   * Given the squad answered once, and then the game moved on (a new revision) with its fetch
+   *       still in flight
+   * When a bench player's roster menu is opened
+   * Then "Make starter" is disabled and nothing is saved: the eligibility is the previous
+   *      revision's until get_squad answers.
+   */
+  it("disables the lineup actions while a newer get_squad is in flight", async () => {
+    const state = makeGameState();
+    mockedInvoke
+      .mockResolvedValueOnce(state.players.filter((player) => player.team_id === "team1"))
+      .mockReturnValue(new Promise(() => {}));
+    const props = { managerId: "mgr1", onSelectPlayer: vi.fn(), onGameUpdate: vi.fn() };
+    const { rerender } = render(<SquadTab gameState={state} {...props} />);
+    await act(async () => {});
+    rerender(<SquadTab gameState={{ ...state }} {...props} />);
+
+    fireEvent.contextMenu(screen.getByText("Bench DEF").closest("tr") as HTMLTableRowElement);
+    const makeStarter = screen.getByRole("menuitem", { name: "squad.makeStarter" });
+    expect(makeStarter).toBeDisabled();
+    fireEvent.click(makeStarter);
+    await act(async () => {});
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+  });
+
   it("shows progressive injury details in the roster", () => {
     const gameState = makeGameState();
     gameState.players[0] = makePlayer("gk1", "Goalkeeper", {

@@ -470,6 +470,34 @@ describe("TacticsTab", () => {
     }
   });
 
+  /**
+   * Given the squad answered once, and then the game moved on (a new revision) with its fetch
+   *       still in flight
+   * When a bench defender is dropped onto a defensive slot
+   * Then nothing is saved: the squad's eligibility is the previous revision's until it answers.
+   */
+  it("saves no lineup change while a newer get_squad is in flight", async () => {
+    const state = makeGameState();
+    const roster = state.players.filter((player) => player.team_id === "team1");
+    mockedInvoke.mockReset();
+    mockedInvoke.mockResolvedValueOnce(roster).mockReturnValue(new Promise(() => {}));
+
+    const { rerender } = render(
+      <TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    await act(async () => {});
+    rerender(
+      <TacticsTab gameState={{ ...state }} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+
+    const dataTransfer = createDataTransfer();
+    fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
+    fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+    await act(async () => {});
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+  });
+
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
