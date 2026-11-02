@@ -685,6 +685,7 @@
     "coverageBadge": "İlk 11 {{starters}}/{{required}} · Yedek {{bench}}",
     "bestRole": "En iyi rol",
     "startingXi": "İlk 11",
+    "notMatchDayEligible": "Kadroya seçilemez",
     "starter": "As Oyuncu",
     "benchOption": "Yedek",
     "naturalFit": "Doğal mevki",
@@ -3019,7 +3020,8 @@
         "invalidFormation": "Oyun bu diziliş şemasını tanımıyor.",
         "invalidPlayStyle": "Oyun bu oyun tarzını tanımıyor.",
         "notFound": "Bu taktik artık yok."
-      }
+      },
+      "anotherClubsSquad": "Bu kadro başka bir kulübe ait."
     },
     "sender": {
       "boardOfDirectors": "Yönetim Kurulu",

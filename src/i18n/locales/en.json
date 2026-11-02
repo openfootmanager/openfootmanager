@@ -685,6 +685,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Bench {{bench}}",
     "bestRole": "Best role",
     "startingXi": "Starting XI",
+    "notMatchDayEligible": "Not available for selection",
     "starter": "Starter",
     "benchOption": "Bench",
     "naturalFit": "Natural position",
@@ -3019,7 +3020,8 @@
         "invalidFormation": "That formation isn't one the game knows.",
         "invalidPlayStyle": "That play style isn't one the game knows.",
         "notFound": "That tactic no longer exists."
-      }
+      },
+      "anotherClubsSquad": "That squad belongs to another club."
     },
     "sender": {
       "boardOfDirectors": "Board of Directors",

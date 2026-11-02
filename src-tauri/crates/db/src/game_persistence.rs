@@ -424,11 +424,9 @@ impl GamePersistenceReader {
             ),
             // A malformed ledger reads as empty rather than failing the load:
             // refusing to open an entire career over one bookkeeping column would
-            // be the worse trade. It is NOT re-seeded: `SaveManager::load_game`
-            // seeds from the inbox only for a save older than format 5, so on a
-            // current save the next advance may announce events once more. The
-            // cell is logged and kept in unreadable_records, because a repeat
-            // announcement months later is impossible to trace back otherwise.
+            // be the worse trade. The cell is logged and kept in unreadable_records,
+            // and `SaveManager::load_game` rebuilds the ledger from the inbox; this
+            // reader only reports what is stored.
             emitted_events: json_column::read(
                 conn,
                 meta_cell("emitted_events_json"),

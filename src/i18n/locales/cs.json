@@ -685,6 +685,7 @@
     "coverageBadge": "Základ {{starters}}/{{required}} · Lavička {{bench}}",
     "bestRole": "Nejlepší role",
     "startingXi": "Základní sestava",
+    "notMatchDayEligible": "Není k dispozici pro nominaci",
     "starter": "Člen základu",
     "benchOption": "Lavička",
     "naturalFit": "Přirozená pozice",
@@ -3019,7 +3020,8 @@
         "invalidFormation": "Tuto formaci hra nezná.",
         "invalidPlayStyle": "Tento herní styl hra nezná.",
         "notFound": "Tato taktika už neexistuje."
-      }
+      },
+      "anotherClubsSquad": "Tento kádr patří jinému klubu."
     },
     "sender": {
       "boardOfDirectors": "Představenstvo",

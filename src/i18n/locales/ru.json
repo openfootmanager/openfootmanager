@@ -712,6 +712,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Запас {{bench}}",
     "bestRole": "Лучшая роль",
     "startingXi": "Стартовый состав",
+    "notMatchDayEligible": "Недоступен для заявки",
     "starter": "Основа",
     "benchOption": "Запас",
     "naturalFit": "Естественная позиция",
@@ -3019,7 +3020,8 @@
         "invalidFormation": "Игра не знает такой схемы.",
         "invalidPlayStyle": "Игра не знает такого стиля игры.",
         "notFound": "Такой тактики больше нет."
-      }
+      },
+      "anotherClubsSquad": "Этот состав принадлежит другому клубу."
     },
     "sender": {
       "boardOfDirectors": "Совет директоров",

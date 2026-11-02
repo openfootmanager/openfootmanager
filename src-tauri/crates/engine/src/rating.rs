@@ -115,10 +115,11 @@ fn passing_score(stats: &PlayerMatchStats, share: f32) -> f32 {
     (accuracy - 0.78) * 3.0 * involvement
 }
 
-/// The engine counts a second yellow as a second `yellow_cards`, never as a
-/// `red_cards`, and only a dismissal can produce two in one match.
+/// The report records a second yellow as two `yellow_cards` and a `red_cards`, and only a
+/// dismissal can produce two yellows in one match. The sending-off is punished once, as a
+/// straight red, and the yellow that caused it is not punished again.
 fn card_penalty(stats: &PlayerMatchStats) -> f32 {
-    let sent_off_on_a_second_yellow = stats.red_cards == 0 && stats.yellow_cards >= 2;
+    let sent_off_on_a_second_yellow = stats.yellow_cards >= 2;
     if sent_off_on_a_second_yellow {
         RED_PENALTY
     } else {
@@ -309,6 +310,9 @@ mod tests {
     }
 
     /// Given absurd extremes, When rated, Then the mark stays on the 1-10 scale.
+    ///
+    /// The dreadful one is sent off on a second yellow (two yellows and a red, punished once as
+    /// a red) after thirty fouls.
     #[test]
     fn ratings_stay_inside_the_scale() {
         let mut heroic = stats(90);
@@ -317,7 +321,7 @@ mod tests {
         let mut dreadful = stats(90);
         dreadful.red_cards = 1;
         dreadful.yellow_cards = 2;
-        dreadful.fouls_committed = 12;
+        dreadful.fouls_committed = 30;
         let won = Appearance {
             result_bonus: 0.3,
             ..appearance(Position::Forward)
@@ -367,5 +371,19 @@ mod tests {
         };
         assert_eq!(rated(MIN_RATED_MINUTES), 0.0);
         assert!(rated(90) > 0.0);
+    }
+
+    /// Given a player sent off on a second yellow, recorded as two yellows and a red,
+    /// When rated,
+    /// Then his mark is a straight red's: the sending-off is punished once, and the yellow that
+    /// caused it is not punished again.
+    #[test]
+    fn a_second_yellow_dismissal_is_rated_as_a_straight_red() {
+        let mut straight_red = stats(60);
+        straight_red.red_cards = 1;
+        let mut second_yellow = stats(60);
+        second_yellow.yellow_cards = 2;
+        second_yellow.red_cards = 1;
+        assert_eq!(mid(&second_yellow), mid(&straight_red));
     }
 }

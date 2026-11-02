@@ -57,7 +57,13 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   const positionTable = usePositionTable();
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
-  const [fetchedSquad] = useFetchedSquad(teamId, clockDate, sessionState ?? gameState);
+  const [fetchedSquad, , squadAnswered] = useFetchedSquad(
+    teamId,
+    clockDate,
+    sessionState ?? gameState,
+  );
+  // The position table has loaded and the squad is the backend's answer for this revision.
+  const lineupReady = positionTable.loaded && squadAnswered;
   const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const initialPreset = initialTeam
     ? findTacticsPresetBySetup(
@@ -176,8 +182,9 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   );
 
   async function persistStartingXI(playerIds: string[]): Promise<void> {
-    // Nothing is saved from a lineup worked out before the position table has loaded.
-    if (!positionTable.loaded) return;
+    // Nothing is saved from a lineup worked out before the position table has loaded, nor from a
+    // squad the backend has not answered for this revision: its eligibility is the last one's.
+    if (!lineupReady) return;
     setPendingStartingXiIds(playerIds);
     try {
       const updated = await setStartingXi(playerIds);
@@ -463,6 +470,8 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   }
 
   return {
+    /** Lineup changes are possible: the writers and the notice both read this one flag. */
+    lineupReady,
     team,
     formation,
     activePlayStyle,
