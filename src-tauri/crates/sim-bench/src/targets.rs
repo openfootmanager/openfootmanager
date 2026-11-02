@@ -56,6 +56,11 @@ pub enum Provenance {
         /// byte for byte.
         retrieved: String,
     },
+    /// A published league-wide figure, cited rather than derived from committed data. Shown for
+    /// orientation, like an unsourced band: it describes league seasons, not the bench's fixture.
+    Cited {
+        source: String,
+    },
     Unsourced,
 }
 
@@ -185,6 +190,30 @@ impl MeasuredBands {
     }
 }
 
+/// The Big Five's range of cards a match: England, Germany, France, Italy and Spain.
+const CIES_CARDS: &str = "CIES Football Observatory Monthly Report n°57 (Poli, Ravenel & Besson, Sep 2020): Big Five, 2015/16-2019/20";
+
+fn cited(
+    label: &'static str,
+    unit: Unit,
+    low: f64,
+    high: f64,
+    read: fn(&BenchStats) -> f64,
+    source: &str,
+) -> Target {
+    Target {
+        label,
+        unit,
+        low,
+        high,
+        read,
+        provenance: Provenance::Cited {
+            source: source.to_string(),
+        },
+        not_comparable: None,
+    }
+}
+
 fn unsourced(
     label: &'static str,
     unit: Unit,
@@ -258,19 +287,21 @@ pub fn all() -> Result<Vec<Target>, String> {
             40.0,
             BenchStats::goal_conversion_pct,
         ),
-        unsourced(
+        cited(
             "Yellow cards/game",
             Unit::PerGame,
-            2.0,
-            4.0,
+            3.39,
+            5.27,
             BenchStats::yellows_pg,
+            CIES_CARDS,
         ),
-        unsourced(
+        cited(
             "Red cards/game",
             Unit::PerGame,
-            0.05,
-            0.15,
+            0.12,
+            0.27,
             BenchStats::reds_pg,
+            CIES_CARDS,
         ),
         unsourced(
             "Fouls/game",
@@ -489,7 +520,8 @@ mod tests {
         }
     }
 
-    /// Given a measured band the bench plays, a measured band it does not, and an unsourced one,
+    /// Given a measured band the bench plays, a measured band it does not, a cited one and an
+    /// unsourced one,
     /// When each is asked whether it is judged,
     /// Then only the first is.
     #[test]
@@ -502,6 +534,8 @@ mod tests {
         };
         assert!(verdict_with(measured.clone(), None).is_judged());
         assert!(!verdict_with(measured, Some(ONE_FIXTURE_IS_NOT_A_LEAGUE)).is_judged());
+        let cited = Provenance::Cited { source: "s".into() };
+        assert!(!verdict_with(cited, None).is_judged());
         assert!(!verdict_with(Provenance::Unsourced, None).is_judged());
     }
 
@@ -517,8 +551,8 @@ mod tests {
                 .iter()
                 .find(|target| target.label == label)
                 .expect("the band exists");
-            let sourced = !matches!(target.provenance, Provenance::Unsourced);
-            (target.low, target.high, sourced)
+            let cited = matches!(target.provenance, Provenance::Cited { .. });
+            (target.low, target.high, cited)
         };
         assert_eq!(band("Yellow cards/game"), (3.39, 5.27, true));
         assert_eq!(band("Red cards/game"), (0.12, 0.27, true));

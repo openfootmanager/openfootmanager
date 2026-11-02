@@ -518,8 +518,12 @@ impl Default for MatchConfig {
             goal_conversion_base: 0.28,
             fatigue_per_minute: 0.20,
             foul_probability: 0.40,
-            yellow_card_probability: 0.11,
-            red_card_probability: 0.04,
+            // Calibrated against CIES Football Observatory Monthly Report n°57 (Big Five: 3.39 to
+            // 5.27 yellows and 0.12 to 0.27 reds a match; cited, not derived), with the booked
+            // player's caution in `shared::BOOKED_CARD_FACTOR`: the shipped world shows about 4.0
+            // yellows and 0.21 reds a match (`engine/tests/card_rate_tests.rs`).
+            yellow_card_probability: 0.20,
+            red_card_probability: 0.02,
             penalty_probability: 0.50,
             stoppage_time_max: 4,
             injury_probability: 0.03,

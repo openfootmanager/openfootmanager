@@ -777,6 +777,7 @@ fn targets_table(verdicts: &[Verdict]) -> String {
                 seasons,
                 ..
             } => format!(r#"<span title="{source}: {competitions}">measured, {seasons}</span>"#),
+            Provenance::Cited { source } => format!(r#"<span title="{source}">cited</span>"#),
             Provenance::Unsourced => "unsourced".to_string(),
         };
         let badge = match (verdict.is_judged(), verdict.inside) {
