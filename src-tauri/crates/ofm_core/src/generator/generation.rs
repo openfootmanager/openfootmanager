@@ -510,6 +510,8 @@ const FREE_AGENT_SHIFT: f64 = -3.0;
 /// with a tight spread: they must fill a squad, not seed the market with stars the clubs were
 /// meant to hold. Measured at opening: free agents <= 5% S and <= 10% A (#1078).
 const NATIONAL_POOL_SPREAD_KEPT: f64 = 0.6;
+/// Where a national-team top-up's ceilings centre relative to the world's.
+const NATIONAL_POOL_SHIFT: f64 = 0.0;
 /// A player young enough to be a wonderkid keeps this fraction of his club's spread, and
 /// [`YOUNG_SHIFT_KEPT`] of its shift: the stars gather at the big clubs among the grown players,
 /// but the young high-ceiling tail is the one the maintainer wants rare, and a mixture of club
@@ -647,7 +649,7 @@ impl PlayerRoll {
         Self {
             age: None,
             standard: Some(Standard {
-                shift: 0.0,
+                shift: NATIONAL_POOL_SHIFT,
                 spread_kept: NATIONAL_POOL_SPREAD_KEPT,
             }),
         }
