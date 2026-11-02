@@ -186,8 +186,8 @@ per-minute possession contest.
 | break_speed | possession flip: winner may counter into the final third | Fast turns turnovers into chances |
 
 The weekly AI tactical review in `ofm_core::ai_tactics` treats at least 2.4
-goals conceded per game as leaky and at most 1.0 scored as blunt: p85 and p15 of
-the five-match windows `tactical_adaptation_probe` reads, calibrated when a club
+goals conceded per game as leaky and at most 0.8 scored as blunt: the same tail
+(about 15% and 19%) of the five-match windows `tactical_adaptation_probe` reads, calibrated when a club
 scored about **1.6 goals a game** (#1132). The probe's guard test fails when the
 scoring rate moves away from that, so a scoring change re-reads the window table
 before the cutoffs are trusted.
