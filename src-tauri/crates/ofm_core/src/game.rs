@@ -267,10 +267,18 @@ impl Game {
             .find(|team| team.id == club_id)?
             .manager_id
             .as_deref()?;
+        self.manager_by_id(manager_id)
+    }
+
+    /// The manager with `manager_id`. The user's own record first: the managers list holds a copy
+    /// of him too, which can lag behind the live one until it is synced.
+    pub fn manager_by_id(&self, manager_id: &str) -> Option<&Manager> {
+        if self.manager.id == manager_id {
+            return Some(&self.manager);
+        }
         self.managers
             .iter()
             .find(|manager| manager.id == manager_id)
-            .or_else(|| (self.manager.id == manager_id).then_some(&self.manager))
     }
 
     pub fn new(

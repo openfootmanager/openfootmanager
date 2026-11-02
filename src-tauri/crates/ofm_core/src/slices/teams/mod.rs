@@ -183,7 +183,10 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
             &players_by_team,
             &standing_by_team,
             &view,
-            game.manager_of_club(&team.id),
+            // From the team in hand, not `manager_of_club`, which would look the club up again.
+            team.manager_id
+                .as_deref()
+                .and_then(|manager_id| game.manager_by_id(manager_id)),
         );
 
         regions

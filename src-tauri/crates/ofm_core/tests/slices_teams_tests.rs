@@ -257,23 +257,58 @@ fn a_vacant_clubs_card_names_no_manager() {
     assert_eq!(directory_card(&game, "faraway").manager, None);
 }
 
-/// Given the user's own club, managed by him (he is the game's manager, not one of the AI list)
-/// When its card is projected
-/// Then it names him
-#[test]
-fn the_users_club_card_names_the_user() {
-    let mut game = managing(two_divisions(), "mine");
+/// The game with the user in charge of `club` as its listed manager too.
+fn the_user_manages(club: &str) -> Game {
+    let mut game = managing(two_divisions(), club);
     let user_id = game.manager.id.clone();
     game.teams
         .iter_mut()
-        .find(|team| team.id == "mine")
+        .find(|team| team.id == club)
         .unwrap()
-        .manager_id = Some(user_id.clone());
+        .manager_id = Some(user_id);
+    game
+}
+
+/// Given the user's own club, and the user not in the managers list (only the game's manager)
+/// When its card is projected
+/// Then it names him: the lookup falls back on the game's manager
+#[test]
+fn the_users_club_card_names_the_user() {
+    let mut game = the_user_manages("mine");
+    let user_id = game.manager.id.clone();
+    game.managers.retain(|manager| manager.id != user_id);
 
     let manager = directory_card(&game, "mine").manager.unwrap();
 
     assert_eq!(manager.id, user_id);
     assert_eq!(manager.name, game.manager.display_name);
+}
+
+/// Given the user's own club, and the managers list holding a copy of him that lags behind
+/// When its card is projected
+/// Then it names him as the live record has him, not as the copy does
+#[test]
+fn the_users_card_reads_his_live_record_not_the_listed_copy() {
+    let mut game = the_user_manages("mine");
+    let user_id = game.manager.id.clone();
+    game.managers
+        .iter_mut()
+        .find(|manager| manager.id == user_id)
+        .expect("Game::new lists the user")
+        .display_name = "Stale Copy".to_string();
+
+    let manager = directory_card(&game, "mine").manager.unwrap();
+
+    assert_eq!(manager.name, game.manager.display_name);
+    assert_ne!(manager.name, "Stale Copy");
+    assert_eq!(
+        query_team_card(&game, "mine")
+            .unwrap()
+            .manager
+            .unwrap()
+            .name,
+        manager.name
+    );
 }
 
 #[test]
