@@ -635,7 +635,8 @@
     "nextPage": "Next page",
     "lastPage": "Last page",
     "sortBy": "Sort by",
-    "sortAscending": "Ascending"
+    "sortAscending": "Ascending",
+    "lineupLoading": "Position data is still loading, so lineup changes are not available yet."
   },
   "teamSelection": {
     "title": "Choose Your Club",
@@ -917,8 +918,7 @@
       "ready": "Ready",
       "adjusted": "Adjusted",
       "risk": "Risk"
-    },
-    "positionsLoading": "Position data is still loading, so lineup changes are not available yet."
+    }
   },
   "training": {
     "weeklySchedule": "Weekly Schedule",

@@ -32,10 +32,12 @@ import {
   buildStartingXIIds,
   getPreferredPositions,
   getSquadTacticalFit,
+  lineupReady,
   isPlayerOutOfPosition,
   translatePositionAbbreviation,
   translatePositionLabel,
 } from "./SquadTab.helpers";
+import { useFamiliarity } from "../../hooks/useFamiliarity";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
 import { SquadNameAside, squadRosterColumns } from "./SquadRosterView.columns";
@@ -98,6 +100,8 @@ export default function SquadRosterView({
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
   const positionTable = usePositionTable();
+  const familiarity = useFamiliarity();
+  const canGradeLineup = lineupReady(positionTable, familiarity);
   const roster = players
     .filter((player) => isFirstTeamSquadPlayer(player))
     .sort(
@@ -110,19 +114,30 @@ export default function SquadRosterView({
   const riskLevelOf = useContractRiskLevels(roster, clockDate);
 
   const available = roster.filter(isMatchDayEligible);
+  // The saved XI is drawn from everyone the backend has not ruled out: before get_squad answers no
+  // player carries a verdict (so `available` is empty) and the XI would not be drawn at all. Only
+  // display reads this pool; a lineup action keeps the strict `available`.
+  const drawable = roster.filter((player) => !isRuledOutOfMatchDay(player));
   const formation = team.formation || "4-4-2";
   const activePlayStyle = team.play_style || "Balanced";
   const currentPreset = findTacticsPresetBySetup(formation, activePlayStyle);
   const startingXiIds = useMemo(
-    () => buildStartingXIIds(available, team.starting_xi_ids || [], formation, positionTable),
-    [available, team.starting_xi_ids, formation, positionTable],
+    () =>
+      buildStartingXIIds(
+        drawable,
+        team.starting_xi_ids || [],
+        formation,
+        positionTable,
+        familiarity,
+      ),
+    [drawable, team.starting_xi_ids, formation, positionTable, familiarity],
   );
   const pitchSlotRows = buildPitchSlotRows(buildPitchRows(formation), startingXiIds, playersById);
   const xiActivePosition = buildActivePositionMap(pitchSlotRows);
   const xiIds = useMemo(() => new Set(startingXiIds), [startingXiIds]);
   const roleCoverage = useMemo(
-    () => buildRoleCoverageSummary(available, startingXiIds, formation, positionTable),
-    [available, startingXiIds, formation, positionTable],
+    () => buildRoleCoverageSummary(drawable, startingXiIds, formation, positionTable, familiarity),
+    [drawable, startingXiIds, formation, positionTable, familiarity],
   );
   const rolesNeedingCover = useMemo(
     () =>
@@ -167,12 +182,22 @@ export default function SquadRosterView({
   const isOutOfPosition = (player: PlayerData): boolean => {
     return (
       xiIds.has(player.id) &&
-      isPlayerOutOfPosition(player, getCurrentPosition(player, xiActivePosition), positionTable)
+      isPlayerOutOfPosition(
+        player,
+        getCurrentPosition(player, xiActivePosition),
+        positionTable,
+        familiarity,
+      )
     );
   };
 
   const getTacticalFit = (player: PlayerData) => {
-    return getSquadTacticalFit(player, getCurrentPosition(player, xiActivePosition), positionTable);
+    return getSquadTacticalFit(
+      player,
+      getCurrentPosition(player, xiActivePosition),
+      positionTable,
+      familiarity,
+    );
   };
 
   /** A starter's slot and how it suits him, as his row's badge and his card both say it. */
@@ -271,8 +296,6 @@ export default function SquadRosterView({
   };
 
   const persistStartingXi = async (playerIds: string[]): Promise<void> => {
-    // Nothing is saved from a lineup worked out before the backend's position table has loaded.
-    if (!positionTable.loaded) return;
     const updated = await setStartingXi(playerIds);
     completeMutation(updated);
   };
@@ -302,8 +325,22 @@ export default function SquadRosterView({
   ): Promise<void> => {
     const nextXiIds =
       action === "promote"
-        ? buildPromoteToStartingXi(startingXiIds, playersById, formation, playerId, positionTable)
-        : buildDemoteFromStartingXi(startingXiIds, available, formation, playerId, positionTable);
+        ? buildPromoteToStartingXi(
+            startingXiIds,
+            playersById,
+            formation,
+            playerId,
+            positionTable,
+            familiarity,
+          )
+        : buildDemoteFromStartingXi(
+            startingXiIds,
+            available,
+            formation,
+            playerId,
+            positionTable,
+            familiarity,
+          );
 
     if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
       return;
@@ -327,7 +364,7 @@ export default function SquadRosterView({
         natural={natural}
         alternates={alternates}
         deployed={deployed?.position}
-        familiarity={deployed?.familiarity}
+        familiarity={deployed?.familiarity ?? undefined}
         describe={(position) => ({
           label: translatePositionAbbreviation(t, position),
           name: translatePositionLabel(t, position),
@@ -352,7 +389,7 @@ export default function SquadRosterView({
     contractActionPending: contractActionPlayerId === player.id,
     onSelectPlayer,
     onMutationComplete: completeMutation,
-    positionTableLoaded: positionTable.loaded,
+    lineupReady: canGradeLineup,
     updateSquadPlanning,
     updateContractExitIntent,
     onActionError: (error: unknown) => setContractActionError(resolveBackendError(error)),
@@ -415,13 +452,13 @@ export default function SquadRosterView({
               <option value="all">{t("common.allPlayers")}</option>
               <option value="xi">{t("preMatch.startingXI")}</option>
               <option value="bench">{t("preMatch.substitutes")}</option>
-              <option value="naturalFit">{t("squad.naturalFit")}</option>
-              {/* A role needs cover by the backend's lines; until they arrive the filter would drop
-                  players it should keep, so it is not offered yet. */}
-              {positionTable.loaded ? (
-                <option value="needsCover">{t("squad.needsCover")}</option>
+              {/* The fit filters read the backend's lines and grade; until they arrive they would
+                  show an empty list, or drop players they should keep, so they are not offered. */}
+              {canGradeLineup ? <option value="naturalFit">{t("squad.naturalFit")}</option> : null}
+              {canGradeLineup ? <option value="needsCover">{t("squad.needsCover")}</option> : null}
+              {canGradeLineup ? (
+                <option value="outOfPosition">{t("squad.outOfPosition")}</option>
               ) : null}
-              <option value="outOfPosition">{t("squad.outOfPosition")}</option>
               <option value="injured">{t("common.injured")}</option>
             </Select>
           </div>
@@ -450,15 +487,22 @@ export default function SquadRosterView({
           <Badge variant="neutral" size="sm">
             {benchCount} {t("squad.benchOption")}
           </Badge>
-          <Badge variant="success" size="sm">
-            {naturalFitCount} {t("squad.naturalFit")}
-          </Badge>
-          <Badge variant={thinCoverageCount > 0 ? "accent" : "success"} size="sm">
-            {thinCoverageCount} {t("squad.needsCover")}
-          </Badge>
-          <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
-            {outOfPositionCount} {t("squad.outOfPosition")}
-          </Badge>
+          {canGradeLineup ? (
+            <Badge variant="success" size="sm">
+              {naturalFitCount} {t("squad.naturalFit")}
+            </Badge>
+          ) : null}
+          {/* Coverage counts natural starters by the backend's grade: nothing is claimed before it. */}
+          {canGradeLineup ? (
+            <Badge variant={thinCoverageCount > 0 ? "accent" : "success"} size="sm">
+              {thinCoverageCount} {t("squad.needsCover")}
+            </Badge>
+          ) : null}
+          {canGradeLineup ? (
+            <Badge variant={outOfPositionCount > 0 ? "danger" : "success"} size="sm">
+              {outOfPositionCount} {t("squad.outOfPosition")}
+            </Badge>
+          ) : null}
           <Badge variant={injuredCount > 0 ? "danger" : "neutral"} size="sm">
             {injuredCount} {t("common.injured")}
           </Badge>
@@ -466,6 +510,12 @@ export default function SquadRosterView({
             {filteredRoster.length} {t("squad.playersLabel")}
           </Badge>
         </div>
+        {/* Why the lineup actions are disabled, so they are not silent. */}
+        {canGradeLineup ? null : (
+          <p role="status" className="px-4 pb-4 text-caption text-fg-muted">
+            {t("common.lineupLoading")}
+          </p>
+        )}
       </Card>
 
       <Card>
@@ -483,45 +533,47 @@ export default function SquadRosterView({
               ? t(`tactics.presetNames.${currentPreset.id}`, currentPreset.id)
               : t(`common.playStyles.${activePlayStyle}`, activePlayStyle)}
           </p>
-          <div className="mt-3 flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-300">
-                {t("squad.coverageTitle")}
-              </span>
-              <Badge variant={thinCoverageCount > 0 ? "danger" : "success"} size="sm">
-                {thinCoverageCount > 0
-                  ? t("squad.coverageNeedsAttention", {
-                      count: thinCoverageCount,
-                    })
-                  : t("squad.coverageStable")}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {roleCoverage.map((coverage) => (
-                <Badge
-                  key={coverage.role}
-                  variant={
-                    coverage.status === "covered"
-                      ? "success"
-                      : coverage.status === "thin"
-                        ? "accent"
-                        : "danger"
-                  }
-                  size="sm"
-                  className="gap-1"
-                >
-                  <span>{translatePositionAbbreviation(t, coverage.role)}</span>
-                  <span>
-                    {t("squad.coverageBadge", {
-                      starters: coverage.naturalStarters,
-                      required: coverage.requiredSlots,
-                      bench: coverage.benchOptions,
-                    })}
-                  </span>
+          {canGradeLineup ? (
+            <div className="mt-3 flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-heading font-bold uppercase tracking-wider text-gray-300">
+                  {t("squad.coverageTitle")}
+                </span>
+                <Badge variant={thinCoverageCount > 0 ? "danger" : "success"} size="sm">
+                  {thinCoverageCount > 0
+                    ? t("squad.coverageNeedsAttention", {
+                        count: thinCoverageCount,
+                      })
+                    : t("squad.coverageStable")}
                 </Badge>
-              ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {roleCoverage.map((coverage) => (
+                  <Badge
+                    key={coverage.role}
+                    variant={
+                      coverage.status === "covered"
+                        ? "success"
+                        : coverage.status === "thin"
+                          ? "accent"
+                          : "danger"
+                    }
+                    size="sm"
+                    className="gap-1"
+                  >
+                    <span>{translatePositionAbbreviation(t, coverage.role)}</span>
+                    <span>
+                      {t("squad.coverageBadge", {
+                        starters: coverage.naturalStarters,
+                        required: coverage.requiredSlots,
+                        bench: coverage.benchOptions,
+                      })}
+                    </span>
+                  </Badge>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
         {view === "cards" ? (
           <SquadCardsView

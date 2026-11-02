@@ -20,6 +20,19 @@ const riskLevels = vi.hoisted(() => ({
 
 // Whether the backend's position table has arrived; a test says it has not.
 const positionTableState = vi.hoisted(() => ({ arrived: true }));
+// Whether the backend's familiarity has arrived, and the players it grades (every one built here).
+const familiarityState = vi.hoisted(() => ({
+  arrived: true,
+  players: new Map<string, unknown>(),
+}));
+
+vi.mock("../../hooks/useFamiliarity", async () => {
+  const { cannedFamiliarityModule } = await import("../../test-utils/familiarity");
+  return cannedFamiliarityModule(
+    (playerId) => familiarityState.players.get(playerId) as PlayerData | undefined,
+    () => familiarityState.arrived,
+  );
+});
 
 vi.mock("../../hooks/usePositionGroups", async () => {
   const { cannedPositionsModule } = await import("../../test-utils/positionTable");
@@ -87,8 +100,8 @@ const makePlayer = (
   id: string,
   position: string,
   overrides: Partial<PlayerData> = {},
-): PlayerData =>
-  createPlayer({
+): PlayerData => {
+  const player = createPlayer({
     id,
     match_name: id.toUpperCase(),
     full_name: `Player ${id}`,
@@ -105,6 +118,10 @@ const makePlayer = (
     match_day_eligible: true,
     ...overrides,
   });
+  // The backend would grade him; the stand-in finds him here.
+  familiarityState.players.set(player.id, player);
+  return player;
+};
 
 const makeTeam = (overrides: Partial<TeamData> = {}): TeamData => ({
   id: "team1",
@@ -603,6 +620,53 @@ describe("SquadTab", () => {
     expect(warned).toHaveLength(2);
   });
 
+  const swappedXi = ["f1", "d1", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "gk1", "f2"];
+
+  /**
+   * Given a starting XI in which the keeper and a forward have swapped slots, and a familiarity
+   *       that has not arrived (as on every refetch after a squad change)
+   * When the roster renders
+   * Then no player wears a fit mark, neither the swapped pair's warning nor an "adapted" one, no
+   *      count claims a number, and one status line says why lineup changes wait.
+   */
+  it("claims no fit before the familiarity has loaded", () => {
+    familiarityState.arrived = false;
+    try {
+      const state = makeGameState();
+      state.teams[0].starting_xi_ids = swappedXi;
+      renderSquadTab(state);
+
+      expect(screen.queryAllByTestId("familiarity-dot")).toHaveLength(0);
+      expect(screen.queryAllByText(/, squad\.outOfPosition$/)).toHaveLength(0);
+      expect(screen.queryByText(/^\d+ squad\.outOfPosition$/)).toBeNull();
+      expect(screen.queryByText(/^\d+ squad\.naturalFit$/)).toBeNull();
+      expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
+    } finally {
+      familiarityState.arrived = true;
+    }
+
+    cleanup();
+    renderSquadTab(makeGameState());
+    expect(screen.queryByText("common.lineupLoading")).toBeNull();
+  });
+
+  /**
+   * Given the same swapped XI and a keeper the backend's projection does not hold
+   * When the roster renders
+   * Then the forward is still warned, and the keeper wears no mark: a missing grade is not a verdict.
+   */
+  it("shows no fit mark for a player missing from the projection", () => {
+    const state = makeGameState();
+    state.teams[0].starting_xi_ids = swappedXi;
+    familiarityState.players.delete("gk1");
+
+    renderSquadTab(state);
+
+    expect(screen.getAllByText(/, squad\.outOfPosition$/)).toHaveLength(1);
+    const keeperRow = screen.getByRole("row", { name: /GK1/ });
+    expect(within(keeperRow).queryByTestId("familiarity-dot")).toBeNull();
+  });
+
   it("shows progressive injury details in the roster", () => {
     const gameState = makeGameState();
     gameState.players[0] = makePlayer("gk1", "Goalkeeper", {
@@ -995,6 +1059,120 @@ describe("SquadTab", () => {
     });
   });
   /**
+   * Given a squad whose starters are all in their natural slots
+   * When the familiarity has arrived and when it has not
+   * Then the natural-fit count is the backend's, and absent (not "0") before it arrives: the
+   *      screen neither grades the lineup itself nor claims a count while it waits.
+   */
+  it("counts natural fits from the backend's familiarity, and claims no count before it arrives", () => {
+    const { unmount } = render(
+      <SquadTab
+        gameState={makeGameState()}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+    // Some starters are in their natural slots (the keeper at least), so the backend's grade gives a
+    // non-zero count; how many is the formation's slot order, which this test does not pin.
+    expect(screen.getByText(/^[1-9]\d* squad\.naturalFit$/)).toBeInTheDocument();
+    unmount();
+
+    familiarityState.arrived = false;
+    try {
+      render(
+        <SquadTab
+          gameState={makeGameState()}
+          managerId="mgr1"
+          onSelectPlayer={vi.fn()}
+          onGameUpdate={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByText(/^\d+ squad\.naturalFit$/)).toBeNull();
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
+  /**
+   * Given get_squad has not answered, so no player carries a match-day verdict yet
+   * When Squad is drawn from the raw game state
+   * Then the saved XI is still drawn (starters are marked), and no lineup action is open: both
+   *      menu items stay disabled and nothing is saved.
+   */
+  it("draws the saved XI before get_squad answers and saves nothing", async () => {
+    const state = makeGameState();
+    state.players = state.players.map((player) => ({ ...player, match_day_eligible: undefined }));
+    mockedInvoke.mockReturnValue(new Promise(() => {}));
+
+    render(
+      <SquadTab
+        gameState={state}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(
+      within(screen.getByRole("row", { name: /GK1/ })).getByText("squad.startingXi"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("row", { name: /Bench DEF/ })).queryByText("squad.startingXi"),
+    ).toBeNull();
+    fireEvent.contextMenu(screen.getByText("Bench DEF").closest("tr") as HTMLTableRowElement);
+    const makeStarter = screen.getByRole("menuitem", { name: "squad.makeStarter" });
+    expect(makeStarter).toBeDisabled();
+    fireEvent.click(makeStarter);
+    await act(async () => {});
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+  });
+
+  /**
+   * Given the backend's familiarity has not arrived (the position table has)
+   * When a bench player is made a starter from the roster context menu
+   * Then nothing is saved and the item is disabled: a lineup worked out without the grade must
+   *      not be written.
+   */
+  it("saves no lineup change before the familiarity has loaded", async () => {
+    familiarityState.arrived = false;
+    try {
+      renderSquadTab(makeGameState());
+
+      const benchRow = screen.getByText("Bench DEF").closest("tr");
+      fireEvent.contextMenu(benchRow as HTMLTableRowElement);
+      const makeStarter = screen.getByRole("menuitem", { name: "squad.makeStarter" });
+      expect(makeStarter).toBeDisabled();
+      fireEvent.click(makeStarter);
+      await act(async () => {});
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
+  /**
+   * Given the backend's familiarity has not arrived
+   * When a starter's roster menu is opened
+   * Then "Send to bench" is disabled until it has.
+   */
+  it("disables Send to bench in a starter's menu until the familiarity has loaded", () => {
+    familiarityState.arrived = false;
+    try {
+      renderSquadTab(makeGameState());
+
+      const starterRow = screen.getByText("GK1").closest("tr");
+      fireEvent.contextMenu(starterRow as HTMLTableRowElement);
+
+      expect(screen.getByRole("menuitem", { name: "squad.sendToBench" })).toBeDisabled();
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
+  /**
    * Given the position table has not arrived (every slot would tie, and the keeper's is first)
    * When a bench player is made a starter from the roster context menu
    * Then nothing is saved: a lineup worked out without the lines must not be written.
@@ -1056,7 +1234,7 @@ describe("SquadTab", () => {
       );
       fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
       expect(screen.queryByRole("option", { name: "squad.needsCover" })).toBeNull();
-      expect(screen.getByRole("option", { name: "squad.naturalFit" })).toBeInTheDocument();
+      expect(screen.queryByRole("option", { name: "squad.naturalFit" })).toBeNull();
       unmount();
     } finally {
       positionTableState.arrived = true;
@@ -1065,6 +1243,42 @@ describe("SquadTab", () => {
     renderSquadTab(makeGameState());
     fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
     expect(screen.getByRole("option", { name: "squad.needsCover" })).toBeInTheDocument();
+  });
+
+  /**
+   * Given the position table has arrived but the backend's familiarity has not
+   * When Squad is drawn
+   * Then no coverage is claimed (the badges, the panel and the "needs cover" filter wait), because
+   *      natural starters are counted by that grade and every role would read as thin.
+   */
+  it("claims no coverage until the familiarity has loaded", () => {
+    familiarityState.arrived = false;
+    try {
+      render(
+        <SquadTab
+          gameState={makeGameState()}
+          managerId="mgr1"
+          onSelectPlayer={vi.fn()}
+          onGameUpdate={vi.fn()}
+        />,
+      );
+
+      expect(screen.queryByText("squad.coverageTitle")).toBeNull();
+      expect(screen.queryByText(/squad\.needsCover$/)).toBeNull();
+      fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
+      expect(screen.queryByRole("option", { name: "squad.needsCover" })).toBeNull();
+      expect(screen.queryByRole("option", { name: "squad.naturalFit" })).toBeNull();
+      expect(screen.queryByRole("option", { name: "squad.outOfPosition" })).toBeNull();
+    } finally {
+      familiarityState.arrived = true;
+    }
+
+    cleanup();
+    renderSquadTab(makeGameState());
+    expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
+    expect(screen.getByRole("option", { name: "squad.naturalFit" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "squad.outOfPosition" })).toBeInTheDocument();
   });
 
   it("names each roster filter after its visible label", async () => {

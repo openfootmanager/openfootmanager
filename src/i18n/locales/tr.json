@@ -635,7 +635,8 @@
     "nextPage": "Sonraki sayfa",
     "lastPage": "Son sayfa",
     "sortBy": "Sırala",
-    "sortAscending": "Artan"
+    "sortAscending": "Artan",
+    "lineupLoading": "Pozisyon verileri hâlâ yükleniyor, bu yüzden kadro değişiklikleri henüz kullanılamıyor."
   },
   "teamSelection": {
     "title": "Kulübünü Seç",
@@ -917,8 +918,7 @@
       "ready": "Hazır",
       "adjusted": "Uyarlanmış",
       "risk": "Riskli"
-    },
-    "positionsLoading": "Pozisyon verileri hâlâ yükleniyor, bu yüzden kadro değişiklikleri henüz kullanılamıyor."
+    }
   },
   "training": {
     "weeklySchedule": "Haftalık Program",

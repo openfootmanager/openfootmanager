@@ -10,6 +10,20 @@ import { createSeasonContext } from "../../test-utils/factories";
 // Whether the backend's position table has arrived; a test says it has not.
 const positionTableState = vi.hoisted(() => ({ arrived: true }));
 
+// The players the backend's familiarity grades, and whether it has arrived (every player built here).
+const familiarityState = vi.hoisted(() => ({
+  arrived: true,
+  players: new Map<string, unknown>(),
+}));
+
+vi.mock("../../hooks/useFamiliarity", async () => {
+  const { cannedFamiliarityModule } = await import("../../test-utils/familiarity");
+  return cannedFamiliarityModule(
+    (playerId) => familiarityState.players.get(playerId) as PlayerData | undefined,
+    () => familiarityState.arrived,
+  );
+});
+
 vi.mock("../../hooks/usePositionGroups", async () => {
   const { cannedPositionsModule } = await import("../../test-utils/positionTable");
   const { createPositionTable } = await import("../../lib/positionTable");
@@ -53,7 +67,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 const mockedInvoke = vi.mocked(invoke);
 
-const makePlayer = (
+const buildPlayer = (
   id: string,
   position: string,
   overrides: Partial<PlayerData> = {},
@@ -116,6 +130,13 @@ const makePlayer = (
   traits: [],
   ...overrides,
 });
+
+const makePlayer = (...args: Parameters<typeof buildPlayer>): PlayerData => {
+  const player = buildPlayer(...args);
+  // The backend would grade him; the stand-in finds him here.
+  familiarityState.players.set(player.id, player);
+  return player;
+};
 
 const makeTeam = (overrides: Partial<TeamData> = {}): TeamData => ({
   id: "team1",
@@ -438,7 +459,7 @@ describe("TacticsTab", () => {
       const { unmount } = render(
         <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
       );
-      expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+      expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
       unmount();
     } finally {
       positionTableState.arrived = true;
@@ -447,7 +468,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
-    expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
+    expect(screen.queryByText("common.lineupLoading")).toBeNull();
   });
 
   it("saves no lineup change before the position table has loaded", async () => {
@@ -468,6 +489,155 @@ describe("TacticsTab", () => {
     } finally {
       positionTableState.arrived = true;
     }
+  });
+
+  /**
+   * Given the position table has arrived but the backend's familiarity has not
+   * When the tactics screen is drawn and a bench defender is dropped onto a defensive slot
+   * Then it says lineup changes wait, and nothing is saved: a lineup worked out without the
+   *      backend's grade must not be written.
+   */
+  it("saves no lineup change before the familiarity has loaded", async () => {
+    familiarityState.arrived = false;
+    try {
+      render(
+        <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+      expect(screen.getByRole("status")).toHaveTextContent("common.lineupLoading");
+
+      const dataTransfer = createDataTransfer();
+      fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
+      fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+      await act(async () => {});
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
+  /**
+   * Given the keeper and a centre back swapped, but neither held by the backend's projection
+   * When the pitch is drawn
+   * Then nobody is ringed and the count reads zero: a player with no grade is not out of position.
+   */
+  it("counts nobody out of position for players the projection does not hold", () => {
+    const state = makeGameState();
+    state.teams[0].starting_xi_ids = [
+      "d1",
+      "gk1",
+      "d2",
+      "d3",
+      "d4",
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "f1",
+      "f2",
+    ];
+    familiarityState.players.delete("gk1");
+    familiarityState.players.delete("d1");
+
+    const { container } = render(
+      <TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+
+    expect(screen.getByText("0 squad.outOfPosition")).toBeInTheDocument();
+    expect(container.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
+    // And no mid-grade mark either: a player the projection does not hold is not "adapted".
+    for (const id of ["d1", "gk1"]) {
+      const token = screen.getByTestId(`pitch-player-${id}`);
+      expect(within(token).queryByTestId("familiarity-dot")).toBeNull();
+    }
+  });
+
+  /**
+   * Given the unswapped XI, where the keeper stands in his own slot
+   * When the pitch is drawn with the backend's familiarity
+   * Then his token wears no familiarity mark: a natural slot is the quiet default.
+   */
+  it("marks a natural token with nothing", () => {
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+
+    const keeper = screen.getByTestId("pitch-player-gk1");
+    expect(within(keeper).queryByTestId("familiarity-dot")).toBeNull();
+  });
+
+  /**
+   * Given the keeper and a centre back swapped, with the familiarity arrived and not arrived
+   * When the pitch is drawn
+   * Then arrived, two tokens are ringed out of position and the badge counts them; not arrived,
+   *      no token is ringed and no count is claimed: a missing grade is not a verdict.
+   */
+  it("rings no token and counts nothing before the familiarity has loaded", () => {
+    const swapped = () => {
+      const state = makeGameState();
+      state.teams[0].starting_xi_ids = [
+        "d1",
+        "gk1",
+        "d2",
+        "d3",
+        "d4",
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+        "f1",
+        "f2",
+      ];
+      return state;
+    };
+    const { container, unmount } = render(
+      <TacticsTab gameState={swapped()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    expect(container.querySelectorAll(".ring-warning-solid")).toHaveLength(2);
+    unmount();
+
+    familiarityState.arrived = false;
+    try {
+      const { container: waiting } = render(
+        <TacticsTab gameState={swapped()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+
+      expect(waiting.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
+      expect(screen.queryByText(/^\d+ squad\.outOfPosition$/)).toBeNull();
+      // Nor does the swapped pair wear an "adapted" mark: no grade is no verdict, not a mid one.
+      for (const id of ["d1", "gk1"]) {
+        const token = screen.getByTestId(`pitch-player-${id}`);
+        expect(within(token).queryByTestId("familiarity-dot")).toBeNull();
+      }
+    } finally {
+      familiarityState.arrived = true;
+    }
+  });
+
+  /**
+   * Given a squad with the keeper and a centre back swapped (each deployed in the other's line)
+   * When the pitch is drawn with the backend's familiarity
+   * Then the out-of-position count reads two, the grade the backend gives them.
+   */
+  it("marks a starter out of position from the backend's familiarity", () => {
+    const state = makeGameState();
+    state.teams[0].starting_xi_ids = [
+      "d1",
+      "gk1",
+      "d2",
+      "d3",
+      "d4",
+      "m1",
+      "m2",
+      "m3",
+      "m4",
+      "f1",
+      "f2",
+    ];
+
+    render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+
+    expect(screen.getByText("2 squad.outOfPosition")).toBeInTheDocument();
   });
 
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
