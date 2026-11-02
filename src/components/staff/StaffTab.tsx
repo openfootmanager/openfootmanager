@@ -4,6 +4,7 @@ import { visibleRatingText } from "../../lib/playerKnowledge";
 import { getStaff, type StaffRow, type StaffSlice } from "../../services/staffService";
 import { useListView } from "../../hooks/useListView";
 import { Card, CardBody, Badge, CountryFlag, ProgressBar, ViewSwitch } from "../ui";
+import { staffMenuItems } from "./StaffTab.menu";
 import StaffTable from "./StaffTable";
 import {
   UserCog,
@@ -20,7 +21,7 @@ import { getTeamName, calcAge, formatWeeklyWage } from "../../lib/helpers";
 import { countryName } from "../../lib/countries";
 import { useTranslation } from "react-i18next";
 import { hireStaff, releaseStaff } from "../../services/staffService";
-import ContextMenu, { type ContextMenuItem } from "../ContextMenu";
+import ContextMenu from "../ContextMenu";
 import type { DashboardNavigateContext } from "../dashboard/dashboardProfileNavigation";
 
 interface StaffTabProps {
@@ -138,37 +139,15 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const roles = ["AssistantManager", "Coach", "Scout", "Physio"];
 
   /** A member's actions, the same on his card and on his table row. */
-  const menuItemsFor = (staff: StaffRow): ContextMenuItem[] => {
-    const isLoading = actionLoading === staff.id;
-    return view === "mystaff"
-      ? [
-          ...(staff.role === "Scout" && onNavigate
-            ? [
-                {
-                  label: openScoutingWorkflowLabel,
-                  icon: <Eye className="w-4 h-4" />,
-                  onClick: () => onNavigate("Scouting"),
-                  disabled: false,
-                } satisfies ContextMenuItem,
-              ]
-            : []),
-          {
-            label: t("staff.releaseStaff"),
-            icon: <UserMinus className="w-4 h-4" />,
-            onClick: () => handleRelease(staff.id),
-            danger: true,
-            disabled: isLoading,
-          },
-        ]
-      : [
-          {
-            label: t("staff.hireStaff"),
-            icon: <UserPlus className="w-4 h-4" />,
-            onClick: () => handleHire(staff.id),
-            disabled: isLoading,
-          },
-        ];
-  };
+  const menuItemsFor = (staff: StaffRow) =>
+    staffMenuItems(staff, {
+      t,
+      list: view,
+      pendingId: actionLoading,
+      onHire: handleHire,
+      onRelease: handleRelease,
+      onNavigate,
+    });
 
   return (
     <div>

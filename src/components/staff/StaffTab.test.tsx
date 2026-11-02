@@ -528,23 +528,29 @@ describe("StaffTab", () => {
   });
 });
 
-/** The club's three staff: a physio rated 90, a coach 70, and a scout 40, coaching 80, 85, 20. */
+/**
+ * The club's three staff: a physio rated 90, a coach 70 and a scout 40, coaching 80, 85 and 20, and
+ * paid 3000, 1000 and 2000, so each column gives its own order.
+ */
 function clubOfThree(): StaffData[] {
   return [
     createStaff({
       id: "coach",
+      wage: 1000,
       display_name: "Cara Coach",
       role: "Coach",
       attributes: { coaching: 85, judgingAbility: 40, judgingPotential: 40, physiotherapy: 30 },
     }),
     createStaff({
       id: "physio",
+      wage: 3000,
       display_name: "Pat Physio",
       role: "Physio",
       attributes: { coaching: 80, judgingAbility: 30, judgingPotential: 30, physiotherapy: 88 },
     }),
     createStaff({
       id: "scout",
+      wage: 2000,
       display_name: "Sam Scout",
       role: "Scout",
       attributes: { coaching: 20, judgingAbility: 40, judgingPotential: 40, physiotherapy: 10 },
