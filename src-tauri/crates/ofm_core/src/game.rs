@@ -115,11 +115,11 @@ pub struct Game {
     pub managers: Vec<Manager>,
     pub teams: Vec<Team>,
     /// Serialized without potential: the game's JSON only ever goes to a reader (`crate::wire`).
-    #[serde(serialize_with = "crate::wire::players_without_potential")]
+    #[serde(serialize_with = "crate::wire::players_for_reader")]
     pub players: Vec<Player>,
     pub staff: Vec<Staff>,
     /// Serialized with a youth report's prospects' potential left out, as `players` is.
-    #[serde(serialize_with = "crate::wire::messages_without_potential")]
+    #[serde(serialize_with = "crate::wire::messages_for_reader")]
     pub messages: Vec<InboxMessage>,
     #[serde(default)]
     pub news: Vec<NewsArticle>,
@@ -273,7 +273,7 @@ impl serde::Serialize for Game {
 
 impl<'de> serde::Deserialize<'de> for Game {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        // The derived reader (`remote = "Self"`): a legacy JSON save reads as it always did.
+        // The derived deserializer (`remote = "Self"`): a legacy JSON save reads as it always did.
         Game::deserialize(deserializer)
     }
 }

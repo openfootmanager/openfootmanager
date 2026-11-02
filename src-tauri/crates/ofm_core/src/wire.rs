@@ -6,7 +6,7 @@
 //! and in the save.
 //!
 //! So `Game` serializes its players, and the youth prospects its messages carry, with potential 0
-//! (`players_without_potential`, `messages_without_potential`). `Game`'s JSON is only ever a copy
+//! (`players_for_reader`, `messages_for_reader`). `Game`'s JSON is only ever a copy
 //! for a reader (the screens, every command that returns it or a response that embeds it, and the
 //! MCP game-state dumps), never the save: the database stores players and message contexts
 //! through their own types (`db::repositories`), and a legacy JSON save is only ever read. Doing it
@@ -22,9 +22,10 @@
 //! **Who the copy is for.** `Game`'s serializer (`serialize_game`) writes for the reader already
 //! set, if one is, and otherwise for the manager's club. The setting lives in a thread-local for
 //! the length of one synchronous `serialize` call, behind a guard that restores the reader before
-//! it, so a nested or unwinding call leaves nothing behind. A player written with no reader set
-//! (a path that does not go through `Game`) is written as for the club, never as the truth: a
-//! missed path can only hide, never leak.
+//! it, so a nested or unwinding call leaves nothing behind. Game's players written with no reader
+//! set (the derived serializer called directly) are written as for the club, never as the truth.
+//! A `Player` serialized outside `Game` is written as he is: those paths still build their copy
+//! with `without_potential`, as above.
 use std::cell::Cell;
 
 use crate::game::Game;
@@ -47,14 +48,19 @@ thread_local! {
 }
 
 /// The reader set for as long as the scope lives; dropping it restores the one before.
+///
+/// Not `Send`: a scope held across an `.await` could be dropped on another worker thread, restoring
+/// that thread's reader and leaving this one's set. As it is, such a future fails to compile.
 struct ReaderScope {
     previous: Option<Reader>,
+    _not_send: std::marker::PhantomData<*const ()>,
 }
 
 impl ReaderScope {
     fn enter(reader: Reader) -> Self {
         Self {
             previous: READER.with(|current| current.replace(Some(reader))),
+            _not_send: std::marker::PhantomData,
         }
     }
 }
@@ -76,6 +82,8 @@ pub(crate) fn serialize_game<S: Serializer>(game: &Game, serializer: S) -> Resul
         .with(Cell::get)
         .is_none()
         .then(|| ReaderScope::enter(Reader::Club));
+    // The derived serializer, an inherent function (`remote = "Self"` on `Game`); the trait method
+    // would come back here.
     Game::serialize(game, serializer)
 }
 
@@ -87,7 +95,7 @@ pub fn without_potential(mut player: Player) -> Player {
 
 /// `Game.players` for a reader. Each player is copied one at a time, so the copy never holds more
 /// than one player beside the game. In the truthful scope, the players as they are.
-pub(crate) fn players_without_potential<S: Serializer>(
+pub(crate) fn players_for_reader<S: Serializer>(
     players: &[Player],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
@@ -121,7 +129,7 @@ pub fn messages_for_readers(messages: &[InboxMessage]) -> Vec<InboxMessage> {
 
 /// `Game.messages` for a reader: a youth scouting report's prospects without their potential. Every
 /// other message goes as it is, uncopied. In the truthful scope, every message as it is.
-pub(crate) fn messages_without_potential<S: Serializer>(
+pub(crate) fn messages_for_reader<S: Serializer>(
     messages: &[InboxMessage],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
@@ -142,7 +150,8 @@ pub(crate) fn messages_without_potential<S: Serializer>(
 /// The whole game as JSON, potentials included: what the save holds, for the developers' MCP dump
 /// (`dev_full_game_state`, refused on a competition server) and the harness that compares a save
 /// with the live game through it. Nothing a player reads. It reads back as the game
-/// (`serde_json::from_value`), which a reader's copy does not.
+/// (`serde_json::from_value`), but for the fields `Game` never serializes (`#[serde(skip)]`, such
+/// as the archives and the cash journal); a reader's copy does not read back at all.
 pub fn truthful_value(game: &Game) -> serde_json::Result<serde_json::Value> {
     let _scope = ReaderScope::enter(Reader::Truthful);
     serde_json::to_value(game)
@@ -314,15 +323,14 @@ mod tests {
         assert_eq!(prospect.potential, 91);
     }
 
-    /// Given players written outside any game, with no reader set (a path that does not go through
-    ///       `Game`'s serializer)
+    /// Given Game's players written through their field serializer with no reader set
     /// When they are serialized
-    /// Then they are written as for the club, never as the truth: a missed path can only hide
+    /// Then they are written as for the club, never as the truth
     #[test]
-    fn players_written_with_no_reader_are_never_the_truth() {
+    fn game_players_written_with_no_reader_are_never_the_truth() {
         #[derive(Serialize)]
         struct Loose {
-            #[serde(serialize_with = "players_without_potential")]
+            #[serde(serialize_with = "players_for_reader")]
             players: Vec<Player>,
         }
 
@@ -333,6 +341,19 @@ mod tests {
 
         let potentials: Vec<u64> = potentials_in(&value).into_iter().map(|(_, p)| p).collect();
         assert_eq!(potentials, vec![0, 0, 0]);
+    }
+
+    /// Given the game, and the derived serializer called directly (the inherent function
+    ///       `remote = "Self"` makes public), with no reader set
+    /// When the game is serialized that way
+    /// Then it is a reader's copy, not the truth: going round `serialize_game` gains nothing
+    #[test]
+    fn the_derived_serializer_called_directly_is_never_the_truth() {
+        let game = world();
+
+        let value = Game::serialize(&game, serde_json::value::Serializer).unwrap();
+
+        assert_eq!(value["players"][0]["potential"], 0);
     }
 
     /// Given the truthful scope, and a reader's copy written inside it and after it
