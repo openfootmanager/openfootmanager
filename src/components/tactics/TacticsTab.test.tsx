@@ -553,6 +553,20 @@ describe("TacticsTab", () => {
   });
 
   /**
+   * Given the unswapped XI, where the keeper stands in his own slot
+   * When the pitch is drawn with the backend's familiarity
+   * Then his token wears no familiarity mark: a natural slot is the quiet default.
+   */
+  it("marks a natural token with nothing", () => {
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+
+    const keeper = screen.getByTestId("pitch-player-gk1");
+    expect(within(keeper).queryByTestId("familiarity-dot")).toBeNull();
+  });
+
+  /**
    * Given the keeper and a centre back swapped, with the familiarity arrived and not arrived
    * When the pitch is drawn
    * Then arrived, two tokens are ringed out of position and the badge counts them; not arrived,
