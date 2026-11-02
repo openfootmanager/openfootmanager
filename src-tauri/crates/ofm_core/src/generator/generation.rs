@@ -497,9 +497,13 @@ const CEILING_SD: f64 = 5.0;
 /// 8.17%, run qm-15); 1.4 reached 8.20% by season 20 (run qm-10b). A at season 10 (5.91%) and
 /// season 20 (8.17%) sit within 0.03 of the band's edges.
 const INTAKE_CEILING_OFFSET: f64 = 1.3;
-/// The fraction of the opening's spread the intake keeps. The offset alone raises the settled
-/// wonderkid rate; keeping 0.95 of the spread holds it to 0.11 to 0.16% at 1.3 (run qm-15; 0.09 to 0.19% at 1.2, run qm-10a) against
-/// 0.06 to 0.13% on the old bell, and costs S about 0.1 points.
+/// The share of the opening's pre-drift bell the intake keeps (the ceiling's `spread_kept`, applied
+/// before the development drift still to come is added, as for every player). A 16-year-old
+/// recruit therefore settles at about 0.96 of the opening's spread, not 0.95: the drift variance is
+/// the same for both and weighs a little more against the narrower bell. The value was chosen by
+/// measurement on this formula, not derived: the offset alone raises the settled wonderkid rate, and
+/// 0.95 holds it to 0.11 to 0.16% at offset 1.3 (run qm-15; 0.09 to 0.19% at 1.2, run qm-10a)
+/// against 0.06 to 0.13% on the old bell, at a cost of about 0.1 points of S.
 const INTAKE_SPREAD_KEPT: f64 = 0.95;
 
 /// How a ceiling bell is moved: `shift` rating points up, keeping `spread_kept` of its spread.
