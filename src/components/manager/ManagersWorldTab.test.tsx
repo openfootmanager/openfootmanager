@@ -6,7 +6,7 @@ import { useSettingsStore } from "../../store/settingsStore";
 import ManagersWorldTab from "./ManagersWorldTab";
 import { createSeasonContext } from "../../test-utils/factories";
 
-// The view switch saves the choice through the backend; a save that never answers would roll it back.
+// The view switch saves the choice through the backend; a save that fails puts the view back.
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => undefined) }));
 
 vi.mock("react-i18next", () => ({
