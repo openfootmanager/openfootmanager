@@ -234,13 +234,18 @@ fn default_line_familiarity() -> [f64; 4] {
 impl PlayerData {
     /// The factor on this player's match rating for the line he is in now.
     pub fn familiarity_factor(&self) -> f64 {
-        let line = match self.position {
+        self.familiarity_in(self.position)
+    }
+
+    /// The factor on this player's match rating were he to play in `line`.
+    pub fn familiarity_in(&self, line: Position) -> f64 {
+        let entry = match line {
             Position::Goalkeeper => 0,
             Position::Defender => 1,
             Position::Midfielder => 2,
             Position::Forward => 3,
         };
-        self.line_familiarity[line]
+        self.line_familiarity[entry]
     }
 
     /// Overall rating (simple mean of core 11 attributes).

@@ -482,11 +482,14 @@ fn find_best_bench_replacement<'a>(
         return Some(*best);
     }
 
-    // Fallback: any bench player
+    // Fallback: any bench player, by what he would bring to the line he enters. A substitute
+    // takes the replaced player's line, so a higher-rated player who is out of position there
+    // can bring less than a slightly lower-rated one who can play it.
+    let in_line = |p: &PlayerData| p.overall() * p.familiarity_in(preferred_position);
     let mut all: Vec<&PlayerData> = bench.iter().filter(|p| obs.available(p)).collect();
     all.sort_by(|a, b| {
-        b.overall()
-            .partial_cmp(&a.overall())
+        in_line(b)
+            .partial_cmp(&in_line(a))
             .unwrap_or(std::cmp::Ordering::Equal)
     });
     all.first().copied()
