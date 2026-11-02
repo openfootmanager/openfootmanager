@@ -502,6 +502,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     const benchPlayer = screen.getByTestId("pitch-bench-player-d5");
     const pitchSlot = screen.getByTestId("pitch-slot-1");
@@ -741,6 +742,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
 
@@ -772,6 +774,7 @@ describe("TacticsTab", () => {
         onGameUpdate={vi.fn()}
       />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     fireEvent.click(screen.getByTestId("pitch-player-d1"));
 
@@ -981,6 +984,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     const benchRow = screen.getByTestId("bench-player-d5");
     fireEvent.contextMenu(benchRow);
@@ -1000,6 +1004,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.moveToBench" }));

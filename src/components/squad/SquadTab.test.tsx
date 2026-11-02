@@ -1002,6 +1002,7 @@ describe("SquadTab", () => {
     };
     const onGameUpdate = vi.fn();
     renderSquadTab(gameState, { onGameUpdate });
+    await act(async () => {}); // the squad has answered for this revision
     mockedInvoke.mockResolvedValue(updatedGameState);
 
     const benchRow = screen.getByText("Bench DEF").closest("tr");
