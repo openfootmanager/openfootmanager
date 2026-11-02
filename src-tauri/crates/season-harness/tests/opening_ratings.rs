@@ -47,7 +47,7 @@ fn every_player_opens_at_the_rating_the_game_computes_for_him() {
 
 /// Given the shipped world on its opening day,
 /// When the whole world is read,
-/// Then it opens at the ratings the game really computes: senior S 1.9 to 3.0%, A 9.3 to 10.5% and a
+/// Then it opens at the ratings the game really computes: senior S 1.9 to 3.0%, A 8.8 to 10.5% (the stars gather at the big clubs, and the free agents pay for it) and a
 ///      mean of 69.4 to 70.0 (the figures a world showed on day 1 before, S 1.2%, A 6.5% and 68.2, were
 ///      1.4 points low), and the wonderkids no more common than the maintainer's rare rate
 ///      (develop opened at 0.34% and 0.29% on these seeds; the normal bell opens at 0.38% and 0.26%). The settled world, which is what the
@@ -73,7 +73,7 @@ fn the_opening_world_keeps_its_tiers_mean_and_rare_wonderkids() {
             "S share; {message}"
         );
         assert!(
-            (0.093..=0.105).contains(&world.senior_ovr_a_share),
+            (0.088..=0.105).contains(&world.senior_ovr_a_share),
             "A share; {message}"
         );
         assert!(

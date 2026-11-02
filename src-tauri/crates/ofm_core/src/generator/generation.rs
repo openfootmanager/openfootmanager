@@ -499,19 +499,25 @@ const WITHIN_CLUB_TIGHTEN: f64 = 0.8;
 /// A club's standard score is capped here, so one outlier reputation cannot buy a squad of stars.
 const REPUTATION_Z_CAP: f64 = 2.5;
 /// Lifts every club's players a little, to pay for the unattached pool sitting below them, so the
-/// world's mean rating stays where it was.
-const CLUB_LIFT: f64 = 1.5;
+/// world's mean rating stays where it was. 1.2 with the national pool at -2 (run g1-24): 1.5 left
+/// the opening mean at 70.0 to 70.1 and the world's S above 3% on seed 2.
+const CLUB_LIFT: f64 = 1.2;
 /// Where the unattached pool's ceilings centre, below the world's: a player no club has signed is
 /// mostly one no club wanted.
 const FREE_AGENT_SHIFT: f64 = -3.0;
 /// The fraction of the world's spread a national-team top-up keeps. A nation short of players at
-/// career open gets free agents rolled at the world's own centre, not at the unattached pool's
-/// -3 (they stand for the country's ordinary professionals, and are signable by any club), and
-/// with a tight spread: they must fill a squad, not seed the market with stars the clubs were
-/// meant to hold. Measured at opening: free agents <= 5% S and <= 10% A (#1078).
-const NATIONAL_POOL_SPREAD_KEPT: f64 = 0.6;
-/// Where a national-team top-up's ceilings centre relative to the world's.
-const NATIONAL_POOL_SHIFT: f64 = 0.0;
+/// career open gets free agents (signable by any club) rolled with a tight spread: they must fill
+/// a squad, not seed the market with stars the clubs were meant to hold. They are about 15% of the
+/// world's players and over half of its free agents, so the figure matters: at the world's
+/// centre (shift 0, spread 0.6) the free agents held 11 to 13% of the world's A tier and up to
+/// 5.9% of its S (the targets are 10% and 5%), and a tighter spread alone barely moved it
+/// (spread 0.4: 10.3 to 12.1%), run g1-22.
+const NATIONAL_POOL_SPREAD_KEPT: f64 = 0.5;
+/// Where a national-team top-up's ceilings centre relative to the world's. Not the unattached
+/// pool's -3, and not the world's centre either: -2 is the first shift at which the free agents
+/// hold 6.4 and 7.6% of the world's A tier and 1.4 and 2.1% of its S, with the opening mean at
+/// 69.7 to 69.8 (run g1-24; shift -1 leaves A at 8.4 to 10.3% and the S above 3% in the world).
+const NATIONAL_POOL_SHIFT: f64 = -2.0;
 /// A player young enough to be a wonderkid keeps this fraction of his club's spread, and
 /// [`YOUNG_SHIFT_KEPT`] of its shift: the stars gather at the big clubs among the grown players,
 /// but the young high-ceiling tail is the one the maintainer wants rare, and a mixture of club
