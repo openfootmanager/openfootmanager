@@ -93,6 +93,14 @@ Fouls can occur after tackles in midfield and the attacking third:
 
 Sent-off players are excluded from all future player selection for their team.
 
+#### A player out of position
+
+In a club match a player's match rating carries a factor for the line he plays in, from his familiarity with it (`player_rating::familiarity`, the screens' three words): 1.0 where he is natural, **0.967** where he can play (an alternate, another position in his own line, or a winger at wide midfield on his flank), **0.90** out of position (another line, including a keeper outfield or an outfielder in goal). The live engine applies it at each duel that rates a player through `condition_adjusted_skill`, and to each line's strength (`position_attr_avg`, `line_strength`). Three sites read raw attributes instead, so neither familiarity nor condition reaches them: the header after a cross (aerial against aerial), in-match penalties, and shootout kicks.
+
+`ofm_core/src/turn/squad/familiarity.rs` sets the factors. The line he kicks off in reads his exact slot, so a right-back at left-back pays from the first minute; every other line reads his best familiarity in it, because the engine moves players only between lines (a substitution, a change of shape). The engine's `PlayerData::line_familiarity` defaults to 1.0 in every line, so a caller that does not set it, and the instant engine's synthetic players (sim-bench, the sim lab), play exactly as before. The instant engine's duels ignore it.
+
+The size is calibrated: the largest cost that keeps a shipped-world season's outcomes inside run-to-run noise, and under the AI's own price for the same move (`compatibility_penalty`: 14 points for another line, about twice what 10% of a 70 rating costs). Post-match ratings barely react to it, because the rating counts events (passes, tackles, shots), and a duel lost a little more often moves them little.
+
 #### A side down to ten
 
 In the live engine a player who has left the pitch (`is_on_the_pitch` is the one test for it) costs his side twice:

@@ -43,7 +43,7 @@ impl LiveMatchState {
         let mut events = Vec::new();
         let passer = self.snap_player(att_side, Position::Defender, rng);
         let pass_skill = self.condition_adjusted_skill(
-            &passer.id,
+            &passer,
             (passer.passing as f64
                 + passer.vision as f64
                 + passer.composure as f64
@@ -98,9 +98,9 @@ impl LiveMatchState {
             + defender.decisions as f64
             + defender.teamwork as f64)
             / 4.0;
-        let att_rating = self.condition_adjusted_skill(&attacker.id, att_raw)
+        let att_rating = self.condition_adjusted_skill(&attacker, att_raw)
             * trait_bonus(&attacker, TraitContext::Midfield);
-        let def_rating = self.condition_adjusted_skill(&defender.id, def_raw)
+        let def_rating = self.condition_adjusted_skill(&defender, def_raw)
             * trait_bonus(&defender, TraitContext::Tackling)
             * self.short_handed_cover(def_side);
 
@@ -190,9 +190,9 @@ impl LiveMatchState {
             + defender.positioning as f64
             + defender.aerial as f64)
             / 4.0;
-        let att_rating = self.condition_adjusted_skill(&attacker.id, att_raw)
+        let att_rating = self.condition_adjusted_skill(&attacker, att_raw)
             * trait_bonus(&attacker, TraitContext::Dribbling);
-        let def_rating = self.condition_adjusted_skill(&defender.id, def_raw)
+        let def_rating = self.condition_adjusted_skill(&defender, def_raw)
             * trait_bonus(&defender, TraitContext::Tackling)
             * self.short_handed_cover(def_side);
 
@@ -337,13 +337,13 @@ impl LiveMatchState {
 
         let shoot_raw =
             (shooter.shooting as f64 + shooter.composure as f64 + shooter.decisions as f64) / 3.0;
-        let shoot_rating = self.condition_adjusted_skill(&shooter.id, shoot_raw)
+        let shoot_rating = self.condition_adjusted_skill(&shooter, shoot_raw)
             * trait_bonus(&shooter, TraitContext::Shooting);
         let gk_raw = (goalkeeper.handling as f64
             + goalkeeper.reflexes as f64
             + goalkeeper.positioning as f64)
             / 3.0;
-        let gk_rating = self.condition_adjusted_skill(&goalkeeper.id, gk_raw)
+        let gk_rating = self.condition_adjusted_skill(&goalkeeper, gk_raw)
             * trait_bonus(&goalkeeper, TraitContext::Goalkeeping);
 
         let accuracy =
@@ -555,6 +555,7 @@ mod event_detail_tests {
             condition: 90,
             fitness: 75,
             injury_risk: 1.0,
+            line_familiarity: [1.0; 4],
             pace: 70,
             stamina: 70,
             strength: 70,
