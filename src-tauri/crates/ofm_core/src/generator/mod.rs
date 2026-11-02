@@ -281,7 +281,7 @@ pub fn generate_national_team_player(
         slot,
         &nationality,
         opening_year,
-        PlayerRoll::for_unattached(),
+        PlayerRoll::for_national_pool(),
         &names_def,
         rng,
     );

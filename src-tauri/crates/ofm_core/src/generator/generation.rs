@@ -504,6 +504,12 @@ const CLUB_LIFT: f64 = 1.5;
 /// Where the unattached pool's ceilings centre, below the world's: a player no club has signed is
 /// mostly one no club wanted.
 const FREE_AGENT_SHIFT: f64 = -3.0;
+/// The fraction of the world's spread a national-team top-up keeps. A nation short of players at
+/// career open gets free agents rolled at the world's own centre, not at the unattached pool's
+/// -3 (they stand for the country's ordinary professionals, and are signable by any club), and
+/// with a tight spread: they must fill a squad, not seed the market with stars the clubs were
+/// meant to hold. Measured at opening: free agents <= 5% S and <= 10% A (#1078).
+const NATIONAL_POOL_SPREAD_KEPT: f64 = 0.6;
 /// A player young enough to be a wonderkid keeps this fraction of his club's spread, and
 /// [`YOUNG_SHIFT_KEPT`] of its shift: the stars gather at the big clubs among the grown players,
 /// but the young high-ceiling tail is the one the maintainer wants rare, and a mixture of club
@@ -624,6 +630,18 @@ impl PlayerRoll {
             standard: Some(Standard {
                 shift: CLUB_LIFT + BETWEEN_CLUB_SD * z,
                 spread_kept: Standard::within_club_spread(),
+            }),
+        }
+    }
+
+    /// A national-team top-up: a free agent at the world's centre with a tight spread, at the
+    /// slot's age.
+    pub(super) fn for_national_pool() -> Self {
+        Self {
+            age: None,
+            standard: Some(Standard {
+                shift: 0.0,
+                spread_kept: NATIONAL_POOL_SPREAD_KEPT,
             }),
         }
     }
@@ -2046,6 +2064,39 @@ mod tests {
         let mean = values.iter().sum::<f64>() / values.len() as f64;
         let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
         (mean, variance.sqrt())
+    }
+
+    /// Given the same slots rolled on the opening's bell and as national-team top-ups, both fixed
+    ///       at 28 so that rating is ceiling,
+    /// When their ceilings are compared,
+    /// Then the top-ups centre on the same mean (they are not the -3 unattached pool) with only the
+    ///      kept fraction of the spread, so almost none reaches the S tier.
+    #[test]
+    fn a_national_top_up_is_ordinary_and_tight_not_a_discount() {
+        let world = ceilings_rolled_with(PlayerRoll::unscaled(Some(28)), 80_000, 41);
+        let pool_roll = PlayerRoll {
+            age: Some(28),
+            ..PlayerRoll::for_national_pool()
+        };
+        let pool = ceilings_rolled_with(pool_roll, 80_000, 41);
+
+        let ((world_mean, world_sd), (pool_mean, pool_sd)) =
+            (mean_and_sd(&world), mean_and_sd(&pool));
+        let stars = pool.iter().filter(|c| **c >= 81.0).count() as f64 / pool.len() as f64;
+
+        assert!(
+            (pool_mean - world_mean).abs() < 0.2,
+            "{world_mean:.2} and {pool_mean:.2}"
+        );
+        assert!(
+            ((pool_sd / world_sd) - NATIONAL_POOL_SPREAD_KEPT).abs() < 0.04,
+            "spreads {world_sd:.2} and {pool_sd:.2}"
+        );
+        assert!(
+            stars < 0.003,
+            "{:.2}% of top-ups reach the S tier",
+            stars * 100.0
+        );
     }
 
     /// Given the same slots rolled once on the opening's bell and once as youth intake recruits,
