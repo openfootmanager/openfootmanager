@@ -428,6 +428,11 @@
       "other": "{{n}}º"
     },
     "pts": "Pts",
+    "playedFull": "Jugados",
+    "wonFull": "Ganados",
+    "drawnFull": "Empatados",
+    "lostFull": "Perdidos",
+    "ptsFull": "Puntos",
     "played": "PJ",
     "won": "PG",
     "drawn": "PE",

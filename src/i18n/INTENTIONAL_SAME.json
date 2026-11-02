@@ -182,6 +182,7 @@
     "common.score",
     "tactics.formation",
     "endOfSeason.points",
+    "common.ptsFull",
     "sacked.teamLabel",
     "match.pause",
     "settings.currencyOptions.eur",
