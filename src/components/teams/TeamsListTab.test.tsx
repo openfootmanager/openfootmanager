@@ -33,8 +33,10 @@ vi.mock("react-i18next", () => {
         "teams.searchPlaceholder": "Search clubs",
         "teams.noResults": "No clubs match your search.",
         "teams.otherClubs": "Other clubs",
-        "common.playStyles.Balanced": "Equilibrado",
-        "common.playStyles.Counter": "Contra-ataque",
+        "be.error.noActiveGameSession": "No active game session",
+        "common.won": "W",
+        "common.drawn": "D",
+        "common.lost": "L",
       };
       if (labels[key]) return labels[key];
       if (fallback && typeof fallback === "object") {
@@ -190,6 +192,22 @@ function setListView(view: "table" | "cards") {
   });
 }
 
+/** A card's terms and what each says: its status band's and its two facts'. */
+function cardTerms(card: HTMLElement): Record<string, string | undefined> {
+  return Object.fromEntries(
+    within(card)
+      .getAllByRole("term")
+      .map((term) => [term.textContent ?? "", term.nextElementSibling?.textContent ?? undefined]),
+  );
+}
+
+/** A card's hero, the big figure at the end of its header. */
+function cardHero(card: HTMLElement): HTMLElement {
+  const hero = card.querySelector("header")?.lastElementChild;
+  if (!(hero instanceof HTMLElement)) throw new Error("the card has no hero");
+  return hero;
+}
+
 describe("TeamsListTab", () => {
   beforeEach(() => {
     mockedInvoke.mockReset();
@@ -284,18 +302,93 @@ describe("TeamsListTab", () => {
     expect(onSelectTeam).toHaveBeenCalledWith("team-2");
   });
 
-  it("renders translated play styles instead of raw values", async () => {
-    setupDirectoryMock([
-      buildCard({ id: "team-1", name: "Alpha FC", league_pos: 1, play_style: "Balanced" }),
-      buildCard({ id: "team-2", name: "Beta FC", league_pos: 2, play_style: "Counter" }),
-    ]);
+  /**
+   * Given the league leader on 10 points from three wins and a draw, a squad of 22 and a
+   *       reputation of 64
+   * When its card is drawn
+   * Then its hero is its league position, 1; its status gives the standing (3, 1, 0, 10 points)
+   *      and the squad's average; and its two facts are the squad's size and the reputation.
+   */
+  it("draws a club's card with its position, standing, average, squad and reputation", async () => {
+    const leader = buildCard({
+      id: "lead",
+      name: "Leader FC",
+      league_pos: 1,
+      reputation: 64,
+      avg_ovr: 71,
+    });
+    leader.standing = {
+      played: 4,
+      won: 3,
+      drawn: 1,
+      lost: 0,
+      goals_for: 9,
+      goals_against: 2,
+      points: 10,
+    };
+    setupDirectoryMock([leader]);
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("lead")} onSelectTeam={vi.fn()} />);
 
-    render(<TeamsListTab gameState={gameStateWithManagerTeam("team-1")} onSelectTeam={vi.fn()} />);
+    const card = await screen.findByRole("article", { name: "Leader FC" });
+    expect(cardTerms(card)).toEqual({
+      W: "3",
+      D: "1",
+      L: "0",
+      Pts: "10",
+      "Avg OVR": "71",
+      Squad: "22",
+      Rep: "64",
+    });
+    expect(cardHero(card)).toHaveTextContent("Position 1");
+  });
 
-    expect(await screen.findByText(/4-4-2 — Equilibrado/)).toBeInTheDocument();
-    expect(screen.getByText(/4-4-2 — Contra-ataque/)).toBeInTheDocument();
-    expect(screen.queryByText(/4-4-2 — Balanced/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/4-4-2 — Counter/)).not.toBeInTheDocument();
+  /**
+   * Given a club with no league position yet and no standing
+   * When its card is drawn
+   * Then its hero reads "—" and its points read "—" with no won, drawn and lost, rather than
+   *      zeros that look like a record.
+   */
+  it("draws an unranked club's position and standing as a dash", async () => {
+    setupDirectoryMock([buildCard({ id: "new", name: "New FC", league_pos: 0, avg_ovr: 60 })]);
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("new")} onSelectTeam={vi.fn()} />);
+
+    const card = await screen.findByRole("article", { name: "New FC" });
+    expect(cardHero(card)).toHaveTextContent("Position —");
+    expect(cardTerms(card)).toEqual({ Pts: "—", "Avg OVR": "60", Squad: "22", Rep: "50" });
+  });
+
+  /**
+   * Given the directory fails to load with the backend's error key
+   * When the list draws the failure
+   * Then it says it in the player's language, as an alert above the list.
+   */
+  it("says why the directory failed to load, in the player's words", async () => {
+    mockedInvoke.mockRejectedValue("be.error.noActiveGameSession");
+    render(<TeamsListTab gameState={gameStateWithManagerTeam(null)} onSelectTeam={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("No active game session");
+  });
+
+  /**
+   * Given a club's card
+   * When a keyboard user reaches it
+   * Then its name is a button that opens the club, where the old card was a clickable box the
+   *      keyboard could not reach.
+   */
+  it("opens a club from its card's name, a button the keyboard reaches", async () => {
+    const onSelectTeam = vi.fn();
+    setupDirectoryMock([buildCard({ id: "beta", name: "Beta FC", league_pos: 1 })]);
+    render(
+      <TeamsListTab gameState={gameStateWithManagerTeam("beta")} onSelectTeam={onSelectTeam} />,
+    );
+
+    const card = await screen.findByRole("article", { name: "Beta FC" });
+    const open = within(card).getByRole("button", { name: "Beta FC" });
+    open.focus();
+    expect(open).toHaveFocus();
+    fireEvent.click(open);
+
+    expect(onSelectTeam).toHaveBeenCalledWith("beta");
   });
 });
 

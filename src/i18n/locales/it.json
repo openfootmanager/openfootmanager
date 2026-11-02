@@ -3020,7 +3020,8 @@
         "invalidFormation": "Il gioco non conosce questo modulo.",
         "invalidPlayStyle": "Il gioco non conosce questo stile di gioco.",
         "notFound": "Questa tattica non esiste più."
-      }
+      },
+      "anotherClubsSquad": "Quella rosa appartiene a un altro club."
     },
     "sender": {
       "boardOfDirectors": "Consiglio di amministrazione",

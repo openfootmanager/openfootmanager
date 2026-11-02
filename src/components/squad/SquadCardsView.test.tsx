@@ -135,6 +135,7 @@ function renderRoster(
   render(
     <SquadRosterView
       players={players}
+      squadAnswered
       team={rosterTeam}
       clockDate="2026-08-01"
       onSelectPlayer={onSelectPlayer}

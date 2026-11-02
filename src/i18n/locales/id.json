@@ -3020,7 +3020,8 @@
         "invalidFormation": "Formasi itu tidak dikenal permainan.",
         "invalidPlayStyle": "Gaya bermain itu tidak dikenal permainan.",
         "notFound": "Taktik itu sudah tidak ada."
-      }
+      },
+      "anotherClubsSquad": "Skuad itu milik klub lain."
     },
     "sender": {
       "boardOfDirectors": "Dewan Direksi",

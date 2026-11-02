@@ -7,6 +7,7 @@ import { type ContractRiskLevel, contractExpiryLabel } from "../../lib/contractU
 import { formatDate } from "../../lib/dateFormatting";
 import { calcAge, formatWeeklyWage, getPlayerOvr } from "../../lib/helpers";
 import { visibleWageText } from "../../lib/playerKnowledge";
+import { isRuledOutOfMatchDay } from "../../lib/playerSquad";
 import { naturalPositionOf } from "../../lib/positions";
 import type { RatingTier } from "../../services/squadService";
 import type { PlayerData } from "../../store/gameStore";
@@ -175,7 +176,8 @@ function SquadPlayerCard({
       facts={[
         {
           label: t("common.wage"),
-          // His own club pays him, so the club sees his wage as it is.
+          // Own club only: the club pays him, so it sees his wage as it is. A card for another
+          // club's player must take the knowledge rule's estimate, never `kind: "exact"`.
           value: visibleWageText(
             { kind: "exact", weekly: player.wage },
             (weekly) => formatWeeklyWage(weekly, "compact"),
@@ -241,9 +243,9 @@ function SquadCardStatus({
           {chip.label}
         </Badge>
         {player.injury ? <InjuryBadge injury={player.injury} /> : null}
-        {/* An injury already says why he is out; this is for the backend's other reasons. Only an
-            explicit "no": before the squad is fetched the verdict is absent, which means not yet. */}
-        {!player.injury && player.match_day_eligible === false ? (
+        {/* An injury already says why he is out; this is for the backend's other reasons, and
+            only once it has given its verdict, as the row's accent waits for it. */}
+        {!player.injury && isRuledOutOfMatchDay(player) ? (
           <Badge variant="danger" size="sm">
             {t("squad.notMatchDayEligible")}
           </Badge>

@@ -85,6 +85,39 @@ describe("sortRows", () => {
   });
 
   /**
+   * Given rows whose value is a tuple (XI or not, then line, then rating high to low), one of them
+   *       with no value at all
+   * When they are sorted up, and then down
+   * Then the tuples compare item by item, the first difference deciding, the whole order turns
+   *      round going down, and the row with no value is last both times.
+   */
+  it("compares tuple values item by item, with no value still last", () => {
+    const rows = [
+      { name: "bench keeper", key: [1, 0, -90] },
+      { name: "second striker", key: [0, 3, -70] },
+      { name: "no value", key: null },
+      { name: "weaker defender", key: [0, 1, -60] },
+      { name: "stronger defender", key: [0, 1, -80] },
+    ];
+    const order = (direction: "asc" | "desc") =>
+      sortRows(rows, (row) => row.key, direction, "en").map((row) => row.name);
+    expect(order("asc")).toEqual([
+      "stronger defender",
+      "weaker defender",
+      "second striker",
+      "bench keeper",
+      "no value",
+    ]);
+    expect(order("desc")).toEqual([
+      "bench keeper",
+      "second striker",
+      "weaker defender",
+      "stronger defender",
+      "no value",
+    ]);
+  });
+
+  /**
    * Given "ajax" listed before "AJAX", names that differ only by case
    * When they are sorted by name, up and then down
    * Then they are one name to the sort, a tie, so they keep the order they arrived in both times.
