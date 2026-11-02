@@ -362,20 +362,22 @@ fn report_form_windows(game: &Game) {
             mean,
         );
     }
-    // How often each candidate trigger would fire: the share of windows at or beyond it. The two
-    // triggers belong at the same tail, so LEAKY's share and BLUNT's should match.
+    // The share of all sliding five-match windows at or beyond each candidate trigger: a
+    // calibration proxy for setting the two triggers at the same tail, so LEAKY's share and
+    // BLUNT's should match. It is not how often a trigger fires in play, where each club's form
+    // is read once per weekly review, sometimes over three or four matches.
     println!();
     for leaky in [2.0, 2.2, 2.4, 2.6, 2.8] {
         let fires = conceded.iter().filter(|&&value| value >= leaky).count();
         println!(
-            "FIRES conceded >= {leaky:.1}: {fires} of {} windows",
+            "WINDOWS conceded >= {leaky:.1}: {fires} of {} windows",
             conceded.len()
         );
     }
     for blunt in [0.6, 0.8, 1.0, 1.2] {
         let fires = scored.iter().filter(|&&value| value <= blunt).count();
         println!(
-            "FIRES scored <= {blunt:.1}: {fires} of {} windows",
+            "WINDOWS scored <= {blunt:.1}: {fires} of {} windows",
             scored.len()
         );
     }

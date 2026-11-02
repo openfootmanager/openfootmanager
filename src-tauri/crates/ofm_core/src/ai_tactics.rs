@@ -294,11 +294,14 @@ const FORM_MINIMUM: usize = 3;
 // every active fixture on the live engine, with benches and managers, lifted
 // scoring again to about 2.52, and six probe seasons put the pooled p85 at 3.4
 // and p15 at 1.6. Calibrating shots on target and their conversion to real
-// football (#1132) brought a club to about 1.6 a game. Over six probe seasons'
-// 1,800 windows, conceding at least 2.4 fires on 15.2% and scoring at most 0.8 on
-// 18.9% (1.0 would fire on 27.6%, 0.6 on 10.7%): windows move in steps of 0.2, so
-// 0.8 is the nearest match to the leaky tail. The probe prints these shares. Anything that changes how many goals are scored should re-read that
-// table before trusting these; the probe's guard test fails when it moves.
+// football (#1132) brought a club to about 1.6 a game. Of six probe seasons'
+// 1,800 sliding windows, 15.2% conceded at least 2.4 and 18.9% scored at most 0.8
+// (1.0 would cover 27.6%, 0.6 10.7%): windows move in steps of 0.2, so 0.8 is the
+// nearest match to the leaky tail. These shares are a calibration proxy, printed
+// by the probe, not how often a trigger fires in play, where a club's form is read
+// once per weekly review, sometimes over three or four matches. Anything that
+// changes how many goals are scored should re-read that table before trusting
+// these; the probe's guard test fails when it moves.
 //
 // The first pass used 2.2 and 0.8, which read like a matched pair and were
 // nothing of the kind: 2.2 sat just above the median and fired for two clubs in
