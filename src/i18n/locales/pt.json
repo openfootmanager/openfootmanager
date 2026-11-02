@@ -3021,7 +3021,10 @@
         "invalidPlayStyle": "O jogo não conhece esse estilo de jogo.",
         "notFound": "Essa tática já não existe."
       },
-      "anotherClubsSquad": "Esse plantel pertence a outro clube."
+      "anotherClubsSquad": "Esse plantel pertence a outro clube.",
+      "startingXiPlayerNotEligible": "Um jogador desta equipa não pode ser titular no teu clube.",
+      "startingXiDuplicatePlayer": "Um jogador aparece duas vezes nesta equipa.",
+      "startingXiWrongSize": "O onze inicial tem de ter exatamente onze jogadores, ou todos os jogadores elegíveis se o clube tiver menos."
     },
     "sender": {
       "boardOfDirectors": "Conselho de Administração",

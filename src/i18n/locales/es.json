@@ -3021,7 +3021,10 @@
         "invalidPlayStyle": "El juego no conoce ese estilo de juego.",
         "notFound": "Esa táctica ya no existe."
       },
-      "anotherClubsSquad": "Esa plantilla pertenece a otro club."
+      "anotherClubsSquad": "Esa plantilla pertenece a otro club.",
+      "startingXiPlayerNotEligible": "Un jugador de esta alineación no puede ser titular en tu club.",
+      "startingXiDuplicatePlayer": "Un jugador aparece dos veces en esta alineación.",
+      "startingXiWrongSize": "El once inicial debe tener exactamente once jugadores, o todos los jugadores elegibles si el club tiene menos."
     },
     "sender": {
       "boardOfDirectors": "Junta Directiva",

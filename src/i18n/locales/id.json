@@ -3021,7 +3021,10 @@
         "invalidPlayStyle": "Gaya bermain itu tidak dikenal permainan.",
         "notFound": "Taktik itu sudah tidak ada."
       },
-      "anotherClubsSquad": "Skuad itu milik klub lain."
+      "anotherClubsSquad": "Skuad itu milik klub lain.",
+      "startingXiPlayerNotEligible": "Salah satu pemain dalam susunan ini tidak dapat menjadi starter untuk klubmu.",
+      "startingXiDuplicatePlayer": "Seorang pemain muncul dua kali dalam susunan ini.",
+      "startingXiWrongSize": "Starting eleven harus berisi tepat sebelas pemain, atau semua pemain yang memenuhi syarat jika klub memiliki lebih sedikit."
     },
     "sender": {
       "boardOfDirectors": "Dewan Direksi",

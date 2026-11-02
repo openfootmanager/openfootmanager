@@ -3021,7 +3021,10 @@
         "invalidPlayStyle": "Tento herní styl hra nezná.",
         "notFound": "Tato taktika už neexistuje."
       },
-      "anotherClubsSquad": "Tento kádr patří jinému klubu."
+      "anotherClubsSquad": "Tento kádr patří jinému klubu.",
+      "startingXiPlayerNotEligible": "Hráč v této sestavě nemůže nastoupit v základu tvého klubu.",
+      "startingXiDuplicatePlayer": "Jeden hráč je v této sestavě dvakrát.",
+      "startingXiWrongSize": "Základní sestava musí mít přesně jedenáct hráčů, nebo všechny způsobilé hráče, pokud jich klub má méně."
     },
     "sender": {
       "boardOfDirectors": "Představenstvo",

@@ -3021,7 +3021,10 @@
         "invalidPlayStyle": "Le jeu ne connaît pas ce style de jeu.",
         "notFound": "Cette tactique n'existe plus."
       },
-      "anotherClubsSquad": "Cet effectif appartient à un autre club."
+      "anotherClubsSquad": "Cet effectif appartient à un autre club.",
+      "startingXiPlayerNotEligible": "Un joueur de cette composition ne peut pas être titulaire dans votre club.",
+      "startingXiDuplicatePlayer": "Un joueur apparaît deux fois dans cette composition.",
+      "startingXiWrongSize": "Le onze de départ doit compter exactement onze joueurs, ou tous les joueurs éligibles si le club en a moins."
     },
     "sender": {
       "boardOfDirectors": "Conseil d'Administration",
