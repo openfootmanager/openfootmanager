@@ -685,6 +685,7 @@
     "coverageBadge": "Základ {{starters}}/{{required}} · Lavička {{bench}}",
     "bestRole": "Nejlepší role",
     "startingXi": "Základní sestava",
+    "notMatchDayEligible": "Není k dispozici pro nominaci",
     "starter": "Člen základu",
     "benchOption": "Lavička",
     "naturalFit": "Přirozená pozice",

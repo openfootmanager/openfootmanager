@@ -102,7 +102,9 @@ describe("style guide", () => {
    */
   it("reads every option from the URL", () => {
     expect(
-      readStyleGuideOptions("?theme=dark&density=compact&scale=xlarge&contrast=high&dialog=open"),
+      readStyleGuideOptions(
+        "?theme=dark&density=compact&scale=xlarge&contrast=high&dialog=open&view=cards",
+      ),
     ).toEqual({
       theme: "dark",
       density: "compact",
@@ -110,13 +112,15 @@ describe("style guide", () => {
       highContrast: true,
       rootFontSize: "20px",
       dialogOpen: true,
+      listView: "cards",
     });
   });
 
   /** Given an empty or nonsense URL, then the guide falls back to light, comfortable, normal. */
   it("falls back to the defaults for unknown values", () => {
-    expect(readStyleGuideOptions("?theme=sepia&scale=huge")).toMatchObject({
+    expect(readStyleGuideOptions("?theme=sepia&scale=huge&view=grid")).toMatchObject({
       theme: "light",
+      listView: "table",
       density: "comfortable",
       scale: "normal",
       rootFontSize: "16px",

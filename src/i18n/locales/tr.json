@@ -685,6 +685,7 @@
     "coverageBadge": "İlk 11 {{starters}}/{{required}} · Yedek {{bench}}",
     "bestRole": "En iyi rol",
     "startingXi": "İlk 11",
+    "notMatchDayEligible": "Kadroya seçilemez",
     "starter": "As Oyuncu",
     "benchOption": "Yedek",
     "naturalFit": "Doğal mevki",

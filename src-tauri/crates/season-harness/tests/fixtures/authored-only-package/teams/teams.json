@@ -13,14 +13,8 @@
       },
       "playStyle": "Balanced",
       "stadiumName": "Ashford Park",
-      "reputationRange": [
-        600,
-        600
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 600],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "brackley-fc",
@@ -34,14 +28,8 @@
       },
       "playStyle": "Possession",
       "stadiumName": "Brackley Park",
-      "reputationRange": [
-        600,
-        600
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 600],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "carlow-fc",
@@ -55,14 +43,8 @@
       },
       "playStyle": "Counter",
       "stadiumName": "Carlow Park",
-      "reputationRange": [
-        600,
-        600
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 600],
+      "financeRange": [2000000, 6000000]
     },
     {
       "id": "dunmore-fc",
@@ -76,14 +58,8 @@
       },
       "playStyle": "Attacking",
       "stadiumName": "Dunmore Park",
-      "reputationRange": [
-        600,
-        600
-      ],
-      "financeRange": [
-        2000000,
-        6000000
-      ]
+      "reputationRange": [600, 600],
+      "financeRange": [2000000, 6000000]
     }
   ]
 }

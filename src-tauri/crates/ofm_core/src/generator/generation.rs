@@ -592,13 +592,20 @@ impl Standard {
 /// made by the intake (everyone alive after about 15 seasons was an intake recruit), and the opening
 /// cohort it replaces carries less of the A tier on a normal bell than the old light-tailed one did,
 /// so an intake on the opening's own centre settles below the band #965 set (S 1.0 to 1.8%, A 5.9
-/// to 8.2%). Swept over 20 seasons on two seeds of the shipped world, 1.2 holds S and A inside the band
-/// at seasons 10, 15 and 20 (A 5.9 to 7.7%); 1.0 dips A under 5.9% at season 10, and 1.4 reaches
-/// 8.2% by season 20.
-const INTAKE_CEILING_OFFSET: f64 = 1.2;
-/// The fraction of the opening's spread the intake keeps. Alone, the offset doubles the settled
-/// wonderkid rate (0.16 to 0.22% against 0.06 to 0.13% on the old bell); 0.95 brings it back to
-/// 0.10 to 0.12% and costs S about 0.1 points.
+/// to 8.2%). Measured over 20 seasons on two seeds of the shipped world with the spread kept at
+/// 0.95, on the engine of the day: 1.0 misses A at season 10 (5.79%, run qm-9b, floor 5.9%); 1.2
+/// held on an earlier develop (run qm-10a) but missed A at season 10 once the engine changes of
+/// 1 Nov landed (5.82% and 5.86%, runs qm-13 and qm-14); 1.3 holds every checkpoint (A 5.91 to
+/// 8.17%, run qm-15); 1.4 reached 8.20% by season 20 (run qm-10b). A at season 10 (5.91%) and
+/// season 20 (8.17%) sit within 0.03 of the band's edges.
+const INTAKE_CEILING_OFFSET: f64 = 1.3;
+/// The share of the opening's pre-drift bell the intake keeps (the ceiling's `spread_kept`, applied
+/// before the development drift still to come is added, as for every player). A 16-year-old
+/// recruit therefore settles at about 0.96 of the opening's spread, not 0.95: the drift variance is
+/// the same for both and weighs a little more against the narrower bell. The value was chosen by
+/// measurement on this formula, not derived: the offset alone raises the settled wonderkid rate, and
+/// 0.95 holds it to 0.11 to 0.16% at offset 1.3 (run qm-15; 0.09 to 0.19% at 1.2, run qm-10a)
+/// against 0.06 to 0.13% on the old bell, at a cost of about 0.1 points of S.
 const INTAKE_SPREAD_KEPT: f64 = 0.95;
 
 /// How a generated player is rolled besides his slot: the age to fix, and the bell his ceiling is
@@ -715,11 +722,22 @@ const ROLLED_AT_Z: [[f64; 29]; 4] = [
 /// The standard-normal z a rolled rating of `group` stands at: its place in [`ROLLED_AT_Z`], read
 /// by linear interpolation, and extended past the table's ends at the end slopes.
 fn rolled_to_z(group: &Position, rolled: f64) -> f64 {
+    // Every variant is listed, so a new position cannot silently take the forwards' row.
     let row = match group {
         Position::Goalkeeper => 0,
-        Position::Defender => 1,
-        Position::Midfielder => 2,
-        _ => 3,
+        Position::Defender
+        | Position::RightBack
+        | Position::CenterBack
+        | Position::LeftBack
+        | Position::RightWingBack
+        | Position::LeftWingBack => 1,
+        Position::Midfielder
+        | Position::DefensiveMidfielder
+        | Position::CentralMidfielder
+        | Position::AttackingMidfielder
+        | Position::RightMidfielder
+        | Position::LeftMidfielder => 2,
+        Position::Forward | Position::RightWinger | Position::LeftWinger | Position::Striker => 3,
     };
     let table = &ROLLED_AT_Z[row];
     let last = table.len() - 1;

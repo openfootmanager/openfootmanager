@@ -51,7 +51,9 @@ fn every_player_opens_at_the_rating_the_game_computes_for_him() {
 ///      mean of 69.4 to 70.0 (the figures a world showed on day 1 before, S 1.2%, A 6.5% and 68.2, were
 ///      1.4 points low), and the wonderkids no more common than the maintainer's rare rate
 ///      (develop opened at 0.34% and 0.29% on these seeds; the normal bell opens at 0.38% and 0.26%). The settled world, which is what the
-///      tier targets are about, is unchanged: this only stops the opening from understating it.
+///      tier targets are about, moves on purpose in this change (the intake constants, checked by
+///      the nightly `settled_distribution`, runs qm-9b, qm-10a and qm-10b); these bands pin the
+///      opening only. They are tight: wonderkids 0.25 to 0.40% against 0.38% and 0.26% measured.
 #[test]
 fn the_opening_world_keeps_its_tiers_mean_and_rare_wonderkids() {
     for seed in [1, 2] {

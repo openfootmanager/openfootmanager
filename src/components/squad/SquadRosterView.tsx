@@ -7,10 +7,14 @@ import type {
   PlayerSelectionOptions,
   TeamData,
 } from "../../store/gameStore";
-import { Badge, Card, DataTable, PositionBadges, Select } from "../ui";
+import { Badge, Card, DataTable, PositionBadges, Select, ViewSwitch } from "../ui";
 import { MoreVertical, Users } from "lucide-react";
-import { calcAge, getPlayerOvr } from "../../lib/helpers";
-import { isFirstTeamSquadPlayer, isMatchDayEligible } from "../../lib/playerSquad";
+import { getPlayerOvr } from "../../lib/helpers";
+import {
+  isFirstTeamSquadPlayer,
+  isMatchDayEligible,
+  isRuledOutOfMatchDay,
+} from "../../lib/playerSquad";
 import { useTranslation } from "react-i18next";
 import ContextMenu, { type ContextMenuHandle } from "../ContextMenu";
 import { clearContractExitIntent, setContractExitIntent } from "../../services/contractService";
@@ -32,7 +36,6 @@ import {
   translatePositionAbbreviation,
   translatePositionLabel,
 } from "./SquadTab.helpers";
-import { naturalPositionOf } from "../../lib/positions";
 import { usePositionTable } from "../../hooks/usePositionGroups";
 import { findTacticsPresetBySetup } from "../tactics/TacticsTab.helpers";
 import { SquadNameAside, squadRosterColumns } from "./SquadRosterView.columns";
@@ -42,6 +45,11 @@ import {
   type SquadListSortKey,
   type SquadListSortState,
 } from "./SquadRosterView.state";
+import { useListView } from "../../hooks/useListView";
+import { contextMenuPoint } from "../../lib/contextMenuPoint";
+import type { DeployedPosition } from "./SquadCardGrid";
+import SquadCardsView from "./SquadCardsView";
+import { sortSquadRoster } from "./SquadRosterView.sort";
 
 interface SquadRosterViewProps {
   players: PlayerData[];
@@ -73,6 +81,7 @@ export default function SquadRosterView({
 }: SquadRosterViewProps) {
   const tierOf = useRatingTiers();
   const { t, i18n } = useTranslation();
+  const [view, setView] = useListView();
   const [playerSearch, setPlayerSearch] = useState("");
   // Ties each visible filter label to its control, so the control is announced by that label.
   const searchInputId = useId();
@@ -166,6 +175,15 @@ export default function SquadRosterView({
     return getSquadTacticalFit(player, getCurrentPosition(player, xiActivePosition), positionTable);
   };
 
+  /** A starter's slot and how it suits him, as his row's badge and his card both say it. */
+  const deployedPositionOf = (player: PlayerData): DeployedPosition | null =>
+    xiIds.has(player.id)
+      ? {
+          position: getCurrentPosition(player, xiActivePosition),
+          familiarity: getTacticalFit(player),
+        }
+      : null;
+
   const matchesFilters = (player: PlayerData): boolean => {
     const inXI = xiIds.has(player.id);
     const currentPos = positionTable.groupOf(getCurrentPosition(player, xiActivePosition));
@@ -214,50 +232,18 @@ export default function SquadRosterView({
   const filteredRoster = useMemo(() => {
     const list = roster.filter((player) => matchesFilters(player));
 
-    // Contract-remaining rank for sorting: sooner-expiring first when asc.
-    // Missing contract_end sorts last.
-    const contractRank = (player: PlayerData): string => player.contract_end ?? "9999-99-99";
-
-    const sorted = [...list].sort((a, b) => {
-      switch (sortKey) {
-        case "jersey":
-          return (a.jersey_number ?? 999) - (b.jersey_number ?? 999);
-        case "name":
-          return a.full_name.localeCompare(b.full_name);
-        case "pos": {
-          // XI-first, then football-canonical natural_position order, then
-          // OVR desc. This is the default landing view: starters cluster on
-          // top, sorted by where they play; strongest at each slot rises.
-          const aXi = xiIds.has(a.id) ? 0 : 1;
-          const bXi = xiIds.has(b.id) ? 0 : 1;
-          if (aXi !== bXi) return aXi - bXi;
-
-          const aRank = positionTable.rankOf(naturalPositionOf(a));
-          const bRank = positionTable.rankOf(naturalPositionOf(b));
-          if (aRank !== bRank) return aRank - bRank;
-
-          return getPlayerOvr(b) - getPlayerOvr(a);
-        }
-        case "age":
-          return calcAge(a.date_of_birth) - calcAge(b.date_of_birth);
-        case "condition":
-          return a.condition - b.condition;
-        case "morale":
-          return a.morale - b.morale;
-        case "ovr":
-          return getPlayerOvr(a) - getPlayerOvr(b);
-        case "contract":
-          return contractRank(a).localeCompare(contractRank(b));
-        default:
-          return 0;
-      }
-    });
-
-    return sortDir === "desc" ? sorted.reverse() : sorted;
+    return sortSquadRoster(
+      list,
+      { sortKey, sortDir },
+      { isStarter: (player) => xiIds.has(player.id), positionRankOf: positionTable.rankOf },
+      i18n.language,
+    );
   }, [
     formation,
+    i18n.language,
     playerSearch,
     positionFilter,
+    positionTable,
     roleCoverage,
     roster,
     sortDir,
@@ -332,7 +318,7 @@ export default function SquadRosterView({
 
   const renderPreferredPositionMeta = (player: PlayerData) => {
     const [natural, ...alternates] = getPreferredPositions(player);
-    const inXI = xiIds.has(player.id);
+    const deployed = deployedPositionOf(player);
     return (
       <PositionBadges
         // Table C: one line of up to three, the deployed position kept, the rest as "+n".
@@ -340,8 +326,8 @@ export default function SquadRosterView({
         oneLine
         natural={natural}
         alternates={alternates}
-        deployed={inXI ? getCurrentPosition(player, xiActivePosition) : undefined}
-        familiarity={inXI ? getTacticalFit(player) : undefined}
+        deployed={deployed?.position}
+        familiarity={deployed?.familiarity}
         describe={(position) => ({
           label: translatePositionAbbreviation(t, position),
           name: translatePositionLabel(t, position),
@@ -375,7 +361,7 @@ export default function SquadRosterView({
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <div className="p-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_220px_220px_auto] gap-3 items-end">
+        <div className="p-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_220px_220px_auto_auto] gap-3 items-end">
           <div>
             <label
               htmlFor={searchInputId}
@@ -455,6 +441,7 @@ export default function SquadRosterView({
           >
             {t("common.clear")}
           </button>
+          <ViewSwitch value={view} onChange={setView} />
         </div>
         <div className="px-4 pb-4 flex flex-wrap gap-2">
           <Badge variant="primary" size="sm">
@@ -536,73 +523,82 @@ export default function SquadRosterView({
             </div>
           </div>
         </div>
-        <DataTable
-          label={t("squad.title", { team: team.name })}
-          columns={columns}
-          rows={filteredRoster}
-          rowKey={(player) => player.id}
-          rowName={(player) => player.match_name}
-          sort={{ key: sortKey, direction: sortDir }}
-          onSortChange={(key) => toggleSort(key as SquadListSortKey)}
-          onOpen={(player) => onSelectPlayer(player.id)}
-          rowAccent={(player) =>
-            xiIds.has(player.id) ? "selected" : isMatchDayEligible(player) ? null : "danger"
-          }
-          onRowContextMenu={(player, event) => {
-            // The Menu key and Shift+F10 send a right-click at 0,0: open it at the row instead.
-            const fromKeyboard = event.clientX === 0 && event.clientY === 0;
-            const rect = event.currentTarget.getBoundingClientRect();
-            menuRefs.current
-              .get(player.id)
-              ?.open(
-                fromKeyboard ? rect.left : event.clientX,
-                fromKeyboard ? rect.bottom : event.clientY,
-              );
-          }}
-          primaryAside={(player) => (
-            <SquadNameAside player={player} starting={xiIds.has(player.id)} t={t} />
-          )}
-          rowAction={{
-            header: t("common.actions"),
-            cell: (player) => (
-              <ContextMenu
-                items={squadRowMenuItems(player, menuContextFor(player))}
-                ref={(handle) => {
-                  if (handle) menuRefs.current.set(player.id, handle);
-                  else menuRefs.current.delete(player.id);
-                }}
-                onOpenChange={(open) => {
-                  setOpenMenuPlayerId((prev) => {
-                    if (open) return player.id;
-                    return prev === player.id ? null : prev;
-                  });
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    menuRefs.current.get(player.id)?.open(rect.left, rect.bottom + 4);
+        {view === "cards" ? (
+          <SquadCardsView
+            players={filteredRoster}
+            teamName={team.name}
+            kit={team.colors}
+            isStarter={(player) => xiIds.has(player.id)}
+            deployedPositionOf={deployedPositionOf}
+            riskLevelOf={riskLevelOf}
+            menuItemsFor={(player) => squadRowMenuItems(player, menuContextFor(player))}
+            onSelectPlayer={onSelectPlayer}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={toggleSort}
+          />
+        ) : (
+          <DataTable
+            label={t("squad.title", { team: team.name })}
+            columns={columns}
+            rows={filteredRoster}
+            rowKey={(player) => player.id}
+            rowName={(player) => player.match_name}
+            sort={{ key: sortKey, direction: sortDir }}
+            onSortChange={(key) => toggleSort(key as SquadListSortKey)}
+            onOpen={(player) => onSelectPlayer(player.id)}
+            rowAccent={(player) =>
+              xiIds.has(player.id) ? "selected" : isRuledOutOfMatchDay(player) ? "danger" : null
+            }
+            onRowContextMenu={(player, event) => {
+              const point = contextMenuPoint(event, event.currentTarget);
+              menuRefs.current.get(player.id)?.open(point.x, point.y);
+            }}
+            primaryAside={(player) => (
+              <SquadNameAside player={player} starting={xiIds.has(player.id)} t={t} />
+            )}
+            rowAction={{
+              header: t("common.actions"),
+              cell: (player) => (
+                <ContextMenu
+                  items={squadRowMenuItems(player, menuContextFor(player))}
+                  ref={(handle) => {
+                    if (handle) menuRefs.current.set(player.id, handle);
+                    else menuRefs.current.delete(player.id);
                   }}
-                  aria-label={t("common.playerActions", { name: player.match_name })}
-                  aria-haspopup="menu"
-                  aria-expanded={openMenuPlayerId === player.id}
-                  className="relative rounded-md p-1.5 text-fg-subtle transition-colors hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+                  onOpenChange={(open) => {
+                    setOpenMenuPlayerId((prev) => {
+                      if (open) return player.id;
+                      return prev === player.id ? null : prev;
+                    });
+                  }}
                 >
-                  <MoreVertical className="h-4 w-4" />
-                  {player.injury || riskLevelOf(player.id) !== "stable" ? (
-                    // Decoration: the injury and the contract stage are said in words in the row.
-                    <span
-                      aria-hidden="true"
-                      className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warning-solid"
-                    />
-                  ) : null}
-                </button>
-              </ContextMenu>
-            ),
-          }}
-          empty={t("squad.noPlayers")}
-        />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      menuRefs.current.get(player.id)?.open(rect.left, rect.bottom + 4);
+                    }}
+                    aria-label={t("common.playerActions", { name: player.match_name })}
+                    aria-haspopup="menu"
+                    aria-expanded={openMenuPlayerId === player.id}
+                    className="relative rounded-md p-1.5 text-fg-subtle transition-colors hover:text-fg focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                    {player.injury || riskLevelOf(player.id) !== "stable" ? (
+                      // Decoration: the injury and the contract stage are said in words in the row.
+                      <span
+                        aria-hidden="true"
+                        className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warning-solid"
+                      />
+                    ) : null}
+                  </button>
+                </ContextMenu>
+              ),
+            }}
+            empty={t("squad.noPlayers")}
+          />
+        )}
       </Card>
 
       {contractActionError ? (

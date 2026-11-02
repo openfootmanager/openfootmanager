@@ -712,6 +712,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Banc {{bench}}",
     "bestRole": "Meilleur rôle",
     "startingXi": "Onze de départ",
+    "notMatchDayEligible": "Indisponible pour la sélection",
     "starter": "Titulaire",
     "benchOption": "Banc",
     "naturalFit": "Poste naturel",

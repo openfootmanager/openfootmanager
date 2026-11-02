@@ -118,25 +118,71 @@ fn a_package_world_is_prepared_for_a_career_as_the_app_prepares_one() {
 
 /// Given the package in which every player is authored,
 /// When a world is built from it,
-/// Then every club holds exactly its authored players and no generated one, so no squad depends on
-///      the generator's rating bell (the free agents around the clubs are generated).
+/// Then every club holds exactly its 24 authored players, each with the rating and ceiling
+///      written for him (within two points: `overall` becomes attributes), his exact wage and a contract, so no squad depends on the generator's rating
+///      bell (the free agents around the clubs are generated).
 #[test]
 fn an_authored_only_package_builds_no_generated_player() {
     let game = WorldSpec::authored_only_package(11)
         .build()
         .expect("the package builds");
+    let authored: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/authored-only-package/players/players.json"
+        ))
+        .expect("the fixture is readable"),
+    )
+    .expect("the fixture is JSON");
+    let authored = authored["items"].as_array().expect("a list of players");
 
     assert_eq!(game.teams.len(), 4);
-    let squads = || {
-        game.players
+    for team in &game.teams {
+        let squad = game
+            .players
             .iter()
-            .filter(|player| player.team_id.is_some())
-    };
-    assert_eq!(squads().count(), 96, "four clubs of 24 authored players");
-    let strangers: Vec<&str> = squads()
-        .filter(|player| !player.id.contains("-fc-p"))
-        .map(|player| player.id.as_str())
-        .take(3)
-        .collect();
-    assert!(strangers.is_empty(), "generated players: {strangers:?}");
+            .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
+            .count();
+        assert_eq!(squad, 24, "{} holds {squad} players", team.id);
+    }
+
+    // `overall` is turned into an attribute block, whose position-weighted rating can land a point
+    // or two off the figure written, so ovr and potential are compared within that tolerance. A
+    // generated player is drawn from the bell and would be far off.
+    let mut differing = Vec::new();
+    let mut compared = 0;
+    for player in game
+        .players
+        .iter()
+        .filter(|player| player.team_id.is_some())
+    {
+        let written = authored
+            .iter()
+            .find(|item| item["id"] == player.id.as_str())
+            .unwrap_or_else(|| panic!("{} was not authored", player.id));
+        let off = |figure: u8, key: &str| {
+            let authored_figure = written[key].as_i64().expect("an authored figure");
+            (i64::from(figure) - authored_figure).abs()
+        };
+        if off(player.ovr, "overall") > 2
+            || off(player.potential, "potential") > 2
+            || u64::from(player.wage()) != written["wage"].as_u64().expect("an authored wage")
+            || player.contract_end().is_none()
+        {
+            differing.push(format!(
+                "{}: ovr {} potential {} wage {} contract {:?} against {written}",
+                player.id,
+                player.ovr,
+                player.potential,
+                player.wage(),
+                player.contract_end()
+            ));
+        }
+        compared += 1;
+    }
+    assert!(
+        differing.is_empty(),
+        "players that differ from the package: {differing:#?}"
+    );
+    assert_eq!(compared, 96, "four clubs of 24 authored players");
 }

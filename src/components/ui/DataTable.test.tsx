@@ -44,6 +44,20 @@ function renderTable(props: Partial<Parameters<typeof DataTable<Player>>[0]> = {
 
 describe("DataTable", () => {
   /**
+   * Given a table whose cells carry text only a screen reader reads (a starter's "Starting XI" on
+   *       Squad's names, the action column's header), which `sr-only` places absolutely
+   * When the table is drawn
+   * Then its scrolling box is the positioned box that text sits in, so it stays inside the table
+   *      rather than stretching the page: Squad's table grew a 1280×800 page to 1237px. jsdom does
+   *      no layout, so the class is what can be checked here.
+   */
+  it("is the positioned box its screen-reader-only text sits in", () => {
+    renderTable();
+    const scroller = screen.getByRole("table", { name: "Squad" }).parentElement;
+    expect(scroller).toHaveClass("relative", "overflow-x-auto");
+  });
+
+  /**
    * Given a list of players
    * When it is drawn as a table
    * Then it is a table named for the list, with a header per column and a row per player.

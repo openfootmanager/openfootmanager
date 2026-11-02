@@ -1,3 +1,4 @@
+import type { ListView } from "../../store/settingsStore";
 import { rootFontSizeFor, type UiScale } from "../../lib/uiScale";
 
 /**
@@ -13,6 +14,8 @@ export interface StyleGuideOptions {
   highContrast: boolean;
   rootFontSize: string;
   dialogOpen: boolean;
+  /** The page harness's lists open in this view (`?view=cards`); the game's default otherwise. */
+  listView: ListView;
 }
 
 function pick<T extends string>(value: string | null, allowed: readonly T[], fallback: T): T {
@@ -51,5 +54,6 @@ export function readStyleGuideOptions(search: string): StyleGuideOptions {
     highContrast: params.get("contrast") === "high",
     rootFontSize: rootFontSizeFor(scale),
     dialogOpen: params.get("dialog") === "open",
+    listView: pick<ListView>(params.get("view"), ["table", "cards"], "table"),
   };
 }

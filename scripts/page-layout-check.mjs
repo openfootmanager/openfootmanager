@@ -2,7 +2,8 @@
 // Loads the dev style guide and the page harness's pages in headless Chrome at the windows,
 // scales and languages that have broken layouts before, and reports any page that scrolls
 // sideways, reaches past the window's right edge, asks for a command the fixture can't answer,
-// or renders nothing. Round 2's layout rule: no sideways scroll at 960×640, at any UI scale.
+// or renders nothing. Round 2's layout rule: no sideways scroll at 960×640, at any UI scale. A
+// harness page must not scroll down either: the app's pages scroll inside their panels.
 //
 //   npm run dev                              # in another terminal
 //   node scripts/page-layout-check.mjs [http://localhost:1420]
@@ -27,10 +28,21 @@ const WINDOWS = [
 /** The harness's pages (HARNESS_PAGES in src/dev/pageHarness/harnessPage.ts; a test holds them equal). */
 const PAGES = ["home", "squad", "players", "teams", "managers", "staff"];
 
+/**
+ * The lists whose cards draw on the shared card shell, measured in their cards view too: a card that
+ * lets its contents out stretches the page, as the cards' screen-reader text did before the card
+ * was positioned.
+ */
+const CARD_VIEWS = ["players", "squad"];
+const CARD_WINDOWS = WINDOWS.filter((window) => window.scale === "normal" && window.lang === "en");
+
 /** Every page at every window; `page: undefined` is the style guide itself. */
-export const CASES = [undefined, ...PAGES].flatMap((page) =>
-  WINDOWS.map((window) => ({ page, ...window })),
-);
+export const CASES = [
+  ...[undefined, ...PAGES].flatMap((page) => WINDOWS.map((window) => ({ page, ...window }))),
+  ...CARD_VIEWS.flatMap((page) =>
+    CARD_WINDOWS.map((window) => ({ page, view: "cards", ...window })),
+  ),
+];
 
 /** Why this Node can't run the check, or null when it can. */
 export function nodeProblem(webSocket, version) {
@@ -72,7 +84,17 @@ export const REQUIRED_FACES = [
 ];
 
 /** What is wrong with one measured case; empty when it passes. */
-export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered, faces }) {
+export function judge({
+  page,
+  scrollWidth,
+  innerWidth,
+  scrollHeight,
+  innerHeight,
+  unanswered,
+  pastEdge,
+  rendered,
+  faces,
+}) {
   const problems = [];
   // The weight asked for, not just any: the browser stands the nearest weight it has in for one it
   // lacks, and a 600 drawn in place of a 700 has other widths.
@@ -84,6 +106,10 @@ export function judge({ scrollWidth, innerWidth, unanswered, pastEdge, rendered,
   }
   if (scrollWidth > innerWidth) {
     problems.push(`the page scrolls sideways (${scrollWidth} > ${innerWidth})`);
+  }
+  // The style guide is a long document; a harness page is the app, whose panels do the scrolling.
+  if (page && scrollHeight > innerHeight) {
+    problems.push(`the page scrolls down (${scrollHeight} > ${innerHeight})`);
   }
   if (pastEdge.length > 0) problems.push(`past the right edge: ${pastEdge.join(", ")}`);
   if (unanswered.length > 0) problems.push(`unanswered commands: ${unanswered.join(", ")}`);
@@ -147,15 +173,18 @@ const MEASURE = `(async () => {
     devicePixelRatio: window.devicePixelRatio,
     scrollWidth: document.documentElement.scrollWidth,
     innerWidth: window.innerWidth,
+    scrollHeight: document.documentElement.scrollHeight,
+    innerHeight: window.innerHeight,
     unanswered: harness ? harness.unanswered : [],
     pastEdge: harness ? harness.pastEdge() : [],
     rendered: (document.getElementById("root")?.childElementCount ?? 0) > 0,
   });
 })()`;
 
-function caseUrl(base, { page, scale, lang }) {
+function caseUrl(base, { page, view, scale, lang }) {
   const query = new URLSearchParams({ theme: "light", scale, lang });
   if (page) query.set("page", page);
+  if (view) query.set("view", view);
   return `${base}/style-guide.html?${query}`;
 }
 
@@ -263,8 +292,8 @@ async function main(base) {
         console.log(`device pixel ratio: ${measured.devicePixelRatio}`);
         console.log(`fonts loaded: ${measured.loadedFaces.join(", ")}`);
       }
-      const problems = judge(measured);
-      const label = `${testCase.page ?? "style guide"} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
+      const problems = judge({ ...measured, page: testCase.page });
+      const label = `${testCase.page ?? "style guide"}${testCase.view ? ` (${testCase.view})` : ""} ${testCase.width}×${testCase.height} ${testCase.scale} ${testCase.lang}`;
       console.log(
         `${problems.length === 0 ? "ok  " : "FAIL"} ${label}${problems.length ? `: ${problems.join("; ")}` : ""}`,
       );

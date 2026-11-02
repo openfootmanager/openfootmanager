@@ -712,6 +712,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
     "bestRole": "最佳角色",
     "startingXi": "首发阵容",
+    "notMatchDayEligible": "无法入选比赛名单",
     "starter": "首发",
     "benchOption": "替补",
     "naturalFit": "惯用位置",
