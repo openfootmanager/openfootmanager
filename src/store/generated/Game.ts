@@ -8,7 +8,7 @@ import type { Manager } from "./Manager";
 import type { NationalTeam } from "./NationalTeam";
 import type { NewsArticle } from "./NewsArticle";
 import type { PackageLock } from "./PackageLock";
-import type { Player } from "./Player";
+import type { ReaderPlayer } from "./ReaderPlayer";
 import type { ScoutedPlayer } from "./ScoutedPlayer";
 import type { ScoutingAssignment } from "./ScoutingAssignment";
 import type { SeasonContext } from "./SeasonContext";
@@ -22,7 +22,7 @@ export type Game = { clock: GameClock, manager: Manager, manager_id: string, man
 /**
  * Serialized without potential: the game's JSON only ever goes to a reader (`crate::wire`).
  */
-players: Array<Player>, staff: Array<Staff>, 
+players: Array<ReaderPlayer>, staff: Array<Staff>, 
 /**
  * Serialized with a youth report's prospects' potential left out, as `players` is.
  */
