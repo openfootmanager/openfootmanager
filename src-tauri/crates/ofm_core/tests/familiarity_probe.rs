@@ -96,8 +96,8 @@ struct Clubs {
     by_familiarity: [Bucket; 3],
     /// Out-of-position starts by (natural position, slot).
     misplaced: HashMap<(String, String), u32>,
-    /// Out-of-position starts while the rest of the fit squad held a player natural at that
-    /// slot, or one who can play it.
+    /// Out-of-position starts while the match-day bench held a player natural at that slot, or
+    /// one who can play it.
     misplaced_with_a_natural_on_the_bench: u64,
     misplaced_with_a_can_play_on_the_bench: u64,
 }
@@ -133,7 +133,7 @@ fn report(label: &str, clubs: &Clubs) {
         parts.join(" | ")
     );
     println!(
-        "FAMILIARITY {label}: of {} out-of-position starts, the rest of the fit squad held a natural for the slot in {} and a player who can play it in {}",
+        "FAMILIARITY {label}: of {} out-of-position starts, the match-day bench held a natural for the slot in {} and a player who can play it in {}",
         clubs.by_familiarity[2].starts,
         clubs.misplaced_with_a_natural_on_the_bench,
         clubs.misplaced_with_a_can_play_on_the_bench
@@ -176,9 +176,12 @@ fn report_starters_by_familiarity() {
             session.user_side = None;
             let kickoff = session.snapshot();
             let mut starters: HashMap<String, (bool, Familiarity, String, String)> = HashMap::new();
-            // The best familiarity anyone else in the fit squad has with each misplaced starter's slot.
+            // The best familiarity anyone on the match-day bench has with each misplaced starter's slot.
             let mut bench_best: HashMap<String, Familiarity> = HashMap::new();
-            for team in [&kickoff.home_team, &kickoff.away_team] {
+            for (team, bench) in [
+                (&kickoff.home_team, &kickoff.home_bench),
+                (&kickoff.away_team, &kickoff.away_bench),
+            ] {
                 let is_user = user_club.as_deref() == Some(team.id.as_str());
                 let slots = formation_slots(&team.formation);
                 for (slot_index, engine_player) in team.players.iter().enumerate() {
@@ -189,19 +192,12 @@ fn report_starters_by_familiarity() {
                     };
                     let fit = familiarity(player, slot);
                     if fit == Familiarity::OutOfPosition {
-                        // The rest of the fit squad, on the bench or not named at all.
-                        let starting: Vec<&str> = team
-                            .players
+                        // The kickoff bench is the rest of the match-day pool, chosen by the
+                        // same rule as the eleven (healthy seniors, youth only to cover a gap),
+                        // so only a player who could have been picked counts.
+                        let best = bench
                             .iter()
-                            .map(|starter| starter.id.as_str())
-                            .collect();
-                        let best = players
-                            .values()
-                            .filter(|other| {
-                                other.team_id.as_deref() == Some(team.id.as_str())
-                                    && other.injury.is_none()
-                                    && !starting.contains(&other.id.as_str())
-                            })
+                            .filter_map(|substitute| players.get(&substitute.id))
                             .map(|other| familiarity(other, slot))
                             .min_by_key(|bench_fit| index(*bench_fit))
                             .unwrap_or(Familiarity::OutOfPosition);
