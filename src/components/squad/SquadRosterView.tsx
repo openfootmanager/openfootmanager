@@ -53,6 +53,8 @@ import { sortSquadRoster } from "./SquadRosterView.sort";
 
 interface SquadRosterViewProps {
   players: PlayerData[];
+  /** The squad's eligibility is the backend's for the current revision, not the previous one's. */
+  squadAnswered: boolean;
   team: TeamData;
   clockDate: string;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
@@ -72,6 +74,7 @@ type FilterScope =
 
 export default function SquadRosterView({
   players,
+  squadAnswered,
   team,
   clockDate,
   onSelectPlayer,
@@ -98,6 +101,7 @@ export default function SquadRosterView({
   const [openMenuPlayerId, setOpenMenuPlayerId] = useState<string | null>(null);
 
   const positionTable = usePositionTable();
+  const canChangeLineup = positionTable.loaded && squadAnswered;
   const roster = players
     .filter((player) => isFirstTeamSquadPlayer(player))
     .sort(
@@ -271,8 +275,9 @@ export default function SquadRosterView({
   };
 
   const persistStartingXi = async (playerIds: string[]): Promise<void> => {
-    // Nothing is saved from a lineup worked out before the backend's position table has loaded.
-    if (!positionTable.loaded) return;
+    // Nothing is saved from a lineup worked out before the backend's position table has loaded or
+    // from a squad it has not answered for this revision (its eligibility is the last one's).
+    if (!canChangeLineup) return;
     const updated = await setStartingXi(playerIds);
     completeMutation(updated);
   };
@@ -352,7 +357,7 @@ export default function SquadRosterView({
     contractActionPending: contractActionPlayerId === player.id,
     onSelectPlayer,
     onMutationComplete: completeMutation,
-    positionTableLoaded: positionTable.loaded,
+    lineupReady: canChangeLineup,
     updateSquadPlanning,
     updateContractExitIntent,
     onActionError: (error: unknown) => setContractActionError(resolveBackendError(error)),

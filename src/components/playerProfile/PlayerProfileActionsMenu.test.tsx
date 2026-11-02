@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { GameStateData, PlayerData } from "../../store/gameStore";
 import PlayerProfileActionsMenu from "./PlayerProfileActionsMenu";
-import { setPlayerSquadRole } from "../../services/squadService";
+import { getSquad, setPlayerSquadRole, setStartingXi } from "../../services/squadService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 
 // Whether the backend's position table has arrived; a test says it has not.
@@ -33,6 +33,7 @@ vi.mock("../../services/transfersService", () => ({
 }));
 
 vi.mock("../../services/squadService", () => ({
+  getSquad: vi.fn(),
   setPlayerSquadRole: vi.fn(),
   setStartingXi: vi.fn(),
 }));
@@ -64,8 +65,12 @@ function buildPlayer(overrides: Partial<PlayerData> = {}): PlayerData {
   } as unknown as PlayerData;
 }
 
+// The game the test built last: get_squad answers with its players, each with the verdict the
+// backend would give a healthy senior.
+let currentGame: GameStateData | null = null;
+
 function buildGameState(players: PlayerData[]): GameStateData {
-  return {
+  currentGame = {
     manager: { team_id: "team-1" },
     teams: [
       {
@@ -85,6 +90,7 @@ function buildGameState(players: PlayerData[]): GameStateData {
     staff: [],
     clock: { current_date: "2026-07-01" },
   } as unknown as GameStateData;
+  return currentGame;
 }
 
 function baseProps(player: PlayerData, gameState: GameStateData) {
@@ -112,6 +118,11 @@ function openMenu(): void {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(getSquad).mockImplementation(async (teamId: string) =>
+    (currentGame?.players ?? [])
+      .filter((player) => player.team_id === teamId)
+      .map((player) => ({ ...player, match_day_eligible: true })),
+  );
 });
 
 describe("PlayerProfileActionsMenu", () => {
@@ -137,7 +148,7 @@ describe("PlayerProfileActionsMenu", () => {
    * Then "Send to bench" is enabled once the table has loaded and disabled before: a lineup change
    *      is not made without it, and a disabled item says so where a silent no-op would not.
    */
-  it("disables the lineup actions until the position table has loaded", () => {
+  it("disables the lineup actions until the position table has loaded", async () => {
     const starters = Array.from({ length: 11 }, (_, i) =>
       buildPlayer({ id: `s${i}`, full_name: `Starter ${i}` }),
     );
@@ -157,6 +168,7 @@ describe("PlayerProfileActionsMenu", () => {
     }
 
     render(<PlayerProfileActionsMenu {...props} isManagerOwnedProfile />);
+    await act(async () => {}); // the squad has answered for this revision
     openMenu();
     expect(screen.getByRole("menuitem", { name: "squad.sendToBench" })).toBeEnabled();
   });
@@ -166,7 +178,7 @@ describe("PlayerProfileActionsMenu", () => {
    * When the menu is opened
    * Then "Make starter" is disabled (loaded, it is enabled).
    */
-  it("disables Make starter on a bench player's profile until the table has loaded", () => {
+  it("disables Make starter on a bench player's profile until the table has loaded", async () => {
     const starters = Array.from({ length: 11 }, (_, i) =>
       buildPlayer({ id: `s${i}`, full_name: `Starter ${i}` }),
     );
@@ -186,7 +198,37 @@ describe("PlayerProfileActionsMenu", () => {
     }
 
     render(<PlayerProfileActionsMenu {...props} isManagerOwnedProfile />);
+    await act(async () => {}); // the squad has answered for this revision
     openMenu();
+    expect(screen.getByRole("menuitem", { name: "squad.makeStarter" })).toBeEnabled();
+  });
+
+  /**
+   * Given a bench player's profile, and get_squad has not answered for this revision
+   * When the menu is opened and "Make starter" is clicked, and then the squad answers
+   * Then it is disabled and saves nothing while the squad is pending, and enabled once it has
+   *      answered: the eligibility the lineup is worked out from is the backend's, not a guess.
+   */
+  it("saves nothing from a profile promote while get_squad is in flight", async () => {
+    const starters = Array.from({ length: 11 }, (_, i) =>
+      buildPlayer({ id: `s${i}`, full_name: `Starter ${i}` }),
+    );
+    const bench = buildPlayer({ id: "bench", full_name: "Bench Player" });
+    const game = buildGameState([...starters, bench]);
+    (game.teams[0] as { starting_xi_ids: string[] }).starting_xi_ids = starters.map((p) => p.id);
+    const squad = game.players.map((player) => ({ ...player, match_day_eligible: true }));
+    let answer: (players: PlayerData[]) => void = () => {};
+    vi.mocked(getSquad).mockReturnValue(new Promise((resolve) => (answer = resolve)));
+
+    render(<PlayerProfileActionsMenu {...baseProps(bench, game)} isManagerOwnedProfile />);
+    openMenu();
+    const makeStarter = screen.getByRole("menuitem", { name: "squad.makeStarter" });
+    expect(makeStarter).toBeDisabled();
+    fireEvent.click(makeStarter);
+    await act(async () => {});
+    expect(setStartingXi).not.toHaveBeenCalled();
+
+    await act(async () => answer(squad));
     expect(screen.getByRole("menuitem", { name: "squad.makeStarter" })).toBeEnabled();
   });
 
