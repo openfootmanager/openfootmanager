@@ -310,7 +310,7 @@ mod tests {
         advance_to_next_season(&mut loaded).unwrap();
         assert_renewed(&loaded, "ar-d1-apertura", 2034, now + Duration::days(28));
         let mut loaded: Game =
-            serde_json::from_slice(&serde_json::to_vec(&loaded).unwrap()).unwrap();
+            serde_json::from_value(crate::wire::truthful_value(&loaded).unwrap()).unwrap();
         let before = serde_json::to_value(&loaded).unwrap();
         assert!(advance_to_next_season(&mut loaded).is_err());
         assert_eq!(serde_json::to_value(&loaded).unwrap(), before);
@@ -360,7 +360,7 @@ mod tests {
                 complete(competition);
             }
             let mut loaded: Game =
-                serde_json::from_slice(&serde_json::to_vec(&game).unwrap()).unwrap();
+                serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
             advance_to_next_season(&mut loaded).unwrap();
             assert_renewed(
                 &loaded,

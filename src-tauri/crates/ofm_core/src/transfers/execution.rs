@@ -990,7 +990,7 @@ mod tests {
         assert_registration_failure(&game, "InsufficientFunds");
         game.messages.clear();
         let mut loaded: Game =
-            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         process_pending_transfer_registrations(&mut loaded);
         assert!(loaded.messages.is_empty());
         assert_eq!(
@@ -1125,7 +1125,7 @@ mod acceptance_tests {
         let id = game.messages[0].id.clone();
         game.messages.clear();
         let mut loaded: Game =
-            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         process_pending_transfer_registrations(&mut loaded);
         assert!(loaded.messages.is_empty());
         assert!(loaded.emitted_events.contains(&id));

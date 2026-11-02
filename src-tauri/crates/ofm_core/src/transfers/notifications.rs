@@ -128,7 +128,7 @@ mod tests {
         let offer_id = game.players[0].transfer_offers[0].id.clone();
         game.messages.clear();
         let mut loaded: Game =
-            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         notify_transfer_agreement(&mut loaded, "player-award", &offer_id, "team2");
         assert!(loaded.messages.is_empty());
         assert!(loaded.emitted_events.contains(&id));
@@ -144,7 +144,7 @@ mod tests {
         let id = game.messages[0].id.clone();
         game.messages.clear();
         let mut loaded: Game =
-            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         notify_loan_agreement(&mut loaded, "player-award", &offer_id);
         assert!(loaded.messages.is_empty());
         assert!(loaded.emitted_events.contains(&id));

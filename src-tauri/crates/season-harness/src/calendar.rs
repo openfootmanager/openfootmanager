@@ -48,8 +48,9 @@ pub fn unplayed_clashes(game: &Game) -> Vec<String> {
     clashes
 }
 
-/// The game as a save and a load return it.
+/// The game as a save and a load return it: the truthful form, as a save holds it, not a reader's
+/// copy (`ofm_core::wire`).
 pub fn reloaded(game: &Game) -> Game {
-    let saved = serde_json::to_vec(game).expect("a game serialises");
-    serde_json::from_slice(&saved).expect("a saved game loads")
+    let saved = ofm_core::wire::truthful_value(game).expect("a game serialises");
+    serde_json::from_value(saved).expect("a saved game loads")
 }

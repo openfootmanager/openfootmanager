@@ -260,7 +260,7 @@ mod tests {
 
         game.messages.clear();
         let mut reloaded: Game =
-            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         reloaded.players[1].injury = None;
         apply_match_injuries(
             &mut reloaded,

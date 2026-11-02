@@ -652,7 +652,7 @@ mod tests {
     fn accepting_a_reloaded_ai_loan_rechecks_affordability() {
         let game = incoming_loan_game(10_000);
         let mut restored: Game =
-            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         assert_eq!(restored.players[0].wage(), 100_000);
         assert_eq!(restored.players[0].loan_offers[0].wage_contribution_pct, 50);
         let before = game_snapshot(&restored);
@@ -668,7 +668,7 @@ mod tests {
     fn an_accepted_reloaded_ai_counter_rechecks_the_final_wage_share() {
         let game = incoming_loan_game(60_000);
         let mut restored: Game =
-            serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         let before = game_snapshot(&restored);
         assert_eq!(
             accept_counter(&mut restored).unwrap_err(),

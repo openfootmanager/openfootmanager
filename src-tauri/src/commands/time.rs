@@ -1663,11 +1663,13 @@ mod tests {
             Some("match_day")
         );
         // Clock must not have advanced — the match should be played interactively.
-        let game: ofm_core::game::Game =
-            serde_json::from_value(result["game"].clone()).expect("game deserializable");
+        // The response's game is a reader's copy, which does not read back as a game: the date is
+        // read from the live game, which is where the day moved (or did not).
+        let game_date = state
+            .get_game(|game| game.clock.current_date.date_naive().to_string())
+            .unwrap();
         assert_eq!(
-            game.clock.current_date.date_naive().to_string(),
-            "2025-06-15",
+            game_date, "2025-06-15",
             "clock must not advance on a match day stop"
         );
     }
@@ -1716,12 +1718,12 @@ mod tests {
             "returned date must be the day that was processed"
         );
         // Game clock should now be 2025-06-16.
-        let game: ofm_core::game::Game =
-            serde_json::from_value(result["game"].clone()).expect("game deserializable");
-        assert_eq!(
-            game.clock.current_date.date_naive().to_string(),
-            "2025-06-16"
-        );
+        // The response's game is a reader's copy, which does not read back as a game: the date is
+        // read from the live game, which is where the day moved (or did not).
+        let game_date = state
+            .get_game(|game| game.clock.current_date.date_naive().to_string())
+            .unwrap();
+        assert_eq!(game_date, "2025-06-16");
     }
 
     #[test]
@@ -1741,11 +1743,11 @@ mod tests {
             result.get("action").and_then(Value::as_str),
             Some("advanced")
         );
-        let game: ofm_core::game::Game =
-            serde_json::from_value(result["game"].clone()).expect("game deserializable");
-        assert_eq!(
-            game.clock.current_date.date_naive().to_string(),
-            "2025-06-16"
-        );
+        // The response's game is a reader's copy, which does not read back as a game: the date is
+        // read from the live game, which is where the day moved (or did not).
+        let game_date = state
+            .get_game(|game| game.clock.current_date.date_naive().to_string())
+            .unwrap();
+        assert_eq!(game_date, "2025-06-16");
     }
 }

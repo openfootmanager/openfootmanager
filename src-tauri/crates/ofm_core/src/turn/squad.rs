@@ -1201,7 +1201,7 @@ pub(crate) mod match_day_pool_tests {
             assert_eq!(ids.len(), 18);
             assert!(ids.contains("youth-00"));
             let mut loaded: Game =
-                serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+                serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
             loaded.players[17..].reverse();
             assert_eq!(match_day_ids(&loaded), ids);
             assert!(
