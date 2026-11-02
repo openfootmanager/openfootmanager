@@ -33,7 +33,10 @@ vi.mock("react-i18next", () => {
         "teams.searchPlaceholder": "Search clubs",
         "teams.noResults": "No clubs match your search.",
         "teams.otherClubs": "Other clubs",
-        "be.error.noActiveGame": "No game is open.",
+        "be.error.noActiveGameSession": "No active game session",
+        "common.won": "W",
+        "common.drawn": "D",
+        "common.lost": "L",
       };
       if (labels[key]) return labels[key];
       if (fallback && typeof fallback === "object") {
@@ -328,9 +331,9 @@ describe("TeamsListTab", () => {
 
     const card = await screen.findByRole("article", { name: "Leader FC" });
     expect(cardTerms(card)).toEqual({
-      "common.won": "3",
-      "common.drawn": "1",
-      "common.lost": "0",
+      W: "3",
+      D: "1",
+      L: "0",
       Pts: "10",
       "Avg OVR": "71",
       Squad: "22",
@@ -360,10 +363,10 @@ describe("TeamsListTab", () => {
    * Then it says it in the player's language, as an alert above the list.
    */
   it("says why the directory failed to load, in the player's words", async () => {
-    mockedInvoke.mockRejectedValue("be.error.noActiveGame");
+    mockedInvoke.mockRejectedValue("be.error.noActiveGameSession");
     render(<TeamsListTab gameState={gameStateWithManagerTeam(null)} onSelectTeam={vi.fn()} />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("No game is open.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("No active game session");
   });
 
   /**
