@@ -59,13 +59,15 @@ fn make_player(id: &str, team_id: Option<&str>) -> Player {
 
 fn make_game(teams: Vec<Team>, players: Vec<Player>) -> Game {
     let clock = GameClock::new(Utc.with_ymd_and_hms(2026, 7, 1, 12, 0, 0).unwrap());
-    let manager = Manager::new(
+    let mut manager = Manager::new(
         "m".to_string(),
         "M".to_string(),
         "Gr".to_string(),
         "1980-01-01".to_string(),
         "GB".to_string(),
     );
+    // The squad is the manager's own club's (`query_squad`), so he runs the first club.
+    manager.hire("t1".to_string());
     Game::new(clock, manager, teams, players, vec![], vec![])
 }
 
@@ -81,7 +83,7 @@ fn squad_returns_only_players_for_the_requested_team() {
         ],
     );
 
-    let squad = query_squad(&game, "t1");
+    let squad = query_squad(&game, "t1").unwrap();
 
     let ids: Vec<&str> = squad.iter().map(|p| p.player.id.as_str()).collect();
     assert_eq!(ids.len(), 2);
@@ -99,7 +101,7 @@ fn squad_includes_all_players_regardless_of_squad_role() {
     senior.squad_role = domain::player::SquadRole::Senior;
     let game = make_game(vec![make_team("t1", "Alpha FC")], vec![youth, senior]);
 
-    let squad = query_squad(&game, "t1");
+    let squad = query_squad(&game, "t1").unwrap();
 
     assert_eq!(squad.len(), 2);
 }
@@ -117,7 +119,7 @@ fn squad_matches_full_game_player_filter() {
         players.clone(),
     );
 
-    let squad = query_squad(&game, "t1");
+    let squad = query_squad(&game, "t1").unwrap();
     let expected: Vec<&domain::player::Player> = game
         .players
         .iter()
@@ -130,14 +132,20 @@ fn squad_matches_full_game_player_filter() {
     }
 }
 
+/// Given a manager at his club
+/// When the squad of a club he does not run is asked for
+/// Then it is refused, not answered empty: a squad row is the whole player
 #[test]
-fn squad_returns_empty_for_unknown_team() {
+fn squad_refuses_a_club_the_manager_does_not_run() {
     let game = make_game(
         vec![make_team("t1", "Alpha FC")],
         vec![make_player("p1", Some("t1"))],
     );
 
-    let squad = query_squad(&game, "t999");
+    let answer = query_squad(&game, "t999");
 
-    assert!(squad.is_empty());
+    assert_eq!(
+        answer.unwrap_err(),
+        ofm_core::slices::squad::ANOTHER_CLUBS_SQUAD
+    );
 }

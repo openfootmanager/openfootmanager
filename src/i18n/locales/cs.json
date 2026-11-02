@@ -3020,7 +3020,8 @@
         "invalidFormation": "Tuto formaci hra nezná.",
         "invalidPlayStyle": "Tento herní styl hra nezná.",
         "notFound": "Tato taktika už neexistuje."
-      }
+      },
+      "anotherClubsSquad": "Tento kádr patří jinému klubu."
     },
     "sender": {
       "boardOfDirectors": "Představenstvo",

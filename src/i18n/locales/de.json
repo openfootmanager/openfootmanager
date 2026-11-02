@@ -3020,7 +3020,8 @@
         "invalidFormation": "Diese Formation kennt das Spiel nicht.",
         "invalidPlayStyle": "Diesen Spielstil kennt das Spiel nicht.",
         "notFound": "Diese Taktik gibt es nicht mehr."
-      }
+      },
+      "anotherClubsSquad": "Dieser Kader gehört zu einem anderen Verein."
     },
     "sender": {
       "boardOfDirectors": "Vorstand",

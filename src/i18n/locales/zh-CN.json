@@ -3020,7 +3020,8 @@
         "invalidFormation": "游戏不认识该阵型。",
         "invalidPlayStyle": "游戏不认识该打法。",
         "notFound": "该战术已不存在。"
-      }
+      },
+      "anotherClubsSquad": "该阵容属于另一家俱乐部。"
     },
     "sender": {
       "boardOfDirectors": "董事会",

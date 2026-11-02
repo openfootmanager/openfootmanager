@@ -233,7 +233,7 @@ pub async fn get_squad(
 fn get_squad_internal(state: &StateManager, team_id: &str) -> Result<Vec<SquadPlayer>, String> {
     state
         .get_game(|game| query_squad(game, team_id))
-        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())?
 }
 
 #[tauri::command]
@@ -382,13 +382,17 @@ mod tests {
             ofm_core::clock::GameClock::new(
                 chrono::Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap(),
             ),
-            Manager::new(
-                "m".into(),
-                "M".into(),
-                "Gr".into(),
-                "1980-01-01".into(),
-                "GB".into(),
-            ),
+            {
+                let mut manager = Manager::new(
+                    "m".into(),
+                    "M".into(),
+                    "Gr".into(),
+                    "1980-01-01".into(),
+                    "GB".into(),
+                );
+                manager.hire("club".into());
+                manager
+            },
             vec![],
             vec![keeper, youth],
             vec![],
@@ -400,7 +404,11 @@ mod tests {
         let youth = rows.iter().find(|p| p["id"] == "youth").unwrap();
         assert_eq!(youth["match_day_eligible"], true);
         assert_eq!(youth["squad_role"], "Youth");
-        assert!(get_squad_internal(&state, "other-club").unwrap().is_empty());
+        assert_eq!(
+            get_squad_internal(&state, "other-club").unwrap_err(),
+            ofm_core::slices::squad::ANOTHER_CLUBS_SQUAD,
+            "another club's squad is refused, not answered"
+        );
     }
 
     /// Given no active game, when the potential opinion adapter reads it,
