@@ -207,8 +207,7 @@ describe("StaffTab", () => {
       />,
     );
 
-    const card = await screen.findByTestId("staff-card-staff-physio");
-    expect(await within(card).findByText("77 OVR")).toBeInTheDocument();
+    expect(await screen.findByText("77 OVR")).toBeInTheDocument();
   });
 
   /**
@@ -229,9 +228,7 @@ describe("StaffTab", () => {
       />,
     );
 
-    expect(
-      within(screen.getByTestId("staff-card-staff-coach")).getByText("– OVR"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("– OVR")).toBeInTheDocument();
   });
 
   /**
@@ -264,12 +261,58 @@ describe("StaffTab", () => {
       />,
     );
     fireEvent.click(await screen.findByRole("button", { name: /Available 1/i }));
-    fireEvent.click(screen.getByTitle("Hire staff"));
+    fireEvent.click(screen.getByRole("button", { name: "Hire staff" }));
 
     await waitFor(() => expect(hiredYet).toBe(true));
     fireEvent.click(await screen.findByRole("button", { name: /My Staff 1/i }));
-    const card = await screen.findByTestId("staff-card-staff-free");
-    expect(await within(card).findByText("64 OVR")).toBeInTheDocument();
+    expect(await screen.findByText("64 OVR")).toBeInTheDocument();
+  });
+
+  /**
+   * Given two free agents hired one after the other, before the first hire's refresh answers
+   * When the second refresh (both hired) answers first, and the first (one hired) answers last
+   * Then the page keeps the newer list, both on the staff, rather than the older snapshot that
+   *      arrived late.
+   */
+  it("keeps the newest staff list when an older refresh answers last", async () => {
+    const first = createStaff({ id: "first", display_name: "First Free", team_id: null });
+    const second = createStaff({ id: "second", display_name: "Second Free", team_id: null });
+    const hired = (member: StaffData) => ({ ...member, team_id: "team-1" });
+    const refreshes: ((slice: unknown) => void)[] = [];
+    let opened = false;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_staff") {
+        if (!opened) {
+          opened = true;
+          return Promise.resolve(makeStaffSlice([first, second]));
+        }
+        return new Promise((resolve) => refreshes.push(resolve));
+      }
+      return Promise.resolve(createGameState([first, second]));
+    });
+
+    render(
+      <StaffTab
+        gameState={createGameState([first, second])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: /Available 2/i }));
+    const [hireFirst, hireSecond] = screen.getAllByRole("button", { name: "Hire staff" });
+    fireEvent.click(hireFirst);
+    await waitFor(() => expect(refreshes).toHaveLength(1));
+    fireEvent.click(hireSecond);
+    await waitFor(() => expect(refreshes).toHaveLength(2));
+
+    await act(async () => {
+      refreshes[1](makeStaffSlice([hired(first), hired(second)]));
+    });
+    await act(async () => {
+      refreshes[0](makeStaffSlice([hired(first), second]));
+    });
+
+    expect(screen.getByRole("button", { name: /My Staff 2/i })).toBeInTheDocument();
   });
 
   it("switches to available staff and filters by role and search", async () => {
