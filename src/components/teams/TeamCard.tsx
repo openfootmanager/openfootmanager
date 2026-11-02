@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 
 import { visibleRatingText } from "../../lib/playerKnowledge";
 import type { TeamCard as TeamCardData } from "../../services/teamsService";
-import { Badge, CountryFlag, EntityCard, TeamLogo } from "../ui";
+import { Badge, CountryFlag, EntityCard, FormDots, TeamLogo } from "../ui";
 
 interface TeamCardProps {
   card: TeamCardData;
@@ -16,9 +16,8 @@ interface TeamCardProps {
  * the identity row, its league position as the hero, the standing and the squad's average in the
  * status band, and its squad's size and reputation as the two facts.
  *
- * The approved card (round 4, v4) also has the club's last five results and its manager in the
- * status band. Neither is projected yet: the form comes with its own PR, the manager with the
- * manager profile's projection.
+ * The approved card (round 4, v4) also has the club's manager in the status band; he comes with
+ * the manager profile's projection. His last five results are the form dots.
  */
 export default function TeamCard({ card, isUser, onOpen }: TeamCardProps) {
   const { t, i18n } = useTranslation();
@@ -46,37 +45,40 @@ export default function TeamCard({ card, isUser, onOpen }: TeamCardProps) {
         </span>
       }
       status={
-        <dl className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
-          {standing ? (
-            <>
-              <StatusFigure
-                label={t("common.wonFull")}
-                abbreviation={t("common.won")}
-                value={standing.won}
-              />
-              <StatusFigure
-                label={t("common.drawnFull")}
-                abbreviation={t("common.drawn")}
-                value={standing.drawn}
-              />
-              <StatusFigure
-                label={t("common.lostFull")}
-                abbreviation={t("common.lost")}
-                value={standing.lost}
-              />
-              <StatusFigure
-                label={t("common.ptsFull")}
-                abbreviation={t("common.pts")}
-                value={standing.points}
-              />
-            </>
-          ) : (
-            // No table yet: one dash, not a row of zeros that reads as a record.
-            <StatusFigure label={t("common.ptsFull")} abbreviation={t("common.pts")} value="—" />
-          )}
-          {/* Withheld ("–") for a club whose squad the manager doesn't know. */}
-          <StatusFigure label={t("teams.avgOvr")} value={visibleRatingText(card.avg_ovr)} />
-        </dl>
+        <>
+          <FormDots results={card.form} />
+          <dl className="flex flex-wrap gap-x-4 gap-y-1 tabular-nums">
+            {standing ? (
+              <>
+                <StatusFigure
+                  label={t("common.wonFull")}
+                  abbreviation={t("common.won")}
+                  value={standing.won}
+                />
+                <StatusFigure
+                  label={t("common.drawnFull")}
+                  abbreviation={t("common.drawn")}
+                  value={standing.drawn}
+                />
+                <StatusFigure
+                  label={t("common.lostFull")}
+                  abbreviation={t("common.lost")}
+                  value={standing.lost}
+                />
+                <StatusFigure
+                  label={t("common.ptsFull")}
+                  abbreviation={t("common.pts")}
+                  value={standing.points}
+                />
+              </>
+            ) : (
+              // No table yet: one dash, not a row of zeros that reads as a record.
+              <StatusFigure label={t("common.ptsFull")} abbreviation={t("common.pts")} value="—" />
+            )}
+            {/* Withheld ("–") for a club whose squad the manager doesn't know. */}
+            <StatusFigure label={t("teams.avgOvr")} value={visibleRatingText(card.avg_ovr)} />
+          </dl>
+        </>
       }
       facts={[
         { label: t("teams.squad"), value: card.roster_size },

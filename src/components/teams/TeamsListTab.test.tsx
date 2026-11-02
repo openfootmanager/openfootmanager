@@ -116,6 +116,7 @@ function buildCard(overrides: {
   points?: number;
   avg_ovr?: number | null;
   reputation?: number;
+  form?: string[];
 }): TeamCard {
   return {
     team: {
@@ -135,6 +136,7 @@ function buildCard(overrides: {
     avg_ovr: overrides.avg_ovr === undefined ? 65 : overrides.avg_ovr,
     total_value: 1_000_000,
     league_pos: overrides.league_pos,
+    form: overrides.form ?? [],
     standing:
       overrides.points !== undefined
         ? {
@@ -397,6 +399,22 @@ describe("TeamsListTab", () => {
     const table = screen.getByRole("table", { name: "League" });
     expect(within(table).getByRole("columnheader", { name: "Played" })).toHaveTextContent("P");
     expect(within(table).getByRole("columnheader", { name: "Points" })).toHaveTextContent("Pts");
+  });
+
+  /**
+   * Given a club whose last five results were a win, a draw, two wins and a loss
+   * When its card is drawn
+   * Then its status band shows that form, oldest first: the v4 card's form dots.
+   */
+  it("shows a club's recent form on its card", async () => {
+    setupDirectoryMock([
+      buildCard({ id: "form", name: "Form FC", league_pos: 1, form: ["W", "D", "W", "W", "L"] }),
+    ]);
+    render(<TeamsListTab gameState={gameStateWithManagerTeam("form")} onSelectTeam={vi.fn()} />);
+
+    const card = await screen.findByRole("article", { name: "Form FC" });
+    const form = within(card).getByRole("list", { name: "common.recentForm" });
+    expect(within(form).getAllByRole("listitem")).toHaveLength(5);
   });
 
   /**

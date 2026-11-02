@@ -1,7 +1,7 @@
 import { Trophy } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { Badge, Card, CardBody, CardHeader } from "../ui";
+import { Badge, Card, CardBody, CardHeader, FormDots } from "../ui";
 
 interface LeagueStandingSnapshot {
   team_id: string;
@@ -121,22 +121,7 @@ export default function HomeLeaguePositionCard({
             </div>
             {teamForm.length > 0 && (
               <div className="flex flex-col items-center gap-1.5 mt-1">
-                <div className="flex gap-1.5">
-                  {teamForm.map((result, index) => (
-                    <span
-                      key={`${result}-${index}`}
-                      className={`w-6 h-6 rounded flex items-center justify-center text-[10px] font-heading font-bold text-white ${
-                        result === "W"
-                          ? "bg-green-500"
-                          : result === "L"
-                            ? "bg-red-500"
-                            : "bg-gray-400"
-                      }`}
-                    >
-                      {result}
-                    </span>
-                  ))}
-                </div>
+                <FormDots results={teamForm} />
                 {winStreak && (
                   <span className="text-[10px] font-heading font-bold text-green-500 uppercase tracking-wider">
                     {t("home.winningStreak")}

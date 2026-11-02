@@ -36,6 +36,7 @@ pub(super) fn project_card(
         total_value,
         league_pos,
         standing,
+        form: team.form.clone(),
     }
 }
 
