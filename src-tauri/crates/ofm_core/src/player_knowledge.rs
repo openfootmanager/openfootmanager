@@ -47,6 +47,12 @@ pub struct KnowledgeView {
     reports: HashMap<String, ReportSeen>,
 }
 
+/// Whether the club sees the player's live rating and attributes: its own player, or one in its
+/// division. A scouted player's are the scout's, in his report; anyone else's, nobody's.
+pub fn knows_rating(knowledge: &PlayerKnowledge) -> bool {
+    matches!(knowledge, PlayerKnowledge::Own | PlayerKnowledge::Known)
+}
+
 /// What a scout's report tells the club of a player: when it was made, and whether it still
 /// describes him.
 struct ReportSeen {
@@ -65,6 +71,17 @@ impl KnowledgeView {
             opponents_today: club
                 .map_or_else(HashSet::new, |club| owned(opponents_today(game, club))),
             reports: reports_by_player(game),
+        }
+    }
+
+    /// The view of no club at all: everyone is unknown. What a reader's copy of the game is written
+    /// for when nobody said who is reading (`crate::wire`), so a missed path hides, never leaks.
+    pub(crate) fn of_nobody() -> Self {
+        Self {
+            club: None,
+            known_clubs: HashSet::new(),
+            opponents_today: HashSet::new(),
+            reports: HashMap::new(),
         }
     }
 
@@ -230,9 +247,8 @@ pub struct PlayerVisibility {
 impl KnowledgeView {
     pub fn of_player(&self, player: &Player) -> PlayerVisibility {
         let knowledge = self.knowledge(player);
-        let knows_rating = matches!(knowledge, PlayerKnowledge::Own | PlayerKnowledge::Known);
         PlayerVisibility {
-            ovr: knows_rating.then_some(player.ovr),
+            ovr: knows_rating(&knowledge).then_some(player.ovr),
             wage: self.wage_for(&knowledge, player),
             condition: self.condition_for(&knowledge, player),
             knowledge,

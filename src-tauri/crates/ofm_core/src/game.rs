@@ -117,6 +117,7 @@ pub struct Game {
     pub teams: Vec<Team>,
     /// Serialized without potential: the game's JSON only ever goes to a reader (`crate::wire`).
     #[serde(serialize_with = "crate::wire::players_for_reader")]
+    #[ts(as = "Vec<crate::wire::ReaderPlayer>")]
     pub players: Vec<Player>,
     pub staff: Vec<Staff>,
     /// Serialized with a youth report's prospects' potential left out, as `players` is.
