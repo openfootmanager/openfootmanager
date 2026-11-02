@@ -216,6 +216,29 @@ describe("useFetchedSquad", () => {
     });
 
     /**
+     * Given an answered squad, then the team removed (unemployed) and then the same team back, with
+     *       the same date and revision and its fetch still in flight
+     * When the hook runs
+     * Then it is not answered: the squad was cleared with the team, and what the caller falls back
+     *      to is not the backend's answer.
+     */
+    it("is not answered again when the same team returns before its fetch resolves", async () => {
+      mockedGetSquad.mockResolvedValueOnce(squad("p1")).mockReturnValueOnce(new Promise(() => {}));
+      const revision = { n: 1 };
+      const { result, rerender } = renderHook(
+        ({ teamId }: { teamId: string | null }) => useFetchedSquad(teamId, "2026-08-01", revision),
+        { initialProps: { teamId: "team1" as string | null } },
+      );
+      await waitFor(() => expect(result.current[2]).toBe(true));
+
+      rerender({ teamId: null });
+      rerender({ teamId: "team1" });
+
+      expect(result.current[0]).toBeNull();
+      expect(result.current[2]).toBe(false);
+    });
+
+    /**
      * Given no team
      * When the hook runs
      * Then it is never answered: there is nothing to answer for.

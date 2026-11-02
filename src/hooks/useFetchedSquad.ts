@@ -42,6 +42,7 @@ export function useFetchedSquad(
     if (!teamId) {
       setFetchedTeamId(null);
       setFetchedSquad(null);
+      setAnsweredFor(null);
       return;
     }
     setFetchedTeamId(teamId);
@@ -66,6 +67,8 @@ export function useFetchedSquad(
     if (!teamId) {
       setFetchedTeamId(null);
       setFetchedSquad(null);
+      // The squad is gone with the team; an answer recorded for it must not outlive it.
+      setAnsweredFor(null);
       return;
     }
     let cancelled = false;
