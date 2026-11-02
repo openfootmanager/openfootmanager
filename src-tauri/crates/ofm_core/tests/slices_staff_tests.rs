@@ -6,6 +6,7 @@ use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::{Game, ScoutingAssignment, YouthScoutingAssignment};
 use ofm_core::slices::staff::query_staff;
+use ofm_core::staff_rating::staff_rating;
 
 fn default_player_attrs() -> PlayerAttributes {
     PlayerAttributes {
@@ -120,7 +121,11 @@ fn team_staff_returns_only_staff_for_the_requested_team() {
 
     let slice = query_staff(&game, "t1");
 
-    let ids: Vec<&str> = slice.team_staff.iter().map(|s| s.id.as_str()).collect();
+    let ids: Vec<&str> = slice
+        .team_staff
+        .iter()
+        .map(|s| s.staff.id.as_str())
+        .collect();
     assert_eq!(ids.len(), 2);
     assert!(ids.contains(&"s1"));
     assert!(ids.contains(&"s2"));
@@ -141,7 +146,7 @@ fn available_staff_returns_unattached_staff() {
     let ids: Vec<&str> = slice
         .available_staff
         .iter()
-        .map(|s| s.id.as_str())
+        .map(|s| s.staff.id.as_str())
         .collect();
     assert_eq!(ids.len(), 2);
     assert!(ids.contains(&"fa1"));
@@ -198,13 +203,65 @@ fn staff_slice_matches_frontend_projections() {
         .map(|s| s.id.as_str())
         .collect();
 
-    let got_team: Vec<&str> = slice.team_staff.iter().map(|s| s.id.as_str()).collect();
+    let got_team: Vec<&str> = slice
+        .team_staff
+        .iter()
+        .map(|s| s.staff.id.as_str())
+        .collect();
     let got_free: Vec<&str> = slice
         .available_staff
         .iter()
-        .map(|s| s.id.as_str())
+        .map(|s| s.staff.id.as_str())
         .collect();
 
     assert_eq!(got_team, expected_team);
     assert_eq!(got_free, expected_free);
+}
+
+/// Given a coach, a scout and a physio at the club, and an assistant manager on the hiring market
+/// When the Staff page's slice is built
+/// Then every row, the club's and the market's, carries the rating the game computes for that
+///      member's role, so the page shows the game's figure instead of a formula of its own.
+#[test]
+fn every_staff_row_carries_its_roles_rating() {
+    let game = make_game(vec![
+        make_staff("coach", Some("t1"), StaffRole::Coach),
+        make_staff("scout", Some("t1"), StaffRole::Scout),
+        make_staff("physio", Some("t1"), StaffRole::Physio),
+        make_staff("free", None, StaffRole::AssistantManager),
+    ]);
+
+    let slice = query_staff(&game, "t1");
+
+    for row in slice.team_staff.iter().chain(slice.available_staff.iter()) {
+        assert_eq!(row.rating, staff_rating(&row.staff), "{}", row.staff.id);
+    }
+    let ratings: Vec<(&str, u8)> = slice
+        .team_staff
+        .iter()
+        .chain(slice.available_staff.iter())
+        .map(|row| (row.staff.id.as_str(), row.rating))
+        .collect();
+    // make_staff: coaching 70, judging 60 and 60, physiotherapy 40.
+    assert_eq!(
+        ratings,
+        vec![("coach", 70), ("scout", 60), ("physio", 40), ("free", 64)]
+    );
+}
+
+/// Given a staff row
+/// When it is sent to the frontend
+/// Then it is the staff member's own fields with `rating` beside them, not a nested object, so
+///      the page's existing reading of a staff member still holds.
+#[test]
+fn a_staff_row_is_sent_flat_with_its_rating() {
+    let game = make_game(vec![make_staff("coach", Some("t1"), StaffRole::Coach)]);
+    let slice = query_staff(&game, "t1");
+
+    let json = serde_json::to_value(&slice.team_staff[0]).expect("a staff row serialises");
+
+    assert_eq!(json["id"], "coach");
+    assert_eq!(json["role"], "Coach");
+    assert_eq!(json["rating"], 70);
+    assert!(json.get("staff").is_none());
 }

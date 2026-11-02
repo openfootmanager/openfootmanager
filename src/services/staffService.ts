@@ -4,9 +4,16 @@ import type { GameStateData } from "../store/gameStore";
 import type { ScoutingAssignment, StaffData, YouthScoutingAssignment } from "../store/types";
 import { invokeForCareer } from "./careerInvoke";
 
+/**
+ * A staff member as the Staff page lists him: his record, with the rating the game computes for his
+ * role (ofm_core's staff_rating). Absent on the game state's own staff, which the page draws
+ * before the slice arrives.
+ */
+export type StaffRow = StaffData & { rating?: number };
+
 export interface StaffSlice {
-  team_staff: StaffData[];
-  available_staff: StaffData[];
+  team_staff: StaffRow[];
+  available_staff: StaffRow[];
   scouting_assignments: ScoutingAssignment[];
   youth_scouting_assignments: YouthScoutingAssignment[];
 }

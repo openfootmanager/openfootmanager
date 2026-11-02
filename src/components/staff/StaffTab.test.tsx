@@ -135,16 +135,22 @@ function createGameState(staff: StaffData[]): GameStateData {
   };
 }
 
+/**
+ * The backend's staff slice: each row is the member with the rating the game computes for his
+ * role (ofm_core's staff_rating), 50 unless a test names one.
+ */
 function makeStaffSlice(
   staff: StaffData[],
   overrides: Partial<{
     scouting_assignments: unknown[];
     youth_scouting_assignments: unknown[];
+    ratings: Record<string, number>;
   }> = {},
 ) {
+  const row = (member: StaffData) => ({ ...member, rating: overrides.ratings?.[member.id] ?? 50 });
   return {
-    team_staff: staff.filter((s) => s.team_id),
-    available_staff: staff.filter((s) => !s.team_id),
+    team_staff: staff.filter((s) => s.team_id).map(row),
+    available_staff: staff.filter((s) => !s.team_id).map(row),
     scouting_assignments: overrides.scouting_assignments ?? [],
     youth_scouting_assignments: overrides.youth_scouting_assignments ?? [],
   };
@@ -160,24 +166,24 @@ describe("StaffTab", () => {
     });
   });
 
-  it("rates a specialist on the attribute their role actually uses", async () => {
-    // A flat average over all four attributes made an elite physio read as
-    // mediocre: the engine only consumes `physiotherapy` for physios
-    // (training.rs), yet coaching and scouting dragged the number down.
+  /**
+   * Given a physio whose attributes, mixed any way here, would not make 77, and the backend's
+   *       slice rating him 77
+   * When his card is drawn
+   * Then it shows 77: the rating is the game's (ofm_core's staff_rating, one rule per role,
+   *      tested in Rust), never a formula of the page's own.
+   */
+  it("shows the rating the backend sends for each member", async () => {
     const physio = createStaff({
       id: "staff-physio",
       first_name: "Pat",
       last_name: "Physio",
       role: "Physio",
-      attributes: {
-        coaching: 30,
-        judgingAbility: 30,
-        judgingPotential: 30,
-        physiotherapy: 90,
-      },
+      attributes: { coaching: 30, judgingAbility: 30, judgingPotential: 30, physiotherapy: 90 },
     });
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_staff") return makeStaffSlice([physio]);
+      if (command === "get_staff")
+        return makeStaffSlice([physio], { ratings: { "staff-physio": 77 } });
       return createGameState([physio]);
     });
 
@@ -190,105 +196,68 @@ describe("StaffTab", () => {
     );
 
     const card = await screen.findByTestId("staff-card-staff-physio");
-    expect(within(card).getByText("90 OVR")).toBeInTheDocument();
+    expect(await within(card).findByText("77 OVR")).toBeInTheDocument();
   });
 
-  it("weights an assistant manager the way the engine does", async () => {
-    // delegated_renewals.rs scores assistants as
-    // (coaching*4 + judgingAbility*3 + judgingPotential*3) / 10.
-    const assistant = createStaff({
-      id: "staff-assistant",
-      first_name: "Ash",
-      last_name: "Assistant",
-      role: "AssistantManager",
-      attributes: {
-        coaching: 80,
-        judgingAbility: 60,
-        judgingPotential: 40,
-        physiotherapy: 10,
-      },
-    });
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_staff") return makeStaffSlice([assistant]);
-      return createGameState([assistant]);
-    });
+  /**
+   * Given the backend's slice not yet answered, so the page draws the game state's staff, which
+   *       carry no rating
+   * When a card is drawn
+   * Then its rating reads "–" rather than a number worked out here.
+   */
+  it("shows no rating before the backend's slice arrives", () => {
+    const coach = createStaff({ id: "staff-coach" });
+    invokeMock.mockImplementation(() => new Promise(() => {}));
 
     render(
       <StaffTab
-        gameState={createGameState([assistant])}
+        gameState={createGameState([coach])}
         onGameUpdate={() => {}}
         onNavigate={() => {}}
       />,
     );
 
-    const card = await screen.findByTestId("staff-card-staff-assistant");
-    // (80*4 + 60*3 + 40*3) / 10 = 62 — physiotherapy must not count.
-    expect(within(card).getByText("62 OVR")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("staff-card-staff-coach")).getByText("– OVR"),
+    ).toBeInTheDocument();
   });
 
-  it("averages both judging attributes for a scout", async () => {
-    // The scout branch weights judgingAbility and judgingPotential equally;
-    // divergent values catch either key being dropped or mis-weighted, which
-    // an equal pair would hide.
-    const scout = createStaff({
-      id: "staff-scout",
-      first_name: "Sam",
-      last_name: "Scout",
-      role: "Scout",
-      attributes: {
-        coaching: 20,
-        judgingAbility: 80,
-        judgingPotential: 60,
-        physiotherapy: 10,
-      },
-    });
+  /**
+   * Given an available coach the backend rates 64, and a hire that returns the new game state
+   *       (whose staff carry no rating)
+   * When he is hired
+   * Then his card still shows 64: the page asks the backend for the slice again rather than
+   *      rebuilding it from the game state and losing every rating.
+   */
+  it("keeps each member's rating after a hire", async () => {
+    const free = createStaff({ id: "staff-free", team_id: null });
+    const hired = { ...free, team_id: "team-1" };
+    let hiredYet = false;
     invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_staff") return makeStaffSlice([scout]);
-      return createGameState([scout]);
+      if (command === "hire_staff") {
+        hiredYet = true;
+        return createGameState([hired]);
+      }
+      if (command === "get_staff") {
+        return makeStaffSlice([hiredYet ? hired : free], { ratings: { "staff-free": 64 } });
+      }
+      return createGameState([free]);
     });
 
     render(
       <StaffTab
-        gameState={createGameState([scout])}
+        gameState={createGameState([free])}
         onGameUpdate={() => {}}
         onNavigate={() => {}}
       />,
     );
+    fireEvent.click(await screen.findByRole("button", { name: /Available 1/i }));
+    fireEvent.click(screen.getByTitle("Hire staff"));
 
-    const card = await screen.findByTestId("staff-card-staff-scout");
-    // (80 + 60) / 2 = 70 — coaching and physiotherapy must not count.
-    expect(within(card).getByText("70 OVR")).toBeInTheDocument();
-  });
-
-  it("falls back to an even split for a role it does not recognise", async () => {
-    // Borrowing Coach's weighting would rate an unknown role on coaching
-    // alone; an even split is the honest "no opinion" answer.
-    const odd = createStaff({
-      id: "staff-odd",
-      first_name: "Ola",
-      last_name: "Other",
-      // Cast deliberately: the role arrives from the backend at runtime, where
-      // the union type is erased, so a role added there outruns this type.
-      role: "Nutritionist" as StaffData["role"],
-      attributes: {
-        coaching: 40,
-        judgingAbility: 60,
-        judgingPotential: 80,
-        physiotherapy: 20,
-      },
-    });
-    invokeMock.mockImplementation(async (command: string) => {
-      if (command === "get_staff") return makeStaffSlice([odd]);
-      return createGameState([odd]);
-    });
-
-    render(
-      <StaffTab gameState={createGameState([odd])} onGameUpdate={() => {}} onNavigate={() => {}} />,
-    );
-
-    const card = await screen.findByTestId("staff-card-staff-odd");
-    // (40 + 60 + 80 + 20) / 4 = 50 — not coaching's 40.
-    expect(within(card).getByText("50 OVR")).toBeInTheDocument();
+    await waitFor(() => expect(hiredYet).toBe(true));
+    fireEvent.click(await screen.findByRole("button", { name: /My Staff 1/i }));
+    const card = await screen.findByTestId("staff-card-staff-free");
+    expect(await within(card).findByText("64 OVR")).toBeInTheDocument();
   });
 
   it("switches to available staff and filters by role and search", async () => {
@@ -430,7 +399,7 @@ describe("StaffTab", () => {
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_staff") {
         return {
-          team_staff: [staffCamelCase],
+          team_staff: [{ ...staffCamelCase, rating: 63 }],
           available_staff: [],
           scouting_assignments: [],
           youth_scouting_assignments: [],
@@ -442,9 +411,8 @@ describe("StaffTab", () => {
     render(<StaffTab gameState={createGameState([])} />);
 
     const card = await screen.findByTestId("staff-card-staff-1");
-    // A Coach is rated on `coaching` alone, so OVR is 63. The camelCase guard
-    // rests on the attribute assertions below rather than on this number —
-    // `coaching` is a single word and cannot regress the way the judging keys did.
+    // The backend rates him 63. The camelCase guard rests on the attribute
+    // assertions below, not on this number.
     expect(within(card).getByText("63 OVR")).toBeInTheDocument();
     expect(within(card).getByText("52")).toBeInTheDocument();
     expect(within(card).getByText("71")).toBeInTheDocument();

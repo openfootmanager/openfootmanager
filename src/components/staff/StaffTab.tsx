@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { type GameStateData, type StaffData, useGameStore } from "../../store/gameStore";
-import { getStaff, type StaffSlice } from "../../services/staffService";
+import { visibleRatingText } from "../../lib/playerKnowledge";
+import { getStaff, type StaffRow, type StaffSlice } from "../../services/staffService";
 import { Card, CardBody, Badge, CountryFlag, ProgressBar } from "../ui";
 import {
   UserCog,
@@ -49,51 +50,6 @@ function bestAttr(s: StaffData): { key: string; value: number } {
   return attrs.reduce((a, b) => (b.value > a.value ? b : a));
 }
 
-/**
- * Per-role attribute weights, mirroring what the engine actually consumes.
- * A flat average over all four attributes rated a specialist on work their
- * role never does — an elite physio read as mediocre because coaching and
- * scouting dragged the number down.
- *
- * Sources, so these stay honest if the engine changes:
- * - Coach: `coaching` alone drives the training multiplier (`training.rs`).
- * - Physio: `physiotherapy` alone drives recovery (`training.rs`).
- * - Scout: `judgingAbility` sets assignment speed, `judgingPotential` sets
- *   potential accuracy (`scouting.rs`).
- * - AssistantManager: `(coaching*4 + judgingAbility*3 + judgingPotential*3)/10`
- *   is the engine's own `assistant_quality` (`delegated_renewals.rs`).
- */
-const ROLE_ATTR_WEIGHTS: Record<string, Partial<Record<keyof StaffData["attributes"], number>>> = {
-  Coach: { coaching: 10 },
-  Physio: { physiotherapy: 10 },
-  Scout: { judgingAbility: 5, judgingPotential: 5 },
-  AssistantManager: { coaching: 4, judgingAbility: 3, judgingPotential: 3 },
-};
-
-/**
- * Weighting for a role we do not recognise. An even split says "no opinion",
- * which is the honest answer; borrowing another role's weighting would rate
- * someone confidently on work their role may never do.
- */
-const UNKNOWN_ROLE_WEIGHTS = {
-  coaching: 1,
-  judgingAbility: 1,
-  judgingPotential: 1,
-  physiotherapy: 1,
-} as const;
-
-function ovrRating(s: StaffData): number {
-  const weights = ROLE_ATTR_WEIGHTS[s.role] ?? UNKNOWN_ROLE_WEIGHTS;
-  const total = Object.values(weights).reduce((sum, w) => sum + (w ?? 0), 0);
-  if (total === 0) return 0;
-  const weighted = Object.entries(weights).reduce(
-    (sum, [key, weight]) =>
-      sum + s.attributes[key as keyof StaffData["attributes"]] * (weight ?? 0),
-    0,
-  );
-  return Math.round(weighted / total);
-}
-
 export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffTabProps) {
   const { t, i18n } = useTranslation();
   const { sessionState } = useGameStore();
@@ -114,28 +70,33 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
 
   const openScoutingWorkflowLabel = t("staff.openScoutingWorkflow");
 
-  const myStaff =
+  const myStaff: StaffRow[] =
     fetchedStaff?.team_staff ?? gameState?.staff.filter((s) => s.team_id === teamId) ?? [];
-  const availableStaff =
+  const availableStaff: StaffRow[] =
     fetchedStaff?.available_staff ?? gameState?.staff.filter((s) => !s.team_id) ?? [];
   const assignments = fetchedStaff?.scouting_assignments ?? gameState?.scouting_assignments ?? [];
   const youthAssignments =
     fetchedStaff?.youth_scouting_assignments ?? gameState?.youth_scouting_assignments ?? [];
 
-  const applyStaffUpdate = (updated: GameStateData) => {
+  const applyStaffUpdate = async (updated: GameStateData) => {
     onGameUpdate?.(updated);
-    setFetchedStaff({
-      team_staff: updated.staff.filter((s) => s.team_id === teamId),
-      available_staff: updated.staff.filter((s) => !s.team_id),
-      scouting_assignments: updated.scouting_assignments,
-      youth_scouting_assignments: updated.youth_scouting_assignments ?? [],
-    });
+    // The slice carries each member's rating, which the game state doesn't: ask for it again, and
+    // fall back to the game state's staff (unrated) only if that fails.
+    const refetched = teamId ? await getStaff(teamId).catch(() => null) : null;
+    setFetchedStaff(
+      refetched ?? {
+        team_staff: updated.staff.filter((s) => s.team_id === teamId),
+        available_staff: updated.staff.filter((s) => !s.team_id),
+        scouting_assignments: updated.scouting_assignments,
+        youth_scouting_assignments: updated.youth_scouting_assignments ?? [],
+      },
+    );
   };
 
   const handleHire = async (staffId: string) => {
     setActionLoading(staffId);
     try {
-      applyStaffUpdate(await hireStaff(staffId));
+      await applyStaffUpdate(await hireStaff(staffId));
     } catch (err) {
       console.error("Failed to hire staff:", err);
     } finally {
@@ -146,7 +107,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
   const handleRelease = async (staffId: string) => {
     setActionLoading(staffId);
     try {
-      applyStaffUpdate(await releaseStaff(staffId));
+      await applyStaffUpdate(await releaseStaff(staffId));
     } catch (err) {
       console.error("Failed to release staff:", err);
     } finally {
@@ -256,7 +217,7 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
             const roleIcon = ROLE_ICONS[staff.role] || ROLE_ICONS.Coach;
             const roleColor = ROLE_COLORS[staff.role] || ROLE_COLORS.Coach;
             const age = calcAge(staff.date_of_birth);
-            const ovr = ovrRating(staff);
+            const ovr = staff.rating;
             const best = bestAttr(staff);
             const isLoading = actionLoading === staff.id;
             const scoutingLoad =
@@ -315,10 +276,18 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
                             {staff.display_name}
                           </h3>
                           <Badge
-                            variant={ovr >= 65 ? "success" : ovr >= 45 ? "primary" : "neutral"}
+                            variant={
+                              ovr === undefined
+                                ? "neutral"
+                                : ovr >= 65
+                                  ? "success"
+                                  : ovr >= 45
+                                    ? "primary"
+                                    : "neutral"
+                            }
                             size="sm"
                           >
-                            {ovr} OVR
+                            {visibleRatingText(ovr ?? null)} OVR
                           </Badge>
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
