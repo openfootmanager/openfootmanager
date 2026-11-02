@@ -4,7 +4,8 @@
 //!
 //! - **The share on target, not counting blocked shots**: the Premier League's own figure is
 //!   45.10% over two decades, and 49.96% in 2023/24 ("Season trends: Clinical finishing key to
-//!   record goals total", premierleague.com, 27 May 2024; its accuracy table is "ex. blocks").
+//!   record goals total", Adrian Clarke, 27 May 2024, https://www.premierleague.com/news/4027257,
+//!   which gives both figures to two decimals; its accuracy table is "ex. blocks").
 //!   Cited, not derived.
 //! - **The share of shots on target scored** has no league-wide figure we can cite from an open
 //!   source, so `goal_conversion_base` is calibrated to the derived goal total instead: the
@@ -99,7 +100,14 @@ impl Shots {
     }
 }
 
-fn shots_between_equal_sides() -> Shots {
+/// The open-play shots of SEEDS matches between equal sides, played once and shared by both
+/// tests.
+fn shots_between_equal_sides() -> &'static Shots {
+    static SHOTS: std::sync::OnceLock<Shots> = std::sync::OnceLock::new();
+    SHOTS.get_or_init(play_equal_sides)
+}
+
+fn play_equal_sides() -> Shots {
     let mut shots = Shots::default();
     for seed in 0..SEEDS {
         let mut state = LiveMatchState::new(

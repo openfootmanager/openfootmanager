@@ -511,7 +511,8 @@ impl Default for MatchConfig {
         Self {
             home_advantage: 1.08,
             // Calibrated (#1132): a shot finds the target as often as the Premier League's
-            // 45% of unblocked shots, and the share of those scored is set so a season of
+            // 45% of unblocked shots (premierleague.com/news/4027257), and the share of those
+            // scored is set so a season of
             // the shipped world lands in #1001's goals band (`engine/tests/shot_rate_tests.rs`).
             shot_accuracy_base: 0.245,
             goal_conversion_base: 0.28,
