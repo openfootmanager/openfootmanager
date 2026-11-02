@@ -145,10 +145,21 @@ fn neutral_is_reproducible() {
 
 // --- keep / win the ball → possession ---
 
+/// Tempo moves possession by well under 1%, so it needs more matches than the other dials to be
+/// read: at SEEDS the two sums sit within each other's noise, and which one leads depends on the
+/// seeds (a change elsewhere in the engine, #1132's card rates, flipped it). At TEMPO_SEEDS
+/// Patient leads by about 0.4-0.75% in every engine state measured.
+const TEMPO_SEEDS: u64 = 1000;
+
 #[test]
 fn patient_tempo_keeps_more_possession_than_direct() {
-    let patient = band(with(|c| c.tempo = Tempo::Patient), |t| t.home_possession);
-    let direct = band(with(|c| c.tempo = Tempo::Direct), |t| t.home_possession);
+    let over = |home: TacticsConfig| -> usize {
+        (0..TEMPO_SEEDS)
+            .map(|s| play(home.clone(), s).home_possession)
+            .sum()
+    };
+    let patient = over(with(|c| c.tempo = Tempo::Patient));
+    let direct = over(with(|c| c.tempo = Tempo::Direct));
     assert!(
         patient > direct,
         "Patient should hold the ball more than Direct: {patient} vs {direct}"
