@@ -471,6 +471,25 @@ describe("TacticsTab", () => {
   });
 
   /**
+   * Given get_squad has not answered for this revision
+   * When the tactics screen is drawn
+   * Then it says why lineup changes are not available yet, and says nothing once the squad has
+   *      answered.
+   */
+  it("says lineup changes wait while the squad has not answered", async () => {
+    let answer: (players: PlayerData[]) => void = () => {};
+    const state = makeGameState();
+    mockedInvoke.mockReset();
+    mockedInvoke.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+
+    render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+
+    await act(async () => answer(state.players.filter((player) => player.team_id === "team1")));
+    expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
+  });
+
+  /**
    * Given the squad answered once, and then the game moved on (a new revision) with its fetch
    *       still in flight
    * When a bench defender is dropped onto a defensive slot

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
 import { useFetchedSquad } from "./useFetchedSquad";
@@ -247,6 +247,83 @@ describe("useFetchedSquad", () => {
       const { result } = renderHook(() => useFetchedSquad(null, "2026-08-01"));
 
       expect(result.current[2]).toBe(false);
+    });
+  });
+
+  describe("when a fetch fails and the screen stays mounted", () => {
+    beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }));
+    afterEach(() => vi.useRealTimers());
+
+    /**
+     * Given a get_squad that fails once
+     * When the first retry delay passes
+     * Then the hook asks again on its own and the squad is answered, with no new revision.
+     */
+    it("asks again on its own, so a screen waiting for the squad is not stuck", async () => {
+      const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockedGetSquad.mockRejectedValueOnce(new Error("offline")).mockResolvedValue(squad("p1"));
+
+      const { result } = renderHook(() => useFetchedSquad("team1", "2026-08-01"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      expect(result.current[2]).toBe(false);
+      expect(mockedGetSquad).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+
+      expect(mockedGetSquad).toHaveBeenCalledTimes(2);
+      expect(result.current[2]).toBe(true);
+      quiet.mockRestore();
+    });
+
+    /**
+     * Given a get_squad that keeps failing
+     * When the delays pass
+     * Then each retry waits longer than the last (1s, then 2s), so a dead backend is not hammered.
+     */
+    it("waits longer after each failure in a row", async () => {
+      const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockedGetSquad.mockRejectedValue(new Error("offline"));
+
+      renderHook(() => useFetchedSquad("team1", "2026-08-01"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+      expect(mockedGetSquad).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_999);
+      });
+      expect(mockedGetSquad).toHaveBeenCalledTimes(2);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(mockedGetSquad).toHaveBeenCalledTimes(3);
+      quiet.mockRestore();
+    });
+
+    /**
+     * Given a failing fetch and then the screen unmounting
+     * When the delay passes
+     * Then nothing is asked again.
+     */
+    it("stops asking when the screen unmounts", async () => {
+      const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+      mockedGetSquad.mockRejectedValue(new Error("offline"));
+      const { unmount } = renderHook(() => useFetchedSquad("team1", "2026-08-01"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      unmount();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      expect(mockedGetSquad).toHaveBeenCalledTimes(1);
+      quiet.mockRestore();
     });
   });
 });
