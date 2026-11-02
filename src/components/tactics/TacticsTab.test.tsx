@@ -432,7 +432,7 @@ describe("TacticsTab", () => {
    * When the tactics screen is drawn
    * Then it says why lineup changes are not available yet, and says nothing once it has loaded.
    */
-  it("says lineup changes wait for the position table, only until it has loaded", () => {
+  it("says lineup changes wait for the position table, only until it has loaded", async () => {
     positionTableState.arrived = false;
     try {
       const { unmount } = render(
@@ -447,6 +447,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // and the squad has answered for this revision
     expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
   });
 

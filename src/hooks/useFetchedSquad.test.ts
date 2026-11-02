@@ -239,6 +239,21 @@ describe("useFetchedSquad", () => {
     });
 
     /**
+     * Given a get_squad answer that is not a squad
+     * When it arrives
+     * Then there is no squad (not a value callers would call `filter` on) and the question is
+     *      still answered.
+     */
+    it("treats an answer that is not a squad as no squad", async () => {
+      mockedGetSquad.mockResolvedValue({ unexpected: true } as unknown as PlayerData[]);
+
+      const { result } = renderHook(() => useFetchedSquad("team1", "2026-08-01"));
+      await waitFor(() => expect(result.current[2]).toBe(true));
+
+      expect(result.current[0]).toBeNull();
+    });
+
+    /**
      * Given no team
      * When the hook runs
      * Then it is never answered: there is nothing to answer for.

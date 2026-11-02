@@ -101,7 +101,9 @@ export function useFetchedSquad(
         if (!cancelled) {
           failures.current = 0;
           setFetchedTeamId(teamId);
-          setFetchedSquad(squad);
+          // An answer that is not a squad (a stand-in's, a broken reply) is no squad: callers fall
+          // back to the game's players and nothing treats it as a roster.
+          setFetchedSquad(Array.isArray(squad) ? squad : null);
           setAnsweredFor({ teamId, clockDate, revision });
         }
       })
