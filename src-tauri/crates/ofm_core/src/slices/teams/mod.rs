@@ -54,6 +54,15 @@ pub struct TeamCard {
     pub total_value: u64,
     pub league_pos: u32,
     pub standing: Option<TeamStanding>,
+    /// The club's manager; none for a club without one.
+    pub manager: Option<TeamCardManager>,
+}
+
+/// Who manages a club, as its card names him.
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct TeamCardManager {
+    pub id: String,
+    pub name: String,
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -127,6 +136,7 @@ pub fn query_team_card(game: &Game, club_id: &str) -> Option<TeamCard> {
         &players_by_team,
         &standing_by_team,
         &view,
+        game.manager_of_club(club_id),
     ))
 }
 
@@ -168,7 +178,13 @@ pub fn query_directory(game: &Game, query: &TeamsDirectoryQuery) -> TeamsDirecto
             })
             .unwrap_or_else(|| (UNGROUPED_LEAGUE_ID.to_string(), String::new(), None, None));
 
-        let card = project_card(team, &players_by_team, &standing_by_team, &view);
+        let card = project_card(
+            team,
+            &players_by_team,
+            &standing_by_team,
+            &view,
+            game.manager_of_club(&team.id),
+        );
 
         regions
             .entry(region_id)

@@ -489,12 +489,12 @@ fn create_live_match_with(
     let ai_home = AiProfile {
         reputation: home_rep,
         experience: (home_rep / 10).min(100) as u8,
-        personality: derive_personality(home_rep, manager_for_team(game, &home_team_id)),
+        personality: derive_personality(home_rep, game.manager_of_club(&home_team_id)),
     };
     let ai_away = AiProfile {
         reputation: away_rep,
         experience: (away_rep / 10).min(100) as u8,
-        personality: derive_personality(away_rep, manager_for_team(game, &away_team_id)),
+        personality: derive_personality(away_rep, game.manager_of_club(&away_team_id)),
     };
 
     Ok(LiveMatchSession {
@@ -576,19 +576,6 @@ pub(crate) fn play_unwatched_fixture_with(
         report: session.match_state.into_report(),
         league_round_context,
     })
-}
-
-fn manager_for_team<'a>(game: &'a Game, team_id: &str) -> Option<&'a Manager> {
-    let manager_id = game
-        .teams
-        .iter()
-        .find(|team| team.id == team_id)
-        .and_then(|team| team.manager_id.as_deref())?;
-
-    game.managers
-        .iter()
-        .find(|manager| manager.id == manager_id)
-        .or_else(|| (game.manager.id == manager_id).then_some(&game.manager))
 }
 
 /// Derive an AI personality from reputation and career statistics.

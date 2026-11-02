@@ -258,6 +258,21 @@ pub struct Game {
 }
 
 impl Game {
+    /// The manager in charge of `club_id`: one of the AI managers, or the user's own. None for a
+    /// club without one, or an id no club has.
+    pub fn manager_of_club(&self, club_id: &str) -> Option<&Manager> {
+        let manager_id = self
+            .teams
+            .iter()
+            .find(|team| team.id == club_id)?
+            .manager_id
+            .as_deref()?;
+        self.managers
+            .iter()
+            .find(|manager| manager.id == manager_id)
+            .or_else(|| (self.manager.id == manager_id).then_some(&self.manager))
+    }
+
     pub fn new(
         clock: GameClock,
         manager: Manager,

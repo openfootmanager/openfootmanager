@@ -9,8 +9,8 @@ use domain::team::Team;
 use ofm_core::clock::GameClock;
 use ofm_core::game::{Game, PotentialRange, ScoutedPlayer};
 use ofm_core::slices::teams::{
-    TeamCard, TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID, query_club_league_standing,
-    query_directory, query_team_card,
+    TeamCard, TeamCardManager, TeamsDirectoryQuery, UNGROUPED_LEAGUE_ID,
+    query_club_league_standing, query_directory, query_team_card,
 };
 
 fn default_attrs() -> PlayerAttributes {
@@ -217,6 +217,65 @@ fn an_unemployed_manager_sees_no_clubs_average() {
 /// When the team profile asks for one club's card
 /// Then it gets the same card the directory shows, average included or withheld alike, and an id
 ///      no club has gets none
+/// Given a club managed by one of the AI managers
+/// When its card is projected, in the directory and on its own
+/// Then the card names him
+#[test]
+fn a_card_names_the_clubs_manager() {
+    let mut game = managing(two_divisions(), "mine");
+    let mut boss = Manager::new(
+        "boss".to_string(),
+        "Ada".to_string(),
+        "Boss".to_string(),
+        "1970-01-01".to_string(),
+        "ENG".to_string(),
+    );
+    boss.team_id = Some("rival".to_string());
+    let name = boss.display_name.clone();
+    game.managers.push(boss);
+    game.teams
+        .iter_mut()
+        .find(|team| team.id == "rival")
+        .unwrap()
+        .manager_id = Some("boss".to_string());
+
+    let expected = Some(TeamCardManager {
+        id: "boss".to_string(),
+        name,
+    });
+    assert_eq!(directory_card(&game, "rival").manager, expected);
+    assert_eq!(query_team_card(&game, "rival").unwrap().manager, expected);
+}
+
+/// Given a club with no manager
+/// When its card is projected
+/// Then it names nobody
+#[test]
+fn a_vacant_clubs_card_names_no_manager() {
+    let game = managing(two_divisions(), "mine");
+
+    assert_eq!(directory_card(&game, "faraway").manager, None);
+}
+
+/// Given the user's own club, managed by him (he is the game's manager, not one of the AI list)
+/// When its card is projected
+/// Then it names him
+#[test]
+fn the_users_club_card_names_the_user() {
+    let mut game = managing(two_divisions(), "mine");
+    let user_id = game.manager.id.clone();
+    game.teams
+        .iter_mut()
+        .find(|team| team.id == "mine")
+        .unwrap()
+        .manager_id = Some(user_id.clone());
+
+    let manager = directory_card(&game, "mine").manager.unwrap();
+
+    assert_eq!(manager.id, user_id);
+    assert_eq!(manager.name, game.manager.display_name);
+}
+
 #[test]
 fn a_team_card_is_the_directory_card_for_that_club() {
     let game = managing(two_divisions(), "mine");
