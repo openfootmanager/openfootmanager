@@ -1083,11 +1083,14 @@ describe("Dashboard", () => {
     const gameStateChangedHandler = registeredEventHandlers.get("game-state-changed");
     expect(gameStateChangedHandler).toBeTypeOf("function");
 
-    await gameStateChangedHandler?.();
-
-    await waitFor(() => {
-      expect(getItemSpy).toHaveBeenCalledWith(legacyStorageKey);
+    // Inside act, so React has applied the cleared save id and run the effect that reads the
+    // onboarding key before the assertion. Outside it, the update waited for the scheduler,
+    // which a loaded CI runner could hold past waitFor's one second (merge-group run 41383455099).
+    await act(async () => {
+      await gameStateChangedHandler?.();
     });
+
+    expect(getItemSpy).toHaveBeenCalledWith(legacyStorageKey);
 
     getItemSpy.mockRestore();
   });
