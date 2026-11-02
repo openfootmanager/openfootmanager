@@ -221,14 +221,21 @@ describe("page layout check", () => {
 
   /**
    * Given the cases, then the lists whose cards draw on the shared card shell are measured in their
-   * cards view too, at the desktop and the minimum window.
+   * cards view too, at the desktop and the minimum window: Players, Squad, and now Teams.
    */
-  it("measures the card views of Players and Squad", () => {
+  it("measures the card views of Players, Squad and Teams", () => {
     const cards = CASES.filter((c) => c.view === "cards").map(
       (c) => `${c.page} ${c.width}×${c.height}`,
     );
     expect(cards.sort()).toEqual(
-      ["players 1280×800", "players 960×640", "squad 1280×800", "squad 960×640"].sort(),
+      [
+        "players 1280×800",
+        "players 960×640",
+        "squad 1280×800",
+        "squad 960×640",
+        "teams 1280×800",
+        "teams 960×640",
+      ].sort(),
     );
   });
 
