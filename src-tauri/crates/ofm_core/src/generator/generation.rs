@@ -2095,10 +2095,10 @@ mod tests {
     /// Given the same slots rolled on the opening's bell and as national-team top-ups, both fixed
     ///       at 28 so that rating is ceiling,
     /// When their ceilings are compared,
-    /// Then the top-ups centre on the same mean (they are not the -3 unattached pool) with only the
-    ///      kept fraction of the spread, so almost none reaches the S tier.
+    /// Then the top-ups sit the pool's shift below the world's centre (not the unattached pool's
+    ///      -3) with only the kept fraction of the spread, so almost none reaches the S tier.
     #[test]
-    fn a_national_top_up_is_ordinary_and_tight_not_a_discount() {
+    fn a_national_top_up_is_a_tight_modest_pool_not_the_unattached_discount() {
         let world = ceilings_rolled_with(PlayerRoll::unscaled(Some(28)), 80_000, 41);
         let pool_roll = PlayerRoll {
             age: Some(28),
@@ -2111,8 +2111,12 @@ mod tests {
         let stars = pool.iter().filter(|c| **c >= 81.0).count() as f64 / pool.len() as f64;
 
         assert!(
-            (pool_mean - world_mean).abs() < 0.2,
+            ((pool_mean - world_mean) - NATIONAL_POOL_SHIFT).abs() < 0.2,
             "{world_mean:.2} and {pool_mean:.2}"
+        );
+        assert!(
+            NATIONAL_POOL_SHIFT > FREE_AGENT_SHIFT,
+            "the top-ups are not the unattached discount"
         );
         assert!(
             ((pool_sd / world_sd) - NATIONAL_POOL_SPREAD_KEPT).abs() < 0.04,
