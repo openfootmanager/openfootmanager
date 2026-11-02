@@ -628,6 +628,7 @@ pub(super) struct PlayerRoll {
 
 impl PlayerRoll {
     /// A player on the world-wide bell, of `age` (or the slot's age).
+    #[cfg(test)]
     pub(super) fn unscaled(age: Option<u32>) -> Self {
         Self {
             age,
