@@ -18,9 +18,8 @@ const FINISHED_FOLDERS = [
   "./pages/Dashboard.tsx",
   // The Managers directory's table view. Its cards join when they move onto EntityCard.
   "./components/manager/ManagersTables.tsx",
-  // The Teams directory's table view. The rest of components/teams joins when its cards move onto
-  // EntityCard.
-  "./components/teams/TeamsLeagueTable.tsx",
+  // The Teams directory: its search, accordion, table and cards.
+  "./components/teams/",
   // The penalty shootout's kick sheet (shootout redesign B, approved 31 Oct 2026).
   "./components/match/KickSheet.tsx",
   "./components/match/PenaltyShootoutScreen.tsx",
