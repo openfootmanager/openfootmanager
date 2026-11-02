@@ -1233,7 +1233,8 @@ mod tests {
         let state = StateManager::new();
         let mut game = make_game_with_round();
         game.competitions.push(make_knockout_cup("2025-06-15"));
-        let loaded = serde_json::from_value(serde_json::to_value(game).unwrap()).unwrap();
+        let loaded =
+            serde_json::from_value(ofm_core::wire::truthful_value(&game).unwrap()).unwrap();
         state.set_game(loaded);
         let snapshot = super::start_live_match_internal(
             &state,

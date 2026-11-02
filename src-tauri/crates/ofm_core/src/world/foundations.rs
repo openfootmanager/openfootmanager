@@ -442,7 +442,8 @@ mod tests {
                 .any(|f| f.competition == FixtureCompetition::Friendly)
         }));
         let before = serde_json::to_value(&game.competitions).unwrap();
-        let mut loaded: Game = serde_json::from_slice(&serde_json::to_vec(&game).unwrap()).unwrap();
+        let mut loaded: Game =
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
 
         for _ in 0..2 {
             ensure_multi_competition_foundations_with(&mut loaded, 4);

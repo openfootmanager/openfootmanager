@@ -256,7 +256,8 @@ mod tests {
             vec![staff],
             vec![],
         );
-        serde_json::to_string(&game).unwrap()
+        // The truthful form: a legacy save held every player as he was, not a reader's copy.
+        ofm_core::wire::truthful_value(&game).unwrap().to_string()
     }
 
     fn legacy_game_json_with_partial_morale_core() -> String {

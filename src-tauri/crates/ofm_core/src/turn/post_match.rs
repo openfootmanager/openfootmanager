@@ -891,7 +891,8 @@ mod tests {
             goals: 3,
             assists: 4,
         });
-        let mut game: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        let mut game: Game =
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         let career = serde_json::to_value(&game.players[0].career).unwrap();
         crate::turn::process_day(&mut game);
         let stats = &game.players[0].stats;

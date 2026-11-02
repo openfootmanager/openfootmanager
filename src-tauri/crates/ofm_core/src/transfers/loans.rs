@@ -1460,7 +1460,8 @@ mod tests {
         game.season_context.transfer_window.opens_on = Some("2026-02-01".to_string());
         super::make_loan_offer(&mut game, "player-award", "2026-04-12", 100, None).unwrap();
         assert!(game.players[0].active_loan.is_none());
-        let mut game: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        let mut game: Game =
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         game.clock.current_date = Utc.with_ymd_and_hms(2026, 2, 1, 12, 0, 0).unwrap();
         game.season_context.transfer_window.status = TransferWindowStatus::Open;
         super::process_pending_loan_registrations(&mut game);

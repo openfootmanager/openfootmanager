@@ -1073,7 +1073,8 @@ pub(crate) mod match_day_pool_tests {
                 .chain(bench.iter().map(|p| &p.id))
                 .any(|id| id == "youth-00")
         );
-        let loaded: Game = serde_json::from_str(&serde_json::to_string(&game).unwrap()).unwrap();
+        let loaded: Game =
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         assert_eq!(loaded.teams[0].starting_xi_ids, starters);
     }
 

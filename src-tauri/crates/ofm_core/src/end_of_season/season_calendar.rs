@@ -305,7 +305,8 @@ mod tests {
             &mut game,
             division("ar-d1-apertura", "AR", at(2033, 2, 1), 2),
         );
-        let mut loaded: Game = serde_json::from_slice(&serde_json::to_vec(&game).unwrap()).unwrap();
+        let mut loaded: Game =
+            serde_json::from_value(crate::wire::truthful_value(&game).unwrap()).unwrap();
         advance_to_next_season(&mut loaded).unwrap();
         assert_renewed(&loaded, "ar-d1-apertura", 2034, now + Duration::days(28));
         let mut loaded: Game =
