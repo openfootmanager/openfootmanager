@@ -1060,6 +1060,7 @@
     "youthSearches": "Jugendsuchen",
     "hireStaff": "Staffmitglied einstellen",
     "best": "Bester",
+    "staffActions": "Aktionen für {{name}}",
     "roles": {
       "AssistantManager": "Co-Trainer",
       "Coach": "Trainer",

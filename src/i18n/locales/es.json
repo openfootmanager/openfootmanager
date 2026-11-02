@@ -1060,6 +1060,7 @@
     "youthSearches": "búsquedas juveniles",
     "hireStaff": "Contratar miembro del staff",
     "best": "Mejor",
+    "staffActions": "Acciones para {{name}}",
     "roles": {
       "AssistantManager": "Segundo Entrenador",
       "Coach": "Entrenador",

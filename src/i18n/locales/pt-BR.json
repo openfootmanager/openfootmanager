@@ -1060,6 +1060,7 @@
     "youthSearches": "buscas da base",
     "hireStaff": "Contratar membro da comissão",
     "best": "Melhor",
+    "staffActions": "Ações para {{name}}",
     "roles": {
       "AssistantManager": "Assistente Técnico",
       "Coach": "Treinador",

@@ -1060,6 +1060,7 @@
     "youthSearches": "vyhledávání mládeže",
     "hireStaff": "Najmout člena personálu",
     "best": "Nejlepší",
+    "staffActions": "Akce člena personálu {{name}}",
     "roles": {
       "AssistantManager": "Asistent manažera",
       "Coach": "Trenér",

@@ -25,6 +25,8 @@ const FINISHED_FOLDERS = [
   // Its order picker, step 1 of the same redesign.
   "./components/match/ShootoutOrderPicker.tsx",
   "./components/match/shootoutOrder.ts",
+  // The Staff list's table view. Its cards join when they move onto EntityCard.
+  "./components/staff/StaffTable.tsx",
   // The Players list: its table, cards, filters, pager and alerts.
   "./components/players/",
   // The Squad roster's cards view. The rest of components/squad joins when its table and filters

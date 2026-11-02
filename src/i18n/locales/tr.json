@@ -1060,6 +1060,7 @@
     "youthSearches": "genç oyuncu araması",
     "hireStaff": "Personeli işe al",
     "best": "En iyi",
+    "staffActions": "{{name}} için personel işlemleri",
     "roles": {
       "AssistantManager": "Yardımcı Antrenör",
       "Coach": "Antrenör",

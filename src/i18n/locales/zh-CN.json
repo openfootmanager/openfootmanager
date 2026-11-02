@@ -1060,6 +1060,7 @@
     "youthSearches": "项青训搜索",
     "hireStaff": "聘用员工",
     "best": "最佳",
+    "staffActions": "{{name}} 的员工操作",
     "roles": {
       "AssistantManager": "助理教练",
       "Coach": "教练",
