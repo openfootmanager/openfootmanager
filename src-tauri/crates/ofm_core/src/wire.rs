@@ -18,12 +18,66 @@
 //!
 //! The one reader who needs the truth is the harness that checks a save against the live game
 //! (`truthful_value`).
-
-use domain::message::InboxMessage;
-use domain::player::Player;
-use serde::ser::{SerializeSeq, Serializer};
+//!
+//! **Who the copy is for.** `Game`'s serializer (`serialize_game`) writes for the reader already
+//! set, if one is, and otherwise for the manager's club. The setting lives in a thread-local for
+//! the length of one synchronous `serialize` call, behind a guard that restores the reader before
+//! it, so a nested or unwinding call leaves nothing behind. A player written with no reader set
+//! (a path that does not go through `Game`) is written as for the club, never as the truth: a
+//! missed path can only hide, never leak.
+use std::cell::Cell;
 
 use crate::game::Game;
+use domain::message::InboxMessage;
+use domain::player::Player;
+use serde::Serialize;
+use serde::ser::{SerializeSeq, Serializer};
+
+/// Who a game's JSON is being written for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Reader {
+    /// The manager's club: what every screen and MCP tool receives.
+    Club,
+    /// The save harness and the developers' dump: every player as the game holds him.
+    Truthful,
+}
+
+thread_local! {
+    static READER: Cell<Option<Reader>> = const { Cell::new(None) };
+}
+
+/// The reader set for as long as the scope lives; dropping it restores the one before.
+struct ReaderScope {
+    previous: Option<Reader>,
+}
+
+impl ReaderScope {
+    fn enter(reader: Reader) -> Self {
+        Self {
+            previous: READER.with(|current| current.replace(Some(reader))),
+        }
+    }
+}
+
+impl Drop for ReaderScope {
+    fn drop(&mut self) {
+        READER.with(|current| current.set(self.previous));
+    }
+}
+
+fn writes_the_truth() -> bool {
+    READER.with(Cell::get) == Some(Reader::Truthful)
+}
+
+/// `Game`'s serializer (`impl Serialize for Game`): the game written for the reader already set,
+/// or else for the manager's club, through the derived serializer.
+pub(crate) fn serialize_game<S: Serializer>(game: &Game, serializer: S) -> Result<S::Ok, S::Error> {
+    let _scope = READER
+        .with(Cell::get)
+        .is_none()
+        .then(|| ReaderScope::enter(Reader::Club));
+    Game::serialize(game, serializer)
+}
 
 /// `player` as a reader may receive him: everything but his potential, which reads 0.
 pub fn without_potential(mut player: Player) -> Player {
@@ -32,11 +86,14 @@ pub fn without_potential(mut player: Player) -> Player {
 }
 
 /// `Game.players` for a reader. Each player is copied one at a time, so the copy never holds more
-/// than one player beside the game.
+/// than one player beside the game. In the truthful scope, the players as they are.
 pub(crate) fn players_without_potential<S: Serializer>(
     players: &[Player],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
+    if writes_the_truth() {
+        return players.serialize(serializer);
+    }
     let mut seq = serializer.serialize_seq(Some(players.len()))?;
     for player in players {
         seq.serialize_element(&without_potential(player.clone()))?;
@@ -63,11 +120,14 @@ pub fn messages_for_readers(messages: &[InboxMessage]) -> Vec<InboxMessage> {
 }
 
 /// `Game.messages` for a reader: a youth scouting report's prospects without their potential. Every
-/// other message goes as it is, uncopied.
+/// other message goes as it is, uncopied. In the truthful scope, every message as it is.
 pub(crate) fn messages_without_potential<S: Serializer>(
     messages: &[InboxMessage],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
+    if writes_the_truth() {
+        return messages.serialize(serializer);
+    }
     let mut seq = serializer.serialize_seq(Some(messages.len()))?;
     for message in messages {
         if message.context.youth_prospects.is_some() {
@@ -81,30 +141,11 @@ pub(crate) fn messages_without_potential<S: Serializer>(
 
 /// The whole game as JSON, potentials included: what the save holds, for the developers' MCP dump
 /// (`dev_full_game_state`, refused on a competition server) and the harness that compares a save
-/// with the live game through it. Nothing a player reads.
-///
-/// It is the redacted JSON with each true potential written back, by position: the serializer keeps
-/// the game's own order of players, messages and prospects.
+/// with the live game through it. Nothing a player reads. It reads back as the game
+/// (`serde_json::from_value`), which a reader's copy does not.
 pub fn truthful_value(game: &Game) -> serde_json::Result<serde_json::Value> {
-    let mut value = serde_json::to_value(game)?;
-    if let Some(players) = value["players"].as_array_mut() {
-        for (json, player) in players.iter_mut().zip(&game.players) {
-            json["potential"] = player.potential.into();
-        }
-    }
-    if let Some(messages) = value["messages"].as_array_mut() {
-        for (json, message) in messages.iter_mut().zip(&game.messages) {
-            let Some(prospects) = message.context.youth_prospects.as_ref() else {
-                continue;
-            };
-            if let Some(json_prospects) = json["context"]["youth_prospects"].as_array_mut() {
-                for (json, prospect) in json_prospects.iter_mut().zip(prospects) {
-                    json["potential"] = prospect.potential.into();
-                }
-            }
-        }
-    }
-    Ok(value)
+    let _scope = ReaderScope::enter(Reader::Truthful);
+    serde_json::to_value(game)
 }
 
 /// Every number a JSON value holds under a key named `potential`, with where it sits; a scout's
@@ -255,6 +296,62 @@ mod tests {
         assert_eq!(prospect_of(&archive.items[0]), 0);
         assert_eq!(prospect_of(&game.messages[0]), 91);
         assert_eq!(prospect_of(&game.archived_messages[0]), 91);
+    }
+
+    /// Given the same world
+    /// When it is written as the truthful form and read back
+    /// Then it is the game again, every true potential included: the form the save harness and the
+    ///      developers' dump rely on
+    #[test]
+    fn the_truthful_form_reads_back_as_the_game() {
+        let game = world();
+
+        let back: Game = serde_json::from_value(truthful_value(&game).unwrap()).unwrap();
+
+        let potentials: Vec<u8> = back.players.iter().map(|player| player.potential).collect();
+        assert_eq!(potentials, vec![88, 82, 79]);
+        let prospect = &back.messages[0].context.youth_prospects.as_ref().unwrap()[0];
+        assert_eq!(prospect.potential, 91);
+    }
+
+    /// Given players written outside any game, with no reader set (a path that does not go through
+    ///       `Game`'s serializer)
+    /// When they are serialized
+    /// Then they are written as for the club, never as the truth: a missed path can only hide
+    #[test]
+    fn players_written_with_no_reader_are_never_the_truth() {
+        #[derive(Serialize)]
+        struct Loose {
+            #[serde(serialize_with = "players_without_potential")]
+            players: Vec<Player>,
+        }
+
+        let value = serde_json::to_value(Loose {
+            players: world().players,
+        })
+        .unwrap();
+
+        let potentials: Vec<u64> = potentials_in(&value).into_iter().map(|(_, p)| p).collect();
+        assert_eq!(potentials, vec![0, 0, 0]);
+    }
+
+    /// Given the truthful scope, and a reader's copy written inside it and after it
+    /// When the game is serialized
+    /// Then inside it the game is written truthfully (the outer reader wins), and after it the
+    ///      scope is gone: the next copy is a reader's again
+    #[test]
+    fn a_reader_scope_restores_the_reader_before_it() {
+        let game = world();
+
+        let inside = {
+            let _scope = ReaderScope::enter(Reader::Truthful);
+            serde_json::to_value(&game).unwrap()
+        };
+        let after = serde_json::to_value(&game).unwrap();
+
+        assert_eq!(inside["players"][0]["potential"], 88);
+        assert_eq!(after["players"][0]["potential"], 0);
+        assert_eq!(READER.with(Cell::get), None, "nothing is left set");
     }
 
     /// Given the same world
