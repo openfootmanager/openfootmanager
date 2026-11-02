@@ -1049,7 +1049,10 @@ describe("Dashboard", () => {
   it("clears a stale active save id when a later refresh cannot load it", async () => {
     const saveStorageKey = "ofm-onboarding-visited-tabs:save:save-1";
     const legacyStorageKey = `ofm-onboarding-visited-tabs:legacy:${gameState.manager.id}:${gameState.clock.start_date}`;
-    const getItemSpy = vi.spyOn(Storage.prototype, "getItem");
+    // The object the component reads (window.localStorage), not Storage.prototype: from Node 26 on,
+    // Node's own global Storage is not the prototype of jsdom's localStorage, so a prototype spy
+    // saw no calls (CI moved to Node 26 through `lts/*` on 2 Nov 2026).
+    const getItemSpy = vi.spyOn(window.localStorage, "getItem");
     let saveIdRequestCount = 0;
 
     invokeMock.mockImplementation(async (command: string) => {
@@ -1084,8 +1087,7 @@ describe("Dashboard", () => {
     expect(gameStateChangedHandler).toBeTypeOf("function");
 
     // Inside act, so React has applied the cleared save id and run the effect that reads the
-    // onboarding key before the assertion. Outside it, the update waited for the scheduler,
-    // which a loaded CI runner could hold past waitFor's one second (merge-group run 41383455099).
+    // onboarding key before the assertion, as every other event-driven call in this file does.
     await act(async () => {
       await gameStateChangedHandler?.();
     });
