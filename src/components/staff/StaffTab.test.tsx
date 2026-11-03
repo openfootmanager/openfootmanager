@@ -746,9 +746,9 @@ function staffOrder(): string[] {
     .map((row) => names.find((name) => row.textContent?.includes(name)) ?? "?");
 }
 
-function renderClub(staff: StaffData[] = clubOfThree()) {
+function renderClub(staff: StaffData[] = clubOfThree(), tiers: Record<string, RatingTier> = {}) {
   invokeMock.mockImplementation(async (command: string) => {
-    if (command === "get_staff") return makeStaffSlice(staff, { ratings: CLUB_RATINGS });
+    if (command === "get_staff") return makeStaffSlice(staff, { ratings: CLUB_RATINGS, tiers });
     return createGameState(staff);
   });
   render(
@@ -775,6 +775,21 @@ describe("StaffTab as a table", () => {
       .getAllByRole("row")
       .find((row) => row.textContent?.includes("Pat Physio"));
     expect(physioRow?.textContent).toContain("90");
+  });
+
+  /**
+   * Given the club's physio, whom the backend tiers S among physios, and its scout, the rest
+   * When the table is drawn
+   * Then each row's rating is painted in the tone of the tier the backend sent, with the tier in
+   *      words, as the card paints it.
+   */
+  it("paints each row's rating in his tier among his role, as the backend sends it", async () => {
+    renderClub(clubOfThree(), { physio: "S", scout: "Rest" });
+
+    const physioChip = (await screen.findByText("Overall 90, tier S")).parentElement;
+    expect(physioChip).toHaveClass("bg-tone-top-tint", "text-tone-top");
+    const scoutChip = screen.getByText("Overall 40").parentElement;
+    expect(scoutChip).toHaveClass("bg-sunken", "text-fg-muted");
   });
 
   /**

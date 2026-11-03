@@ -13,7 +13,7 @@ import {
 } from "../../lib/sortRows";
 import type { StaffRow } from "../../services/staffService";
 import ContextMenu, { type ContextMenuHandle, type ContextMenuItem } from "../ContextMenu";
-import { CountryFlag, DataTable, type DataTableColumn } from "../ui";
+import { CountryFlag, DataTable, type DataTableColumn, RatingChip } from "../ui";
 
 type StaffSortKey =
   | "name"
@@ -100,7 +100,7 @@ interface StaffTableProps {
 }
 
 /**
- * The Staff list as a table (table C): name, role, age, the backend's rating (#589's single
+ * The Staff list as a table (table C): name, role, age, the backend's rating in its tier's tone (#589's single
  * source), the four attributes, specialization and wage, sortable through `sortRows`, and the
  * card's actions on each row.
  */
@@ -145,7 +145,13 @@ export default function StaffTable({ label, rows, menuItemsFor }: StaffTableProp
       header: t("common.ovr"),
       numeric: true,
       sortable: true,
-      cell: (row) => visibleRatingText(row.rating ?? null),
+      // In the tone of his tier among his own role, the backend's (staff_tier), as the card shows it.
+      cell: (row) =>
+        row.rating === undefined ? (
+          visibleRatingText(null)
+        ) : (
+          <RatingChip value={row.rating} tier={row.tier ?? "Rest"} />
+        ),
     },
     ...ATTRIBUTES.map((attribute) => ({
       key: attribute,
