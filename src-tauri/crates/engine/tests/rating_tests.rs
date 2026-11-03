@@ -11,6 +11,7 @@ fn player(id: &str, position: Position, skill: u8) -> PlayerData {
         condition: 90,
         fitness: 75,
         injury_risk: 1.0,
+        line_familiarity: [1.0; 4],
         pace: skill,
         stamina: skill,
         strength: skill,

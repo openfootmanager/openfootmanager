@@ -1,7 +1,8 @@
 use super::indices::StandingByTeam;
-use super::{TeamCard, TeamCardColors, TeamCardMedia, TeamCardTeam, TeamStanding};
+use super::{TeamCard, TeamCardColors, TeamCardManager, TeamCardMedia, TeamCardTeam, TeamStanding};
 use crate::player_knowledge::KnowledgeView;
 use domain::league::StandingEntry;
+use domain::manager::Manager;
 use domain::player::Player;
 use domain::team::{PlayStyle, Team};
 use std::collections::HashMap;
@@ -11,6 +12,7 @@ pub(super) fn project_card(
     players_by_team: &HashMap<&str, Vec<&Player>>,
     standing_by_team: &StandingByTeam,
     view: &KnowledgeView,
+    manager: Option<&Manager>,
 ) -> TeamCard {
     let roster: &[&Player] = players_by_team
         .get(team.id.as_str())
@@ -37,11 +39,16 @@ pub(super) fn project_card(
         league_pos,
         standing,
         form: team.form.clone(),
+        manager: manager.map(|manager| TeamCardManager {
+            id: manager.id.clone(),
+            name: manager.display_name.clone(),
+        }),
     }
 }
 
-/// The squad's mean rating, rounded down; 0 for an empty squad.
-fn average_rating(roster: &[&Player]) -> u8 {
+/// The squad's mean rating, rounded down; 0 for an empty squad. The one rule for a squad's
+/// average: the club card's, and the team-selection screen's.
+pub(crate) fn average_rating(roster: &[&Player]) -> u8 {
     if roster.is_empty() {
         return 0;
     }

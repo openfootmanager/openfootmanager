@@ -2,6 +2,12 @@
 import type { ContextMatchResult } from "./ContextMatchResult";
 import type { DelegatedRenewalReportData } from "./DelegatedRenewalReportData";
 import type { Player } from "./Player";
+import type { ProspectOpinion } from "./ProspectOpinion";
 import type { ScoutReportData } from "./ScoutReportData";
 
-export type MessageContext = { team_id: string | null, team_name?: string | null, player_id: string | null, fixture_id: string | null, match_result: ContextMatchResult | null, youth_target_position: string | null, youth_search_region?: string | null, youth_search_objective?: string | null, youth_prospects?: Array<Player> | null, scout_report?: ScoutReportData | null, delegated_renewal_report?: DelegatedRenewalReportData | null, };
+export type MessageContext = { team_id: string | null, team_name?: string | null, player_id: string | null, fixture_id: string | null, match_result: ContextMatchResult | null, youth_target_position: string | null, youth_search_region?: string | null, youth_search_objective?: string | null, youth_prospects?: Array<Player> | null, 
+/**
+ * The reporting scout's opinion of each prospect's potential, written with the report. None
+ * for a report written before reports carried one: its prospects show no opinion.
+ */
+youth_prospect_opinions?: Array<ProspectOpinion> | null, scout_report?: ScoutReportData | null, delegated_renewal_report?: DelegatedRenewalReportData | null, };

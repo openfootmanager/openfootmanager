@@ -75,9 +75,11 @@ Each simulated minute follows this sequence:
 
 When the ball reaches the attacking box, a shot is taken:
 
-1. **Accuracy check** — base accuracy (configurable, default 45%) adjusted by the shooter's `shooting + composure + decisions` rating. Clamped to 15%–85%.
+1. **Accuracy check** — base accuracy (configurable, default 24.5%) plus `(shooter_rating - 50) / 200`, from the shooter's `shooting + composure + decisions`. Clamped to 15%–85%.
    - **Miss**: 40% chance the shot is blocked, 60% chance off target.
-2. **Conversion check** — base conversion (default 30%) adjusted by `(shooter_rating - goalkeeper_rating) / 150`. Clamped to 10%–70%.
+2. **Conversion check** — base conversion (default 28%, times the defending side's defensive-line modifier and divided by its short-handed cover) plus `(shooter_rating - goalkeeper_rating) / 150`. Clamped to 10%–70%.
+
+Both bases are calibrated (#1132). Between two equal 70-rated sides, 46% of unblocked shots go on target, inside the Premier League's 45.10% over two decades to 49.96% in 2023/24 (premierleague.com, "Season trends: Clinical finishing key to record goals total", 27 May 2024; accuracy excluding blocks). This figure is cited, not derived. No open source gives a league-wide share of shots on target scored, so the conversion base is calibrated instead to the derived goal total: the shipped world's season lands in all five of #1001's scoreline bands (openfootball, CC0), at about 3.0 goals a game. `engine/tests/shot_rate_tests.rs` pins both shares.
    - **Score**: Goal event emitted with scorer + assister.
    - **Save**: Shot saved event.
 
@@ -92,6 +94,14 @@ Fouls can occur after tackles in midfield and the attacking third:
 5. **Injury** — 3% chance per foul that the fouled player is injured.
 
 Sent-off players are excluded from all future player selection for their team.
+
+#### A player out of position
+
+In a club match a player's match rating carries a factor for the line he plays in, from his familiarity with it (`player_rating::familiarity`, the screens' three words): 1.0 where he is natural, **0.967** where he can play (an alternate, another position in his own line, or a winger at wide midfield on his flank), **0.90** out of position (another line, including a keeper outfield or an outfielder in goal). The live engine applies it at each duel that rates a player through `condition_adjusted_skill`, and to each line's strength (`position_attr_avg`, `line_strength`). Three sites read raw attributes instead, so neither familiarity nor condition reaches them: the header after a cross (aerial against aerial), in-match penalties, and shootout kicks.
+
+`ofm_core/src/turn/squad/familiarity.rs` sets the factors. The line he kicks off in reads his exact slot, so a right-back at left-back pays from the first minute; every other line reads his best familiarity in it, because the engine moves players only between lines (a substitution, a change of shape). The engine's `PlayerData::line_familiarity` defaults to 1.0 in every line, so a caller that does not set it, and the instant engine's synthetic players (sim-bench, the sim lab), play exactly as before. The instant engine's duels ignore it.
+
+The size is calibrated: the largest cost that keeps a shipped-world season's outcomes inside run-to-run noise, and under the AI's own price for the same move (`compatibility_penalty`: 14 points for another line, about twice what 10% of a 70 rating costs). Post-match ratings barely react to it, because the rating counts events (passes, tackles, shots), and a duel lost a little more often moves them little.
 
 #### A side down to ten
 
@@ -183,11 +193,12 @@ per-minute possession contest.
 | counter_press | possession flip: losing side may re-win the ball | Long regains possession more |
 | break_speed | possession flip: winner may counter into the final third | Fast turns turnovers into chances |
 
-The weekly AI tactical review in `ofm_core::ai_tactics` treats at least 3.2
-goals conceded per game as leaky and at most 1.4 scored as blunt. Those cutoffs
-were calibrated when the generated-world probe measured about **2.29 goals per
-club per game** after #605 changed the selected eleven. A scoring change needs
-a fresh run of `tactical_adaptation_probe` before those cutoffs can be trusted.
+The weekly AI tactical review in `ofm_core::ai_tactics` treats at least 2.4
+goals conceded per game as leaky and at most 0.8 scored as blunt: the same tail
+(about 15% and 19%) of the five-match windows `tactical_adaptation_probe` reads, calibrated when a club
+scored about **1.6 goals a game** (#1132). The probe's guard test fails when the
+scoring rate moves away from that, so a scoring change re-reads the window table
+before the cutoffs are trusted.
 
 Both the instant engine (`engine/`) and the live engine (`live_match/`) consume
 the dials identically, with one exception: the stamina cost of pressing needs

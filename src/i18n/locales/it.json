@@ -660,7 +660,8 @@
     "nextPage": "Pagina successiva",
     "lastPage": "Ultima pagina",
     "sortBy": "Ordina per",
-    "sortAscending": "Crescente"
+    "sortAscending": "Crescente",
+    "lineupLoading": "I dati sulle posizioni sono ancora in caricamento, quindi le modifiche alla formazione non sono ancora disponibili."
   },
   "teamSelection": {
     "title": "Scegli il tuo club",
@@ -942,8 +943,7 @@
       "sharp": "Brillante",
       "managing": "Da gestire",
       "risk": "Rischio"
-    },
-    "positionsLoading": "I dati sulle posizioni sono ancora in caricamento, quindi le modifiche alla formazione non sono ancora disponibili."
+    }
   },
   "training": {
     "weeklySchedule": "Programma settimanale",
@@ -3027,7 +3027,10 @@
         "invalidPlayStyle": "Il gioco non conosce questo stile di gioco.",
         "notFound": "Questa tattica non esiste più."
       },
-      "anotherClubsSquad": "Quella rosa appartiene a un altro club."
+      "anotherClubsSquad": "Quella rosa appartiene a un altro club.",
+      "startingXiPlayerNotEligible": "Un giocatore di questa formazione non può essere titolare nel tuo club.",
+      "startingXiDuplicatePlayer": "Un giocatore compare due volte in questa formazione.",
+      "startingXiWrongSize": "L'undici titolare deve avere esattamente undici giocatori, oppure tutti i giocatori idonei se il club ne ha meno."
     },
     "sender": {
       "boardOfDirectors": "Consiglio di amministrazione",
@@ -3634,6 +3637,10 @@
       "matchesMoved": {
         "subject": "Partite riprogrammate",
         "body": "Alcune delle tue partite sono state spostate affinché i tuoi giocatori mantengano il loro riposo e le pause internazionali siano rispettate:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Alcuni dati salvati sono stati messi da parte",
+        "body": "Una parte di questo salvataggio non è stata letta al caricamento. È stata messa da parte invece di andare persa, e la tua carriera continua. Se ti sembra che manchi qualcosa, una segnalazione di bug ({{settings}} → {{reportBug}}, con il salvataggio allegato) ci permette di controllare."
       }
     },
     "news": {

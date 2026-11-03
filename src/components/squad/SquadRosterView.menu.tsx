@@ -23,8 +23,8 @@ interface SquadRowMenuContext {
   canBench: boolean;
   contractRisk: ContractRiskLevel;
   /**
-   * The backend's position table has arrived and the squad has answered for this revision: a
-   * lineup change is not made without both.
+   * The backend's position table and familiarity have loaded and the squad has answered for this
+   * revision: a lineup can be graded, and a change is not made without all three.
    */
   lineupReady: boolean;
   /** A contract action for this player is on its way to the backend. */

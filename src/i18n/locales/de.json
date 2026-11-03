@@ -641,7 +641,8 @@
     "nextPage": "Nächste Seite",
     "lastPage": "Letzte Seite",
     "sortBy": "Sortieren nach",
-    "sortAscending": "Aufsteigend"
+    "sortAscending": "Aufsteigend",
+    "lineupLoading": "Die Positionsdaten werden noch geladen, daher sind Aufstellungsänderungen noch nicht möglich."
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",
@@ -923,8 +924,7 @@
       "sharp": "Scharf",
       "managing": "Verwaltet",
       "risk": "Risiko"
-    },
-    "positionsLoading": "Die Positionsdaten werden noch geladen, daher sind Aufstellungsänderungen noch nicht möglich."
+    }
   },
   "training": {
     "weeklySchedule": "Wochenplan",
@@ -3027,7 +3027,10 @@
         "invalidPlayStyle": "Diesen Spielstil kennt das Spiel nicht.",
         "notFound": "Diese Taktik gibt es nicht mehr."
       },
-      "anotherClubsSquad": "Dieser Kader gehört zu einem anderen Verein."
+      "anotherClubsSquad": "Dieser Kader gehört zu einem anderen Verein.",
+      "startingXiPlayerNotEligible": "Ein Spieler in dieser Aufstellung darf für deinen Verein nicht starten.",
+      "startingXiDuplicatePlayer": "Ein Spieler kommt in dieser Aufstellung zweimal vor.",
+      "startingXiWrongSize": "Die Startelf muss genau elf Spieler haben, oder alle spielberechtigten Spieler, wenn der Verein weniger hat."
     },
     "sender": {
       "boardOfDirectors": "Vorstand",
@@ -3634,6 +3637,10 @@
       "matchesMoved": {
         "subject": "Spiele verlegt",
         "body": "Einige Ihrer Spiele wurden verlegt, damit Ihre Spieler ihre Ruhezeit behalten und die Länderspielpausen eingehalten werden:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Einige gespeicherte Daten wurden beiseitegelegt",
+        "body": "Ein Teil dieses Spielstands konnte beim Laden nicht gelesen werden. Er wurde beiseitegelegt statt verloren, und Ihre Karriere geht weiter. Falls etwas fehlt, hilft uns ein Fehlerbericht ({{settings}} → {{reportBug}}, mit angehängtem Spielstand), der Sache nachzugehen."
       }
     },
     "news": {

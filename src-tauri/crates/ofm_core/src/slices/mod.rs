@@ -8,4 +8,5 @@ mod search_text;
 pub mod session;
 pub mod squad;
 pub mod staff;
+pub mod team_selection;
 pub mod teams;

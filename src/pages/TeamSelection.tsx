@@ -36,6 +36,7 @@ export default function TeamSelection() {
     teamGroups,
     getTeamPlayers,
     getTeamAvgOvr,
+    getPlayerRating,
     selectedTeam,
     selectedTeamXi,
     selectedTeamCompetitions,
@@ -147,6 +148,7 @@ export default function TeamSelection() {
             selectedTeamXi={selectedTeamXi}
             selectedTeamCompetitions={selectedTeamCompetitions}
             getTeamAvgOvr={getTeamAvgOvr}
+            getPlayerRating={getPlayerRating}
           />
         </div>
 

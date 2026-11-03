@@ -424,7 +424,7 @@ fn complete_youth_scouting_assignment(
     }
 
     let scout_name = format!("{} {}", scout.first_name, scout.last_name);
-    game.messages.push(build_youth_recruitment_report(
+    let mut report = build_youth_recruitment_report(
         &assignment.id,
         &scout_name,
         &team.id,
@@ -434,7 +434,57 @@ fn complete_youth_scouting_assignment(
         assignment.objective,
         assignment.target_position.as_ref(),
         date,
-    ));
+    );
+    // The scout judges each prospect's potential as he judges any player's (`judged_range`), so
+    // the report says what he thinks, never the number.
+    let opinions = prospects
+        .iter()
+        .filter(|prospect| prospect.potential > 0)
+        .map(|prospect| {
+            let range = crate::potential_opinion::judged_range(
+                &prospect.id,
+                &scout.id,
+                prospect.potential,
+                scout.attributes.judging_potential,
+            );
+            ProspectOpinion {
+                prospect_id: prospect.id.clone(),
+                low: range.low,
+                high: range.high,
+                scout_name: scout_name.clone(),
+                scouted_on: date.to_string(),
+            }
+        })
+        .collect();
+    report.context.youth_prospect_opinions = Some(opinions);
+    game.messages.push(report);
+}
+
+/// The scout's opinion of `prospect_id` in a youth scouting report; none in a report written
+/// before reports carried one.
+fn stored_opinion<'a>(message: &'a InboxMessage, prospect_id: &str) -> Option<&'a ProspectOpinion> {
+    message
+        .context
+        .youth_prospect_opinions
+        .as_ref()?
+        .iter()
+        .find(|opinion| opinion.prospect_id == prospect_id)
+}
+
+/// The scout report a youth report's opinion of `prospect` amounts to: the scout's range, name and
+/// day, beside the attributes he saw. The report's screen reads it before the prospect is signed
+/// and his profile after, so the two show the same opinion.
+pub(crate) fn prospect_report(prospect: &Player, opinion: &ProspectOpinion) -> ScoutedPlayer {
+    ScoutedPlayer {
+        player_id: prospect.id.clone(),
+        scouted_on: opinion.scouted_on.clone(),
+        attributes: prospect.attributes.clone(),
+        potential: Some(crate::game::PotentialRange {
+            low: opinion.low,
+            high: opinion.high,
+        }),
+        scout_name: Some(opinion.scout_name.clone()),
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -696,7 +746,16 @@ pub fn apply_youth_recruitment_response(
             let player_id = signed_player.id.clone();
             let player_name = signed_player.full_name.clone();
             let signed_jersey_number = signed_player.jersey_number;
+            // The scout's opinion goes with him: until his coaches have watched him for six weeks,
+            // his profile shows what the report said.
+            let report = stored_opinion(&game.messages[message_index], prospect_id)
+                .map(|opinion| prospect_report(&signed_player, opinion));
             game.players.push(signed_player);
+            if let Some(report) = report {
+                game.scouted_players
+                    .retain(|scouted| scouted.player_id != report.player_id);
+                game.scouted_players.push(report);
+            }
 
             let message = &mut game.messages[message_index];
             message.context.player_id = Some(player_id);
@@ -737,6 +796,7 @@ pub fn apply_youth_recruitment_response(
                 .clone();
             let prospect_name = prospect.full_name.clone();
             let shortlist_options = youth_prospect_options();
+            let opinion = stored_opinion(&game.messages[message_index], prospect_id).cloned();
 
             game.messages.push(
                 InboxMessage::new(
@@ -763,6 +823,7 @@ pub fn apply_youth_recruitment_response(
                     youth_search_region,
                     youth_search_objective,
                     youth_prospects: Some(vec![prospect]),
+                    youth_prospect_opinions: opinion.map(|opinion| vec![opinion]),
                     ..MessageContext::default()
                 })
                 .with_i18n(
