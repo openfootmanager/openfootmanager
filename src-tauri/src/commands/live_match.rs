@@ -1095,27 +1095,23 @@ mod tests {
     /// then the fixture ends as a draw without extra time or a shootout.
     #[test]
     fn a_drawn_league_match_ignores_a_callers_extra_time_request() {
-        let state = StateManager::new();
-        let mut game = make_game_with_round();
-        game.seed = 1;
-        state.set_game(game);
-        super::start_live_match_internal(
-            &state,
-            ofm_core::state::Career::Active,
-            0,
-            "spectator",
-            true,
-            Some("league1"),
-            Some("fix1"),
-        )
-        .expect("start league fixture");
-        let mut session = state.take_live_match().unwrap();
-        advance_to_regulation_end(&mut session);
-        let regulation = session.snapshot();
-        assert_eq!(
-            regulation.home_score, regulation.away_score,
-            "seeded regulation draw"
-        );
+        let mut session = level_at_regulation_full_time(|seed| {
+            let state = StateManager::new();
+            let mut game = make_game_with_round();
+            game.seed = seed;
+            state.set_game(game);
+            super::start_live_match_internal(
+                &state,
+                ofm_core::state::Career::Active,
+                0,
+                "spectator",
+                true,
+                Some("league1"),
+                Some("fix1"),
+            )
+            .expect("start league fixture");
+            state.take_live_match().unwrap()
+        });
         let remainder = session.run_to_completion();
         assert!(
             remainder
@@ -1125,6 +1121,23 @@ mod tests {
         );
         assert_eq!(session.snapshot().home_score, session.snapshot().away_score);
         assert!(session.snapshot().penalty_shootout.is_none());
+    }
+
+    /// The fixture `start` kicks off for a game seed, at regulation full time, for the first seed
+    /// in 1..=200 where it is level then. The scenario is a draw, not any one seed: a change to
+    /// how often the engine scores moves which seeds draw (#1132 did).
+    fn level_at_regulation_full_time(
+        start: impl Fn(u64) -> live_match_manager::LiveMatchSession,
+    ) -> live_match_manager::LiveMatchSession {
+        for seed in 1..=200 {
+            let mut session = start(seed);
+            advance_to_regulation_end(&mut session);
+            let regulation = session.snapshot();
+            if regulation.home_score == regulation.away_score {
+                return session;
+            }
+        }
+        panic!("no seed in 1..=200 is level at regulation full time");
     }
 
     fn advance_to_regulation_end(session: &mut live_match_manager::LiveMatchSession) {
@@ -1142,27 +1155,28 @@ mod tests {
     /// then its regulation draw continues to extra time and yields one winner in that cup.
     #[test]
     fn a_knockout_draw_uses_its_own_competition_despite_a_callers_flag() {
-        let state = StateManager::new();
-        let mut game = make_game_with_round();
-        game.seed = 1;
-        let mut cup = make_knockout_cup("2025-06-15");
-        cup.fixtures[0].away_team_id = "team2".to_string();
-        game.competitions.push(cup);
-        state.set_game(game);
-        super::start_live_match_internal(
-            &state,
-            ofm_core::state::Career::Active,
-            1,
-            "spectator",
-            false,
-            Some("cup1"),
-            Some("cupfix1"),
-        )
-        .expect("stable identity selects the cup, not the raw league index");
-        let mut session = state.take_live_match().unwrap();
+        let mut session = level_at_regulation_full_time(|seed| {
+            let state = StateManager::new();
+            let mut game = make_game_with_round();
+            game.seed = seed;
+            let mut cup = make_knockout_cup("2025-06-15");
+            cup.fixtures[0].away_team_id = "team2".to_string();
+            game.competitions.push(cup);
+            state.set_game(game);
+            super::start_live_match_internal(
+                &state,
+                ofm_core::state::Career::Active,
+                1,
+                "spectator",
+                false,
+                Some("cup1"),
+                Some("cupfix1"),
+            )
+            .expect("stable identity selects the cup, not the raw league index");
+            state.take_live_match().unwrap()
+        });
         assert_eq!(session.competition_id, "cup1");
         assert_eq!(session.fixture_id, "cupfix1");
-        advance_to_regulation_end(&mut session);
         assert_eq!(session.snapshot().home_score, session.snapshot().away_score);
         let remainder = session.run_to_completion();
         assert!(
