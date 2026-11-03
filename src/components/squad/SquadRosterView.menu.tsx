@@ -22,7 +22,10 @@ interface SquadRowMenuContext {
   /** Someone fit is on the bench to take a starter's place. */
   canBench: boolean;
   contractRisk: ContractRiskLevel;
-  /** The backend's position table and familiarity have both loaded: a lineup can be graded. */
+  /**
+   * The backend's position table and familiarity have loaded and the squad has answered for this
+   * revision: a lineup can be graded, and a change is not made without all three.
+   */
   lineupReady: boolean;
   /** A contract action for this player is on its way to the backend. */
   contractActionPending: boolean;

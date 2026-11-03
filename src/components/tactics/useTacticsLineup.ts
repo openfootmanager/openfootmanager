@@ -58,10 +58,16 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   const { sessionState } = useGameStore();
   const positionTable = usePositionTable();
   const familiarity = useFamiliarity();
-  const canGradeLineup = lineupReady(positionTable, familiarity);
   const teamId = sessionState?.manager?.team_id ?? gameState?.manager?.team_id ?? null;
   const clockDate = sessionState?.clock.current_date ?? gameState?.clock.current_date ?? "";
-  const [fetchedSquad] = useFetchedSquad(teamId, clockDate, sessionState ?? gameState);
+  const [fetchedSquad, , squadAnswered] = useFetchedSquad(
+    teamId,
+    clockDate,
+    sessionState ?? gameState,
+  );
+  // The position table, the familiarity and the squad's answer for this revision: a lineup can be
+  // graded and changed. The writers, the notice and the count all read this one flag.
+  const canGradeLineup = lineupReady(positionTable, familiarity) && squadAnswered;
   const initialTeam = sessionState?.team ?? gameState?.teams?.find((t) => t.id === teamId) ?? null;
   const initialPreset = initialTeam
     ? findTacticsPresetBySetup(
@@ -185,8 +191,9 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   );
 
   async function persistStartingXI(playerIds: string[]): Promise<void> {
-    // Nothing is saved from a lineup worked out before the position table and familiarity have
-    // loaded.
+    // Nothing is saved from a lineup worked out before the position table and the familiarity have
+    // loaded, nor from a squad the backend has not answered for this revision: its eligibility is
+    // the last one's.
     if (!canGradeLineup) return;
     setPendingStartingXiIds(playerIds);
     try {
@@ -476,7 +483,7 @@ export function useTacticsLineup({ gameState, onGameUpdate }: UseTacticsLineupAr
   }
 
   return {
-    /** The position table and the familiarity have both loaded: a lineup can be graded. */
+    /** Lineup changes are possible: the writers, the notice and the count read this one flag. */
     lineupReady: canGradeLineup,
     team,
     formation,

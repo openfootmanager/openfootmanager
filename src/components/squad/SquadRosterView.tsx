@@ -55,6 +55,8 @@ import { sortSquadRoster } from "./SquadRosterView.sort";
 
 interface SquadRosterViewProps {
   players: PlayerData[];
+  /** The squad's eligibility is the backend's for the current revision, not the previous one's. */
+  squadAnswered: boolean;
   team: TeamData;
   clockDate: string;
   onSelectPlayer: (id: string, options?: PlayerSelectionOptions) => void;
@@ -74,6 +76,7 @@ type FilterScope =
 
 export default function SquadRosterView({
   players,
+  squadAnswered,
   team,
   clockDate,
   onSelectPlayer,
@@ -101,7 +104,9 @@ export default function SquadRosterView({
 
   const positionTable = usePositionTable();
   const familiarity = useFamiliarity();
-  const canGradeLineup = lineupReady(positionTable, familiarity);
+  // One flag for grading and for changing a lineup: the table, the familiarity and the squad's
+  // answer for this revision.
+  const canGradeLineup = lineupReady(positionTable, familiarity) && squadAnswered;
   const roster = players
     .filter((player) => isFirstTeamSquadPlayer(player))
     .sort(
@@ -296,6 +301,10 @@ export default function SquadRosterView({
   };
 
   const persistStartingXi = async (playerIds: string[]): Promise<void> => {
+    // Nothing is saved from a lineup worked out before the table and the familiarity have loaded
+    // or from a squad the backend has not answered for this revision (its eligibility is the
+    // last one's).
+    if (!canGradeLineup) return;
     const updated = await setStartingXi(playerIds);
     completeMutation(updated);
   };

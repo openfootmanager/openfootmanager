@@ -428,6 +428,11 @@
       "other": "{{n}}º"
     },
     "pts": "Pts",
+    "playedFull": "Jogos",
+    "wonFull": "Vitórias",
+    "drawnFull": "Empates",
+    "lostFull": "Derrotas",
+    "ptsFull": "Pontos",
     "played": "J",
     "won": "V",
     "drawn": "E",
@@ -3020,7 +3025,11 @@
         "invalidFormation": "O jogo não conhece essa formação.",
         "invalidPlayStyle": "O jogo não conhece esse estilo de jogo.",
         "notFound": "Essa tática não existe mais."
-      }
+      },
+      "anotherClubsSquad": "Esse elenco pertence a outro clube.",
+      "startingXiPlayerNotEligible": "Um jogador desta escalação não pode ser titular no seu clube.",
+      "startingXiDuplicatePlayer": "Um jogador aparece duas vezes nesta escalação.",
+      "startingXiWrongSize": "O time titular precisa ter exatamente onze jogadores, ou todos os jogadores elegíveis se o clube tiver menos."
     },
     "sender": {
       "boardOfDirectors": "Diretoria",
@@ -3627,6 +3636,10 @@
       "matchesMoved": {
         "subject": "Jogos reagendados",
         "body": "Alguns dos seus jogos foram alterados para que seus jogadores mantenham o descanso e as datas FIFA sejam respeitadas:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Alguns dados salvos foram separados",
+        "body": "Uma parte deste jogo salvo não pôde ser lida ao carregar. Ela foi separada em vez de perdida, e sua carreira continua. Se algo parecer estar faltando, um relatório de bug ({{settings}} → {{reportBug}}, com o jogo salvo anexado) nos permite investigar."
       }
     },
     "news": {
