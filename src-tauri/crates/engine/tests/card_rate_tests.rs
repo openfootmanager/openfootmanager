@@ -156,8 +156,6 @@ fn a_match_shows_as_many_red_cards_as_real_football() {
     );
 }
 
-/// The calibrated 4.54 yellows a match between these sides, a quarter of a card either side:
-/// about five times the noise of a mean over SEEDS matches.
 /// The cards of SEEDS instant-engine matches between the same equal sides, played once and
 /// shared. The instant engine (sim-bench, the sim lab) carries its own copy of the card rule.
 fn instant_cards_between_equal_sides() -> &'static Cards {
@@ -196,6 +194,8 @@ const INSTANT_YELLOWS_HIGH: f64 = 4.85;
 const INSTANT_REDS_LOW: f64 = 0.20;
 const INSTANT_REDS_HIGH: f64 = 0.31;
 
+/// The calibrated 4.54 yellows a match between these sides, a quarter of a card either side:
+/// about five times the noise of a mean over SEEDS matches.
 const YELLOWS_LOW: f64 = 4.30;
 const YELLOWS_HIGH: f64 = 4.80;
 /// The calibrated 0.252 reds a match between these sides, 0.05 either side: about five times the

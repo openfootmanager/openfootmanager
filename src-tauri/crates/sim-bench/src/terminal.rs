@@ -332,11 +332,16 @@ fn calibration_text(verdicts: &[Verdict]) -> String {
             "measured:".dimmed()
         ));
     }
-    if let Some(Provenance::Cited { source }) = verdicts
-        .iter()
-        .map(|verdict| &verdict.provenance)
-        .find(|provenance| matches!(provenance, Provenance::Cited { .. }))
-    {
+    // Every distinct cited source once, in the table's order: bands can cite different reports.
+    let mut cited: Vec<&str> = Vec::new();
+    for verdict in verdicts {
+        if let Provenance::Cited { source } = &verdict.provenance {
+            if !cited.contains(&source.as_str()) {
+                cited.push(source);
+            }
+        }
+    }
+    for source in cited {
         text.push_str(&format!("  {} {source}\n", "cited:".dimmed()));
     }
     let caveated: Vec<&str> = verdicts
