@@ -522,7 +522,7 @@ describe("TacticsTab", () => {
    * When the pitch is drawn
    * Then nobody is ringed and the count reads zero: a player with no grade is not out of position.
    */
-  it("counts nobody out of position for players the projection does not hold", () => {
+  it("counts nobody out of position for players the projection does not hold", async () => {
     const state = makeGameState();
     state.teams[0].starting_xi_ids = [
       "d1",
@@ -543,6 +543,7 @@ describe("TacticsTab", () => {
     const { container } = render(
       <TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     expect(screen.getByText("0 squad.outOfPosition")).toBeInTheDocument();
     expect(container.querySelectorAll(".ring-warning-solid")).toHaveLength(0);
@@ -620,7 +621,7 @@ describe("TacticsTab", () => {
    * When the pitch is drawn with the backend's familiarity
    * Then the out-of-position count reads two, the grade the backend gives them.
    */
-  it("marks a starter out of position from the backend's familiarity", () => {
+  it("marks a starter out of position from the backend's familiarity", async () => {
     const state = makeGameState();
     state.teams[0].starting_xi_ids = [
       "d1",
@@ -637,6 +638,7 @@ describe("TacticsTab", () => {
     ];
 
     render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    await act(async () => {}); // the squad has answered for this revision
 
     expect(screen.getByText("2 squad.outOfPosition")).toBeInTheDocument();
   });
