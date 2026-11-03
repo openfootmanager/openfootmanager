@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import type {
@@ -17,6 +17,23 @@ import { createSeasonContext } from "../../test-utils/factories";
 const riskLevels = vi.hoisted(() => ({
   current: {} as Record<string, "critical" | "warning" | "stable">,
 }));
+
+// Whether the backend's position table has arrived; a test says it has not.
+const positionTableState = vi.hoisted(() => ({ arrived: true }));
+
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  const { createPositionTable } = await import("../../lib/positionTable");
+  const canned = cannedPositionsModule();
+  const notArrived = createPositionTable([]);
+  return {
+    ...canned,
+    usePositionTable: () => {
+      const arrived = canned.usePositionTable();
+      return positionTableState.arrived ? arrived : notArrived;
+    },
+  };
+});
 
 vi.mock("../../hooks/useContractWarningStages", () => ({
   useContractRiskLevels: () => (playerId: string) => riskLevels.current[playerId] ?? "stable",
@@ -277,6 +294,45 @@ describe("SquadTab", () => {
   });
 
   /**
+   * Given a squad numbered 1 to 11, and a bench defender with no shirt number
+   * When the roster is sorted by number, up and then down
+   * Then the numbered players run 1 to 11 and then 11 to 1, and the bench defender is the last row
+   *      both times, not the first going down.
+   */
+  it("keeps a player with no shirt number at the foot of the roster in both directions", () => {
+    const state = makeGameState();
+    state.players = state.players.map((player, index) => ({
+      ...player,
+      jersey_number: player.id === "d5" ? null : index + 1,
+    }));
+    const roster = (sortDir: "asc" | "desc") => (
+      <SquadTab
+        gameState={state}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "jersey", sortDir }}
+        onSortStateChange={vi.fn()}
+      />
+    );
+    const rowNames = () =>
+      within(screen.getByRole("table", { name: "squad.title" }))
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("button")[0].getAttribute("aria-label"));
+
+    // Numbered 1 to 11 in the fixture's order: the keeper, four defenders, four midfielders, two
+    // forwards.
+    const numbered = ["GK1", "D1", "D2", "D3", "D4", "M1", "M2", "M3", "M4", "F1", "F2"];
+
+    const { rerender } = render(roster("asc"));
+    expect(rowNames()).toEqual([...numbered, "Bench DEF"]);
+
+    rerender(roster("desc"));
+    expect(rowNames()).toEqual([...numbered].reverse().concat("Bench DEF"));
+  });
+
+  /**
    * Given a starter, an injured bench player and a fit bench player
    * When the roster renders
    * Then the starter's row carries the starter accent, the injured player's the can't-play one,
@@ -302,6 +358,34 @@ describe("SquadTab", () => {
       "danger",
     );
     expect(screen.getByRole("row", { name: /Bench DEF/ })).not.toHaveAttribute("data-accent");
+  });
+
+  /**
+   * Given the squad not yet fetched, so the roster is the game state's own players, which carry no
+   *       match-day verdict
+   * When the roster renders
+   * Then no row carries the can't-play accent: an absent verdict means not yet, not no.
+   */
+  it("marks no row as unable to play before the backend's verdict arrives", () => {
+    const state = makeGameState();
+    state.players = state.players.map((player) => ({ ...player, match_day_eligible: undefined }));
+    // The squad fetch never answers: the roster stays the one drawn before it.
+    mockedInvoke.mockReturnValueOnce(new Promise(() => {}));
+
+    render(
+      <SquadTab
+        gameState={state}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("row", { name: /Bench DEF/ })).toBeInTheDocument();
+    const redRows = screen
+      .getAllByRole("row")
+      .filter((row) => row.getAttribute("data-accent") === "danger");
+    expect(redRows).toHaveLength(0);
   });
 
   /**
@@ -519,6 +603,32 @@ describe("SquadTab", () => {
     expect(warned).toHaveLength(2);
   });
 
+  /**
+   * Given the squad answered once, and then the game moved on (a new revision) with its fetch
+   *       still in flight
+   * When a bench player's roster menu is opened
+   * Then "Make starter" is disabled and nothing is saved: the eligibility is the previous
+   *      revision's until get_squad answers.
+   */
+  it("disables the lineup actions while a newer get_squad is in flight", async () => {
+    const state = makeGameState();
+    mockedInvoke
+      .mockResolvedValueOnce(state.players.filter((player) => player.team_id === "team1"))
+      .mockReturnValue(new Promise(() => {}));
+    const props = { managerId: "mgr1", onSelectPlayer: vi.fn(), onGameUpdate: vi.fn() };
+    const { rerender } = render(<SquadTab gameState={state} {...props} />);
+    await act(async () => {});
+    rerender(<SquadTab gameState={{ ...state }} {...props} />);
+
+    fireEvent.contextMenu(screen.getByText("Bench DEF").closest("tr") as HTMLTableRowElement);
+    const makeStarter = screen.getByRole("menuitem", { name: "squad.makeStarter" });
+    expect(makeStarter).toBeDisabled();
+    fireEvent.click(makeStarter);
+    await act(async () => {});
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+  });
+
   it("shows progressive injury details in the roster", () => {
     const gameState = makeGameState();
     gameState.players[0] = makePlayer("gk1", "Goalkeeper", {
@@ -546,29 +656,19 @@ describe("SquadTab", () => {
     expect(within(keeperRow).getAllByText("10d").length).toBeGreaterThan(0);
   });
 
+  /**
+   * Given an OVR sort, high to low, saved on the dashboard, and two forwards the backend rates 30
+   *       and 90, the weaker listed first
+   * When Squad opens
+   * Then the 90 is drawn above the 30.
+   */
   it("honors a persisted OVR sort state from the dashboard", () => {
     const gameState = makeGameState();
+    // The rating is the backend's `ovr`; the list never derives one from attributes. Without it
+    // both read 0, and the order would rest on how a tie falls.
     gameState.players = [
-      makePlayer("low", "Forward", {
-        match_name: "Low OVR",
-        attributes: {
-          ...makePlayer("base-low", "Forward").attributes,
-          pace: 30,
-          shooting: 30,
-          passing: 30,
-          dribbling: 30,
-        },
-      }),
-      makePlayer("high", "Forward", {
-        match_name: "High OVR",
-        attributes: {
-          ...makePlayer("base-high", "Forward").attributes,
-          pace: 90,
-          shooting: 90,
-          passing: 90,
-          dribbling: 90,
-        },
-      }),
+      makePlayer("low", "Forward", { match_name: "Low OVR", ovr: 30 }),
+      makePlayer("high", "Forward", { match_name: "High OVR", ovr: 90 }),
     ];
 
     render(
@@ -589,6 +689,116 @@ describe("SquadTab", () => {
     expect(highIndex).toBeGreaterThan(-1);
     expect(lowIndex).toBeGreaterThan(-1);
     expect(highIndex).toBeLessThan(lowIndex);
+  });
+
+  /**
+   * Given a strong striker and a weak goalkeeper, both in the starting XI
+   * When the squad is sorted by position (the default)
+   * Then the goalkeeper's row comes first: the order is the backend's table's rank, not the OVR
+   *      the two would tie-break on.
+   */
+  it("sorts the roster by the table's position order, not by rating", () => {
+    const gameState = makeGameState();
+    const weak = (id: string, position: string) =>
+      makePlayer(id, position, {
+        match_name: id,
+        attributes: {
+          ...makePlayer(`base-${id}`, position).attributes,
+          pace: 30,
+          shooting: 30,
+          passing: 30,
+          dribbling: 30,
+          handling: 30,
+          reflexes: 30,
+        },
+      });
+    gameState.players = [
+      makePlayer("Striker Strong", "Striker", {
+        match_name: "Striker Strong",
+        attributes: {
+          ...makePlayer("base-strong", "Striker").attributes,
+          pace: 90,
+          shooting: 90,
+          passing: 90,
+          dribbling: 90,
+        },
+      }),
+      weak("Keeper Weak", "Goalkeeper"),
+    ];
+
+    render(
+      <SquadTab
+        gameState={gameState}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "pos", sortDir: "asc" }}
+        onSortStateChange={vi.fn()}
+      />,
+    );
+
+    const rowTexts = screen.getAllByRole("row").map((row) => row.textContent ?? "");
+    const keeperIndex = rowTexts.findIndex((text) => text.includes("Keeper Weak"));
+    const strikerIndex = rowTexts.findIndex((text) => text.includes("Striker Strong"));
+
+    expect(keeperIndex).toBeGreaterThan(-1);
+    expect(strikerIndex).toBeGreaterThan(-1);
+    expect(keeperIndex).toBeLessThan(strikerIndex);
+  });
+
+  /**
+   * Given a strong striker and a weak goalkeeper of the same age
+   * When the squad is sorted by age, which ties
+   * Then the tie keeps the roster's own order: the goalkeeper's line first, not the striker's
+   *      higher rating.
+   */
+  it("keeps a tie in the roster's own order: line first, then rating", () => {
+    const gameState = makeGameState();
+    const weak = (id: string, position: string) =>
+      makePlayer(id, position, {
+        match_name: id,
+        attributes: {
+          ...makePlayer(`base-${id}`, position).attributes,
+          pace: 30,
+          shooting: 30,
+          passing: 30,
+          dribbling: 30,
+          handling: 30,
+          reflexes: 30,
+        },
+      });
+    gameState.players = [
+      makePlayer("Striker Strong", "Striker", {
+        match_name: "Striker Strong",
+        attributes: {
+          ...makePlayer("base-strong", "Striker").attributes,
+          pace: 90,
+          shooting: 90,
+          passing: 90,
+          dribbling: 90,
+        },
+      }),
+      weak("Keeper Weak", "Goalkeeper"),
+    ];
+
+    render(
+      <SquadTab
+        gameState={gameState}
+        managerId="mgr1"
+        onSelectPlayer={vi.fn()}
+        onGameUpdate={vi.fn()}
+        sortState={{ sortKey: "age", sortDir: "asc" }}
+        onSortStateChange={vi.fn()}
+      />,
+    );
+
+    const rowTexts = screen.getAllByRole("row").map((row) => row.textContent ?? "");
+    const keeperIndex = rowTexts.findIndex((text) => text.includes("Keeper Weak"));
+    const strikerIndex = rowTexts.findIndex((text) => text.includes("Striker Strong"));
+
+    expect(keeperIndex).toBeGreaterThan(-1);
+    expect(strikerIndex).toBeGreaterThan(-1);
+    expect(keeperIndex).toBeLessThan(strikerIndex);
   });
 
   it("shows contract risk badge for expiring players and opens renewal from context menu", async () => {
@@ -787,26 +997,103 @@ describe("SquadTab", () => {
       ...gameState,
       teams: gameState.teams.map((team) => ({
         ...team,
-        starting_xi_ids: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+        starting_xi_ids: ["gk1", "d1", "d5", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       })),
     };
     const onGameUpdate = vi.fn();
     renderSquadTab(gameState, { onGameUpdate });
+    await act(async () => {}); // the squad has answered for this revision
     mockedInvoke.mockResolvedValue(updatedGameState);
 
     const benchRow = screen.getByText("Bench DEF").closest("tr");
     expect(benchRow).not.toBeNull();
     fireEvent.contextMenu(benchRow as HTMLTableRowElement);
+    // d5 is a coarse "Defender", graded as a centre back as the backend reads him: he is natural at
+    // the first centre-back slot (replacing d2), not at the first slot that merely adapts him.
+    expect(screen.getByRole("menuitem", { name: "squad.makeStarter" })).toBeEnabled();
     fireEvent.click(screen.getByRole("menuitem", { name: "squad.makeStarter" }));
 
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
         careerToken: 0,
-        playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+        playerIds: ["gk1", "d1", "d5", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
       expect(onGameUpdate).toHaveBeenCalledWith(updatedGameState);
     });
   });
+  /**
+   * Given the position table has not arrived (every slot would tie, and the keeper's is first)
+   * When a bench player is made a starter from the roster context menu
+   * Then nothing is saved: a lineup worked out without the lines must not be written.
+   */
+  it("saves no lineup change before the position table has loaded", async () => {
+    positionTableState.arrived = false;
+    try {
+      renderSquadTab(makeGameState());
+
+      const benchRow = screen.getByText("Bench DEF").closest("tr");
+      fireEvent.contextMenu(benchRow as HTMLTableRowElement);
+      const makeStarter = screen.getByRole("menuitem", { name: "squad.makeStarter" });
+      // Disabled, so the item says it cannot be done yet instead of silently doing nothing.
+      expect(makeStarter).toBeDisabled();
+      fireEvent.click(makeStarter);
+      await act(async () => {});
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    } finally {
+      positionTableState.arrived = true;
+    }
+  });
+
+  /**
+   * Given the position table has not arrived
+   * When a starter's roster menu is opened
+   * Then "Send to bench" is disabled: a lineup change is not made without the lines.
+   */
+  it("disables Send to bench in a starter's menu until the position table has loaded", () => {
+    positionTableState.arrived = false;
+    try {
+      renderSquadTab(makeGameState());
+
+      const starterRow = screen.getByText("GK1").closest("tr");
+      fireEvent.contextMenu(starterRow as HTMLTableRowElement);
+
+      expect(screen.getByRole("menuitem", { name: "squad.sendToBench" })).toBeDisabled();
+    } finally {
+      positionTableState.arrived = true;
+    }
+  });
+
+  /**
+   * Given the position table loaded or not
+   * When the status filter's options are opened
+   * Then "needs cover" is offered once the table has loaded and not before: without the lines
+   *      it would drop players it should keep.
+   */
+  it("offers the needs-cover filter only once the position table has loaded", () => {
+    positionTableState.arrived = false;
+    try {
+      const { unmount } = render(
+        <SquadTab
+          gameState={makeGameState()}
+          managerId="mgr1"
+          onSelectPlayer={vi.fn()}
+          onGameUpdate={vi.fn()}
+        />,
+      );
+      fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
+      expect(screen.queryByRole("option", { name: "squad.needsCover" })).toBeNull();
+      expect(screen.getByRole("option", { name: "squad.naturalFit" })).toBeInTheDocument();
+      unmount();
+    } finally {
+      positionTableState.arrived = true;
+    }
+
+    renderSquadTab(makeGameState());
+    fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
+    expect(screen.getByRole("option", { name: "squad.needsCover" })).toBeInTheDocument();
+  });
+
   it("names each roster filter after its visible label", async () => {
     renderSquadTab(makeGameState());
 

@@ -202,9 +202,19 @@ impl LiveMatchState {
     /// of the new formation, which is how the pitch is drawn.
     pub(super) fn apply_formation(&mut self, side: Side, formation: &str) {
         let (num_def, num_mid, num_fwd) = Self::parse_formation(formation);
+        let on_the_pitch: Vec<bool> = self
+            .team_ref(side)
+            .players
+            .iter()
+            .map(|player| self.is_on_the_pitch(side, &player.id))
+            .collect();
         let team = self.team_mut(side);
         team.formation = formation.to_string();
-        rebalance_lines(&mut team.players, [num_def, num_mid, num_fwd]);
+        rebalance_lines(
+            &mut team.players,
+            &on_the_pitch,
+            [num_def, num_mid, num_fwd],
+        );
         team.players
             .sort_by_key(|player| line_rank(player.position));
     }
@@ -236,7 +246,10 @@ fn suitability(player: &PlayerData, line: Position) -> u16 {
 /// spare. Every move is one line, toward the nearest line that is short; a gap two lines away
 /// is filled through the middle, and a player who has already moved once is the last choice to
 /// move again, so the defender who steps into midfield is not then pushed up front.
-fn rebalance_lines(players: &mut [PlayerData], wanted: [usize; 3]) {
+///
+/// Only players `on_the_pitch` (indexed as `players`) count or move: a player sent off leaves
+/// his line one short, and stays where he was.
+fn rebalance_lines(players: &mut [PlayerData], on_the_pitch: &[bool], wanted: [usize; 3]) {
     let mut moved: Vec<usize> = Vec::new();
     // Each move closes one place of the gap between two lines, so ten outfielders need at most
     // twenty; the bound only guards against a shape this loop cannot reach.
@@ -244,7 +257,8 @@ fn rebalance_lines(players: &mut [PlayerData], wanted: [usize; 3]) {
         let counts = OUTFIELD_LINES.map(|line| {
             players
                 .iter()
-                .filter(|player| player.position == line)
+                .zip(on_the_pitch)
+                .filter(|&(player, &playing)| playing && player.position == line)
                 .count()
         });
         let Some(short) = (0..3).find(|&line| counts[line] < wanted[line]) else {
@@ -262,7 +276,9 @@ fn rebalance_lines(players: &mut [PlayerData], wanted: [usize; 3]) {
         let Some(mover) = players
             .iter()
             .enumerate()
-            .filter(|(_, player)| player.position == from)
+            .filter(|&(index, player)| {
+                on_the_pitch.get(index) == Some(&true) && player.position == from
+            })
             .rev()
             .max_by_key(|(index, player)| (!moved.contains(index), suitability(player, to)))
             .map(|(index, _)| index)

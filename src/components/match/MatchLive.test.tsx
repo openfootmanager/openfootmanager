@@ -7,6 +7,11 @@ import MatchLive from "./MatchLive";
 import type { EngineTeamData, MatchSnapshot, MinuteResult } from "./types";
 
 const invokeMock = vi.hoisted(() => vi.fn());
+vi.mock("../../hooks/usePositionGroups", async () => {
+  const { cannedPositionsModule } = await import("../../test-utils/positionTable");
+  return cannedPositionsModule();
+});
+
 vi.mock("@tauri-apps/api/core", () => ({ invoke: invokeMock }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),

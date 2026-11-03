@@ -101,7 +101,8 @@ impl LiveMatchState {
         let att_rating = self.condition_adjusted_skill(&attacker.id, att_raw)
             * trait_bonus(&attacker, TraitContext::Midfield);
         let def_rating = self.condition_adjusted_skill(&defender.id, def_raw)
-            * trait_bonus(&defender, TraitContext::Tackling);
+            * trait_bonus(&defender, TraitContext::Tackling)
+            * self.short_handed_cover(def_side);
 
         let att_mod = play_style_modifier(
             self.team_ref(att_side).play_style,
@@ -192,7 +193,8 @@ impl LiveMatchState {
         let att_rating = self.condition_adjusted_skill(&attacker.id, att_raw)
             * trait_bonus(&attacker, TraitContext::Dribbling);
         let def_rating = self.condition_adjusted_skill(&defender.id, def_raw)
-            * trait_bonus(&defender, TraitContext::Tackling);
+            * trait_bonus(&defender, TraitContext::Tackling)
+            * self.short_handed_cover(def_side);
 
         let att_mod = play_style_modifier(
             self.team_ref(att_side).play_style,
@@ -376,6 +378,7 @@ impl LiveMatchState {
 
         let def_line_mod = tactics_defensive_conversion_mod(&self.team_ref(def_side).tactics);
         let conversion = (self.config.goal_conversion_base * def_line_mod
+            / self.short_handed_cover(def_side)
             + (shoot_rating - gk_rating) / 150.0)
             .clamp(0.10, 0.70);
 

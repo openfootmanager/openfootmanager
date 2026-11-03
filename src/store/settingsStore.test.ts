@@ -53,6 +53,53 @@ describe("useSettingsStore", () => {
     expect(state.loaded).toBe(false);
   });
 
+  /**
+   * Given get_settings still in flight, and the player picks the cards view meanwhile
+   * When the load answers with the view it read before the pick ("table")
+   * Then the pick stands: the older answer does not flip the view back, and other settings come
+   *      from the answer.
+   */
+  it("keeps a setting changed while the load was in flight", async () => {
+    let answer: (value: unknown) => void = () => {};
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command !== "get_settings") return undefined;
+      return new Promise((resolve) => {
+        answer = resolve;
+      });
+    });
+
+    const loading = useSettingsStore.getState().loadSettings();
+    await useSettingsStore.getState().updateSettings({ list_view: "cards" });
+    answer({
+      settings: { language: "es", list_view: "table" },
+      currency: SUPPORTED_CURRENCIES[0],
+      supported_currencies: SUPPORTED_CURRENCIES,
+    });
+    await loading;
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("cards");
+    expect(useSettingsStore.getState().settings.language).toBe("es");
+  });
+
+  /**
+   * Given a load that finished, and then a setting is changed
+   * When a later load answers with the old value
+   * Then the answer is used: only a change made during that load is kept.
+   */
+  it("lets a later load replace a setting changed before it started", async () => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
+    await useSettingsStore.getState().updateSettings({ list_view: "cards" });
+    vi.mocked(invoke).mockResolvedValue({
+      settings: { list_view: "table" },
+      currency: SUPPORTED_CURRENCIES[0],
+      supported_currencies: SUPPORTED_CURRENCIES,
+    });
+
+    await useSettingsStore.getState().loadSettings();
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("table");
+  });
+
   it("loads settings from the backend and merges missing fields with defaults", async () => {
     vi.mocked(invoke).mockResolvedValue({
       settings: {
@@ -151,5 +198,140 @@ describe("useSettingsStore", () => {
     expect(consoleError).toHaveBeenCalledWith("Failed to save settings:", error);
 
     consoleError.mockRestore();
+  });
+});
+
+describe("overlapping loads", () => {
+  /** The answers `get_settings` is waiting to give, in the order it was asked. */
+  function pendingLoads() {
+    const answers: Array<(value: unknown) => void> = [];
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command !== "get_settings") return undefined;
+      return new Promise((resolve) => {
+        answers.push(resolve);
+      });
+    });
+    return answers;
+  }
+  const stale = () => ({
+    settings: { list_view: "table" },
+    currency: SUPPORTED_CURRENCIES[0],
+    supported_currencies: SUPPORTED_CURRENCIES,
+  });
+
+  /**
+   * Given two screens asking for the settings while they are not loaded
+   * When both call loadSettings
+   * Then the backend is asked once and both calls settle with its one answer.
+   */
+  it("shares one request between overlapping loads", async () => {
+    const answers = pendingLoads();
+
+    const first = useSettingsStore.getState().loadSettings();
+    const second = useSettingsStore.getState().loadSettings();
+    answers[0](stale());
+    await Promise.all([first, second]);
+
+    expect(answers).toHaveLength(1);
+    expect(useSettingsStore.getState().loaded).toBe(true);
+  });
+
+  /**
+   * Given a load that has settled
+   * When the settings are loaded again
+   * Then the backend is asked again: only a load still in flight is shared.
+   */
+  it("fetches again for a load made after the last one settled", async () => {
+    vi.mocked(invoke).mockResolvedValue(stale());
+
+    await useSettingsStore.getState().loadSettings();
+    await useSettingsStore.getState().loadSettings();
+
+    expect(
+      vi.mocked(invoke).mock.calls.filter(([command]) => command === "get_settings"),
+    ).toHaveLength(2);
+  });
+
+  /**
+   * Given a backend call that throws at once (not a rejected promise)
+   * When the settings are loaded, and then loaded again
+   * Then the first load settles with defaults and the second asks again: nothing is left stuck.
+   */
+  it("does not stay stuck on a load whose request throws at once", async () => {
+    vi.mocked(invoke).mockImplementationOnce(() => {
+      throw new Error("no bridge");
+    });
+    await useSettingsStore.getState().loadSettings();
+    vi.mocked(invoke).mockResolvedValue({ ...stale(), settings: { language: "es" } });
+
+    await useSettingsStore.getState().loadSettings();
+
+    expect(useSettingsStore.getState().settings.language).toBe("es");
+  });
+
+  /**
+   * Given two loads in flight, the first of which has answered
+   * When the player changes a setting, and then the second load answers with the older value
+   * Then the change stands.
+   */
+  it("keeps a change made after the first of two overlapping loads answers", async () => {
+    const answers = pendingLoads();
+
+    const first = useSettingsStore.getState().loadSettings();
+    const second = useSettingsStore.getState().loadSettings();
+    answers[0](stale());
+    await first;
+    await useSettingsStore.getState().updateSettings({ list_view: "cards" });
+    answers[1]?.(stale());
+    await second;
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("cards");
+  });
+
+  /**
+   * Given a load in flight, and the player changes a setting
+   * When a second load starts, and both answer with the older value
+   * Then the change stands.
+   */
+  it("keeps a change made before a second overlapping load starts", async () => {
+    const answers = pendingLoads();
+
+    const first = useSettingsStore.getState().loadSettings();
+    await useSettingsStore.getState().updateSettings({ list_view: "cards" });
+    const second = useSettingsStore.getState().loadSettings();
+    answers[0](stale());
+    await first;
+    answers[1]?.(stale());
+    await second;
+
+    expect(useSettingsStore.getState().settings.list_view).toBe("cards");
+  });
+
+  /**
+   * Given a load in flight, and a change that fails to save
+   * When the load answers
+   * Then the answer is used: a change that was not saved is not re-applied.
+   */
+  it("does not re-apply a change that failed to save", async () => {
+    let answer: (value: unknown) => void = () => {};
+    vi.mocked(invoke).mockImplementation(async (command: string) => {
+      if (command === "save_settings") throw new Error("disk full");
+      return new Promise((resolve) => {
+        answer = resolve;
+      });
+    });
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const loading = useSettingsStore.getState().loadSettings();
+    await useSettingsStore.getState().updateSettings({ language: "fr" });
+    answer({
+      settings: { language: "de" },
+      currency: SUPPORTED_CURRENCIES[0],
+      supported_currencies: SUPPORTED_CURRENCIES,
+    });
+    await loading;
+
+    expect(useSettingsStore.getState().settings.language).toBe("de");
+    quiet.mockRestore();
   });
 });

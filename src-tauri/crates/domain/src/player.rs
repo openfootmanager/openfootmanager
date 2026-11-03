@@ -264,6 +264,17 @@ impl Position {
         self.valid_roles().contains(role)
     }
 
+    /// Whether this is one of the four coarse positions an older save wrote (`Defender`,
+    /// `Midfielder`, `Forward`) or `Goalkeeper`, which is in the set on purpose although a keeper
+    /// was never coarse.
+    ///
+    /// `Player::natural_position` is `#[serde(default)]` and `Position`'s default is `Goalkeeper`,
+    /// so a save from before the field existed loads every player as a natural goalkeeper. Counting
+    /// `Goalkeeper` here is what makes the load-time identity upgrade
+    /// (`ofm_core::player_identity::needs_identity_upgrade`) and `primary_position` read his
+    /// `position` instead of trusting that default. Dropping it would turn those players into
+    /// keepers, so a caller that wants only the three outfield buckets must say so (match them
+    /// explicitly, as `critical_penalty` does), not reuse this.
     pub fn is_legacy_bucket(&self) -> bool {
         matches!(
             self,
@@ -371,6 +382,82 @@ pub struct PlayerAttributes {
     pub reflexes: u8,
     #[serde(default = "default_attr")]
     pub aerial: u8,
+}
+
+/// The name of one of a player's attributes: the [`PlayerAttributes`] field it reads, spelled as
+/// that field is (and so as the screens' `common.attributes.*` labels are).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AttributeKey {
+    Pace,
+    Stamina,
+    Strength,
+    Agility,
+    Passing,
+    Shooting,
+    Tackling,
+    Dribbling,
+    Defending,
+    Positioning,
+    Vision,
+    Decisions,
+    Composure,
+    Aggression,
+    Teamwork,
+    Leadership,
+    Handling,
+    Reflexes,
+    Aerial,
+}
+
+impl AttributeKey {
+    /// Every attribute, in the order `PlayerAttributes` declares them.
+    pub const ALL: [AttributeKey; 19] = [
+        AttributeKey::Pace,
+        AttributeKey::Stamina,
+        AttributeKey::Strength,
+        AttributeKey::Agility,
+        AttributeKey::Passing,
+        AttributeKey::Shooting,
+        AttributeKey::Tackling,
+        AttributeKey::Dribbling,
+        AttributeKey::Defending,
+        AttributeKey::Positioning,
+        AttributeKey::Vision,
+        AttributeKey::Decisions,
+        AttributeKey::Composure,
+        AttributeKey::Aggression,
+        AttributeKey::Teamwork,
+        AttributeKey::Leadership,
+        AttributeKey::Handling,
+        AttributeKey::Reflexes,
+        AttributeKey::Aerial,
+    ];
+
+    /// This attribute's value in `attributes`.
+    pub fn value_in(self, attributes: &PlayerAttributes) -> u8 {
+        match self {
+            AttributeKey::Pace => attributes.pace,
+            AttributeKey::Stamina => attributes.stamina,
+            AttributeKey::Strength => attributes.strength,
+            AttributeKey::Agility => attributes.agility,
+            AttributeKey::Passing => attributes.passing,
+            AttributeKey::Shooting => attributes.shooting,
+            AttributeKey::Tackling => attributes.tackling,
+            AttributeKey::Dribbling => attributes.dribbling,
+            AttributeKey::Defending => attributes.defending,
+            AttributeKey::Positioning => attributes.positioning,
+            AttributeKey::Vision => attributes.vision,
+            AttributeKey::Decisions => attributes.decisions,
+            AttributeKey::Composure => attributes.composure,
+            AttributeKey::Aggression => attributes.aggression,
+            AttributeKey::Teamwork => attributes.teamwork,
+            AttributeKey::Leadership => attributes.leadership,
+            AttributeKey::Handling => attributes.handling,
+            AttributeKey::Reflexes => attributes.reflexes,
+            AttributeKey::Aerial => attributes.aerial,
+        }
+    }
 }
 
 fn default_attr() -> u8 {
@@ -909,6 +996,45 @@ impl Player {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Given an attribute block whose nineteen values all differ
+    /// When each attribute name is written and read from it
+    /// Then the names are exactly the block's own field names, each once, and each reads its own
+    ///      field: a name the screens look up as a label always names a real attribute
+    #[test]
+    fn every_attribute_name_is_a_field_of_the_attribute_block_and_reads_it() {
+        let names: Vec<String> = AttributeKey::ALL
+            .iter()
+            .map(|key| {
+                serde_json::to_value(key)
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect();
+        let values: serde_json::Map<String, serde_json::Value> = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (name.clone(), serde_json::Value::from(index as u8 + 1)))
+            .collect();
+        let attributes: PlayerAttributes =
+            serde_json::from_value(serde_json::Value::Object(values.clone())).unwrap();
+        let fields = serde_json::to_value(&attributes).unwrap();
+        let mut field_names: Vec<&String> = fields.as_object().unwrap().keys().collect();
+        let mut sorted_names: Vec<&String> = names.iter().collect();
+        field_names.sort();
+        sorted_names.sort();
+
+        assert_eq!(sorted_names, field_names);
+        for (key, name) in AttributeKey::ALL.iter().zip(&names) {
+            assert_eq!(
+                serde_json::Value::from(key.value_in(&attributes)),
+                values[name],
+                "{name}"
+            );
+        }
+    }
 
     /// Given every position,
     /// When its sort rank is read,

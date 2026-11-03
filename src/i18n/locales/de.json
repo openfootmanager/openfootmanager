@@ -428,6 +428,11 @@
       "other": "{{n}}."
     },
     "pts": "Pkt",
+    "playedFull": "Spiele",
+    "wonFull": "Siege",
+    "drawnFull": "Unentschieden",
+    "lostFull": "Niederlagen",
+    "ptsFull": "Punkte",
     "played": "Sp",
     "won": "S",
     "drawn": "U",
@@ -629,7 +634,13 @@
     "center": "Zentrum",
     "right": "Rechts",
     "competition": "Wettbewerb",
-    "confirmDelete": "Löschen bestätigen"
+    "confirmDelete": "Löschen bestätigen",
+    "firstPage": "Erste Seite",
+    "previousPage": "Vorherige Seite",
+    "nextPage": "Nächste Seite",
+    "lastPage": "Letzte Seite",
+    "sortBy": "Sortieren nach",
+    "sortAscending": "Aufsteigend"
   },
   "teamSelection": {
     "title": "Wähle Deinen Verein",
@@ -706,6 +717,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Bank {{bench}}",
     "bestRole": "Beste Rolle",
     "startingXi": "Startelf",
+    "notMatchDayEligible": "Nicht für den Kader verfügbar",
     "starter": "Startelf",
     "benchOption": "Bank",
     "naturalFit": "Natürliche Position",
@@ -910,7 +922,8 @@
       "sharp": "Scharf",
       "managing": "Verwaltet",
       "risk": "Risiko"
-    }
+    },
+    "positionsLoading": "Die Positionsdaten werden noch geladen, daher sind Aufstellungsänderungen noch nicht möglich."
   },
   "training": {
     "weeklySchedule": "Wochenplan",
@@ -1757,7 +1770,13 @@
       "unsure": "Unsicher",
       "guess": "Eine Vermutung",
       "byScout": "Beobachtet von {{scout}} am {{date}}"
-    }
+    },
+    "positions": {
+      "title": "Positionen",
+      "wherePlayed": "wo du ihn einsetzt"
+    },
+    "loadFailed": "Konnte nicht geladen werden",
+    "retryWage": "Gehalt erneut laden"
   },
   "teamProfile": {
     "clubInfo": "Vereinsinformationen",
@@ -3006,7 +3025,11 @@
         "invalidFormation": "Diese Formation kennt das Spiel nicht.",
         "invalidPlayStyle": "Diesen Spielstil kennt das Spiel nicht.",
         "notFound": "Diese Taktik gibt es nicht mehr."
-      }
+      },
+      "anotherClubsSquad": "Dieser Kader gehört zu einem anderen Verein.",
+      "startingXiPlayerNotEligible": "Ein Spieler in dieser Aufstellung darf für deinen Verein nicht starten.",
+      "startingXiDuplicatePlayer": "Ein Spieler kommt in dieser Aufstellung zweimal vor.",
+      "startingXiWrongSize": "Die Startelf muss genau elf Spieler haben, oder alle spielberechtigten Spieler, wenn der Verein weniger hat."
     },
     "sender": {
       "boardOfDirectors": "Vorstand",
@@ -3613,6 +3636,10 @@
       "matchesMoved": {
         "subject": "Spiele verlegt",
         "body": "Einige Ihrer Spiele wurden verlegt, damit Ihre Spieler ihre Ruhezeit behalten und die Länderspielpausen eingehalten werden:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Einige gespeicherte Daten wurden beiseitegelegt",
+        "body": "Ein Teil dieses Spielstands konnte beim Laden nicht gelesen werden. Er wurde beiseitegelegt statt verloren, und Ihre Karriere geht weiter. Falls etwas fehlt, hilft uns ein Fehlerbericht ({{settings}} → {{reportBug}}, mit angehängtem Spielstand), der Sache nachzugehen."
       }
     },
     "news": {

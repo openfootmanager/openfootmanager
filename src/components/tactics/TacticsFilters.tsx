@@ -1,7 +1,8 @@
 import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 
-import { CORE_POSITIONS, translatePositionAbbreviation } from "../squad/SquadTab.helpers";
+import { usePositionTable } from "../../hooks/usePositionGroups";
+import { translatePositionAbbreviation } from "../squad/SquadTab.helpers";
 import { Card, Select } from "../ui";
 
 interface TacticsFiltersProps {
@@ -28,6 +29,7 @@ export default function TacticsFilters({
   positionFilter,
 }: TacticsFiltersProps): JSX.Element {
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
   const canClear = playerSearch.trim().length > 0 || positionFilter !== "All";
 
   return (
@@ -47,7 +49,7 @@ export default function TacticsFilters({
             fullWidth
           >
             <option value="All">{t("common.all")}</option>
-            {CORE_POSITIONS.map((position) => (
+            {positionTable.lines().map((position) => (
               <option key={position} value={position}>
                 {translatePositionAbbreviation(t, position)}
               </option>

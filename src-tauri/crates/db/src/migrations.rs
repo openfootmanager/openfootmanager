@@ -15,7 +15,7 @@ pub const MIGRATION_COUNT: usize = MIGRATIONS.len();
 /// **Lowering this is almost always wrong.** A save written by a release with N migrations
 /// reports `user_version = N` and expects every column those migrations added; a build with
 /// fewer can neither open it nor recreate it.
-const EXPECTED_MIGRATION_COUNT: usize = 62;
+const EXPECTED_MIGRATION_COUNT: usize = 63;
 
 // Compile-time rather than a test: adding or removing a migration should fail the build, not
 // merely turn a suite red.
@@ -182,6 +182,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
     (
         "v062_scouted_potential_opinion.sql",
         include_str!("sql/v062_scouted_potential_opinion.sql"),
+    ),
+    // V63: JSON cells that did not parse on load, kept as they were (`json_column`)
+    (
+        "v063_unreadable_records.sql",
+        include_str!("sql/v063_unreadable_records.sql"),
     ),
 ];
 
@@ -1120,6 +1125,7 @@ mod tests {
     ("v060_gate_settled_from.sql", 0x8040d9e0256352d4),
     ("v061_last_season_rollover.sql", 0x111c4c4f40b3952a),
     ("v062_scouted_potential_opinion.sql", 0xd409624c4d0ca76f),
+    ("v063_unreadable_records.sql", 0xf03c1e895ee13d83),
     ];
 
     /// Given the migrations already shipped

@@ -75,9 +75,11 @@ Each simulated minute follows this sequence:
 
 When the ball reaches the attacking box, a shot is taken:
 
-1. **Accuracy check** — base accuracy (configurable, default 45%) adjusted by the shooter's `shooting + composure + decisions` rating. Clamped to 15%–85%.
+1. **Accuracy check** — base accuracy (configurable, default 24.5%) plus `(shooter_rating - 50) / 200`, from the shooter's `shooting + composure + decisions`. Clamped to 15%–85%.
    - **Miss**: 40% chance the shot is blocked, 60% chance off target.
-2. **Conversion check** — base conversion (default 30%) adjusted by `(shooter_rating - goalkeeper_rating) / 150`. Clamped to 10%–70%.
+2. **Conversion check** — base conversion (default 28%, times the defending side's defensive-line modifier and divided by its short-handed cover) plus `(shooter_rating - goalkeeper_rating) / 150`. Clamped to 10%–70%.
+
+Both bases are calibrated (#1132). Between two equal 70-rated sides, 46% of unblocked shots go on target, inside the Premier League's 45.10% over two decades to 49.96% in 2023/24 (premierleague.com, "Season trends: Clinical finishing key to record goals total", 27 May 2024; accuracy excluding blocks). This figure is cited, not derived. No open source gives a league-wide share of shots on target scored, so the conversion base is calibrated instead to the derived goal total: the shipped world's season lands in all five of #1001's scoreline bands (openfootball, CC0), at about 3.0 goals a game. `engine/tests/shot_rate_tests.rs` pins both shares.
    - **Score**: Goal event emitted with scorer + assister.
    - **Save**: Shot saved event.
 
@@ -92,6 +94,15 @@ Fouls can occur after tackles in midfield and the attacking third:
 5. **Injury** — 3% chance per foul that the fouled player is injured.
 
 Sent-off players are excluded from all future player selection for their team.
+
+#### A side down to ten
+
+In the live engine a player who has left the pitch (`is_on_the_pitch` is the one test for it) costs his side twice:
+
+- **An empty slot in his line.** The midfield rating and the press divide the line's players on the pitch by the line's slots in the side's current shape, so a line one short plays weaker until a change of shape takes the empty slot away. A substitution can't fill it: a sent-off player can't be replaced, and a substitute takes the line of the player he replaces. A line with nobody off is its plain average, whatever the shape names.
+- **Ground to cover when it defends.** Its press, its tackles in midfield and the attacking third, and the conversion chance of shots against it are scaled by a cover factor `1 / (1 + 0.7 × players missing)`. A change of shape doesn't lift it: the side is still a man down. Its attacking is untouched.
+
+`engine/tests/short_handed_tests.rs` calibrates both against the literature on red cards. After a red at minute 30, the side left with eleven scores about twice as often (Ridder, Cramer and Hopstaken 1994: ×1.88; Červený, van Ours and van Tuijl 2018: ×2.2). The side down to ten scores about 0.9 times as often, the Ridder end of the band (Ridder: unchanged; Červený: ×0.53). The instant engine (sim-bench, the sim lab) does not model it.
 
 ---
 
@@ -174,11 +185,12 @@ per-minute possession contest.
 | counter_press | possession flip: losing side may re-win the ball | Long regains possession more |
 | break_speed | possession flip: winner may counter into the final third | Fast turns turnovers into chances |
 
-The weekly AI tactical review in `ofm_core::ai_tactics` treats at least 3.2
-goals conceded per game as leaky and at most 1.4 scored as blunt. Those cutoffs
-were calibrated when the generated-world probe measured about **2.29 goals per
-club per game** after #605 changed the selected eleven. A scoring change needs
-a fresh run of `tactical_adaptation_probe` before those cutoffs can be trusted.
+The weekly AI tactical review in `ofm_core::ai_tactics` treats at least 2.4
+goals conceded per game as leaky and at most 0.8 scored as blunt: the same tail
+(about 15% and 19%) of the five-match windows `tactical_adaptation_probe` reads, calibrated when a club
+scored about **1.6 goals a game** (#1132). The probe's guard test fails when the
+scoring rate moves away from that, so a scoring change re-reads the window table
+before the cutoffs are trusted.
 
 Both the instant engine (`engine/`) and the live engine (`live_match/`) consume
 the dials identically, with one exception: the stamina cost of pressing needs

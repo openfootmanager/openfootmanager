@@ -151,7 +151,7 @@ The `initialize` result's `serverInfo.version` is the package version plus the s
 |------|-------------|
 | `squad_get` | Full squad listing with player IDs, positions, OVR, condition, morale, wages, contract end, starting XI markers |
 | `squad_set_formation` | Change formation (e.g. `4-4-2`, `4-3-3`). Outfield positions are reassigned by defending ability. |
-| `squad_set_starting_xi` | Set the starting eleven by player IDs (must be exactly 11) |
+| `squad_set_starting_xi` | Set the starting eleven by player IDs: exactly 11 distinct players of your club who are match-day eligible (the whole eligible pool if the club has fewer than 11). Refused with `be.error.startingXiPlayerNotEligible`, `…DuplicatePlayer` or `…WrongSize`, and nothing is saved |
 | `squad_set_play_style` | Change play style: `Attacking`, `Defensive`, `Possession`, `Counter`, `HighPress`, `Balanced` |
 | `squad_set_match_roles` | Assign captain, penalty taker, free kick taker, corner taker by player ID |
 | `squad_auto_set_pieces` | Auto-assign best set-piece takers based on attributes |

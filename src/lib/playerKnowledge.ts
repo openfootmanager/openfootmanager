@@ -30,6 +30,9 @@ export function visibleWageText(
   return "–";
 }
 
+/** The wage a screen shows while it has no answer to show: hidden, never a figure. */
+export const HIDDEN_WAGE: VisibleWage = { kind: "hidden" };
+
 /** What the club's knowledge of players, and the wages it may see, are asked again on. */
 export interface KnowledgeRevisionInputs {
   /** The career this game was installed as: another career's answers are never kept. */
@@ -88,6 +91,22 @@ export function gameKnowledgeRevision(
     rolloverOn: game.last_season_rollover_on,
     ...screenInputs,
   });
+}
+
+/** What `ownLineupRevision` reads of a game: the manager's club and every team's lineup. */
+export interface LineupGame {
+  manager: { team_id?: string | null };
+  teams: { id: string; formation: string; starting_xi_ids: string[] }[];
+}
+
+/**
+ * The manager's own lineup, as a revision: his team's formation and starting XI. A player's
+ * position ratings mark the slot he is played in, which no knowledge revision follows, so the
+ * profile asks for them again when this moves (benching him, or starting him elsewhere).
+ */
+export function ownLineupRevision(game: LineupGame): string {
+  const team = game.teams.find((candidate) => candidate.id === game.manager.team_id);
+  return team ? JSON.stringify([team.formation, team.starting_xi_ids]) : "no-team";
 }
 
 /**

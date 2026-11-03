@@ -428,6 +428,11 @@
       "other": "{{n}}."
     },
     "pts": "Bod",
+    "playedFull": "Zápasy",
+    "wonFull": "Výhry",
+    "drawnFull": "Remízy",
+    "lostFull": "Prohry",
+    "ptsFull": "Body",
     "played": "Z",
     "won": "V",
     "drawn": "R",
@@ -629,7 +634,13 @@
     "listView": "Seznam",
     "radarView": "Radar",
     "competition": "Soutěž",
-    "confirmDelete": "Potvrdit smazání"
+    "confirmDelete": "Potvrdit smazání",
+    "firstPage": "První stránka",
+    "previousPage": "Předchozí stránka",
+    "nextPage": "Další stránka",
+    "lastPage": "Poslední stránka",
+    "sortBy": "Seřadit podle",
+    "sortAscending": "Vzestupně"
   },
   "teamSelection": {
     "title": "Vyberte si klub",
@@ -679,6 +690,7 @@
     "coverageBadge": "Základ {{starters}}/{{required}} · Lavička {{bench}}",
     "bestRole": "Nejlepší role",
     "startingXi": "Základní sestava",
+    "notMatchDayEligible": "Není k dispozici pro nominaci",
     "starter": "Člen základu",
     "benchOption": "Lavička",
     "naturalFit": "Přirozená pozice",
@@ -910,7 +922,8 @@
       "ready": "Připraven",
       "adjusted": "Upraveno",
       "risk": "Riziko"
-    }
+    },
+    "positionsLoading": "Údaje o postech se ještě načítají, změny sestavy proto zatím nejsou dostupné."
   },
   "training": {
     "weeklySchedule": "Týdenní plán",
@@ -1757,7 +1770,13 @@
       "unsure": "Nejistě",
       "guess": "Jen odhad",
       "byScout": "Skautská zpráva: {{scout}}, {{date}}"
-    }
+    },
+    "positions": {
+      "title": "Pozice",
+      "wherePlayed": "kde ho nasazujete"
+    },
+    "loadFailed": "Nepodařilo se načíst",
+    "retryWage": "Znovu načíst plat"
   },
   "teamProfile": {
     "clubInfo": "Informace o klubu",
@@ -3006,7 +3025,11 @@
         "invalidFormation": "Tuto formaci hra nezná.",
         "invalidPlayStyle": "Tento herní styl hra nezná.",
         "notFound": "Tato taktika už neexistuje."
-      }
+      },
+      "anotherClubsSquad": "Tento kádr patří jinému klubu.",
+      "startingXiPlayerNotEligible": "Hráč v této sestavě nemůže nastoupit v základu tvého klubu.",
+      "startingXiDuplicatePlayer": "Jeden hráč je v této sestavě dvakrát.",
+      "startingXiWrongSize": "Základní sestava musí mít přesně jedenáct hráčů, nebo všechny způsobilé hráče, pokud jich klub má méně."
     },
     "sender": {
       "boardOfDirectors": "Představenstvo",
@@ -3613,6 +3636,10 @@
       "matchesMoved": {
         "subject": "Zápasy přesunuty",
         "body": "Některé vaše zápasy byly přesunuty, aby si hráči zachovali odpočinek a byly dodrženy reprezentační přestávky:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Některá uložená data byla odložena stranou",
+        "body": "Část této uložené hry se při načítání nepodařilo přečíst. Byla odložena stranou, nikoli ztracena, a vaše kariéra pokračuje. Pokud vám něco chybí, hlášení chyby ({{settings}} → {{reportBug}}, s přiloženou uloženou hrou) nám umožní se na to podívat."
       }
     },
     "news": {

@@ -428,6 +428,11 @@
       "other": "第{{n}}"
     },
     "pts": "积分",
+    "playedFull": "已赛场次",
+    "wonFull": "胜场",
+    "drawnFull": "平局",
+    "lostFull": "负场",
+    "ptsFull": "积分",
     "played": "赛",
     "won": "胜",
     "drawn": "平",
@@ -629,7 +634,13 @@
     "center": "中路",
     "right": "右侧",
     "competition": "赛事",
-    "confirmDelete": "确认删除"
+    "confirmDelete": "确认删除",
+    "firstPage": "第一页",
+    "previousPage": "上一页",
+    "nextPage": "下一页",
+    "lastPage": "最后一页",
+    "sortBy": "排序方式",
+    "sortAscending": "升序"
   },
   "teamSelection": {
     "title": "选择您的俱乐部",
@@ -706,6 +717,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · 替补 {{bench}}",
     "bestRole": "最佳角色",
     "startingXi": "首发阵容",
+    "notMatchDayEligible": "无法入选比赛名单",
     "starter": "首发",
     "benchOption": "替补",
     "naturalFit": "惯用位置",
@@ -910,7 +922,8 @@
       "sharp": "状态上佳",
       "managing": "需要管理",
       "risk": "风险"
-    }
+    },
+    "positionsLoading": "位置数据仍在加载，暂时无法调整阵容。"
   },
   "training": {
     "weeklySchedule": "每周日程",
@@ -1757,7 +1770,13 @@
       "unsure": "没有把握",
       "guess": "只是猜测",
       "byScout": "球探 {{scout}} 于 {{date}} 考察"
-    }
+    },
+    "positions": {
+      "title": "位置",
+      "wherePlayed": "您安排他踢的位置"
+    },
+    "loadFailed": "无法加载",
+    "retryWage": "重新加载工资"
   },
   "teamProfile": {
     "clubInfo": "俱乐部信息",
@@ -3006,7 +3025,11 @@
         "invalidFormation": "游戏不认识该阵型。",
         "invalidPlayStyle": "游戏不认识该打法。",
         "notFound": "该战术已不存在。"
-      }
+      },
+      "anotherClubsSquad": "该阵容属于另一家俱乐部。",
+      "startingXiPlayerNotEligible": "此阵容中有球员无法为你的俱乐部首发。",
+      "startingXiDuplicatePlayer": "此阵容中同一名球员出现了两次。",
+      "startingXiWrongSize": "首发阵容必须正好有十一名球员；如果俱乐部球员不足，则为所有可出场球员。"
     },
     "sender": {
       "boardOfDirectors": "董事会",
@@ -3613,6 +3636,10 @@
       "matchesMoved": {
         "subject": "比赛已改期",
         "body": "您的部分比赛已改期，以保证球员的休息时间并避开国际比赛日：\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "部分存档数据已被单独保留",
+        "body": "加载时，此存档的一部分无法读取。这部分数据已被单独保留而没有丢失，您的生涯将继续进行。如果发现有内容缺失，请提交错误报告（{{settings}} → {{reportBug}}，并附上存档），以便我们查看。"
       }
     },
     "news": {

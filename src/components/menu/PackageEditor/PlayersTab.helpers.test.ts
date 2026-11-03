@@ -185,7 +185,7 @@ describe("positionFilterGroups", () => {
     // parses literal t("…") calls — cannot see them. Without this, deleting or
     // renaming one ships a raw key string as a dropdown label in every locale
     // with the whole suite green.
-    const groups = positionFilterGroups();
+    const groups = positionFilterGroups(cannedPositionTable().lines());
     const keys = groups.flatMap((group) => [
       group.labelKey,
       ...group.options.map((option) => option.labelKey),
@@ -203,7 +203,7 @@ describe("positionFilterGroups", () => {
   });
 
   it("offers the four groups and all seventeen positions, each once", () => {
-    const groups = positionFilterGroups();
+    const groups = positionFilterGroups(cannedPositionTable().lines());
     const values = groups.flatMap((group) => group.options.map((option) => option.value));
 
     expect(groups).toHaveLength(2);
@@ -268,5 +268,17 @@ describe("filterPlayerRows with a position filter", () => {
 
     expect(scoped).toHaveLength(4);
     expect(filtered).toHaveLength(1);
+  });
+
+  /**
+   * Given a table that has not arrived, so no line is known
+   * When the dropdown's sections are built
+   * Then only the exact positions are offered: a group would match no one.
+   */
+  it("offers no group section before the position table arrives", () => {
+    const groups = positionFilterGroups([]);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].labelKey).toBe("worldEditor.positionFilterBySpecific");
   });
 });

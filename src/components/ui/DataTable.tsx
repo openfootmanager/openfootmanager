@@ -1,9 +1,10 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Fragment, type MouseEvent, type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { SortDirection } from "../../lib/sortRows";
 import { isOnControl } from "./clickTarget";
 
-export type SortDirection = "asc" | "desc";
+export type { SortDirection };
 
 /** A row's left accent: `selected` for a starter, `danger` for a player who can't play. */
 type RowAccent = "selected" | "danger";
@@ -79,33 +80,75 @@ const ACCENT: Record<RowAccent | "none", string> = {
   danger: "border-l-danger-solid",
 };
 
-function SortableHeader({
-  column,
+/**
+ * The button inside a sortable column header: reachable by Tab, pressed by Enter or Space, with
+ * the sort arrow shown on the sorted column. The `<th>` around it carries `aria-sort`. Every
+ * table that sorts by its headers uses this one, so they all behave and look alike.
+ *
+ * It fills its cell and carries the cell's padding (`className`), so a click anywhere in the
+ * header sorts; the `<th>` then has no padding of its own, or it would be doubled.
+ */
+export function SortHeaderButton({
+  header,
+  headerLabel,
+  numeric = false,
   direction,
-  onSortChange,
+  onSort,
+  className = "",
 }: {
-  column: DataTableColumn<unknown>;
+  header: ReactNode;
+  /** The header's spoken name, when its visible content is not enough (an icon, say). */
+  headerLabel?: string;
+  numeric?: boolean;
   direction: SortDirection | null;
-  onSortChange: (key: string) => void;
+  onSort: () => void;
+  /** The cell's padding (and height), since the button is the whole cell. */
+  className?: string;
 }) {
   const Arrow = direction === "asc" ? ChevronUp : ChevronDown;
   return (
     <button
       type="button"
-      onClick={() => onSortChange(column.key)}
-      aria-label={column.headerLabel}
-      className={`inline-flex items-center gap-1 ${column.numeric ? "flex-row-reverse" : ""} ${CONTROL_FOCUS}`}
+      onClick={onSort}
+      aria-label={headerLabel}
+      className={`inline-flex w-full items-center gap-1 ${numeric ? "flex-row-reverse" : ""} ${CONTROL_FOCUS} ${className}`}
     >
-      {column.header}
+      {header}
       {direction ? <Arrow aria-hidden="true" className="h-3 w-3" /> : null}
     </button>
+  );
+}
+
+function SortableHeader({
+  column,
+  direction,
+  onSortChange,
+  first,
+}: {
+  column: DataTableColumn<unknown>;
+  direction: SortDirection | null;
+  onSortChange: (key: string) => void;
+  /** The first column's cells are padded wider, so the names line up. */
+  first: boolean;
+}) {
+  return (
+    <SortHeaderButton
+      header={column.header}
+      headerLabel={column.headerLabel}
+      numeric={column.numeric}
+      direction={direction}
+      onSort={() => onSortChange(column.key)}
+      className={`h-8 px-2 ${first ? "pl-3.5" : ""}`}
+    />
   );
 }
 
 /**
  * The table view of every list (table C): column definitions, one sortable header, rows the
  * height of a row token, and a row that opens its profile. In a narrow table the `drawer` columns
- * fold into the row's details, opened from the name cell. It draws no panel of its own.
+ * fold into the row's details, opened from the name cell. It draws no panel of its own. Its
+ * scrolling box is positioned, so text in a cell that only a screen reader reads (`sr-only`, which
+ * places it absolutely) stays inside the table instead of stretching the page.
  */
 export function DataTable<Row>({
   label,
@@ -152,7 +195,7 @@ export function DataTable<Row>({
   const cellClass = "h-row whitespace-nowrap border-b border-line px-2 align-middle first:pl-3.5";
 
   return (
-    <div className="@container w-full overflow-x-auto">
+    <div className="@container relative w-full overflow-x-auto">
       <table
         aria-label={label}
         aria-busy={loading || undefined}
@@ -160,8 +203,9 @@ export function DataTable<Row>({
       >
         <thead>
           <tr>
-            {columns.map((column) => {
+            {columns.map((column, columnIndex) => {
               const direction = sort?.key === column.key ? sort.direction : null;
+              const sortableHere = Boolean(column.sortable && onSortChange);
               return (
                 <th
                   key={column.key}
@@ -170,7 +214,9 @@ export function DataTable<Row>({
                   aria-sort={
                     direction ? (direction === "asc" ? "ascending" : "descending") : undefined
                   }
-                  className={`h-8 whitespace-nowrap border-b border-line-strong bg-panel px-2 text-caption first:border-l-3 first:border-l-transparent first:pl-3.5 ${
+                  className={`h-8 whitespace-nowrap border-b border-line-strong bg-panel text-caption first:border-l-3 first:border-l-transparent ${
+                    sortableHere ? "" : "px-2 first:pl-3.5"
+                  } ${
                     column.numeric ? "text-right" : "text-left"
                   } ${direction ? "font-semibold text-fg" : "font-medium text-fg-subtle"} ${
                     column.drawer ? FOLDED : ""
@@ -181,6 +227,7 @@ export function DataTable<Row>({
                       column={column as DataTableColumn<unknown>}
                       direction={direction}
                       onSortChange={onSortChange}
+                      first={columnIndex === 0}
                     />
                   ) : (
                     column.header

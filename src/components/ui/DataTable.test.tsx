@@ -44,6 +44,20 @@ function renderTable(props: Partial<Parameters<typeof DataTable<Player>>[0]> = {
 
 describe("DataTable", () => {
   /**
+   * Given a table whose cells carry text only a screen reader reads (a starter's "Starting XI" on
+   *       Squad's names, the action column's header), which `sr-only` places absolutely
+   * When the table is drawn
+   * Then its scrolling box is the positioned box that text sits in, so it stays inside the table
+   *      rather than stretching the page: Squad's table grew a 1280×800 page to 1237px. jsdom does
+   *      no layout, so the class is what can be checked here.
+   */
+  it("is the positioned box its screen-reader-only text sits in", () => {
+    renderTable();
+    const scroller = screen.getByRole("table", { name: "Squad" }).parentElement;
+    expect(scroller).toHaveClass("relative", "overflow-x-auto");
+  });
+
+  /**
    * Given a list of players
    * When it is drawn as a table
    * Then it is a table named for the list, with a header per column and a row per player.
@@ -92,6 +106,36 @@ describe("DataTable", () => {
     expect(
       within(screen.getByRole("columnheader", { name: "Morale" })).queryByRole("button"),
     ).toBeNull();
+  });
+
+  /**
+   * Given a sortable header and one that is not
+   * When their padding is read
+   * Then the sortable header's padding is on its button, which fills the cell, so a click in the
+   *      cell's padding sorts (jsdom has no layout to click on); the other header keeps its own.
+   *      The padding is not on both, which would double it.
+   */
+  it("gives a sortable header's padding to its button, so the whole cell sorts", () => {
+    renderTable({ sort: { key: "name", direction: "asc" }, onSortChange: vi.fn() });
+
+    const age = screen.getByRole("columnheader", { name: "Age" });
+    expect(age.className).not.toMatch(/(?:^|\s)(?:first:)?p[xl]-/);
+    expect(within(age).getByRole("button", { name: "Age" })).toHaveClass("w-full", "px-2", "h-8");
+
+    const morale = screen.getByRole("columnheader", { name: "Morale" });
+    expect(morale).toHaveClass("px-2");
+  });
+
+  /**
+   * Given the first column of a table, sortable
+   * When its header is read
+   * Then its button keeps the wider left padding the first cell has, so the names line up.
+   */
+  it("keeps the first sortable header's wider left padding on its button", () => {
+    renderTable({ sort: { key: "name", direction: "asc" }, onSortChange: vi.fn() });
+
+    const name = screen.getByRole("columnheader", { name: "Name" });
+    expect(within(name).getByRole("button", { name: "Name" })).toHaveClass("pl-3.5");
   });
 
   /**

@@ -31,10 +31,10 @@ describe("PlayersTab position filter before the position table loads", () => {
   /**
    * Given a package's players and a position table that has not arrived
    * When the position filter is opened
-   * Then the "all <group>" options are disabled (a group would match no one), while "All" and
-   *      the exact positions stay enabled.
+   * Then no "all <group>" option is offered (a group would match no one), while "All" and the
+   *      exact positions are.
    */
-  it("disables the group options and keeps All and the exact positions", () => {
+  it("offers no group options and keeps All and the exact positions", () => {
     render(
       <PlayersTab
         players={[{ ...emptyPlayer(), id: "cb", name: "Ben", position: "CenterBack" }]}
@@ -47,8 +47,8 @@ describe("PlayersTab position filter before the position table loads", () => {
     fireEvent.click(screen.getByRole("combobox", { name: "worldEditor.filterByPosition" }));
 
     expect(
-      screen.getByRole("option", { name: "worldEditor.positionGroupFilter.Defender" }),
-    ).toBeDisabled();
+      screen.queryByRole("option", { name: "worldEditor.positionGroupFilter.Defender" }),
+    ).toBeNull();
     expect(screen.getByRole("option", { name: "worldEditor.allPositions" })).toBeEnabled();
     expect(screen.getByRole("option", { name: "common.positions.CenterBack" })).toBeEnabled();
   });

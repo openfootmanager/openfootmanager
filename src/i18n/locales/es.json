@@ -428,6 +428,11 @@
       "other": "{{n}}º"
     },
     "pts": "Pts",
+    "playedFull": "Jugados",
+    "wonFull": "Ganados",
+    "drawnFull": "Empatados",
+    "lostFull": "Perdidos",
+    "ptsFull": "Puntos",
     "played": "PJ",
     "won": "PG",
     "drawn": "PE",
@@ -629,7 +634,13 @@
     "center": "Centro",
     "right": "Derecha",
     "competition": "Competición",
-    "confirmDelete": "Confirmar eliminación"
+    "confirmDelete": "Confirmar eliminación",
+    "firstPage": "Primera página",
+    "previousPage": "Página anterior",
+    "nextPage": "Página siguiente",
+    "lastPage": "Última página",
+    "sortBy": "Ordenar por",
+    "sortAscending": "Ascendente"
   },
   "teamSelection": {
     "title": "Elige Tu Club",
@@ -706,6 +717,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Banquillo {{bench}}",
     "bestRole": "Mejor rol",
     "startingXi": "Once titular",
+    "notMatchDayEligible": "No disponible para la convocatoria",
     "starter": "Titular",
     "benchOption": "Banquillo",
     "naturalFit": "Posición natural",
@@ -910,7 +922,8 @@
       "sharp": "Afinado",
       "managing": "Controlado",
       "risk": "Riesgo"
-    }
+    },
+    "positionsLoading": "Los datos de posiciones aún se están cargando, así que los cambios de alineación todavía no están disponibles."
   },
   "training": {
     "weeklySchedule": "Calendario Semanal",
@@ -1757,7 +1770,13 @@
       "unsure": "Inseguro",
       "guess": "Una suposición",
       "byScout": "Ojeado por {{scout}} el {{date}}"
-    }
+    },
+    "positions": {
+      "title": "Posiciones",
+      "wherePlayed": "donde lo alineas"
+    },
+    "loadFailed": "No se pudo cargar",
+    "retryWage": "Reintentar cargar el salario"
   },
   "teamProfile": {
     "clubInfo": "Información del Club",
@@ -3006,7 +3025,11 @@
         "invalidFormation": "El juego no conoce esa formación.",
         "invalidPlayStyle": "El juego no conoce ese estilo de juego.",
         "notFound": "Esa táctica ya no existe."
-      }
+      },
+      "anotherClubsSquad": "Esa plantilla pertenece a otro club.",
+      "startingXiPlayerNotEligible": "Un jugador de esta alineación no puede ser titular en tu club.",
+      "startingXiDuplicatePlayer": "Un jugador aparece dos veces en esta alineación.",
+      "startingXiWrongSize": "El once inicial debe tener exactamente once jugadores, o todos los jugadores elegibles si el club tiene menos."
     },
     "sender": {
       "boardOfDirectors": "Junta Directiva",
@@ -3613,6 +3636,10 @@
       "matchesMoved": {
         "subject": "Partidos reprogramados",
         "body": "Algunos de sus partidos se han cambiado para que sus jugadores mantengan su descanso y se respeten los parones internacionales:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Se apartaron algunos datos guardados",
+        "body": "Una parte de esta partida guardada no se pudo leer al cargarla. Se ha apartado en lugar de perderse, y su carrera continúa. Si echa algo en falta, un informe de error ({{settings}} → {{reportBug}}, con la partida adjunta) nos permitirá revisarlo."
       }
     },
     "news": {

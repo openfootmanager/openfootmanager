@@ -135,7 +135,7 @@ export default function PreMatchSetup({
       : slotPosition
         ? isPlayerExactForSlot(sp, slotPosition)
           ? "exact"
-          : isPlayerOutOfPosition(sp, slotPosition)
+          : isPlayerOutOfPosition(sp, slotPosition, positionTable)
             ? "out"
             : "adapted"
         : // Until the table arrives every group is unknown and would read as out of position.

@@ -4,10 +4,12 @@ use std::sync::Arc;
 use tauri::State;
 
 use domain::message::InboxMessage;
+use ofm_core::familiarity_projection::{familiarity_projection, FamiliarityProjection};
 use ofm_core::player_knowledge::{
     players_knowledge, potential_opinion, visible_wage, youth_prospect_opinions, PlayerKnowledge,
     VisibleWage,
 };
+use ofm_core::position_ratings::{position_ratings, PositionRatings};
 use ofm_core::potential_opinion::PotentialOpinion;
 use ofm_core::slices::competitions::{query_competitions, CompetitionsQuery, CompetitionsView};
 use ofm_core::slices::inbox::{query_messages, MessagesQuery};
@@ -160,6 +162,45 @@ pub async fn get_potential_opinion(
     get_potential_opinion_internal(&state, &player_id)
 }
 
+/// What one player is worth at each position he plays, for his profile: his rating, familiarity
+/// and key attributes there, or null when the club knows nothing of his attributes.
+#[tauri::command]
+pub async fn get_position_ratings(
+    state: State<'_, Arc<StateManager>>,
+    player_id: String,
+) -> Result<Option<PositionRatings>, String> {
+    get_position_ratings_internal(&state, &player_id)
+}
+
+/// How each of the manager's club's players stands at every position (natural, can play, out of
+/// position), for the squad and tactics screens.
+#[tauri::command]
+pub async fn get_familiarity(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<FamiliarityProjection, String> {
+    get_familiarity_internal(&state)
+}
+
+fn get_familiarity_internal(state: &StateManager) -> Result<FamiliarityProjection, String> {
+    state
+        .get_game(familiarity_projection)
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())?
+}
+
+fn get_position_ratings_internal(
+    state: &StateManager,
+    player_id: &str,
+) -> Result<Option<PositionRatings>, String> {
+    state
+        .get_game(|game| {
+            game.players
+                .iter()
+                .find(|player| player.id == player_id)
+                .and_then(|player| position_ratings(game, player))
+        })
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
 fn get_potential_opinion_internal(
     state: &StateManager,
     player_id: &str,
@@ -209,7 +250,7 @@ pub async fn get_squad(
 fn get_squad_internal(state: &StateManager, team_id: &str) -> Result<Vec<SquadPlayer>, String> {
     state
         .get_game(|game| query_squad(game, team_id))
-        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())?
 }
 
 #[tauri::command]
@@ -377,13 +418,17 @@ mod tests {
             ofm_core::clock::GameClock::new(
                 chrono::Utc.with_ymd_and_hms(2026, 8, 1, 12, 0, 0).unwrap(),
             ),
-            Manager::new(
-                "m".into(),
-                "M".into(),
-                "Gr".into(),
-                "1980-01-01".into(),
-                "GB".into(),
-            ),
+            {
+                let mut manager = Manager::new(
+                    "m".into(),
+                    "M".into(),
+                    "Gr".into(),
+                    "1980-01-01".into(),
+                    "GB".into(),
+                );
+                manager.hire("club".into());
+                manager
+            },
             vec![],
             vec![keeper, youth],
             vec![],
@@ -395,7 +440,11 @@ mod tests {
         let youth = rows.iter().find(|p| p["id"] == "youth").unwrap();
         assert_eq!(youth["match_day_eligible"], true);
         assert_eq!(youth["squad_role"], "Youth");
-        assert!(get_squad_internal(&state, "other-club").unwrap().is_empty());
+        assert_eq!(
+            get_squad_internal(&state, "other-club").unwrap_err(),
+            ofm_core::slices::squad::ANOTHER_CLUBS_SQUAD,
+            "another club's squad is refused, not answered"
+        );
     }
 
     /// Given no active game, when the potential opinion adapter reads it,
@@ -751,5 +800,70 @@ mod tests {
         assert!(get_youth_prospect_opinions_internal(&state, "nothing")
             .unwrap()
             .is_empty());
+    }
+
+    /// Given an unknown id and no world knowledge of anyone
+    /// When the position ratings adapter reads it
+    /// Then the answer is null, not an error
+    #[test]
+    fn the_position_ratings_adapter_answers_null_for_a_player_it_cannot_find() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        let game = ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
+            ),
+            Manager::new(
+                "m".into(),
+                "M".into(),
+                "Gr".into(),
+                "1980-01-01".into(),
+                "GB".into(),
+            ),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        let state = StateManager::new();
+        state.set_game(game);
+
+        assert_eq!(get_position_ratings_internal(&state, "nobody"), Ok(None));
+    }
+
+    /// Given no game is loaded and then a game whose manager has no club
+    /// When the familiarity adapter reads it
+    /// Then the first is the no-session key and the second the no-team key
+    #[test]
+    fn the_familiarity_adapter_answers_a_key_for_no_session_and_no_club() {
+        use chrono::TimeZone;
+        use domain::manager::Manager;
+        let state = StateManager::new();
+        assert_eq!(
+            get_familiarity_internal(&state),
+            Err(NO_ACTIVE_GAME.to_string())
+        );
+        let game = ofm_core::game::Game::new(
+            ofm_core::clock::GameClock::new(
+                chrono::Utc.with_ymd_and_hms(2026, 9, 15, 12, 0, 0).unwrap(),
+            ),
+            Manager::new(
+                "m".into(),
+                "M".into(),
+                "Gr".into(),
+                "1980-01-01".into(),
+                "GB".into(),
+            ),
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        );
+        state.set_game(game);
+
+        assert_eq!(
+            get_familiarity_internal(&state),
+            Err("be.error.noTeamAssigned".to_string())
+        );
     }
 }

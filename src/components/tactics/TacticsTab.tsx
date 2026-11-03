@@ -62,6 +62,7 @@ export default function TacticsTab({
     resetDragState,
     handleAssignMatchRole,
     handleTacticsPhaseChange,
+    lineupReady,
   } = useTacticsLineup({ gameState, onGameUpdate });
 
   const {
@@ -137,6 +138,12 @@ export default function TacticsTab({
         }}
         tacticLibrary={tacticLibrary}
       />
+
+      {lineupReady ? null : (
+        <p role="status" className="text-caption text-fg-muted">
+          {t("tactics.positionsLoading")}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[260px_1fr_270px] xl:items-start">
         {/* Left: player list */}

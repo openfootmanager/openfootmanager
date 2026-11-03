@@ -1,35 +1,27 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  canonicalPosition,
-  naturalPositionOf,
-  normalisePosition,
-  positionGroupRank,
-  positionSortRank,
-  positionsInGroup,
-} from "./positions";
+import { canonicalPosition, naturalPositionOf } from "./positions";
 
-// Every value `domain::player::Position` can serialise to, with the rank each ranker must give it.
-// These two functions order the team profile, squad and tactics rosters, so a change here moves
-// players in all three.
-const VARIANTS: [position: string, group: string, groupRank: number, sortRank: number][] = [
-  ["Goalkeeper", "Goalkeeper", 10, 10],
-  ["Defender", "Defender", 20, 20],
-  ["CenterBack", "Defender", 20, 21],
-  ["LeftBack", "Defender", 20, 22],
-  ["RightBack", "Defender", 20, 23],
-  ["LeftWingBack", "Defender", 20, 24],
-  ["RightWingBack", "Defender", 20, 25],
-  ["Midfielder", "Midfielder", 30, 30],
-  ["DefensiveMidfielder", "Midfielder", 30, 31],
-  ["CentralMidfielder", "Midfielder", 30, 32],
-  ["AttackingMidfielder", "Midfielder", 30, 33],
-  ["LeftMidfielder", "Midfielder", 30, 34],
-  ["RightMidfielder", "Midfielder", 30, 35],
-  ["Forward", "Forward", 40, 40],
-  ["LeftWinger", "Forward", 40, 41],
-  ["RightWinger", "Forward", 40, 42],
-  ["Striker", "Forward", 40, 43],
+// Every value `domain::player::Position` can serialise to: each is already its own canonical form.
+// The group and rank of each are the backend's (`Position::to_group_position` / `sort_rank`).
+const VARIANTS = [
+  "Goalkeeper",
+  "Defender",
+  "CenterBack",
+  "LeftBack",
+  "RightBack",
+  "LeftWingBack",
+  "RightWingBack",
+  "Midfielder",
+  "DefensiveMidfielder",
+  "CentralMidfielder",
+  "AttackingMidfielder",
+  "LeftMidfielder",
+  "RightMidfielder",
+  "Forward",
+  "LeftWinger",
+  "RightWinger",
+  "Striker",
 ];
 
 // Short and spelled-out forms that reach the frontend from packages, the CLI and older saves.
@@ -58,17 +50,12 @@ const ALIASES: [alias: string, canonical: string][] = [
 ];
 
 describe("positions", () => {
-  it.each(VARIANTS)("ranks %s", (position, group, groupRank, sortRank) => {
+  it.each(VARIANTS)("keeps %s as it is", (position) => {
     expect(canonicalPosition(position)).toBe(position);
-    expect(normalisePosition(position)).toBe(group);
-    expect(positionGroupRank(position)).toBe(groupRank);
-    expect(positionSortRank(position)).toBe(sortRank);
   });
 
   it.each(ALIASES)("reads the alias %s as %s", (alias, canonical) => {
     expect(canonicalPosition(alias)).toBe(canonical);
-    expect(positionSortRank(alias)).toBe(positionSortRank(canonical));
-    expect(positionGroupRank(alias)).toBe(positionGroupRank(canonical));
   });
 
   it("ignores case, spacing and punctuation", () => {
@@ -77,20 +64,11 @@ describe("positions", () => {
     expect(canonicalPosition("St")).toBe("Striker");
   });
 
-  it("sorts anything it does not recognise after every real position", () => {
-    for (const unknown of ["", "   ", "Sweeper", "not a position"]) {
-      expect(positionGroupRank(unknown)).toBeGreaterThan(positionGroupRank("Striker"));
-      expect(positionSortRank(unknown)).toBeGreaterThan(positionSortRank("Striker"));
+  it("leaves anything it does not recognise as it is", () => {
+    for (const unknown of ["Sweeper", "not a position"]) {
+      expect(canonicalPosition(unknown)).toBe(unknown);
     }
-  });
-
-  it("keeps a legacy bucket at the head of its own line", () => {
-    // Unmigrated players still carry the four bucket names. Ranking each bucket just before its
-    // granular positions keeps them beside their teammates instead of scattering them.
-    expect(positionSortRank("Defender")).toBeLessThan(positionSortRank("CenterBack"));
-    expect(positionSortRank("Defender")).toBeGreaterThan(positionSortRank("Goalkeeper"));
-    expect(positionSortRank("Midfielder")).toBeGreaterThan(positionSortRank("RightWingBack"));
-    expect(positionSortRank("Forward")).toBeGreaterThan(positionSortRank("RightMidfielder"));
+    expect(canonicalPosition("   ")).toBe("");
   });
 });
 
@@ -113,31 +91,5 @@ describe("naturalPositionOf", () => {
    */
   it("falls back to position when the natural position is empty", () => {
     expect(naturalPositionOf({ position: "Midfielder", natural_position: "" })).toBe("Midfielder");
-  });
-});
-
-describe("positionsInGroup", () => {
-  /**
-   * Given each broad group
-   * When its detailed positions are listed
-   * Then they come in the pitch order the filter shows them, and a keeper group is just the keeper.
-   */
-  it("lists the detailed positions of a group in pitch order", () => {
-    expect(positionsInGroup("Goalkeeper")).toEqual(["Goalkeeper"]);
-    expect(positionsInGroup("Defender")).toEqual([
-      "CenterBack",
-      "LeftBack",
-      "RightBack",
-      "LeftWingBack",
-      "RightWingBack",
-    ]);
-    expect(positionsInGroup("Midfielder")).toEqual([
-      "DefensiveMidfielder",
-      "CentralMidfielder",
-      "AttackingMidfielder",
-      "LeftMidfielder",
-      "RightMidfielder",
-    ]);
-    expect(positionsInGroup("Forward")).toEqual(["LeftWinger", "RightWinger", "Striker"]);
   });
 });

@@ -35,6 +35,9 @@ interface EntityCardProps {
  * the left and a wash behind the identity row, then the status band and two facts. The name is the
  * card's one button; everything else stays outside it so a screen reader reads it, and a click on
  * the card's body opens it too, as a pointer convenience. It draws no data of its own.
+ *
+ * The card is positioned (`relative`) so the text inside it that only a screen reader reads, which
+ * `sr-only` places absolutely, stays within its clipped bounds instead of stretching the page.
  */
 export function EntityCard({
   size = "full",
@@ -56,7 +59,7 @@ export function EntityCard({
       aria-labelledby={nameId}
       style={kitStyle(kit)}
       onClick={onOpen ? (event) => !isOnControl(event) && onOpen() : undefined}
-      className={`flex min-w-0 overflow-hidden rounded-xl border border-line border-l-4 border-l-kit bg-panel text-fg shadow-card ${
+      className={`relative flex min-w-0 overflow-hidden rounded-xl border border-line border-l-4 border-l-kit bg-panel text-fg shadow-card ${
         compact ? "flex-row" : "flex-col"
       } ${onOpen ? "cursor-pointer" : ""}`}
     >

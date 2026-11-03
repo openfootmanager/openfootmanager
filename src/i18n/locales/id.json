@@ -428,6 +428,11 @@
       "other": "ke-{{n}}"
     },
     "pts": "Poin",
+    "playedFull": "Main",
+    "wonFull": "Menang",
+    "drawnFull": "Seri",
+    "lostFull": "Kalah",
+    "ptsFull": "Poin",
     "played": "M",
     "won": "M",
     "drawn": "S",
@@ -629,7 +634,13 @@
     "listView": "Daftar",
     "radarView": "Radar",
     "competition": "Kompetisi",
-    "confirmDelete": "Konfirmasi penghapusan"
+    "confirmDelete": "Konfirmasi penghapusan",
+    "firstPage": "Halaman pertama",
+    "previousPage": "Halaman sebelumnya",
+    "nextPage": "Halaman berikutnya",
+    "lastPage": "Halaman terakhir",
+    "sortBy": "Urutkan berdasarkan",
+    "sortAscending": "Naik"
   },
   "teamSelection": {
     "title": "Pilih Klub",
@@ -679,6 +690,7 @@
     "coverageBadge": "XI {{starters}}/{{required}} · Cadangan {{bench}}",
     "bestRole": "Peran terbaik",
     "startingXi": "Starting XI",
+    "notMatchDayEligible": "Tidak tersedia untuk dipilih",
     "starter": "Starter",
     "benchOption": "Cadangan",
     "naturalFit": "Posisi alami",
@@ -910,7 +922,8 @@
       "ready": "Siap",
       "adjusted": "Disesuaikan",
       "risk": "Berisiko"
-    }
+    },
+    "positionsLoading": "Data posisi masih dimuat, sehingga perubahan susunan pemain belum tersedia."
   },
   "training": {
     "weeklySchedule": "Jadwal Mingguan",
@@ -1757,7 +1770,13 @@
       "unsure": "Kurang yakin",
       "guess": "Tebakan",
       "byScout": "Diamati oleh {{scout}} pada {{date}}"
-    }
+    },
+    "positions": {
+      "title": "Posisi",
+      "wherePlayed": "tempat kamu memainkannya"
+    },
+    "loadFailed": "Gagal memuat",
+    "retryWage": "Coba muat gaji lagi"
   },
   "teamProfile": {
     "clubInfo": "Informasi Klub",
@@ -3006,7 +3025,11 @@
         "invalidFormation": "Formasi itu tidak dikenal permainan.",
         "invalidPlayStyle": "Gaya bermain itu tidak dikenal permainan.",
         "notFound": "Taktik itu sudah tidak ada."
-      }
+      },
+      "anotherClubsSquad": "Skuad itu milik klub lain.",
+      "startingXiPlayerNotEligible": "Salah satu pemain dalam susunan ini tidak dapat menjadi starter untuk klubmu.",
+      "startingXiDuplicatePlayer": "Seorang pemain muncul dua kali dalam susunan ini.",
+      "startingXiWrongSize": "Starting eleven harus berisi tepat sebelas pemain, atau semua pemain yang memenuhi syarat jika klub memiliki lebih sedikit."
     },
     "sender": {
       "boardOfDirectors": "Dewan Direksi",
@@ -3613,6 +3636,10 @@
       "matchesMoved": {
         "subject": "Jadwal pertandingan diubah",
         "body": "Beberapa pertandingan kamu dipindahkan agar para pemain kamu tetap mendapat waktu istirahat dan jeda internasional dihormati:\n{{matches}}"
+      },
+      "savedDataSetAside": {
+        "subject": "Sebagian data simpanan disisihkan",
+        "body": "Sebagian dari simpanan ini tidak dapat dibaca saat dimuat. Bagian itu disisihkan, bukan hilang, dan kariermu tetap berlanjut. Jika ada yang terasa hilang, laporan bug ({{settings}} → {{reportBug}}, dengan simpanan terlampir) membantu kami memeriksanya."
       }
     },
     "news": {

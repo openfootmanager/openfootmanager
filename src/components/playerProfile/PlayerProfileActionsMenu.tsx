@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { useFetchedSquad } from "../../hooks/useFetchedSquad";
+import { usePositionTable } from "../../hooks/usePositionGroups";
 import { ChevronDown, Repeat, RotateCcw, TimerOff, Trash2, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -18,7 +20,11 @@ import {
   buildPromoteToStartingXi,
   buildStartingXIIds,
 } from "../squad/SquadTab.helpers";
-import { canDelegateToYouthAcademy } from "../../lib/playerSquad";
+import {
+  canDelegateToYouthAcademy,
+  isMatchDayEligible,
+  isRuledOutOfMatchDay,
+} from "../../lib/playerSquad";
 import { setPlayerSquadRole, setStartingXi } from "../../services/squadService";
 import { toggleLoanList, toggleTransferList } from "../../services/transfersService";
 import { resolveTranslatedErrorMessage } from "../../utils/errorMessage";
@@ -67,6 +73,15 @@ export default function PlayerProfileActionsMenu({
   onError,
 }: PlayerProfileActionsMenuProps) {
   const { t } = useTranslation();
+  const positionTable = usePositionTable();
+  // The squad's match-day eligibility is the backend's, from get_squad (raw game players carry
+  // none), and a lineup is only saved from it once it has answered for this revision.
+  const [fetchedSquad, , squadAnswered] = useFetchedSquad(
+    gameState.manager.team_id ?? null,
+    gameState.clock?.current_date ?? "",
+    gameState,
+  );
+  const lineupReady = positionTable.loaded && squadAnswered;
   const menuRef = useRef<ContextMenuHandle>(null);
   const [mutationPending, setMutationPending] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -99,19 +114,26 @@ export default function PlayerProfileActionsMenu({
   const isInManagerSquad = isManagerOwnedProfile && managerTeam && player.team_id === managerTeamId;
 
   if (isInManagerSquad) {
-    const roster = gameState.players.filter((candidate) => candidate.team_id === managerTeamId);
-    const available = roster.filter((candidate) => !candidate.injury);
+    const roster =
+      fetchedSquad ?? gameState.players.filter((candidate) => candidate.team_id === managerTeamId);
+    const available = roster.filter(isMatchDayEligible);
+    // The XI is drawn from everyone not ruled out, so it shows before get_squad answers; only the
+    // strict pool above feeds a lineup change.
+    const drawable = roster.filter((candidate) => !isRuledOutOfMatchDay(candidate));
     const formation = managerTeam.formation || "4-4-2";
     const startingXiIds = buildStartingXIIds(
-      available,
+      drawable,
       managerTeam.starting_xi_ids ?? [],
       formation,
+      positionTable,
     );
     const inXI = startingXiIds.includes(player.id);
     const playersById = new Map(available.map((candidate) => [candidate.id, candidate]));
 
     const persistStartingXi = (nextXiIds: string[] | null): void => {
-      if (!nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
+      // Nothing is saved from a lineup worked out before the position table has loaded or from a
+      // squad the backend has not answered for this revision.
+      if (!lineupReady || !nextXiIds || nextXiIds.join(",") === startingXiIds.join(",")) {
         return;
       }
       void runMutation(() => setStartingXi(nextXiIds));
@@ -123,20 +145,33 @@ export default function PlayerProfileActionsMenu({
             label: t("squad.sendToBench"),
             icon: <RotateCcw className="w-4 h-4" />,
             disabled:
+              !lineupReady ||
               actionBusy ||
               available.filter((candidate) => !startingXiIds.includes(candidate.id)).length === 0,
             onClick: () =>
               persistStartingXi(
-                buildDemoteFromStartingXi(startingXiIds, available, formation, player.id),
+                buildDemoteFromStartingXi(
+                  startingXiIds,
+                  available,
+                  formation,
+                  player.id,
+                  positionTable,
+                ),
               ),
           }
         : {
             label: t("squad.makeStarter"),
             icon: <Users className="w-4 h-4" />,
-            disabled: actionBusy || Boolean(player.injury),
+            disabled: !lineupReady || actionBusy || Boolean(player.injury),
             onClick: () =>
               persistStartingXi(
-                buildPromoteToStartingXi(startingXiIds, playersById, formation, player.id),
+                buildPromoteToStartingXi(
+                  startingXiIds,
+                  playersById,
+                  formation,
+                  player.id,
+                  positionTable,
+                ),
               ),
           },
       buildDividerMenuItem(),

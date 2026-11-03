@@ -70,6 +70,11 @@ fn needs_identity_upgrade(player: &Player) -> bool {
     // — natural_position or alternate_positions — still hold a legacy value,
     // meaning the initial upgrade hasn't run for this player yet.
     //
+    // `is_legacy_bucket` includes the goalkeeper on purpose: `natural_position` defaults to it, so
+    // a save from before the field existed arrives here as a natural keeper and is re-inferred
+    // from `position`. A real keeper is re-inferred to the same position, which changes nothing.
+    // See `Position::is_legacy_bucket`.
+    //
     // Previously this also checked `player.position.is_legacy_bucket()`,
     // which is always true by design and made the upgrade re-run on every
     // save-load. That let `natural_position` flip between reloads when a

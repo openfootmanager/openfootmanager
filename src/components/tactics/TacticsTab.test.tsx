@@ -7,9 +7,21 @@ import TacticsTab from "./TacticsTab";
 import { ratingTierClass } from "../../lib/ratingTier";
 import { createSeasonContext } from "../../test-utils/factories";
 
+// Whether the backend's position table has arrived; a test says it has not.
+const positionTableState = vi.hoisted(() => ({ arrived: true }));
+
 vi.mock("../../hooks/usePositionGroups", async () => {
   const { cannedPositionsModule } = await import("../../test-utils/positionTable");
-  return cannedPositionsModule();
+  const { createPositionTable } = await import("../../lib/positionTable");
+  const canned = cannedPositionsModule();
+  const notArrived = createPositionTable([]);
+  return {
+    ...canned,
+    usePositionTable: () => {
+      const arrived = canned.usePositionTable();
+      return positionTableState.arrived ? arrived : notArrived;
+    },
+  };
 });
 
 vi.mock("react-i18next", () => ({
@@ -410,10 +422,107 @@ describe("TacticsTab", () => {
     });
   });
 
+  /**
+   * Given the position table has not arrived
+   * When a bench defender is dropped onto a defensive slot of the pitch
+   * Then nothing is saved: a lineup worked out without the lines must not be written.
+   */
+  /**
+   * Given the position table has not arrived, and then has
+   * When the tactics screen is drawn
+   * Then it says why lineup changes are not available yet, and says nothing once it has loaded.
+   */
+  it("says lineup changes wait for the position table, only until it has loaded", async () => {
+    positionTableState.arrived = false;
+    try {
+      const { unmount } = render(
+        <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+      expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+      unmount();
+    } finally {
+      positionTableState.arrived = true;
+    }
+
+    render(
+      <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    await act(async () => {}); // and the squad has answered for this revision
+    expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
+  });
+
+  it("saves no lineup change before the position table has loaded", async () => {
+    positionTableState.arrived = false;
+    try {
+      render(
+        <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+      );
+
+      const benchPlayer = screen.getByTestId("pitch-bench-player-d5");
+      const pitchSlot = screen.getByTestId("pitch-slot-1");
+      const dataTransfer = createDataTransfer();
+      fireEvent.dragStart(benchPlayer, { dataTransfer });
+      fireEvent.drop(pitchSlot, { dataTransfer });
+      await act(async () => {});
+
+      expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+    } finally {
+      positionTableState.arrived = true;
+    }
+  });
+
+  /**
+   * Given get_squad has not answered for this revision
+   * When the tactics screen is drawn
+   * Then it says why lineup changes are not available yet, and says nothing once the squad has
+   *      answered.
+   */
+  it("says lineup changes wait while the squad has not answered", async () => {
+    let answer: (players: PlayerData[]) => void = () => {};
+    const state = makeGameState();
+    mockedInvoke.mockReset();
+    mockedInvoke.mockReturnValue(new Promise((resolve) => (answer = resolve)));
+
+    render(<TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("tactics.positionsLoading");
+
+    await act(async () => answer(state.players.filter((player) => player.team_id === "team1")));
+    expect(screen.queryByText("tactics.positionsLoading")).toBeNull();
+  });
+
+  /**
+   * Given the squad answered once, and then the game moved on (a new revision) with its fetch
+   *       still in flight
+   * When a bench defender is dropped onto a defensive slot
+   * Then nothing is saved: the squad's eligibility is the previous revision's until it answers.
+   */
+  it("saves no lineup change while a newer get_squad is in flight", async () => {
+    const state = makeGameState();
+    const roster = state.players.filter((player) => player.team_id === "team1");
+    mockedInvoke.mockReset();
+    mockedInvoke.mockResolvedValueOnce(roster).mockReturnValue(new Promise(() => {}));
+
+    const { rerender } = render(
+      <TacticsTab gameState={state} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+    await act(async () => {});
+    rerender(
+      <TacticsTab gameState={{ ...state }} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
+    );
+
+    const dataTransfer = createDataTransfer();
+    fireEvent.dragStart(screen.getByTestId("pitch-bench-player-d5"), { dataTransfer });
+    fireEvent.drop(screen.getByTestId("pitch-slot-1"), { dataTransfer });
+    await act(async () => {});
+
+    expect(mockedInvoke).not.toHaveBeenCalledWith("set_starting_xi", expect.anything());
+  });
+
   it("sends the correct starting xi order when a pitch-view bench defender is dropped onto a defensive slot", async () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     const benchPlayer = screen.getByTestId("pitch-bench-player-d5");
     const pitchSlot = screen.getByTestId("pitch-slot-1");
@@ -653,6 +762,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     fireEvent.click(screen.getByTestId("pitch-bench-player-d5"));
 
@@ -684,6 +794,7 @@ describe("TacticsTab", () => {
         onGameUpdate={vi.fn()}
       />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     fireEvent.click(screen.getByTestId("pitch-player-d1"));
 
@@ -893,15 +1004,18 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     const benchRow = screen.getByTestId("bench-player-d5");
     fireEvent.contextMenu(benchRow);
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.promoteToLineup" }));
 
+    // d5 is a coarse "Defender", graded as a centre back as the backend reads him: he is natural at
+    // the first centre-back slot (replacing d2), not at the first slot that merely adapts him.
     await waitFor(() => {
       expect(mockedInvoke).toHaveBeenCalledWith("set_starting_xi", {
         careerToken: 0,
-        playerIds: ["gk1", "d5", "d2", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
+        playerIds: ["gk1", "d1", "d5", "d3", "d4", "m1", "m2", "m3", "m4", "f1", "f2"],
       });
     });
   });
@@ -910,6 +1024,7 @@ describe("TacticsTab", () => {
     render(
       <TacticsTab gameState={makeGameState()} onSelectPlayer={vi.fn()} onGameUpdate={vi.fn()} />,
     );
+    await act(async () => {}); // the squad has answered for this revision
 
     fireEvent.contextMenu(screen.getByTestId("pitch-player-d1"));
     fireEvent.click(screen.getByRole("menuitem", { name: "tactics.moveToBench" }));

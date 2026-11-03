@@ -15,6 +15,8 @@ interface PlayerProfileAttributesCardProps {
   scoutNote?: { scoutedLabel: string; outOfDate: boolean; outOfDateLabel: string };
   /** The club's opinion of his potential, shown above his attributes when it holds one. */
   potentialOpinion?: ReactNode;
+  /** His ratings at the positions he plays, shown below his attributes when the club knows them. */
+  positionRatings?: ReactNode;
   isGk?: boolean;
   title: string;
   averageLabel: string;
@@ -30,6 +32,7 @@ export default function PlayerProfileAttributesCard({
   attributesVisible,
   scoutNote,
   potentialOpinion,
+  positionRatings,
   isGk = false,
   title,
   averageLabel,
@@ -131,6 +134,7 @@ export default function PlayerProfileAttributesCard({
             </p>
           </div>
         )}
+        {attributesVisible ? positionRatings : null}
       </CardBody>
     </Card>
   );

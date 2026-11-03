@@ -262,17 +262,18 @@ describe("PlayerListFilters", () => {
   });
 
   /**
-   * Given the position table has not arrived, so a group has no detailed members to select
+   * Given the position table has not arrived, so no line is known and a group has no detailed
+   *       members to select
    * When the filters render
-   * Then the position chips are disabled (pressing one would write a selection back without the
-   *      detailed positions already chosen), and the All chip still works.
+   * Then no group chip is offered (pressing one would write a selection back without the detailed
+   *      positions already chosen), and the All chip still works.
    */
-  it("waits for the position table before the position chips work", () => {
+  it("offers no position group chips until the position table arrives", () => {
     positionTableState.arrived = false;
     try {
       const onChange = renderFilters({ positions: [{ exact: "CenterBack" }] });
 
-      expect(screen.getByRole("button", { name: "common.positionGroups.Defender" })).toBeDisabled();
+      expect(screen.queryByRole("button", { name: "common.positionGroups.Defender" })).toBeNull();
       const all = screen.getByRole("button", { name: "transfers.allPositions" });
       expect(all).toBeEnabled();
       fireEvent.click(all);
