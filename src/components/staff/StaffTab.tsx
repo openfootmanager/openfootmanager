@@ -70,8 +70,12 @@ export default function StaffTab({ gameState, onGameUpdate, onNavigate }: StaffT
 
   useEffect(() => {
     if (!teamId) return;
+    // The first fetch takes a refresh number too, so a hire's refresh that answers before it wins.
+    const refresh = ++latestRefresh.current;
     void getStaff(teamId)
-      .then(setFetchedStaff)
+      .then((slice) => {
+        if (refresh === latestRefresh.current) setFetchedStaff(slice);
+      })
       .catch(() => {});
   }, [teamId]);
 

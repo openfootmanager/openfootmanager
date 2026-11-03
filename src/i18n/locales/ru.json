@@ -428,6 +428,11 @@
       "other": "{{n}}-е"
     },
     "pts": "О",
+    "playedFull": "Игры",
+    "wonFull": "Победы",
+    "drawnFull": "Ничьи",
+    "lostFull": "Поражения",
+    "ptsFull": "Очки",
     "played": "И",
     "won": "В",
     "drawn": "Н",

@@ -428,6 +428,11 @@
       "other": "{{n}}."
     },
     "pts": "Bod",
+    "playedFull": "Zápasy",
+    "wonFull": "Výhry",
+    "drawnFull": "Remízy",
+    "lostFull": "Prohry",
+    "ptsFull": "Body",
     "played": "Z",
     "won": "V",
     "drawn": "R",

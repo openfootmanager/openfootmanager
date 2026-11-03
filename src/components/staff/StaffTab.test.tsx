@@ -274,6 +274,96 @@ describe("StaffTab", () => {
    * Then the page keeps the newer list, both on the staff, rather than the older snapshot that
    *      arrived late.
    */
+  /**
+   * Given the page's first staff fetch still out, so the page draws the game state's staff
+   * When a free agent is hired, its refresh answers (him on the staff), and only then the first
+   *      fetch answers with the list from before the hire
+   * Then the page keeps the hire: the first fetch is older than the hire's refresh, so it is
+   *      dropped as a late refresh would be.
+   */
+  it("keeps a hire when the page's first fetch answers after it", async () => {
+    const free = createStaff({ id: "free", display_name: "Fred Free", team_id: null });
+    const hired = { ...free, team_id: "team-1" };
+    let answerFirstFetch: ((slice: unknown) => void) | null = null;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_staff") {
+        if (!answerFirstFetch) {
+          return new Promise((resolve) => {
+            answerFirstFetch = resolve;
+          });
+        }
+        return Promise.resolve(makeStaffSlice([hired]));
+      }
+      return Promise.resolve(createGameState([hired]));
+    });
+
+    render(
+      <StaffTab
+        gameState={createGameState([free])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Available 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Hire staff" }));
+    expect(await screen.findByRole("button", { name: /My Staff 1/i })).toBeInTheDocument();
+
+    await act(async () => {
+      answerFirstFetch?.(makeStaffSlice([free]));
+    });
+
+    expect(screen.getByRole("button", { name: /My Staff 1/i })).toBeInTheDocument();
+  });
+
+  /**
+   * Given the page open on one club, its staff fetch still out, when the manager moves to another
+   *       club
+   * When the new club's fetch answers, and only then the old club's
+   * Then the page shows the new club's staff: the old club's late answer is dropped.
+   */
+  it("shows the new club's staff when the old club's fetch answers after a move", async () => {
+    const oldCoach = createStaff({ id: "old", display_name: "Olly Old", team_id: "team-1" });
+    const newCoach = createStaff({ id: "new", display_name: "Nina New", team_id: "team-2" });
+    let answerOldClub: ((slice: unknown) => void) | null = null;
+    invokeMock.mockImplementation((command: string, args?: { teamId?: string }) => {
+      if (command === "get_staff" && args?.teamId === "team-1") {
+        return new Promise((resolve) => {
+          answerOldClub = resolve;
+        });
+      }
+      if (command === "get_staff") return Promise.resolve(makeStaffSlice([newCoach]));
+      return Promise.resolve(createGameState([]));
+    });
+    const atClub = (teamId: string, staff: StaffData[]) => {
+      const state = createGameState(staff);
+      return { ...state, manager: { ...state.manager, team_id: teamId } };
+    };
+
+    const { rerender } = render(
+      <StaffTab
+        gameState={atClub("team-1", [oldCoach])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    rerender(
+      <StaffTab
+        gameState={atClub("team-2", [newCoach])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    expect(await screen.findByText("Nina New")).toBeInTheDocument();
+
+    await act(async () => {
+      if (!answerOldClub) throw new Error("the old club's staff fetch was never sent");
+      answerOldClub(makeStaffSlice([oldCoach]));
+    });
+
+    expect(screen.getByText("Nina New")).toBeInTheDocument();
+    expect(screen.queryByText("Olly Old")).toBeNull();
+  });
+
   it("keeps the newest staff list when an older refresh answers last", async () => {
     const first = createStaff({ id: "first", display_name: "First Free", team_id: null });
     const second = createStaff({ id: "second", display_name: "Second Free", team_id: null });
