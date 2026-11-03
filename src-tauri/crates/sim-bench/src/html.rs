@@ -915,4 +915,28 @@ mod tests {
             "no band in this table can be judged"
         );
     }
+
+    /// Given a run at 4.2 yellows and 0.20 reds a game, inside the Big Five's cited range,
+    /// When the HTML report's discipline panel is written,
+    /// Then it marks both in range, as the benchmark table does.
+    #[test]
+    fn the_discipline_panel_marks_cards_by_the_cited_bands() {
+        let stats = BenchStats {
+            games: 100,
+            yellow_cards: 420,
+            red_cards: 20,
+            ..BenchStats::default()
+        };
+
+        let panel = super::discipline_section(&stats);
+
+        assert!(
+            panel.contains(r#"<span class="stat-value ok">4.20</span>"#),
+            "{panel}"
+        );
+        assert!(
+            panel.contains(r#"<span class="stat-value ok">0.200</span>"#),
+            "{panel}"
+        );
+    }
 }

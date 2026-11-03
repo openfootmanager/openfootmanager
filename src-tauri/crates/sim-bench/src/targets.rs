@@ -558,6 +558,26 @@ mod tests {
         assert_eq!(band("Red cards/game"), (0.12, 0.27, true));
     }
 
+    /// Given the calibration table,
+    /// When its cited card bands are read,
+    /// Then they carry the one-fixture caveat, as the measured bands do: CIES's figures are
+    /// league-season averages, and the bench replays one fixture.
+    #[test]
+    fn a_cited_band_carries_the_one_fixture_caveat() {
+        let table = all().expect("the calibration table loads");
+        for label in ["Yellow cards/game", "Red cards/game"] {
+            let target = table
+                .iter()
+                .find(|target| target.label == label)
+                .expect("the band exists");
+            assert_eq!(
+                target.not_comparable,
+                Some(ONE_FIXTURE_IS_NOT_A_LEAGUE),
+                "{label}"
+            );
+        }
+    }
+
     /// Given a value exactly on a band's edge, and one just outside it,
     /// When each is judged,
     /// Then the edge counts as inside and the other does not.
