@@ -221,37 +221,45 @@ describe("StaffTab", () => {
   });
 
   /**
-   * Given a coach the backend rates 88 and tiers S among coaches, and a physio it rates 80 and
-   *       tiers as the rest among physios
+   * Given a coach and an assistant whom the backend both rates 80, and tiers as the game does
+   *       among their own roles: B for the coach (coaches' B starts at 75, A at 83), S for the
+   *       assistant (assistants' S starts at 79)
    * When their cards are drawn
-   * Then each rating is painted in the tone of the tier the backend sent, and its tier is said in
-   *      words: the page holds no cut-off of its own, so the coach's 88 is S and the physio's 80
-   *      is not.
+   * Then each 80 is painted in its own tier's tone and its tier is said in words: the page holds
+   *      no cut-off of its own, so one number reads two ways.
    */
   it("paints each member's rating in his tier among his role, as the backend sends it", async () => {
-    const coach = createStaff({ id: "staff-coach", role: "Coach" });
-    const physio = createStaff({ id: "staff-physio", role: "Physio" });
+    const coach = createStaff({
+      id: "staff-coach",
+      role: "Coach",
+      attributes: { coaching: 80, judgingAbility: 40, judgingPotential: 40, physiotherapy: 30 },
+    });
+    const assistant = createStaff({
+      id: "staff-assistant",
+      role: "AssistantManager",
+      attributes: { coaching: 80, judgingAbility: 80, judgingPotential: 80, physiotherapy: 30 },
+    });
     invokeMock.mockImplementation(async (command: string) => {
       if (command === "get_staff")
-        return makeStaffSlice([coach, physio], {
-          ratings: { "staff-coach": 88, "staff-physio": 80 },
-          tiers: { "staff-coach": "S", "staff-physio": "Rest" },
+        return makeStaffSlice([coach, assistant], {
+          ratings: { "staff-coach": 80, "staff-assistant": 80 },
+          tiers: { "staff-coach": "B", "staff-assistant": "S" },
         });
-      return createGameState([coach, physio]);
+      return createGameState([coach, assistant]);
     });
 
     render(
       <StaffTab
-        gameState={createGameState([coach, physio])}
+        gameState={createGameState([coach, assistant])}
         onGameUpdate={() => {}}
         onNavigate={() => {}}
       />,
     );
 
-    const coachChip = (await screen.findByText("Overall 88, tier S")).parentElement;
-    expect(coachChip).toHaveClass("bg-tone-top-tint", "text-tone-top");
-    const physioChip = screen.getByText("Overall 80").parentElement;
-    expect(physioChip).toHaveClass("bg-sunken", "text-fg-muted");
+    const coachChip = (await screen.findByText("Overall 80, tier B")).parentElement;
+    expect(coachChip).toHaveClass("bg-tone-fair-tint", "text-tone-fair");
+    const assistantChip = screen.getByText("Overall 80, tier S").parentElement;
+    expect(assistantChip).toHaveClass("bg-tone-top-tint", "text-tone-top");
   });
 
   /**
