@@ -1,7 +1,7 @@
 //! The club player pool every match-day consumer reads.
 use crate::player_rating::natural_ovr;
 use domain::player::{Player, Position, SquadRole};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 // A healthy eleven plus seven reserves; healthy seniors are never capped.
 const MATCH_DAY_POOL_TARGET: usize = 18;
@@ -64,6 +64,45 @@ pub(crate) fn debug_assert_group_is_current(players: &[Player], team_id: &str, g
         club_positions(players, team_id).as_slice(),
         "the group kept for {team_id} is stale: a player changed club and it was not found again"
     );
+}
+
+/// A starting XI holds eleven players.
+const STARTING_XI_SIZE: usize = 11;
+
+/// A starting XI that names a player who is not in the club's match-day pool.
+pub const STARTING_XI_PLAYER_NOT_ELIGIBLE: &str = "be.error.startingXiPlayerNotEligible";
+/// A starting XI that names the same player twice.
+pub const STARTING_XI_DUPLICATE_PLAYER: &str = "be.error.startingXiDuplicatePlayer";
+/// A starting XI with the wrong number of players for the club's pool.
+pub const STARTING_XI_WRONG_SIZE: &str = "be.error.startingXiWrongSize";
+
+/// Whether `player_ids` is a starting XI the club `team_id` may field: every id a different player
+/// in the club's match-day pool ([`match_day_eligible_players`]), and exactly eleven of them, or the
+/// whole pool when the club has fewer than eleven players to field.
+///
+/// This is the one place a saved lineup is checked, for the screens and for an MCP agent alike
+/// (`set_starting_xi_internal` calls it before it writes). It reads the match-day pool, so any rule
+/// that rules a player out of that pool (a suspension, say) is enforced here with no change to this
+/// function: that pool is the enforcement point. Errors are translation keys.
+pub fn validate_starting_xi(
+    players: &[Player],
+    team_id: &str,
+    player_ids: &[String],
+) -> Result<(), String> {
+    let pool = match_day_eligible_players(players, team_id);
+    let mut named = HashSet::new();
+    for id in player_ids {
+        if !pool.iter().any(|player| &player.id == id) {
+            return Err(STARTING_XI_PLAYER_NOT_ELIGIBLE.to_string());
+        }
+        if !named.insert(id.as_str()) {
+            return Err(STARTING_XI_DUPLICATE_PLAYER.to_string());
+        }
+    }
+    if player_ids.len() != pool.len().min(STARTING_XI_SIZE) {
+        return Err(STARTING_XI_WRONG_SIZE.to_string());
+    }
+    Ok(())
 }
 
 /// [`eligible_among`] for the club `team_id`, found by scanning `players`.
@@ -227,5 +266,139 @@ mod tests {
         players[before[0]].team_id = Some("blue".to_string());
 
         debug_assert_group_is_current(&players, "red", &before);
+    }
+
+    /// A club of `size` players, `red-0` .. `red-{size-1}`, all healthy seniors, and a rival's player.
+    fn club_of(size: usize) -> Vec<Player> {
+        let mut players: Vec<Player> = (0..size)
+            .map(|index| player_at(&format!("red-{index}"), "red", "2035-06-30"))
+            .collect();
+        players.push(player_at("rival-0", "blue", "2035-06-30"));
+        players
+    }
+
+    fn xi(prefix: &str, range: std::ops::Range<usize>) -> Vec<String> {
+        range.map(|index| format!("{prefix}-{index}")).collect()
+    }
+
+    /// Given a club of fourteen healthy seniors,
+    /// When a lineup of eleven distinct players of the club is checked,
+    /// Then it is accepted.
+    #[test]
+    fn a_full_xi_of_the_clubs_eligible_players_is_accepted() {
+        assert_eq!(
+            validate_starting_xi(&club_of(14), "red", &xi("red", 0..11)),
+            Ok(())
+        );
+    }
+
+    /// Given a club with plenty of players,
+    /// When ten ids, or twelve, are checked,
+    /// Then each is refused as the wrong size.
+    #[test]
+    fn an_xi_of_ten_or_twelve_is_refused_as_the_wrong_size() {
+        let players = club_of(14);
+
+        for ids in [xi("red", 0..10), xi("red", 0..12), vec![]] {
+            assert_eq!(
+                validate_starting_xi(&players, "red", &ids),
+                Err(STARTING_XI_WRONG_SIZE.to_string())
+            );
+        }
+    }
+
+    /// Given a lineup that names one player twice,
+    /// When it is checked,
+    /// Then it is refused as a duplicate, even though it has eleven entries.
+    #[test]
+    fn a_player_named_twice_is_refused() {
+        let mut ids = xi("red", 0..10);
+        ids.push("red-3".to_string());
+
+        assert_eq!(
+            validate_starting_xi(&club_of(14), "red", &ids),
+            Err(STARTING_XI_DUPLICATE_PLAYER.to_string())
+        );
+    }
+
+    /// Given a lineup that names a rival's player, one nobody knows, or a free agent,
+    /// When it is checked,
+    /// Then each is refused as not eligible.
+    #[test]
+    fn a_player_outside_the_club_is_refused() {
+        let mut players = club_of(14);
+        let mut free_agent = player_at("free-0", "none", "2035-06-30");
+        free_agent.team_id = None;
+        players.push(free_agent);
+
+        for stranger in ["rival-0", "nobody", "free-0"] {
+            let mut ids = xi("red", 0..10);
+            ids.push(stranger.to_string());
+            assert_eq!(
+                validate_starting_xi(&players, "red", &ids),
+                Err(STARTING_XI_PLAYER_NOT_ELIGIBLE.to_string()),
+                "{stranger}"
+            );
+        }
+    }
+
+    /// Given a club with healthy seniors to spare and one of the eleven chosen injured,
+    /// When the lineup is checked,
+    /// Then the injured player is refused: he is not in the match-day pool.
+    #[test]
+    fn an_injured_player_is_refused_while_fit_players_can_be_fielded() {
+        let mut players = club_of(14);
+        players[0].injury = Some(Injury {
+            name: "knock".to_string(),
+            days_remaining: 5,
+        });
+
+        assert_eq!(
+            validate_starting_xi(&players, "red", &xi("red", 0..11)),
+            Err(STARTING_XI_PLAYER_NOT_ELIGIBLE.to_string())
+        );
+        assert_eq!(
+            validate_starting_xi(&players, "red", &xi("red", 1..12)),
+            Ok(())
+        );
+    }
+
+    /// Given a club with only nine fit seniors and three in the treatment room,
+    /// When an XI that fields all three injured players is checked,
+    /// Then it is accepted: in a crisis the pool includes them, so the club can still field eleven.
+    #[test]
+    fn a_crisis_club_may_field_its_injured_players() {
+        let mut players = club_of(12);
+        for player in players
+            .iter_mut()
+            .filter(|p| p.id.starts_with("red-9") || p.id == "red-10" || p.id == "red-11")
+        {
+            player.injury = Some(Injury {
+                name: "knock".to_string(),
+                days_remaining: 5,
+            });
+        }
+
+        assert_eq!(
+            validate_starting_xi(&players, "red", &xi("red", 0..11)),
+            Ok(())
+        );
+    }
+
+    /// Given a club with only eight players on its books,
+    /// When all eight, and then seven, are checked,
+    /// Then all eight are accepted (the pool is smaller than eleven) and seven are refused.
+    #[test]
+    fn a_club_with_fewer_than_eleven_players_fields_all_it_has() {
+        let players = club_of(8);
+
+        assert_eq!(
+            validate_starting_xi(&players, "red", &xi("red", 0..8)),
+            Ok(())
+        );
+        assert_eq!(
+            validate_starting_xi(&players, "red", &xi("red", 0..7)),
+            Err(STARTING_XI_WRONG_SIZE.to_string())
+        );
     }
 }
