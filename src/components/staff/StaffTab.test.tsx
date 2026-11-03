@@ -262,6 +262,47 @@ describe("StaffTab", () => {
    * Then the page keeps the newer list, both on the staff, rather than the older snapshot that
    *      arrived late.
    */
+  /**
+   * Given the page's first staff fetch still out, so the page draws the game state's staff
+   * When a free agent is hired, its refresh answers (him on the staff), and only then the first
+   *      fetch answers with the list from before the hire
+   * Then the page keeps the hire: the first fetch is older than the hire's refresh, so it is
+   *      dropped as a late refresh would be.
+   */
+  it("keeps a hire when the page's first fetch answers after it", async () => {
+    const free = createStaff({ id: "free", display_name: "Fred Free", team_id: null });
+    const hired = { ...free, team_id: "team-1" };
+    let answerFirstFetch: ((slice: unknown) => void) | null = null;
+    invokeMock.mockImplementation((command: string) => {
+      if (command === "get_staff") {
+        if (!answerFirstFetch) {
+          return new Promise((resolve) => {
+            answerFirstFetch = resolve;
+          });
+        }
+        return Promise.resolve(makeStaffSlice([hired]));
+      }
+      return Promise.resolve(createGameState([hired]));
+    });
+
+    render(
+      <StaffTab
+        gameState={createGameState([free])}
+        onGameUpdate={() => {}}
+        onNavigate={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Available 1/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Hire staff" }));
+    expect(await screen.findByRole("button", { name: /My Staff 1/i })).toBeInTheDocument();
+
+    await act(async () => {
+      answerFirstFetch?.(makeStaffSlice([free]));
+    });
+
+    expect(screen.getByRole("button", { name: /My Staff 1/i })).toBeInTheDocument();
+  });
+
   it("keeps the newest staff list when an older refresh answers last", async () => {
     const first = createStaff({ id: "first", display_name: "First Free", team_id: null });
     const second = createStaff({ id: "second", display_name: "Second Free", team_id: null });
