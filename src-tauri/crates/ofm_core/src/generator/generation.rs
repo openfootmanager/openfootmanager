@@ -1,5 +1,5 @@
 use domain::player::{Player, PlayerAttributes, Position};
-use domain::staff::{Staff, StaffAttributes, StaffRole};
+use domain::staff::{Staff, StaffRole};
 use domain::team::PlayStyle;
 use rand::{Rng, RngExt};
 
@@ -728,32 +728,7 @@ pub(super) fn generate_random_staff_from_def(
         rng.random_range(1..29)
     );
 
-    let attributes = match &role {
-        StaffRole::AssistantManager => StaffAttributes {
-            coaching: rng.random_range(50..90),
-            judging_ability: rng.random_range(50..85),
-            judging_potential: rng.random_range(40..80),
-            physiotherapy: rng.random_range(20..50),
-        },
-        StaffRole::Coach => StaffAttributes {
-            coaching: rng.random_range(55..95),
-            judging_ability: rng.random_range(40..75),
-            judging_potential: rng.random_range(30..70),
-            physiotherapy: rng.random_range(20..45),
-        },
-        StaffRole::Scout => StaffAttributes {
-            coaching: rng.random_range(20..50),
-            judging_ability: rng.random_range(60..95),
-            judging_potential: rng.random_range(55..95),
-            physiotherapy: rng.random_range(10..30),
-        },
-        StaffRole::Physio => StaffAttributes {
-            coaching: rng.random_range(10..40),
-            judging_ability: rng.random_range(20..50),
-            judging_potential: rng.random_range(15..45),
-            physiotherapy: rng.random_range(60..95),
-        },
-    };
+    let attributes = super::staff_bell::club_staff_attributes(&role, rng);
 
     let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();
@@ -778,12 +753,7 @@ pub(super) fn generate_random_staff_unattached_from_def(
         rng.random_range(1..29)
     );
 
-    let attributes = StaffAttributes {
-        coaching: rng.random_range(30..80),
-        judging_ability: rng.random_range(30..80),
-        judging_potential: rng.random_range(25..75),
-        physiotherapy: rng.random_range(25..75),
-    };
+    let attributes = super::staff_bell::free_agent_staff_attributes(&role, rng);
 
     let mut s = Staff::new(seeded_id(rng), first_name, last_name, dob, role, attributes);
     s.nationality = nationality.to_string();

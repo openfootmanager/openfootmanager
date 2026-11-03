@@ -7,6 +7,7 @@ mod generation;
 pub mod package;
 mod package_warnings;
 pub mod scaffold;
+mod staff_bell;
 pub mod world_io;
 mod youth;
 
