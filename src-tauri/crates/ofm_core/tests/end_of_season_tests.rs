@@ -4010,8 +4010,14 @@ fn scout_pool_is_topped_up_to_floor_after_season() {
     );
 }
 
-/// A retiree with the career a generated world's history gives: thirteen seasons, thirty games each.
-fn retiree_after_thirteen_seasons(id: &str, ovr: u8) -> domain::player::Player {
+/// A player who retired this season, archived at `ovr` after thirteen seasons of thirty games:
+/// the career a generated world's history gives. Archived rather than pushed into `game.players`,
+/// because the season end re-derives a squad player's rating from his attributes before he retires.
+fn retired_this_season_after_thirteen_seasons(
+    game: &Game,
+    id: &str,
+    ovr: u8,
+) -> domain::retired_player::RetiredPlayer {
     let mut player = make_retired_player(id);
     player.ovr = ovr;
     player.career = (1..=13)
@@ -4024,20 +4030,24 @@ fn retiree_after_thirteen_seasons(id: &str, ovr: u8) -> domain::player::Player {
             assists: 0,
         })
         .collect();
-    player
+    domain::retired_player::RetiredPlayer::from_player(
+        &player,
+        "2026-05-20",
+        game.competitions[0].season,
+    )
 }
 
-/// Given a star and a squad player retiring after thirteen seasons each, rated 85 and 62
+/// Given a star and a squad player who retired this season after thirteen seasons each, rated 85
+///      and 62
 /// When the season ends and they become manager candidates
 /// Then they start at 681 and 382, on the 200-700 scale every manager is created on and apart by
 ///      their ability (#1160: both started at 900, above every manager the world opened with)
 #[test]
 fn retirees_start_managing_on_the_created_scale_by_their_ability() {
     let mut game = make_completed_season_game();
-    game.players
-        .push(retiree_after_thirteen_seasons("star", 85));
-    game.players
-        .push(retiree_after_thirteen_seasons("squad", 62));
+    let star = retired_this_season_after_thirteen_seasons(&game, "star", 85);
+    let squad = retired_this_season_after_thirteen_seasons(&game, "squad", 62);
+    game.retired_players.extend([star, squad]);
 
     process_end_of_season(&mut game);
 
