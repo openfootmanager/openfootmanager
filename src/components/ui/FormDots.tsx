@@ -18,9 +18,11 @@ const RESULT: Record<FormResult, { letterKey: string; wordKey: string; tone: str
   },
 };
 
-/** One of the three results: an own key, so "constructor" and the like aren't taken for one. */
+/** The three results, by name: a list, so a key every object inherits ("constructor") isn't one. */
+const FORM_RESULTS: readonly string[] = ["W", "D", "L"] satisfies FormResult[];
+
 function isFormResult(value: string): value is FormResult {
-  return Object.hasOwn(RESULT, value);
+  return FORM_RESULTS.includes(value);
 }
 
 /**
