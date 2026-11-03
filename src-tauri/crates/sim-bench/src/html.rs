@@ -1,5 +1,5 @@
 use crate::stats::BenchStats;
-use crate::targets::{Provenance, Verdict};
+use crate::targets::{Provenance, Verdict, REDS_BAND, YELLOWS_BAND};
 
 pub struct RunConfig<'a> {
     pub home_name: &'a str,
@@ -634,9 +634,9 @@ fn discipline_section(stats: &BenchStats) -> String {
     <span class="stat-value">{:.2}</span>
   </div>
 </div>"#,
-        range_class(y, 2.0, 4.0),
+        range_class(y, YELLOWS_BAND.0, YELLOWS_BAND.1),
         y,
-        range_class(r, 0.05, 0.15),
+        range_class(r, REDS_BAND.0, REDS_BAND.1),
         r,
         range_class(f, 18.0, 28.0),
         f,

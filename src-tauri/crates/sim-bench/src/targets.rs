@@ -190,6 +190,11 @@ impl MeasuredBands {
     }
 }
 
+/// The Big Five's range of yellow and of red cards a match, lowest league to highest (CIES
+/// n°57). The calibration table and the HTML report's discipline panel both read them.
+pub(crate) const YELLOWS_BAND: (f64, f64) = (3.39, 5.27);
+pub(crate) const REDS_BAND: (f64, f64) = (0.12, 0.27);
+
 /// The Big Five's range of cards a match: England, Germany, France, Italy and Spain.
 const CIES_CARDS: &str = "CIES Football Observatory Monthly Report n°57 (Poli, Ravenel & Besson, Sep 2020): Big Five, 2015/16-2019/20";
 
@@ -210,7 +215,8 @@ fn cited(
         provenance: Provenance::Cited {
             source: source.to_string(),
         },
-        not_comparable: None,
+        // Cited figures are league-season averages too, and the bench replays one fixture.
+        not_comparable: Some(ONE_FIXTURE_IS_NOT_A_LEAGUE),
     }
 }
 
@@ -290,16 +296,16 @@ pub fn all() -> Result<Vec<Target>, String> {
         cited(
             "Yellow cards/game",
             Unit::PerGame,
-            3.39,
-            5.27,
+            YELLOWS_BAND.0,
+            YELLOWS_BAND.1,
             BenchStats::yellows_pg,
             CIES_CARDS,
         ),
         cited(
             "Red cards/game",
             Unit::PerGame,
-            0.12,
-            0.27,
+            REDS_BAND.0,
+            REDS_BAND.1,
             BenchStats::reds_pg,
             CIES_CARDS,
         ),
