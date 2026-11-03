@@ -562,8 +562,9 @@ describe("SquadTab", () => {
     expect(await screen.findByRole("row", { name: /Called Youth/ })).toBeInTheDocument();
     expect(screen.queryByRole("row", { name: /Excluded Youth/ })).not.toBeInTheDocument();
   });
-  it("renders only the full roster table and not the moved tactics controls", () => {
+  it("renders only the full roster table and not the moved tactics controls", async () => {
     renderSquadTab(makeGameState());
+    await act(async () => {}); // the squad has answered for this revision
 
     expect(screen.getByText("squad.title")).toBeInTheDocument();
     expect(screen.getByText("Bench DEF")).toBeInTheDocument();
@@ -629,7 +630,7 @@ describe("SquadTab", () => {
    * Then no player wears a fit mark, neither the swapped pair's warning nor an "adapted" one, no
    *      count claims a number, and one status line says why lineup changes wait.
    */
-  it("claims no fit before the familiarity has loaded", () => {
+  it("claims no fit before the familiarity has loaded", async () => {
     familiarityState.arrived = false;
     try {
       const state = makeGameState();
@@ -647,6 +648,7 @@ describe("SquadTab", () => {
 
     cleanup();
     renderSquadTab(makeGameState());
+    await act(async () => {}); // the squad has answered for this revision
     expect(screen.queryByText("common.lineupLoading")).toBeNull();
   });
 
@@ -1091,7 +1093,7 @@ describe("SquadTab", () => {
    * Then the natural-fit count is the backend's, and absent (not "0") before it arrives: the
    *      screen neither grades the lineup itself nor claims a count while it waits.
    */
-  it("counts natural fits from the backend's familiarity, and claims no count before it arrives", () => {
+  it("counts natural fits from the backend's familiarity, and claims no count before it arrives", async () => {
     const { unmount } = render(
       <SquadTab
         gameState={makeGameState()}
@@ -1100,6 +1102,7 @@ describe("SquadTab", () => {
         onGameUpdate={vi.fn()}
       />,
     );
+    await act(async () => {}); // the squad has answered for this revision
     // Some starters are in their natural slots (the keeper at least), so the backend's grade gives a
     // non-zero count; how many is the formation's slot order, which this test does not pin.
     expect(screen.getByText(/^[1-9]\d* squad\.naturalFit$/)).toBeInTheDocument();
@@ -1248,7 +1251,7 @@ describe("SquadTab", () => {
    * Then "needs cover" is offered once the table has loaded and not before: without the lines
    *      it would drop players it should keep.
    */
-  it("offers the needs-cover filter only once the position table has loaded", () => {
+  it("offers the needs-cover filter only once the position table has loaded", async () => {
     positionTableState.arrived = false;
     try {
       const { unmount } = render(
@@ -1268,6 +1271,7 @@ describe("SquadTab", () => {
     }
 
     renderSquadTab(makeGameState());
+    await act(async () => {}); // the squad has answered for this revision
     fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
     expect(screen.getByRole("option", { name: "squad.needsCover" })).toBeInTheDocument();
   });
@@ -1278,7 +1282,7 @@ describe("SquadTab", () => {
    * Then no coverage is claimed (the badges, the panel and the "needs cover" filter wait), because
    *      natural starters are counted by that grade and every role would read as thin.
    */
-  it("claims no coverage until the familiarity has loaded", () => {
+  it("claims no coverage until the familiarity has loaded", async () => {
     familiarityState.arrived = false;
     try {
       render(
@@ -1302,6 +1306,7 @@ describe("SquadTab", () => {
 
     cleanup();
     renderSquadTab(makeGameState());
+    await act(async () => {}); // the squad has answered for this revision
     expect(screen.getByText("squad.coverageTitle")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("combobox", { name: "common.status" }));
     expect(screen.getByRole("option", { name: "squad.naturalFit" })).toBeInTheDocument();
