@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { createInstance } from "i18next";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
@@ -223,6 +223,9 @@ describe("the player profile's opinion of his potential", () => {
     await waitFor(() =>
       expect(invoke).toHaveBeenCalledWith("get_potential_opinion", { playerId: "player-1" }),
     );
+    // The null answer is applied after the call resolves; flush it, so a tag shown only once the
+    // answer lands would fail here.
+    await act(async () => {});
     expect(screen.queryByText("Wonderkid")).not.toBeInTheDocument();
   });
 });
