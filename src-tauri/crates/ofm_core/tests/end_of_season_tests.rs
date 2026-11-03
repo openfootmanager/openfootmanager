@@ -4033,7 +4033,7 @@ fn retired_this_season_after_thirteen_seasons(
     domain::retired_player::RetiredPlayer::from_player(
         &player,
         "2026-05-20",
-        game.competitions[0].season,
+        game.league.as_ref().map_or(0, |league| league.season),
     )
 }
 
