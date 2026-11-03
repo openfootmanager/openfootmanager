@@ -465,6 +465,87 @@ mod empty_squad_tests {
 }
 
 #[cfg(test)]
+mod emergency_keeper_tests {
+    use crate::live_match::LiveMatchState;
+    use crate::types::{
+        MatchConfig, PlayStyle, PlayerData, PlayerRole, Position, Side, TacticsConfig, TeamData,
+    };
+
+    fn player(id: &str, position: Position) -> PlayerData {
+        PlayerData {
+            id: id.to_string(),
+            name: id.to_string(),
+            position,
+            ovr: 70,
+            condition: 100,
+            fitness: 100,
+            injury_risk: 1.0,
+            // Natural in his own line; in goal, half the player he is (a factor no real cost
+            // reaches, so only the goalkeeping entry can produce it).
+            line_familiarity: [0.5, 1.0, 1.0, 1.0],
+            pace: 70,
+            stamina: 70,
+            strength: 70,
+            agility: 70,
+            passing: 70,
+            shooting: 70,
+            tackling: 70,
+            dribbling: 70,
+            defending: 70,
+            positioning: 70,
+            vision: 70,
+            decisions: 70,
+            composure: 70,
+            aggression: 70,
+            teamwork: 70,
+            leadership: 70,
+            handling: 70,
+            reflexes: 70,
+            aerial: 70,
+            traits: vec![],
+            role: PlayerRole::Standard,
+        }
+    }
+
+    fn side(prefix: &str) -> TeamData {
+        let mut players = vec![player(&format!("{prefix}_gk"), Position::Goalkeeper)];
+        players[0].line_familiarity = [1.0; 4];
+        players.push(player(&format!("{prefix}_d1"), Position::Defender));
+        players.push(player(&format!("{prefix}_d2"), Position::Defender));
+        TeamData {
+            id: prefix.to_string(),
+            name: prefix.to_string(),
+            formation: "4-4-2".to_string(),
+            play_style: PlayStyle::Balanced,
+            tactics: TacticsConfig::default(),
+            players,
+        }
+    }
+
+    /// Given a live match whose home goalkeeper has been sent off, the rest of the side
+    /// defenders who are half the player in goal,
+    /// When a shot or a penalty asks for the home goalkeeper,
+    /// Then the defender who goes in plays at his goalkeeping factor.
+    #[test]
+    fn a_keeper_from_the_outfield_plays_at_his_goalkeeping_factor_in_a_live_match() {
+        let mut state = LiveMatchState::new(
+            side("h"),
+            side("a"),
+            MatchConfig::default(),
+            vec![],
+            vec![],
+            false,
+        );
+        state.test_send_off("h_gk");
+
+        let keeper = state.pick_goalkeeper(Side::Home);
+
+        assert_eq!(keeper.id, "h_d1");
+        assert_eq!(keeper.familiarity, 0.5);
+    }
+}
+
+#[cfg(test)]
 mod short_handed_line_tests {
     use crate::live_match::LiveMatchState;
     use crate::shared::{PlayStylePhase, home_mod, play_style_modifier, tactics_pressing_press};

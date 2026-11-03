@@ -772,4 +772,85 @@ mod bench_fallback_tests {
 
         assert_eq!(on.id, "sub_68");
     }
+
+    /// A substitute of `skill` at `condition`.
+    fn substitute(id: &str, position: Position, skill: u8, condition: u8) -> PlayerData {
+        PlayerData {
+            condition,
+            ..player(id, position, skill)
+        }
+    }
+
+    /// The first name the search returns for `preferred` (and `role`), entering `entering_line`.
+    fn first_choice(
+        bench: Vec<PlayerData>,
+        preferred: Position,
+        entering_line: Position,
+        role: Option<PlayerRole>,
+    ) -> String {
+        let state = LiveMatchState::new(
+            eleven("h"),
+            eleven("a"),
+            MatchConfig::default(),
+            bench,
+            vec![],
+            false,
+        );
+        let obs = state.observe(Side::Home);
+        find_best_bench_replacement(obs.bench, preferred, entering_line, &obs, role)
+            .expect("someone comes on")
+            .id
+            .clone()
+    }
+
+    /// Given two defenders on the bench: one rated 70 but spent (condition 30) and one rated 65
+    /// and fresh,
+    /// When the manager looks for a defender,
+    /// Then the 65 comes on: the 70 plays at 0.6 + 0.4 x 0.3 = 0.72 of himself, 50.4 against 65.
+    #[test]
+    fn a_spent_substitute_is_passed_over_for_a_fresh_one() {
+        let bench = vec![
+            substitute("spent_70", Position::Defender, 70, 30),
+            substitute("fresh_65", Position::Defender, 65, 100),
+        ];
+        assert_eq!(
+            first_choice(bench, Position::Defender, Position::Defender, None),
+            "fresh_65"
+        );
+    }
+
+    /// Given the same pair as midfielders, and no defender on the bench,
+    /// When the manager looks for a defender and so falls back to anyone,
+    /// Then the fresh 65 comes on.
+    #[test]
+    fn the_fallback_passes_over_a_spent_substitute_for_a_fresh_one() {
+        let bench = vec![
+            substitute("spent_70", Position::Midfielder, 70, 30),
+            substitute("fresh_65", Position::Midfielder, 65, 100),
+        ];
+        assert_eq!(
+            first_choice(bench, Position::Defender, Position::Defender, None),
+            "fresh_65"
+        );
+    }
+
+    /// Given the same pair as pressing forwards,
+    /// When a pressing side looks for a pressing forward,
+    /// Then the fresh 65 comes on.
+    #[test]
+    fn a_pressing_side_passes_over_a_spent_pressing_forward_for_a_fresh_one() {
+        let mut spent = substitute("spent_70", Position::Forward, 70, 30);
+        spent.role = PlayerRole::PressingForward;
+        let mut fresh = substitute("fresh_65", Position::Forward, 65, 100);
+        fresh.role = PlayerRole::PressingForward;
+        assert_eq!(
+            first_choice(
+                vec![spent, fresh],
+                Position::Forward,
+                Position::Forward,
+                Some(PlayerRole::PressingForward)
+            ),
+            "fresh_65"
+        );
+    }
 }
