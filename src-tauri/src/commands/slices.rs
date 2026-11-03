@@ -20,6 +20,7 @@ use ofm_core::slices::scouted_report::{query_scouted_report, ScoutedReportView};
 use ofm_core::slices::session::{project_session, SessionState, SessionStateQuery};
 use ofm_core::slices::squad::{query_squad, SquadPlayer};
 use ofm_core::slices::staff::{query_staff, StaffSlice};
+use ofm_core::slices::team_selection::{query_team_selection, TeamSelectionRatings};
 use ofm_core::slices::teams::{
     query_club_league_standing, query_directory, query_team_card, ClubLeagueStanding, TeamCard,
     TeamsDirectory, TeamsDirectoryQuery,
@@ -61,6 +62,23 @@ pub async fn get_team_card(
 fn get_team_card_internal(state: &StateManager, team_id: &str) -> Result<Option<TeamCard>, String> {
     state
         .get_game(|game| query_team_card(game, team_id))
+        .ok_or_else(|| NO_ACTIVE_GAME.to_string())
+}
+
+/// Every club's squad as the team-selection screen rates it, before a career begins; no club once
+/// one has (`slices::team_selection`).
+#[tauri::command]
+pub async fn get_team_selection_ratings(
+    state: State<'_, Arc<StateManager>>,
+) -> Result<TeamSelectionRatings, String> {
+    get_team_selection_ratings_internal(&state)
+}
+
+fn get_team_selection_ratings_internal(
+    state: &StateManager,
+) -> Result<TeamSelectionRatings, String> {
+    state
+        .get_game(query_team_selection)
         .ok_or_else(|| NO_ACTIVE_GAME.to_string())
 }
 
@@ -370,6 +388,16 @@ mod tests {
 
     /// Given no active game, when the roster adapter reads it,
     /// then the existing translated session error is returned.
+    /// Given no active game, when team selection asks for the squads, then the translated session
+    /// error is returned.
+    #[test]
+    fn the_team_selection_adapter_reports_a_missing_session() {
+        assert_eq!(
+            get_team_selection_ratings_internal(&StateManager::new()).unwrap_err(),
+            NO_ACTIVE_GAME
+        );
+    }
+
     #[test]
     fn the_squad_adapter_reports_a_missing_session() {
         assert_eq!(

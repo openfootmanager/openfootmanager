@@ -45,8 +45,9 @@ pub(super) fn project_card(
     }
 }
 
-/// The squad's mean rating, rounded down; 0 for an empty squad.
-fn average_rating(roster: &[&Player]) -> u8 {
+/// The squad's mean rating, rounded down; 0 for an empty squad. The one rule for a squad's
+/// average: the club card's, and the team-selection screen's.
+pub(crate) fn average_rating(roster: &[&Player]) -> u8 {
     if roster.is_empty() {
         return 0;
     }
