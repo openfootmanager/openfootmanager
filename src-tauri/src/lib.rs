@@ -238,6 +238,7 @@ pub fn run() {
             get_players_page,
             get_teams_directory,
             get_team_card,
+            get_team_selection_ratings,
             get_schedule,
             get_news_feed,
             get_messages_page,

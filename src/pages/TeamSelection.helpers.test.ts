@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { TFunction } from "i18next";
 
-import type { FixtureData, LeagueData } from "../store/types";
+import type { FixtureData, LeagueData, PlayerData } from "../store/types";
 import type { GameStateData } from "../store/gameStore";
-import { getPlayerOvr } from "../lib/helpers";
 import { createPlayer, createTeam } from "../test-utils/factories";
 import {
   regionsFromCompetitions,
@@ -15,6 +14,7 @@ import {
   teamCompetitions,
 } from "./TeamSelection.helpers";
 
+import type { ClubSquadRatings } from "../services/teamsService";
 const t = ((key: string, opts?: { defaultValue?: string }) =>
   opts?.defaultValue ?? key) as unknown as TFunction;
 
@@ -88,30 +88,41 @@ describe("teamCompetitions", () => {
 });
 
 describe("likelyXi", () => {
-  it("returns the top 11 players sorted by descending overall", () => {
-    const players = Array.from({ length: 14 }, (_, index) =>
-      createPlayer({
-        id: `p${index}`,
-        attributes: {
-          ...createPlayer().attributes,
-          shooting: 40 + index,
-          passing: 40 + index,
-          pace: 40 + index,
-        },
-      }),
-    );
+  /** A club the backend rated, its players in the order given. */
+  function rated(ids: string[]): ClubSquadRatings {
+    return {
+      team_id: "t1",
+      average_rating: 70,
+      players: ids.map((id, index) => ({ player_id: id, ovr: 90 - index })),
+    };
+  }
+  const byId = (ids: string[]) =>
+    new Map(ids.map((id) => [id, createPlayer({ id })] as [string, PlayerData]));
 
-    const result = likelyXi(players);
+  // Given a club of fourteen, rated best first by the backend
+  // When its likely eleven is read
+  // Then it is the first eleven, in the backend's order
+  it("is the backend's first eleven, in its order", () => {
+    const ids = Array.from({ length: 14 }, (_, index) => `p${index}`);
 
-    expect(result).toHaveLength(11);
-    for (let i = 1; i < result.length; i += 1) {
-      expect(getPlayerOvr(result[i - 1])).toBeGreaterThanOrEqual(getPlayerOvr(result[i]));
-    }
+    const result = likelyXi(rated(ids), byId(ids));
+
+    expect(result.map((player) => player.id)).toEqual(ids.slice(0, 11));
   });
 
-  it("returns all players when fewer than 11 are provided", () => {
-    const players = [createPlayer({ id: "a" }), createPlayer({ id: "b" })];
-    expect(likelyXi(players)).toHaveLength(2);
+  // Given a club of two
+  // When its likely eleven is read
+  // Then it is both
+  it("is the whole squad when it has fewer than eleven", () => {
+    expect(likelyXi(rated(["a", "b"]), byId(["a", "b"]))).toHaveLength(2);
+  });
+
+  // Given a rated player the game state no longer lists, and a club the backend has not rated
+  // When the likely eleven is read
+  // Then the missing player is left out, and an unrated club has none yet
+  it("leaves out a player it cannot find, and has none before the backend answers", () => {
+    expect(likelyXi(rated(["a", "gone"]), byId(["a"])).map((player) => player.id)).toEqual(["a"]);
+    expect(likelyXi(undefined, byId(["a"]))).toEqual([]);
   });
 });
 

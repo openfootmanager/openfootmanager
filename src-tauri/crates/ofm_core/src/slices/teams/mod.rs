@@ -1,5 +1,6 @@
 mod indices;
 mod projection;
+pub(crate) use projection::average_rating;
 
 use super::search_text::{contains_folded, fold_needle};
 use crate::game::Game;
