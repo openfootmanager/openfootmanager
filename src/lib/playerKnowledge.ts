@@ -44,6 +44,9 @@ export interface KnowledgeRevisionInputs {
   /** The season's start: a rollover moves clubs between divisions, and so who is known, without
    *  moving the date. */
   seasonStart?: string | null;
+  /** The day the last season rolled over: a scout's report from before it is out of date, so the
+   *  rollover alone must move the key. */
+  rolloverOn?: string | null;
   /** A profile's player's wage, last, so a renewal moves the key; none for a roster. */
   wage?: number;
 }
@@ -57,6 +60,7 @@ export function knowledgeRevision(inputs: KnowledgeRevisionInputs): string {
     inputs.playerClubId ?? "",
     inputs.managerClubId ?? "",
     inputs.seasonStart ?? "",
+    inputs.rolloverOn ?? "",
     inputs.wage ?? 0,
   ]);
 }
@@ -67,6 +71,7 @@ export interface KnowledgeGame {
   clock: { current_date: string };
   manager: { team_id?: string | null };
   season_context?: { season_start?: string | null } | null;
+  last_season_rollover_on?: string | null;
 }
 
 /**
@@ -83,6 +88,7 @@ export function gameKnowledgeRevision(
     date: game.clock.current_date,
     managerClubId: game.manager.team_id,
     seasonStart: game.season_context?.season_start,
+    rolloverOn: game.last_season_rollover_on,
     ...screenInputs,
   });
 }
