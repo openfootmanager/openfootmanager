@@ -10,7 +10,7 @@
 use serde::Serialize;
 
 use crate::game::Game;
-use crate::slices::teams::average_rating;
+use crate::slices::teams::{average_rating, players_by_club};
 use domain::player::Player;
 
 /// Every club's squad as the team-selection screen rates it; no club at all once a career has
@@ -40,19 +40,20 @@ fn before_a_career(game: &Game) -> bool {
     game.manager.team_id.is_none() && game.manager.career_history.is_empty()
 }
 
+/// Every club's squad as the team-selection screen rates it, before a career begins; no club once
+/// one has begun (see [`TeamSelectionRatings`]). The players are grouped by club in one pass, since
+/// this runs under the game's lock and a world holds thousands of them.
 pub fn query_team_selection(game: &Game) -> TeamSelectionRatings {
     if !before_a_career(game) {
         return TeamSelectionRatings { clubs: Vec::new() };
     }
+    let by_club = players_by_club(&game.players);
     let clubs = game
         .teams
         .iter()
         .map(|team| {
-            let mut squad: Vec<&Player> = game
-                .players
-                .iter()
-                .filter(|player| player.team_id.as_deref() == Some(team.id.as_str()))
-                .collect();
+            let mut squad: Vec<&Player> =
+                by_club.get(team.id.as_str()).cloned().unwrap_or_default();
             squad.sort_by(|left, right| right.ovr.cmp(&left.ovr).then(left.id.cmp(&right.id)));
             ClubSquadRatings {
                 team_id: team.id.clone(),

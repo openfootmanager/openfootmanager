@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import type { GameStateData, LeagueData, PlayerData, TeamData } from "../store/gameStore";
 import { getActiveCompetitions } from "../lib/helpers";
-import { fetchTeamSelectionRatings, type TeamSelectionRatings } from "../services/teamsService";
+import { useTeamSelectionRatings } from "./useTeamSelectionRatings";
 import { buildRegionLabel } from "../lib/teamRegions";
 import { competitionDisplayName } from "../lib/competitionName";
 import { resolveBackendError } from "../utils/backendI18n";
@@ -50,38 +50,7 @@ export function useTeamSelection({
   const [competitionSelection, setCompetitionSelection] = useState<CompetitionSelection>({});
   const [scopeMessage, setScopeMessage] = useState<ScopeMessage | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
-  const [ratings, setRatings] = useState<TeamSelectionRatings | null>(null);
-
-  // Every club's squad as the backend rates it before a career: the screen shows what the backend
-  // decides, not ratings it reads off the game state.
-  useEffect(() => {
-    if (!gameState) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const answer = await fetchTeamSelectionRatings();
-        if (!cancelled) setRatings(answer ?? null);
-      } catch (error: unknown) {
-        console.error("Failed to fetch the squads' ratings", error);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [gameState]);
-  const ratingsByClub = useMemo(
-    () => new Map((ratings?.clubs ?? []).map((club) => [club.team_id, club])),
-    [ratings],
-  );
-  const ratingByPlayer = useMemo(
-    () =>
-      new Map(
-        (ratings?.clubs ?? []).flatMap((club) =>
-          club.players.map((rated) => [rated.player_id, rated.ovr] as const),
-        ),
-      ),
-    [ratings],
-  );
+  const { clubRatings, getTeamAvgOvr, getPlayerRating } = useTeamSelectionRatings(gameState);
   const playersById = useMemo(
     () => new Map((gameState?.players ?? []).map((player) => [player.id, player])),
     [gameState],
@@ -275,17 +244,8 @@ export function useTeamSelection({
   const getTeamPlayers = (teamId: string): PlayerData[] =>
     (gameState?.players ?? []).filter((player) => player.team_id === teamId);
 
-  /** The club's average as the backend rates it; null until it has answered. */
-  const getTeamAvgOvr = (teamId: string): number | null =>
-    ratingsByClub.get(teamId)?.average_rating ?? null;
-
-  /** A player's rating as the backend rates it; null until it has answered. */
-  const getPlayerRating = (playerId: string): number | null => ratingByPlayer.get(playerId) ?? null;
-
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? teams[0] ?? null;
-  const selectedTeamXi = selectedTeam
-    ? likelyXi(ratingsByClub.get(selectedTeam.id), playersById)
-    : [];
+  const selectedTeamXi = selectedTeam ? likelyXi(clubRatings(selectedTeam.id), playersById) : [];
   const selectedTeamCompetitions = selectedTeam
     ? teamCompetitions(selectedTeam.id, competitions)
     : [];

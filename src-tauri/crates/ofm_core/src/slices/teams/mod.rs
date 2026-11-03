@@ -1,5 +1,6 @@
 mod indices;
 mod projection;
+pub(crate) use indices::index_players_by_team as players_by_club;
 pub(crate) use projection::average_rating;
 
 use super::search_text::{contains_folded, fold_needle};

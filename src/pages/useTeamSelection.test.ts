@@ -204,16 +204,19 @@ describe("useTeamSelection home-region club filter", () => {
 });
 
 describe("useTeamSelection ratings", () => {
-  // Given the backend rates team-1's squad before the career (p1 at 77, the club's average 77)
-  // When the hook has its answer
-  // Then the club's average, the player's rating and the likely eleven are the backend's, not
-  //      figures read off the game state
+  /**
+   * Given the backend rates team-1's squad before the career (p1 at 77, the club's average 73,
+   *       which no player of the game state carries)
+   * When the hook has its answer
+   * Then the club's average, the player's rating and the likely eleven are the backend's, not
+   *      figures read off the game state
+   */
   it("reads the squads' ratings from the backend", async () => {
     vi.mocked(invoke).mockImplementation(async (command: string) =>
       command === "get_team_selection_ratings"
         ? {
             clubs: [
-              { team_id: "team-1", average_rating: 77, players: [{ player_id: "p1", ovr: 77 }] },
+              { team_id: "team-1", average_rating: 73, players: [{ player_id: "p1", ovr: 77 }] },
             ],
           }
         : undefined,
@@ -221,7 +224,7 @@ describe("useTeamSelection ratings", () => {
 
     const { result } = renderController();
 
-    await waitFor(() => expect(result.current.getTeamAvgOvr("team-1")).toBe(77));
+    await waitFor(() => expect(result.current.getTeamAvgOvr("team-1")).toBe(73));
     expect(result.current.getPlayerRating("p1")).toBe(77);
     expect(result.current.selectedTeamXi.map((player) => player.id)).toEqual(["p1"]);
   });

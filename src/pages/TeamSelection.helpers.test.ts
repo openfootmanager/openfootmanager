@@ -99,9 +99,11 @@ describe("likelyXi", () => {
   const byId = (ids: string[]) =>
     new Map(ids.map((id) => [id, createPlayer({ id })] as [string, PlayerData]));
 
-  // Given a club of fourteen, rated best first by the backend
-  // When its likely eleven is read
-  // Then it is the first eleven, in the backend's order
+  /**
+   * Given a club of fourteen, rated best first by the backend
+   * When its likely eleven is read
+   * Then it is the first eleven, in the backend's order
+   */
   it("is the backend's first eleven, in its order", () => {
     const ids = Array.from({ length: 14 }, (_, index) => `p${index}`);
 
@@ -110,16 +112,20 @@ describe("likelyXi", () => {
     expect(result.map((player) => player.id)).toEqual(ids.slice(0, 11));
   });
 
-  // Given a club of two
-  // When its likely eleven is read
-  // Then it is both
+  /**
+   * Given a club of two
+   * When its likely eleven is read
+   * Then it is both
+   */
   it("is the whole squad when it has fewer than eleven", () => {
     expect(likelyXi(rated(["a", "b"]), byId(["a", "b"]))).toHaveLength(2);
   });
 
-  // Given a rated player the game state no longer lists, and a club the backend has not rated
-  // When the likely eleven is read
-  // Then the missing player is left out, and an unrated club has none yet
+  /**
+   * Given a rated player the game state no longer lists, and a club the backend has not rated
+   * When the likely eleven is read
+   * Then the missing player is left out, and an unrated club has none yet
+   */
   it("leaves out a player it cannot find, and has none before the backend answers", () => {
     expect(likelyXi(rated(["a", "gone"]), byId(["a"])).map((player) => player.id)).toEqual(["a"]);
     expect(likelyXi(undefined, byId(["a"]))).toEqual([]);
