@@ -344,7 +344,8 @@ describe("StaffTab", () => {
     expect(await screen.findByText("Nina New")).toBeInTheDocument();
 
     await act(async () => {
-      answerOldClub?.(makeStaffSlice([oldCoach]));
+      if (!answerOldClub) throw new Error("the old club's staff fetch was never sent");
+      answerOldClub(makeStaffSlice([oldCoach]));
     });
 
     expect(screen.getByText("Nina New")).toBeInTheDocument();
