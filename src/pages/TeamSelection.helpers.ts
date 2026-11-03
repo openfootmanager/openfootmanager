@@ -1,7 +1,7 @@
 import type { TFunction } from "i18next";
 
 import type { GameStateData, LeagueData, PlayerData, WorldRegionData } from "../store/gameStore";
-import { getPlayerOvr } from "../lib/helpers";
+import type { ClubSquadRatings } from "../services/teamsService";
 import { buildRegionLabel } from "../lib/teamRegions";
 
 export function competitionScopeLabel(t: TFunction, scope?: string): string | null {
@@ -74,8 +74,20 @@ export function teamCompetitions(teamId: string, competitions: LeagueData[]): Le
   );
 }
 
-export function likelyXi(players: PlayerData[]): PlayerData[] {
-  return [...players].sort((left, right) => getPlayerOvr(right) - getPlayerOvr(left)).slice(0, 11);
+/**
+ * A club's likely starting eleven: its best-rated players, in the order the backend rated them
+ * (`get_team_selection_ratings`). A player the game state no longer lists is left out.
+ */
+export function likelyXi(
+  club: ClubSquadRatings | undefined,
+  playersById: Map<string, PlayerData>,
+): PlayerData[] {
+  return (club?.players ?? [])
+    .flatMap((rated) => {
+      const player = playersById.get(rated.player_id);
+      return player ? [player] : [];
+    })
+    .slice(0, 11);
 }
 
 export function sortCompetitions(competitions: LeagueData[]): LeagueData[] {

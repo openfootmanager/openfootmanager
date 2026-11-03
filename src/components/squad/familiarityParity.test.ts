@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlayerData } from "../../store/gameStore";
+import { cannedFamiliarityTable } from "../../test-utils/familiarity";
 import { cannedPositionTable } from "../../test-utils/positionTable";
 import fixture from "./familiarity.generated.json";
 import { getSquadTacticalFit } from "./SquadTab.helpers";
@@ -50,6 +51,36 @@ describe("a player's fit for a slot, as the squad and tactics screens grade it",
         }
       }
     }
+
+    expect(disagreements).toEqual([]);
+  });
+
+  /**
+   * Given the backend's own answer for every position as a natural position, with and without an
+   *       alternate
+   * When the screen tests' stand-in (`cannedFamiliarityTable`) is asked the same questions
+   * Then it gives the backend's word at every one of the 17 positions, so a component test that
+   *      uses it grades as the game does.
+   */
+  it("is what the screen tests' familiarity stand-in says too", () => {
+    const disagreements: string[] = [];
+    expect(fixture).toHaveLength(53);
+
+    (fixture as FixtureRow[]).forEach((row, index) => {
+      const player = {
+        id: `row-${index}`,
+        position: row.position,
+        natural_position: row.natural_position,
+        alternate_positions: row.alternate_positions,
+      } as unknown as PlayerData;
+      const standIn = cannedFamiliarityTable([player]);
+      for (const [slot, word] of Object.entries(row.familiarity)) {
+        const given = standIn.familiarityOf(player.id, slot);
+        if (given !== word) {
+          disagreements.push(`${label(row)} at ${slot}: backend ${word}, stand-in ${given}`);
+        }
+      }
+    });
 
     expect(disagreements).toEqual([]);
   });

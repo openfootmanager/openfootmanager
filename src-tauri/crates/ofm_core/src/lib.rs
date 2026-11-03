@@ -78,6 +78,7 @@ pub mod slices;
 pub mod squad_floor;
 pub mod squad_safety;
 pub(crate) mod stable_hash;
+pub mod staff_rating;
 pub mod state;
 #[cfg(test)]
 mod test_support;
