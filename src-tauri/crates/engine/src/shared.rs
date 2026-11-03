@@ -36,6 +36,8 @@ pub(crate) struct PlayerSnap {
     pub traits: Vec<String>,
     pub role: PlayerRole,
     pub injury_risk: f64,
+    /// The factor on this player's match rating for the line he was picked from.
+    pub familiarity: f64,
 }
 
 impl PlayerSnap {
@@ -71,6 +73,7 @@ impl PlayerSnap {
             traits: Vec::new(),
             role: PlayerRole::Standard,
             injury_risk: 1.0,
+            familiarity: 1.0,
         }
     }
 
@@ -99,6 +102,7 @@ impl PlayerSnap {
             traits: p.traits.clone(),
             role: p.role,
             injury_risk: p.injury_risk,
+            familiarity: p.familiarity_factor(),
         }
     }
 

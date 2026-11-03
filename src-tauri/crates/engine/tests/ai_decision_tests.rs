@@ -25,6 +25,7 @@ fn player(id: &str, position: Position, skill: u8, condition: u8) -> PlayerData 
         condition,
         fitness: 80,
         injury_risk: 1.0,
+        line_familiarity: [1.0; 4],
         pace: skill,
         stamina: skill,
         strength: skill,
@@ -687,4 +688,56 @@ fn the_player_taken_off_is_the_one_with_least_left_to_give() {
     }
 
     panic!("two goals down for a whole match and not one substitution was made");
+}
+
+/// Given a home defender out on his feet, and a bench with no defender on it: a midfielder rated
+/// 72 who is out of position at the back (0.90) and one rated 68 who can play there (0.967),
+/// When the manager replaces the tired defender,
+/// Then the 68 comes on: at the back he brings 68 x 0.967 = 65.8, the 72 only 72 x 0.90 = 64.8.
+#[test]
+fn a_substitute_from_another_line_is_chosen_by_what_he_brings_to_it() {
+    let mut starters = eleven("home", 60, 100);
+    for p in starters.iter_mut() {
+        if p.id == "home_def0" {
+            p.condition = 20;
+        }
+    }
+    let mut misplaced = player("home_sub_mid_72", Position::Midfielder, 72, 100);
+    misplaced.line_familiarity[1] = 0.90;
+    let mut familiar = player("home_sub_mid_68", Position::Midfielder, 68, 100);
+    familiar.line_familiarity[1] = 1.0 - 0.10 / 3.0;
+
+    let mut state = LiveMatchState::new(
+        team("home", starters),
+        team("away", eleven("away", 60, 100)),
+        MatchConfig::default(),
+        vec![misplaced, familiar],
+        bench("away", 55),
+        false,
+    );
+    let mut rng = StdRng::seed_from_u64(5);
+    let manager = profile(100, AiPersonality::Pragmatist);
+
+    loop {
+        if state.step_minute(&mut rng).is_finished {
+            break;
+        }
+        for cmd in ai_decide(&state, Side::Home, &manager, &mut rng) {
+            if let MatchCommand::Substitute {
+                ref player_off_id,
+                ref player_on_id,
+                ..
+            } = cmd
+            {
+                assert_eq!(player_off_id, "home_def0");
+                assert_eq!(
+                    player_on_id, "home_sub_mid_68",
+                    "the manager brought on {player_on_id} at the back"
+                );
+                return;
+            }
+        }
+    }
+
+    panic!("the exhausted defender was never replaced");
 }
