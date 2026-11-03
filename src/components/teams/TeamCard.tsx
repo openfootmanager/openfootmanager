@@ -17,7 +17,7 @@ interface TeamCardProps {
  * status band, and its squad's size and reputation as the two facts.
  *
  * The approved card (round 4, v4) also has the club's manager in the status band; he comes with
- * the manager profile's projection. His last five results are the form dots.
+ * the manager profile's projection. The club's last five results are the form dots.
  */
 export default function TeamCard({ card, isUser, onOpen }: TeamCardProps) {
   const { t, i18n } = useTranslation();
