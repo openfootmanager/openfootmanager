@@ -57,11 +57,14 @@ export function useTeamSelection({
   useEffect(() => {
     if (!gameState) return;
     let cancelled = false;
-    fetchTeamSelectionRatings()
-      .then((answer) => {
+    void (async () => {
+      try {
+        const answer = await fetchTeamSelectionRatings();
         if (!cancelled) setRatings(answer ?? null);
-      })
-      .catch((error: unknown) => console.error("Failed to fetch the squads' ratings", error));
+      } catch (error: unknown) {
+        console.error("Failed to fetch the squads' ratings", error);
+      }
+    })();
     return () => {
       cancelled = true;
     };
